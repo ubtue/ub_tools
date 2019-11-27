@@ -190,6 +190,28 @@ public:
 };
 
 
+/** \class AutoTempDirectory
+ *  \brief Creates a temp directory and removes it when going out of scope.
+ */
+class AutoTempDirectory {
+    std::string path_;
+    bool cleanup_if_exception_is_active_;
+    bool remove_when_out_of_scope_;
+public:
+    explicit AutoTempDirectory(const std::string &path_prefix = "/tmp/ATD",
+                               const bool cleanup_if_exception_is_active = true,
+                               const bool remove_when_out_of_scope = true);
+    AutoTempDirectory(const AutoTempDirectory &rhs) = delete;
+    ~AutoTempDirectory();
+
+    const std::string &getDirectoryPath() const { return path_; }
+};
+
+
+
+
+
+
 bool WriteString(const std::string &path, const std::string &data);
 void WriteStringOrDie(const std::string &path, const std::string &data);
 bool ReadString(const std::string &path, std::string * const data);
@@ -317,24 +339,6 @@ void MakeDirectoryOrDie(const std::string &path, const bool recursive = false, c
  *          for the failure.
  */
 bool RemoveDirectory(const std::string &dir_name);
-
-
-/** \class AutoTempDirectory
- *  \brief Creates a temp directory and removes it when going out of scope.
- */
-class AutoTempDirectory {
-    std::string path_;
-    bool cleanup_if_exception_is_active_;
-    bool remove_when_out_of_scope_;
-public:
-    explicit AutoTempDirectory(const std::string &path_prefix = "/tmp/ATD",
-                               const bool cleanup_if_exception_is_active = true,
-                               const bool remove_when_out_of_scope = true);
-    AutoTempDirectory(const AutoTempDirectory &rhs) = delete;
-    ~AutoTempDirectory();
-
-    const std::string &getDirectoryPath() const { return path_; }
-};
 
 
 /** \brief Removes files and possibly directories matching a regular expression pattern.

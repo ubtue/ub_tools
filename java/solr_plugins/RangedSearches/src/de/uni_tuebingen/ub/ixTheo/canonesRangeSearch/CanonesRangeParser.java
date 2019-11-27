@@ -103,7 +103,7 @@ public class CanonesRangeParser extends QParser {
     @Override
     public Query parse() throws SyntaxError {
         final String queryString = "canon_law_ranges:" + getCanonesPrefixQueryString(getString());
-        final QParser parser = getParser(queryString, "lucene", getReq());
+        final QParser parser = getParser(queryString, "multiLanguageQueryParser", getReq());
         final CanonesRange[] ranges = getRangesFromQuery();
         return new CanonesRangeQuery(parser.parse(), ranges);
     }

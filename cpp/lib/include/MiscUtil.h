@@ -222,4 +222,14 @@ template<typename ElementType> std::set<ElementType> Intersect(const std::unorde
 }
 
 
+enum class PreferredPathLocation { LEADING, TRAILING };
+
+
+/** \brief Add a new component to $PATH.
+ *  \note  The new path component will not be added if it is already a part of $PATH.
+ *  \return True if we added the new path componnent and false if it was already part of $PATH.
+ */
+bool AddToPATH(const std::string &new_directory_path, const PreferredPathLocation preferred_path_location);
+
+
 } // namespace MiscUtil

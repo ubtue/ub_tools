@@ -4,51 +4,63 @@
             "analyzer" : {
                 "fulltext_analyzer" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : ["icu_folding", "snowball_german", "lowercase"]
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase" ],
+                    "char_filter": [ "html_char_filter" ]
                 },
                 "synonyms_all" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_all" ]
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_all" ],
+                    "char_filter": [ "html_char_filter" ]
                 },
                 "synonyms_de" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_de" ]
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_de" ],
+                    "char_filter": [ "html_char_filter" ]
                 },
                 "synonyms_en" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_en" ]
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_en" ],
+                    "char_filter": [ "html_char_filter" ]
                 },
                 "synonyms_fr" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_fr" ]
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_fr" ],
+                    "char_filter": [ "html_char_filter" ]
                 },
                 "synonyms_it" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_it" ]
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_it" ],
+                    "char_filter": [ "html_char_filter" ]
                 },
                 "synonyms_es" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_es" ]
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_es" ],
+                    "char_filter": [ "html_char_filter" ]
                 },
                 "synonyms_pt" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_pt" ]
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_pt" ],
+                    "char_filter": [ "html_char_filter" ]
                 },
                 "synonyms_ru" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_ru" ]
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_ru" ],
+                    "char_filter": [ "html_char_filter" ]
                 },
                 "synonyms_el" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_el" ]
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_el" ],
+                    "char_filter": [ "html_char_filter" ]
                 },
                 "synonyms_hans" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_hans" ]
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_hans" ],
+                    "char_filter": [ "html_char_filter" ]
                 },
                 "synonyms_hant" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_hant" ]
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_hant" ],
+                    "char_filter": [ "html_char_filter" ]
                 }
             },
             "filter" : {
@@ -72,7 +84,7 @@
                     "type" : "synonym_graph",
                     "synonyms_path" : "synonyms/synonyms_fr.txt"
                 },
-                 "synonym_graph_it" : {
+                "synonym_graph_it" : {
                     "type" : "synonym_graph",
                     "synonyms_path" : "synonyms/synonyms_it.txt"
                 },
@@ -100,6 +112,11 @@
                     "type" : "synonym_graph",
                     "synonyms_path" : "synonyms/synonyms_hant.txt"
                 }
+            },
+            "char_filter": {
+               "html_char_filter": {
+                  "type": "html_strip"
+               }
             }
         }
     },
@@ -109,18 +126,14 @@
            "id": {
                "type": "keyword"
            },
-           "full_text": {
-               "type" : "text",
-               "index_options" : "offsets",
-               "term_vector" : "with_positions_offsets_payloads",
-               "analyzer" : "fulltext_analyzer"
+           "page": {
+              "type": "integer"
            },
-           "text_type" : {
-               "type": "keyword"
-           },
-           "expiration": {
-               "type": "date",
-               "format": "strict_date_optional_time"
+           "full_text" : {
+              "type" : "text",
+              "index_options" : "offsets",
+              "term_vector" : "with_positions_offsets_payloads",
+              "analyzer" : "fulltext_analyzer"
            }
        }
    }

@@ -53,9 +53,19 @@ fi
 email_address=$1
 
 
+MUTEX_FILE=/tmp/bsz_download_happened # Must be the same path as in fetch_marc_updates.py!
+if [ ! -e $MUTEX_FILE ]; then
+    no_problems_found=0
+    send_email --recipients="$email_address" --subject="Mutex file not found on $(hostname)" \
+               --message-body="$MUTEX_FILE"' is missing => new data was probably not downloaded!'
+    exit 0
+fi
+
+
 target_filename=Complete-MARC-$(date +%y%m%d).tar.gz
 if [[ -e $target_filename ]]; then
     echo "Nothing to do: ${target_filename} already exists."
+    rm --force $MUTEX_FILE
     exit 0
 fi
 
@@ -75,6 +85,10 @@ mkdir "$extraction_directory"
 cd "$extraction_directory"
 tar xzf ../"$input_filename"
 cd -
+
+if [[ "$(generate_merge_order | wc --lines=1)" == 1 && "${input_filename:0:8}" = "SA-MARC-" ]]; then
+    generate_complete_dumpfile "$input_filename" "$target_filename"
+fi
 
 input_directory=$extraction_directory
 
@@ -122,4 +136,5 @@ else
 fi
 
 
+rm --force $MUTEX_FILE
 no_problems_found=0

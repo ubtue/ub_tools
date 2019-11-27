@@ -52,6 +52,7 @@ public class MultiLanguageQueryParser extends QParser {
     private Query newQuery;
     private Pattern LOCAL_PARAMS_PATTERN = Pattern.compile("(\\{![^}]*\\})");
     private Pattern RANGE_QUERY_PATTERN = Pattern.compile("[\\[\\{](.*)\\s+TO\\s+(.*)[\\]\\}]");
+    private Pattern FIELD_WITH_BOOST_PATTERN = Pattern.compile("(.*)\\^(\\d+)");
 
 
     public MultiLanguageQueryParser(final String searchString, final SolrParams localParams, final SolrParams params,
@@ -107,32 +108,23 @@ public class MultiLanguageQueryParser extends QParser {
             this.newRequest.setParams(newParams);
         }
 
-
         // Handle filter queries
         final String[] filterQueries = newParams.getParams("fq");
         if (filterQueries != null && filterQueries.length > 0) {
             for (final String filterQuery : filterQueries) {
-                final String[] fieldNameAndFilterValues = filterQuery.split(":");
-                final int fieldNameAndFilterValuesLength = fieldNameAndFilterValues.length;
-                // The usual case is an ordinary expression made up of a field + ":" + query
-                // Moreover, we can have complex (i.e. parenthesized) expressions on the right hand side
-                // so we try to replace any field left to a colon
-                if (fieldNameAndFilterValuesLength >= 2) {
-                    String newFilterQuery = new String();
-                    for (int i = 0; i < fieldNameAndFilterValuesLength - 1; ++i) {
-                         final String newFieldExpression = fieldNameAndFilterValues[i] + "_" + lang;
-                         //Strip potential local parameters or a leading opening bracket of any tokens to the left
-                         final String newFieldName = newFieldExpression.replaceAll("(\\{.*\\}|^\\(|.*\\s+)", "");
-                         if (schema.getFieldOrNull(newFieldName) != null)
-                             newFilterQuery += newFieldExpression + ":";
-                         else
-                             newFilterQuery += fieldNameAndFilterValues[i] + ":";
-                    }
-                    newFilterQuery += fieldNameAndFilterValues[fieldNameAndFilterValuesLength - 1];
-                    newParams.remove("fq", filterQuery);
-                    newParams.add("fq", newFilterQuery);
-                } else
-                    throw new MultiLanguageQueryParserException("Cannot appropriately rewrite " + filterQuery);
+                final String newFilterQuery = rewriteFieldsInExpression(filterQuery);
+                newParams.remove("fq", filterQuery);
+                newParams.add("fq", newFilterQuery);
+            }
+        }
+
+        // Handle explainOther parameters (needed for fulltext synonyms)
+        final String[] explainOtherQueries = newParams.getParams("explainOther");
+        if (explainOtherQueries != null && explainOtherQueries.length > 0) {
+            for (final String explainOtherQuery : explainOtherQueries) {
+                 final String newExplainOtherQuery = rewriteFieldsInExpression(explainOtherQuery);
+                 newParams.remove("explainOther", explainOtherQuery);
+                 newParams.add("explainOther", newExplainOtherQuery);
             }
         }
 
@@ -143,6 +135,34 @@ public class MultiLanguageQueryParser extends QParser {
         else
             handleLuceneParser(query, request, lang, schema);
     }
+
+
+    /*
+     * Helper to rewrite existing generic fields to their localized counterparts in parameter expression
+     */
+    private String rewriteFieldsInExpression(final String expression) throws MultiLanguageQueryParserException {
+        final String[] fieldNamesAndArguments = expression.split(":");
+        final int fieldNamesAndArgumentsLength = fieldNamesAndArguments.length;
+        // The usual case is an ordinary expression made up of a field + ":" + query
+        // Moreover, we can have complex (i.e. parenthesized) expressions on the right hand side
+        // so we try to replace any field left to a colon
+        if (fieldNamesAndArgumentsLength >= 2) {
+            StringBuilder newExpression = new StringBuilder();
+            for (int i = 0; i < fieldNamesAndArgumentsLength - 1; ++i) {
+                 final String newFieldExpression = fieldNamesAndArguments[i] + "_" + lang;
+                 // Strip local parameters, opening brackets or other irrelevant tokens to the left
+                 final String newFieldName = newFieldExpression.replaceAll("(\\{.*\\}|^\\(|.*\\s+)", "");
+                 if (schema.getFieldOrNull(newFieldName) != null)
+                     newExpression.append(newFieldExpression + ":");
+                 else
+                     newExpression.append(fieldNamesAndArguments[i] + ":");
+            }
+            newExpression.append(fieldNamesAndArguments[fieldNamesAndArgumentsLength - 1]); // No modifications needed
+            return newExpression.toString();
+        } else
+            throw new MultiLanguageQueryParserException("Cannot appropriately rewrite expression \"" + expression + "\"");
+    }
+
 
 
     /*
@@ -162,21 +182,46 @@ public class MultiLanguageQueryParser extends QParser {
     }
 
 
-    private void handleDismaxParser(String[] queryFields, String lang, IndexSchema schema) {
+    /*
+     * Extract boost from field description
+     */
+    private String extractBoostFromFieldAndBoost(final String param) {
+        Matcher matcher = FIELD_WITH_BOOST_PATTERN.matcher(param);
+        if (matcher.matches())
+            return matcher.group(2);
+        return "";
+    }
+
+
+    /*
+     * Extract only the field from a field description that might also include a boost
+     */
+    private String extractFieldFromFieldAndBoost(final String param) {
+        Matcher matcher = FIELD_WITH_BOOST_PATTERN.matcher(param);
+        if (matcher.matches())
+            return matcher.group(1);
+        return param;
+    }
+
+
+    private void handleDismaxParser(final String[] queryFields, final String lang, final IndexSchema schema) {
         StringBuilder stringBuilder = new StringBuilder();
         // Only replace parameters if qf is indeed set
         if (newParams.get("qf") == null)
             return;
         for (final String param : queryFields) {
             newParams.remove("qf", param);
-            String[] singleParams = param.split(" ");
+            final String[] singleParams = param.split(" ");
             int i = 0;
             for (final String singleParam : singleParams) {
-                String newFieldName = singleParam + "_" + lang;
-                newFieldName = (schema.getFieldOrNull(newFieldName) != null) ? newFieldName : singleParam;
-                stringBuilder.append(newFieldName);
+                // Derive new field and handle boost appropriately
+                final String fieldName = extractFieldFromFieldAndBoost(singleParam);
+                String newFieldName = fieldName + "_" + lang;
+                newFieldName = (schema.getFieldOrNull(newFieldName) != null) ? newFieldName : fieldName;
+                final String boost = extractBoostFromFieldAndBoost(singleParam);
+                stringBuilder.append(newFieldName + (!boost.isEmpty() ? "^" + boost : ""));
                 if (++i < singleParams.length)
-                    stringBuilder.append(" ");
+                    stringBuilder.append(' ');
             }
          }
          newParams.add("qf", stringBuilder.toString());

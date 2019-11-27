@@ -93,7 +93,7 @@ bool Elasticsearch::deleteDocument(const std::string &document_id) {
                                       "    }"
                                       "}");
     const auto result_node(query("_delete_by_query", REST::POST, match_node));
-    return result_node->getIntegerNode("deleted")->getValue() > 0;
+    return result_node->getIntegerNode("deleted")->getValue() >= 0;
 }
 
 
