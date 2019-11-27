@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #
 # A tool for the automation of MARC downloads from the BNB.
@@ -9,9 +9,10 @@ import pexpect
 import pipes
 import process_util
 import re
+import sys
 import time
 import traceback
-import urllib
+import urllib.request
 import util
 import xml.etree.ElementTree as ElementTree
 import zipfile
@@ -19,20 +20,20 @@ import zipfile
 
 def GetNewBNBNumbers(list_no):
     zipped_rdf_filename = "bnbrdf_N" + str(list_no) + ".zip"
-    headers = urllib.urlretrieve("https://www.bl.uk/bibliographic/bnbrdf/bnbrdf_N%d.zip"
-                                 % list_no, zipped_rdf_filename)[1]
-    if headers["Content-type"] != "application/zip":
-        util.Remove(zipped_rdf_filename)
-        return headers["Content-type"]
-
-    print "Downloaded " + zipped_rdf_filename
+    retcode = util.RetrieveFileByURL("https://www.bl.uk/bibliographic/bnbrdf/bnbrdf_N%d.zip" % list_no, 200,
+                                     [ "application/zip" ])
+    if retcode == util.RetrieveFileByURLReturnCode.URL_NOT_FOUND:
+        return []
+    if retcode != util.RetrieveFileByURLReturnCode.SUCCESS:
+        util.Error("util.RetrieveFileByURL() failed w/ return code " + str(retcode))
+    print("Downloaded " + zipped_rdf_filename)
     with zipfile.ZipFile(zipped_rdf_filename, "r") as zip_file:
         zip_file.extractall()
     util.Remove(zipped_rdf_filename)
     rdf_filename = "bnbrdf_N" + str(list_no) + ".rdf"
 
     numbers = []
-    print "About to parse " + rdf_filename
+    print("About to parse " + rdf_filename)
     tree = ElementTree.parse(rdf_filename)
     for child in tree.iter('{http://purl.org/dc/terms/}identifier'):
         if child.text[0:2] == "GB":
@@ -66,14 +67,14 @@ def RetryGetNewBNBNumbers(list_no):
     util.Info("Downloading BBN numbers for list #" + str(list_no))
     MAX_NO_OF_ATTEMPTS = 4
     sleep_interval = 10 # initial sleep interval after a failed attempt in seconds
-    for attempt in xrange(1, MAX_NO_OF_ATTEMPTS):
-        print "Attempt #" + str(attempt)
+    for attempt in range(1, MAX_NO_OF_ATTEMPTS):
+        print("Attempt #" + str(attempt))
         retval = GetNewBNBNumbers(list_no)
         if type(retval) == list:
-            print "Downloaded and extracted " + str(len(retval)) + " BNB numbers."
-            return retval
+            print("Downloaded and extracted " + str(len(retval)) + " BNB numbers.")
+            return None if len(retval) == 0 else retval
         else:
-            print "Content-type of downloaded document was " + retval
+            print("Content-type of downloaded document was " + retval)
             time.sleep(sleep_interval)
             sleep_interval *= 2 # Exponential backoff
     return None
@@ -115,7 +116,7 @@ def DownloadRecordsRange(yaz_client, ranges):
         yaz_client.sendline("find @and @attr 1=48 " + '"' + range + '"'
                             + " @attr 1=13 @or @or @or @or @or @or @or @or @or 20* 21* 22* 23* 24* 25* 26* 27* 28* 29*")
         yaz_client.expect("Number of hits: (\\d+), setno", timeout=1000)
-        count_search = re.search("Number of hits: (\\d+), setno", yaz_client.after)
+        count_search = re.search(b"Number of hits: (\\d+), setno", yaz_client.after)
         if count_search:
             download_count += int(count_search.group(1))
         else:

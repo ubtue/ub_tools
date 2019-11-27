@@ -47,15 +47,13 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--debug] [solr_host_and_port] user_type hostname sender_email "
-              << "email_subject\n"
-              << "  Sends out notification emails for journal subscribers.\n"
-              << "  Should \"solr_host_and_port\" be missing \"localhost:8080\" will be used.\n"
-              << "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm."
-              << "  \"hostname\" should be the symbolic hostname which will be used in constructing\n"
-              << "  URL's that a user might see.\n"
-              << "  If \"--debug\" is given, emails will not be sent and database will not be updated.\n\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("[--debug] [solr_host_and_port] user_type hostname sender_email email_subject\n"
+            "  Sends out notification emails for journal subscribers.\n"
+            "  Should \"solr_host_and_port\" be missing \"localhost:8080\" will be used.\n"
+            "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm."
+            "  \"hostname\" should be the symbolic hostname which will be used in constructing\n"
+            "  URL's that a user might see.\n"
+            "  If \"--debug\" is given, emails will not be sent and database will not be updated.\n");
 }
 
 
@@ -114,13 +112,20 @@ std::string GetIssueId(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
 }
 
 
+const std::string NO_AVAILABLE_TITLE("*No available title*");
+
+
 std::string GetIssueTitle(const std::string &id, const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
-    const std::string NO_AVAILABLE_TITLE("*No available title*");
     const auto issue_title(JSON::LookupString("/title", doc_obj, /* default_value = */ NO_AVAILABLE_TITLE));
     if (unlikely(issue_title == NO_AVAILABLE_TITLE))
         LOG_WARNING("No title found for ID " + id + "!");
 
     return issue_title;
+}
+
+
+inline std::string GetIssueSubtitle(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
+    return JSON::LookupString("/title_sub", doc_obj, /* default_value = */ "");
 }
 
 
@@ -209,7 +214,13 @@ bool ExtractNewIssueInfos(const std::unique_ptr<KeyValueDB> &notified_db,
             continue; // We already sent a notification for this issue.
         new_notification_ids->insert(id);
 
-        const std::string issue_title(GetIssueTitle(id, doc_obj));
+        std::string issue_title(GetIssueTitle(id, doc_obj));
+        if (issue_title != NO_AVAILABLE_TITLE) {
+            const auto subtitle(GetIssueSubtitle(doc_obj));
+            if (not subtitle.empty())
+                issue_title += " : " + subtitle;
+        }
+
         const std::string series_title(GetSeriesTitle(doc_obj));
         const std::vector<std::string> authors(GetAuthors(doc_obj));
 
@@ -250,7 +261,7 @@ bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
     );
 
     std::string json_result, err_msg;
-    if (unlikely(not Solr::Query(QUERY, "id,title,author,last_modification_time,container_ids_and_titles", &json_result, &err_msg,
+    if (unlikely(not Solr::Query(QUERY, "id,title,title_sub,author,last_modification_time,container_ids_and_titles", &json_result, &err_msg,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         LOG_ERROR("Solr query failed or timed-out: \"" + QUERY + "\". (" + err_msg + ")");
 

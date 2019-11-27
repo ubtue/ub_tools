@@ -52,14 +52,16 @@ bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullText
     FullTextCache::Entry entry;
     const bool entry_present(full_text_cache->getEntry(ppn, &entry));
     if (not force_overwrite and entry_present) {
-        if (verbose)
-            LOG_INFO("Skip inserting PPN \"" + ppn + "\" since entry already present");
+        LOG_WARNING("Skip inserting PPN \"" + ppn + "\" since entry already present");
         return true;
     }
 
     if (entry_present)
         full_text_cache->deleteEntry(ppn);
+
     full_text_cache->insertEntry(ppn, full_text_data.full_text_, /* entry_urls = */{});
+    if (not full_text_data.full_text_location_.empty())
+        full_text_cache->extractAndImportHTMLPages(ppn, full_text_data.full_text_location_);
     LOG_INFO("Inserted text from \"" + filename + "\" as entry for PPN \"" + ppn + "\"");
 
     return true;

@@ -358,7 +358,7 @@ Record::KeywordAndSynonyms &Record::KeywordAndSynonyms::swap(KeywordAndSynonyms 
 }
 
 
-Record::Record(const std::string &leader): leader_(leader) {
+Record::Record(const std::string &leader): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */), leader_(leader) {
     if (unlikely(leader_.length() != LEADER_LENGTH))
         LOG_ERROR("supposed leader has invalid length!");
 }
@@ -423,24 +423,24 @@ static std::string TypeOfRecordToString(const Record::TypeOfRecord type_of_recor
 }
 
 
-std::string Record::BibliographicLevelToString(const Record::BibliographicLevel bibliographic_level) {
+char Record::BibliographicLevelToChar(const Record::BibliographicLevel bibliographic_level) {
     switch (bibliographic_level) {
     case Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART:
-        return std::string(1, 'a');
+        return 'a';
     case Record::BibliographicLevel::SERIAL_COMPONENT_PART:
-        return std::string(1, 'b');
+        return 'b';
     case Record::BibliographicLevel::COLLECTION:
-        return std::string(1, 'c');
+        return 'c';
     case Record::BibliographicLevel::SUBUNIT:
-        return std::string(1, 'd');
+        return 'd';
     case Record::BibliographicLevel::INTEGRATING_RESOURCE:
-        return std::string(1, 'i');
+        return 'i';
     case Record::BibliographicLevel::MONOGRAPH_OR_ITEM:
-        return std::string(1, 'm');
+        return 'm';
     case Record::BibliographicLevel::SERIAL:
-        return std::string(1, 's');
+        return 's';
     case Record::BibliographicLevel::UNDEFINED:
-        return std::string(1, ' ');
+        return ' ';
     default:
         LOG_ERROR("unknown bibliographic level: " + std::to_string(static_cast<int>(bibliographic_level)) + "!");
     }
@@ -449,7 +449,7 @@ std::string Record::BibliographicLevelToString(const Record::BibliographicLevel 
 Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
                const std::string &control_number)
 {
-    leader_ = "00000" "n" + TypeOfRecordToString(type_of_record) + BibliographicLevelToString(bibliographic_level)
+    leader_ = "00000" "n" + TypeOfRecordToString(type_of_record) + std::string(1, BibliographicLevelToChar(bibliographic_level))
               + " a22004452  4500";
 
     if (not control_number.empty())
@@ -572,6 +572,33 @@ void Record::merge(const Record &other) {
 }
 
 
+bool Record::isMonograph() const {
+    for (const auto &_935_field : getTagRange("935")) {
+        for (const auto subfield : _935_field.getSubfields()) {
+            if (subfield.code_ == 'c' and subfield.value_ == "so")
+                return false;
+        }
+    }
+
+    return leader_[7] == 'm';
+}
+
+
+bool Record::isArticle() const {
+    if (leader_[7] == 'm') {
+        for (const auto &_935_field : getTagRange("935")) {
+            for (const auto subfield : _935_field.getSubfields()) {
+                if (subfield.code_ == 'c' and subfield.value_ == "so")
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    return leader_[7] == 'a' or leader_[7] == 'b';
+}
+
+
 static const std::set<std::string> ELECTRONIC_CARRIER_TYPES{ "cb", "cd", "ce", "ca", "cf", "ch", "cr", "ck", "cz" };
 
 
@@ -687,7 +714,7 @@ enum Record::BibliographicLevel Record::getBibliographicLevel() {
 
 
 void Record::setBibliographicLevel(const Record::BibliographicLevel new_bibliographic_level) {
-    leader_[7] = BibliographicLevelToString(new_bibliographic_level)[0];
+    leader_[7] = BibliographicLevelToChar(new_bibliographic_level);
 }
 
 
@@ -888,6 +915,31 @@ std::string Record::getSummary() const {
 }
 
 
+static inline bool ConsistsOfDigitsOnly(const std::string &s) {
+    for (const char ch : s) {
+        if (not StringUtil::IsDigit(ch))
+            return false;
+    }
+
+    return true;
+}
+
+
+std::string Record::getPublicationYear() const {
+    const auto _008_field(findTag("008"));
+    if (likely(_008_field != end())) {
+        const auto &field_contents(_008_field->getContents());
+        if (likely(field_contents.length() >= 12)) {
+            const std::string year_candidate(field_contents.substr(7, 4));
+            if (ConsistsOfDigitsOnly(year_candidate) and year_candidate != "9999")
+                return year_candidate;
+        }
+    }
+
+    return "";
+}
+
+
 std::set<std::string> Record::getAllAuthors() const {
     static const std::vector<std::string> AUTHOR_TAGS { "100", "109", "700" };
 
@@ -987,6 +1039,21 @@ std::set<std::string> Record::getRVKs() const {
     }
 
     return rvks;
+}
+
+
+std::set<std::string> Record::getSSGNs() const {
+    std::set<std::string> ssgns;
+    for (const auto &field : getTagRange("084")) {
+        if (field.getFirstSubfieldWithCode('2') == "ssgn") {
+            for (const auto &subfield : field.getSubfields()) {
+                if (subfield.code_ == 'a')
+                    ssgns.insert(StringUtil::TrimWhite(subfield.value_));
+            }
+        }
+    }
+
+    return ssgns;
 }
 
 
@@ -1687,18 +1754,18 @@ bool BinaryReader::seek(const off_t offset, const int whence) {
     } else { // Use memory-mapped I/O.
         switch (whence) {
         case SEEK_SET:
-            if (offset < 0 or static_cast<size_t>(offset) >= input_file_size_)
+            if (offset < 0 or static_cast<size_t>(offset) > input_file_size_)
                 return false;
             offset_ = offset;
             break;
         case SEEK_CUR:
             if (static_cast<ssize_t>(offset_) + offset < 0
-                or static_cast<ssize_t>(offset_) + offset >= static_cast<ssize_t>(input_file_size_))
+                or static_cast<ssize_t>(offset_) + offset > static_cast<ssize_t>(input_file_size_))
                 return false;
             offset_ += offset;
             break;
         case SEEK_END:
-            if (offset < 0 or static_cast<size_t>(offset) >= input_file_size_)
+            if (offset < 0 or static_cast<size_t>(offset) > input_file_size_)
                 return false;
             offset_ = input_file_size_ - offset;
             break;

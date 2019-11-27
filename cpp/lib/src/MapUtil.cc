@@ -20,7 +20,6 @@
 #include "MapUtil.h"
 #include "File.h"
 #include "StringUtil.h"
-#include "util.h"
 
 
 namespace MapUtil {
@@ -38,16 +37,6 @@ std::string Escape(const std::string &s) {
     }
 
     return retval;
-}
-
-
-void SerialiseMap(const std::string &output_filename, const std::unordered_map<std::string, std::string> &map) {
-    std::ofstream output(output_filename, std::ofstream::out | std::ofstream::trunc);
-    if (output.fail())
-        LOG_ERROR("Failed to open \"" + output_filename + "\" for writing!");
-
-    for (const auto &key_and_value : map)
-        output << Escape(key_and_value.first) << '=' << Escape(key_and_value.second) << '\n';
 }
 
 
@@ -101,6 +90,16 @@ void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::s
         else
             (*map)[key] = value;
     }
+}
+
+
+void SerialiseMap(const std::string &output_filename, const std::unordered_map<std::string, std::string> &map) {
+    std::ofstream output(output_filename, std::ofstream::out | std::ofstream::trunc);
+    if (output.fail())
+        LOG_ERROR("Failed to open \"" + output_filename + "\" for writing!");
+
+    for (const auto &key_and_value : map)
+        output << Escape(key_and_value.first) << '=' << Escape(key_and_value.second) << '\n';
 }
 
 

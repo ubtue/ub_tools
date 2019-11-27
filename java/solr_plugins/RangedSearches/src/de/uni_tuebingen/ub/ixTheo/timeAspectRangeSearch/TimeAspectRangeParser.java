@@ -43,7 +43,7 @@ public class TimeAspectRangeParser extends QParser {
     @Override
     public Query parse() throws SyntaxError {
         final String queryString = "time_aspect_ranges:*";
-        final QParser parser = getParser(queryString, "lucene", getReq());
+        final QParser parser = getParser(queryString, "multiLanguageQueryParser", getReq());
         final TimeAspectRange[] ranges = getRangesFromQuery();
         return new TimeAspectRangeQuery(parser.parse(), ranges);
     }

@@ -572,7 +572,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             record->insertField("700", subfields, /* indicator 1 = */'1');
 
         if (not creator->ppn_.empty() or not creator->gnd_number_.empty()) {
-            const std::string _887_data("Autor in der Zoterovorlage [" + creator->last_name_ + ", " + creator->first_name_ + "] maschinell zugeordnet");
+            const std::string _887_data("Autor in der Zoterovorlage [" + creator->last_name_ + ", " + creator->first_name_
+                                        + "] maschinell zugeordnet");
             record->insertField("887", { { 'a', _887_data }, { '2', "ixzom" } });
         }
 
@@ -986,7 +987,7 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
         const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
         if (suppression_regex->second->matched(string_node->getValue())) {
             LOG_DEBUG("suppression regex '" + suppression_regex->second->getPattern() +
-                        "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
+                      "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
             string_node->setValue("");
         }
     }
