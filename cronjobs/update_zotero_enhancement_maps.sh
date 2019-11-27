@@ -6,7 +6,7 @@ set -o errexit -o nounset
 
 no_problems_found=false
 function SendEmail {
-    if [[ $no_problems_found ]]; then
+    if [ "$no_problems_found" = true ]; then
         send_email --priority=low --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
                    --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
         exit 0
