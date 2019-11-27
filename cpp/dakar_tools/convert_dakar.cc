@@ -285,7 +285,7 @@ std::pair<std::string, gnd_role_and_year> ExtractOfficialRoleYearAndGND(const st
     const unsigned year_upper(years.size() == 2 and not years[1].empty() ? StringUtil::ToUnsigned(years[1]) :
                               StringUtil::ToUnsigned(TimeUtil::GetCurrentYear()));
     return std::make_pair(line[0], std::make_tuple(line[1], year_lower, year_upper));
-};
+}
 
 
 void GenericGenerateTupleMultiMapFromCSV(const std::string &csv_filename, std::unordered_multimap<std::string, gnd_role_and_year> * const map,
