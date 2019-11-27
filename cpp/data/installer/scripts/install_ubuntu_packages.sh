@@ -22,7 +22,7 @@ apt-get --yes update
 # install software-properties-common for apt-add-repository
 apt-get --yes install software-properties-common
 wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
-apt-add-repository --yes --update 'deb https://artifacts.elastic.co/packages/6.x/apt stable main'
+apt-add-repository --yes --update 'deb https://artifacts.elastic.co/packages/7.x/apt stable main'
 
 # main installation
 apt-get --quiet --yes --allow-unauthenticated install \
