@@ -528,7 +528,8 @@ void SelectIssnAndPpn(const std::string &issn_zotero, const std::string &issn_on
 
 void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters) {
     const std::string item_type(node_parameters.item_type_);
-    *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, Transformation::MapBiblioLevel(item_type));
+    *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
+                           MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART);
 
     // Control Fields
 
@@ -622,7 +623,6 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
 
     // Review-specific modifications
     if (item_type == "review") {
-        record->getLeader()[7] = MARC::Record::BibliographicLevelToChar(MARC::Record::SERIAL_COMPONENT_PART);
         record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" }, { '2', "gnd-content" } },
                             /* indicator1 = */' ', /* indicator2 = */'7');
     }
