@@ -59,6 +59,9 @@ if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
 
     if [[ $1 == "krimdok" ]]; then
         apt-get --quiet --yes install elasticsearch
+        if ! /usr/share/elasticsearch/bin/elasticsearch-plugin list | grep --quiet analysis-icu; then
+            /usr/share/elasticsearch/bin/elasticsearch-plugin install analysis-icu
+        fi
     fi
 
     apt-get --quiet --yes install \
