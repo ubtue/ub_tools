@@ -169,7 +169,7 @@ void ZoteroLogger::Init() {
     delete logger;
     logger = new ZoteroLogger();
 
-    LOG_INFO("Zotero Logger initialized!");
+    LOG_INFO("Zotero Logger initialized!\n\n\n");
 }
 
 
@@ -203,7 +203,11 @@ TaskletContext *TaskletContextManager::getThreadLocalContext() const {
 const TaskletContextManager TASKLET_CONTEXT_MANAGER;
 
 
-inline static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::Entry * const entry) {
+ThreadUtil::ThreadSafeCounter<unsigned> tasklet_instance_counter;
+ThreadUtil::ThreadSafeCounter<unsigned> future_instance_counter;
+
+
+static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::Entry * const entry) {
     if (row.empty())
         LOG_ERROR("Couldn't extract DeliveryTracker entry from empty DbRow");
 

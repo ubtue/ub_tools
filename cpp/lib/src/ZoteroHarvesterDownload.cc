@@ -95,13 +95,11 @@ void Tasklet::run(const Params &parameters, Result * const result) {
     LOG_INFO("Crawling URL " + parameters.download_item_.toString());
 
     // The crawler implementation is different from the direct download implemenation in that
-    // the meat of the cralwer is implemented in the generic SimpleCrawler class. This means it
-    // cannot be coupled to the download waiting/caching infrastructure offered by the DownloadManager
-    // class. A future improvement would be to write a wrapper for the SimpleCrawler class that will
-    // let us plug-in our own downloader.
+    // the meat of the crawler is implemented in the generic SimpleCrawler class. This means it
+    // cannot be coupled to the download waiting/caching infrastructure offered by the DownloadManager class
     SimpleCrawler::Params crawler_params;
     crawler_params.ignore_robots_dot_txt_ = parameters.ignore_robots_dot_txt_;
-    crawler_params.timeout_ = parameters.time_limit_.getLimit();
+    crawler_params.timeout_ = parameters.per_crawl_url_time_limit_.getLimit();
     crawler_params.user_agent_ = parameters.user_agent_;
 
     SimpleCrawler::SiteDesc site_desc;
@@ -124,11 +122,14 @@ void Tasklet::run(const Params &parameters, Result * const result) {
         site_desc.url_regex_matcher_.reset(RegexMatcher::RegexMatcherFactoryOrDie(crawl_url_regex_str));
     }
 
+    TimeLimit crawl_process_time_limit(parameters.total_crawl_time_limit_.getLimit());
 
     SimpleCrawler crawler(site_desc, crawler_params);
     SimpleCrawler::PageDetails page_details;
+    unsigned num_crawled_urls(0), num_queued_urls(0);
 
-    while (crawler.getNextPage(&page_details)) {
+    while (not crawl_process_time_limit.limitExceeded() and crawler.getNextPage(&page_details)) {
+        ++num_crawled_urls;
         if (page_details.error_message_.empty()) {
             const auto url(page_details.url_);
             if (parameters.download_item_.journal_.crawl_params_.extraction_regex_ == nullptr
@@ -137,9 +138,16 @@ void Tasklet::run(const Params &parameters, Result * const result) {
                 const auto new_download_item(parameters.harvestable_manager_->newHarvestableItem(page_details.url_,
                                                                                                  parameters.download_item_.journal_));
                 result->downloaded_items_.emplace_back(download_manager_->directDownload(new_download_item, parameters.user_agent_));
+                ++num_queued_urls;
             }
         }
     }
+
+    if (crawl_process_time_limit.limitExceeded())
+        LOG_WARNING("process timed-out - not all URLs were crawled");
+
+    LOG_INFO("crawled " + std::to_string(num_crawled_urls) + " URLs, queued "
+             + std::to_string(num_queued_urls) + " URLs for extraction");
 }
 
 
@@ -488,7 +496,7 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
 std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> DownloadManager::crawl(const Util::HarvestableItem &source,
                                                                                          const std::string &user_agent)
 {
-    std::unique_ptr<Crawling::Params> parameters(new Crawling::Params(source, user_agent, DOWNLOAD_TIMEOUT,
+    std::unique_ptr<Crawling::Params> parameters(new Crawling::Params(source, user_agent, DOWNLOAD_TIMEOUT, MAX_CRAWL_TIMEOUT,
                                                  global_params_.ignore_robots_txt_, global_params_.harvestable_manager_));
     std::shared_ptr<Crawling::Tasklet> new_tasklet(new Crawling::Tasklet(&direct_download_tasklet_execution_counter_,
                                                    this, std::move(parameters)));

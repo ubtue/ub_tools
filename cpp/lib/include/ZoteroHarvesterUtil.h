@@ -137,47 +137,7 @@ class Tasklet {
 
     enum Status { NOT_STARTED, RUNNING, COMPLETED_SUCCESS, COMPLETED_ERROR };
 
-    static void *ThreadRoutine(void * parameter) {
-        Tasklet<Parameter, Result> * const tasklet(reinterpret_cast<Tasklet<Parameter, Result> *>(parameter));
-        const auto zotero_logger(dynamic_cast<ZoteroLogger *>(::logger));
-
-        pthread_detach(pthread_self());
-        TASKLET_CONTEXT_MANAGER.setThreadLocalContext(tasklet->context_);
-        zotero_logger->pushContext(tasklet->context_.associated_item_);
-        ++(*tasklet->running_instance_counter_);
-
-        try {
-            {
-                std::lock_guard<std::mutex> lock(tasklet->mutex_);
-                tasklet->status_ = Status::RUNNING;
-            }
-            tasklet->runnable_(*tasklet->parameter_.get(), tasklet->result_.get());
-            {
-                std::lock_guard<std::mutex> lock(tasklet->mutex_);
-                tasklet->status_ = Status::COMPLETED_SUCCESS;
-            }
-        } catch (const std::runtime_error &exception) {
-            LOG_WARNING("exception in tasklet '" + std::to_string(tasklet->thread_id_) + "': " + exception.what()
-                        + "\ntasklet description: "  + tasklet->context_.description_);
-            {
-                std::lock_guard<std::mutex> lock(tasklet->mutex_);
-                tasklet->status_ = Status::COMPLETED_ERROR;
-            }
-        } catch (...) {
-            LOG_WARNING("unknown exception in tasklet '" + std::to_string(tasklet->thread_id_) + "'"
-                        + "\ntasklet description: "  + tasklet->context_.description_);
-            {
-                std::lock_guard<std::mutex> lock(tasklet->mutex_);
-                tasklet->status_ = Status::COMPLETED_ERROR;
-            }
-        }
-
-        zotero_logger->popContext(tasklet->context_.associated_item_);
-        --(*tasklet->running_instance_counter_);
-        pthread_exit(nullptr);
-
-        return nullptr;
-    }
+    static void *ThreadRoutine(void * parameter);
 
     TaskletContext context_;
     ThreadUtil::ThreadSafeCounter<unsigned> * const running_instance_counter_;
@@ -190,32 +150,10 @@ class Tasklet {
 public:
     Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const running_instance_counter, const HarvestableItem &associated_item,
             const std::string &description, const std::function<void(const Parameter &, Result * const)> &runnable,
-            std::unique_ptr<Result> default_result, std::unique_ptr<Parameter> parameter)
-     : context_(associated_item, description), running_instance_counter_(running_instance_counter), status_(Status::NOT_STARTED),
-       runnable_(runnable), result_(std::move(default_result)), parameter_(std::move(parameter)) {}
-    virtual ~Tasklet() {
-        if (not isComplete()) {
-            LOG_WARNING("tasklet '" + std::to_string(thread_id_) + "' is still running!"
-                      + "\ndescription:" + context_.description_);
-
-            if (::pthread_cancel(thread_id_) != 0)
-                LOG_ERROR("failed to cancel tasklet thread '" + std::to_string(thread_id_) + "'!");
-        }
-    }
+            std::unique_ptr<Result> default_result, std::unique_ptr<Parameter> parameter);
+    virtual ~Tasklet();
 public:
-    void start() {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        if (status_ != Status::NOT_STARTED) {
-            LOG_ERROR("tasklet '" + std::to_string(thread_id_) + "' has already been started!"
-                      + "\nstatus = " + std::to_string(status_) + "\ndescription:" + context_.description_);
-        }
-
-        if (::pthread_create(&thread_id_, nullptr, ThreadRoutine, this) != 0)
-            LOG_ERROR("tasklet thread creation failed!\ntasklet description: " + context_.description_);
-
-
-    }
+    void start();
     inline pthread_t getID() const { return thread_id_; }
     inline Status getStatus() const {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -226,37 +164,130 @@ public:
         return status_ == Status::COMPLETED_SUCCESS or status_ == Status::COMPLETED_ERROR;
     }
     inline const Parameter &getParameter() const { return *parameter_.get(); }
-    std::unique_ptr<Result> yieldResult() {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        if (status_ != Status::COMPLETED_SUCCESS) {
-            LOG_ERROR("tasklet '" + std::to_string(thread_id_) + "' has no result!"
-                      + "\nstatus = " + std::to_string(status_) + "\ndescription:" + context_.description_);
-        }
-
-        if (result_ == nullptr) {
-            LOG_ERROR("tasklet '" + std::to_string(thread_id_) + "' has already yielded its result!"
-                      + "\ndescription:" + context_.description_);
-        }
-
-        return std::move(result_);
-    }
-    void await() {
-        // wait until the tasklet has started, as the thread won't be allocated until it does
-        while (getStatus() == Status::NOT_STARTED) {
-            ::usleep(32 * 1000);
-        }
-
-        if (isComplete())
-            return;
-
-        const auto ret_code(::pthread_join(thread_id_, nullptr));
-        if (ret_code != 0) {
-            LOG_ERROR("failed to join tasklet thread '" + std::to_string(thread_id_) + "'!"
-                      " result = " + std::to_string(ret_code));
-        }
-    }
+    std::unique_ptr<Result> yieldResult();
+    void await();
 };
+
+
+extern ThreadUtil::ThreadSafeCounter<unsigned> tasklet_instance_counter;
+
+
+template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::ThreadRoutine(void * parameter) {
+    Tasklet<Parameter, Result> * const tasklet(reinterpret_cast<Tasklet<Parameter, Result> *>(parameter));
+    const auto zotero_logger(dynamic_cast<ZoteroLogger *>(::logger));
+
+    pthread_detach(pthread_self());
+    TASKLET_CONTEXT_MANAGER.setThreadLocalContext(tasklet->context_);
+    zotero_logger->pushContext(tasklet->context_.associated_item_);
+    ++(*tasklet->running_instance_counter_);
+
+    try {
+        {
+            std::lock_guard<std::mutex> lock(tasklet->mutex_);
+            tasklet->status_ = Status::RUNNING;
+        }
+        tasklet->runnable_(*tasklet->parameter_.get(), tasklet->result_.get());
+        {
+            std::lock_guard<std::mutex> lock(tasklet->mutex_);
+            tasklet->status_ = Status::COMPLETED_SUCCESS;
+        }
+    } catch (const std::runtime_error &exception) {
+        LOG_WARNING("exception in tasklet '" + std::to_string(tasklet->thread_id_) + "': " + exception.what()
+                    + "\ntasklet description: "  + tasklet->context_.description_);
+        {
+            std::lock_guard<std::mutex> lock(tasklet->mutex_);
+            tasklet->status_ = Status::COMPLETED_ERROR;
+        }
+    } catch (...) {
+        LOG_WARNING("unknown exception in tasklet '" + std::to_string(tasklet->thread_id_) + "'"
+                    + "\ntasklet description: "  + tasklet->context_.description_);
+        {
+            std::lock_guard<std::mutex> lock(tasklet->mutex_);
+            tasklet->status_ = Status::COMPLETED_ERROR;
+        }
+    }
+
+    zotero_logger->popContext(tasklet->context_.associated_item_);
+    --(*tasklet->running_instance_counter_);
+    pthread_exit(nullptr);
+
+    return nullptr;
+}
+
+
+template<typename Parameter, typename Result>
+Tasklet<Parameter, Result>::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const running_instance_counter,
+                                    const HarvestableItem &associated_item, const std::string &description,
+                                    const std::function<void(const Parameter &, Result * const)> &runnable,
+                                    std::unique_ptr<Result> default_result, std::unique_ptr<Parameter> parameter)
+ : context_(associated_item, description), running_instance_counter_(running_instance_counter), status_(Status::NOT_STARTED),
+   runnable_(runnable), result_(std::move(default_result)), parameter_(std::move(parameter))
+{
+    ++tasklet_instance_counter;
+}
+
+
+template<typename Parameter, typename Result> Tasklet<Parameter, Result>::~Tasklet() {
+    if (not isComplete()) {
+        LOG_WARNING("tasklet '" + std::to_string(thread_id_) + "' is still running!"
+                    + "\ndescription:" + context_.description_);
+
+        if (::pthread_cancel(thread_id_) != 0)
+            LOG_ERROR("failed to cancel tasklet thread '" + std::to_string(thread_id_) + "'!");
+    }
+
+    --tasklet_instance_counter;
+}
+
+
+template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::start() {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    if (status_ != Status::NOT_STARTED) {
+        LOG_ERROR("tasklet '" + std::to_string(thread_id_) + "' has already been started!"
+                    + "\nstatus = " + std::to_string(status_) + "\ndescription:" + context_.description_);
+    }
+
+    if (::pthread_create(&thread_id_, nullptr, ThreadRoutine, this) != 0)
+        LOG_ERROR("tasklet thread creation failed!\ntasklet description: " + context_.description_);
+}
+
+
+template<typename Parameter, typename Result> std::unique_ptr<Result> Tasklet<Parameter, Result>::yieldResult() {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    if (status_ != Status::COMPLETED_SUCCESS) {
+        LOG_ERROR("tasklet '" + std::to_string(thread_id_) + "' has no result!"
+                    + "\nstatus = " + std::to_string(status_) + "\ndescription:" + context_.description_);
+    }
+
+    if (result_ == nullptr) {
+        LOG_ERROR("tasklet '" + std::to_string(thread_id_) + "' has already yielded its result!"
+                    + "\ndescription:" + context_.description_);
+    }
+
+    return std::move(result_);
+}
+
+
+template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::await() {
+    // wait until the tasklet has started, as the thread won't be allocated until it does
+    while (getStatus() == Status::NOT_STARTED) {
+        ::usleep(32 * 1000);
+    }
+
+    if (isComplete())
+        return;
+
+    const auto ret_code(::pthread_join(thread_id_, nullptr));
+    if (ret_code != 0) {
+        LOG_ERROR("failed to join tasklet thread '" + std::to_string(thread_id_) + "'!"
+                    " result = " + std::to_string(ret_code));
+    }
+}
+
+
+extern ThreadUtil::ThreadSafeCounter<unsigned> future_instance_counter;
 
 
 template <typename Parameter, typename Result>
@@ -267,47 +298,75 @@ class Future {
     std::unique_ptr<Result> result_;
     Status status_;
 public:
-    Future(std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet)
-     : source_tasklet_(source_tasklet), status_(WAITING) {}
-    Future(std::unique_ptr<Result> result)
-     : result_(std::move(result)), status_(STATIC_RESULT) {}
+    Future(std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet);
+    Future(std::unique_ptr<Result> result);
+    ~Future();
     Future(const Future<Parameter, Result> &rhs) = delete;
 
-    bool isComplete() const {
-        if (status_ == Status::STATIC_RESULT)
-            return true;
-        else switch (source_tasklet_->getStatus()) {
-        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_SUCCESS:
-        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_ERROR:
-            return true;
-        default:
-            return false;
-        }
-    };
-    bool hasResult() const {
-        if (status_ == Status::STATIC_RESULT)
-            return true;
-        else switch (source_tasklet_->getStatus()) {
-        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_SUCCESS:
-            return true;
-        default:
-            return false;
-        }
-    };
-    Result &getResult() {
-        if (status_ == Status::WAITING) {
-            source_tasklet_->await();
-            if (hasResult()) {
-                result_.reset(source_tasklet_->yieldResult().release());
-                status_ = Status::YIELDED_RESULT;
-            } else
-                status_ = Status::NO_RESULT;
-        }
-
-        return *result_;
-    }
+    bool isComplete() const;
+    bool hasResult() const;
+    Result &getResult();
     inline const Parameter &getParameter() const { return source_tasklet_->getParameter(); }
 };
+
+
+template <typename Parameter, typename Result> Future<Parameter, Result>::Future(
+    std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet)
+ : source_tasklet_(source_tasklet), status_(WAITING)
+{
+    ++future_instance_counter;
+}
+
+
+template <typename Parameter, typename Result> Future<Parameter, Result>::Future(std::unique_ptr<Result> result)
+ : result_(std::move(result)), status_(STATIC_RESULT)
+{
+    ++future_instance_counter;
+}
+
+
+template <typename Parameter, typename Result> Future<Parameter, Result>::~Future() {
+    --future_instance_counter;
+}
+
+
+template <typename Parameter, typename Result> bool Future<Parameter, Result>::isComplete() const {
+    if (status_ == Status::STATIC_RESULT)
+        return true;
+    else switch (source_tasklet_->getStatus()) {
+    case Util::Tasklet<Parameter, Result>::Status::COMPLETED_SUCCESS:
+    case Util::Tasklet<Parameter, Result>::Status::COMPLETED_ERROR:
+        return true;
+    default:
+        return false;
+    }
+};
+
+
+template <typename Parameter, typename Result> bool Future<Parameter, Result>::hasResult() const {
+    if (status_ == Status::STATIC_RESULT)
+        return true;
+    else switch (source_tasklet_->getStatus()) {
+    case Util::Tasklet<Parameter, Result>::Status::COMPLETED_SUCCESS:
+        return true;
+    default:
+        return false;
+    }
+};
+
+
+template <typename Parameter, typename Result> Result &Future<Parameter, Result>::getResult() {
+    if (status_ == Status::WAITING) {
+        source_tasklet_->await();
+        if (hasResult()) {
+            result_.reset(source_tasklet_->yieldResult().release());
+            status_ = Status::YIELDED_RESULT;
+        } else
+            status_ = Status::NO_RESULT;
+    }
+
+    return *result_;
+}
 
 
 // Tracks harvested records that have been uploaded to the BSZ server.
