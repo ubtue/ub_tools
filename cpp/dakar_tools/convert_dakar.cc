@@ -321,6 +321,7 @@ void GetOfficialsMap(const std::string &officials_map_filename, std::unordered_m
      GenericGenerateTupleMultiMapFromCSV(officials_map_filename, officials_map, ExtractOfficialRoleYearAndGND);
 }
 
+
 std::string ExtractAndFormatSource(const std::string &candidate, const std::string additional_information) {
     // Try to extract volume, year and pages
     std::string source(StringUtil::Trim(candidate));
@@ -346,7 +347,6 @@ void AugmentDBEntries(DbConnection &db_connection,
                       const std::unordered_multimap<std::string, gnd_role_and_year> &bishop_map,
                       const std::unordered_multimap<std::string, gnd_role_and_year> &officials_map) 
 {
-
     // Iterate over Database
     const std::string ikr_query("SELECT id,autor,stichwort,cicbezug,fundstelle,jahr FROM ikr");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(ikr_query, &db_connection));
@@ -473,7 +473,7 @@ int Main(int argc, char **argv) {
      if (argc < 2)
          Usage();
      bool generate_list(false);
-     bool skip_empty(true); //Do no insert entries without matches in the final lookup lists
+     bool skip_empty(true); //Do not insert entries without matches in the final lookup lists
      bool generate_gnd_link(false); // Export GND numbers as links
      bool use_find_discovery_map(false); //Extract GND and vol, year, pages information
      bool use_bishop_map(false); // Map bishops as editors to their GND depending on their tenure
