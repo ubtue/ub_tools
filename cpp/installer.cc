@@ -374,12 +374,11 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
 }
 
 
-void CreateUsrLocalRun() {
-    const std::string USR_LOCAL_RUN("/usr/local/run");
-    if (FileUtil::IsDirectory(USR_LOCAL_RUN))
+void CreateDirectoryIfNotExistsOrDie(const std::string &directory) {
+    if (FileUtil::IsDirectory(directory))
         return;
-    if (not FileUtil::MakeDirectory(USR_LOCAL_RUN))
-        Error("failed to create \"" + USR_LOCAL_RUN + "\"!");
+    if (not FileUtil::MakeDirectory(directory))
+        Error("failed to create \"" + directory + "\"!");
 }
 
 
@@ -436,7 +435,7 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
 
     CreateUbToolsDatabase(os_system_type);
     GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
-    CreateUsrLocalRun();
+    CreateDirectoryIfNotExistsOrDie("/usr/local/run");
 
     Echo("Installed ub_tools.");
 }
@@ -781,6 +780,7 @@ int Main(int argc, char **argv) {
 
     if (not ub_tools_only) {
         MountDeptDriveOrDie(vufind_system_type);
+        CreateDirectoryIfNotExistsOrDie("/mnt/zram");
         DownloadVuFind();
         #ifndef __clang__
         #   pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
