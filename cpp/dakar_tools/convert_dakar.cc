@@ -290,7 +290,8 @@ std::pair<std::string, gnd_role_and_year> ExtractOfficialRoleYearAndGND(const st
 
 
 void GenericGenerateTupleMultiMapFromCSV(const std::string &csv_filename, std::unordered_multimap<std::string, gnd_role_and_year> * const map,
-                                    std::function<std::pair<std::string, gnd_role_and_year>(const std::vector<std::string>)> extractor) {
+                                    std::function<std::pair<std::string, gnd_role_and_year>(const std::vector<std::string>)> extractor)
+{
     std::vector<std::vector<std::string>> lines;
     TextUtil::ParseCSVFileOrDie(csv_filename, &lines);
     std::transform(lines.begin(), lines.end(), std::inserter(*map, map->begin()), extractor);
@@ -298,7 +299,8 @@ void GenericGenerateTupleMultiMapFromCSV(const std::string &csv_filename, std::u
 
 
 void GenericGenerateMapFromCSV(const std::string &csv_filename, std::unordered_map<std::string, std::string> * const map,
-                               std::function<std::pair<std::string,std::string>(const std::vector<std::string>)> extractor) {
+                               std::function<std::pair<std::string,std::string>(const std::vector<std::string>)> extractor)
+{
     std::vector<std::vector<std::string>> lines;
     TextUtil::ParseCSVFileOrDie(csv_filename, &lines);
     std::transform(lines.begin(), lines.end(), std::inserter(*map, map->begin()), extractor);
@@ -324,11 +326,11 @@ std::string ExtractAndFormatSource(const std::string &candidate, const std::stri
     std::string source(StringUtil::Trim(candidate));
     StringUtil::Map(&source, ",()=;", "     ");
     std::vector<std::string> components;
-    StringUtil::Split(source, ' ', &components, true);
+    StringUtil::Split(source, ' ', &components, true /* suppress empty components */);
     if (components.size() == 3)
         return StringUtil::Join(components, ", ");
     // Try to extract a year from the left side of the original match
-    std::regex plausible_year("\\b[12][901][0-9][0-9]\\b");
+    const std::regex plausible_year("\\b[12][901][0-9][0-9]\\b");
     std::smatch match;
     if (regex_search(additional_information, match, plausible_year))
         components.emplace_back(match.str());
@@ -342,7 +344,8 @@ void AugmentDBEntries(DbConnection &db_connection,
                       const std::unordered_map<std::string,std::string> &cic_to_gnd_result_map,
                       const std::unordered_map<std::string,std::string> &find_discovery_map,
                       const std::unordered_multimap<std::string, gnd_role_and_year> &bishop_map,
-                      const std::unordered_multimap<std::string, gnd_role_and_year> &officials_map) {
+                      const std::unordered_multimap<std::string, gnd_role_and_year> &officials_map) 
+{
 
     // Iterate over Database
     const std::string ikr_query("SELECT id,autor,stichwort,cicbezug,fundstelle,jahr FROM ikr");
@@ -400,7 +403,6 @@ void AugmentDBEntries(DbConnection &db_connection,
         // Only write back non-empty string if we have at least one reasonable entry
         const std::string c_gnd_content(cic_gnd_seen ? StringUtil::Join(cic_gnd_numbers, ";") : "");
 
-
         // Fundstellen
         const std::string fundstelle_row(db_row["fundstelle"]);
         std::string f_ppn;
@@ -409,12 +411,12 @@ void AugmentDBEntries(DbConnection &db_connection,
             size_t start, end;
             if (RegexMatcher::Matched("(?<!\\pL)" + entry.second + "(?!\\pL)", fundstelle_row, RegexMatcher::ENABLE_UTF8, nullptr, &start, &end)) {
                 f_ppn = entry.first;
-                f_quelle = ExtractAndFormatSource(fundstelle_row.substr(end, std::string::npos), fundstelle_row.substr(0, start));
+                f_quelle = ExtractAndFormatSource(fundstelle_row.substr(end), fundstelle_row.substr(0, start));
                 break;
             }
         }
 
-        // Bishops role and year to personal GND
+        // Map Bishops role and year to personal GND number
         // In this context we hopefully don't have clashes if we split on comma
         StringUtil::SplitThenTrimWhite(author_row, ";,", &authors_in_row);
         const std::string year_row(db_row["jahr"]);
@@ -422,7 +424,7 @@ void AugmentDBEntries(DbConnection &db_connection,
         for (const auto &one_author : authors_in_row) {
              auto match_range(bishop_map.equal_range(one_author));
              for (auto gnd_and_years(match_range.first); gnd_and_years != match_range.second; ++gnd_and_years) {
-                 unsigned year(std::atoi(year_row.c_str()));
+                 const unsigned year(StringUtil::ToUnsigned(year_row));
                  if (std::get<1>(gnd_and_years->second) <= year and std::get<2>(gnd_and_years->second) >= year) {
                      const std::string gnd(std::get<0>(gnd_and_years->second));
                      bishop_gnds.emplace_back(gnd);
@@ -435,26 +437,23 @@ void AugmentDBEntries(DbConnection &db_connection,
             a_gnd_content = not a_gnd_content.empty() ? a_gnd_content + ',' + gnds : gnds;
         }
 
-
-        // Officials role to personal GND
+        // Map Officials' role to personal GND number
         std::vector<std::string> officials_gnds;
         for (const auto &one_author : authors_in_row) {
             auto match_range(officials_map.equal_range(one_author));
-             for (auto gnd_and_years(match_range.first); gnd_and_years != match_range.second; ++gnd_and_years) {
-                 unsigned year(std::atoi(year_row.c_str()));
-                 if (std::get<1>(gnd_and_years->second) <= year and std::get<2>(gnd_and_years->second) >= year) {
-                     const std::string gnd(std::get<0>(gnd_and_years->second));
-                         officials_gnds.emplace_back(gnd);
-                         break;
-                 }
-             }
+            for (auto gnd_and_years(match_range.first); gnd_and_years != match_range.second; ++gnd_and_years) {
+                unsigned year(std::atoi(year_row.c_str()));
+                if (std::get<1>(gnd_and_years->second) <= year and std::get<2>(gnd_and_years->second) >= year) {
+                    const std::string gnd(std::get<0>(gnd_and_years->second));
+                        officials_gnds.emplace_back(gnd);
+                        break;
+                }
+            }
         }
         if (not officials_gnds.empty()) {
             const std::string gnds(StringUtil::Join(officials_gnds, ','));
             a_gnd_content = not a_gnd_content.empty() ? a_gnd_content + ',' + gnds : gnds;
         }
-
-
 
         // Write back the new entries
         const std::string id(db_row["id"]);
