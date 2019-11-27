@@ -324,7 +324,7 @@ bool IsDirectory(const std::string &dir_name);
 
 /** \brief  Create a directory.
  *  \param  path       The path to create.
- *  \param  recursive  If true, attempt to recursively create parent directoris too.
+ *  \param  recursive  If true, attempt to recursively create parent directories too.
  *  \param  mode       The access permission for the directory/directories that will be created.
  *  \return True if the directory already existed or has been created else false.
  */
