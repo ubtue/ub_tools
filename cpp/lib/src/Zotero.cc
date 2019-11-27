@@ -620,8 +620,10 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     }
 
     // Review-specific modifications
-    if (item_type == "review")
-        record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" } }, /* indicator1 = */' ', /* indicator2 = */'7');
+    if (item_type == "review") {
+        record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" }, { '2', "gnd-content" } },
+                            /* indicator1 = */' ', /* indicator2 = */'7');
+    }
 
     // License data
     const std::string license(node_parameters.license_);
