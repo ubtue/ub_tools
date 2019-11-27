@@ -445,8 +445,8 @@ void AugmentDBEntries(DbConnection &db_connection,
                 unsigned year(std::atoi(year_row.c_str()));
                 if (std::get<1>(gnd_and_years->second) <= year and std::get<2>(gnd_and_years->second) >= year) {
                     const std::string gnd(std::get<0>(gnd_and_years->second));
-                        officials_gnds.emplace_back(gnd);
-                        break;
+                    officials_gnds.emplace_back(gnd);
+                    break;
                 }
             }
         }
