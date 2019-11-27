@@ -1,0 +1,9 @@
+Frühmittelalter:Mittelalter/Geschichte 500-900
+Rechtsgeschichte:Recht/Geschichte
+Religionsgeschichte:Religion/Geschichte
+Kindererziehung:Kind/Erziehung
+Kirchenasyl:Asyl/Kirche
+Evangelisches Kirchenrecht:Kirchenrecht/Evangelische Kirche
+Konzilsgeschichte:Konzil/Geschichte
+Papstgeschichte:Papst/Geschichte
+Religionsrecht:Religion/Recht
