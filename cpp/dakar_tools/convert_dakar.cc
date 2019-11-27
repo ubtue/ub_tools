@@ -273,7 +273,7 @@ std::pair<std::string, gnd_role_and_year> ExtractBishopRoleYearAndGND(const std:
     StringUtil::Split(years_expression, '-', &years);
     const unsigned year_lower(years.size() >= 1 and not years[0].empty() ? StringUtil::ToUnsigned(years[0]) : 0);
     const unsigned year_upper(years.size() == 2 and not years[1].empty() ? StringUtil::ToUnsigned(years[1]) :
-                        StringUtil::ToUnsigned(TimeUtil::GetCurrentYear()));
+                              StringUtil::ToUnsigned(TimeUtil::GetCurrentYear()));
     return std::make_pair(line[0], std::make_tuple(line[2], year_lower, year_upper));
 }
 
@@ -284,7 +284,7 @@ std::pair<std::string, gnd_role_and_year> ExtractOfficialRoleYearAndGND(const st
     StringUtil::Split(years_expression, '-', &years);
     const unsigned year_lower(years.size() >= 1 and not years[0].empty() ? StringUtil::ToUnsigned(years[0]) : 0);
     const unsigned year_upper(years.size() == 2 and not years[1].empty() ? StringUtil::ToUnsigned(years[1]) :
-                        StringUtil::ToUnsigned(TimeUtil::GetCurrentYear()));
+                              StringUtil::ToUnsigned(TimeUtil::GetCurrentYear()));
     return std::make_pair(line[0], std::make_tuple(line[1], year_lower, year_upper));
 };
 
