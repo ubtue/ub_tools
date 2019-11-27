@@ -483,9 +483,9 @@ int Main(int argc, char **argv) {
          --argc, ++argv;
 
      if (std::strcmp(argv[1], "--generate-list") == 0) {
-        generate_list=true;
-        skip_empty=false;
-        generate_gnd_link=true;
+        generate_list = true;
+        skip_empty = false;
+        generate_gnd_link = true;
         --argc, ++argv;
      }
 
