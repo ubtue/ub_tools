@@ -473,7 +473,7 @@ int Main(int argc, char **argv) {
      if (argc < 2)
          Usage();
      bool generate_list(false);
-     bool skip_empty(true); //Do no insert entries without matches the final lookup lists
+     bool skip_empty(true); //Do no insert entries without matches in the final lookup lists
      bool generate_gnd_link(false); // Export GND numbers as links
      bool use_find_discovery_map(false); //Extract GND and vol, year, pages information
      bool use_bishop_map(false); // Map bishops as editors to their GND depending on their tenure
