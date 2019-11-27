@@ -26,8 +26,8 @@
 #include <iostream>
 #include <map>
 #include <regex>
-#include <stdio.h>
 #include <vector>
+#include <cstdio>
 #include <cstdlib>
 #include "Compiler.h"
 #include "DbConnection.h"
@@ -46,15 +46,14 @@ const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "dakar.conf");
 const std::string NOT_AVAILABLE("N/A");
 typedef std::tuple<std::string, unsigned, unsigned> gnd_role_and_year;
 
+
 namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " --generate-list authority_data" << '\n' <<
-                                            " --augment-db authority_data [find_of_discovery_map_file bishop_rewrite_map official_rewrite_map" << '\n';
-
-    std::cerr << "       no operation mode means --augment-db\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage(std::string("--generate-list authority_data\n") +
+            "--augment-db authority_data [find_of_discovery_map_file bishop_rewrite_map official_rewrite_map\n" +
+            "    no operation mode means --augment-db");
 }
 
 
@@ -261,21 +260,31 @@ void GetCICGNDResultMap(DbConnection &db_connection,
     }
 }
 
-auto ExtractPPNAndDiscoverAbbrev = [](const std::vector<std::string> line) { return std::make_pair(line[0], line[1]); };
-auto ExtractBishopRoleYearAndGND = [](const std::vector<std::string> line) { std::vector<std::string> years;
-                                                                             const std::string years_expression(line.size() >= 4 ? line[3] : "");
-                                                                             StringUtil::Split(years_expression, '-', &years);
-                                                                             unsigned year_lower(years.size() >= 1 and not years[0].empty() ? std::atoi(years[0].c_str()) : 0);
-                                                                             unsigned year_upper(years.size() == 2 and not years[1].empty() ? std::atoi(years[1].c_str()) : 
-                                                                                                 std::atoi(__DATE__ + 7) /*this is the current year*/);
-                                                                             return std::make_pair(line[0], std::make_tuple(line[2], year_lower, year_upper)); };
-auto ExtractOfficialRoleYearAndGND = [](const std::vector<std::string> line) { std::vector<std::string> years;
-                                                                             const std::string years_expression(line.size() >= 3 ? line[2] : "");
-                                                                             StringUtil::Split(years_expression, '-', &years);
-                                                                             unsigned year_lower(years.size() >= 1 and not years[0].empty() ? std::atoi(years[0].c_str()) : 0);
-                                                                             unsigned year_upper(years.size() == 2 and not years[1].empty() ? std::atoi(years[1].c_str()) :
-                                                                                                 std::atoi(__DATE__ + 7) /*this is the current year*/);
-                                                                             return std::make_pair(line[0], std::make_tuple(line[1], year_lower, year_upper)); };
+std::pair<std::string,std::string> ExtractPPNAndDiscoverAbbrev(const std::vector<std::string> &line) {
+    return std::make_pair(line[0], line[1]);
+}
+
+
+std::pair<std::string, gnd_role_and_year> ExtractBishopRoleYearAndGND(const std::vector<std::string> &line) {
+    std::vector<std::string> years;
+    const std::string years_expression(line.size() >= 4 ? line[3] : "");
+    StringUtil::Split(years_expression, '-', &years);
+    unsigned year_lower(years.size() >= 1 and not years[0].empty() ? StringUtil::ToNumber(years[0]) : 0);
+    unsigned year_upper(years.size() == 2 and not years[1].empty() ? StringUtil::ToNumber(years[1]) :
+                        std::atoi(__DATE__ + 7) /*this is the current year*/);
+    return std::make_pair(line[0], std::make_tuple(line[2], year_lower, year_upper));
+}
+
+
+std::pair<std::string, gnd_role_and_year> ExtractOfficialRoleYearAndGND(const std::vector<std::string> &line) {
+    std::vector<std::string> years;
+    const std::string years_expression(line.size() >= 3 ? line[2] : "");
+    StringUtil::Split(years_expression, '-', &years);
+    unsigned year_lower(years.size() >= 1 and not years[0].empty() ? StringUtil::ToNumber(years[0]) : 0);
+    unsigned year_upper(years.size() == 2 and not years[1].empty() ? StringUtil::ToNumber(years[1]) :
+                        std::atoi(__DATE__ + 7) /*this is the current year*/);
+    return std::make_pair(line[0], std::make_tuple(line[1], year_lower, year_upper));
+};
 
 
 void GenericGenerateTupleMultiMapFromCSV(std::string csv_filename, std::unordered_multimap<std::string, gnd_role_and_year> * const map,
