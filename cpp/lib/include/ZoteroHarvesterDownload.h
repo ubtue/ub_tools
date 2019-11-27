@@ -92,14 +92,17 @@ namespace Crawling {
 struct Params {
     Util::HarvestableItem download_item_;
     std::string user_agent_;
-    TimeLimit time_limit_;
+    TimeLimit per_crawl_url_time_limit_;
+    TimeLimit total_crawl_time_limit_;
     bool ignore_robots_dot_txt_;
     Util::HarvestableItemManager * const harvestable_manager_;
 public:
-    explicit Params(const Util::HarvestableItem &download_item, const std::string user_agent, const TimeLimit time_limit,
-                    const bool ignore_robots_dot_txt, Util::HarvestableItemManager * const harvestable_manager)
-     : download_item_(download_item), user_agent_(user_agent), time_limit_(time_limit),
-       ignore_robots_dot_txt_(ignore_robots_dot_txt), harvestable_manager_(harvestable_manager) {}
+    explicit Params(const Util::HarvestableItem &download_item, const std::string user_agent, const TimeLimit per_crawl_url_time_limit,
+                    const TimeLimit total_crawl_time_limit, const bool ignore_robots_dot_txt,
+                    Util::HarvestableItemManager * const harvestable_manager)
+     : download_item_(download_item), user_agent_(user_agent), per_crawl_url_time_limit_(per_crawl_url_time_limit),
+       total_crawl_time_limit_(total_crawl_time_limit), ignore_robots_dot_txt_(ignore_robots_dot_txt),
+       harvestable_manager_(harvestable_manager) {}
 };
 
 
@@ -230,7 +233,6 @@ private:
         std::deque<std::shared_ptr<RSS::Tasklet>> queued_rss_feeds_;
     public:
         DomainData(const DelayParams &delay_params) : delay_params_(delay_params) {};
-        ~DomainData() = default;
     };
 
     struct CachedDownloadData {
@@ -242,7 +244,8 @@ private:
     static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 50;
     static constexpr unsigned MAX_CRAWLING_TASKLETS        = 50;
     static constexpr unsigned MAX_RSS_TASKLETS             = 50;
-    static constexpr unsigned DOWNLOAD_TIMEOUT             = 30000; // in ms
+    static constexpr unsigned DOWNLOAD_TIMEOUT             = 1000 * 30;      // in ms
+    static constexpr unsigned MAX_CRAWL_TIMEOUT            = 1000 * 60 * 10; // in ms
 
     GlobalParams global_params_;
     pthread_t background_thread_;

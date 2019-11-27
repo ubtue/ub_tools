@@ -245,7 +245,7 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
             for (auto &result : journal_datastore->current_crawl_->getResult().downloaded_items_)
                 journal_datastore->queued_downloads_.emplace_back(result.release());
 
-            journal_datastore->current_crawl_.release();
+            journal_datastore->current_crawl_.reset();
         } else
             *jobs_in_progress = true;
     }
@@ -255,7 +255,7 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
             for (auto &result : journal_datastore->current_rss_feed_->getResult().downloaded_items_)
                 journal_datastore->queued_downloads_.emplace_back(result.release());
 
-            journal_datastore->current_rss_feed_.release();
+            journal_datastore->current_rss_feed_.reset();
         } else
             *jobs_in_progress = true;
     }
@@ -352,7 +352,7 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
 
         if (not active_conversion->getResult().marc_records_.empty()) {
             LOG_INFO("Writing " + std::to_string(active_conversion->getResult().marc_records_.size()) + " record(s) for "
-                    "item " + active_conversion->getParameter().download_item_.toString());
+                     "item " + active_conversion->getParameter().download_item_.toString());
 
             const auto &writer(outputfile_cache->getWriter(active_conversion->getParameter().group_params_));
             for (const auto &record : active_conversion->getResult().marc_records_)
@@ -380,27 +380,27 @@ int Main(int argc, char *argv[]) {
     CommandLineArgs commandline_args;
     ParseCommandLineArgs(&argc, &argv, &commandline_args);
 
-    HarvesterConfigData harvester_config;
-    LoadHarvesterConfig(commandline_args.config_path_, &harvester_config);
+    std::unique_ptr<HarvesterConfigData> harvester_config(new HarvesterConfigData);
+    LoadHarvesterConfig(commandline_args.config_path_, harvester_config.get());
 
-    Util::HarvestableItemManager harvestable_manager(harvester_config.journal_params_);
+    std::unique_ptr<Util::HarvestableItemManager> harvestable_manager(new Util::HarvestableItemManager(harvester_config->journal_params_));
 
-    Download::DownloadManager::GlobalParams download_manager_params(*harvester_config.global_params_, &harvestable_manager);
+    Download::DownloadManager::GlobalParams download_manager_params(*harvester_config->global_params_, harvestable_manager.get());
     download_manager_params.force_downloads_ = commandline_args.force_downloads_;
     download_manager_params.ignore_robots_txt_ = commandline_args.ignore_robots_dot_txt_;
-    Download::DownloadManager download_manager(download_manager_params);
+    std::unique_ptr<Download::DownloadManager> download_manager(new Download::DownloadManager(download_manager_params));
 
     Conversion::ConversionManager::GlobalParams conversion_manager_params(commandline_args.force_downloads_,
-                                                                          harvester_config.global_params_->skip_online_first_articles_unconditonally_,
-                                                                          *harvester_config.enhancement_maps);
-    Conversion::ConversionManager conversion_manager(conversion_manager_params);
-    OutputFileCache output_file_cache(commandline_args, harvester_config);
+                                                                          harvester_config->global_params_->skip_online_first_articles_unconditonally_,
+                                                                          *harvester_config->enhancement_maps);
+    std::unique_ptr<Conversion::ConversionManager> conversion_manager(new Conversion::ConversionManager(conversion_manager_params));
+    std::unique_ptr<OutputFileCache> output_file_cache(new OutputFileCache(commandline_args, *harvester_config));
 
     std::vector<std::unique_ptr<JournalDatastore>> journal_datastores;
-    journal_datastores.reserve(harvester_config.journal_params_.size());
+    journal_datastores.reserve(harvester_config->journal_params_.size());
 
     // queue downloads for all selected journals
-    for (const auto &journal : harvester_config.journal_params_) {
+    for (const auto &journal : harvester_config->journal_params_) {
         bool skip_journal(false);
 
         if (commandline_args.selection_mode_ == CommandLineArgs::SelectionMode::UPLOAD
@@ -418,7 +418,8 @@ int Main(int argc, char *argv[]) {
         if (skip_journal)
             continue;
 
-        auto current_journal_datastore(QueueDownloadsForJournal(*journal, harvester_config, &harvestable_manager, &download_manager));
+        auto current_journal_datastore(QueueDownloadsForJournal(*journal, *harvester_config, harvestable_manager.get(),
+                                       download_manager.get()));
         journal_datastores.emplace_back(std::move(current_journal_datastore));
     }
 
@@ -430,8 +431,8 @@ int Main(int argc, char *argv[]) {
 
         for (auto &journal_datastore : journal_datastores) {
             EnqueueCrawlAndRssResults(journal_datastore.get(), &jobs_running);
-            EnqueueCompletedDownloadsForConversion(journal_datastore.get(), &jobs_running, &conversion_manager, harvester_config);
-            WriteConversionResultsToDisk(journal_datastore.get(), &output_file_cache, &num_converted_records);
+            EnqueueCompletedDownloadsForConversion(journal_datastore.get(), &jobs_running, conversion_manager.get(), *harvester_config);
+            WriteConversionResultsToDisk(journal_datastore.get(), output_file_cache.get(), &num_converted_records);
 
             if (not jobs_running)
                 jobs_running = not journal_datastore->queued_downloads_.empty() or not journal_datastore->queued_marc_records_.empty();
@@ -444,6 +445,16 @@ int Main(int argc, char *argv[]) {
     }
 
     LOG_INFO("Harvested " + std::to_string(num_converted_records) + " records");
+
+    // release data
+    output_file_cache.reset();
+    conversion_manager.reset();
+    download_manager.reset();
+    harvestable_manager.reset();
+    harvester_config.reset();
+
+    LOG_INFO("Tasklet counter: " + std::to_string(Util::tasklet_instance_counter) + " | Future counter: "
+             + std::to_string(Util::future_instance_counter));
 
     return EXIT_SUCCESS;
 }

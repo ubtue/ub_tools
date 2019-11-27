@@ -717,19 +717,6 @@ bool GetMatchedMARCFields(MARC::Record * marc_record, const std::string &field_o
 }
 
 
-
-const std::map<std::string, MARC::Record::BibliographicLevel> ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP {
-    { "book", MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM },
-    { "bookSection", MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART },
-    { "document", MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM },
-    { "journalArticle", MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART },
-    { "magazineArticle", MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART },
-    { "newspaperArticle", MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART },
-    { "webpage", MARC::Record::BibliographicLevel::INTEGRATING_RESOURCE },
-    { "review", MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART }
-};
-
-
 // Zotero values see https://raw.githubusercontent.com/zotero/zotero/master/test/tests/data/allTypesAndFields.js
 // MARC21 values see https://www.loc.gov/marc/relators/relaterm.html
 const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP {
@@ -766,12 +753,8 @@ const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP {
 void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_item, const MetadataRecord &metadata_record,
                                           const Config::GroupParams &group_params, MARC::Record * const marc_record)
 {
-    const auto &item_type(metadata_record.item_type_);
-    const auto biblio_level(ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.find(item_type));
-    if (biblio_level == ITEM_TYPE_TO_BIBLIOGRAPHIC_LEVEL_MAP.end())
-        LOG_ERROR("no bibliographic level available for item type " + item_type);
-
-    *marc_record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, biblio_level->second);
+    *marc_record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
+                                MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART);
 
     // Control fields (001 depends on the hash of the record, so it's generated towards the end)
     marc_record->insertField("003", group_params.isil_);
@@ -837,6 +820,7 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
 
     // Date & Year
     const auto &date(metadata_record.date_);
+    const auto &item_type(metadata_record.item_type_);
     if (not date.empty() and item_type != "journalArticle" and item_type != "review")
         marc_record->insertField("362", { { 'a', date } });
 
@@ -863,8 +847,10 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     }
 
     // Review-specific modifications
-    if (item_type == "review")
-        marc_record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" } }, /* indicator1 = */' ', /* indicator2 = */'7');
+    if (item_type == "review") {
+        marc_record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" }, { '2', "gnd-content" } },
+                                 /* indicator1 = */' ', /* indicator2 = */'7');
+    }
 
     // License data
     const auto &license(metadata_record.license_);
