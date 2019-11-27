@@ -62,7 +62,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
     private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
-    private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?([-–]\\d+)?");
+    private final static Pattern PAGE_MATCH_PATTERN = Pattern.compile("^\\[?(\\d+)\\]?([-–](\\d+))?$");
     private final static Pattern VALID_FOUR_DIGIT_YEAR_PATTERN = Pattern.compile("\\d{4}");
     private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
@@ -2847,19 +2847,31 @@ public class TuelibMixin extends SolrIndexerMixin {
         return result;
     }
 
-    public String getStartPage(final Record record) {
+    protected String getPages(final Record record) {
         final DataField _936Field = (DataField)record.getVariableField("936");
         if (_936Field == null)
-           return null;
+            return null;
         final Subfield subfieldH = _936Field.getSubfield('h');
         if (subfieldH == null)
             return null;
+        return subfieldH.getData();
+    }
 
-        final String pages = subfieldH.getData();
-        final Matcher matcher = START_PAGE_MATCH_PATTERN.matcher(pages);
+    public String getStartPage(final Record record) {
+        final String pages = getPages(record);
+        final Matcher matcher = PAGE_MATCH_PATTERN.matcher(pages);
+        if (matcher.matches())
+            return matcher.group(1);
+        return null;
+    }
+
+    public String getEndPage(final Record record) {
+        final String pages = getPages(record);
+        final Matcher matcher = PAGE_MATCH_PATTERN.matcher(pages);
         if (matcher.matches()) {
-            final String start_page = matcher.group(1);
-            return start_page;
+            if (matcher.group(3) != null && !matcher.group(3).isEmpty())
+                return matcher.group(3);
+            return matcher.group(1);
         }
         return null;
     }
