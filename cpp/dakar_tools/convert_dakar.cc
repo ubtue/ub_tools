@@ -474,9 +474,9 @@ int Main(int argc, char **argv) {
      bool generate_list(false);
      bool skip_empty(true); //Do not insert entries without matches in the final lookup lists
      bool generate_gnd_link(false); // Export GND numbers as links
-     bool use_find_discovery_map(false); //Extract GND and vol, year, pages information
-     bool use_bishop_map(false); // Map bishops as editors to their GND depending on their tenure
-     bool use_officials_map(false); // Map officials to their GND
+     const bool use_find_discovery_map(true); //Extract GND and vol, year, pages information
+     const bool use_bishop_map(true); // Map bishops as editors to their GND depending on their tenure
+     const bool use_officials_map(true); // Map officials to their GND
 
      if (std::strcmp(argv[1], "--augment-db") == 0)
          --argc, ++argv;
@@ -486,7 +486,7 @@ int Main(int argc, char **argv) {
         skip_empty = false;
         generate_gnd_link = true;
         --argc, ++argv;
-     }
+      }
 
      if (argc < 2 and not generate_list)
          Usage();
@@ -498,15 +498,12 @@ int Main(int argc, char **argv) {
          Usage();
 
      const std::string find_discovery_map_filename(argv[1]);
-     use_find_discovery_map = true;
      --argc, ++argv;
 
      const std::string bishop_map_filename(argv[1]);
-     use_bishop_map = true;
      --argc, ++argv;
 
      const std::string officials_map_filename(argv[1]);
-     use_officials_map = true;
 
 
      const IniFile ini_file(CONF_FILE_PATH);
