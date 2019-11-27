@@ -385,10 +385,8 @@ void AugmentDBEntries(DbConnection &db_connection,
         StringUtil::SplitThenTrimWhite(keyword_row, ";,", &keywords_in_row);
         for (auto keyword(keywords_in_row.begin()); keyword != keywords_in_row.end(); ++keyword) {
             const auto &hintterm = hintterms_map.find(*keyword);
-            if (hintterm != hintterms_map.cend()) {
-
+            if (hintterm != hintterms_map.cend()) 
                *keyword = StringUtil::ReplaceString(*keyword, *keyword, StringUtil::Map(hintterm->second, '/', ';'));
-            }
         }
         keyword_row = StringUtil::Join(keywords_in_row, ';');
 
@@ -402,9 +400,8 @@ void AugmentDBEntries(DbConnection &db_connection,
             if (keyword_gnds != keyword_to_gnds_result_map.cend()) {
                 keyword_gnd_numbers.emplace_back(keyword_gnds->second);
                 keyword_gnd_seen = true;
-            } else {
+            } else
                 keyword_gnd_numbers.emplace_back(NOT_AVAILABLE);
-            }
         }
         // Only write back non-empty string if we have at least one reasonable entry
         const std::string s_gnd_content(keyword_gnd_seen ? StringUtil::Join(keyword_gnd_numbers, ";") : "");
