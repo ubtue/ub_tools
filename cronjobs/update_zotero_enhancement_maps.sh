@@ -39,9 +39,14 @@ fi
 
 readonly email_address=$1
 readonly working_dir=/usr/local/var/lib/tuelib/zotero-enhancement-maps
+readonly github_ssh_key=~/.ssh/github-robot
 
 echo -e "*** ZOTERO ENHANCEMENT MAPS UPDATE START ***\n" | tee --append "${log}"
 cd $working_dir
+
+echo -e "Start SSH agent\n" | tee --append "${log}"
+eval "$(ssh-agent -s)"
+ssh-add "$github_ssh_key"
 
 echo -e "Pull changes from upstream\n" | tee --append "${log}"
 git pull >> "${log}" 2>&1
