@@ -43,6 +43,10 @@ readonly working_dir=/usr/local/var/lib/tuelib/zotero-enhancement-maps
 echo -e "*** ZOTERO ENHANCEMENT MAPS UPDATE START ***\n" | tee --append "${log}"
 cd $working_dir
 
+echo -e "Start SSH agent\n" | tee --append "${log}"
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/github-robot
+
 echo -e "Pull changes from upstream\n" | tee --append "${log}"
 git pull >> "${log}" 2>&1
 
