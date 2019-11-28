@@ -4,6 +4,12 @@
 # auto-generated maps and pushes the changes to GitHub
 set -o errexit -o nounset
 
+# Set up the log file:
+readonly logdir=/usr/local/var/log/tuefind
+readonly log_filename=$(basename "$0")
+readonly log="${logdir}/${log_filename%.*}.log"
+rm -f "${log}"
+
 no_problems_found=false
 function SendEmail {
     if [[ $no_problems_found ]]; then
@@ -13,7 +19,7 @@ function SendEmail {
     else
         send_email --priority=high --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
                    --subject="$0 failed on $(hostname)" \
-                   --message-body="Check the log file at /usr/local/var/log/tuefind/$0.log for details."
+                   --message-body="Check the log file at $log for details."
         echo "*** ZOTERO ENHANCEMENT MAPS UPDATE FAILED ***" | tee --append "${log}"
         exit 1
     fi
@@ -33,12 +39,6 @@ fi
 
 readonly email_address=$1
 readonly working_dir=/usr/local/var/lib/tuelib/zotero-enhancement-maps
-
-# Set up the log file:
-readonly logdir=/usr/local/var/log/tuefind
-readonly log_filename=$(basename "$0")
-readonly log="${logdir}/${log_filename%.*}.log"
-rm -f "${log}"
 
 echo -e "*** ZOTERO ENHANCEMENT MAPS UPDATE START ***\n" | tee --append "${log}"
 cd $working_dir
