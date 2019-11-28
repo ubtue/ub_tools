@@ -133,6 +133,8 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     entry_point_url_ = journal_section.getString(GetINIKeyString(ENTRY_POINT_URL));
     harvester_operation_ = static_cast<HarvesterOperation>(journal_section.getEnum(GetINIKeyString(HARVESTER_OPERATION),
                                                            STRING_TO_HARVEST_OPERATION_MAP));
+    upload_operation_ = static_cast<UploadOperation>(journal_section.getEnum(GetINIKeyString(UPLOAD_OPERATION),
+                                                     STRING_TO_UPLOAD_OPERATION_MAP, UploadOperation::NONE));
     ppn_.online_ = journal_section.getString(GetINIKeyString(ONLINE_PPN), "");
     ppn_.print_ = journal_section.getString(GetINIKeyString(PRINT_PPN), "");
     issn_.online_ = journal_section.getString(GetINIKeyString(ONLINE_ISSN), "");

@@ -19,6 +19,7 @@
 #pragma once
 
 
+#include <atomic>
 #include <memory>
 #include <set>
 #include <unordered_map>
@@ -154,6 +155,7 @@ private:
 
     GlobalParams global_params_;
     pthread_t background_thread_;
+    std::atomic_bool stop_background_thread_;
     ThreadUtil::ThreadSafeCounter<unsigned> conversion_tasklet_execution_counter_;
     std::deque<std::shared_ptr<ConversionTasklet>> active_conversions_;
     std::deque<std::shared_ptr<ConversionTasklet>> conversion_queue_;

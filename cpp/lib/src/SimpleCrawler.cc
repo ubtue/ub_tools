@@ -93,9 +93,35 @@ void SimpleCrawler::ParseConfigFile(const std::string &config_path, std::vector<
 }
 
 
+bool SimpleCrawler::downloadUrl(const std::string &url, const Params &params, PageDetails * const page_details) {
+    min_url_processing_time_.sleepUntilExpired();
+    downloader_.newUrl(url, params.timeout_);
+    min_url_processing_time_.restart();
+    if (downloader_.anErrorOccurred()) {
+        page_details->error_message_ = "Download failed: " + downloader_.getLastErrorMessage();
+        logger->warning("Failed to retrieve a Web page (" + url + "):\n"
+                        + downloader_.getLastErrorMessage());
+        return false;
+    }
+
+    page_details->url_ = url;
+    page_details->body_ = downloader_.getMessageBody();
+    page_details->header_ = downloader_.getMessageHeader();
+    page_details->error_message_.clear();
+    return true;
+}
+
+
 SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params)
+    : SimpleCrawler(site_desc, params, std::bind(&SimpleCrawler::downloadUrl, this, std::placeholders::_1,
+      std::placeholders::_2, std::placeholders::_3)) {}
+
+
+SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params,
+                             const std::function<bool(const std::string &, const Params &, PageDetails * const)> download_url_callback)
     : remaining_crawl_depth_(site_desc.max_crawl_depth_), url_regex_matcher_(site_desc.url_regex_matcher_),
-      min_url_processing_time_(params.min_url_processing_time_), params_(params)
+      min_url_processing_time_(params.min_url_processing_time_), params_(params),
+      download_url_callback_(download_url_callback)
 {
     url_queue_current_depth_.push(site_desc.start_url_);
 
@@ -147,15 +173,9 @@ bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
     }
 
     // download page
-    min_url_processing_time_.sleepUntilExpired();
-    downloader_.newUrl(url, params_.timeout_);
-    min_url_processing_time_.restart();
-    if (downloader_.anErrorOccurred()) {
-        page_details->error_message_ = "Download failed: " + downloader_.getLastErrorMessage();
-        logger->warning("Failed to retrieve a Web page (" + url + "):\n"
-                        + downloader_.getLastErrorMessage());
+    bool download_success(download_url_callback_(url, params_, page_details));
+    if (not download_success)
         return SimpleCrawler::continueCrawling();
-    }
 
     // print message headers if necessary
     const std::string message_headers(downloader_.getMessageHeader()), message_body(downloader_.getMessageBody());
@@ -167,11 +187,6 @@ bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
     }
     if (params_.print_all_http_headers_ or params_.print_last_http_header_)
         logger->info(StringUtil::ReplaceString("\r\n", "\n", message_headers) + "\n");
-
-    // fill result
-    page_details->url_ = url;
-    page_details->header_ = message_headers;
-    page_details->body_ = message_body;
 
     // extract deeper level URL's
     if (remaining_crawl_depth_ > 0) {

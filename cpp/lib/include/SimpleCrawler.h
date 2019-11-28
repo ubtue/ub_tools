@@ -22,6 +22,7 @@
 
 
 #include <iostream>
+#include <functional>
 #include <memory>
 #include <queue>
 #include <string>
@@ -95,9 +96,14 @@ public:
         std::string header_;
         std::string body_;
     };
+private:
+    const std::function<bool(const std::string &url, const Params &params, PageDetails * const page_details)> download_url_callback_;
 
+    bool downloadUrl(const std::string &url, const Params &params, PageDetails * const page_details);
 public:
     explicit SimpleCrawler(const SiteDesc &site_desc, const Params &params);
+    explicit SimpleCrawler(const SiteDesc &site_desc, const Params &params,
+                           const std::function<bool(const std::string &, const Params &, PageDetails * const)> download_url_callback);
     ~SimpleCrawler() = default;
 
     /** \brief  prepare site processing.

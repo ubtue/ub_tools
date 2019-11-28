@@ -19,6 +19,7 @@
 #pragma once
 
 
+#include <atomic>
 #include <memory>
 #include <set>
 #include <unordered_map>
@@ -47,27 +48,37 @@ class DownloadManager;
 namespace DirectDownload {
 
 
+enum class Operation { USE_TRANSLATION_SERVER, DIRECT_QUERY };
+
+
 struct Params {
     Util::HarvestableItem download_item_;
     Url translation_server_url_;
     std::string user_agent_;
-    TimeLimit time_limit_;
+    bool ignore_robots_dot_txt_;
+    unsigned time_limit_;
+    Operation operation_;
 public:
     explicit Params(const Util::HarvestableItem &download_item, const std::string &translation_server_url,
-                    const std::string user_agent, const TimeLimit time_limit)
+                    const std::string user_agent, const bool ignore_robots_dot_txt, const unsigned time_limit,
+                    const Operation operation)
      : download_item_(download_item), translation_server_url_(translation_server_url), user_agent_(user_agent),
-       time_limit_(time_limit) {}
+       ignore_robots_dot_txt_(ignore_robots_dot_txt), time_limit_(time_limit), operation_(operation) {}
 };
 
 
 struct Result {
     Util::HarvestableItem source_;
+    Operation operation_;
     std::string response_body_;
+    std::string response_header_;
     unsigned response_code_;
     std::string error_message_;
 public:
-    explicit Result(const Util::HarvestableItem &source) : source_(source), response_code_(0) {}
+    explicit Result(const Util::HarvestableItem &source, const Operation operation)
+     : source_(source), operation_(operation), response_code_(0) {}
     Result(const Result &rhs) = default;
+
     inline bool isValid() const { return response_code_ == 200 and error_message_.empty(); }
 };
 
@@ -92,13 +103,13 @@ namespace Crawling {
 struct Params {
     Util::HarvestableItem download_item_;
     std::string user_agent_;
-    TimeLimit per_crawl_url_time_limit_;
-    TimeLimit total_crawl_time_limit_;
+    unsigned per_crawl_url_time_limit_;
+    unsigned total_crawl_time_limit_;
     bool ignore_robots_dot_txt_;
     Util::HarvestableItemManager * const harvestable_manager_;
 public:
-    explicit Params(const Util::HarvestableItem &download_item, const std::string user_agent, const TimeLimit per_crawl_url_time_limit,
-                    const TimeLimit total_crawl_time_limit, const bool ignore_robots_dot_txt,
+    explicit Params(const Util::HarvestableItem &download_item, const std::string user_agent, const unsigned per_crawl_url_time_limit,
+                    const unsigned total_crawl_time_limit, const bool ignore_robots_dot_txt,
                     Util::HarvestableItemManager * const harvestable_manager)
      : download_item_(download_item), user_agent_(user_agent), per_crawl_url_time_limit_(per_crawl_url_time_limit),
        total_crawl_time_limit_(total_crawl_time_limit), ignore_robots_dot_txt_(ignore_robots_dot_txt),
@@ -116,6 +127,10 @@ public:
 
 class Tasklet : public Util::Tasklet<Params, Result> {
     DownloadManager * const download_manager_;
+
+    bool downloadIntermediateUrl(const std::string &url, const SimpleCrawler::Params &/* unused */,
+                                 SimpleCrawler::PageDetails * const page_details,
+                                 const Params &parameters) const;
     void run(const Params &parameters, Result * const result);
 public:
     Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
@@ -199,27 +214,9 @@ private:
         TimeLimit time_limit_;
     public:
         DelayParams(const std::string &robots_dot_txt, const unsigned default_download_delay_time,
-                    const unsigned max_download_delay_time)
-         : robots_dot_txt_(robots_dot_txt), time_limit_(robots_dot_txt_.getCrawlDelay("*") * 1000)
-        {
-            if (time_limit_.getLimit() < default_download_delay_time)
-                time_limit_ = default_download_delay_time;
-            else if (time_limit_.getLimit() > max_download_delay_time)
-                time_limit_ = max_download_delay_time;
-
-            time_limit_.restart();
-        }
+                    const unsigned max_download_delay_time);
         DelayParams(const TimeLimit &time_limit, const unsigned default_download_delay_time,
-                    const unsigned max_download_delay_time)
-         : time_limit_(time_limit)
-        {
-            if (time_limit_.getLimit() < default_download_delay_time)
-                time_limit_ = default_download_delay_time;
-            else if (time_limit_.getLimit() > max_download_delay_time)
-                time_limit_ = max_download_delay_time;
-
-            time_limit_.restart();
-        }
+                    const unsigned max_download_delay_time);
         DelayParams(const DelayParams &rhs) = default;
     };
 
@@ -236,7 +233,9 @@ private:
     };
 
     struct CachedDownloadData {
+        DirectDownload::Operation operation_;
         std::string response_body_;
+        std::string response_header_;
         unsigned response_code_;
         std::string error_message_;
     };
@@ -245,22 +244,23 @@ private:
     static constexpr unsigned MAX_CRAWLING_TASKLETS        = 50;
     static constexpr unsigned MAX_RSS_TASKLETS             = 50;
     static constexpr unsigned DOWNLOAD_TIMEOUT             = 1000 * 30;      // in ms
-    static constexpr unsigned MAX_CRAWL_TIMEOUT            = 1000 * 60 * 10; // in ms
+    static constexpr unsigned MAX_CRAWL_TIMEOUT            = 1000 * 60 * 15; // in ms
 
     GlobalParams global_params_;
     pthread_t background_thread_;
+    mutable std::atomic_bool stop_background_thread_;
     ThreadUtil::ThreadSafeCounter<unsigned> direct_download_tasklet_execution_counter_;
     ThreadUtil::ThreadSafeCounter<unsigned> crawling_tasklet_execution_counter_;
     ThreadUtil::ThreadSafeCounter<unsigned> rss_tasklet_execution_counter_;
     std::unordered_map<std::string, std::unique_ptr<DomainData>> domain_data_;
-    std::unordered_map<std::string, CachedDownloadData> cached_download_data_;
-    std::recursive_mutex cached_download_data_mutex_;
+    std::unordered_multimap<std::string, CachedDownloadData> cached_download_data_;
+    mutable std::recursive_mutex cached_download_data_mutex_;
     std::deque<std::shared_ptr<DirectDownload::Tasklet>> direct_download_queue_buffer_;
-    std::recursive_mutex direct_download_queue_buffer_mutex_;
+    mutable std::recursive_mutex direct_download_queue_buffer_mutex_;
     std::deque<std::shared_ptr<Crawling::Tasklet>> crawling_queue_buffer_;
-    std::recursive_mutex crawling_queue_buffer_mutex_;
+    mutable std::recursive_mutex crawling_queue_buffer_mutex_;
     std::deque<std::shared_ptr<RSS::Tasklet>> rss_queue_buffer_;
-    std::recursive_mutex rss_queue_buffer_mutex_;
+    mutable std::recursive_mutex rss_queue_buffer_mutex_;
     Util::UploadTracker upload_tracker_;
 
     static void *BackgroundThreadRoutine(void * parameter);
@@ -270,24 +270,25 @@ private:
     void processQueueBuffers();
     void processDomainQueues(DomainData * const domain_data);
     void cleanupCompletedTasklets(DomainData * const domain_data);
+    std::unique_ptr<DirectDownload::Result> fetchDownloadDataFromCache(const Util::HarvestableItem &source,
+                                                                       const DirectDownload::Operation operation) const;
 public:
     DownloadManager(const GlobalParams &global_params);
     ~DownloadManager();
 
     std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>> directDownload(const Util::HarvestableItem &source,
-                                                                                                 const std::string &user_agent);
+                                                                                                 const std::string &user_agent,
+                                                                                                 const DirectDownload::Operation operation,
+                                                                                                 const unsigned timeout = DOWNLOAD_TIMEOUT);
     std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> crawl(const Util::HarvestableItem &source,
                                                                             const std::string &user_agent);
 
     std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> rss(const Util::HarvestableItem &source,
                                                                 const std::string &user_agent,
                                                                 const std::string &feed_contents = "");
-    void addToDownloadCache(const std::string &url, const std::string &response_body, const unsigned response_code,
-                            const std::string &error_message);
-    inline bool downloadInProgress() const {
-        return direct_download_tasklet_execution_counter_ != 0 or crawling_tasklet_execution_counter_ != 0
-               or rss_tasklet_execution_counter_ != 0;
-    }
+    void addToDownloadCache(const std::string &url, const std::string &response_body, const std::string &response_header,
+                            const unsigned response_code, const std::string &error_message, const DirectDownload::Operation operation);
+    bool downloadInProgress() const;
 };
 
 
