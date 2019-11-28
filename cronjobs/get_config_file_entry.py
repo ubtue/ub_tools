@@ -24,7 +24,7 @@ def Main():
 
     config_file = sys.argv[1]
     if not config_file.startswith("/"):
-        if os.access(DEFAULT_CONFIG_FILE_LOCATION + socket.gethostname() + "/", os.R_OK):
+        if os.access(DEFAULT_CONFIG_FILE_LOCATION + socket.gethostname() + "/" + config_file, os.R_OK):
             config_file = DEFAULT_CONFIG_FILE_LOCATION + socket.gethostname() + "/" + config_file
         else:
             config_file = DEFAULT_CONFIG_FILE_LOCATION + config_file

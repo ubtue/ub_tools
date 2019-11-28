@@ -304,6 +304,11 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, const OSSy
             MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", sql_database, root_username, root_password);
             break;
         }
+
+        IniFile ub_tools_ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
+        const auto ub_tools_ini_section(ub_tools_ini_file.getSection("Database"));
+        const std::string ub_tools_username(ub_tools_ini_section->getString("sql_username"));
+        DbConnection::MySQLGrantAllPrivileges(sql_database, ub_tools_username, root_username, root_password);
     }
 
     if (vufind_system_type == IXTHEO) {
