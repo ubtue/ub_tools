@@ -31,12 +31,17 @@ namespace ZoteroHarvester {
 namespace Util {
 
 
+bool HarvestableItem::operator==(const HarvestableItem &rhs) const {
+    return id_ == rhs.id_ and &journal_ == &rhs.journal_ and url_.toString() == rhs.url_.toString();
+}
+
+
 std::string HarvestableItem::toString() const {
     std::string out(std::to_string(id_));
     std::string journal_name(TextUtil::CollapseAndTrimWhitespace(journal_.name_));
     TextUtil::UnicodeTruncate(&journal_name, 20);
 
-    out += "[" + journal_name + "...] | " + url_.toString();
+    out += " [" + journal_name + "...] | " + url_.toString();
     return out;
 }
 
@@ -57,9 +62,9 @@ HarvestableItem HarvestableItemManager::newHarvestableItem(const std::string &ur
 
 
 void ZoteroLogger::queueMessage(const std::string &level, std::string msg, const TaskletContext &tasklet_context) {
-    std::lock_guard<std::mutex> locker(active_context_mutex_);
+    std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
 
-    auto match(active_contexts_.find(tasklet_context.associated_item_.id_));
+    auto match(active_contexts_.find(tasklet_context.associated_item_));
     if (match == active_contexts_.end())
         error("message from unknown tasklet!");
 
@@ -87,8 +92,8 @@ void ZoteroLogger::error(const std::string &msg) {
     preamble += "\t\turl: " + context->associated_item_.url_.toString() + "\n\n";
 
     // flush the tasklet's buffer
-    std::lock_guard<std::mutex> locker(active_context_mutex_);
-    auto match(active_contexts_.find(context->associated_item_.id_));
+    std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
+    auto match(active_contexts_.find(context->associated_item_));
     if (match == active_contexts_.end())
         ::Logger::error("double-fault! message from unknown tasklet! original message:\n\n" + preamble + msg);
     else
@@ -141,22 +146,22 @@ void ZoteroLogger::debug(const std::string &msg) {
 
 
 void ZoteroLogger::pushContext(const Util::HarvestableItem &context_item) {
-    std::lock_guard<std::mutex> locker(active_context_mutex_);
+    std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
 
-    auto match(active_contexts_.find(context_item.id_));
+    auto match(active_contexts_.find(context_item));
     if (match != active_contexts_.end())
-        error("Harvestable " + std::to_string(context_item.id_) + " (" + context_item.url_.toString() + ") already registered");
+        error("Harvestable item " + context_item.toString() + " already registered");
 
-    active_contexts_.emplace(context_item.id_, context_item);
+    active_contexts_.emplace(context_item, context_item);
 }
 
 
 void ZoteroLogger::popContext(const Util::HarvestableItem &context_item) {
-    std::lock_guard<std::mutex> locker(active_context_mutex_);
+    std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
 
-    auto match(active_contexts_.find(context_item.id_));
+    auto match(active_contexts_.find(context_item));
     if (match == active_contexts_.end())
-        error("Harvestable " + std::to_string(context_item.id_) + " (" + context_item.url_.toString() + ") not registered");
+        error("Harvestable " + context_item.toString() + " not registered");
 
     // flush buffer contents and remove the context
     match->second.buffer_ += "\n\n";

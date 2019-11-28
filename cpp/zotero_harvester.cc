@@ -216,7 +216,8 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
     switch (journal_params.harvester_operation_) {
     case Config::HarvesterOperation::DIRECT:
     {
-        auto future(download_manager->directDownload(download_item, group_params.user_agent_));
+        auto future(download_manager->directDownload(download_item, group_params.user_agent_,
+                                                     Download::DirectDownload::Operation::USE_TRANSLATION_SERVER));
         current_journal_datastore->queued_downloads_.emplace_back(future.release());
         break;
     }
@@ -445,16 +446,6 @@ int Main(int argc, char *argv[]) {
     }
 
     LOG_INFO("Harvested " + std::to_string(num_converted_records) + " records");
-
-    // release data
-    output_file_cache.reset();
-    conversion_manager.reset();
-    download_manager.reset();
-    harvestable_manager.reset();
-    harvester_config.reset();
-
-    LOG_INFO("Tasklet counter: " + std::to_string(Util::tasklet_instance_counter) + " | Future counter: "
-             + std::to_string(Util::future_instance_counter));
 
     return EXIT_SUCCESS;
 }

@@ -1111,9 +1111,8 @@ void *ConversionManager::BackgroundThreadRoutine(void * parameter) {
     static const unsigned BACKGROUND_THREAD_SLEEP_TIME(16 * 1000);   // ms -> us
 
     ConversionManager * const conversion_manager(reinterpret_cast<ConversionManager *>(parameter));
-    pthread_detach(pthread_self());
 
-    while (true) {
+    while (not conversion_manager->stop_background_thread_.load()) {
         conversion_manager->processQueue();
         conversion_manager->cleanupCompletedTasklets();
 
@@ -1121,7 +1120,6 @@ void *ConversionManager::BackgroundThreadRoutine(void * parameter) {
     }
 
     pthread_exit(nullptr);
-    return nullptr;
 }
 
 
@@ -1152,7 +1150,7 @@ void ConversionManager::cleanupCompletedTasklets() {
 
 
 ConversionManager::ConversionManager(const GlobalParams &global_params)
- : global_params_(global_params)
+ : global_params_(global_params), stop_background_thread_(false)
 {
     if (::pthread_create(&background_thread_, nullptr, BackgroundThreadRoutine, this) != 0)
             LOG_ERROR("background conversion manager thread creation failed!");
@@ -1160,8 +1158,10 @@ ConversionManager::ConversionManager(const GlobalParams &global_params)
 
 
 ConversionManager::~ConversionManager() {
-    if (::pthread_cancel(background_thread_) != 0)
-        LOG_ERROR("failed to cancel background conversion manager thread '" + std::to_string(background_thread_) + "'!");
+    stop_background_thread_.store(true);
+    const auto retcode(::pthread_join(background_thread_, nullptr));
+    if (retcode != 0)
+        LOG_WARNING("couldn't join with the conversion manager background thread! result = " + std::to_string(retcode));
 
     active_conversions_.clear();
     conversion_queue_.clear();

@@ -20,8 +20,10 @@
 
 
 #include <memory>
-#include <set>
 #include <functional>
+#include <unordered_map>
+#include <set>
+#include <string>
 #include <pthread.h>
 #include "DbConnection.h"
 #include "JSON.h"
@@ -56,6 +58,7 @@ public:
     ~HarvestableItem() = default;
     HarvestableItem(const HarvestableItem &rhs) = default;
     HarvestableItem &operator=(const HarvestableItem &rhs) = delete;
+    bool operator==(const HarvestableItem &rhs) const;
 
     std::string toString() const;
 };
@@ -68,6 +71,37 @@ public:
 
     HarvestableItem newHarvestableItem(const std::string &url, const Config::JournalParams &journal_params);
 };
+
+
+} // end namespace Util
+
+
+} // end namespace ZoteroHarvester
+
+
+namespace std {
+
+
+template <>
+struct hash<ZoteroHarvester::Util::HarvestableItem> {
+    size_t operator()(const ZoteroHarvester::Util::HarvestableItem &m) const {
+        // http://stackoverflow.com/a/1646913/126995
+        size_t res = 17;
+        res = res * 31 + hash<unsigned>()(m.id_);
+        res = res * 31 + hash<string>()(m.url_.toString());
+        res = res * 31 + hash<const void *>()(&m.journal_);
+        return res;
+    }
+};
+
+
+} // end namespace std
+
+
+namespace ZoteroHarvester {
+
+
+namespace Util {
 
 
 struct TaskletContext;
@@ -85,8 +119,8 @@ class ZoteroLogger : public ::Logger {
          { buffer_.reserve(static_cast<size_t>(BUFFER_SIZE)); }
     };
 
-    std::unordered_map<unsigned, ContextData> active_contexts_;
-    std::mutex active_context_mutex_;
+    std::unordered_map<HarvestableItem, ContextData> active_contexts_;
+    std::recursive_mutex active_context_mutex_;
 
     void queueMessage(const std::string &level, std::string msg, const TaskletContext &tasklet_context);
 private:
@@ -176,7 +210,7 @@ template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::
     Tasklet<Parameter, Result> * const tasklet(reinterpret_cast<Tasklet<Parameter, Result> *>(parameter));
     const auto zotero_logger(dynamic_cast<ZoteroLogger *>(::logger));
 
-    pthread_detach(pthread_self());
+    pthread_setname_np(pthread_self(), tasklet->context_.description_.c_str());
     TASKLET_CONTEXT_MANAGER.setThreadLocalContext(tasklet->context_);
     zotero_logger->pushContext(tasklet->context_.associated_item_);
     ++(*tasklet->running_instance_counter_);
@@ -210,8 +244,6 @@ template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::
     zotero_logger->popContext(tasklet->context_.associated_item_);
     --(*tasklet->running_instance_counter_);
     pthread_exit(nullptr);
-
-    return nullptr;
 }
 
 
@@ -245,7 +277,7 @@ template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::s
 
     if (status_ != Status::NOT_STARTED) {
         LOG_ERROR("tasklet '" + std::to_string(thread_id_) + "' has already been started!"
-                    + "\nstatus = " + std::to_string(status_) + "\ndescription:" + context_.description_);
+                  + "\nstatus = " + std::to_string(status_) + "\ndescription:" + context_.description_);
     }
 
     if (::pthread_create(&thread_id_, nullptr, ThreadRoutine, this) != 0)
@@ -258,12 +290,12 @@ template<typename Parameter, typename Result> std::unique_ptr<Result> Tasklet<Pa
 
     if (status_ != Status::COMPLETED_SUCCESS) {
         LOG_ERROR("tasklet '" + std::to_string(thread_id_) + "' has no result!"
-                    + "\nstatus = " + std::to_string(status_) + "\ndescription:" + context_.description_);
+                  + "\nstatus = " + std::to_string(status_) + "\ndescription:" + context_.description_);
     }
 
     if (result_ == nullptr) {
         LOG_ERROR("tasklet '" + std::to_string(thread_id_) + "' has already yielded its result!"
-                    + "\ndescription:" + context_.description_);
+                  + "\ndescription:" + context_.description_);
     }
 
     return std::move(result_);
@@ -282,7 +314,7 @@ template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::a
     const auto ret_code(::pthread_join(thread_id_, nullptr));
     if (ret_code != 0) {
         LOG_ERROR("failed to join tasklet thread '" + std::to_string(thread_id_) + "'!"
-                    " result = " + std::to_string(ret_code));
+                  " result = " + std::to_string(ret_code));
     }
 }
 
