@@ -73,23 +73,32 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
         record_blob = record.toBinaryString();
 
         const std::string hash(StringUtil::ToHexString(MARC::CalcChecksum(record)));
-        const std::string url(record.getFirstSubfieldValue("856", 'u'));
+        const std::string url(record.getFirstSubfieldValue("URL", 'a'));
         const std::string zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
         const std::string journal_name(record.getFirstSubfieldValue("JOU", 'a'));
         const std::string main_title(record.getMainTitle());
 
-        db_connection->queryOrDie("SELECT * FROM delivered_marc_records WHERE main_title="
-                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(main_title)));
-        auto existing_records_with_title(db_connection->getLastResultSet());
-        if (not existing_records_with_title.empty()) {
-            while (auto row = existing_records_with_title.getNextRow()) {
-                const auto existing_hash(row["hash"]), existing_url(row["url"]);
-                if (existing_hash == hash and existing_url == url) {
-                    LOG_WARNING("hash+url collision! record title: '" + main_title + "'\n"
-                                "record hash: '" + existing_hash + "'\n record url: '" + existing_url + "'");
+        db_connection->queryOrDie("SELECT * FROM delivered_marc_records WHERE hash="
+                                  + db_connection->escapeAndQuoteString(hash));
+        auto existing_records_with_hash(db_connection->getLastResultSet());
+        bool already_delivered(false);
+        if (not existing_records_with_hash.empty()) {
+            while (auto row = existing_records_with_hash.getNextRow()) {
+                const auto existing_title(row["title"]), existing_url(row["url"]);
+                if (existing_url == url) {
+                    LOG_WARNING("hash+url collision - record already delivered! title: '" + existing_title + "'\n"
+                                "hash: '" + existing_hash + "'\nurl: '" + existing_url + "'");
+                    already_delivered = true;
+                } else {
+                    LOG_WARNING("hash collision - record already delivered! title: '" + existing_title + "'\n"
+                                "hash: '" + existing_hash + "'\nurl: '" + existing_url + "'");
+                    already_delivered = true;
                 }
             }
         }
+
+        if (already_delivered)
+            continue;
 
         ++record_count;
 
