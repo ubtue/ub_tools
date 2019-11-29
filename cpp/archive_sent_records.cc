@@ -87,11 +87,11 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
                 const auto existing_title(row["title"]), existing_url(row["url"]);
                 if (existing_url == url) {
                     LOG_WARNING("hash+url collision - record already delivered! title: '" + existing_title + "'\n"
-                                "hash: '" + existing_hash + "'\nurl: '" + existing_url + "'");
+                                "hash: '" + hash + "'\nurl: '" + existing_url + "'");
                     already_delivered = true;
                 } else {
                     LOG_WARNING("hash collision - record already delivered! title: '" + existing_title + "'\n"
-                                "hash: '" + existing_hash + "'\nurl: '" + existing_url + "'");
+                                "hash: '" + hash + "'\nurl: '" + existing_url + "'");
                     already_delivered = true;
                 }
             }
