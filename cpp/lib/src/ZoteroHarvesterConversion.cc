@@ -957,10 +957,8 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     // Zotero sigil
     marc_record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
 
-    marc_record->insertField("001", group_params.name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
-                             + "#" + StringUtil::ToHexString(MARC::CalcChecksum(*marc_record)));
-
     // Book-keeping fields
+    marc_record->insertField("URL", { { 'a', metadata_record.url_ } });
     marc_record->insertField("ZID", { { 'a', std::to_string(download_item.journal_.zeder_id_) } });
     marc_record->insertField("JOU", { { 'a', download_item.journal_.name_ } });
 
@@ -978,6 +976,10 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
             LOG_DEBUG("erased field '" + tag_and_subfield_code + "' due to removal filter '" + filter.second->getPattern() + "'");
         }
     }
+
+    // Has to be generated in the very end as it contains the hash of the record
+    marc_record->insertField("001", group_params.name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
+                             + "#" + CalculateMarcRecordHash(*marc_record));
 }
 
 
@@ -997,6 +999,16 @@ bool MarcRecordMatchesExclusionFilters(const Util::HarvestableItem &download_ite
     if (found_match)
         LOG_INFO("MARC field for '" + download_item.url_.toString() + " matched exclusion filter (" + exclusion_string + ")");
     return found_match;
+}
+
+
+const std::set<MARC::Tag> EXCLUDED_FIELDS_DURING_CHECKSUM_CALC {
+    "001", "URL", "ZID", "JOU",
+};
+
+
+std::string CalculateMarcRecordHash(const MARC::Record &marc_record) {
+    return StringUtil::ToHexString(MARC::CalcChecksum(marc_record, EXCLUDED_FIELDS_DURING_CHECKSUM_CALC));
 }
 
 
@@ -1067,8 +1079,10 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
         const auto json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
 
         try {
-            if (ZoteroItemMatchesExclusionFilters(download_item, json_object))
+            if (ZoteroItemMatchesExclusionFilters(download_item, json_object)) {
+                ++result->num_skipped_since_exclusion_filters_;
                 continue;
+            }
 
             MetadataRecord new_metadata_record;
             ConvertZoteroItemToMetadataRecord(json_object, &new_metadata_record);
@@ -1077,18 +1091,23 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
 
             LOG_DEBUG("Augmented metadata record: " + new_metadata_record.toString());
 
-            if (ExcludeOnlineFirstRecord(new_metadata_record, parameters))
+            if (ExcludeOnlineFirstRecord(new_metadata_record, parameters)) {
+                ++result->num_skipped_since_online_first_;
                 continue;
-            else if (ExcludeEarlyViewRecord(new_metadata_record, parameters))
+            } else if (ExcludeEarlyViewRecord(new_metadata_record, parameters)) {
+                ++result->num_skipped_since_early_view_;
                 continue;
+            }
 
             // a dummy record that will be replaced subsequently
             std::unique_ptr<MARC::Record> new_marc_record(new MARC::Record(std::string(MARC::Record::LEADER_LENGTH, ' ')));
             GenerateMarcRecordFromMetadataRecord(download_item, new_metadata_record, parameters.group_params_,
                                                  new_marc_record.get());
 
-            if (MarcRecordMatchesExclusionFilters(download_item, new_marc_record.get()))
+            if (MarcRecordMatchesExclusionFilters(download_item, new_marc_record.get())) {
+                ++result->num_skipped_since_exclusion_filters_;
                 continue;
+            }
 
             result->marc_records_.emplace_back(new_marc_record.release());
         } catch (const std::exception &x) {
@@ -1128,12 +1147,13 @@ void ConversionManager::processQueue() {
         return;
 
     std::lock_guard<std::mutex> conversion_queue_lock(conversion_queue_mutex_);
-    while (not conversion_queue_.empty()) {
+    while (not conversion_queue_.empty()
+           and conversion_tasklet_execution_counter_ < MAX_CONVERSION_TASKLETS)
+    {
         std::shared_ptr<ConversionTasklet> tasklet(conversion_queue_.front());
         active_conversions_.emplace_back(tasklet);
-        tasklet->start();
-
         conversion_queue_.pop_front();
+        tasklet->start();
     }
 }
 

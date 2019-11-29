@@ -223,32 +223,36 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
 }
 
 
-bool UploadTracker::hasAlreadyBeenUploaded(const std::string &url, const std::string &hash, Entry * const entry) const {
-    std::string truncated_url(url);
-    truncateURL(&truncated_url);
-
+bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const entry) const {
     db_connection_->queryOrDie("SELECT url, delivered_at, journal_name, hash FROM delivered_marc_records WHERE url='"
-                               + db_connection_->escapeString(truncated_url) + "'");
+                               + db_connection_->escapeString(SqlUtil::TruncateToVarCharMaxLength(url)) + "'");
     auto result_set(db_connection_->getLastResultSet());
     if (result_set.empty())
         return false;
 
     const auto first_row(result_set.getNextRow());
-    Entry temp_entry;
-    UpdateUploadTrackerEntryFromDbRow(first_row, &temp_entry);
+    if (entry != nullptr)
+        UpdateUploadTrackerEntryFromDbRow(first_row, entry);
+    return true;
+}
 
-    if (hash != "" and hash != temp_entry.hash_)
+
+bool UploadTracker::hashAlreadyDelivered(const std::string &hash, Entry * const entry) const {
+    db_connection_->queryOrDie("SELECT url, delivered_at, journal_name, hash FROM delivered_marc_records WHERE hash='"
+                               + db_connection_->escapeString(hash) + "'");
+    auto result_set(db_connection_->getLastResultSet());
+    if (result_set.empty())
         return false;
 
-    if (entry)
+    const auto first_row(result_set.getNextRow());
+    if (entry != nullptr)
         UpdateUploadTrackerEntryFromDbRow(first_row, entry);
-
     return true;
 }
 
 
 size_t UploadTracker::listOutdatedJournals(const unsigned cutoff_days,
-                                           std::unordered_map<std::string, time_t> * const outdated_journals)
+                                           std::unordered_map<std::string, time_t> * const outdated_journals) const
 {
     db_connection_->queryOrDie("SELECT url, delivered_at, journal_name, hash FROM harvested_urls"
                                "WHERE last_harvest_time < DATEADD(day, -" + std::to_string(cutoff_days) + ", GETDATE())");
