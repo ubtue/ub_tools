@@ -47,7 +47,8 @@ bool DeliveryTracker::urlAlreadyDelivered(const std::string &url, Entry * const 
         return false;
 
     const auto first_row(result_set.getNextRow());
-    UpdateDeliveryTrackerEntryFromDbRow(first_row, entry);
+    if (entry != nullptr)
+        UpdateDeliveryTrackerEntryFromDbRow(first_row, entry);
     return true;
 }
 
@@ -60,7 +61,8 @@ bool DeliveryTracker::hashAlreadyDelivered(const std::string &hash, Entry * cons
         return false;
 
     const auto first_row(result_set.getNextRow());
-    UpdateDeliveryTrackerEntryFromDbRow(first_row, entry);
+    if (entry != nullptr)
+        UpdateDeliveryTrackerEntryFromDbRow(first_row, entry);
     return true;
 }
 
