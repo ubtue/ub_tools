@@ -412,27 +412,20 @@ public:
         std::string hash_;
     };
 public:
-    explicit UploadTracker(std::unique_ptr<DbConnection> db): db_connection_(std::move(db)) {}
+    explicit UploadTracker(): db_connection_(new DbConnection) {}
 
-    /** \brief Checks if "url" or ("url", "hash") have already been uploaded.
-     *  \return True if we have find an entry for "url" or ("url", "hash"), else false.
-     */
-    bool hasAlreadyBeenUploaded(const std::string &url, const std::string &hash = "", Entry * const entry = nullptr) const;
+    bool urlAlreadyDelivered(const std::string &url, Entry * const entry = nullptr) const;
+    bool hashAlreadyDelivered(const std::string &hash, Entry * const entry = nullptr) const;
 
     /** \brief Lists all journals that haven't had a single URL delivered for a given number of days.
      *  \return The number of outdated journals.
      */
-    size_t listOutdatedJournals(const unsigned cutoff_days, std::unordered_map<std::string, time_t> * const outdated_journals);
+    size_t listOutdatedJournals(const unsigned cutoff_days, std::unordered_map<std::string, time_t> * const outdated_journals) const;
 
     /** \brief Returns when the last URL of the given journal was delivered to the BSZ.
      *  \return Timestamp of the last delivery if found, TimeUtil::BAD_TIME_T otherwise.
      */
     time_t getLastUploadTime(const std::string &journal_name) const;
-private:
-    inline void truncateURL(std::string * const url) const {
-        if (url->length() > static_cast<std::size_t>(SqlUtil::VARCHAR_UTF8_MAX_LENGTH))
-            url->erase(SqlUtil::VARCHAR_UTF8_MAX_LENGTH);
-    }
 };
 
 

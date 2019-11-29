@@ -100,9 +100,11 @@ void Tasklet::run(const Params &parameters, Result * const result) {
                        &result->error_message_);
     }
 
-    download_manager_->addToDownloadCache(parameters.download_item_.url_.toString(), result->response_body_,
-                                          result->response_header_, result->response_code_, result->error_message_,
-                                          parameters.operation_);
+    if (result->downloadSuccessful()) {
+        download_manager_->addToDownloadCache(parameters.download_item_.url_.toString(), result->response_body_,
+                                            result->response_header_, result->response_code_, result->error_message_,
+                                            parameters.operation_);
+    }
 }
 
 
@@ -130,7 +132,7 @@ bool Tasklet::downloadIntermediateUrl(const std::string &url, const SimpleCrawle
                                                   parameters.per_crawl_url_time_limit_));
 
     const auto &download_result(future->getResult());
-    if (not download_result.isValid()) {
+    if (not download_result.downloadSuccessful()) {
         page_details->error_message_ = download_result.error_message_;
         return false;
     }
@@ -331,6 +333,16 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 } // end namespace RSS
 
 
+DownloadManager::GlobalParams::GlobalParams(const Config::GlobalParams &config_global_params,
+                                            Util::HarvestableItemManager * const harvestable_manager)
+ : translation_server_url_(config_global_params.translation_server_url_),
+   default_download_delay_time_(config_global_params.download_delay_params_.default_delay_),
+   max_download_delay_time_(config_global_params.download_delay_params_.max_delay_),
+   rss_feed_harvest_interval_(config_global_params.rss_harvester_operation_params_.harvest_interval_),
+   force_process_rss_feeds_with_no_pub_dates_(config_global_params.rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_),
+   ignore_robots_txt_(false), force_downloads_(false), harvestable_manager_(harvestable_manager) {}
+
+
 DownloadManager::DelayParams::DelayParams(const std::string &robots_dot_txt, const unsigned default_download_delay_time,
                                           const unsigned max_download_delay_time)
  : robots_dot_txt_(robots_dot_txt), time_limit_(robots_dot_txt_.getCrawlDelay("*") * 1000)
@@ -451,37 +463,51 @@ void DownloadManager::processQueueBuffers() {
 
 void DownloadManager::processDomainQueues(DomainData * const domain_data) {
     // apply download delays and create tasklets for downloads/crawls
-    if (not global_params_.ignore_robots_txt_ and not domain_data->delay_params_.time_limit_.limitExceeded())
+    const bool adhere_to_download_limit(not global_params_.ignore_robots_txt_);
+
+    if (adhere_to_download_limit and not domain_data->delay_params_.time_limit_.limitExceeded())
         return;
 
-    if (not domain_data->queued_direct_downloads_.empty() and direct_download_tasklet_execution_counter_ < MAX_DIRECT_DOWNLOAD_TASKLETS) {
+    while (not domain_data->queued_direct_downloads_.empty()
+           and direct_download_tasklet_execution_counter_ < MAX_DIRECT_DOWNLOAD_TASKLETS)
+    {
         std::shared_ptr<DirectDownload::Tasklet> direct_download_tasklet(domain_data->queued_direct_downloads_.front());
         domain_data->active_direct_downloads_.emplace_back(direct_download_tasklet);
         domain_data->queued_direct_downloads_.pop_front();
         direct_download_tasklet->start();
 
-        domain_data->delay_params_.time_limit_.restart();
-        return;
+        if (adhere_to_download_limit) {
+            domain_data->delay_params_.time_limit_.restart();
+            return;
+        }
     }
 
-    if (not domain_data->queued_crawls_.empty() and crawling_tasklet_execution_counter_ < MAX_CRAWLING_TASKLETS) {
+    while (not domain_data->queued_crawls_.empty()
+           and crawling_tasklet_execution_counter_ < MAX_CRAWLING_TASKLETS)
+    {
         std::shared_ptr<Crawling::Tasklet> crawling_tasklet(domain_data->queued_crawls_.front());
         domain_data->active_crawls_.emplace_back(crawling_tasklet);
         domain_data->queued_crawls_.pop_front();
         crawling_tasklet->start();
 
-        domain_data->delay_params_.time_limit_.restart();
-        return;
+        if (adhere_to_download_limit) {
+            domain_data->delay_params_.time_limit_.restart();
+            return;
+        }
     }
 
-    if (not domain_data->queued_rss_feeds_.empty() and rss_tasklet_execution_counter_ < MAX_RSS_TASKLETS) {
+    while(not domain_data->queued_rss_feeds_.empty()
+          and rss_tasklet_execution_counter_ < MAX_RSS_TASKLETS)
+    {
         std::shared_ptr<RSS::Tasklet> rss_tasklet(domain_data->queued_rss_feeds_.front());
         domain_data->active_rss_feeds_.emplace_back(rss_tasklet);
         domain_data->queued_rss_feeds_.pop_front();
         rss_tasklet->start();
 
-        domain_data->delay_params_.time_limit_.restart();
-        return;
+        if (adhere_to_download_limit) {
+            domain_data->delay_params_.time_limit_.restart();
+            return;
+        }
     }
 }
 
@@ -537,7 +563,7 @@ std::unique_ptr<DirectDownload::Result> DownloadManager::fetchDownloadDataFromCa
 
 
 DownloadManager::DownloadManager(const GlobalParams &global_params)
- : global_params_(global_params), stop_background_thread_(false), upload_tracker_(std::unique_ptr<DbConnection>(new DbConnection))
+ : global_params_(global_params), stop_background_thread_(false)
 {
     if (::pthread_create(&background_thread_, nullptr, BackgroundThreadRoutine, this) != 0)
         LOG_ERROR("background download manager thread creation failed!");
@@ -562,6 +588,19 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
     DownloadManager::directDownload(const Util::HarvestableItem &source, const std::string &user_agent,
                                     const DirectDownload::Operation operation, const unsigned timeout)
 {
+    // check if we have already delivered this URL
+    if (not global_params_.force_downloads_
+        and operation == DirectDownload::Operation::USE_TRANSLATION_SERVER
+        and upload_tracker_.urlAlreadyDelivered(source.url_.toString()))
+    {
+        std::unique_ptr<DirectDownload::Result> result(new DirectDownload::Result(source, operation));
+        result->response_code_ = DirectDownload::Result::SpecialResponseCodes::ITEM_ALREADY_DELIVERED;
+
+        std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
+                download_result(new Util::Future<DirectDownload::Params, DirectDownload::Result>(std::move(result)));
+        return download_result;
+    }
+
     // check if we have a cached response and return it immediately, if any
     auto cached_result(fetchDownloadDataFromCache(source, operation));
     if (cached_result != nullptr){
@@ -592,7 +631,7 @@ std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> DownloadManage
 {
     std::unique_ptr<Crawling::Params> parameters(new Crawling::Params(source, user_agent, DOWNLOAD_TIMEOUT, MAX_CRAWL_TIMEOUT,
                                                  global_params_.ignore_robots_txt_, global_params_.harvestable_manager_));
-    std::shared_ptr<Crawling::Tasklet> new_tasklet(new Crawling::Tasklet(&direct_download_tasklet_execution_counter_,
+    std::shared_ptr<Crawling::Tasklet> new_tasklet(new Crawling::Tasklet(&crawling_tasklet_execution_counter_,
                                                    this, std::move(parameters)));
 
     {
@@ -634,12 +673,6 @@ void DownloadManager::addToDownloadCache(const std::string &url, const std::stri
     std::lock_guard<std::recursive_mutex> download_cache_lock(cached_download_data_mutex_);
 
     auto cache_hit(cached_download_data_.equal_range(url));
-    if (cache_hit.first == cache_hit.second) {
-        cached_download_data_.insert(std::make_pair(url, CachedDownloadData { operation, response_body, response_header,
-                                                                              response_code, error_message }));
-        return;
-    }
-
     for (auto itr(cache_hit.first); itr != cache_hit.second; ++itr) {
         if (itr->second.operation_ == operation) {
             LOG_WARNING("cached download data overwritten for URL '" + url + "' (operation "
@@ -652,6 +685,9 @@ void DownloadManager::addToDownloadCache(const std::string &url, const std::stri
             return;
         }
     }
+
+    cached_download_data_.insert(std::make_pair(url, CachedDownloadData { operation, response_body, response_header,
+                                                                          response_code, error_message }));
 }
 
 

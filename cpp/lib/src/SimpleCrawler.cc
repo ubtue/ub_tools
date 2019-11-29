@@ -178,7 +178,7 @@ bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
         return SimpleCrawler::continueCrawling();
 
     // print message headers if necessary
-    const std::string message_headers(downloader_.getMessageHeader()), message_body(downloader_.getMessageBody());
+    const std::string message_headers(page_details->header_), message_body(page_details->body_);
     if (params_.print_redirects_) {
         std::list<std::string> location_urls;
         extractLocationUrls(message_headers, &location_urls);

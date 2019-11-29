@@ -68,6 +68,9 @@ public:
 
 
 struct Result {
+    // HTTP response codes start from 100, so we can use the lower range for our purposes
+    enum SpecialResponseCodes { ITEM_ALREADY_DELIVERED = 1 };
+
     Util::HarvestableItem source_;
     Operation operation_;
     std::string response_body_;
@@ -79,7 +82,8 @@ public:
      : source_(source), operation_(operation), response_code_(0) {}
     Result(const Result &rhs) = default;
 
-    inline bool isValid() const { return response_code_ == 200 and error_message_.empty(); }
+    inline bool downloadSuccessful() const { return response_code_ == 200 and error_message_.empty(); }
+    inline bool itemAlreadyDelivered() const { return response_code_ == ITEM_ALREADY_DELIVERED; }
 };
 
 
@@ -199,13 +203,7 @@ public:
         bool force_downloads_;
         Util::HarvestableItemManager * const harvestable_manager_;
     public:
-        GlobalParams(const Config::GlobalParams &config_global_params, Util::HarvestableItemManager * const harvestable_manager)
-         : translation_server_url_(config_global_params.translation_server_url_),
-           default_download_delay_time_(config_global_params.download_delay_params_.default_delay_),
-           max_download_delay_time_(config_global_params.download_delay_params_.max_delay_),
-           rss_feed_harvest_interval_(config_global_params.rss_harvester_operation_params_.harvest_interval_),
-           force_process_rss_feeds_with_no_pub_dates_(config_global_params.rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_),
-           ignore_robots_txt_(false), force_downloads_(false), harvestable_manager_(harvestable_manager) {}
+        GlobalParams(const Config::GlobalParams &config_global_params, Util::HarvestableItemManager * const harvestable_manager);
         GlobalParams(const GlobalParams &rhs) = default;
     };
 private:
