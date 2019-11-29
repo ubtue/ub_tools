@@ -1,4 +1,4 @@
-./** \brief Interaction with Zotero Translation Server
+/** \brief Interaction with Zotero Translation Server
  *         public functions are named like endpoints
  *         see https://github.com/zotero/translation-server
  *  \author Dr. Johannes Ruscheinski
@@ -862,14 +862,14 @@ void MarcFormatHandler::handleTrackingAndWriteRecord(const MARC::Record &new_rec
 
     if (already_delivered) {
         ++(*previously_downloaded_count);
-        LOG_INFO("skipping URL '" + item_params->url_ + "' - already delivered (URL match)");
+        LOG_INFO("skipping URL '" + item_params.url_ + "' - already delivered (URL match)");
         return;
     }
 
     BSZUpload::DeliveryTracker::Entry delivered_entry;
     if (delivery_tracker_.hashAlreadyDelivered(hash, &delivered_entry)) {
         ++(*previously_downloaded_count);
-        LOG_INFO("skipping URL '" + item_params->url_ + "' - already delivered (hash match with URL '"
+        LOG_INFO("skipping URL '" + item_params.url_ + "' - already delivered (hash match with URL '"
                  + delivered_entry.url_ + "')");
         return;
     }
