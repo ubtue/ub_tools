@@ -50,7 +50,6 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name):
     ClearSolrIndex(title_index)
     util.ExecOrDie(vufind_dir + "/import-marc.sh", title_args, log_file_name)
     OptimizeSolrIndex(title_index)
-    util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"], log_file_name)
 
     # import authority data
     authority_index = 'authority'
@@ -61,6 +60,7 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name):
     ClearSolrIndex(authority_index)
     util.ExecOrDie(vufind_dir + "/import-marc-auth.sh", authority_args, log_file_name)
     OptimizeSolrIndex(authority_index)
+    util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"], log_file_name)
 
     # cleanup logs
     util.ExecOrDie("/usr/local/bin/summarize_logs", [vufind_dir + "/import/solrmarc.log", solrmarc_log_summary])
