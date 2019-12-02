@@ -85,7 +85,24 @@ public:
         : control_number_(control_number), series_title_(series_title), issue_title_(issue_title), volume_(volume), year_(year),
           issue_(issue), start_page_(start_page), authors_(authors) { }
     bool operator<(const NewIssueInfo &rhs) const;
+    friend std::ostream &operator<<(std::ostream &output, const NewIssueInfo &new_issue_info);
 };
+
+
+std::ostream &operator<<(std::ostream &output, const NewIssueInfo &new_issue_info) {
+    output << new_issue_info.control_number_
+           << (new_issue_info.series_title_.empty() ? "*Missing Series Title*" : new_issue_info.series_title_) << ' '
+           << (new_issue_info.issue_title_.empty() ? "*Missing Issue Title*" : new_issue_info.issue_title_) << ' '
+           << (new_issue_info.volume_.empty() ? "*Missing Volume*" : new_issue_info.volume_) << ' '
+           << (new_issue_info.year_.empty() ? "*Missing Year*" : new_issue_info.year_) << ' '
+           << (new_issue_info.issue_.empty() ? "*Missing Issue*" : new_issue_info.issue_) << ' '
+           << (new_issue_info.start_page_.empty() ? "*Missing Start Page*" : new_issue_info.start_page_) << ' '
+           << "Authors: ";
+    for (const auto &author : new_issue_info.authors_)
+        output << author << ' ';
+
+    return output;
+}
 
 
 bool StartPageLessThan(const std::string &start_page1, const std::string &start_page2) {
@@ -440,8 +457,12 @@ void ProcessSingleUser(
 
     // Update the database with the new last issue dates
     // skip in DEBUG mode
-    if (debug)
+    if (debug) {
+        std::cerr << "\n\nNew issues for " << username << ":\n";
+        for (const auto &new_issue_info : new_issue_infos)
+            std::cerr << new_issue_info << '\n';
         return;
+    }
 
     for (const auto &control_number_or_bundle_name_and_last_modification_time : control_numbers_or_bundle_names_and_last_modification_times)
     {
