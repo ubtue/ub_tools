@@ -263,10 +263,10 @@ bool ExtractNewIssueInfos(const std::unique_ptr<KeyValueDB> &notified_db,
 
         const std::string series_title(GetSeriesTitle(doc_obj));
         const std::vector<std::string> authors(GetAuthors(doc_obj));
-        const std::string volume(JSON::LookupString("/container_volume", doc_obj, /* default_value = */ ""));
+        const std::string volume(JSON::LookupString("/volume", doc_obj, /* default_value = */ ""));
         const std::string year(JSON::LookupString("/year", doc_obj, /* default_value = */ ""));
-        const std::string issue(JSON::LookupString("/container_issue", doc_obj, /* default_value = */ ""));
-        const std::string start_page(JSON::LookupString("/container_start_page", doc_obj, /* default_value = */ ""));
+        const std::string issue(JSON::LookupString("/issue", doc_obj, /* default_value = */ ""));
+        const std::string start_page(JSON::LookupString("/start_page", doc_obj, /* default_value = */ ""));
 
         new_issue_infos->emplace_back(id, series_title, issue_title, volume, year, issue, start_page, authors);
 
@@ -295,8 +295,8 @@ bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
 
     std::string json_result, err_msg;
     if (unlikely(not Solr::Query(QUERY,
-                                 "id,title,title_sub,author,last_modification_time,container_ids_and_titles,container_volume,year"
-                                 "container_issue,container_start_page", &json_result, &err_msg,
+                                 "id,title,title_sub,author,last_modification_time,container_ids_and_titles,volume,year"
+                                 "issue,start_page", &json_result, &err_msg,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         LOG_ERROR("Solr query failed or timed-out: \"" + QUERY + "\". (" + err_msg + ")");
 
@@ -315,34 +315,37 @@ std::string GenerateEmailContents(const std::string &user_type, const std::strin
     std::string email_contents("Dear " + name_of_user + ",<br /><br />\n"
                                "An automated process has determined that new issues are available for\n"
                                "serials that you are subscribed to.  The list is:\n"
-                               "<ul>\n");
+                               "<ul>\n"
+                               "  <ul>\n");
     std::string last_series_title, last_volume_year_and_issue;
     for (const auto &new_issue_info : new_issue_infos) {
         if (new_issue_info.series_title_ != last_series_title) {
             if (not last_series_title.empty())
-                email_contents += "</ul>\n";
+                email_contents += "  </ul>\n"; // end volume/year/issue list
             last_series_title = new_issue_info.series_title_;
-            email_contents += "<li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
-            email_contents += "<ul>\n";
+            email_contents += "  <li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
+            email_contents += "  <ul>\n"; // start volume/year/issue list
+            last_volume_year_and_issue.clear();
             last_volume_year_and_issue.clear();
         }
 
         const std::string volume_year_and_issue(new_issue_info.volume_ + new_issue_info.year_ + new_issue_info.issue_);
         if (volume_year_and_issue != last_volume_year_and_issue) {
             if (not last_volume_year_and_issue.empty())
-                email_contents += "</ul>\n";
-            email_contents += "<li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
+                email_contents += "  </ul>\n";
+            email_contents += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
             last_volume_year_and_issue = volume_year_and_issue;
-            email_contents += "<ul>\n";
+            email_contents += "  <ul>\n";
         }
 
         const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
         std::string authors;
         for (const auto &author : new_issue_info.authors_)
             authors += "&nbsp;&nbsp;&nbsp;" + HtmlUtil::HtmlEscape(author);
-        email_contents += "<li><a href=" + URL + ">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors + "</li>\n";
+        email_contents += "      <li><a href=" + URL + ">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors
+                          + "</li>\n";
     }
-    email_contents += "</ul>\n"; // end volume/year/issue list
+    email_contents += "  </ul>\n"; // end volume/year/issue list
     email_contents += "</ul>\n"; // end journal list
     email_contents += "<br />\n"
                       "Sincerely,<br />\n"
