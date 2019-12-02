@@ -76,13 +76,48 @@ struct NewIssueInfo {
     std::string control_number_;
     std::string series_title_;
     std::string issue_title_;
-    std::string last_modification_time_;
+    std::string volume_, year_, issue_, start_page_;
     std::vector<std::string> authors_;
 public:
     NewIssueInfo(const std::string &control_number, const std::string &series_title, const std::string &issue_title,
+                 const std::string &volume, const std::string &year, const std::string &issue, const std::string &start_page,
                  const std::vector<std::string> &authors)
-        : control_number_(control_number), series_title_(series_title), issue_title_(issue_title), authors_(authors) { }
+        : control_number_(control_number), series_title_(series_title), issue_title_(issue_title), volume_(volume), year_(year),
+          issue_(issue), start_page_(start_page), authors_(authors) { }
+    bool operator<(const NewIssueInfo &rhs) const;
 };
+
+
+inline bool ConsistsOfAllASCIIDigits(const std::string &s) {
+    for (const char ch : s) {
+        if (not StringUtil::IsDigit(ch))
+            return false;
+    }
+
+    return true;
+}
+
+
+bool StartPageLessThan(const std::string &start_page1, const std::string &start_page2) {
+    if (not ConsistsOfAllASCIIDigits(start_page1) or not ConsistsOfAllASCIIDigits(start_page2))
+        return start_page1 < start_page2; // Arbitrary but consistent.
+
+    return StringUtil::ToUnsigned(start_page1) < StringUtil::ToUnsigned(start_page2);
+}
+
+
+bool NewIssueInfo::operator<(const NewIssueInfo &rhs) const {
+    if (series_title_ < rhs.series_title_)
+        return true;
+    if (volume_ < rhs.volume_)
+        return true;
+    if (year_ < rhs.year_)
+        return true;
+    if (StartPageLessThan(start_page_, rhs.start_page_))
+        return true;
+
+    return false;
+}
 
 
 // Makes "date" look like an ISO-8601 date ("2017-01-01 00:00:00" => "2017-01-01T00:00:00Z")
@@ -180,8 +215,7 @@ std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode
 
     std::vector<std::string> authors;
     for (const auto &array_entry : *author_array) {
-        const std::shared_ptr<const JSON::StringNode> author_string(JSON::JSONNode::CastToStringNodeOrDie("author string",
-                                                                                                          array_entry));
+        const std::shared_ptr<const JSON::StringNode> author_string(JSON::JSONNode::CastToStringNodeOrDie("author string", array_entry));
         authors.emplace_back(author_string->getValue());
     }
 
@@ -223,8 +257,12 @@ bool ExtractNewIssueInfos(const std::unique_ptr<KeyValueDB> &notified_db,
 
         const std::string series_title(GetSeriesTitle(doc_obj));
         const std::vector<std::string> authors(GetAuthors(doc_obj));
+        const std::string volume(JSON::LookupString("/container_volume", doc_obj, /* default_value = */ ""));
+        const std::string year(JSON::LookupString("/year", doc_obj, /* default_value = */ ""));
+        const std::string issue(JSON::LookupString("/container_issue", doc_obj, /* default_value = */ ""));
+        const std::string start_page(JSON::LookupString("/container_start_page", doc_obj, /* default_value = */ ""));
 
-        new_issue_infos->emplace_back(id, series_title, issue_title, authors);
+        new_issue_infos->emplace_back(id, series_title, issue_title, volume, year, issue, start_page, authors);
 
         const std::string last_modification_time(GetLastModificationTime(doc_obj));
         if (last_modification_time > *max_last_modification_time) {
@@ -234,17 +272,6 @@ bool ExtractNewIssueInfos(const std::unique_ptr<KeyValueDB> &notified_db,
     }
 
     return found_at_least_one_new_issue;
-}
-
-
-std::string GetEmailTemplate(const std::string user_type) {
-    std::string result;
-    const std::string EMAIL_TEMPLATE_PATH(UBTools::GetTuelibPath() + "subscriptions_email." + user_type + ".template");
-
-    if (unlikely(not FileUtil::ReadString(EMAIL_TEMPLATE_PATH, &result)))
-        LOG_ERROR("can't load email template \"" + EMAIL_TEMPLATE_PATH + "\"!");
-
-    return result;
 }
 
 
@@ -261,7 +288,9 @@ bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
     );
 
     std::string json_result, err_msg;
-    if (unlikely(not Solr::Query(QUERY, "id,title,title_sub,author,last_modification_time,container_ids_and_titles", &json_result, &err_msg,
+    if (unlikely(not Solr::Query(QUERY,
+                                 "id,title,title_sub,author,last_modification_time,container_ids_and_titles,container_volume,year"
+                                 "container_issue,container_start_page", &json_result, &err_msg,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         LOG_ERROR("Solr query failed or timed-out: \"" + QUERY + "\". (" + err_msg + ")");
 
@@ -269,38 +298,66 @@ bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
 }
 
 
+inline std::string CapitalizedUserType(const std::string &user_type) {
+    return user_type == "ixtheo" ? "IxTheo" : "KrimDok";
+}
+
+
+std::string GenerateEmailContents(const std::string &user_type, const std::string &name_of_user, const std::string &vufind_host,
+                                  const std::vector<NewIssueInfo> &new_issue_infos)
+{
+    std::string email_contents("Dear " + name_of_user + ",<br /><br />\n"
+                               "An automated process has determined that new issues are available for\n"
+                               "serials that you are subscribed to.  The list is:\n"
+                               "<ul>\n");
+    std::string last_series_title, last_volume_year_and_issue;
+    for (const auto &new_issue_info : new_issue_infos) {
+        if (new_issue_info.series_title_ != last_series_title) {
+            if (not last_series_title.empty())
+                email_contents += "</ul>\n";
+            last_series_title = new_issue_info.series_title_;
+            email_contents += "<li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
+            email_contents += "<ul>\n";
+            last_volume_year_and_issue.clear();
+        }
+
+        const std::string volume_year_and_issue(new_issue_info.volume_ + new_issue_info.year_ + new_issue_info.issue_);
+        if (volume_year_and_issue != last_volume_year_and_issue) {
+            if (not last_volume_year_and_issue.empty())
+                email_contents += "</ul>\n";
+            email_contents += "<li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
+            last_volume_year_and_issue = volume_year_and_issue;
+            email_contents += "<ul>\n";
+        }
+
+        const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
+        std::string authors;
+        for (const auto &author : new_issue_info.authors_)
+            authors += "&nbsp;&nbsp;&nbsp;" + HtmlUtil::HtmlEscape(author);
+        email_contents += "<li><a href=" + URL + ">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors + "</li>\n";
+    }
+    email_contents += "</ul>\n"; // end volume/year/issue list
+    email_contents += "</ul>\n"; // end journal list
+    email_contents += "<br />\n"
+                      "Sincerely,<br />\n"
+                      "The " + CapitalizedUserType(user_type) + " Team\n"
+                      "<br />--<br />\n"
+                      "If you have questions regarding this service please contact\n"
+                      "<a href=\"mailto:" + user_type + "@ub.uni-tuebingen.de\">" + user_type + "@ub.uni-tuebingen.de</a>.\n";
+
+    return email_contents;
+}
+
+
 void SendNotificationEmail(const bool debug, const std::string &name_of_user, const std::string &recipient_email,
                            const std::string &vufind_host, const std::string &sender_email, const std::string &email_subject,
                            const std::vector<NewIssueInfo> &new_issue_infos, const std::string &user_type)
 {
-    std::string email_template = GetEmailTemplate(user_type);
-
-    // Process the email template:
-    Template::Map names_to_values_map;
-    names_to_values_map.insertScalar("name_of_user", name_of_user);
-    std::vector<std::string> urls, series_titles, issue_titles;
-    std::vector<std::shared_ptr<Template::Value>> authors;
-    for (const auto &new_issue_info : new_issue_infos) {
-        urls.emplace_back("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
-        series_titles.emplace_back(new_issue_info.series_title_);
-        issue_titles.emplace_back(HtmlUtil::HtmlEscape(new_issue_info.issue_title_));
-        std::shared_ptr<Template::ArrayValue> issue_authors(new Template::ArrayValue("authors"));
-        for (const auto &author : new_issue_info.authors_)
-            issue_authors->appendValue(author);
-        authors.emplace_back(issue_authors);
-    }
-    names_to_values_map.insertArray("url", urls);
-    names_to_values_map.insertArray("series_title", series_titles);
-    names_to_values_map.insertArray("issue_title", issue_titles);
-    names_to_values_map.insertArray("authors", authors);
-    std::istringstream input(email_template);
-    std::ostringstream email_contents;
-    Template::ExpandTemplate(input, email_contents, names_to_values_map);
-
+    const std::string email_contents(GenerateEmailContents(user_type, name_of_user, vufind_host, new_issue_infos));
     if (debug)
-        std::cerr << "Debug mode, email address is " << sender_email << ", template expanded to:\n" << email_contents.str() << '\n';
+        std::cerr << "Debug mode, email address is " << sender_email << ", template expanded to:\n" << email_contents << '\n';
     else {
-        const unsigned short response_code(EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents.str(),
+        const unsigned short response_code(EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents,
                                                                   EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
 
         if (response_code >= 300) {
@@ -327,7 +384,7 @@ void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &
     std::vector<std::string> bundle_ppns;
     StringUtil::SplitThenTrim(bundle_ppns_string, "," , " \t", &bundle_ppns);
     for (const auto &bundle_ppn : bundle_ppns)
-            control_numbers->emplace_back(bundle_ppn);
+        control_numbers->emplace_back(bundle_ppn);
 }
 
 
@@ -384,6 +441,7 @@ void ProcessSingleUser(
                 control_number_or_bundle_name_and_last_modification_time.setMaxLastModificationTime(max_last_modification_time);
         }
     }
+    std::sort(new_issue_infos.begin(), new_issue_infos.end());
 
     LOG_INFO("Found " + std::to_string(new_issue_infos.size()) + " new issues for " + "\"" + username + "\".");
 
