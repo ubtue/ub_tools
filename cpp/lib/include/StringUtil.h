@@ -1941,6 +1941,18 @@ inline bool IsDigit(const int ch)
 }
 
 
+inline bool ConsistsOfAllASCIIDigits(const std::string &s) {
+    if (s.empty())
+        return false;
+    for (const char ch : s) {
+        if (not IsDigit(ch))
+            return false;
+    }
+
+    return true;
+}
+
+
 /** \brief  Returns what isalnum would return in the "C" locale.
  *  \param  ch  The character to test.
  *  \return True if "ch" is an alphanumeric character in the "C" locale, else false.
