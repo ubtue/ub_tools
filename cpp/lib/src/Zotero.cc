@@ -528,7 +528,8 @@ void SelectIssnAndPpn(const std::string &issn_zotero, const std::string &issn_on
 
 void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters) {
     const std::string item_type(node_parameters.item_type_);
-    *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, Transformation::MapBiblioLevel(item_type));
+    *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
+                           MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART);
 
     // Control Fields
 
@@ -622,7 +623,6 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
 
     // Review-specific modifications
     if (item_type == "review") {
-        record->getLeader()[7] = MARC::Record::BibliographicLevelToChar(MARC::Record::SERIAL_COMPONENT_PART);
         record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" }, { '2', "gnd-content" } },
                             /* indicator1 = */' ', /* indicator2 = */'7');
     }
@@ -744,8 +744,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     if (not site_params_->zeder_id_.empty())
         record->insertField("ZID", { { 'a', site_params_->zeder_id_ } });
 
-    if (not node_parameters.harvest_url_.empty())
-        record->insertField("URL", { { 'a', node_parameters.harvest_url_ } });
+    if (not node_parameters.url_.empty())
+        record->insertField("URL", { { 'a', node_parameters.url_ } });
 
     if (not node_parameters.journal_name_.empty())
         record->insertField("JOU", { { 'a', node_parameters.journal_name_ } });
@@ -842,17 +842,39 @@ void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParamet
 void MarcFormatHandler::handleTrackingAndWriteRecord(const MARC::Record &new_record, const bool keep_delivered_records,
                                                      struct ItemParameters &item_params, unsigned * const previously_downloaded_count)
 {
-    const std::string record_url(item_params.url_);
-    const std::string checksum(StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
-    if (record_url.empty())
+    if (keep_delivered_records) {
+        marc_writer_->write(new_record);
+        return;
+    }
+
+    const std::string hash(StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
+    const auto record_urls(new_record.getSubfieldValues("856", 'u'));
+    if (record_urls.empty())
         LOG_ERROR("\"record_url\" has not been set!");
 
-    if (keep_delivered_records or not delivery_tracker_.hasAlreadyBeenDelivered(record_url, checksum))
-        marc_writer_->write(new_record);
-    else {
-        ++(*previously_downloaded_count);
-        LOG_INFO("skipping URL '" + record_url + "' - already delivered");
+    bool already_delivered(false);
+    for (const auto &url : record_urls) {
+        if (delivery_tracker_.urlAlreadyDelivered(url)) {
+            already_delivered = true;
+            break;
+        }
     }
+
+    if (already_delivered) {
+        ++(*previously_downloaded_count);
+        LOG_INFO("skipping URL '" + item_params.url_ + "' - already delivered (URL match)");
+        return;
+    }
+
+    BSZUpload::DeliveryTracker::Entry delivered_entry;
+    if (delivery_tracker_.hashAlreadyDelivered(hash, &delivered_entry)) {
+        ++(*previously_downloaded_count);
+        LOG_INFO("skipping URL '" + item_params.url_ + "' - already delivered (hash match with URL '"
+                 + delivered_entry.url_ + "')");
+        return;
+    }
+
+    marc_writer_->write(new_record);
 }
 
 
@@ -1361,7 +1383,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         return record_count_and_previously_downloaded_count;
     } else if (not harvest_params->force_downloads_) {
         auto &delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
-        if (delivery_tracker.hasAlreadyBeenDelivered(harvest_url)) {
+        if (delivery_tracker.urlAlreadyDelivered(harvest_url)) {
             const auto delivery_mode(site_params.delivery_mode_);
             switch (delivery_mode) {
             case BSZUpload::DeliveryMode::TEST:
@@ -1370,7 +1392,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
                           BSZUpload::DELIVERY_MODE_TO_STRING_MAP.at(delivery_mode) + " server): " + harvest_url);
                 break;
             default:
-                LOG_DEBUG("Skipping URL (delivery mode set to NONE but URL has already been delivered?!): " + harvest_url);
+                LOG_WARNING("Skipping URL (delivery mode set to NONE but URL has already been delivered?!): " + harvest_url);
                 break;
             }
             already_skipped_urls.insert(harvest_url);

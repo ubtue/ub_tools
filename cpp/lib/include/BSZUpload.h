@@ -58,10 +58,8 @@ public:
     explicit DeliveryTracker(DbConnection * const db): db_connection_(db) {}
     ~DeliveryTracker() = default;
 public:
-    /** \brief Checks if "url" or ("url", "hash") have already been uploaded.
-     *  \return True if we have find an entry for "url" or ("url", "hash"), else false.
-     */
-    bool hasAlreadyBeenDelivered(const std::string &url, const std::string &hash = "", Entry * const entry = nullptr) const;
+    bool urlAlreadyDelivered(const std::string &url, Entry * const entry = nullptr) const;
+    bool hashAlreadyDelivered(const std::string &hash, Entry * const entry = nullptr) const;
 
     /** \brief Lists all journals that haven't had a single URL delivered for a given number of days.
      *  \return The number of outdated journals.

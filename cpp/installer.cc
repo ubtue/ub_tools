@@ -304,6 +304,11 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, const OSSy
             MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", sql_database, root_username, root_password);
             break;
         }
+
+        IniFile ub_tools_ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
+        const auto ub_tools_ini_section(ub_tools_ini_file.getSection("Database"));
+        const std::string ub_tools_username(ub_tools_ini_section->getString("sql_username"));
+        DbConnection::MySQLGrantAllPrivileges(sql_database, ub_tools_username, root_username, root_password);
     }
 
     if (vufind_system_type == IXTHEO) {
@@ -374,12 +379,11 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
 }
 
 
-void CreateUsrLocalRun() {
-    const std::string USR_LOCAL_RUN("/usr/local/run");
-    if (FileUtil::IsDirectory(USR_LOCAL_RUN))
+void CreateDirectoryIfNotExistsOrDie(const std::string &directory) {
+    if (FileUtil::IsDirectory(directory))
         return;
-    if (not FileUtil::MakeDirectory(USR_LOCAL_RUN))
-        Error("failed to create \"" + USR_LOCAL_RUN + "\"!");
+    if (not FileUtil::MakeDirectory(directory))
+        Error("failed to create \"" + directory + "\"!");
 }
 
 
@@ -436,7 +440,7 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
 
     CreateUbToolsDatabase(os_system_type);
     GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
-    CreateUsrLocalRun();
+    CreateDirectoryIfNotExistsOrDie("/usr/local/run");
 
     Echo("Installed ub_tools.");
 }
@@ -685,6 +689,9 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     Echo("SOLR Schema (schema_local_*.xml)");
     ExecUtil::ExecOrDie(dirname_solr_conf + "/generate_xml.sh", { vufind_system_type_string });
 
+    Echo("Synonyms (synonyms_*.txt)");
+    ExecUtil::ExecOrDie(dirname_solr_conf + "/touch_synonyms.sh", { vufind_system_type_string });
+
     Echo("solrmarc (marc_local.properties)");
     ExecUtil::ExecOrDie(VUFIND_DIRECTORY + "/import/make_marc_local_properties.sh", { vufind_system_type_string });
 
@@ -778,6 +785,7 @@ int Main(int argc, char **argv) {
 
     if (not ub_tools_only) {
         MountDeptDriveOrDie(vufind_system_type);
+        CreateDirectoryIfNotExistsOrDie("/mnt/zram");
         DownloadVuFind();
         #ifndef __clang__
         #   pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
