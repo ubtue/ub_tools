@@ -330,10 +330,10 @@ std::string GenerateEmailContents(const std::string &user_type, const std::strin
         const std::string volume_year_and_issue(new_issue_info.volume_ + new_issue_info.year_ + new_issue_info.issue_);
         if (volume_year_and_issue != last_volume_year_and_issue) {
             if (not last_volume_year_and_issue.empty())
-                email_contents += "    </ul>\n";
+                email_contents += "    </ul>\n"; // end items
             email_contents += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
             last_volume_year_and_issue = volume_year_and_issue;
-            email_contents += "    <ul>\n";
+            email_contents += "    <ul>\n"; // start items
         }
 
         const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
@@ -343,6 +343,7 @@ std::string GenerateEmailContents(const std::string &user_type, const std::strin
         email_contents += "      <li><a href=" + URL + ">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors
                           + "</li>\n";
     }
+    email_contents += "    </ul>\n"; // end items
     email_contents += "  </ul>\n"; // end volume/year/issue list
     email_contents += "</ul>\n"; // end journal list
     email_contents += "<br />\n"
