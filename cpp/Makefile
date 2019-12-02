@@ -41,7 +41,6 @@ regular_install: $(INSTALL_PROGS) Makefile
 	cp $(INSTALL_PROGS) /usr/local/bin/
 
 data_install: Makefile data/*.conf data/*.map data/IxTheo_Notation.csv data/stopwords.* \
-              data/subscriptions_email.ixtheo.template data/subscriptions_email.relbib.template \
               data/bibleRef/* data/crossref_downloader/* data/full_text_cache_monitor/* \
               data/translate_chainer/* data/zotero_cgi/* data/marc_check.rules data/language_models/*.lm \
               data/mime.types
@@ -51,8 +50,6 @@ data_install: Makefile data/*.conf data/*.map data/IxTheo_Notation.csv data/stop
 	cp data/IxTheo_Notation.csv /usr/local/var/lib/tuelib/
 	cp data/zotero_author_name_blacklist.txt /usr/local/var/lib/tuelib/
 	cp data/stopwords.* /usr/local/var/lib/tuelib/
-	cp data/subscriptions_email.ixtheo.template /usr/local/var/lib/tuelib/
-	cp data/subscriptions_email.relbib.template /usr/local/var/lib/tuelib/
 	cp -r data/bibleRef /usr/local/var/lib/tuelib/
 	cp -r data/crossref_downloader /usr/local/var/lib/tuelib/
 	cp -r data/full_text_cache_monitor /usr/local/var/lib/tuelib/
