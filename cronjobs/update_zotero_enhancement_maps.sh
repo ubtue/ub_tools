@@ -4,16 +4,22 @@
 # auto-generated maps and pushes the changes to GitHub
 set -o errexit -o nounset
 
+# Set up the log file:
+readonly logdir=/usr/local/var/log/tuefind
+readonly log_filename=$(basename "$0")
+readonly log="${logdir}/${log_filename%.*}.log"
+rm -f "${log}"
+
 no_problems_found=false
 function SendEmail {
-    if [[ $no_problems_found ]]; then
+    if [ "$no_problems_found" = true ]; then
         send_email --priority=low --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
                    --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
         exit 0
     else
         send_email --priority=high --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
                    --subject="$0 failed on $(hostname)" \
-                   --message-body="Check the log file at /usr/local/var/log/tuefind/$(basename "$0").log for details."
+                   --message-body="Check the log file at $log for details."
         echo "*** ZOTERO ENHANCEMENT MAPS UPDATE FAILED ***" | tee --append "${log}"
         exit 1
     fi
@@ -33,15 +39,14 @@ fi
 
 readonly email_address=$1
 readonly working_dir=/usr/local/var/lib/tuelib/zotero-enhancement-maps
-
-# Set up the log file:
-readonly logdir=/usr/local/var/log/tuefind
-readonly log_filename=$(basename "$0")
-readonly log="${logdir}/${log_filename%.*}.log"
-rm -f "${log}"
+readonly github_ssh_key=~/.ssh/github-robot
 
 echo -e "*** ZOTERO ENHANCEMENT MAPS UPDATE START ***\n" | tee --append "${log}"
 cd $working_dir
+
+echo -e "Start SSH agent\n" | tee --append "${log}"
+eval "$(ssh-agent -s)"
+ssh-add "$github_ssh_key"
 
 echo -e "Pull changes from upstream\n" | tee --append "${log}"
 git pull >> "${log}" 2>&1
