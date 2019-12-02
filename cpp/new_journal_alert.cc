@@ -190,6 +190,8 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
 
     const std::shared_ptr<const JSON::ArrayNode> container_ids_and_titles_array(
         JSON::JSONNode::CastToArrayNodeOrDie("container_ids_and_titles", container_ids_and_titles));
+    if (unlikely(container_ids_and_titles_array == nullptr))
+        LOG_ERROR("container_ids_and_titles_array is not a JSON array!");
     if (container_ids_and_titles_array->empty()) {
         LOG_WARNING("\"container_ids_and_titles\" is empty");
         return NO_SERIES_TITLE;
@@ -295,7 +297,7 @@ bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
 
     std::string json_result, err_msg;
     if (unlikely(not Solr::Query(QUERY,
-                                 "id,title,title_sub,author,last_modification_time,container_ids_and_titles,volume,year"
+                                 "id,title,title_sub,author,last_modification_time,container_ids_and_titles,volume,year,"
                                  "issue,start_page", &json_result, &err_msg,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         LOG_ERROR("Solr query failed or timed-out: \"" + QUERY + "\". (" + err_msg + ")");
