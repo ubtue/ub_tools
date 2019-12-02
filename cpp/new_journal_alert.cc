@@ -209,14 +209,13 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
 std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
     const std::shared_ptr<const JSON::JSONNode> author(doc_obj->getNode("author"));
     if (author == nullptr) {
-        LOG_WARNING("\"author\" is null");
+        LOG_DEBUG("\"author\" JSON node is missing!");
         return std::vector<std::string>();
     }
 
-    const std::shared_ptr<const JSON::ArrayNode> author_array(
-        JSON::JSONNode::CastToArrayNodeOrDie("author", author));
+    const std::shared_ptr<const JSON::ArrayNode> author_array(JSON::JSONNode::CastToArrayNodeOrDie("author", author));
     if (author_array->empty()) {
-        LOG_WARNING("\"author\" is empty");
+        LOG_WARNING("\"author\" JSON array is empty!");
         return std::vector<std::string>();
     }
 
