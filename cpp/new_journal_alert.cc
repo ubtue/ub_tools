@@ -315,8 +315,7 @@ std::string GenerateEmailContents(const std::string &user_type, const std::strin
     std::string email_contents("Dear " + name_of_user + ",<br /><br />\n"
                                "An automated process has determined that new issues are available for\n"
                                "serials that you are subscribed to.  The list is:\n"
-                               "<ul>\n"
-                               "  <ul>\n");
+                               "<ul>\n"); // start journal list
     std::string last_series_title, last_volume_year_and_issue;
     for (const auto &new_issue_info : new_issue_infos) {
         if (new_issue_info.series_title_ != last_series_title) {
@@ -326,16 +325,15 @@ std::string GenerateEmailContents(const std::string &user_type, const std::strin
             email_contents += "  <li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
             email_contents += "  <ul>\n"; // start volume/year/issue list
             last_volume_year_and_issue.clear();
-            last_volume_year_and_issue.clear();
         }
 
         const std::string volume_year_and_issue(new_issue_info.volume_ + new_issue_info.year_ + new_issue_info.issue_);
         if (volume_year_and_issue != last_volume_year_and_issue) {
             if (not last_volume_year_and_issue.empty())
-                email_contents += "  </ul>\n";
+                email_contents += "    </ul>\n";
             email_contents += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
             last_volume_year_and_issue = volume_year_and_issue;
-            email_contents += "  <ul>\n";
+            email_contents += "    <ul>\n";
         }
 
         const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
