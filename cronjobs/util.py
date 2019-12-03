@@ -489,3 +489,7 @@ def Tail(filename, max_no_of_lines):
 
         map.close()
         return str(requested_lines[::-1])
+
+
+def RenameFile(old_path : str, new_path : str) -> None:
+    ExecOrDie("/bin/mv", [ "--force", old_path, new_path])
