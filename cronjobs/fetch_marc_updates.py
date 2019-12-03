@@ -174,7 +174,8 @@ def AddToCumulativeCollection(downloaded_files, config):
 
     try:
         for downloaded_file in downloaded_files:
-            shutil.move(downloaded_file, output_directory)
+            if not os.path.exists(output_directory + '/' + os.path.basename(downloaded_file)):
+                shutil.move(downloaded_file, output_directory)
     except Exception as e:
         util.Error("Adding file to cumulative collection failed! (" + str(e) + ")")
 
