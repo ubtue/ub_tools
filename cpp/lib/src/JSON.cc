@@ -721,9 +721,12 @@ static std::shared_ptr<const JSONNode> GetLastPathComponent(const std::string &p
             break;
         case JSONNode::ARRAY_NODE: {
             unsigned index;
-            if (unlikely(not StringUtil::ToUnsigned(path_component, &index)))
-                throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
-                                         + "\" in path \"" + path + "\" can't be converted to an array index!");
+            if (unlikely(not StringUtil::ToUnsigned(path_component, &index))) {
+                if (unlikely(not have_default))
+                    throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
+                                             + "\" in path \"" + path + "\" can't be converted to an array index!");
+                return nullptr;
+            }
             const std::shared_ptr<const ArrayNode> array_node(JSONNode::CastToArrayNodeOrDie("next_node", next_node));
             if (unlikely(index >= array_node->size())) {
                 if (unlikely(not have_default))
@@ -735,7 +738,9 @@ static std::shared_ptr<const JSONNode> GetLastPathComponent(const std::string &p
             break;
         }
         default:
-            throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node!");
+            if (unlikely(not have_default))
+                throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node!");
+            return nullptr;
         }
     }
 
