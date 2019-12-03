@@ -492,4 +492,4 @@ def Tail(filename, max_no_of_lines):
 
 
 def RenameFile(old_path : str, new_path : str) -> None:
-    ExecOrDie("/bin/mv", [ "--force", old_path, new_path])
+    ExecOrDie("/bin/mv", [ "--force", old_path, new_path ])
