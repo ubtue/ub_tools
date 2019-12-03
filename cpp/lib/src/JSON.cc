@@ -673,10 +673,10 @@ std::string TokenTypeToString(const TokenType token) {
 
 
 static size_t ParsePath(const std::string &path, std::deque<std::string> * const components) {
-    std::string component;
-
-    if (not StringUtil::StartsWith(path, "/"))
+    if (unlikely(not StringUtil::StartsWith(path, "/")))
         throw std::runtime_error("in JSON::ParsePath: path must start with a slash!");
+
+    std::string component;
     bool escaped(false);
     for (const char ch : path.substr(1)) {
         if (escaped) {
@@ -710,26 +710,30 @@ static std::shared_ptr<const JSONNode> GetLastPathComponent(const std::string &p
     std::shared_ptr<const JSONNode> next_node(tree);
     for (const auto &path_component : path_components) {
         if (next_node == nullptr) {
-            if (unlikely(not have_default))
+            if (not have_default)
                 throw std::runtime_error("in JSON::GetLastPathComponent: can't find \"" + path + "\" in our JSON tree!");
             return nullptr;
         }
 
         switch (next_node->getType()) {
         case JSONNode::OBJECT_NODE:
-            next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component);
+            if ((next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component)) == nullptr) {
+                if (not have_default)
+                    throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
+                                             + " is not a key in an object node!");
+            }
             break;
         case JSONNode::ARRAY_NODE: {
             unsigned index;
             if (unlikely(not StringUtil::ToUnsigned(path_component, &index))) {
-                if (unlikely(not have_default))
+                if (not have_default)
                     throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
                                              + "\" in path \"" + path + "\" can't be converted to an array index!");
                 return nullptr;
             }
             const std::shared_ptr<const ArrayNode> array_node(JSONNode::CastToArrayNodeOrDie("next_node", next_node));
             if (unlikely(index >= array_node->size())) {
-                if (unlikely(not have_default))
+                if (not have_default)
                     throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
                                              + "\" in path \"" + path + "\" is too large as an array index!");
                 return nullptr;
@@ -738,7 +742,7 @@ static std::shared_ptr<const JSONNode> GetLastPathComponent(const std::string &p
             break;
         }
         default:
-            if (unlikely(not have_default))
+            if (not have_default)
                 throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node!");
             return nullptr;
         }
