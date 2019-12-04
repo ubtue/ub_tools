@@ -105,23 +105,23 @@ std::ostream &operator<<(std::ostream &output, const NewIssueInfo &new_issue_inf
 }
 
 
-bool StartPageLessThan(const std::string &start_page1, const std::string &start_page2) {
-    if (not StringUtil::ConsistsOfAllASCIIDigits(start_page1) or not StringUtil::ConsistsOfAllASCIIDigits(start_page2))
-        return start_page1 < start_page2; // Arbitrary but consistent.
-
-    return StringUtil::ToUnsigned(start_page1) < StringUtil::ToUnsigned(start_page2);
-}
-
-
 bool NewIssueInfo::operator<(const NewIssueInfo &rhs) const {
     if (series_title_ < rhs.series_title_)
         return true;
-    if ((not volume_.empty() or not rhs.volume_.empty()) and volume_ < rhs.volume_)
+    if (rhs.series_title_ < series_title_)
+        return false;
+    if (volume_ < rhs.volume_)
         return true;
-    if ((not year_.empty() or not rhs.year_.empty()) and year_ < rhs.year_)
+    if (rhs.volume_ < volume_)
+        return false;
+    if (year_ < rhs.year_)
         return true;
-    if (StartPageLessThan(start_page_, rhs.start_page_))
+    if (rhs.year_ < year_)
+        return false;
+    if (start_page_ < rhs.start_page_)
         return true;
+    if (rhs.start_page_ < start_page_)
+        return false;
 
     return false;
 }
