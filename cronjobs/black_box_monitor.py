@@ -22,7 +22,7 @@
 #    Example config file:
 """
 [Global] # Optional section
-validate_ssl_certificates = false # Optional enntry, defaults to "true".
+validate_ssl_certificates = false # Optional entry, defaults to "true".
 
 [Test1]
 url      = https://sobek.ub.uni-tuebingen.de/Search/Results?lookfor=test&type=AllFields
@@ -41,12 +41,12 @@ import util
 DEFAULT_TIMEOUT = 20 # seconds
 
 
-def RunTest(test_name, url, timeout, expected):
+def RunTest(test_name, url, ssl_context, timeout, expected):
     if timeout is None:
         timeout = DEFAULT_TIMEOUT
     try:
         request = urllib.request.Request(url, headers={"Accept-Language" : "de"})
-        response = urllib.request.urlopen(request, timeout=timeout)
+        response = urllib.request.urlopen(request, context=ssl_context, timeout=timeout)
         page_content = response.read().decode('utf-8')
         if expected is None:
             return True
@@ -58,9 +58,10 @@ def RunTest(test_name, url, timeout, expected):
 def Main():
     util.default_email_recipient = sys.argv[1]
     config = util.LoadConfigFile()
-    if config.has_option("Global", "validate_ssl_certificates"):
-        if not config.getboolean("Global", "validate_ssl_certificates"):
-            ssl._create_default_https_context = ssl._create_unverified_context
+    if config.getboolean("Global", "validate_ssl_certificates", fallback=True):
+        ssl_context = ssl.SSLContext(ssl.CERT_REQUIRED)
+    else:
+        ssl_context = ssl.SSLContext(ssl.CERT_NONE)
 
     for section in config.sections():
         if section == "Global":
@@ -72,7 +73,7 @@ def Main():
         timeout = None
         if config.has_option(section, "timeout"):
             timeout = config.getfloat(section, "timeout")
-        if not RunTest(section, url, timeout, expected):
+        if not RunTest(section, url, ssl_context, timeout, expected):
             util.SendEmail("Black Box Test Failed!",
                            "Test " + section + " failed!\n\n--Your friendly black box monitor",
                            "no_reply@uni-tuebingen.de", priority=1)
