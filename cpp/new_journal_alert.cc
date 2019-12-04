@@ -110,8 +110,12 @@ bool NewIssueInfo::operator<(const NewIssueInfo &rhs) const {
         return true;
     if (rhs.series_title_ < series_title_)
         return false;
-    if (volume_ < rhs.volume_)
-        return true;
+    if (volume_ != rhs.volume_) {
+        if (StringUtil::ConsistsOfAllASCIIDigits(volume_) and StringUtil::ConsistsOfAllASCIIDigits(rhs.volume_))
+            return StringUtil::ToUnsigned(volume_) < StringUtil::ToUnsigned(rhs.volume_);
+        else
+            return volume_ < rhs.volume_;
+    }
     if (rhs.volume_ < volume_)
         return false;
     if (year_ < rhs.year_)
@@ -120,8 +124,12 @@ bool NewIssueInfo::operator<(const NewIssueInfo &rhs) const {
         return false;
     if (start_page_ < rhs.start_page_)
         return true;
-    if (rhs.start_page_ < start_page_)
-        return false;
+    if (rhs.start_page_ < start_page_) {
+        if (StringUtil::ConsistsOfAllASCIIDigits(rhs.start_page_) and StringUtil::ConsistsOfAllASCIIDigits(start_page_))
+            return StringUtil::ToUnsigned(rhs.start_page_) >= StringUtil::ToUnsigned(start_page_);
+        else
+            return rhs.start_page_ >= start_page_;
+    }
 
     return false;
 }
