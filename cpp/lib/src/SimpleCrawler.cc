@@ -28,16 +28,15 @@ SimpleCrawler::Params::Params(const std::string &acceptable_languages, const uns
                               const bool print_last_http_header, const bool ignore_robots_dot_txt,
                               const bool print_redirects, const std::string &user_agent,
                               const std::string &url_ignore_pattern, const bool ignore_ssl_certificates,
-                              const std::string &proxy_host_and_port,
-                              const bool print_queued_urls,
-                              const bool print_skipped_urls)
+                              const std::string &proxy_host_and_port, const bool print_queued_urls,
+                              const bool print_skipped_urls, const bool skip_already_crawled_urls)
     : acceptable_languages_(acceptable_languages), timeout_(timeout),
       min_url_processing_time_(min_url_processing_time), print_all_http_headers_(print_all_http_headers),
       print_last_http_header_(print_last_http_header), ignore_robots_dot_txt_(ignore_robots_dot_txt),
       print_redirects_(print_redirects), user_agent_(user_agent),
       url_ignore_pattern_(url_ignore_pattern), ignore_ssl_certificates_(ignore_ssl_certificates),
       proxy_host_and_port_(proxy_host_and_port), print_queued_urls_(print_queued_urls),
-      print_skipped_urls_(print_skipped_urls) {}
+      print_skipped_urls_(print_skipped_urls), skip_already_crawled_urls_(skip_already_crawled_urls) {}
 
 
 void SimpleCrawler::extractLocationUrls(const std::string &header_blob, std::list<std::string> * const location_urls) {
@@ -99,8 +98,8 @@ bool SimpleCrawler::downloadUrl(const std::string &url, const Params &params, Pa
     min_url_processing_time_.restart();
     if (downloader_.anErrorOccurred()) {
         page_details->error_message_ = "Download failed: " + downloader_.getLastErrorMessage();
-        logger->warning("Failed to retrieve a Web page (" + url + "):\n"
-                        + downloader_.getLastErrorMessage());
+        LOG_WARNING("Failed to retrieve a Web page (" + url + "):\n"
+                    + downloader_.getLastErrorMessage());
         return false;
     }
 
@@ -114,7 +113,7 @@ bool SimpleCrawler::downloadUrl(const std::string &url, const Params &params, Pa
 
 SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params)
     : SimpleCrawler(site_desc, params, std::bind(&SimpleCrawler::downloadUrl, this, std::placeholders::_1,
-      std::placeholders::_2, std::placeholders::_3)) {}
+                    std::placeholders::_2, std::placeholders::_3)) {}
 
 
 SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params,
@@ -168,7 +167,11 @@ bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
     url_queue_current_depth_.pop();
     if (url_ignore_regex_matcher_->matched(url)) {
         page_details->error_message_ = "URL contains ignorable data (e.g. CSS file) and will be skipped";
-        logger->warning("Skipping URL: " + url);
+        LOG_WARNING("Skipping URL: " + url + ": " + page_details->error_message_);
+        return SimpleCrawler::continueCrawling();
+    } else if (params_.skip_already_crawled_urls_ and crawled_urls_.find(url) != crawled_urls_.end()) {
+        page_details->error_message_ = "URL was already crawled";
+        LOG_WARNING("Skipping URL: " + url + ": " + page_details->error_message_);
         return SimpleCrawler::continueCrawling();
     }
 
@@ -183,12 +186,15 @@ bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
         std::list<std::string> location_urls;
         extractLocationUrls(message_headers, &location_urls);
         for (const auto &location_url : location_urls)
-            logger->info("Location: " + location_url);
+            LOG_INFO("Location: " + location_url);
     }
     if (params_.print_all_http_headers_ or params_.print_last_http_header_)
-        logger->info(StringUtil::ReplaceString("\r\n", "\n", message_headers) + "\n");
+        LOG_INFO(StringUtil::ReplaceString("\r\n", "\n", message_headers) + "\n");
 
-    // extract deeper level URL's
+    // cache crawled URLs
+    crawled_urls_.emplace(url);
+
+    // extract deeper level URLs
     if (remaining_crawl_depth_ > 0) {
         constexpr unsigned EXTRACT_URL_FLAGS(WebUtil::IGNORE_DUPLICATE_URLS | WebUtil::IGNORE_LINKS_IN_IMG_TAGS
                                            | WebUtil::REMOVE_DOCUMENT_RELATIVE_ANCHORS

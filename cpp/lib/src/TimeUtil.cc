@@ -192,12 +192,13 @@ time_t TimeGm(const struct tm &tm) {
 }
 
 
+static const ThreadSafeRegexMatcher MATCHER_ISO8601(
+    "[0-9]{4}-[0-9]{2}-[0-9]{2}([[:space:]]|T){1}[0-9]{2}:[0-9]{2}:[0-9]{2}(\\+|\\-|\\s){1}[0-9]{2}(:)[0-9]{2}");
+
+
 // Strips out the colon in the date string to preserve compatibility with CentOS.
 static void NormalizeTimeZoneOffset(std::string * const date_str) {
-    static RegexMatcher * const matcher_iso8601(RegexMatcher::RegexMatcherFactory(
-        "[0-9]{4}-[0-9]{2}-[0-9]{2}([[:space:]]|T){1}[0-9]{2}:[0-9]{2}:[0-9]{2}(\\+|\\-|\\s){1}[0-9]{2}(:)[0-9]{2}"));
-
-    if (matcher_iso8601->matched(*date_str))
+    if (MATCHER_ISO8601.match(*date_str))
         date_str->erase(date_str->length() - 3, 1);
 }
 
@@ -265,6 +266,8 @@ static void CorrectForSymbolicTimeZone(struct tm * const tm, const std::string &
     if (not AdjustForTimeOffset(&converted_tm, offset))
         LOG_ERROR("couldn't adjust time_t " + TimeTToString(converted_tm) + " with offset " + std::string(offset));
 }
+
+
 
 
 // Strptime()/CentOS idiosyncrasies:
