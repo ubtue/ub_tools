@@ -378,11 +378,12 @@ void StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::s
 }
 
 
-bool IsAuthorNameTokenTitle(std::string token) {
-    static const std::set<std::string> VALID_TITLES {
-        "jr", "sr", "sj", "s.j", "fr", "hr", "dr", "prof", "em"
-    };
+static const std::set<std::string> VALID_TITLES {
+    "jr", "sr", "sj", "s.j", "fr", "hr", "dr", "prof", "em"
+};
 
+
+bool IsAuthorNameTokenTitle(std::string token) {
     bool final_period(token.back() == '.');
     if (final_period)
         token.erase(token.size() - 1);
@@ -392,11 +393,12 @@ bool IsAuthorNameTokenTitle(std::string token) {
 }
 
 
-bool IsAuthorNameTokenAffix(std::string token) {
-    static const std::set<std::string> VALID_AFFIXES {
-        "i", "ii", "iii", "iv", "v"
-    };
+static const std::set<std::string> VALID_AFFIXES {
+    "i", "ii", "iii", "iv", "v"
+};
 
+
+bool IsAuthorNameTokenAffix(std::string token) {
     TextUtil::UTF8ToLower(&token);
     return VALID_AFFIXES.find(token) != VALID_AFFIXES.end();
 }
@@ -514,8 +516,16 @@ const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})
 void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params,
                            const Config::GroupParams &group_params, const Config::EnhancementMaps &enhancement_maps)
 {
+    // The TimeUtil::StringToStructTm() call is not thread-safe as it can modify the process' locale
+    std::mutex STRING_TO_STUCT_TM_MUTEX;
+
     // normalise date
-    struct tm tm(TimeUtil::StringToStructTm(metadata_record->date_, journal_params.strptime_format_string_));
+    struct tm tm;
+    {
+        std::lock_guard<std::mutex> lock(STRING_TO_STUCT_TM_MUTEX);
+        struct tm temp_tm(TimeUtil::StringToStructTm(metadata_record->date_, journal_params.strptime_format_string_));
+        std::memcpy(&tm, &temp_tm, sizeof(struct tm));
+    }
     const std::string date_normalized(std::to_string(tm.tm_year + 1900) + "-"
                                       + StringUtil::ToString(tm.tm_mon + 1, 10, 2, '0') + "-"
                                       + StringUtil::ToString(tm.tm_mday, 10, 2, '0'));
@@ -611,6 +621,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
     {
         LOG_WARNING("expected language '" + *journal_params.language_params_.expected_languages_.begin() + "' but found '"
                     + metadata_record->language_ + "'");
+        metadata_record->language_ = *journal_params.language_params_.expected_languages_.begin();
     }
 
     // fill-in ISIL, license and SSG values
@@ -1173,7 +1184,7 @@ ConversionManager::ConversionManager(const GlobalParams &global_params)
  : global_params_(global_params), stop_background_thread_(false)
 {
     if (::pthread_create(&background_thread_, nullptr, BackgroundThreadRoutine, this) != 0)
-            LOG_ERROR("background conversion manager thread creation failed!");
+        LOG_ERROR("background conversion manager thread creation failed!");
 }
 
 

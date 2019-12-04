@@ -233,7 +233,7 @@ Metrics::Metrics()
 
 
 std::string Metrics::toString() const {
-    std::string out("Zotero Harvester Metrics:\n");
+    std::string out("\n\n\nZotero Harvester Metrics:\n");
 
     out += "\tJournals: " + std::to_string(num_journals_with_harvest_operation_direct_
                                            + num_journals_with_harvest_operation_rss_
@@ -241,7 +241,7 @@ std::string Metrics::toString() const {
     out += "\t\tDirect: " + std::to_string(num_journals_with_harvest_operation_direct_) + "\n";
     out += "\t\tRSS: " + std::to_string(num_journals_with_harvest_operation_rss_) + "\n";
     out += "\t\tCrawl: " + std::to_string(num_journals_with_harvest_operation_crawl_) + "\n";
-    out += "\tDownloads:" + std::to_string(num_downloads_successful_ + num_downloads_unsuccessful_
+    out += "\tDownloads: " + std::to_string(num_downloads_successful_ + num_downloads_unsuccessful_
                                            + num_downloads_skipped_since_already_delivered_) + "\n";
     out += "\t\tSuccessful: " + std::to_string(num_downloads_successful_) + "\n";
     out += "\t\tUnsuccessful : " + std::to_string(num_downloads_unsuccessful_) + "\n";

@@ -80,7 +80,10 @@ static void QueryRemoteUrl(const std::string &url, const unsigned time_limit, co
 
 
 void Tasklet::run(const Params &parameters, Result * const result) {
-    LOG_INFO("Harvesting URL " + parameters.download_item_.toString());
+    if (parameters.operation_ == Operation::USE_TRANSLATION_SERVER)
+        LOG_INFO("Harvesting URL " + parameters.download_item_.toString());
+    else
+        LOG_INFO("Downloading URL " + parameters.download_item_.toString());
 
     if (parameters.operation_ == Operation::USE_TRANSLATION_SERVER) {
         PostToTranslationServer(parameters.translation_server_url_, parameters.time_limit_, parameters.user_agent_,
@@ -127,6 +130,7 @@ namespace Crawling {
 bool Tasklet::downloadIntermediateUrl(const std::string &url, const SimpleCrawler::Params &/* unused */,
                                       SimpleCrawler::PageDetails * const page_details, const Params &parameters) const
 {
+    // FIXME do we need to skip URLs that were already delivered?
     const auto new_download_item(parameters.harvestable_manager_->newHarvestableItem(url, parameters.download_item_.journal_));
     auto future(download_manager_->directDownload(new_download_item, parameters.user_agent_, DirectDownload::Operation::DIRECT_QUERY,
                                                   parameters.per_crawl_url_time_limit_));
@@ -153,6 +157,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
     crawler_params.user_agent_ = parameters.user_agent_;
     crawler_params.print_queued_urls_ = true;
     crawler_params.print_skipped_urls_ = true;
+    crawler_params.skip_already_crawled_urls_ = true;
 
     SimpleCrawler::SiteDesc site_desc;
     site_desc.start_url_ = parameters.download_item_.url_;
@@ -338,6 +343,8 @@ DownloadManager::GlobalParams::GlobalParams(const Config::GlobalParams &config_g
  : translation_server_url_(config_global_params.translation_server_url_),
    default_download_delay_time_(config_global_params.download_delay_params_.default_delay_),
    max_download_delay_time_(config_global_params.download_delay_params_.max_delay_),
+   timeout_download_request_(config_global_params.timeout_download_request_),
+   timeout_crawl_operation_(config_global_params.timeout_crawl_operation_),
    rss_feed_harvest_interval_(config_global_params.rss_harvester_operation_params_.harvest_interval_),
    force_process_rss_feeds_with_no_pub_dates_(config_global_params.rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_),
    ignore_robots_txt_(false), force_downloads_(false), harvestable_manager_(harvestable_manager) {}
@@ -611,7 +618,8 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
 
     std::unique_ptr<DirectDownload::Params> parameters(new DirectDownload::Params(source,
                                                        global_params_.translation_server_url_.toString(), user_agent,
-                                                       global_params_.ignore_robots_txt_, timeout, operation));
+                                                       global_params_.ignore_robots_txt_,
+                                                       timeout == 0 ? global_params_.timeout_download_request_ : timeout, operation));
     std::shared_ptr<DirectDownload::Tasklet> new_tasklet(new DirectDownload::Tasklet(&direct_download_tasklet_execution_counter_,
                                                          this, std::move(parameters)));
 
@@ -629,8 +637,10 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
 std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> DownloadManager::crawl(const Util::HarvestableItem &source,
                                                                                          const std::string &user_agent)
 {
-    std::unique_ptr<Crawling::Params> parameters(new Crawling::Params(source, user_agent, DOWNLOAD_TIMEOUT, MAX_CRAWL_TIMEOUT,
-                                                 global_params_.ignore_robots_txt_, global_params_.harvestable_manager_));
+    std::unique_ptr<Crawling::Params> parameters(new Crawling::Params(source, user_agent, global_params_.timeout_download_request_,
+                                                                      global_params_.timeout_crawl_operation_,
+                                                                      global_params_.ignore_robots_txt_,
+                                                                      global_params_.harvestable_manager_));
     std::shared_ptr<Crawling::Tasklet> new_tasklet(new Crawling::Tasklet(&crawling_tasklet_execution_counter_,
                                                    this, std::move(parameters)));
 

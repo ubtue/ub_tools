@@ -197,6 +197,8 @@ public:
         Url translation_server_url_;
         unsigned default_download_delay_time_;
         unsigned max_download_delay_time_;
+        unsigned timeout_download_request_;
+        unsigned timeout_crawl_operation_;
         unsigned rss_feed_harvest_interval_;
         bool force_process_rss_feeds_with_no_pub_dates_;
         bool ignore_robots_txt_;
@@ -241,8 +243,6 @@ private:
     static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 50;
     static constexpr unsigned MAX_CRAWLING_TASKLETS        = 50;
     static constexpr unsigned MAX_RSS_TASKLETS             = 50;
-    static constexpr unsigned DOWNLOAD_TIMEOUT             = 1000 * 30;      // in ms
-    static constexpr unsigned MAX_CRAWL_TIMEOUT            = 1000 * 60 * 15; // in ms
 
     GlobalParams global_params_;
     pthread_t background_thread_;
@@ -277,7 +277,7 @@ public:
     std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>> directDownload(const Util::HarvestableItem &source,
                                                                                                  const std::string &user_agent,
                                                                                                  const DirectDownload::Operation operation,
-                                                                                                 const unsigned timeout = DOWNLOAD_TIMEOUT);
+                                                                                                 const unsigned timeout = 0);
     std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> crawl(const Util::HarvestableItem &source,
                                                                             const std::string &user_agent);
 

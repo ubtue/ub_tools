@@ -43,6 +43,7 @@ class SimpleCrawler {
     std::shared_ptr<RegexMatcher> url_regex_matcher_;
     std::shared_ptr<RegexMatcher> url_ignore_regex_matcher_;
     TimeLimit min_url_processing_time_;
+    std::unordered_set<std::string> crawled_urls_;
 public:
     static const unsigned DEFAULT_TIMEOUT = 5000; // ms
     static const unsigned DEFAULT_MIN_URL_PROCESSING_TIME = 200; // ms
@@ -61,6 +62,7 @@ public:
         std::string proxy_host_and_port_;
         bool print_queued_urls_;
         bool print_skipped_urls_;
+        bool skip_already_crawled_urls_;
     public:
         explicit Params(const std::string &acceptable_languages = "",
                         const unsigned timeout = DEFAULT_TIMEOUT,
@@ -74,7 +76,8 @@ public:
                         const bool ignore_ssl_certificates_ = false,
                         const std::string &proxy_host_and_port = "",
                         const bool print_queued_urls = false,
-                        const bool print_skipped_urls = false
+                        const bool print_skipped_urls = false,
+                        const bool skip_already_crawled_urls = false
                         );
         ~Params() = default;
     } params_;

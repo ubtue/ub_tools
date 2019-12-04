@@ -263,23 +263,38 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
 }
 
 
+static std::vector<LanguageModel> LoadDefaultLanguageModels() {
+    std::vector<LanguageModel> language_models;
+
+    const std::string override_language_models_directory("");   // intentionally empty
+    if (not LoadLanguageModels(&language_models, override_language_models_directory))
+        LOG_ERROR("no language models available in \"" + GetLoadLanguageModelDirectory(override_language_models_directory) + "\"!");
+    return language_models;
+}
+
+
+static const std::vector<LanguageModel> DEFAULT_LANGUAGE_MODELS(LoadDefaultLanguageModels());
+
+
 void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_languages, const std::set<std::string> &considered_languages,
                       const double alternative_cutoff_factor, const std::string &override_language_models_directory)
 {
     LanguageModel unknown_language_model;
     CreateLanguageModel(input, &unknown_language_model);
 
-    static std::vector<LanguageModel> language_models;
-    if (language_models.empty()) {
-        if (not LoadLanguageModels(&language_models, override_language_models_directory))
+    std::vector<LanguageModel> new_language_models;
+    if (not override_language_models_directory.empty()) {
+        if (not LoadLanguageModels(&new_language_models, override_language_models_directory))
             LOG_ERROR("no language models available in \"" + GetLoadLanguageModelDirectory(override_language_models_directory) + "\"!");
-        LOG_DEBUG("loaded " + std::to_string(language_models.size()) + " language models.");
+        LOG_DEBUG("loaded " + std::to_string(new_language_models.size()) + " language models.");
     }
+
+    const auto &language_models_to_use(not new_language_models.empty() ? new_language_models : DEFAULT_LANGUAGE_MODELS);
 
     // Verify that we do have models for all requested languages:
     if (not considered_languages.empty()) {
         std::unordered_set<std::string> all_languages;
-        for (const auto &language_model : language_models)
+        for (const auto &language_model : language_models_to_use)
             all_languages.emplace(language_model.getLanguage());
 
         for (const auto &requested_language : considered_languages) {
@@ -289,7 +304,7 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
     }
 
     std::vector<std::pair<std::string, double>> languages_and_scores;
-    for (const auto &language_model : language_models) {
+    for (const auto &language_model : language_models_to_use) {
         if (not considered_languages.empty() and considered_languages.find(language_model.getLanguage()) == considered_languages.cend())
             continue;
 

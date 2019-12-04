@@ -43,6 +43,8 @@ struct GlobalParams {
         DOWNLOAD_DELAY_MAX,
         RSS_HARVEST_INTERVAL,
         RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES,
+        TIMEOUT_CRAWL_OPERATION,
+        TIMEOUT_DOWNLOAD_REQUEST
     };
 
     std::string translation_server_url_;
@@ -54,6 +56,8 @@ struct GlobalParams {
         unsigned default_delay_;
         unsigned max_delay_;
     } download_delay_params_;
+    unsigned timeout_crawl_operation_;
+    unsigned timeout_download_request_;
     struct {
         unsigned harvest_interval_;
         bool force_process_feeds_with_no_pub_dates_;
