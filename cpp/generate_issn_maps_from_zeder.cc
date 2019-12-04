@@ -97,7 +97,8 @@ void DownloadFullDumpFromZeder(Zeder::Flavour flavour, Zeder::EntryCollection * 
         new Zeder::FullDumpDownloader::Params(Zeder::GetFullDumpEndpointPath(flavour),
                                               entries_to_download, columns_to_download, filter_regexps));
 
-    Zeder::EndpointDownloader::Factory(Zeder::EndpointDownloader::FULL_DUMP, std::move(params))->download(entries);
+    if (not Zeder::EndpointDownloader::Factory(Zeder::EndpointDownloader::FULL_DUMP, std::move(params))->download(entries))
+        LOG_ERROR("couldn't download entries from Zeder");
 }
 
 
@@ -284,6 +285,11 @@ int Main(int argc, char *argv[]) {
     Zeder::EntryCollection entries_ixtheo, entries_krimdok;
     DownloadFullDumpFromZeder(Zeder::Flavour::IXTHEO, &entries_ixtheo);
     DownloadFullDumpFromZeder(Zeder::Flavour::KRIMDOK, &entries_krimdok);
+
+    if (entries_ixtheo.empty())
+        LOG_ERROR("No entries were found for IxTheo");
+    else if (entries_krimdok.empty())
+        LOG_ERROR("No entries were found for KrimDok");
 
     std::vector<MapValue> map_values;
     std::vector<std::string> files_to_push;
