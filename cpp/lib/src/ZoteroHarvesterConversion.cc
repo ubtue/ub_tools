@@ -1101,6 +1101,8 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
                                   parameters.enhancement_maps_);
 
             LOG_DEBUG("Augmented metadata record: " + new_metadata_record.toString());
+            if (new_metadata_record.url_.empty())
+                throw std::runtime_error("no URL set");
 
             if (ExcludeOnlineFirstRecord(new_metadata_record, parameters)) {
                 ++result->num_skipped_since_online_first_;
