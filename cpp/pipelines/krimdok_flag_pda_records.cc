@@ -41,8 +41,8 @@ bool IsMatchingRecord(const MARC::Record &record, const std::vector<MARC::Record
 {
     for (const auto local_block_start : local_block_starts) {
         auto _852_fields(record.findFieldsInLocalBlock("852", local_block_start));
-            if (_852_fields.empty())
-                return false;
+        if (_852_fields.empty())
+            continue;
 
         for (const auto &_852_field : _852_fields) {
             std::vector<std::string> subfield_a_values(_852_field.getSubfields().extractSubfields('a'));
