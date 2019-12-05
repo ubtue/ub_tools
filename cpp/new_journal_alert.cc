@@ -332,7 +332,20 @@ std::string GenerateEmailContents(const std::string &user_type, const std::strin
             last_volume_year_and_issue.clear();
         }
 
-        const std::string volume_year_and_issue(new_issue_info.volume_ + new_issue_info.year_ + new_issue_info.issue_);
+        std::string volume_year_and_issue;
+        if (not new_issue_info.volume_.empty())
+            volume_year_and_issue += "Vol. " + new_issue_info.volume_;
+        if (not new_issue_info.year_.empty()) {
+            if (not volume_year_and_issue.empty())
+                volume_year_and_issue += ", ";
+            volume_year_and_issue += new_issue_info.year_;
+        }
+        if (not new_issue_info.issue_.empty()) {
+            if (not volume_year_and_issue.empty())
+                volume_year_and_issue += ", ";
+            volume_year_and_issue += "Issue " + new_issue_info.issue_;
+        }
+
         if (volume_year_and_issue != last_volume_year_and_issue) {
             if (not last_volume_year_and_issue.empty())
                 email_contents += "    </ul>\n"; // end items
