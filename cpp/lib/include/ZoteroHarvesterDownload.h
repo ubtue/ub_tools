@@ -68,8 +68,11 @@ public:
 
 
 struct Result {
-    // HTTP response codes start from 100, so we can use the lower range for our purposes
-    enum SpecialResponseCodes { ITEM_ALREADY_DELIVERED = 1 };
+    enum Flags {
+        ITEM_ALREADY_DELIVERED  = 1 << 1,
+        FROM_CACHE              = 1 << 2,
+    };
+
 
     Util::HarvestableItem source_;
     Operation operation_;
@@ -77,13 +80,15 @@ struct Result {
     std::string response_header_;
     unsigned response_code_;
     std::string error_message_;
+    unsigned flags_;
 public:
     explicit Result(const Util::HarvestableItem &source, const Operation operation)
-     : source_(source), operation_(operation), response_code_(0) {}
+     : source_(source), operation_(operation), response_code_(0), flags_(0) {}
     Result(const Result &rhs) = default;
 
     inline bool downloadSuccessful() const { return response_code_ == 200 and error_message_.empty(); }
-    inline bool itemAlreadyDelivered() const { return response_code_ == ITEM_ALREADY_DELIVERED; }
+    inline bool itemAlreadyDelivered() const { return flags_ & ITEM_ALREADY_DELIVERED; }
+    inline bool fromCache() const { return flags_ & FROM_CACHE; }
 };
 
 
@@ -132,14 +137,39 @@ public:
 class Tasklet : public Util::Tasklet<Params, Result> {
     DownloadManager * const download_manager_;
 
-    bool downloadIntermediateUrl(const std::string &url, const SimpleCrawler::Params &/* unused */,
-                                 SimpleCrawler::PageDetails * const page_details,
-                                 const Params &parameters) const;
     void run(const Params &parameters, Result * const result);
 public:
     Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
             DownloadManager * const download_manager, std::unique_ptr<Params> parameters);
     virtual ~Tasklet() override = default;
+};
+
+
+class Crawler {
+    const Params &parameters_;
+    TimeLimit total_crawl_time_limit_;
+    ThreadSafeRegexMatcher url_ignore_matcher_;
+    std::queue<std::string> url_queue_current_depth_;
+    std::queue<std::string> url_queue_next_depth_;
+    std::unordered_set<std::string> crawled_urls_;
+    unsigned remaining_crawl_depth_;
+    DownloadManager * const download_manager_;
+
+    bool continueCrawling();
+public:
+    struct CrawlResult {
+        enum OutgoingUrlFlag { MARK_FOR_CRAWLING, DO_NOT_CRAWL };
+
+        std::string current_url_;
+        std::vector<std::pair<std::string, OutgoingUrlFlag>> outgoing_urls_;
+    };
+public:
+    explicit Crawler(const Params &parameters, DownloadManager * const download_manager,
+                     const std::string &url_ignore_matcher_pattern = "(?i)\\.(js|css|bmp|pdf|jpg|gif|png|tif|tiff)(\\?[^?]*)?$");
+
+    bool getNextPage(CrawlResult * const crawl_result);
+    inline bool timeoutExceeded() const
+        { return total_crawl_time_limit_.limitExceeded(); }
 };
 
 
@@ -236,8 +266,6 @@ private:
         DirectDownload::Operation operation_;
         std::string response_body_;
         std::string response_header_;
-        unsigned response_code_;
-        std::string error_message_;
     };
 
     static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 50;
@@ -268,8 +296,6 @@ private:
     void processQueueBuffers();
     void processDomainQueues(DomainData * const domain_data);
     void cleanupCompletedTasklets(DomainData * const domain_data);
-    std::unique_ptr<DirectDownload::Result> fetchDownloadDataFromCache(const Util::HarvestableItem &source,
-                                                                       const DirectDownload::Operation operation) const;
 public:
     DownloadManager(const GlobalParams &global_params);
     ~DownloadManager();
@@ -285,7 +311,9 @@ public:
                                                                 const std::string &user_agent,
                                                                 const std::string &feed_contents = "");
     void addToDownloadCache(const std::string &url, const std::string &response_body, const std::string &response_header,
-                            const unsigned response_code, const std::string &error_message, const DirectDownload::Operation operation);
+                            const DirectDownload::Operation operation);
+    std::unique_ptr<DirectDownload::Result> fetchFromDownloadCache(const Util::HarvestableItem &source,
+                                                                   const DirectDownload::Operation operation) const;
     bool downloadInProgress() const;
 };
 

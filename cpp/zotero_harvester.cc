@@ -329,16 +329,21 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
 }
 
 
-
-
 void EnqueueCompletedDownloadsForConversion(JournalDatastore * const journal_datastore, bool * const jobs_in_progress,
                                             Conversion::ConversionManager * const conversion_manager,
-                                            const HarvesterConfigData &harvester_config, Metrics * const metrics)
+                                            const HarvesterConfigData &harvester_config,
+                                            const std::unordered_set<std::string> &urls_harvested_during_current_session,
+                                            Metrics * const metrics)
 {
     for (auto iter(journal_datastore->queued_downloads_.begin()); iter != journal_datastore->queued_downloads_.end();) {
         if ((*iter)->isComplete()) {
             const auto &download_result((*iter)->getResult());
-            if (download_result.itemAlreadyDelivered()) {
+
+            if (urls_harvested_during_current_session.find(download_result.source_.url_.toString())
+                != urls_harvested_during_current_session.end())
+            {
+                LOG_INFO("Item " + download_result.source_.toString() + " already harvested during this session");
+            } else if (download_result.itemAlreadyDelivered()) {
                 LOG_INFO("Item " + download_result.source_.toString() + " already delivered");
                 ++metrics->num_downloads_skipped_since_already_delivered_;
             } else if (not download_result.downloadSuccessful()) {
@@ -407,6 +412,7 @@ const std::unique_ptr<MARC::Writer> &OutputFileCache::getWriter(const Config::Gr
 
 void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, OutputFileCache * const outputfile_cache,
                                   const CommandLineArgs &commandline_args, const Util::UploadTracker &upload_tracker,
+                                  std::unordered_set<std::string> * const urls_harvested_during_current_session,
                                   Metrics * const metrics)
 {
     // sort the conversion results in the order in which they were queued
@@ -468,6 +474,9 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
                 continue;
             }
 
+            for (const auto &url : record_urls)
+                urls_harvested_during_current_session->emplace(url);
+
             ++metrics->num_marc_conversions_successful_;
             ++num_written_records;
 
@@ -519,6 +528,7 @@ int Main(int argc, char *argv[]) {
 
     std::vector<std::unique_ptr<JournalDatastore>> journal_datastores;
     journal_datastores.reserve(harvester_config.journal_params_.size());
+    std::unordered_set<std::string> urls_harvested_during_current_session;
 
     // queue downloads for all selected journals
     for (const auto &journal : harvester_config.journal_params_) {
@@ -553,9 +563,9 @@ int Main(int argc, char *argv[]) {
         for (auto &journal_datastore : journal_datastores) {
             EnqueueCrawlAndRssResults(journal_datastore.get(), &jobs_running);
             EnqueueCompletedDownloadsForConversion(journal_datastore.get(), &jobs_running, &conversion_manager, harvester_config,
-                                                   &harvester_metrics);
+                                                   urls_harvested_during_current_session, &harvester_metrics);
             WriteConversionResultsToDisk(journal_datastore.get(), &output_file_cache, commandline_args, upload_tracker,
-                                         &harvester_metrics);
+                                         &urls_harvested_during_current_session, &harvester_metrics);
 
             if (not jobs_running)
                 jobs_running = not journal_datastore->queued_downloads_.empty() or not journal_datastore->queued_marc_records_.empty();

@@ -17,7 +17,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "JSON.h"
 #include "StringUtil.h"
+#include "WebUtil.h"
 #include "ZoteroHarvesterDownload.h"
 #include "util.h"
 
@@ -31,9 +33,9 @@ namespace Download {
 namespace DirectDownload {
 
 
-static void PostToTranslationServer(const Url &translation_server_url, const unsigned time_limit, const std::string &user_agent,
-                                    const std::string &request_body, const bool request_is_json, std::string * const response_body, unsigned * response_code,
-                                    std::string * const error_message)
+void PostToTranslationServer(const Url &translation_server_url, const unsigned time_limit, const std::string &user_agent,
+                             const std::string &request_body, const bool request_is_json, std::string * const response_body,
+                             unsigned * response_code, std::string * const error_message)
 {
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = user_agent;
@@ -56,9 +58,9 @@ static void PostToTranslationServer(const Url &translation_server_url, const uns
 }
 
 
-static void QueryRemoteUrl(const std::string &url, const unsigned time_limit, const bool ignore_robots_dot_txt,
-                           const std::string &user_agent, std::string * const response_header, std::string * const response_body,
-                           unsigned * response_code, std::string * const error_message)
+void QueryRemoteUrl(const std::string &url, const unsigned time_limit, const bool ignore_robots_dot_txt,
+                    const std::string &user_agent, std::string * const response_header, std::string * const response_body,
+                    unsigned * response_code, std::string * const error_message)
 {
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = user_agent;
@@ -80,6 +82,16 @@ static void QueryRemoteUrl(const std::string &url, const unsigned time_limit, co
 
 
 void Tasklet::run(const Params &parameters, Result * const result) {
+    // check if we have a cache hit
+    auto cache_hit(download_manager_->fetchFromDownloadCache(parameters.download_item_, parameters.operation_));
+    if (cache_hit != nullptr) {
+        result->response_body_ = cache_hit->response_body_;
+        result->response_code_ = cache_hit->response_code_;
+        result->response_header_ = cache_hit->response_header_;
+        result->flags_ = cache_hit->flags_;
+        return;
+    }
+
     if (parameters.operation_ == Operation::USE_TRANSLATION_SERVER)
         LOG_INFO("Harvesting URL " + parameters.download_item_.toString());
     else
@@ -90,12 +102,37 @@ void Tasklet::run(const Params &parameters, Result * const result) {
                                 parameters.download_item_.url_, /* request_is_json = */ false, &result->response_body_,
                                 &result->response_code_, &result->error_message_);
 
-        // 300 => multiple matches found, try to harvest children (send the response_body right back to the server, to get all of them)
+        // 300 => multiple matches found, try to harvest children (send the response_body right back to the server to get all of them)
         if (result->response_code_ == 300) {
             LOG_DEBUG("multiple articles found => trying to harvest children");
             PostToTranslationServer(parameters.translation_server_url_, parameters.time_limit_, parameters.user_agent_,
                                     result->response_body_, /* request_is_json = */ true, &result->response_body_,
                                     &result->response_code_, &result->error_message_);
+
+            // additionally cache individual items in the response
+            if (result->downloadSuccessful()) {
+                std::shared_ptr<JSON::JSONNode> tree_root;
+                JSON::Parser json_parser(result->response_body_);
+
+                if (json_parser.parse(&tree_root)) {
+                    unsigned num_individual_items(0);
+
+                    for (const auto &entry : *JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root)) {
+                        const auto json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
+                        const auto url(json_object->getOptionalStringValue("url"));
+
+                        if (url.empty())
+                            continue;
+
+                        std::string json_string("[" + json_object->toString() + "]");
+                        download_manager_->addToDownloadCache(url, json_string, result->response_header_,
+                                                              parameters.operation_);
+                        ++num_individual_items;
+                    }
+
+                    LOG_DEBUG("cached " + std::to_string(num_individual_items) + " items from a multi-result response");
+                }
+            }
         }
     } else {
         QueryRemoteUrl(parameters.download_item_.url_, parameters.time_limit_, parameters.ignore_robots_dot_txt_,
@@ -105,8 +142,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
     if (result->downloadSuccessful()) {
         download_manager_->addToDownloadCache(parameters.download_item_.url_.toString(), result->response_body_,
-                                            result->response_header_, result->response_code_, result->error_message_,
-                                            parameters.operation_);
+                                              result->response_header_, parameters.operation_);
     }
 }
 
@@ -127,85 +163,38 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 namespace Crawling {
 
 
-bool Tasklet::downloadIntermediateUrl(const std::string &url, const SimpleCrawler::Params &/* unused */,
-                                      SimpleCrawler::PageDetails * const page_details, const Params &parameters) const
-{
-    // FIXME do we need to skip URLs that were already delivered?
-    const auto new_download_item(parameters.harvestable_manager_->newHarvestableItem(url, parameters.download_item_.journal_));
-    auto future(download_manager_->directDownload(new_download_item, parameters.user_agent_, DirectDownload::Operation::DIRECT_QUERY,
-                                                  parameters.per_crawl_url_time_limit_));
-
-    const auto &download_result(future->getResult());
-    if (not download_result.downloadSuccessful()) {
-        page_details->error_message_ = download_result.error_message_;
-        return false;
-    }
-
-    page_details->body_ = download_result.response_body_;
-    page_details->header_= download_result.response_header_;
-    page_details->url_ = url;
-    return true;
-}
-
-
 void Tasklet::run(const Params &parameters, Result * const result) {
     LOG_INFO("Crawling URL " + parameters.download_item_.toString());
 
-    SimpleCrawler::Params crawler_params;
-    crawler_params.ignore_robots_dot_txt_ = parameters.ignore_robots_dot_txt_;
-    crawler_params.timeout_ = parameters.per_crawl_url_time_limit_;
-    crawler_params.user_agent_ = parameters.user_agent_;
-    crawler_params.print_queued_urls_ = true;
-    crawler_params.print_skipped_urls_ = true;
-    crawler_params.skip_already_crawled_urls_ = true;
-
-    SimpleCrawler::SiteDesc site_desc;
-    site_desc.start_url_ = parameters.download_item_.url_;
-    site_desc.max_crawl_depth_ = parameters.download_item_.journal_.crawl_params_.max_crawl_depth_;
-
-    std::string crawl_url_regex_str;
-    if (parameters.download_item_.journal_.crawl_params_.crawl_url_regex_ != nullptr)
-        crawl_url_regex_str = parameters.download_item_.journal_.crawl_params_.crawl_url_regex_->getPattern();
-
-    if (not crawl_url_regex_str.empty()) {
-        // the crawl URL regex needs to be combined with the extraction URL regex if they aren't the same
-        // we combine the two here to prevent unnecessary duplication in the config file
-        const auto extraction_url_regex_pattern(parameters.download_item_.journal_.crawl_params_.extraction_regex_ != nullptr ?
-                                                parameters.download_item_.journal_.crawl_params_.extraction_regex_->getPattern() : "");
-
-        if (not extraction_url_regex_pattern.empty() and extraction_url_regex_pattern != crawl_url_regex_str)
-            crawl_url_regex_str = "((" + crawl_url_regex_str + ")|(" + extraction_url_regex_pattern + "))";
-
-        site_desc.url_regex_matcher_.reset(RegexMatcher::RegexMatcherFactoryOrDie(crawl_url_regex_str));
-    }
-
-    TimeLimit crawl_process_time_limit(parameters.total_crawl_time_limit_);
-
-    // the crawler plugs into the download manager's queuing and download-delay infrastructure
-    SimpleCrawler crawler(site_desc, crawler_params,
-                          std::bind(&Tasklet::downloadIntermediateUrl, this, std::placeholders::_1, std::placeholders::_2,
-                                    std::placeholders::_3, std::cref(parameters)));
-
-    SimpleCrawler::PageDetails page_details;
+    Crawler crawler(parameters, download_manager_);
+    Crawler::CrawlResult crawl_result;
     unsigned num_crawled_urls(0), num_queued_urls(0);
+    std::unordered_set<std::string> queued_urls;
 
-    while (not crawl_process_time_limit.limitExceeded() and crawler.getNextPage(&page_details)) {
+    while (not crawler.timeoutExceeded() and crawler.getNextPage(&crawl_result)) {
         ++num_crawled_urls;
-        if (page_details.error_message_.empty()) {
-            const auto url(page_details.url_);
-            if (parameters.download_item_.journal_.crawl_params_.extraction_regex_ == nullptr
-                or parameters.download_item_.journal_.crawl_params_.extraction_regex_->match(url))
-            {
-                const auto new_download_item(parameters.harvestable_manager_->newHarvestableItem(page_details.url_,
-                                                                                                 parameters.download_item_.journal_));
-                result->downloaded_items_.emplace_back(download_manager_->directDownload(new_download_item, parameters.user_agent_,
+
+        for (auto &outgoing_url : crawl_result.outgoing_urls_) {
+            bool harvest_url(queued_urls.find(outgoing_url.first) == queued_urls.end()
+                             and (parameters.download_item_.journal_.crawl_params_.extraction_regex_ == nullptr
+                             or parameters.download_item_.journal_.crawl_params_.extraction_regex_->match(outgoing_url.first)));
+            bool crawl_url(parameters.download_item_.journal_.crawl_params_.crawl_url_regex_ == nullptr
+                           or parameters.download_item_.journal_.crawl_params_.crawl_url_regex_->match(outgoing_url.first));
+
+            if (harvest_url) {
+                const auto new_item(parameters.harvestable_manager_->newHarvestableItem(outgoing_url.first,
+                                                                                        parameters.download_item_.journal_));
+                result->downloaded_items_.emplace_back(download_manager_->directDownload(new_item, parameters.user_agent_,
                                                                                          DirectDownload::Operation::USE_TRANSLATION_SERVER));
+                queued_urls.emplace(outgoing_url.first);
                 ++num_queued_urls;
             }
+
+            outgoing_url.second = crawl_url ? Crawler::CrawlResult::MARK_FOR_CRAWLING : Crawler::CrawlResult::DO_NOT_CRAWL;
         }
     }
 
-    if (crawl_process_time_limit.limitExceeded())
+    if (crawler.timeoutExceeded())
         LOG_WARNING("process timed-out - not all URLs were crawled");
 
     LOG_INFO("crawled " + std::to_string(num_crawled_urls) + " URLs, queued "
@@ -220,6 +209,101 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
                                  std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
                                  std::unique_ptr<Result>(new Result()), std::move(parameters)),
    download_manager_(download_manager) {}
+
+
+bool Crawler::continueCrawling() {
+    // stay on current depth if more URL's exist here
+    if (not url_queue_current_depth_.empty())
+        return true;
+
+    // abort if no URL's left
+    if (url_queue_current_depth_.empty() and url_queue_next_depth_.empty())
+        return false;
+
+    // switch to next depth if all URL's on current depth have been processed
+    if (url_queue_current_depth_.empty() and not url_queue_next_depth_.empty()) {
+        if (remaining_crawl_depth_ == 0)
+            return false;
+
+        --remaining_crawl_depth_;
+        url_queue_current_depth_.swap(url_queue_next_depth_);
+        url_queue_next_depth_ = std::queue<std::string>();
+    }
+
+    return true;
+}
+
+
+Crawler::Crawler(const Params &parameters, DownloadManager * const download_manager, const std::string &url_ignore_matcher_pattern)
+ : parameters_(parameters), total_crawl_time_limit_(parameters.total_crawl_time_limit_),
+   url_ignore_matcher_(url_ignore_matcher_pattern, ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE),
+   remaining_crawl_depth_(parameters.download_item_.journal_.crawl_params_.max_crawl_depth_), download_manager_(download_manager)
+{
+    url_queue_current_depth_.push(parameters.download_item_.url_.toString());
+}
+
+
+bool Crawler::getNextPage(CrawlResult * const crawl_result) {
+    // enqueue outgoing URLs from the previous crawl that were marked for crawling
+    if (not crawl_result->outgoing_urls_.empty() and remaining_crawl_depth_ > 0) {
+        for (const auto &url : crawl_result->outgoing_urls_) {
+            if (url.second == CrawlResult::OutgoingUrlFlag::MARK_FOR_CRAWLING) {
+                url_queue_next_depth_.emplace(url.first);
+                LOG_DEBUG("queued URL for further crawling: '" + url.first + "'");
+            } else
+                LOG_DEBUG("skipped URL: '" + url.first + "'");
+        }
+    }
+
+    if (not continueCrawling())
+        return false;
+
+    const auto next_url(url_queue_current_depth_.front());
+    url_queue_current_depth_.pop();
+
+    if (url_ignore_matcher_.match(next_url)) {
+        LOG_WARNING("Skipping URL: " + next_url + ": URL contains ignorable data");
+        return continueCrawling();
+    } else if (crawled_urls_.find(next_url) != crawled_urls_.end()) {
+        LOG_WARNING("Skipping URL: " + next_url + ": URL was already crawled");
+        return continueCrawling();
+    }
+
+    // request a download of the URL and await the response
+    const auto new_download_item(parameters_.harvestable_manager_->newHarvestableItem(next_url, parameters_.download_item_.journal_));
+    auto future(download_manager_->directDownload(new_download_item, parameters_.user_agent_,
+                                                  DirectDownload::Operation::DIRECT_QUERY, parameters_.per_crawl_url_time_limit_));
+
+    const auto &download_result(future->getResult());
+    if (not download_result.downloadSuccessful())
+        return continueCrawling();
+
+    crawled_urls_.emplace(next_url);
+
+    // extract outgoing URLs from the downloaded URL
+    constexpr unsigned EXTRACT_URL_FLAGS(WebUtil::IGNORE_DUPLICATE_URLS | WebUtil::IGNORE_LINKS_IN_IMG_TAGS
+                                           | WebUtil::REMOVE_DOCUMENT_RELATIVE_ANCHORS
+                                           | WebUtil::CLEAN_UP_ANCHOR_TEXT
+                                           | WebUtil::KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY
+                                           | WebUtil::ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS);
+
+    std::vector<WebUtil::UrlAndAnchorTexts> urls_and_anchor_texts;
+    WebUtil::ExtractURLs(download_result.response_body_, next_url, WebUtil::ABSOLUTE_URLS, &urls_and_anchor_texts, EXTRACT_URL_FLAGS);
+
+    crawl_result->current_url_ = next_url;
+    crawl_result->outgoing_urls_.clear();
+
+    // mark all outgoing URLs for crawling, by default
+    for (const auto &url_and_anchor_texts : urls_and_anchor_texts) {
+        crawl_result->outgoing_urls_.emplace_back(url_and_anchor_texts.getUrl(),
+                                                  CrawlResult::OutgoingUrlFlag::MARK_FOR_CRAWLING);
+    }
+
+    if (crawl_result->outgoing_urls_.empty())
+        return continueCrawling();
+    else
+        return true;
+}
 
 
 } // end namespace Crawling
@@ -546,29 +630,6 @@ void DownloadManager::cleanupCompletedTasklets(DomainData * const domain_data) {
 }
 
 
-std::unique_ptr<DirectDownload::Result> DownloadManager::fetchDownloadDataFromCache(const Util::HarvestableItem &source,
-                                                                                    const DirectDownload::Operation operation) const
-{
-    std::lock_guard<std::recursive_mutex> download_cache_lock(cached_download_data_mutex_);
-
-    const auto cache_hit(cached_download_data_.equal_range(source.url_.toString()));
-    for (auto itr(cache_hit.first); itr != cache_hit.second; ++itr) {
-        if (itr->second.operation_ == operation) {
-            std::unique_ptr<DirectDownload::Result> cached_result(new DirectDownload::Result(source, operation));
-
-            cached_result->response_body_ = itr->second.response_body_;
-            cached_result->response_header_ = itr->second.response_header_;
-            cached_result->response_code_ = itr->second.response_code_;
-            cached_result->error_message_ = itr->second.error_message_;
-
-            return cached_result;
-        }
-    }
-
-    return nullptr;
-}
-
-
 DownloadManager::DownloadManager(const GlobalParams &global_params)
  : global_params_(global_params), stop_background_thread_(false)
 {
@@ -601,7 +662,7 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
         and upload_tracker_.urlAlreadyDelivered(source.url_.toString()))
     {
         std::unique_ptr<DirectDownload::Result> result(new DirectDownload::Result(source, operation));
-        result->response_code_ = DirectDownload::Result::SpecialResponseCodes::ITEM_ALREADY_DELIVERED;
+        result->flags_ |= DirectDownload::Result::Flags::ITEM_ALREADY_DELIVERED;
 
         std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
                 download_result(new Util::Future<DirectDownload::Params, DirectDownload::Result>(std::move(result)));
@@ -677,7 +738,6 @@ std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> DownloadManager::rss(con
 
 
 void DownloadManager::addToDownloadCache(const std::string &url, const std::string &response_body, const std::string &response_header,
-                                         const unsigned response_code, const std::string &error_message,
                                          const DirectDownload::Operation operation)
 {
     std::lock_guard<std::recursive_mutex> download_cache_lock(cached_download_data_mutex_);
@@ -690,16 +750,35 @@ void DownloadManager::addToDownloadCache(const std::string &url, const std::stri
 
             itr->second.response_body_ = response_body;
             itr->second.response_header_ = response_header;
-            itr->second.response_code_ = response_code;
-            itr->second.error_message_ = error_message;
             return;
         }
     }
 
-    cached_download_data_.insert(std::make_pair(url, CachedDownloadData { operation, response_body, response_header,
-                                                                          response_code, error_message }));
+    cached_download_data_.insert(std::make_pair(url, CachedDownloadData { operation, response_body, response_header }));
 }
 
+
+std::unique_ptr<DirectDownload::Result> DownloadManager::fetchFromDownloadCache(const Util::HarvestableItem &source,
+                                                                                const DirectDownload::Operation operation) const
+{
+    std::lock_guard<std::recursive_mutex> download_cache_lock(cached_download_data_mutex_);
+
+    const auto cache_hit(cached_download_data_.equal_range(source.url_.toString()));
+    for (auto itr(cache_hit.first); itr != cache_hit.second; ++itr) {
+        if (itr->second.operation_ == operation) {
+            std::unique_ptr<DirectDownload::Result> cached_result(new DirectDownload::Result(source, operation));
+
+            cached_result->response_body_ = itr->second.response_body_;
+            cached_result->response_header_ = itr->second.response_header_;
+            cached_result->response_code_ = 200;
+            cached_result->flags_ |= DirectDownload::Result::Flags::FROM_CACHE;
+
+            return cached_result;
+        }
+    }
+
+    return nullptr;
+}
 
 bool DownloadManager::downloadInProgress() const {
     return direct_download_tasklet_execution_counter_ != 0 or crawling_tasklet_execution_counter_ != 0
