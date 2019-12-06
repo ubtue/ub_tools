@@ -1,30 +1,12 @@
 # compiled cpp programs
 ## (here we use / at the beginning by default, so e.g. /installer is ignored, but not data/installer)
 .static_deps
-/add_additional_relbib_entries
-/add_article_cross_links
-/add_author_synonyms
-/add_child_refs
-/add_cross_link_type
-/add_isbns_or_issns_to_articles
 /add_journal_subscription
-/add_oa_urls
-/add_publication_year_to_serials
-/add_referenceterms
-/add_subsystem_tags
-/add_superior_and_alertable_flags
-/add_superior_flag
-/add_synonyms
 /add_title_keywords
 /append_marc_xml
 /apply_differential_update
 /archive_delete_ids
 /archive_sent_records
-/augment_773a
-/augment_authority_data_with_translations
-/augment_bible_references
-/augment_canones_references
-/augment_pda
 /base_tar_unpacker
 /base62_coder
 /base64_coder
@@ -59,7 +41,6 @@
 /edit_ini_file
 /embedded_metadata_pdf_processor
 /enrich_ddcs
-/enrich_keywords_with_title_words
 /enumerate_non_standard_tags
 /es_store_document
 /export_subsystem_ids_to_db
@@ -73,7 +54,6 @@
 /extract_referenced_author_records
 /extract_referenceterms
 /extract_text_from_image_only_pdfs
-/extract_vufind_translations_for_translation
 /faster
 /find_bib_ref_candidates_in_titles
 /find_gnd_reference_fields
@@ -82,9 +62,6 @@
 /fix_article_biblio_levels
 /fix_bad_k10plus_patching
 /fix_iso_8859_1_garbage
-/flag_article_collections
-/flag_electronic_records
-/flag_records_as_available_in_tuebingen
 /full_text_cache_cleaner
 /full_text_cache_monitor
 /full_text_lookup
@@ -96,10 +73,10 @@
 /generate_language_model
 /generate_large_marc_record
 /generate_library_dependency_graph
+/generate_list_of_essay_collections
 /generate_merge_order
 /generate_tags_and_keyword_fields_map
 /generate_title_and_author_list
-/generate_vufind_translation_files
 /get_dangling_title_references
 /get_essay_collection_pdfs
 /inifile_lookup
@@ -118,8 +95,6 @@
 /library_finder
 /log_rotate
 /make_marc_xml
-/map_ddc_to_ixtheo_notations
-/merge_print_and_online
 /missing_metadata_db_tool
 /mpi_stats
 /mysql_database_patcher
@@ -129,7 +104,6 @@
 /normalise_author_name
 /normalise_marc_contents
 /normalise_title
-/normalise_urls
 /notify_users
 /oai_pmh_harvester
 /oai_pmh_list_formats
@@ -140,7 +114,6 @@
 /remove_redundant_includes
 /remove_unused_authority_records
 /replace_marc_records
-/rewrite_keywords_and_authors_from_authority_data
 /rewrite_ssoar
 /rss_aggregator
 /rss_harvester
@@ -165,7 +138,6 @@
 /translator_ajax
 /update_authority_data
 /update_full_text_db
-/update_ixtheo_notations
 /urlencode
 /validate_harvested_records
 /zeder_count_imported
