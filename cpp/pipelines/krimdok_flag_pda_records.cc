@@ -3,7 +3,7 @@
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \author Johannes Riedl (johannes.riedl@uni-tuebingen.de)
  *
- *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -70,30 +70,6 @@ bool IsUBOrIFKRecord(const MARC::Record &record, const std::vector<MARC::Record:
 }
 
 
-bool IsARecognisableYear(const std::string &year_candidate) {
-    if (year_candidate.length() != 4)
-        return false;
-
-    for (char ch : year_candidate) {
-        if (not StringUtil::IsDigit(ch))
-            return false;
-    }
-
-    return true;
-}
-
-
-// If we can find a recognisable year in 260$c we return it, o/w we return the empty string.
-std::string GetPublicationYear(const MARC::Record &record) {
-    for (const auto &_260_field : record.getTagRange("260")) {
-        for (const auto &year_candidate : _260_field.getSubfields().extractSubfields('c'))
-            if (IsARecognisableYear(year_candidate))
-                return year_candidate;
-    }
-    return "";
-}
-
-
 void FindNonMPIInstitutions(const MARC::Record &record, const std::vector<MARC::Record::iterator> &local_block_starts,
                             std::vector<std::string> * const non_mpi_institutions)
 {
@@ -126,7 +102,7 @@ void AddPDAFieldToRecords(const std::string &cutoff_year, MARC::Reader * const m
 
         auto local_block_starts(record.findStartOfAllLocalDataBlocks());
         if (IsMPIRecord(record, local_block_starts) and not IsUBOrIFKRecord(record, local_block_starts)) {
-            const std::string publication_year(GetPublicationYear(record));
+            const std::string publication_year(record.getPublicationYear());
             if (publication_year >= cutoff_year) {
                 std::vector<std::string> non_mpi_institutions;
                 FindNonMPIInstitutions(record, local_block_starts, &non_mpi_institutions);

@@ -49,12 +49,6 @@ void CollectArticleCollectionPPNs(MARC::Reader * const reader,
 }
 
 
-std::string GetPublicationYear(const MARC::Record &record) {
-    const auto publication_year_candidate(record.getPublicationYear());
-    return publication_year_candidate.empty() ? "????" : publication_year_candidate;
-}
-
-
 std::string ShortenTitle(const std::string &full_title, const size_t max_length) {
     const auto full_title_length(full_title.length());
     if (full_title_length <= max_length)
@@ -106,7 +100,7 @@ void MarkArticleCollections(MARC::Reader * const reader, File * const output,
             const auto ssgns(record.getSSGNs());
             if (ssgns.find("0") != ssgns.cend()) {
                 ++count;
-                const auto publication_year(GetPublicationYear(record));
+                const auto publication_year(record.getPublicationYear(/* default_value */ "????"));
                 *output << TextUtil::CSVEscape(record.getControlNumber()) << '\t'
                         << TextUtil::CSVEscape(ShortenTitle(record.getMainTitle(), 60)) << '\t'
                         << TextUtil::CSVEscape((HasTOC(record) ? "Ja" : "Nein")) << '\t'
