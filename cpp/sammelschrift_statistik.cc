@@ -1,7 +1,7 @@
 /** \brief Utility for displaying various bits of info about a collection of MARC records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -71,134 +71,6 @@ std::string GetShortenedTitle(const MARC::Record &record, const size_t max_lengt
 }
 
 
-bool IsPossibleYear(const std::string &year_candidate) {
-    if (year_candidate.length() != 4)
-        return false;
-
-    for (auto ch : year_candidate) {
-        if (not StringUtil::IsDigit(ch))
-            return false;
-    }
-
-    return true;
-}
-
-
-std::string YYMMDateToString(const std::string &control_number, const std::string &yymm_date) {
-    const unsigned CURRENT_YEAR(TimeUtil::GetCurrentTimeGMT().tm_year + 1900);
-    const unsigned TWO_DIGIT_CURRENT_YEAR(CURRENT_YEAR - 2000);
-
-    unsigned year_digits;
-    if (StringUtil::ToUnsigned(yymm_date.substr(0, 2), &year_digits))
-        return std::to_string(year_digits > TWO_DIGIT_CURRENT_YEAR ? 1900 + year_digits : 2000 + year_digits);
-    LOG_WARNING("in yyMMDateToString: expected date in YYMM format, found \"" + yymm_date
-                + "\" instead! (Control number was " + control_number + ")");
-    return std::to_string(CURRENT_YEAR);
-}
-
-
-std::string GetDateForWebsite(const MARC::Record &record) {
-    const auto _008_field(record.findTag("008"));
-    const auto &control_number(record.getControlNumber());
-    if (unlikely(_008_field == record.end()))
-        LOG_ERROR("No 008 Field for website w/ control number " +  control_number + "!");
-    return YYMMDateToString(control_number, _008_field->getContents());
-}
-
-
-std::string GetDateForReproduction(const MARC::Record &record) {
-    const auto _534_field(record.findTag("534"));
-    const auto &control_number(record.getControlNumber());
-    if (unlikely(_534_field == record.end()))
-        LOG_ERROR("No 534 Field for reproduction w/ control number " +  control_number + "!");
-
-    const auto c_contents(_534_field->getFirstSubfieldWithCode('c'));
-    if (c_contents.empty())
-        return "";
-
-    static const auto digit_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+)"));
-    return digit_matcher->matched(c_contents) ? (*digit_matcher)[1] : "";
-}
-
-
-std::string GetDateForArticleOrReview(const MARC::Record &record) {
-    for (const auto &_936_field : record.getTagRange("936")) {
-        const auto j_contents(_936_field.getFirstSubfieldWithCode('j'));
-        if (not j_contents.empty()) {
-            static const auto year_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{4})"));
-            if (year_matcher->matched(j_contents))
-                return (*year_matcher)[1];
-        }
-    }
-
-    return "";
-}
-
-
-std::string GetDateFrom190j(const MARC::Record &record) {
-    for (const auto &_190_field : record.getTagRange("190")) {
-        const auto j_contents(_190_field.getFirstSubfieldWithCode('j'));
-        if (likely(not j_contents.empty()))
-            return j_contents;
-        LOG_ERROR("No 190j subfield for PPN " + record.getControlNumber() + "!");
-    }
-
-    return "";
-}
-
-
-bool HasCentruryOnly(const std::string &year_candidate) {
-    if (year_candidate.length() != 4 or not StringUtil::IsDigit(year_candidate[0]) or not StringUtil::IsDigit(year_candidate[1]))
-        return false;
-
-    return year_candidate[2] == 'u' and year_candidate[3] == 'u';
-}
-
-
-// Extract the sort date from the 008 field.
-std::string GetSortDate(const MARC::Record &record) {
-    const auto _008_field(record.findTag("008"));
-    if (unlikely(_008_field == record.end()))
-        LOG_ERROR("record w/ control number " + record.getControlNumber() + " is missing a 008 field!");
-
-    const auto &_008_contents(_008_field->getContents());
-    if (unlikely(_008_contents.length() < 12))
-        return "";
-
-    const auto year_candidate(_008_contents.substr(7, 4));
-    if (unlikely(not HasCentruryOnly(year_candidate) and not IsPossibleYear(year_candidate)))
-        LOG_ERROR("bad year in 008 field \"" + year_candidate + "\" for control number " + record.getControlNumber() + "!");
-    return year_candidate;
-}
-
-
-std::string GetPublicationYear(const MARC::Record &record) {
-    if (record.isWebsite())
-        return GetDateForWebsite(record);
-
-    if (record.isReproduction()) {
-        const auto date(GetDateForReproduction(record));
-        if (not date.empty())
-            return date;
-    }
-
-    if ((record.isArticle() or MARC::IsAReviewArticle(record)) and not record.isMonograph()) {
-        const auto date(GetDateForArticleOrReview(record));
-        if (unlikely(date.empty()))
-            LOG_ERROR("Could not find proper 936 field date content for record w/ control number " + record.getControlNumber() + "!");
-        return date;
-    }
-
-    // Test whether we have a 190j field
-    // This was generated in the pipeline for superior works that do not contain a reasonable 008(7,10) entry
-    const std::string date(GetDateFrom190j(record));
-    if (not date.empty())
-        return date;
-
-    return GetSortDate(record);
-}
-
-
 bool IsTOC(const MARC::Record &record) {
     for (const auto &_856_field : record.getTagRange("856")) {
         const MARC::Subfields subfields(_856_field.getSubfields());
@@ -225,7 +97,7 @@ void ProcessRecords(const bool use_religious_studies_only, MARC::Reader * const 
 
 
         ppn_to_collection_info_map->emplace(record.getControlNumber(),
-                                            CollectionInfo(GetShortenedTitle(record, 80), GetPublicationYear(record), IsTOC(record)));
+                                            CollectionInfo(GetShortenedTitle(record, 80), record.getPublicationYear(), IsTOC(record)));
 
         ++record_count;
     }
