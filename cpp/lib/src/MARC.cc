@@ -925,7 +925,37 @@ static inline bool ConsistsOfDigitsOnly(const std::string &s) {
 }
 
 
-std::string Record::getPublicationYear() const {
+std::string Record::getPublicationYear(const std::string &fallback) const {
+    if (isReproduction()) {
+        const auto _534_field(findTag("534"));
+        if (unlikely(_534_field == end()))
+            LOG_ERROR("No 534 Field for reproduction w/ control number " + getControlNumber() + "!");
+
+        const auto c_contents(_534_field->getFirstSubfieldWithCode('c'));
+        if (not c_contents.empty()) {
+            static const auto digit_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+)"));
+            if (digit_matcher->matched(c_contents))
+                return (*digit_matcher)[1];
+        }
+    }
+
+    if ((isArticle() or isReviewArticle()) and not isMonograph()) {
+        for (const auto &_936_field : getTagRange("936")) {
+            const auto j_contents(_936_field.getFirstSubfieldWithCode('j'));
+            if (not j_contents.empty()) {
+                static const auto year_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{4})"));
+                if (year_matcher->matched(j_contents))
+                    return (*year_matcher)[1];
+            }
+        }
+    }
+
+    for (const auto &_190_field : getTagRange("190")) {
+        const auto j_contents(_190_field.getFirstSubfieldWithCode('j'));
+        if (likely(not j_contents.empty()))
+            return j_contents;
+    }
+
     const auto _008_field(findTag("008"));
     if (likely(_008_field != end())) {
         const auto &field_contents(_008_field->getContents());
@@ -936,7 +966,7 @@ std::string Record::getPublicationYear() const {
         }
     }
 
-    return "";
+    return fallback;
 }
 
 
@@ -2719,13 +2749,13 @@ FileType GetOptionalWriterType(int * const argc, char *** const argv, const int 
 }
 
 
-bool IsAReviewArticle(const Record &record) {
-    for (const auto _655_field : record.getTagRange("655")) {
+bool Record::isReviewArticle() const {
+    for (const auto _655_field : getTagRange("655")) {
         if (StringUtil::FindCaseInsensitive(_655_field.getFirstSubfieldWithCode('a'), "rezension") != std::string::npos)
             return true;
     }
 
-    for (const auto _935_field : record.getTagRange("935")) {
+    for (const auto _935_field : getTagRange("935")) {
         if (_935_field.getFirstSubfieldWithCode('c') == "uwre")
             return true;
     }
@@ -2734,12 +2764,12 @@ bool IsAReviewArticle(const Record &record) {
 }
 
 
-bool PossiblyAReviewArticle(const Record &record) {
-    if (IsAReviewArticle(record))
+bool Record::isPossiblyReviewArticle() const {
+    if (isReviewArticle())
         return true;
 
-    return StringUtil::FindCaseInsensitive(record.getMainTitle(), "review") != std::string::npos
-           or StringUtil::FindCaseInsensitive(record.getMainTitle(), "rezension") != std::string::npos;
+    return StringUtil::FindCaseInsensitive(getMainTitle(), "review") != std::string::npos
+           or StringUtil::FindCaseInsensitive(getMainTitle(), "rezension") != std::string::npos;
 }
 
 

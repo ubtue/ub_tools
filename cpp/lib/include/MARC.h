@@ -509,6 +509,8 @@ public:
     bool isMonograph() const;
     inline bool isSerial() const { return leader_[7] == 's'; }
     bool isArticle() const;
+    bool isPossiblyReviewArticle() const;
+    bool isReviewArticle() const;
     bool isWebsite() const;
     inline bool isReproduction() const { return getFirstField("534") != end(); }
     bool isElectronicResource() const;
@@ -541,8 +543,8 @@ public:
     /** \return A "summary" (could be an abstract etc.), if found, else the empty string. */
     std::string getSummary() const;
 
-    /** \return A guess at the publication year or the empty string if we could not find one. */
-    std::string getPublicationYear() const;
+    /** \return A guess at the publication year or the fallback value if we could not find one. */
+    std::string getPublicationYear(const std::string &fallback = "") const;
 
     /** \return All author names in fields 100$a and 700$a. */
     std::set<std::string> getAllAuthors() const;
@@ -1094,10 +1096,6 @@ FileType GetOptionalReaderType(int * const argc, char *** const argv, const int 
  *  be returned instead and "argc" and "argv" will remain unmodified.  If an unrecognized format has been provided, we call LOG_ERROR.
  */
 FileType GetOptionalWriterType(int * const argc, char *** const argv, const int arg_no, const FileType default_file_type = FileType::AUTO);
-
-
-bool IsAReviewArticle(const Record &record);
-bool PossiblyAReviewArticle(const Record &record);
 
 
 /** \return True if field "field" contains a reference to another MARC record that is not a link to a superior work and false, if not. */
