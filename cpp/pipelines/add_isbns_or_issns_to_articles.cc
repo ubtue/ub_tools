@@ -127,7 +127,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(
 
         // If parent is open access and we're not, add it!
         if (parent_isbn_or_issn_iter->second.is_open_access_ and not MARC::IsOpenAccess(record)) {
-            record.insertField("655", { { 'a', "Open Access" } }, /* indicator1 = */' ', /* indicator2 = */'4');
+            record.insertField("OAS", { { 'a', "1" }, { 'b', "inherited from superior work" } });
             _773_field = record.findTag("773"); // Iterator was invalidated by previous line!
         }
 

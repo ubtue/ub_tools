@@ -105,23 +105,26 @@ std::ostream &operator<<(std::ostream &output, const NewIssueInfo &new_issue_inf
 }
 
 
-bool StartPageLessThan(const std::string &start_page1, const std::string &start_page2) {
-    if (not StringUtil::ConsistsOfAllASCIIDigits(start_page1) or not StringUtil::ConsistsOfAllASCIIDigits(start_page2))
-        return start_page1 < start_page2; // Arbitrary but consistent.
-
-    return StringUtil::ToUnsigned(start_page1) < StringUtil::ToUnsigned(start_page2);
-}
-
-
 bool NewIssueInfo::operator<(const NewIssueInfo &rhs) const {
-    if (series_title_ < rhs.series_title_)
-        return true;
-    if ((not volume_.empty() or not rhs.volume_.empty()) and volume_ < rhs.volume_)
-        return true;
-    if ((not year_.empty() or not rhs.year_.empty()) and year_ < rhs.year_)
-        return true;
-    if (StartPageLessThan(start_page_, rhs.start_page_))
-        return true;
+    if (series_title_ != rhs.series_title_)
+        return series_title_ < rhs.series_title_;
+
+    if (volume_ != rhs.volume_) {
+        if (StringUtil::ConsistsOfAllASCIIDigits(volume_) and StringUtil::ConsistsOfAllASCIIDigits(rhs.volume_))
+            return StringUtil::ToUnsigned(volume_) < StringUtil::ToUnsigned(rhs.volume_);
+        else
+            return volume_ < rhs.volume_;
+    }
+
+    if (year_ != rhs.year_)
+        return year_ < rhs.year_;
+
+    if (start_page_ != rhs.start_page_) {
+        if (StringUtil::ConsistsOfAllASCIIDigits(start_page_) and StringUtil::ConsistsOfAllASCIIDigits(rhs.start_page_))
+            return StringUtil::ToUnsigned(start_page_) < StringUtil::ToUnsigned(rhs.start_page_);
+        else
+            return start_page_ < rhs.start_page_;
+    }
 
     return false;
 }
@@ -190,6 +193,8 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
 
     const std::shared_ptr<const JSON::ArrayNode> container_ids_and_titles_array(
         JSON::JSONNode::CastToArrayNodeOrDie("container_ids_and_titles", container_ids_and_titles));
+    if (unlikely(container_ids_and_titles_array == nullptr))
+        LOG_ERROR("container_ids_and_titles_array is not a JSON array!");
     if (container_ids_and_titles_array->empty()) {
         LOG_WARNING("\"container_ids_and_titles\" is empty");
         return NO_SERIES_TITLE;
@@ -295,7 +300,7 @@ bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
 
     std::string json_result, err_msg;
     if (unlikely(not Solr::Query(QUERY,
-                                 "id,title,title_sub,author,last_modification_time,container_ids_and_titles,volume,year"
+                                 "id,title,title_sub,author,last_modification_time,container_ids_and_titles,volume,year,"
                                  "issue,start_page", &json_result, &err_msg,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         LOG_ERROR("Solr query failed or timed-out: \"" + QUERY + "\". (" + err_msg + ")");
@@ -327,7 +332,20 @@ std::string GenerateEmailContents(const std::string &user_type, const std::strin
             last_volume_year_and_issue.clear();
         }
 
-        const std::string volume_year_and_issue(new_issue_info.volume_ + new_issue_info.year_ + new_issue_info.issue_);
+        std::string volume_year_and_issue;
+        if (not new_issue_info.volume_.empty())
+            volume_year_and_issue += new_issue_info.volume_;
+        if (not new_issue_info.year_.empty()) {
+            if (not volume_year_and_issue.empty())
+                volume_year_and_issue += " ";
+            volume_year_and_issue += "(" + new_issue_info.year_ + ")";
+        }
+        if (not new_issue_info.issue_.empty()) {
+            if (not volume_year_and_issue.empty())
+                volume_year_and_issue += ", ";
+            volume_year_and_issue += new_issue_info.issue_;
+        }
+
         if (volume_year_and_issue != last_volume_year_and_issue) {
             if (not last_volume_year_and_issue.empty())
                 email_contents += "    </ul>\n"; // end items
