@@ -133,6 +133,7 @@ struct ConversionResult {
 public:
     explicit ConversionResult()
      : num_skipped_since_online_first_(0), num_skipped_since_early_view_(0), num_skipped_since_exclusion_filters_(0) {}
+     ConversionResult(const ConversionResult &rhs) = delete;
 };
 
 
