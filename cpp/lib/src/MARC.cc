@@ -925,7 +925,7 @@ static inline bool ConsistsOfDigitsOnly(const std::string &s) {
 }
 
 
-std::string Record::getPublicationYear(const std::string &default_value) const {
+std::string Record::getPublicationYear(const std::string &fallback) const {
     if (isReproduction()) {
         const auto _534_field(findTag("534"));
         if (unlikely(_534_field == end()))
@@ -934,7 +934,8 @@ std::string Record::getPublicationYear(const std::string &default_value) const {
         const auto c_contents(_534_field->getFirstSubfieldWithCode('c'));
         if (not c_contents.empty()) {
             static const auto digit_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+)"));
-            return digit_matcher->matched(c_contents) ? (*digit_matcher)[1] : default_value;
+            if (digit_matcher->matched(c_contents))
+                return (*digit_matcher)[1];
         }
     }
 
@@ -965,7 +966,7 @@ std::string Record::getPublicationYear(const std::string &default_value) const {
         }
     }
 
-    return default_value;
+    return fallback;
 }
 
 

@@ -100,7 +100,7 @@ void MarkArticleCollections(MARC::Reader * const reader, File * const output,
             const auto ssgns(record.getSSGNs());
             if (ssgns.find("0") != ssgns.cend()) {
                 ++count;
-                const auto publication_year(record.getPublicationYear(/* default_value */ "????"));
+                const auto publication_year(record.getPublicationYear(/* fallback */ "????"));
                 *output << TextUtil::CSVEscape(record.getControlNumber()) << '\t'
                         << TextUtil::CSVEscape(ShortenTitle(record.getMainTitle(), 60)) << '\t'
                         << TextUtil::CSVEscape((HasTOC(record) ? "Ja" : "Nein")) << '\t'

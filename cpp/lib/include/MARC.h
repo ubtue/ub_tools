@@ -543,8 +543,8 @@ public:
     /** \return A "summary" (could be an abstract etc.), if found, else the empty string. */
     std::string getSummary() const;
 
-    /** \return A guess at the publication year or the default value if we could not find one. */
-    std::string getPublicationYear(const std::string &default_value="") const;
+    /** \return A guess at the publication year or the fallback value if we could not find one. */
+    std::string getPublicationYear(const std::string &fallback = "") const;
 
     /** \return All author names in fields 100$a and 700$a. */
     std::set<std::string> getAllAuthors() const;
