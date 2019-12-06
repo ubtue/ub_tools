@@ -263,9 +263,9 @@ private:
     };
 
     struct CachedDownloadData {
+        Util::HarvestableItem source_;
         DirectDownload::Operation operation_;
         std::string response_body_;
-        std::string response_header_;
     };
 
     static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 50;
@@ -281,6 +281,8 @@ private:
     std::unordered_map<std::string, std::unique_ptr<DomainData>> domain_data_;
     std::unordered_multimap<std::string, CachedDownloadData> cached_download_data_;
     mutable std::recursive_mutex cached_download_data_mutex_;
+    std::vector<std::shared_ptr<DirectDownload::Tasklet>> ongoing_direct_downloads_;
+    mutable std::recursive_mutex ongoing_direct_downloads_mutex_;
     std::deque<std::shared_ptr<DirectDownload::Tasklet>> direct_download_queue_buffer_;
     mutable std::recursive_mutex direct_download_queue_buffer_mutex_;
     std::deque<std::shared_ptr<Crawling::Tasklet>> crawling_queue_buffer_;
@@ -296,6 +298,9 @@ private:
     void processQueueBuffers();
     void processDomainQueues(DomainData * const domain_data);
     void cleanupCompletedTasklets(DomainData * const domain_data);
+    void cleanupOngoingDownloadsBackingStore();
+    std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
+        newFutureFromOngoingDownload(const Util::HarvestableItem &source, const DirectDownload::Operation operation) const;
 public:
     DownloadManager(const GlobalParams &global_params);
     ~DownloadManager();
@@ -310,7 +315,7 @@ public:
     std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> rss(const Util::HarvestableItem &source,
                                                                 const std::string &user_agent,
                                                                 const std::string &feed_contents = "");
-    void addToDownloadCache(const std::string &url, const std::string &response_body, const std::string &response_header,
+    void addToDownloadCache(const Util::HarvestableItem &source, const std::string &url, const std::string &response_body,
                             const DirectDownload::Operation operation);
     std::unique_ptr<DirectDownload::Result> fetchFromDownloadCache(const Util::HarvestableItem &source,
                                                                    const DirectDownload::Operation operation) const;

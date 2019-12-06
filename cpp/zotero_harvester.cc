@@ -488,8 +488,10 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
             writer->flush();
         }
 
-        LOG_INFO("Generated " + std::to_string(num_written_records) + " record(s) for "
-                 "item " + current_download_item.toString());
+        if (num_written_records > 0) {
+            LOG_INFO("Generated " + std::to_string(num_written_records) + " record(s) for "
+                     "item " + current_download_item.toString());
+        }
 
         journal_datastore->queued_marc_records_.pop_front();
     }

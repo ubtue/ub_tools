@@ -511,25 +511,22 @@ MetadataRecord::SSGType GetSSGTypeFromString(const std::string &ssg_string) {
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
 const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
-
+std::mutex STRING_TO_STUCT_TM_MUTEX;
 
 void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params,
                            const Config::GroupParams &group_params, const Config::EnhancementMaps &enhancement_maps)
 {
-    // The TimeUtil::StringToStructTm() call is not thread-safe as it can modify the process' locale
-    std::mutex STRING_TO_STUCT_TM_MUTEX;
 
     // normalise date
-    struct tm tm;
-    {
+    if (not metadata_record->date_.empty()) {
+        // The TimeUtil::StringToStructTm() call is not thread-safe as it can modify the process' locale
         std::lock_guard<std::mutex> lock(STRING_TO_STUCT_TM_MUTEX);
-        struct tm temp_tm(TimeUtil::StringToStructTm(metadata_record->date_, journal_params.strptime_format_string_));
-        std::memcpy(&tm, &temp_tm, sizeof(struct tm));
+        struct tm tm(TimeUtil::StringToStructTm(metadata_record->date_, journal_params.strptime_format_string_));
+        const std::string date_normalized(std::to_string(tm.tm_year + 1900) + "-"
+                                          + StringUtil::ToString(tm.tm_mon + 1, 10, 2, '0') + "-"
+                                          + StringUtil::ToString(tm.tm_mday, 10, 2, '0'));
+        metadata_record->date_ = date_normalized;
     }
-    const std::string date_normalized(std::to_string(tm.tm_year + 1900) + "-"
-                                      + StringUtil::ToString(tm.tm_mon + 1, 10, 2, '0') + "-"
-                                      + StringUtil::ToString(tm.tm_mday, 10, 2, '0'));
-    metadata_record->date_ = date_normalized;
 
     // normalise issue/volume
     if (metadata_record->issue_ == "0")
@@ -1086,6 +1083,11 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
     auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
     PostprocessTranslationServerResponse(parameters.download_item_, &array_node);
 
+    if (array_node->size() == 0) {
+        LOG_WARNING("no items found in translation server response");
+        return;
+    }
+
     for (const auto &entry : *array_node) {
         const auto json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
 
@@ -1135,7 +1137,8 @@ ConversionTasklet::ConversionTasklet(ThreadUtil::ThreadSafeCounter<unsigned> * c
  : Util::Tasklet<ConversionParams, ConversionResult>(instance_counter, parameters->download_item_,
                                                      "Conversion: " + parameters->download_item_.url_.toString(),
                                                      std::bind(&ConversionTasklet::run, this, std::placeholders::_1, std::placeholders::_2),
-                                                     std::unique_ptr<ConversionResult>(new ConversionResult()), std::move(parameters)) {}
+                                                     std::unique_ptr<ConversionResult>(new ConversionResult()),
+                                                     std::move(parameters), ResultPolicy::YIELD) {}
 
 
 
