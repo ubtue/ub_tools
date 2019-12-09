@@ -453,6 +453,8 @@ void DbConnection::init(const std::string &database_name, const std::string &use
                         const std::string &host, const unsigned port, const Charset charset, const TimeZone time_zone)
 {
     initialised_ = false;
+    sqlite3_ = nullptr;
+    type_ = T_MYSQL;
 
     if (::mysql_init(&mysql_) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_init() failed!");
@@ -467,8 +469,6 @@ void DbConnection::init(const std::string &database_name, const std::string &use
     if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
 
-    sqlite3_ = nullptr;
-    type_ = T_MYSQL;
     initialised_ = true;
     setTimeZone(time_zone);
     database_name_ = database_name;
@@ -484,6 +484,8 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
                         const Charset charset, const TimeZone time_zone)
 {
     initialised_ = false;
+    sqlite3_ = nullptr;
+    type_ = T_MYSQL;
 
     if (::mysql_init(&mysql_) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_init() failed!");
@@ -494,8 +496,6 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
     if (::mysql_set_character_set(&mysql_, CharsetToString(charset).c_str()) != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
 
-    sqlite3_ = nullptr;
-    type_ = T_MYSQL;
     initialised_ = true;
     setTimeZone(time_zone);
     user_ = user;
