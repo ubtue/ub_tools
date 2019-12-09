@@ -322,11 +322,11 @@ std::string GenerateEmailContents(const std::string &user_type, const std::strin
                                "serials that you are subscribed to.  The list is:\n"
                                "<ul>\n"); // start journal list
 
-    bool first_iteration(true);
     std::string last_series_title, last_volume_year_and_issue;
     for (const auto &new_issue_info : new_issue_infos) {
-        if (new_issue_info.series_title_ != last_series_title) {
-            if (not first_iteration) {
+        const bool new_serial(new_issue_info.series_title_ != last_series_title);
+        if (new_serial) {
+            if (not last_series_title.empty()) { // Not first iteration!
                 email_contents += "    </ul>\n"; // end items
                 email_contents += "  </ul>\n"; // end volume/year/issue list
             }
@@ -352,7 +352,7 @@ std::string GenerateEmailContents(const std::string &user_type, const std::strin
         }
 
         if (volume_year_and_issue != last_volume_year_and_issue) {
-            if (not first_iteration)
+            if (not new_serial)
                 email_contents += "    </ul>\n"; // end items
             email_contents += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
             last_volume_year_and_issue = volume_year_and_issue;
@@ -365,8 +365,6 @@ std::string GenerateEmailContents(const std::string &user_type, const std::strin
             authors += "&nbsp;&nbsp;&nbsp;" + HtmlUtil::HtmlEscape(author);
         email_contents += "      <li><a href=" + URL + ">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors
                           + "</li>\n";
-
-        first_iteration = false;
     }
     email_contents += "    </ul>\n"; // end items
     email_contents += "  </ul>\n"; // end volume/year/issue list
