@@ -363,7 +363,7 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
             break;
         case CENTOS:
             apache_unit_name = "httpd";
-            mysql_unit_name = "mysqld";
+            mysql_unit_name = "mariadb";
 
             if (not FileUtil::Exists("/etc/my.cnf"))
                 ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mysql_install_db"),
