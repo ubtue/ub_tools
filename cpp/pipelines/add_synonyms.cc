@@ -38,8 +38,6 @@
 #include "util.h"
 
 
-static unsigned modified_count(0);
-static unsigned record_count(0);
 const unsigned FIELD_MIN_NON_DATA_SIZE(4); // Indicator 1 + 2, unit separator and subfield code
 const unsigned int NUMBER_OF_LANGUAGES(9);
 const std::vector<std::string> languages_to_translate{ "en", "fr", "es", "it", "hans", "hant", "pt", "ru", "el" };
@@ -309,6 +307,7 @@ void InsertSynonyms(MARC::Reader * const marc_reader, MARC::Writer * const marc_
                     const std::vector<std::map<std::string, std::vector<std::string>>> &translation_maps,
                     const std::vector<std::string> &translated_tags_and_subfield_codes)
 {
+    unsigned modified_count(0), record_count(0);
     while (MARC::Record record = marc_reader->read()) {
         bool modified_record(false);
         ProcessRecordGermanSynonyms(&record, synonym_maps, primary_tags_and_subfield_codes, output_tags_and_subfield_codes,
@@ -321,7 +320,7 @@ void InsertSynonyms(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         ++record_count;
     }
 
-    std::cerr << "Modified " << modified_count << " of " << record_count << " record(s).\n";
+    LOG_INFO("Modified " + std::to_string(modified_count) + " of " + std::to_string(record_count) + " record(s).");
 }
 
 
