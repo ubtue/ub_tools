@@ -52,7 +52,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(std::string("--generate-list authority_data\n") +
-            "--augment-db authority_data [find_of_discovery_map_file bishop_rewrite_map official_rewrite_map hinweissätze_rewrite_map]\n" +
+            "--augment-db authority_data [find_of_discovery_map_file bishop_rewrite_map official_rewrite_map hinweissätze_rewrite_map keyword_correction_map author_correction_map]\n" +
             "    no operation mode means --augment-db");
 }
 
@@ -271,6 +271,29 @@ std::pair<std::string, std::string> ExtractHinttermAndCircumscription(const std:
 }
 
 
+std::pair<std::string, std::string> ExtractKeywordCorrection(const std::vector<std::string> &line) {
+    if (line.size() >= 2  and not line[0].empty() and not line[1].empty())
+        return std::make_pair(line[0], line[1]);
+    return std::make_pair("", "");
+}
+
+
+std::pair<std::string, std::string> ExtractKeywordGNDCorrection(const std::vector<std::string> &line) {
+    if (line.size() >= 3)
+        return std::make_pair(line[0], line[2]);
+    return std::make_pair("", "");
+
+}
+
+
+std::pair<std::string, std::string> ExtractAuthorGNDCorrection(const std::vector<std::string> &line) {
+   // Only extract lines with existing GNDs
+   if (not line[1].empty())
+       return std::make_pair(line[0], line[1]);
+   return std::make_pair("", "");
+}
+
+
 std::pair<std::string, gnd_role_and_year> ExtractBishopRoleYearAndGND(const std::vector<std::string> &line) {
     const std::string years_expression(line.size() >= 4 ? line[3] : "");
     std::vector<std::string> years;
@@ -312,6 +335,25 @@ void GenericGenerateMapFromCSV(const std::string &csv_filename, std::unordered_m
 }
 
 
+/*void GenericAddToMapFromCSV(const std::string &csv_filename, std::unordered_map<std::string, std::string> * const map,
+                               std::function<std::pair<std::string,std::string>(const std::vector<std::string>)> extractor,
+                               const char separator = ',', const char quote = '"')
+{
+    std::vector<std::vector<std::string>> lines;
+    TextUtil::ParseCSVFileOrDie(csv_filename, &lines, separator, quote);
+    std::transform(lines.begin(), lines.end(), std::inserter(*map, map->end()), extractor);
+}*/
+
+
+void GenericAddToMultiMapFromCSV(const std::string &csv_filename, std::unordered_multimap<std::string, std::string> * const map,
+                                 std::function<std::pair<std::string, std::string>(const std::vector<std::string>)> extractor) {
+    std::vector<std::vector<std::string>> lines;
+    TextUtil::ParseCSVFileOrDie(csv_filename, &lines);
+    std::transform(lines.begin(), lines.end(), std::inserter(*map, map->begin()), extractor);
+}
+
+
+
 void GetFindDiscoveryMap(const std::string &find_discovery_filename, std::unordered_map<std::string, std::string> * const find_discovery_map) {
     GenericGenerateMapFromCSV(find_discovery_filename, find_discovery_map, ExtractPPNAndDiscoverAbbrev);
 }
@@ -326,8 +368,25 @@ void GetOfficialsMap(const std::string &officials_map_filename, std::unordered_m
      GenericGenerateTupleMultiMapFromCSV(officials_map_filename, officials_map, ExtractOfficialRoleYearAndGND);
 }
 
+
 void GetHinttermsMap(const std::string &hintterm_map_filename, std::unordered_map<std::string, std::string> * const hintterms_map) {
      GenericGenerateMapFromCSV(hintterm_map_filename, hintterms_map, ExtractHinttermAndCircumscription, ':');
+}
+
+
+void AddKeywordTypoAndGNDCorrections(const std::string &keyword_correction_map_filename,
+                           std::unordered_map<std::string, std::string> * const keyword_correction_map,
+                           std::unordered_multimap<std::string, std::string> * const keyword_to_gnd_result_map)
+{
+     GenericGenerateMapFromCSV(keyword_correction_map_filename, keyword_correction_map, ExtractKeywordCorrection);
+     GenericAddToMultiMapFromCSV(keyword_correction_map_filename, keyword_to_gnd_result_map, ExtractKeywordGNDCorrection);
+}
+
+
+void AddAuthorGNDCorrections(const std::string &author_correction_map_filenname, std::unordered_multimap<std::string, std::string> * const author_correction_map) {
+     (void) author_correction_map_filenname, (void) author_correction_map;
+     (void) ExtractAuthorGNDCorrection;
+     //GenericGenerateTemplateMapFromCSV(author_correction_map_filenname, author_correction_map, ExtractAuthorGNDCorrection);
 }
 
 
@@ -355,7 +414,8 @@ void AugmentDBEntries(DbConnection &db_connection,
                       const std::unordered_map<std::string,std::string> &find_discovery_map,
                       const std::unordered_multimap<std::string, gnd_role_and_year> &bishop_map,
                       const std::unordered_multimap<std::string, gnd_role_and_year> &officials_map,
-                      const std::unordered_map<std::string,std::string> &hintterms_map)
+                      const std::unordered_map<std::string,std::string> &hintterms_map,
+                      const std::unordered_map<std::string, std::string> &keyword_correction_map)
 
 {
     // Iterate over Database
@@ -379,14 +439,25 @@ void AugmentDBEntries(DbConnection &db_connection,
         // Only write back non-empty string if we have at least one reasonable entry
         std::string a_gnd_content(author_gnd_seen ? StringUtil::Join(author_gnd_numbers, ";") : "");
 
-        // Replace Hinweissätze if present
+        // Apply manually fixed typos and circumscriptions
         std::string keyword_row(db_row["stichwort"]);
         std::vector<std::string> keywords_in_row;
         StringUtil::SplitThenTrimWhite(keyword_row, ";,", &keywords_in_row);
         for (auto keyword(keywords_in_row.begin()); keyword != keywords_in_row.end(); ++keyword) {
+             const auto &corrected_term = keyword_correction_map.find(*keyword);
+             if (corrected_term != keyword_correction_map.cend()) 
+                 *keyword = corrected_term->second;
+             
+        }
+        keyword_row = StringUtil::Join(keywords_in_row, ';');
+
+        // Replace Hinweissätze if present
+        StringUtil::SplitThenTrimWhite(keyword_row, ";,", &keywords_in_row);
+        for (auto keyword(keywords_in_row.begin()); keyword != keywords_in_row.end(); ++keyword) {
             const auto &hintterm = hintterms_map.find(*keyword);
-            if (hintterm != hintterms_map.cend()) 
-               *keyword = StringUtil::ReplaceString(*keyword, *keyword, StringUtil::Map(hintterm->second, '/', ';'));
+            if (hintterm != hintterms_map.cend()) {
+               *keyword = StringUtil::Map(hintterm->second, '/', ';');
+            }
         }
         keyword_row = StringUtil::Join(keywords_in_row, ';');
 
@@ -499,6 +570,8 @@ int Main(int argc, char **argv) {
      const bool use_bishop_map(true); // Map bishops as editors to their GND depending on their tenure
      const bool use_officials_map(true); // Map officials to their GND
      const bool use_hintterms_map(true); // Map Hinweissätze to circumscriptions
+     const bool use_keyword_correction_map(true); // Correct and newly map keywords
+     const bool use_author_correction_map(true); // Correct and newly map authors
 
      if (std::strcmp(argv[1], "--augment-db") == 0)
          --argc, ++argv;
@@ -516,7 +589,7 @@ int Main(int argc, char **argv) {
      const std::string authority_file(argv[1]);
      --argc, ++argv;
 
-     if (argc < 1 or argc != 5)
+     if (argc < 1 or argc != 7)
          Usage();
 
      const std::string find_discovery_map_filename(argv[1]);
@@ -529,6 +602,12 @@ int Main(int argc, char **argv) {
      --argc, ++argv;
 
      const std::string hintterms_map_filename(argv[1]);
+     --argc, ++argv;
+
+     const std::string keyword_corrections_map_filename(argv[1]);
+     --argc, ++argv;
+
+     const std::string author_corrections_map_filename(argv[1]);
 
      const IniFile ini_file(CONF_FILE_PATH);
      const std::string sql_database(ini_file.getString("Database", "sql_database"));
@@ -573,8 +652,13 @@ int Main(int argc, char **argv) {
          std::unordered_map<std::string, std::string> hintterms_map;
          if (use_hintterms_map)
              GetHinttermsMap(hintterms_map_filename, &hintterms_map);
+         std::unordered_map<std::string, std::string> keyword_correction_map;
+         if (use_keyword_correction_map)
+             AddKeywordTypoAndGNDCorrections(keyword_corrections_map_filename, &keyword_correction_map, &all_keywords_to_gnds_map);
+         if (use_author_correction_map)
+             AddAuthorGNDCorrections(author_corrections_map_filename, &all_authors_to_gnd_map);
          AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map,
-                          find_discovery_map, bishop_map, officials_map, hintterms_map);
+                          find_discovery_map, bishop_map, officials_map, hintterms_map, keyword_correction_map);
      }
      return EXIT_SUCCESS;
 }
