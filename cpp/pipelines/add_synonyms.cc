@@ -66,15 +66,14 @@ bool FilterPasses(const MARC::Record &record, const std::map<std::string, std::p
 {
       auto filter_spec(filter_specs.find(field_spec));
       if (filter_spec == filter_specs.cend())
-          return true;
+          return true; // No filter rule found!
 
       auto rule(filter_spec->second);
       // We have field_spec in key and rule to match in value
-      std::string subfield_codes(GetSubfieldCodes(rule.first));
+      const std::string subfield_codes(GetSubfieldCodes(rule.first));
       if (subfield_codes.length() != 1)
-          LOG_ERROR("in FilterPasses: Invalid subfield specification "  + subfield_codes + " for filter!");
+          LOG_ERROR("invalid subfield specification "  + subfield_codes + " for filter!");
 
-      std::string subfield_value;
       const auto field(record.getFirstField(GetTag(rule.first)));
       if (field == record.end())
           return false;
