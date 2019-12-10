@@ -468,6 +468,7 @@ void DbConnection::init(const std::string &database_name, const std::string &use
                                  + database_name + "\", port=" + std::to_string(port) + ")");
     if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
+    errno = 0; // Don't ask unless you want to cry!
 
     initialised_ = true;
     setTimeZone(time_zone);
