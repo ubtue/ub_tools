@@ -395,6 +395,21 @@ std::string ExtractAndFormatSource(const std::string &candidate, const std::stri
 }
 
 
+//https://stackoverflow.com/questions/12200486/how-to-remove-duplicates-from-unsorted-stdvector-while-keeping-the-original-or (2019/12/10)
+template<typename T>
+std::vector<T> RemoveDuplicatesKeepOrder(std::vector<T>& vec) {
+    std::unordered_set<T> seen;
+    auto newEnd = std::remove_if(vec.begin(), vec.end(), [&seen](const T& value) {
+        if (seen.find(value) != seen.end())
+            return true;
+        seen.insert(value);
+        return false;
+    });
+    vec.erase(newEnd, vec.end());
+    return vec;
+}
+
+
 void AugmentDBEntries(DbConnection &db_connection,
                       const std::unordered_map<std::string,std::string> &author_to_gnds_result_map,
                       const std::unordered_map<std::string,std::string> &keyword_to_gnds_result_map,
@@ -435,7 +450,6 @@ void AugmentDBEntries(DbConnection &db_connection,
              const auto &corrected_term = keyword_correction_map.find(*keyword);
              if (corrected_term != keyword_correction_map.cend())
                  *keyword = corrected_term->second;
-
         }
         keyword_row = StringUtil::Join(keywords_in_row, ';');
 
@@ -455,6 +469,8 @@ void AugmentDBEntries(DbConnection &db_connection,
         std::vector<std::string> keywords_no_gnd;
         bool keyword_gnd_seen(false);
         StringUtil::Split(keyword_row, ';', &keywords_in_row, /* suppress_empty_components = */true);
+        keywords_in_row = RemoveDuplicatesKeepOrder(keywords_in_row);
+
         for (const auto one_keyword : keywords_in_row) {
             const auto keyword_gnds(keyword_to_gnds_result_map.find(one_keyword));
             if (keyword_gnds != keyword_to_gnds_result_map.cend()) {
@@ -466,6 +482,8 @@ void AugmentDBEntries(DbConnection &db_connection,
         // Only write back non-empty string if we have at least one reasonable entry
         const std::string s_gnd_content(keyword_gnd_seen ? StringUtil::Join(keyword_gnd_numbers, ";") : "");
         const std::string s_no_gnd_content(keywords_no_gnd.size() ? StringUtil::Join(keywords_no_gnd, ";") : "");
+        keyword_row = StringUtil::Join(keywords_in_row, ';');
+
 
         //CIC
         const std::string cic_row(db_row["cicbezug"]);
