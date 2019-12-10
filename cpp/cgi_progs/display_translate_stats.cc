@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2018, Library of the University of Tübingen
+    Copyright (C) 2016-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -80,9 +80,9 @@ int Main(int /*argc*/, char *argv[]) {
     ::progname = argv[0];
 
     const IniFile ini_file(CONF_FILE_PATH);
-    const std::string sql_database(ini_file.getString("", "sql_database"));
-    const std::string sql_username(ini_file.getString("", "sql_username"));
-    const std::string sql_password(ini_file.getString("", "sql_password"));
+    const std::string sql_database(ini_file.getString("Database", "sql_database"));
+    const std::string sql_username(ini_file.getString("Database", "sql_username"));
+    const std::string sql_password(ini_file.getString("Database", "sql_password"));
     DbConnection db_connection(sql_database, sql_username, sql_password);
 
     std::vector<std::string> language_codes;
