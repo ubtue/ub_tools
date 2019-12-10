@@ -179,8 +179,12 @@ public:
 
     bool mySQLUserExists(const std::string &user, const std::string &host);
 
-    bool mySQLUserHasPrivileges(const std::string &user, const std::string &database_name,
-                                const std::unordered_set<MYSQL_PRIVILEGE> &privileges, const std::string &host="localhost");
+    bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges,
+                                const std::string &user, const std::string &host="localhost");
+
+    bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges) {
+        return mySQLUserHasPrivileges(database_name, privileges, getUser(), getHost());
+    }
 private:
     /** \note This constructor is for operations which do not require any existing database.
      *        It should only be used in static functions.

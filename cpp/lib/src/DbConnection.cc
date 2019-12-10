@@ -703,8 +703,8 @@ std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPriv
 }
 
 
-bool DbConnection::mySQLUserHasPrivileges(const std::string &user, const std::string &database_name,
-                                          const std::unordered_set<MYSQL_PRIVILEGE> &privileges, const std::string &host)
+bool DbConnection::mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges,
+                                          const std::string &user, const std::string &host)
 {
     const auto existing_privileges(mySQLGetUserPrivileges(user, database_name, host));
 
