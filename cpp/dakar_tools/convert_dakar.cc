@@ -288,7 +288,7 @@ std::pair<std::string, std::string> ExtractKeywordGNDCorrection(const std::vecto
 
 std::pair<std::string, std::string> ExtractAuthorGNDCorrection(const std::vector<std::string> &line) {
    // Only extract lines with existing GNDs
-   if (not line[1].empty())
+   if (line.size() >= 2 and not line[1].empty())
        return std::make_pair(line[0], line[1]);
    return std::make_pair("", "");
 }
@@ -384,9 +384,7 @@ void AddKeywordTypoAndGNDCorrections(const std::string &keyword_correction_map_f
 
 
 void AddAuthorGNDCorrections(const std::string &author_correction_map_filenname, std::unordered_multimap<std::string, std::string> * const author_correction_map) {
-     (void) author_correction_map_filenname, (void) author_correction_map;
-     (void) ExtractAuthorGNDCorrection;
-     //GenericGenerateTemplateMapFromCSV(author_correction_map_filenname, author_correction_map, ExtractAuthorGNDCorrection);
+     GenericAddToMultiMapFromCSV(author_correction_map_filenname, author_correction_map, ExtractAuthorGNDCorrection);
 }
 
 
@@ -620,11 +618,17 @@ int Main(int argc, char **argv) {
 
      std::unordered_multimap<std::string, std::string> all_authors_to_gnd_map;
      std::unordered_multimap<std::string, std::string> all_keywords_to_gnds_map;
+     std::unordered_map<std::string, std::string> keyword_correction_map;
+     if (use_keyword_correction_map)
+         AddKeywordTypoAndGNDCorrections(keyword_corrections_map_filename, &keyword_correction_map, &all_keywords_to_gnds_map);
+     if (use_author_correction_map)
+         AddAuthorGNDCorrections(author_corrections_map_filename, &all_authors_to_gnd_map);
+
      std::unordered_map<std::string, std::string> all_cics_to_gnd_map;
      ExtractAuthorityData(authority_file, &all_authors_to_gnd_map, &all_keywords_to_gnds_map, &all_cics_to_gnd_map);
 
      std::unordered_map<std::string,std::string> author_to_gnds_result_map;
-     GetAuthorGNDResultMap(db_connection, all_authors_to_gnd_map, &author_to_gnds_result_map, skip_empty, generate_gnd_link);
+          GetAuthorGNDResultMap(db_connection, all_authors_to_gnd_map, &author_to_gnds_result_map, skip_empty, generate_gnd_link);
 
      std::unordered_map<std::string,std::string> keyword_to_gnds_result_map;
      GetKeywordGNDResultMap(db_connection, all_keywords_to_gnds_map, &keyword_to_gnds_result_map, skip_empty, generate_gnd_link);
@@ -654,11 +658,6 @@ int Main(int argc, char **argv) {
          std::unordered_map<std::string, std::string> hintterms_map;
          if (use_hintterms_map)
              GetHinttermsMap(hintterms_map_filename, &hintterms_map);
-         std::unordered_map<std::string, std::string> keyword_correction_map;
-         if (use_keyword_correction_map)
-             AddKeywordTypoAndGNDCorrections(keyword_corrections_map_filename, &keyword_correction_map, &all_keywords_to_gnds_map);
-         if (use_author_correction_map)
-             AddAuthorGNDCorrections(author_corrections_map_filename, &all_authors_to_gnd_map);
          AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map,
                           find_discovery_map, bishop_map, officials_map, hintterms_map, keyword_correction_map);
      }
