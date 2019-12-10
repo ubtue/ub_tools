@@ -222,6 +222,19 @@ template<typename ElementType> std::set<ElementType> Intersect(const std::unorde
 }
 
 
+/** \brief subtract contents of container2 from container1 */
+template<typename ContainerType> ContainerType Subtract(const ContainerType &container1,
+                                                        const ContainerType &container2)
+{
+    ContainerType result;
+    for (const auto element : container1) {
+        if (container2.find(element) == container2.end())
+            result.emplace(element);
+    }
+    return result;
+}
+
+
 enum class PreferredPathLocation { LEADING, TRAILING };
 
 

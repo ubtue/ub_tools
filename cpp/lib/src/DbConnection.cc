@@ -22,7 +22,6 @@
 #include <cstdlib>
 #include "FileUtil.h"
 #include "IniFile.h"
-#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
@@ -700,18 +699,4 @@ std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPriv
     }
 
     return {};
-}
-
-
-bool DbConnection::mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges,
-                                          const std::string &user, const std::string &host)
-{
-    const auto existing_privileges(mySQLGetUserPrivileges(user, database_name, host));
-
-    for (const auto privilege : privileges) {
-        if (existing_privileges.find(privilege) == existing_privileges.end())
-            return false;
-    }
-
-    return true;
 }
