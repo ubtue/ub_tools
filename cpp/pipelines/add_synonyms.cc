@@ -38,27 +38,24 @@
 #include "util.h"
 
 
-static unsigned modified_count(0);
-static unsigned record_count(0);
 const unsigned FIELD_MIN_NON_DATA_SIZE(4); // Indicator 1 + 2, unit separator and subfield code
 const unsigned int NUMBER_OF_LANGUAGES(9);
 const std::vector<std::string> languages_to_translate{ "en", "fr", "es", "it", "hans", "hant", "pt", "ru", "el" };
 enum Languages { EN, FR, ES, IT, HANS, HANT, PT, RU, EL, LANGUAGES_END };
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " master_marc_input norm_data_marc_input marc_output\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]] void Usage() {
+    ::Usage("master_marc_input norm_data_marc_input marc_output");
 }
 
 
 inline std::string GetTag(const std::string &tag_and_subfields_spec) {
-    return tag_and_subfields_spec.substr(0, 3);
+    return tag_and_subfields_spec.substr(0, MARC::Record::TAG_LENGTH);
 }
 
 
 inline std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
-    return tag_and_subfields_spec.substr(3);
+    return tag_and_subfields_spec.substr(MARC::Record::TAG_LENGTH);
 }
 
 
@@ -67,15 +64,14 @@ bool FilterPasses(const MARC::Record &record, const std::map<std::string, std::p
 {
       auto filter_spec(filter_specs.find(field_spec));
       if (filter_spec == filter_specs.cend())
-          return true;
+          return true; // No filter rule found!
 
       auto rule(filter_spec->second);
       // We have field_spec in key and rule to match in value
-      std::string subfield_codes(GetSubfieldCodes(rule.first));
+      const std::string subfield_codes(GetSubfieldCodes(rule.first));
       if (subfield_codes.length() != 1)
-          LOG_ERROR("in FilterPasses: Invalid subfield specification "  + subfield_codes + " for filter!");
+          LOG_ERROR("invalid subfield specification "  + subfield_codes + " for filter!");
 
-      std::string subfield_value;
       const auto field(record.getFirstField(GetTag(rule.first)));
       if (field == record.end())
           return false;
@@ -97,8 +93,8 @@ void ExtractSynonyms(MARC::Reader * const authority_reader,
         auto primary_tag_and_subfield_codes(primary_tags_and_subfield_codes.cbegin());
         auto synonym_tag_and_subfield_codes(synonym_tags_and_subfield_codes.cbegin());
         auto synonym_map(synonym_maps->begin());
-        for (/*intentionally empty*/;  primary_tag_and_subfield_codes != primary_tags_and_subfield_codes.cend();
-                                    ++primary_tag_and_subfield_codes, ++synonym_tag_and_subfield_codes, ++synonym_map)
+        for (/*intentionally empty*/; primary_tag_and_subfield_codes != primary_tags_and_subfield_codes.cend();
+             ++primary_tag_and_subfield_codes, ++synonym_tag_and_subfield_codes, ++synonym_map)
         {
             // Fill maps with synonyms
             std::vector<std::string> primary_values(
@@ -311,6 +307,7 @@ void InsertSynonyms(MARC::Reader * const marc_reader, MARC::Writer * const marc_
                     const std::vector<std::map<std::string, std::vector<std::string>>> &translation_maps,
                     const std::vector<std::string> &translated_tags_and_subfield_codes)
 {
+    unsigned modified_count(0), record_count(0);
     while (MARC::Record record = marc_reader->read()) {
         bool modified_record(false);
         ProcessRecordGermanSynonyms(&record, synonym_maps, primary_tags_and_subfield_codes, output_tags_and_subfield_codes,
@@ -323,7 +320,7 @@ void InsertSynonyms(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         ++record_count;
     }
 
-    std::cerr << "Modified " << modified_count << " of " << record_count << " record(s).\n";
+    LOG_INFO("Modified " + std::to_string(modified_count) + " of " + std::to_string(record_count) + " record(s).");
 }
 
 
@@ -351,20 +348,13 @@ void ExtractTranslatedSynonyms(std::vector<std::map<std::string, std::vector<std
 }
 
 
-bool ParseSpec(std::string spec_str, std::vector<std::string> * const field_specs,
-               std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr)
+bool ParseSpec(const std::string &spec_str, std::vector<std::string> * const field_specs,
+               std::map<std::string, std::pair<std::string, std::string>> * filter_specs)
 {
     std::vector<std::string> raw_field_specs;
 
-    if (unlikely(StringUtil::Split(spec_str, ':', &raw_field_specs, /* suppress_empty_components = */true) == 0)) {
+    if (unlikely(StringUtil::Split(spec_str, ':', &raw_field_specs, /* suppress_empty_components = */true) == 0))
         LOG_ERROR("need at least one field!");
-        return false;
-    }
-
-    if (filter_specs == nullptr) {
-        *field_specs = raw_field_specs;
-        return true;
-    }
 
     // Iterate over all Field-specs and extract possible filters
     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("(\\d{1,3}[a-z]+)\\[(\\d{1,3}[a-z])=(.*)\\]"));
@@ -372,8 +362,8 @@ bool ParseSpec(std::string spec_str, std::vector<std::string> * const field_spec
     for (auto field_spec : raw_field_specs) {
         if (matcher->matched(field_spec)) {
             filter_specs->emplace((*matcher)[1], std::make_pair((*matcher)[2], (*matcher)[3]));
-            auto bracket = field_spec.find("[");
-            field_spec = (bracket != std::string::npos) ? field_spec.erase(bracket, field_spec.length()) : field_spec;
+            const auto bracket_pos(field_spec.find('['));
+            field_spec = (bracket_pos != std::string::npos) ? field_spec.erase(bracket_pos, field_spec.length()) : field_spec;
         }
         field_specs->push_back(field_spec);
     }
