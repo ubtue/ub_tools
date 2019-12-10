@@ -355,10 +355,8 @@ bool ParseSpec(const std::string &spec_str, std::vector<std::string> * const fie
 {
     std::vector<std::string> raw_field_specs;
 
-    if (unlikely(StringUtil::Split(spec_str, ':', &raw_field_specs, /* suppress_empty_components = */true) == 0)) {
+    if (unlikely(StringUtil::Split(spec_str, ':', &raw_field_specs, /* suppress_empty_components = */true) == 0))
         LOG_ERROR("need at least one field!");
-        return false;
-    }
 
     // Iterate over all Field-specs and extract possible filters
     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("(\\d{1,3}[a-z]+)\\[(\\d{1,3}[a-z])=(.*)\\]"));
