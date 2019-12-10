@@ -335,17 +335,7 @@ void GenericGenerateMapFromCSV(const std::string &csv_filename, std::unordered_m
 }
 
 
-/*void GenericAddToMapFromCSV(const std::string &csv_filename, std::unordered_map<std::string, std::string> * const map,
-                               std::function<std::pair<std::string,std::string>(const std::vector<std::string>)> extractor,
-                               const char separator = ',', const char quote = '"')
-{
-    std::vector<std::vector<std::string>> lines;
-    TextUtil::ParseCSVFileOrDie(csv_filename, &lines, separator, quote);
-    std::transform(lines.begin(), lines.end(), std::inserter(*map, map->end()), extractor);
-}*/
-
-
-void GenericAddToMultiMapFromCSV(const std::string &csv_filename, std::unordered_multimap<std::string, std::string> * const map,
+void GenericGenerateMultiMapFromCSV(const std::string &csv_filename, std::unordered_multimap<std::string, std::string> * const map,
                                  std::function<std::pair<std::string, std::string>(const std::vector<std::string>)> extractor) {
     std::vector<std::vector<std::string>> lines;
     TextUtil::ParseCSVFileOrDie(csv_filename, &lines);
@@ -379,12 +369,12 @@ void AddKeywordTypoAndGNDCorrections(const std::string &keyword_correction_map_f
                            std::unordered_multimap<std::string, std::string> * const keyword_to_gnd_result_map)
 {
      GenericGenerateMapFromCSV(keyword_correction_map_filename, keyword_correction_map, ExtractKeywordCorrection);
-     GenericAddToMultiMapFromCSV(keyword_correction_map_filename, keyword_to_gnd_result_map, ExtractKeywordGNDCorrection);
+     GenericGenerateMultiMapFromCSV(keyword_correction_map_filename, keyword_to_gnd_result_map, ExtractKeywordGNDCorrection);
 }
 
 
 void AddAuthorGNDCorrections(const std::string &author_correction_map_filenname, std::unordered_multimap<std::string, std::string> * const author_correction_map) {
-     GenericAddToMultiMapFromCSV(author_correction_map_filenname, author_correction_map, ExtractAuthorGNDCorrection);
+     GenericGenerateMultiMapFromCSV(author_correction_map_filenname, author_correction_map, ExtractAuthorGNDCorrection);
 }
 
 
@@ -417,7 +407,7 @@ void AugmentDBEntries(DbConnection &db_connection,
 
 {
     // Iterate over Database
-    const std::string ikr_query("SELECT id,autor,stichwort,cicbezug,fundstelle,jahr FROM ikr");
+    const std::string ikr_query("SELECT id,autor,stichwort,cicbezug,fundstelle,jahr,abstract FROM ikr");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(ikr_query, &db_connection));
     while (const DbRow db_row = result_set.getNextRow()) {
         // Authors
@@ -546,11 +536,19 @@ void AugmentDBEntries(DbConnection &db_connection,
             a_gnd_content = not a_gnd_content.empty() ? a_gnd_content + ',' + gnds : gnds;
         }
 
+
+        // Extract Category from abstract
+        const std::string abstract(db_row["abstract"]);
+        static RegexMatcher * const category_matcher(RegexMatcher::RegexMatcherFactoryOrDie("([LRN])#"));
+        std::string f_category_content;
+        if (category_matcher->matched(abstract))
+            f_category_content = (*category_matcher)[1];
+
         // Write back the new entries
         const std::string id(db_row["id"]);
         const std::string update_row_query("UPDATE ikr SET a_gnd=\"" +  a_gnd_content + "\", s_gnd=\""  + s_gnd_content
                                            +  "\", s_no_gnd=\"" + s_no_gnd_content +  "\",c_gnd=\"" + c_gnd_content + "\",f_ppn=\"" + f_ppn +
-                                           "\", f_quelle=\"" + f_quelle + "\", stichwort=\"" + keyword_row + "\""
+                                           "\", f_quelle=\"" + f_quelle + "\", f_kategorie=\"" + f_category_content + "\", stichwort=\"" + keyword_row + "\""
                                            + " WHERE id=" + id);
         db_connection.queryOrDie(update_row_query);
     }
