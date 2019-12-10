@@ -1,7 +1,7 @@
 /** \brief Tool for cross linking articles that are likely to refer to the same work.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -93,7 +93,7 @@ void CollectInfos(MARC::Reader * const marc_reader, std::unordered_map<std::stri
         else
             new_info.type_ = RecordInfo::OTHER;
         ExtractYearVolumeIssue(record, &new_info);
-        new_info.may_be_a_review_ = MARC::PossiblyAReviewArticle(record);
+        new_info.may_be_a_review_ = record.isPossiblyReviewArticle();
         new_info.is_electronic_ = record.isElectronicResource();
 
         (*ppns_to_infos_map)[record.getControlNumber()] = new_info;
