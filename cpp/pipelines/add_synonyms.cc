@@ -364,8 +364,8 @@ bool ParseSpec(const std::string &spec_str, std::vector<std::string> * const fie
     for (auto field_spec : raw_field_specs) {
         if (matcher->matched(field_spec)) {
             filter_specs->emplace((*matcher)[1], std::make_pair((*matcher)[2], (*matcher)[3]));
-            auto bracket = field_spec.find("[");
-            field_spec = (bracket != std::string::npos) ? field_spec.erase(bracket, field_spec.length()) : field_spec;
+            const auto bracket_pos(field_spec.find('['));
+            field_spec = (bracket_pos != std::string::npos) ? field_spec.erase(bracket_pos, field_spec.length()) : field_spec;
         }
         field_specs->push_back(field_spec);
     }
