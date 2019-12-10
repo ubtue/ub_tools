@@ -607,3 +607,111 @@ bool DbConnection::mySQLUserExists(const std::string &user, const std::string &h
     const DbRow result_row(result_set.getNextRow());
     return result_row["user_count"] != "0";
 }
+
+
+const std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::MYSQL_ALL_PRIVILEGES {
+    P_SELECT,
+    P_INSERT,
+    P_UPDATE,
+    P_DELETE,
+    P_CREATE,
+    P_DROP,
+    P_REFERENCES,
+    P_INDEX,
+    P_ALTER,
+    P_CREATE_TEMPORARY_TABLES,
+    P_LOCK_TABLES,
+    P_EXECUTE,
+    P_CREATE_VIEW,
+    P_SHOW_VIEW,
+    P_CREATE_ROUTINE,
+    P_ALTER_ROUTINE,
+    P_EVENT,
+    P_TRIGGER
+};
+
+
+static std::unordered_map<std::string, DbConnection::MYSQL_PRIVILEGE> string_to_privilege_map {
+    { "SELECT", DbConnection::P_SELECT },
+    { "INSERT", DbConnection::P_INSERT },
+    { "UPDATE", DbConnection::P_UPDATE },
+    { "DELETE", DbConnection::P_DELETE },
+    { "CREATE", DbConnection::P_CREATE },
+    { "DROP", DbConnection::P_DROP },
+    { "REFERENCES", DbConnection::P_REFERENCES },
+    { "INDEX", DbConnection::P_INDEX },
+    { "ALTER", DbConnection::P_ALTER },
+    { "CREATE TEMPORARY TABLES", DbConnection::P_CREATE_TEMPORARY_TABLES},
+    { "LOCK TABLES", DbConnection::P_LOCK_TABLES },
+    { "EXECUTE", DbConnection::P_EXECUTE },
+    { "CREATE VIEW", DbConnection::P_CREATE_VIEW },
+    { "SHOW VIEW", DbConnection::P_SHOW_VIEW },
+    { "CREATE ROUTINE", DbConnection::P_CREATE_ROUTINE },
+    { "ALTER ROUTINE", DbConnection::P_ALTER_ROUTINE },
+    { "EVENT", DbConnection::P_EVENT},
+    { "TRIGGER", DbConnection::P_TRIGGER },
+};
+
+
+DbConnection::MYSQL_PRIVILEGE MySQLPrivilegeStringToEnum(const std::string candidate) {
+    const auto string_and_privilege(string_to_privilege_map.find(candidate));
+    if (unlikely(string_and_privilege == string_to_privilege_map.end()))
+        LOG_ERROR(candidate + " is not in our map!");
+    return string_and_privilege->second;
+}
+
+
+std::string MySQLPrivilegeEnumToString(const DbConnection::MYSQL_PRIVILEGE privilege) {
+    for (const auto string_and_privilege : string_to_privilege_map) {
+        if (string_and_privilege.second == privilege)
+            return string_and_privilege.first;
+    }
+
+    LOG_ERROR("Privilege " + std::to_string(privilege) + " is not in our map!");
+}
+
+
+std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPrivileges(const std::string &user, const std::string &database_name,
+                                                                                       const std::string &host)
+{
+    const std::string QUERY("SHOW GRANTS FOR " + user + "@" + host + ";");
+    if (not query(QUERY)) {
+        // catch "No such privileges defined" error and return empty set
+        if (getLastErrorCode() == 1141)
+            return {};
+        LOG_ERROR(QUERY + " failed: " + getLastErrorMessage());
+    }
+
+    DbResultSet result_set(getLastResultSet());
+    while (const auto row = result_set.getNextRow()) {
+        if (row[0] == "GRANT ALL PRIVILEGES ON `" + database_name + "`.* TO '" + user + "'@'" + host + "'")
+            return MYSQL_ALL_PRIVILEGES;
+        else {
+            static RegexMatcher * const mysql_privileges_matcher(
+                RegexMatcher::RegexMatcherFactory("GRANT ((?:, )?[A-Z ]+) ON `" + database_name + "`.* TO '" + user + "'@'" + host + "'"));
+
+            if (mysql_privileges_matcher->matched(row[0])) {
+                std::unordered_set<DbConnection::MYSQL_PRIVILEGE> privileges;
+                for (unsigned i(0);i<mysql_privileges_matcher->getNoOfGroups();++i)
+                    privileges.emplace(MySQLPrivilegeStringToEnum((*mysql_privileges_matcher)[i]));
+                return privileges;
+            }
+        }
+    }
+
+    return {};
+}
+
+
+bool DbConnection::mySQLUserHasPrivileges(const std::string &user, const std::string &database_name,
+                                          const std::unordered_set<MYSQL_PRIVILEGE> &privileges, const std::string &host)
+{
+    const auto existing_privileges(mySQLGetUserPrivileges(user, database_name, host));
+
+    for (const auto privilege : privileges) {
+        if (existing_privileges.find(privilege) == existing_privileges.end())
+            return false;
+    }
+
+    return true;
+}
