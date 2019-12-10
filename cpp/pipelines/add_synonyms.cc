@@ -46,19 +46,18 @@ const std::vector<std::string> languages_to_translate{ "en", "fr", "es", "it", "
 enum Languages { EN, FR, ES, IT, HANS, HANT, PT, RU, EL, LANGUAGES_END };
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " master_marc_input norm_data_marc_input marc_output\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]] void Usage() {
+    ::Usage("master_marc_input norm_data_marc_input marc_output");
 }
 
 
 inline std::string GetTag(const std::string &tag_and_subfields_spec) {
-    return tag_and_subfields_spec.substr(0, 3);
+    return tag_and_subfields_spec.substr(0, MARC::Record::TAG_LENGTH);
 }
 
 
 inline std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
-    return tag_and_subfields_spec.substr(3);
+    return tag_and_subfields_spec.substr(MARC::Record::TAG_LENGTH);
 }
 
 
@@ -97,8 +96,8 @@ void ExtractSynonyms(MARC::Reader * const authority_reader,
         auto primary_tag_and_subfield_codes(primary_tags_and_subfield_codes.cbegin());
         auto synonym_tag_and_subfield_codes(synonym_tags_and_subfield_codes.cbegin());
         auto synonym_map(synonym_maps->begin());
-        for (/*intentionally empty*/;  primary_tag_and_subfield_codes != primary_tags_and_subfield_codes.cend();
-                                    ++primary_tag_and_subfield_codes, ++synonym_tag_and_subfield_codes, ++synonym_map)
+        for (/*intentionally empty*/; primary_tag_and_subfield_codes != primary_tags_and_subfield_codes.cend();
+             ++primary_tag_and_subfield_codes, ++synonym_tag_and_subfield_codes, ++synonym_map)
         {
             // Fill maps with synonyms
             std::vector<std::string> primary_values(
@@ -351,19 +350,14 @@ void ExtractTranslatedSynonyms(std::vector<std::map<std::string, std::vector<std
 }
 
 
-bool ParseSpec(std::string spec_str, std::vector<std::string> * const field_specs,
-               std::map<std::string, std::pair<std::string, std::string>> * filter_specs = nullptr)
+bool ParseSpec(const std::string &spec_str, std::vector<std::string> * const field_specs,
+               std::map<std::string, std::pair<std::string, std::string>> * filter_specs)
 {
     std::vector<std::string> raw_field_specs;
 
     if (unlikely(StringUtil::Split(spec_str, ':', &raw_field_specs, /* suppress_empty_components = */true) == 0)) {
         LOG_ERROR("need at least one field!");
         return false;
-    }
-
-    if (filter_specs == nullptr) {
-        *field_specs = raw_field_specs;
-        return true;
     }
 
     // Iterate over all Field-specs and extract possible filters
