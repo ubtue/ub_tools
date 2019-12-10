@@ -445,9 +445,9 @@ void AugmentDBEntries(DbConnection &db_connection,
         StringUtil::SplitThenTrimWhite(keyword_row, ";,", &keywords_in_row);
         for (auto keyword(keywords_in_row.begin()); keyword != keywords_in_row.end(); ++keyword) {
              const auto &corrected_term = keyword_correction_map.find(*keyword);
-             if (corrected_term != keyword_correction_map.cend()) 
+             if (corrected_term != keyword_correction_map.cend())
                  *keyword = corrected_term->second;
-             
+
         }
         keyword_row = StringUtil::Join(keywords_in_row, ';');
 
@@ -464,6 +464,7 @@ void AugmentDBEntries(DbConnection &db_connection,
         // Keywords
         StringUtil::SplitThenTrimWhite(keyword_row, ';', &keywords_in_row); // Get properly split keyword vector
         std::vector<std::string> keyword_gnd_numbers;
+        std::vector<std::string> keywords_no_gnd;
         bool keyword_gnd_seen(false);
         StringUtil::Split(keyword_row, ';', &keywords_in_row, /* suppress_empty_components = */true);
         for (const auto one_keyword : keywords_in_row) {
@@ -472,10 +473,11 @@ void AugmentDBEntries(DbConnection &db_connection,
                 keyword_gnd_numbers.emplace_back(keyword_gnds->second);
                 keyword_gnd_seen = true;
             } else
-                keyword_gnd_numbers.emplace_back(NOT_AVAILABLE);
+                keywords_no_gnd.emplace_back(one_keyword);
         }
         // Only write back non-empty string if we have at least one reasonable entry
         const std::string s_gnd_content(keyword_gnd_seen ? StringUtil::Join(keyword_gnd_numbers, ";") : "");
+        const std::string s_no_gnd_content(keywords_no_gnd.size() ? StringUtil::Join(keywords_no_gnd, ";") : "");
 
         //CIC
         const std::string cic_row(db_row["cicbezug"]);
@@ -548,8 +550,8 @@ void AugmentDBEntries(DbConnection &db_connection,
 
         // Write back the new entries
         const std::string id(db_row["id"]);
-        const std::string update_row_query("UPDATE ikr SET a_gnd=\"" +  a_gnd_content + "\", s_gnd=\""
-                                           + s_gnd_content + "\",c_gnd=\"" + c_gnd_content + "\",f_ppn=\"" + f_ppn +
+        const std::string update_row_query("UPDATE ikr SET a_gnd=\"" +  a_gnd_content + "\", s_gnd=\""  + s_gnd_content
+                                           +  "\", s_no_gnd=\"" + s_no_gnd_content +  "\",c_gnd=\"" + c_gnd_content + "\",f_ppn=\"" + f_ppn +
                                            "\", f_quelle=\"" + f_quelle + "\", stichwort=\"" + keyword_row + "\""
                                            + " WHERE id=" + id);
         db_connection.queryOrDie(update_row_query);
