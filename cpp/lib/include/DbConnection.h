@@ -43,6 +43,11 @@ public:
     enum OpenMode { READONLY, READWRITE, CREATE };
     enum TimeZone { TZ_SYSTEM, TZ_UTC };
     enum Type { T_MYSQL, T_SQLITE };
+    enum MYSQL_PRIVILEGE { P_SELECT, P_INSERT, P_UPDATE, P_DELETE, P_CREATE, P_DROP, P_REFERENCES,
+                           P_INDEX, P_ALTER, P_CREATE_TEMPORARY_TABLES, P_LOCK_TABLES, P_EXECUTE,
+                           P_CREATE_VIEW, P_SHOW_VIEW, P_CREATE_ROUTINE, P_ALTER_ROUTINE,
+                           P_EVENT, P_TRIGGER};
+    static const std::unordered_set<MYSQL_PRIVILEGE> MYSQL_ALL_PRIVILEGES;
     static const std::string DEFAULT_CONFIG_FILE_PATH;
 private:
     Type type_;
@@ -163,6 +168,9 @@ public:
         queryOrDie("GRANT ALL PRIVILEGES ON " + database_name + ".* TO '" + database_user + "'@'" + host + "';");
     }
 
+    std::unordered_set<MYSQL_PRIVILEGE> mySQLGetUserPrivileges(const std::string &user, const std::string &database_name,
+                                                               const std::string &host="localhost");
+
     void mySQLSelectDatabase(const std::string &database_name) {
         ::mysql_select_db(&mysql_, database_name.c_str());
     }
@@ -170,6 +178,9 @@ public:
     void mySQLSyncMultipleResults();
 
     bool mySQLUserExists(const std::string &user, const std::string &host);
+
+    bool mySQLUserHasPrivileges(const std::string &user, const std::string &database_name,
+                                const std::unordered_set<MYSQL_PRIVILEGE> &privileges, const std::string &host="localhost");
 private:
     /** \note This constructor is for operations which do not require any existing database.
      *        It should only be used in static functions.
