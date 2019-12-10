@@ -60,7 +60,7 @@ namespace Boolean {
 
 
 /** \brief  Set SELinux boolean value (uses "setsebool" command) */
-void Set(const std::string &name, const bool value);
+void Set(const std::string &name, const bool value, const bool permanent=true);
 
 
 } // namespace Boolean
