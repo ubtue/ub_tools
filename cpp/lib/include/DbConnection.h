@@ -28,6 +28,7 @@
 #endif
 #include <sqlite3.h>
 #include "DbResultSet.h"
+#include "MiscUtil.h"
 #include "util.h"
 
 
@@ -180,7 +181,10 @@ public:
     bool mySQLUserExists(const std::string &user, const std::string &host);
 
     bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges,
-                                const std::string &user, const std::string &host="localhost");
+                                const std::string &user, const std::string &host="localhost")
+    {
+        return MiscUtil::Subtract(privileges, mySQLGetUserPrivileges(user, database_name, host)).empty();
+    }
 
     bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges) {
         return mySQLUserHasPrivileges(database_name, privileges, getUser(), getHost());
