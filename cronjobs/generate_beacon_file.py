@@ -67,6 +67,7 @@ def Main():
     if not util.ConcatenateFiles([ sys.argv[2], timestamp_filename, gnd_counts_filename ], sys.argv[3]):
         util.SendEmail("Beacon Generator", "An unexpected error occurred: could not write \""
                        + sys.argv[3] + "\"!", priority=1)
+        sys.exit(-1)
 
     # Cleanup of temp files:
     os.unlink(gnd_numbers_path)
