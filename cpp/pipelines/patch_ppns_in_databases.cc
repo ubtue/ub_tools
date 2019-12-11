@@ -176,29 +176,11 @@ void DeleteFromNotifiedDB(const std::string &user_type, const std::unordered_set
 }
 
 
-bool HaveAllPermissions(DbConnection * const db_connection, const std::string &database) {
-    const std::string QUERY("SHOW GRANTS FOR '" + db_connection->getUser() + "'@'" + db_connection->getHost() + "'");
-    if (not db_connection->query(QUERY)) {
-        if (db_connection->getLastErrorCode() == 1141)
-            return false;
-        LOG_ERROR(QUERY + " failed: " + db_connection->getLastErrorMessage());
-    }
-
-    DbResultSet result_set(db_connection->getLastResultSet());
-    while (const auto row = result_set.getNextRow()) {
-        if (row[0]
-            == "GRANT ALL PRIVILEGES ON `" + database + "`.* TO '" + db_connection->getUser() + "'@'" + db_connection->getHost() + "'")
-            return true;
-    }
-    return false;
-}
-
-
 void CheckMySQLPermissions(DbConnection * const db_connection) {
-    if (not HaveAllPermissions(db_connection, "vufind"))
+    if (not db_connection->mySQLUserHasPrivileges("vufind", DbConnection::MYSQL_ALL_PRIVILEGES))
         LOG_ERROR("'" + db_connection->getUser() + "'@'" + db_connection->getHost() + "' needs all permissions on the vufind database!");
     if (VuFind::GetTueFindFlavour() == "ixtheo") {
-        if (not HaveAllPermissions(db_connection, "ixtheo"))
+        if (not db_connection->mySQLUserHasPrivileges("ixtheo", DbConnection::MYSQL_ALL_PRIVILEGES))
             LOG_ERROR("'" + db_connection->getUser() + "'@' " + db_connection->getHost()
                       + "' needs all permissions on the ixtheo database!");
     }
