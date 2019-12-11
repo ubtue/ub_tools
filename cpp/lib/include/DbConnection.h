@@ -170,9 +170,9 @@ public:
     }
 
     std::unordered_set<MYSQL_PRIVILEGE> mySQLGetUserPrivileges(const std::string &user, const std::string &database_name,
-                                                               const std::string &host="localhost");
+                                                               const std::string &host = "localhost");
 
-    void mySQLSelectDatabase(const std::string &database_name) {
+    inline void mySQLSelectDatabase(const std::string &database_name) {
         ::mysql_select_db(&mysql_, database_name.c_str());
     }
 
@@ -180,13 +180,13 @@ public:
 
     bool mySQLUserExists(const std::string &user, const std::string &host);
 
-    bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges,
-                                const std::string &user, const std::string &host="localhost")
+    inline bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges,
+                                const std::string &user, const std::string &host = "localhost")
     {
-        return MiscUtil::Subtract(privileges, mySQLGetUserPrivileges(user, database_name, host)).empty();
+        return MiscUtil::AbsoluteComplement(privileges, mySQLGetUserPrivileges(user, database_name, host)).empty();
     }
 
-    bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges) {
+    inline bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges) {
         return mySQLUserHasPrivileges(database_name, privileges, getUser(), getHost());
     }
 private:
