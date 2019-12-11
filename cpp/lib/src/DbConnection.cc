@@ -661,7 +661,7 @@ DbConnection::MYSQL_PRIVILEGE MySQLPrivilegeStringToEnum(const std::string &cand
 
 
 std::string MySQLPrivilegeEnumToString(const DbConnection::MYSQL_PRIVILEGE privilege) {
-    for (const auto string_and_privilege : string_to_privilege_map) {
+    for (const auto &string_and_privilege : string_to_privilege_map) {
         if (string_and_privilege.second == privilege)
             return string_and_privilege.first;
     }
@@ -691,7 +691,7 @@ std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPriv
 
             if (mysql_privileges_matcher->matched(row[0])) {
                 std::unordered_set<DbConnection::MYSQL_PRIVILEGE> privileges;
-                for (unsigned i(0);i<mysql_privileges_matcher->getNoOfGroups();++i)
+                for (unsigned i(0); i < mysql_privileges_matcher->getNoOfGroups(); ++i)
                     privileges.emplace(MySQLPrivilegeStringToEnum((*mysql_privileges_matcher)[i]));
                 return privileges;
             }
