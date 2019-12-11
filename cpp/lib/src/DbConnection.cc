@@ -630,7 +630,7 @@ const std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::MYSQL_ALL_
 };
 
 
-static std::unordered_map<std::string, DbConnection::MYSQL_PRIVILEGE> string_to_privilege_map {
+static const std::unordered_map<std::string, DbConnection::MYSQL_PRIVILEGE> string_to_privilege_map {
     { "SELECT", DbConnection::P_SELECT },
     { "INSERT", DbConnection::P_INSERT },
     { "UPDATE", DbConnection::P_UPDATE },
@@ -652,7 +652,7 @@ static std::unordered_map<std::string, DbConnection::MYSQL_PRIVILEGE> string_to_
 };
 
 
-DbConnection::MYSQL_PRIVILEGE MySQLPrivilegeStringToEnum(const std::string candidate) {
+DbConnection::MYSQL_PRIVILEGE MySQLPrivilegeStringToEnum(const std::string &candidate) {
     const auto string_and_privilege(string_to_privilege_map.find(candidate));
     if (unlikely(string_and_privilege == string_to_privilege_map.end()))
         LOG_ERROR(candidate + " is not in our map!");
