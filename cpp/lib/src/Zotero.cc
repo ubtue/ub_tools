@@ -624,8 +624,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     // Review-specific modifications
     if (item_type == "review")
         record->insertField("655",
-                            { { 'a', "Rezension" }, { '0', "(DE-588)4049712-4" }, { '0', "(DE-627)106186019" }, { '0', "(DE-576)209083166" },
-                              { '2', "gnd-content" } },
+                            { { 'a', "Rezension" }, { '0', "(DE-588)4049712-4" }, { '0', "(DE-627)106186019" }, { '2', "gnd-content" } },
                             /* indicator1 = */' ', /* indicator2 = */'7');
 
     // License data
