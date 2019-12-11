@@ -37,10 +37,12 @@ def Main():
     most_recent_authority_filename = GetMostRecentBSZFile("^Normdaten-(\d\d\d\d\d\d).mrc$")
     if most_recent_authority_filename is None:
         util.SendEmail("Beacon Generator", "Found no matching authority files!", priority=1)
+        sys.exit(-1)
 
     most_recent_titles_filename = GetMostRecentBSZFile("^GesamtTiteldaten-(\d\d\d\d\d\d).mrc$")
     if most_recent_titles_filename is None:
         util.SendEmail("Beacon Generator", "Found no matching title files!", priority=1)
+        sys.exit(-1)
 
     # Extract the GND numbers from the 035$a subfield of the MARC authority data for authors:
     gnd_numbers_path = "/tmp/gnd_numbers"
@@ -63,8 +65,8 @@ def Main():
 
     # Now generate the final output (header + counts):
     if not util.ConcatenateFiles([ sys.argv[2], timestamp_filename, gnd_counts_filename ], sys.argv[3]):
-         util.SendEmail("Beacon Generator", "An unexpected error occurred: could not write \""
-                        + sys.argv[3] + "\"!", priority=1)
+        util.SendEmail("Beacon Generator", "An unexpected error occurred: could not write \""
+                       + sys.argv[3] + "\"!", priority=1)
 
     # Cleanup of temp files:
     os.unlink(gnd_numbers_path)
