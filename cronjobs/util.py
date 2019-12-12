@@ -86,8 +86,8 @@ default_config_file_dir = "/usr/local/var/lib/tuelib/cronjobs/"
 
 # @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the lowest priority.
 # @param attachment A path to the file that should be attached. Can be string or list of strings.
-def SendEmail(subject: str, msg: str, sender : str = None, recipient : str = None, cc : str = None, priority : int = None,
-              attachments : List[str] = None, log : bool = True):
+def SendEmail(subject: str, msg: str, sender: str = None, recipient: str = None, cc : str = None, priority: int = None,
+              attachments: List[str] = None, log: bool = True):
     subject = os.path.basename(sys.argv[0]) +  ": " + subject + " (from: " + socket.gethostname() + ")"
     if recipient is None:
         recipient = default_email_recipient
@@ -152,8 +152,8 @@ def SendEmail(subject: str, msg: str, sender : str = None, recipient : str = Non
 # @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the lowest priority.
 # @param attachment A path to the file that should be attached. Can be string or list of strings.
 # @note Calls sys.exit with exit code -1 after sending the email
-def SendEmailAndExit(subject: str, msg: str, sender : str = None, recipient : str = None, cc : str = None, priority : int = None,
-                     attachments : List[str] = None, log : bool = True):
+def SendEmailAndExit(subject: str, msg: str, sender: str = None, recipient: str = None, cc: str = None, priority: int = None,
+                     attachments: List[str] = None, log: bool = True):
     SendEmail(subject, msg, sender, recipient, cc, priority, attachments, log)
     sys.exit(-1)
 
