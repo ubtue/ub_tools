@@ -31,7 +31,7 @@ def SendUsageAndExit():
                           "This script needs to be called with an optional --filter-field=tag, followed by an email address, "
                           "the beacon header file, an output path and an optional ppn-filter file as arguments!\n", priority=1)
 
-        
+
 def Main():
     if len(sys.argv) != 4 and len(sys.argv) != 5 and len(sys.argv) != 6 \
         or (len(sys.argv) == 6 and not sys.argv[1].startswith("--filter-field=")):
@@ -44,14 +44,14 @@ def Main():
 
     if len(sys.argv) != 4 and len(sys.argv) != 5:
         SendUsageAndExit()
-        
+
     util.default_email_recipient = sys.argv[1]
 
     most_recent_authority_filename = GetMostRecentBSZFile("^Normdaten-(\d\d\d\d\d\d).mrc$")
     if most_recent_authority_filename is None:
         util.SendEmailAndExit("Beacon Generator", "Found no matching authority files!", priority=1)
 
-    most_recent_titles_filename = GetMostRecentBSZFile("^GesamtTiteldaten-(\d\d\d\d\d\d).mrc$")
+    most_recent_titles_filename = GetMostRecentBSZFile("^GesamtTiteldaten-post-pipeline-(\d\d\d\d\d\d).mrc$")
     if most_recent_titles_filename is None:
         util.SendEmailAndExit("Beacon Generator", "Found no matching title files!", priority=1)
 
@@ -65,7 +65,7 @@ def Main():
         util.ExecOrDie("/usr/local/bin/count_gnd_refs",
                        [ filter_field, gnd_numbers_path, most_recent_titles_filename, gnd_counts_filename ])
     else:
-        util.ExecOrDie("/usr/local/bin/count_gnd_refs", 
+        util.ExecOrDie("/usr/local/bin/count_gnd_refs",
                        [ filter_field, "--control-number-list=" + sys.argv[4], gnd_numbers_path, most_recent_titles_filename,
                          gnd_counts_filename ])
 
