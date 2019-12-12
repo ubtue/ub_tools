@@ -33,7 +33,7 @@ const int MAX_NUMBER(6);
 
 // \return a number from the range [0, MAX_NUMBER].
 int GetNumber() {
-    return std::rand() % (MAX_NUMBER + 1);
+    return 1 + std::rand() % (MAX_NUMBER + 2);
 }
 
 
