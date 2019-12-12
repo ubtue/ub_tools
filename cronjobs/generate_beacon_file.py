@@ -33,7 +33,7 @@ def SendUsageAndExit():
 
         
 def Main():
-    if len(sys.argv) != 4 and len(sys.argv) != 5 and len(sys.argv) != 6
+    if len(sys.argv) != 4 and len(sys.argv) != 5 and len(sys.argv) != 6 \
         or (len(sys.argv) == 6 and not sys.argv[1].startswith("--filter-field=")):
         SendUsageAndExit()
 
