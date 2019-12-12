@@ -684,8 +684,6 @@ std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPriv
 
     DbResultSet result_set(getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
-        if (row[0] == "GRANT ALL PRIVILEGES ON `" + database_name + "`.* TO '" + user + "'@'" + host + "'")
-            return MYSQL_ALL_PRIVILEGES;
         static RegexMatcher * const mysql_privileges_matcher(
             RegexMatcher::RegexMatcherFactory("GRANT (.+) ON `" + database_name + "`.* TO '" + user + "'@'" + host + "'"));
 
@@ -695,7 +693,7 @@ std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPriv
                 return MYSQL_ALL_PRIVILEGES;
 
             std::unordered_set<std::string> privileges_strings;
-            StringUtil::SplitThenTrimWhite(matched_privileges, ",", &privileges_strings);
+            StringUtil::SplitThenTrimWhite(matched_privileges, ',', &privileges_strings);
 
             std::unordered_set<DbConnection::MYSQL_PRIVILEGE> privileges;
             for (const auto &privilege_string : privileges_strings)
