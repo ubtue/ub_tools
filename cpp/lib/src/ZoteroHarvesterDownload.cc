@@ -132,15 +132,20 @@ void Tasklet::run(const Params &parameters, Result * const result) {
                     unsigned num_individual_items(0);
                     const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
 
-
-                    // TODO if the retranslated response is just a single item with the same URL, flag as an error and return
-
                     if (array_node->size() < 2)
                         LOG_DEBUG("\tre-translated response is too short: " + result->response_body_);
 
                     for (const auto &entry : *JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root)) {
                         const auto json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
                         const auto url(json_object->getOptionalStringValue("url"));
+
+                        // this appears to happen randomly when the translation server is processing multiple requests
+                        // probably due to a bug in the same
+                        if (array_node->size() == 1 and url == parameters.download_item_.url_.toString()) {
+                            result->error_message_ = "translation server returned an invalid multiple-match response!";
+                            result->response_code_ = 500;
+                            break;
+                        }
 
                         if (url.empty())
                             continue;

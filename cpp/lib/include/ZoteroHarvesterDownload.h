@@ -39,12 +39,21 @@
 namespace ZoteroHarvester {
 
 
+// This namespace contains classes that facilitate the different harvesting operations.
+// The operations are split into three categories: DirectDownload, RSS and Crawl.
+// All operations correspond to a HarvestableItem that represents the context of the download
+// and are orchestrated by a single dispatcher (DownloadManager) that implements rate-limiting and caching.
+// Individual operations execute concurrently to ensure a steady throughput.
 namespace Download {
 
 
 class DownloadManager;
 
 
+// Given a HarvestableItem, i.e, a URL, either download the resource at the location directly or
+// use the Zotero Translation Server to extract metadata from said resource. Successful downloads
+// and successfully retrieved metadata are cached locally to reduce the number of outbound requests.
+// Returns the remote server's response with additional extra data.
 namespace DirectDownload {
 
 
@@ -106,6 +115,10 @@ public:
 } // end namespace DirectDownload
 
 
+// Given an entry point URL, download the web page/resource at the location, parse the markup for outgoing
+// links, determine which links have harvestable metadata and which require further crawling and repeat the
+// process for each link until a stopping condition is reached. Returns a vector of futures that yield the
+// metadata harvested from URLs determined to be harvestable.
 namespace Crawling {
 
 
@@ -157,17 +170,29 @@ class Crawler {
 
     bool continueCrawling();
 public:
+    // Stores the details of the last page that was crawled.
     struct CrawlResult {
         enum OutgoingUrlFlag { MARK_FOR_CRAWLING, DO_NOT_CRAWL };
 
+
+        // URL of the page that was crawled.
         std::string current_url_;
+
+        // Outgoing URLs found in the crawled page.
+        // All URLs are marked for crawling by default.
         std::vector<std::pair<std::string, OutgoingUrlFlag>> outgoing_urls_;
     };
 public:
     explicit Crawler(const Params &parameters, DownloadManager * const download_manager,
                      const std::string &url_ignore_matcher_pattern = "(?i)\\.(js|css|bmp|pdf|jpg|gif|png|tif|tiff)(\\?[^?]*)?$");
-
+public:
+    // Attempts to download the next queued page and extracts outgoing URLs in it.
+    // If successful, returns true and 'crawl_result' will updated with the page's outgoing URLs.
+    // The caller can determine which outgoing URLs are at be queued for further crawling by
+    // updating each URL's flag and passing the updated CrawlResult instance back to the next
+    // function call.
     bool getNextPage(CrawlResult * const crawl_result);
+
     inline bool timeoutExceeded() const
         { return total_crawl_time_limit_.limitExceeded(); }
 };
@@ -176,6 +201,9 @@ public:
 } // end namespace Crawling
 
 
+// Given a link to a RSS feed, download it and parse its contents. Determine if the feed has been updated
+// and continue harvesting its individual items. Returns a vector of futures that yield the metadata of
+// URLs that were harvested.
 namespace RSS {
 
 
@@ -221,6 +249,20 @@ public:
 } // end namespace RSS
 
 
+// Orchestrates all downloads and manages the relevant state. Consumers of this class can
+// queue downloads as it they were synchronous operations and await their results at a later
+// point in time. RSS and Crawl operations are decomposed into individual DirectDownload operations
+// wherever possible. DirectDownload operations are categorised based on their URLs domain name.
+// Each domain has its own queue for each type of operation and its corresponding rate-limiting
+// parameters. The rate-limiter ensures that there is no more than one download executing per
+// domain at a given point in time (unless overriden globally). Successful DirectDownload operations
+// are cached.
+//
+// A background thread performs the necessary housekeeping related to moving operations between queues,
+// tracking download delay parameters and cleaning up completed operations.
+//
+// The public interface provides non-blocking functions to queue the different download operations. Callers
+// can pass the returned future objects around and wait on the result as required.
 class DownloadManager {
 public:
     struct GlobalParams {
@@ -239,6 +281,9 @@ public:
         GlobalParams(const GlobalParams &rhs) = default;
     };
 private:
+    // Specifies the download delay parameters to be used by the rate-limiter for a given domain.
+    // Attempts to read the domain's robots.txt file to retrieve the parameters and falls back to
+    // defaults if need be.
     struct DelayParams {
         RobotsDotTxt robots_dot_txt_;
         TimeLimit time_limit_;
@@ -250,6 +295,9 @@ private:
         DelayParams(const DelayParams &rhs) = default;
     };
 
+
+    // Per-domain data that tracks active and queued operations. Multiple queues are used
+    // as buffers to minimize lock contention.
     struct DomainData {
         DelayParams delay_params_;
         std::deque<std::shared_ptr<DirectDownload::Tasklet>> active_direct_downloads_;
@@ -262,15 +310,18 @@ private:
         DomainData(const DelayParams &delay_params) : delay_params_(delay_params) {};
     };
 
+
     struct CachedDownloadData {
         Util::HarvestableItem source_;
         DirectDownload::Operation operation_;
         std::string response_body_;
     };
 
+
     static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 50;
     static constexpr unsigned MAX_CRAWLING_TASKLETS        = 50;
     static constexpr unsigned MAX_RSS_TASKLETS             = 50;
+
 
     GlobalParams global_params_;
     pthread_t background_thread_;
@@ -304,7 +355,7 @@ private:
 public:
     DownloadManager(const GlobalParams &global_params);
     ~DownloadManager();
-
+public:
     std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>> directDownload(const Util::HarvestableItem &source,
                                                                                                  const std::string &user_agent,
                                                                                                  const DirectDownload::Operation operation,

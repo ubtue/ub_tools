@@ -107,7 +107,7 @@ std::string MetadataRecord::toString() const {
         out += "\t" + custom_metadata + ",\n";
     }
 
-    out += "\n}";
+    out += "}";
     return out;
 }
 
@@ -856,7 +856,8 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
 
     // Review-specific modifications
     if (item_type == "review") {
-        marc_record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" }, { '2', "gnd-content" } },
+        marc_record->insertField("655", { { 'a', "Rezension" }, { '0', "(DE-588)4049712-4" },
+                                 { '0', "(DE-627)106186019" }, { '0', "(DE-576)209083166" }, { '2', "gnd-content" } },
                                  /* indicator1 = */' ', /* indicator2 = */'7');
     }
 
@@ -963,7 +964,7 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     }
 
     // Zotero sigil
-    marc_record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
+    marc_record->insertField("935", { { 'a', "ixzs" }, { 'a', "zota" }, { '2', "LOK" } });
 
     // Book-keeping fields
     marc_record->insertField("URL", { { 'a', metadata_record.url_ } });
