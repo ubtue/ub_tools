@@ -691,7 +691,7 @@ std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPriv
 
         if (mysql_privileges_matcher->matched(row[0])) {
             const std::string matched_privileges((*mysql_privileges_matcher)[1]);
-            if (std::strcmp(matched_privileges.c_str(), "ALL PRIVILEGES") == 0)
+            if (matched_privileges == "ALL PRIVILEGES")
                 return MYSQL_ALL_PRIVILEGES;
 
             std::unordered_set<std::string> privileges_strings;
