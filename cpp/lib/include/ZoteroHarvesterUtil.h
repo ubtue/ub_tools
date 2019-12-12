@@ -319,7 +319,7 @@ template<typename Parameter, typename Result> std::unique_ptr<Result> Tasklet<Pa
 
 
 template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::await() {
-    // wait until the tasklet has started, as the thread won't be allocated until it does
+    // wait until the tasklet has started, as the thread won't be allocated until then
     while (getStatus() == Status::NOT_STARTED)
         ::usleep(32 * 1000);
 
