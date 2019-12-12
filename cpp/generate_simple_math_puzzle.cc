@@ -52,7 +52,7 @@ const std::vector<std::pair<std::string, PuzzleFunc>> TEMPLATES{
 
 
 std::string GeneratePuzzle() {
-    const unsigned puzzle_type(std::rand() % (TEMPLATES.size() + 1));
+    const unsigned puzzle_type(std::rand() % TEMPLATES.size());
 
     std::vector<int> values;
     std::string puzzle(TEMPLATES[puzzle_type].first + "\n");
