@@ -553,7 +553,7 @@ void DownloadVuFind() {
  * - Create user "vufind" as system user if not exists
  * - Grant permissions on relevant directories
  */
-void ConfigureApacheUser(const OSSystemType os_system_type) {
+void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_systemctl) {
     const std::string username("vufind");
     CreateUserIfNotExists(username);
 
@@ -586,6 +586,13 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
             { "-i", "s/group = apache/group =  " + username + "/", php_config_filename });
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
             { "-i", "s/listen.acl_users = apache,nginx/listen.acl_users = apache,nginx," + username + "/", php_config_filename });
+
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chown"), { "-R", username + ":" + username, "/var/log/httpd" });
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chown"), { "-R", username + ":" + username, "/var/run/httpd" });
+        if (install_systemctl) {
+            ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
+                { "-i", "s/apache/" + username + "/g", "/usr/lib/tmpfiles.d/httpd.conf" });
+        }
         break;
     }
 
@@ -715,7 +722,7 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     }
 
     ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
-    ConfigureApacheUser(os_system_type);
+    ConfigureApacheUser(os_system_type, install_systemctl);
 
     Echo(vufind_system_type_string + " configuration completed!");
 }
@@ -770,6 +777,7 @@ int Main(int argc, char **argv) {
     if (not omit_systemctl and not SystemdUtil::IsAvailable())
         Error("Systemd is not available in this environment."
               "Please use --omit-systemctl explicitly if you want to skip service installations.");
+    const bool install_systemctl(not omit_systemctl and SystemdUtil::IsAvailable());
 
     if (::geteuid() != 0)
         Error("you must execute this program as root!");
@@ -778,7 +786,7 @@ int Main(int argc, char **argv) {
 
     // Install dependencies before vufind
     // correct PHP version for composer dependancies
-    InstallSoftwareDependencies(os_system_type, vufind_system_type_string, ub_tools_only, not omit_systemctl);
+    InstallSoftwareDependencies(os_system_type, vufind_system_type_string, ub_tools_only, install_systemctl);
 
     // Where to find our own stuff:
     MiscUtil::AddToPATH("/usr/local/bin/", MiscUtil::PreferredPathLocation::LEADING);
@@ -790,7 +798,7 @@ int Main(int argc, char **argv) {
         #ifndef __clang__
         #   pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
         #endif
-        ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, not omit_systemctl);
+        ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, install_systemctl);
         #ifndef __clang__
         #   pragma GCC diagnostic error "-Wmaybe-uninitialized"
         #endif
