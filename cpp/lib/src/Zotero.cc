@@ -731,6 +731,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     }
 
     // Zotero sigil
+    record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
     record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
 
     record->insertField("001", site_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
