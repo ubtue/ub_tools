@@ -1,8 +1,6 @@
 [Unit]
 Description=Zotero Translation Server
 Documentation=https://github.com/zotero/translation-server
-After=docker.service
-Requires=docker.service
 
 [Service]
 Type=forking
