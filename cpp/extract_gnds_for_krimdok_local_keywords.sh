@@ -1,6 +1,10 @@
 #!/bin/bash
 # Tool for matching Krimdok local keywords to existing GND keywords
 # GND keywords are obtained from LOBID
+# LOBID_KEYWORD_DUMP can be obtained by
+# curl --header "Accept-Encoding: gzip" "http://lobid.org/gnd/search?q=type:SubjectHeading&format=jsonl"
+# LOBID_CORPORATE_DUMP can be obtained by
+# curl --header "Accept-Encoding: gzip" "http://lobid.org/gnd/search?q=type:CorporateBody&format=jsonl"
 WORKING_DIR="/tmp/localkeywords"
 KRIMDOK_LOCAL_KEYWORD_FILE="local_keywords.txt"
 KRIMDOK_NORMALIZED_KEYWORD_FILE="local_keywords_normalized.txt"
@@ -15,7 +19,7 @@ function GenerateLookupDB {
     zless ${LOBID_FILE} | jq -r ' [.gndIdentifier, .preferredName, .variantName] | flatten | @csv' \
     | awk -v FPAT="([^,]+)|(\"[^\"]+\")" '{for (column = 2; column <=NF; ++column) printf "%s, %s\n", $column, $1}' \
     | sed -E 's/("([^"]*)")?,/\2\t/g'  | sed -E 's/("([^"]*)")/\2/g' > ${TMP_TSV}
-  
+
     kchashmgr create -otr ${DB_FILENAME}
     kchashmgr import ${DB_FILENAME} ${TMP_TSV}
     rm ${TMP_TSV}
