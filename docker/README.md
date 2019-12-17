@@ -61,3 +61,14 @@ docker run -d centos tail -f /dev/null
 Container: `docker rm $(docker ps -a -q)`
 
 Images: `docker rmi $(docker images -q)`
+
+
+# CentOS 8
+Es gibt aktuell noch keine Version von Docker für CentOS 8. Die Emulation über "podman-docker" ist ebenfalls nicht geeignet. Stattdessen sollte ein Repository für CentOS 7 eingebunden werden:
+
+`dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo`
+`dnf install docker-ce`
+
+Außerdem muss Masquerading für firewalld aktiviert werden, da sonst aus dem Docker-Container keine DNS-Abfragen möglich sind:
+
+`firewall-cmd --zone=public --add-masquerade --permanent`
