@@ -1837,7 +1837,7 @@ std::string UTF8Substr(const std::string &utf8_string, const size_t pos, const s
             return utf8_string;
         return ExtractUTF8Substring(utf8_string.cbegin(), utf8_string.cend(), len);
     } else if (pos == total_length)
-        return utf8_string;
+        return "";
     else if (unlikely(pos > total_length))
         throw std::out_of_range("substring start is out-of-range in TextUtil::UTF8Substr!");
     else {
