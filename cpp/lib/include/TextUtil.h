@@ -525,4 +525,20 @@ bool ConvertToUTF8(const std::string &encoding, const std::string &text, std::st
 bool ConsistsEntirelyOfLetters(const std::string &utf8_string);
 
 
+size_t CodePointCount(const std::string &utf8_string);
+
+
+/** \brief A Unicode-aware substring.
+ *  \param pos  position of the first character to be copied as a substring.
+ *              If this is equal to the string length, the function returns an empty string.
+ *              If this is greater than the string length, it throws out_of_range.
+ *  \param len  Number of characters to include in the substring (if the string is shorter, as many characters as possible are used).
+ *              A value of string::npos indicates all characters until the end of the string.
+ *  \note The first character is denoted by a value of 0 (not 1).
+ *  \warning This function does not take into account Unicode character composition and only has a chance to return a reasonable
+ *           result with normalised strings/
+ */
+std::string UTF8Substr(const std::string &utf8_string, const size_t pos = 0, const size_t len = std::string::npos);
+
+
 } // namespace TextUtil

@@ -431,7 +431,7 @@ bool StartsWithGermanMonthAbbrev(const std::string &word) {
     if (word.length() < 3)
         return false;
 
-    const auto first3(TextUtil::UTF8ToLower(word.substr(0, 3)));
+    const auto first3(TextUtil::UTF8ToLower(TextUtil::UTF8Substr(word, 0, 3)));
     for (const auto &german_month_abbrev : GERMAN_MONTHS_ABBREVS) {
         if (german_month_abbrev == first3)
             return true;
