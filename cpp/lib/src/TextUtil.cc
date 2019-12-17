@@ -1797,7 +1797,8 @@ bool ConsistsEntirelyOfLetters(const std::string &utf8_string) {
 
 
 static inline bool IsStartOfUTF8CodePoint(const char ch) {
-    return (static_cast<unsigned char>(ch) & 128u) == 0;
+    // Test whether we have an ASCII character or a character whose uppermost tow bits are both 1.
+    return (static_cast<unsigned char>(ch) & 128u) == 0 or static_cast<unsigned char>(ch) & 192u) == 192u;
 }
 
 
