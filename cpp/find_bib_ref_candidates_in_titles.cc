@@ -492,6 +492,24 @@ bool HasGNDBibleRef(const MARC::Record &record,
 }
 
 
+std::string ExtractBook(std::string reference) {
+    StringUtil::TrimWhite(&reference);
+    TextUtil::UTF8ToLower(&reference);
+
+    // Skip leading digits:
+    auto ch(reference.cbegin());
+    while (ch != reference.cend() and StringUtil::IsDigit(*ch))
+        ++ch;
+
+    // Extract book:
+    std::string book;
+    while (ch != reference.cend() and not StringUtil::IsDigit(*ch))
+        book += *ch;
+
+    return book;
+}
+
+
 void FindBibRefCandidates(
     MARC::Reader * const marc_reader, File * const output, const std::vector<std::vector<std::string>> &pericopes,
     const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map)
@@ -507,7 +525,7 @@ void FindBibRefCandidates(
                                                                   pericopes, bible_book_canoniser, bible_book_to_code_mapper));
             if (not candidates.empty()) {
                 ++addition_title_reference_count;
-                *output << record.getControlNumber() << ": " << record.getCompleteTitle() << "\n\t"
+                *output << ExtractBook(candidates.front()) << ' ' << record.getControlNumber() << ": " << record.getCompleteTitle() << "\n\t"
                         << StringUtil::Join(candidates, '|') << '\n';
             }
         }
