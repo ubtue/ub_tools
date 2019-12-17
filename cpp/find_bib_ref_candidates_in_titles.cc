@@ -504,7 +504,7 @@ std::string ExtractBook(std::string reference) {
     // Extract book:
     std::string book;
     while (ch != reference.cend() and not StringUtil::IsDigit(*ch))
-        book += *ch;
+        book += *ch++;
 
     return book;
 }
