@@ -255,9 +255,6 @@ bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_stri
 }
 
 
-
-
-
 bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string) {
     iconv_t iconv_handle(::iconv_open("UTF-8", "WCHAR_T"));
     if (unlikely(iconv_handle == (iconv_t)-1))

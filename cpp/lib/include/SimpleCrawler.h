@@ -22,7 +22,6 @@
 
 
 #include <iostream>
-#include <functional>
 #include <memory>
 #include <queue>
 #include <string>
@@ -43,7 +42,6 @@ class SimpleCrawler {
     std::shared_ptr<RegexMatcher> url_regex_matcher_;
     std::shared_ptr<RegexMatcher> url_ignore_regex_matcher_;
     TimeLimit min_url_processing_time_;
-    std::unordered_set<std::string> crawled_urls_;
 public:
     static const unsigned DEFAULT_TIMEOUT = 5000; // ms
     static const unsigned DEFAULT_MIN_URL_PROCESSING_TIME = 200; // ms
@@ -62,7 +60,6 @@ public:
         std::string proxy_host_and_port_;
         bool print_queued_urls_;
         bool print_skipped_urls_;
-        bool skip_already_crawled_urls_;
     public:
         explicit Params(const std::string &acceptable_languages = "",
                         const unsigned timeout = DEFAULT_TIMEOUT,
@@ -76,8 +73,7 @@ public:
                         const bool ignore_ssl_certificates_ = false,
                         const std::string &proxy_host_and_port = "",
                         const bool print_queued_urls = false,
-                        const bool print_skipped_urls = false,
-                        const bool skip_already_crawled_urls = false
+                        const bool print_skipped_urls = false
                         );
         ~Params() = default;
     } params_;
@@ -99,14 +95,9 @@ public:
         std::string header_;
         std::string body_;
     };
-private:
-    const std::function<bool(const std::string &url, const Params &params, PageDetails * const page_details)> download_url_callback_;
 
-    bool downloadUrl(const std::string &url, const Params &params, PageDetails * const page_details);
 public:
     explicit SimpleCrawler(const SiteDesc &site_desc, const Params &params);
-    explicit SimpleCrawler(const SiteDesc &site_desc, const Params &params,
-                           const std::function<bool(const std::string &, const Params &, PageDetails * const)> download_url_callback);
     ~SimpleCrawler() = default;
 
     /** \brief  prepare site processing.
