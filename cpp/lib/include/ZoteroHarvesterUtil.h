@@ -138,8 +138,7 @@ class ZoteroLogger : public ::Logger {
         Util::HarvestableItem item_;
         std::string buffer_;
     public:
-        explicit ContextData(const Util::HarvestableItem &item) : item_(item)
-            { buffer_.reserve(static_cast<size_t>(BUFFER_SIZE)); }
+        explicit ContextData(const Util::HarvestableItem &item);
     };
 
 
@@ -512,6 +511,12 @@ public:
     // returns the timestamp of the last delivery, TimeUtil::BAD_TIME_T otherwise.
     time_t getLastUploadTime(const std::string &journal_name) const;
 };
+
+
+// The Locale class is inherently not thread-safe as it it modifies the locale at the process level.
+// To work around this, we need to wrap all calls that have a transitive dependency on the class within
+// a critical section. This primitive is used to ensure mutual-exclusion inside multi-threaded Zotero contexts.
+extern std::recursive_mutex non_threadsafe_locale_modification_guard;
 
 
 } // end namespace Util

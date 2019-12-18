@@ -41,13 +41,13 @@ using namespace ZoteroHarvester;
               << "\n"
               << "\tOptions:\n"
               << "\t[--min-log-level=log_level]         Possible log levels are ERROR, WARNING (default), INFO and DEBUG\n"
-              << "\t[--force-downloads]                 All URLs are unconditionally downloaded\n"
+              << "\t[--force-downloads]                 All URLs are unconditionally downloaded and converted.\n"
               << "\t[--ignore-robots-dot-txt]           Ignore crawling parameters and restrictions specified in robots.txt files\n"
               << "\t[--output-directory=output_dir]     Generated files are saved to /tmp/zotero_harvester by default\n"
               << "\t[--output-filename=output_filename] Overrides the automatically-generated filename based on the current date/time. Output format is always MARC-XML\n"
               << "\n"
               << "\tSelection modes: UPLOAD, JOURNAL\n"
-              << "\t\tUPLOAD - Only those journals that have the specified upload operation (either LIVE or TEST) set will be processed. When this parameter is not specified, tracking is automatically disabled.\n"
+              << "\t\tUPLOAD - Only those journals that have the specified upload operation (either LIVE or TEST) set will be processed.\n"
               << "\t\tJOURNAL - If no arguments are provided, all journals are processed. Otherwise, only those journals specified are processed.\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -55,6 +55,7 @@ using namespace ZoteroHarvester;
 
 struct CommandLineArgs {
     enum SelectionMode { INVALID, UPLOAD, JOURNAL };
+
 
     bool force_downloads_;
     bool ignore_robots_dot_txt_;
@@ -193,6 +194,7 @@ void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * c
 }
 
 
+// Represents active and queued operations of a specific journal.
 struct JournalDatastore {
     const Config::JournalParams &journal_params_;
     std::deque<std::unique_ptr<Util::Future<Download::DirectDownload::Params, Download::DirectDownload::Result>>> queued_downloads_;
@@ -208,8 +210,10 @@ struct Metrics {
     unsigned num_journals_with_harvest_operation_direct_;
     unsigned num_journals_with_harvest_operation_rss_;
     unsigned num_journals_with_harvest_operation_crawl_;
-    unsigned num_downloads_successful_;
-    unsigned num_downloads_unsuccessful_;
+    unsigned num_downloads_crawled_successful_;
+    unsigned num_downloads_crawled_unsuccessful_;
+    unsigned num_downloads_harvested_successful_;
+    unsigned num_downloads_harvested_unsuccessful_;
     unsigned num_downloads_skipped_since_already_delivered_;
     unsigned num_marc_conversions_successful_;
     unsigned num_marc_conversions_skipped_since_online_first_;
@@ -219,14 +223,15 @@ struct Metrics {
     std::unordered_map<std::string, unsigned> group_name_to_num_generated_marc_records_map_;
 public:
     explicit Metrics();
-
+public:
     std::string toString() const;
 };
 
 
 Metrics::Metrics()
  : num_journals_with_harvest_operation_direct_(0), num_journals_with_harvest_operation_rss_(0),
-   num_journals_with_harvest_operation_crawl_(0), num_downloads_successful_(0), num_downloads_unsuccessful_(0),
+   num_journals_with_harvest_operation_crawl_(0), num_downloads_crawled_successful_(0), num_downloads_crawled_unsuccessful_(0),
+   num_downloads_harvested_successful_(0), num_downloads_harvested_unsuccessful_(0),
    num_downloads_skipped_since_already_delivered_(0), num_marc_conversions_successful_(0),
    num_marc_conversions_skipped_since_online_first_(0), num_marc_conversions_skipped_since_early_view_(0),
    num_marc_conversions_skipped_since_exclusion_filters_(0), num_marc_conversions_skipped_since_already_delivered_(0) {}
@@ -241,11 +246,17 @@ std::string Metrics::toString() const {
     out += "\t\tDirect: " + std::to_string(num_journals_with_harvest_operation_direct_) + "\n";
     out += "\t\tRSS: " + std::to_string(num_journals_with_harvest_operation_rss_) + "\n";
     out += "\t\tCrawl: " + std::to_string(num_journals_with_harvest_operation_crawl_) + "\n";
-    out += "\tDownloads: " + std::to_string(num_downloads_successful_ + num_downloads_unsuccessful_
+
+    out += "\tCrawls: " + std::to_string(num_downloads_crawled_successful_ + num_downloads_crawled_unsuccessful_) + "\n";
+    out += "\t\tSuccessful: " + std::to_string(num_downloads_crawled_successful_) + "\n";
+    out += "\t\tUnsuccessful : " + std::to_string(num_downloads_crawled_unsuccessful_) + "\n";
+
+    out += "\tHarvests: " + std::to_string(num_downloads_harvested_successful_ + num_downloads_harvested_unsuccessful_
                                            + num_downloads_skipped_since_already_delivered_) + "\n";
-    out += "\t\tSuccessful: " + std::to_string(num_downloads_successful_) + "\n";
-    out += "\t\tUnsuccessful : " + std::to_string(num_downloads_unsuccessful_) + "\n";
+    out += "\t\tSuccessful: " + std::to_string(num_downloads_harvested_successful_) + "\n";
+    out += "\t\tUnsuccessful : " + std::to_string(num_downloads_harvested_unsuccessful_) + "\n";
     out += "\t\tSkipped (already delivered): " + std::to_string(num_downloads_skipped_since_already_delivered_) + "\n";
+
     out += "\tRecords: " + std::to_string(num_marc_conversions_successful_ + num_marc_conversions_skipped_since_online_first_
                                           + num_marc_conversions_skipped_since_early_view_
                                           + num_marc_conversions_skipped_since_exclusion_filters_
@@ -306,11 +317,14 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
 }
 
 
-void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool * const jobs_in_progress) {
+void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool * const jobs_in_progress, Metrics * const metrics) {
     if (journal_datastore->current_crawl_ != nullptr) {
         if (journal_datastore->current_crawl_->isComplete()) {
             for (auto &result : journal_datastore->current_crawl_->getResult().downloaded_items_)
                 journal_datastore->queued_downloads_.emplace_back(result.release());
+
+            metrics->num_downloads_crawled_successful_ += journal_datastore->current_crawl_->getResult().num_crawled_successful_;
+            metrics->num_downloads_crawled_unsuccessful_ += journal_datastore->current_crawl_->getResult().num_crawled_unsuccessful_;
 
             journal_datastore->current_crawl_.reset();
         } else
@@ -349,13 +363,13 @@ void EnqueueCompletedDownloadsForConversion(JournalDatastore * const journal_dat
             } else if (not download_result.downloadSuccessful()) {
                 LOG_INFO("Item " + download_result.source_.toString() + " download failed! error: "
                          + download_result.error_message_ + " (response code = " + std::to_string(download_result.response_code_) + ")");
-                ++metrics->num_downloads_unsuccessful_;
+                ++metrics->num_downloads_harvested_unsuccessful_;
             } else {
                 auto conversion_result(conversion_manager->convert(download_result.source_,
                                        download_result.response_body_,
                                        harvester_config.lookupJournalGroup(download_result.source_.journal_)));
                 journal_datastore->queued_marc_records_.emplace_back(std::move(conversion_result));
-                ++metrics->num_downloads_successful_;
+                ++metrics->num_downloads_harvested_successful_;
             }
 
             iter = journal_datastore->queued_downloads_.erase(iter);
@@ -375,13 +389,14 @@ bool ConversionResultsComparator(const std::unique_ptr<Util::Future<Conversion::
 }
 
 
+// Tracks each group's MARC writer. Writers are instantiated on-demand.
 class OutputFileCache {
     std::string output_filename_;
     std::string output_directory_;
     std::map<const Config::GroupParams *, std::unique_ptr<MARC::Writer>> output_marc_writers_;
 public:
     OutputFileCache(const CommandLineArgs &commandline_args, const HarvesterConfigData &harvester_config);
-
+public:
     const std::unique_ptr<MARC::Writer> &getWriter(const Config::GroupParams &group_params);
 };
 
@@ -415,11 +430,11 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
                                   std::unordered_set<std::string> * const urls_harvested_during_current_session,
                                   Metrics * const metrics)
 {
-    // sort the conversion results in the order in which they were queued
+    // Sort the conversion results in the order in which they were queued.
     std::sort(journal_datastore->queued_marc_records_.begin(), journal_datastore->queued_marc_records_.end(),
               ConversionResultsComparator);
 
-    // iterate through the conversion results and write out consecutive successfully converted MARC records to disk
+    // Iterate through the conversion results and write out consecutive successfully converted MARC records to disk.
     unsigned previous_converted_item_id(0);
     while (not journal_datastore->queued_marc_records_.empty()) {
         auto &current_conversion(journal_datastore->queued_marc_records_.front());
@@ -429,6 +444,14 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
         if (previous_converted_item_id == 0)
             previous_converted_item_id = current_converted_item_id;
 
+        // Break early if the selected conversion task is not complete yet or if
+        // it doesn't directly follow the previous task that completed successfully
+        //
+        // HarvestableItem IDs are almost always monotonic, so this condition will not
+        // block the queue indefinitely. Under specific circumstances (e.g., when multiple
+        // Futures are bound to the same source Tasklet), IDs can potentially repeat.
+        // However, those cases are not problematic as a duplicate ID indicates a
+        // duplicate download which is ignored when new conversion tasks are queued.
         if (not current_conversion->isComplete())
             break;
         else if (previous_converted_item_id != current_converted_item_id and
@@ -442,7 +465,8 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
 
         unsigned num_written_records(0);
         for (const auto &record : conversion_result.marc_records_) {
-            // check if the record was previously uploaded to the BSZ server
+            // Check if the record was previously uploaded to the BSZ server
+            // by comparing its hash and URLs with the ones stored in our database.
             const auto record_hash(Conversion::CalculateMarcRecordHash(*record));
             const auto record_urls(record->getSubfieldValues("856", 'u'));
             bool already_delivered(false);
@@ -460,9 +484,9 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
 
                 if (not already_delivered) {
                     Util::UploadTracker::Entry previously_delivered_entry;
-                    if (upload_tracker.hashAlreadyDelivered(record_hash)) {
+                    if (upload_tracker.hashAlreadyDelivered(record_hash, &previously_delivered_entry)) {
                         already_delivered = true;
-                        tracker_message = "Hash '" + record_hash + "' match on URL '" + previously_delivered_entry.url_ + "'";
+                        tracker_message = "Hash '" + record_hash + "' match with URL '" + previously_delivered_entry.url_ + "'";
                     }
                 }
             }
@@ -532,7 +556,7 @@ int Main(int argc, char *argv[]) {
     journal_datastores.reserve(harvester_config.journal_params_.size());
     std::unordered_set<std::string> urls_harvested_during_current_session;
 
-    // queue downloads for all selected journals
+    // Queue downloads for all selected journals.
     for (const auto &journal : harvester_config.journal_params_) {
         bool skip_journal(false);
 
@@ -558,12 +582,12 @@ int Main(int argc, char *argv[]) {
 
     static const unsigned BUSY_LOOP_THREAD_SLEEP_TIME(64 * 1000);   // ms -> us
 
-    // wait on completed downloads, initiate MARC conversions and write converted records to disk
+    // Wait on completed downloads, initiate MARC conversions and write converted records to disk.
     while (true) {
         bool jobs_running(false);
 
         for (auto &journal_datastore : journal_datastores) {
-            EnqueueCrawlAndRssResults(journal_datastore.get(), &jobs_running);
+            EnqueueCrawlAndRssResults(journal_datastore.get(), &jobs_running, &harvester_metrics);
             EnqueueCompletedDownloadsForConversion(journal_datastore.get(), &jobs_running, &conversion_manager, harvester_config,
                                                    urls_harvested_during_current_session, &harvester_metrics);
             WriteConversionResultsToDisk(journal_datastore.get(), &output_file_cache, commandline_args, upload_tracker,

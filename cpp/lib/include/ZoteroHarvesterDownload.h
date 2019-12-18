@@ -140,9 +140,12 @@ public:
 
 
 struct Result {
+    unsigned num_crawled_successful_;
+    unsigned num_crawled_unsuccessful_;
+    unsigned num_queued_for_harvest_;
     std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
 public:
-    Result() = default;
+    Result(): num_crawled_successful_(0), num_crawled_unsuccessful_(0), num_queued_for_harvest_(0) {};
     Result(const Result &rhs) = delete;
 };
 
@@ -165,6 +168,8 @@ class Crawler {
     std::queue<std::string> url_queue_current_depth_;
     std::queue<std::string> url_queue_next_depth_;
     std::unordered_set<std::string> crawled_urls_;
+    unsigned num_crawled_successful_;
+    unsigned num_crawled_unsuccessful_;
     unsigned remaining_crawl_depth_;
     DownloadManager * const download_manager_;
 
@@ -195,6 +200,10 @@ public:
 
     inline bool timeoutExceeded() const
         { return total_crawl_time_limit_.limitExceeded(); }
+    inline unsigned numUrlsSuccessfullyCrawled() const
+        { return num_crawled_successful_; }
+    inline unsigned numUrlsUnsuccessfullyCrawled() const
+        { return num_crawled_unsuccessful_; }
 };
 
 

@@ -34,13 +34,21 @@
 namespace ZoteroHarvester {
 
 
+// This namespace contains classes and functions that used to convert JSON metadata
+// returned by the Zotero Translation Server into a MARC-21 record. This is done by
+// first converting the JSON response into an intermediate representation which is then
+// enriched with additional information and then used to generate the final MARC record.
 namespace Conversion {
 
 
+// Represents a format-agnostic metadata record. Generated from a JSON response sent by
+// the Zotero Translation Server.
 struct MetadataRecord {
     enum class SSGType { INVALID, FG_0, FG_1, FG_01, FG_21 };
 
+
     enum class SuperiorType { INVALID, PRINT, ONLINE };
+
 
     struct Creator {
         std::string first_name_;
@@ -54,6 +62,7 @@ struct MetadataRecord {
         Creator(const std::string &first_name, const std::string &last_name, const std::string &type)
          : first_name_(first_name), last_name_(last_name), type_(type) {}
     };
+
 
     std::string item_type_;
     std::string title_;
@@ -77,7 +86,7 @@ struct MetadataRecord {
     std::map<std::string, std::string> custom_metadata_;
 public:
     explicit MetadataRecord() : superior_type_(SuperiorType::INVALID), ssg_(SSGType::INVALID) {}
-
+public:
     std::string toString() const;
 };
 
@@ -146,6 +155,9 @@ public:
 };
 
 
+// Tracks active and queued conversion tasks. Architecturally similar to
+// DownloadManage. The public interface offers a non-blocking function to
+// queue conversion tasks.
 class ConversionManager {
 public:
     struct GlobalParams {
@@ -178,7 +190,7 @@ private:
 public:
     ConversionManager(const GlobalParams &global_params);
     ~ConversionManager();
-
+public:
     std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> convert(const Util::HarvestableItem &source,
                                                                               const std::string &json_metadata,
                                                                               const Config::GroupParams &group_params);

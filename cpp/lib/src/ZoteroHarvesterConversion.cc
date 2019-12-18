@@ -511,7 +511,7 @@ MetadataRecord::SSGType GetSSGTypeFromString(const std::string &ssg_string) {
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
 const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
-std::mutex STRING_TO_STUCT_TM_MUTEX;
+
 
 void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params,
                            const Config::GroupParams &group_params, const Config::EnhancementMaps &enhancement_maps)
@@ -520,7 +520,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
     // normalise date
     if (not metadata_record->date_.empty()) {
         // The TimeUtil::StringToStructTm() call is not thread-safe as it can modify the process' locale
-        std::lock_guard<std::mutex> lock(STRING_TO_STUCT_TM_MUTEX);
+        std::lock_guard<std::recursive_mutex> locale_lock(Util::non_threadsafe_locale_modification_guard);
         struct tm tm(TimeUtil::StringToStructTm(metadata_record->date_, journal_params.strptime_format_string_));
         const std::string date_normalized(std::to_string(tm.tm_year + 1900) + "-"
                                           + StringUtil::ToString(tm.tm_mon + 1, 10, 2, '0') + "-"
@@ -621,7 +621,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
         metadata_record->language_ = *journal_params.language_params_.expected_languages_.begin();
     }
 
-    // fill-in ISIL, license and SSG values
+    // fill-in license and SSG values
     metadata_record->license_ = enhancement_maps.lookupLicense(metadata_record->issn_);
     metadata_record->ssg_ = GetSSGTypeFromString(enhancement_maps.lookupSSG(metadata_record->issn_));
 
@@ -836,8 +836,10 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     std::string year;
     if (TimeUtil::StringToYear(date, &year_num))
         year = std::to_string(year_num);
-    else
+    else {
+        std::lock_guard<std::recursive_mutex> locale_lock(Util::non_threadsafe_locale_modification_guard);
         year = TimeUtil::GetCurrentYear();
+    }
 
     marc_record->insertField("264", { { 'c', year } });
 
@@ -952,6 +954,12 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
         marc_record->insertField("084", _084_subfields);
     }
 
+    // Zotero sigil
+    // Similar to the 100/700 fields, we need to insert 935 fields in reverse
+    // order to preserve the intended ordering
+    marc_record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
+    marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
+
     // Abrufzeichen und ISIL
     if (group_params.bsz_upload_group_ == "krimdok") {
         marc_record->insertField("852", { { 'a', group_params.isil_ } });
@@ -962,10 +970,6 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
         marc_record->insertField("852", { { 'a', group_params.isil_ } });
         marc_record->insertField("935", { { 'a', "mteo" } });
     }
-
-    // Zotero sigil
-    marc_record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
-    marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
 
     // Book-keeping fields
     marc_record->insertField("URL", { { 'a', metadata_record.url_ } });
@@ -988,8 +992,11 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     }
 
     // Has to be generated in the very end as it contains the hash of the record
-    marc_record->insertField("001", group_params.name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
-                             + "#" + CalculateMarcRecordHash(*marc_record));
+    {
+        std::lock_guard<std::recursive_mutex> locale_lock(Util::non_threadsafe_locale_modification_guard);
+        marc_record->insertField("001", group_params.name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
+                                 + "#" + CalculateMarcRecordHash(*marc_record));
+    }
 }
 
 
@@ -1087,6 +1094,7 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
 
     if (array_node->size() == 0) {
         LOG_WARNING("no items found in translation server response");
+        LOG_WARNING("JSON response:\n" + parameters.json_metadata_);
         return;
     }
 

@@ -29,9 +29,14 @@
 namespace ZoteroHarvester {
 
 
+// This namespace contains classes that represent the (immutable) configuration
+// data of the Zotero Harvester program. Global, group and journal parameters
+// read in from an INI file. Refer to the documentation in the default configuration
+// INI file for details about individual configuration fields/keys.
 namespace Config {
 
 
+// Parameters that pertain to all harvestable journals/groups.
 struct GlobalParams {
     enum INIKey : unsigned {
         TRANSLATION_SERVER_URL,
@@ -87,6 +92,7 @@ extern const std::map<std::string, int> STRING_TO_UPLOAD_OPERATION_MAP;
 extern const std::map<int, std::string> UPLOAD_OPERATION_TO_STRING_MAP;
 
 
+// Parameters that pertain to a specific group. Every journal has an associated group.
 struct GroupParams {
     enum INIKey : unsigned {
         USER_AGENT,
@@ -113,6 +119,7 @@ private:
 };
 
 
+// Parameters that pertain to a specific journal.
 struct JournalParams {
     enum INIKey : unsigned {
         ZEDER_ID,
@@ -183,6 +190,8 @@ private:
 };
 
 
+// Extraneous data pertinent to the harvesting process that is (currently) not stored
+// in the configuration INI file. Will eventually be subsumed into the former.
 class EnhancementMaps {
     std::unordered_map<std::string, std::string> ISSN_to_license_;
     std::unordered_map<std::string, std::string> ISSN_to_SSG_;
