@@ -410,6 +410,10 @@ std::vector<T> RemoveDuplicatesKeepOrder(std::vector<T>& vec) {
 }
 
 
+// Use this as a workaround for titles that lead to problems if handled case insensitively
+std::set<std::string> case_insensitive_blocked({"Utrumque Ius"});
+
+
 void AugmentDBEntries(DbConnection &db_connection,
                       const std::unordered_map<std::string,std::string> &author_to_gnds_result_map,
                       const std::unordered_map<std::string,std::string> &keyword_to_gnds_result_map,
@@ -508,14 +512,16 @@ void AugmentDBEntries(DbConnection &db_connection,
         std::string f_quelle;
         for (const auto &entry : find_discovery_map) {
             size_t start, end;
-            if (RegexMatcher::Matched("(?<!\\pL)" + entry.second + "(?!\\pL)", fundstelle_row, RegexMatcher::ENABLE_UTF8, nullptr, &start, &end)) {
+            unsigned options(RegexMatcher::ENABLE_UTF8);
+            options |= case_insensitive_blocked.find(entry.second) == case_insensitive_blocked.end() ? RegexMatcher::CASE_INSENSITIVE : 0;
+            if (RegexMatcher::Matched("(?<!\\pL)" + entry.second + "(?!\\pL)", fundstelle_row, options, nullptr, &start, &end)) {
                 f_ppn = entry.first;
                 f_quelle = ExtractAndFormatSource(fundstelle_row.substr(end), fundstelle_row.substr(0, start));
                 break;
             }
         }
 
-        // Map Bishops role and year to personal GND number
+        // Map Bishops/Administrators role and year to personal GND number
         // In this context we hopefully don't have clashes if we split on comma
         StringUtil::SplitThenTrimWhite(author_row, ";,", &authors_in_row);
         const std::string year_row(db_row["jahr"]);
