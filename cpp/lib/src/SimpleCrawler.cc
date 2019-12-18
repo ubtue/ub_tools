@@ -28,15 +28,16 @@ SimpleCrawler::Params::Params(const std::string &acceptable_languages, const uns
                               const bool print_last_http_header, const bool ignore_robots_dot_txt,
                               const bool print_redirects, const std::string &user_agent,
                               const std::string &url_ignore_pattern, const bool ignore_ssl_certificates,
-                              const std::string &proxy_host_and_port, const bool print_queued_urls,
-                              const bool print_skipped_urls, const bool skip_already_crawled_urls)
+                              const std::string &proxy_host_and_port,
+                              const bool print_queued_urls,
+                              const bool print_skipped_urls)
     : acceptable_languages_(acceptable_languages), timeout_(timeout),
       min_url_processing_time_(min_url_processing_time), print_all_http_headers_(print_all_http_headers),
       print_last_http_header_(print_last_http_header), ignore_robots_dot_txt_(ignore_robots_dot_txt),
       print_redirects_(print_redirects), user_agent_(user_agent),
       url_ignore_pattern_(url_ignore_pattern), ignore_ssl_certificates_(ignore_ssl_certificates),
       proxy_host_and_port_(proxy_host_and_port), print_queued_urls_(print_queued_urls),
-      print_skipped_urls_(print_skipped_urls), skip_already_crawled_urls_(skip_already_crawled_urls) {}
+      print_skipped_urls_(print_skipped_urls) {}
 
 
 void SimpleCrawler::extractLocationUrls(const std::string &header_blob, std::list<std::string> * const location_urls) {
@@ -92,35 +93,9 @@ void SimpleCrawler::ParseConfigFile(const std::string &config_path, std::vector<
 }
 
 
-bool SimpleCrawler::downloadUrl(const std::string &url, const Params &params, PageDetails * const page_details) {
-    min_url_processing_time_.sleepUntilExpired();
-    downloader_.newUrl(url, params.timeout_);
-    min_url_processing_time_.restart();
-    if (downloader_.anErrorOccurred()) {
-        page_details->error_message_ = "Download failed: " + downloader_.getLastErrorMessage();
-        LOG_WARNING("Failed to retrieve a Web page (" + url + "):\n"
-                    + downloader_.getLastErrorMessage());
-        return false;
-    }
-
-    page_details->url_ = url;
-    page_details->body_ = downloader_.getMessageBody();
-    page_details->header_ = downloader_.getMessageHeader();
-    page_details->error_message_.clear();
-    return true;
-}
-
-
 SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params)
-    : SimpleCrawler(site_desc, params, std::bind(&SimpleCrawler::downloadUrl, this, std::placeholders::_1,
-                    std::placeholders::_2, std::placeholders::_3)) {}
-
-
-SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params,
-                             const std::function<bool(const std::string &, const Params &, PageDetails * const)> download_url_callback)
     : remaining_crawl_depth_(site_desc.max_crawl_depth_), url_regex_matcher_(site_desc.url_regex_matcher_),
-      min_url_processing_time_(params.min_url_processing_time_), params_(params),
-      download_url_callback_(download_url_callback)
+      min_url_processing_time_(params.min_url_processing_time_), params_(params)
 {
     url_queue_current_depth_.push(site_desc.start_url_);
 
@@ -167,34 +142,38 @@ bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
     url_queue_current_depth_.pop();
     if (url_ignore_regex_matcher_->matched(url)) {
         page_details->error_message_ = "URL contains ignorable data (e.g. CSS file) and will be skipped";
-        LOG_WARNING("Skipping URL: " + url + ": " + page_details->error_message_);
-        return SimpleCrawler::continueCrawling();
-    } else if (params_.skip_already_crawled_urls_ and crawled_urls_.find(url) != crawled_urls_.end()) {
-        page_details->error_message_ = "URL was already crawled";
-        LOG_WARNING("Skipping URL: " + url + ": " + page_details->error_message_);
+        logger->warning("Skipping URL: " + url);
         return SimpleCrawler::continueCrawling();
     }
 
     // download page
-    bool download_success(download_url_callback_(url, params_, page_details));
-    if (not download_success)
+    min_url_processing_time_.sleepUntilExpired();
+    downloader_.newUrl(url, params_.timeout_);
+    min_url_processing_time_.restart();
+    if (downloader_.anErrorOccurred()) {
+        page_details->error_message_ = "Download failed: " + downloader_.getLastErrorMessage();
+        logger->warning("Failed to retrieve a Web page (" + url + "):\n"
+                        + downloader_.getLastErrorMessage());
         return SimpleCrawler::continueCrawling();
+    }
 
     // print message headers if necessary
-    const std::string message_headers(page_details->header_), message_body(page_details->body_);
+    const std::string message_headers(downloader_.getMessageHeader()), message_body(downloader_.getMessageBody());
     if (params_.print_redirects_) {
         std::list<std::string> location_urls;
         extractLocationUrls(message_headers, &location_urls);
         for (const auto &location_url : location_urls)
-            LOG_INFO("Location: " + location_url);
+            logger->info("Location: " + location_url);
     }
     if (params_.print_all_http_headers_ or params_.print_last_http_header_)
-        LOG_INFO(StringUtil::ReplaceString("\r\n", "\n", message_headers) + "\n");
+        logger->info(StringUtil::ReplaceString("\r\n", "\n", message_headers) + "\n");
 
-    // cache crawled URLs
-    crawled_urls_.emplace(url);
+    // fill result
+    page_details->url_ = url;
+    page_details->header_ = message_headers;
+    page_details->body_ = message_body;
 
-    // extract deeper level URLs
+    // extract deeper level URL's
     if (remaining_crawl_depth_ > 0) {
         constexpr unsigned EXTRACT_URL_FLAGS(WebUtil::IGNORE_DUPLICATE_URLS | WebUtil::IGNORE_LINKS_IN_IMG_TAGS
                                            | WebUtil::REMOVE_DOCUMENT_RELATIVE_ANCHORS

@@ -268,8 +268,6 @@ static void CorrectForSymbolicTimeZone(struct tm * const tm, const std::string &
 }
 
 
-
-
 // Strptime()/CentOS idiosyncrasies:
 //      - Strptime() supports "%Z" to denote time zone names, but it doesn't perfom the time conversion.
 //        Furthermore, the above format specifier is apparently broken on CentOS.
