@@ -78,7 +78,7 @@ void LoadAuthorGNDNumbers(
         if (not MARC::GetGNDCode(record, &gnd_number))
             continue;
 
-        const auto numeration(_100_field->getFirstSubfieldWithCode('c'));
+        const auto numeration(_100_field->getFirstSubfieldWithCode('b'));
         const auto titles_and_other_words_associated_with_a_name(_100_field->getFirstSubfieldWithCode('c'));
         const auto name_and_numeration(_100_field->getFirstSubfieldWithCode('a') + (numeration.empty() ? "" : " " + numeration));
         const auto author_name(not titles_and_other_words_associated_with_a_name.empty()
