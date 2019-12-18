@@ -427,6 +427,17 @@ const std::set<std::string> FRENCH_MONTHS{ "janvier", "février", "mars", "avril
 const std::vector<std::string> GERMAN_MONTHS_ABBREVS{ "jan", "feb", "mär", "apr", "mai", "jun", "jul", "aug", "sep", "okt", "nov", "dez" };
 
 
+bool IsFrenchMonth(const std::string &word) {
+    const auto month_candidate(TextUtil::UTF8ToLower(word));
+    for (const auto &french_month : FRENCH_MONTHS) {
+        if (french_month == month_candidate)
+            return true;
+    }
+
+    return false;
+}
+
+
 bool StartsWithGermanMonthAbbrev(const std::string &word) {
     if (word.length() < 3)
         return false;
@@ -462,7 +473,7 @@ std::vector<std::string> ExtractBibleReferenceCandidates(const std::vector<std::
                 if (token == tokens.cend() - 1 or (not check_for_french_date and not check_for_german_date))
                     bible_reference_candidates.emplace_back(bible_reference_candidate_prefix + *token);
                 else {
-                    if ((check_for_french_date and FRENCH_MONTHS.find(*(token + 1)) != FRENCH_MONTHS.cend())
+                    if ((check_for_french_date and IsFrenchMonth(*(token + 1)))
                         or (check_for_german_date and StartsWithGermanMonthAbbrev(*(token + 1))))
                         /* not a bible reference */;
                     else
