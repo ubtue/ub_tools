@@ -45,11 +45,12 @@ struct LiteraryRemainsInfo {
     std::string author_name_;
     std::string url_;
     std::string source_name_;
+    std::string dates_;
 public:
     LiteraryRemainsInfo() = default;
     LiteraryRemainsInfo(const LiteraryRemainsInfo &other) = default;
-    LiteraryRemainsInfo(const std::string &author_name, const std::string &url, const std::string &source_name)
-        : author_name_(author_name), url_(url), source_name_(source_name) { }
+    LiteraryRemainsInfo(const std::string &author_name, const std::string &url, const std::string &source_name, const std::string &dates)
+        : author_name_(author_name), url_(url), source_name_(source_name), dates_(dates) { }
 
     LiteraryRemainsInfo &operator=(const LiteraryRemainsInfo &rhs) = default;
 };
@@ -77,14 +78,19 @@ void LoadAuthorGNDNumbers(
         if (not MARC::GetGNDCode(record, &gnd_number))
             continue;
 
-        const auto subfield_c(_100_field->getFirstSubfieldWithCode('c'));
-        const std::string author_name(not subfield_c.empty() ? _100_field->getFirstSubfieldWithCode('a') + " (" + subfield_c + ")"
-                                                             : _100_field->getFirstSubfieldWithCode('a'));
+        const auto numeration(_100_field->getFirstSubfieldWithCode('b'));
+        const auto titles_and_other_words_associated_with_a_name(_100_field->getFirstSubfieldWithCode('c'));
+        const auto name_and_numeration(_100_field->getFirstSubfieldWithCode('a') + (numeration.empty() ? "" : " " + numeration));
+        const auto author_name(not titles_and_other_words_associated_with_a_name.empty()
+                                   ? name_and_numeration + " (" + titles_and_other_words_associated_with_a_name + ")"
+                                   : name_and_numeration);
+
+        const auto dates(_100_field->getFirstSubfieldWithCode('d'));
 
         std::vector<LiteraryRemainsInfo> literary_remains_infos;
         while (beacon_field != record.end() and beacon_field->getTag() == "BEA") {
             literary_remains_infos.emplace_back(author_name, beacon_field->getFirstSubfieldWithCode('u'),
-                                                beacon_field->getFirstSubfieldWithCode('a'));
+                                                beacon_field->getFirstSubfieldWithCode('a'), dates);
             ++beacon_field;
         }
         (*gnd_numbers_to_literary_remains_infos_map)[gnd_number] = literary_remains_infos;
@@ -125,11 +131,13 @@ void AppendLiteraryRemainsRecords(
         MARC::Record new_record(MARC::Record::TypeOfRecord::MIXED_MATERIALS, MARC::Record::BibliographicLevel::COLLECTION,
                                 "LR" + gnd_numbers_and_literary_remains_infos.first);
         const std::string &author_name(gnd_numbers_and_literary_remains_infos.second.front().author_name_);
+        std::string dates(gnd_numbers_and_literary_remains_infos.second.front().dates_.empty()
+                              ? "" : " " + gnd_numbers_and_literary_remains_infos.second.front().dates_);
         new_record.insertField("003", "PipeLineGenerated");
         new_record.insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
         new_record.insertField("008", "190606s2019    xx |||||      00| ||ger c");
         new_record.insertField("100", { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first } });
-        new_record.insertField("245", { { 'a', "Nachlass von " + NormaliseAuthorName(author_name) } });
+        new_record.insertField("245", { { 'a', "Nachlass von " + NormaliseAuthorName(author_name) + dates } });
 
         for (const auto &literary_remains_info : gnd_numbers_and_literary_remains_infos.second)
             new_record.insertField("856",
