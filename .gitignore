@@ -18,12 +18,8 @@ LOEPPN-*
 \#*\#
 proxyCA.*
 
-bsz_daten
-bsz_daten_cumulated
-
 cronjobs/README
 *nbproject*
 .vscode
 *.tmp
-
 

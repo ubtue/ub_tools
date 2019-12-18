@@ -22,7 +22,6 @@
 #include <cstdlib>
 #include "FileUtil.h"
 #include "IniFile.h"
-#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
@@ -453,6 +452,8 @@ void DbConnection::init(const std::string &database_name, const std::string &use
                         const std::string &host, const unsigned port, const Charset charset, const TimeZone time_zone)
 {
     initialised_ = false;
+    sqlite3_ = nullptr;
+    type_ = T_MYSQL;
 
     if (::mysql_init(&mysql_) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_init() failed!");
@@ -466,9 +467,8 @@ void DbConnection::init(const std::string &database_name, const std::string &use
                                  + database_name + "\", port=" + std::to_string(port) + ")");
     if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
+    errno = 0; // Don't ask unless you want to cry!
 
-    sqlite3_ = nullptr;
-    type_ = T_MYSQL;
     initialised_ = true;
     setTimeZone(time_zone);
     database_name_ = database_name;
@@ -484,6 +484,8 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
                         const Charset charset, const TimeZone time_zone)
 {
     initialised_ = false;
+    sqlite3_ = nullptr;
+    type_ = T_MYSQL;
 
     if (::mysql_init(&mysql_) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_init() failed!");
@@ -494,8 +496,6 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
     if (::mysql_set_character_set(&mysql_, CharsetToString(charset).c_str()) != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
 
-    sqlite3_ = nullptr;
-    type_ = T_MYSQL;
     initialised_ = true;
     setTimeZone(time_zone);
     user_ = user;
@@ -606,4 +606,102 @@ bool DbConnection::mySQLUserExists(const std::string &user, const std::string &h
     DbResultSet result_set(getLastResultSet());
     const DbRow result_row(result_set.getNextRow());
     return result_row["user_count"] != "0";
+}
+
+
+const std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::MYSQL_ALL_PRIVILEGES {
+    P_SELECT,
+    P_INSERT,
+    P_UPDATE,
+    P_DELETE,
+    P_CREATE,
+    P_DROP,
+    P_REFERENCES,
+    P_INDEX,
+    P_ALTER,
+    P_CREATE_TEMPORARY_TABLES,
+    P_LOCK_TABLES,
+    P_EXECUTE,
+    P_CREATE_VIEW,
+    P_SHOW_VIEW,
+    P_CREATE_ROUTINE,
+    P_ALTER_ROUTINE,
+    P_EVENT,
+    P_TRIGGER
+};
+
+
+static const std::unordered_map<std::string, DbConnection::MYSQL_PRIVILEGE> string_to_privilege_map {
+    { "SELECT", DbConnection::P_SELECT },
+    { "INSERT", DbConnection::P_INSERT },
+    { "UPDATE", DbConnection::P_UPDATE },
+    { "DELETE", DbConnection::P_DELETE },
+    { "CREATE", DbConnection::P_CREATE },
+    { "DROP", DbConnection::P_DROP },
+    { "REFERENCES", DbConnection::P_REFERENCES },
+    { "INDEX", DbConnection::P_INDEX },
+    { "ALTER", DbConnection::P_ALTER },
+    { "CREATE TEMPORARY TABLES", DbConnection::P_CREATE_TEMPORARY_TABLES},
+    { "LOCK TABLES", DbConnection::P_LOCK_TABLES },
+    { "EXECUTE", DbConnection::P_EXECUTE },
+    { "CREATE VIEW", DbConnection::P_CREATE_VIEW },
+    { "SHOW VIEW", DbConnection::P_SHOW_VIEW },
+    { "CREATE ROUTINE", DbConnection::P_CREATE_ROUTINE },
+    { "ALTER ROUTINE", DbConnection::P_ALTER_ROUTINE },
+    { "EVENT", DbConnection::P_EVENT},
+    { "TRIGGER", DbConnection::P_TRIGGER },
+};
+
+
+DbConnection::MYSQL_PRIVILEGE MySQLPrivilegeStringToEnum(const std::string &candidate) {
+    const auto string_and_privilege(string_to_privilege_map.find(candidate));
+    if (unlikely(string_and_privilege == string_to_privilege_map.end()))
+        LOG_ERROR(candidate + " is not in our map!");
+    return string_and_privilege->second;
+}
+
+
+std::string MySQLPrivilegeEnumToString(const DbConnection::MYSQL_PRIVILEGE privilege) {
+    for (const auto &string_and_privilege : string_to_privilege_map) {
+        if (string_and_privilege.second == privilege)
+            return string_and_privilege.first;
+    }
+
+    LOG_ERROR("Privilege " + std::to_string(privilege) + " is not in our map!");
+}
+
+
+std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPrivileges(const std::string &user, const std::string &database_name,
+                                                                                       const std::string &host)
+{
+    const std::string QUERY("SHOW GRANTS FOR " + user + "@" + host + ";");
+    if (not query(QUERY)) {
+        // catch "No such privileges defined" error and return empty set
+        if (getLastErrorCode() == 1141)
+            return {};
+        LOG_ERROR(QUERY + " failed: " + getLastErrorMessage());
+    }
+
+    DbResultSet result_set(getLastResultSet());
+    while (const auto row = result_set.getNextRow()) {
+        static RegexMatcher * const mysql_privileges_matcher(
+            RegexMatcher::RegexMatcherFactory("GRANT (.+) ON `" + database_name + "`.* TO '" + user + "'@'" + host + "'"));
+
+        if (mysql_privileges_matcher->matched(row[0])) {
+            const std::string matched_privileges((*mysql_privileges_matcher)[1]);
+            if (matched_privileges == "ALL PRIVILEGES")
+                return MYSQL_ALL_PRIVILEGES;
+
+            std::unordered_set<std::string> privileges_strings;
+            StringUtil::SplitThenTrimWhite(matched_privileges, ',', &privileges_strings);
+
+            std::unordered_set<DbConnection::MYSQL_PRIVILEGE> privileges;
+            for (const auto &privilege_string : privileges_strings)
+                privileges.emplace(MySQLPrivilegeStringToEnum(privilege_string));
+
+            return privileges;
+        }
+    }
+
+    return {};
 }

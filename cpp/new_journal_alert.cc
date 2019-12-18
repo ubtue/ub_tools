@@ -47,15 +47,13 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--debug] [solr_host_and_port] user_type hostname sender_email "
-              << "email_subject\n"
-              << "  Sends out notification emails for journal subscribers.\n"
-              << "  Should \"solr_host_and_port\" be missing \"localhost:8080\" will be used.\n"
-              << "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm."
-              << "  \"hostname\" should be the symbolic hostname which will be used in constructing\n"
-              << "  URL's that a user might see.\n"
-              << "  If \"--debug\" is given, emails will not be sent and database will not be updated.\n\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("[--debug] [solr_host_and_port] user_type hostname sender_email email_subject\n"
+            "  Sends out notification emails for journal subscribers.\n"
+            "  Should \"solr_host_and_port\" be missing \"localhost:8080\" will be used.\n"
+            "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm."
+            "  \"hostname\" should be the symbolic hostname which will be used in constructing\n"
+            "  URL's that a user might see.\n"
+            "  If \"--debug\" is given, emails will not be sent and database will not be updated.\n");
 }
 
 
@@ -78,13 +76,58 @@ struct NewIssueInfo {
     std::string control_number_;
     std::string series_title_;
     std::string issue_title_;
-    std::string last_modification_time_;
+    std::string volume_, year_, issue_, start_page_;
     std::vector<std::string> authors_;
 public:
     NewIssueInfo(const std::string &control_number, const std::string &series_title, const std::string &issue_title,
+                 const std::string &volume, const std::string &year, const std::string &issue, const std::string &start_page,
                  const std::vector<std::string> &authors)
-        : control_number_(control_number), series_title_(series_title), issue_title_(issue_title), authors_(authors) { }
+        : control_number_(control_number), series_title_(series_title), issue_title_(issue_title), volume_(volume), year_(year),
+          issue_(issue), start_page_(start_page), authors_(authors) { }
+    bool operator<(const NewIssueInfo &rhs) const;
+    friend std::ostream &operator<<(std::ostream &output, const NewIssueInfo &new_issue_info);
 };
+
+
+std::ostream &operator<<(std::ostream &output, const NewIssueInfo &new_issue_info) {
+    output << new_issue_info.control_number_
+           << (new_issue_info.series_title_.empty() ? "*Missing Series Title*" : new_issue_info.series_title_) << ' '
+           << (new_issue_info.issue_title_.empty() ? "*Missing Issue Title*" : new_issue_info.issue_title_) << ' '
+           << (new_issue_info.volume_.empty() ? "*Missing Volume*" : new_issue_info.volume_) << ' '
+           << (new_issue_info.year_.empty() ? "*Missing Year*" : new_issue_info.year_) << ' '
+           << (new_issue_info.issue_.empty() ? "*Missing Issue*" : new_issue_info.issue_) << ' '
+           << (new_issue_info.start_page_.empty() ? "*Missing Start Page*" : new_issue_info.start_page_) << ' '
+           << "Authors: ";
+    for (const auto &author : new_issue_info.authors_)
+        output << author << ' ';
+
+    return output;
+}
+
+
+bool NewIssueInfo::operator<(const NewIssueInfo &rhs) const {
+    if (series_title_ != rhs.series_title_)
+        return series_title_ < rhs.series_title_;
+
+    if (volume_ != rhs.volume_) {
+        if (StringUtil::ConsistsOfAllASCIIDigits(volume_) and StringUtil::ConsistsOfAllASCIIDigits(rhs.volume_))
+            return StringUtil::ToUnsigned(volume_) < StringUtil::ToUnsigned(rhs.volume_);
+        else
+            return volume_ < rhs.volume_;
+    }
+
+    if (year_ != rhs.year_)
+        return year_ < rhs.year_;
+
+    if (start_page_ != rhs.start_page_) {
+        if (StringUtil::ConsistsOfAllASCIIDigits(start_page_) and StringUtil::ConsistsOfAllASCIIDigits(rhs.start_page_))
+            return StringUtil::ToUnsigned(start_page_) < StringUtil::ToUnsigned(rhs.start_page_);
+        else
+            return start_page_ < rhs.start_page_;
+    }
+
+    return false;
+}
 
 
 // Makes "date" look like an ISO-8601 date ("2017-01-01 00:00:00" => "2017-01-01T00:00:00Z")
@@ -114,13 +157,20 @@ std::string GetIssueId(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
 }
 
 
+const std::string NO_AVAILABLE_TITLE("*No available title*");
+
+
 std::string GetIssueTitle(const std::string &id, const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
-    const std::string NO_AVAILABLE_TITLE("*No available title*");
     const auto issue_title(JSON::LookupString("/title", doc_obj, /* default_value = */ NO_AVAILABLE_TITLE));
     if (unlikely(issue_title == NO_AVAILABLE_TITLE))
         LOG_WARNING("No title found for ID " + id + "!");
 
     return issue_title;
+}
+
+
+inline std::string GetIssueSubtitle(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
+    return JSON::LookupString("/title_sub", doc_obj, /* default_value = */ "");
 }
 
 
@@ -143,6 +193,8 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
 
     const std::shared_ptr<const JSON::ArrayNode> container_ids_and_titles_array(
         JSON::JSONNode::CastToArrayNodeOrDie("container_ids_and_titles", container_ids_and_titles));
+    if (unlikely(container_ids_and_titles_array == nullptr))
+        LOG_ERROR("container_ids_and_titles_array is not a JSON array!");
     if (container_ids_and_titles_array->empty()) {
         LOG_WARNING("\"container_ids_and_titles\" is empty");
         return NO_SERIES_TITLE;
@@ -162,21 +214,19 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
 std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
     const std::shared_ptr<const JSON::JSONNode> author(doc_obj->getNode("author"));
     if (author == nullptr) {
-        LOG_WARNING("\"author\" is null");
+        LOG_DEBUG("\"author\" JSON node is missing!");
         return std::vector<std::string>();
     }
 
-    const std::shared_ptr<const JSON::ArrayNode> author_array(
-        JSON::JSONNode::CastToArrayNodeOrDie("author", author));
+    const std::shared_ptr<const JSON::ArrayNode> author_array(JSON::JSONNode::CastToArrayNodeOrDie("author", author));
     if (author_array->empty()) {
-        LOG_WARNING("\"author\" is empty");
+        LOG_WARNING("\"author\" JSON array is empty!");
         return std::vector<std::string>();
     }
 
     std::vector<std::string> authors;
     for (const auto &array_entry : *author_array) {
-        const std::shared_ptr<const JSON::StringNode> author_string(JSON::JSONNode::CastToStringNodeOrDie("author string",
-                                                                                                          array_entry));
+        const std::shared_ptr<const JSON::StringNode> author_string(JSON::JSONNode::CastToStringNodeOrDie("author string", array_entry));
         authors.emplace_back(author_string->getValue());
     }
 
@@ -209,11 +259,21 @@ bool ExtractNewIssueInfos(const std::unique_ptr<KeyValueDB> &notified_db,
             continue; // We already sent a notification for this issue.
         new_notification_ids->insert(id);
 
-        const std::string issue_title(GetIssueTitle(id, doc_obj));
+        std::string issue_title(GetIssueTitle(id, doc_obj));
+        if (issue_title != NO_AVAILABLE_TITLE) {
+            const auto subtitle(GetIssueSubtitle(doc_obj));
+            if (not subtitle.empty())
+                issue_title += " : " + subtitle;
+        }
+
         const std::string series_title(GetSeriesTitle(doc_obj));
         const std::vector<std::string> authors(GetAuthors(doc_obj));
+        const std::string volume(JSON::LookupString("/volume", doc_obj, /* default_value = */ ""));
+        const std::string year(JSON::LookupString("/year", doc_obj, /* default_value = */ ""));
+        const std::string issue(JSON::LookupString("/issue", doc_obj, /* default_value = */ ""));
+        const std::string start_page(JSON::LookupString("/start_page", doc_obj, /* default_value = */ ""));
 
-        new_issue_infos->emplace_back(id, series_title, issue_title, authors);
+        new_issue_infos->emplace_back(id, series_title, issue_title, volume, year, issue, start_page, authors);
 
         const std::string last_modification_time(GetLastModificationTime(doc_obj));
         if (last_modification_time > *max_last_modification_time) {
@@ -223,17 +283,6 @@ bool ExtractNewIssueInfos(const std::unique_ptr<KeyValueDB> &notified_db,
     }
 
     return found_at_least_one_new_issue;
-}
-
-
-std::string GetEmailTemplate(const std::string user_type) {
-    std::string result;
-    const std::string EMAIL_TEMPLATE_PATH(UBTools::GetTuelibPath() + "subscriptions_email." + user_type + ".template");
-
-    if (unlikely(not FileUtil::ReadString(EMAIL_TEMPLATE_PATH, &result)))
-        LOG_ERROR("can't load email template \"" + EMAIL_TEMPLATE_PATH + "\"!");
-
-    return result;
 }
 
 
@@ -250,7 +299,9 @@ bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
     );
 
     std::string json_result, err_msg;
-    if (unlikely(not Solr::Query(QUERY, "id,title,author,last_modification_time,container_ids_and_titles", &json_result, &err_msg,
+    if (unlikely(not Solr::Query(QUERY,
+                                 "id,title,title_sub,author,last_modification_time,container_ids_and_titles,volume,year,"
+                                 "issue,start_page", &json_result, &err_msg,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         LOG_ERROR("Solr query failed or timed-out: \"" + QUERY + "\". (" + err_msg + ")");
 
@@ -258,38 +309,86 @@ bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
 }
 
 
+inline std::string CapitalizedUserType(const std::string &user_type) {
+    return user_type == "ixtheo" ? "IxTheo" : "KrimDok";
+}
+
+
+std::string GenerateEmailContents(const std::string &user_type, const std::string &name_of_user, const std::string &vufind_host,
+                                  const std::vector<NewIssueInfo> &new_issue_infos)
+{
+    std::string email_contents("Dear " + name_of_user + ",<br /><br />\n"
+                               "An automated process has determined that new issues are available for\n"
+                               "serials that you are subscribed to.  The list is:\n"
+                               "<ul>\n"); // start journal list
+
+    std::string last_series_title, last_volume_year_and_issue;
+    for (const auto &new_issue_info : new_issue_infos) {
+        const bool new_serial(new_issue_info.series_title_ != last_series_title);
+        if (new_serial) {
+            if (not last_series_title.empty()) { // Not first iteration!
+                email_contents += "    </ul>\n"; // end items
+                email_contents += "  </ul>\n"; // end volume/year/issue list
+            }
+            last_series_title = new_issue_info.series_title_;
+            email_contents += "  <li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
+            email_contents += "  <ul>\n"; // start volume/year/issue list
+            last_volume_year_and_issue.clear();
+        }
+
+        // Generate "volume_year_and_issue":
+        std::string volume_year_and_issue;
+        if (not new_issue_info.volume_.empty())
+            volume_year_and_issue += new_issue_info.volume_;
+        if (not new_issue_info.year_.empty()) {
+            if (not volume_year_and_issue.empty())
+                volume_year_and_issue += " ";
+            volume_year_and_issue += "(" + new_issue_info.year_ + ")";
+        }
+        if (not new_issue_info.issue_.empty()) {
+            if (not volume_year_and_issue.empty())
+                volume_year_and_issue += ", ";
+            volume_year_and_issue += new_issue_info.issue_;
+        }
+
+        if (volume_year_and_issue != last_volume_year_and_issue) {
+            if (not new_serial)
+                email_contents += "    </ul>\n"; // end items
+            email_contents += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
+            last_volume_year_and_issue = volume_year_and_issue;
+            email_contents += "    <ul>\n"; // start items
+        }
+
+        const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
+        std::string authors;
+        for (const auto &author : new_issue_info.authors_)
+            authors += "&nbsp;&nbsp;&nbsp;" + HtmlUtil::HtmlEscape(author);
+        email_contents += "      <li><a href=" + URL + ">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors
+                          + "</li>\n";
+    }
+    email_contents += "    </ul>\n"; // end items
+    email_contents += "  </ul>\n"; // end volume/year/issue list
+    email_contents += "</ul>\n"; // end journal list
+    email_contents += "<br />\n"
+                      "Sincerely,<br />\n"
+                      "The " + CapitalizedUserType(user_type) + " Team\n"
+                      "<br />--<br />\n"
+                      "If you have questions regarding this service please contact\n"
+                      "<a href=\"mailto:" + user_type + "@ub.uni-tuebingen.de\">" + user_type + "@ub.uni-tuebingen.de</a>.\n";
+
+    return email_contents;
+}
+
+
 void SendNotificationEmail(const bool debug, const std::string &name_of_user, const std::string &recipient_email,
                            const std::string &vufind_host, const std::string &sender_email, const std::string &email_subject,
                            const std::vector<NewIssueInfo> &new_issue_infos, const std::string &user_type)
 {
-    std::string email_template = GetEmailTemplate(user_type);
-
-    // Process the email template:
-    Template::Map names_to_values_map;
-    names_to_values_map.insertScalar("name_of_user", name_of_user);
-    std::vector<std::string> urls, series_titles, issue_titles;
-    std::vector<std::shared_ptr<Template::Value>> authors;
-    for (const auto &new_issue_info : new_issue_infos) {
-        urls.emplace_back("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
-        series_titles.emplace_back(new_issue_info.series_title_);
-        issue_titles.emplace_back(HtmlUtil::HtmlEscape(new_issue_info.issue_title_));
-        std::shared_ptr<Template::ArrayValue> issue_authors(new Template::ArrayValue("authors"));
-        for (const auto &author : new_issue_info.authors_)
-            issue_authors->appendValue(author);
-        authors.emplace_back(issue_authors);
-    }
-    names_to_values_map.insertArray("url", urls);
-    names_to_values_map.insertArray("series_title", series_titles);
-    names_to_values_map.insertArray("issue_title", issue_titles);
-    names_to_values_map.insertArray("authors", authors);
-    std::istringstream input(email_template);
-    std::ostringstream email_contents;
-    Template::ExpandTemplate(input, email_contents, names_to_values_map);
-
+    const std::string email_contents(GenerateEmailContents(user_type, name_of_user, vufind_host, new_issue_infos));
     if (debug)
-        std::cerr << "Debug mode, email address is " << sender_email << ", template expanded to:\n" << email_contents.str() << '\n';
+        std::cerr << "Debug mode, email address is " << sender_email << ", template expanded to:\n" << email_contents << '\n';
     else {
-        const unsigned short response_code(EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents.str(),
+        const unsigned short response_code(EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents,
                                                                   EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
 
         if (response_code >= 300) {
@@ -316,7 +415,7 @@ void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &
     std::vector<std::string> bundle_ppns;
     StringUtil::SplitThenTrim(bundle_ppns_string, "," , " \t", &bundle_ppns);
     for (const auto &bundle_ppn : bundle_ppns)
-            control_numbers->emplace_back(bundle_ppn);
+        control_numbers->emplace_back(bundle_ppn);
 }
 
 
@@ -373,6 +472,7 @@ void ProcessSingleUser(
                 control_number_or_bundle_name_and_last_modification_time.setMaxLastModificationTime(max_last_modification_time);
         }
     }
+    std::sort(new_issue_infos.begin(), new_issue_infos.end());
 
     LOG_INFO("Found " + std::to_string(new_issue_infos.size()) + " new issues for " + "\"" + username + "\".");
 
@@ -381,8 +481,12 @@ void ProcessSingleUser(
 
     // Update the database with the new last issue dates
     // skip in DEBUG mode
-    if (debug)
+    if (debug) {
+        std::cerr << "\n\nNew issues for " << username << ":\n";
+        for (const auto &new_issue_info : new_issue_infos)
+            std::cerr << new_issue_info << '\n';
         return;
+    }
 
     for (const auto &control_number_or_bundle_name_and_last_modification_time : control_numbers_or_bundle_names_and_last_modification_times)
     {

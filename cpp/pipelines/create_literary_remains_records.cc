@@ -104,6 +104,9 @@ std::string NormaliseAuthorName(std::string author_name) {
     std::string auxillary_info;
     const auto open_paren_pos(author_name.find('('));
     if (open_paren_pos != std::string::npos) {
+        if (comma_pos > open_paren_pos)
+            return author_name;
+
         auxillary_info = " " + author_name.substr(open_paren_pos);
         author_name.resize(open_paren_pos);
     }

@@ -1,5 +1,6 @@
 /** \brief Utility for deleting partial or entire MARC records based on an input list.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *  \documentation https://wiki.bsz-bw.de/doku.php?id=v-team:daten:datendienste:sekkor under "Löschungen".
  *
  *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
@@ -96,8 +97,6 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
 
 
 int Main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
     if (argc < 5)
         Usage();
 

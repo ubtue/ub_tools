@@ -70,6 +70,28 @@ void AssertEnabled(const std::string &caller) {
 }
 
 
+namespace Boolean {
+
+
+static inline std::string Bool2String(const bool value) { return value ? "on" : "off"; }
+
+
+void Set(const std::string &name, const bool value, const bool permanent) {
+    AssertEnabled(std::string(__func__));
+
+    std::vector<std::string> args;
+    if (permanent)
+        args = { name, "-P", Bool2String(value) };
+    else
+        args = { name, Bool2String(value) };
+
+    ExecUtil::Exec(ExecUtil::Which("setsebool"), args);
+}
+
+
+} // namespace Boolean
+
+
 namespace FileContext {
 
 

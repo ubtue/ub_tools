@@ -92,10 +92,8 @@ AutoTempFile::AutoTempFile(const std::string &path_prefix, const std::string &pa
 {
     std::string path_template(path_prefix + "XXXXXX" + path_suffix);
     const int fd(::mkstemps(const_cast<char *>(path_template.c_str()), path_suffix.length()));
-    if (fd == -1) {
-        throw std::runtime_error("in AutoTempFile::AutoTempFile: mkstemps(3) for path prefix \"" + path_prefix
-                                 + "\" failed! (" + std::string(::strerror(errno)) + ")");
-    }
+    if (fd == -1)
+        LOG_ERROR("mkstemps(3) for path prefix \"" + path_prefix + "\" failed!");
 
     ::close(fd);
     path_ = path_template;

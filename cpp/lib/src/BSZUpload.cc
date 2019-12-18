@@ -36,8 +36,7 @@ inline static void UpdateDeliveryTrackerEntryFromDbRow(const DbRow &row, Deliver
     entry->hash_ = row["hash"];
 }
 
-
-bool DeliveryTracker::hasAlreadyBeenDelivered(const std::string &url, const std::string &hash, Entry * const entry) const {
+bool DeliveryTracker::urlAlreadyDelivered(const std::string &url, Entry * const entry) const {
     std::string truncated_url(url);
     truncateURL(&truncated_url);
 
@@ -48,15 +47,22 @@ bool DeliveryTracker::hasAlreadyBeenDelivered(const std::string &url, const std:
         return false;
 
     const auto first_row(result_set.getNextRow());
-    Entry temp_entry;
-    UpdateDeliveryTrackerEntryFromDbRow(first_row, &temp_entry);
+    if (entry != nullptr)
+        UpdateDeliveryTrackerEntryFromDbRow(first_row, entry);
+    return true;
+}
 
-    if (hash != "" and hash != temp_entry.hash_)
+
+bool DeliveryTracker::hashAlreadyDelivered(const std::string &hash, Entry * const entry) const {
+    db_connection_->queryOrDie("SELECT url, delivered_at, journal_name, hash FROM delivered_marc_records WHERE hash='"
+                               + db_connection_->escapeString(hash) + "'");
+    auto result_set(db_connection_->getLastResultSet());
+    if (result_set.empty())
         return false;
 
-    if (entry)
+    const auto first_row(result_set.getNextRow());
+    if (entry != nullptr)
         UpdateDeliveryTrackerEntryFromDbRow(first_row, entry);
-
     return true;
 }
 
