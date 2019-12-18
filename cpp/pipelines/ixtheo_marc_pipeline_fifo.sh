@@ -100,21 +100,20 @@ StartPhase "Swap and Delete PPN's in Various Databases"
 EndPhase || Abort) &
 
 
-StartPhase "Drop Records Containing mtex in 935" \
-           "\n\tFilter out Self-referential 856 Fields" \
+StartPhase "Filter out Self-referential 856 Fields" \
            "\n\tRemove Sorting Chars From Title Subfields" \
            "\n\tRemove blmsh Subject Heading Terms" \
            "\n\tFix Local Keyword Capitalisations"
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-    --drop 935a:mtex \
     --remove-fields '856u:ixtheo\.de' \
     --remove-fields 'LOK:086630(.*)\x{1F}x' `# Remove internal bibliographic comments`  \
     --filter-chars 130a:240a:245a '@' \
     --remove-subfields '6002:blmsh' '6102:blmsh' '6302:blmsh' '6892:blmsh' '6502:blmsh' '6512:blmsh' '6552:blmsh' \
-    --replace 600a:610a:630a:648a:650a:650x:651a:655a /usr/local/var/lib/tuelib/keyword_normalisation.map \
+    --replace-strings 600a:610a:630a:648a:650a:650x:651a:655a /usr/local/var/lib/tuelib/keyword_normalisation.map \
     --replace 100a:700a /usr/local/var/lib/tuelib/author_normalisation.map \
     --replace 260b:264b /usr/local/var/lib/tuelib/publisher_normalisation.map \
+    --replace 245a "^L' (.*)" "L'\\1" # Replace "L' arbe" with "L'arbe" etc.
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -359,17 +358,11 @@ StartPhase "Tag PDA candidates"
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-
-
-StartPhase "Export Subsystem Tags to VuFind SQL Database"
-(export_subsystem_ids_to_db GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
-     >> "${log}" 2>&1 && \
-EndPhase || Abort) &
 wait
 
 
 StartPhase "Cross-link Type Tagging"
-(add_cross_link_type GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+(add_cross_link_type GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait

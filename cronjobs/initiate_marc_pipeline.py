@@ -50,7 +50,6 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name):
     ClearSolrIndex(title_index)
     util.ExecOrDie(vufind_dir + "/import-marc.sh", title_args, log_file_name)
     OptimizeSolrIndex(title_index)
-    util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"], log_file_name)
 
     # import authority data
     authority_index = 'authority'
@@ -61,6 +60,7 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name):
     ClearSolrIndex(authority_index)
     util.ExecOrDie(vufind_dir + "/import-marc-auth.sh", authority_args, log_file_name)
     OptimizeSolrIndex(authority_index)
+    util.ExecOrDie(util.Which("sudo"), ["-u", "solr", "-E", vufind_dir + "/index-alphabetic-browse.sh"], log_file_name)
 
     # cleanup logs
     util.ExecOrDie("/usr/local/bin/summarize_logs", [vufind_dir + "/import/solrmarc.log", solrmarc_log_summary])
@@ -69,11 +69,15 @@ def ImportIntoVuFind(title_pattern, authority_pattern, log_file_name):
     util.ExecOrDie("/usr/local/bin/log_rotate", [os.path.dirname(log_file_name), os.path.basename(log_file_name)])
 
 
-def StartPipeline(pipeline_script_name, marc_title, conf):
+def RunPipelineAndImportIntoSolr(pipeline_script_name, marc_title, conf):
     log_file_name = util.MakeLogFileName(pipeline_script_name, util.GetLogDirectory())
     util.ExecOrDie(pipeline_script_name, [ marc_title ], log_file_name)
     log_file_name = util.MakeLogFileName("import_into_vufind", util.GetLogDirectory())
     ImportIntoVuFind(conf.get("FileNames", "title_marc_data"), conf.get("FileNames", "authority_marc_data"), log_file_name)
+
+    # Write timestamp file for last successful Solr import:
+    with open(os.open('/usr/local/vufind/public/last_solr_import', os.O_CREAT | os.O_WRONLY, 0o644), 'w') as output:
+        output.write(str(datetime.datetime.now()))
 
 
 # Returns True if we have no timestamp file or if link_filename's creation time is more recent than
@@ -113,7 +117,7 @@ def Main():
             util.Error("BSZ data file must end in .tar.gz!")
         file_name_list = util.ExtractAndRenameBSZFiles(bsz_data)
 
-        StartPipeline(pipeline_script_name, file_name_list[0], conf)
+        RunPipelineAndImportIntoSolr(pipeline_script_name, file_name_list[0], conf)
         util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.", priority=5,
                        attachments=[solrmarc_log_summary, import_log_summary])
         util.WriteTimestamp()

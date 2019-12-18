@@ -51,14 +51,15 @@ std::string XMLError(const std::string &xml_response) {
 }
 
 
-bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
-           std::string * const err_msg, const std::string &host_and_port, const unsigned timeout,
-           const QueryResultFormat query_result_format, const unsigned max_no_of_rows)
+bool Query(const std::string &query, const std::string &fields, const unsigned start_row, const unsigned no_of_rows,
+           std::string * const xml_or_json_result, std::string * const err_msg, const std::string &host_and_port, const unsigned timeout,
+           const QueryResultFormat query_result_format)
 {
     err_msg->clear();
     const std::string url("http://" + host_and_port + "/solr/biblio/select?q=" + UrlUtil::UrlEncode(query)
                           + "&wt=" + std::string(query_result_format == XML ? "xml" : "json")
-                          + (fields.empty() ? "" : "&fl=" + fields) + "&rows=" + std::to_string(max_no_of_rows));
+                          + (fields.empty() ? "" : "&fl=" + fields) + "&rows=" + std::to_string(no_of_rows)
+                          + (start_row == 0 ? "" : "&start=" + std::to_string(start_row)));
 
     Downloader downloader(url, Downloader::Params(), timeout * 1000);
     if (downloader.anErrorOccurred()) {

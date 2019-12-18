@@ -551,6 +551,9 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
                 std::vector<std::string> resolved_items;
 
                 for (const auto &entry : *selected_values) {
+                    if (entry->getType() != JSON::JSONNode::Type::STRING_NODE)
+                        continue;
+
                     const auto value_string(JSON::JSONNode::CastToStringNodeOrDie("entry", entry)->getValue());
                     const auto ordinal(StringUtil::ToInt64T(value_string));
                     const auto match(column_metadata->second.ordinal_to_value_map_.find(ordinal));

@@ -528,7 +528,8 @@ void SelectIssnAndPpn(const std::string &issn_zotero, const std::string &issn_on
 
 void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const struct ItemParameters &node_parameters) {
     const std::string item_type(node_parameters.item_type_);
-    *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, Transformation::MapBiblioLevel(item_type));
+    *record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
+                           MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART);
 
     // Control Fields
 
@@ -571,7 +572,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             record->insertField("700", subfields, /* indicator 1 = */'1');
 
         if (not creator->ppn_.empty() or not creator->gnd_number_.empty()) {
-            const std::string _887_data("Autor in der Zoterovorlage [" + creator->last_name_ + ", " + creator->first_name_ + "] maschinell zugeordnet");
+            const std::string _887_data("Autor in der Zoterovorlage [" + creator->last_name_ + ", " + creator->first_name_
+                                        + "] maschinell zugeordnet");
             record->insertField("887", { { 'a', _887_data }, { '2', "ixzom" } });
         }
 
@@ -620,8 +622,11 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     }
 
     // Review-specific modifications
-    if (item_type == "review")
-        record->insertField("655", { { 'a', "!106186019!" }, { '0', "(DE-588)" } }, /* indicator1 = */' ', /* indicator2 = */'7');
+    if (item_type == "review") {
+        record->insertField("655", { { 'a', "Rezension" }, { '0', "(DE-588)4049712-4" },
+                            { '0', "(DE-627)106186019" }, { '2', "gnd-content" } },
+                            /* indicator1 = */' ', /* indicator2 = */'7');
+    }
 
     // License data
     const std::string license(node_parameters.license_);
@@ -704,7 +709,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
             _084_subfields.appendSubfield('a', "0");
             _084_subfields.appendSubfield('a', "1");
             break;
-        case BSZTransform::SSGNType::KRIM_21:
+        case BSZTransform::SSGNType::FG_21:
             _084_subfields.appendSubfield('a', "2,1");
             break;
         default:
@@ -726,6 +731,7 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     }
 
     // Zotero sigil
+    record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
     record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
 
     record->insertField("001", site_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
@@ -740,8 +746,8 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     if (not site_params_->zeder_id_.empty())
         record->insertField("ZID", { { 'a', site_params_->zeder_id_ } });
 
-    if (not node_parameters.harvest_url_.empty())
-        record->insertField("URL", { { 'a', node_parameters.harvest_url_ } });
+    if (not node_parameters.url_.empty())
+        record->insertField("URL", { { 'a', node_parameters.url_ } });
 
     if (not node_parameters.journal_name_.empty())
         record->insertField("JOU", { { 'a', node_parameters.journal_name_ } });
@@ -838,17 +844,39 @@ void MarcFormatHandler::mergeCustomParametersToItemParameters(struct ItemParamet
 void MarcFormatHandler::handleTrackingAndWriteRecord(const MARC::Record &new_record, const bool keep_delivered_records,
                                                      struct ItemParameters &item_params, unsigned * const previously_downloaded_count)
 {
-    const std::string record_url(item_params.url_);
-    const std::string checksum(StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
-    if (record_url.empty())
+    if (keep_delivered_records) {
+        marc_writer_->write(new_record);
+        return;
+    }
+
+    const std::string hash(StringUtil::ToHexString(MARC::CalcChecksum(new_record)));
+    const auto record_urls(new_record.getSubfieldValues("856", 'u'));
+    if (record_urls.empty())
         LOG_ERROR("\"record_url\" has not been set!");
 
-    if (keep_delivered_records or not delivery_tracker_.hasAlreadyBeenDelivered(record_url, checksum))
-        marc_writer_->write(new_record);
-    else {
-        ++(*previously_downloaded_count);
-        LOG_INFO("skipping URL '" + record_url + "' - already delivered");
+    bool already_delivered(false);
+    for (const auto &url : record_urls) {
+        if (delivery_tracker_.urlAlreadyDelivered(url)) {
+            already_delivered = true;
+            break;
+        }
     }
+
+    if (already_delivered) {
+        ++(*previously_downloaded_count);
+        LOG_INFO("skipping URL '" + item_params.url_ + "' - already delivered (URL match)");
+        return;
+    }
+
+    BSZUpload::DeliveryTracker::Entry delivered_entry;
+    if (delivery_tracker_.hashAlreadyDelivered(hash, &delivered_entry)) {
+        ++(*previously_downloaded_count);
+        LOG_INFO("skipping URL '" + item_params.url_ + "' - already delivered (hash match with URL '"
+                 + delivered_entry.url_ + "')");
+        return;
+    }
+
+    marc_writer_->write(new_record);
 }
 
 
@@ -983,7 +1011,7 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
         const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
         if (suppression_regex->second->matched(string_node->getValue())) {
             LOG_DEBUG("suppression regex '" + suppression_regex->second->getPattern() +
-                        "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
+                      "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
             string_node->setValue("");
         }
     }
@@ -1262,6 +1290,11 @@ bool ValidateAugmentedJSON(const std::shared_ptr<JSON::ObjectNode> &entry, const
                 return false;
             }
         }
+
+        if ((issue == "n/a" or volume == "n/a") and not harvest_params->force_downloads_) {
+            LOG_DEBUG("Skipping: early-view article");
+            return false;
+        }
     }
 
     return true;
@@ -1352,7 +1385,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
         return record_count_and_previously_downloaded_count;
     } else if (not harvest_params->force_downloads_) {
         auto &delivery_tracker(harvest_params->format_handler_->getDeliveryTracker());
-        if (delivery_tracker.hasAlreadyBeenDelivered(harvest_url)) {
+        if (delivery_tracker.urlAlreadyDelivered(harvest_url)) {
             const auto delivery_mode(site_params.delivery_mode_);
             switch (delivery_mode) {
             case BSZUpload::DeliveryMode::TEST:
@@ -1361,7 +1394,7 @@ std::pair<unsigned, unsigned> Harvest(const std::string &harvest_url, const std:
                           BSZUpload::DELIVERY_MODE_TO_STRING_MAP.at(delivery_mode) + " server): " + harvest_url);
                 break;
             default:
-                LOG_DEBUG("Skipping URL (delivery mode set to NONE but URL has already been delivered?!): " + harvest_url);
+                LOG_WARNING("Skipping URL (delivery mode set to NONE but URL has already been delivered?!): " + harvest_url);
                 break;
             }
             already_skipped_urls.insert(harvest_url);

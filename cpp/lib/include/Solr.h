@@ -37,16 +37,36 @@ enum QueryResultFormat { XML, JSON };
 /** \brief Sends a query to a Solr instance.
  *  \param  query               The search query.
  *  \param  fields              The result fields that we want to get back.
+ *  \param  start_row           Row offset.
+ *  \param  no_of_rows          Row count.
  *  \param  xml_or_json_result  Here the returned XML will be stored.
  *  \param  err_msg             An error message will be stored here if anything goes.
  *  \param  host_and_port       Where we want to contact a Solr instance.
  *  \param  timeout             Up to how long, in seconds, we're willing to wait for a response.
  *  \return True if we got a valid response, else false.
  */
-bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
-           std::string * const err_msg, const std::string &host_and_port = DEFAULT_HOST_AND_PORT,
-           const unsigned timeout = DEFAULT_TIMEOUT, const QueryResultFormat query_result_format = XML,
-           const unsigned max_no_of_rows = JAVA_INT_MAX);
+bool Query(const std::string &query, const std::string &fields, const unsigned start_row, const unsigned no_of_rows,
+           std::string * const xml_or_json_result, std::string * const err_msg, const std::string &host_and_port = DEFAULT_HOST_AND_PORT,
+           const unsigned timeout = DEFAULT_TIMEOUT, const QueryResultFormat query_result_format = XML);
+
+
+/** \brief Sends a query to a Solr instance.
+ *  \param  query               The search query.
+ *  \param  fields              The result fields that we want to get back.
+ *  \param  xml_or_json_result  Here the returned XML will be stored.
+ *  \param  err_msg             An error message will be stored here if anything goes.
+ *  \param  host_and_port       Where we want to contact a Solr instance.
+ *  \param  timeout             Up to how long, in seconds, we're willing to wait for a response.
+ *  \return True if we got a valid response, else false.
+ */
+inline bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
+                  std::string * const err_msg, const std::string &host_and_port = DEFAULT_HOST_AND_PORT,
+                  const unsigned timeout = DEFAULT_TIMEOUT, const QueryResultFormat query_result_format = XML,
+                  const unsigned max_no_of_rows = JAVA_INT_MAX)
+{
+    return Query(query, fields, /* start_row = */0, max_no_of_rows, xml_or_json_result, err_msg, host_and_port, timeout,
+                 query_result_format);
+}
 
 
 } // namespace Solr
