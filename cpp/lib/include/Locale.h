@@ -31,6 +31,7 @@
 #include <locale.h>
 
 
+// This class is NOT thread-safe!
 class Locale {
     bool is_valid_;
     std::string old_locale_;

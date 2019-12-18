@@ -61,6 +61,14 @@ HarvestableItem HarvestableItemManager::newHarvestableItem(const std::string &ur
 }
 
 
+ZoteroLogger::ContextData::ContextData(const Util::HarvestableItem &item)
+ : item_(item)
+{
+    buffer_.reserve(static_cast<size_t>(BUFFER_SIZE));
+    buffer_ = "\n\n";
+}
+
+
 void ZoteroLogger::queueMessage(const std::string &level, std::string msg, const TaskletContext &tasklet_context) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
 
@@ -283,6 +291,9 @@ time_t UploadTracker::getLastUploadTime(const std::string &journal_name) const {
 
     return SqlUtil::DatetimeToTimeT(result_set.getNextRow()["delivered_at"]);
 }
+
+
+std::recursive_mutex non_threadsafe_locale_modification_guard;
 
 
 } // end namespace Util

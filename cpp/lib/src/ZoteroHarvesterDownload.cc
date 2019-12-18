@@ -42,10 +42,11 @@ void PostToTranslationServer(const Url &translation_server_url, const unsigned t
                              unsigned * response_code, std::string * const error_message)
 {
     // throttle requests to prevent the harvester from overwhelming the translation server
-    TimeLimit translation_server_wait_timeout(time_limit);
+    TimeLimit translation_server_wait_timeout(time_limit * 3);
 
     while (not translation_server_request_semaphore.tryWait()) {
         if (translation_server_wait_timeout.limitExceeded()) {
+            *error_message = "translation server busy";
             LOG_DEBUG("failed to fetch response from the translation server! error: timed out due to busy server");
             return;
         }
@@ -117,7 +118,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
         // 300 => multiple matches found, try to harvest children (send the response_body right back to the server to get all of them)
         if (result->response_code_ == 300) {
             LOG_DEBUG("multiple articles found => trying to harvest children");
-            LOG_DEBUG("\tresponse: " + result->response_body_);
+            //LOG_DEBUG("\tresponse: " + result->response_body_);
 
             PostToTranslationServer(parameters.translation_server_url_, parameters.time_limit_ * 2, parameters.user_agent_,
                                     result->response_body_, /* request_is_json = */ true, &result->response_body_,
@@ -150,7 +151,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
                         std::string json_string("[" + json_object->toString() + "]");
 
                         LOG_DEBUG("caching download for URL " + url + " @ item " + parameters.download_item_.toString());
-                        LOG_DEBUG("\tresponse: " + json_string + "\n");
+                        //LOG_DEBUG("\tresponse: " + json_string + "\n");
 
                         download_manager_->addToDownloadCache(parameters.download_item_, url, json_string,
                                                               parameters.operation_);
@@ -171,6 +172,10 @@ void Tasklet::run(const Params &parameters, Result * const result) {
     if (result->downloadSuccessful()) {
         download_manager_->addToDownloadCache(parameters.download_item_, parameters.download_item_.url_.toString(),
                                               result->response_body_, parameters.operation_);
+        if (parameters.operation_ == Operation::USE_TRANSLATION_SERVER)
+            LOG_INFO("Harvest successful");
+        else
+            LOG_INFO("Download successful");
     }
 }
 
@@ -196,12 +201,9 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
     Crawler crawler(parameters, download_manager_);
     Crawler::CrawlResult crawl_result;
-    unsigned num_crawled_urls(0), num_queued_urls(0);
     std::unordered_set<std::string> queued_urls;
 
     while (not crawler.timeoutExceeded() and crawler.getNextPage(&crawl_result)) {
-        ++num_crawled_urls;
-
         for (auto &outgoing_url : crawl_result.outgoing_urls_) {
             bool harvest_url(queued_urls.find(outgoing_url.first) == queued_urls.end()
                              and (parameters.download_item_.journal_.crawl_params_.extraction_regex_ == nullptr
@@ -215,7 +217,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
                 result->downloaded_items_.emplace_back(download_manager_->directDownload(new_item, parameters.user_agent_,
                                                                                          DirectDownload::Operation::USE_TRANSLATION_SERVER));
                 queued_urls.emplace(outgoing_url.first);
-                ++num_queued_urls;
+                ++result->num_queued_for_harvest_;
             }
 
             outgoing_url.second = crawl_url ? Crawler::CrawlResult::MARK_FOR_CRAWLING : Crawler::CrawlResult::DO_NOT_CRAWL;
@@ -225,8 +227,11 @@ void Tasklet::run(const Params &parameters, Result * const result) {
     if (crawler.timeoutExceeded())
         LOG_WARNING("process timed-out - not all URLs were crawled");
 
-    LOG_INFO("crawled " + std::to_string(num_crawled_urls) + " URLs, queued "
-             + std::to_string(num_queued_urls) + " URLs for extraction");
+    result->num_crawled_successful_ = crawler.numUrlsSuccessfullyCrawled();
+    result->num_crawled_unsuccessful_ = crawler.numUrlsUnsuccessfullyCrawled();
+
+    LOG_INFO("crawled " + std::to_string(result->num_crawled_successful_) + " URLs, queued "
+             + std::to_string(result->num_queued_for_harvest_) + " URLs for extraction");
 }
 
 
@@ -265,6 +270,7 @@ bool Crawler::continueCrawling() {
 Crawler::Crawler(const Params &parameters, DownloadManager * const download_manager, const std::string &url_ignore_matcher_pattern)
  : parameters_(parameters), total_crawl_time_limit_(parameters.total_crawl_time_limit_),
    url_ignore_matcher_(url_ignore_matcher_pattern, ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE),
+   num_crawled_successful_(0), num_crawled_unsuccessful_(0),
    remaining_crawl_depth_(parameters.download_item_.journal_.crawl_params_.max_crawl_depth_), download_manager_(download_manager)
 {
     url_queue_current_depth_.push(parameters.download_item_.url_.toString());
@@ -303,10 +309,13 @@ bool Crawler::getNextPage(CrawlResult * const crawl_result) {
                                                   DirectDownload::Operation::DIRECT_QUERY, parameters_.per_crawl_url_time_limit_));
 
     const auto &download_result(future->getResult());
-    if (not download_result.downloadSuccessful())
+    if (not download_result.downloadSuccessful()) {
+        ++num_crawled_unsuccessful_;
         return continueCrawling();
+    }
 
     crawled_urls_.emplace(next_url);
+    ++num_crawled_successful_;
 
     // extract outgoing URLs from the downloaded URL
     constexpr unsigned EXTRACT_URL_FLAGS(WebUtil::IGNORE_DUPLICATE_URLS | WebUtil::IGNORE_LINKS_IN_IMG_TAGS
@@ -356,7 +365,10 @@ bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Con
             LOG_ERROR("unexpected negative time difference '" + std::to_string(diff) + "'");
 
         const auto harvest_threshold(journal_params.update_window_ > 0 ? journal_params.update_window_ : feed_harvest_interval_);
-        LOG_DEBUG("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
+        {
+            std::lock_guard<std::recursive_mutex> locale_lock(Util::non_threadsafe_locale_modification_guard);
+            LOG_DEBUG("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
+        }
         LOG_DEBUG("feed harvest threshold: " + std::to_string(harvest_threshold) + " days | diff: " + std::to_string(diff) + " days");
 
         if (diff >= harvest_threshold) {
