@@ -3,6 +3,7 @@ shopt -s extglob
 
 FILES_IMPORT_1="PPN-DaKaR-ZS-Reihen_1_Import_table*.csv"
 FILE_IMPORT_2="PPN-DaKaR-ZS-Reihen_2_Import_table1.csv"
+FILE_IMPORT_3="PPN-DaKaR-ZS-Reihen_3_Import_table1.csv"
 TMPDIR="./all_tables"
 CONVERT_TO_K10PLUS_PPN_FILE="PPN-DaKaR-ZS-Reihen_1_Import.csv" 
 
@@ -18,3 +19,4 @@ done
 # We use gawk since ordinary cut does not cope with comma in quotes
 gawk '{print $1, $4}' FPAT="([^,]+)|(\"[^\"]+\")" OFS="," "$FILE_IMPORT_2" | sed -e '1,2d'
 
+gawk '{print $1, $2}' FPAT="([^,]+)|(\"[^\"]+\")" OFS="," "$FILE_IMPORT_3" | sed -e '1,2d' | sed -e 's/\"//g'
