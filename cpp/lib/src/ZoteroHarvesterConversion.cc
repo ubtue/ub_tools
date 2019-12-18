@@ -964,8 +964,8 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     }
 
     // Zotero sigil
-    marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
     marc_record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
+    marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
 
     // Book-keeping fields
     marc_record->insertField("URL", { { 'a', metadata_record.url_ } });
