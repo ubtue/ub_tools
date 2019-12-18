@@ -433,6 +433,7 @@ void AugmentDBEntries(DbConnection &db_connection,
         const std::string author_row(db_row["autor"]);
         std::vector<std::string> authors_in_row;
         std::vector<std::string> author_gnd_numbers;
+        std::vector<std::string> authors_no_gnd;
         bool author_gnd_seen(false);
         StringUtil::SplitThenTrimWhite(author_row, ';', &authors_in_row, /* suppress_empty_components = */true);
         for (const auto &one_author : authors_in_row) {
@@ -441,10 +442,11 @@ void AugmentDBEntries(DbConnection &db_connection,
                  author_gnd_numbers.emplace_back(author_gnds->second);
                  author_gnd_seen = true;
              } else
-                 author_gnd_numbers.emplace_back(NOT_AVAILABLE);
+                 authors_no_gnd.emplace_back(StringUtil::Escape('\\', '"', one_author));
         }
         // Only write back non-empty string if we have at least one reasonable entry
         std::string a_gnd_content(author_gnd_seen ? StringUtil::Join(author_gnd_numbers, ";") : "");
+        const std::string a_no_gnd_content(authors_no_gnd.size() ? StringUtil::Join(authors_no_gnd, ";") : "");
 
         // Apply manually fixed typos and circumscriptions
         std::string keyword_row(db_row["stichwort"]);
@@ -570,7 +572,7 @@ void AugmentDBEntries(DbConnection &db_connection,
 
         // Write back the new entries
         const std::string id(db_row["id"]);
-        const std::string update_row_query("UPDATE ikr SET a_gnd=\"" +  a_gnd_content + "\", s_gnd=\""  + s_gnd_content
+        const std::string update_row_query("UPDATE ikr SET a_gnd=\"" +  a_gnd_content + "\", a_no_gnd=\"" + a_no_gnd_content + "\", s_gnd=\""  + s_gnd_content
                                            +  "\", s_no_gnd=\"" + s_no_gnd_content +  "\",c_gnd=\"" + c_gnd_content + "\",f_ppn=\"" + f_ppn +
                                            "\", f_quelle=\"" + f_quelle + "\", f_kategorie=\"" + f_category_content + "\", stichwort=\"" + keyword_row + "\""
                                            + " WHERE id=" + id);
