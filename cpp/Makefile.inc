@@ -1,3 +1,4 @@
+MAKEFLAGS      += --warn-undefined-variables
 INC            = $(LIB)/include
 LIB_SRCS       = $(LIB)/src
 CCC            ?= clang++
