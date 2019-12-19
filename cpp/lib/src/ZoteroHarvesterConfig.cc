@@ -96,10 +96,10 @@ const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MA
 
 
 std::string GlobalParams::GetIniKeyString(const IniKey ini_key) {
-    const auto key_and_value(KEY_TO_STRING_MAP.find(ini_key));
-    if (key_and_value == KEY_TO_STRING_MAP.end())
+    const auto key_and_string(KEY_TO_STRING_MAP.find(ini_key));
+    if (key_and_string == KEY_TO_STRING_MAP.end())
         LOG_ERROR("invalid GlobalParams INI key '" + std::to_string(ini_key) + "'");
-    return key_and_value->second;
+    return key_and_string->second;
 }
 
 
@@ -123,10 +123,10 @@ const std::map<GroupParams::IniKey, std::string> GroupParams::KEY_TO_STRING_MAP 
 
 
 std::string GroupParams::GetIniKeyString(const IniKey ini_key) {
-    const auto key_and_value(KEY_TO_STRING_MAP.find(ini_key));
-    if (key_and_value == KEY_TO_STRING_MAP.end())
+    const auto key_and_string(KEY_TO_STRING_MAP.find(ini_key));
+    if (key_and_string == KEY_TO_STRING_MAP.end())
         LOG_ERROR("invalid GroupParams INI key '" + std::to_string(ini_key) + "'");
-    return key_and_value->second;
+    return key_and_string->second;
 }
 
 
@@ -241,10 +241,10 @@ const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_
 
 
 std::string JournalParams::GetIniKeyString(const IniKey ini_key) {
-    const auto key_and_value(KEY_TO_STRING_MAP.find(ini_key));
-    if (key_and_value == KEY_TO_STRING_MAP.end())
+    const auto key_and_string(KEY_TO_STRING_MAP.find(ini_key));
+    if (key_and_string == KEY_TO_STRING_MAP.end())
         LOG_ERROR("invalid GroupParams INI key '" + std::to_string(ini_key) + "'");
-    return key_and_value->second;
+    return key_and_string->second;
 }
 
 
@@ -255,10 +255,10 @@ EnhancementMaps::EnhancementMaps(const std::string &enhancement_map_directory) {
 
 
 std::string EnhancementMaps::lookup(const std::string &issn, const std::unordered_map<std::string, std::string> &map) const {
-    const auto key_and_value(map.find(issn));
-    if (key_and_value == map.end())
+    const auto issn_and_value(map.find(issn));
+    if (issn_and_value == map.end())
         return "";
-    return key_and_value->second;
+    return issn_and_value->second;
 }
 
 
