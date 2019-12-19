@@ -42,7 +42,7 @@ using namespace ZoteroHarvester;
               << "\tOptions:\n"
               << "\t[--min-log-level=log_level]         Possible log levels are ERROR, WARNING (default), INFO and DEBUG\n"
               << "\t[--force-downloads]                 All URLs are unconditionally downloaded and converted.\n"
-              << "\t[--ignore-robots-dot-txt]           Ignore crawling parameters and restrictions specified in robots.txt files\n"
+              << "\t[--ignore-robots-dot-txt]           Ignore crawling/rate-limiting parameters specified in robots.txt files and disable download restrictions globally\n"
               << "\t[--output-directory=output_dir]     Generated files are saved to /tmp/zotero_harvester by default\n"
               << "\t[--output-filename=output_filename] Overrides the automatically-generated filename based on the current date/time. Output format is always MARC-XML\n"
               << "\n"
