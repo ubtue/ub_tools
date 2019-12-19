@@ -53,11 +53,11 @@ HarvestableItemManager::HarvestableItemManager(const std::vector<std::unique_ptr
 
 
 HarvestableItem HarvestableItemManager::newHarvestableItem(const std::string &url, const Config::JournalParams &journal_params) {
-    auto key_and_value(counters_.find(&journal_params));
-    if (key_and_value == counters_.end())
+    auto journal_param_and_counter(counters_.find(&journal_params));
+    if (journal_param_and_counter == counters_.end())
         LOG_ERROR("couldn't fetch harvestable item ID for unknown journal '" + journal_params.name_ + "'");
 
-    return HarvestableItem(++key_and_value->second, url, journal_params);
+    return HarvestableItem(++journal_param_and_counter->second, url, journal_params);
 }
 
 
@@ -72,12 +72,12 @@ ZoteroLogger::ContextData::ContextData(const Util::HarvestableItem &item)
 void ZoteroLogger::queueMessage(const std::string &level, std::string msg, const TaskletContext &tasklet_context) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
 
-    auto key_and_value(active_contexts_.find(tasklet_context.associated_item_));
-    if (key_and_value == active_contexts_.end())
+    auto harvestable_item_and_context(active_contexts_.find(tasklet_context.associated_item_));
+    if (harvestable_item_and_context == active_contexts_.end())
         error("message from unknown tasklet!");
 
     formatMessage(level, &msg);
-    key_and_value->second.buffer_ += msg;
+    harvestable_item_and_context->second.buffer_ += msg;
 }
 
 
@@ -101,11 +101,11 @@ void ZoteroLogger::error(const std::string &msg) {
 
     // flush the tasklet's buffer
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
-    auto key_and_value(active_contexts_.find(context->associated_item_));
-    if (key_and_value == active_contexts_.end())
+    auto harvestable_item_and_context(active_contexts_.find(context->associated_item_));
+    if (harvestable_item_and_context == active_contexts_.end())
         ::Logger::error("double-fault! message from unknown tasklet! original message:\n\n" + preamble + msg);
     else
-        preamble += key_and_value->second.buffer_;
+        preamble += harvestable_item_and_context->second.buffer_;
 
     ::Logger::error(preamble + msg);
 }
@@ -156,8 +156,8 @@ void ZoteroLogger::debug(const std::string &msg) {
 void ZoteroLogger::pushContext(const Util::HarvestableItem &context_item) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
 
-    auto key_and_value(active_contexts_.find(context_item));
-    if (key_and_value != active_contexts_.end())
+    auto harvestable_item_and_context(active_contexts_.find(context_item));
+    if (harvestable_item_and_context != active_contexts_.end())
         error("Harvestable item " + context_item.toString() + " already registered");
 
     active_contexts_.emplace(context_item, context_item);
@@ -167,14 +167,14 @@ void ZoteroLogger::pushContext(const Util::HarvestableItem &context_item) {
 void ZoteroLogger::popContext(const Util::HarvestableItem &context_item) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
 
-    auto key_and_value(active_contexts_.find(context_item));
-    if (key_and_value == active_contexts_.end())
+    auto harvestable_item_and_context(active_contexts_.find(context_item));
+    if (harvestable_item_and_context == active_contexts_.end())
         error("Harvestable " + context_item.toString() + " not registered");
 
     // flush buffer contents and remove the context
-    key_and_value->second.buffer_ += "\n\n";
-    writeString("", key_and_value->second.buffer_, /* format_message = */ false);
-    active_contexts_.erase(key_and_value);
+    harvestable_item_and_context->second.buffer_ += "\n\n";
+    writeString("", harvestable_item_and_context->second.buffer_, /* format_message = */ false);
+    active_contexts_.erase(harvestable_item_and_context);
 }
 
 
@@ -269,11 +269,11 @@ size_t UploadTracker::listOutdatedJournals(const unsigned cutoff_days,
     while (const DbRow row = result_set.getNextRow()) {
         UpdateUploadTrackerEntryFromDbRow(row, &temp_entry);
 
-        auto key_and_value(outdated_journals->find(temp_entry.journal_name_));
-        if (key_and_value != outdated_journals->end()) {
+        auto journal_name_and_last_delivery_timestamp(outdated_journals->find(temp_entry.journal_name_));
+        if (journal_name_and_last_delivery_timestamp != outdated_journals->end()) {
             // save the most recent timestamp
-            if (key_and_value->second < temp_entry.delivered_at_)
-               key_and_value->second = temp_entry.delivered_at_;
+            if (journal_name_and_last_delivery_timestamp->second < temp_entry.delivered_at_)
+               journal_name_and_last_delivery_timestamp->second = temp_entry.delivered_at_;
         } else
             (*outdated_journals)[temp_entry.journal_name_] = temp_entry.delivered_at_;
     }
