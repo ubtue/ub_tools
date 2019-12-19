@@ -3105,7 +3105,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    public String extractFirstK10PlusPPN(final Record record, final String fieldAndSubfieldCode) throws IllegalArgumentException {
+    public String extractFirstK10PlusPPNAndTitle(final Record record, final String fieldAndSubfieldCode) throws IllegalArgumentException {
         if (fieldAndSubfieldCode.length() != 3 + 1)
             throw new IllegalArgumentException("expected a field tag plus a subfield code, got \"" + fieldAndSubfieldCode + "\"!");
 
@@ -3115,8 +3115,11 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         for (final Subfield subfield : field.getSubfields(fieldAndSubfieldCode.charAt(3))) {
             final Matcher matcher = K10PLUS_PPN_PATTERN.matcher(subfield.getData());
-            if (matcher.matches())
-                return matcher.group(1);
+            if (matcher.matches()) {
+                final Subfield titleSubfield = field.getSubfield('a');
+                final String title = (titleSubfield != null) ? titleSubfield.getData() : "";
+                return matcher.group(1) + ":" + title;
+            }
         }
 
         return null;
