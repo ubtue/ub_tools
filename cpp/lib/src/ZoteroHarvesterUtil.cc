@@ -37,12 +37,12 @@ bool HarvestableItem::operator==(const HarvestableItem &rhs) const {
 
 
 std::string HarvestableItem::toString() const {
-    std::string out(std::to_string(id_));
+    std::string as_string(std::to_string(id_));
     std::string journal_name(TextUtil::CollapseAndTrimWhitespace(journal_.name_));
     TextUtil::UnicodeTruncate(&journal_name, 20);
 
-    out += " [" + journal_name + "...] | " + url_.toString();
-    return out;
+    as_string += " [" + journal_name + "...] | " + url_.toString();
+    return as_string;
 }
 
 
@@ -53,16 +53,16 @@ HarvestableItemManager::HarvestableItemManager(const std::vector<std::unique_ptr
 
 
 HarvestableItem HarvestableItemManager::newHarvestableItem(const std::string &url, const Config::JournalParams &journal_params) {
-    auto match(counters_.find(&journal_params));
-    if (match == counters_.end())
+    auto key_and_value(counters_.find(&journal_params));
+    if (key_and_value == counters_.end())
         LOG_ERROR("couldn't fetch harvestable item ID for unknown journal '" + journal_params.name_ + "'");
 
-    return HarvestableItem(++match->second, url, journal_params);
+    return HarvestableItem(++key_and_value->second, url, journal_params);
 }
 
 
 ZoteroLogger::ContextData::ContextData(const Util::HarvestableItem &item)
- : item_(item)
+    : item_(item)
 {
     buffer_.reserve(static_cast<size_t>(BUFFER_SIZE));
     buffer_ = "\n\n";
@@ -72,12 +72,12 @@ ZoteroLogger::ContextData::ContextData(const Util::HarvestableItem &item)
 void ZoteroLogger::queueMessage(const std::string &level, std::string msg, const TaskletContext &tasklet_context) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
 
-    auto match(active_contexts_.find(tasklet_context.associated_item_));
-    if (match == active_contexts_.end())
+    auto key_and_value(active_contexts_.find(tasklet_context.associated_item_));
+    if (key_and_value == active_contexts_.end())
         error("message from unknown tasklet!");
 
     formatMessage(level, &msg);
-    match->second.buffer_ += msg;
+    key_and_value->second.buffer_ += msg;
 }
 
 
@@ -91,7 +91,7 @@ void ZoteroLogger::error(const std::string &msg) {
 
     std::string preamble;
     preamble += "ZOTERO debug info:\n";
-    preamble += "\tparent tasklet: " + context->description_ + " (handle: " + std::to_string(pthread_self()) + ")\n";
+    preamble += "\tparent tasklet: " + context->description_ + " (handle: " + std::to_string(::pthread_self()) + ")\n";
     preamble += "\titem:\n";
     preamble += "\t\tid: " + std::to_string(context->associated_item_.id_) + "\n";
     preamble += "\t\tjournal: " + context->associated_item_.journal_.name_ + " ("
@@ -101,11 +101,11 @@ void ZoteroLogger::error(const std::string &msg) {
 
     // flush the tasklet's buffer
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
-    auto match(active_contexts_.find(context->associated_item_));
-    if (match == active_contexts_.end())
+    auto key_and_value(active_contexts_.find(context->associated_item_));
+    if (key_and_value == active_contexts_.end())
         ::Logger::error("double-fault! message from unknown tasklet! original message:\n\n" + preamble + msg);
     else
-        preamble += match->second.buffer_;
+        preamble += key_and_value->second.buffer_;
 
     ::Logger::error(preamble + msg);
 }
@@ -156,8 +156,8 @@ void ZoteroLogger::debug(const std::string &msg) {
 void ZoteroLogger::pushContext(const Util::HarvestableItem &context_item) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
 
-    auto match(active_contexts_.find(context_item));
-    if (match != active_contexts_.end())
+    auto key_and_value(active_contexts_.find(context_item));
+    if (key_and_value != active_contexts_.end())
         error("Harvestable item " + context_item.toString() + " already registered");
 
     active_contexts_.emplace(context_item, context_item);
@@ -167,14 +167,14 @@ void ZoteroLogger::pushContext(const Util::HarvestableItem &context_item) {
 void ZoteroLogger::popContext(const Util::HarvestableItem &context_item) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
 
-    auto match(active_contexts_.find(context_item));
-    if (match == active_contexts_.end())
+    auto key_and_value(active_contexts_.find(context_item));
+    if (key_and_value == active_contexts_.end())
         error("Harvestable " + context_item.toString() + " not registered");
 
     // flush buffer contents and remove the context
-    match->second.buffer_ += "\n\n";
-    writeString("", match->second.buffer_, /* format_message = */ false);
-    active_contexts_.erase(match);
+    key_and_value->second.buffer_ += "\n\n";
+    writeString("", key_and_value->second.buffer_, /* format_message = */ false);
+    active_contexts_.erase(key_and_value);
 }
 
 
@@ -187,29 +187,29 @@ void ZoteroLogger::Init() {
 
 
 TaskletContextManager::TaskletContextManager() {
-    if (pthread_key_create(&tls_key_, nullptr) != 0)
+    if (::pthread_key_create(&tls_key_, nullptr) != 0)
         LOG_ERROR("could not create tasklet context thread local key");
 }
 
 
 TaskletContextManager::~TaskletContextManager() {
-    if (pthread_key_delete(tls_key_) != 0)
+    if (::pthread_key_delete(tls_key_) != 0)
         LOG_ERROR("could not delete tasklet context thread local key");
 }
 
 
 void TaskletContextManager::setThreadLocalContext(const TaskletContext &context) const {
-    const auto tasklet_data(pthread_getspecific(tls_key_));
+    const auto tasklet_data(::pthread_getspecific(tls_key_));
     if (tasklet_data != nullptr)
-        LOG_ERROR("tasklet local data already set for thread " + std::to_string(pthread_self()));
+        LOG_ERROR("tasklet local data already set for thread " + std::to_string(::pthread_self()));
 
-    if (pthread_setspecific(tls_key_, const_cast<TaskletContext *>(&context)) != 0)
-        LOG_ERROR("could not set tasklet local data for thread " + std::to_string(pthread_self()));
+    if (::pthread_setspecific(tls_key_, const_cast<TaskletContext *>(&context)) != 0)
+        LOG_ERROR("could not set tasklet local data for thread " + std::to_string(::pthread_self()));
 }
 
 
 TaskletContext *TaskletContextManager::getThreadLocalContext() const {
-    return reinterpret_cast<TaskletContext *>(pthread_getspecific(tls_key_));
+    return reinterpret_cast<TaskletContext *>(::pthread_getspecific(tls_key_));
 }
 
 
@@ -269,11 +269,11 @@ size_t UploadTracker::listOutdatedJournals(const unsigned cutoff_days,
     while (const DbRow row = result_set.getNextRow()) {
         UpdateUploadTrackerEntryFromDbRow(row, &temp_entry);
 
-        auto match(outdated_journals->find(temp_entry.journal_name_));
-        if (match != outdated_journals->end()) {
+        auto key_and_value(outdated_journals->find(temp_entry.journal_name_));
+        if (key_and_value != outdated_journals->end()) {
             // save the most recent timestamp
-            if (match->second < temp_entry.delivered_at_)
-               match->second = temp_entry.delivered_at_;
+            if (key_and_value->second < temp_entry.delivered_at_)
+               key_and_value->second = temp_entry.delivered_at_;
         } else
             (*outdated_journals)[temp_entry.journal_name_] = temp_entry.delivered_at_;
     }

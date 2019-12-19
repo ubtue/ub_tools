@@ -286,7 +286,6 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
     if (not override_language_models_directory.empty()) {
         if (not LoadLanguageModels(&new_language_models, override_language_models_directory))
             LOG_ERROR("no language models available in \"" + GetLoadLanguageModelDirectory(override_language_models_directory) + "\"!");
-        LOG_DEBUG("loaded " + std::to_string(new_language_models.size()) + " language models.");
     }
 
     const auto &language_models_to_use(not new_language_models.empty() ? new_language_models : DEFAULT_LANGUAGE_MODELS);

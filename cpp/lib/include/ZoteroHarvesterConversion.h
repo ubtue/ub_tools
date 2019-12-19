@@ -167,9 +167,8 @@ public:
     public:
         GlobalParams(const bool force_downloads, const bool skip_online_first_articles_unconditonally,
                      const Config::EnhancementMaps &enhancement_maps)
-         : force_downloads_(force_downloads),
-           skip_online_first_articles_unconditonally_(skip_online_first_articles_unconditonally),
-           enhancement_maps_(enhancement_maps) {}
+            : force_downloads_(force_downloads), skip_online_first_articles_unconditonally_(skip_online_first_articles_unconditonally),
+              enhancement_maps_(enhancement_maps) {}
         GlobalParams(const GlobalParams &rhs) = default;
     };
 private:

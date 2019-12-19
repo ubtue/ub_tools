@@ -961,10 +961,10 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
 
     // Abrufzeichen und ISIL
-    if (group_params.bsz_upload_group_ == "krimdok") {
+    if (group_params.output_folder_ == "krimdok") {
         marc_record->insertField("852", { { 'a', group_params.isil_ } });
         marc_record->insertField("935", { { 'a', "mkri" } });
-    } else if (group_params.bsz_upload_group_ == "ixtheo"
+    } else if (group_params.output_folder_ == "ixtheo"
                and metadata_record.ssg_ != MetadataRecord::SSGType::INVALID)
     {
         marc_record->insertField("852", { { 'a', group_params.isil_ } });

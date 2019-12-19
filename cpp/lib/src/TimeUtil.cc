@@ -192,13 +192,13 @@ time_t TimeGm(const struct tm &tm) {
 }
 
 
-static const ThreadSafeRegexMatcher MATCHER_ISO8601(
+static const ThreadSafeRegexMatcher ISO8601_MATCHER(
     "[0-9]{4}-[0-9]{2}-[0-9]{2}([[:space:]]|T){1}[0-9]{2}:[0-9]{2}:[0-9]{2}(\\+|\\-|\\s){1}[0-9]{2}(:)[0-9]{2}");
 
 
 // Strips out the colon in the date string to preserve compatibility with CentOS.
 static void NormalizeTimeZoneOffset(std::string * const date_str) {
-    if (MATCHER_ISO8601.match(*date_str))
+    if (ISO8601_MATCHER.match(*date_str))
         date_str->erase(date_str->length() - 3, 1);
 }
 

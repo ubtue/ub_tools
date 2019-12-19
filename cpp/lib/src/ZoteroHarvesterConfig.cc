@@ -61,17 +61,17 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
     rss_harvester_operation_params_.harvest_interval_ = 0;
     rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_ = false;
 
-    translation_server_url_ = config_section.getString(GetINIKeyString(TRANSLATION_SERVER_URL));
-    enhancement_maps_directory_ = config_section.getString(GetINIKeyString(ENHANCEMENT_MAPS_DIRECTORY));
-    group_names_ = config_section.getString(GetINIKeyString(GROUP_NAMES));
-    strptime_format_string_ = config_section.getString(GetINIKeyString(STRPTIME_FORMAT_STRING));
-    skip_online_first_articles_unconditonally_ = config_section.getBool(GetINIKeyString(SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY));
-    download_delay_params_.default_delay_ = config_section.getUnsigned(GetINIKeyString(DOWNLOAD_DELAY_DEFAULT));
-    download_delay_params_.max_delay_ = config_section.getUnsigned(GetINIKeyString(DOWNLOAD_DELAY_MAX));
-    timeout_crawl_operation_ = config_section.getUnsigned(GetINIKeyString(TIMEOUT_CRAWL_OPERATION)) * 1000;
-    timeout_download_request_ = config_section.getUnsigned(GetINIKeyString(TIMEOUT_DOWNLOAD_REQUEST)) * 1000;
-    rss_harvester_operation_params_.harvest_interval_ = config_section.getUnsigned(GetINIKeyString(RSS_HARVEST_INTERVAL));
-    rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_ = config_section.getBool(GetINIKeyString(RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES));
+    translation_server_url_ = config_section.getString(GetIniKeyString(TRANSLATION_SERVER_URL));
+    enhancement_maps_directory_ = config_section.getString(GetIniKeyString(ENHANCEMENT_MAPS_DIRECTORY));
+    group_names_ = config_section.getString(GetIniKeyString(GROUP_NAMES));
+    strptime_format_string_ = config_section.getString(GetIniKeyString(STRPTIME_FORMAT_STRING));
+    skip_online_first_articles_unconditonally_ = config_section.getBool(GetIniKeyString(SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY));
+    download_delay_params_.default_delay_ = config_section.getUnsigned(GetIniKeyString(DOWNLOAD_DELAY_DEFAULT));
+    download_delay_params_.max_delay_ = config_section.getUnsigned(GetIniKeyString(DOWNLOAD_DELAY_MAX));
+    timeout_crawl_operation_ = config_section.getUnsigned(GetIniKeyString(TIMEOUT_CRAWL_OPERATION)) * 1000;
+    timeout_download_request_ = config_section.getUnsigned(GetIniKeyString(TIMEOUT_DOWNLOAD_REQUEST)) * 1000;
+    rss_harvester_operation_params_.harvest_interval_ = config_section.getUnsigned(GetIniKeyString(RSS_HARVEST_INTERVAL));
+    rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_ = config_section.getBool(GetIniKeyString(RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES));
 
     if (not strptime_format_string_.empty()) {
         if (strptime_format_string_[0] == '(')
@@ -80,7 +80,7 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
 }
 
 
-const std::map<GlobalParams::INIKey, std::string> GlobalParams::KEY_TO_STRING_MAP {
+const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MAP {
     { TRANSLATION_SERVER_URL,                     "translation_server_url" },
     { ENHANCEMENT_MAPS_DIRECTORY,                 "enhancement_maps_directory" },
     { GROUP_NAMES,                                "groups" },
@@ -95,69 +95,69 @@ const std::map<GlobalParams::INIKey, std::string> GlobalParams::KEY_TO_STRING_MA
 };
 
 
-std::string GlobalParams::GetINIKeyString(const INIKey ini_key) {
-    const auto match(KEY_TO_STRING_MAP.find(ini_key));
-    if (match == KEY_TO_STRING_MAP.end())
+std::string GlobalParams::GetIniKeyString(const IniKey ini_key) {
+    const auto key_and_value(KEY_TO_STRING_MAP.find(ini_key));
+    if (key_and_value == KEY_TO_STRING_MAP.end())
         LOG_ERROR("invalid GlobalParams INI key '" + std::to_string(ini_key) + "'");
-    return match->second;
+    return key_and_value->second;
 }
 
 
 GroupParams::GroupParams(const IniFile::Section &group_section) {
     name_ = group_section.getSectionName();
-    user_agent_ = group_section.getString(GetINIKeyString(USER_AGENT));
-    isil_ = group_section.getString(GetINIKeyString(ISIL));
-    bsz_upload_group_ = group_section.getString(GetINIKeyString(BSZ_UPLOAD_GROUP));
-    author_ppn_lookup_url_ = group_section.getString(GetINIKeyString(AUTHOR_PPN_LOOKUP_URL));
-    author_gnd_lookup_query_params_ = group_section.getString(GetINIKeyString(AUTHOR_GND_LOOKUP_QUERY_PARAMS), "");
+    user_agent_ = group_section.getString(GetIniKeyString(USER_AGENT));
+    isil_ = group_section.getString(GetIniKeyString(ISIL));
+    output_folder_ = group_section.getString(GetIniKeyString(OUTPUT_FOLDER));
+    author_ppn_lookup_url_ = group_section.getString(GetIniKeyString(AUTHOR_PPN_LOOKUP_URL));
+    author_gnd_lookup_query_params_ = group_section.getString(GetIniKeyString(AUTHOR_GND_LOOKUP_QUERY_PARAMS), "");
 }
 
 
-const std::map<GroupParams::INIKey, std::string> GroupParams::KEY_TO_STRING_MAP {
+const std::map<GroupParams::IniKey, std::string> GroupParams::KEY_TO_STRING_MAP {
     { USER_AGENT,                     "user_agent" },
     { ISIL,                           "isil" },
-    { BSZ_UPLOAD_GROUP,               "bsz_upload_group" },
+    { OUTPUT_FOLDER,                  "output_folder" },
     { AUTHOR_PPN_LOOKUP_URL,          "author_ppn_lookup_url" },
     { AUTHOR_GND_LOOKUP_QUERY_PARAMS, "author_gnd_lookup_query_params" },
 };
 
 
-std::string GroupParams::GetINIKeyString(const INIKey ini_key) {
-    const auto match(KEY_TO_STRING_MAP.find(ini_key));
-    if (match == KEY_TO_STRING_MAP.end())
+std::string GroupParams::GetIniKeyString(const IniKey ini_key) {
+    const auto key_and_value(KEY_TO_STRING_MAP.find(ini_key));
+    if (key_and_value == KEY_TO_STRING_MAP.end())
         LOG_ERROR("invalid GroupParams INI key '" + std::to_string(ini_key) + "'");
-    return match->second;
+    return key_and_value->second;
 }
 
 
 JournalParams::JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params) {
-    zeder_id_ = journal_section.getUnsigned(GetINIKeyString(ZEDER_ID));
+    zeder_id_ = journal_section.getUnsigned(GetIniKeyString(ZEDER_ID));
     name_ = journal_section.getSectionName();
-    group_ = journal_section.getString(GetINIKeyString(GROUP));
-    entry_point_url_ = journal_section.getString(GetINIKeyString(ENTRY_POINT_URL));
-    harvester_operation_ = static_cast<HarvesterOperation>(journal_section.getEnum(GetINIKeyString(HARVESTER_OPERATION),
+    group_ = journal_section.getString(GetIniKeyString(GROUP));
+    entry_point_url_ = journal_section.getString(GetIniKeyString(ENTRY_POINT_URL));
+    harvester_operation_ = static_cast<HarvesterOperation>(journal_section.getEnum(GetIniKeyString(HARVESTER_OPERATION),
                                                            STRING_TO_HARVEST_OPERATION_MAP));
-    upload_operation_ = static_cast<UploadOperation>(journal_section.getEnum(GetINIKeyString(UPLOAD_OPERATION),
+    upload_operation_ = static_cast<UploadOperation>(journal_section.getEnum(GetIniKeyString(UPLOAD_OPERATION),
                                                      STRING_TO_UPLOAD_OPERATION_MAP, UploadOperation::NONE));
-    ppn_.online_ = journal_section.getString(GetINIKeyString(ONLINE_PPN), "");
-    ppn_.print_ = journal_section.getString(GetINIKeyString(PRINT_PPN), "");
-    issn_.online_ = journal_section.getString(GetINIKeyString(ONLINE_ISSN), "");
-    issn_.print_ = journal_section.getString(GetINIKeyString(PRINT_ISSN), "");
-    strptime_format_string_ = journal_section.getString(GetINIKeyString(STRPTIME_FORMAT_STRING), "");
+    ppn_.online_ = journal_section.getString(GetIniKeyString(ONLINE_PPN), "");
+    ppn_.print_ = journal_section.getString(GetIniKeyString(PRINT_PPN), "");
+    issn_.online_ = journal_section.getString(GetIniKeyString(ONLINE_ISSN), "");
+    issn_.print_ = journal_section.getString(GetIniKeyString(PRINT_ISSN), "");
+    strptime_format_string_ = journal_section.getString(GetIniKeyString(STRPTIME_FORMAT_STRING), "");
     if (not global_params.strptime_format_string_.empty()) {
         if (not strptime_format_string_.empty())
             strptime_format_string_ += '|';
 
         strptime_format_string_ += global_params.strptime_format_string_;
     }
-    update_window_ = journal_section.getUnsigned(GetINIKeyString(UPDATE_WINDOW), 0);
+    update_window_ = journal_section.getUnsigned(GetIniKeyString(UPDATE_WINDOW), 0);
 
-    const auto review_regex(journal_section.getString(GetINIKeyString(REVIEW_REGEX), ""));
+    const auto review_regex(journal_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
     if (not review_regex.empty())
         review_regex_.reset(new ThreadSafeRegexMatcher(review_regex));
 
     language_params_.force_automatic_language_detection_ = false;
-    auto expected_languages(journal_section.getString(GetINIKeyString(EXPECTED_LANGUAGES), ""));
+    auto expected_languages(journal_section.getString(GetIniKeyString(EXPECTED_LANGUAGES), ""));
     if (not expected_languages.empty() and expected_languages[0] == '*') {
         language_params_.force_automatic_language_detection_ = true;
         expected_languages = expected_languages.substr(1);
@@ -169,12 +169,12 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     }
     StringUtil::Split(expected_languages, ',', &language_params_.expected_languages_, /* suppress_empty_components = */true);
 
-    crawl_params_.max_crawl_depth_ = journal_section.getUnsigned(GetINIKeyString(CRAWL_MAX_DEPTH), 1);
-    const auto extraction_regex(journal_section.getString(GetINIKeyString(CRAWL_EXTRACTION_REGEX), ""));
+    crawl_params_.max_crawl_depth_ = journal_section.getUnsigned(GetIniKeyString(CRAWL_MAX_DEPTH), 1);
+    const auto extraction_regex(journal_section.getString(GetIniKeyString(CRAWL_EXTRACTION_REGEX), ""));
     if (not extraction_regex.empty())
         crawl_params_.extraction_regex_.reset(new ThreadSafeRegexMatcher(extraction_regex));
 
-    const auto crawl_regex(journal_section.getString(GetINIKeyString(CRAWL_URL_REGEX), ""));
+    const auto crawl_regex(journal_section.getString(GetIniKeyString(CRAWL_URL_REGEX), ""));
     if (not crawl_regex.empty())
         crawl_params_.crawl_url_regex_.reset(new ThreadSafeRegexMatcher(crawl_regex));
 
@@ -219,7 +219,7 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
 }
 
 
-const std::map<JournalParams::INIKey, std::string> JournalParams::KEY_TO_STRING_MAP {
+const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_MAP {
     { ZEDER_ID,                "zeder_id" },
     { ZEDER_MODIFIED_TIME,     "zeder_modified_time" },
     { GROUP,                   "zotero_group" },
@@ -240,11 +240,11 @@ const std::map<JournalParams::INIKey, std::string> JournalParams::KEY_TO_STRING_
 };
 
 
-std::string JournalParams::GetINIKeyString(const INIKey ini_key) {
-    const auto match(KEY_TO_STRING_MAP.find(ini_key));
-    if (match == KEY_TO_STRING_MAP.end())
+std::string JournalParams::GetIniKeyString(const IniKey ini_key) {
+    const auto key_and_value(KEY_TO_STRING_MAP.find(ini_key));
+    if (key_and_value == KEY_TO_STRING_MAP.end())
         LOG_ERROR("invalid GroupParams INI key '" + std::to_string(ini_key) + "'");
-    return match->second;
+    return key_and_value->second;
 }
 
 
@@ -255,10 +255,10 @@ EnhancementMaps::EnhancementMaps(const std::string &enhancement_map_directory) {
 
 
 std::string EnhancementMaps::lookup(const std::string &issn, const std::unordered_map<std::string, std::string> &map) const {
-    const auto match(map.find(issn));
-    if (match == map.end())
+    const auto key_and_value(map.find(issn));
+    if (key_and_value == map.end())
         return "";
-    return match->second;
+    return key_and_value->second;
 }
 
 

@@ -38,7 +38,7 @@ namespace Config {
 
 // Parameters that pertain to all harvestable journals/groups.
 struct GlobalParams {
-    enum INIKey : unsigned {
+    enum IniKey : unsigned {
         TRANSLATION_SERVER_URL,
         ENHANCEMENT_MAPS_DIRECTORY,
         GROUP_NAMES,
@@ -72,9 +72,9 @@ public:
     GlobalParams(const GlobalParams &rhs) = default;
     GlobalParams &operator=(const GlobalParams &rhs) = default;
 
-    static std::string GetINIKeyString(const INIKey ini_key);
+    static std::string GetIniKeyString(const IniKey ini_key);
 private:
-    static const std::map<INIKey, std::string> KEY_TO_STRING_MAP;
+    static const std::map<IniKey, std::string> KEY_TO_STRING_MAP;
 };
 
 
@@ -94,10 +94,10 @@ extern const std::map<int, std::string> UPLOAD_OPERATION_TO_STRING_MAP;
 
 // Parameters that pertain to a specific group. Every journal has an associated group.
 struct GroupParams {
-    enum INIKey : unsigned {
+    enum IniKey : unsigned {
         USER_AGENT,
         ISIL,
-        BSZ_UPLOAD_GROUP,
+        OUTPUT_FOLDER,
         AUTHOR_PPN_LOOKUP_URL,
         AUTHOR_GND_LOOKUP_QUERY_PARAMS,
     };
@@ -105,7 +105,7 @@ struct GroupParams {
     std::string name_;
     std::string user_agent_;
     std::string isil_;
-    std::string bsz_upload_group_;
+    std::string output_folder_;
     std::string author_ppn_lookup_url_;
     std::string author_gnd_lookup_query_params_;
 public:
@@ -113,15 +113,15 @@ public:
     GroupParams(const GroupParams &rhs) = default;
     GroupParams &operator=(const GroupParams &rhs) = default;
 
-    static std::string GetINIKeyString(const INIKey ini_key);
+    static std::string GetIniKeyString(const IniKey ini_key);
 private:
-    static const std::map<INIKey, std::string> KEY_TO_STRING_MAP;
+    static const std::map<IniKey, std::string> KEY_TO_STRING_MAP;
 };
 
 
 // Parameters that pertain to a specific journal.
 struct JournalParams {
-    enum INIKey : unsigned {
+    enum IniKey : unsigned {
         ZEDER_ID,
         ZEDER_MODIFIED_TIME,
         GROUP,
@@ -184,9 +184,9 @@ public:
     JournalParams(const GroupParams &rhs) = delete;
     JournalParams &operator=(const GroupParams &rhs) = delete;
 
-    static std::string GetINIKeyString(const INIKey ini_key);
+    static std::string GetIniKeyString(const IniKey ini_key);
 private:
-    static const std::map<INIKey, std::string> KEY_TO_STRING_MAP;
+    static const std::map<IniKey, std::string> KEY_TO_STRING_MAP;
 };
 
 

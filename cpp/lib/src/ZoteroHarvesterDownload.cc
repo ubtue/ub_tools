@@ -17,6 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <condition_variable>
 #include "JSON.h"
 #include "StringUtil.h"
 #include "WebUtil.h"
