@@ -23,7 +23,7 @@
 #include "util.h"
 
 
-static bool CheckPCREUTF8Compatibility() {
+static bool CheckPCRE_UTF8Compatibility() {
     int utf8_available;
     if (::pcre_config(PCRE_CONFIG_UTF8, reinterpret_cast<void *>(&utf8_available)) == PCRE_ERROR_BADOPTION
         or utf8_available != 1)
@@ -35,11 +35,11 @@ static bool CheckPCREUTF8Compatibility() {
 }
 
 
-static const bool dummy_variable(CheckPCREUTF8Compatibility());
+static const bool dummy_variable(CheckPCRE_UTF8Compatibility());
 
 
 ThreadSafeRegexMatcher::MatchResult::MatchResult(const std::string &subject)
- : subject_(subject), matched_(false), match_count_(0)
+    : subject_(subject), matched_(false), match_count_(0)
 {
     substr_indices_.resize(ThreadSafeRegexMatcher::MAX_SUBSTRING_MATCHES * 3);
 }
@@ -103,7 +103,7 @@ ThreadSafeRegexMatcher::ThreadSafeRegexMatcher(const std::string &pattern, const
     std::string err_msg;
     if (not CompileRegex(pattern_, options_, &pcre_data_->pcre_, &pcre_data_->pcre_extra_, &err_msg)) {
         if (err_msg.empty())
-            LOG_ERROR("failed to compile pattern: \"" + pattern + "\"" + (err_msg.empty() ? "" : ": " + err_msg));
+            LOG_ERROR("failed to compile pattern: \"" + pattern + "\": " + err_msg);
     }
 }
 
@@ -144,16 +144,14 @@ ThreadSafeRegexMatcher::MatchResult ThreadSafeRegexMatcher::match(
 
 
 std::string ThreadSafeRegexMatcher::replaceAll(const std::string &subject, const std::string &replacement) const {
-    auto match_result(match(subject));
-    if (not match_result)
+    if (not match(subject))
         return subject;
 
     std::string replaced_string;
     // the matches need to be sequentially sorted from left to right
     size_t subject_start_offset(0), match_start_offset(0), match_end_offset(0);
     while (subject_start_offset < subject.length()) {
-        match_result = match(subject, subject_start_offset, &match_start_offset, &match_end_offset);
-        if (not match_result)
+        if (not match(subject, subject_start_offset, &match_start_offset, &match_end_offset))
             break;
 
         if (subject_start_offset == match_start_offset and subject_start_offset == match_end_offset) {

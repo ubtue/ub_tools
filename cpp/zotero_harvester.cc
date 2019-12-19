@@ -417,7 +417,7 @@ const std::unique_ptr<MARC::Writer> &OutputFileCache::getWriter(const Config::Gr
     if (match->second != nullptr)
         return match->second;
 
-    const auto output_file_directory(output_directory_ + "/" + group_params.bsz_upload_group_ + "/");
+    const auto output_file_directory(output_directory_ + "/" + group_params.output_folder_ + "/");
     FileUtil::MakeDirectory(output_file_directory, true);
 
     match->second.reset(MARC::Writer::Factory(output_file_directory + output_filename_).release());
