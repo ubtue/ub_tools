@@ -215,7 +215,7 @@ private:
     // The single parameter points to the calling Tasklet instance. The user
     // of the Tasklet class must ensure that instance pointed to is valid
     // until the thread routine returns.
-    static void *ThreadRoutine(Tasklet<Parameter, Result> * const parameter);
+    static void ThreadRoutine(Tasklet<Parameter, Result> * const parameter);
 
 
     TaskletContext context_;
@@ -281,7 +281,7 @@ public:
 extern ThreadUtil::ThreadSafeCounter<unsigned> tasklet_instance_counter;
 
 
-template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::ThreadRoutine(
+template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::ThreadRoutine(
     Tasklet<Parameter, Result> * const parameter)
 {
     Tasklet<Parameter, Result> * const tasklet(reinterpret_cast<Tasklet<Parameter, Result> *>(parameter));
