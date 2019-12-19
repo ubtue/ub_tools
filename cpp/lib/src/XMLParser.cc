@@ -25,6 +25,19 @@
 #include "XmlUtil.h"
 
 
+// Dummy struct to perform process-level init/deinit related to Xerces library.
+struct XercesPlatform {
+    int dummy_variable_;
+public:
+    XercesPlatform() {
+        xercesc::XMLPlatformUtils::Initialize();
+    }
+    ~XercesPlatform() {
+        xercesc::XMLPlatformUtils::Terminate();
+    }
+} xerces_platform;
+
+
 const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
     /* do_namespaces_ = */      false,
     /* do_schema_ = */          false,
@@ -135,7 +148,6 @@ void XMLParser::Handler::setDocumentLocator(const xercesc::Locator * const locat
 XMLParser::XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options)
     : xml_filename_or_string_(xml_filename_or_string), type_(type), options_(options)
 {
-    xercesc::XMLPlatformUtils::Initialize();
     parser_  = new xercesc::SAXParser();
 
     handler_ = new XMLParser::Handler();
