@@ -3102,4 +3102,22 @@ public class TuelibMixin extends SolrIndexerMixin {
             response.close();
         }
     }
+
+
+    public String extractFirstK10PlusPPN(final Record record, final String fieldAndSubfieldCode) throws IllegalArgumentException {
+        if (fieldAndSubfieldCode.length() != 3 + 1)
+            throw new IllegalArgumentException("expected a field tag plus a subfield code, got \"" + fieldAndSubfieldCode + "\"!");
+
+        final DataField field = (DataField) record.getVariableField(fieldAndSubfieldCode.substring(0, 3));
+        if (field == null)
+            return null;
+
+        for (final Subfield subfield : field.getSubfields(fieldAndSubfieldCode.charAt(3))) {
+            final Matcher matcher = SUPERIOR_PPN_PATTERN.matcher(subfield.getData());
+            if (matcher.matches())
+                return matcher.group(1);
+        }
+
+        return null;
+    }
 }
