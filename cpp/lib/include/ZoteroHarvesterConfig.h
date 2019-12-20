@@ -136,6 +136,7 @@ struct JournalParams {
         UPDATE_WINDOW,
         REVIEW_REGEX,
         EXPECTED_LANGUAGES,
+        SSGN,
         CRAWL_MAX_DEPTH,
         CRAWL_EXTRACTION_REGEX,
         CRAWL_URL_REGEX,
@@ -206,6 +207,11 @@ public:
     std::string lookupLicense(const std::string &issn) const;
     std::string lookupSSG(const std::string &issn) const;
 };
+
+
+void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
+                             std::vector<std::unique_ptr<GroupParams>> * const group_params,
+                             std::vector<std::unique_ptr<JournalParams>> * const journal_params);
 
 
 } // end namespace Config

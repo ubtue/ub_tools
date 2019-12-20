@@ -180,7 +180,7 @@ public:
 // allocate memory in each executing thread's TLS (thread-local segment).
 // The memory is used to store a pointer to the corresponding TaskletContext instance.
 class TaskletContextManager {
-    pthread_key_t tls_key_;
+    ::pthread_key_t tls_key_;
 public:
     TaskletContextManager();
     ~TaskletContextManager();
@@ -219,7 +219,7 @@ private:
 
 
     TaskletContext context_;
-    pthread_t thread_id_;
+    ::pthread_t thread_id_;
     mutable std::mutex mutex_;
     Status status_;
     // Incremented by one for the duration of the task.
@@ -255,7 +255,7 @@ public:
     // Spins up a new thread and executes the payload.
     void start();
 
-    inline pthread_t getID() const
+    inline ::pthread_t getID() const
         { return thread_id_; }
     inline Status getStatus() const {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -280,14 +280,15 @@ public:
 // Used for debugging.
 extern ThreadUtil::ThreadSafeCounter<unsigned> tasklet_instance_counter;
 
-
 template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::ThreadRoutine(
     Tasklet<Parameter, Result> * const parameter)
 {
     Tasklet<Parameter, Result> * const tasklet(reinterpret_cast<Tasklet<Parameter, Result> *>(parameter));
     const auto zotero_logger(dynamic_cast<ZoteroLogger *>(::logger));
+    const auto thread_id(tasklet->thread_id_);
+    assert(thread_id == ::pthread_self());
 
-    pthread_setname_np(pthread_self(), tasklet->context_.description_.c_str());
+    ::pthread_setname_np(thread_id, tasklet->context_.description_.c_str());
     // Store the tasklet context in the thread-local data segment.
     // We do not need to worry about cleaning it up as the context will
     // be automatically released when the tasklet gets destroyed.
@@ -301,11 +302,11 @@ template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::T
         tasklet->setStatus(Status::RUNNING);
         tasklet->runnable_(*tasklet->parameter_.get(), tasklet->result_.get());
     } catch (const std::runtime_error &exception) {
-        LOG_WARNING("exception in tasklet '" + std::to_string(tasklet->thread_id_) + "': " + exception.what()
+        LOG_WARNING("exception in tasklet '" + std::to_string(thread_id) + "': " + exception.what()
                     + "\ntasklet description: "  + tasklet->context_.description_);
         completion_status = Status::COMPLETED_ERROR;
     } catch (...) {
-        LOG_WARNING("unknown exception in tasklet '" + std::to_string(tasklet->thread_id_) + "'"
+        LOG_WARNING("unknown exception in tasklet '" + std::to_string(thread_id) + "'"
                     + "\ntasklet description: "  + tasklet->context_.description_);
         completion_status = Status::COMPLETED_ERROR;
     }
@@ -314,9 +315,15 @@ template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::T
     zotero_logger->popContext(tasklet->context_.associated_item_);
     --(*tasklet->running_instance_counter_);
 
+    // Detach the thread so that its resources are automatically cleaned up.
+    // NOTE: The following line can potentially break versions built with ThreadSanitizer instrumentation,
+    // leading to a fatal bugcheck in the latter's code. Comment out the line to work around this potential
+    // bug in ThreadSanitizer. Threads are reaped when the process terminates, so there shouldn't be any
+    // leaks even if the pthread_detach() call is ignored.
+    ::pthread_detach(thread_id);
     // Flagged at the very end of the routine to prevent data races.
     tasklet->setStatus(completion_status);
-    pthread_exit(nullptr);
+    ::pthread_exit(nullptr);
 }
 
 

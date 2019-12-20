@@ -17,7 +17,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <condition_variable>
 #include "JSON.h"
 #include "StringUtil.h"
 #include "WebUtil.h"
@@ -558,13 +557,16 @@ DownloadManager::DomainData *DownloadManager::lookupDomainData(const Url &url, b
 
 
 void DownloadManager::processQueueBuffers() {
-    // enqueue the tasks in their domain-specific queues
+    // Enqueue the tasks in their domain-specific queues.
     {
         std::lock_guard<std::recursive_mutex> direct_download_queue_buffer_lock(direct_download_queue_buffer_mutex_);
         while (not direct_download_queue_buffer_.empty()) {
             std::shared_ptr<DirectDownload::Tasklet> tasklet(direct_download_queue_buffer_.front());
             auto domain_data(lookupDomainData(tasklet->getParameter().download_item_.url_, /* add_if_absent = */ true));
-            domain_data->queued_direct_downloads_.emplace_back(tasklet);
+            if (tasklet->getParameter().operation_ == DirectDownload::Operation::DIRECT_QUERY)
+                domain_data->queued_direct_downloads_direct_query_.emplace_back(tasklet);
+            else
+                domain_data->queued_direct_downloads_translation_server_.emplace_back(tasklet);
 
             direct_download_queue_buffer_.pop_front();
         }
@@ -595,18 +597,34 @@ void DownloadManager::processQueueBuffers() {
 
 
 void DownloadManager::processDomainQueues(DomainData * const domain_data) {
-    // apply download delays and create tasklets for downloads/crawls
+    // Apply download delays and create tasklets for downloads/crawls.
     const bool adhere_to_download_limit(not global_params_.ignore_robots_txt_);
 
     if (adhere_to_download_limit and not domain_data->delay_params_.time_limit_.limitExceeded())
         return;
 
-    while (not domain_data->queued_direct_downloads_.empty()
+    // DirectDownloads that do not involve querying the Zotero Translation Server
+    // need to be prioritised over the former to prevent bottlenecks in Crawl operations.
+    while (not domain_data->queued_direct_downloads_direct_query_.empty()
            and direct_download_tasklet_execution_counter_ < MAX_DIRECT_DOWNLOAD_TASKLETS)
     {
-        std::shared_ptr<DirectDownload::Tasklet> direct_download_tasklet(domain_data->queued_direct_downloads_.front());
+        std::shared_ptr<DirectDownload::Tasklet> direct_download_tasklet(domain_data->queued_direct_downloads_direct_query_.front());
         domain_data->active_direct_downloads_.emplace_back(direct_download_tasklet);
-        domain_data->queued_direct_downloads_.pop_front();
+        domain_data->queued_direct_downloads_direct_query_.pop_front();
+        direct_download_tasklet->start();
+
+        if (adhere_to_download_limit) {
+            domain_data->delay_params_.time_limit_.restart();
+            return;
+        }
+    }
+
+    while (not domain_data->queued_direct_downloads_translation_server_.empty()
+           and direct_download_tasklet_execution_counter_ < MAX_DIRECT_DOWNLOAD_TASKLETS)
+    {
+        std::shared_ptr<DirectDownload::Tasklet> direct_download_tasklet(domain_data->queued_direct_downloads_translation_server_.front());
+        domain_data->active_direct_downloads_.emplace_back(direct_download_tasklet);
+        domain_data->queued_direct_downloads_translation_server_.pop_front();
         direct_download_tasklet->start();
 
         if (adhere_to_download_limit) {

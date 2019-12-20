@@ -310,7 +310,8 @@ private:
     struct DomainData {
         DelayParams delay_params_;
         std::deque<std::shared_ptr<DirectDownload::Tasklet>> active_direct_downloads_;
-        std::deque<std::shared_ptr<DirectDownload::Tasklet>> queued_direct_downloads_;
+        std::deque<std::shared_ptr<DirectDownload::Tasklet>> queued_direct_downloads_translation_server_;
+        std::deque<std::shared_ptr<DirectDownload::Tasklet>> queued_direct_downloads_direct_query_;
         std::deque<std::shared_ptr<Crawling::Tasklet>> active_crawls_;
         std::deque<std::shared_ptr<Crawling::Tasklet>> queued_crawls_;
         std::deque<std::shared_ptr<RSS::Tasklet>> active_rss_feeds_;
