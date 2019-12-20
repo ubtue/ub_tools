@@ -29,9 +29,8 @@
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input marc_output code_to_description_map\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]] void Usage() {
+    ::Usage("marc_input marc_output code_to_description_map");
 }
 
 
@@ -47,25 +46,26 @@ void LoadCodeToDescriptionMap(File * const code_to_description_map_file,
 
         const size_t comma_pos(line.find(','));
         if (comma_pos == std::string::npos)
-            logger->error("in LoadCodeToDescriptionMap: malformed line " + std::to_string(line_no) + " in \""
-                          + code_to_description_map_file->getPath() + "\"! (1)");
+            LOG_ERROR("in LoadCodeToDescriptionMap: malformed line " + std::to_string(line_no) + " in \""
+                      + code_to_description_map_file->getPath() + "\"! (1)");
 
         const std::string code(line.substr(0, comma_pos));
         if (code.length() != 2 and code.length() != 3)
-            logger->error("in LoadCodeToDescriptionMap: malformed line " + std::to_string(line_no) + " in \""
-                          + code_to_description_map_file->getPath() + "\"! (2)");
+            LOG_ERROR("in LoadCodeToDescriptionMap: malformed line " + std::to_string(line_no) + " in \""
+                      + code_to_description_map_file->getPath() + "\"! (2)");
 
         (*code_to_description_map)[code] = line.substr(comma_pos + 1);
     }
 
-    std::cerr << "Found " << code_to_description_map->size() << " code to description mappings.\n";
+    LOG_INFO("Found " + std::to_string(code_to_description_map->size()) + " code to description mappings.");
 }
 
 
 bool LocalBlockIsFromIxTheoTheologians(const MARC::Record::const_iterator &local_block_start, const MARC::Record &record) {
     for (const auto &_852_local_field : record.findFieldsInLocalBlock("852", local_block_start, /*indicator1*/' ', /*indicator2*/' ')) {
         const MARC::Subfields subfields(_852_local_field.getSubfields());
-        if (subfields.hasSubfieldWithValue('a', "Tü 135") or subfields.hasSubfieldWithValue('a', "Tü 135/1"))
+        if (subfields.hasSubfieldWithValue('a', "Tü 135") or subfields.hasSubfieldWithValue('a', "Tü 135/1")
+            or subfields.hasSubfieldWithValue('a', "DE-Tue135"))
             return true;
     }
 
@@ -112,15 +112,13 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         marc_writer->write(record);
     }
 
-    std::cout << ::progname << ": Read " << count << " records.\n";
-    std::cout << ::progname << ": " << records_with_ixtheo_notations << " records had ixTheo notations.\n";
-    std::cout << ::progname << ": Found " << ixtheo_notation_count << " ixTheo notations overall.\n";
+    LOG_INFO("Read " + std::to_string(count) + " records.");
+    LOG_INFO(std::to_string(records_with_ixtheo_notations) + " records had ixTheo notations.");
+    LOG_INFO("Found " + std::to_string(ixtheo_notation_count) + " ixTheo notations overall.");
 }
 
 
 int Main(int argc, char **argv) {
-    ::progname = argv[0];
-
     if (argc != 4)
         Usage();
 
@@ -130,7 +128,7 @@ int Main(int argc, char **argv) {
     const std::string code_to_description_map_filename(argv[3]);
     File code_to_description_map_file(code_to_description_map_filename, "r");
     if (not code_to_description_map_file)
-        logger->error("can't open \"" + code_to_description_map_filename + "\" for reading!");
+        LOG_ERROR("can't open \"" + code_to_description_map_filename + "\" for reading!");
 
     std::unordered_map<std::string, std::string> code_to_description_map;
     LoadCodeToDescriptionMap(&code_to_description_map_file, &code_to_description_map);
