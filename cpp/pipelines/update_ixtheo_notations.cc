@@ -22,6 +22,7 @@
 
 #include <iostream>
 #include <unordered_map>
+#include <vector>
 #include <cctype>
 #include <cstdlib>
 #include "MARC.h"
