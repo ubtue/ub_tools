@@ -167,6 +167,13 @@ XMLParser::XMLParser(const std::string &xml_filename_or_string, const Type type,
 }
 
 
+XMLParser::~XMLParser() {
+    delete parser_;
+    delete handler_;
+    delete error_handler_;
+}
+
+
 void XMLParser::reset(const std::string &xml_filename_or_string, const Type type, const Options &options) {
     xml_filename_or_string_ = xml_filename_or_string;
     type_ = type;

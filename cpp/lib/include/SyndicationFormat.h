@@ -26,7 +26,7 @@
 #include "TextUtil.h"
 #include "XMLParser.h"
 
-
+// This class needs to be thread-safe as it is used by multi-threaded Zotero Harvester code.
 class SyndicationFormat {
 public:
     class Item {

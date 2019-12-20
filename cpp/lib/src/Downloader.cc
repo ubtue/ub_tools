@@ -86,7 +86,7 @@ int dummy(GlobalInit());
 
 
 CURLSH *Downloader::share_handle_(nullptr);
-unsigned Downloader::instance_count_(0);
+ThreadUtil::ThreadSafeCounter<unsigned> Downloader::instance_count_(0);
 std::mutex Downloader::cookie_mutex_;
 std::mutex Downloader::dns_mutex_;
 std::mutex Downloader::header_mutex_;
