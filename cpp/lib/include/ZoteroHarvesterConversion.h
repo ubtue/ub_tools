@@ -88,6 +88,8 @@ public:
     explicit MetadataRecord() : superior_type_(SuperiorType::INVALID), ssg_(SSGType::INVALID) {}
 public:
     std::string toString() const;
+
+    static SSGType GetSSGTypeFromString(const std::string &ssg_string);
 };
 
 

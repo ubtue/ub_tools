@@ -29,7 +29,11 @@
 #include "StringUtil.h"
 #include "util.h"
 
-
+// Debugging Instructions: Since this tool uses ample amounts of multi-threading, there is always a possibility of
+// "Heisenbugs". If you are entrusted with the task of debugging such a bug, the following tips are likely to help:
+//      1. Disable optimizations (the Makefile should refer to the environment variable that needs to be modified).
+//      3. Turn on ThreadSanitizer/AddressSanitizer in the Makefile.
+//      4. Set the symbolizer path environment variables (c.f https://clang.llvm.org/docs/SanitizerSpecialCaseList.html)
 namespace {
 
 
@@ -166,28 +170,11 @@ struct HarvesterConfigData {
 
 
 void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * const harvester_config) {
-    const IniFile ini(config_path);
+    Config::LoadHarvesterConfigFile(config_path, &harvester_config->global_params_,
+                                    &harvester_config->group_params_, &harvester_config->journal_params_);
 
-    harvester_config->global_params_.reset(new Config::GlobalParams(*ini.getSection("")));
-
-    std::set<std::string> group_names;
-    StringUtil::Split(harvester_config->global_params_->group_names_, ',', &group_names, /* suppress_empty_components = */ true);
-
-    for (const auto &group_name : group_names) {
-        const auto new_group(new Config::GroupParams(*ini.getSection(group_name)));
-        harvester_config->group_params_.emplace_back(new_group);
-        harvester_config->group_name_to_group_params_map_.emplace(group_name, *new_group);
-    }
-
-    for (const auto &section : ini) {
-        if (section.getSectionName().empty())
-            continue;
-        else if (group_names.find(section.getSectionName()) != group_names.end())
-            continue;
-
-        harvester_config->journal_params_.emplace_back(new Config::JournalParams(section,
-                                                       *harvester_config->global_params_));
-    }
+    for (const auto &group : harvester_config->group_params_)
+        harvester_config->group_name_to_group_params_map_.emplace(group->name_, *group);
 
     harvester_config->enhancement_maps.reset(
         new Config::EnhancementMaps(harvester_config->global_params_->enhancement_maps_directory_));
