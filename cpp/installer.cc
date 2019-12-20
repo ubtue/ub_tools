@@ -811,6 +811,8 @@ int Main(int argc, char **argv) {
             // allow httpd/php to connect to solr + mysql
             SELinuxUtil::Boolean::Set("httpd_can_network_connect", true);
             SELinuxUtil::Boolean::Set("httpd_can_network_connect_db", true);
+            SELinuxUtil::Boolean::Set("httpd_can_network_relay", true);
+            SELinuxUtil::Boolean::Set("httpd_can_sendmail", true);
         }
     }
 
