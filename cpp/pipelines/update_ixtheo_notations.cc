@@ -64,9 +64,24 @@ void LoadCodeToDescriptionMap(File * const code_to_description_map_file,
 bool LocalBlockIsFromIxTheoTheologians(const MARC::Record::const_iterator &local_block_start, const MARC::Record &record) {
     for (const auto &_852_local_field : record.findFieldsInLocalBlock("852", local_block_start, /*indicator1*/' ', /*indicator2*/' ')) {
         const MARC::Subfields subfields(_852_local_field.getSubfields());
-        if (subfields.hasSubfieldWithValue('a', "Tü 135") or subfields.hasSubfieldWithValue('a', "Tü 135/1")
-            or subfields.hasSubfieldWithValue('a', "DE-Tue135"))
-            return true;
+
+        static const std::vector<std::string> sigils {
+            "Tü 135",
+            "Tü 135/1",
+            "Tü 135/2",
+            "Tü 135/3",
+            "Tü 135/4",
+            "DE-Tue135",
+            "DE-Tue135-1",
+            "DE-Tue135-2",
+            "DE-Tue135-3",
+            "DE-Tue135-4"
+        };
+
+        for (const auto &sigil : sigils) {
+            if (subfields.hasSubfieldWithValue('a', sigil))
+                return true;
+        }
     }
 
     return false;
