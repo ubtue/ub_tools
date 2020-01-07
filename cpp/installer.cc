@@ -253,6 +253,27 @@ void MySQLImportFileIfExists(const std::string &sql_file, const std::string &sql
 }
 
 
+void GetMaxTableVersions(std::map<std::string, unsigned> * const table_name_to_version_map) {
+    const std::string SQL_UPDATES_DIRECTORY("/usr/local/ub_tools/cpp/data/sql_updates");
+
+    static RegexMatcher *matcher(RegexMatcher::RegexMatcherFactoryOrDie("^([^.]+)\\.(\\d+)$"));
+    FileUtil::Directory directory(SQL_UPDATES_DIRECTORY);
+    for (const auto entry : directory) {
+        if (matcher->matched(entry.getName())) {
+            const auto database_name((*matcher)[1]);
+            const auto version(StringUtil::ToUnsigned((*matcher)[2]));
+            auto database_name_and_version(table_name_to_version_map->find(database_name));
+            if (database_name_and_version == table_name_to_version_map->end())
+                (*table_name_to_version_map)[database_name] = version;
+            else {
+                if (database_name_and_version->second < version)
+                    database_name_and_version->second = version;
+            }
+        }
+    }
+}
+
+
 void CreateUbToolsDatabase(const OSSystemType os_system_type) {
     AssureMysqlServerIsRunning(os_system_type);
 
@@ -275,6 +296,17 @@ void CreateUbToolsDatabase(const OSSystemType os_system_type) {
         DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
         DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, root_username, root_password);
+    }
+
+    // Populate our database versions table to reflect the patch level for each database for which patches already exist.
+    // This assumes that we have been religiously updating our database creation statements for each patch that we created!
+    std::map<std::string, unsigned> table_name_to_version_map;
+    GetMaxTableVersions(&table_name_to_version_map);
+    DbConnection connection;
+    for (const auto &table_name_and_version : table_name_to_version_map) {
+        const std::string replace_statement("REPLACE INTO ub_tools.database_versions SET database_name='" + table_name_and_version.first
+                                           +"', version=" + StringUtil::ToString(table_name_and_version.second));
+        connection.queryOrDie(replace_statement);
     }
 }
 
