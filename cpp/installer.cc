@@ -298,8 +298,8 @@ void CreateUbToolsDatabase(const OSSystemType os_system_type) {
         DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, root_username, root_password);
     }
 
-    // Populate our datebase versions table to reflect the patch level for each database for whcih patches already exist.
-    // This assumes that we have been religiously updating our database creation statements for each patch thayt we created!
+    // Populate our database versions table to reflect the patch level for each database for which patches already exist.
+    // This assumes that we have been religiously updating our database creation statements for each patch that we created!
     std::map<std::string, unsigned> table_name_to_version_map;
     GetMaxTableVersions(&table_name_to_version_map);
     DbConnection connection;
