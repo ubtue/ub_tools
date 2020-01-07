@@ -30,6 +30,7 @@
 #include "Compiler.h"
 #include "PerlCompatRegExp.h"
 #include "RobotsDotTxt.h"
+#include "ThreadUtil.h"
 #include "TimeLimit.h"
 #include "Url.h"
 
@@ -40,7 +41,7 @@
 class Downloader {
     CURL *easy_handle_;
     static CURLSH *share_handle_;
-    static unsigned instance_count_;
+    static ThreadUtil::ThreadSafeCounter<unsigned> instance_count_;
     static std::mutex dns_mutex_;
     static std::mutex cookie_mutex_;
     static std::mutex header_mutex_;

@@ -86,7 +86,7 @@ int dummy(GlobalInit());
 
 
 CURLSH *Downloader::share_handle_(nullptr);
-unsigned Downloader::instance_count_(0);
+ThreadUtil::ThreadSafeCounter<unsigned> Downloader::instance_count_(0);
 std::mutex Downloader::cookie_mutex_;
 std::mutex Downloader::dns_mutex_;
 std::mutex Downloader::header_mutex_;
@@ -449,7 +449,7 @@ bool Downloader::internalNewUrl(const Url &url, const TimeLimit &time_limit) {
         return false;
     const long timeout_in_ms(time_limit.getRemainingTime());
     if (timeout_in_ms == 0 and time_limit.getLimit() != 0) {
-        last_error_message_ = "timout exceeded";
+        last_error_message_ = "timeout exceeded";
         return false;
     }
     if ((curl_error_code_ = ::curl_easy_setopt(easy_handle_, CURLOPT_TIMEOUT_MS, timeout_in_ms)))

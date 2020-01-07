@@ -40,13 +40,14 @@ regular_install: $(INSTALL_PROGS) Makefile
 	@echo "Installing programs..."
 	cp $(INSTALL_PROGS) /usr/local/bin/
 
-data_install: Makefile data/*.conf data/*.map data/IxTheo_Notation.csv data/stopwords.* \
+data_install: Makefile data/*.conf data/*.map data/*.ttf data/IxTheo_Notation.csv data/stopwords.* \
               data/bibleRef/* data/crossref_downloader/* data/full_text_cache_monitor/* \
               data/translate_chainer/* data/zotero_cgi/* data/marc_check.rules data/language_models/*.lm \
               data/mime.types
 	@echo "Installing data..."
 	cp data/*.conf /usr/local/var/lib/tuelib/
 	cp data/*.map /usr/local/var/lib/tuelib/
+	cp data/*.ttf /usr/local/var/lib/tuelib/
 	cp data/IxTheo_Notation.csv /usr/local/var/lib/tuelib/
 	cp data/zotero_author_name_blacklist.txt /usr/local/var/lib/tuelib/
 	cp data/stopwords.* /usr/local/var/lib/tuelib/

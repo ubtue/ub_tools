@@ -53,6 +53,7 @@ public:
 
     ~Semaphore();
     void wait();
+    bool tryWait();
     void post();
 private:
     Semaphore(const Semaphore &);                  // Intentionally unimplemented!

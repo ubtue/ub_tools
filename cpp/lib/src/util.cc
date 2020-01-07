@@ -142,21 +142,27 @@ std::string Logger::LogLevelToString(const LogLevel log_level) {
 }
 
 
-void Logger::writeString(const std::string &level, std::string msg) {
+void Logger::formatMessage(const std::string &level, std::string * const msg) {
     if (not log_no_decorations_) {
-        msg = TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " " + level + " " + std::string(::program_invocation_name) + ": "
-              + msg;
+        *msg = TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " " + level + " " + std::string(::program_invocation_name) + ": "
+              + *msg;
         if (log_process_pids_)
-            msg += " (PID: " + std::to_string(::getpid()) + ")";
+            *msg += " (PID: " + std::to_string(::getpid()) + ")";
     }
 
     if (log_strip_call_site_) {
-        const auto END_OF_CALL_SITE_PREFIX(msg.find("): "));
+        const auto END_OF_CALL_SITE_PREFIX(msg->find("): "));
         if (END_OF_CALL_SITE_PREFIX != std::string::npos)
-            msg = msg.substr(END_OF_CALL_SITE_PREFIX + 3);
+            *msg = msg->substr(END_OF_CALL_SITE_PREFIX + 3);
     }
 
-    msg += '\n';
+    *msg += '\n';
+}
+
+
+void Logger::writeString(const std::string &level, std::string msg, const bool format_message) {
+    if (format_message)
+        formatMessage(level, &msg);
 
     if (unlikely(::write(fd_, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
         const std::string error_message("in Logger::writeString(util.cc): write to file descriptor " + std::to_string(fd_)

@@ -256,12 +256,9 @@ bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_stri
 
 
 bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string) {
-    static iconv_t iconv_handle((iconv_t)-1);
-    if (unlikely(iconv_handle == (iconv_t)-1)) {
-        iconv_handle = ::iconv_open("UTF-8", "WCHAR_T");
-        if (unlikely(iconv_handle == (iconv_t)-1))
-            LOG_ERROR("iconv_open(3) failed!");
-    }
+    iconv_t iconv_handle(::iconv_open("UTF-8", "WCHAR_T"));
+    if (unlikely(iconv_handle == (iconv_t)-1))
+        LOG_ERROR("iconv_open(3) failed!");
 
     const size_t INBYTE_COUNT(wchar_string.length() * sizeof(wchar_t));
     char *in_bytes(new char[INBYTE_COUNT]);
@@ -284,6 +281,7 @@ bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_stri
 
     utf8_string->assign(out_bytes_start, OUTBYTE_COUNT - outbytes_left);
     delete [] out_bytes_start;
+    ::iconv_close(iconv_handle);
 
     return true;
 }
