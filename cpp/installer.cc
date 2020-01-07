@@ -256,7 +256,7 @@ void MySQLImportFileIfExists(const std::string &sql_file, const std::string &sql
 void GetMaxTableVersions(std::map<std::string, unsigned> * const table_name_to_version_map) {
     const std::string SQL_UPDATES_DIRECTORY("/usr/local/ub_tools/cpp/data/sql_updates");
 
-    static RegexMatcher *matcher(RegexMatcher::RegexMatcherFactoryOrDie("^([a-z_]+)\\.(\\d+)$"));
+    static RegexMatcher *matcher(RegexMatcher::RegexMatcherFactoryOrDie("^([^.]+)\\.(\\d+)$"));
     FileUtil::Directory directory(SQL_UPDATES_DIRECTORY);
     for (const auto entry : directory) {
         if (matcher->matched(entry.getName())) {
