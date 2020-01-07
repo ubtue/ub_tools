@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2008 Project iVia.
  *  Copyright 2003-2008 The Regents of The University of California.]
- *  Copyright 2017,2018 Universitätsbibliothek Tübingen
+ *  Copyright 2017-2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaOaiPmh package.
  *
@@ -29,6 +29,7 @@
 #include "OaiPmhClient.h"
 #include <map>
 #include <stdexcept>
+#include <cerrno>
 #include "FileUtil.h"
 #include "HtmlUtil.h"
 #include "IniFile.h"
@@ -359,7 +360,7 @@ Client::~Client() {
 // Client::progressFile -- Get the name of the progress file for a set.
 //
 std::string Client::progressFile(const std::string &set_name) {
-    return ("/tmp/" + std::string(::progname) + std::string(".") + repository_name_
+    return ("/tmp/" + std::string(::program_invocation_name) + std::string(".") + repository_name_
             + std::string(set_name.empty() ? "" : "." + set_name) + ".progress");
 }
 
