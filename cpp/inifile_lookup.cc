@@ -1,7 +1,7 @@
 /** \brief Utility for looking up entries in one of our IniFiles.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -27,15 +27,12 @@
 #include "util.h"
 
 
-[[noreturn]] static void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--suppress-newline|-n] path section entry [optional_default_value]\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]] void Usage() {
+    ::Usage("[--suppress-newline|-n] path section entry [optional_default_value]");
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     if (argc < 4)
         Usage();
 
@@ -64,4 +61,6 @@ int main(int argc, char *argv[]) {
     } catch (const std::exception &e) {
         LOG_ERROR("Caught exception: " + std::string(e.what()));
     }
+
+    return EXIT_SUCCESS;
 }
