@@ -28,8 +28,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_title_file\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("marc_title_file");
 }
 
 
@@ -121,9 +120,7 @@ void GenerateStats(MARC::Reader * const marc_reader) {
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
