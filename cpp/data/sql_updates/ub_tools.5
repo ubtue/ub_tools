@@ -1,0 +1,3 @@
+DROP INDEX delivered_marc_records_url_index ON delivered_marc_records;
+ALTER TABLE delivered_marc_records CHANGE COLUMN url url VARCHAR(1000);
+CREATE INDEX delivered_marc_records_url_index ON delivered_marc_records (url(191));
