@@ -1,7 +1,7 @@
 /** \brief A tool for writing log messages in a shell script.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -22,16 +22,13 @@
 #include "util.h"
 
 
-__attribute__((noreturn)) void Usage() {
-    std::cerr << "Usage: " << ::progname << " log_level message\n";
-    std::cerr << "       Where \"log_level\" must be one of SEVERE, WARN, INFO or DEBUG.\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]] void Usage() {
+    ::Usage("log_level message\n"
+            "Where \"log_level\" must be one of SEVERE, WARN, INFO or DEBUG.");
 }
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
-
+int Main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
@@ -51,4 +48,6 @@ int main(int argc, char **argv) {
         logger->debug(message);
     else
         logger->error("unsupported log level: " + log_level);
+
+    return EXIT_SUCCESS;
 }
