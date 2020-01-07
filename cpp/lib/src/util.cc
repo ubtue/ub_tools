@@ -24,9 +24,9 @@
 #include <iterator>
 #include <stdexcept>
 #include <cctype>
+#include <cerrno>
 #include <cstdlib>
 #include <execinfo.h>
-#include <errno.h>
 #include <signal.h>
 #include "Compiler.h"
 #include "MiscUtil.h"
