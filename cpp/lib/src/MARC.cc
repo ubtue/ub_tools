@@ -1591,6 +1591,9 @@ std::vector<Record::iterator> Record::getMatchedFields(const std::string &field_
 enum class MediaType { XML, MARC21, OTHER };
 
 
+const ThreadSafeRegexMatcher MARC21_MAGIC_MATCHER("(^[0-9]{5})([acdnp][^bhlnqsu-z]|[acdnosx][z]|[cdn][uvxy]|[acdn][w]|[cdn][q])");
+
+
 static MediaType GetMediaType(const std::string &filename) {
     File input(filename, "r");
     if (input.anErrorOccurred())
@@ -1615,16 +1618,7 @@ static MediaType GetMediaType(const std::string &filename) {
     if (StringUtil::StartsWith(magic, "<?xml"))
         return MediaType::XML;
 
-    static RegexMatcher *marc21_matcher;
-    if (marc21_matcher == nullptr) {
-        std::string err_msg;
-        marc21_matcher = RegexMatcher::RegexMatcherFactory("(^[0-9]{5})([acdnp][^bhlnqsu-z]|[acdnosx][z]|[cdn][uvxy]|[acdn][w]|[cdn][q])",
-                                                           &err_msg);
-        if (marc21_matcher == nullptr)
-            LOG_ERROR("failed to compile a regex! (" + err_msg + ")");
-    }
-
-    return marc21_matcher->matched(magic) ? MediaType::MARC21 : MediaType::XML;
+    return MARC21_MAGIC_MATCHER.match(magic) ? MediaType::MARC21 : MediaType::XML;
 }
 
 
@@ -2368,16 +2362,19 @@ bool UBTueIsAquisitionRecord(const Record &marc_record) {
 }
 
 
+const ThreadSafeRegexMatcher PARENT_PPN_MATCHER("^\\([^)]+\\)(.+)$");
+
+
 std::string GetParentPPN(const Record &record) {
     static const std::vector<Tag> parent_reference_tags{ "800", "810", "830", "773", "776" };
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\([^)]+\\)(.+)$"));
     for (auto &field : record) {
         if (std::find_if(parent_reference_tags.cbegin(), parent_reference_tags.cend(),
                          [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == parent_reference_tags.cend())
             continue;
 
-        if (matcher->matched(field.getFirstSubfieldWithCode('w'))) {
-            const std::string ppn_candidate((*matcher)[1]);
+        auto matches(PARENT_PPN_MATCHER.match(field.getFirstSubfieldWithCode('w')));
+        if (matches) {
+            const std::string ppn_candidate(matches[1]);
             if (MiscUtil::IsValidPPN(ppn_candidate))
                 return ppn_candidate;
         }
@@ -2808,7 +2805,9 @@ std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record) {
 }
 
 
-static void LoadTermsToFieldsMap(std::unordered_map<std::string, Record::Field> * const terms_to_fields_map) {
+static std::unordered_map<std::string, Record::Field> LoadTermsToFieldsMap() {
+    std::unordered_map<std::string, Record::Field> terms_to_fields_map;
+
     const auto MAP_FILENAME(UBTools::GetTuelibPath() + "tags_and_keyword_fields.map");
     const auto map_file(FileUtil::OpenInputFileOrDie(MAP_FILENAME));
     unsigned line_no(0);
@@ -2821,19 +2820,20 @@ static void LoadTermsToFieldsMap(std::unordered_map<std::string, Record::Field> 
             LOG_ERROR("bad entry on line #" + std::to_string(line_no) + " in \"" + MAP_FILENAME + "\"!");
 
         const Record::Field field(line.substr(0, Record::TAG_LENGTH), StringUtil::CStyleUnescape(line.substr(Record::TAG_LENGTH)));
-        terms_to_fields_map->emplace(field.getFirstSubfieldWithCode('a'), field);
+        terms_to_fields_map.emplace(field.getFirstSubfieldWithCode('a'), field);
     }
+
+    return terms_to_fields_map;
 }
+
+
+static const std::unordered_map<std::string, Record::Field> TERMS_TO_FIELDS_MAP(LoadTermsToFieldsMap());
 
 
 Record::Field GetIndexField(const std::string &index_term) {
     static const Tag DEFAULT_TAG("650");
-    static std::unordered_map<std::string, Record::Field> terms_to_fields_map;
-    if (unlikely(terms_to_fields_map.empty()))
-        LoadTermsToFieldsMap(&terms_to_fields_map);
-
-    const auto term_and_field(terms_to_fields_map.find(TextUtil::UTF8ToLower(index_term)));
-    if (term_and_field == terms_to_fields_map.cend())
+    const auto term_and_field(TERMS_TO_FIELDS_MAP.find(TextUtil::UTF8ToLower(index_term)));
+    if (term_and_field == TERMS_TO_FIELDS_MAP.cend())
         return Record::Field(Tag(DEFAULT_TAG), { { { 'a', index_term } } }, /* indicator1 = */' ', /* indicator2 = */'4');
     return term_and_field->second;
 }
