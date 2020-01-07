@@ -20,6 +20,7 @@
 #include "MARC.h"
 #include <set>
 #include <unordered_map>
+#include <cerrno>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -2237,7 +2238,7 @@ unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename) {
     // Open a scope because we need the MARC::Reader to go out-of-scope before we unlink the associated file.
     {
         std::unique_ptr<Reader> marc_reader(Reader::Factory(marc_filename));
-        temp_filename = "/tmp/" + std::string(::basename(::progname)) + std::to_string(::getpid())
+        temp_filename = "/tmp/" + std::string(::basename(::program_invocation_name)) + std::to_string(::getpid())
                         + (marc_reader->getReaderType() == FileType::XML ? ".xml" : ".mrc");
         std::unique_ptr<Writer> marc_writer(Writer::Factory(temp_filename));
         std::unordered_set<std::string> already_seen_control_numbers;

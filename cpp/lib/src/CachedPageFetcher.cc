@@ -9,7 +9,7 @@
 /*
  *  \copyright 2002-2009 Project iVia.
  *  \copyright 2002-2009 The Regents of The University of California.
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.
+ *  \copyright 2017-2019 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -232,7 +232,7 @@ void CachedPageFetcher::newUrl(const std::string &url, const Params &params, con
 // DefaultUserAgentString -- Generate a useful default user agent for this program.
 //
 std::string CachedPageFetcher::DefaultUserAgent() {
-    return default_user_agent_package_ + " " + ::progname + " (" + default_user_agent_url_ + ")";
+    return default_user_agent_package_ + " " + ::program_invocation_name + " (" + default_user_agent_url_ + ")";
 }
 
 
@@ -742,7 +742,7 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
             // Download the page with the Downloader:
             Downloader::Params params;
             if (not proxy_host.empty()) {
-                if (proxy_port == 0) 
+                if (proxy_port == 0)
                     params.proxy_host_and_port_ = proxy_host;
                 else
                     params.proxy_host_and_port_ = proxy_host+ ":" + std::to_string(proxy_port);
@@ -752,7 +752,7 @@ bool CachedPageFetcher::downloadPage(const std::string &url, const TimeLimit &ti
             params.max_redirect_count_ = 0;
             params.follow_redirects_ = false;
             params.acceptable_languages_ = params_.acceptable_languages_;
-            
+
             Downloader downloader(redirected_url, params, time_limit);
 
             // Handle downloader errors:
