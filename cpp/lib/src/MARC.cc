@@ -2827,10 +2827,8 @@ static std::unordered_map<std::string, Record::Field> LoadTermsToFieldsMap() {
 }
 
 
-static const std::unordered_map<std::string, Record::Field> TERMS_TO_FIELDS_MAP(LoadTermsToFieldsMap());
-
-
 Record::Field GetIndexField(const std::string &index_term) {
+    static const std::unordered_map<std::string, Record::Field> TERMS_TO_FIELDS_MAP(LoadTermsToFieldsMap());
     static const Tag DEFAULT_TAG("650");
     const auto term_and_field(TERMS_TO_FIELDS_MAP.find(TextUtil::UTF8ToLower(index_term)));
     if (term_and_field == TERMS_TO_FIELDS_MAP.cend())
