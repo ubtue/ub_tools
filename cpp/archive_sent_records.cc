@@ -92,10 +92,11 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
         }
 
         std::string resource_type(record.getFirstFieldContents("007") == "tu" ? "print" : "online");
-        db_connection->queryOrDie("INSERT INTO delivered_marc_records SET url=" + db_connection->escapeAndQuoteString(url)
+        db_connection->queryOrDie("INSERT INTO delivered_marc_records SET url="
+                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(url))
                                   + ",zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) + ",journal_name="
-                                  + db_connection->escapeAndQuoteString(journal_name) +  ",hash="
-                                  + db_connection->escapeAndQuoteString(hash) + ",main_title="
+                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(journal_name))
+                                  +  ",hash=" + db_connection->escapeAndQuoteString(hash) + ",main_title="
                                   + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(main_title))
                                   + publication_year + volume + issue + pages + ",resource_type='" + resource_type + "',record="
                                   + db_connection->escapeAndQuoteString(GzStream::CompressString(record_blob, GzStream::GZIP)));
