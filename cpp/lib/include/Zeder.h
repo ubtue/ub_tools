@@ -37,10 +37,12 @@ namespace Zeder {
 enum Flavour { IXTHEO, KRIMDOK };
 
 
-} // Zeder namespace
+} // end Zeder namespace
 
 
 namespace std {
+
+
     template <>
     struct hash<Zeder::Flavour> {
         size_t operator()(const Zeder::Flavour &flavour) const {
@@ -48,7 +50,9 @@ namespace std {
             return hash<int>()(flavour);
         }
     };
-} // namespace std
+
+
+} // end namespace std
 
 
 namespace Zeder {
@@ -226,7 +230,7 @@ public:
 };
 
 
-// Reader for zts_harvester compatible INI/config files.
+// Reader for Zotero Harvester compatible INI/config files.
 class IniReader : public Importer {
     friend class Importer;
 
@@ -288,7 +292,7 @@ public:
 };
 
 
-// Writer for zts_harvester compatible INI/config files.
+// Writer for Zotero Harvester compatible INI/config files.
 class IniWriter : public Exporter {
     friend class Exporter;
 
@@ -442,4 +446,4 @@ std::string GetFullDumpEndpointPath(Flavour zeder_flavour);
 Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive = false);
 
 
-} // namespace Zeder
+} // end namespace Zeder
