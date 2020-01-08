@@ -17,7 +17,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <condition_variable>
 #include "JSON.h"
 #include "StringUtil.h"
 #include "WebUtil.h"
@@ -230,6 +229,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
     result->num_crawled_successful_ = crawler.numUrlsSuccessfullyCrawled();
     result->num_crawled_unsuccessful_ = crawler.numUrlsUnsuccessfullyCrawled();
+    result->num_crawled_cache_hits_ = crawler.numCacheHitsForCrawls();
 
     LOG_INFO("crawled " + std::to_string(result->num_crawled_successful_) + " URLs, queued "
              + std::to_string(result->num_queued_for_harvest_) + " URLs for extraction");
@@ -271,7 +271,7 @@ bool Crawler::continueCrawling() {
 Crawler::Crawler(const Params &parameters, DownloadManager * const download_manager, const std::string &url_ignore_matcher_pattern)
  : parameters_(parameters), total_crawl_time_limit_(parameters.total_crawl_time_limit_),
    url_ignore_matcher_(url_ignore_matcher_pattern, ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE),
-   num_crawled_successful_(0), num_crawled_unsuccessful_(0),
+   num_crawled_successful_(0), num_crawled_unsuccessful_(0), num_crawled_cache_hits_(0),
    remaining_crawl_depth_(parameters.download_item_.journal_.crawl_params_.max_crawl_depth_), download_manager_(download_manager)
 {
     url_queue_current_depth_.push(parameters.download_item_.url_.toString());
@@ -317,6 +317,8 @@ bool Crawler::getNextPage(CrawlResult * const crawl_result) {
 
     crawled_urls_.emplace(next_url);
     ++num_crawled_successful_;
+    if (download_result.fromCache())
+        ++num_crawled_cache_hits_;
 
     // extract outgoing URLs from the downloaded URL
     constexpr unsigned EXTRACT_URL_FLAGS(WebUtil::IGNORE_DUPLICATE_URLS | WebUtil::IGNORE_LINKS_IN_IMG_TAGS
@@ -558,13 +560,16 @@ DownloadManager::DomainData *DownloadManager::lookupDomainData(const Url &url, b
 
 
 void DownloadManager::processQueueBuffers() {
-    // enqueue the tasks in their domain-specific queues
+    // Enqueue the tasks in their domain-specific queues.
     {
         std::lock_guard<std::recursive_mutex> direct_download_queue_buffer_lock(direct_download_queue_buffer_mutex_);
         while (not direct_download_queue_buffer_.empty()) {
             std::shared_ptr<DirectDownload::Tasklet> tasklet(direct_download_queue_buffer_.front());
             auto domain_data(lookupDomainData(tasklet->getParameter().download_item_.url_, /* add_if_absent = */ true));
-            domain_data->queued_direct_downloads_.emplace_back(tasklet);
+            if (tasklet->getParameter().operation_ == DirectDownload::Operation::DIRECT_QUERY)
+                domain_data->queued_direct_downloads_direct_query_.emplace_back(tasklet);
+            else
+                domain_data->queued_direct_downloads_translation_server_.emplace_back(tasklet);
 
             direct_download_queue_buffer_.pop_front();
         }
@@ -595,18 +600,34 @@ void DownloadManager::processQueueBuffers() {
 
 
 void DownloadManager::processDomainQueues(DomainData * const domain_data) {
-    // apply download delays and create tasklets for downloads/crawls
+    // Apply download delays and create tasklets for downloads/crawls.
     const bool adhere_to_download_limit(not global_params_.ignore_robots_txt_);
 
     if (adhere_to_download_limit and not domain_data->delay_params_.time_limit_.limitExceeded())
         return;
 
-    while (not domain_data->queued_direct_downloads_.empty()
+    // DirectDownloads that do not involve querying the Zotero Translation Server
+    // need to be prioritised over the former to prevent bottlenecks in Crawl operations.
+    while (not domain_data->queued_direct_downloads_direct_query_.empty()
            and direct_download_tasklet_execution_counter_ < MAX_DIRECT_DOWNLOAD_TASKLETS)
     {
-        std::shared_ptr<DirectDownload::Tasklet> direct_download_tasklet(domain_data->queued_direct_downloads_.front());
+        std::shared_ptr<DirectDownload::Tasklet> direct_download_tasklet(domain_data->queued_direct_downloads_direct_query_.front());
         domain_data->active_direct_downloads_.emplace_back(direct_download_tasklet);
-        domain_data->queued_direct_downloads_.pop_front();
+        domain_data->queued_direct_downloads_direct_query_.pop_front();
+        direct_download_tasklet->start();
+
+        if (adhere_to_download_limit) {
+            domain_data->delay_params_.time_limit_.restart();
+            return;
+        }
+    }
+
+    while (not domain_data->queued_direct_downloads_translation_server_.empty()
+           and direct_download_tasklet_execution_counter_ < MAX_DIRECT_DOWNLOAD_TASKLETS)
+    {
+        std::shared_ptr<DirectDownload::Tasklet> direct_download_tasklet(domain_data->queued_direct_downloads_translation_server_.front());
+        domain_data->active_direct_downloads_.emplace_back(direct_download_tasklet);
+        domain_data->queued_direct_downloads_translation_server_.pop_front();
         direct_download_tasklet->start();
 
         if (adhere_to_download_limit) {
