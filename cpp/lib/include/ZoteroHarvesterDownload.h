@@ -71,8 +71,8 @@ public:
     explicit Params(const Util::HarvestableItem &download_item, const std::string &translation_server_url,
                     const std::string user_agent, const bool ignore_robots_dot_txt, const unsigned time_limit,
                     const Operation operation)
-     : download_item_(download_item), translation_server_url_(translation_server_url), user_agent_(user_agent),
-       ignore_robots_dot_txt_(ignore_robots_dot_txt), time_limit_(time_limit), operation_(operation) {}
+        : download_item_(download_item), translation_server_url_(translation_server_url), user_agent_(user_agent),
+          ignore_robots_dot_txt_(ignore_robots_dot_txt), time_limit_(time_limit), operation_(operation) {}
 };
 
 
@@ -92,7 +92,7 @@ struct Result {
     unsigned flags_;
 public:
     explicit Result(const Util::HarvestableItem &source, const Operation operation)
-     : source_(source), operation_(operation), response_code_(0), flags_(0) {}
+        : source_(source), operation_(operation), response_code_(0), flags_(0) {}
     Result(const Result &rhs) = default;
 
     inline bool downloadSuccessful() const { return response_code_ == 200 and error_message_.empty(); }
@@ -133,19 +133,22 @@ public:
     explicit Params(const Util::HarvestableItem &download_item, const std::string user_agent, const unsigned per_crawl_url_time_limit,
                     const unsigned total_crawl_time_limit, const bool ignore_robots_dot_txt,
                     Util::HarvestableItemManager * const harvestable_manager)
-     : download_item_(download_item), user_agent_(user_agent), per_crawl_url_time_limit_(per_crawl_url_time_limit),
-       total_crawl_time_limit_(total_crawl_time_limit), ignore_robots_dot_txt_(ignore_robots_dot_txt),
-       harvestable_manager_(harvestable_manager) {}
+        : download_item_(download_item), user_agent_(user_agent), per_crawl_url_time_limit_(per_crawl_url_time_limit),
+          total_crawl_time_limit_(total_crawl_time_limit), ignore_robots_dot_txt_(ignore_robots_dot_txt),
+          harvestable_manager_(harvestable_manager) {}
 };
 
 
 struct Result {
     unsigned num_crawled_successful_;
     unsigned num_crawled_unsuccessful_;
+    unsigned num_crawled_cache_hits_;
     unsigned num_queued_for_harvest_;
     std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
 public:
-    Result(): num_crawled_successful_(0), num_crawled_unsuccessful_(0), num_queued_for_harvest_(0) {};
+    explicit Result()
+        : num_crawled_successful_(0), num_crawled_unsuccessful_(0), num_crawled_cache_hits_(0),
+          num_queued_for_harvest_(0) {}
     Result(const Result &rhs) = delete;
 };
 
@@ -170,6 +173,7 @@ class Crawler {
     std::unordered_set<std::string> crawled_urls_;
     unsigned num_crawled_successful_;
     unsigned num_crawled_unsuccessful_;
+    unsigned num_crawled_cache_hits_;
     unsigned remaining_crawl_depth_;
     DownloadManager * const download_manager_;
 
@@ -204,6 +208,8 @@ public:
         { return num_crawled_successful_; }
     inline unsigned numUrlsUnsuccessfullyCrawled() const
         { return num_crawled_unsuccessful_; }
+    inline unsigned numCacheHitsForCrawls() const
+        { return num_crawled_cache_hits_; }
 };
 
 
@@ -224,15 +230,15 @@ struct Params {
 public:
     explicit Params(const Util::HarvestableItem &download_item, const std::string user_agent, const std::string &feed_contents,
                     Util::HarvestableItemManager * const harvestable_manager)
-     : download_item_(download_item), user_agent_(user_agent), feed_contents_(feed_contents),
-       harvestable_manager_(harvestable_manager) {}
+        : download_item_(download_item), user_agent_(user_agent), feed_contents_(feed_contents),
+          harvestable_manager_(harvestable_manager) {}
 };
 
 
 struct Result {
     std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
 public:
-    Result() = default;
+    explicit Result() = default;
     Result(const Result &rhs) = delete;
 };
 
@@ -305,8 +311,8 @@ private:
     };
 
 
-    // Per-domain data that tracks active and queued operations. Multiple queues are used
-    // as buffers to minimize lock contention.
+    // Per-domain data that tracks active and queued operations.
+    // Multiple queues are used as buffers to minimize contention.
     struct DomainData {
         DelayParams delay_params_;
         std::deque<std::shared_ptr<DirectDownload::Tasklet>> active_direct_downloads_;
@@ -341,14 +347,14 @@ private:
     ThreadUtil::ThreadSafeCounter<unsigned> rss_tasklet_execution_counter_;
     std::unordered_map<std::string, std::unique_ptr<DomainData>> domain_data_;
     std::unordered_multimap<std::string, CachedDownloadData> cached_download_data_;
-    mutable std::recursive_mutex cached_download_data_mutex_;
     std::vector<std::shared_ptr<DirectDownload::Tasklet>> ongoing_direct_downloads_;
-    mutable std::recursive_mutex ongoing_direct_downloads_mutex_;
     std::deque<std::shared_ptr<DirectDownload::Tasklet>> direct_download_queue_buffer_;
-    mutable std::recursive_mutex direct_download_queue_buffer_mutex_;
     std::deque<std::shared_ptr<Crawling::Tasklet>> crawling_queue_buffer_;
-    mutable std::recursive_mutex crawling_queue_buffer_mutex_;
     std::deque<std::shared_ptr<RSS::Tasklet>> rss_queue_buffer_;
+    mutable std::recursive_mutex cached_download_data_mutex_;
+    mutable std::recursive_mutex ongoing_direct_downloads_mutex_;
+    mutable std::recursive_mutex direct_download_queue_buffer_mutex_;
+    mutable std::recursive_mutex crawling_queue_buffer_mutex_;
     mutable std::recursive_mutex rss_queue_buffer_mutex_;
     Util::UploadTracker upload_tracker_;
 
