@@ -20,6 +20,7 @@
 #include "MARC.h"
 #include <set>
 #include <unordered_map>
+#include <cerrno>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -2237,7 +2238,7 @@ unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename) {
     // Open a scope because we need the MARC::Reader to go out-of-scope before we unlink the associated file.
     {
         std::unique_ptr<Reader> marc_reader(Reader::Factory(marc_filename));
-        temp_filename = "/tmp/" + std::string(::basename(::progname)) + std::to_string(::getpid())
+        temp_filename = "/tmp/" + std::string(::basename(::program_invocation_name)) + std::to_string(::getpid())
                         + (marc_reader->getReaderType() == FileType::XML ? ".xml" : ".mrc");
         std::unique_ptr<Writer> marc_writer(Writer::Factory(temp_filename));
         std::unordered_set<std::string> already_seen_control_numbers;
@@ -2827,10 +2828,8 @@ static std::unordered_map<std::string, Record::Field> LoadTermsToFieldsMap() {
 }
 
 
-static const std::unordered_map<std::string, Record::Field> TERMS_TO_FIELDS_MAP(LoadTermsToFieldsMap());
-
-
 Record::Field GetIndexField(const std::string &index_term) {
+    static const std::unordered_map<std::string, Record::Field> TERMS_TO_FIELDS_MAP(LoadTermsToFieldsMap());
     static const Tag DEFAULT_TAG("650");
     const auto term_and_field(TERMS_TO_FIELDS_MAP.find(TextUtil::UTF8ToLower(index_term)));
     if (term_and_field == TERMS_TO_FIELDS_MAP.cend())

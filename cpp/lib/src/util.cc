@@ -24,6 +24,7 @@
 #include <iterator>
 #include <stdexcept>
 #include <cctype>
+#include <cerrno>
 #include <cstdlib>
 #include <execinfo.h>
 #include <signal.h>
@@ -142,10 +143,8 @@ std::string Logger::LogLevelToString(const LogLevel log_level) {
 
 
 void Logger::formatMessage(const std::string &level, std::string * const msg) {
-    if (unlikely(::progname == nullptr))
-        *msg = "You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use the Logger API!";
-    else if (not log_no_decorations_) {
-        *msg = TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " " + level + " " + std::string(::progname) + ": "
+    if (not log_no_decorations_) {
+        *msg = TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " " + level + " " + std::string(::program_invocation_name) + ": "
               + *msg;
         if (log_process_pids_)
             *msg += " (PID: " + std::to_string(::getpid()) + ")";
@@ -173,9 +172,6 @@ void Logger::writeString(const std::string &level, std::string msg, const bool f
         #pragma GCC diagnostic warning "-Wunused-result"
         _exit(EXIT_FAILURE);
     }
-
-    if (unlikely(::progname == nullptr))
-        _exit(EXIT_FAILURE);
 }
 
 
@@ -336,8 +332,8 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
     if (unlikely(line == lines.cend()))
         LOG_ERROR("missing usage message!");
 
-    std::cerr << "Usage: " << ::progname << " [--min-log-level] " << *line << '\n';
-    const std::string padding(__builtin_strlen("Usage: ") + __builtin_strlen(::progname) + 1, ' ');
+    std::cerr << "Usage: " << ::program_invocation_name << " [--min-log-level] " << *line << '\n';
+    const std::string padding(__builtin_strlen("Usage: ") + __builtin_strlen(::program_invocation_name) + 1, ' ');
     for (++line; line != lines.cend(); ++line)
         std::cerr << padding << *line << '\n';
 

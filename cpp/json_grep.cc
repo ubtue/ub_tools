@@ -2,7 +2,7 @@
  *  \brief   A simple tool for performing single lookups in a JSON file.
  *  \author  Dr. Johannes Ruscheinski
  *
- *  \copyright (C) 2017,2018 Library of the University of Tübingen
+ *  \copyright (C) 2017,2018,2020 Library of the University of Tübingen
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,14 +24,12 @@
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--print] json_input_file [lookup_path [default]]\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]] void Usage() {
+    ::Usage("[--print] json_input_file [lookup_path [default]]");
 }
 
 
-int main(int /*argc*/, char *argv[]) {
-    ::progname = *argv;
+int Main(int /*argc*/, char *argv[]) {
     ++argv;
 
     if (*argv == nullptr)
@@ -84,4 +82,6 @@ int main(int /*argc*/, char *argv[]) {
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
+
+    return EXIT_SUCCESS;
 }

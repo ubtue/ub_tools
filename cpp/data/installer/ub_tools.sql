@@ -37,7 +37,7 @@ CREATE TABLE metadata_presence_tracer (
 
 CREATE TABLE delivered_marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    url VARCHAR(191) NOT NULL,
+    url VARCHAR(1000) NOT NULL,
     hash VARCHAR(40) NOT NULL,
     zeder_id VARCHAR(10) NOT NULL,
     delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -49,7 +49,7 @@ CREATE TABLE delivered_marc_records (
     pages CHAR(20) DEFAULT NULL,
     resource_type ENUM('print','online','unknown') NOT NULL,
     record BLOB NOT NULL,
-    INDEX delivered_marc_records_url_index(url),
+    INDEX delivered_marc_records_url_index(url(191)),
     INDEX delivered_marc_records_hash_index(hash),
     INDEX delivered_marc_records_zeder_id_index(zeder_id),
     INDEX delivered_marc_records_delivered_at_index(delivered_at),
