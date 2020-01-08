@@ -222,6 +222,7 @@ private:
     ::pthread_t thread_id_;
     mutable std::mutex mutex_;
     Status status_;
+
     // Incremented by one for the duration of the task.
     ThreadUtil::ThreadSafeCounter<unsigned> * const running_instance_counter_;
 
@@ -280,6 +281,7 @@ public:
 // Used for debugging.
 extern ThreadUtil::ThreadSafeCounter<unsigned> tasklet_instance_counter;
 
+
 template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::ThreadRoutine(
     Tasklet<Parameter, Result> * const parameter)
 {
@@ -316,10 +318,6 @@ template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::T
     --(*tasklet->running_instance_counter_);
 
     // Detach the thread so that its resources are automatically cleaned up.
-    // NOTE: The following line can potentially break versions built with ThreadSanitizer instrumentation,
-    // leading to a fatal bugcheck in the latter's code. Comment out the line to work around this potential
-    // bug in ThreadSanitizer. Threads are reaped when the process terminates, so there shouldn't be any
-    // leaks even if the pthread_detach() call is ignored.
     ::pthread_detach(thread_id);
     // Flagged at the very end of the routine to prevent data races.
     tasklet->setStatus(completion_status);
@@ -392,18 +390,9 @@ template<typename Parameter, typename Result> std::unique_ptr<Result> Tasklet<Pa
 
 
 template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::await() {
-    // Wait until the tasklet has started, as the thread won't be allocated until then.
-    while (getStatus() == Status::NOT_STARTED)
+    // Sleep/Wait until the task is complete.
+    while (not isComplete())
         ::usleep(32 * 1000);
-
-    if (isComplete())
-        return;
-
-    const auto ret_code(::pthread_join(thread_id_, nullptr));
-    if (ret_code != 0) {
-        LOG_ERROR("failed to join tasklet thread '" + std::to_string(thread_id_) + "'!"
-                  " result = " + std::to_string(ret_code));
-    }
 }
 
 

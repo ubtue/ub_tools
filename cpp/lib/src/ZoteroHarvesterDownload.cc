@@ -229,6 +229,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
     result->num_crawled_successful_ = crawler.numUrlsSuccessfullyCrawled();
     result->num_crawled_unsuccessful_ = crawler.numUrlsUnsuccessfullyCrawled();
+    result->num_crawled_cache_hits_ = crawler.numCacheHitsForCrawls();
 
     LOG_INFO("crawled " + std::to_string(result->num_crawled_successful_) + " URLs, queued "
              + std::to_string(result->num_queued_for_harvest_) + " URLs for extraction");
@@ -270,7 +271,7 @@ bool Crawler::continueCrawling() {
 Crawler::Crawler(const Params &parameters, DownloadManager * const download_manager, const std::string &url_ignore_matcher_pattern)
  : parameters_(parameters), total_crawl_time_limit_(parameters.total_crawl_time_limit_),
    url_ignore_matcher_(url_ignore_matcher_pattern, ThreadSafeRegexMatcher::Option::CASE_INSENSITIVE),
-   num_crawled_successful_(0), num_crawled_unsuccessful_(0),
+   num_crawled_successful_(0), num_crawled_unsuccessful_(0), num_crawled_cache_hits_(0),
    remaining_crawl_depth_(parameters.download_item_.journal_.crawl_params_.max_crawl_depth_), download_manager_(download_manager)
 {
     url_queue_current_depth_.push(parameters.download_item_.url_.toString());
@@ -316,6 +317,8 @@ bool Crawler::getNextPage(CrawlResult * const crawl_result) {
 
     crawled_urls_.emplace(next_url);
     ++num_crawled_successful_;
+    if (download_result.fromCache())
+        ++num_crawled_cache_hits_;
 
     // extract outgoing URLs from the downloaded URL
     constexpr unsigned EXTRACT_URL_FLAGS(WebUtil::IGNORE_DUPLICATE_URLS | WebUtil::IGNORE_LINKS_IN_IMG_TAGS
