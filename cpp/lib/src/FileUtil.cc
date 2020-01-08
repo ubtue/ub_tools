@@ -23,6 +23,7 @@
 #include <memory>
 #include <stdexcept>
 #include <cassert>
+#include <cerrno>
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
@@ -1149,15 +1150,13 @@ bool GetLine(std::istream &stream, std::string * const line, const char terminat
 }
 
 
-std::string UniqueFileName(const std::string &directory, const std::string &filename_prefix,
-			   const std::string &filename_suffix)
-{
+std::string UniqueFileName(const std::string &directory, const std::string &filename_prefix, const std::string &filename_suffix) {
     static unsigned generation_number(1);
 
     // Set default for prefix if necessary.
     std::string prefix(filename_prefix);
     if (prefix.empty())
-        prefix = ::progname;
+        prefix = ::program_invocation_name;
 
     std::string suffix(filename_suffix);
     if (not suffix.empty() and suffix[0] != '.')
@@ -1167,9 +1166,7 @@ std::string UniqueFileName(const std::string &directory, const std::string &file
     if (dir.empty())
         dir = "/tmp";
 
-    return (dir + "/" + prefix + "." +
-            std::to_string(getpid()) + "." +
-            std::to_string(generation_number++) + suffix);
+    return dir + "/" + prefix + "." + std::to_string(getpid()) + "." + std::to_string(generation_number++) + suffix;
 }
 
 

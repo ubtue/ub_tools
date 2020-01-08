@@ -4,17 +4,15 @@
 #include "util.h"
 
 
-__attribute__((noreturn)) void Usage() {
-    std::cerr << "usage: " << ::progname << " unencoded\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]] void Usage() {
+    ::Usage("unencoded_string");
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
     std::cout << UrlUtil::UrlEncode(argv[1]) << '\n';
+    return EXIT_SUCCESS;
 }

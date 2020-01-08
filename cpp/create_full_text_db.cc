@@ -42,15 +42,14 @@ constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 120; // seconds
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " [--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout] [--only-open-access] marc_input marc_output\n"
-              << "       \"--process-count-low-and-high-watermarks\" sets the maximum and minimum number of spawned\n"
-              << "           child processes.  When we hit the high water mark we wait for child processes to exit\n"
-              << "           until we reach the low watermark.\n"
-              << "       \"--pdf-extraction-timeout\" which has a default of " << DEFAULT_PDF_EXTRACTION_TIMEOUT << '\n'
-              << "           seconds is the maximum amount of time spent by a subprocess in attemting text extraction from a\n"
-              << "           downloaded PDF document.\n"
-              << "       \"--only-open-access\" means that only open access texts will be processed.\n\n";
+    ::Usage("[--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout] [--only-open-access] marc_input marc_output\n"
+            "\"--process-count-low-and-high-watermarks\" sets the maximum and minimum number of spawned\n"
+            "    child processes.  When we hit the high water mark we wait for child processes to exit\n"
+            "    until we reach the low watermark.\n"
+            "\"--pdf-extraction-timeout\" which has a default of " + std::to_string(DEFAULT_PDF_EXTRACTION_TIMEOUT) + "\n"
+            "    seconds is the maximum amount of time spent by a subprocess in attemting text extraction from a\n"
+            "    downloaded PDF document.\n"
+            "\"--only-open-access\" means that only open access texts will be processed.");
 
     std::exit(EXIT_FAILURE);
 }
@@ -247,8 +246,7 @@ void ExtractLowAndHighWatermarks(const std::string &arg, unsigned * const proces
 } // unnamed namespace
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
+int Main(int argc, char **argv) {
     MiscUtil::SetEnv("LOGGER_FORMAT", "process_pids");
 
     if (argc < 3)
@@ -300,4 +298,6 @@ int main(int argc, char **argv) {
     } catch (const std::exception &e) {
         LOG_ERROR("Caught exception: " + std::string(e.what()));
     }
+
+    return EXIT_SUCCESS;
 }

@@ -19,6 +19,7 @@
  */
 #include "DbConnection.h"
 #include <stdexcept>
+#include <cerrno>
 #include <cstdlib>
 #include "FileUtil.h"
 #include "IniFile.h"
@@ -132,7 +133,7 @@ const std::string DbConnection::DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath(
 bool DbConnection::query(const std::string &query_statement) {
     if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") == "true")
         FileUtil::AppendString("/usr/local/var/log/tuefind/sql_debug.log",
-                               std::string(::progname) + ": " +  query_statement + '\n');
+                               std::string(::program_invocation_name) + ": " +  query_statement + '\n');
 
     if (type_ == T_MYSQL) {
         if (::mysql_query(&mysql_, query_statement.c_str()) != 0) {
