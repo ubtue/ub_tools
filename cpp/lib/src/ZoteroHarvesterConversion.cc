@@ -103,12 +103,27 @@ std::string MetadataRecord::toString() const {
         std::string custom_metadata("custom_metadata: [\n");
         for (const auto &metadata : custom_metadata_)
             custom_metadata += "\t\t{ " + metadata.first + ", " + metadata.second + " },\n";
-        custom_metadata += "\t\t]";
+        custom_metadata += "\t]";
         out += "\t" + custom_metadata + ",\n";
     }
 
     out += "}";
     return out;
+}
+
+
+MetadataRecord::SSGType MetadataRecord::GetSSGTypeFromString(const std::string &ssg_string) {
+    const std::map<std::string, SSGType> ZEDER_STRINGS {
+        { "FG_0",   SSGType::FG_0 },
+        { "FG_1",   SSGType::FG_1 },
+        { "FG_0/1", SSGType::FG_01 },
+        { "FG_2,1", SSGType::FG_21 },
+    };
+
+    if (ZEDER_STRINGS.find(ssg_string) != ZEDER_STRINGS.end())
+        return ZEDER_STRINGS.find(ssg_string)->second;
+
+    return SSGType::INVALID;
 }
 
 
@@ -493,21 +508,6 @@ void IdentifyMissingLanguage(MetadataRecord * const metadata_record, const Confi
 }
 
 
-MetadataRecord::SSGType GetSSGTypeFromString(const std::string &ssg_string) {
-    const std::map<std::string, MetadataRecord::SSGType> ZEDER_STRINGS {
-        { "FG_0", MetadataRecord::SSGType::FG_0 },
-        { "FG_1", MetadataRecord::SSGType::FG_1 },
-        { "FG_0/1", MetadataRecord::SSGType::FG_01 },
-        { "FG_2,1", MetadataRecord::SSGType::FG_21 },
-    };
-
-    if (ZEDER_STRINGS.find(ssg_string) != ZEDER_STRINGS.end())
-        return ZEDER_STRINGS.find(ssg_string)->second;
-
-    return MetadataRecord::SSGType::INVALID;
-}
-
-
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
 const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
@@ -623,7 +623,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
 
     // fill-in license and SSG values
     metadata_record->license_ = enhancement_maps.lookupLicense(metadata_record->issn_);
-    metadata_record->ssg_ = GetSSGTypeFromString(enhancement_maps.lookupSSG(metadata_record->issn_));
+    metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(enhancement_maps.lookupSSG(metadata_record->issn_));
 
     // tag reviews
     const auto &review_matcher(journal_params.review_regex_);
