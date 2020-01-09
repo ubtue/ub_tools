@@ -107,22 +107,29 @@ void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_na
             already_processed_column_names.emplace(column_name1);
             const auto column_def2(std::find_if(schema2.cbegin(), last_column_def2.base(), StartsWithColumnName(column_name1)));
             if (column_def2 == last_column_def2.base())
-                std::cout << "Column was deleted: " << table_name1 << '.' << column_name1 << '\n';
+                std::cout << "Column was deleted from 1st schema: " << table_name1 << '.' << column_name1 << '\n';
             else if (*column_def1 != *column_def2)
-                std::cout << "Column definition changed: " << *column_def1 << " -> " << *column_def2 << '\n';
+                std::cout << "Column definition changed from 1st to 2nd schema: " << *column_def1 << " -> " << *column_def2 << '\n';
         }
 
         for (auto column_def2(schema2.cbegin()); column_def2 != last_column_def2.base(); ++column_def2) {
             const auto column_name2(ExtractBackQuotedString(*column_def2));
             if (already_processed_column_names.find(column_name2) == already_processed_column_names.cend())
-                std::cout << "Column was added: " << table_name1 << '.' << column_name2 << '\n';
+                std::cout << "Column was added in 2nd schema: " << table_name1 << '.' << column_name2 << '\n';
         }
     }
 
+    std::set<std::string> schema2_tables;
     for (const auto &table_name2_and_schema2 : table_name_to_schema_map2) {
         const auto &table_name2(table_name2_and_schema2.first);
+        schema2_tables.emplace(table_name2);
         if (already_processed_table_names.find(table_name2) == already_processed_table_names.cend())
-            std::cout << "Table was added: " << table_name2 << '\n';
+            std::cout << "Table was added in 2nd schema: " << table_name2 << '\n';
+    }
+    for (const auto &table_name1_and_schema1 : table_name_to_schema_map1) {
+        const auto &table_name1(table_name1_and_schema1.first);
+        if (schema2_tables.find(table_name1) == schema2_tables.cend())
+            std::cout << "Table was removed from 1st schema: " << table_name1 << '\n';
     }
 }
 
