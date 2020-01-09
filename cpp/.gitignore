@@ -79,7 +79,7 @@
 /mpi_stats
 /mysql_database_patcher
 /mysql_diff_schemas
-/mysql_list_schemas
+/mysql_list_tables
 /mysql_schema_diff
 /new_journal_alert
 /normalise_and_deduplicate_language
