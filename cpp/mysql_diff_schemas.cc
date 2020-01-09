@@ -124,6 +124,32 @@ public:
 };
 
 
+void CompareTableOptions(const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map1,
+                         const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map2)
+{
+    for (const auto &table_name1_and_schema1 : table_name_to_schema_map1) {
+        const auto &table_name1(table_name1_and_schema1.first);
+        const auto table_name2_and_schema2(table_name_to_schema_map2.find(table_name1));
+        if (table_name2_and_schema2 == table_name_to_schema_map2.cend())
+            continue;
+
+        const auto &schema1(table_name1_and_schema1.second);
+        const auto table_options1(std::find_if(schema1.cbegin(), schema1.cend(), StartsWith(") ")));
+        if (unlikely(table_options1 == schema1.cend()))
+            LOG_ERROR("No table options line for table \"" + table_name1 + "\" found in 1st schema!");
+
+        const auto &schema2(table_name2_and_schema2->second);
+        const auto table_options2(std::find_if(schema2.cbegin(), schema2.cend(), StartsWith(") ")));
+        if (unlikely(table_options2 == schema2.cend()))
+            LOG_ERROR("No table options line for table \"" + table_name1 + "\" found in 2nd schema!");
+
+        if (*table_options1 != *table_options2)
+            std::cerr << "Table options differ for " << table_name1 << ": " << table_options1->substr(2) << " -> "
+                      << table_options2->substr(2) << '\n';
+    }
+}
+
+
 void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map1,
                  const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map2)
 {
@@ -181,12 +207,14 @@ void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_na
     CompareTables("PRIMARY KEY", table_name_to_schema_map1, table_name_to_schema_map2);
     CompareTables("UNIQUE KEY", table_name_to_schema_map1, table_name_to_schema_map2);
     CompareTables("CONSTRAINT", table_name_to_schema_map1, table_name_to_schema_map2);
+    CompareTableOptions(table_name_to_schema_map1, table_name_to_schema_map2);
 }
 
 
 int Main(int argc, char *argv[]) {
     if (argc != 3)
-        ::Usage("schema1 schema2");
+        ::Usage("schema1 schema2\n"
+                "Please note that this tool may not work particularly well if you do not use output from mysql_list_tables");
 
     std::map<std::string, std::vector<std::string>> table_name_to_schema_map1;
     LoadSchema(argv[1], &table_name_to_schema_map1);
