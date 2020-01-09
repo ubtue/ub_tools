@@ -1,4 +1,4 @@
-/** \file mysql_list_schemas.cc
+/** \file mysql_list_tables.cc
  *  \brief A tool for listing the schemas of all tables in a MySQL database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
