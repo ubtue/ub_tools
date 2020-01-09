@@ -74,11 +74,47 @@ void LoadSchema(const std::string &filename, std::map<std::string, std::vector<s
 }
 
 
+std::set<std::string> FindLinesStartingWithPrefix(const std::vector<std::string> &lines, const std::string &prefix) {
+    std::set<std::string> matching_lines;
+    for (const auto &line : lines) {
+        if (StringUtil::StartsWith(line, prefix))
+            matching_lines.emplace(line);
+    }
+    return matching_lines;
+}
+
+
+// Reports differences for lines that start w/ "prefix" for tables w/ the identical names.
+void CompareTables(const std::string &prefix, const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map1,
+                   const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map2)
+{
+    for (const auto &table_name1_and_schema1 : table_name_to_schema_map1) {
+        const auto &table_name1(table_name1_and_schema1.first);
+        const auto table_name2_and_schema2(table_name_to_schema_map2.find(table_name1));
+        if (table_name2_and_schema2 == table_name_to_schema_map2.cend())
+            continue;
+        const auto &schema2(table_name2_and_schema2->second);
+
+        const std::set<std::string> matching_lines_in_table1(FindLinesStartingWithPrefix(table_name1_and_schema1.second, prefix));
+        for (const auto &matching_line_in_table1 : matching_lines_in_table1) {
+            const auto matching_line_in_schema2(std::find(schema2.cbegin(), schema2.cend(), matching_line_in_table1));
+            if (matching_line_in_schema2 == schema2.cend())
+                std::cout << matching_line_in_table1 << " is missing in 2nd schema for table " << table_name1 << '\n';
+        }
+        for (const auto &line_in_table2 : schema2) {
+            if (StringUtil::StartsWith(line_in_table2, prefix)
+                and matching_lines_in_table1.find(line_in_table2) == matching_lines_in_table1.cend())
+                std::cout << line_in_table2 << " is missing in 1st schema for table " << table_name1 << '\n';
+        }
+    }
+}
+
+
 class StartsWith {
     std::string prefix_;
 public:
     explicit StartsWith(const std::string &prefix): prefix_(prefix) { }
-    bool operator ()(const std::string &line) { return StringUtil::StartsWith(line, prefix_); }
+    bool operator ()(const std::string &line) const { return StringUtil::StartsWith(line, prefix_); }
 };
 
 
@@ -116,15 +152,15 @@ void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_na
             already_processed_column_names.emplace(column_name1);
             const auto column_def2(std::find_if(schema2.cbegin(), last_column_def2.base(), StartsWithColumnName(column_name1)));
             if (column_def2 == last_column_def2.base())
-                std::cout << "Column was deleted from 1st schema: " << table_name1 << '.' << column_name1 << '\n';
+                std::cout << "Column does not exist in 1st schema: " << table_name1 << '.' << column_name1 << '\n';
             else if (*column_def1 != *column_def2)
-                std::cout << "Column definition changed from 1st to 2nd schema: " << *column_def1 << " -> " << *column_def2 << '\n';
+                std::cout << "Column definition differs between the 1st and 2nd schemas: " << *column_def1 << " -> " << *column_def2 << '\n';
         }
 
         for (auto column_def2(schema2.cbegin()); column_def2 != last_column_def2.base(); ++column_def2) {
             const auto column_name2(ExtractBackQuotedString(*column_def2));
             if (already_processed_column_names.find(column_name2) == already_processed_column_names.cend())
-                std::cout << "Column was added in 2nd schema: " << table_name1 << '.' << column_name2 << '\n';
+                std::cout << "Column exists only in 2nd schema: " << table_name1 << '.' << column_name2 << '\n';
         }
     }
 
@@ -133,13 +169,18 @@ void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_na
         const auto &table_name2(table_name2_and_schema2.first);
         schema2_tables.emplace(table_name2);
         if (already_processed_table_names.find(table_name2) == already_processed_table_names.cend())
-            std::cout << "Table was added in 2nd schema: " << table_name2 << '\n';
+            std::cout << "Table exists only in 1st schema: " << table_name2 << '\n';
     }
     for (const auto &table_name1_and_schema1 : table_name_to_schema_map1) {
         const auto &table_name1(table_name1_and_schema1.first);
         if (schema2_tables.find(table_name1) == schema2_tables.cend())
-            std::cout << "Table was removed from 1st schema: " << table_name1 << '\n';
+            std::cout << "Table exist only in 2st schema: " << table_name1 << '\n';
     }
+
+    CompareTables("KEY", table_name_to_schema_map1, table_name_to_schema_map2);
+    CompareTables("PRIMARY KEY", table_name_to_schema_map1, table_name_to_schema_map2);
+    CompareTables("UNIQUE KEY", table_name_to_schema_map1, table_name_to_schema_map2);
+    CompareTables("CONSTRAINT", table_name_to_schema_map1, table_name_to_schema_map2);
 }
 
 
