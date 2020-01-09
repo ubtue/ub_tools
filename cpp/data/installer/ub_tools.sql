@@ -41,20 +41,20 @@ CREATE TABLE delivered_marc_records (
     hash VARCHAR(40) NOT NULL,
     zeder_id VARCHAR(10) NOT NULL,
     delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    journal_name VARCHAR(191) NOT NULL,
-    main_title VARCHAR(191) NOT NULL,
+    journal_name VARCHAR(1000) NOT NULL,
+    main_title VARCHAR(1000) NOT NULL,
     publication_year CHAR(4) DEFAULT NULL,
     volume CHAR(40) DEFAULT NULL,
     issue CHAR(40) DEFAULT NULL,
     pages CHAR(20) DEFAULT NULL,
     resource_type ENUM('print','online','unknown') NOT NULL,
     record BLOB NOT NULL,
-    INDEX delivered_marc_records_url_index(url(191)),
+    INDEX delivered_marc_records_url_index(url(768)),
     INDEX delivered_marc_records_hash_index(hash),
     INDEX delivered_marc_records_zeder_id_index(zeder_id),
     INDEX delivered_marc_records_delivered_at_index(delivered_at),
-    INDEX delivered_marc_records_journal_name_index(journal_name),
-    INDEX delivered_marc_records_main_title_index(main_title)
+    INDEX delivered_marc_records_journal_name_index(journal_name(768)),
+    INDEX delivered_marc_records_main_title_index(main_title(768))
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 CREATE TABLE delivered_marc_records_superior_info (

@@ -1,0 +1,11 @@
+DROP INDEX delivered_marc_records_url_index ON delivered_marc_records;
+ALTER TABLE delivered_marc_records CHANGE COLUMN url url VARCHAR(1000);
+CREATE INDEX delivered_marc_records_url_index ON delivered_marc_records (url(768));
+
+DROP INDEX delivered_marc_records_journal_name_index ON delivered_marc_records;
+ALTER TABLE delivered_marc_records CHANGE COLUMN journal_name journal_name VARCHAR(1000);
+CREATE INDEX delivered_marc_records_journal_name_index ON delivered_marc_records (journal_name(768));
+
+DROP INDEX delivered_marc_records_main_title_index ON delivered_marc_records;
+ALTER TABLE delivered_marc_records CHANGE COLUMN main_title main_title VARCHAR(1000);
+CREATE INDEX delivered_marc_records_main_title_index ON delivered_marc_records (main_title(768));
