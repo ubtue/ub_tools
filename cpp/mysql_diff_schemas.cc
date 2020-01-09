@@ -67,15 +67,24 @@ void LoadSchema(const std::string &filename, std::map<std::string, std::vector<s
         } else
             current_schema.emplace_back(line);
     }
+    if (not current_schema.empty()) {
+        std::sort(current_schema.begin(), current_schema.end(), SchemaLineIsLessThan);
+        (*table_name_to_schema_map)[current_table] = current_schema;
+    }
 }
 
 
-class StartsWithColumnName {
-    std::string quoted_reference_column_name_;
+class StartsWith {
+    std::string prefix_;
 public:
-    explicit StartsWithColumnName(const std::string &reference_column_name)
-        : quoted_reference_column_name_("`" + reference_column_name + "`") { }
-    inline bool operator ()(const std::string &line) { return StringUtil::StartsWith(line, quoted_reference_column_name_); }
+    explicit StartsWith(const std::string &prefix): prefix_(prefix) { }
+    bool operator ()(const std::string &line) { return StringUtil::StartsWith(line, prefix_); }
+};
+
+
+class StartsWithColumnName: public StartsWith {
+public:
+    explicit StartsWithColumnName(const std::string &reference_column_name): StartsWith("`" + reference_column_name + "`") { }
 };
 
 
