@@ -150,6 +150,26 @@ void CompareTableOptions(const std::map<std::string, std::vector<std::string>> &
 }
 
 
+void ReportUnknownLines(const std::string &schema, const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map) {
+    static const std::vector<std::string> KNOWN_LINE_PREFIXES{ "KEY", "PRIMARY KEY", "UNIQUE KEY", "CONSTRAINT", " )" };
+
+    for (const auto &table_name_and_schema : table_name_to_schema_map) {
+        for (const auto &line : table_name_and_schema.second) {
+            bool found_a_known_prefix(false);
+            for (const auto &known_prefix : KNOWN_LINE_PREFIXES) {
+                if (StringUtil::StartsWith(line, known_prefix)) {
+                    found_a_known_prefix = true;
+                    break;
+                }
+            }
+
+            if (not found_a_known_prefix)
+                LOG_ERROR("Unknown line type in " + schema + ", table " + table_name_and_schema.first + ": " + line);
+        }
+    }
+}
+
+
 void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map1,
                  const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map2)
 {
@@ -208,6 +228,9 @@ void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_na
     CompareTables("UNIQUE KEY", table_name_to_schema_map1, table_name_to_schema_map2);
     CompareTables("CONSTRAINT", table_name_to_schema_map1, table_name_to_schema_map2);
     CompareTableOptions(table_name_to_schema_map1, table_name_to_schema_map2);
+
+    ReportUnknownLines("schema1", table_name_to_schema_map1);
+    ReportUnknownLines("schema2", table_name_to_schema_map1);
 }
 
 
