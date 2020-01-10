@@ -72,8 +72,8 @@ public:
     time_t getLastDeliveryTime(const std::string &journal_name) const;
 private:
     inline void truncateURL(std::string * const url) const {
-        if (url->length() > static_cast<std::size_t>(SqlUtil::VARCHAR_UTF8_MAX_LENGTH))
-            url->erase(SqlUtil::VARCHAR_UTF8_MAX_LENGTH);
+        if (url->length() > static_cast<std::size_t>(SqlUtil::VARCHAR_UTF8_MAX_INDEX_LENGTH))
+            url->erase(SqlUtil::VARCHAR_UTF8_MAX_INDEX_LENGTH);
     }
 };
 
