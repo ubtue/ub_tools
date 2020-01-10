@@ -30,6 +30,10 @@
 #include "util.h"
 
 
+// Debugging Tips:
+//      1. Disable optimizations (the Makefile should refer to the environment variable that needs to be modified).
+//      3. Turn on ThreadSanitizer/AddressSanitizer in the Makefile.
+//      4. Set the symbolizer path environment variables (c.f https://clang.llvm.org/docs/SanitizerSpecialCaseList.html)
 namespace {
 
 
@@ -166,28 +170,11 @@ struct HarvesterConfigData {
 
 
 void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * const harvester_config) {
-    const IniFile ini(config_path);
+    Config::LoadHarvesterConfigFile(config_path, &harvester_config->global_params_,
+                                    &harvester_config->group_params_, &harvester_config->journal_params_);
 
-    harvester_config->global_params_.reset(new Config::GlobalParams(*ini.getSection("")));
-
-    std::set<std::string> group_names;
-    StringUtil::Split(harvester_config->global_params_->group_names_, ',', &group_names, /* suppress_empty_components = */ true);
-
-    for (const auto &group_name : group_names) {
-        const auto new_group(new Config::GroupParams(*ini.getSection(group_name)));
-        harvester_config->group_params_.emplace_back(new_group);
-        harvester_config->group_name_to_group_params_map_.emplace(group_name, *new_group);
-    }
-
-    for (const auto &section : ini) {
-        if (section.getSectionName().empty())
-            continue;
-        else if (group_names.find(section.getSectionName()) != group_names.end())
-            continue;
-
-        harvester_config->journal_params_.emplace_back(new Config::JournalParams(section,
-                                                       *harvester_config->global_params_));
-    }
+    for (const auto &group : harvester_config->group_params_)
+        harvester_config->group_name_to_group_params_map_.emplace(group->name_, *group);
 
     harvester_config->enhancement_maps.reset(
         new Config::EnhancementMaps(harvester_config->global_params_->enhancement_maps_directory_));
@@ -212,8 +199,11 @@ struct Metrics {
     unsigned num_journals_with_harvest_operation_crawl_;
     unsigned num_downloads_crawled_successful_;
     unsigned num_downloads_crawled_unsuccessful_;
+    unsigned num_downloads_crawled_cache_hits_;
     unsigned num_downloads_harvested_successful_;
     unsigned num_downloads_harvested_unsuccessful_;
+    unsigned num_downloads_harvested_cache_hits_;
+    unsigned num_downloads_skipped_since_already_harvested_;
     unsigned num_downloads_skipped_since_already_delivered_;
     unsigned num_marc_conversions_successful_;
     unsigned num_marc_conversions_skipped_since_online_first_;
@@ -231,7 +221,8 @@ public:
 Metrics::Metrics()
  : num_journals_with_harvest_operation_direct_(0), num_journals_with_harvest_operation_rss_(0),
    num_journals_with_harvest_operation_crawl_(0), num_downloads_crawled_successful_(0), num_downloads_crawled_unsuccessful_(0),
-   num_downloads_harvested_successful_(0), num_downloads_harvested_unsuccessful_(0),
+   num_downloads_crawled_cache_hits_(0), num_downloads_harvested_successful_(0), num_downloads_harvested_unsuccessful_(0),
+   num_downloads_harvested_cache_hits_(0), num_downloads_skipped_since_already_harvested_(0),
    num_downloads_skipped_since_already_delivered_(0), num_marc_conversions_successful_(0),
    num_marc_conversions_skipped_since_online_first_(0), num_marc_conversions_skipped_since_early_view_(0),
    num_marc_conversions_skipped_since_exclusion_filters_(0), num_marc_conversions_skipped_since_already_delivered_(0) {}
@@ -250,11 +241,15 @@ std::string Metrics::toString() const {
     out += "\tCrawls: " + std::to_string(num_downloads_crawled_successful_ + num_downloads_crawled_unsuccessful_) + "\n";
     out += "\t\tSuccessful: " + std::to_string(num_downloads_crawled_successful_) + "\n";
     out += "\t\tUnsuccessful : " + std::to_string(num_downloads_crawled_unsuccessful_) + "\n";
+    out += "\t\tCache Hits : " + std::to_string(num_downloads_crawled_cache_hits_) + "\n";
 
     out += "\tHarvests: " + std::to_string(num_downloads_harvested_successful_ + num_downloads_harvested_unsuccessful_
+                                           + num_downloads_skipped_since_already_harvested_
                                            + num_downloads_skipped_since_already_delivered_) + "\n";
     out += "\t\tSuccessful: " + std::to_string(num_downloads_harvested_successful_) + "\n";
     out += "\t\tUnsuccessful : " + std::to_string(num_downloads_harvested_unsuccessful_) + "\n";
+    out += "\t\tCache Hits : " + std::to_string(num_downloads_harvested_cache_hits_) + "\n";
+    out += "\t\tSkipped (already harvested): " + std::to_string(num_downloads_skipped_since_already_harvested_) + "\n";
     out += "\t\tSkipped (already delivered): " + std::to_string(num_downloads_skipped_since_already_delivered_) + "\n";
 
     out += "\tRecords: " + std::to_string(num_marc_conversions_successful_ + num_marc_conversions_skipped_since_online_first_
@@ -325,6 +320,7 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
 
             metrics->num_downloads_crawled_successful_ += journal_datastore->current_crawl_->getResult().num_crawled_successful_;
             metrics->num_downloads_crawled_unsuccessful_ += journal_datastore->current_crawl_->getResult().num_crawled_unsuccessful_;
+            metrics->num_downloads_crawled_cache_hits_ += journal_datastore->current_crawl_->getResult().num_crawled_cache_hits_;
 
             journal_datastore->current_crawl_.reset();
         } else
@@ -352,18 +348,21 @@ void EnqueueCompletedDownloadsForConversion(JournalDatastore * const journal_dat
     for (auto iter(journal_datastore->queued_downloads_.begin()); iter != journal_datastore->queued_downloads_.end();) {
         if ((*iter)->isComplete()) {
             const auto &download_result((*iter)->getResult());
+            if (download_result.fromCache())
+                ++metrics->num_downloads_harvested_cache_hits_;
 
-            if (urls_harvested_during_current_session.find(download_result.source_.url_.toString())
-                != urls_harvested_during_current_session.end())
-            {
-                LOG_INFO("Item " + download_result.source_.toString() + " already harvested during this session");
-            } else if (download_result.itemAlreadyDelivered()) {
-                LOG_INFO("Item " + download_result.source_.toString() + " already delivered");
-                ++metrics->num_downloads_skipped_since_already_delivered_;
-            } else if (not download_result.downloadSuccessful()) {
+            if (not download_result.downloadSuccessful()) {
                 LOG_INFO("Item " + download_result.source_.toString() + " download failed! error: "
                          + download_result.error_message_ + " (response code = " + std::to_string(download_result.response_code_) + ")");
                 ++metrics->num_downloads_harvested_unsuccessful_;
+            } else if (urls_harvested_during_current_session.find(download_result.source_.url_.toString())
+                != urls_harvested_during_current_session.end())
+            {
+                LOG_INFO("Item " + download_result.source_.toString() + " already harvested during this session");
+                ++metrics->num_downloads_skipped_since_already_harvested_;
+            } else if (download_result.itemAlreadyDelivered()) {
+                LOG_INFO("Item " + download_result.source_.toString() + " already delivered");
+                ++metrics->num_downloads_skipped_since_already_delivered_;
             } else {
                 auto conversion_result(conversion_manager->convert(download_result.source_,
                                        download_result.response_body_,
@@ -580,7 +579,7 @@ int Main(int argc, char *argv[]) {
         journal_datastores.emplace_back(std::move(current_journal_datastore));
     }
 
-    static const unsigned BUSY_LOOP_THREAD_SLEEP_TIME(64 * 1000);   // ms -> us
+    static const unsigned WAIT_LOOP_THREAD_SLEEP_TIME(64 * 1000);   // ms -> us
 
     // Wait on completed downloads, initiate MARC conversions and write converted records to disk.
     while (true) {
@@ -600,7 +599,7 @@ int Main(int argc, char *argv[]) {
         if (not jobs_running)
             break;
 
-        ::usleep(BUSY_LOOP_THREAD_SLEEP_TIME);
+        ::usleep(WAIT_LOOP_THREAD_SLEEP_TIME);
     }
 
     LOG_INFO(harvester_metrics.toString());

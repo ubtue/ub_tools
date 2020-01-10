@@ -87,10 +87,10 @@ TransactionGuard::~TransactionGuard() {
 }
 
 
-std::string TruncateToVarCharMaxLength(const std::string &s) {
+std::string TruncateToVarCharMaxIndexLength(const std::string &s) {
     auto truncated(s);
-    if (truncated.length() > VARCHAR_UTF8_MAX_LENGTH)
-        truncated.erase(VARCHAR_UTF8_MAX_LENGTH);
+    if (truncated.length() > VARCHAR_UTF8_MAX_INDEX_LENGTH)
+        truncated.erase(VARCHAR_UTF8_MAX_INDEX_LENGTH);
 
     return truncated;
 }

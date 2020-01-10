@@ -1,7 +1,7 @@
 /** \file oai_pmh_list_formats.cc
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -21,19 +21,17 @@
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " ini_file_path ini_file_section_name\n"
-              << "       The ini file section must contain the entries \"repository_name\" \"base_url\",\n"
-              << "       \"metadata_prefix\", and \"harvest_mode\" where \"harvest_mode\" must be either\n"
-              << "       \"FULL\" or \"INCREMENTAL\".\n\n";
+[[noreturn]] void Usage() {
+    ::Usage(" ini_file_path ini_file_section_name\n"
+            "       The ini file section must contain the entries \"repository_name\" \"base_url\",\n"
+            "       \"metadata_prefix\", and \"harvest_mode\" where \"harvest_mode\" must be either\n"
+            "       \"FULL\" or \"INCREMENTAL\".");
 
     std::exit(EXIT_FAILURE);
 }
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
-
+int Main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
@@ -55,4 +53,6 @@ int main(int argc, char **argv) {
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
+
+    return EXIT_SUCCESS;
 }

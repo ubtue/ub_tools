@@ -28,28 +28,23 @@
 #include <sys/wait.h>
 #include "ExecUtil.h"
 #include "FileUtil.h"
-#include "IniFile.h"
-#include "JournalConfig.h"
 #include "StringUtil.h"
 #include "Template.h"
 #include "WallClockTimer.h"
 #include "WebUtil.h"
-#include "Zotero.h"
 #include "UBTools.h"
 #include "util.h"
+#include "ZoteroHarvesterConfig.h"
 
 
 namespace {
 
 
 std::string zts_client_maps_directory;
-std::string zts_url(Zotero::TranslationServer::GetUrl());
-const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zts_harvester.conf");
+const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zotero_harvester.conf");
 const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS {
     // custom formats
-    { "marc-xml", "xml" },
-    { "marc-21", "mrc" },
-    { "json", "json" },
+    { "marc-xml", "xml" }
 };
 
 
@@ -94,10 +89,14 @@ std::string GetMinElementOrDefault(const std::vector<std::string> &elements, con
 
 
 void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Template::Map * const names_to_values_map,
-                     std::unordered_map<std::string, Zotero::GroupParams> * const group_name_to_params_map,
+                     std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> * const group_name_to_params_map,
                      std::unordered_map<std::string, std::string> * const journal_name_to_group_name_map)
 {
-    IniFile ini(ZTS_HARVESTER_CONF_FILE);
+    std::unique_ptr<ZoteroHarvester::Config::GlobalParams> global_params;
+    std::vector<std::unique_ptr<ZoteroHarvester::Config::GroupParams>> group_params;
+    std::vector<std::unique_ptr<ZoteroHarvester::Config::JournalParams>> journal_params;
+
+    ZoteroHarvester::Config::LoadHarvesterConfigFile(ZTS_HARVESTER_CONF_FILE, &global_params, &group_params, &journal_params);
 
     std::vector<std::string> all_journal_titles;
     std::vector<std::string> all_journal_print_issns;
@@ -138,43 +137,30 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> crawling_strptime_formats;
 
     std::unordered_set<std::string> group_names;
-    JournalConfig::Reader bundle_reader(ini);
 
-    zts_client_maps_directory = ini.getString("", "map_directory_path");
-    StringUtil::SplitThenTrimWhite(ini.getString("", "groups"), ',', &group_names);
-    for (const auto &group_name : group_names)
-        Zotero::LoadGroup(*ini.getSection(group_name), group_name_to_params_map);
+    zts_client_maps_directory = global_params->enhancement_maps_directory_;
+    for (const auto &group : group_params)
+        group_name_to_params_map->emplace(group->name_, *group);
 
-    for (const auto &section : ini) {
-        const std::string &title(section.getSectionName());
-        if (title.empty() or group_names.find(title) != group_names.cend())
-            continue;
-
-        const std::string harvest_type_raw(bundle_reader.zotero(title).value(JournalConfig::Zotero::TYPE));
-        const Zotero::HarvesterType harvest_type(static_cast<Zotero::HarvesterType>(Zotero::STRING_TO_HARVEST_TYPE_MAP.at(harvest_type_raw)));
-
-        const BSZUpload::DeliveryMode delivery_mode(static_cast<BSZUpload::DeliveryMode>(section.getEnum(JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::DELIVERY_MODE), BSZUpload::STRING_TO_DELIVERY_MODE_MAP, BSZUpload::DeliveryMode::NONE)));
-
-        const std::string issn_print(bundle_reader.print(title).value(JournalConfig::Print::ISSN, ""));
-        const std::string ppn_print(bundle_reader.print(title).value(JournalConfig::Print::PPN, ""));
-
-        const std::string issn_online(bundle_reader.online(title).value(JournalConfig::Online::ISSN, ""));
-        const std::string ppn_online(bundle_reader.online(title).value(JournalConfig::Online::PPN, ""));
-        const std::string group(bundle_reader.zotero(title).value(JournalConfig::Zotero::GROUP));
-        const std::string url(bundle_reader.zotero(title).value(JournalConfig::Zotero::URL));
-        const std::string strptime_format(bundle_reader.zotero(title).value(JournalConfig::Zotero::STRPTIME_FORMAT, ""));
-        const std::string zeder_id(bundle_reader.zeder(title).value(JournalConfig::Zeder::ID, ""));
+    for (const auto &journal_param : journal_params) {
+        const auto &title(journal_param->name_);
+        const auto &harvest_type_raw(ZoteroHarvester::Config::HARVESTER_OPERATION_TO_STRING_MAP.at(journal_param->harvester_operation_));
+        const auto &harvest_type(journal_param->harvester_operation_);
+        const auto &delivery_mode(journal_param->upload_operation_);
+        const auto &issn_print(journal_param->issn_.print_);
+        const auto &ppn_print(journal_param->ppn_.print_);
+        const auto &issn_online(journal_param->issn_.online_);
+        const auto &ppn_online(journal_param->ppn_.online_);
+        const auto &group(journal_param->group_);
+        const auto &url(journal_param->entry_point_url_);
+        const auto &strptime_format(journal_param->strptime_format_string_);
+        const auto &zeder_id(journal_param->zeder_id_);
 
         std::string zeder_url;
-        if (not zeder_id.empty()) {
-            const auto group_params(group_name_to_params_map->find(group));
-            if (group_params != group_name_to_params_map->end()) {
-                if (group_params->second.bsz_upload_group_ == "ixtheo")
-                    zeder_url = "http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo#suche=Z%3D" + zeder_id;
-                else if (group_params->second.bsz_upload_group_ == "krimdok")
-                    zeder_url = "http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=krim#suche=Z%3D" + zeder_id;
-            }
-        }
+        if (group == "IxTheo" or group == "RelBib")
+            zeder_url = "http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo#suche=Z%3D" + std::to_string(zeder_id);
+        else if (group == "KrimDok")
+            zeder_url = "http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=krim#suche=Z%3D" + std::to_string(zeder_id);
 
         all_journal_titles.emplace_back(title);
         all_journal_print_issns.emplace_back(issn_print);
@@ -183,16 +169,15 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
         all_journal_online_ppns.emplace_back(ppn_online);
         all_journal_groups.emplace_back(group);
         all_journal_methods.emplace_back(harvest_type_raw);
-        all_journal_zeder_ids.emplace_back(zeder_id);
+        all_journal_zeder_ids.emplace_back(std::to_string(zeder_id));
         all_journal_zeder_urls.emplace_back(zeder_url);
 
         journal_name_to_group_name_map->insert(std::make_pair(title, group));
 
-        const auto delivery_mode_string(std::find_if(BSZUpload::STRING_TO_DELIVERY_MODE_MAP.begin(), BSZUpload::STRING_TO_DELIVERY_MODE_MAP.end(), [delivery_mode](const std::pair<std::string, int> &map_entry) {return map_entry.second == delivery_mode; })->first);
-        all_journal_delivery_modes.emplace_back(delivery_mode_string);
+        all_journal_delivery_modes.emplace_back(ZoteroHarvester::Config::UPLOAD_OPERATION_TO_STRING_MAP.at(delivery_mode));
         all_urls.emplace_back(url);
 
-        if (harvest_type == Zotero::HarvesterType::RSS) {
+        if (harvest_type == ZoteroHarvester::Config::HarvesterOperation::RSS) {
             rss_journal_titles.emplace_back(title);
             rss_journal_print_issns.emplace_back(issn_print);
             rss_journal_online_issns.emplace_back(issn_online);
@@ -200,7 +185,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             rss_journal_online_ppns.emplace_back(ppn_online);
             rss_feed_urls.emplace_back(url);
             rss_strptime_formats.emplace_back(strptime_format);
-        } else if (harvest_type == Zotero::HarvesterType::DIRECT) {
+        } else if (harvest_type == ZoteroHarvester::Config::HarvesterOperation::DIRECT) {
             direct_journal_titles.emplace_back(title);
             direct_journal_print_issns.emplace_back(issn_print);
             direct_journal_online_issns.emplace_back(issn_online);
@@ -208,24 +193,20 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             direct_journal_online_ppns.emplace_back(ppn_online);
             direct_urls.emplace_back(url);
             direct_strptime_formats.emplace_back(strptime_format);
-        } else if (harvest_type == Zotero::HarvesterType::CRAWL) {
+        } else if (harvest_type == ZoteroHarvester::Config::HarvesterOperation::CRAWL) {
             crawling_journal_titles.emplace_back(title);
             crawling_journal_print_issns.emplace_back(issn_print);
             crawling_journal_online_issns.emplace_back(issn_online);
             crawling_journal_print_ppns.emplace_back(ppn_print);
             crawling_journal_online_ppns.emplace_back(ppn_online);
             crawling_base_urls.emplace_back(url);
-            crawling_extraction_regexes.emplace_back(bundle_reader.zotero(title).value(JournalConfig::Zotero::EXTRACTION_REGEX));
-            crawling_depths.emplace_back(bundle_reader.zotero(title).value(JournalConfig::Zotero::MAX_CRAWL_DEPTH));
+            crawling_extraction_regexes.emplace_back(journal_param->crawl_params_.extraction_regex_->getPattern());
+            crawling_depths.emplace_back(std::to_string(journal_param->crawl_params_.max_crawl_depth_));
             crawling_strptime_formats.emplace_back(strptime_format);
         }
     }
 
-    if (zts_url.empty())
-        LOG_ERROR("Zotero Translation Server Url not defined in config file!");
-    if (zts_client_maps_directory.empty())
-        LOG_ERROR("Zotero Mapping Directory not defined in config file!");
-    names_to_values_map->insertScalar("zotero_translation_server_url", zts_url);
+    names_to_values_map->insertScalar("zotero_translation_server_url", global_params->translation_server_url_);
 
     names_to_values_map->insertArray("all_journal_titles", all_journal_titles);
     names_to_values_map->insertArray("all_journal_print_issns", all_journal_print_issns);
@@ -289,14 +270,6 @@ std::string BuildCommandString(const std::string &command, const std::vector<std
 }
 
 
-/** \brief create local copy of template map directory and delete previously downloaded cache for clean test results */
-std::string PrepareMapsDirectory(const std::string &orig_directory, const std::string &tmp_directory) {
-    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("cp"), { "-r", orig_directory, tmp_directory });
-    const std::string local_maps_directory(tmp_directory + "/zotero-enhancement-maps");
-    return local_maps_directory;
-}
-
-
 void UpdateRuntime(unsigned seconds) {
     std::cout << "<script type=\"text/javascript\">UpdateRuntime(" + std::to_string(seconds) + ");</script>\r\n";
     std::cout << std::flush;
@@ -328,10 +301,9 @@ public:
 
 HarvestTask::HarvestTask(const std::string &section, const std::string &output_format_id, const std::string &bsz_upload_group)
     : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
-      executable_(ExecUtil::LocateOrDie("zts_harvester")),
+      executable_(ExecUtil::LocateOrDie("zotero_harvester")),
       log_path_(auto_temp_dir_.getDirectoryPath() + "/log", "", /*automatically_remove*/ false)
 {
-    const std::string local_maps_directory(PrepareMapsDirectory(zts_client_maps_directory, auto_temp_dir_.getDirectoryPath()));
     const auto output_directory(auto_temp_dir_.getDirectoryPath() + "/" + bsz_upload_group + "/");
     FileUtil::MakeDirectory(output_directory, true);
     out_path_.reset(new FileUtil::AutoTempFile(output_directory, "." + GetOutputFormatExtension(output_format_id),
@@ -343,15 +315,15 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
     std::vector<std::string> args;
     args.emplace_back("--min-log-level=DEBUG");
     args.emplace_back("--force-downloads");
-    args.emplace_back("--map-directory=" + local_maps_directory);
     args.emplace_back("--output-directory=" + auto_temp_dir_.getDirectoryPath());
     args.emplace_back("--output-filename=" + basename);
-
     args.emplace_back(ZTS_HARVESTER_CONF_FILE);
+    args.emplace_back("JOURNAL");
     args.emplace_back(section);
 
     std::unordered_map<std::string, std::string> envs {
         { "LOGGER_FORMAT",  "no_decorations,strip_call_site" },
+        { "UTIL_LOG_DEBUG", "true"                           },
         { "BACKTRACE",      "1"                              },
     };
 
@@ -361,11 +333,12 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
 }
 
 
-void ExecuteHarvestAction(const std::string &title, const std::string &output_format, const Zotero::GroupParams &group_params) {
+void ExecuteHarvestAction(const std::string &title, const std::string &output_format,
+                          const ZoteroHarvester::Config::GroupParams &group_params) {
     std::cout << "<h2>Result</h2>\r\n";
     std::cout << "<table>\r\n";
 
-    const HarvestTask task(title, output_format, group_params.bsz_upload_group_);
+    const HarvestTask task(title, output_format, group_params.output_folder_);
 
     std::cout << "<tr><td>Command</td><td>" + task.getCommand() + "</td></tr>\r\n";
     std::cout << "<tr><td>Runtime</td><td id=\"runtime\"></td></tr>\r\n";
@@ -457,10 +430,10 @@ int Main(int argc, char *argv[]) {
         if (not FileUtil::IsReadable(TEMPLATE_FILENAME, &error_message))
             LOG_ERROR(error_message);
 
-        names_to_values_map.insertScalar("running_processes_count", std::to_string(ExecUtil::FindActivePrograms("zts_harvester").size()));
+        names_to_values_map.insertScalar("running_processes_count", std::to_string(ExecUtil::FindActivePrograms("zotero_harvester").size()));
 
         std::ifstream template_html(TEMPLATE_FILENAME);
-        std::unordered_map<std::string, Zotero::GroupParams> group_name_to_params_map;
+        std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> group_name_to_params_map;
         std::unordered_map<std::string, std::string>journal_name_to_group_name_map;
         ParseConfigFile(cgi_args, &names_to_values_map, &group_name_to_params_map, &journal_name_to_group_name_map);
         Template::ExpandTemplate(template_html, std::cout, names_to_values_map);

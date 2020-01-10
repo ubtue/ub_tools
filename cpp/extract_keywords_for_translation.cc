@@ -6,7 +6,7 @@
  */
 
 /*
-    Copyright (C) 2016-2018, Library of the University of Tübingen
+    Copyright (C) 2016-2018,2020 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -39,9 +39,8 @@
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " norm_data_input\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]] void Usage() {
+    ::Usage("norm_data_input");
 }
 
 
@@ -289,9 +288,7 @@ void ExtractTranslationsForAllRecords(MARC::Reader * const authority_reader) {
 
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
-
+int Main(int argc, char **argv) {
     if (argc != 2)
         Usage();
 
@@ -308,4 +305,6 @@ int main(int argc, char **argv) {
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }
+
+    return EXIT_SUCCESS;
 }
