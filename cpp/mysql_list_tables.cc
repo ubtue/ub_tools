@@ -36,22 +36,23 @@ int Main(int argc, char *argv[]) {
     if (argc != 1 and argc != 3 and argc != 4 and argc != 5 and argc != 6)
         Usage();
 
+    const std::string database_name(argc == 1 ? "ub_tools" : argv[1]);
     std::unique_ptr<DbConnection> db_connection;
     switch (argc) {
     case 1:
         db_connection.reset(new DbConnection());
         break;
     case 3:
-        db_connection.reset(new DbConnection(argv[1], argv[2]));
+        db_connection.reset(new DbConnection(database_name, argv[2]));
         break;
     case 4:
-        db_connection.reset(new DbConnection(argv[1], argv[2], argv[3]));
+        db_connection.reset(new DbConnection(database_name, argv[2], argv[3]));
         break;
     case 5:
-        db_connection.reset(new DbConnection(argv[1], argv[2], argv[3], argv[4]));
+        db_connection.reset(new DbConnection(database_name, argv[2], argv[3], argv[4]));
         break;
     case 6:
-        db_connection.reset(new DbConnection(argv[1], argv[2], argv[3], argv[4], StringUtil::ToUnsigned(argv[5])));
+        db_connection.reset(new DbConnection(database_name, argv[2], argv[3], argv[4], StringUtil::ToUnsigned(argv[5])));
         break;
     }
 
@@ -61,7 +62,7 @@ int Main(int argc, char *argv[]) {
     DbResultSet result_set1(db_connection->getLastResultSet());
     DbRow row1;
     while (row1 = result_set1.getNextRow()) {
-        db_connection->queryOrDie("SHOW CREATE TABLE ub_tools." + row1[0]);
+        db_connection->queryOrDie("SHOW CREATE TABLE " + database_name + "." + row1[0]);
         DbResultSet result_set2(db_connection->getLastResultSet());
         DbRow row2;
         while (row2 = result_set2.getNextRow())
