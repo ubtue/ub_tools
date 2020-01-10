@@ -579,8 +579,9 @@ int Main(int argc, char *argv[]) {
         journal_datastores.emplace_back(std::move(current_journal_datastore));
     }
 
-    static const unsigned WAIT_LOOP_THREAD_SLEEP_TIME(64 * 1000);   // ms -> us
+    Util::ZoteroLogger::FlushBufferAndPrintProgress(0, 0);
 
+    static const unsigned WAIT_LOOP_THREAD_SLEEP_TIME(64 * 1000);   // ms -> us
     // Wait on completed downloads, initiate MARC conversions and write converted records to disk.
     while (true) {
         bool jobs_running(false);
@@ -599,11 +600,26 @@ int Main(int argc, char *argv[]) {
         if (not jobs_running)
             break;
 
+        const auto num_active_direct_downloads(download_manager.numActiveDirectDownloads());
+        const auto num_active_crawls(download_manager.numActiveCrawls());
+        const auto num_active_rss_feeds(download_manager.numActiveRssFeeds());
+        const auto num_queued_direct_downloads(download_manager.numQueuedDirectDownloads());
+        const auto num_queued_crawls(download_manager.numQueuedCrawls());
+        const auto num_queued_rss_feeds(download_manager.numQueuedRssFeeds());
+        const auto num_active_conversions(conversion_manager.numActiveConversions());
+        const auto num_queued_conversions(conversion_manager.numQueuedConversions());
+
+        Util::ZoteroLogger::FlushBufferAndPrintProgress(
+            num_active_direct_downloads + num_active_crawls + num_active_rss_feeds + num_active_conversions,
+            num_queued_direct_downloads + num_queued_crawls + num_queued_rss_feeds + num_queued_conversions);
+
         ::usleep(WAIT_LOOP_THREAD_SLEEP_TIME);
     }
 
     LOG_INFO(harvester_metrics.toString());
 
     assert(not download_manager.downloadInProgress() and not conversion_manager.conversionInProgress());
+    Util::ZoteroLogger::FlushBufferAndPrintProgress(0, 0);
+
     return EXIT_SUCCESS;
 }
