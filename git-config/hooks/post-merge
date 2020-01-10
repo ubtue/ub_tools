@@ -34,6 +34,6 @@ if [[ $compare_against_installer_schema && -r /tmp/new_ub_tools.schema ]]; then
     echo "DROP DATABASE ub_tools_tmp;" | mysql -u $MYSQL_USER
     /usr/local/bin/mysql_diff_schemas /tmp/installer_ub_tools.schema /tmp/new_ub_tools.schema | tee /tmp/schema_diffs
     if [ -s /tmp/schema_diffs ]; then
-        echo '**** We are up the creek! ****'
+        echo '**** The patched ub_tools database schema differs from the one that the installer uses.  You *must* fix this! ****'
     fi
 fi
