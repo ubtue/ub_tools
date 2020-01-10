@@ -604,5 +604,6 @@ int Main(int argc, char *argv[]) {
 
     LOG_INFO(harvester_metrics.toString());
 
+    assert(not download_manager.downloadInProgress() and not conversion_manager.conversionInProgress());
     return EXIT_SUCCESS;
 }
