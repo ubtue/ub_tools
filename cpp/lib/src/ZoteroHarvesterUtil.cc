@@ -69,7 +69,7 @@ ZoteroLogger::ContextData::ContextData(const Util::HarvestableItem &item)
 }
 
 
-void ZoteroLogger::queueMessage(const std::string &level, std::string msg, const TaskletContext &tasklet_context) {
+void ZoteroLogger::queueContextMessage(const std::string &level, std::string msg, const TaskletContext &tasklet_context) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
 
     auto harvestable_item_and_context(active_contexts_.find(tasklet_context.associated_item_));
@@ -78,6 +78,43 @@ void ZoteroLogger::queueMessage(const std::string &level, std::string msg, const
 
     formatMessage(level, &msg);
     harvestable_item_and_context->second.buffer_ += msg;
+}
+
+
+void ZoteroLogger::queueGlobalMessage(const std::string &level, std::string msg) {
+    std::lock_guard<std::recursive_mutex> locker(log_buffer_mutex_);
+
+    formatMessage(level, &msg);
+    log_buffer_.emplace_back(std::move(msg));
+}
+
+
+void ZoteroLogger::flushBufferAndPrintProgressImpl(const unsigned num_active_tasks, const unsigned num_queued_tasks) {
+    std::lock_guard<std::recursive_mutex> locker(log_buffer_mutex_);
+
+    // reset the progress bar
+    if (not progress_bar_buffer_.empty()) {
+        const std::string empty_string(progress_bar_buffer_.size(), ' ');
+        writeToBackingLog("\r" + empty_string + "\r");
+    }
+
+    // flush buffer
+    while (not log_buffer_.empty()) {
+        writeToBackingLog(log_buffer_.front());
+        log_buffer_.pop_front();
+    }
+
+    // update progress bar
+    progress_bar_buffer_ = "TASKS: ACTIVE = " + std::to_string(num_active_tasks) + ", QUEUED = "
+                           + std::to_string(num_queued_tasks) + "\r";
+    writeToBackingLog(progress_bar_buffer_);
+}
+
+
+void ZoteroLogger::writeToBackingLog(const std::string &msg) {
+    std::lock_guard<std::mutex> locker(mutex_);
+    ::write(fd_, msg.data(), msg.length());
+    ::fsync(fd_);
 }
 
 
@@ -116,12 +153,10 @@ void ZoteroLogger::warning(const std::string &msg) {
         return;
 
     const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
-    if (context == nullptr) {
-        ::Logger::warning(msg);       // pass-through
-        return;
-    }
-
-    queueMessage("WARN", msg, *context);
+    if (context == nullptr)
+        queueGlobalMessage("WARN", msg);
+    else
+        queueContextMessage("WARN", msg, *context);
 }
 
 
@@ -130,12 +165,10 @@ void ZoteroLogger::info(const std::string &msg) {
         return;
 
     const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
-    if (context == nullptr) {
-        ::Logger::info(msg);       // pass-through
-        return;
-    }
-
-    queueMessage("INFO", msg, *context);
+    if (context == nullptr)
+        queueGlobalMessage("INFO", msg);
+    else
+        queueContextMessage("INFO", msg, *context);
 }
 
 
@@ -144,12 +177,10 @@ void ZoteroLogger::debug(const std::string &msg) {
         return;
 
     const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
-    if (context == nullptr) {
-        ::Logger::debug(msg);       // pass-through
-        return;
-    }
-
-    queueMessage("DEBUG", msg, *context);
+    if (context == nullptr)
+        queueGlobalMessage("DEBUG", msg);
+    else
+        queueContextMessage("DEBUG", msg, *context);
 }
 
 
@@ -171,18 +202,30 @@ void ZoteroLogger::popContext(const Util::HarvestableItem &context_item) {
     if (harvestable_item_and_context == active_contexts_.end())
         error("Harvestable " + context_item.toString() + " not registered");
 
-    // flush buffer contents and remove the context
     harvestable_item_and_context->second.buffer_ += "\n\n";
-    writeString("", harvestable_item_and_context->second.buffer_, /* format_message = */ false);
+    {
+        std::lock_guard<std::recursive_mutex> global_buffer_locker(log_buffer_mutex_);
+        log_buffer_.emplace_back(std::move(harvestable_item_and_context->second.buffer_));
+    }
     active_contexts_.erase(harvestable_item_and_context);
 }
+
+
+static bool zotero_logger_initialized(false);
 
 
 void ZoteroLogger::Init() {
     delete logger;
     logger = new ZoteroLogger();
+    zotero_logger_initialized = true;
 
     LOG_INFO("Zotero Logger initialized!\n\n\n");
+}
+
+
+void ZoteroLogger::FlushBufferAndPrintProgress(const unsigned num_active_tasks, const unsigned num_queued_tasks) {
+    assert(zotero_logger_initialized == true);
+    reinterpret_cast<ZoteroLogger *>(logger)->flushBufferAndPrintProgressImpl(num_active_tasks, num_queued_tasks);
 }
 
 

@@ -327,6 +327,17 @@ private:
     };
 
 
+    struct TaskletCounters {
+        ThreadUtil::ThreadSafeCounter<unsigned> direct_download_tasklet_execution_counter_;
+        ThreadUtil::ThreadSafeCounter<unsigned> crawling_tasklet_execution_counter_;
+        ThreadUtil::ThreadSafeCounter<unsigned> rss_tasklet_execution_counter_;
+        ThreadUtil::ThreadSafeCounter<unsigned> direct_downloads_translation_server_queue_counter_;
+        ThreadUtil::ThreadSafeCounter<unsigned> direct_downloads_direct_query_queue_counter_;
+        ThreadUtil::ThreadSafeCounter<unsigned> crawls_queue_counter_;
+        ThreadUtil::ThreadSafeCounter<unsigned> rss_feeds_queue_counter_;
+    };
+
+
     struct CachedDownloadData {
         Util::HarvestableItem source_;
         DirectDownload::Operation operation_;
@@ -342,9 +353,6 @@ private:
     GlobalParams global_params_;
     pthread_t background_thread_;
     mutable std::atomic_bool stop_background_thread_;
-    ThreadUtil::ThreadSafeCounter<unsigned> direct_download_tasklet_execution_counter_;
-    ThreadUtil::ThreadSafeCounter<unsigned> crawling_tasklet_execution_counter_;
-    ThreadUtil::ThreadSafeCounter<unsigned> rss_tasklet_execution_counter_;
     std::unordered_map<std::string, std::unique_ptr<DomainData>> domain_data_;
     std::unordered_multimap<std::string, CachedDownloadData> cached_download_data_;
     std::vector<std::shared_ptr<DirectDownload::Tasklet>> ongoing_direct_downloads_;
@@ -357,6 +365,7 @@ private:
     mutable std::recursive_mutex crawling_queue_buffer_mutex_;
     mutable std::recursive_mutex rss_queue_buffer_mutex_;
     Util::UploadTracker upload_tracker_;
+    TaskletCounters tasklet_counters_;
 
     static void *BackgroundThreadRoutine(void * parameter);
 
@@ -387,6 +396,19 @@ public:
     std::unique_ptr<DirectDownload::Result> fetchFromDownloadCache(const Util::HarvestableItem &source,
                                                                    const DirectDownload::Operation operation) const;
     bool downloadInProgress() const;
+    inline unsigned numActiveDirectDownloads() const
+        { return tasklet_counters_.direct_download_tasklet_execution_counter_; }
+    inline unsigned numActiveCrawls() const
+        { return tasklet_counters_.crawling_tasklet_execution_counter_; }
+    inline unsigned numActiveRssFeeds() const
+        { return tasklet_counters_.rss_tasklet_execution_counter_; }
+    inline unsigned numQueuedDirectDownloads() const
+        { return tasklet_counters_.direct_downloads_direct_query_queue_counter_ +
+                 tasklet_counters_.direct_downloads_translation_server_queue_counter_; }
+    inline unsigned numQueuedCrawls() const
+        { return tasklet_counters_.crawls_queue_counter_; }
+    inline unsigned numQueuedRssFeeds() const
+        { return tasklet_counters_.rss_feeds_queue_counter_; }
 };
 
 

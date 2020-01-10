@@ -182,7 +182,7 @@ private:
     ThreadUtil::ThreadSafeCounter<unsigned> conversion_tasklet_execution_counter_;
     std::deque<std::shared_ptr<ConversionTasklet>> active_conversions_;
     std::deque<std::shared_ptr<ConversionTasklet>> conversion_queue_;
-    std::mutex conversion_queue_mutex_;
+    mutable std::mutex conversion_queue_mutex_;
 
     static void *BackgroundThreadRoutine(void * parameter);
 
@@ -195,7 +195,14 @@ public:
     std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> convert(const Util::HarvestableItem &source,
                                                                               const std::string &json_metadata,
                                                                               const Config::GroupParams &group_params);
-    inline bool conversionInProgress() const { return conversion_tasklet_execution_counter_ != 0; }
+    inline bool conversionInProgress() const
+        { return conversion_tasklet_execution_counter_ != 0; }
+    inline unsigned numActiveConversions() const
+        { return conversion_tasklet_execution_counter_; }
+    inline unsigned numQueuedConversions() const {
+        std::lock_guard<decltype(conversion_queue_mutex_)> lock(conversion_queue_mutex_);
+        return conversion_queue_.size();
+    }
 };
 
 
