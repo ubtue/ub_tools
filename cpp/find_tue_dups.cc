@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2017,2018 Library of the University of Tübingen
+    Copyright (C) 2017,2018,2020 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -35,10 +35,9 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input\n";
-    std::cerr << "       Please note that this program requires an input MARC format as provided by\n";
-    std::cerr << "       the team at the University of Freiburg!\n\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("marc_input\n"
+            "Please note that this program requires an input MARC format as provided by\n"
+            "the team at the University of Freiburg!");
 }
 
 
@@ -365,9 +364,7 @@ void FindTueDups(MARC::Reader * const marc_reader) {
 }
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
-
+int Main(int argc, char **argv) {
     if (argc != 2)
         Usage();
 
@@ -378,4 +375,6 @@ int main(int argc, char **argv) {
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
+
+    return EXIT_SUCCESS;
 }

@@ -1,4 +1,4 @@
-/** \brief Utility to determine Zeder entries that have yet to be imported into zts_harvester.
+/** \brief Utility to determine Zeder entries that have yet to be imported into Zotero Harvester.
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
  *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -22,11 +22,11 @@
 #include <algorithm>
 #include <set>
 #include "IniFile.h"
-#include "JournalConfig.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 #include "Zeder.h"
+#include "ZoteroHarvesterConfig.h"
 
 
 namespace {
@@ -76,7 +76,6 @@ int Main(int argc, char *argv[]) {
 
     const IniFile harvester_config(argv[1]);
     const Zeder::Flavour flavour(Zeder::ParseFlavour(argv[2]));
-    const JournalConfig::Reader bundle_reader(harvester_config);
     std::unordered_map<std::string, std::string> column_filter_regexps;
     Zeder::EntryCollection full_dump;
 
@@ -90,11 +89,13 @@ int Main(int argc, char *argv[]) {
 
     for (const auto &section : harvester_config) {
         const auto section_name(section.getSectionName());
-        const auto group(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::GROUP, ""));
+        const auto group(section.getString(ZoteroHarvester::Config::JournalParams::GetIniKeyString(
+            ZoteroHarvester::Config::JournalParams::GROUP)));
         if (group != Zeder::FLAVOUR_TO_STRING_MAP.at(flavour))
             continue;
 
-        const auto entry_id(StringUtil::ToUnsigned(bundle_reader.zeder(section_name).value(JournalConfig::Zeder::ID)));
+        const auto entry_id(StringUtil::ToUnsigned(section.getString(ZoteroHarvester::Config::JournalParams::GetIniKeyString(
+            ZoteroHarvester::Config::JournalParams::ZEDER_ID))));
         if (full_dump_ids.find(entry_id) != full_dump_ids.end())
             imported_ids.insert(entry_id);      // only count those that belong to the set of downloaded entries
     }

@@ -1,7 +1,7 @@
 /** \brief Utility for monitoring our full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -34,9 +34,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " stats_file_path email_address\n"
-              << "       A report will be sent to \"email_address\".\n\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("stats_file_path email_address\n"
+            "A report will be sent to \"email_address\".");
 }
 
 
@@ -160,8 +159,6 @@ void WriteStats(const std::string &stats_filename,
 
 
 int Main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
     if (argc != 3)
         Usage();
 

@@ -233,7 +233,7 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
 
 bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const entry) const {
     db_connection_->queryOrDie("SELECT url, delivered_at, journal_name, hash FROM delivered_marc_records WHERE url='"
-                               + db_connection_->escapeString(SqlUtil::TruncateToVarCharMaxLength(url)) + "'");
+                               + db_connection_->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'");
     auto result_set(db_connection_->getLastResultSet());
     if (result_set.empty())
         return false;

@@ -234,6 +234,7 @@ const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_
     { UPDATE_WINDOW,           "zotero_update_window" },
     { REVIEW_REGEX,            "zotero_review_regex" },
     { EXPECTED_LANGUAGES,      "zotero_expected_languages" },
+    { SSGN,                    "zotero_ssgn" },
     { CRAWL_MAX_DEPTH,         "zotero_max_crawl_depth" },
     { CRAWL_EXTRACTION_REGEX,  "zotero_extraction_regex" },
     { CRAWL_URL_REGEX,         "zotero_crawl_url_regex" },
@@ -269,6 +270,31 @@ std::string EnhancementMaps::lookupLicense(const std::string &issn) const {
 
 std::string EnhancementMaps::lookupSSG(const std::string &issn) const {
     return lookup(issn, ISSN_to_SSG_);
+}
+
+
+void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
+                             std::vector<std::unique_ptr<GroupParams>> * const group_params,
+                             std::vector<std::unique_ptr<JournalParams>> * const journal_params)
+{
+    const IniFile ini(config_filepath);
+
+    global_params->reset(new Config::GlobalParams(*ini.getSection("")));
+
+    std::set<std::string> group_names;
+    StringUtil::Split((*global_params)->group_names_, ',', &group_names, /* suppress_empty_components = */ true);
+
+    for (const auto &group_name : group_names)
+        group_params->emplace_back(new Config::GroupParams(*ini.getSection(group_name)));
+
+    for (const auto &section : ini) {
+        if (section.getSectionName().empty())
+            continue;
+        else if (group_names.find(section.getSectionName()) != group_names.end())
+            continue;
+
+        journal_params->emplace_back(new Config::JournalParams(section, **global_params));
+    }
 }
 
 
