@@ -93,11 +93,11 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
 
         std::string resource_type(record.getFirstFieldContents("007") == "tu" ? "print" : "online");
         db_connection->queryOrDie("INSERT INTO delivered_marc_records SET url="
-                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(url))
+                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(url))
                                   + ",zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) + ",journal_name="
-                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(journal_name))
+                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(journal_name))
                                   +  ",hash=" + db_connection->escapeAndQuoteString(hash) + ",main_title="
-                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(main_title))
+                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(main_title))
                                   + publication_year + volume + issue + pages + ",resource_type='" + resource_type + "',record="
                                   + db_connection->escapeAndQuoteString(GzStream::CompressString(record_blob, GzStream::GZIP)));
 
@@ -112,7 +112,7 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
 
             db_connection->queryOrDie("INSERT INTO delivered_marc_records_superior_info SET zeder_id="
                                       + db_connection->escapeAndQuoteString(zeder_id) + ",title="
-                                      + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(superior_title))
+                                      + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(superior_title))
                                       + superior_control_number_sql);
         }
 
