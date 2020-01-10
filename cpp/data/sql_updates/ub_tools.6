@@ -1,3 +1,22 @@
+DROP INDEX item_id_index ON rss_aggregator;
+DROP INDEX item_url_index ON rss_aggregator;
+ALTER TABLE rss_aggregator CHANGE COLUMN item_id item_id VARCHAR(1000);
+ALTER TABLE rss_aggregator CHANGE COLUMN item_url item_url VARCHAR(1000);
+ALTER TABLE rss_aggregator CHANGE COLUMN item_title item_title VARCHAR(1000);
+ALTER TABLE rss_aggregator CHANGE COLUMN serial_name serial_name VARCHAR(1000);
+ALTER TABLE rss_aggregator CHANGE COLUMN feed_url feed_url VARCHAR(1000);
+CREATE INDEX item_id_index ON rss_aggregator (item_id(768));
+CREATE INDEX item_url_index ON rss_aggregator (item_url(768));
+
+DROP INDEX journal_name_and_metadata_field_name_index ON metadata_presence_tracer;
+ALTER TABLE metadata_presence_tracer CHANGE COLUMN journal_name journal_name VARCHAR(1000);
+ALTER TABLE metadata_presence_tracer CHANGE COLUMN metadata_field_name metadata_field_name CHAR(4);
+CREATE INDEX journal_name_and_metadata_field_name_index ON metadata_presence_tracer (journal_name(768), metadata_field_name);
+
+ALTER TABLE delivered_marc_records CHANGE COLUMN volume volume VARCHAR(20);
+ALTER TABLE delivered_marc_records CHANGE COLUMN issue issue VARCHAR(20);
+ALTER TABLE delivered_marc_records CHANGE COLUMN pages pages VARCHAR(20);
+
 DROP INDEX delivered_marc_records_url_index ON delivered_marc_records;
 ALTER TABLE delivered_marc_records CHANGE COLUMN url url VARCHAR(1000);
 CREATE INDEX delivered_marc_records_url_index ON delivered_marc_records (url(768));
@@ -9,3 +28,5 @@ CREATE INDEX delivered_marc_records_journal_name_index ON delivered_marc_records
 DROP INDEX delivered_marc_records_main_title_index ON delivered_marc_records;
 ALTER TABLE delivered_marc_records CHANGE COLUMN main_title main_title VARCHAR(1000);
 CREATE INDEX delivered_marc_records_main_title_index ON delivered_marc_records (main_title(768));
+
+ALTER TABLE delivered_marc_records_superior_info CHANGE COLUMN title title VARCHAR(1000);
