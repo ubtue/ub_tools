@@ -27,6 +27,7 @@ fi
 
 if [[ $compare_against_installer_schema && -r /tmp/new_ub_tools.schema ]]; then
     export MYSQL_PWD=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_password)
+    MYSQL_DB=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_database)
     MYSQL_USER=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_username)
     echo "CREATE DATABASE ub_tools_tmp;" | mysql -u $MYSQL_USER
     echo "USE ub_tools_tmp" | cat - /usr/local/ub_tools/cpp/data/installer/ub_tools.sql | mysql -u $MYSQL_USER
@@ -34,6 +35,6 @@ if [[ $compare_against_installer_schema && -r /tmp/new_ub_tools.schema ]]; then
     echo "DROP DATABASE ub_tools_tmp;" | mysql -u $MYSQL_USER
     /usr/local/bin/mysql_diff_schemas /tmp/installer_ub_tools.schema /tmp/new_ub_tools.schema | tee /tmp/schema_diffs
     if [ -s /tmp/schema_diffs ]; then
-        echo '**** The patched ub_tools database schema differs from the one that the installer uses.  You *must* fix this! ****'
+        echo "**** The patched $MYSQL_DB database schema differs from the one that the installer uses.  You *must* fix this"'! ****'
     fi
 fi
