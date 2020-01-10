@@ -1,14 +1,12 @@
 #!/bin/bash
 #
-# Git hook for updating TueFind configuration
-# (only if TueFind is already installed)
-#
 CHANGED_FILES="$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD)"
 MYSQL_SCHEMA_UPDATES_PATH=/usr/local/ub_tools/cpp/data/sql_updates
 MYSQL_SCHEMA_UPDATES_PATH_LOCAL=cpp/data/sql_updates
 MYSQL_DATABASE_PATCHER=/usr/local/bin/mysql_database_patcher
 
 
+declare -i compare_against_installer_schema=$(if $(echo "$CHANGED_FILES" | grep --quiet cpp/data/installer/ub_tools.sql); then echo 1; else echo 0; fi))
 if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); then
     /usr/local/bin/mysql_list_tables > /tmp/old_ub_tools.schema
     if [[ -x $MYSQL_DATABASE_PATCHER ]]; then
@@ -16,6 +14,7 @@ if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); th
         $MYSQL_DATABASE_PATCHER $MYSQL_SCHEMA_UPDATES_PATH
         /usr/local/bin/mysql_list_tables > /tmp/new_ub_tools.schema
         /usr/local/bin/mysql_diff_schemas /tmp/old_ub_tools.schema /tmp/new_ub_tools.schema
+        compare_against_installer_schema=1
     else
         echo "You need to install $MYSQL_DATABASE_PATCHER and execute it!."
         exit 1
@@ -23,4 +22,18 @@ if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); th
 else
     echo "No explicit MYSQL schema updates detected"
     exit 0
+fi
+
+
+if [[ $compare_against_installer_schema && -r /tmp/new_ub_tools.schema ]]; then
+    export MYSQL_PWD=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_password)
+    MYSQL_USER=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_username)
+    echo "CREATE DATABASE ub_tools_tmp;" | mysql -u $MYSQL_USER
+    echo "USE ub_tools_tmp" | cat - /usr/local/ub_tools/cpp/data/installer/ub_tools.sql | mysql -u $MYSQL_USER
+    mysql_list_tables ub_tools_tmp ub_tools $MYSQL_PWD > /tmp/installer_ub_tools.schema
+    echo "DROP DATABASE ub_tools_tmp;" | mysql -u $MYSQL_USER
+    /usr/local/bin/mysql_diff_schemas /tmp/installer_ub_tools.schema /tmp/new_ub_tools.schema | tee /tmp/schema_diffs
+    if [ -s /tmp/schema_diffs ]; then
+        echo '**** We are up the creek! ****'
+    fi
 fi
