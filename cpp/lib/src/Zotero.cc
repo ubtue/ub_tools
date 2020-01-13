@@ -4,7 +4,7 @@
  *  \author Dr. Johannes Ruscheinski
  *  \author Mario Trojan
  *
- *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -187,8 +187,10 @@ std::unique_ptr<FormatHandler> FormatHandler::Factory(DbConnection * const db_co
         return std::unique_ptr<FormatHandler>(new JsonFormatHandler(db_connection, output_format, output_file, harvest_params));
     else if (std::find(EXPORT_FORMATS.begin(), EXPORT_FORMATS.end(), output_format) != EXPORT_FORMATS.end())
         return std::unique_ptr<FormatHandler>(new ZoteroFormatHandler(db_connection, output_format, output_file, harvest_params));
-    else
+    else {
         LOG_ERROR("invalid output-format: " + output_format);
+        __builtin_unreachable();
+    }
 }
 
 
@@ -255,6 +257,7 @@ std::string GuessOutputFormat(const std::string &output_file) {
         return "marc-xml";
     default:
         LOG_ERROR("we should *never* get here!");
+        __builtin_unreachable();
     }
 }
 
@@ -266,6 +269,7 @@ MARC::FileType GetOutputMarcFileType(const std::string &output_format) {
         return MARC::FileType::XML;
 
     LOG_ERROR("Unknown MARC file type '" + output_format + "'");
+    __builtin_unreachable();
 }
 
 
