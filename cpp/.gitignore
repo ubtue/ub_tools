@@ -59,6 +59,7 @@
 /generate_library_dependency_graph
 /generate_list_of_essay_collections
 /generate_merge_order
+/generate_simple_math_puzzle
 /generate_tags_and_keyword_fields_map
 /generate_title_and_author_list
 /get_dangling_title_references
@@ -77,6 +78,8 @@
 /missing_metadata_db_tool
 /mpi_stats
 /mysql_database_patcher
+/mysql_diff_schemas
+/mysql_list_tables
 /mysql_schema_diff
 /new_journal_alert
 /normalise_and_deduplicate_language
@@ -115,6 +118,8 @@
 /zeder_entry_downloader
 /zeder_ppn_to_title_importer
 /zeder_to_zotero_conversion_tools
+/zotero_cgi
+/zotero_harvester
 /zts_harvester
 
 # other excludes

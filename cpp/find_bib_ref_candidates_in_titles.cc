@@ -424,6 +424,32 @@ bool ConsistsEntirelyOfLettersFollowedByAnOptionalPeriod(const std::string &utf8
 
 const std::set<std::string> FRENCH_MONTHS{ "janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre",
                                            "novembre", "décembre" };
+const std::vector<std::string> GERMAN_MONTHS_ABBREVS{ "jan", "feb", "mär", "apr", "mai", "jun", "jul", "aug", "sep", "okt", "nov", "dez" };
+
+
+bool IsFrenchMonth(const std::string &word) {
+    const auto month_candidate(TextUtil::UTF8ToLower(word));
+    for (const auto &french_month : FRENCH_MONTHS) {
+        if (french_month == month_candidate)
+            return true;
+    }
+
+    return false;
+}
+
+
+bool StartsWithGermanMonthAbbrev(const std::string &word) {
+    if (word.length() < 3)
+        return false;
+
+    const auto first3(TextUtil::UTF8ToLower(TextUtil::UTF8Substr(word, 0, 3)));
+    for (const auto &german_month_abbrev : GERMAN_MONTHS_ABBREVS) {
+        if (german_month_abbrev == first3)
+            return true;
+    }
+
+    return false;
+}
 
 
 std::vector<std::string> ExtractBibleReferenceCandidates(const std::vector<std::string> &tokens,
@@ -437,17 +463,25 @@ std::vector<std::string> ExtractBibleReferenceCandidates(const std::vector<std::
         /*english*/"^(\\d{1,2}-\\d{1,2}|\\d{1,3}[.:]\\d{1,3}|\\d{1,2}[.:]\\d{1,3}-\\d{1,3}|\\d{1,2}[.:]\\d{1,3}(,\\d{1,3})+"
         /*german*/"|\\d{1,2}(;\\s?\\d{1,2}(-\\d{1,2})?)*|\\d{1,2},\\d{1,3}([-.]\\d{1,3})f{0,2}+)$"));
 
-    bool possible_book_seen(false), check_for_french_date(false);
+    bool possible_book_seen(false), check_for_french_date(false), check_for_german_date(false);
     std::vector<std::string> bible_reference_candidates;
     std::string bible_reference_candidate_prefix;
     for (auto token(tokens.cbegin()); token != tokens.cend(); ++token) {
         if (possible_book_seen) {
             possible_book_seen = false;
             if (chapter_and_verses_matcher->matched(*token)) {
-                if (not check_for_french_date or token == tokens.cend() - 1 or FRENCH_MONTHS.find(*(token + 1)) == FRENCH_MONTHS.cend())
+                if (token == tokens.cend() - 1 or (not check_for_french_date and not check_for_german_date))
                     bible_reference_candidates.emplace_back(bible_reference_candidate_prefix + *token);
+                else {
+                    if ((check_for_french_date and IsFrenchMonth(*(token + 1)))
+                        or (check_for_german_date and StartsWithGermanMonthAbbrev(*(token + 1))))
+                        /* not a bible reference */;
+                    else
+                        bible_reference_candidates.emplace_back(bible_reference_candidate_prefix + *token);
+                }
             }
             check_for_french_date = false;
+            check_for_german_date = false;
             bible_reference_candidate_prefix.clear();
             continue;
         }
@@ -464,6 +498,8 @@ std::vector<std::string> ExtractBibleReferenceCandidates(const std::vector<std::
                 possible_book_seen = true;
                 if (*token == "le")
                     check_for_french_date = true;
+                else if (*token == "am")
+                    check_for_german_date = true;
             } else {
                 check_for_french_date = false;
                 bible_reference_candidate_prefix.clear();
@@ -492,6 +528,24 @@ bool HasGNDBibleRef(const MARC::Record &record,
 }
 
 
+std::string ExtractBook(std::string reference) {
+    StringUtil::TrimWhite(&reference);
+    TextUtil::UTF8ToLower(&reference);
+
+    // Skip leading digits:
+    auto ch(reference.cbegin());
+    while (ch != reference.cend() and StringUtil::IsDigit(*ch))
+        ++ch;
+
+    // Extract book:
+    std::string book;
+    while (ch != reference.cend() and not StringUtil::IsDigit(*ch))
+        book += *ch++;
+
+    return book;
+}
+
+
 void FindBibRefCandidates(
     MARC::Reader * const marc_reader, File * const output, const std::vector<std::vector<std::string>> &pericopes,
     const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map)
@@ -507,8 +561,7 @@ void FindBibRefCandidates(
                                                                   pericopes, bible_book_canoniser, bible_book_to_code_mapper));
             if (not candidates.empty()) {
                 ++addition_title_reference_count;
-                *output << record.getControlNumber() << ": " << record.getCompleteTitle() << "\n\t"
-                        << StringUtil::Join(candidates, '|') << '\n';
+                *output << ExtractBook(candidates.front()) << ' ' << record.getControlNumber() << ": " << record.getCompleteTitle() << '\n';
             }
         }
     }

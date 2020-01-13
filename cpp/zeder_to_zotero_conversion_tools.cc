@@ -26,14 +26,13 @@
 #include <csignal>
 #include <cstring>
 #include <unistd.h>
-#include "BSZTransform.h"
 #include "IniFile.h"
-#include "JournalConfig.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 #include "Zeder.h"
-#include "Zotero.h"
+#include "ZoteroHarvesterConfig.h"
+#include "ZoteroHarvesterConversion.h"
 
 
 namespace {
@@ -42,8 +41,9 @@ namespace {
 [[noreturn]] void Usage() {
     ::Usage(" --mode=tool_mode [--skip-timestamp-check] flavour config_file first_path second_path [entry_ids]\n"
             "Modes:\n"
-            "     generate - Converts the .csv file exported from Zeder into a zts_harvester-compatible .conf file.\n"                          "                The first path points to the .csv file and the second to the output .conf file.\n"
-            "         diff - Compares the values of entries in a pair of zts_harvester-compatible .conf files.\n"
+            "     generate - Converts the .csv file exported from Zeder into a zotero_harvester-compatible .conf file.\n"
+            "                The first path points to the .csv file and the second to the output .conf file.\n"
+            "         diff - Compares the values of entries in a pair of zotero_harvester-compatible .conf files.\n"
             "                The first path points to the source/updated .conf file and the second to the destination/old .conf.\n"
             "        merge - Same as above but additionally merges any changes into the destination/old .conf.\n\n"
             " --skip-timestamp-check\t\tIgnore the Zeder modified timestamp when diff'ing entries.\n"
@@ -56,7 +56,7 @@ namespace {
 enum Mode { GENERATE, DIFF, MERGE };
 
 
-// An enumeration of the fields exported to a zts_harvester compatible config file.
+// An enumeration of the fields exported to a zotero_harvester compatible config file.
 // This is the primary key used to refer to the corresponding fields throughout this tool.
 
 // Adding a new field involves adding a new entry to this enumeration and updating the ExportFieldNameResolver
@@ -87,9 +87,12 @@ namespace std {
 namespace {
 
 
+namespace ZotConf = ZoteroHarvester::Config;
+
+
 // Used to convert export field enumerations to their respective string identifiers.
 // Each export field enumeration has two string identifiers, one of which is use used as an attribute
-// in Zeder::Entry and the other as the INI key in the generated zts_harvester compatible config files
+// in Zeder::Entry and the other as the INI key in the generated zotero_harvester compatible config files
 class ExportFieldNameResolver {
     std::unordered_map<ExportField, std::string> attribute_names_;
     std::unordered_map<ExportField, std::string> ini_keys_;
@@ -105,7 +108,7 @@ public:
 
 
 // Unused attributes correspond to fields that are not stored as attributes in Zeder::Entry
-// INI key identifiers should be fetched using the bundle API in JournalConfig.h/.cc
+// INI key identifiers should be fetched using APIs in the ZoteroHarvester::Config namespace
 ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { TITLE,                    "zts_title"                 },
     { ZEDER_ID,                 "" /* unused */             },      // stored directly in the Entry class
@@ -124,20 +127,20 @@ ExportFieldNameResolver::ExportFieldNameResolver(): attribute_names_{
     { MAX_CRAWL_DEPTH,          "" /* unused */             },
 }, ini_keys_{
     { TITLE,                    "" /* exported as the section name */   },
-    { ZEDER_ID,                 JournalConfig::ZederBundle::Key(JournalConfig::Zeder::ID)                   },
-    { ZEDER_MODIFIED_TIMESTAMP, JournalConfig::ZederBundle::Key(JournalConfig::Zeder::MODIFIED_TIME)        },
-    { TYPE,                     JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::TYPE)               },
-    { GROUP,                    JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::GROUP)              },
-    { PARENT_PPN_PRINT,         JournalConfig::PrintBundle::Key(JournalConfig::Print::PPN)                  },
-    { PARENT_PPN_ONLINE,        JournalConfig::OnlineBundle::Key(JournalConfig::Online::PPN)                },
-    { PARENT_ISSN_PRINT,        JournalConfig::PrintBundle::Key(JournalConfig::Print::ISSN)                 },
-    { PARENT_ISSN_ONLINE,       JournalConfig::OnlineBundle::Key(JournalConfig::Online::ISSN)               },
-    { ENTRY_POINT_URL,          JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::URL)                },
-    { EXPECTED_LANGUAGES,       JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::EXPECTED_LANGUAGES) },
-    { UPDATE_WINDOW,            JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::UPDATE_WINDOW)      },
-    { SSGN,                     JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::SSGN)               },
-    { EXTRACTION_REGEX,         JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::EXTRACTION_REGEX)   },
-    { MAX_CRAWL_DEPTH,          JournalConfig::ZoteroBundle::Key(JournalConfig::Zotero::MAX_CRAWL_DEPTH)    },
+    { ZEDER_ID,                 ZotConf::JournalParams::GetIniKeyString(ZotConf::JournalParams::ZEDER_ID)               },
+    { ZEDER_MODIFIED_TIMESTAMP, ZotConf::JournalParams::GetIniKeyString(ZotConf::JournalParams::ZEDER_MODIFIED_TIME)    },
+    { TYPE,                     ZotConf::JournalParams::GetIniKeyString(ZotConf::JournalParams::HARVESTER_OPERATION)    },
+    { GROUP,                    ZotConf::JournalParams::GetIniKeyString(ZotConf::JournalParams::GROUP)                  },
+    { PARENT_PPN_PRINT,         ZotConf::JournalParams::GetIniKeyString(ZotConf::JournalParams::PRINT_PPN)              },
+    { PARENT_PPN_ONLINE,        ZotConf::JournalParams::GetIniKeyString(ZotConf::JournalParams::ONLINE_PPN)             },
+    { PARENT_ISSN_PRINT,        ZotConf::JournalParams::GetIniKeyString(ZotConf::JournalParams::PRINT_ISSN)             },
+    { PARENT_ISSN_ONLINE,       ZotConf::JournalParams::GetIniKeyString(ZotConf::JournalParams::ONLINE_ISSN)            },
+    { ENTRY_POINT_URL,          ZotConf::JournalParams::GetIniKeyString(ZotConf::JournalParams::ENTRY_POINT_URL)        },
+    { EXPECTED_LANGUAGES,       ZotConf::JournalParams::GetIniKeyString(ZotConf::JournalParams::EXPECTED_LANGUAGES)     },
+    { UPDATE_WINDOW,            ZotConf::JournalParams::GetIniKeyString(ZotConf::JournalParams::UPDATE_WINDOW)          },
+    { SSGN,                     ZotConf::JournalParams::GetIniKeyString(ZotConf::JournalParams::SSGN)                   },
+    { EXTRACTION_REGEX,         ZotConf::JournalParams::GetIniKeyString(ZotConf::JournalParams::CRAWL_EXTRACTION_REGEX) },
+    { MAX_CRAWL_DEPTH,          ZotConf::JournalParams::GetIniKeyString(ZotConf::JournalParams::CRAWL_MAX_DEPTH)        },
 } {}
 
 
@@ -204,15 +207,15 @@ ConversionParams::ConversionParams(const std::string &config_file_path, const st
 
 
 bool GetHarvesterTypeFromEntry(const Zeder::Entry &entry, const ExportFieldNameResolver &name_resolver,
-                               Zotero::HarvesterType * const harvester_type)
+                               ZotConf::HarvesterOperation * const harvester_type)
 {
     const auto entry_type(entry.getAttribute(name_resolver.getAttributeName(TYPE)));
-    if (entry_type == Zotero::HARVESTER_TYPE_TO_STRING_MAP.at(Zotero::HarvesterType::DIRECT))
-        *harvester_type = Zotero::HarvesterType::DIRECT;
-    else if (entry_type == Zotero::HARVESTER_TYPE_TO_STRING_MAP.at(Zotero::HarvesterType::CRAWL))
-        *harvester_type = Zotero::HarvesterType::CRAWL;
-    else if (entry_type == Zotero::HARVESTER_TYPE_TO_STRING_MAP.at(Zotero::HarvesterType::RSS))
-        *harvester_type = Zotero::HarvesterType::RSS;
+    if (entry_type == ZotConf::HARVESTER_OPERATION_TO_STRING_MAP.at(ZotConf::HarvesterOperation::DIRECT))
+        *harvester_type = ZotConf::HarvesterOperation::DIRECT;
+    else if (entry_type == ZotConf::HARVESTER_OPERATION_TO_STRING_MAP.at(ZotConf::HarvesterOperation::CRAWL))
+        *harvester_type = ZotConf::HarvesterOperation::CRAWL;
+    else if (entry_type == ZotConf::HARVESTER_OPERATION_TO_STRING_MAP.at(ZotConf::HarvesterOperation::RSS))
+        *harvester_type = ZotConf::HarvesterOperation::RSS;
     else
        return false;
 
@@ -286,7 +289,7 @@ bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFie
     StringUtil::Trim(&title);
     entry->setAttribute(name_resolver.getAttributeName(TITLE), title);
 
-    Zotero::HarvesterType harvester_type(Zotero::HarvesterType::CRAWL);
+    auto harvester_type(ZotConf::HarvesterOperation::CRAWL);
     if (params.flavour_ == Zeder::IXTHEO and entry->getAttribute("prodf") != "zot") {
         LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | Not a Zotero entry");
         valid = false;
@@ -295,10 +298,10 @@ bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFie
     if ((entry->hasAttribute("rss") and not entry->getAttribute("rss").empty()) or
         entry->getAttribute("lrt").find("RSS.zotero") != std::string::npos)
     {
-        harvester_type = Zotero::HarvesterType::RSS;
+        harvester_type = ZotConf::HarvesterOperation::RSS;
     }
 
-    entry->setAttribute(name_resolver.getAttributeName(TYPE), Zotero::HARVESTER_TYPE_TO_STRING_MAP.at(harvester_type));
+    entry->setAttribute(name_resolver.getAttributeName(TYPE), ZotConf::HARVESTER_OPERATION_TO_STRING_MAP.at(harvester_type));
     entry->setAttribute(name_resolver.getAttributeName(GROUP), Zeder::FLAVOUR_TO_STRING_MAP.at(params.flavour_));
 
     // resolve URL based on the importer's config
@@ -340,8 +343,11 @@ bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFie
     if (entry->hasAttribute("ber")) {
         auto ssgn(entry->getAttribute("ber"));
         StringUtil::Trim(&ssgn);
-        if (BSZTransform::GetSSGNTypeFromString(ssgn) != BSZTransform::SSGNType::INVALID)
+        if (ZoteroHarvester::Conversion::MetadataRecord::GetSSGTypeFromString(ssgn) !=
+            ZoteroHarvester::Conversion::MetadataRecord::SSGType::INVALID)
+        {
             entry->setAttribute(name_resolver.getAttributeName(SSGN), ssgn);
+        }
     }
 
     // remove the original attributes
@@ -355,7 +361,7 @@ bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFie
 }
 
 
-// Validates a Zeder::Entry generated from a zts_harvester compatible config file.
+// Validates a Zeder::Entry generated from a zotero_harvester compatible config file.
 bool PostProcessIniImportedEntry(const ConversionParams &params, const ExportFieldNameResolver &name_resolver, Zeder::Entry * const entry) {
     if (not params.entries_to_process_.empty() and
         params.entries_to_process_.find(entry->getId()) == params.entries_to_process_.end())
@@ -364,7 +370,7 @@ bool PostProcessIniImportedEntry(const ConversionParams &params, const ExportFie
         return false;
     }
 
-    Zotero::HarvesterType harvester_type;
+    ZotConf::HarvesterOperation harvester_type;
     if (not GetHarvesterTypeFromEntry(*entry, name_resolver, &harvester_type))
          LOG_WARNING("Entry " + std::to_string(entry->getId()) + " | Invalid harvester type");
 
@@ -552,11 +558,11 @@ void WriteZederIni(const std::string &file_path, const ExportFieldNameResolver &
         ::unlink(file_path.c_str());
 
     auto extra_keys_appender([name_resolver](IniFile::Section * const section, const Zeder::Entry &entry) {
-        Zotero::HarvesterType harvester_type;
+        ZotConf::HarvesterOperation harvester_type;
         if (not GetHarvesterTypeFromEntry(entry, name_resolver, &harvester_type))
             LOG_ERROR("Entry " + std::to_string(entry.getId()) + " | Invalid harvester type");
 
-        if (harvester_type == Zotero::HarvesterType::CRAWL) {
+        if (harvester_type == ZotConf::HarvesterOperation::CRAWL) {
             std::string temp_buffer;
             if (not section->lookup(name_resolver.getIniKey(MAX_CRAWL_DEPTH), &temp_buffer)) {
                 section->insert(name_resolver.getIniKey(MAX_CRAWL_DEPTH), "1", "",

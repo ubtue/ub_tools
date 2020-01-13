@@ -39,31 +39,6 @@ namespace {
 }
 
 
-// \return one of "print", "online" or "unknown".
-std::string GetISSNType(const std::string &issn) {
-    static std::unordered_set<std::string> print_issns, online_issns;
-    static std::unique_ptr<IniFile> zts_harvester_conf;
-    if (zts_harvester_conf == nullptr) {
-        zts_harvester_conf.reset(new IniFile("zts_harvester.conf"));
-        for (const auto &section : *zts_harvester_conf) {
-            const auto print_issn(section.getString("print_issn", ""));
-            if (not print_issn.empty())
-                print_issns.emplace(print_issn);
-
-            const auto online_issn(section.getString("online_issn", ""));
-            if (not online_issn.empty())
-                online_issns.emplace(online_issn);
-        }
-    }
-
-    if (print_issns.find(issn) != print_issns.cend())
-        return "print";
-    if (online_issns.find(issn) != online_issns.cend())
-        return "online";
-    return "unknown";
-}
-
-
 void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_reader) {
     unsigned record_count(0);
 
@@ -116,21 +91,13 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
                 pages = ",pages=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('h'));
         }
 
-        std::string resource_type("unknown");
-        const auto issns(record.getISSNs());
-        for (const auto &issn : issns) {
-            const auto issn_type(GetISSNType(issn));
-            if (issn_type != "unknown") {
-                resource_type = issn_type;
-                break;
-            }
-        }
-
-        db_connection->queryOrDie("INSERT INTO delivered_marc_records SET url=" + db_connection->escapeAndQuoteString(url)
+        std::string resource_type(record.getFirstFieldContents("007") == "tu" ? "print" : "online");
+        db_connection->queryOrDie("INSERT INTO delivered_marc_records SET url="
+                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(url))
                                   + ",zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) + ",journal_name="
-                                  + db_connection->escapeAndQuoteString(journal_name) +  ",hash="
-                                  + db_connection->escapeAndQuoteString(hash) + ",main_title="
-                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(main_title))
+                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(journal_name))
+                                  +  ",hash=" + db_connection->escapeAndQuoteString(hash) + ",main_title="
+                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(main_title))
                                   + publication_year + volume + issue + pages + ",resource_type='" + resource_type + "',record="
                                   + db_connection->escapeAndQuoteString(GzStream::CompressString(record_blob, GzStream::GZIP)));
 
@@ -145,7 +112,7 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
 
             db_connection->queryOrDie("INSERT INTO delivered_marc_records_superior_info SET zeder_id="
                                       + db_connection->escapeAndQuoteString(zeder_id) + ",title="
-                                      + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxLength(superior_title))
+                                      + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(superior_title))
                                       + superior_control_number_sql);
         }
 

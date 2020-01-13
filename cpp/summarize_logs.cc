@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2017, Library of the University of Tübingen
+    Copyright (C) 2017,2020 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -38,9 +38,8 @@
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " log_file_input summary_output\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]] void Usage() {
+    ::Usage("log_file_input summary_output");
 }
 
 
@@ -139,9 +138,7 @@ void SummarizeLog(File * const log_file, File * const summary_file) {
 }
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
-
+int Main(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
@@ -153,4 +150,6 @@ int main(int argc, char **argv) {
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
+
+    return EXIT_SUCCESS;
 }

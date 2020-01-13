@@ -2,7 +2,7 @@
  *  \brief Tries to convert some ISO-8859-1 characters to UTF-8.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017,2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -26,9 +26,8 @@
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " input_filename output_filename\n";
-   std::exit(EXIT_FAILURE);
+[[noreturn]] void Usage() {
+    ::Usage("input_filename output_filename");
 }
 
 
@@ -80,11 +79,13 @@ void Convert(File * const input, File * const output) {
 }
 
 
-int main(int argc, char *argv[]) {
+int Main(int argc, char *argv[]) {
     if (argc != 3)
         Usage();
 
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(argv[1]));
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(argv[2]));
     Convert(input.get(), output.get());
+
+    return EXIT_SUCCESS;
 }

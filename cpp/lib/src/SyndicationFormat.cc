@@ -56,21 +56,23 @@ namespace {
 enum SyndicationFormatType { TYPE_UNKNOWN, TYPE_RSS20, TYPE_RSS091, TYPE_ATOM, TYPE_RDF };
 
 
+const ThreadSafeRegexMatcher RSS20_MATCHER("<rss[^>]+version=\"2.0\"");
+const ThreadSafeRegexMatcher RSS091_MATCHER("<rss[^>]+version=\"0.91\"");
+const ThreadSafeRegexMatcher ATOM_MATCHER("<feed[^>]+2005/Atom\"");
+const ThreadSafeRegexMatcher RDF_MATCHER("<rdf:RDF|<RDF");
+
+
 SyndicationFormatType GetFormatType(const std::string &xml_document) {
-    static RegexMatcher *rss20_regex_matcher(RegexMatcher::RegexMatcherFactoryOrDie("<rss[^>]+version=\"2.0\""));
-    if (rss20_regex_matcher->matched(xml_document))
+    if (RSS20_MATCHER.match(xml_document))
         return TYPE_RSS20;
 
-    static RegexMatcher *rss091_regex_matcher(RegexMatcher::RegexMatcherFactoryOrDie("<rss[^>]+version=\"0.91\""));
-    if (rss091_regex_matcher->matched(xml_document))
+    if (RSS091_MATCHER.match(xml_document))
         return TYPE_RSS091;
 
-    static RegexMatcher *atom_regex_matcher(RegexMatcher::RegexMatcherFactoryOrDie("<feed[^>]+2005/Atom\""));
-    if (atom_regex_matcher->matched(xml_document))
+    if (ATOM_MATCHER.match(xml_document))
         return TYPE_ATOM;
 
-    static RegexMatcher *rdf_regex_matcher(RegexMatcher::RegexMatcherFactoryOrDie("<rdf:RDF|<RDF"));
-    if (rdf_regex_matcher->matched(xml_document))
+    if (RDF_MATCHER.match(xml_document))
         return TYPE_RDF;
 
     return TYPE_UNKNOWN;
