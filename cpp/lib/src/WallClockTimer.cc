@@ -48,7 +48,7 @@ WallClockTimer::WallClockTimer(const WallClockTimerType timer_type, const std::s
 
 WallClockTimer::~WallClockTimer() {
     // Ignore all potential error conditions if we have an uncaught exception:
-    if (std::uncaught_exception())
+    if (std::uncaught_exceptions())
         return;
 
     if ((timer_type_ & AUTO_STOP_FLAG) and is_running_) {

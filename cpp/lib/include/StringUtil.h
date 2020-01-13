@@ -11,7 +11,7 @@
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
  *  Copyright 2002-2004 Dr. Johannes Ruscheinski.
- *  Copyright 2015-2019 Universitätsbibliothek Tübingen
+ *  Copyright 2015-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -387,7 +387,7 @@ std::string ToHexString(const uint8_t u8);
 
 /** Converts "data" to a string consisting of hexadecimal numbers (one per nibble). */
 inline std::string ToHexString(const void * const data, size_t data_size)
-{ return ToHexString(std::string(reinterpret_cast<const char * const>(data), data_size)); }
+    { return ToHexString(std::string(reinterpret_cast<const char *>(data), data_size)); }
 
 
 /** Returns a binary nibble corresponding to "ch". */

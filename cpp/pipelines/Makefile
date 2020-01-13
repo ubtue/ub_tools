@@ -1,5 +1,7 @@
 LIB := ../lib
+INC = $(LIB)/include
 include ../Makefile.inc
+CCCFLAGS += -I../lib/libstemmer/include
 
 
 .PHONY: all .deps install clean

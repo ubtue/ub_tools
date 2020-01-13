@@ -109,7 +109,7 @@ Spinlock::Spinlock(const Scope scope) {
 
 Spinlock::~Spinlock() {
     if (unlikely((errno = ::pthread_spin_destroy(&spinlock_)) != 0)) {
-        if (std::uncaught_exception())
+        if (std::uncaught_exceptions())
             return;
         logger->error("in ThreadUtil::Spinlock::~Spinlock: pthread_spin_destroy(3) failed!");
     }
@@ -137,7 +137,7 @@ bool Spinlock::tryLock() {
 
 void Spinlock::unlock() {
     if (unlikely((errno = ::pthread_spin_unlock(&spinlock_)) != 0)) {
-        if (std::uncaught_exception())
+        if (std::uncaught_exceptions())
             return;
         throw std::runtime_error("in ThreadUtil::Spinlock::unlock: pthread_spin_unlock(3) failed!");
     }
