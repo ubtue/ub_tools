@@ -6,7 +6,7 @@ MYSQL_SCHEMA_UPDATES_PATH_LOCAL=cpp/data/sql_updates
 MYSQL_DATABASE_PATCHER=/usr/local/bin/mysql_database_patcher
 
 
-declare -i compare_against_installer_schema=$(if $(echo "$CHANGED_FILES" | grep --quiet cpp/data/installer/ub_tools.sql); then echo 1; else echo 0; fi))
+declare -i compare_against_installer_schema=$(if $(echo "$CHANGED_FILES" | grep --quiet cpp/data/installer/ub_tools.sql); then echo 1; else echo 0; fi)
 if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); then
     /usr/local/bin/mysql_list_tables > /tmp/old_ub_tools.schema
     if [[ -x $MYSQL_DATABASE_PATCHER ]]; then
