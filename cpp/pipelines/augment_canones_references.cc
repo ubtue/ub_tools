@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2019, Library of the University of Tübingen
+    Copyright (C) 2019-2020, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -53,6 +53,7 @@ Codex DetermineCodex(const std::string &subfield_codex, const std::string &subfi
         return CIC1983;
 
     LOG_ERROR("bad year for Codex Iuris Canonici \"" + subfield_year + "\"! (PPN: " + ppn + ")");
+    __builtin_unreachable();
 }
 
 
@@ -74,6 +75,7 @@ std::string FieldToCanonLawCode(const std::string &ppn, const Codex codex, const
         return StringUtil::ToString(300000000 + range_start) + "_" + StringUtil::ToString(300000000 + range_end);
     default:
         LOG_ERROR("unknown codex: " + std::to_string(codex));
+        __builtin_unreachable();
     }
 }
 
@@ -88,6 +90,7 @@ std::string CodexToPrefix(const Codex codex) {
         return "CCEO";
     default:
         LOG_ERROR("unknown codex: " + std::to_string(codex));
+        __builtin_unreachable();
     }
 }
 

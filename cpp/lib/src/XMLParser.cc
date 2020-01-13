@@ -2,7 +2,7 @@
  *  \brief  Wrapper class for Xerces XML parser
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
- *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -83,6 +83,7 @@ std::string XMLParser::XMLPart::toString() {
         return XmlUtil::XmlEscape(data_);
     default:
         LOG_ERROR("we should *never* get here!");
+        __builtin_unreachable();
     }
 }
 
@@ -99,6 +100,7 @@ std::string XMLParser::XMLPart::TypeToString(const Type type) {
         return "CHARACTERS";
     default:
         LOG_ERROR("we should *never* get here!");
+        __builtin_unreachable();
     };
 }
 
@@ -235,6 +237,7 @@ off_t XMLParser::getMaxOffset() {
         return xml_filename_or_string_.length();
     default:
         LOG_ERROR("we should *never* get here!");
+        __builtin_unreachable();
     }
 }
 

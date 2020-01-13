@@ -1,7 +1,7 @@
 /** \brief API to interact with the Zeder collaboration tool
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -28,9 +28,10 @@ namespace Zeder {
 
 const std::string &Entry::getAttribute(const std::string &name) const {
     const auto match(attributes_.find(name));
-    if (match == attributes_.end())
+    if (match == attributes_.end()) {
         LOG_ERROR("Couldn't find attribute '" + name + "'! in entry " + std::to_string(id_));
-    else
+        __builtin_unreachable();
+    } else
         return match->second;
 }
 
@@ -194,6 +195,7 @@ FileType GetFileTypeFromPath(const std::string &path, bool check_if_file_exists)
         return FileType::INI;
 
     LOG_ERROR("can't guess the file type of \"" + path + "\"!");
+    __builtin_unreachable();
 }
 
 
@@ -212,6 +214,7 @@ std::unique_ptr<Importer> Importer::Factory(std::unique_ptr<Params> params) {
         return std::unique_ptr<Importer>(new IniReader(std::move(params)));
     default:
         LOG_ERROR("Reader not implemented for file '" + params->file_path_ + "'");
+        __builtin_unreachable();
     };
 }
 
@@ -326,6 +329,7 @@ std::unique_ptr<Exporter> Exporter::Factory(std::unique_ptr<Params> params) {
         return std::unique_ptr<Exporter>(new CsvWriter(std::move(params)));
     default:
         LOG_ERROR("Reader not implemented for file '" + params->file_path_ + "'");
+        __builtin_unreachable();
     };
 }
 
@@ -430,6 +434,7 @@ std::unique_ptr<EndpointDownloader> EndpointDownloader::Factory(Type downloader_
         return std::unique_ptr<EndpointDownloader>(new FullDumpDownloader(std::move(params)));
      default:
         LOG_ERROR("Endpoint downloader not implemented for type " + std::to_string(downloader_type));
+        __builtin_unreachable();
     }
 }
 
@@ -620,6 +625,7 @@ std::string GetFullDumpEndpointPath(Flavour zeder_flavour) {
         return endpoint_base_url + "krim";
     default:
         LOG_ERROR("we should *never* get here! (zeder_flavour=" + std::to_string(zeder_flavour) + ")");
+        __builtin_unreachable();
     }
 }
 
@@ -639,8 +645,10 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
         return IXTHEO;
     else if (flavour_str == krimdok_str)
         return KRIMDOK;
-    else
+    else {
         LOG_ERROR("unknown Zeder flavour '" + flavour + "'");
+        __builtin_unreachable();
+    }
 }
 
 

@@ -1,7 +1,7 @@
 /** \brief Test harness for the XMLParser class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -50,6 +50,7 @@ int Main(int argc, char *argv[]) {
         switch (xml_part.type_) {
         case XMLParser::XMLPart::UNINITIALISED:
             LOG_ERROR("we should never get here as UNINITIALISED should never be returned!");
+            __builtin_unreachable();
         case XMLParser::XMLPart::OPENING_TAG:
             if (not silent) {
                 std::cout << xml_parser.getLineNo() << ":OPENING_TAG(" << xml_part.data_;
