@@ -669,6 +669,7 @@ std::string MySQLPrivilegeEnumToString(const DbConnection::MYSQL_PRIVILEGE privi
     }
 
     LOG_ERROR("Privilege " + std::to_string(privilege) + " is not in our map!");
+    __builtin_unreachable();
 }
 
 

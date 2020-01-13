@@ -1,9 +1,9 @@
-/** \file   BSZUtil.h
+/** \file   BSZUtil.cc
  *  \brief  Various utility functions related to data etc. having to do w/ the BSZ.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -134,6 +134,7 @@ ArchiveType GetArchiveType(const std::string &member_name) {
         return AUTHORITY_RECORDS;
     default:
         LOG_ERROR("Unknown type character '" + std::string(1, type_char) + "'!");
+        __builtin_unreachable();
     }
 }
 
