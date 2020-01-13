@@ -405,7 +405,7 @@ DbResultSet DbConnection::getLastResultSet() {
 
 
 std::string DbConnection::escapeString(const std::string &unescaped_string, const bool add_quotes) {
-    char * const buffer(reinterpret_cast<char * const>(std::malloc(unescaped_string.size() * 2 + 1)));
+    char * const buffer(reinterpret_cast<char *>(std::malloc(unescaped_string.size() * 2 + 1)));
     size_t escaped_length;
 
     if (sqlite3_ == nullptr)

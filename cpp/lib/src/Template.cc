@@ -4,7 +4,7 @@
  */
 
 /*
- *  Copyright 2016-2018 Universitätsbibliothek Tübingen
+ *  Copyright 2016-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -23,6 +23,7 @@
  *  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "Template.h"
+#include <ios>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -110,12 +111,12 @@ public:
     inline unsigned getLineNo() const { return line_no_; }
 
     /** \brief Repositions the input stream and sets the appropriate line number for that position. */
-    void seek(const std::istream::streampos stream_position, const unsigned line_no);
+    void seek(const std::streampos stream_position, const unsigned line_no);
 
     /** Skips over blank characters in the input stream w/o emitting anything to the output stream. */
     void skipWhitespace();
 
-    inline std::istream::streampos getInputStreamPos() const { return input_.tellg(); }
+    inline std::streampos getInputStreamPos() const { return input_.tellg(); }
 
     /** \return A string representation of "token". */
     static std::string TokenTypeToString(const TokenType token);
@@ -218,7 +219,7 @@ std::string TemplateScanner::extractKeywordOrFunctionNameCandidate() {
 }
 
 
-void TemplateScanner::seek(const std::istream::streampos stream_position, const unsigned line_no) {
+void TemplateScanner::seek(const std::streampos stream_position, const unsigned line_no) {
     input_.seekg(stream_position);
     if (unlikely(not input_))
         LOG_ERROR("this should never happen!");
@@ -276,6 +277,7 @@ std::string TemplateScanner::TokenTypeToString(const TemplateScanner::TokenType 
     }
 
     LOG_ERROR("we should *never* get here!");
+    __builtin_unreachable();
 }
 
 
@@ -345,7 +347,7 @@ public:
 private:
     Type type_;
     unsigned start_line_number_, iteration_count_, loop_count_;
-    std::istream::streampos start_stream_pos_;
+    std::streampos start_stream_pos_;
     std::set<std::string> loop_vars_;
 public:
     Type getType() const { return type_; }
@@ -357,18 +359,18 @@ public:
     unsigned getCurrentIterationCount() const;
     unsigned getLoopCount() const;
     void incIterationCount();
-    std::istream::streampos getStartStreamPos() const;
+    std::streampos getStartStreamPos() const;
 
     static Scope MakeTopLevelScope() { return Scope(TOP_LEVEL); }
     static Scope MakeIfScope(const unsigned start_line_number) { return Scope(IF, start_line_number); }
-    static Scope MakeLoopScope(const unsigned start_line_number, const std::istream::streampos start_stream_pos,
+    static Scope MakeLoopScope(const unsigned start_line_number, const std::streampos start_stream_pos,
                                const std::set<std::string> &loop_vars, const unsigned loop_count)
         { return Scope(LOOP, start_line_number, start_stream_pos, loop_vars, loop_count); }
 private:
     explicit Scope(const Type type): type_(type) { }
     explicit Scope(const Type type, const unsigned start_line_number)
         : type_(type), start_line_number_(start_line_number) { }
-    explicit Scope(const Type type, const unsigned start_line_number, const std::istream::streampos start_stream_pos,
+    explicit Scope(const Type type, const unsigned start_line_number, const std::streampos start_stream_pos,
                    const std::set<std::string> &loop_vars, const unsigned loop_count)
         : type_(type), start_line_number_(start_line_number), iteration_count_(0), loop_count_(loop_count),
           start_stream_pos_(start_stream_pos), loop_vars_(loop_vars) { }
@@ -408,7 +410,7 @@ void Scope::incIterationCount() {
 }
 
 
-std::istream::streampos Scope::getStartStreamPos() const {
+std::streampos Scope::getStartStreamPos() const {
     if (unlikely(type_ != LOOP))
         LOG_ERROR("this should never happen!");
 
@@ -427,6 +429,7 @@ std::string Scope::TypeToString(const Type type) {
     }
 
     LOG_ERROR("we should *never* get here!");
+    __builtin_unreachable();
 }
 
 

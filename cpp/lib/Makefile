@@ -1,39 +1,16 @@
-INC        = ./include
-SRC        = src
-OBJ        = objs
-STATIC_OBJ = static_objs
-SRCS       = $(SRC)/*.cc
-TEMP       = $(addprefix $(OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
-STATIC_TEMP= $(addprefix $(STATIC_OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
-OBJS       = $(TEMP:.cc=.o)
-STATIC_OBJS= $(STATIC_TEMP:.cc=_static.o)
-CCC        ?= clang++
-CCCFLAGS   = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -ftrapv \
-             -Ilibstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
-             -DETC_DIR='"/usr/local/var/lib/tuelib"'
-
-ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
-  CCCFLAGS += -O3 -funroll-loops -fomit-frame-pointer
-  OPTIMISATIONS_STATE =
-else
-  CCCFLAGS += -fsanitize=address
-  CCCFLAGS += -D_GLIBCXX_DEBUG
-  OPTIMISATIONS_STATE = (unoptimised)
-endif
-
-ifeq ($(CCC),clang++)
-  ifeq ("$(wildcard /etc/centos-release)","") # Not on CentOS!
-    CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions -Wno-c++1z-extensions
-  else
-    CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions
-  endif
-else
-  CCCFLAGS += -std=gnu++14
-endif
-ifneq ("$(wildcard /usr/include/selinux)","")
-  CCCFLAGS += -DHAS_SELINUX_HEADERS
-endif
-MAKE_DEPS=iViaCore-mkdep
+LIB         = .
+include ../Makefile.inc
+CCCFLAGS    += -Ilibstemmer/include
+INC         = ./include
+SRC         = src
+OBJ         = objs
+STATIC_OBJ  = static_objs
+SRCS        = $(SRC)/*.cc
+TEMP        = $(addprefix $(OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
+STATIC_TEMP = $(addprefix $(STATIC_OBJ)/,$(notdir $(wildcard $(SRC)/*.cc)))
+OBJS        = $(TEMP:.cc=.o)
+STATIC_OBJS = $(STATIC_TEMP:.cc=_static.o)
+MAKE_DEPS   = iViaCore-mkdep
 
 .PHONY: clean
 .PRECIOUS: $(OBJ)/%.o $(STATIC_OBJ)/%_static.o
@@ -75,3 +52,5 @@ libstemmer/libstemmer_amd64.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libst
 
 clean:
 	rm -f *~ $(OBJ)/*.o $(STATIC_OBJ)/*.o *.a .deps .static_deps && cd libstemmer && make clean && rm -f libstemmer.a
+	$(MAKE) -C mkdep clean
+

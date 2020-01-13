@@ -2,7 +2,7 @@
  *  \brief  Implementation of the query parser for the marc_grep2 tool.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -212,8 +212,8 @@ ConditionDescriptor::CompType TokenToConditionDescriptorCompType(const TokenType
     case SINGLE_FIELD_NOT_EQUAL:
         return ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL;
     default:
-        logger->error("in TokenToConditionDescriptorCompType: can't convert \"" + Tokenizer::TokenTypeToString(token)
-                      + "\" to a ConditionDescriptor::CompType!");
+        LOG_ERROR("can't convert \"" + Tokenizer::TokenTypeToString(token) + "\" to a ConditionDescriptor::CompType!");
+        __builtin_unreachable();
     }
 }
 

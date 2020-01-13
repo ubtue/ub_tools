@@ -18,26 +18,51 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <iostream>
+#include <memory>
 #include <cstdlib>
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
-int Main(int argc, char */*argv*/[]) {
-    if (argc != 1)
-        ::Usage("");
+[[noreturn]] static void Usage() {
+    ::Usage("[database_name user [password [host [port]]]]");
+}
 
-    DbConnection db_connection;
-    db_connection.queryOrDie("SHOW TABLES");
+
+int Main(int argc, char *argv[]) {
+    if (argc != 1 and argc != 3 and argc != 4 and argc != 5 and argc != 6)
+        Usage();
+
+    std::unique_ptr<DbConnection> db_connection;
+    switch (argc) {
+    case 1:
+        db_connection.reset(new DbConnection());
+        break;
+    case 3:
+        db_connection.reset(new DbConnection(argv[1], argv[2]));
+        break;
+    case 4:
+        db_connection.reset(new DbConnection(argv[1], argv[2], argv[3]));
+        break;
+    case 5:
+        db_connection.reset(new DbConnection(argv[1], argv[2], argv[3], argv[4]));
+        break;
+    case 6:
+        db_connection.reset(new DbConnection(argv[1], argv[2], argv[3], argv[4], StringUtil::ToUnsigned(argv[5])));
+        break;
+    }
+
+    db_connection->queryOrDie("SHOW TABLES");
     std::vector<std::string> table_names;
 
-    DbResultSet result_set1(db_connection.getLastResultSet());
+    DbResultSet result_set1(db_connection->getLastResultSet());
     DbRow row1;
     while (row1 = result_set1.getNextRow()) {
-        db_connection.queryOrDie("SHOW CREATE TABLE ub_tools." + row1[0]);
-        DbResultSet result_set2(db_connection.getLastResultSet());
+        db_connection->queryOrDie("SHOW CREATE TABLE " + db_connection->getDbName() + "." + row1[0]);
+        DbResultSet result_set2(db_connection->getLastResultSet());
         DbRow row2;
         while (row2 = result_set2.getNextRow())
             std::cout << row2[1] << '\n';
