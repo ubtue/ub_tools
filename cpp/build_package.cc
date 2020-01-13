@@ -2,7 +2,7 @@
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \documentation See https://ubuntuforums.org/showthread.php?t=910717
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -289,8 +289,10 @@ int Main(int argc, char *argv[]) {
         build_deb = true;
     else if (std::strcmp(argv[1], "--rpm") == 0)
         build_deb = false;
-    else
+    else {
         LOG_ERROR("first argument must be --deb or --rpm!");
+        __builtin_unreachable();
+    }
 
     std::string output_directory;
     if (StringUtil::StartsWith(argv[2], "--output-directory=")) {

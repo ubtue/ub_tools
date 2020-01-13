@@ -1,7 +1,7 @@
 /** \brief Utility for validating and fixing up records harvested by zts_harvester
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -36,8 +36,7 @@
 namespace {
 
 
-[[noreturn]]
-void Usage() {
+[[noreturn]] void Usage() {
    ::Usage("marc_input marc_output missed_expectations_file email_address");
 }
 
@@ -96,6 +95,7 @@ FieldPresence StringToFieldPresence(const std::string &s) {
     if (s == "ignore")
         return IGNORE;
     LOG_ERROR("unknown enumerated value \"" + s + "\"!");
+    __builtin_unreachable();
 }
 
 
@@ -109,6 +109,7 @@ std::string FieldPresenceToString(const FieldPresence field_presence) {
         return "ignore";
     default:
         LOG_ERROR("we should *never get here!");
+        __builtin_unreachable();
     }
 }
 
