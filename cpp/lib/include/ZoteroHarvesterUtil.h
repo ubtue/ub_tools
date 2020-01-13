@@ -360,9 +360,7 @@ template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::s
                   + "\nstatus = " + std::to_string(status_) + "\ndescription:" + context_.description_);
     }
 
-    //    #pragma GCC diagnostic ignored "-Wcast-function-type"
     auto thread_routine(reinterpret_cast<void *(*)(void *)>(ThreadRoutine));
-    //    #pragma GCC diagnostic warning "-Wcast-function-type"
     if (::pthread_create(&thread_id_, nullptr, thread_routine, this) != 0)
         LOG_ERROR("tasklet thread creation failed!\ntasklet description: " + context_.description_);
 }
