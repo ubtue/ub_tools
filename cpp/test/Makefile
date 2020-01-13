@@ -1,4 +1,5 @@
 LIB := ../lib
+INC = $(LIB)/include
 include ../Makefile.inc
 
 

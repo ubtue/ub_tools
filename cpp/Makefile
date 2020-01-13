@@ -1,4 +1,6 @@
-LIB := lib
+LIB      := lib
+INC      = $(LIB)/include
+LIB_SRCS = $(LIB)/src
 include Makefile.inc
 
 

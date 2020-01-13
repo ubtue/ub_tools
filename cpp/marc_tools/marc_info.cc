@@ -35,8 +35,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--summarize-tags] [--verbose] marc_data\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("[--summarize-tags] [--verbose] marc_data");
 }
 
 
@@ -158,11 +157,17 @@ int Main(int argc, char *argv[]) {
     if (verbose)
         --argc, ++argv;
 
-    if (argc != 2)
+    if (argc < 2)
         Usage();
 
-    auto marc_reader(MARC::Reader::Factory(argv[1]));
-    ProcessRecords(verbose, summarize_tags, marc_reader.get());
+    for (int arg_no(1); arg_no < argc; ++arg_no) {
+        const std::string filename(argv[arg_no]);
+        std::cout << "Stats for " << filename << '\n';
+        auto marc_reader(MARC::Reader::Factory(filename));
+        ProcessRecords(verbose, summarize_tags, marc_reader.get());
+        if (arg_no < argc - 1)
+            std::cout << "\n\n";
+    }
 
     return EXIT_SUCCESS;
 }
