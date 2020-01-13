@@ -321,7 +321,6 @@ template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::
     ::pthread_detach(thread_id);
     // Flagged at the very end of the routine to prevent data races.
     tasklet->setStatus(completion_status);
-    ::pthread_exit(nullptr);
 
     return nullptr;
 }
