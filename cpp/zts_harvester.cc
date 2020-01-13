@@ -1,7 +1,7 @@
 /** \brief Handles crawling as well as RSS feeds.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -196,6 +196,7 @@ std::string GetOutputFormatString(const std::string &output_filename) {
         return "json";
 
     LOG_ERROR("couldn't determine output format from filename '" + output_filename + "'");
+    __builtin_unreachable();
 }
 
 
@@ -208,6 +209,7 @@ std::string GetOutputFormatExtension(const std::string &output_format_string) {
         return "json";
 
     LOG_ERROR("couldn't determine output extension from format string '" + output_format_string + "'");
+    __builtin_unreachable();
 }
 
 
