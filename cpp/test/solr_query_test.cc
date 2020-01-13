@@ -56,8 +56,10 @@ int main(int argc, char *argv[]) {
         result_format = Solr::QueryResultFormat::XML;
     else if (result_format_candidate == "JSON")
         result_format = Solr::QueryResultFormat::JSON;
-    else
+    else {
         LOG_ERROR("unknown query result format \"" + result_format_candidate + "\"!");
+        __builtin_unreachable();
+    }
 
     unsigned max_no_of_rows(Solr::JAVA_INT_MAX);
     if (argc == 7) {

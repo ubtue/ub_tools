@@ -4,7 +4,7 @@
  *  \note Compile with   g++ -std=gnu++14 -O3 -o installer installer.cc
  *  \note or             clang++ -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions -O3 -o installer installer.cc
  *
- *  \copyright 2016-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -765,7 +765,7 @@ int Main(int argc, char **argv) {
         Usage();
 
     std::string vufind_system_type_string;
-    VuFindSystemType vufind_system_type;
+    VuFindSystemType vufind_system_type(IXTHEO);
     bool omit_cronjobs(false);
     bool omit_systemctl(false);
 
@@ -789,8 +789,10 @@ int Main(int argc, char **argv) {
             vufind_system_type = KRIMDOK;
         else if (::strcasecmp(vufind_system_type_string.c_str(), "ixtheo") == 0)
             vufind_system_type = IXTHEO;
-        else
+        else {
             Usage();
+            __builtin_unreachable();
+        }
 
         if (argc >= 3) {
             for (int i = 2; i <= 3; ++i) {

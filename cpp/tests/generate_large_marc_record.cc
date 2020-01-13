@@ -1,7 +1,7 @@
 /** \brief Test program dealing with a record that exceeds 99999 bytes.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -57,6 +57,7 @@ std::string IncrementTag(const std::string &tag) {
     }
 
     LOG_ERROR("overflow in IncrementTag()!");
+    __builtin_unreachable();
 }
 
 
