@@ -2,7 +2,7 @@
  *  \brief  Various utility functions that did not seem to logically fit anywhere else.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014,2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -65,7 +65,7 @@ public:
     //* Emits "msg" and then calls exit(3), also generates a call stack trace if the environment variable BACKTRACE has been set.
     [[noreturn]] virtual void error(const std::string &msg) __attribute__((noreturn));
     [[noreturn]] virtual void error(const std::string &function_name, const std::string &msg) __attribute__((noreturn))
-        { error("in " + function_name + ": " + msg); }
+        { error("in " + function_name + ": " + msg); __builtin_unreachable(); }
 
     virtual void warning(const std::string &msg);
     inline void warning(const std::string &function_name, const std::string &msg) { warning("in " + function_name + ": " + msg); }
