@@ -256,12 +256,9 @@ bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_stri
 
 
 bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string) {
-    static iconv_t iconv_handle((iconv_t)-1);
-    if (unlikely(iconv_handle == (iconv_t)-1)) {
-        iconv_handle = ::iconv_open("UTF-8", "WCHAR_T");
-        if (unlikely(iconv_handle == (iconv_t)-1))
-            LOG_ERROR("iconv_open(3) failed!");
-    }
+    iconv_t iconv_handle(::iconv_open("UTF-8", "WCHAR_T"));
+    if (unlikely(iconv_handle == (iconv_t)-1))
+        LOG_ERROR("iconv_open(3) failed!");
 
     const size_t INBYTE_COUNT(wchar_string.length() * sizeof(wchar_t));
     char *in_bytes(new char[INBYTE_COUNT]);
@@ -284,6 +281,7 @@ bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_stri
 
     utf8_string->assign(out_bytes_start, OUTBYTE_COUNT - outbytes_left);
     delete [] out_bytes_start;
+    ::iconv_close(iconv_handle);
 
     return true;
 }
@@ -1793,6 +1791,66 @@ bool ConsistsEntirelyOfLetters(const std::string &utf8_string) {
     }
 
     return true;
+}
+
+
+static inline bool IsStartOfUTF8CodePoint(const char ch) {
+    // Test whether we have an ASCII character or a character whose uppermost tow bits are both 1.
+    return (static_cast<unsigned char>(ch) & 128u) == 0 or (static_cast<unsigned char>(ch) & 192u) == 192u;
+}
+
+
+size_t CodePointCount(const std::string &utf8_string) {
+    size_t code_point_count(0);
+    for (const char ch : utf8_string) {
+        if (IsStartOfUTF8CodePoint(ch))
+            ++code_point_count;
+    }
+
+    return code_point_count;
+}
+
+
+static std::string ExtractUTF8Substring(const std::string::const_iterator start, const std::string::const_iterator end,
+                                        const size_t max_length)
+{
+    std::string substring;
+    size_t substring_length(0);
+    for (auto ch(start); ch != end; ++ch) {
+        if (IsStartOfUTF8CodePoint(*ch)) {
+            if (substring_length == max_length)
+                break;
+            ++substring_length;
+        }
+        substring += *ch;
+    }
+    return substring;
+}
+
+
+std::string UTF8Substr(const std::string &utf8_string, const size_t pos, const size_t len) {
+    const size_t total_length(CodePointCount(utf8_string));
+    if (pos == 0) {
+        if (unlikely(len == std::string::npos))
+            return utf8_string;
+        return ExtractUTF8Substring(utf8_string.cbegin(), utf8_string.cend(), len);
+    } else if (pos == total_length)
+        return "";
+    else if (unlikely(pos > total_length))
+        throw std::out_of_range("substring start is out-of-range in TextUtil::UTF8Substr!");
+    else {
+        std::string::const_iterator start(utf8_string.cbegin());
+        size_t skip_count(0);
+        while (start != utf8_string.cend() and skip_count < pos) {
+            if (IsStartOfUTF8CodePoint(*start)) {
+                if (skip_count == pos)
+                    break;
+                ++skip_count;
+            }
+            ++start;
+        }
+        return ExtractUTF8Substring(start, utf8_string.cend(), len);
+    }
 }
 
 

@@ -24,6 +24,7 @@
 #include <iterator>
 #include <stdexcept>
 #include <cctype>
+#include <cerrno>
 #include <cstdlib>
 #include <execinfo.h>
 #include <signal.h>
@@ -141,23 +142,27 @@ std::string Logger::LogLevelToString(const LogLevel log_level) {
 }
 
 
-void Logger::writeString(const std::string &level, std::string msg) {
-    if (unlikely(::progname == nullptr))
-        msg = "You must set \"progname\" in main() with \"::progname = argv[0];\" in oder to use the Logger API!";
-    else if (not log_no_decorations_) {
-        msg = TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " " + level + " " + std::string(::progname) + ": "
-              + msg;
+void Logger::formatMessage(const std::string &level, std::string * const msg) {
+    if (not log_no_decorations_) {
+        *msg = TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " " + level + " " + std::string(::program_invocation_name) + ": "
+              + *msg;
         if (log_process_pids_)
-            msg += " (PID: " + std::to_string(::getpid()) + ")";
+            *msg += " (PID: " + std::to_string(::getpid()) + ")";
     }
 
     if (log_strip_call_site_) {
-        const auto END_OF_CALL_SITE_PREFIX(msg.find("): "));
+        const auto END_OF_CALL_SITE_PREFIX(msg->find("): "));
         if (END_OF_CALL_SITE_PREFIX != std::string::npos)
-            msg = msg.substr(END_OF_CALL_SITE_PREFIX + 3);
+            *msg = msg->substr(END_OF_CALL_SITE_PREFIX + 3);
     }
 
-    msg += '\n';
+    *msg += '\n';
+}
+
+
+void Logger::writeString(const std::string &level, std::string msg, const bool format_message) {
+    if (format_message)
+        formatMessage(level, &msg);
 
     if (unlikely(::write(fd_, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
         const std::string error_message("in Logger::writeString(util.cc): write to file descriptor " + std::to_string(fd_)
@@ -167,9 +172,6 @@ void Logger::writeString(const std::string &level, std::string msg) {
         #pragma GCC diagnostic warning "-Wunused-result"
         _exit(EXIT_FAILURE);
     }
-
-    if (unlikely(::progname == nullptr))
-        _exit(EXIT_FAILURE);
 }
 
 
@@ -330,8 +332,8 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
     if (unlikely(line == lines.cend()))
         LOG_ERROR("missing usage message!");
 
-    std::cerr << "Usage: " << ::progname << " [--min-log-level] " << *line << '\n';
-    const std::string padding(__builtin_strlen("Usage: ") + __builtin_strlen(::progname) + 1, ' ');
+    std::cerr << "Usage: " << ::program_invocation_name << " [--min-log-level] " << *line << '\n';
+    const std::string padding(__builtin_strlen("Usage: ") + __builtin_strlen(::program_invocation_name) + 1, ' ');
     for (++line; line != lines.cend(); ++line)
         std::cerr << padding << *line << '\n';
 

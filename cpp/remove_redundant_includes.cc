@@ -1,7 +1,7 @@
 /** \brief A tool to find and eliminate unused C++ includes.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2018,2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -26,12 +26,8 @@
 #include "util.h"
 
 
-static void Usage() __attribute__((noreturn));
-
-
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--report-only] file1 [file2 .. fileN]\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]] void Usage() {
+    ::Usage("[--report-only] file1 [file2 .. fileN]");
 }
 
 
@@ -369,9 +365,7 @@ bool ProcessFile(const bool report_only, File * const input) {
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
@@ -405,4 +399,6 @@ int main(int argc, char *argv[]) {
     } catch (const std::exception &e) {
         logger->error("Caught exception: " + std::string(e.what()));
     }
+
+    return EXIT_SUCCESS;
 }

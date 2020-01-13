@@ -1,7 +1,8 @@
+MAKEFLAGS      += --warn-undefined-variables
 INC            = $(LIB)/include
 LIB_SRCS       = $(LIB)/src
 CCC            ?= clang++
-CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -march=native -ftrapv \
+CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Wno-parentheses -march=native -ftrapv \
                  -I$(LIB)/libstemmer/include -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
                  -DETC_DIR='"/usr/local/var/lib/tuelib"'
 
@@ -17,9 +18,9 @@ else
 endif
 
 ifeq ($(CCC),clang++)
-  CCCFLAGS += -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions
+  CCCFLAGS += -std=gnu++2a -Wno-vla-extension #-Wno-c++1y-extensions
 else
-  CCCFLAGS += -std=gnu++14
+  CCCFLAGS += -std=gnu++2a
 endif
 OBJ            = .
 MAKE_DEPS      = /usr/local/bin/iViaCore-mkdep

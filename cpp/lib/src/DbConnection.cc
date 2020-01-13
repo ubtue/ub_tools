@@ -19,6 +19,7 @@
  */
 #include "DbConnection.h"
 #include <stdexcept>
+#include <cerrno>
 #include <cstdlib>
 #include "FileUtil.h"
 #include "IniFile.h"
@@ -132,7 +133,7 @@ const std::string DbConnection::DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath(
 bool DbConnection::query(const std::string &query_statement) {
     if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") == "true")
         FileUtil::AppendString("/usr/local/var/log/tuefind/sql_debug.log",
-                               std::string(::progname) + ": " +  query_statement + '\n');
+                               std::string(::program_invocation_name) + ": " +  query_statement + '\n');
 
     if (type_ == T_MYSQL) {
         if (::mysql_query(&mysql_, query_statement.c_str()) != 0) {
@@ -684,18 +685,22 @@ std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPriv
 
     DbResultSet result_set(getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
-        if (row[0] == "GRANT ALL PRIVILEGES ON `" + database_name + "`.* TO '" + user + "'@'" + host + "'")
-            return MYSQL_ALL_PRIVILEGES;
-        else {
-            static RegexMatcher * const mysql_privileges_matcher(
-                RegexMatcher::RegexMatcherFactory("GRANT ((?:, )?[A-Z ]+) ON `" + database_name + "`.* TO '" + user + "'@'" + host + "'"));
+        static RegexMatcher * const mysql_privileges_matcher(
+            RegexMatcher::RegexMatcherFactory("GRANT (.+) ON `" + database_name + "`.* TO '" + user + "'@'" + host + "'"));
 
-            if (mysql_privileges_matcher->matched(row[0])) {
-                std::unordered_set<DbConnection::MYSQL_PRIVILEGE> privileges;
-                for (unsigned i(0); i < mysql_privileges_matcher->getNoOfGroups(); ++i)
-                    privileges.emplace(MySQLPrivilegeStringToEnum((*mysql_privileges_matcher)[i]));
-                return privileges;
-            }
+        if (mysql_privileges_matcher->matched(row[0])) {
+            const std::string matched_privileges((*mysql_privileges_matcher)[1]);
+            if (matched_privileges == "ALL PRIVILEGES")
+                return MYSQL_ALL_PRIVILEGES;
+
+            std::unordered_set<std::string> privileges_strings;
+            StringUtil::SplitThenTrimWhite(matched_privileges, ',', &privileges_strings);
+
+            std::unordered_set<DbConnection::MYSQL_PRIVILEGE> privileges;
+            for (const auto &privilege_string : privileges_strings)
+                privileges.emplace(MySQLPrivilegeStringToEnum(privilege_string));
+
+            return privileges;
         }
     }
 

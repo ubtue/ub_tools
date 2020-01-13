@@ -622,10 +622,11 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
     }
 
     // Review-specific modifications
-    if (item_type == "review")
-        record->insertField("655",
-                            { { 'a', "Rezension" }, { '0', "(DE-588)4049712-4" }, { '0', "(DE-627)106186019" }, { '2', "gnd-content" } },
+    if (item_type == "review") {
+        record->insertField("655", { { 'a', "Rezension" }, { '0', "(DE-588)4049712-4" },
+                            { '0', "(DE-627)106186019" }, { '2', "gnd-content" } },
                             /* indicator1 = */' ', /* indicator2 = */'7');
+    }
 
     // License data
     const std::string license(node_parameters.license_);
@@ -718,6 +719,10 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         record->insertField("084", _084_subfields);
     }
 
+    // Zotero sigil
+    record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
+    record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
+
     // Abrufzeichen und ISIL
     if (site_params_->group_params_->bsz_upload_group_ == "krimdok") {
         record->insertField("852", { { 'a', isil } });
@@ -728,9 +733,6 @@ void MarcFormatHandler::generateMarcRecord(MARC::Record * const record, const st
         record->insertField("852", { { 'a', isil } });
         record->insertField("935", { { 'a', "mteo" } });
     }
-
-    // Zotero sigil
-    record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
 
     record->insertField("001", site_params_->group_params_->name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
                         + "#" + StringUtil::ToHexString(MARC::CalcChecksum(*record)));

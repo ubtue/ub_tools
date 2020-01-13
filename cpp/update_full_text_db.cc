@@ -1,7 +1,7 @@
 /** \brief Utility for augmenting MARC records with links to a local full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -39,14 +39,10 @@
 namespace {
 
 
-static void Usage() __attribute__((noreturn));
-
-
-static void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--pdf-extraction-timeout=timeout]file_offset marc_input marc_output\n"
-              << "       \"--pdf-extraction-timeout\" timeout in seconds (default " << PdfUtil::DEFAULT_PDF_EXTRACTION_TIMEOUT << ").\n"
-              << "       \"file_offset\" Where to start reading a MARC data set from in marc_input.\n\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]] void Usage() {
+    ::Usage("[--pdf-extraction-timeout=timeout]file_offset marc_input marc_output\n"
+            "\"--pdf-extraction-timeout\" timeout in seconds (default " + std::to_string(PdfUtil::DEFAULT_PDF_EXTRACTION_TIMEOUT) + ").\n"
+            "\"file_offset\" Where to start reading a MARC data set from in marc_input.");
 }
 
 
@@ -313,9 +309,7 @@ bool ProcessRecord(MARC::Reader * const marc_reader, const std::string &marc_out
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     unsigned pdf_extraction_timeout(PdfUtil::DEFAULT_PDF_EXTRACTION_TIMEOUT);
     if (argc > 1 and StringUtil::StartsWith(argv[1], "--pdf-extraction-timeout=")) {
         if (not StringUtil::ToNumber(argv[1] + __builtin_strlen("--pdf-extraction-timeout="), &pdf_extraction_timeout)
@@ -341,4 +335,6 @@ int main(int argc, char *argv[]) {
         LOG_ERROR("While reading \"" + marc_reader->getPath() + "\" starting at offset \""
               + std::string(argv[1]) + "\", caught exception: " + std::string(e.what()));
     }
+
+    return EXIT_SUCCESS;
 }

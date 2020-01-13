@@ -253,6 +253,27 @@ void MySQLImportFileIfExists(const std::string &sql_file, const std::string &sql
 }
 
 
+void GetMaxTableVersions(std::map<std::string, unsigned> * const table_name_to_version_map) {
+    const std::string SQL_UPDATES_DIRECTORY("/usr/local/ub_tools/cpp/data/sql_updates");
+
+    static RegexMatcher *matcher(RegexMatcher::RegexMatcherFactoryOrDie("^([^.]+)\\.(\\d+)$"));
+    FileUtil::Directory directory(SQL_UPDATES_DIRECTORY);
+    for (const auto entry : directory) {
+        if (matcher->matched(entry.getName())) {
+            const auto database_name((*matcher)[1]);
+            const auto version(StringUtil::ToUnsigned((*matcher)[2]));
+            auto database_name_and_version(table_name_to_version_map->find(database_name));
+            if (database_name_and_version == table_name_to_version_map->end())
+                (*table_name_to_version_map)[database_name] = version;
+            else {
+                if (database_name_and_version->second < version)
+                    database_name_and_version->second = version;
+            }
+        }
+    }
+}
+
+
 void CreateUbToolsDatabase(const OSSystemType os_system_type) {
     AssureMysqlServerIsRunning(os_system_type);
 
@@ -275,6 +296,17 @@ void CreateUbToolsDatabase(const OSSystemType os_system_type) {
         DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
         DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, root_username, root_password);
+    }
+
+    // Populate our database versions table to reflect the patch level for each database for which patches already exist.
+    // This assumes that we have been religiously updating our database creation statements for each patch that we created!
+    std::map<std::string, unsigned> table_name_to_version_map;
+    GetMaxTableVersions(&table_name_to_version_map);
+    DbConnection connection;
+    for (const auto &table_name_and_version : table_name_to_version_map) {
+        const std::string replace_statement("REPLACE INTO ub_tools.database_versions SET database_name='" + table_name_and_version.first
+                                           +"', version=" + StringUtil::ToString(table_name_and_version.second));
+        connection.queryOrDie(replace_statement);
     }
 }
 
@@ -553,7 +585,7 @@ void DownloadVuFind() {
  * - Create user "vufind" as system user if not exists
  * - Grant permissions on relevant directories
  */
-void ConfigureApacheUser(const OSSystemType os_system_type) {
+void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_systemctl) {
     const std::string username("vufind");
     CreateUserIfNotExists(username);
 
@@ -586,6 +618,13 @@ void ConfigureApacheUser(const OSSystemType os_system_type) {
             { "-i", "s/group = apache/group =  " + username + "/", php_config_filename });
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
             { "-i", "s/listen.acl_users = apache,nginx/listen.acl_users = apache,nginx," + username + "/", php_config_filename });
+
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chown"), { "-R", username + ":" + username, "/var/log/httpd" });
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chown"), { "-R", username + ":" + username, "/var/run/httpd" });
+        if (install_systemctl) {
+            ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
+                { "-i", "s/apache/" + username + "/g", "/usr/lib/tmpfiles.d/httpd.conf" });
+        }
         break;
     }
 
@@ -715,7 +754,7 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     }
 
     ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
-    ConfigureApacheUser(os_system_type);
+    ConfigureApacheUser(os_system_type, install_systemctl);
 
     Echo(vufind_system_type_string + " configuration completed!");
 }
@@ -770,6 +809,7 @@ int Main(int argc, char **argv) {
     if (not omit_systemctl and not SystemdUtil::IsAvailable())
         Error("Systemd is not available in this environment."
               "Please use --omit-systemctl explicitly if you want to skip service installations.");
+    const bool install_systemctl(not omit_systemctl and SystemdUtil::IsAvailable());
 
     if (::geteuid() != 0)
         Error("you must execute this program as root!");
@@ -778,7 +818,7 @@ int Main(int argc, char **argv) {
 
     // Install dependencies before vufind
     // correct PHP version for composer dependancies
-    InstallSoftwareDependencies(os_system_type, vufind_system_type_string, ub_tools_only, not omit_systemctl);
+    InstallSoftwareDependencies(os_system_type, vufind_system_type_string, ub_tools_only, install_systemctl);
 
     // Where to find our own stuff:
     MiscUtil::AddToPATH("/usr/local/bin/", MiscUtil::PreferredPathLocation::LEADING);
@@ -790,7 +830,7 @@ int Main(int argc, char **argv) {
         #ifndef __clang__
         #   pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
         #endif
-        ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, not omit_systemctl);
+        ConfigureVuFind(vufind_system_type, os_system_type, not omit_cronjobs, install_systemctl);
         #ifndef __clang__
         #   pragma GCC diagnostic error "-Wmaybe-uninitialized"
         #endif
@@ -803,6 +843,8 @@ int Main(int argc, char **argv) {
             // allow httpd/php to connect to solr + mysql
             SELinuxUtil::Boolean::Set("httpd_can_network_connect", true);
             SELinuxUtil::Boolean::Set("httpd_can_network_connect_db", true);
+            SELinuxUtil::Boolean::Set("httpd_can_network_relay", true);
+            SELinuxUtil::Boolean::Set("httpd_can_sendmail", true);
         }
     }
 

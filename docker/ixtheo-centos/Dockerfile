@@ -31,6 +31,7 @@ RUN source /etc/profile.d/vufind.sh \
 EXPOSE 80
 EXPOSE 443
 ADD httpd/*.conf /etc/httpd/conf.d/
+ADD httpd/*.conf.include /etc/httpd/conf.d/
 ADD httpd/*.crt /etc/pki/tls/certs/
 ADD httpd/*.key /etc/pki/tls/private/
 
