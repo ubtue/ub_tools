@@ -1,4 +1,5 @@
-LIB := ../lib
+LIB          := ../lib
+INC          = $(LIB)/include
 STATIC_OBJ   = .
 STATIC_PROGS = $(patsubst %.cc,static_executables/%,$(wildcard *.cc))
 include ../Makefile.inc

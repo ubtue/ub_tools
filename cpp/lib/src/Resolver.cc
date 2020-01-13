@@ -693,7 +693,7 @@ bool Resolver::DecodeReply(const unsigned char * const packet_start, const size_
         const uint16_t rr_class(ntohs(*reinterpret_cast<const uint16_t *>(cp)));
         cp += sizeof(uint16_t);
 
-        *ttl = *reinterpret_cast<const uint32_t * const>(cp);
+        *ttl = *reinterpret_cast<const uint32_t *>(cp);
         *ttl = ntohl(*ttl);
         cp += sizeof(uint32_t);
 
