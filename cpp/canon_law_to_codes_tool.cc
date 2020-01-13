@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2019 Library of the University of Tübingen
+    Copyright (C) 2019-2020 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -49,8 +49,10 @@ int Main(int argc, char **argv) {
     } else if (StringUtil::StartsWith(canon_law_reference_candidate, "CIC1983", /* ignore_case = */true)) {
         codex = CIC1983;
         range = StringUtil::TrimWhite(canon_law_reference_candidate.substr(__builtin_strlen("CIC1983")));
-    } else
+    } else {
         LOG_ERROR("can't determine codes!");
+        __builtin_unreachable();
+    }
 
     unsigned range_start, range_end;
     if (range.empty()) {

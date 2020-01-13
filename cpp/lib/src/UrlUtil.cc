@@ -253,8 +253,8 @@ void Blacklister::processPrivoxyActionFile(const std::string &action_filename) {
 //
 std::string UrlEncodeChar(const char ch) {
     std::string encoded_char("%");
-    encoded_char += MiscUtil::HexDigit(static_cast<const unsigned char>(ch) >> 4u);
-    encoded_char += MiscUtil::HexDigit(static_cast<const unsigned char>(ch) & 0xFu);
+    encoded_char += MiscUtil::HexDigit(static_cast<unsigned char>(ch) >> 4u);
+    encoded_char += MiscUtil::HexDigit(static_cast<unsigned char>(ch) & 0xFu);
 
     return encoded_char;
 }
