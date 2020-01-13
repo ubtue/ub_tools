@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015,2017,2018 Library of the University of Tübingen
+    Copyright (C) 2015-2020 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -126,6 +126,7 @@ Logger::LogLevel Logger::StringToLogLevel(const std::string &level_candidate) {
     if (level_candidate == "DEBUG")
         return Logger::LL_DEBUG;
     LOG_ERROR("not a valid minimum log level: \"" + level_candidate + "\"! (Use ERROR, WARNING, INFO or DEBUG)");
+    __builtin_unreachable();
 }
 
 
@@ -139,6 +140,7 @@ std::string Logger::LogLevelToString(const LogLevel log_level) {
     if (log_level == Logger::LL_DEBUG)
         return "DEBUG";
     LOG_ERROR("unsupported log level, we should *never* get here!");
+    __builtin_unreachable();
 }
 
 

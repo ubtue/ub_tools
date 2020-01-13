@@ -1971,7 +1971,7 @@ uint32_t SuperFastHash(const char * data, unsigned len) {
 
 uint32_t Adler32(const char * const s, const size_t s_length) {
     const uint32_t MOD_ADLER(65521u);
-    const uint8_t *data(reinterpret_cast<const uint8_t * const>(s)); // Pointer to the data to be summed.
+    const uint8_t *data(reinterpret_cast<const uint8_t *>(s)); // Pointer to the data to be summed.
     size_t len(s_length);                                            // Length in bytes.
     uint32_t low(1), high(0);
 

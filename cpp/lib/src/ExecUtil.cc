@@ -383,10 +383,13 @@ void FindActivePrograms(const std::string &program_name, std::unordered_set<unsi
         return;
     case 2:
         LOG_ERROR("pgrep: Syntax error in the command line.");
+        __builtin_unreachable();
     case 3:
         LOG_ERROR("pgrep: Fatal error: out of memory etc.");
+        __builtin_unreachable();
     default:
         LOG_ERROR("unexpected exit code from pgrep!");
+        __builtin_unreachable();
     }
 
     std::unordered_set<std::string> pids_strings;

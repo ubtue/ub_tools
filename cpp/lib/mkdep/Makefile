@@ -15,7 +15,7 @@ install: iViaCore-mkdep
 	@/usr/bin/install -c -s -m755 iViaCore-mkdep /usr/local/bin/
 
 clean:
-	rm -f *.o *~ $(PROGS)
+	rm -f *.o *~ iViaCore-mkdep
 
 iViaCore-mkdep: iViaCore-mkdep.cc
 	@echo "Building $@ ..."

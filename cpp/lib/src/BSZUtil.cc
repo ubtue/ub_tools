@@ -47,8 +47,6 @@ const size_t MAX_LINE_LENGTH_OLD_NO_ILN(21);
 const size_t MAX_LINE_LENGTH_NEW_WITH_ILN(26);
 const size_t MAX_LINE_LENGTH_NEW_NO_ILN(22);
 
-const size_t PPN_LENGTH_OLD(9);
-const size_t PPN_LENGTH_NEW(10);
 const size_t PPN_START_INDEX(12);
 const size_t SEPARATOR_INDEX(PPN_START_INDEX - 1);
 
