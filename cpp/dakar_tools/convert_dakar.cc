@@ -411,7 +411,7 @@ std::vector<T> RemoveDuplicatesKeepOrder(std::vector<T>& vec) {
 
 
 // Use this as a workaround for titles that lead to problems if handled case insensitively
-const std::set<std::string> case_insensitive_blocked { "Utrumque Ius" };
+const std::set<std::string> case_insensitive_blocked{ "Utrumque Ius" };
 
 
 void AugmentDBEntries(DbConnection * const db_connection,
