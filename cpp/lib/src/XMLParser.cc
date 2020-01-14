@@ -83,7 +83,6 @@ std::string XMLParser::XMLPart::toString() {
         return XmlUtil::XmlEscape(data_);
     default:
         LOG_ERROR("we should *never* get here!");
-        __builtin_unreachable();
     }
 }
 
@@ -100,7 +99,6 @@ std::string XMLParser::XMLPart::TypeToString(const Type type) {
         return "CHARACTERS";
     default:
         LOG_ERROR("we should *never* get here!");
-        __builtin_unreachable();
     };
 }
 
@@ -237,7 +235,6 @@ off_t XMLParser::getMaxOffset() {
         return xml_filename_or_string_.length();
     default:
         LOG_ERROR("we should *never* get here!");
-        __builtin_unreachable();
     }
 }
 

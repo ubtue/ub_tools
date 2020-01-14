@@ -213,7 +213,6 @@ ConditionDescriptor::CompType TokenToConditionDescriptorCompType(const TokenType
         return ConditionDescriptor::SINGLE_FIELD_NOT_EQUAL;
     default:
         LOG_ERROR("can't convert \"" + Tokenizer::TokenTypeToString(token) + "\" to a ConditionDescriptor::CompType!");
-        __builtin_unreachable();
     }
 }
 
