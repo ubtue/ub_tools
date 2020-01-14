@@ -414,7 +414,7 @@ std::vector<T> RemoveDuplicatesKeepOrder(std::vector<T>& vec) {
 const std::set<std::string> case_insensitive_blocked { "Utrumque Ius" };
 
 
-void AugmentDBEntries(DbConnection &db_connection,
+void AugmentDBEntries(DbConnection * const db_connection,
                       const std::unordered_map<std::string,std::string> &author_to_gnds_result_map,
                       const std::unordered_map<std::string,std::string> &keyword_to_gnds_result_map,
                       const std::unordered_map<std::string,std::string> &cic_to_gnd_result_map,
@@ -427,7 +427,7 @@ void AugmentDBEntries(DbConnection &db_connection,
 {
     // Iterate over Database
     const std::string ikr_query("SELECT id,autor,stichwort,cicbezug,fundstelle,jahr,abstract FROM ikr");
-    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(ikr_query, &db_connection));
+    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(ikr_query, db_connection));
     while (const DbRow db_row = result_set.getNextRow()) {
         // Authors
         const std::string author_row(db_row["autor"]);
@@ -576,7 +576,7 @@ void AugmentDBEntries(DbConnection &db_connection,
                                            +  "\", s_no_gnd=\"" + s_no_gnd_content +  "\",c_gnd=\"" + c_gnd_content + "\",f_ppn=\"" + f_ppn +
                                            "\", f_quelle=\"" + f_quelle + "\", f_kategorie=\"" + f_category_content + "\", stichwort=\"" + keyword_row + "\""
                                            + " WHERE id=" + id);
-        db_connection.queryOrDie(update_row_query);
+        db_connection->queryOrDie(update_row_query);
     }
 }
 
@@ -682,7 +682,7 @@ int Main(int argc, char **argv) {
          std::unordered_map<std::string, std::string> hintterms_map;
          if (use_hintterms_map)
              GetHinttermsMap(hintterms_map_filename, &hintterms_map);
-         AugmentDBEntries(db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map,
+         AugmentDBEntries(&db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map,
                           find_discovery_map, bishop_map, officials_map, hintterms_map, keyword_correction_map);
      }
      return EXIT_SUCCESS;
