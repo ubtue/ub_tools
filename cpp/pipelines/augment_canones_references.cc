@@ -53,7 +53,6 @@ Codex DetermineCodex(const std::string &subfield_codex, const std::string &subfi
         return CIC1983;
 
     LOG_ERROR("bad year for Codex Iuris Canonici \"" + subfield_year + "\"! (PPN: " + ppn + ")");
-    __builtin_unreachable();
 }
 
 
@@ -75,7 +74,6 @@ std::string FieldToCanonLawCode(const std::string &ppn, const Codex codex, const
         return StringUtil::ToString(300000000 + range_start) + "_" + StringUtil::ToString(300000000 + range_end);
     default:
         LOG_ERROR("unknown codex: " + std::to_string(codex));
-        __builtin_unreachable();
     }
 }
 
@@ -90,7 +88,6 @@ std::string CodexToPrefix(const Codex codex) {
         return "CCEO";
     default:
         LOG_ERROR("unknown codex: " + std::to_string(codex));
-        __builtin_unreachable();
     }
 }
 

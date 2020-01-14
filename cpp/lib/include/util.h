@@ -90,7 +90,7 @@ protected:
 extern Logger *logger;
 
 
-#define LOG_ERROR(message)   logger->error(__PRETTY_FUNCTION__, message)
+#define LOG_ERROR(message)   logger->error(__PRETTY_FUNCTION__, message), __builtin_unreachable()
 #define LOG_WARNING(message) logger->warning(__PRETTY_FUNCTION__, message)
 #define LOG_INFO(message)    logger->info(__PRETTY_FUNCTION__, message)
 #define LOG_DEBUG(message)   logger->debug(__PRETTY_FUNCTION__, message)

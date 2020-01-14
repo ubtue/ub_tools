@@ -64,7 +64,6 @@ std::string GetOutputFormatExtension(const std::string &output_format_id) {
     }
 
     LOG_ERROR("no extension defined for output format " + output_format_id);
-    __builtin_unreachable();
 }
 
 

@@ -75,7 +75,6 @@ bool Reader::getNext(EntryInfo * const info) {
         return false;
 
     LOG_ERROR("something went wrong! (" + std::string(::archive_error_string(archive_handle_)) + ")");
-    __builtin_unreachable();
 }
 
 

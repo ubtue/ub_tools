@@ -57,7 +57,6 @@ std::string IncrementTag(const std::string &tag) {
     }
 
     LOG_ERROR("overflow in IncrementTag()!");
-    __builtin_unreachable();
 }
 
 

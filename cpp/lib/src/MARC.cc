@@ -420,7 +420,6 @@ static std::string TypeOfRecordToString(const Record::TypeOfRecord type_of_recor
         return std::string(1, 't');
     default:
         LOG_ERROR("unknown type-of-record: " + std::to_string(static_cast<int>(type_of_record)) + "!");
-        __builtin_unreachable();
     }
 }
 
@@ -445,7 +444,6 @@ char Record::BibliographicLevelToChar(const Record::BibliographicLevel bibliogra
         return ' ';
     default:
         LOG_ERROR("unknown bibliographic level: " + std::to_string(static_cast<int>(bibliographic_level)) + "!");
-        __builtin_unreachable();
     }
 }
 
@@ -712,7 +710,6 @@ enum Record::BibliographicLevel Record::getBibliographicLevel() {
         return Record::BibliographicLevel::UNDEFINED;
     default:
         LOG_ERROR("unknown bibliographic level: " + std::string(1, leader_[0]) + "!");
-        __builtin_unreachable();
     }
 }
 
@@ -1636,7 +1633,6 @@ std::string FileTypeToString(const FileType file_type) {
         return "XML";
     default:
         LOG_ERROR("unknown file type " + std::to_string(static_cast<int>(file_type)) + "!");
-        __builtin_unreachable();
     }
 }
 
@@ -1652,7 +1648,6 @@ FileType GuessFileType(const std::string &filename, const GuessFileTypeBehaviour
             return FileType::BINARY;
         default:
             LOG_ERROR("\"" + filename + "\" contains neither MARC-21 nor MARC-XML data!");
-            __builtin_unreachable();
         }
     }
 
@@ -1664,7 +1659,6 @@ FileType GuessFileType(const std::string &filename, const GuessFileTypeBehaviour
         return FileType::XML;
 
     LOG_ERROR("can't guess the file type of \"" + filename + "\"!");
-    __builtin_unreachable();
 }
 
 

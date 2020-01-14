@@ -219,7 +219,6 @@ std::string PermissionParser::ToString(const TokenType token) {
     }
 
     LOG_ERROR("we should *never* get here!");
-    __builtin_unreachable();
 }
 
 

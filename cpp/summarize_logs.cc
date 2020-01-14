@@ -53,7 +53,6 @@ std::string GetLoggingLevel(const std::string &line) {
     if (StringUtil::StartsWith(line, "SEVERE"))
         return "SEVERE";
     LOG_ERROR("in GetLoggingLevel: can't determine logging level for line: " + line);
-    __builtin_unreachable();
 }
 
 
