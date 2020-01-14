@@ -95,7 +95,6 @@ FieldPresence StringToFieldPresence(const std::string &s) {
     if (s == "ignore")
         return IGNORE;
     LOG_ERROR("unknown enumerated value \"" + s + "\"!");
-    __builtin_unreachable();
 }
 
 
@@ -109,7 +108,6 @@ std::string FieldPresenceToString(const FieldPresence field_presence) {
         return "ignore";
     default:
         LOG_ERROR("we should *never get here!");
-        __builtin_unreachable();
     }
 }
 

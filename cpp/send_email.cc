@@ -58,7 +58,6 @@ EmailSender::Priority StringToPriority(const std::string &priority_candidate) {
     if (priority_candidate == "very_high")
         return EmailSender::VERY_HIGH;
     LOG_ERROR("\"" + priority_candidate + "\" is an unknown priority!");
-    __builtin_unreachable();
 }
 
 
@@ -68,7 +67,6 @@ EmailSender::Format StringToFormat(const std::string &format_candidate) {
     else if (format_candidate == "html")
         return EmailSender::HTML;
     LOG_ERROR("\"" + format_candidate + "\" is an unknown format!");
-    __builtin_unreachable();
 }
 
 

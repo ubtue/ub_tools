@@ -7,7 +7,7 @@
 /*
  *  Copyright 2004-2008 Project iVia.
  *  Copyright 2004-2008 The Regents of The University of California.
- *  Copyright 2017-2019 Universitätsbibliothek Tübingen
+ *  Copyright 2017-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -383,13 +383,10 @@ void FindActivePrograms(const std::string &program_name, std::unordered_set<unsi
         return;
     case 2:
         LOG_ERROR("pgrep: Syntax error in the command line.");
-        __builtin_unreachable();
     case 3:
         LOG_ERROR("pgrep: Fatal error: out of memory etc.");
-        __builtin_unreachable();
     default:
         LOG_ERROR("unexpected exit code from pgrep!");
-        __builtin_unreachable();
     }
 
     std::unordered_set<std::string> pids_strings;

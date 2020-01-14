@@ -80,7 +80,6 @@ std::string MapGerman3Or4LetterCodeToInternational2LetterCode(const std::string 
             return _2letter_and_3letter_codes.first;
     }
     LOG_ERROR("unknown German 3-letter code \"" + german_3or4letter_code + "\"!");
-    __builtin_unreachable();
 }
 
 

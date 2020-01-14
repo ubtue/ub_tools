@@ -79,7 +79,6 @@ bool GetAuthorityRecordFromPPN(const std::string &bsz_authority_ppn, MARC::Recor
     }
 
     LOG_ERROR("Logical flaw in GetAuthorityRecordFromPPN: we should *never* get here!");
-    __builtin_unreachable();
 }
 
 
