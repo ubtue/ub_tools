@@ -277,7 +277,6 @@ std::string TemplateScanner::TokenTypeToString(const TemplateScanner::TokenType 
     }
 
     LOG_ERROR("we should *never* get here!");
-    __builtin_unreachable();
 }
 
 
@@ -429,7 +428,6 @@ std::string Scope::TypeToString(const Type type) {
     }
 
     LOG_ERROR("we should *never* get here!");
-    __builtin_unreachable();
 }
 
 

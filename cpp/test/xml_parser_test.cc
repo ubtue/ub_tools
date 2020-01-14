@@ -50,7 +50,6 @@ int Main(int argc, char *argv[]) {
         switch (xml_part.type_) {
         case XMLParser::XMLPart::UNINITIALISED:
             LOG_ERROR("we should never get here as UNINITIALISED should never be returned!");
-            __builtin_unreachable();
         case XMLParser::XMLPart::OPENING_TAG:
             if (not silent) {
                 std::cout << xml_parser.getLineNo() << ":OPENING_TAG(" << xml_part.data_;

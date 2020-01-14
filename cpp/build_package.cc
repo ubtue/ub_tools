@@ -289,10 +289,8 @@ int Main(int argc, char *argv[]) {
         build_deb = true;
     else if (std::strcmp(argv[1], "--rpm") == 0)
         build_deb = false;
-    else {
+    else
         LOG_ERROR("first argument must be --deb or --rpm!");
-        __builtin_unreachable();
-    }
 
     std::string output_directory;
     if (StringUtil::StartsWith(argv[2], "--output-directory=")) {

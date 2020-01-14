@@ -112,7 +112,6 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
         return false;
 
     LOG_ERROR("don't know how to compare \"" + filename1 + "\" with \"" + filename2 + "\"!");
-    __builtin_unreachable();
 }
 
 

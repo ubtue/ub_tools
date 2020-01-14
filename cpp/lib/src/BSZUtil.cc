@@ -134,7 +134,6 @@ ArchiveType GetArchiveType(const std::string &member_name) {
         return AUTHORITY_RECORDS;
     default:
         LOG_ERROR("Unknown type character '" + std::string(1, type_char) + "'!");
-        __builtin_unreachable();
     }
 }
 

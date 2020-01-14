@@ -136,7 +136,6 @@ OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
         return CONTROL_NUMBER_AND_TRADITIONAL;
 
     LOG_ERROR("\"" + label_format_candidate + "\" is no valid output label format!");
-    __builtin_unreachable();
 }
 
 
@@ -163,7 +162,6 @@ void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_
     case MARC_BINARY:
     case MARC_XML:
         LOG_ERROR("MARC_BINARY or MARC_XML should never be passed into Emit(0!");
-        __builtin_unreachable();
     case CONTROL_NUMBER_AND_TRADITIONAL:
         std::cout << control_number << ':' << tag_or_tag_plus_subfield_code << ':'
                   << StringUtil::Map(contents, '\x1F', '$') << '\n';
