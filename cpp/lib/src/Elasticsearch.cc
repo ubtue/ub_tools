@@ -227,7 +227,6 @@ static std::string ToString(const Elasticsearch::RangeOperator op) {
     case Elasticsearch::RO_LTE: return "lte";
     default:
         LOG_ERROR("we should *never* get here!");
-        __builtin_unreachable();
     }
 }
 

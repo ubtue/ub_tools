@@ -196,7 +196,6 @@ std::string GetOutputFormatString(const std::string &output_filename) {
         return "json";
 
     LOG_ERROR("couldn't determine output format from filename '" + output_filename + "'");
-    __builtin_unreachable();
 }
 
 
@@ -209,7 +208,6 @@ std::string GetOutputFormatExtension(const std::string &output_format_string) {
         return "json";
 
     LOG_ERROR("couldn't determine output extension from format string '" + output_format_string + "'");
-    __builtin_unreachable();
 }
 
 

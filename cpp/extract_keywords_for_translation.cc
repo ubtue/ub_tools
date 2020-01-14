@@ -63,7 +63,6 @@ std::string StatusToString(const Status status) {
     }
 
     LOG_ERROR("in StatusToString: we should *never* get here!");
-    __builtin_unreachable();
 }
 
 

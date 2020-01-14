@@ -86,7 +86,6 @@ char HexDigit(const unsigned value) {
         return 'F';
     default:
         LOG_ERROR("invalid value " + std::to_string(value) + "!");
-        __builtin_unreachable();
     }
 }
 
