@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -669,11 +669,11 @@ std::string MySQLPrivilegeEnumToString(const DbConnection::MYSQL_PRIVILEGE privi
     }
 
     LOG_ERROR("Privilege " + std::to_string(privilege) + " is not in our map!");
-    __builtin_unreachable();
 }
 
 
-std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPrivileges(const std::string &user, const std::string &database_name,
+std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPrivileges(const std::string &user,
+                                                                                       const std::string &database_name,
                                                                                        const std::string &host)
 {
     const std::string QUERY("SHOW GRANTS FOR " + user + "@" + host + ";");

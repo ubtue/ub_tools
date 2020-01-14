@@ -240,7 +240,6 @@ std::string Tokenizer::TokenTypeToString(const TokenType token) {
     }
 
     LOG_ERROR("unhandled token " + std::to_string(token));
-    __builtin_unreachable();
 }
 
 
