@@ -411,7 +411,7 @@ std::vector<T> RemoveDuplicatesKeepOrder(std::vector<T>& vec) {
 
 
 // Use this as a workaround for titles that lead to problems if handled case insensitively
-std::set<std::string> case_insensitive_blocked({"Utrumque Ius"});
+const std::set<std::string> case_insensitive_blocked { "Utrumque Ius" };
 
 
 void AugmentDBEntries(DbConnection &db_connection,
@@ -446,7 +446,7 @@ void AugmentDBEntries(DbConnection &db_connection,
         }
         // Only write back non-empty string if we have at least one reasonable entry
         std::string a_gnd_content(author_gnd_seen ? StringUtil::Join(author_gnd_numbers, ";") : "");
-        const std::string a_no_gnd_content(authors_no_gnd.size() ? StringUtil::Join(authors_no_gnd, ";") : "");
+        const std::string a_no_gnd_content(authors_no_gnd.size() ? StringUtil::Join(authors_no_gnd, ';') : "");
 
         // Apply manually fixed typos and circumscriptions
         std::string keyword_row(db_row["stichwort"]);
