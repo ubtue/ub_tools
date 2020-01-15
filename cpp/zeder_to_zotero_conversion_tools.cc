@@ -295,8 +295,8 @@ bool PostProcessCsvImportedEntry(const ConversionParams &params, const ExportFie
         valid = false;
     }
 
-    if ((entry->hasAttribute("rss") and not entry->getAttribute("rss").empty()) or
-        entry->getAttribute("lrt").find("RSS.zotero") != std::string::npos)
+    if (not entry->getAttribute("rss", "").empty() or
+        entry->getAttribute("lrt", "").find("RSS.zotero") != std::string::npos)
     {
         harvester_type = ZotConf::HarvesterOperation::RSS;
     }

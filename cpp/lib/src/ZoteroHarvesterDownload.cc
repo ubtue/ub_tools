@@ -110,6 +110,16 @@ void Tasklet::run(const Params &parameters, Result * const result) {
     else
         LOG_INFO("Downloading URL " + parameters.download_item_.toString());
 
+    auto cached_result(download_manager_->fetchFromDownloadCache(parameters.download_item_, parameters.operation_));
+    if (cached_result != nullptr) {
+        LOG_INFO("Returning cached result");
+
+        result->response_body_ = cached_result->response_body_;
+        result->response_header_ = cached_result->response_header_;
+        result->response_code_ = cached_result->response_code_;
+        return;
+    }
+
     if (parameters.operation_ == Operation::USE_TRANSLATION_SERVER) {
         PostToTranslationServer(parameters.translation_server_url_, parameters.time_limit_, parameters.user_agent_,
                                 parameters.download_item_.url_, /* request_is_json = */ false, &result->response_body_,
@@ -565,10 +575,13 @@ void DownloadManager::processQueueBuffers() {
         while (not direct_download_queue_buffer_.empty()) {
             std::shared_ptr<DirectDownload::Tasklet> tasklet(direct_download_queue_buffer_.front());
             auto domain_data(lookupDomainData(tasklet->getParameter().download_item_.url_, /* add_if_absent = */ true));
-            if (tasklet->getParameter().operation_ == DirectDownload::Operation::DIRECT_QUERY)
+            if (tasklet->getParameter().operation_ == DirectDownload::Operation::DIRECT_QUERY) {
                 domain_data->queued_direct_downloads_direct_query_.emplace_back(tasklet);
-            else
+                ++tasklet_counters_.direct_downloads_direct_query_queue_counter_;
+            } else {
                 domain_data->queued_direct_downloads_translation_server_.emplace_back(tasklet);
+                ++tasklet_counters_.direct_downloads_translation_server_queue_counter_;
+            }
 
             direct_download_queue_buffer_.pop_front();
         }
@@ -580,6 +593,7 @@ void DownloadManager::processQueueBuffers() {
             std::shared_ptr<Crawling::Tasklet> tasklet(crawling_queue_buffer_.front());
             auto domain_data(lookupDomainData(tasklet->getParameter().download_item_.url_, /* add_if_absent = */ true));
             domain_data->queued_crawls_.emplace_back(tasklet);
+            ++tasklet_counters_.crawls_queue_counter_;
 
             crawling_queue_buffer_.pop_front();
         }
@@ -591,6 +605,7 @@ void DownloadManager::processQueueBuffers() {
             std::shared_ptr<RSS::Tasklet> tasklet(rss_queue_buffer_.front());
             auto domain_data(lookupDomainData(tasklet->getParameter().download_item_.url_, /* add_if_absent = */ true));
             domain_data->queued_rss_feeds_.emplace_back(tasklet);
+            ++tasklet_counters_.rss_feeds_queue_counter_;
 
             rss_queue_buffer_.pop_front();
         }
@@ -608,12 +623,13 @@ void DownloadManager::processDomainQueues(DomainData * const domain_data) {
     // DirectDownloads that do not involve querying the Zotero Translation Server
     // need to be prioritised over the former to prevent bottlenecks in Crawl operations.
     while (not domain_data->queued_direct_downloads_direct_query_.empty()
-           and direct_download_tasklet_execution_counter_ < MAX_DIRECT_DOWNLOAD_TASKLETS)
+           and tasklet_counters_.direct_download_tasklet_execution_counter_ < MAX_DIRECT_DOWNLOAD_TASKLETS)
     {
         std::shared_ptr<DirectDownload::Tasklet> direct_download_tasklet(domain_data->queued_direct_downloads_direct_query_.front());
         domain_data->active_direct_downloads_.emplace_back(direct_download_tasklet);
         domain_data->queued_direct_downloads_direct_query_.pop_front();
         direct_download_tasklet->start();
+        --tasklet_counters_.direct_downloads_direct_query_queue_counter_;
 
         if (adhere_to_download_limit) {
             domain_data->delay_params_.time_limit_.restart();
@@ -622,12 +638,13 @@ void DownloadManager::processDomainQueues(DomainData * const domain_data) {
     }
 
     while (not domain_data->queued_direct_downloads_translation_server_.empty()
-           and direct_download_tasklet_execution_counter_ < MAX_DIRECT_DOWNLOAD_TASKLETS)
+           and tasklet_counters_.direct_download_tasklet_execution_counter_ < MAX_DIRECT_DOWNLOAD_TASKLETS)
     {
         std::shared_ptr<DirectDownload::Tasklet> direct_download_tasklet(domain_data->queued_direct_downloads_translation_server_.front());
         domain_data->active_direct_downloads_.emplace_back(direct_download_tasklet);
         domain_data->queued_direct_downloads_translation_server_.pop_front();
         direct_download_tasklet->start();
+        --tasklet_counters_.direct_downloads_translation_server_queue_counter_;
 
         if (adhere_to_download_limit) {
             domain_data->delay_params_.time_limit_.restart();
@@ -636,12 +653,13 @@ void DownloadManager::processDomainQueues(DomainData * const domain_data) {
     }
 
     while (not domain_data->queued_crawls_.empty()
-           and crawling_tasklet_execution_counter_ < MAX_CRAWLING_TASKLETS)
+           and tasklet_counters_.crawling_tasklet_execution_counter_ < MAX_CRAWLING_TASKLETS)
     {
         std::shared_ptr<Crawling::Tasklet> crawling_tasklet(domain_data->queued_crawls_.front());
         domain_data->active_crawls_.emplace_back(crawling_tasklet);
         domain_data->queued_crawls_.pop_front();
         crawling_tasklet->start();
+        --tasklet_counters_.crawls_queue_counter_;
 
         if (adhere_to_download_limit) {
             domain_data->delay_params_.time_limit_.restart();
@@ -650,12 +668,13 @@ void DownloadManager::processDomainQueues(DomainData * const domain_data) {
     }
 
     while(not domain_data->queued_rss_feeds_.empty()
-          and rss_tasklet_execution_counter_ < MAX_RSS_TASKLETS)
+          and tasklet_counters_.rss_tasklet_execution_counter_ < MAX_RSS_TASKLETS)
     {
         std::shared_ptr<RSS::Tasklet> rss_tasklet(domain_data->queued_rss_feeds_.front());
         domain_data->active_rss_feeds_.emplace_back(rss_tasklet);
         domain_data->queued_rss_feeds_.pop_front();
         rss_tasklet->start();
+        --tasklet_counters_.rss_feeds_queue_counter_;
 
         if (adhere_to_download_limit) {
             domain_data->delay_params_.time_limit_.restart();
@@ -784,8 +803,8 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
                                                        global_params_.translation_server_url_.toString(), user_agent,
                                                        global_params_.ignore_robots_txt_,
                                                        timeout == 0 ? global_params_.timeout_download_request_ : timeout, operation));
-    std::shared_ptr<DirectDownload::Tasklet> new_tasklet(new DirectDownload::Tasklet(&direct_download_tasklet_execution_counter_,
-                                                         this, std::move(parameters)));
+    std::shared_ptr<DirectDownload::Tasklet> new_tasklet(
+        new DirectDownload::Tasklet(&tasklet_counters_.direct_download_tasklet_execution_counter_, this, std::move(parameters)));
 
     {
         std::lock_guard<std::recursive_mutex> queue_buffer_lock(direct_download_queue_buffer_mutex_);
@@ -809,8 +828,8 @@ std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> DownloadManage
                                                                       global_params_.timeout_crawl_operation_,
                                                                       global_params_.ignore_robots_txt_,
                                                                       global_params_.harvestable_manager_));
-    std::shared_ptr<Crawling::Tasklet> new_tasklet(new Crawling::Tasklet(&crawling_tasklet_execution_counter_,
-                                                   this, std::move(parameters)));
+    std::shared_ptr<Crawling::Tasklet> new_tasklet(
+        new Crawling::Tasklet(&tasklet_counters_.crawling_tasklet_execution_counter_, this, std::move(parameters)));
 
     {
         std::lock_guard<std::recursive_mutex> queue_buffer_lock(crawling_queue_buffer_mutex_);
@@ -828,10 +847,10 @@ std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> DownloadManager::rss(con
                                                                              const std::string &feed_contents)
 {
     std::unique_ptr<RSS::Params> parameters(new RSS::Params(source, user_agent, feed_contents, global_params_.harvestable_manager_));
-    std::shared_ptr<RSS::Tasklet> new_tasklet(new RSS::Tasklet(&rss_tasklet_execution_counter_,
-                                              this, std::move(parameters), upload_tracker_, global_params_.force_downloads_,
-                                              global_params_.rss_feed_harvest_interval_,
-                                              global_params_.force_process_rss_feeds_with_no_pub_dates_));
+    std::shared_ptr<RSS::Tasklet> new_tasklet(
+        new RSS::Tasklet(&tasklet_counters_.rss_tasklet_execution_counter_, this, std::move(parameters),
+        upload_tracker_, global_params_.force_downloads_, global_params_.rss_feed_harvest_interval_,
+        global_params_.force_process_rss_feeds_with_no_pub_dates_));
 
     {
         std::lock_guard<std::recursive_mutex> queue_buffer_lock(rss_queue_buffer_mutex_);
@@ -893,8 +912,9 @@ std::unique_ptr<DirectDownload::Result> DownloadManager::fetchFromDownloadCache(
 }
 
 bool DownloadManager::downloadInProgress() const {
-    return direct_download_tasklet_execution_counter_ != 0 or crawling_tasklet_execution_counter_ != 0
-           or rss_tasklet_execution_counter_ != 0;
+    return tasklet_counters_.direct_download_tasklet_execution_counter_ != 0
+           or tasklet_counters_.crawling_tasklet_execution_counter_ != 0
+           or tasklet_counters_.rss_tasklet_execution_counter_ != 0;
 }
 
 
