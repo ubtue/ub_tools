@@ -358,7 +358,8 @@ void EnqueueCompletedDownloadsForConversion(JournalDatastore * const journal_dat
             } else if (urls_harvested_during_current_session.find(download_result.source_.url_.toString())
                 != urls_harvested_during_current_session.end())
             {
-                LOG_INFO("Item " + download_result.source_.toString() + " already harvested during this session");
+                LOG_INFO("Item " + download_result.source_.toString() + " already harvested during this session"
+                         + (not download_result.fromCache() ? " (but not cached?!)" : ""));
                 ++metrics->num_downloads_skipped_since_already_harvested_;
             } else if (download_result.itemAlreadyDelivered()) {
                 LOG_INFO("Item " + download_result.source_.toString() + " already delivered");

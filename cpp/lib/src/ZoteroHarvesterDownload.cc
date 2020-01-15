@@ -110,6 +110,16 @@ void Tasklet::run(const Params &parameters, Result * const result) {
     else
         LOG_INFO("Downloading URL " + parameters.download_item_.toString());
 
+    auto cached_result(download_manager_->fetchFromDownloadCache(parameters.download_item_, parameters.operation_));
+    if (cached_result != nullptr) {
+        LOG_INFO("Returning cached result");
+
+        result->response_body_ = cached_result->response_body_;
+        result->response_header_ = cached_result->response_header_;
+        result->response_code_ = cached_result->response_code_;
+        return;
+    }
+
     if (parameters.operation_ == Operation::USE_TRANSLATION_SERVER) {
         PostToTranslationServer(parameters.translation_server_url_, parameters.time_limit_, parameters.user_agent_,
                                 parameters.download_item_.url_, /* request_is_json = */ false, &result->response_body_,
