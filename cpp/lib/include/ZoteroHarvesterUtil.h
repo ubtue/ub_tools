@@ -84,7 +84,7 @@ class HarvestableItemManager {
     std::unordered_map<const Config::JournalParams *, ThreadUtil::ThreadSafeCounter<unsigned>> counters_;
 public:
     HarvestableItemManager(const std::vector<std::unique_ptr<Config::JournalParams>> &journal_params);
-
+public:
     HarvestableItem newHarvestableItem(const std::string &url, const Config::JournalParams &journal_params);
 };
 
@@ -196,7 +196,7 @@ class TaskletContextManager {
 public:
     TaskletContextManager();
     ~TaskletContextManager();
-
+public:
     void setThreadLocalContext(const TaskletContext &context) const;
     TaskletContext *getThreadLocalContext() const;
 };
@@ -268,6 +268,8 @@ public:
     // Spins up a new thread and executes the payload.
     void start();
 
+    inline std::string toString() const
+        { return context_.description_; }
     inline ::pthread_t getID() const
         { return thread_id_; }
     inline Status getStatus() const {
@@ -418,6 +420,7 @@ template <typename Parameter, typename Result>
 class Future {
     enum Status { WAITING, NO_RESULT, HAS_RESULT };
 
+
     std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet_;
     std::unique_ptr<Result> result_;
     Status status_;
@@ -511,7 +514,7 @@ public:
     };
 public:
     explicit UploadTracker(): db_connection_(new DbConnection) {}
-
+public:
     bool urlAlreadyDelivered(const std::string &url, Entry * const entry = nullptr) const;
     bool hashAlreadyDelivered(const std::string &hash, Entry * const entry = nullptr) const;
 
