@@ -126,11 +126,12 @@ struct TaskletContext;
 // Wrapper around the default logger that facilitates order-preserving logging in multi-threaded contexts.
 // Ensures that given a specific asynchronous operation/task, the ordering of log statements is preserved.
 // This is achieved by tracking active asynchronous contexts and accumulating messages in separate buffers.
-// When a context deregisters itself from the logger, its buffer is flushed to stdout.
+// When a context deregisters itself from the logger, its buffer is queued in the logger's global buffer
+// which is flushed in the main thread.
 //
 // The error, warning, info and debug member function overrides attempt to obtain the calling thread's
 // TaskletContext. When found, the message is written directly to the context's buffer. When not, it's
-// written directly to stdout.
+// queued in the global buffer and eventually flushed.
 class ZoteroLogger : public ::Logger {
     struct ContextData {
         static constexpr unsigned BUFFER_SIZE = 64 * 1024;
@@ -143,13 +144,19 @@ class ZoteroLogger : public ::Logger {
 
 
     std::unordered_map<HarvestableItem, ContextData> active_contexts_;
+    std::deque<std::string> log_buffer_;
+    std::string progress_bar_buffer_;
     std::recursive_mutex active_context_mutex_;
+    std::recursive_mutex log_buffer_mutex_;
 
-    void queueMessage(const std::string &level, std::string msg, const TaskletContext &tasklet_context);
+    void queueContextMessage(const std::string &level, std::string msg, const TaskletContext &tasklet_context);
+    void queueGlobalMessage(const std::string &level, std::string msg);
+    void flushBufferAndPrintProgressImpl(const unsigned num_active_tasks, const unsigned num_queued_tasks);
+    void writeToBackingLog(const std::string &msg);
 private:
     ZoteroLogger() = default;
     virtual ~ZoteroLogger() = default;
-public:
+
     [[noreturn]] virtual void error(const std::string &msg) override __attribute__((noreturn));
     virtual void warning(const std::string &msg) override;
     virtual void info(const std::string &msg) override;
@@ -159,7 +166,12 @@ public:
 
     // Replaces the global logger instance with one of this class
     // so that all LOG_XXX calls are routed through it.
+    // Must ONLY be called once at the beginning of the main thread.
     static void Init();
+
+    // Flushes the logger's buffer and prints a progress message.
+    // Must be called in a loop (and ONLY) in the main thread.
+    static void FlushBufferAndPrintProgress(const unsigned num_active_tasks, const unsigned num_queued_tasks);
  };
 
 
@@ -252,10 +264,12 @@ public:
             const std::string &description, const std::function<void(const Parameter &, Result * const)> &runnable,
             std::unique_ptr<Result> default_result, std::unique_ptr<Parameter> parameter, const ResultPolicy result_policy);
     virtual ~Tasklet();
-public:
+
     // Spins up a new thread and executes the payload.
     void start();
 
+    inline std::string toString() const
+        { return context_.description_; }
     inline ::pthread_t getID() const
         { return thread_id_; }
     inline Status getStatus() const {
@@ -406,6 +420,7 @@ extern ThreadUtil::ThreadSafeCounter<unsigned> future_instance_counter;
 template <typename Parameter, typename Result>
 class Future {
     enum Status { WAITING, NO_RESULT, HAS_RESULT };
+
 
     std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet_;
     std::unique_ptr<Result> result_;
