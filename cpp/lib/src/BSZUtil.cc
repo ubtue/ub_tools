@@ -1,9 +1,9 @@
-/** \file   BSZUtil.h
+/** \file   BSZUtil.cc
  *  \brief  Various utility functions related to data etc. having to do w/ the BSZ.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -47,8 +47,6 @@ const size_t MAX_LINE_LENGTH_OLD_NO_ILN(21);
 const size_t MAX_LINE_LENGTH_NEW_WITH_ILN(26);
 const size_t MAX_LINE_LENGTH_NEW_NO_ILN(22);
 
-const size_t PPN_LENGTH_OLD(9);
-const size_t PPN_LENGTH_NEW(10);
 const size_t PPN_START_INDEX(12);
 const size_t SEPARATOR_INDEX(PPN_START_INDEX - 1);
 

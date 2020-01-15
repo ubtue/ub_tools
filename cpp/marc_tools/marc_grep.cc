@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015-2018, Library of the University of Tübingen
+    Copyright (C) 2015-2020, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -135,7 +135,7 @@ OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
     if (label_format_candidate == "control_number_and_traditional")
         return CONTROL_NUMBER_AND_TRADITIONAL;
 
-    logger->error("\"" + label_format_candidate + "\" is no valid output label format!");
+    LOG_ERROR("\"" + label_format_candidate + "\" is no valid output label format!");
 }
 
 
@@ -161,7 +161,7 @@ void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_
         return;
     case MARC_BINARY:
     case MARC_XML:
-        logger->error("MARC_BINARY or MARC_XML should never be passed into Emit(0!");
+        LOG_ERROR("MARC_BINARY or MARC_XML should never be passed into Emit(0!");
     case CONTROL_NUMBER_AND_TRADITIONAL:
         std::cout << control_number << ':' << tag_or_tag_plus_subfield_code << ':'
                   << StringUtil::Map(contents, '\x1F', '$') << '\n';

@@ -6,7 +6,7 @@
 /*
  *  Copyright 2008 Project iVia.
  *  Copyright 2008 The Regents of The University of California.
- *  Copyright 2017-2019 Universitätsbibliothek Tübingen.
+ *  Copyright 2017-2020 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -77,7 +77,7 @@ inline size_t UploadBuffer::read(char * const buffer, const size_t size) {
 
 
 size_t UploadCallback(char *buffer, size_t size, size_t nitems, void *instream) {
-    UploadBuffer * const upload_buffer(reinterpret_cast<UploadBuffer * const>(instream));
+    UploadBuffer * const upload_buffer(reinterpret_cast<UploadBuffer *>(instream));
     return upload_buffer->read(buffer, size * nitems);
 }
 

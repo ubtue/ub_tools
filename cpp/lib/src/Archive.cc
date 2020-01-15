@@ -2,7 +2,7 @@
  *  \brief  Implementations of the archive processing functions and classes.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -81,7 +81,7 @@ bool Reader::getNext(EntryInfo * const info) {
 ssize_t Reader::read(char * const buffer, const size_t size) {
     ssize_t retval;
     do
-        retval = ::archive_read_data(archive_handle_, reinterpret_cast<void * const>(buffer), size);
+        retval = ::archive_read_data(archive_handle_, reinterpret_cast<void *>(buffer), size);
     while (retval == ARCHIVE_RETRY);
 
     return (retval == ARCHIVE_FATAL or retval == ARCHIVE_WARN) ? -1 : retval;
@@ -205,7 +205,7 @@ void Writer::add(const std::string &filename, std::string archive_name) {
     while ((count = input.read(buffer, DEFAULT_BLOCKSIZE)) > 0) {
         if (count < DEFAULT_BLOCKSIZE and input.anErrorOccurred())
             LOG_ERROR("error reading \"" + filename + "\" !");
-        if (unlikely(::archive_write_data(archive_handle_, buffer, count) != static_cast<const ssize_t>(count)))
+        if (unlikely(::archive_write_data(archive_handle_, buffer, count) != static_cast<ssize_t>(count)))
             LOG_ERROR("archive_write_data(3) failed: " + std::string(::archive_error_string(archive_handle_)));
     }
 }

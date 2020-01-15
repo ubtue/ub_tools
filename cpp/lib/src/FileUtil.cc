@@ -2,7 +2,7 @@
  *  \brief  Implementation of file related utility classes and functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -731,7 +731,7 @@ AutoTempDirectory::~AutoTempDirectory() {
     if (not IsDirectory(path_))
         LOG_ERROR("\"" + path_ + "\" doesn't exist anymore!");
 
-    if (remove_when_out_of_scope_ and ((not std::uncaught_exception() or cleanup_if_exception_is_active_) and not RemoveDirectory(path_)))
+    if (remove_when_out_of_scope_ and ((not std::uncaught_exceptions() or cleanup_if_exception_is_active_) and not RemoveDirectory(path_)))
         LOG_ERROR("can't remove \"" + path_ + "\"!");
 }
 
@@ -1125,7 +1125,7 @@ bool DeleteFile(const std::string &path) {
 
 
 bool DescriptorIsReadyForReading(const int fd, const TimeLimit &time_limit) {
-    return SocketUtil::TimedRead(fd, time_limit, static_cast<void * const>(nullptr), 0) == 0;
+    return SocketUtil::TimedRead(fd, time_limit, static_cast<void *>(nullptr), 0) == 0;
 }
 
 

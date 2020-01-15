@@ -1,33 +1,40 @@
 #!/bin/bash
 #
-# Git hook for updating TueFind configuration
-# (only if TueFind is already installed)
-#
 CHANGED_FILES="$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD)"
-DIR="$(dirname $(readlink --canonicalize "$0"))"
-
-# $1 - command
-# $2 - grep pattern
-# $3 - message
-run_if_file_changed() {
-    echo "$CHANGED_FILES" | grep --quiet "$2" && echo "$3" && eval "$1"
-}
-
 MYSQL_SCHEMA_UPDATES_PATH=/usr/local/ub_tools/cpp/data/sql_updates
 MYSQL_SCHEMA_UPDATES_PATH_LOCAL=cpp/data/sql_updates
 MYSQL_DATABASE_PATCHER=/usr/local/bin/mysql_database_patcher
+
+
+declare -i compare_against_installer_schema=$(if $(echo "$CHANGED_FILES" | grep --quiet cpp/data/installer/ub_tools.sql); then echo 1; else echo 0; fi)
 if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); then
+    /usr/local/bin/mysql_list_tables > /tmp/old_ub_tools.schema
     if [[ -x $MYSQL_DATABASE_PATCHER ]]; then
 	echo "Executing MYSQL schema updates tool"
         $MYSQL_DATABASE_PATCHER $MYSQL_SCHEMA_UPDATES_PATH
+        /usr/local/bin/mysql_list_tables > /tmp/new_ub_tools.schema
+        /usr/local/bin/mysql_diff_schemas /tmp/old_ub_tools.schema /tmp/new_ub_tools.schema
+        compare_against_installer_schema=1
     else
         echo "You need to install $MYSQL_DATABASE_PATCHER and execute it!."
+        exit 1
     fi
 else
-	echo "No explicit MYSQL schema updates detected"
+    echo "No explicit MYSQL schema updates detected"
+    exit 0
 fi
 
-MYSQL_SCHEMA_PATH=$DIR/../../cpp/data/installer/ub_tools.sql
-MYSQL_SCHEMA_DIFF_CMD="mysql_schema_diff ub_tools root "$MYSQL_SCHEMA_PATH""
-MYSQL_SCHEMA_DIFF_MSG="MySQL schema has changed, starting mysql_schema_diff against existing DB (no automatic changes will be done)"
-run_if_file_changed "$MYSQL_SCHEMA_DIFF_CMD" "ub_tools.sql" "$MYSQL_SCHEMA_DIFF_MSG"
+
+if [[ $compare_against_installer_schema && -r /tmp/new_ub_tools.schema ]]; then
+    export MYSQL_PWD=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_password)
+    MYSQL_DB=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_database)
+    MYSQL_USER=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_username)
+    echo "CREATE DATABASE ub_tools_tmp;" | mysql -u $MYSQL_USER
+    echo "USE ub_tools_tmp" | cat - /usr/local/ub_tools/cpp/data/installer/ub_tools.sql | mysql -u $MYSQL_USER
+    mysql_list_tables ub_tools_tmp ub_tools $MYSQL_PWD > /tmp/installer_ub_tools.schema
+    echo "DROP DATABASE ub_tools_tmp;" | mysql -u $MYSQL_USER
+    /usr/local/bin/mysql_diff_schemas /tmp/installer_ub_tools.schema /tmp/new_ub_tools.schema | tee /tmp/schema_diffs
+    if [ -s /tmp/schema_diffs ]; then
+        echo "**** The patched $MYSQL_DB database schema differs from the one that the installer uses.  You *must* fix this"'! ****'
+    fi
+fi

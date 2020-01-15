@@ -2,7 +2,7 @@
  *  \brief  Implementation of JSON-related functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -664,11 +664,7 @@ std::string TokenTypeToString(const TokenType token) {
         return "error";
     }
 
-    #ifdef __GNUC__
-        #if __GNUC__ > 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 5)
-            __builtin_unreachable();
-        #endif
-    #endif
+    __builtin_unreachable();
 }
 
 
@@ -779,11 +775,7 @@ static std::string LookupString(const std::string &path, const std::shared_ptr<c
         throw std::runtime_error("in JSON::LookupString: can't get a unique value from an array node!");
     }
 
-    #ifdef __GNUC__
-        #if __GNUC__ > 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 5)
-            __builtin_unreachable();
-        #endif
-    #endif
+    __builtin_unreachable();
 }
 
 
@@ -880,11 +872,7 @@ static int64_t LookupInteger(const std::string &path, const std::shared_ptr<cons
         throw std::runtime_error("in JSON::LookupInteger: can't get a unique value from an array node!");
     }
 
-    #ifdef __GNUC__
-        #if __GNUC__ > 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 5)
-            __builtin_unreachable();
-        #endif
-    #endif
+    __builtin_unreachable();
 }
 
 
