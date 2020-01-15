@@ -1,7 +1,7 @@
 /** \brief API to interact with the Zeder collaboration tool
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -639,8 +639,9 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
         return IXTHEO;
     else if (flavour_str == krimdok_str)
         return KRIMDOK;
-    else
+    else {
         LOG_ERROR("unknown Zeder flavour '" + flavour + "'");
+    }
 }
 
 

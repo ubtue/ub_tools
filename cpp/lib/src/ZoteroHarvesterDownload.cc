@@ -1,7 +1,7 @@
 /** \brief Classes related to the Zotero Harvester's download API
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -541,8 +541,7 @@ DownloadManager::DelayParams DownloadManager::generateDelayParams(const Url &url
     Downloader robots_txt_downloader(url.getRobotsDotTxtUrl());
     if (robots_txt_downloader.anErrorOccurred()) {
         LOG_DEBUG("couldn't retrieve robots.txt for domain '" + hostname + "'");
-        return DelayParams(static_cast<unsigned>(0), global_params_.default_download_delay_time_,
-                           global_params_.max_download_delay_time_);
+        return DelayParams(TimeLimit(0), global_params_.default_download_delay_time_, global_params_.max_download_delay_time_);
     }
 
     DelayParams new_delay_params(robots_txt_downloader.getMessageBody(), global_params_.default_download_delay_time_,

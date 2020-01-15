@@ -3,7 +3,7 @@
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -31,8 +31,8 @@
 namespace BSZUtil {
 
 
-extern const size_t PPN_LENGTH_OLD;
-extern const size_t PPN_LENGTH_NEW;
+constexpr size_t PPN_LENGTH_OLD(9);
+constexpr size_t PPN_LENGTH_NEW(10);
 
 
 /** \brief Extracts PPNs (ID's) from a LOEKXP file as provided by the BSZ.

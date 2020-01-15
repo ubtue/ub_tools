@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -405,7 +405,7 @@ DbResultSet DbConnection::getLastResultSet() {
 
 
 std::string DbConnection::escapeString(const std::string &unescaped_string, const bool add_quotes) {
-    char * const buffer(reinterpret_cast<char * const>(std::malloc(unescaped_string.size() * 2 + 1)));
+    char * const buffer(reinterpret_cast<char *>(std::malloc(unescaped_string.size() * 2 + 1)));
     size_t escaped_length;
 
     if (sqlite3_ == nullptr)
@@ -672,7 +672,8 @@ std::string MySQLPrivilegeEnumToString(const DbConnection::MYSQL_PRIVILEGE privi
 }
 
 
-std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPrivileges(const std::string &user, const std::string &database_name,
+std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPrivileges(const std::string &user,
+                                                                                       const std::string &database_name,
                                                                                        const std::string &host)
 {
     const std::string QUERY("SHOW GRANTS FOR " + user + "@" + host + ";");

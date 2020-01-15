@@ -1,7 +1,7 @@
 /** \brief MARC grep the Next Generation.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -238,6 +238,8 @@ std::string Tokenizer::TokenTypeToString(const TokenType token) {
     case END_OF_QUERY:
         return "end-of-query";
     }
+
+    LOG_ERROR("unhandled token " + std::to_string(token));
 }
 
 

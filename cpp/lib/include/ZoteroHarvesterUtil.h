@@ -1,7 +1,7 @@
 /** \brief Utility classes related to the Zotero Harvester
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -227,7 +227,7 @@ private:
     // The single parameter points to the calling Tasklet instance. The user
     // of the Tasklet class must ensure that instance pointed to is valid
     // until the thread routine returns.
-    static void ThreadRoutine(Tasklet<Parameter, Result> * const parameter);
+    static void *ThreadRoutine(Tasklet<Parameter, Result> * const parameter);
 
 
     TaskletContext context_;
@@ -296,7 +296,7 @@ public:
 extern ThreadUtil::ThreadSafeCounter<unsigned> tasklet_instance_counter;
 
 
-template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::ThreadRoutine(
+template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::ThreadRoutine(
     Tasklet<Parameter, Result> * const parameter)
 {
     Tasklet<Parameter, Result> * const tasklet(reinterpret_cast<Tasklet<Parameter, Result> *>(parameter));
@@ -335,7 +335,8 @@ template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::T
     ::pthread_detach(thread_id);
     // Flagged at the very end of the routine to prevent data races.
     tasklet->setStatus(completion_status);
-    ::pthread_exit(nullptr);
+
+    return nullptr;
 }
 
 
@@ -373,7 +374,7 @@ template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::s
                   + "\nstatus = " + std::to_string(status_) + "\ndescription:" + context_.description_);
     }
 
-    auto thread_routine(reinterpret_cast<void *(*)(void*)>(ThreadRoutine));
+    auto thread_routine(reinterpret_cast<void *(*)(void *)>(ThreadRoutine));
     if (::pthread_create(&thread_id_, nullptr, thread_routine, this) != 0)
         LOG_ERROR("tasklet thread creation failed!\ntasklet description: " + context_.description_);
 }
@@ -473,7 +474,7 @@ template <typename Parameter, typename Result> bool Future<Parameter, Result>::i
     default:
         return false;
     }
-};
+}
 
 
 template <typename Parameter, typename Result> bool Future<Parameter, Result>::hasResult() const {
@@ -485,7 +486,7 @@ template <typename Parameter, typename Result> bool Future<Parameter, Result>::h
     default:
         return false;
     }
-};
+}
 
 
 template <typename Parameter, typename Result> Result &Future<Parameter, Result>::getResult() {

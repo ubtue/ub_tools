@@ -57,7 +57,7 @@ SystemAndUserTimer::SystemAndUserTimer(const SystemAndUserTimerType timer_type, 
 
 SystemAndUserTimer::~SystemAndUserTimer() {
     // Ignore all potential error conditions if we have an uncaught exception:
-    if (std::uncaught_exception())
+    if (std::uncaught_exceptions())
         return;
 
     if ((timer_type_ == CUMULATIVE_WITH_AUTO_STOP or timer_type_ == NON_CUMULATIVE_WITH_AUTO_STOP) and isRunning())

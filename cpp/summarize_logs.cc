@@ -52,7 +52,7 @@ std::string GetLoggingLevel(const std::string &line) {
         return "WARN";
     if (StringUtil::StartsWith(line, "SEVERE"))
         return "SEVERE";
-    logger->error("in GetLoggingLevel: can't determine logging level for line: " + line);
+    LOG_ERROR("in GetLoggingLevel: can't determine logging level for line: " + line);
 }
 
 

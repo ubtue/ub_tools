@@ -6,7 +6,7 @@
 /*
  *  \copyright 2006-2008 Project iVia.
  *  \copyright 2006-2008 The Regents of The University of California.
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -76,7 +76,7 @@ SslConnection::SslConnection(const int fd, const Method method, const ClientServ
 SslConnection::~SslConnection() {
     // Several of the functions called here throw exceptions which could cause an unexpected exception if called while
     // an exception is already in progress, destroying this object. So, don't clean up if this is the case.
-    if (not std::uncaught_exception()) {
+    if (not std::uncaught_exceptions()) {
         std::unique_ptr<std::lock_guard<std::mutex>> mutex_locker;
         if (threading_support_mode_ == SUPPORT_MULTITHREADING)
             mutex_locker.reset(new std::lock_guard<std::mutex>(SslConnection::mutex_));
