@@ -84,7 +84,7 @@ class HarvestableItemManager {
     std::unordered_map<const Config::JournalParams *, ThreadUtil::ThreadSafeCounter<unsigned>> counters_;
 public:
     HarvestableItemManager(const std::vector<std::unique_ptr<Config::JournalParams>> &journal_params);
-public:
+
     HarvestableItem newHarvestableItem(const std::string &url, const Config::JournalParams &journal_params);
 };
 
@@ -156,7 +156,7 @@ class ZoteroLogger : public ::Logger {
 private:
     ZoteroLogger() = default;
     virtual ~ZoteroLogger() = default;
-public:
+
     [[noreturn]] virtual void error(const std::string &msg) override __attribute__((noreturn));
     virtual void warning(const std::string &msg) override;
     virtual void info(const std::string &msg) override;
@@ -196,7 +196,7 @@ class TaskletContextManager {
 public:
     TaskletContextManager();
     ~TaskletContextManager();
-public:
+
     void setThreadLocalContext(const TaskletContext &context) const;
     TaskletContext *getThreadLocalContext() const;
 };
@@ -264,7 +264,7 @@ public:
             const std::string &description, const std::function<void(const Parameter &, Result * const)> &runnable,
             std::unique_ptr<Result> default_result, std::unique_ptr<Parameter> parameter, const ResultPolicy result_policy);
     virtual ~Tasklet();
-public:
+
     // Spins up a new thread and executes the payload.
     void start();
 
@@ -514,7 +514,7 @@ public:
     };
 public:
     explicit UploadTracker(): db_connection_(new DbConnection) {}
-public:
+
     bool urlAlreadyDelivered(const std::string &url, Entry * const entry = nullptr) const;
     bool hashAlreadyDelivered(const std::string &hash, Entry * const entry = nullptr) const;
 
