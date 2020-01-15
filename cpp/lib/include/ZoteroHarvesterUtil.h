@@ -156,7 +156,7 @@ class ZoteroLogger : public ::Logger {
 private:
     ZoteroLogger() = default;
     virtual ~ZoteroLogger() = default;
-
+public:
     [[noreturn]] virtual void error(const std::string &msg) override __attribute__((noreturn));
     virtual void warning(const std::string &msg) override;
     virtual void info(const std::string &msg) override;
