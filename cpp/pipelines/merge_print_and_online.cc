@@ -97,7 +97,7 @@ void SerializeMultimap(const std::string &output_filename, const std::unordered_
 std::set<std::string> ExtractPrintAndOnlineCrossLinkPPNs(const MARC::Record &record) {
     std::set<std::string> cross_reference_ppns;
     for (const auto _776_field : record.getTagRange("776")) {
-        const auto ppn(BSZUtil::GetK10PlusPPN(_776_field));
+        const auto ppn(BSZUtil::GetK10PlusPPNFromSubfieldW(_776_field));
         if (ppn.empty())
             continue;
 
