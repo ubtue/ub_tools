@@ -11,7 +11,7 @@ CREATE TABLE database_versions (
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 CREATE TABLE rss_aggregator (
-    item_id VARCHAR(1000) NOT NULL,
+    item_id VARCHAR(768) NOT NULL,
     item_url VARCHAR(1000) NOT NULL,
     item_title VARCHAR(1000) NOT NULL,
     item_description TEXT NOT NULL,
@@ -27,11 +27,11 @@ CREATE TABLE rss_aggregator (
 
 -- Table to be used w/ our validate_harvested_records tool:
 CREATE TABLE metadata_presence_tracer (
-       journal_name VARCHAR(1000) NOT NULL,
+       journal_name VARCHAR(764) NOT NULL,
        metadata_field_name CHAR(4) NOT NULL,
        field_presence ENUM('always', 'sometimes', 'ignore') NOT NULL,
        UNIQUE(journal_name, metadata_field_name),
-       INDEX journal_name_and_metadata_field_name_index(journal_name(768), metadata_field_name)
+       INDEX journal_name_and_metadata_field_name_index(journal_name, metadata_field_name)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 
