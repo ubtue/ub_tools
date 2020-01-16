@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include "DbConnection.h"
 #include "DbResultSet.h"
+#include "BSZUtil.h"
 #include "FileUtil.h"
 #include "MARC.h"
 #include "StlHelpers.h"
@@ -92,13 +93,38 @@ void SerializeMultimap(const std::string &output_filename, const std::unordered_
 }
 
 
+// Extracts print and online cross links.
+std::set<std::string> ExtractPrintAndOnlineCrossLinkPPNs(const MARC::Record &record) {
+    std::set<std::string> cross_reference_ppns;
+    for (const auto _776_field : record.getTagRange("776")) {
+        const auto ppn(BSZUtil::GetK10PlusPPN(_776_field));
+        if (ppn.empty())
+            continue;
+
+        const auto subfield_i_contents(_776_field.getFirstSubfieldWithCode('i'));
+        if (StringUtil::StartsWith(subfield_i_contents, "Druckausg") or StringUtil::StartsWith(subfield_i_contents, "Online")) {
+            cross_reference_ppns.emplace(ppn);
+            continue;
+        }
+
+        const auto subfield_n_contents(_776_field.getFirstSubfieldWithCode('n'));
+        if (StringUtil::StartsWith(subfield_n_contents, "Druck-Ausgabe") or StringUtil::StartsWith(subfield_n_contents, "Online") ) {
+            cross_reference_ppns.emplace(ppn);
+            continue;
+        }
+    }
+
+    return cross_reference_ppns;
+}
+
+
 // In this function we get all cross referenced PPN's and check the maps for their references as well.
 // We then determine the new superior PPN for all cross refences and overwrite all existing mapping entries.
 std::set<std::string> GetCrossLinkPPNs(const MARC::Record &record,
                                        const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
                                        const std::unordered_multimap<std::string, std::string> &canonical_ppn_to_ppn_map)
 {
-    auto cross_link_ppns(MARC::ExtractCrossReferencePPNs(record));
+    auto cross_link_ppns(ExtractPrintAndOnlineCrossLinkPPNs(record));
     if (cross_link_ppns.empty())
         return { };
     cross_link_ppns.emplace(record.getControlNumber());
@@ -483,6 +509,11 @@ void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &
 }
 
 
+inline bool FuzzyEqual(const std::string &s1, const std::string &s2) {
+    return CanoniseText(s1) == CanoniseText(s2);
+}
+
+
 bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &field2,
                 const bool compare_indicators, const bool compare_subfields)
 {
@@ -503,7 +534,7 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
         auto subfield2(subfields2.begin());
 
         while (subfield1 != subfields1.end() and subfield2 != subfields2.end()) {
-            if (subfield1->code_ != subfield2->code_ or CanoniseText(subfield1->value_) != CanoniseText(subfield2->value_))
+            if (subfield1->code_ != subfield2->code_ or not FuzzyEqual(subfield1->value_, subfield2->value_))
                 return false;
             ++subfield1, ++subfield2;
         }
@@ -690,6 +721,31 @@ bool MergeFieldPair022(MARC::Record::Field * const merge_field, const MARC::Reco
 }
 
 
+// Special handling for the title statements.
+bool MergeFieldPair245(const MARC::Record::Field &merge_field, const MARC::Record::Field &import_field,
+                       MARC::Record * const merge_record, const MARC::Record &import_record)
+{
+    if (merge_field.getTag() != "245" or import_field.getTag() != "245")
+        return false;
+
+    const auto merge_title(merge_field.getFirstSubfieldWithCode('a'));
+    const auto import_title(import_field.getFirstSubfieldWithCode('a'));
+
+    if (FuzzyEqual(merge_title, import_title))
+        return true;
+
+    for (const auto &varying_title_field : merge_record->getTagRange("246")) {
+        if (FuzzyEqual(varying_title_field.getFirstSubfieldWithCode('a'), import_title))
+            return true;
+    }
+    merge_record->insertField("246", { { 'a', import_title },
+                                       { 'g', import_record.isElectronicResource() ? "electronic" : "print" + std::string(" title") } },
+                              /* indicator1 = */'2', /*indicator2 = */'3');
+
+    return true;
+}
+
+
 bool MergeFieldPair264(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field,
                        MARC::Record * const merge_record, const MARC::Record &import_record)
 {
@@ -817,6 +873,9 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             }
             continue;
         }
+
+        if (MergeFieldPair245(merge_field, import_field, merge_record, *import_record))
+            continue;
 
         if (MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)) {
             if (GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
