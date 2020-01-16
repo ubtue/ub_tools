@@ -202,7 +202,7 @@ void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year
 }
 
 
-std::string GetK10PlusPPN(const MARC::Record::Field &field) {
+std::string GetK10PlusPPNFromSubfieldW(const MARC::Record::Field &field) {
     for (const auto &subfield_code_and_value : field.getSubfields()) {
         if (subfield_code_and_value.code_ == 'w' and StringUtil::StartsWith(subfield_code_and_value.value_, "(DE-627)"))
             return subfield_code_and_value.value_.substr(__builtin_strlen( "(DE-627)"));

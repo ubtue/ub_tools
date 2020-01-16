@@ -67,7 +67,7 @@ void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year
 /** \brief Attempts to extract a K10+ PPN from a subfield $w.
  *  \return The extracted PPN or the empty string if nothing was found.
  */
-std::string GetK10PlusPPN(const MARC::Record::Field &field);
+std::string GetK10PlusPPNFromSubfieldW(const MARC::Record::Field &field);
 
 
 } // namespace BSZUtil
