@@ -65,8 +65,11 @@ void LoadSchema(const std::string &filename, std::map<std::string, std::vector<s
             }
             current_table = ExtractBackQuotedString(line.substr(__builtin_strlen("CREATE TABLE ")));
             current_schema.clear();
-        } else
+        } else {
+            if (line[line.length() - 1] == ',')
+                line = line.substr(0, line.length() - 1);
             current_schema.emplace_back(line);
+        }
     }
     if (not current_schema.empty()) {
         std::sort(current_schema.begin(), current_schema.end(), SchemaLineIsLessThan);
