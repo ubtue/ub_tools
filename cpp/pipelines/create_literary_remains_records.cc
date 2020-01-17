@@ -33,11 +33,23 @@
 namespace {
 
 
-// use marc reader/writer to copy instead of using FileUtil::Copy
-// so we don't lose file handler (FIFO compatibility)
-void CopyMarc(MARC::Reader * const reader, MARC::Writer * const writer) {
-    while (auto record = reader->read())
+// Counts the number of religious studies title records for authors.
+void CopyMarcAndCollectRelgiousStudiesFrequencies(MARC::Reader * const reader, MARC::Writer * const writer,
+                                                  std::unordered_map<std::string, unsigned> * const author_ppn_to_relstudies_titles_count)
+{
+    while (auto record = reader->read()) {
+        if (record.findTag("REL") != record.end()) {
+            for (const auto &author_name_and_author_ppn : record.getAllAuthorsAndPPNs()) {
+                auto author_ppn_and_count(author_ppn_to_relstudies_titles_count->find(author_name_and_author_ppn.second));
+                if (author_ppn_and_count == author_ppn_to_relstudies_titles_count->end())
+                    (*author_ppn_to_relstudies_titles_count)[author_name_and_author_ppn.second] = 1;
+                else
+                    ++(author_ppn_and_count->second);
+            }
+        }
+
         writer->write(record);
+    }
 }
 
 
@@ -58,7 +70,8 @@ public:
 
 void LoadAuthorGNDNumbers(
     const std::string &filename,
-    std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> * const gnd_numbers_to_literary_remains_infos_map)
+    std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> * const gnd_numbers_to_literary_remains_infos_map,
+    std::unordered_map<std::string, std::string> * const gnd_numbers_to_ppns_map)
 {
     auto reader(MARC::Reader::Factory(filename));
 
@@ -77,6 +90,8 @@ void LoadAuthorGNDNumbers(
         std::string gnd_number;
         if (not MARC::GetGNDCode(record, &gnd_number))
             continue;
+
+        (*gnd_numbers_to_ppns_map)[gnd_number] = record.getControlNumber();
 
         const auto numeration(_100_field->getFirstSubfieldWithCode('b'));
         const auto titles_and_other_words_associated_with_a_name(_100_field->getFirstSubfieldWithCode('c'));
@@ -122,9 +137,15 @@ std::string NormaliseAuthorName(std::string author_name) {
 }
 
 
+const unsigned RELIGIOUS_STUDIES_THRESHOLD(3); // We assume that authors that have at least this many religious studies
+                                               // titles are religious studies authors.
+
+
 void AppendLiteraryRemainsRecords(
     MARC::Writer * const writer,
-    const std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> &gnd_numbers_to_literary_remains_infos_map)
+    const std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> &gnd_numbers_to_literary_remains_infos_map,
+    const std::unordered_map<std::string, std::string> &gnd_numbers_to_ppns_map,
+    const std::unordered_map<std::string, unsigned> &author_ppn_to_relstudies_titles_count)
 {
     unsigned creation_count(0);
     for (const auto &gnd_numbers_and_literary_remains_infos : gnd_numbers_to_literary_remains_infos_map) {
@@ -144,6 +165,15 @@ void AppendLiteraryRemainsRecords(
                                    { { 'u', literary_remains_info.url_ },
                                        { '3', "Nachlassdatenbank (" + literary_remains_info.source_name_ + ")" } });
 
+        // Do we have a religious studies author?
+        const auto gnd_number_and_author_ppn(gnd_numbers_to_ppns_map.find(gnd_numbers_and_literary_remains_infos.first));
+        if (unlikely(gnd_number_and_author_ppn == gnd_numbers_to_ppns_map.cend()))
+            LOG_ERROR("we should *always* find the GND number in gnd_numbers_to_ppns_map!");
+        const auto author_ppn_and_relstudies_titles_count(author_ppn_to_relstudies_titles_count.find(gnd_number_and_author_ppn->second));
+        if (author_ppn_and_relstudies_titles_count != author_ppn_to_relstudies_titles_count.cend()
+            and author_ppn_and_relstudies_titles_count->second >= RELIGIOUS_STUDIES_THRESHOLD)
+            new_record.insertField("REL", { { 'a', "1" } });
+
         writer->write(new_record);
     }
 
@@ -160,11 +190,16 @@ int Main(int argc, char **argv) {
 
     auto reader(MARC::Reader::Factory(argv[1]));
     auto writer(MARC::Writer::Factory(argv[2]));
-    CopyMarc(reader.get(), writer.get());
+    std::unordered_map<std::string, unsigned> author_ppn_to_relstudies_titles_count;
+    CopyMarcAndCollectRelgiousStudiesFrequencies(reader.get(), writer.get(), &author_ppn_to_relstudies_titles_count);
+    if (author_ppn_to_relstudies_titles_count.empty())
+        LOG_ERROR("You must run this program on an input that contains REL records!");
 
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> gnd_numbers_to_literary_remains_infos_map;
-    LoadAuthorGNDNumbers(argv[3], &gnd_numbers_to_literary_remains_infos_map);
-    AppendLiteraryRemainsRecords(writer.get(), gnd_numbers_to_literary_remains_infos_map);
+    std::unordered_map<std::string, std::string> gnd_numbers_to_ppns_map;
+    LoadAuthorGNDNumbers(argv[3], &gnd_numbers_to_literary_remains_infos_map, &gnd_numbers_to_ppns_map);
+    AppendLiteraryRemainsRecords(writer.get(), gnd_numbers_to_literary_remains_infos_map, gnd_numbers_to_ppns_map,
+                                 author_ppn_to_relstudies_titles_count);
 
     return EXIT_SUCCESS;
 }
