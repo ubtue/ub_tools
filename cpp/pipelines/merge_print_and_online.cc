@@ -1,7 +1,7 @@
 /** \brief Utility for merging print and online editions into single records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -97,7 +97,7 @@ void SerializeMultimap(const std::string &output_filename, const std::unordered_
 std::set<std::string> ExtractPrintAndOnlineCrossLinkPPNs(const MARC::Record &record) {
     std::set<std::string> cross_reference_ppns;
     for (const auto _776_field : record.getTagRange("776")) {
-        const auto ppn(BSZUtil::GetK10PlusPPNFromSubfieldW(_776_field));
+        const auto ppn(BSZUtil::GetK10PlusPPNFromSubfield(_776_field, 'w'));
         if (ppn.empty())
             continue;
 
