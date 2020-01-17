@@ -295,6 +295,7 @@ void CreateUbToolsDatabase(const OSSystemType os_system_type) {
         Echo("creating ub_tools MySQL database");
         DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
+        DbConnection::MySQLGrantAllPrivileges(sql_database + "_tmp", sql_username, root_username, root_password);
         DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, root_username, root_password);
     }
 
