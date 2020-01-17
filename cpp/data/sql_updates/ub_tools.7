@@ -1,0 +1,20 @@
+ALTER TABLE delivered_marc_records MODIFY journal_name VARCHAR(1000) NOT NULL;
+ALTER TABLE delivered_marc_records MODIFY main_title VARCHAR(1000) NOT NULL;
+ALTER TABLE delivered_marc_records MODIFY url VARCHAR(1000) NOT NULL;
+
+ALTER TABLE delivered_marc_records_superior_info MODIFY title VARCHAR(1000) NOT NULL;
+
+ALTER TABLE metadata_presence_tracer MODIFY journal_name VARCHAR(764) NOT NULL;
+ALTER TABLE metadata_presence_tracer MODIFY metadata_field_name CHAR(4) NOT NULL;
+
+ALTER TABLE rss_aggregator MODIFY feed_url VARCHAR(1000) NOT NULL;
+ALTER TABLE rss_aggregator MODIFY item_id VARCHAR(768) NOT NULL;
+ALTER TABLE rss_aggregator MODIFY item_title VARCHAR(1000) NOT NULL;
+ALTER TABLE rss_aggregator MODIFY item_url VARCHAR(1000) NOT NULL;
+ALTER TABLE rss_aggregator MODIFY serial_name VARCHAR(1000) NOT NULL;
+
+ALTER TABLE delivered_marc_records_superior_info DROP FOREIGN KEY zeder_id;
+ALTER TABLE delivered_marc_records_superior_info ADD CONSTRAINT zeder_id FOREIGN KEY (zeder_id) REFERENCES delivered_marc_records (zeder_id) ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE rss_aggregator DROP KEY insertion_time_index;
+ALTER TABLE rss_aggregator ADD INDEX insertion_time_index(insertion_time);
