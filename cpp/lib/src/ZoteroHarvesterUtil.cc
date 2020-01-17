@@ -129,12 +129,7 @@ void ZoteroLogger::error(const std::string &msg) {
     std::string preamble;
     preamble += "ZOTERO debug info:\n";
     preamble += "\tparent tasklet: " + context->description_ + " (handle: " + std::to_string(::pthread_self()) + ")\n";
-    preamble += "\titem:\n";
-    preamble += "\t\tid: " + std::to_string(context->associated_item_.id_) + "\n";
-    preamble += "\t\tjournal: " + context->associated_item_.journal_.name_ + " ("
-                + context->associated_item_.journal_.group_ + "|" + std::to_string(context->associated_item_.journal_.zeder_id_)
-                + ")\n";
-    preamble += "\t\turl: " + context->associated_item_.url_.toString() + "\n\n";
+    preamble += "\titem: " + context->associated_item_.toString() + "\n\n";
 
     // flush the tasklet's buffer
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
