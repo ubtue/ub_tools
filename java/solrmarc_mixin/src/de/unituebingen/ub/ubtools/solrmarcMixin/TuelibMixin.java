@@ -2090,7 +2090,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             return dates;
         }
 
-
         // Case 5:
         // Use the sort date given in the 008-Field
         final ControlField _008_field = (ControlField) record.getVariableField("008");
