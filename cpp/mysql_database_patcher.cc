@@ -96,6 +96,7 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
         return;
     }
 
+    db_connection->queryOrDie("SET autocommit=0");
     db_connection->queryOrDie("START TRANSACTION");
 
     unsigned current_version(0);
@@ -116,13 +117,13 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
         LOG_ERROR("update version is " + std::to_string(update_version) + ", current version is "
                   + std::to_string(current_version) + " for database \"" + database + "\"!");
 
+    LOG_INFO("applying update " + std::to_string(update_version) + " to database \"" + database + "\".");
+    db_connection->queryFileOrDie(update_directory_path + "/" + update_filename);
     db_connection->queryOrDie("UPDATE ub_tools.database_versions SET version=" + std::to_string(update_version)
                               + " WHERE database_name='" + db_connection->escapeString(database) + "'");
 
-    LOG_INFO("applying update " + std::to_string(update_version) + " to database \"" + database + "\".");
-    db_connection->queryFileOrDie(update_directory_path + "/" + update_filename);
-
     db_connection->queryOrDie("COMMIT");
+    db_connection->queryOrDie("SET autocommit=1");
 }
 
 
