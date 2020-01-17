@@ -29,6 +29,7 @@ if [[ $compare_against_installer_schema && -r /tmp/new_ub_tools.schema ]]; then
     export MYSQL_PWD=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_password)
     MYSQL_DB=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_database)
     MYSQL_USER=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_username)
+    echo "DROP DATABASE IF EXISTS ub_tools_tmp;" | mysql -u $MYSQL_USER
     echo "CREATE DATABASE ub_tools_tmp;" | mysql -u $MYSQL_USER
     echo "USE ub_tools_tmp" | cat - /usr/local/ub_tools/cpp/data/installer/ub_tools.sql | mysql -u $MYSQL_USER
     mysql_list_tables ub_tools_tmp ub_tools $MYSQL_PWD > /tmp/installer_ub_tools.schema

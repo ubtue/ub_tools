@@ -200,7 +200,7 @@ void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_na
             if (column_def2 == last_column_def2.base())
                 std::cout << "Column does not exist in 1st schema: " << table_name1 << '.' << column_name1 << '\n';
             else if (*column_def1 != *column_def2)
-                std::cout << "Column definition differs between the 1st and 2nd schemas: " << *column_def1 << " -> " << *column_def2 << '\n';
+                std::cout << "Column definition differs between the 1st and 2nd schemas (" << table_name1 << "): " << *column_def1 << " -> " << *column_def2 << '\n';
         }
 
         for (auto column_def2(schema2.cbegin()); column_def2 != last_column_def2.base(); ++column_def2) {
