@@ -24,6 +24,7 @@
 #include <vector>
 #include <cstdlib>
 #include "FileUtil.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -143,9 +144,13 @@ void CompareTableOptions(const std::map<std::string, std::vector<std::string>> &
         if (unlikely(table_options2 == schema2.cend()))
             LOG_ERROR("No table options line for table \"" + table_name1 + "\" found in 2nd schema!");
 
-        if (*table_options1 != *table_options2)
-            std::cerr << "Table options differ for " << table_name1 << ": " << table_options1->substr(2) << " -> "
-                      << table_options2->substr(2) << '\n';
+        static RegexMatcher * const auto_increment_matcher(RegexMatcher::RegexMatcherFactoryOrDie("\\s*AUTO_INCREMENT=\\d+"));
+        const std::string cleaned_table_options1(auto_increment_matcher->replaceAll(table_options1->substr(2), ""));
+        const std::string cleaned_table_options2(auto_increment_matcher->replaceAll(table_options2->substr(2), ""));
+
+        if (cleaned_table_options1 != cleaned_table_options2)
+            std::cerr << "Table options differ for " << table_name1 << ": " << cleaned_table_options1 << " -> "
+                      << cleaned_table_options2 << '\n';
     }
 }
 
