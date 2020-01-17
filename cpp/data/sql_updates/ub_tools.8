@@ -1,0 +1,17 @@
+ALTER TABLE delivered_marc_records MODIFY issue VARCHAR(20) DEFAULT NULL;
+ALTER TABLE delivered_marc_records MODIFY pages VARCHAR(20) DEFAULT NULL;
+ALTER TABLE delivered_marc_records MODIFY volume VARCHAR(20) DEFAULT NULL;
+
+DROP INDEX delivered_marc_records_journal_name_index ON delivered_marc_records;
+ALTER TABLE delivered_marc_records MODIFY journal_name VARCHAR(1000) NOT NULL;
+CREATE INDEX delivered_marc_records_journal_name_index ON delivered_marc_records (journal_name(768));
+
+DROP INDEX delivered_marc_records_main_title_index ON delivered_marc_records;
+ALTER TABLE delivered_marc_records MODIFY main_title VARCHAR(1000) NOT NULL;
+CREATE INDEX delivered_marc_records_main_title_index ON delivered_marc_records (main_title(768));
+
+DROP INDEX delivered_marc_records_url_index ON delivered_marc_records;
+CREATE INDEX delivered_marc_records_url_index ON delivered_marc_records (url(768));
+
+DROP INDEX IF EXISTS journal_name_and_metadata_field_name_index ON metadata_presence_tracer;
+CREATE INDEX journal_name_and_metadata_field_name_index ON metadata_presence_tracer (journal_name, metadata_field_name);
