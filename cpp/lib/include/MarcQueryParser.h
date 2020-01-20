@@ -43,7 +43,7 @@ class FieldOrSubfieldDescriptor {
     const std::string field_or_subfield_;
     const char indicator1_, indicator2_;
 public:
-    FieldOrSubfieldDescriptor() = default;
+    FieldOrSubfieldDescriptor(): indicator1_('\0'), indicator2_('\0') { }
     FieldOrSubfieldDescriptor(const FieldOrSubfieldDescriptor &other) = default;
     explicit FieldOrSubfieldDescriptor(const std::string &field_or_subfield, const char indicator1, const char indicator2)
         : field_or_subfield_(field_or_subfield), indicator1_(indicator1), indicator2_(indicator2) { }
