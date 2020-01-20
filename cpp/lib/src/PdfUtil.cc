@@ -227,13 +227,10 @@ bool ExtractPDFInfo(const std::string &pdf_document, std::string * const pdf_out
 }
 
 
-bool ExtractHTMLAsPages(const std::string &pdf_document, std::string * const output_location) {
+bool ExtractHTMLAsPages(const std::string &pdf_document, const std::string &output_dirname) {
     static std::string pdftohtml_path;
     if (pdftohtml_path.empty())
         pdftohtml_path = ExecUtil::LocateOrDie("pdftohtml");
-
-    static const FileUtil::AutoTempDirectory auto_temp_dir("/tmp/ADT", true);
-    const std::string &output_dirname(auto_temp_dir.getDirectoryPath());
 
     std::vector<std::string> pdftohtml_params { "-i" /* ignore images */,
                                                 "-c" /* generate complex output */,
@@ -245,7 +242,6 @@ bool ExtractHTMLAsPages(const std::string &pdf_document, std::string * const out
     pdftohtml_params.emplace_back(pdf_temp_link);
     ExecUtil::ExecOrDie(pdftohtml_path, pdftohtml_params, "" /* stdin */, "" /* stdout */, "" /* stderr */, 0 /* timeout */,
                         SIGKILL, std::unordered_map<std::string, std::string>() /* env */, output_dirname /* working dir */);
-    *output_location = output_dirname;
 
     // Clean up HTML
     static std::string tidy_path;

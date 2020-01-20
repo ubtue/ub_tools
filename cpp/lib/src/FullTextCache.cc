@@ -228,8 +228,9 @@ unsigned FullTextCache::getSize() const {
 
 
 void FullTextCache::extractAndImportHTMLPages(const std::string &id, const std::string &full_text_location) {
-   std::string html_export_directory;
-   PdfUtil::ExtractHTMLAsPages(full_text_location, &html_export_directory);
+   const FileUtil::AutoTempDirectory auto_temp_dir("/tmp/ADT");
+   const std::string html_export_directory(auto_temp_dir.getDirectoryPath());
+   PdfUtil::ExtractHTMLAsPages(full_text_location, html_export_directory);
    FileUtil::Directory html_pages(html_export_directory, ".*-\\d+\\.html");
    for (const auto &html_page : html_pages) {
        static const auto page_number_matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*-(\\d+)\\.html$"));
