@@ -96,7 +96,7 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
         return;
     }
 
-    DbTransaction transaction(db_connection); // No new scape required as the transaction is supposed to last until the end
+    DbTransaction transaction(db_connection); // No new scope required as the transaction is supposed to last until the end
                                               // of this function anyway!
 
     unsigned current_version(0);
