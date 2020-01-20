@@ -62,7 +62,7 @@ bool GetOCRedTextFromPDF(const std::string &pdf_document_path, const std::string
 bool ExtractPDFInfo(const std::string &pdf_document, std::string * const pdf_output);
 
 /** \brief Try to extract given PDF as page wise HTML in a temporary directory */
-bool ExtractHTMLAsPages(const std::string &pdf_document,  std::string * const output_location);
+bool ExtractHTMLAsPages(const std::string &pdf_document,  const std::string &output_location);
 
 
 
