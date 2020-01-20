@@ -37,8 +37,7 @@ const std::string ControlNumberGuesser::INSTALLER_SCRIPT_PATH("/usr/local/ub_too
 
 
 ControlNumberGuesser::~ControlNumberGuesser() {
-    if (transaction_in_progress_)
-        db_connection_->queryOrDie("COMMIT");
+    delete db_transaction_;
 }
 
 
@@ -52,20 +51,13 @@ void ControlNumberGuesser::clearDatabase() {
 
 
 void ControlNumberGuesser::beginUpdate() {
-    if (unlikely(transaction_in_progress_))
-        LOG_ERROR("transaction already in progress!");
-
-    db_connection_->queryOrDie("BEGIN TRANSACTION");
-    transaction_in_progress_ = true;
+    db_transaction_ = new DbTransaction(db_connection_.get());
 }
 
 
 void ControlNumberGuesser::endUpdate() {
-    if (unlikely(not transaction_in_progress_))
-        LOG_ERROR("transaction has yet to begin!");
-
-    db_connection_->queryOrDie("COMMIT");
-    transaction_in_progress_ = false;
+    delete db_transaction_;
+    db_transaction_ = nullptr;
 }
 
 
