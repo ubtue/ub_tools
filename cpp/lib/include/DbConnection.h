@@ -270,3 +270,17 @@ public:
                                 const std::string &admin_passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
                                 const Charset charset = UTF8MB4);
 };
+
+
+/** \brief Represents a database transaction.
+ *  \note  Restores the autocommit state after going out of scope.
+ *  \note  Cannot be nested at this time.
+ */
+class DbTransaction final {
+    static unsigned active_count_;
+    DbConnection &db_connection_;
+    bool autocommit_was_on_;
+public:
+    explicit DbTransaction(DbConnection * const db_connection);
+    ~DbTransaction();
+};
