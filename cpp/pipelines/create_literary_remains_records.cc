@@ -157,7 +157,12 @@ void AppendLiteraryRemainsRecords(
         new_record.insertField("003", "PipeLineGenerated");
         new_record.insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
         new_record.insertField("008", "190606s2019    xx |||||      00| ||ger c");
-        new_record.insertField("100", { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first } });
+        if (gnd_numbers_and_literary_remains_infos.second.front().dates_.empty())
+            new_record.insertField("100", { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first } });
+        else
+            new_record.insertField("100",
+                                   { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first },
+                                     { 'd', gnd_numbers_and_literary_remains_infos.second.front().dates_ } });
         new_record.insertField("245", { { 'a', "Nachlass von " + NormaliseAuthorName(author_name) + dates } });
 
         for (const auto &literary_remains_info : gnd_numbers_and_literary_remains_infos.second)
