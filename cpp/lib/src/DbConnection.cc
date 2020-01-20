@@ -707,3 +707,36 @@ std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPriv
 
     return {};
 }
+
+
+unsigned DbTransaction::active_count_;
+
+
+DbTransaction::DbTransaction(DbConnection * const db_connection): db_connection_(*db_connection) {
+    if (active_count_ > 0)
+        LOG_ERROR("no nested transactions are allowed!");
+    ++active_count_;
+
+    db_connection_.queryOrDie("SHOW VARIABLES LIKE 'autocommit'");
+    DbResultSet result_set(db_connection_.getLastResultSet());
+    if (unlikely(result_set.empty()))
+        LOG_ERROR("this should never happen!");
+
+    const std::string autocommit_status(result_set.getNextRow()["Value"]);
+    if (autocommit_status == "ON")
+        autocommit_was_on_ = true;
+    else if (autocommit_status == "OFF")
+        autocommit_was_on_ = false;
+    else
+        LOG_ERROR("unknown autocommit status \"" + autocommit_status + "\"!");
+
+    db_connection_.queryOrDie("SET autocommit=OFF");
+    db_connection_.queryOrDie("START TRANSACTION");
+}
+
+
+DbTransaction::~DbTransaction() {
+    db_connection_.queryOrDie("COMMIT");
+    db_connection_.queryOrDie("SET autocommit=" + std::string(autocommit_was_on_ ? "ON" : "OFF"));
+    --active_count_;
+}
