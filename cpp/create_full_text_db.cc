@@ -42,14 +42,17 @@ constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 120; // seconds
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout] [--only-open-access] marc_input marc_output\n"
+    ::Usage("[--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout] [--only-open-access] \
+             [--store-pdfs-as-html] marc_input marc_output\n"
             "\"--process-count-low-and-high-watermarks\" sets the maximum and minimum number of spawned\n"
             "    child processes.  When we hit the high water mark we wait for child processes to exit\n"
             "    until we reach the low watermark.\n"
             "\"--pdf-extraction-timeout\" which has a default of " + std::to_string(DEFAULT_PDF_EXTRACTION_TIMEOUT) + "\n"
             "    seconds is the maximum amount of time spent by a subprocess in attemting text extraction from a\n"
             "    downloaded PDF document.\n"
-            "\"--only-open-access\" means that only open access texts will be processed.");
+            "\"--only-open-access\" means that only open access texts will be processed.\n"
+            "\"--store-pdfs-as-html\" means that a html representation of downloaded pdfs is stored if possible.\n"
+            );
 
     std::exit(EXIT_FAILURE);
 }
@@ -143,7 +146,8 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
                         const std::string &marc_input_filename, const std::string &marc_output_filename,
                         std::map<std::string, unsigned> * const hostname_to_outstanding_request_count_map,
                         std::map<int, std::string> * const process_id_to_hostname_map,
-                        unsigned * const child_reported_failure_count, unsigned * const active_child_count)
+                        unsigned * const child_reported_failure_count, unsigned * const active_child_count,
+                        const bool store_pdfs_as_html)
 {
     constexpr unsigned MAX_CONCURRENT_DOWNLOADS_PER_SERVER = 2;
 
@@ -164,6 +168,10 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
 
     std::vector<std::string> args;
     args.emplace_back("--pdf-extraction-timeout=" + std::to_string(pdf_extraction_timeout));
+    if (store_pdfs_as_html) {
+//        args.emplace_back("--use-only-open-access-documents");
+        args.emplace_back("--store-pdfs-as-html");
+    }
     args.emplace_back(std::to_string(marc_record_start));
     args.emplace_back(marc_input_filename);
     args.emplace_back(marc_output_filename);
@@ -180,7 +188,8 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
 void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                             const unsigned pdf_extraction_timeout,
                             const std::vector<std::pair<off_t, std::string>> &download_record_offsets_and_urls,
-                            const unsigned process_count_low_watermark, const unsigned process_count_high_watermark)
+                            const unsigned process_count_low_watermark, const unsigned process_count_high_watermark,
+                            const bool store_pdfs_as_html)
 {
     Semaphore semaphore("/full_text_cached_counter", Semaphore::CREATE);
     unsigned active_child_count(0), child_reported_failure_count(0);
@@ -207,7 +216,8 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
 
         ScheduleSubprocess(authority, offset_and_url.first, pdf_extraction_timeout, marc_reader->getPath(),
                            marc_writer->getFile().getPath(), &hostname_to_outstanding_request_count_map,
-                           &process_id_to_hostname_map, &child_reported_failure_count, &active_child_count);
+                           &process_id_to_hostname_map, &child_reported_failure_count, &active_child_count,
+                           store_pdfs_as_html);
 
         if (active_child_count > process_count_high_watermark)
             CleanUpZombies(active_child_count - process_count_low_watermark, &hostname_to_outstanding_request_count_map,
@@ -275,6 +285,12 @@ int Main(int argc, char **argv) {
         ++argv, --argc;
     }
 
+    bool store_pdfs_as_html(false);
+    if (argc > 1 and std::strcmp(argv[1], "--store-pdfs-as-html") == 0) {
+        store_pdfs_as_html = true;
+        ++argv, --argc;
+    }
+
     if (argc != 3)
         Usage();
 
@@ -293,8 +309,9 @@ int Main(int argc, char **argv) {
         // Try to prevent clumps of URL's from the same server:
         std::random_shuffle(download_record_offsets_and_urls.begin(), download_record_offsets_and_urls.end());
 
-        ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), pdf_extraction_timeout, download_record_offsets_and_urls,
-                               process_count_low_watermark, process_count_high_watermark);
+        ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), pdf_extraction_timeout, 
+                               download_record_offsets_and_urls, process_count_low_watermark, process_count_high_watermark,
+                               store_pdfs_as_html);
     } catch (const std::exception &e) {
         LOG_ERROR("Caught exception: " + std::string(e.what()));
     }

@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include "Compiler.h"
+#include "FileUtil.h"
 #include "FullTextCache.h"
 #include "MARC.h"
 #include "MediaTypeUtil.h"
@@ -40,8 +41,10 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--pdf-extraction-timeout=timeout]file_offset marc_input marc_output\n"
+    ::Usage("[--pdf-extraction-timeout=timeout] [--use-only-open-access-documents] [--store-pdfs-as-html] file_offset marc_input marc_output\n"
             "\"--pdf-extraction-timeout\" timeout in seconds (default " + std::to_string(PdfUtil::DEFAULT_PDF_EXTRACTION_TIMEOUT) + ").\n"
+            "\"--use-only-open-access-documents\": use only dowload links that that are marked as \"Kostenfrei\"\n"
+            "\"--store-pdfs-as-html\": Also store HTML representation of downloaded PDFs\n"
             "\"file_offset\" Where to start reading a MARC data set from in marc_input.");
 }
 
@@ -200,7 +203,7 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
 }
 
 
-bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extraction_timeout) {
+bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extraction_timeout, const bool use_only_open_access_links, const bool store_pdfs_as_html) {
     const std::string ppn(record->getControlNumber());
     std::vector<std::string> urls;
 
@@ -209,6 +212,9 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         const MARC::Subfields _856_subfields(_856_field.getSubfields());
 
         if (_856_field.getIndicator1() == '7' or not _856_subfields.hasSubfield('u'))
+            continue;
+
+        if (use_only_open_access_links and not _856_subfields.hasSubfieldWithValue('z', "Kostenfrei"))
             continue;
 
         if (IsProbablyAReview(_856_subfields))
@@ -258,6 +264,20 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                     else
                         combined_text += " " + extracted_text;
                 }
+
+                if (store_pdfs_as_html) {
+                    if (StringUtil::StartsWith(media_type, "application/pdf")) {
+                        // Currently only download if we have a unique fulltext
+                        if (urls.size() != 1)
+                            LOG_WARNING("Skip HTML extraction since more than one candidate exists for control number " + ppn);
+                        else {
+                            const FileUtil::AutoTempFile auto_temp_file("/tmp/fulltext_pdf");
+                            const std::string temp_pdf_path(auto_temp_file.getFilePath());
+                            FileUtil::WriteStringOrDie(temp_pdf_path, document);
+                            cache.extractAndImportHTMLPages(ppn, temp_pdf_path);
+                        }
+                    }
+                }
             }
             at_least_one_error = at_least_one_error ? at_least_one_error : not entry_url.error_message_.empty();
             entry_urls.push_back(entry_url);
@@ -265,22 +285,23 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
 
         success = not at_least_one_error && not urls.empty();
 
-
         combined_text_final = TextUtil::CollapseAndTrimWhitespace(&combined_text);
         cache.insertEntry(ppn, combined_text_final, entry_urls);
     }
 
-    if (not combined_text_final.empty())
+    if (not combined_text_final.empty() and not store_pdfs_as_html)
         record->insertField("FUL", { { 'e', "http://localhost/cgi-bin/full_text_lookup?id=" + ppn } });
 
     return success;
 }
 
 
-bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_filename, const unsigned pdf_extraction_timeout) {
+bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_filename, const unsigned pdf_extraction_timeout,
+                   const bool use_only_open_access_links, const bool extract_html_from_pdfs)
+{
     bool success(false);
     try {
-        success = ProcessRecordUrls(record, pdf_extraction_timeout);
+        success = ProcessRecordUrls(record, pdf_extraction_timeout, use_only_open_access_links, extract_html_from_pdfs);
     } catch (const std::exception &x) {
         LOG_WARNING("caught exception: " + std::string(x.what()));
     }
@@ -295,11 +316,13 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
 
 
 // Returns true if text has been successfully extracted, else false.
-bool ProcessRecord(MARC::Reader * const marc_reader, const std::string &marc_output_filename, const unsigned pdf_extraction_timeout) {
+bool ProcessRecord(MARC::Reader * const marc_reader, const std::string &marc_output_filename, const unsigned pdf_extraction_timeout,
+                   const bool use_only_open_access_links, const bool extract_html_from_pdfs)
+{
     MARC::Record record(marc_reader->read());
     try {
         LOG_INFO("processing record " + record.getControlNumber());
-        return ProcessRecord(&record, marc_output_filename, pdf_extraction_timeout);
+        return ProcessRecord(&record, marc_output_filename, pdf_extraction_timeout, use_only_open_access_links, extract_html_from_pdfs);
     } catch (const std::exception &x) {
         throw std::runtime_error(x.what() + std::string(" (PPN: ") + record.getControlNumber() + ")");
     }
@@ -318,6 +341,20 @@ int Main(int argc, char *argv[]) {
         ++argv, --argc;
     }
 
+
+    bool use_only_open_access_documents(false);
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--use-only-open-access-documents")) {
+        use_only_open_access_documents = true;
+        ++argv, --argc;
+    }
+
+
+    bool store_html_from_pdfs(false);
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--store-pdfs-as-html")) {
+        store_html_from_pdfs = true;
+        ++argv, --argc;
+    }
+
     if (argc != 4)
         Usage();
 
@@ -330,7 +367,7 @@ int Main(int argc, char *argv[]) {
         LOG_ERROR("failed to position " + marc_reader->getPath() + " at offset " + std::to_string(offset) + "!");
 
     try {
-        return ProcessRecord(marc_reader.get(), argv[3], pdf_extraction_timeout) ? EXIT_SUCCESS : EXIT_FAILURE;
+        return ProcessRecord(marc_reader.get(), argv[3], pdf_extraction_timeout, use_only_open_access_documents, store_html_from_pdfs) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
         LOG_ERROR("While reading \"" + marc_reader->getPath() + "\" starting at offset \""
               + std::string(argv[1]) + "\", caught exception: " + std::string(e.what()));
