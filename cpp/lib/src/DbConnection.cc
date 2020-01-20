@@ -723,20 +723,21 @@ DbTransaction::DbTransaction(DbConnection * const db_connection): db_connection_
         LOG_ERROR("this should never happen!");
 
     const std::string autocommit_status(result_set.getNextRow()["Value"]);
-    if (autocommit_status == "ON")
+    if (autocommit_status == "ON") {
         autocommit_was_on_ = true;
-    else if (autocommit_status == "OFF")
+        db_connection_.queryOrDie("SET autocommit=OFF");
+    } else if (autocommit_status == "OFF")
         autocommit_was_on_ = false;
     else
         LOG_ERROR("unknown autocommit status \"" + autocommit_status + "\"!");
 
-    db_connection_.queryOrDie("SET autocommit=OFF");
     db_connection_.queryOrDie("START TRANSACTION");
 }
 
 
 DbTransaction::~DbTransaction() {
     db_connection_.queryOrDie("COMMIT");
-    db_connection_.queryOrDie("SET autocommit=" + std::string(autocommit_was_on_ ? "ON" : "OFF"));
+    if (autocommit_was_on_)
+        db_connection_.queryOrDie("SET autocommit=ON");
     --active_count_;
 }

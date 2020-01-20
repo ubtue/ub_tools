@@ -98,7 +98,6 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
 
     DbTransaction transaction(db_connection); // No new scape required as the transaction is supposed to last until the end
                                               // of this function anyway!
-    db_connection->queryOrDie("START TRANSACTION");
 
     unsigned current_version(0);
     db_connection->queryOrDie("SELECT version FROM ub_tools.database_versions WHERE database_name='"
