@@ -1,7 +1,7 @@
 /** \brief Utility for updating SQL schemata etc.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -96,8 +96,8 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
         return;
     }
 
-    db_connection->queryOrDie("SET autocommit=0");
-    db_connection->queryOrDie("START TRANSACTION");
+    DbTransaction transaction(db_connection); // No new scope required as the transaction is supposed to last until the end
+                                              // of this function anyway!
 
     unsigned current_version(0);
     db_connection->queryOrDie("SELECT version FROM ub_tools.database_versions WHERE database_name='"
@@ -121,9 +121,6 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
     db_connection->queryFileOrDie(update_directory_path + "/" + update_filename);
     db_connection->queryOrDie("UPDATE ub_tools.database_versions SET version=" + std::to_string(update_version)
                               + " WHERE database_name='" + db_connection->escapeString(database) + "'");
-
-    db_connection->queryOrDie("COMMIT");
-    db_connection->queryOrDie("SET autocommit=1");
 }
 
 
