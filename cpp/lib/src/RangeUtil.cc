@@ -3,7 +3,7 @@
  *          as well as other range search related functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014-2017,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -678,11 +678,28 @@ bool ConvertTextToTimeRange(const std::string &text, std::string * const range, 
         return true;
     }
 
-    static auto matcher4(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,4})$"));
+    static auto matcher4(RegexMatcher::RegexMatcherFactoryOrDie("^v(\\d{2,4}) ?- ?v(\\d{2,4})$"));
     if (matcher4->matched(text)) {
-        const unsigned year(StringUtil::ToUnsigned((*matcher4)[1]));
+        const unsigned year1(StringUtil::ToUnsigned((*matcher4)[1]));
+        const unsigned year2(StringUtil::ToUnsigned((*matcher4)[2]));
+        *range = StringUtil::ToString(OFFSET - year1, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
+                 + StringUtil::ToString(OFFSET - year2, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        return true;
+    }
+
+    static auto matcher5(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,4})$"));
+    if (matcher5->matched(text)) {
+        const unsigned year(StringUtil::ToUnsigned((*matcher5)[1]));
         *range = StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
                  + StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        return true;
+    }
+
+    static auto matcher6(RegexMatcher::RegexMatcherFactoryOrDie("^v(\\d{2,4})$"));
+    if (matcher6->matched(text)) {
+        const unsigned year(StringUtil::ToUnsigned((*matcher6)[1]));
+        *range = StringUtil::ToString(OFFSET - year, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
+                 + StringUtil::ToString(OFFSET - year, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
         return true;
     }
 
