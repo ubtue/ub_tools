@@ -205,8 +205,14 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
 
 bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extraction_timeout, const bool use_only_open_access_links, const bool store_pdfs_as_html) {
     const std::string ppn(record->getControlNumber());
-    std::vector<std::string> urls;
+    struct UrlAndTextType {
+        std::string url_;
+        //FullTextCache::TextType text_type_;
+        std::string text_type_;
+    };
+    std::vector<UrlAndTextType> urls_and_text_types;
 
+std::cerr << "ONLY OPEN ACCESS [ppn: " << ppn << "]: " << use_only_open_access_links <<'\n';
     // Get URL's:
     for (const auto _856_field : record->getTagRange("856")) {
         const MARC::Subfields _856_subfields(_856_field.getSubfields());
@@ -214,18 +220,24 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         if (_856_field.getIndicator1() == '7' or not _856_subfields.hasSubfield('u'))
             continue;
 
-        if (use_only_open_access_links and not _856_subfields.hasSubfieldWithValue('z', "Kostenfrei"))
+        if (use_only_open_access_links and not _856_subfields.hasSubfieldWithValue('z', "Kostenfrei")) {
+            LOG_WARNING("Skipping entry since not kostenfrei");
             continue;
+        }
 
         if (IsProbablyAReview(_856_subfields))
             continue;
 
-        urls.emplace_back(_856_subfields.getFirstSubfieldWithCode('u'));
+        urls_and_text_types.emplace_back(UrlAndTextType{_856_subfields.getFirstSubfieldWithCode('u'),
+                                                        _856_subfields.getFirstSubfieldWithCode('3')});
     }
 
     // Get or create cache entry
     FullTextCache cache;
     std::string combined_text_final;
+    std::vector<std::string> urls;
+    std::transform(urls_and_text_types.begin(), urls_and_text_types.end(), std::back_inserter(urls),
+                   [](const UrlAndTextType &url_and_text_type) { return url_and_text_type.url_;});
     bool success(false);
     if (not cache.entryExpired(ppn, urls)) {
         cache.getFullText(ppn, &combined_text_final);
@@ -239,8 +251,9 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         constexpr unsigned PER_DOC_TIMEOUT(30000); // in milliseconds
         bool at_least_one_error(false);
 
-        for (const auto &url : urls) {
+        for (const auto &url_and_text_type : urls_and_text_types) {
             FullTextCache::EntryUrl entry_url;
+            const std::string url(url_and_text_type.url_);
             entry_url.id_ = ppn;
             entry_url.url_ = url;
             std::string domain;
@@ -267,15 +280,10 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
 
                 if (store_pdfs_as_html) {
                     if (StringUtil::StartsWith(media_type, "application/pdf")) {
-                        // Currently only download if we have a unique fulltext
-                        if (urls.size() != 1)
-                            LOG_WARNING("Skip HTML extraction since more than one candidate exists for control number " + ppn);
-                        else {
-                            const FileUtil::AutoTempFile auto_temp_file("/tmp/fulltext_pdf");
-                            const std::string temp_pdf_path(auto_temp_file.getFilePath());
-                            FileUtil::WriteStringOrDie(temp_pdf_path, document);
-                            cache.extractAndImportHTMLPages(ppn, temp_pdf_path);
-                        }
+                        const FileUtil::AutoTempFile auto_temp_file("/tmp/fulltext_pdf");
+                        const std::string temp_pdf_path(auto_temp_file.getFilePath());
+                        FileUtil::WriteStringOrDie(temp_pdf_path, document);
+                        cache.extractAndImportHTMLPages(ppn, temp_pdf_path);
                     }
                 }
             }

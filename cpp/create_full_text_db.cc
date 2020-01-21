@@ -169,7 +169,7 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
     std::vector<std::string> args;
     args.emplace_back("--pdf-extraction-timeout=" + std::to_string(pdf_extraction_timeout));
     if (store_pdfs_as_html) {
-//        args.emplace_back("--use-only-open-access-documents");
+        args.emplace_back("--use-only-open-access-documents");
         args.emplace_back("--store-pdfs-as-html");
     }
     args.emplace_back(std::to_string(marc_record_start));

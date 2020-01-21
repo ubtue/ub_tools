@@ -40,6 +40,12 @@ constexpr unsigned MIN_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60); // About 1 month 
 constexpr unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 months in seconds.
 
 
+static const std::map<std::string, FullTextCache::TextType> description_to_text_type_map {
+    { "Volltext", FullTextCache::FULLTEXT },
+    { "Inhaltsverzeichnis", FullTextCache::TOC }
+};
+
+
 bool FullTextCache::getDomainFromUrl(const std::string &url, std::string * const domain) const {
     std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
     const bool result(UrlUtil::ParseUrl(url, &scheme, &username_password, &authority, &port, &path, &params, &query,
@@ -224,6 +230,14 @@ FullTextCache::EntryUrl FullTextCache::getJoinedEntryByDomainAndErrorMessage(con
 
 unsigned FullTextCache::getSize() const {
     return full_text_cache_.size();
+}
+
+
+FullTextCache::TextType FullTextCache::mapTextDescriptionToTextType(const std::string &text_description) {
+    const auto text_type(description_to_text_type_map.find(text_description));
+    if (text_type == description_to_text_type_map.cend())
+        return UNKNOWN;
+    return text_type->second;
 }
 
 
