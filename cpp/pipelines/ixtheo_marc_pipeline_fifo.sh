@@ -114,6 +114,8 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --replace 100a:700a /usr/local/var/lib/tuelib/author_normalisation.map \
     --replace 260b:264b /usr/local/var/lib/tuelib/publisher_normalisation.map \
     --replace 245a "^L' (.*)" "L'\\1" # Replace "L' arbe" with "L'arbe" etc.
+    --replace 689d "v([0-9]+) ?- ?v([0-9]+)" "\\1 v. Chr. - \\2 v. Chr." # Replace "v384-v322" with "384 v. Chr. - 322 v. Chr."
+    --replace 689d "v([0-9]+)" "\\1 v. Chr." # Replace "v384" with "384 v. Chr."
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
