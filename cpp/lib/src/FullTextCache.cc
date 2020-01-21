@@ -227,7 +227,7 @@ unsigned FullTextCache::getSize() const {
 }
 
 
-void FullTextCache::extractAndImportHTMLPages(const std::string &id, const std::string &full_text_location) {
+void FullTextCache::extractAndImportHTMLPages(const std::string &id, const std::string &full_text_location, const TextType &text_type) {
    const FileUtil::AutoTempDirectory auto_temp_dir("/tmp/ADT");
    const std::string html_export_directory(auto_temp_dir.getDirectoryPath());
    PdfUtil::ExtractHTMLAsPages(full_text_location, html_export_directory);
@@ -243,13 +243,13 @@ void FullTextCache::extractAndImportHTMLPages(const std::string &id, const std::
        std::stringstream full_text_stream;
        full_text_stream << page_file.rdbuf();
        std::string page_text(full_text_stream.str());
-       full_text_cache_html_.simpleInsert({ { "id", id }, { "page", page_number },  { "full_text", page_text } });
+       full_text_cache_html_.simpleInsert({ { "id", id }, { "page", page_number },  { "full_text", page_text }, { "text_type", std::to_string(text_type) } });
    }
 }
 
 
 void FullTextCache::insertEntry(const std::string &id, const std::string &full_text,
-                                const std::vector<EntryUrl> &entry_urls)
+                                const std::vector<EntryUrl> &entry_urls, const TextType &text_type)
 {
     const time_t now(std::time(nullptr));
     Random::Rand rand(now);
@@ -264,11 +264,12 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
 
     std::string expiration_string;
     if (expiration == TimeUtil::BAD_TIME_T) {
-        full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text } });
+        full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text },  { "text_type", std::to_string(text_type) } });
     }
     else {
         expiration_string = TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT);
-        full_text_cache_.simpleInsert({ { "id", id }, { "expiration", expiration_string }, { "full_text", full_text } });
+        full_text_cache_.simpleInsert({ { "id", id }, { "expiration", expiration_string }, { "full_text", full_text },
+                                      { "text_type", std::to_string(text_type) } });
     }
 
     for (const auto &entry_url : entry_urls) {
