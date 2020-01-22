@@ -146,8 +146,11 @@ public:
         return escapeString(unescaped_string, /* add_quotes = */true);
     }
 
-    void mySQLCreateDatabase(const std::string &database_name, const Charset charset = UTF8MB4, const Collation collation = UTF8MB4_BIN) {
-        queryOrDie("CREATE DATABASE " + database_name + " CHARACTER SET " + CharsetToString(charset) + " COLLATE " + CollationToString(collation) + ";");
+    inline void mySQLCreateDatabase(const std::string &database_name, const Charset charset = UTF8MB4,
+                                    const Collation collation = UTF8MB4_BIN)
+    {
+        queryOrDie("CREATE DATABASE " + database_name + " CHARACTER SET " + CharsetToString(charset) + " COLLATE "
+                   + CollationToString(collation) + ";");
     }
 
     void mySQLCreateUser(const std::string &new_user, const std::string &new_passwd, const std::string &host = "localhost") {
