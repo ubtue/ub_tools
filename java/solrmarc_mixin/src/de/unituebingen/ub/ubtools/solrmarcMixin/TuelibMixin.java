@@ -183,13 +183,25 @@ public class TuelibMixin extends SolrIndexerMixin {
         phys_code_to_full_name_map = Collections.unmodifiableMap(tempMap);
     }
 
+
+    private final static Map<String, String> text_type_to_description_map = new TreeMap<String, String>() {
+        {
+            this.put("0", "Fulltext");
+            this.put("1", "Table of Contents");
+            this.put("255", "Unknown");
+        }
+    };
+
     private Set<String> isils_cache = null;
     private Map<String, Collection<Collection<Topic>>> collectedTopicsCache = new TreeMap<>();
+    private JSONArray fulltext_server_hits = new JSONArray();
 
     @Override
-    public void perRecordInit(Record record) {
+    public void perRecordInit(Record record) throws Exception {
         isils_cache = null;
         collectedTopicsCache = new TreeMap<>();
+        final String es_search_response = getElasticsearchSearchResponse(record);
+        fulltext_server_hits = getElasticsearchHits(es_search_response);
     }
 
     private String getTitleFromField(final DataField titleField) {
@@ -2991,22 +3003,51 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    protected String extractFullTextFromJSON(final String responseString) {
+    protected String extractFullTextFromJSON(final JSONArray hits) {
+        if (hits.isEmpty())
+            return "";
+
         StringBuilder fulltextBuilder = new StringBuilder();
+        for (final Object obj : hits) {
+             JSONObject hit = (JSONObject) obj;
+             JSONObject _source = (JSONObject) hit.get("_source");
+             fulltextBuilder.append(_source.get("full_text"));
+        }
+        return fulltextBuilder.toString();
+    }
+
+
+    protected String mapTextTypeToDescription(final String text_type) {
+        return text_type_to_description_map.get(text_type);
+    }
+
+
+    protected Set<String> extractTextTypeFromJSON(final JSONArray hits) {
+        final Set<String> text_types = new TreeSet<String>();
+        if (hits.isEmpty())
+            return text_types;
+        for (final Object obj : hits) {
+             JSONObject hit = (JSONObject) obj;
+             JSONObject _source = (JSONObject) hit.get("_source");
+             final String description = mapTextTypeToDescription((String) _source.get("text_type"));
+             if (description != null)
+                 text_types.add(description);
+        }
+        return text_types;
+    }
+
+
+    protected JSONArray getElasticsearchHits(final String responseString) {
+        if (responseString.isEmpty())
+            return new JSONArray();
         try {
             JSONObject responseObject = (JSONObject) new JSONParser().parse(responseString);
             JSONObject hits = (JSONObject) responseObject.get("hits");
-            JSONArray results = (JSONArray) hits.get("hits");
-            for (final Object obj : results) {
-                JSONObject hit = (JSONObject) obj;
-                JSONObject _source = (JSONObject) hit.get("_source");
-                fulltextBuilder.append(_source.get("full_text"));
-            }
+            return (JSONArray) hits.get("hits");
         } catch(ParseException e) {
            e.printStackTrace();
         }
-
-        return fulltextBuilder.toString();
+        return new JSONArray(); /* should not be reached */
     }
 
 
@@ -3079,7 +3120,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    public String getFullTextElasticsearch(final Record record) throws IOException {
+    protected String getElasticsearchSearchResponse(final Record record) throws IOException {
         if (isFullTextDisabled())
             return "";
         if (!IsInFulltextPPNList(record.getControlNumber()))
@@ -3096,11 +3137,19 @@ public class TuelibMixin extends SolrIndexerMixin {
         CloseableHttpResponse response = httpclient.execute(httpPost);
         try {
             HttpEntity entity = response.getEntity();
-            String responseString = EntityUtils.toString(entity, StandardCharsets.UTF_8);
-            return extractFullTextFromJSON(responseString);
+            return EntityUtils.toString(entity, StandardCharsets.UTF_8);
         } finally {
             response.close();
         }
+    }
+
+    public String getFullTextElasticsearch(final Record record) {
+        return extractFullTextFromJSON(fulltext_server_hits);
+    }
+
+
+    public Set<String> getFullTextTypes(final Record record) {
+        return extractTextTypeFromJSON(fulltext_server_hits);
     }
 
 
