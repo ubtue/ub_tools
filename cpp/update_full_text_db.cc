@@ -277,13 +277,11 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                         combined_text += " " + extracted_text;
                 }
 
-                if (store_pdfs_as_html) {
-                    if (StringUtil::StartsWith(media_type, "application/pdf")) {
-                        const FileUtil::AutoTempFile auto_temp_file("/tmp/fulltext_pdf");
-                        const std::string temp_pdf_path(auto_temp_file.getFilePath());
-                        FileUtil::WriteStringOrDie(temp_pdf_path, document);
-                        cache.extractAndImportHTMLPages(ppn, temp_pdf_path);
-                    }
+                if (store_pdfs_as_html and StringUtil::StartsWith(media_type, "application/pdf")) {
+                    const FileUtil::AutoTempFile auto_temp_file("/tmp/fulltext_pdf");
+                    const std::string temp_pdf_path(auto_temp_file.getFilePath());
+                    FileUtil::WriteStringOrDie(temp_pdf_path, document);
+                    cache.extractAndImportHTMLPages(ppn, temp_pdf_path);
                 }
             }
             at_least_one_error = at_least_one_error ? at_least_one_error : not entry_url.error_message_.empty();
