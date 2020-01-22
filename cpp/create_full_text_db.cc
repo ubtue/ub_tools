@@ -42,8 +42,8 @@ constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 120; // seconds
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout] [--only-open-access] \
-             [--store-pdfs-as-html] marc_input marc_output\n"
+    ::Usage("[--min-log-level=min_verbosity] [--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout]\n"
+            "[--only-open-access] [--store-pdfs-as-html] marc_input marc_output\n"
             "\"--process-count-low-and-high-watermarks\" sets the maximum and minimum number of spawned\n"
             "    child processes.  When we hit the high water mark we wait for child processes to exit\n"
             "    until we reach the low watermark.\n"
@@ -51,7 +51,7 @@ constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 120; // seconds
             "    seconds is the maximum amount of time spent by a subprocess in attemting text extraction from a\n"
             "    downloaded PDF document.\n"
             "\"--only-open-access\" means that only open access texts will be processed.\n"
-            "\"--store-pdfs-as-html\" means that a html representation of downloaded pdfs is stored if possible.\n"
+            "\"--store-pdfs-as-html\" means that an HTML representation of downloaded PDF's is stored if possible.\n"
             );
 
     std::exit(EXIT_FAILURE);
