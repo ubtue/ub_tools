@@ -96,6 +96,7 @@ DbConnection::DbConnection(const std::string &database_path, const OpenMode open
 
     if (::sqlite3_open_v2(database_path.c_str(), &sqlite3_, flags, nullptr) != SQLITE_OK)
         LOG_ERROR("failed to create or open an Sqlite3 database with path \"" + database_path + "\"!");
+    errno = 0; // It seems that sqlite3_open_v2 internally tries something that fails but doesn't clear errno afterwards.
     stmt_handle_ = nullptr;
     initialised_ = true;
 }
@@ -717,19 +718,21 @@ DbTransaction::DbTransaction(DbConnection * const db_connection): db_connection_
         LOG_ERROR("no nested transactions are allowed!");
     ++active_count_;
 
-    db_connection_.queryOrDie("SHOW VARIABLES LIKE 'autocommit'");
-    DbResultSet result_set(db_connection_.getLastResultSet());
-    if (unlikely(result_set.empty()))
-        LOG_ERROR("this should never happen!");
+    if (db_connection_.getType() == DbConnection::T_MYSQL) {
+        db_connection_.queryOrDie("SHOW VARIABLES LIKE 'autocommit'");
+        DbResultSet result_set(db_connection_.getLastResultSet());
+        if (unlikely(result_set.empty()))
+            LOG_ERROR("this should never happen!");
 
-    const std::string autocommit_status(result_set.getNextRow()["Value"]);
-    if (autocommit_status == "ON") {
-        autocommit_was_on_ = true;
-        db_connection_.queryOrDie("SET autocommit=OFF");
-    } else if (autocommit_status == "OFF")
-        autocommit_was_on_ = false;
-    else
-        LOG_ERROR("unknown autocommit status \"" + autocommit_status + "\"!");
+        const std::string autocommit_status(result_set.getNextRow()["Value"]);
+        if (autocommit_status == "ON") {
+            autocommit_was_on_ = true;
+            db_connection_.queryOrDie("SET autocommit=OFF");
+        } else if (autocommit_status == "OFF")
+            autocommit_was_on_ = false;
+        else
+            LOG_ERROR("unknown autocommit status \"" + autocommit_status + "\"!");
+    }
 
     db_connection_.queryOrDie("START TRANSACTION");
 }
@@ -737,7 +740,7 @@ DbTransaction::DbTransaction(DbConnection * const db_connection): db_connection_
 
 DbTransaction::~DbTransaction() {
     db_connection_.queryOrDie("COMMIT");
-    if (autocommit_was_on_)
+    if (db_connection_.getType() == DbConnection::T_MYSQL and autocommit_was_on_)
         db_connection_.queryOrDie("SET autocommit=ON");
     --active_count_;
 }
