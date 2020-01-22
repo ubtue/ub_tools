@@ -17,11 +17,12 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "ZoteroHarvesterUtil.h"
+#include <unistd.h>
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "TimeUtil.h"
-#include "ZoteroHarvesterUtil.h"
 #include "util.h"
 
 
@@ -92,10 +93,12 @@ void ZoteroLogger::queueGlobalMessage(const std::string &level, std::string msg)
 void ZoteroLogger::flushBufferAndPrintProgressImpl(const unsigned num_active_tasks, const unsigned num_queued_tasks) {
     std::lock_guard<std::recursive_mutex> locker(log_buffer_mutex_);
 
-    // reset the progress bar
-    if (not progress_bar_buffer_.empty()) {
-        const std::string empty_string(progress_bar_buffer_.size(), ' ');
-        writeToBackingLog("\r" + empty_string + "\r");
+    if (::isatty(fd_) == 1) {
+        // reset the progress bar
+        if (not progress_bar_buffer_.empty()) {
+            const std::string empty_string(progress_bar_buffer_.size(), ' ');
+            writeToBackingLog("\r" + empty_string + "\r");
+        }
     }
 
     // flush buffer
@@ -104,10 +107,12 @@ void ZoteroLogger::flushBufferAndPrintProgressImpl(const unsigned num_active_tas
         log_buffer_.pop_front();
     }
 
-    // update progress bar
-    progress_bar_buffer_ = "TASKS: ACTIVE = " + std::to_string(num_active_tasks) + ", QUEUED = "
-                           + std::to_string(num_queued_tasks) + "\r";
-    writeToBackingLog(progress_bar_buffer_);
+    if (::isatty(fd_) == 1) {
+        // update progress bar
+        progress_bar_buffer_ = "TASKS: ACTIVE = " + std::to_string(num_active_tasks) + ", QUEUED = "
+                               + std::to_string(num_queued_tasks) + "\r";
+        writeToBackingLog(progress_bar_buffer_);
+    }
 }
 
 
@@ -129,12 +134,7 @@ void ZoteroLogger::error(const std::string &msg) {
     std::string preamble;
     preamble += "ZOTERO debug info:\n";
     preamble += "\tparent tasklet: " + context->description_ + " (handle: " + std::to_string(::pthread_self()) + ")\n";
-    preamble += "\titem:\n";
-    preamble += "\t\tid: " + std::to_string(context->associated_item_.id_) + "\n";
-    preamble += "\t\tjournal: " + context->associated_item_.journal_.name_ + " ("
-                + context->associated_item_.journal_.group_ + "|" + std::to_string(context->associated_item_.journal_.zeder_id_)
-                + ")\n";
-    preamble += "\t\turl: " + context->associated_item_.url_.toString() + "\n\n";
+    preamble += "\titem: " + context->associated_item_.toString() + "\n\n";
 
     // flush the tasklet's buffer
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
