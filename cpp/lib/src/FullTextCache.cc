@@ -276,13 +276,10 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
             expiration = now + MIN_CACHE_EXPIRE_TIME_ON_ERROR + rand(MAX_CACHE_EXPIRE_TIME_ON_ERROR - MIN_CACHE_EXPIRE_TIME_ON_ERROR);
     }
 
-    std::string expiration_string;
-    if (expiration == TimeUtil::BAD_TIME_T and not full_text.empty()) {
-        if (not full_text.empty())
+    if (expiration == TimeUtil::BAD_TIME_T and not full_text.empty())
         full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text },  { "text_type", std::to_string(text_type) } });
-    }
     else {
-        expiration_string = TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT);
+        const std::string expiration_string = TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT);
         if (full_text.empty())
             full_text_cache_.simpleInsert({ { "id", id }, { "expiration", expiration_string } });
         else
