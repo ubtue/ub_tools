@@ -67,7 +67,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
-    private final static Pattern K10PLUS_PPN_PATTERN = Pattern.compile("\\s*." + ISIL_K10PLUS + ".(.*)");
+    private final static Pattern K10PLUS_PPN_PATTERN = Pattern.compile("\\(" + ISIL_K10PLUS + "\\)(.*)");
     private final static Pattern SUPERIOR_PPN_PATTERN = K10PLUS_PPN_PATTERN;
 
     // TODO: This should be in a translation mapping file
@@ -3115,7 +3115,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final Subfield subfield : field.getSubfields(fieldAndSubfieldCode.charAt(3))) {
             final Matcher matcher = K10PLUS_PPN_PATTERN.matcher(subfield.getData());
             if (matcher.matches()) {
-                final Subfield titleSubfield = field.getSubfield('a');
+                Subfield titleSubfield = field.getSubfield('t');
+                if (titleSubfield == null)
+                    titleSubfield = field.getSubfield('a');
                 final String title = (titleSubfield != null) ? titleSubfield.getData() : "";
                 return matcher.group(1) + ":" + title;
             }
