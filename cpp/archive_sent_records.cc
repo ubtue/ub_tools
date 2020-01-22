@@ -59,7 +59,7 @@ void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_
         bool already_delivered(false);
         if (not existing_records_with_hash.empty()) {
             while (auto row = existing_records_with_hash.getNextRow()) {
-                const auto existing_title(row["title"]), existing_url(row["url"]);
+                const auto existing_title(row["main_title"]), existing_url(row["url"]);
                 if (existing_url == url) {
                     LOG_WARNING("hash+url collision - record already delivered! title: '" + existing_title + "'\n"
                                 "hash: '" + hash + "'\nurl: '" + existing_url + "'");
