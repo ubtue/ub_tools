@@ -93,7 +93,7 @@ void ZoteroLogger::queueGlobalMessage(const std::string &level, std::string msg)
 void ZoteroLogger::flushBufferAndPrintProgressImpl(const unsigned num_active_tasks, const unsigned num_queued_tasks) {
     std::lock_guard<std::recursive_mutex> locker(log_buffer_mutex_);
 
-    if (isatty(fd_) == 1) {
+    if (::isatty(fd_) == 1) {
         // reset the progress bar
         if (not progress_bar_buffer_.empty()) {
             const std::string empty_string(progress_bar_buffer_.size(), ' ');
@@ -107,7 +107,7 @@ void ZoteroLogger::flushBufferAndPrintProgressImpl(const unsigned num_active_tas
         log_buffer_.pop_front();
     }
 
-    if (isatty(fd_) == 1) {
+    if (::isatty(fd_) == 1) {
         // update progress bar
         progress_bar_buffer_ = "TASKS: ACTIVE = " + std::to_string(num_active_tasks) + ", QUEUED = "
                             + std::to_string(num_queued_tasks) + "\r";
