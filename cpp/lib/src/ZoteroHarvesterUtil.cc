@@ -17,6 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <unistd.h>
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -92,10 +93,12 @@ void ZoteroLogger::queueGlobalMessage(const std::string &level, std::string msg)
 void ZoteroLogger::flushBufferAndPrintProgressImpl(const unsigned num_active_tasks, const unsigned num_queued_tasks) {
     std::lock_guard<std::recursive_mutex> locker(log_buffer_mutex_);
 
-    // reset the progress bar
-    if (not progress_bar_buffer_.empty()) {
-        const std::string empty_string(progress_bar_buffer_.size(), ' ');
-        writeToBackingLog("\r" + empty_string + "\r");
+    if (isatty(fd_) == 1) {
+        // reset the progress bar
+        if (not progress_bar_buffer_.empty()) {
+            const std::string empty_string(progress_bar_buffer_.size(), ' ');
+            writeToBackingLog("\r" + empty_string + "\r");
+        }
     }
 
     // flush buffer
@@ -104,10 +107,12 @@ void ZoteroLogger::flushBufferAndPrintProgressImpl(const unsigned num_active_tas
         log_buffer_.pop_front();
     }
 
-    // update progress bar
-    progress_bar_buffer_ = "TASKS: ACTIVE = " + std::to_string(num_active_tasks) + ", QUEUED = "
-                           + std::to_string(num_queued_tasks) + "\r";
-    writeToBackingLog(progress_bar_buffer_);
+    if (isatty(fd_) == 1) {
+        // update progress bar
+        progress_bar_buffer_ = "TASKS: ACTIVE = " + std::to_string(num_active_tasks) + ", QUEUED = "
+                            + std::to_string(num_queued_tasks) + "\r";
+        writeToBackingLog(progress_bar_buffer_);
+    }
 }
 
 
