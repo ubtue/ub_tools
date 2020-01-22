@@ -17,12 +17,12 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "ZoteroHarvesterUtil.h"
 #include <unistd.h>
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "TimeUtil.h"
-#include "ZoteroHarvesterUtil.h"
 #include "util.h"
 
 
@@ -110,7 +110,7 @@ void ZoteroLogger::flushBufferAndPrintProgressImpl(const unsigned num_active_tas
     if (::isatty(fd_) == 1) {
         // update progress bar
         progress_bar_buffer_ = "TASKS: ACTIVE = " + std::to_string(num_active_tasks) + ", QUEUED = "
-                            + std::to_string(num_queued_tasks) + "\r";
+                               + std::to_string(num_queued_tasks) + "\r";
         writeToBackingLog(progress_bar_buffer_);
     }
 }
