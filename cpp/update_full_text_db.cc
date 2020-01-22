@@ -208,7 +208,6 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
     const std::string ppn(record->getControlNumber());
     struct UrlAndTextType {
         std::string url_;
-        //FullTextCache::TextType text_type_;
         std::string text_type_;
     };
     std::vector<UrlAndTextType> urls_and_text_types;
