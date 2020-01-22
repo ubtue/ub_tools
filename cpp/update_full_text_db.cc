@@ -41,7 +41,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--pdf-extraction-timeout=timeout] [--use-only-open-access-documents] [--store-pdfs-as-html] file_offset marc_input marc_output\n"
+    ::Usage("[--min-log-level=min_verbosity] [--pdf-extraction-timeout=timeout] [--use-only-open-access-documents] [--store-pdfs-as-html]\n"
+            "file_offset marc_input marc_output\n"
             "\"--pdf-extraction-timeout\" timeout in seconds (default " + std::to_string(PdfUtil::DEFAULT_PDF_EXTRACTION_TIMEOUT) + ").\n"
             "\"--use-only-open-access-documents\": use only dowload links that that are marked as \"Kostenfrei\"\n"
             "\"--store-pdfs-as-html\": Also store HTML representation of downloaded PDFs\n"
