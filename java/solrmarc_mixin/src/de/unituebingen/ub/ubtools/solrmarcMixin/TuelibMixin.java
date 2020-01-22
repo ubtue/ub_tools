@@ -67,8 +67,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
     private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
     private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
-    private final static Pattern K10PLUS_PPN_PATTERN = Pattern.compile("\\(" + ISIL_K10PLUS + "\\)(.*)");
-    private final static Pattern SUPERIOR_PPN_PATTERN = K10PLUS_PPN_PATTERN;
+    private final static Pattern PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN = Pattern.compile("\\(" + ISIL_K10PLUS + "\\)(.*)");
+    private final static Pattern SUPERIOR_PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN = PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN;
 
     // TODO: This should be in a translation mapping file
     private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
@@ -2967,7 +2967,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 final Subfield subfield = field.getSubfield(subfieldCode);
                 if (subfield == null)
                     continue;
-                final Matcher matcher = SUPERIOR_PPN_PATTERN.matcher(subfield.getData());
+                final Matcher matcher = SUPERIOR_PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN.matcher(subfield.getData());
                 if (matcher.matches())
                      return matcher.group(1);
             }
@@ -3113,7 +3113,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             return null;
 
         for (final Subfield subfield : field.getSubfields(fieldAndSubfieldCode.charAt(3))) {
-            final Matcher matcher = K10PLUS_PPN_PATTERN.matcher(subfield.getData());
+            final Matcher matcher = PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN.matcher(subfield.getData());
             if (matcher.matches()) {
                 Subfield titleSubfield = field.getSubfield('t');
                 if (titleSubfield == null)
