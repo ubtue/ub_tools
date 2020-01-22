@@ -212,7 +212,6 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
     };
     std::vector<UrlAndTextType> urls_and_text_types;
 
-std::cerr << "ONLY OPEN ACCESS [ppn: " << ppn << "]: " << use_only_open_access_links <<'\n';
     // Get URL's:
     for (const auto _856_field : record->getTagRange("856")) {
         const MARC::Subfields _856_subfields(_856_field.getSubfields());
