@@ -33,8 +33,8 @@ namespace Download {
 namespace DirectDownload {
 
 
-// Set to 20 empirically. Larger numbers increase the incidence of the translation server bug
-// that returns the a mostly empty response.
+// Set to 20 empirically. Larger numbers increase the incidence of the
+// translation server bug that returns an empty/broken response.
 static const unsigned MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS = 20;
 ThreadUtil::Semaphore translation_server_request_semaphore(MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS);
 
