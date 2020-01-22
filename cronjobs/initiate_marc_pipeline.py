@@ -14,8 +14,11 @@ import util
 # Since no commit is executed here we avoid the empty index problem
 def ClearSolrIndex(index):
     try:
-        request = urllib.request.Request(
-            "http://localhost:8080/solr/" + index + "/update?wt=xml&stream.body=%3Cdelete%3E%3Cquery%3E*:*%3C/query%3E%3C/delete%3E")
+        url = "http://localhost:8080/solr/" + index + "/update"
+        values = "<delete><query>*:*</query></delete>"
+        data = values.encode('utf-8')
+        headers = {"Content-Type": "application/xml"}
+        request = urllib.request.Request(url, data, headers)
         response = urllib.request.urlopen(request, timeout=60)
     except:
         util.SendEmail("MARC-21 Pipeline", "Failed to clear the SOLR index \"" + index + "\"!", priority=1)
