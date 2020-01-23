@@ -1139,6 +1139,8 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
             LOG_WARNING("couldn't convert record: " + std::string(x.what()));
         }
     }
+
+    LOG_INFO("Conversion complete");
 }
 
 

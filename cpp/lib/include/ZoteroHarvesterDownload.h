@@ -236,9 +236,10 @@ public:
 
 
 struct Result {
+    bool feed_skipped_since_recently_harvested_;
     std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
 public:
-    explicit Result() = default;
+    explicit Result(): feed_skipped_since_recently_harvested_(false) {}
     Result(const Result &rhs) = delete;
 };
 

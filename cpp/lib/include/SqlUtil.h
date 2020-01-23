@@ -135,4 +135,16 @@ std::set<std::string> GetColumnNames(DbConnection * const connection, const std:
 unsigned GetTableSize(DbConnection * const connection, const std::string &table_name);
 
 
+// Ensures that thread-specific variables are initialized for the correct functioning
+// of the MySQL connector. Must be initialized at the very beginning of the invoking thread.
+struct ThreadSafetyGuard {
+    enum Thread { MAIN_THREAD, WORKER_THREAD };
+private:
+    Thread invoker_thread_;
+public:
+    explicit ThreadSafetyGuard(const Thread invoker_thread);
+    ~ThreadSafetyGuard();
+};
+
+
 } // namespace SqlUtil

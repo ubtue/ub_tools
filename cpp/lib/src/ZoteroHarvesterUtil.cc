@@ -19,11 +19,13 @@
 
 #include "ZoteroHarvesterUtil.h"
 #include <unistd.h>
+#include "GzStream.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "TimeUtil.h"
 #include "util.h"
+#include "ZoteroHarvesterConversion.h"
 
 
 namespace ZoteroHarvester {
@@ -263,6 +265,15 @@ ThreadUtil::ThreadSafeCounter<unsigned> tasklet_instance_counter;
 ThreadUtil::ThreadSafeCounter<unsigned> future_instance_counter;
 
 
+class WaitOnSemaphore {
+    ThreadUtil::Semaphore * const semaphore_;
+public:
+    explicit WaitOnSemaphore(ThreadUtil::Semaphore * const semaphore)
+        : semaphore_(semaphore) { semaphore_->wait(); }
+    ~WaitOnSemaphore() { semaphore_->post(); }
+};
+
+
 static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::Entry * const entry) {
     if (row.empty())
         LOG_ERROR("Couldn't extract DeliveryTracker entry from empty DbRow");
@@ -275,9 +286,12 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
 
 
 bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const entry) const {
-    db_connection_->queryOrDie("SELECT url, delivered_at, journal_name, hash FROM delivered_marc_records WHERE url='"
-                               + db_connection_->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'");
-    auto result_set(db_connection_->getLastResultSet());
+    WaitOnSemaphore lock(&connection_pool_semaphore_);
+    DbConnection db_connection;
+
+    db_connection.queryOrDie("SELECT url, delivered_at, journal_name, hash FROM delivered_marc_records WHERE url='"
+                             + db_connection.escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'");
+    auto result_set(db_connection.getLastResultSet());
     if (result_set.empty())
         return false;
 
@@ -289,9 +303,12 @@ bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const en
 
 
 bool UploadTracker::hashAlreadyDelivered(const std::string &hash, Entry * const entry) const {
-    db_connection_->queryOrDie("SELECT url, delivered_at, journal_name, hash FROM delivered_marc_records WHERE hash='"
-                               + db_connection_->escapeString(hash) + "'");
-    auto result_set(db_connection_->getLastResultSet());
+    WaitOnSemaphore lock(&connection_pool_semaphore_);
+    DbConnection db_connection;
+
+    db_connection.queryOrDie("SELECT url, delivered_at, journal_name, hash FROM delivered_marc_records WHERE hash='"
+                             + db_connection.escapeString(hash) + "'");
+    auto result_set(db_connection.getLastResultSet());
     if (result_set.empty())
         return false;
 
@@ -305,9 +322,12 @@ bool UploadTracker::hashAlreadyDelivered(const std::string &hash, Entry * const 
 size_t UploadTracker::listOutdatedJournals(const unsigned cutoff_days,
                                            std::unordered_map<std::string, time_t> * const outdated_journals) const
 {
-    db_connection_->queryOrDie("SELECT url, delivered_at, journal_name, hash FROM harvested_urls"
-                               "WHERE last_harvest_time < DATEADD(day, -" + std::to_string(cutoff_days) + ", GETDATE())");
-    auto result_set(db_connection_->getLastResultSet());
+    WaitOnSemaphore lock(&connection_pool_semaphore_);
+    DbConnection db_connection;
+
+    db_connection.queryOrDie("SELECT url, delivered_at, journal_name, hash FROM harvested_urls"
+                             "WHERE last_harvest_time < DATEADD(day, -" + std::to_string(cutoff_days) + ", GETDATE())");
+    auto result_set(db_connection.getLastResultSet());
     Entry temp_entry;
     while (const DbRow row = result_set.getNextRow()) {
         UpdateUploadTrackerEntryFromDbRow(row, &temp_entry);
@@ -326,14 +346,93 @@ size_t UploadTracker::listOutdatedJournals(const unsigned cutoff_days,
 
 
 time_t UploadTracker::getLastUploadTime(const std::string &journal_name) const {
-    db_connection_->queryOrDie("SELECT delivered_at FROM delivered_marc_records WHERE journal_name='" +
-                                db_connection_->escapeString(journal_name) + "' ORDER BY delivered_at DESC");
-    auto result_set(db_connection_->getLastResultSet());
+    WaitOnSemaphore lock(&connection_pool_semaphore_);
+    DbConnection db_connection;
+
+    db_connection.queryOrDie("SELECT delivered_at FROM delivered_marc_records WHERE journal_name='" +
+                             db_connection.escapeString(journal_name) + "' ORDER BY delivered_at DESC");
+    auto result_set(db_connection.getLastResultSet());
     if (result_set.empty())
         return TimeUtil::BAD_TIME_T;
 
     return SqlUtil::DatetimeToTimeT(result_set.getNextRow()["delivered_at"]);
 }
+
+
+bool UploadTracker::archiveRecord(const MARC::Record &record) {
+    WaitOnSemaphore lock(&connection_pool_semaphore_);
+    DbConnection db_connection;
+
+    const std::string hash(Conversion::CalculateMarcRecordHash(record));
+    const std::string primary_url(record.getFirstSubfieldValue("URL", 'a'));
+    const std::string zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
+    const std::string journal_name(record.getFirstSubfieldValue("JOU", 'a'));
+    const std::string main_title(record.getMainTitle());
+
+    db_connection.queryOrDie("SELECT url, main_title FROM delivered_marc_records WHERE hash="
+                             + db_connection.escapeAndQuoteString(hash));
+    // auto existing_records_with_hash(db_connection.getLastResultSet());
+    // bool already_archived(false);
+    // if (not existing_records_with_hash.empty()) {
+    //     while (auto row = existing_records_with_hash.getNextRow()) {
+    //         const auto existing_title(row["main_title"]), existing_url(row["url"]);
+    //         if (existing_url == url) {
+    //             LOG_WARNING("hash+url collision - record already archived! title: '" + existing_title + "'\n"
+    //                         "hash: '" + hash + "'\nurl: '" + existing_url + "'");
+    //             already_archived = true;
+    //         } else {
+    //             LOG_WARNING("hash collision - record already archived! title: '" + existing_title + "'\n"
+    //                         "hash: '" + hash + "'\nurl: '" + existing_url + "'");
+    //             already_archived = true;
+    //         }
+    //     }
+    // }
+
+    // if (already_archived)
+    //     return false;
+
+    std::string publication_year, volume, issue, pages;
+    const auto _936_field(record.getFirstField("936"));
+    if (_936_field != record.end()) {
+        const MARC::Subfields subfields(_936_field->getSubfields());
+        if (subfields.hasSubfield('j'))
+            publication_year = ",publication_year=" + db_connection.escapeAndQuoteString(subfields.getFirstSubfieldWithCode('j'));
+        if (subfields.hasSubfield('d'))
+            volume = ",volume=" + db_connection.escapeAndQuoteString(subfields.getFirstSubfieldWithCode('d'));
+        if (subfields.hasSubfield('e'))
+            issue = ",issue=" + db_connection.escapeAndQuoteString(subfields.getFirstSubfieldWithCode('e'));
+        if (subfields.hasSubfield('h'))
+            pages = ",pages=" + db_connection.escapeAndQuoteString(subfields.getFirstSubfieldWithCode('h'));
+    }
+
+    std::string resource_type(record.getFirstFieldContents("007") == "tu" ? "print" : "online");
+    db_connection.queryOrDie("INSERT INTO delivered_marc_records SET url="
+                             + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(primary_url))
+                             + ",zeder_id=" + db_connection.escapeAndQuoteString(zeder_id) + ",journal_name="
+                             + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(journal_name))
+                             +  ",hash=" + db_connection.escapeAndQuoteString(hash) + ",main_title="
+                             + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(main_title))
+                             + publication_year + volume + issue + pages + ",resource_type='" + resource_type + "',record="
+                             + db_connection.escapeAndQuoteString(GzStream::CompressString(record.toBinaryString(), GzStream::GZIP)));
+
+    db_connection.queryOrDie("SELECT * FROM delivered_marc_records_superior_info WHERE zeder_id="
+                             + db_connection.escapeAndQuoteString(zeder_id));
+
+    if (db_connection.getLastResultSet().empty()) {
+        const std::string superior_title(record.getSuperiorTitle());
+        const auto superior_control_number(record.getSuperiorControlNumber());
+        const std::string superior_control_number_sql(superior_control_number.empty() ? "" : ",control_number="
+                                                      + db_connection.escapeAndQuoteString(superior_control_number));
+
+        db_connection.queryOrDie("INSERT INTO delivered_marc_records_superior_info SET zeder_id="
+                                 + db_connection.escapeAndQuoteString(zeder_id) + ",title="
+                                 + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(superior_title))
+                                 + superior_control_number_sql);
+    }
+
+    return true;
+}
+
 
 
 std::recursive_mutex non_threadsafe_locale_modification_guard;
