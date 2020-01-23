@@ -21,6 +21,7 @@
 #include "MARC.h"
 #include "StringUtil.h"
 #include "ZoteroHarvesterConfig.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -54,6 +55,12 @@ const std::map<int, std::string> UPLOAD_OPERATION_TO_STRING_MAP {
 };
 
 
+std::string GetHostTranslationServerUrl() {
+    const IniFile ini(UBTools::GetTuelibPath() + "zotero.conf");
+    return ini.getString("Server", "url");
+}
+
+
 GlobalParams::GlobalParams(const IniFile::Section &config_section) {
     skip_online_first_articles_unconditonally_ = false;
     download_delay_params_.default_delay_ = 0;
@@ -61,7 +68,9 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
     rss_harvester_operation_params_.harvest_interval_ = 0;
     rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_ = false;
 
-    translation_server_url_ = config_section.getString(GetIniKeyString(TRANSLATION_SERVER_URL));
+    // Translation server URL is special-cased
+    translation_server_url_ = GetHostTranslationServerUrl();
+
     enhancement_maps_directory_ = config_section.getString(GetIniKeyString(ENHANCEMENT_MAPS_DIRECTORY));
     group_names_ = config_section.getString(GetIniKeyString(GROUP_NAMES));
     strptime_format_string_ = config_section.getString(GetIniKeyString(STRPTIME_FORMAT_STRING));
@@ -81,7 +90,6 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
 
 
 const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MAP {
-    { TRANSLATION_SERVER_URL,                     "translation_server_url" },
     { ENHANCEMENT_MAPS_DIRECTORY,                 "enhancement_maps_directory" },
     { GROUP_NAMES,                                "groups" },
     { STRPTIME_FORMAT_STRING,                     "common_strptime_format" },
