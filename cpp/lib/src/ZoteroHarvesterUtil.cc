@@ -293,7 +293,7 @@ public:
 
 
 std::string UploadTracker::Entry::toString() const {
-    std::string out("delivered_marc_records entry:");
+    std::string out("delivered_marc_records entry:\n");
     out += "\turl: " + url_ + "\n";
     out += "\tdelivered_at: " + delivered_at_str_ + "\n";
     out += "\tjournal: "  + journal_name_ + "\n";
@@ -363,11 +363,11 @@ bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const
     for (const auto &url : record_urls) {
         if (urlAlreadyDelivered(url, &buffer, db_connection)) {
             if (buffer.hash_ != record_hash) {
-                LOG_WARNING("record with URL '" + url + "' aleady delivered but with a different hash!");
-                LOG_DEBUG("\tdelivered hash: " + buffer.hash_);
+                LOG_WARNING("record with URL '" + url + "' already delivered but with a different hash!");
                 LOG_DEBUG("\tcurrent hash: " + record_hash);
+                LOG_DEBUG("\t" + buffer.toString());
             } else
-                LOG_WARNING("record with URL '" + url + "' aleady delivered with the same hash (" + record_hash + ")");
+                LOG_WARNING("record with URL '" + url + "' already delivered with the same hash (" + record_hash + ")");
 
             already_delivered = true;
             break;
@@ -381,7 +381,7 @@ bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const
                 for (const auto &entry : hash_bucket)
                     LOG_DEBUG(entry.toString());
             } else
-                LOG_WARNING("record with URL '" + hash_bucket[0].url_ + "' aleady delivered with the same hash (" + record_hash + ")");
+                LOG_WARNING("record with URL '" + hash_bucket[0].url_ + "' already delivered with the same hash (" + record_hash + ")");
 
             already_delivered = true;
         }
