@@ -519,25 +519,34 @@ template <typename Parameter, typename Result> Result &Future<Parameter, Result>
 
 // Tracks harvested records that have been uploaded to the BSZ server.
 class UploadTracker {
-    static constexpr unsigned CONNECTION_POOL_SIZE = 50;
-
-
-    mutable ThreadUtil::Semaphore connection_pool_semaphore_;
 public:
     struct Entry {
         std::string url_;
         std::string journal_name_;
         time_t delivered_at_;
+        std::string delivered_at_str_;
         std::string hash_;
+
+        std::string toString() const;
     };
+private:
+    static constexpr unsigned CONNECTION_POOL_SIZE = 50;
+
+
+    mutable ThreadUtil::Semaphore connection_pool_semaphore_;
+
+
+    bool urlAlreadyDelivered(const std::string &url, Entry * const entry, DbConnection * const db_connection) const;
+    bool hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries,
+                              DbConnection * const db_connection) const;
+    bool recordAlreadyDelivered(const std::string &record_hash, const std::vector<std::string> &record_urls,
+                                DbConnection * const db_connection) const;
 public:
     explicit UploadTracker(): connection_pool_semaphore_(CONNECTION_POOL_SIZE) {}
 
     bool urlAlreadyDelivered(const std::string &url, Entry * const entry = nullptr) const;
-    bool hashAlreadyDelivered(const std::string &hash, Entry * const entry = nullptr) const;
-
-    // Lists all journals that haven't had a single URL delivered for a given number of days.
-    size_t listOutdatedJournals(const unsigned cutoff_days, std::unordered_map<std::string, time_t> * const outdated_journals) const;
+    bool hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries = nullptr) const;
+    bool recordAlreadyDelivered(const MARC::Record &record) const;
 
     // Returns when the last URL of the given journal was delivered to the BSZ. If found,
     // returns the timestamp of the last delivery, TimeUtil::BAD_TIME_T otherwise.
