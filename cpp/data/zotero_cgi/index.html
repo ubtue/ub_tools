@@ -62,7 +62,12 @@
 </head>
 <body>
 <h1>Zotero Harvesting</h1>
-<p><i>Zotero Translation Server: {zotero_translation_server_url}</i></p>
+<div><i>Zotero Translation Server: {zotero_translation_server_url}</i>
+    <form method="post" action="{zotero_translation_server_url}/search" target="_blank" enctype="text/plain" style="display: inline;">
+        <input type="hidden" name="doi" value="10.18452/9093">
+        <button title="Try to get a test dataset from the server in a new window.&#013;This needs to be a button, because a POST request must be sent&#013;which is not possible via hyperlink.">test</button>
+    </form>
+</div>
 
 <p>
     Zeder: <a target="_blank" href="http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo">ixtheo</a> | <a target="_blank" href="http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=krim">krim</a>,
