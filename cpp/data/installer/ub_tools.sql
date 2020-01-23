@@ -27,11 +27,11 @@ CREATE TABLE rss_aggregator (
 
 -- Table to be used w/ our validate_harvested_records tool:
 CREATE TABLE metadata_presence_tracer (
-       journal_name VARCHAR(764) NOT NULL,
-       metadata_field_name CHAR(4) NOT NULL,
-       field_presence ENUM('always', 'sometimes', 'ignore') NOT NULL,
-       UNIQUE(journal_name, metadata_field_name),
-       INDEX journal_name_and_metadata_field_name_index(journal_name, metadata_field_name)
+    journal_name VARCHAR(764) NOT NULL,
+    metadata_field_name CHAR(4) NOT NULL,
+    field_presence ENUM('always', 'sometimes', 'ignore') NOT NULL,
+    UNIQUE(journal_name, metadata_field_name),
+    INDEX journal_name_and_metadata_field_name_index(journal_name, metadata_field_name)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 

@@ -295,6 +295,7 @@ void CreateUbToolsDatabase(const OSSystemType os_system_type) {
         Echo("creating ub_tools MySQL database");
         DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
+        DbConnection::MySQLGrantAllPrivileges(sql_database + "_tmp", sql_username, root_username, root_password);
         DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, root_username, root_password);
     }
 
@@ -521,6 +522,12 @@ void InstallCronjobs(const VuFindSystemType vufind_system_type) {
 }
 
 
+void AddUserToGroup(const std::string &username, const std::string &groupname) {
+    Echo("Adding user " + username + " to group " + groupname);
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("usermod"), { "--append", "--groups", groupname, username });
+}
+
+
 // Note: this will also create a group with the same name
 void CreateUserIfNotExists(const std::string &username) {
     const int user_exists(ExecUtil::Exec(ExecUtil::LocateOrDie("id"), { "-u", username }));
@@ -588,6 +595,7 @@ void DownloadVuFind() {
 void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_systemctl) {
     const std::string username("vufind");
     CreateUserIfNotExists(username);
+    AddUserToGroup(username, "apache");
 
     // systemd will start apache as root
     // but apache will start children as configured in /etc

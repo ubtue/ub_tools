@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "BSZUtil.h"
 #include "FileLocker.h"
 #include "FileUtil.h"
 #include "MiscUtil.h"
@@ -971,20 +972,23 @@ std::string Record::getPublicationYear(const std::string &fallback) const {
 }
 
 
-std::set<std::string> Record::getAllAuthors() const {
+std::map<std::string, std::string> Record::getAllAuthorsAndPPNs() const {
     static const std::vector<std::string> AUTHOR_TAGS { "100", "109", "700" };
 
-    std::set<std::string> author_names;
+    std::map<std::string, std::string> author_names_to_authority_ppns_map;
+    std::set<std::string> already_seen_author_names;
     for (const auto tag : AUTHOR_TAGS) {
         for (const auto &field : getTagRange(tag)) {
             for (const auto &subfield : field.getSubfields()) {
-                if (subfield.code_ == 'a')
-                    author_names.emplace(subfield.value_);
+                if (subfield.code_ == 'a' and already_seen_author_names.find(subfield.value_) == already_seen_author_names.end()) {
+                    already_seen_author_names.emplace(subfield.value_);
+                    author_names_to_authority_ppns_map[subfield.value_] = BSZUtil::GetK10PlusPPNFromSubfield(field, '0');
+                }
             }
         }
     }
 
-    return author_names;
+    return author_names_to_authority_ppns_map;
 }
 
 

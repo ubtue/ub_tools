@@ -24,6 +24,7 @@
 #include <vector>
 #include <cstdlib>
 #include "FileUtil.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -64,8 +65,11 @@ void LoadSchema(const std::string &filename, std::map<std::string, std::vector<s
             }
             current_table = ExtractBackQuotedString(line.substr(__builtin_strlen("CREATE TABLE ")));
             current_schema.clear();
-        } else
+        } else {
+            if (line[line.length() - 1] == ',')
+                line = line.substr(0, line.length() - 1);
             current_schema.emplace_back(line);
+        }
     }
     if (not current_schema.empty()) {
         std::sort(current_schema.begin(), current_schema.end(), SchemaLineIsLessThan);
@@ -74,11 +78,11 @@ void LoadSchema(const std::string &filename, std::map<std::string, std::vector<s
 }
 
 
-std::set<std::string> FindLinesStartingWithPrefix(const std::vector<std::string> &lines, const std::string &prefix) {
-    std::set<std::string> matching_lines;
+std::vector<std::string> FindLinesStartingWithPrefix(const std::vector<std::string> &lines, const std::string &prefix) {
+    std::vector<std::string> matching_lines;
     for (const auto &line : lines) {
         if (StringUtil::StartsWith(line, prefix))
-            matching_lines.emplace(line);
+            matching_lines.emplace_back(line);
     }
     return matching_lines;
 }
@@ -95,7 +99,7 @@ void CompareTables(const std::string &prefix, const std::map<std::string, std::v
             continue;
         const auto &schema2(table_name2_and_schema2->second);
 
-        const std::set<std::string> matching_lines_in_table1(FindLinesStartingWithPrefix(table_name1_and_schema1.second, prefix));
+        const auto matching_lines_in_table1(FindLinesStartingWithPrefix(table_name1_and_schema1.second, prefix));
         for (const auto &matching_line_in_table1 : matching_lines_in_table1) {
             const auto matching_line_in_schema2(std::find(schema2.cbegin(), schema2.cend(), matching_line_in_table1));
             if (matching_line_in_schema2 == schema2.cend())
@@ -103,7 +107,7 @@ void CompareTables(const std::string &prefix, const std::map<std::string, std::v
         }
         for (const auto &line_in_table2 : schema2) {
             if (StringUtil::StartsWith(line_in_table2, prefix)
-                and matching_lines_in_table1.find(line_in_table2) == matching_lines_in_table1.cend())
+                and std::find(matching_lines_in_table1.cbegin(), matching_lines_in_table1.cend(), line_in_table2) == matching_lines_in_table1.cend())
                 std::cout << line_in_table2 << " is missing in 1st schema for table " << table_name1 << '\n';
         }
     }
@@ -143,15 +147,19 @@ void CompareTableOptions(const std::map<std::string, std::vector<std::string>> &
         if (unlikely(table_options2 == schema2.cend()))
             LOG_ERROR("No table options line for table \"" + table_name1 + "\" found in 2nd schema!");
 
-        if (*table_options1 != *table_options2)
-            std::cerr << "Table options differ for " << table_name1 << ": " << table_options1->substr(2) << " -> "
-                      << table_options2->substr(2) << '\n';
+        static RegexMatcher * const auto_increment_matcher(RegexMatcher::RegexMatcherFactoryOrDie("\\s*AUTO_INCREMENT=\\d+"));
+        const std::string cleaned_table_options1(auto_increment_matcher->replaceAll(table_options1->substr(2), ""));
+        const std::string cleaned_table_options2(auto_increment_matcher->replaceAll(table_options2->substr(2), ""));
+
+        if (cleaned_table_options1 != cleaned_table_options2)
+            std::cerr << "Table options differ for " << table_name1 << ": " << cleaned_table_options1 << " -> "
+                      << cleaned_table_options2 << '\n';
     }
 }
 
 
 void ReportUnknownLines(const std::string &schema, const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map) {
-    static const std::vector<std::string> KNOWN_LINE_PREFIXES{ "KEY", "PRIMARY KEY", "UNIQUE KEY", "CONSTRAINT", " )" };
+    static const std::vector<std::string> KNOWN_LINE_PREFIXES{ "KEY", "PRIMARY KEY", "UNIQUE KEY", "CONSTRAINT", ") ", "`" };
 
     for (const auto &table_name_and_schema : table_name_to_schema_map) {
         for (const auto &line : table_name_and_schema.second) {
@@ -200,7 +208,7 @@ void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_na
             if (column_def2 == last_column_def2.base())
                 std::cout << "Column does not exist in 1st schema: " << table_name1 << '.' << column_name1 << '\n';
             else if (*column_def1 != *column_def2)
-                std::cout << "Column definition differs between the 1st and 2nd schemas: " << *column_def1 << " -> " << *column_def2 << '\n';
+                std::cout << "Column definition differs between the 1st and 2nd schemas (" << table_name1 << "): " << *column_def1 << " -> " << *column_def2 << '\n';
         }
 
         for (auto column_def2(schema2.cbegin()); column_def2 != last_column_def2.base(); ++column_def2) {
@@ -230,7 +238,7 @@ void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_na
     CompareTableOptions(table_name_to_schema_map1, table_name_to_schema_map2);
 
     ReportUnknownLines("schema1", table_name_to_schema_map1);
-    ReportUnknownLines("schema2", table_name_to_schema_map1);
+    ReportUnknownLines("schema2", table_name_to_schema_map2);
 }
 
 

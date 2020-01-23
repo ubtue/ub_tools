@@ -40,6 +40,12 @@ constexpr unsigned MIN_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60); // About 1 month 
 constexpr unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 months in seconds.
 
 
+static const std::map<std::string, FullTextCache::TextType> description_to_text_type_map {
+    { "Volltext", FullTextCache::FULLTEXT },
+    { "Inhaltsverzeichnis", FullTextCache::TOC }
+};
+
+
 bool FullTextCache::getDomainFromUrl(const std::string &url, std::string * const domain) const {
     std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
     const bool result(UrlUtil::ParseUrl(url, &scheme, &username_password, &authority, &port, &path, &params, &query,
@@ -227,9 +233,18 @@ unsigned FullTextCache::getSize() const {
 }
 
 
-void FullTextCache::extractAndImportHTMLPages(const std::string &id, const std::string &full_text_location) {
-   std::string html_export_directory;
-   PdfUtil::ExtractHTMLAsPages(full_text_location, &html_export_directory);
+FullTextCache::TextType FullTextCache::mapTextDescriptionToTextType(const std::string &text_description) {
+    const auto text_type(description_to_text_type_map.find(text_description));
+    if (text_type == description_to_text_type_map.cend())
+        return UNKNOWN;
+    return text_type->second;
+}
+
+
+void FullTextCache::extractAndImportHTMLPages(const std::string &id, const std::string &full_text_location, const TextType &text_type) {
+   const FileUtil::AutoTempDirectory auto_temp_dir("/tmp/ADT");
+   const std::string html_export_directory(auto_temp_dir.getDirectoryPath());
+   PdfUtil::ExtractHTMLAsPages(full_text_location, html_export_directory);
    FileUtil::Directory html_pages(html_export_directory, ".*-\\d+\\.html");
    for (const auto &html_page : html_pages) {
        static const auto page_number_matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*-(\\d+)\\.html$"));
@@ -242,13 +257,13 @@ void FullTextCache::extractAndImportHTMLPages(const std::string &id, const std::
        std::stringstream full_text_stream;
        full_text_stream << page_file.rdbuf();
        std::string page_text(full_text_stream.str());
-       full_text_cache_html_.simpleInsert({ { "id", id }, { "page", page_number },  { "full_text", page_text } });
+       full_text_cache_html_.simpleInsert({ { "id", id }, { "page", page_number },  { "full_text", page_text }, { "text_type", std::to_string(text_type) } });
    }
 }
 
 
 void FullTextCache::insertEntry(const std::string &id, const std::string &full_text,
-                                const std::vector<EntryUrl> &entry_urls)
+                                const std::vector<EntryUrl> &entry_urls, const TextType &text_type)
 {
     const time_t now(std::time(nullptr));
     Random::Rand rand(now);
@@ -261,13 +276,16 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
             expiration = now + MIN_CACHE_EXPIRE_TIME_ON_ERROR + rand(MAX_CACHE_EXPIRE_TIME_ON_ERROR - MIN_CACHE_EXPIRE_TIME_ON_ERROR);
     }
 
-    std::string expiration_string;
-    if (expiration == TimeUtil::BAD_TIME_T) {
-        full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text } });
-    }
+    if (expiration == TimeUtil::BAD_TIME_T)
+        if (not full_text.empty())
+            full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text },  { "text_type", std::to_string(text_type) } });
     else {
-        expiration_string = TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT);
-        full_text_cache_.simpleInsert({ { "id", id }, { "expiration", expiration_string }, { "full_text", full_text } });
+        const std::string expiration_string = TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT);
+        if (full_text.empty())
+            full_text_cache_.simpleInsert({ { "id", id }, { "expiration", expiration_string } });
+        else
+            full_text_cache_.simpleInsert({ { "id", id }, { "expiration", expiration_string }, { "full_text", full_text },
+                                          { "text_type", std::to_string(text_type) } });
     }
 
     for (const auto &entry_url : entry_urls) {
