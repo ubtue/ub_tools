@@ -1169,8 +1169,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
             for (final Subfield subfield_u : field.getSubfields('u')) {
                 final String rawLink = subfield_u.getData();
-                final int index = rawLink.indexOf("urn:", 0) ;
-
+                final int index = rawLink.indexOf("urn:", 0);
                 if (index >= 0) {
                     final String link = rawLink.substring("urn:".length());
                     result.add("URN:" + link);
@@ -1190,7 +1189,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             for (final Subfield subfield_u : field.getSubfields('u')) {
                 final String rawLink = subfield_u.getData();
                 final int index = rawLink.indexOf("http://hdl.handle.net/", 0);
-
                 if (index >= 0) {
                     final String link = rawLink.substring("http://hdl.handle.net/".length());
                     result.add("HDL:" + link);
