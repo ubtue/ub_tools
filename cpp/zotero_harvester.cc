@@ -196,6 +196,7 @@ public:
 struct Metrics {
     unsigned num_journals_with_harvest_operation_direct_;
     unsigned num_journals_with_harvest_operation_rss_;
+    unsigned num_journals_with_harvest_operation_rss_skipped_;
     unsigned num_journals_with_harvest_operation_crawl_;
     unsigned num_downloads_crawled_successful_;
     unsigned num_downloads_crawled_unsuccessful_;
@@ -206,6 +207,7 @@ struct Metrics {
     unsigned num_downloads_skipped_since_already_harvested_;
     unsigned num_downloads_skipped_since_already_delivered_;
     unsigned num_marc_conversions_successful_;
+    unsigned num_marc_conversions_unsuccessful_;
     unsigned num_marc_conversions_skipped_since_online_first_;
     unsigned num_marc_conversions_skipped_since_early_view_;
     unsigned num_marc_conversions_skipped_since_exclusion_filters_;
@@ -219,13 +221,14 @@ public:
 
 
 Metrics::Metrics()
- : num_journals_with_harvest_operation_direct_(0), num_journals_with_harvest_operation_rss_(0),
-   num_journals_with_harvest_operation_crawl_(0), num_downloads_crawled_successful_(0), num_downloads_crawled_unsuccessful_(0),
-   num_downloads_crawled_cache_hits_(0), num_downloads_harvested_successful_(0), num_downloads_harvested_unsuccessful_(0),
-   num_downloads_harvested_cache_hits_(0), num_downloads_skipped_since_already_harvested_(0),
-   num_downloads_skipped_since_already_delivered_(0), num_marc_conversions_successful_(0),
-   num_marc_conversions_skipped_since_online_first_(0), num_marc_conversions_skipped_since_early_view_(0),
-   num_marc_conversions_skipped_since_exclusion_filters_(0), num_marc_conversions_skipped_since_already_delivered_(0) {}
+    : num_journals_with_harvest_operation_direct_(0), num_journals_with_harvest_operation_rss_(0),
+      num_journals_with_harvest_operation_rss_skipped_(0), num_journals_with_harvest_operation_crawl_(0),
+      num_downloads_crawled_successful_(0), num_downloads_crawled_unsuccessful_(0),
+      num_downloads_crawled_cache_hits_(0), num_downloads_harvested_successful_(0), num_downloads_harvested_unsuccessful_(0),
+      num_downloads_harvested_cache_hits_(0), num_downloads_skipped_since_already_harvested_(0),
+      num_downloads_skipped_since_already_delivered_(0), num_marc_conversions_successful_(0), num_marc_conversions_unsuccessful_(0),
+      num_marc_conversions_skipped_since_online_first_(0), num_marc_conversions_skipped_since_early_view_(0),
+      num_marc_conversions_skipped_since_exclusion_filters_(0), num_marc_conversions_skipped_since_already_delivered_(0) {}
 
 
 std::string Metrics::toString() const {
@@ -236,6 +239,7 @@ std::string Metrics::toString() const {
                                            + num_journals_with_harvest_operation_crawl_) + "\n";
     out += "\t\tDirect: " + std::to_string(num_journals_with_harvest_operation_direct_) + "\n";
     out += "\t\tRSS: " + std::to_string(num_journals_with_harvest_operation_rss_) + "\n";
+    out += "\t\t\tSkipped: " + std::to_string(num_journals_with_harvest_operation_rss_skipped_) + "\n";
     out += "\t\tCrawl: " + std::to_string(num_journals_with_harvest_operation_crawl_) + "\n";
 
     out += "\tCrawls: " + std::to_string(num_downloads_crawled_successful_ + num_downloads_crawled_unsuccessful_) + "\n";
@@ -257,6 +261,7 @@ std::string Metrics::toString() const {
                                           + num_marc_conversions_skipped_since_exclusion_filters_
                                           + num_marc_conversions_skipped_since_already_delivered_) + "\n";
     out += "\t\tSuccessful: " + std::to_string(num_marc_conversions_successful_) + "\n";
+    out += "\t\tUnsuccessful: " + std::to_string(num_marc_conversions_unsuccessful_) + "\n";
     out += "\t\tSkipped (online-first): " + std::to_string(num_marc_conversions_skipped_since_online_first_) + "\n";
     out += "\t\tSkipped (early-view): " + std::to_string(num_marc_conversions_skipped_since_early_view_) + "\n";
     out += "\t\tSkipped (exclusion filter): " + std::to_string(num_marc_conversions_skipped_since_exclusion_filters_) + "\n";
@@ -315,12 +320,14 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
 void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool * const jobs_in_progress, Metrics * const metrics) {
     if (journal_datastore->current_crawl_ != nullptr) {
         if (journal_datastore->current_crawl_->isComplete()) {
-            for (auto &result : journal_datastore->current_crawl_->getResult().downloaded_items_)
-                journal_datastore->queued_downloads_.emplace_back(result.release());
+            if (journal_datastore->current_crawl_->hasResult()) {
+                for (auto &result : journal_datastore->current_crawl_->getResult().downloaded_items_)
+                    journal_datastore->queued_downloads_.emplace_back(result.release());
 
-            metrics->num_downloads_crawled_successful_ += journal_datastore->current_crawl_->getResult().num_crawled_successful_;
-            metrics->num_downloads_crawled_unsuccessful_ += journal_datastore->current_crawl_->getResult().num_crawled_unsuccessful_;
-            metrics->num_downloads_crawled_cache_hits_ += journal_datastore->current_crawl_->getResult().num_crawled_cache_hits_;
+                metrics->num_downloads_crawled_successful_ += journal_datastore->current_crawl_->getResult().num_crawled_successful_;
+                metrics->num_downloads_crawled_unsuccessful_ += journal_datastore->current_crawl_->getResult().num_crawled_unsuccessful_;
+                metrics->num_downloads_crawled_cache_hits_ += journal_datastore->current_crawl_->getResult().num_crawled_cache_hits_;
+            }
 
             journal_datastore->current_crawl_.reset();
         } else
@@ -329,8 +336,14 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
 
     if (journal_datastore->current_rss_feed_ != nullptr) {
         if (journal_datastore->current_rss_feed_->isComplete()) {
-            for (auto &result : journal_datastore->current_rss_feed_->getResult().downloaded_items_)
-                journal_datastore->queued_downloads_.emplace_back(result.release());
+            if (journal_datastore->current_rss_feed_->hasResult()) {
+                const auto &result(journal_datastore->current_rss_feed_->getResult());
+                if (result.feed_skipped_since_recently_harvested_)
+                    ++metrics->num_journals_with_harvest_operation_rss_skipped_;
+
+                for (auto &downloaded_item : journal_datastore->current_rss_feed_->getResult().downloaded_items_)
+                    journal_datastore->queued_downloads_.emplace_back(downloaded_item.release());
+            }
 
             journal_datastore->current_rss_feed_.reset();
         } else
@@ -347,29 +360,34 @@ void EnqueueCompletedDownloadsForConversion(JournalDatastore * const journal_dat
 {
     for (auto iter(journal_datastore->queued_downloads_.begin()); iter != journal_datastore->queued_downloads_.end();) {
         if ((*iter)->isComplete()) {
-            const auto &download_result((*iter)->getResult());
-            if (download_result.fromCache())
-                ++metrics->num_downloads_harvested_cache_hits_;
+            if ((*iter)->hasResult()) {
+                const auto &download_result((*iter)->getResult());
+                if (download_result.fromCache())
+                    ++metrics->num_downloads_harvested_cache_hits_;
 
-            if (not download_result.downloadSuccessful()) {
-                LOG_INFO("Item " + download_result.source_.toString() + " download failed! error: "
-                         + download_result.error_message_ + " (response code = " + std::to_string(download_result.response_code_) + ")");
-                ++metrics->num_downloads_harvested_unsuccessful_;
-            } else if (urls_harvested_during_current_session.find(download_result.source_.url_.toString())
-                != urls_harvested_during_current_session.end())
-            {
-                LOG_INFO("Item " + download_result.source_.toString() + " already harvested during this session"
-                         + (not download_result.fromCache() ? " (but not cached?!)" : ""));
-                ++metrics->num_downloads_skipped_since_already_harvested_;
-            } else if (download_result.itemAlreadyDelivered()) {
-                LOG_INFO("Item " + download_result.source_.toString() + " already delivered");
-                ++metrics->num_downloads_skipped_since_already_delivered_;
+                if (not download_result.downloadSuccessful()) {
+                    LOG_INFO("Item " + download_result.source_.toString() + " download failed! error: "
+                            + download_result.error_message_ + " (response code = " + std::to_string(download_result.response_code_) + ")");
+                    ++metrics->num_downloads_harvested_unsuccessful_;
+                } else if (urls_harvested_during_current_session.find(download_result.source_.url_.toString())
+                    != urls_harvested_during_current_session.end())
+                {
+                    LOG_INFO("Item " + download_result.source_.toString() + " already harvested during this session"
+                            + (not download_result.fromCache() ? " (but not cached?!)" : ""));
+                    ++metrics->num_downloads_skipped_since_already_harvested_;
+                } else if (download_result.itemAlreadyDelivered()) {
+                    LOG_INFO("Item " + download_result.source_.toString() + " already delivered");
+                    ++metrics->num_downloads_skipped_since_already_delivered_;
+                } else {
+                    auto conversion_result(conversion_manager->convert(download_result.source_,
+                                        download_result.response_body_,
+                                        harvester_config.lookupJournalGroup(download_result.source_.journal_)));
+                    journal_datastore->queued_marc_records_.emplace_back(std::move(conversion_result));
+                    ++metrics->num_downloads_harvested_successful_;
+                }
             } else {
-                auto conversion_result(conversion_manager->convert(download_result.source_,
-                                       download_result.response_body_,
-                                       harvester_config.lookupJournalGroup(download_result.source_.journal_)));
-                journal_datastore->queued_marc_records_.emplace_back(std::move(conversion_result));
-                ++metrics->num_downloads_harvested_successful_;
+                LOG_INFO("Future bound to " + (*iter)->toString() + " failed!");
+                ++metrics->num_downloads_harvested_unsuccessful_;
             }
 
             iter = journal_datastore->queued_downloads_.erase(iter);
@@ -427,6 +445,7 @@ const std::unique_ptr<MARC::Writer> &OutputFileCache::getWriter(const Config::Gr
 
 void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, OutputFileCache * const outputfile_cache,
                                   const CommandLineArgs &commandline_args, const Util::UploadTracker &upload_tracker,
+                                  const Download::DownloadManager &download_manager, Conversion::ConversionManager &conversion_manager,
                                   std::unordered_set<std::string> * const urls_harvested_during_current_session,
                                   Metrics * const metrics)
 {
@@ -436,6 +455,7 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
 
     // Iterate through the conversion results and write out consecutive successfully converted MARC records to disk.
     unsigned previous_converted_item_id(0);
+    bool ignore_wait_condition(false);
     while (not journal_datastore->queued_marc_records_.empty()) {
         auto &current_conversion(journal_datastore->queued_marc_records_.front());
         const auto &current_download_item(current_conversion->getParameter().download_item_);
@@ -447,75 +467,93 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
         // Break early if the selected conversion task is not complete yet or if
         // it doesn't directly follow the previous task that completed successfully
         //
-        // HarvestableItem IDs are almost always monotonic, so this condition will not
-        // block the queue indefinitely. Under specific circumstances (e.g., when multiple
-        // Futures are bound to the same source Tasklet), IDs can potentially repeat.
-        // However, those cases are not problematic as a duplicate ID indicates a
-        // duplicate download which is ignored when new conversion tasks are queued.
+        // HarvestableItem IDs are almost always monotonic but under specific circumstances
+        // (e.g., when multiple Futures are bound to the same source Tasklet), IDs can
+        // potentially repeat. However, those cases are not problematic as a duplicate
+        // ID indicates a duplicate download which is ignored when new conversion tasks are queued.
+        bool wait_for_next_item(false);
+        if (ignore_wait_condition)
+            ;// Fall-through without checking.
         if (not current_conversion->isComplete())
-            break;
+            wait_for_next_item = true;
         else if (previous_converted_item_id != current_converted_item_id and
                  current_converted_item_id != previous_converted_item_id + 1)
-            break;
+            wait_for_next_item = true;
 
-        const auto &conversion_result(current_conversion->getResult());
-        metrics->num_marc_conversions_skipped_since_online_first_ += conversion_result.num_skipped_since_online_first_;
-        metrics->num_marc_conversions_skipped_since_early_view_ += conversion_result.num_skipped_since_early_view_;
-        metrics->num_marc_conversions_skipped_since_exclusion_filters_ += conversion_result.num_skipped_since_exclusion_filters_;
+        if (wait_for_next_item) {
+            // Additional sanity check to prevent the queue from being blocked indefinitely.
+            // This is necessary for the case when a tasklet operation runs to completion with an
+            // error. This breaks the monotonicity pre-condition of the HarvestableItem ID.
+            // This is indicated by a positive wait condition even in the absence of any active/queued tasks.
+            if (download_manager.downloadInProgress() or conversion_manager.conversionInProgress())
+                break;
 
-        unsigned num_written_records(0);
-        for (const auto &record : conversion_result.marc_records_) {
-            // Check if the record was previously uploaded to the BSZ server
-            // by comparing its hash and URLs with the ones stored in our database.
-            const auto record_hash(Conversion::CalculateMarcRecordHash(*record));
-            const auto record_urls(record->getSubfieldValues("856", 'u'));
-            bool already_delivered(false);
-            std::string tracker_message;
+            // Flush the queue and exit.
+            ignore_wait_condition = true;
+            continue;
+        }
 
-            if (not commandline_args.force_downloads_) {
-                for (const auto &url : record_urls) {
-                    if (upload_tracker.urlAlreadyDelivered(url)) {
-                        already_delivered = true;
-                        if (url != current_download_item.url_.toString())
-                            tracker_message = "URL '" + url + "' match";
-                        break;
+        if (current_conversion->hasResult()) {
+            const auto &conversion_result(current_conversion->getResult());
+            metrics->num_marc_conversions_skipped_since_online_first_ += conversion_result.num_skipped_since_online_first_;
+            metrics->num_marc_conversions_skipped_since_early_view_ += conversion_result.num_skipped_since_early_view_;
+            metrics->num_marc_conversions_skipped_since_exclusion_filters_ += conversion_result.num_skipped_since_exclusion_filters_;
+
+            unsigned num_written_records(0);
+            for (const auto &record : conversion_result.marc_records_) {
+                // Check if the record was previously uploaded to the BSZ server
+                // by comparing its hash and URLs with the ones stored in our database.
+                const auto record_hash(Conversion::CalculateMarcRecordHash(*record));
+                const auto record_urls(record->getSubfieldValues("856", 'u'));
+                bool already_delivered(false);
+                std::string tracker_message;
+
+                if (not commandline_args.force_downloads_) {
+                    for (const auto &url : record_urls) {
+                        if (upload_tracker.urlAlreadyDelivered(url)) {
+                            already_delivered = true;
+                            if (url != current_download_item.url_.toString())
+                                tracker_message = "URL '" + url + "' match";
+                            break;
+                        }
+                    }
+
+                    if (not already_delivered) {
+                        Util::UploadTracker::Entry previously_delivered_entry;
+                        if (upload_tracker.hashAlreadyDelivered(record_hash, &previously_delivered_entry)) {
+                            already_delivered = true;
+                            tracker_message = "Hash '" + record_hash + "' match with URL '" + previously_delivered_entry.url_ + "'";
+                        }
                     }
                 }
 
-                if (not already_delivered) {
-                    Util::UploadTracker::Entry previously_delivered_entry;
-                    if (upload_tracker.hashAlreadyDelivered(record_hash, &previously_delivered_entry)) {
-                        already_delivered = true;
-                        tracker_message = "Hash '" + record_hash + "' match with URL '" + previously_delivered_entry.url_ + "'";
-                    }
+                if (already_delivered) {
+                    ++metrics->num_marc_conversions_skipped_since_already_delivered_;
+                    LOG_INFO("Item " + current_download_item.toString() + " already delivered"
+                            + (not tracker_message.empty() ? "(" + tracker_message + ")" : ""));
+                    continue;
                 }
+
+                for (const auto &url : record_urls)
+                    urls_harvested_during_current_session->emplace(url);
+
+                ++metrics->num_marc_conversions_successful_;
+                ++num_written_records;
+
+                const auto &group_params(current_conversion->getParameter().group_params_);
+                ++metrics->group_name_to_num_generated_marc_records_map_[group_params.name_];
+
+                const auto &writer(outputfile_cache->getWriter(group_params));
+                writer->write(*record);
+                writer->flush();
             }
 
-            if (already_delivered) {
-                ++metrics->num_marc_conversions_skipped_since_already_delivered_;
-                LOG_INFO("Item " + current_download_item.toString() + " already delivered"
-                         + (not tracker_message.empty() ? "(" + tracker_message + ")" : ""));
-                continue;
+            if (num_written_records > 0) {
+                LOG_INFO("Generated " + std::to_string(num_written_records) + " record(s) for "
+                        "item " + current_download_item.toString());
             }
-
-            for (const auto &url : record_urls)
-                urls_harvested_during_current_session->emplace(url);
-
-            ++metrics->num_marc_conversions_successful_;
-            ++num_written_records;
-
-            const auto &group_params(current_conversion->getParameter().group_params_);
-            ++metrics->group_name_to_num_generated_marc_records_map_[group_params.name_];
-
-            const auto &writer(outputfile_cache->getWriter(group_params));
-            writer->write(*record);
-            writer->flush();
-        }
-
-        if (num_written_records > 0) {
-            LOG_INFO("Generated " + std::to_string(num_written_records) + " record(s) for "
-                     "item " + current_download_item.toString());
-        }
+        } else
+            ++metrics->num_marc_conversions_unsuccessful_;
 
         journal_datastore->queued_marc_records_.pop_front();
     }
@@ -530,6 +568,7 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     Util::ZoteroLogger::Init();
+    SqlUtil::ThreadSafetyGuard sql_guard(SqlUtil::ThreadSafetyGuard::MAIN_THREAD);
 
     CommandLineArgs commandline_args;
     ParseCommandLineArgs(&argc, &argv, &commandline_args);
@@ -592,7 +631,8 @@ int Main(int argc, char *argv[]) {
             EnqueueCompletedDownloadsForConversion(journal_datastore.get(), &jobs_running, &conversion_manager, harvester_config,
                                                    urls_harvested_during_current_session, &harvester_metrics);
             WriteConversionResultsToDisk(journal_datastore.get(), &output_file_cache, commandline_args, upload_tracker,
-                                         &urls_harvested_during_current_session, &harvester_metrics);
+                                         download_manager, conversion_manager, &urls_harvested_during_current_session,
+                                         &harvester_metrics);
 
             if (not jobs_running)
                 jobs_running = not journal_datastore->queued_downloads_.empty() or not journal_datastore->queued_marc_records_.empty();
