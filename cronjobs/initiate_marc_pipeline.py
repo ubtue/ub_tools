@@ -20,8 +20,8 @@ def ClearSolrIndex(index):
         headers = {"Content-Type": "application/xml"}
         request = urllib.request.Request(url, data, headers)
         response = urllib.request.urlopen(request, timeout=60)
-    except:
-        util.SendEmail("MARC-21 Pipeline", "Failed to clear the SOLR index \"" + index + "\"!", priority=1)
+    except Exception as e:
+        util.SendEmail("MARC-21 Pipeline", "Failed to clear the SOLR index \"" + index + "\" [" + str(e) + "]!", priority=1)
         sys.exit(-1)
 
 
