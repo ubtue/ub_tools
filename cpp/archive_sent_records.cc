@@ -20,15 +20,9 @@
 #include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
-#include "DbConnection.h"
-#include "DbResultSet.h"
-#include "DbRow.h"
-#include "GzStream.h"
-#include "IniFile.h"
 #include "MARC.h"
-#include "SqlUtil.h"
-#include "StringUtil.h"
 #include "util.h"
+#include "ZoteroHarvesterUtil.h"
 
 
 namespace {
@@ -39,90 +33,6 @@ namespace {
 }
 
 
-void StoreRecords(DbConnection * const db_connection, MARC::Reader * const marc_reader) {
-    unsigned record_count(0);
-
-    std::string record_blob;
-
-    while (const MARC::Record record = marc_reader->read()) {
-        record_blob = record.toBinaryString();
-
-        const std::string hash(StringUtil::ToHexString(MARC::CalcChecksum(record)));
-        const std::string url(record.getFirstSubfieldValue("URL", 'a'));
-        const std::string zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
-        const std::string journal_name(record.getFirstSubfieldValue("JOU", 'a'));
-        const std::string main_title(record.getMainTitle());
-
-        db_connection->queryOrDie("SELECT * FROM delivered_marc_records WHERE hash="
-                                  + db_connection->escapeAndQuoteString(hash));
-        auto existing_records_with_hash(db_connection->getLastResultSet());
-        bool already_delivered(false);
-        if (not existing_records_with_hash.empty()) {
-            while (auto row = existing_records_with_hash.getNextRow()) {
-                const auto existing_title(row["main_title"]), existing_url(row["url"]);
-                if (existing_url == url) {
-                    LOG_WARNING("hash+url collision - record already delivered! title: '" + existing_title + "'\n"
-                                "hash: '" + hash + "'\nurl: '" + existing_url + "'");
-                    already_delivered = true;
-                } else {
-                    LOG_WARNING("hash collision - record already delivered! title: '" + existing_title + "'\n"
-                                "hash: '" + hash + "'\nurl: '" + existing_url + "'");
-                    already_delivered = true;
-                }
-            }
-        }
-
-        if (already_delivered)
-            continue;
-
-        ++record_count;
-
-        std::string publication_year, volume, issue, pages;
-        const auto _936_field(record.getFirstField("936"));
-        if (_936_field != record.end()) {
-            const MARC::Subfields subfields(_936_field->getSubfields());
-            if (subfields.hasSubfield('j'))
-                publication_year = ",publication_year=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('j'));
-            if (subfields.hasSubfield('d'))
-                volume = ",volume=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('d'));
-            if (subfields.hasSubfield('e'))
-                issue = ",issue=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('e'));
-            if (subfields.hasSubfield('h'))
-                pages = ",pages=" + db_connection->escapeAndQuoteString(subfields.getFirstSubfieldWithCode('h'));
-        }
-
-        std::string resource_type(record.getFirstFieldContents("007") == "tu" ? "print" : "online");
-        db_connection->queryOrDie("INSERT INTO delivered_marc_records SET url="
-                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(url))
-                                  + ",zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) + ",journal_name="
-                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(journal_name))
-                                  +  ",hash=" + db_connection->escapeAndQuoteString(hash) + ",main_title="
-                                  + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(main_title))
-                                  + publication_year + volume + issue + pages + ",resource_type='" + resource_type + "',record="
-                                  + db_connection->escapeAndQuoteString(GzStream::CompressString(record_blob, GzStream::GZIP)));
-
-        db_connection->queryOrDie("SELECT * FROM delivered_marc_records_superior_info WHERE zeder_id="
-                                  + db_connection->escapeAndQuoteString(zeder_id));
-
-        if (db_connection->getLastResultSet().empty()) {
-            const std::string superior_title(record.getSuperiorTitle());
-            const auto superior_control_number(record.getSuperiorControlNumber());
-            const std::string superior_control_number_sql(superior_control_number.empty() ? "" : ",control_number="
-                                                    + db_connection->escapeAndQuoteString(superior_control_number));
-
-            db_connection->queryOrDie("INSERT INTO delivered_marc_records_superior_info SET zeder_id="
-                                      + db_connection->escapeAndQuoteString(zeder_id) + ",title="
-                                      + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(superior_title))
-                                      + superior_control_number_sql);
-        }
-
-        record_blob.clear();
-    }
-
-    std::cout << "Stored " << record_count << " MARC record(s).\n";
-}
-
-
 } // unnamed namespace
 
 
@@ -130,9 +40,14 @@ int Main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 
-    DbConnection db_connection;
     auto marc_reader(MARC::Reader::Factory(argv[1]));
-    StoreRecords(&db_connection, marc_reader.get());
+    unsigned record_count(0);
+    ZoteroHarvester::Util::UploadTracker upload_tracker;
+
+    while (const auto record = marc_reader->read())
+        upload_tracker.archiveRecord(record);
+
+    std::cout << "Stored " << record_count << " MARC record(s).\n";
 
     return EXIT_SUCCESS;
 }
