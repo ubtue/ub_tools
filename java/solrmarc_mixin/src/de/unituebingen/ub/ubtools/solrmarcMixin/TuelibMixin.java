@@ -1181,6 +1181,26 @@ public class TuelibMixin extends SolrIndexerMixin {
         return result;
     }
 
+    private static Set<String> getHandles(final Record record) {
+        final Set<String> result = new TreeSet<>();
+
+        for (final VariableField variableField : record.getVariableFields("856")) {
+            final DataField field = (DataField) variableField;
+
+            for (final Subfield subfield_u : field.getSubfields('u')) {
+                final String rawLink = subfield_u.getData();
+                final int index = rawLink.indexOf("http://hdl.handle.net/:", 0);
+
+                if (index >= 0) {
+                    final String link = rawLink.substring(index);
+                    result.add("HDL:" + link);
+                }
+            }
+        }
+
+        return result;
+    }
+
     private static Set<String> getDOIs(final Record record) {
         final Set<String> result = new TreeSet<>();
 
@@ -1210,6 +1230,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getTypesAndPersistentIdentifiers(final Record record) {
         final Set<String> result = getDOIs(record);
         result.addAll(getURNs(record));
+        result.addAll(getHandles(record));
 
         return result;
     }
