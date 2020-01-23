@@ -110,7 +110,8 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
 
 
 void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_item, const MetadataRecord &metadata_record,
-                                          const Config::GroupParams &group_params, MARC::Record * const marc_record);
+                                          const Config::GroupParams &group_params, MARC::Record * const marc_record,
+                                          std::string * const marc_record_hash);
 
 
 bool MarcRecordMatchesExclusionFilters(const Util::HarvestableItem &download_item, MARC::Record * const marc_record);
