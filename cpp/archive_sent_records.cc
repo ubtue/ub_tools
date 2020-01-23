@@ -41,13 +41,18 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
-    unsigned record_count(0);
+    unsigned stored_record_count(0), skipped_record_count(0);
     ZoteroHarvester::Util::UploadTracker upload_tracker;
 
-    while (const auto record = marc_reader->read())
-        upload_tracker.archiveRecord(record);
+    while (const auto record = marc_reader->read()) {
+        if (upload_tracker.archiveRecord(record))
+            ++stored_record_count;
+        else
+            ++skipped_record_count;
+    }
 
-    std::cout << "Stored " << record_count << " MARC record(s).\n";
+    std::cout << "Stored " << stored_record_count << " MARC record(s).\n";
+    std::cout << "Skipped " << skipped_record_count << " MARC record(s).\n";
 
     return EXIT_SUCCESS;
 }
