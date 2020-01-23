@@ -114,6 +114,8 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --replace 100a:700a /usr/local/var/lib/tuelib/author_normalisation.map \
     --replace 260b:264b /usr/local/var/lib/tuelib/publisher_normalisation.map \
     --replace 245a "^L' (.*)" "L'\\1" # Replace "L' arbe" with "L'arbe" etc.
+    --replace 689d "v([0-9]+) ?- ?v([0-9]+)" "\\1 v. Chr. - \\2 v. Chr." # Replace "v384-v322" with "384 v. Chr. - 322 v. Chr."
+    --replace 689d "v([0-9]+)" "\\1 v. Chr." # Replace "v384" with "384 v. Chr."
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -177,14 +179,6 @@ StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                   GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-
-
-StartPhase "Appending Literary Remains Records"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
-(create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                                 Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -349,6 +343,14 @@ StartPhase "Add Tags for subsystems"
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
+
+
+StartPhase "Appending Literary Remains Records"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                                 Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
 
 
 StartPhase "Tag PDA candidates"

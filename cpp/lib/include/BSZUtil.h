@@ -64,4 +64,10 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
 void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year, std::string * const volume, std::string * const issue);
 
 
+/** \brief Attempts to extract a K10+ PPN from a subfield.
+ *  \return The extracted PPN or the empty string if nothing was found.
+ */
+std::string GetK10PlusPPNFromSubfield(const MARC::Record::Field &field, const char subfield_code);
+
+
 } // namespace BSZUtil

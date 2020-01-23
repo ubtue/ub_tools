@@ -1,7 +1,7 @@
 /** \brief Various classes, functions etc. having to do with the Library of Congress MARC bibliographic format.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -546,8 +547,8 @@ public:
     /** \return A guess at the publication year or the fallback value if we could not find one. */
     std::string getPublicationYear(const std::string &fallback = "") const;
 
-    /** \return All author names in fields 100$a and 700$a. */
-    std::set<std::string> getAllAuthors() const;
+    /** \return All author names in fields 100$a and 700$a and theitr associated authority record PPN's. */
+    std::map<std::string, std::string> getAllAuthorsAndPPNs() const;
 
     /** \return All ISSN's including ISSN's of superior works */
     std::set<std::string> getAllISSNs() const;

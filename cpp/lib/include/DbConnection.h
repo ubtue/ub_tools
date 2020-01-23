@@ -146,8 +146,11 @@ public:
         return escapeString(unescaped_string, /* add_quotes = */true);
     }
 
-    void mySQLCreateDatabase(const std::string &database_name, const Charset charset = UTF8MB4, const Collation collation = UTF8MB4_BIN) {
-        queryOrDie("CREATE DATABASE " + database_name + " CHARACTER SET " + CharsetToString(charset) + " COLLATE " + CollationToString(collation) + ";");
+    inline void mySQLCreateDatabase(const std::string &database_name, const Charset charset = UTF8MB4,
+                                    const Collation collation = UTF8MB4_BIN)
+    {
+        queryOrDie("CREATE DATABASE " + database_name + " CHARACTER SET " + CharsetToString(charset) + " COLLATE "
+                   + CollationToString(collation) + ";");
     }
 
     void mySQLCreateUser(const std::string &new_user, const std::string &new_passwd, const std::string &host = "localhost") {
@@ -269,4 +272,22 @@ public:
     static void MySQLImportFile(const std::string &sql_file, const std::string &database_name, const std::string &admin_user,
                                 const std::string &admin_passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
                                 const Charset charset = UTF8MB4);
+};
+
+
+/** \brief Represents a database transaction.
+ *  \note  Restores the autocommit state after going out of scope.
+ *  \note  Cannot be nested at this time.
+ */
+class DbTransaction final {
+    static unsigned active_count_;
+    DbConnection &db_connection_;
+    bool autocommit_was_on_;
+    bool rollback_when_exceptions_are_in_flight_;
+public:
+    /** \param rollback_when_exceptions_are_in_flight  If true, the destructor issue a ROLLBACK instead of a commit if
+     *         current thread has a live exception object derived from std::exception.
+     */
+    explicit DbTransaction(DbConnection * const db_connection, const bool rollback_when_exceptions_are_in_flight = true);
+    ~DbTransaction();
 };
