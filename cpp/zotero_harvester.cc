@@ -545,7 +545,7 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     Util::ZoteroLogger::Init();
-    SqlUtil::ThreadSafetyGuard sql_guard(SqlUtil::ThreadSafetyGuard::MAIN_THREAD);
+    SqlUtil::ThreadSafetyGuard sql_guard(SqlUtil::ThreadSafetyGuard::ThreadType::MAIN_THREAD);
 
     CommandLineArgs commandline_args;
     ParseCommandLineArgs(&argc, &argv, &commandline_args);

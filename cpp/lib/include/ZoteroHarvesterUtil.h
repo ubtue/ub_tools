@@ -304,7 +304,7 @@ template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::
     const auto zotero_logger(dynamic_cast<ZoteroLogger *>(::logger));
     const auto thread_id(tasklet->thread_id_);
     assert(thread_id == ::pthread_self());
-    SqlUtil::ThreadSafetyGuard sql_guard(SqlUtil::ThreadSafetyGuard::WORKER_THREAD);
+    SqlUtil::ThreadSafetyGuard sql_guard(SqlUtil::ThreadSafetyGuard::ThreadType::WORKER_THREAD);
 
     ::pthread_setname_np(thread_id, tasklet->context_.description_.c_str());
     // Store the tasklet context in the thread-local data segment.
@@ -519,6 +519,7 @@ template <typename Parameter, typename Result> Result &Future<Parameter, Result>
 
 // Tracks harvested records that have been uploaded to the BSZ server.
 class UploadTracker {
+    static constexpr unsigned CONNECTION_POOL_SIZE = 50;
 public:
     struct Entry {
         std::string url_;
@@ -526,13 +527,10 @@ public:
         time_t delivered_at_;
         std::string delivered_at_str_;
         std::string hash_;
-
+    public:
         std::string toString() const;
     };
 private:
-    static constexpr unsigned CONNECTION_POOL_SIZE = 50;
-
-
     mutable ThreadUtil::Semaphore connection_pool_semaphore_;
 
 

@@ -438,9 +438,6 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
 
     const auto hash(Conversion::CalculateMarcRecordHash(record));
     const auto urls(record.getSubfieldValues("856", 'u'));
-    const auto zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
-    const auto journal_name(record.getFirstSubfieldValue("JOU", 'a'));
-    const auto main_title(record.getMainTitle());
 
     if (recordAlreadyDelivered(hash, urls, &db_connection))
         return false;
@@ -460,6 +457,9 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
     }
 
     std::string resource_type(record.getFirstFieldContents("007") == "tu" ? "print" : "online");
+    const auto zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
+    const auto journal_name(record.getFirstSubfieldValue("JOU", 'a'));
+    const auto main_title(record.getMainTitle());
     db_connection.queryOrDie("INSERT INTO delivered_marc_records SET zeder_id=" + db_connection.escapeAndQuoteString(zeder_id)
                              + ",journal_name=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(journal_name))
                              + ",hash=" + db_connection.escapeAndQuoteString(hash)

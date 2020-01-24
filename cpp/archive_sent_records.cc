@@ -51,8 +51,8 @@ int Main(int argc, char *argv[]) {
             ++skipped_record_count;
     }
 
-    std::cout << "Stored " << stored_record_count << " MARC record(s).\n";
-    std::cout << "Skipped " << skipped_record_count << " MARC record(s).\n";
+    LOG_INFO("Stored " + std::to_string(stored_record_count) + " MARC record(s).");
+    LOG_INFO("Skipped " + std::to_string(skipped_record_count) + " MARC record(s).");
 
     return EXIT_SUCCESS;
 }

@@ -126,6 +126,9 @@ for d in */ ; do
 
     current_source_filepath=$harvester_output_directory/$d/$harvester_output_filename
     valid_records_output_filepath=$harvester_output_directory/$d/zotero_${d}_$(date +%y%m%d)_001.xml  # we only deliver files once a day
+    LOGGER_FORMAT=no_decorations,strip_call_site \
+    BACKTRACE=1 \
+    UTIL_LOG_DEBUG=true \
     validate_harvested_records $current_source_filepath $valid_records_output_filepath \
                                $records_with_missing_metadata_output_filename $email_address >> "${log}" 2>&1
 
@@ -164,6 +167,9 @@ EndPhase
 
 StartPhase "Archive Sent Records"
 for source_filepath in "${source_filepaths[@]}"; do
+    LOGGER_FORMAT=no_decorations,strip_call_site \
+    BACKTRACE=1 \
+    UTIL_LOG_DEBUG=true \
     archive_sent_records $source_filepath >> "${log}" 2>&1
 done
 EndPhase
@@ -176,6 +182,9 @@ fi
 
 
 StartPhase "Check for Overdue Articles"
+LOGGER_FORMAT=no_decorations,strip_call_site \
+BACKTRACE=1 \
+UTIL_LOG_DEBUG=true \
 journal_timeliness_checker "$harvester_config_file" "journal_timeliness_checker@$(hostname)" "$email_address"
 EndPhase
 
