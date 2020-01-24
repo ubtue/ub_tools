@@ -257,16 +257,16 @@ unsigned GetTableSize(DbConnection * const connection, const std::string &table_
 }
 
 
-ThreadSafetyGuard::ThreadSafetyGuard(const Thread invoker_thread)
+ThreadSafetyGuard::ThreadSafetyGuard(const ThreadType invoker_thread)
     : invoker_thread_(invoker_thread)
 {
     switch (invoker_thread_) {
-    case Thread::MAIN_THREAD:
-        if (mysql_library_init(0, nullptr, nullptr))
+    case ThreadType::MAIN_THREAD:
+        if (::mysql_library_init(0, nullptr, nullptr))
             LOG_ERROR("mysql_library_init failed");
         break;
-    case Thread::WORKER_THREAD:
-        if (mysql_thread_init())
+    case ThreadType::WORKER_THREAD:
+        if (::mysql_thread_init())
             LOG_ERROR("mysql_thread_init failed in worker thread " + std::to_string(::pthread_self()));
         break;
     default:
@@ -277,11 +277,11 @@ ThreadSafetyGuard::ThreadSafetyGuard(const Thread invoker_thread)
 
 ThreadSafetyGuard::~ThreadSafetyGuard() {
     switch (invoker_thread_) {
-    case Thread::MAIN_THREAD:
-        mysql_library_end();
+    case ThreadType::MAIN_THREAD:
+        ::mysql_library_end();
         break;
-    case Thread::WORKER_THREAD:
-        mysql_thread_end();
+    case ThreadType::WORKER_THREAD:
+        ::mysql_thread_end();
         break;
     default:
         LOG_ERROR("unknown invoker thread " + std::to_string(invoker_thread_));

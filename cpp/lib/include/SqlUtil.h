@@ -138,11 +138,11 @@ unsigned GetTableSize(DbConnection * const connection, const std::string &table_
 // Ensures that thread-specific variables are initialized for the correct functioning
 // of the MySQL connector. Must be initialized at the very beginning of the invoking thread.
 struct ThreadSafetyGuard {
-    enum Thread { MAIN_THREAD, WORKER_THREAD };
+    enum ThreadType { MAIN_THREAD, WORKER_THREAD };
 private:
-    Thread invoker_thread_;
+    ThreadType invoker_thread_;
 public:
-    explicit ThreadSafetyGuard(const Thread invoker_thread);
+    explicit ThreadSafetyGuard(const ThreadType invoker_thread);
     ~ThreadSafetyGuard();
 };
 
