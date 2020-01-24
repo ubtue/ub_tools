@@ -532,13 +532,6 @@ public:
     };
 private:
     mutable ThreadUtil::Semaphore connection_pool_semaphore_;
-
-
-    bool urlAlreadyDelivered(const std::string &url, Entry * const entry, DbConnection * const db_connection) const;
-    bool hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries,
-                              DbConnection * const db_connection) const;
-    bool recordAlreadyDelivered(const std::string &record_hash, const std::vector<std::string> &record_urls,
-                                DbConnection * const db_connection) const;
 public:
     explicit UploadTracker(): connection_pool_semaphore_(CONNECTION_POOL_SIZE) {}
 
@@ -553,6 +546,12 @@ public:
     // Saves the record blob and its associated metadata in the host's database.
     // Returns true on success, false otherwise.
     bool archiveRecord(const MARC::Record &record);
+private:
+    bool urlAlreadyDelivered(const std::string &url, Entry * const entry, DbConnection * const db_connection) const;
+    bool hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries,
+                              DbConnection * const db_connection) const;
+    bool recordAlreadyDelivered(const std::string &record_hash, const std::vector<std::string> &record_urls,
+                                DbConnection * const db_connection) const;
 };
 
 
