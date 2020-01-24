@@ -320,13 +320,13 @@ bool Crawler::getNextPage(CrawlResult * const crawl_result) {
     const auto new_download_item(parameters_.harvestable_manager_->newHarvestableItem(next_url, parameters_.download_item_.journal_));
     auto future(download_manager_->directDownload(new_download_item, parameters_.user_agent_,
                                                   DirectDownload::Operation::DIRECT_QUERY, parameters_.per_crawl_url_time_limit_));
-
-    const auto &download_result(future->getResult());
-    if (not download_result.downloadSuccessful()) {
+    future->await();
+    if (not future->hasResult() or not future->getResult().downloadSuccessful()) {
         ++num_crawled_unsuccessful_;
         return continueCrawling();
     }
 
+    const auto &download_result(future->getResult());
     crawled_urls_.emplace(next_url);
     ++num_crawled_successful_;
     if (download_result.fromCache())
@@ -372,7 +372,7 @@ bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Con
 
     const auto last_harvest_timestamp(upload_tracker_.getLastUploadTime(journal_params.name_));
     if (last_harvest_timestamp == TimeUtil::BAD_TIME_T) {
-        LOG_DEBUG("feed will be harvested for the first time");
+        LOG_INFO("feed will be harvested for the first time");
         return true;
     } else {
         const auto diff((time(nullptr) - last_harvest_timestamp) / 86400);
@@ -382,12 +382,12 @@ bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Con
         const auto harvest_threshold(journal_params.update_window_ > 0 ? journal_params.update_window_ : feed_harvest_interval_);
         {
             std::lock_guard<std::recursive_mutex> locale_lock(Util::non_threadsafe_locale_modification_guard);
-            LOG_DEBUG("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
+            LOG_INFO("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
         }
-        LOG_DEBUG("feed harvest threshold: " + std::to_string(harvest_threshold) + " days | diff: " + std::to_string(diff) + " days");
+        LOG_INFO("feed harvest threshold: " + std::to_string(harvest_threshold) + " days | diff: " + std::to_string(diff) + " days");
 
         if (diff >= harvest_threshold) {
-            LOG_DEBUG("feed older than " + std::to_string(harvest_threshold) +
+            LOG_INFO("feed older than " + std::to_string(harvest_threshold) +
                       " days. flagging for mandatory harvesting");
             return true;
         }
@@ -405,10 +405,10 @@ bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Con
     for (const auto &item : *syndication_format) {
         const auto pub_date(item.getPubDate());
         if (force_process_feeds_with_no_pub_dates_ and pub_date == TimeUtil::BAD_TIME_T) {
-            LOG_DEBUG("URL '" + item.getLink() + "' has no publication timestamp. flagging for harvesting");
+            LOG_INFO("URL '" + item.getLink() + "' has no publication timestamp. flagging for harvesting");
             return true;
         } else if (pub_date != TimeUtil::BAD_TIME_T and std::difftime(item.getPubDate(), last_harvest_timestamp) > 0) {
-            LOG_DEBUG("URL '" + item.getLink() + "' was added/updated since the last harvest of this RSS feed. flagging for harvesting");
+            LOG_INFO("URL '" + item.getLink() + "' was added/updated since the last harvest of this RSS feed. flagging for harvesting");
             return true;
         }
     }
@@ -441,8 +441,10 @@ void Tasklet::run(const Params &parameters, Result * const result) {
         feed_contents = downloader.getMessageBody();
     }
 
-    if (not feedNeedsToBeHarvested(feed_contents, parameters.download_item_.journal_, syndication_format_augment_parameters))
+    if (not feedNeedsToBeHarvested(feed_contents, parameters.download_item_.journal_, syndication_format_augment_parameters)) {
+        result->feed_skipped_since_recently_harvested_ = true;
         return;
+    }
 
     syndication_format.reset(SyndicationFormat::Factory(feed_contents, syndication_format_augment_parameters,
                              &syndication_format_parse_err_msg).release());
@@ -452,8 +454,6 @@ void Tasklet::run(const Params &parameters, Result * const result) {
                     + syndication_format_parse_err_msg);
         return;
     }
-
-    LOG_DEBUG("Title: " + syndication_format->getTitle());
 
     for (const auto &item : *syndication_format) {
         const auto new_download_item(parameters.harvestable_manager_->newHarvestableItem(item.getLink(), parameters.download_item_.journal_));
@@ -916,7 +916,11 @@ std::unique_ptr<DirectDownload::Result> DownloadManager::fetchFromDownloadCache(
 bool DownloadManager::downloadInProgress() const {
     return tasklet_counters_.direct_download_tasklet_execution_counter_ != 0
            or tasklet_counters_.crawling_tasklet_execution_counter_ != 0
-           or tasklet_counters_.rss_tasklet_execution_counter_ != 0;
+           or tasklet_counters_.rss_tasklet_execution_counter_ != 0
+           or tasklet_counters_.direct_downloads_translation_server_queue_counter_ != 0
+           or tasklet_counters_.direct_downloads_direct_query_queue_counter_ != 0
+           or tasklet_counters_.crawls_queue_counter_ != 0
+           or tasklet_counters_.rss_feeds_queue_counter_ != 0;
 }
 
 

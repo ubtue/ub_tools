@@ -110,7 +110,8 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
 
 
 void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_item, const MetadataRecord &metadata_record,
-                                          const Config::GroupParams &group_params, MARC::Record * const marc_record);
+                                          const Config::GroupParams &group_params, MARC::Record * const marc_record,
+                                          std::string * const marc_record_hash);
 
 
 bool MarcRecordMatchesExclusionFilters(const Util::HarvestableItem &download_item, MARC::Record * const marc_record);
@@ -195,14 +196,14 @@ public:
     std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> convert(const Util::HarvestableItem &source,
                                                                               const std::string &json_metadata,
                                                                               const Config::GroupParams &group_params);
-    inline bool conversionInProgress() const
-        { return conversion_tasklet_execution_counter_ != 0; }
     inline unsigned numActiveConversions() const
         { return conversion_tasklet_execution_counter_; }
     inline unsigned numQueuedConversions() const {
         std::lock_guard<decltype(conversion_queue_mutex_)> lock(conversion_queue_mutex_);
         return conversion_queue_.size();
     }
+    inline bool conversionInProgress() const
+        { return numActiveConversions() + numQueuedConversions() != 0; }
 };
 
 
