@@ -37,7 +37,6 @@ CREATE TABLE metadata_presence_tracer (
 
 CREATE TABLE delivered_marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    url VARCHAR(1000) NOT NULL,
     hash VARCHAR(40) NOT NULL,
     zeder_id VARCHAR(10) NOT NULL,
     delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -49,7 +48,6 @@ CREATE TABLE delivered_marc_records (
     pages VARCHAR(20) DEFAULT NULL,
     resource_type ENUM('print','online','unknown') NOT NULL,
     record BLOB NOT NULL,
-    INDEX delivered_marc_records_url_index(url(768)),
     INDEX delivered_marc_records_hash_index(hash),
     INDEX delivered_marc_records_zeder_id_index(zeder_id),
     INDEX delivered_marc_records_delivered_at_index(delivered_at),
@@ -62,4 +60,12 @@ CREATE TABLE delivered_marc_records_superior_info (
     control_number VARCHAR(20) DEFAULT NULL,
     title VARCHAR(1000) NOT NULL,
     CONSTRAINT zeder_id FOREIGN KEY (zeder_id) REFERENCES delivered_marc_records (zeder_id) ON DELETE CASCADE ON UPDATE CASCADE
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+
+CREATE TABLE delivered_marc_records_urls (
+    record_id INT,
+    url VARCHAR(767) NOT NULL,
+    CONSTRAINT record_id_and_url PRIMARY KEY (record_id, url),
+    CONSTRAINT delivered_marc_records_id FOREIGN KEY (record_id) REFERENCES delivered_marc_records (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX delivered_marc_records_urls_index(url)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;

@@ -759,7 +759,8 @@ const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP {
 
 
 void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_item, const MetadataRecord &metadata_record,
-                                          const Config::GroupParams &group_params, MARC::Record * const marc_record)
+                                          const Config::GroupParams &group_params, MARC::Record * const marc_record,
+                                          std::string * const marc_record_hash)
 {
     *marc_record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
                                 MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART);
@@ -992,10 +993,11 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     }
 
     // Has to be generated in the very end as it contains the hash of the record
+    *marc_record_hash = CalculateMarcRecordHash(*marc_record);
     {
         std::lock_guard<std::recursive_mutex> locale_lock(Util::non_threadsafe_locale_modification_guard);
         marc_record->insertField("001", group_params.name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
-                                 + "#" + CalculateMarcRecordHash(*marc_record));
+                                 + "#" + *marc_record_hash);
     }
 }
 
@@ -1126,8 +1128,9 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
 
             // a dummy record that will be replaced subsequently
             std::unique_ptr<MARC::Record> new_marc_record(new MARC::Record(std::string(MARC::Record::LEADER_LENGTH, ' ')));
+            std::string new_marc_record_hash;
             GenerateMarcRecordFromMetadataRecord(download_item, new_metadata_record, parameters.group_params_,
-                                                 new_marc_record.get());
+                                                 new_marc_record.get(), &new_marc_record_hash);
 
             if (MarcRecordMatchesExclusionFilters(download_item, new_marc_record.get())) {
                 ++result->num_skipped_since_exclusion_filters_;
@@ -1135,10 +1138,13 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
             }
 
             result->marc_records_.emplace_back(new_marc_record.release());
+            LOG_INFO("Generated record with hash '" + new_marc_record_hash + "'");
         } catch (const std::exception &x) {
             LOG_WARNING("couldn't convert record: " + std::string(x.what()));
         }
     }
+
+    LOG_INFO("Conversion complete");
 }
 
 
