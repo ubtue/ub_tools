@@ -2848,4 +2848,29 @@ bool IsSubjectAccessTag(const Tag &tag) {
 }
 
 
+// Extracts print and online cross links.
+std::set<std::string> ExtractPrintAndOnlineCrossLinkPPNs(const MARC::Record &record) {
+    std::set<std::string> cross_reference_ppns;
+    for (const auto _776_field : record.getTagRange("776")) {
+        const auto ppn(BSZUtil::GetK10PlusPPNFromSubfield(_776_field, 'w'));
+        if (ppn.empty())
+            continue;
+
+        const auto subfield_i_contents(_776_field.getFirstSubfieldWithCode('i'));
+        if (StringUtil::StartsWith(subfield_i_contents, "Druckausg") or StringUtil::StartsWith(subfield_i_contents, "Online")) {
+            cross_reference_ppns.emplace(ppn);
+            continue;
+        }
+
+        const auto subfield_n_contents(_776_field.getFirstSubfieldWithCode('n'));
+        if (StringUtil::StartsWith(subfield_n_contents, "Druck-Ausgabe") or StringUtil::StartsWith(subfield_n_contents, "Online") ) {
+            cross_reference_ppns.emplace(ppn);
+            continue;
+        }
+    }
+
+    return cross_reference_ppns;
+}
+
+
 } // namespace MARC
