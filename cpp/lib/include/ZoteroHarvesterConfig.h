@@ -39,7 +39,6 @@ namespace Config {
 // Parameters that pertain to all harvestable journals/groups.
 struct GlobalParams {
     enum IniKey : unsigned {
-        TRANSLATION_SERVER_URL,
         ENHANCEMENT_MAPS_DIRECTORY,
         GROUP_NAMES,
         STRPTIME_FORMAT_STRING,

@@ -96,6 +96,7 @@ DbConnection::DbConnection(const std::string &database_path, const OpenMode open
 
     if (::sqlite3_open_v2(database_path.c_str(), &sqlite3_, flags, nullptr) != SQLITE_OK)
         LOG_ERROR("failed to create or open an Sqlite3 database with path \"" + database_path + "\"!");
+    errno = 0; // It seems that sqlite3_open_v2 internally tries something that fails but doesn't clear errno afterwards.
     stmt_handle_ = nullptr;
     initialised_ = true;
 }
@@ -712,32 +713,42 @@ std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPriv
 unsigned DbTransaction::active_count_;
 
 
-DbTransaction::DbTransaction(DbConnection * const db_connection): db_connection_(*db_connection) {
+DbTransaction::DbTransaction(DbConnection * const db_connection, const bool rollback_when_exceptions_are_in_flight)
+    : db_connection_(*db_connection), rollback_when_exceptions_are_in_flight_(rollback_when_exceptions_are_in_flight)
+{
     if (active_count_ > 0)
         LOG_ERROR("no nested transactions are allowed!");
     ++active_count_;
 
-    db_connection_.queryOrDie("SHOW VARIABLES LIKE 'autocommit'");
-    DbResultSet result_set(db_connection_.getLastResultSet());
-    if (unlikely(result_set.empty()))
-        LOG_ERROR("this should never happen!");
+    if (db_connection_.getType() == DbConnection::T_SQLITE)
+        db_connection_.queryOrDie("BEGIN TRANSACTION");
+    else {
+        db_connection_.queryOrDie("SHOW VARIABLES LIKE 'autocommit'");
+        DbResultSet result_set(db_connection_.getLastResultSet());
+        if (unlikely(result_set.empty()))
+            LOG_ERROR("this should never happen!");
 
-    const std::string autocommit_status(result_set.getNextRow()["Value"]);
-    if (autocommit_status == "ON") {
-        autocommit_was_on_ = true;
-        db_connection_.queryOrDie("SET autocommit=OFF");
-    } else if (autocommit_status == "OFF")
-        autocommit_was_on_ = false;
-    else
-        LOG_ERROR("unknown autocommit status \"" + autocommit_status + "\"!");
+        const std::string autocommit_status(result_set.getNextRow()["Value"]);
+        if (autocommit_status == "ON") {
+            autocommit_was_on_ = true;
+            db_connection_.queryOrDie("SET autocommit=OFF");
+        } else if (autocommit_status == "OFF")
+            autocommit_was_on_ = false;
+        else
+            LOG_ERROR("unknown autocommit status \"" + autocommit_status + "\"!");
+        db_connection_.queryOrDie("START TRANSACTION");
+    }
 
-    db_connection_.queryOrDie("START TRANSACTION");
 }
 
 
 DbTransaction::~DbTransaction() {
-    db_connection_.queryOrDie("COMMIT");
-    if (autocommit_was_on_)
+    if (std::uncaught_exceptions() == 0)
+        db_connection_.queryOrDie("COMMIT");
+    else if (rollback_when_exceptions_are_in_flight_)
+        db_connection_.queryOrDie("ROLLBACK");
+
+    if (db_connection_.getType() == DbConnection::T_MYSQL and autocommit_was_on_)
         db_connection_.queryOrDie("SET autocommit=ON");
     --active_count_;
 }

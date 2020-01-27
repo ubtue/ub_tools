@@ -45,7 +45,7 @@ working_directory=/tmp/zts_harvester_delivery_pipeline
 
 harvester_output_directory=$working_directory
 harvester_output_filename=zts_harvester-$(date +%y%m%d).xml
-harvester_config_file=/usr/local/ub_tools/cpp/data/zts_harvester.conf
+harvester_config_file=/usr/local/ub_tools/cpp/data/zotero_harvester.conf
 records_with_missing_metadata_output_filename=zts_harvester-$(date +%y%m%d)-records-with-missing-metadata.xml
 
 
@@ -105,11 +105,13 @@ declare -a dest_filepaths
 StartPhase "Harvest URLs"
 LOGGER_FORMAT=no_decorations,strip_call_site \
 BACKTRACE=1 \
-zts_harvester --min-log-level=DEBUG \
-             --delivery-mode=$delivery_mode \
+UTIL_LOG_DEBUG=true \
+zotero_harvester --min-log-level=DEBUG \
              --output-directory=$harvester_output_directory \
              --output-filename=$harvester_output_filename \
-             $harvester_config_file >> "${log}" 2>&1
+             $harvester_config_file \
+             UPLOAD \
+             $delivery_mode >> "${log}" 2>&1
 EndPhase
 
 
@@ -124,6 +126,9 @@ for d in */ ; do
 
     current_source_filepath=$harvester_output_directory/$d/$harvester_output_filename
     valid_records_output_filepath=$harvester_output_directory/$d/zotero_${d}_$(date +%y%m%d)_001.xml  # we only deliver files once a day
+    LOGGER_FORMAT=no_decorations,strip_call_site \
+    BACKTRACE=1 \
+    UTIL_LOG_DEBUG=true \
     validate_harvested_records $current_source_filepath $valid_records_output_filepath \
                                $records_with_missing_metadata_output_filename $email_address >> "${log}" 2>&1
 
@@ -162,6 +167,9 @@ EndPhase
 
 StartPhase "Archive Sent Records"
 for source_filepath in "${source_filepaths[@]}"; do
+    LOGGER_FORMAT=no_decorations,strip_call_site \
+    BACKTRACE=1 \
+    UTIL_LOG_DEBUG=true \
     archive_sent_records $source_filepath >> "${log}" 2>&1
 done
 EndPhase
@@ -174,6 +182,9 @@ fi
 
 
 StartPhase "Check for Overdue Articles"
+LOGGER_FORMAT=no_decorations,strip_call_site \
+BACKTRACE=1 \
+UTIL_LOG_DEBUG=true \
 journal_timeliness_checker "$harvester_config_file" "journal_timeliness_checker@$(hostname)" "$email_address"
 EndPhase
 

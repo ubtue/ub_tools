@@ -12,8 +12,8 @@ ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
   CCCFLAGS += -O3 -funroll-loops -fomit-frame-pointer
   OPTIMISATIONS_STATE =
 else
-  LD_FLAGS = -fsanitize=address
-  CCCFLAGS += -fsanitize=address
+  LD_FLAGS = -fsanitize=thread
+  CCCFLAGS += -fsanitize=thread
   CCCFLAGS += -D_GLIBCXX_DEBUG
   OPTIMISATIONS_STATE = (unoptimised)
 endif
