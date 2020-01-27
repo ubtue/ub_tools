@@ -186,9 +186,10 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     private final static Map<String, String> text_type_to_description_map = new TreeMap<String, String>() {
         {
-            this.put("0", "Fulltext");
-            this.put("1", "Table of Contents");
-            this.put("255", "Unknown");
+            this.put("1", "Fulltext");
+            this.put("2", "Table of Contents");
+            this.put("4", "Abstract");
+            this.put("128", "Unknown");
         }
     };
 
@@ -3022,7 +3023,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    protected String extractFullTextFromJSON(final JSONArray hits) {
+    protected String extractFullTextFromJSON(final JSONArray hits, final String text_type_description) {
         if (hits.isEmpty())
             return "";
 
@@ -3030,7 +3031,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final Object obj : hits) {
              JSONObject hit = (JSONObject) obj;
              JSONObject _source = (JSONObject) hit.get("_source");
-             fulltextBuilder.append(_source.get("full_text"));
+             final String description = mapTextTypeToDescription((String) _source.get("text_type"));
+             if (description.equals(text_type_description))
+                 fulltextBuilder.append(_source.get("full_text"));
         }
         return fulltextBuilder.toString();
     }
@@ -3163,7 +3166,17 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     public String getFullTextElasticsearch(final Record record) {
-        return extractFullTextFromJSON(fulltext_server_hits);
+        return extractFullTextFromJSON(fulltext_server_hits, "Fulltext");
+    }
+
+
+    public String getFullTextElasticsearchTOC(final Record record) {
+        return extractFullTextFromJSON(fulltext_server_hits, "Table of Contents");
+    }
+
+
+    public String getFullTextElasticsearchAbstract(final Record record) {
+        return extractFullTextFromJSON(fulltext_server_hits, "Abstract");
     }
 
 
