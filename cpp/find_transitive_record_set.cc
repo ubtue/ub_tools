@@ -21,6 +21,7 @@
 */
 
 #include <map>
+#include <unordered_map>
 #include <unordered_set>
 #include <cstdlib>
 #include "FileUtil.h"
@@ -52,26 +53,39 @@ bool IsRelStudiesRecord(const MARC::Record &record) {
 void FindUntaggedPPNs(MARC::Reader * const marc_reader, File * const list_file,
                       const RecordTypeOfInterestPredicate is_record_type_of_interest)
 {
-    std::unordered_set<std::string> tagged_ppns, referenced_ppns;
+    std::unordered_set<std::string> tagged_ppns;
+    std::unordered_map<std::string, std::set<std::string>> referee_to_referenced_ppns_map;
     while (const auto record = marc_reader->read()) {
         if (not (*is_record_type_of_interest)(record))
             continue;
 
         tagged_ppns.emplace(record.getControlNumber());
         const auto parent_ppn(MARC::GetParentPPN(record));
-        if (not parent_ppn.empty())
-            referenced_ppns.emplace(parent_ppn);
+        if (not parent_ppn.empty()) {
+            auto referee_and_referenced_ppns(referee_to_referenced_ppns_map.find(record.getControlNumber()));
+            if (referee_and_referenced_ppns != referee_to_referenced_ppns_map.end())
+                referee_and_referenced_ppns->second.emplace(parent_ppn);
+            else
+                referee_to_referenced_ppns_map[record.getControlNumber()] = std::set<std::string>{ parent_ppn };
+        }
 
         const auto cross_link_ppns(MARC::ExtractPrintAndOnlineCrossLinkPPNs(record));
-        for (const auto &cross_link_ppn : cross_link_ppns)
-            referenced_ppns.emplace(cross_link_ppn);
+        for (const auto &cross_link_ppn : cross_link_ppns) {
+            auto referee_and_referenced_ppns(referee_to_referenced_ppns_map.find(record.getControlNumber()));
+            if (referee_and_referenced_ppns != referee_to_referenced_ppns_map.end())
+                referee_and_referenced_ppns->second.emplace(cross_link_ppn);
+            else
+                referee_to_referenced_ppns_map[record.getControlNumber()] = std::set<std::string>{ cross_link_ppn };
+        }
     }
 
     unsigned untagged_count(0);
-    for (const auto &referenced_ppn : referenced_ppns) {
-        if (tagged_ppns.find(referenced_ppn) == tagged_ppns.cend()) {
-            ++untagged_count;
-            (*list_file) << referenced_ppn << '\n';
+    for (const auto &referee_and_referenced_ppns : referee_to_referenced_ppns_map) {
+        for (const auto &referenced_ppn : referee_and_referenced_ppns.second) {
+            if (tagged_ppns.find(referenced_ppn) == tagged_ppns.cend()) {
+                ++untagged_count;
+                (*list_file) << referee_and_referenced_ppns.first << " -> " << referenced_ppn << '\n';
+            }
         }
     }
 
