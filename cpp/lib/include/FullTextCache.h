@@ -64,7 +64,7 @@ public:
      *  \note Deletes expired entries and associated data in the key/value database found at "full_text_db_path".
      */
     bool entryExpired(const std::string &key, std::vector<std::string> urls);
-    enum TextType { FULLTEXT, TOC, UNKNOWN = 255 };
+    enum TextType : unsigned { FULLTEXT = 1, TOC = 2, ABSTRACT = 4, UNKNOWN = 128 };
 
     /** \brief Delete all records whose expiration field is in the past */
     void expireEntries();
