@@ -20,7 +20,7 @@ function GetHitCount() {
 
 function ObtainIds() {
     response=$@
-    echo $response | jq  '[.hits.hits[]."_source"]  | . as $t | group_by(.id) | map(.[0].id)' 
+    echo $response | jq  '[.hits.hits[]."_source"]  | . as $t | group_by(.id) | map(.[0].id)'
 }
 
 
@@ -42,11 +42,12 @@ fi
 
 id_output_file=$1
 
-# Fail early if we cannot write the file
+echo "Checking write access to output file..."
 > $id_output_file
 
-# Handle potential chunking
-response=$(curl -s -X GET -H "Content-Type: application/json" $ES_HOST_AND_PORT/$ES_INDEX'/_search/?scroll=1m' --data '{ "_source": ["id"], "size" : 1000, "query":{ "match_all": {} } }')
+echo "Querying Elasticsearch..."
+response=$(curl --silent --request GET --header "Content-Type: application/json" $ES_HOST_AND_PORT/$ES_INDEX'/_search/?scroll=1m' --data '{ "_source": ["id"], "size" : 1000, "query":{ "match_all": {} } }')
+echo "Processing Elasticsearch response..."
 GetDownloadStats "$response"
 scroll_id=$(GetScrollId "$response")
 hit_count=$(GetHitCount "$response")
@@ -57,7 +58,7 @@ id_arrays=$(ObtainIds "$response")
 # Continue until there are no further results
 while [ "$hit_count" != "0" ]; do
     echo "Obtaining batch with "$hit_count" items"
-    response=$(curl -s -X GET -H "Content-Type: application/json" $ES_HOST_AND_PORT'/_search/scroll' --data '{ "scroll" : "1m", "scroll_id": "'$scroll_id'" }')
+    response=$(curl --silent --request GET --header "Content-Type: application/json" $ES_HOST_AND_PORT'/_search/scroll' --data '{ "scroll" : "1m", "scroll_id": "'$scroll_id'" }')
     GetDownloadStats "$response"
     scroll_id=$(GetScrollId "$response")
     hit_count=$(GetHitCount "$response")

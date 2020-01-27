@@ -28,6 +28,7 @@
 #include <pthread.h>
 #include "DbConnection.h"
 #include "JSON.h"
+#include "MARC.h"
 #include "RegexMatcher.h"
 #include "SqlUtil.h"
 #include "ThreadUtil.h"
@@ -303,6 +304,7 @@ template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::
     const auto zotero_logger(dynamic_cast<ZoteroLogger *>(::logger));
     const auto thread_id(tasklet->thread_id_);
     assert(thread_id == ::pthread_self());
+    SqlUtil::ThreadSafetyGuard sql_guard(SqlUtil::ThreadSafetyGuard::ThreadType::WORKER_THREAD);
 
     ::pthread_setname_np(thread_id, tasklet->context_.description_.c_str());
     // Store the tasklet context in the thread-local data segment.
@@ -436,11 +438,16 @@ public:
     // Returns false if the tasklet encountered an error, true otherwise.
     bool hasResult() const;
 
+    // Blocks the calling thread until the task has run to completion.
+    void await();
+
     // Returns the result of the tasklet. Will block if the task is still running.
     Result &getResult();
 
     inline const Parameter &getParameter() const
         { return source_tasklet_->getParameter(); }
+    inline std::string toString() const
+        { return source_tasklet_->toString(); }
 };
 
 
@@ -489,7 +496,7 @@ template <typename Parameter, typename Result> bool Future<Parameter, Result>::h
 }
 
 
-template <typename Parameter, typename Result> Result &Future<Parameter, Result>::getResult() {
+template <typename Parameter, typename Result> void Future<Parameter, Result>::await() {
     if (status_ == Status::WAITING) {
         source_tasklet_->await();
         if (hasResult()) {
@@ -498,6 +505,13 @@ template <typename Parameter, typename Result> Result &Future<Parameter, Result>
         } else
             status_ = Status::NO_RESULT;
     }
+}
+
+
+template <typename Parameter, typename Result> Result &Future<Parameter, Result>::getResult() {
+    await();
+    if (status_ != Status::HAS_RESULT)
+        LOG_ERROR("no result for future bound to tasklet " + source_tasklet_->toString());
 
     return *result_;
 }
@@ -505,26 +519,39 @@ template <typename Parameter, typename Result> Result &Future<Parameter, Result>
 
 // Tracks harvested records that have been uploaded to the BSZ server.
 class UploadTracker {
-    std::unique_ptr<DbConnection> db_connection_;
+    static constexpr unsigned CONNECTION_POOL_SIZE = 50;
 public:
     struct Entry {
         std::string url_;
         std::string journal_name_;
         time_t delivered_at_;
+        std::string delivered_at_str_;
         std::string hash_;
+    public:
+        std::string toString() const;
     };
+private:
+    mutable ThreadUtil::Semaphore connection_pool_semaphore_;
 public:
-    explicit UploadTracker(): db_connection_(new DbConnection) {}
+    explicit UploadTracker(): connection_pool_semaphore_(CONNECTION_POOL_SIZE) {}
 
     bool urlAlreadyDelivered(const std::string &url, Entry * const entry = nullptr) const;
-    bool hashAlreadyDelivered(const std::string &hash, Entry * const entry = nullptr) const;
-
-    // Lists all journals that haven't had a single URL delivered for a given number of days.
-    size_t listOutdatedJournals(const unsigned cutoff_days, std::unordered_map<std::string, time_t> * const outdated_journals) const;
+    bool hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries = nullptr) const;
+    bool recordAlreadyDelivered(const MARC::Record &record) const;
 
     // Returns when the last URL of the given journal was delivered to the BSZ. If found,
     // returns the timestamp of the last delivery, TimeUtil::BAD_TIME_T otherwise.
     time_t getLastUploadTime(const std::string &journal_name) const;
+
+    // Saves the record blob and its associated metadata in the host's database.
+    // Returns true on success, false otherwise.
+    bool archiveRecord(const MARC::Record &record);
+private:
+    bool urlAlreadyDelivered(const std::string &url, Entry * const entry, DbConnection * const db_connection) const;
+    bool hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries,
+                              DbConnection * const db_connection) const;
+    bool recordAlreadyDelivered(const std::string &record_hash, const std::vector<std::string> &record_urls,
+                                DbConnection * const db_connection) const;
 };
 
 

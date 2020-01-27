@@ -47,6 +47,8 @@ public:
     enum LogLevel { LL_ERROR = 1, LL_WARNING = 2, LL_INFO = 3, LL_DEBUG = 4 };
     friend Logger *LoggerInstantiator();
 protected:
+    static const std::string FUNCTION_NAME_SEPARATOR;
+
     std::mutex mutex_;
     int fd_;
     bool log_process_pids_, log_no_decorations_, log_strip_call_site_;
@@ -65,19 +67,22 @@ public:
     //* Emits "msg" and then calls exit(3), also generates a call stack trace if the environment variable BACKTRACE has been set.
     [[noreturn]] virtual void error(const std::string &msg) __attribute__((noreturn));
     [[noreturn]] virtual void error(const std::string &function_name, const std::string &msg) __attribute__((noreturn))
-        { error("in " + function_name + ": " + msg); __builtin_unreachable(); }
+        { error("in " + function_name + FUNCTION_NAME_SEPARATOR + msg); __builtin_unreachable(); }
 
     virtual void warning(const std::string &msg);
-    inline void warning(const std::string &function_name, const std::string &msg) { warning("in " + function_name + ": " + msg); }
+    inline void warning(const std::string &function_name, const std::string &msg)
+        { warning("in " + function_name + FUNCTION_NAME_SEPARATOR + msg); }
 
     virtual void info(const std::string &msg);
-    inline void info(const std::string &function_name, const std::string &msg) { info("in " + function_name + ": " + msg); }
+    inline void info(const std::string &function_name, const std::string &msg)
+        { info("in " + function_name + FUNCTION_NAME_SEPARATOR + msg); }
 
     /** \note Only writes actual log messages if the environment variable "UTIL_LOG_DEBUG" exists and is set
      *  to "true"!
      */
     virtual void debug(const std::string &msg);
-    inline void debug(const std::string &function_name, const std::string &msg) { debug("in " + function_name + ": " + msg); }
+    inline void debug(const std::string &function_name, const std::string &msg)
+        { debug("in " + function_name + FUNCTION_NAME_SEPARATOR + msg); }
 
     //* \note Aborts if ""level_candidate" is not one of "ERROR", "WARNING", "INFO" or "DEBUG".
     static LogLevel StringToLogLevel(const std::string &level_candidate);

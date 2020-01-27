@@ -41,6 +41,10 @@
 char *progname; // Must be set in main() with "progname = argv[0];";
 
 
+const std::string Logger::FUNCTION_NAME_SEPARATOR(" --> ");
+
+
+
 Logger::Logger()
     : fd_(STDERR_FILENO), log_process_pids_(false), log_no_decorations_(false), log_strip_call_site_(false),
       min_log_level_(LL_INFO)
@@ -151,9 +155,9 @@ void Logger::formatMessage(const std::string &level, std::string * const msg) {
     }
 
     if (log_strip_call_site_) {
-        const auto END_OF_CALL_SITE_PREFIX(msg->find("): "));
+        const auto END_OF_CALL_SITE_PREFIX(msg->find(FUNCTION_NAME_SEPARATOR));
         if (END_OF_CALL_SITE_PREFIX != std::string::npos)
-            *msg = msg->substr(END_OF_CALL_SITE_PREFIX + 3);
+            *msg = msg->substr(END_OF_CALL_SITE_PREFIX + FUNCTION_NAME_SEPARATOR.length());
     }
 
     *msg += '\n';
