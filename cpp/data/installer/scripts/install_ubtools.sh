@@ -21,7 +21,7 @@ if [ -e /etc/debian_version ]; then
         chmod 700 ./install_ubuntu_packages.sh
     fi
     ./install_ubuntu_packages.sh
-elif [ -e /etc/redhat-release ]; then
+elif [ -e /etc/centos-release ]; then
     # centos
     echo "CentOS detected! installing dependencies..."
     cd /tmp
