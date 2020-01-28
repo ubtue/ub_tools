@@ -4,8 +4,14 @@
 # download ub_tools (via git)
 # compile cpp installer
 # run it
+
+# check prerequisites and invariants
 if [ "$(id -u)" != "0" ]; then
     echo "This script must be run as root" 1>&2
+    exit 1
+fi
+if [[ ! $PATH =~ "/usr/local/bin" ]]; then
+    echo "Please add /usr/local/bin to your PATH before starting the installation!"
     exit 1
 fi
 
