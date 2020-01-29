@@ -35,7 +35,7 @@ namespace {
 [[noreturn]] void Usage() {
     ::Usage("[--patch] type marc_filename (untagged_ppn_list | marc_output)\n"
             "where \"type\" must be one of CHURCHLAW, BIBLESTUDIES or RELSTUDIES.\n"
-            "Please note that if\"--patch\" has been specified, the last argument is the output MARC file o/w it is a list "
+            "Please note that if \"--patch\" has been specified, the last argument is the output MARC file o/w it is a list "
             "of untagged PPNs.");
 }
 
