@@ -41,7 +41,8 @@ constexpr unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 mo
 
 static const std::map<std::string, FullTextCache::TextType> description_to_text_type_map {
     { "Volltext", FullTextCache::FULLTEXT },
-    { "Inhaltsverzeichnis", FullTextCache::TOC }
+    { "Inhaltsverzeichnis", FullTextCache::TOC },
+    { "Inhaltstext", FullTextCache::ABSTRACT }
 };
 
 
