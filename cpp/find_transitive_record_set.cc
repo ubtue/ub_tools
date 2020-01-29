@@ -88,11 +88,9 @@ void FindUntaggedPPNs(MARC::Reader * const marc_reader, File * const list_file,
         }
     }
 
-    unsigned untagged_count(0);
     for (const auto &referee_and_referenced_ppns : referee_to_referenced_ppns_map) {
         for (const auto &referenced_ppn : referee_and_referenced_ppns.second) {
             if (tagged_ppns.find(referenced_ppn) == tagged_ppns.cend()) {
-                ++untagged_count;
                 if (list_file != nullptr)
                     (*list_file) << referee_and_referenced_ppns.first << " -> " << referenced_ppn << '\n';
                 unpatched_ppns->emplace(referenced_ppn);
