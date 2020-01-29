@@ -446,7 +446,7 @@ void AugmentDBEntries(DbConnection * const db_connection,
         }
         // Only write back non-empty string if we have at least one reasonable entry
         std::string a_gnd_content(author_gnd_seen ? StringUtil::Join(author_gnd_numbers, ";") : "");
-        const std::string a_no_gnd_content(authors_no_gnd.size() ? StringUtil::Join(authors_no_gnd, ';') : "");
+        std::string a_no_gnd_content(authors_no_gnd.size() ? StringUtil::Join(authors_no_gnd, ';') : "");
 
         // Apply manually fixed typos and circumscriptions
         std::string keyword_row(db_row["stichwort"]);
@@ -561,6 +561,10 @@ void AugmentDBEntries(DbConnection * const db_connection,
             const std::string gnds(StringUtil::Join(officials_gnds, ','));
             a_gnd_content = not a_gnd_content.empty() ? a_gnd_content + ',' + gnds : gnds;
         }
+
+        // Workaround for bishops/officials not yet known in original assignment of a_gnd
+        if (not a_gnd_content.empty() and StringUtil::RemoveChars(" \\t", author_row) == StringUtil::RemoveChars(" \\t", a_no_gnd_content))
+            a_no_gnd_content = "";
 
 
         // Extract Category from abstract
