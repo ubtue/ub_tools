@@ -32,6 +32,14 @@
 namespace {
 
 
+[[noreturn]] void Usage() {
+    ::Usage("[--patch] type marc_filename (untagged_ppn_list | marc_output)\n"
+            "where \"type\" must be one of CHURCHLAW, BIBLESTUDIES or RELSTUDIES.\n"
+            "Please note that if \"--patch\" has been specified, the last argument is the output MARC file o/w it is a list "
+            "of untagged PPNs.");
+}
+
+
 typedef bool (*RecordTypeOfInterestPredicate)(const MARC::Record &record);
 
 
@@ -51,7 +59,8 @@ bool IsRelStudiesRecord(const MARC::Record &record) {
 
 
 void FindUntaggedPPNs(MARC::Reader * const marc_reader, File * const list_file,
-                      const RecordTypeOfInterestPredicate is_record_type_of_interest)
+                      const RecordTypeOfInterestPredicate is_record_type_of_interest,
+                      std::unordered_set<std::string> * const unpatched_ppns)
 {
     std::unordered_set<std::string> tagged_ppns;
     std::unordered_map<std::string, std::set<std::string>> referee_to_referenced_ppns_map;
@@ -79,21 +88,21 @@ void FindUntaggedPPNs(MARC::Reader * const marc_reader, File * const list_file,
         }
     }
 
-    unsigned untagged_count(0);
     for (const auto &referee_and_referenced_ppns : referee_to_referenced_ppns_map) {
         for (const auto &referenced_ppn : referee_and_referenced_ppns.second) {
             if (tagged_ppns.find(referenced_ppn) == tagged_ppns.cend()) {
-                ++untagged_count;
-                (*list_file) << referee_and_referenced_ppns.first << " -> " << referenced_ppn << '\n';
+                if (list_file != nullptr)
+                    (*list_file) << referee_and_referenced_ppns.first << " -> " << referenced_ppn << '\n';
+                unpatched_ppns->emplace(referenced_ppn);
             }
         }
     }
 
-    LOG_INFO("Found " + std::to_string(untagged_count) + " referenced but untagged record(s).");
+    LOG_INFO("Found " + std::to_string(unpatched_ppns->size()) + " referenced but untagged record(s).");
 }
 
 
-    enum RecordType { UNKNOWN, BIBLESTUDIES, CHURCHLAW, RELSTUDIES };
+enum RecordType { UNKNOWN, BIBLESTUDIES, CHURCHLAW, RELSTUDIES };
 
 
 std::map<RecordType, RecordTypeOfInterestPredicate> record_type_to_predicate_map{
@@ -103,13 +112,45 @@ std::map<RecordType, RecordTypeOfInterestPredicate> record_type_to_predicate_map
 };
 
 
+std::map<RecordType, MARC::Tag> record_type_to_tag_map{
+    { BIBLESTUDIES, "BIB" },
+    { CHURCHLAW,    "CAN" },
+    { RELSTUDIES,   "REL" },
+};
+
+
+void PatchRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const RecordType record_type,
+                  const std::unordered_set<std::string> &unpatched_ppns)
+{
+    const MARC::Tag new_tag(record_type_to_tag_map[record_type]);
+    unsigned patched_count(0);
+    while (auto record = marc_reader->read()) {
+        if (unpatched_ppns.find(record.getControlNumber()) != unpatched_ppns.cend()) {
+            record.insertField(new_tag, std::vector<MARC::Subfield>{ { 'a', "1" }, { 'c', "1" } });
+            ++patched_count;
+        }
+
+        marc_writer->write(record);
+    }
+
+    LOG_INFO("Successfully patched " + std::to_string(patched_count) + " record(s).");
+}
+
+
 } // unnamed namespace
 
 
 int Main(int argc, char **argv) {
-    if (argc != 4)
-        ::Usage("type marc_filename untagged_ppn_list\n"
-                "where \"type\" must be one of CHURCHLAW, BIBLESTUDIES or RELSTUDIES.\n");
+    if (argc != 4 and argc != 5)
+        Usage();
+
+    bool patch(false);
+    if (argc == 5) {
+        if (std::strcmp(argv[1], "--patch") != 0)
+            Usage();
+        patch = true;
+        --argc, ++argv;
+    }
 
     RecordType record_type(UNKNOWN);
     if (std::strcmp(argv[1], "CHURCHLAW") == 0)
@@ -122,8 +163,15 @@ int Main(int argc, char **argv) {
         LOG_ERROR(std::string(argv[1]) + " is not a valid type!");
 
     const auto marc_reader(MARC::Reader::Factory(argv[2]));
-    const auto list_file(FileUtil::OpenOutputFileOrDie(argv[3]));
-    FindUntaggedPPNs(marc_reader.get(), list_file.get(), record_type_to_predicate_map[record_type]);
+    const auto list_file(patch ? nullptr : FileUtil::OpenOutputFileOrDie(argv[3]));
+    std::unordered_set<std::string> unpatched_ppns;
+    FindUntaggedPPNs(marc_reader.get(), list_file.get(), record_type_to_predicate_map[record_type], &unpatched_ppns);
+
+    if (patch) {
+        marc_reader->rewind();
+        const auto marc_writer(MARC::Writer::Factory(argv[3]));
+        PatchRecords(marc_reader.get(), marc_writer.get(), record_type, unpatched_ppns);
+    }
 
     return EXIT_SUCCESS;
 }
