@@ -17,18 +17,83 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "Main.h"
 #include <stdexcept>
 #include <string>
 #include <cstdlib>
 #include <cerrno>
+#include <algorithm>
+#include <memory>
+#include <vector>
 #include "StringUtil.h"
 #include "util.h"
 
 
-int Main(int argc, char *argv[]);
+namespace {
 
 
-int main(int argc, char *argv[]) __attribute__((weak));
+struct MainHandler {
+    enum HandlerType { PROLOGUE, EPILOGUE };
+
+    HandlerType type_;
+    unsigned priority_;
+    std::function<void()> handler_;
+public:
+    MainHandler(const HandlerType type, const unsigned priority, const std::function<void()> &handler)
+        : type_(type), priority_(priority), handler_(handler) {}
+};
+
+
+bool MainHandlerComparator(const MainHandler &a, const MainHandler &b) {
+    return a.priority_ > b.priority_;
+}
+
+
+std::vector<MainHandler> * GetHandlers(const MainHandler::HandlerType type) {
+    static std::vector<MainHandler> prologue_handlers;
+    static std::vector<MainHandler> epilogue_handlers;
+
+    switch (type) {
+    case MainHandler::HandlerType::PROLOGUE:
+        return &prologue_handlers;
+    case MainHandler::HandlerType::EPILOGUE:
+        return &epilogue_handlers;
+    default:
+        LOG_ERROR("unknown handler type " + std::to_string(type));
+    }
+
+    return nullptr;
+}
+
+
+void RunHandlers(const MainHandler::HandlerType type) {
+    const auto handlers(GetHandlers(type));
+
+    for (const auto &handler : *handlers)
+        handler.handler_();
+}
+
+
+bool handlers_finalised(false);
+
+
+} // unnamed namespace
+
+
+void RegisterProgramPrologueHandler(const unsigned priority, const std::function<void()> &handler) {
+    if (handlers_finalised)
+        LOG_ERROR("handlers have already been finalised!");
+
+    GetHandlers(MainHandler::HandlerType::PROLOGUE)->emplace_back(MainHandler::HandlerType::PROLOGUE, priority, handler);
+}
+
+
+void RegisterProgramEpilogueHandler(const unsigned priority, const std::function<void()> &handler) {
+    if (handlers_finalised)
+        LOG_ERROR("handlers have already been finalised!");
+
+    GetHandlers(MainHandler::HandlerType::EPILOGUE)->emplace_back(MainHandler::HandlerType::EPILOGUE, priority, handler);
+}
 
 
 int main(int argc, char *argv[]) {
@@ -51,11 +116,21 @@ int main(int argc, char *argv[]) {
     }
     logger->setMinimumLogLevel(log_level);
 
+    // finalise handlers
+    std::sort(GetHandlers(MainHandler::HandlerType::PROLOGUE)->begin(), GetHandlers(MainHandler::HandlerType::PROLOGUE)->end(),
+              MainHandlerComparator);
+    std::sort(GetHandlers(MainHandler::HandlerType::EPILOGUE)->begin(), GetHandlers(MainHandler::HandlerType::EPILOGUE)->end(),
+              MainHandlerComparator);
+    handlers_finalised = true;
+
     try {
         errno = 0;
-        return Main(argc, argv);
+        RunHandlers(MainHandler::HandlerType::PROLOGUE);
+        const auto ret_code(Main(argc, argv));
+        RunHandlers(MainHandler::HandlerType::EPILOGUE);
+
+        return ret_code;
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }
-
