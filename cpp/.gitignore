@@ -45,7 +45,6 @@
 /find_bib_ref_candidates_in_titles
 /find_gnd_reference_fields
 /find_latest_journal_year
-/find_transitive_record_set
 /find_tue_dups
 /fix_article_biblio_levels
 /fix_iso_8859_1_garbage
