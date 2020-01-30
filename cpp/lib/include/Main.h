@@ -24,12 +24,6 @@
 #include <cstdlib>
 
 
-int Main(int argc, char *argv[]);
-
-
-int main(int argc, char *argv[]) __attribute__((weak));
-
-
 // Registers a handler that gets executed before entering a program's Main entry point.
 // Handlers with higher priority values are executed before those with lower priority values.
 // Must be called before Main is executed.
