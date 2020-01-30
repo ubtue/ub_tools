@@ -28,11 +28,11 @@
 
 // Perform process-level init/deinit related to Xerces library.
 static int SetupXercesPlatform() {
-    RegisterProgramPrologueHandler(/* priority = */ 999, []() -> void {
+    RegisterProgramPrologueHandler(/* priority = */ 0, []() -> void {
         xercesc::XMLPlatformUtils::Initialize();
     });
 
-    RegisterProgramEpilogueHandler(/* priority = */ 999, []() -> void {
+    RegisterProgramEpilogueHandler(/* priority = */ 0, []() -> void {
         xercesc::XMLPlatformUtils::Terminate();
     });
 

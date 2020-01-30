@@ -74,23 +74,24 @@ void RunHandlers(const MainHandler::HandlerType type) {
 }
 
 
-bool handlers_finalised(false);
+bool prologue_handlers_finalised(false);
+bool epilogue_handlers_finalised(false);
 
 
 } // unnamed namespace
 
 
 void RegisterProgramPrologueHandler(const unsigned priority, const std::function<void()> &handler) {
-    if (handlers_finalised)
-        LOG_ERROR("handlers have already been finalised!");
+    if (prologue_handlers_finalised)
+        LOG_ERROR("prologue handlers have already been finalised!");
 
     GetHandlers(MainHandler::HandlerType::PROLOGUE)->emplace_back(MainHandler::HandlerType::PROLOGUE, priority, handler);
 }
 
 
 void RegisterProgramEpilogueHandler(const unsigned priority, const std::function<void()> &handler) {
-    if (handlers_finalised)
-        LOG_ERROR("handlers have already been finalised!");
+    if (epilogue_handlers_finalised)
+        LOG_ERROR("epilogue handlers have already been finalised!");
 
     GetHandlers(MainHandler::HandlerType::EPILOGUE)->emplace_back(MainHandler::HandlerType::EPILOGUE, priority, handler);
 }
@@ -116,17 +117,18 @@ int main(int argc, char *argv[]) {
     }
     logger->setMinimumLogLevel(log_level);
 
-    // finalise handlers
-    std::sort(GetHandlers(MainHandler::HandlerType::PROLOGUE)->begin(), GetHandlers(MainHandler::HandlerType::PROLOGUE)->end(),
-              MainHandlerComparator);
-    std::sort(GetHandlers(MainHandler::HandlerType::EPILOGUE)->begin(), GetHandlers(MainHandler::HandlerType::EPILOGUE)->end(),
-              MainHandlerComparator);
-    handlers_finalised = true;
-
     try {
         errno = 0;
+        prologue_handlers_finalised = true;
+        std::sort(GetHandlers(MainHandler::HandlerType::PROLOGUE)->begin(), GetHandlers(MainHandler::HandlerType::PROLOGUE)->end(),
+                  MainHandlerComparator);
         RunHandlers(MainHandler::HandlerType::PROLOGUE);
+
         const auto ret_code(Main(argc, argv));
+
+        epilogue_handlers_finalised = true;
+        std::sort(GetHandlers(MainHandler::HandlerType::EPILOGUE)->begin(), GetHandlers(MainHandler::HandlerType::EPILOGUE)->end(),
+                  MainHandlerComparator);
         RunHandlers(MainHandler::HandlerType::EPILOGUE);
 
         return ret_code;
