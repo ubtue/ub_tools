@@ -113,6 +113,7 @@
 /translation_keyword_stats
 /update_full_text_db
 /urlencode
+/update_sent_records
 /validate_harvested_records
 /zeder_count_imported
 /zeder_entry_downloader
