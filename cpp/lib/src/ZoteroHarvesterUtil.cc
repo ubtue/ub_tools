@@ -412,10 +412,7 @@ bool UploadTracker::recordAlreadyDelivered(const MARC::Record &record) const {
     DbConnection db_connection;
 
     const auto hash(Conversion::CalculateMarcRecordHash(record));
-    auto urls(record.getSubfieldValues("856", 'u'));
-    const auto harvest_url_field(record.findTag("URL"));
-    if (harvest_url_field != record.end())
-        urls.emplace_back(harvest_url_field->getFirstSubfieldWithCode('a'));
+    const auto urls(GetMarcRecordUrls(record));
 
     return recordAlreadyDelivered(hash, urls, &db_connection);
 }
@@ -440,10 +437,7 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
     DbConnection db_connection;
 
     const auto hash(Conversion::CalculateMarcRecordHash(record));
-    auto urls(record.getSubfieldValues("856", 'u'));
-    const auto harvest_url_field(record.findTag("URL"));
-    if (harvest_url_field != record.end())
-        urls.emplace_back(harvest_url_field->getFirstSubfieldWithCode('a'));
+    const auto urls(GetMarcRecordUrls(record));
 
     if (recordAlreadyDelivered(hash, urls, &db_connection))
         return false;
@@ -506,8 +500,21 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
 }
 
 
-
 std::recursive_mutex non_threadsafe_locale_modification_guard;
+
+
+std::vector<std::string> GetMarcRecordUrls(const MARC::Record &record) {
+    std::vector<std::string> urls;
+
+    for (const auto &field : record.getTagRange("856"))
+        urls.emplace_back(field.getFirstSubfieldWithCode('u'));
+
+    const auto harvest_url_field(record.findTag("URL"));
+    if (harvest_url_field != record.end())
+        urls.emplace_back(harvest_url_field->getFirstSubfieldWithCode('a'));
+
+    return urls;
+}
 
 
 } // end namespace Util
