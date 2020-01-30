@@ -20,9 +20,9 @@
 #include "Main.h"
 #include <algorithm>
 #include <memory>
-#include <vector>
 #include <stdexcept>
 #include <string>
+#include <vector>
 #include <cstdlib>
 #include <cerrno>
 #include "StringUtil.h"
