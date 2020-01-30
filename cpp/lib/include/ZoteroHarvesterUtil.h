@@ -561,6 +561,9 @@ private:
 extern std::recursive_mutex non_threadsafe_locale_modification_guard;
 
 
+std::vector<std::string> GetMarcRecordUrls(const MARC::Record &record);
+
+
 } // end namespace Util
 
 
