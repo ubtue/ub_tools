@@ -1,4 +1,4 @@
-/** \brief Utility for updating hashs and URLs of MARC records in our delivery history database.
+/** \brief Utility for updating hashes and URLs of MARC records in our delivery history database.
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
  *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -43,14 +43,14 @@ bool UpdateRecordHash(const std::string &record_id, const std::string &saved_has
     const auto recalculated_hash(ZoteroHarvester::Conversion::CalculateMarcRecordHash(*record));
     if (saved_hash == recalculated_hash) {
         LOG_DEBUG("record " + record_id + " has the same hash. skipping...");
-        return false;
+       return false;
     }
 
     // Update the hash in the control field
     auto control_field(record->findTag("001"));
     const auto control_field_value(control_field->getContents());
     const auto control_number_prefix(control_field_value.substr(0, control_field_value.rfind('#')));
-    control_field->setContents(control_number_prefix + recalculated_hash);
+    control_field->setContents(control_number_prefix + "#" + recalculated_hash);
 
     const auto updated_blob(GzStream::CompressString(record->toBinaryString(), GzStream::GZIP));
     db_connection->queryOrDie("UPDATE delivered_marc_records SET record=" + db_connection->escapeAndQuoteString(updated_blob)
@@ -63,6 +63,8 @@ bool UpdateRecordHash(const std::string &record_id, const std::string &saved_has
 void SaveRecordUrls(const std::string &record_id, const MARC::Record &record, DbConnection * const db_connection) {
     const auto urls(record.getSubfieldValues("856", 'u'));
     for (const auto &url : urls) {
+        // This call will fail at least once for each record that has multiple URLs due to duplicates.
+        // Failures of this kind are benign.
         db_connection->query("INSERT INTO delivered_marc_records_urls SET record_id=" + record_id
                              + ", url=" + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(url)));
     }
