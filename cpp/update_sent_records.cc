@@ -61,7 +61,7 @@ bool UpdateRecordHash(const std::string &record_id, const std::string &saved_has
 
 
 void SaveRecordUrls(const std::string &record_id, const MARC::Record &record, DbConnection * const db_connection) {
-    const auto urls(record.getSubfieldValues("856", 'u'));
+    const auto urls(ZoteroHarvester::Util::GetMarcRecordUrls(record));
     for (const auto &url : urls) {
         // This call will fail at least once for each record that has multiple URLs due to duplicates.
         // Failures of this kind are benign.
