@@ -412,7 +412,10 @@ bool UploadTracker::recordAlreadyDelivered(const MARC::Record &record) const {
     DbConnection db_connection;
 
     const auto hash(Conversion::CalculateMarcRecordHash(record));
-    const auto urls(record.getSubfieldValues("856", 'u'));
+    auto urls(record.getSubfieldValues("856", 'u'));
+    const auto harvest_url_field(record.findTag("URL"));
+    if (harvest_url_field != record.end())
+        urls.emplace_back(harvest_url_field->getFirstSubfieldWithCode('a'));
 
     return recordAlreadyDelivered(hash, urls, &db_connection);
 }
@@ -437,7 +440,10 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
     DbConnection db_connection;
 
     const auto hash(Conversion::CalculateMarcRecordHash(record));
-    const auto urls(record.getSubfieldValues("856", 'u'));
+    auto urls(record.getSubfieldValues("856", 'u'));
+    const auto harvest_url_field(record.findTag("URL"));
+    if (harvest_url_field != record.end())
+        urls.emplace_back(harvest_url_field->getFirstSubfieldWithCode('a'));
 
     if (recordAlreadyDelivered(hash, urls, &db_connection))
         return false;

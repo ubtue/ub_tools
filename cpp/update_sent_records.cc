@@ -61,7 +61,11 @@ bool UpdateRecordHash(const std::string &record_id, const std::string &saved_has
 
 
 void SaveRecordUrls(const std::string &record_id, const MARC::Record &record, DbConnection * const db_connection) {
-    const auto urls(record.getSubfieldValues("856", 'u'));
+    auto urls(record.getSubfieldValues("856", 'u'));
+    const auto harvest_url_field(record.findTag("URL"));
+    if (harvest_url_field != record.end())
+        urls.emplace_back(harvest_url_field->getFirstSubfieldWithCode('a'));
+
     for (const auto &url : urls) {
         // This call will fail at least once for each record that has multiple URLs due to duplicates.
         // Failures of this kind are benign.
