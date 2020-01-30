@@ -1,6 +1,6 @@
 /** \file   Main.h
  *  \brief  Default main entry point.
- *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
  *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
