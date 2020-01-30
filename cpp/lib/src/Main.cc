@@ -97,6 +97,12 @@ void RegisterProgramEpilogueHandler(const unsigned priority, const std::function
 }
 
 
+int Main(int argc, char *argv[]) __attribute__((weak));
+
+
+int main(int argc, char *argv[]) __attribute__((weak));
+
+
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
