@@ -18,13 +18,13 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Main.h"
+#include <algorithm>
+#include <memory>
+#include <vector>
 #include <stdexcept>
 #include <string>
 #include <cstdlib>
 #include <cerrno>
-#include <algorithm>
-#include <memory>
-#include <vector>
 #include "StringUtil.h"
 #include "util.h"
 
