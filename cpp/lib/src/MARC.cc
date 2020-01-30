@@ -2347,7 +2347,11 @@ std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fie
 
     std::string blob;
     blob.reserve(200000); // Roughly twice the maximum size of a single MARC-21 record.
-    blob += record.leader_;
+
+    // Only include leader data that are parameterised
+    // c.f https://www.loc.gov/marc/bibliographic/bdleader.html
+    StringUtil::AppendSubstring(blob, record.leader_, 5, 12 - 5);
+    StringUtil::AppendSubstring(blob, record.leader_, 17, 20 - 17);
 
     for (const auto &field_ref : field_refs)
         blob += field_ref->getTag().toString() + field_ref->getContents();
