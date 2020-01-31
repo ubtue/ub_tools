@@ -364,7 +364,7 @@ wait
 
 
 StartPhase "Tag Transitive Church Law Records"
-(find_transitive_record_set --patch CHURCHLAW GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(find_transitive_record_set --patch 'CHURCHLAW|BIBLESTUDIES|RELSTUDIES' GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                             GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc 2>&1 && \
 EndPhase || Abort) &
 wait
