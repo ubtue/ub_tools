@@ -363,9 +363,10 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Tag Transitive Church Law Records"
-(find_transitive_record_set --patch 'CHURCHLAW|BIBLESTUDIES|RELSTUDIES' GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                            GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc 2>&1 && \
+StartPhase "Patch Transitive Church Law, Religous Studies and Bible Studies Records"
+(find_transitive_record_set GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                            GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc 2>&1 \
+                            dangling_references.list && \
 EndPhase || Abort) &
 wait
 
