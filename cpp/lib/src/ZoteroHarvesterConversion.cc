@@ -973,7 +973,7 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     }
 
     // Book-keeping fields
-    marc_record->insertField("URL", { { 'a', metadata_record.url_ } });
+    marc_record->insertField("URL", { { 'a', download_item.url_.toString() } });
     marc_record->insertField("ZID", { { 'a', std::to_string(download_item.journal_.zeder_id_) } });
     marc_record->insertField("JOU", { { 'a', download_item.journal_.name_ } });
 
