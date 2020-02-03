@@ -2347,7 +2347,11 @@ std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fie
 
     std::string blob;
     blob.reserve(200000); // Roughly twice the maximum size of a single MARC-21 record.
-    blob += record.leader_;
+
+    // Only include leader data that are parameterised
+    // c.f https://www.loc.gov/marc/bibliographic/bdleader.html
+    StringUtil::AppendSubstring(blob, record.leader_, 5, 12 - 5);
+    StringUtil::AppendSubstring(blob, record.leader_, 17, 20 - 17);
 
     for (const auto &field_ref : field_refs)
         blob += field_ref->getTag().toString() + field_ref->getContents();
@@ -2845,6 +2849,31 @@ Record::Field GetIndexField(const std::string &index_term) {
 // See https://www.loc.gov/marc/bibliographic/bd6xx.html to understand our implementation.
 bool IsSubjectAccessTag(const Tag &tag) {
     return tag.toString()[0] == '6';
+}
+
+
+// Extracts print and online cross links.
+std::set<std::string> ExtractPrintAndOnlineCrossLinkPPNs(const MARC::Record &record) {
+    std::set<std::string> cross_reference_ppns;
+    for (const auto _776_field : record.getTagRange("776")) {
+        const auto ppn(BSZUtil::GetK10PlusPPNFromSubfield(_776_field, 'w'));
+        if (ppn.empty())
+            continue;
+
+        const auto subfield_i_contents(_776_field.getFirstSubfieldWithCode('i'));
+        if (StringUtil::StartsWith(subfield_i_contents, "Druckausg") or StringUtil::StartsWith(subfield_i_contents, "Online")) {
+            cross_reference_ppns.emplace(ppn);
+            continue;
+        }
+
+        const auto subfield_n_contents(_776_field.getFirstSubfieldWithCode('n'));
+        if (StringUtil::StartsWith(subfield_n_contents, "Druck-Ausgabe") or StringUtil::StartsWith(subfield_n_contents, "Online") ) {
+            cross_reference_ppns.emplace(ppn);
+            continue;
+        }
+    }
+
+    return cross_reference_ppns;
 }
 
 
