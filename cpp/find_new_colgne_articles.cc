@@ -33,7 +33,7 @@ namespace {
 }
 
 
-void ExtractChangedReleventArticles(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+void ExtractChangedRelevantArticles(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                                     const std::unordered_set<std::string> &superior_ppns_of_interest)
 {
     DbConnection db_connection(UBTools::GetTuelibPath() + "cologne_article_hashes.sq3", DbConnection::CREATE);
@@ -84,7 +84,7 @@ int Main(int argc, char *argv[]) {
     auto marc_writer(MARC::Writer::Factory(argv[2]));
 
     const std::unordered_set<std::string> superior_ppns{ "1665710918", "1662989814", "1664641068", "1668994887" };
-    ExtractChangedReleventArticles(marc_reader.get(), marc_writer.get(), superior_ppns);
+    ExtractChangedRelevantArticles(marc_reader.get(), marc_writer.get(), superior_ppns);
 
     return EXIT_SUCCESS;
 }
