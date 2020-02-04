@@ -43,8 +43,29 @@ const std::string ZEDER_BASE_URL("http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bi
 enum ZederFlavour { IXTHEO, KRIMDOK };
 
 
+class ZederTable {
+public:
+    class const_iterator {
+        friend class ZederTable;
+        JSON::ArrayNode::const_iterator iter_;
+    public:
+        void operator++() { ++iter_; }
+        const JSON::ObjectNode &operator*() const { return *JSON::JSONNode::CastToObjectNodeOrDie("entry", *iter_); }
+        bool operator!=(const const_iterator &lhs) const { return iter_ != lhs.iter_; }
+    private:
+        const_iterator(JSON::ArrayNode::const_iterator iter): iter_(iter) { }
+    };
+private:
+    std::shared_ptr<JSON::ArrayNode> array_node_;
+public:
+    explicit ZederTable(const ZederFlavour zeder_flavour);
+    inline const_iterator begin() const { return array_node_->begin(); }
+    inline const_iterator end() const { return array_node_->end(); }
+};
+
+
 // Returns the "daten" array node.
-std::shared_ptr<const JSON::ArrayNode> GetZederJSON(const ZederFlavour zeder_flavour) {
+ZederTable::ZederTable(const ZederFlavour zeder_flavour) {
     Downloader downloader(ZEDER_BASE_URL + (zeder_flavour == IXTHEO ? "ixtheo" : "krim"));
     if (downloader.anErrorOccurred())
         LOG_ERROR("failed to download Zeder data: " + downloader.getLastErrorMessage());
@@ -62,24 +83,23 @@ std::shared_ptr<const JSON::ArrayNode> GetZederJSON(const ZederFlavour zeder_fla
     if (not root_node->hasNode("daten"))
         LOG_ERROR("top level object of Zeder JSON does not have a \"daten\" key!");
 
-    return JSON::JSONNode::CastToArrayNodeOrDie("daten", root_node->getNode("daten"));
+    array_node_ = JSON::JSONNode::CastToArrayNodeOrDie("daten", root_node->getNode("daten"));
 }
 
 
-std::string GetZederString(const std::shared_ptr<JSON::ObjectNode> &journal_node, const std::string &key) {
-    if (not journal_node->hasNode(key))
+std::string GetZederString(const JSON::ObjectNode &journal_node, const std::string &key) {
+    if (not journal_node.hasNode(key))
         return "";
 
-    const auto value(journal_node->getStringNode(key)->getValue());
+    const auto value(journal_node.getStringNode(key)->getValue());
     return value == "NV" ? "" : value;
 }
 
 
 void DetermineSuperiorPPNsOfInterest(std::unordered_set<std::string> * const superior_ppns_of_interest) {
     unsigned total_journal_count(0), relevant_journal_count(0);
-    for (const auto &entry : *GetZederJSON(IXTHEO)) {
+    for (const auto journal_object : ZederTable(IXTHEO)) {
         ++total_journal_count;
-        const auto journal_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
 
         const auto koe(GetZederString(journal_object, "koe"));
         if (koe.empty())
