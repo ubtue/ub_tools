@@ -37,12 +37,15 @@ namespace {
 }
 
 
-const std::string IXTHEO_ZEDER_URL(
-    "http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?action=get&Dimension=wert&Bearbeiter=&Instanz=ixtheo");
+const std::string ZEDER_BASE_URL("http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?action=get&Dimension=wert&Bearbeiter=&Instanz=");
 
 
-void GetZederJSON(std::string * const json_blob) {
-    Downloader downloader(IXTHEO_ZEDER_URL);
+enum ZederFlavour { IXTHEO, KRIMDOK };
+
+
+// Returns the "daten" array node.
+std::shared_ptr<const JSON::ArrayNode> GetZederJSON(const ZederFlavour zeder_flavour) {
+    Downloader downloader(ZEDER_BASE_URL + (zeder_flavour == IXTHEO ? "ixtheo" : "krim"));
     if (downloader.anErrorOccurred())
         LOG_ERROR("failed to download Zeder data: " + downloader.getLastErrorMessage());
 
@@ -50,11 +53,20 @@ void GetZederJSON(std::string * const json_blob) {
     if (http_response_code < 200 or http_response_code > 399)
         LOG_ERROR("got bad HTTP response code: " + std::to_string(http_response_code));
 
-    *json_blob = downloader.getMessageBody();
+    JSON::Parser parser(downloader.getMessageBody());
+    std::shared_ptr<JSON::JSONNode> tree_root;
+    if (not parser.parse(&tree_root))
+        LOG_ERROR("failed to parse the Zeder JSON: " + parser.getErrorMessage());
+
+    const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root));
+    if (not root_node->hasNode("daten"))
+        LOG_ERROR("top level object of Zeder JSON does not have a \"daten\" key!");
+
+    return JSON::JSONNode::CastToArrayNodeOrDie("daten", root_node->getNode("daten"));
 }
 
 
-std::string GetString(const std::shared_ptr<JSON::ObjectNode> &journal_node, const std::string &key) {
+std::string GetZederString(const std::shared_ptr<JSON::ObjectNode> &journal_node, const std::string &key) {
     if (not journal_node->hasNode(key))
         return "";
 
@@ -64,31 +76,17 @@ std::string GetString(const std::shared_ptr<JSON::ObjectNode> &journal_node, con
 
 
 void DetermineSuperiorPPNsOfInterest(std::unordered_set<std::string> * const superior_ppns_of_interest) {
-    std::string json_blob;
-    GetZederJSON(&json_blob);
-
-    JSON::Parser parser(json_blob);
-    std::shared_ptr<JSON::JSONNode> tree_root;
-    if (not parser.parse(&tree_root))
-        LOG_ERROR("failed to parse the Zeder JSON: " + parser.getErrorMessage());
-
-    const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root));
-    if (not root_node->hasNode("daten"))
-        LOG_ERROR("top level object of Zeder JSON does not have a \"daten\" key!");
-
-    const auto daten(JSON::JSONNode::CastToArrayNodeOrDie("daten", root_node->getNode("daten")));
-
     unsigned total_journal_count(0), relevant_journal_count(0);
-    for (const auto &entry : *daten) {
+    for (const auto &entry : *GetZederJSON(IXTHEO)) {
         ++total_journal_count;
         const auto journal_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
 
-        const auto koe(GetString(journal_object, "koe"));
+        const auto koe(GetZederString(journal_object, "koe"));
         if (koe.empty())
             continue;
 
-        const auto print_ppn(GetString(journal_object, "pppn"));
-        const auto online_ppn(GetString(journal_object, "eppn"));
+        const auto print_ppn(GetZederString(journal_object, "pppn"));
+        const auto online_ppn(GetZederString(journal_object, "eppn"));
 
         bool found_at_least_one(false);
         if (not print_ppn.empty()) {
