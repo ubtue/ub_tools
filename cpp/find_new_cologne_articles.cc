@@ -87,11 +87,11 @@ ZederTable::ZederTable(const ZederFlavour zeder_flavour) {
 }
 
 
-std::string GetZederString(const JSON::ObjectNode &journal_node, const std::string &key) {
-    if (not journal_node.hasNode(key))
+std::string GetZederString(const JSON::ObjectNode &object_node, const std::string &key) {
+    if (not object_node.hasNode(key))
         return "";
 
-    const auto value(journal_node.getStringNode(key)->getValue());
+    const auto value(object_node.getStringNode(key)->getValue());
     return value == "NV" ? "" : value;
 }
 
