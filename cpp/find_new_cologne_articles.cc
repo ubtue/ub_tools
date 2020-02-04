@@ -30,7 +30,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage("marc_title_input marc_article_output\n"
-            "Extracts changed article records that are contained in journals marked in the \"zoe\" column in Zeder.");
+            "Extracts changed article records that are contained in journals marked in the \"koe\" column in Zeder.");
 }
 
 
