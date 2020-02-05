@@ -503,7 +503,7 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
             for (const auto &record : conversion_result.marc_records_) {
                 // Check if the record was previously uploaded to the BSZ server
                 // by comparing its hash and URLs with the ones stored in our database.
-                const auto record_urls(record->getSubfieldValues("856", 'u'));
+                const auto record_urls(Util::GetMarcRecordUrls(*record));
 
                 if (upload_tracker.recordAlreadyDelivered(*record)) {
                     ++metrics->num_marc_conversions_skipped_since_already_delivered_;
