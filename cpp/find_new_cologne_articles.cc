@@ -98,7 +98,7 @@ std::string GetZederString(const JSON::ObjectNode &object_node, const std::strin
 
 void DetermineSuperiorPPNsOfInterest(std::unordered_set<std::string> * const superior_ppns_of_interest) {
     unsigned total_journal_count(0), relevant_journal_count(0);
-    for (const auto journal_object : ZederTable(IXTHEO)) {
+    for (const auto &journal_object : ZederTable(IXTHEO)) {
         ++total_journal_count;
 
         const auto koe(GetZederString(journal_object, "koe"));
