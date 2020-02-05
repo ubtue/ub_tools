@@ -19,13 +19,13 @@
 
 #include <iostream>
 #include <cstdlib>
-#include "BSZTransform.h"
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "MARC.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
+#include "UBTools.h"
 #include "util.h"
 #include "VuFind.h"
 
@@ -33,9 +33,13 @@
 namespace {
 
 
+const std::string ISSN_TO_MISC_BITS_MAP_PATH_LOCAL(UBTools::GetTuelibPath() + "issn_to_misc_bits.map");
+const std::string ISSN_TO_MISC_BITS_MAP_DIR_REMOTE("/mnt/ZE020150/FID-Entwicklung/issn_to_misc_bits");
+
+
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--min-log-level=min_log_level] marc_input\n"
-              << "       Generates map information from marc file and stores it in \"" << BSZTransform::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE << "\".\n\n";
+              << "       Generates map information from marc file and stores it in \"" << ISSN_TO_MISC_BITS_MAP_DIR_REMOTE << "\".\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -116,7 +120,7 @@ int Main(int argc, char *argv[]) {
         LOG_ERROR("TUEFIND_FLAVOUR not set, map file cannot be generated.");
 
     const std::string input_path(argv[1]);
-    const std::string output_path(BSZTransform::ISSN_TO_MISC_BITS_MAP_DIR_REMOTE + "/" + TUEFIND_FLAVOUR + ".map");
+    const std::string output_path(ISSN_TO_MISC_BITS_MAP_DIR_REMOTE + "/" + TUEFIND_FLAVOUR + ".map");
 
     LOG_INFO("Generating \"" + output_path + "\" from \"" + input_path + "\"...");
     FileUtil::AutoTempFile temp_file;

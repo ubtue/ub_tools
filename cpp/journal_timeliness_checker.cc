@@ -20,13 +20,13 @@
 #include <ctime>
 #include <cstdlib>
 #include "DbConnection.h"
-#include "BSZUpload.h"
 #include "EmailSender.h"
 #include "IniFile.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
 #include "UBTools.h"
 #include "util.h"
+#include "ZoteroHarvesterConfig.h"
 
 
 namespace {
@@ -81,15 +81,15 @@ int Main(int argc, char *argv[]) {
     const std::string sender_email_address(argv[2]), notification_email_address(argv[3]);
     DbConnection db_connection;
 
-    IniFile ini_file(UBTools::GetTuelibPath() + "zts_harvester.conf");
+    IniFile ini_file(UBTools::GetTuelibPath() + "zotero_harvester.conf");
     std::string tardy_list;
     for (const auto &section : ini_file) {
         if (section.find("user_agent") != section.end())
             continue; // Not a journal section.
 
-        const auto delivery_mode(section.getEnum("zotero_delivery_mode", BSZUpload::STRING_TO_DELIVERY_MODE_MAP,
-                                                 BSZUpload::DeliveryMode::NONE));
-        if (delivery_mode != BSZUpload::DeliveryMode::LIVE)
+        const auto delivery_mode(section.getEnum("zotero_delivery_mode", ZoteroHarvester::Config::STRING_TO_UPLOAD_OPERATION_MAP,
+                                                 ZoteroHarvester::Config::UploadOperation::NONE));
+        if (delivery_mode != ZoteroHarvester::Config::UploadOperation::LIVE)
             continue;
 
         const std::string journal_name(section.getSectionName());
