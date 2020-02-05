@@ -127,7 +127,6 @@ void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, con
     *journal_info = JournalInfo(/* not_in_database_yet = */false);
     while (auto row = result_set.getNextRow())
         journal_info->addField(row["metadata_field_name"], StringToFieldPresence(row["field_presence"]));
-    LOG_INFO("Loadad " + std::to_string(journal_info->size()) + " entries for \"" + journal_name + "\" from the database.");
 }
 
 
