@@ -85,12 +85,13 @@ public:
 };
 
 
-void LoadAuthorGNDNumbers(
-    MARC::Reader * const reader,
+void LoadAuthorGNDNumbersAndTagAuthors(
+    MARC::Reader * const reader, MARC::Writer * const writer,
+    const std::unordered_map<std::string, TitleRecordCounter> &author_ppn_to_relstudies_titles_counters,
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> * const gnd_numbers_to_literary_remains_infos_map,
     std::unordered_map<std::string, std::string> * const gnd_numbers_to_ppns_map)
 {
-    unsigned total_count(0), references_count(0);
+    unsigned total_count(0), references_count(0), tagged_count(0);
     while (auto record = reader->read()) {
         ++total_count;
 
@@ -125,10 +126,18 @@ void LoadAuthorGNDNumbers(
         }
         (*gnd_numbers_to_literary_remains_infos_map)[gnd_number] = literary_remains_infos;
         references_count += literary_remains_infos.size();
+
+        if (author_ppn_to_relstudies_titles_counters.find(record.getControlNumber()) != author_ppn_to_relstudies_titles_counters.cend()) {
+            record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } });
+            ++tagged_count;
+        }
+
+        writer->write(record);
     }
 
     LOG_INFO("Loaded " + std::to_string(references_count) + " literary remains references from \"" + reader->getPath()
              + "\" which contained a total of " + std::to_string(total_count) + " records.");
+    LOG_INFO("Tagged " + std::to_string(tagged_count) + " authority records as relevant to religious studies.");
 }
 
 
@@ -189,7 +198,7 @@ void AppendLiteraryRemainsRecords(
             author_ppn_to_relstudies_titles_counters.find(gnd_number_and_author_ppn->second));
         if (author_ppn_and_relstudies_titles_counter != author_ppn_to_relstudies_titles_counters.cend()
             and author_ppn_and_relstudies_titles_counter->second.exceedsReligiousStudiesThreshold())
-            new_record.insertField("REL", { { 'a', "1" } });
+            new_record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } });
 
         writer->write(new_record);
     }
@@ -203,7 +212,7 @@ void AppendLiteraryRemainsRecords(
 
 int Main(int argc, char **argv) {
     if (argc != 5)
-        ::Usage("marc_input marc_output authority_records_input authority_records_ouput");
+        ::Usage("marc_input marc_output authority_records_input authority_records_output");
 
     auto title_reader(MARC::Reader::Factory(argv[1]));
     auto title_writer(MARC::Writer::Factory(argv[2]));
@@ -216,8 +225,9 @@ int Main(int argc, char **argv) {
     auto authority_writer(MARC::Writer::Factory(argv[4]));
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> gnd_numbers_to_literary_remains_infos_map;
     std::unordered_map<std::string, std::string> gnd_numbers_to_ppns_map;
-    LoadAuthorGNDNumbers(authority_reader.get(), &gnd_numbers_to_literary_remains_infos_map, &gnd_numbers_to_ppns_map);
-    AppendLiteraryRemainsRecords(authority_writer.get(), gnd_numbers_to_literary_remains_infos_map, gnd_numbers_to_ppns_map,
+    LoadAuthorGNDNumbersAndTagAuthors(authority_reader.get(), authority_writer.get(), author_ppn_to_relstudies_titles_counters,
+                                      &gnd_numbers_to_literary_remains_infos_map, &gnd_numbers_to_ppns_map);
+    AppendLiteraryRemainsRecords(title_writer.get(), gnd_numbers_to_literary_remains_infos_map, gnd_numbers_to_ppns_map,
                                  author_ppn_to_relstudies_titles_counters);
 
     return EXIT_SUCCESS;

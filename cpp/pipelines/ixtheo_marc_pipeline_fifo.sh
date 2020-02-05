@@ -155,7 +155,7 @@ wait
 
 StartPhase "Add BEACON Information to Authority Data"
 (add_authority_beacon_information Normdaten-partially-augmented-"${date}".mrc \
-                                  Normdaten-fully-augmented-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
+                                  authority-records-with-beacon-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
@@ -191,7 +191,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Extract Normdata Translations"
-(extract_authority_data_translations Normdaten-fully-augmented-"${date}".mrc \
+(extract_authority_data_translations authority-records-with-beacon-"${date}".mrc \
                                      normdata_translations.txt >> "${log}" 2>&1 &&
 EndPhase || Abort) &
 wait
@@ -287,7 +287,7 @@ EndPhase || Abort) &
 StartPhase "Add Keyword Synonyms from Authority Data"
 (add_synonyms \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    Normdaten-fully-augmented-"${date}".mrc \
+    authority-records-with-beacon-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -348,8 +348,9 @@ wait
 StartPhase "Appending Literary Remains Records"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                 authority-records-with-beacon-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                                 Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
+                                 authority-records-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
