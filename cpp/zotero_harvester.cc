@@ -474,7 +474,7 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
         bool wait_for_next_item(false);
         if (ignore_wait_condition)
             ;// Fall-through without checking.
-        if (not current_conversion->isComplete())
+        else if (not current_conversion->isComplete())
             wait_for_next_item = true;
         else if (previous_converted_item_id != current_converted_item_id and
                  current_converted_item_id != previous_converted_item_id + 1)
