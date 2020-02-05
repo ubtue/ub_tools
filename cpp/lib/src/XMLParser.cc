@@ -21,21 +21,26 @@
 #include <xercesc/framework/MemBufInputSource.hpp>
 #include <cassert>
 #include "FileUtil.h"
+#include "Main.h"
 #include "StringUtil.h"
 #include "XmlUtil.h"
 
 
-// Dummy struct to perform process-level init/deinit related to Xerces library.
-struct XercesPlatform {
-    int dummy_variable_;
-public:
-    XercesPlatform() {
+// Perform process-level init/deinit related to Xerces library.
+static int SetupXercesPlatform() {
+    RegisterProgramPrologueHandler(/* priority = */ 0, []() -> void {
         xercesc::XMLPlatformUtils::Initialize();
-    }
-    ~XercesPlatform() {
+    });
+
+    RegisterProgramEpilogueHandler(/* priority = */ 0, []() -> void {
         xercesc::XMLPlatformUtils::Terminate();
-    }
-} xerces_platform;
+    });
+
+    return 0;
+}
+
+
+const int throwaway(SetupXercesPlatform());
 
 
 const XMLParser::Options XMLParser::DEFAULT_OPTIONS {

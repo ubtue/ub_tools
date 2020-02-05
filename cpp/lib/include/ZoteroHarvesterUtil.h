@@ -561,6 +561,10 @@ private:
 extern std::recursive_mutex non_threadsafe_locale_modification_guard;
 
 
+// Returns URLs found in 856 and URL fields.
+std::vector<std::string> GetMarcRecordUrls(const MARC::Record &record);
+
+
 } // end namespace Util
 
 
