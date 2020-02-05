@@ -21,7 +21,6 @@
 #include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
-#include "BSZTransform.h"
 #include "ExecUtil.h"
 #include "File.h"
 #include "FileUtil.h"

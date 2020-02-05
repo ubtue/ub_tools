@@ -122,7 +122,6 @@
 /zeder_to_zotero_conversion_tools
 /zotero_cgi
 /zotero_harvester
-/zts_harvester
 
 # other excludes
 iViaCore-mkdep
