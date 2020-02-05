@@ -33,18 +33,35 @@
 namespace {
 
 
+struct TitleRecordCounter {
+    unsigned total_count_;
+    unsigned religious_studies_count_;
+public:
+    TitleRecordCounter(): total_count_(0), religious_studies_count_(0) { }
+    TitleRecordCounter(const TitleRecordCounter &other) = default;
+    TitleRecordCounter(const bool is_relevant_to_reigious_studies)
+        : total_count_(1), religious_studies_count_(is_relevant_to_reigious_studies ? 1 : 0) { }
+    inline bool exceedsReligiousStudiesThreshold() const
+        { return 100.0 * static_cast<double>(religious_studies_count_) / static_cast<double>(total_count_) >= 10.0 /* percent */; }
+};
+
+
 // Counts the number of religious studies title records for authors.
-void CopyMarcAndCollectRelgiousStudiesFrequencies(MARC::Reader * const reader, MARC::Writer * const writer,
-                                                  std::unordered_map<std::string, unsigned> * const author_ppn_to_relstudies_titles_count)
+void CopyMarcAndCollectRelgiousStudiesFrequencies(
+    MARC::Reader * const reader, MARC::Writer * const writer,
+    std::unordered_map<std::string, TitleRecordCounter> * const author_ppn_to_relstudies_title_counters)
 {
     while (auto record = reader->read()) {
-        if (record.findTag("REL") != record.end()) {
-            for (const auto &author_name_and_author_ppn : record.getAllAuthorsAndPPNs()) {
-                auto author_ppn_and_count(author_ppn_to_relstudies_titles_count->find(author_name_and_author_ppn.second));
-                if (author_ppn_and_count == author_ppn_to_relstudies_titles_count->end())
-                    (*author_ppn_to_relstudies_titles_count)[author_name_and_author_ppn.second] = 1;
-                else
-                    ++(author_ppn_and_count->second);
+        const bool rel_tag_found(record.findTag("REL") != record.end());
+
+        for (const auto &author_name_and_author_ppn : record.getAllAuthorsAndPPNs()) {
+            auto author_ppn_and_counter(author_ppn_to_relstudies_title_counters->find(author_name_and_author_ppn.second));
+            if (author_ppn_and_counter == author_ppn_to_relstudies_title_counters->end())
+                (*author_ppn_to_relstudies_title_counters)[author_name_and_author_ppn.second] = TitleRecordCounter(rel_tag_found);
+            else {
+                ++(author_ppn_and_counter->second.total_count_);
+                if (rel_tag_found)
+                    ++(author_ppn_and_counter->second.religious_studies_count_);
             }
         }
 
@@ -68,14 +85,13 @@ public:
 };
 
 
-void LoadAuthorGNDNumbers(
-    const std::string &filename,
+void LoadAuthorGNDNumbersAndTagAuthors(
+    MARC::Reader * const reader, MARC::Writer * const writer,
+    const std::unordered_map<std::string, TitleRecordCounter> &author_ppn_to_relstudies_titles_counters,
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> * const gnd_numbers_to_literary_remains_infos_map,
     std::unordered_map<std::string, std::string> * const gnd_numbers_to_ppns_map)
 {
-    auto reader(MARC::Reader::Factory(filename));
-
-    unsigned total_count(0), references_count(0);
+    unsigned total_count(0), references_count(0), tagged_count(0);
     while (auto record = reader->read()) {
         ++total_count;
 
@@ -110,10 +126,18 @@ void LoadAuthorGNDNumbers(
         }
         (*gnd_numbers_to_literary_remains_infos_map)[gnd_number] = literary_remains_infos;
         references_count += literary_remains_infos.size();
+
+        if (author_ppn_to_relstudies_titles_counters.find(record.getControlNumber()) != author_ppn_to_relstudies_titles_counters.cend()) {
+            record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } });
+            ++tagged_count;
+        }
+
+        writer->write(record);
     }
 
-    LOG_INFO("Loaded " + std::to_string(references_count) + " literary remains references from \"" + filename
+    LOG_INFO("Loaded " + std::to_string(references_count) + " literary remains references from \"" + reader->getPath()
              + "\" which contained a total of " + std::to_string(total_count) + " records.");
+    LOG_INFO("Tagged " + std::to_string(tagged_count) + " authority records as relevant to religious studies.");
 }
 
 
@@ -137,15 +161,11 @@ std::string NormaliseAuthorName(std::string author_name) {
 }
 
 
-const unsigned RELIGIOUS_STUDIES_THRESHOLD(3); // We assume that authors that have at least this many religious studies
-                                               // titles are religious studies authors.
-
-
 void AppendLiteraryRemainsRecords(
     MARC::Writer * const writer,
     const std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> &gnd_numbers_to_literary_remains_infos_map,
     const std::unordered_map<std::string, std::string> &gnd_numbers_to_ppns_map,
-    const std::unordered_map<std::string, unsigned> &author_ppn_to_relstudies_titles_count)
+    const std::unordered_map<std::string, TitleRecordCounter> &author_ppn_to_relstudies_titles_counters)
 {
     unsigned creation_count(0);
     for (const auto &gnd_numbers_and_literary_remains_infos : gnd_numbers_to_literary_remains_infos_map) {
@@ -174,10 +194,11 @@ void AppendLiteraryRemainsRecords(
         const auto gnd_number_and_author_ppn(gnd_numbers_to_ppns_map.find(gnd_numbers_and_literary_remains_infos.first));
         if (unlikely(gnd_number_and_author_ppn == gnd_numbers_to_ppns_map.cend()))
             LOG_ERROR("we should *always* find the GND number in gnd_numbers_to_ppns_map!");
-        const auto author_ppn_and_relstudies_titles_count(author_ppn_to_relstudies_titles_count.find(gnd_number_and_author_ppn->second));
-        if (author_ppn_and_relstudies_titles_count != author_ppn_to_relstudies_titles_count.cend()
-            and author_ppn_and_relstudies_titles_count->second >= RELIGIOUS_STUDIES_THRESHOLD)
-            new_record.insertField("REL", { { 'a', "1" } });
+        const auto author_ppn_and_relstudies_titles_counter(
+            author_ppn_to_relstudies_titles_counters.find(gnd_number_and_author_ppn->second));
+        if (author_ppn_and_relstudies_titles_counter != author_ppn_to_relstudies_titles_counters.cend()
+            and author_ppn_and_relstudies_titles_counter->second.exceedsReligiousStudiesThreshold())
+            new_record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } });
 
         writer->write(new_record);
     }
@@ -190,21 +211,24 @@ void AppendLiteraryRemainsRecords(
 
 
 int Main(int argc, char **argv) {
-    if (argc != 4)
-        ::Usage("marc_input marc_output authority_records");
+    if (argc != 5)
+        ::Usage("marc_input marc_output authority_records_input authority_records_output");
 
-    auto reader(MARC::Reader::Factory(argv[1]));
-    auto writer(MARC::Writer::Factory(argv[2]));
-    std::unordered_map<std::string, unsigned> author_ppn_to_relstudies_titles_count;
-    CopyMarcAndCollectRelgiousStudiesFrequencies(reader.get(), writer.get(), &author_ppn_to_relstudies_titles_count);
-    if (author_ppn_to_relstudies_titles_count.empty())
+    auto title_reader(MARC::Reader::Factory(argv[1]));
+    auto title_writer(MARC::Writer::Factory(argv[2]));
+    std::unordered_map<std::string, TitleRecordCounter> author_ppn_to_relstudies_titles_counters;
+    CopyMarcAndCollectRelgiousStudiesFrequencies(title_reader.get(), title_writer.get(), &author_ppn_to_relstudies_titles_counters);
+    if (author_ppn_to_relstudies_titles_counters.empty())
         LOG_ERROR("You must run this program on an input that contains REL records!");
 
+    auto authority_reader(MARC::Reader::Factory(argv[3]));
+    auto authority_writer(MARC::Writer::Factory(argv[4]));
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> gnd_numbers_to_literary_remains_infos_map;
     std::unordered_map<std::string, std::string> gnd_numbers_to_ppns_map;
-    LoadAuthorGNDNumbers(argv[3], &gnd_numbers_to_literary_remains_infos_map, &gnd_numbers_to_ppns_map);
-    AppendLiteraryRemainsRecords(writer.get(), gnd_numbers_to_literary_remains_infos_map, gnd_numbers_to_ppns_map,
-                                 author_ppn_to_relstudies_titles_count);
+    LoadAuthorGNDNumbersAndTagAuthors(authority_reader.get(), authority_writer.get(), author_ppn_to_relstudies_titles_counters,
+                                      &gnd_numbers_to_literary_remains_infos_map, &gnd_numbers_to_ppns_map);
+    AppendLiteraryRemainsRecords(title_writer.get(), gnd_numbers_to_literary_remains_infos_map, gnd_numbers_to_ppns_map,
+                                 author_ppn_to_relstudies_titles_counters);
 
     return EXIT_SUCCESS;
 }
