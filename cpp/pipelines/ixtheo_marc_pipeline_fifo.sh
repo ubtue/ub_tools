@@ -348,8 +348,8 @@ wait
 StartPhase "Appending Literary Remains Records"
 mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                 Normdaten-partially-augmented2-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                                 Normdaten-partially-augmented2-"${date}".mrc \
                                  Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
