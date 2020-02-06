@@ -231,27 +231,31 @@ FullTextCache::TextType GetTextTypes(const std::set<UrlAndTextType> &urls_and_te
     return joined_text_types;
 }
 
-
+const std::string LOCAL_520_TEXT("LOCAL 520 FIELD");
 void GetUrlsAndTextTypes(MARC::Record * const record, std::set<UrlAndTextType> * const urls_and_text_types,
                          bool use_only_open_access_links, bool skip_reviews)
 {
-    for (const auto _856_field : record->getTagRange("856")) {
-        const MARC::Subfields _856_subfields(_856_field.getSubfields());
+   for (const auto _856_field : record->getTagRange("856")) {
+       const MARC::Subfields _856_subfields(_856_field.getSubfields());
 
-        if (_856_field.getIndicator1() == '7' or not _856_subfields.hasSubfield('u'))
-            continue;
+       if (_856_field.getIndicator1() == '7' or not _856_subfields.hasSubfield('u'))
+           continue;
 
-        if (use_only_open_access_links and not _856_subfields.hasSubfieldWithValue('z', "Kostenfrei")) {
-            LOG_WARNING("Skipping entry since not kostenfrei");
-            continue;
-        }
+       if (use_only_open_access_links and not _856_subfields.hasSubfieldWithValue('z', "Kostenfrei")) {
+           LOG_WARNING("Skipping entry since not kostenfrei");
+           continue;
+       }
 
-        if (skip_reviews and IsProbablyAReview(_856_subfields))
-            continue;
 
-        urls_and_text_types->emplace(UrlAndTextType({ _856_subfields.getFirstSubfieldWithCode('u'),
-                                                      _856_subfields.getFirstSubfieldWithCode('3') } ));
-    }
+       if (skip_reviews and IsProbablyAReview(_856_subfields))
+           continue;
+
+       urls_and_text_types->emplace(UrlAndTextType({ _856_subfields.getFirstSubfieldWithCode('u'),
+                                                     _856_subfields.getFirstSubfieldWithCode('3') } ));
+   }
+
+   if (record->hasFieldWithTag("520"))
+       urls_and_text_types->emplace(UrlAndTextType({ LOCAL_520_TEXT, "Zusammenfassung" }));
 }
 
 
@@ -262,7 +266,7 @@ void ExtractUrlsFromUrlsAndTextTypes(const std::set<UrlAndTextType> &urls_and_te
 
 
 bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extraction_timeout, const bool use_only_open_access_links, const bool store_pdfs_as_html,
-                      const bool use_separate_entries_per_url = false, const bool skip_reviews = false) {
+                       const bool use_separate_entries_per_url = false, const bool skip_reviews = false) {
     const std::string ppn(record->getControlNumber());
     std::set<UrlAndTextType> urls_and_text_types;
     GetUrlsAndTextTypes(record, &urls_and_text_types, use_only_open_access_links, skip_reviews);
@@ -296,13 +300,11 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         if (not at_least_one_expired)
             return true;
     }
-
     FullTextCache::Entry entry;
     std::vector<FullTextCache::EntryUrl> entry_urls;
     constexpr unsigned PER_DOC_TIMEOUT(30000); // in milliseconds
     bool at_least_one_error(false);
     std::stringstream combined_text_buffer;
-    combined_text_buffer << GetTextFrom520a(*record);
 
     for (const auto &url_and_text_type : urls_and_text_types) {
         FullTextCache::EntryUrl entry_url;
@@ -312,32 +314,37 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         std::string domain;
         cache.getDomainFromUrl(url, &domain);
         entry_url.domain_ = domain;
-        std::string document, media_type, media_subtype, http_header_charset, error_message;
-        if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &media_subtype, &http_header_charset,
-                                         &error_message))) {
-            LOG_WARNING("URL " + url + ": could not get document and media type! (" + error_message + ")");
-            entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
-            at_least_one_error = true;
-            entry_urls.push_back(entry_url);
-            continue;
-        }
+        std::string document, media_type, media_subtype, http_header_charset, error_message, extracted_text;
 
-        std::string extracted_text(ConvertToPlainText(media_type, media_subtype, http_header_charset, GetTesseractLanguageCode(*record),
-                                                      document, pdf_extraction_timeout, &error_message));
-        if (unlikely(extracted_text.empty())) {
-            LOG_WARNING("URL " + url + ": failed to extract text from the downloaded document! (" + error_message + ")");
-            entry_url.error_message_ = "failed to extract text from the downloaded document! (" + error_message + ")";
-            at_least_one_error = true;
-            entry_urls.push_back(entry_url);
-            continue;
+        if (url_and_text_type.url_ == LOCAL_520_TEXT)
+            extracted_text =  GetTextFrom520a(*record);
+        else {
+            if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &media_subtype, &http_header_charset,
+                                             &error_message))) {
+                LOG_WARNING("URL " + url + ": could not get document and media type! (" + error_message + ")");
+                entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
+                at_least_one_error = true;
+                entry_urls.push_back(entry_url);
+                continue;
+            }
+
+            extracted_text = ConvertToPlainText(media_type, media_subtype, http_header_charset, GetTesseractLanguageCode(*record),
+                                                document, pdf_extraction_timeout, &error_message);
+            if (unlikely(extracted_text.empty())) {
+                LOG_WARNING("URL " + url + ": failed to extract text from the downloaded document! (" + error_message + ")");
+                entry_url.error_message_ = "failed to extract text from the downloaded document! (" + error_message + ")";
+                at_least_one_error = true;
+                entry_urls.push_back(entry_url);
+                continue;
+            }
         }
 
         // Store immediately
         if (use_separate_entries_per_url) {
-             cache.insertEntry(ppn,
-                               TextUtil::CollapseAndTrimWhitespace(&extracted_text),
-                               { entry_url },
-                               FullTextCache::mapTextDescriptionToTextType(url_and_text_type.text_type_));
+            cache.insertEntry(ppn,
+                              TextUtil::CollapseAndTrimWhitespace(&extracted_text),
+                              { entry_url },
+                              FullTextCache::mapTextDescriptionToTextType(url_and_text_type.text_type_));
         } else {
             combined_text_buffer << ((combined_text_buffer.tellp() != std::streampos(0)) ? " " : "") << extracted_text;
         }
