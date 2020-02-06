@@ -968,8 +968,8 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
                and metadata_record.ssg_ != MetadataRecord::SSGType::INVALID)
     {
         marc_record->insertField("852", { { 'a', group_params.isil_ } });
-        marc_record->insertField("935", { { 'a', "mteo" } });
         marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
+        marc_record->insertField("935", { { 'a', "mteo" } });
     }
 
     // Book-keeping fields
