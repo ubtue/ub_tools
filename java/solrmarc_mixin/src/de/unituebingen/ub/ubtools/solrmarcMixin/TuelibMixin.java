@@ -194,9 +194,21 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
     };
 
+
     private Set<String> isils_cache = null;
     private Map<String, Collection<Collection<Topic>>> collectedTopicsCache = new TreeMap<>();
     private JSONArray fulltext_server_hits = new JSONArray();
+    private static final String fullHostName;
+    static {
+        String tmp = ""; // Needed for syntactical reasons
+        try {
+            tmp = InetAddress.getLocalHost().getHostName();
+        } catch(java.net.UnknownHostException e) {
+            throw new RuntimeException ("Could not determine Hostname", e);
+        }
+        fullHostName = tmp;
+    }
+
 
     @Override
     public void perRecordInit(Record record) throws Exception {
@@ -3098,7 +3110,6 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     public String getMyHostnameShort() throws java.net.UnknownHostException {
-       final String fullHostName = InetAddress.getLocalHost().getHostName();
        return fullHostName.replaceAll("\\..*", "");
     }
 
