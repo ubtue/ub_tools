@@ -189,7 +189,8 @@ public class TuelibMixin extends SolrIndexerMixin {
             this.put("1", "Fulltext");
             this.put("2", "Table of Contents");
             this.put("4", "Abstract");
-            this.put("128", "Unknown");
+            this.put("8", "Summary");
+            this.put("0", "Unknown");
         }
     };
 
@@ -3040,7 +3041,8 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     protected String mapTextTypeToDescription(final String text_type) {
-        return text_type_to_description_map.get(text_type);
+        String type_candidate = text_type_to_description_map.get(text_type);
+        return type_candidate != null ? type_candidate : "Unknown";
     }
 
 
@@ -3179,6 +3181,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         return extractFullTextFromJSON(fulltext_server_hits, "Abstract");
     }
 
+    public String getFullTextElasticsearchSummary(final Record record) {
+        return extractFullTextFromJSON(fulltext_server_hits, "Summary");
+    }
 
     public Set<String> getFullTextTypes(final Record record) {
         return extractTextTypeFromJSON(fulltext_server_hits);
