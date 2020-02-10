@@ -3178,6 +3178,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
     }
 
+
     public String getFullTextElasticsearch(final Record record) {
         return extractFullTextFromJSON(fulltext_server_hits, "Fulltext");
     }
@@ -3192,9 +3193,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         return extractFullTextFromJSON(fulltext_server_hits, "Abstract");
     }
 
+
     public String getFullTextElasticsearchSummary(final Record record) {
         return extractFullTextFromJSON(fulltext_server_hits, "Summary");
     }
+
 
     public Set<String> getFullTextTypes(final Record record) {
         return extractTextTypeFromJSON(fulltext_server_hits);
