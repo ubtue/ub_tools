@@ -224,7 +224,7 @@ FullTextCache::TextType GetTextTypes(const std::set<UrlAndTextType> &urls_and_te
     std::set<FullTextCache::TextType> text_types;
     std::transform(urls_and_text_types.begin(), urls_and_text_types.end(), inserter(text_types, text_types.begin()),
                    [](const UrlAndTextType &url_and_text_type)
-                   { return FullTextCache::mapTextDescriptionToTextType(url_and_text_type.text_type_);});
+                   { return FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_);});
     FullTextCache::TextType joined_text_types(FullTextCache::UNKNOWN);
     for (const auto text_type : text_types)
         joined_text_types |= text_type;
@@ -344,7 +344,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             cache.insertEntry(ppn,
                               TextUtil::CollapseAndTrimWhitespace(&extracted_text),
                               { entry_url },
-                              FullTextCache::mapTextDescriptionToTextType(url_and_text_type.text_type_));
+                              FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_));
         } else {
             combined_text_buffer << ((combined_text_buffer.tellp() != std::streampos(0)) ? " " : "") << extracted_text;
         }
@@ -354,7 +354,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             const std::string temp_pdf_path(auto_temp_file.getFilePath());
             FileUtil::WriteStringOrDie(temp_pdf_path, document);
             cache.extractAndImportHTMLPages(ppn, temp_pdf_path,
-                                            use_only_open_access_links ? FullTextCache::mapTextDescriptionToTextType(url_and_text_type.text_type_)
+                                            use_only_open_access_links ? FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_)
                                             : FullTextCache::UNKNOWN);
         }
 

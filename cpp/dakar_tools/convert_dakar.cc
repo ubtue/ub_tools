@@ -51,9 +51,9 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage(std::string("--generate-list authority_data\n") +
-            "--augment-db authority_data [find_of_discovery_map_file bishop_rewrite_map official_rewrite_map hinweissätze_rewrite_map keyword_correction_map author_correction_map]\n" +
-            "--augment-db-keep [--keep-a_gnd] authority_data [find_of_discovery_map_file bishop_rewrite_map official_rewrite_map hinweissätze_rewrite_map keyword_correction_map author_correction_map]\n" +
+    ::Usage("--generate-list authority_data\n"
+            "--augment-db authority_data [find_of_discovery_map_file bishop_rewrite_map official_rewrite_map hinweissätze_rewrite_map keyword_correction_map author_correction_map]\n"
+            "--augment-db-keep [--keep-a_gnd] authority_data [find_of_discovery_map_file bishop_rewrite_map official_rewrite_map hinweissätze_rewrite_map keyword_correction_map author_correction_map]\n"
             "    no operation mode means --augment-db");
 }
 
@@ -448,9 +448,8 @@ void AugmentDBEntries(DbConnection * const db_connection,
         }
         // If in keep_a_gnd mode, we keep the a_gnd
         std::string a_gnd_content;
-        if (keep_a_gnd and not db_row["a_gnd"].empty()) {
+        if (keep_a_gnd and not db_row["a_gnd"].empty())
             a_gnd_content = db_row["a_gnd"];
-        }
         else {
              // Only write back non-empty string if we have at least one reasonable entry
              a_gnd_content= author_gnd_seen ? StringUtil::Join(author_gnd_numbers, ";") : "";

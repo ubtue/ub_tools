@@ -183,7 +183,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         phys_code_to_full_name_map = Collections.unmodifiableMap(tempMap);
     }
 
-
+    // Must match constants in FullTextCache.h
     private final static Map<String, String> text_type_to_description_map = new TreeMap<String, String>() {
         {
             this.put("1", "Fulltext");
