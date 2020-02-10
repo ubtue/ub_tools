@@ -51,8 +51,9 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage(std::string("--generate-list authority_data\n") +
-            "--augment-db authority_data [find_of_discovery_map_file bishop_rewrite_map official_rewrite_map hinweissätze_rewrite_map keyword_correction_map author_correction_map]\n" +
+    ::Usage("--generate-list authority_data\n"
+            "--augment-db authority_data [find_of_discovery_map_file bishop_rewrite_map official_rewrite_map hinweissätze_rewrite_map keyword_correction_map author_correction_map]\n"
+            "--augment-db-keep [--keep-a_gnd] authority_data [find_of_discovery_map_file bishop_rewrite_map official_rewrite_map hinweissätze_rewrite_map keyword_correction_map author_correction_map]\n"
             "    no operation mode means --augment-db");
 }
 
@@ -422,11 +423,12 @@ void AugmentDBEntries(DbConnection * const db_connection,
                       const std::unordered_multimap<std::string, gnd_role_and_year> &bishop_map,
                       const std::unordered_multimap<std::string, gnd_role_and_year> &officials_map,
                       const std::unordered_map<std::string,std::string> &hintterms_map,
-                      const std::unordered_map<std::string, std::string> &keyword_correction_map)
+                      const std::unordered_map<std::string, std::string> &keyword_correction_map,
+                      const bool keep_a_gnd)
 
 {
     // Iterate over Database
-    const std::string ikr_query("SELECT id,autor,stichwort,cicbezug,fundstelle,jahr,abstract FROM ikr");
+    const std::string ikr_query("SELECT id,autor,stichwort,cicbezug,fundstelle,jahr,abstract" + (keep_a_gnd ? std::string(",a_gnd") : std::string("")) + " FROM ikr");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(ikr_query, db_connection));
     while (const DbRow db_row = result_set.getNextRow()) {
         // Authors
@@ -437,16 +439,22 @@ void AugmentDBEntries(DbConnection * const db_connection,
         bool author_gnd_seen(false);
         StringUtil::SplitThenTrimWhite(author_row, ';', &authors_in_row, /* suppress_empty_components = */true);
         for (const auto &one_author : authors_in_row) {
-             const auto author_gnds(author_to_gnds_result_map.find(one_author));
+             const auto author_gnds(author_to_gnds_result_map.find(StringUtil::ReplaceString(" (Hrsg.)", "", one_author)));
              if (author_gnds != author_to_gnds_result_map.cend()) {
                  author_gnd_numbers.emplace_back(author_gnds->second);
                  author_gnd_seen = true;
              } else
                  authors_no_gnd.emplace_back(StringUtil::Escape('\\', '"', one_author));
         }
-        // Only write back non-empty string if we have at least one reasonable entry
-        std::string a_gnd_content(author_gnd_seen ? StringUtil::Join(author_gnd_numbers, ";") : "");
-        const std::string a_no_gnd_content(authors_no_gnd.size() ? StringUtil::Join(authors_no_gnd, ';') : "");
+        // If in keep_a_gnd mode, we keep the a_gnd
+        std::string a_gnd_content;
+        if (keep_a_gnd and not db_row["a_gnd"].empty())
+            a_gnd_content = db_row["a_gnd"];
+        else {
+             // Only write back non-empty string if we have at least one reasonable entry
+             a_gnd_content= author_gnd_seen ? StringUtil::Join(author_gnd_numbers, ";") : "";
+        }
+        std::string a_no_gnd_content(authors_no_gnd.size() ? StringUtil::Join(authors_no_gnd, ';') : "");
 
         // Apply manually fixed typos and circumscriptions
         std::string keyword_row(db_row["stichwort"]);
@@ -562,6 +570,10 @@ void AugmentDBEntries(DbConnection * const db_connection,
             a_gnd_content = not a_gnd_content.empty() ? a_gnd_content + ',' + gnds : gnds;
         }
 
+        // Workaround for bishops/officials not yet known in original assignment of a_gnd
+        if (not a_gnd_content.empty() and StringUtil::RemoveChars(" \\t", author_row) == StringUtil::RemoveChars(" \\t", a_no_gnd_content))
+            a_no_gnd_content = "";
+
 
         // Extract Category from abstract
         const std::string abstract(db_row["abstract"]);
@@ -596,16 +608,22 @@ int Main(int argc, char **argv) {
      const bool use_hintterms_map(true); // Map Hinweissätze to circumscriptions
      const bool use_keyword_correction_map(true); // Correct and newly map keywords
      const bool use_author_correction_map(true); // Correct and newly map authors
+     bool keep_a_gnd(false); // Do not touch existing entries in the a_gnd field
 
      if (std::strcmp(argv[1], "--augment-db") == 0)
          --argc, ++argv;
 
      if (std::strcmp(argv[1], "--generate-list") == 0) {
-        generate_list = true;
-        skip_empty = false;
-        generate_gnd_link = true;
-        --argc, ++argv;
-      }
+         generate_list = true;
+         skip_empty = false;
+         generate_gnd_link = true;
+         --argc, ++argv;
+     }
+
+     if (std::strcmp(argv[1], "--keep-a_gnd") == 0) {
+         keep_a_gnd = true;
+         --argc, ++argv;
+     }
 
      if (argc < 2 and not generate_list)
          Usage();
@@ -683,7 +701,7 @@ int Main(int argc, char **argv) {
          if (use_hintterms_map)
              GetHinttermsMap(hintterms_map_filename, &hintterms_map);
          AugmentDBEntries(&db_connection,author_to_gnds_result_map, keyword_to_gnds_result_map, cic_to_gnd_result_map,
-                          find_discovery_map, bishop_map, officials_map, hintterms_map, keyword_correction_map);
+                          find_discovery_map, bishop_map, officials_map, hintterms_map, keyword_correction_map, keep_a_gnd);
      }
      return EXIT_SUCCESS;
 }
