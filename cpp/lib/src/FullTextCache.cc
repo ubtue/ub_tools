@@ -234,7 +234,7 @@ unsigned FullTextCache::getSize() const {
 }
 
 
-FullTextCache::TextType FullTextCache::mapTextDescriptionToTextType(const std::string &text_description) {
+FullTextCache::TextType FullTextCache::MapTextDescriptionToTextType(const std::string &text_description) {
     const auto text_type(description_to_text_type_map.find(text_description));
     if (text_type == description_to_text_type_map.cend())
         return UNKNOWN;

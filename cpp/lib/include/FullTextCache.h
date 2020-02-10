@@ -64,7 +64,7 @@ public:
      *  \note Deletes expired entries and associated data in the key/value database found at "full_text_db_path".
      */
     bool entryExpired(const std::string &key, std::vector<std::string> urls);
-    enum TextType { FULLTEXT = 1, TOC = 2, ABSTRACT = 4, SUMMARY = 8, UNKNOWN = 0 };
+    enum TextType { FULLTEXT = 1, TOC = 2, ABSTRACT = 4, SUMMARY = 8, UNKNOWN = 0 }; // Must match constants in TuelibMixin.java
 
     /** \brief Delete all records whose expiration field is in the past */
     void expireEntries();
@@ -107,17 +107,17 @@ public:
 
     bool deleteEntry(const std::string &id);
 
-    static TextType mapTextDescriptionToTextType(const std::string &text_description);
+    static TextType MapTextDescriptionToTextType(const std::string &text_description);
 };
 
 
-inline FullTextCache::TextType operator | (const FullTextCache::TextType &lhs, const FullTextCache::TextType &rhs) {
+inline FullTextCache::TextType operator|(const FullTextCache::TextType &lhs, const FullTextCache::TextType &rhs) {
     return static_cast<FullTextCache::TextType>(static_cast<std::underlying_type_t<FullTextCache::TextType>>(lhs) |
                                                 static_cast<std::underlying_type_t<FullTextCache::TextType>>(rhs));
 }
 
 
-inline FullTextCache::TextType operator |= (FullTextCache::TextType &lhs, const FullTextCache::TextType &rhs) {
+inline FullTextCache::TextType operator|=(FullTextCache::TextType &lhs, const FullTextCache::TextType &rhs) {
     return lhs = lhs | rhs;
 }
 

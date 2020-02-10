@@ -14,7 +14,7 @@ import re
 import util
 
 
-MUTEX_FILE = "/tmp/create_refterm_successful" # Must match path in initiate_marc_pipeline.py
+REFTERM_MUTEX_FILE = "/tmp/create_refterm_successful" # Must match path in initiate_marc_pipeline.py
 
 
 def ExecOrCleanShutdownAndDie(cmd_name, args, log_file_name=None):
@@ -135,8 +135,8 @@ def ExecuteInParallel(*processes):
 
 
 def CleanStaleMutex()
-    if os.path.exists(MUTEX_FILE):
-       os.remove(MUTEX_FILE)
+    if os.path.exists(REFTERM_MUTEX_FILE):
+       os.remove(REFTERM_MUTEX_FILE)
 
 
 def Main():
@@ -181,7 +181,7 @@ def Main():
         ExecuteInParallel(create_ref_term_process, create_serial_sort_term_process, create_match_db_process, extract_fulltext_ids_process)
         end  = datetime.datetime.now()
         duration_in_minutes = str((end - start).seconds / 60.0)
-        util.Touch(MUTEX_FILE)
+        util.Touch(REFTERM_MUTEX_FILE)
         util.SendEmail("Create Refterm File", "Refterm file successfully created in " + duration_in_minutes + " minutes.", priority=5)
     else:
         util.SendEmail("Create Refterm File", "No new data was found.", priority=5)
