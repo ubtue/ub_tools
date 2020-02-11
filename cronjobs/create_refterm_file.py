@@ -134,7 +134,7 @@ def ExecuteInParallel(*processes):
             util.Error(process.name + " failed")
 
 
-def CleanStaleMutex()
+def CleanStaleMutex():
     if os.path.exists(REFTERM_MUTEX_FILE):
        os.remove(REFTERM_MUTEX_FILE)
 
