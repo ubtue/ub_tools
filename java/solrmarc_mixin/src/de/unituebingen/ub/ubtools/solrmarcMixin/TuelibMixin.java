@@ -1181,11 +1181,12 @@ public class TuelibMixin extends SolrIndexerMixin {
 
             for (final Subfield subfield_u : field.getSubfields('u')) {
                 final String rawLink = subfield_u.getData();
-                final int index = rawLink.indexOf("urn:", 0);
-                if (index >= 0) {
-                    final String link = rawLink.substring("urn:".length());
-                    result.add("URN:" + link);
-                }
+                if (rawLink.startsWith("http://nbn-resolving.de/urn:nbn:de"))
+                    result.add("URN:" + rawLink.substring("http://nbn-resolving.de/".length()));
+                else if (rawLink.startsWith("urn:nbn:de"))
+                    result.add("URN:" + rawLink);
+                else if (rawLink.startsWith("https://nbn-resolving.de/urn:nbn:de"))
+                    result.add("URN:" + rawLink.substring("https://nbn-resolving.de/".length()));
             }
         }
 
