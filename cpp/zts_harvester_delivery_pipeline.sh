@@ -100,6 +100,7 @@ rm -r -f -d $harvester_output_directory/ubtuebingen
 OVERALL_START=$(date +%s.%N)
 declare -a source_filepaths
 declare -a dest_filepaths
+declare -a dest_filepaths_local
 
 
 StartPhase "Harvest URLs"
@@ -140,8 +141,10 @@ for d in */ ; do
     source_filepaths[$counter]=$valid_records_output_filepath
     if [ "$delivery_mode" = "TEST" ]; then
         dest_filepaths[$counter]=/pub/UBTuebingen_Default_Test/
+        dest_filepaths_local[$counter]=/mnt/ZE020110/FID-Projekte/Default_Test/
     elif [ "$delivery_mode" = "LIVE" ]; then
         dest_filepaths[$counter]=/pub/UBTuebingen_Default/
+        dest_filepaths_local[$counter]=/mnt/ZE020110/FID-Projekte/Default/
     fi
     counter=$((counter+1))
 done
@@ -160,6 +163,9 @@ file_count=${#source_filepaths[@]}
 while [ "$counter" -lt "$file_count" ]; do
     upload_to_bsz_ftp_server.sh ${source_filepaths[counter]} \
                                 ${dest_filepaths[counter]} >> "${log}" 2>&1
+    if [[ -d "${dest_filepaths_local[$counter]}" ]]; then
+        cp "${source_filepaths[counter]}" "${dest_filepaths_local[$counter]}"
+    fi
     counter=$((counter+1))
 done
 EndPhase
