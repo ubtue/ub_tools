@@ -50,6 +50,7 @@ def Main():
                        "This script needs to be called with an email address as the only argument!\n", priority=1)
     ppns = []
     currentCursorMark = '*'
+    default_email_recipient = sys.argv[1]
     while True:
         jdata = GetDataFromGVI(currentCursorMark)
         ppns = ExtractPPNs(jdata, ppns)
