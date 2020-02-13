@@ -45,10 +45,9 @@ def ExtractNextCursorMark(jdata):
 
 
 def Main():
-    default_email_recipient = "ixtheo-team@ub.uni-tuebingen.de"
     if len(sys.argv) != 2:
         util.SendEmail(os.path.basename(sys.argv[0]),
-                       "This script needs to be called with an email address as the only argument!\n", priority=1)
+                       "This script needs to be called with an email address as the only argument!\n", recipient="ixtheo-team@ub.uni-tuebingen.de", priority=1)
     ppns = []
     currentCursorMark = '*'
     default_email_recipient = sys.argv[1]
