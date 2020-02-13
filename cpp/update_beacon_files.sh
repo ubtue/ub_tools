@@ -1,5 +1,4 @@
 #!/bin/bash
-# Runs through the phases of the IxTheo MARC processing pipeline.
 set -o nounset
 
 cd /usr/local/ub_tools/bsz_daten
