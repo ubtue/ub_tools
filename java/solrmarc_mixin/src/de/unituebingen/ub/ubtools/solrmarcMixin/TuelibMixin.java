@@ -183,18 +183,32 @@ public class TuelibMixin extends SolrIndexerMixin {
         phys_code_to_full_name_map = Collections.unmodifiableMap(tempMap);
     }
 
-
+    // Must match constants in FullTextCache.h
     private final static Map<String, String> text_type_to_description_map = new TreeMap<String, String>() {
         {
-            this.put("0", "Fulltext");
-            this.put("1", "Table of Contents");
-            this.put("255", "Unknown");
+            this.put("1", "Fulltext");
+            this.put("2", "Table of Contents");
+            this.put("4", "Abstract");
+            this.put("8", "Summary");
+            this.put("0", "Unknown");
         }
     };
+
 
     private Set<String> isils_cache = null;
     private Map<String, Collection<Collection<Topic>>> collectedTopicsCache = new TreeMap<>();
     private JSONArray fulltext_server_hits = new JSONArray();
+    private static final String fullHostName;
+    static {
+        String tmp = ""; // Needed for syntactical reasons
+        try {
+            tmp = InetAddress.getLocalHost().getHostName();
+        } catch(java.net.UnknownHostException e) {
+            throw new RuntimeException ("Could not determine Hostname", e);
+        }
+        fullHostName = tmp;
+    }
+
 
     @Override
     public void perRecordInit(Record record) throws Exception {
@@ -3023,7 +3037,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    protected String extractFullTextFromJSON(final JSONArray hits) {
+    protected String extractFullTextFromJSON(final JSONArray hits, final String text_type_description) {
         if (hits.isEmpty())
             return "";
 
@@ -3031,14 +3045,17 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final Object obj : hits) {
              JSONObject hit = (JSONObject) obj;
              JSONObject _source = (JSONObject) hit.get("_source");
-             fulltextBuilder.append(_source.get("full_text"));
+             final String description = mapTextTypeToDescription((String) _source.get("text_type"));
+             if (description.equals(text_type_description))
+                 fulltextBuilder.append(_source.get("full_text"));
         }
         return fulltextBuilder.toString();
     }
 
 
     protected String mapTextTypeToDescription(final String text_type) {
-        return text_type_to_description_map.get(text_type);
+        String type_candidate = text_type_to_description_map.get(text_type);
+        return type_candidate != null ? type_candidate : "Unknown";
     }
 
 
@@ -3094,7 +3111,6 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     public String getMyHostnameShort() throws java.net.UnknownHostException {
-       final String fullHostName = InetAddress.getLocalHost().getHostName();
        return fullHostName.replaceAll("\\..*", "");
     }
 
@@ -3163,8 +3179,24 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
     }
 
+
     public String getFullTextElasticsearch(final Record record) {
-        return extractFullTextFromJSON(fulltext_server_hits);
+        return extractFullTextFromJSON(fulltext_server_hits, "Fulltext");
+    }
+
+
+    public String getFullTextElasticsearchTOC(final Record record) {
+        return extractFullTextFromJSON(fulltext_server_hits, "Table of Contents");
+    }
+
+
+    public String getFullTextElasticsearchAbstract(final Record record) {
+        return extractFullTextFromJSON(fulltext_server_hits, "Abstract");
+    }
+
+
+    public String getFullTextElasticsearchSummary(final Record record) {
+        return extractFullTextFromJSON(fulltext_server_hits, "Summary");
     }
 
 

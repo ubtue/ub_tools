@@ -41,7 +41,9 @@ constexpr unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 mo
 
 static const std::map<std::string, FullTextCache::TextType> description_to_text_type_map {
     { "Volltext", FullTextCache::FULLTEXT },
-    { "Inhaltsverzeichnis", FullTextCache::TOC }
+    { "Inhaltsverzeichnis", FullTextCache::TOC },
+    { "Inhaltstext", FullTextCache::ABSTRACT },
+    { "Zusammenfassung", FullTextCache::SUMMARY }
 };
 
 
@@ -232,7 +234,7 @@ unsigned FullTextCache::getSize() const {
 }
 
 
-FullTextCache::TextType FullTextCache::mapTextDescriptionToTextType(const std::string &text_description) {
+FullTextCache::TextType FullTextCache::MapTextDescriptionToTextType(const std::string &text_description) {
     const auto text_type(description_to_text_type_map.find(text_description));
     if (text_type == description_to_text_type_map.cend())
         return UNKNOWN;

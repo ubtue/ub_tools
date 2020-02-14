@@ -54,7 +54,6 @@
 /full_text_stats
 /generate_complete_dumpfile
 /generate_issn_maps_from_zeder
-/generate_issn_to_misc_bits_map
 /generate_keyword_normalizations
 /generate_language_model
 /generate_library_dependency_graph
@@ -122,7 +121,6 @@
 /zeder_to_zotero_conversion_tools
 /zotero_cgi
 /zotero_harvester
-/zts_harvester
 
 # other excludes
 iViaCore-mkdep

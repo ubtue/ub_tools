@@ -959,7 +959,6 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     // Similar to the 100/700 fields, we need to insert 935 fields in reverse
     // order to preserve the intended ordering
     marc_record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
-    marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
 
     // Abrufzeichen und ISIL
     if (group_params.output_folder_ == "krimdok") {
@@ -969,6 +968,7 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
                and metadata_record.ssg_ != MetadataRecord::SSGType::INVALID)
     {
         marc_record->insertField("852", { { 'a', group_params.isil_ } });
+        marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
         marc_record->insertField("935", { { 'a', "mteo" } });
     }
 
