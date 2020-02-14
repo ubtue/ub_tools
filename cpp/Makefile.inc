@@ -8,7 +8,7 @@ LIBS           = -L$(LIB) -lubtue -L$(LIB)/libstemmer -lstemmer -lxml2 -lpcre -l
                  -luuid -llept -ltesseract -lsqlite3 -lxerces-c -ldb
 
 ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
-  LD_FLAGS =
+  LD_FLAGS = -flto
   CCCFLAGS += -O3 -funroll-loops -fomit-frame-pointer
   OPTIMISATIONS_STATE =
 else

@@ -114,3 +114,14 @@ std::unordered_set<std::string> DbResultSet::getColumnSet(const std::string &col
 
     return set;
 }
+
+
+void DbResultSet::rewind() {
+    if (empty())
+        return;
+
+    if (result_set_ != nullptr)
+        ::mysql_data_seek(result_set_, 0);
+    else if (::sqlite3_reset(stmt_handle_) != SQLITE_OK)
+        LOG_ERROR("sqlite3_reset failed!");
+}
