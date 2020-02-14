@@ -550,7 +550,7 @@ private:
     bool urlAlreadyDelivered(const std::string &url, Entry * const entry, DbConnection * const db_connection) const;
     bool hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries,
                               DbConnection * const db_connection) const;
-    bool recordAlreadyDelivered(const std::string &record_hash, const std::vector<std::string> &record_urls,
+    bool recordAlreadyDelivered(const std::string &record_hash, const std::set<std::string> &record_urls,
                                 DbConnection * const db_connection) const;
 };
 
@@ -562,7 +562,7 @@ extern std::recursive_mutex non_threadsafe_locale_modification_guard;
 
 
 // Returns URLs found in 856 and URL fields.
-std::vector<std::string> GetMarcRecordUrls(const MARC::Record &record);
+std::set<std::string> GetMarcRecordUrls(const MARC::Record &record);
 
 
 } // end namespace Util

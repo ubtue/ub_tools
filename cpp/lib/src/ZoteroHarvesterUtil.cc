@@ -354,7 +354,7 @@ bool UploadTracker::hashAlreadyDelivered(const std::string &hash, std::vector<En
 }
 
 
-bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const std::vector<std::string> &record_urls,
+bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const std::set<std::string> &record_urls,
                                            DbConnection * const db_connection) const
 {
     std::vector<Entry> hash_bucket;
@@ -503,18 +503,18 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
 std::recursive_mutex non_threadsafe_locale_modification_guard;
 
 
-std::vector<std::string> GetMarcRecordUrls(const MARC::Record &record) {
-    std::vector<std::string> urls;
+std::set<std::string> GetMarcRecordUrls(const MARC::Record &record) {
+    std::set<std::string> urls;
 
     for (const auto &field : record.getTagRange("856")) {
         const auto url(field.getFirstSubfieldWithCode('u'));
         if (not url.empty())
-            urls.emplace_back(url);
+            urls.emplace(url);
     }
 
     const auto harvest_url_field(record.findTag("URL"));
     if (harvest_url_field != record.end())
-        urls.emplace_back(harvest_url_field->getFirstSubfieldWithCode('a'));
+        urls.emplace(harvest_url_field->getFirstSubfieldWithCode('a'));
 
     return urls;
 }
