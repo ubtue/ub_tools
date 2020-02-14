@@ -63,6 +63,8 @@ public:
     /** \return The set of all values in column "column" contained in this result set. */
     std::unordered_set<std::string> getColumnSet(const std::string &column);
 
-    /** After calling this you can iterate again from the start of the results with getNextRow(). */
+    /** After calling this you can iterate again from the start of the results with getNextRow().
+     *  \warning You cannot rewind an empty result set!
+     */
     void rewind();
 };
