@@ -117,8 +117,8 @@ std::unordered_set<std::string> DbResultSet::getColumnSet(const std::string &col
 
 
 void DbResultSet::rewind() {
-    if (size() == 0)
-        LOG_ERROR("can't rewind an empty result set!");
+    if (empty())
+        return;
 
     if (result_set_ != nullptr)
         ::mysql_data_seek(result_set_, 0);
