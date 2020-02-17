@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2015,2017-2019 Universitätsbibliothek Tübingen.
+ *  Copyright 2015-2020 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -34,6 +34,7 @@
 #include <vector>
 #include <cwchar>
 #include <iconv.h>
+#include "util.h"
 
 
 namespace TextUtil {
@@ -541,8 +542,11 @@ size_t CodePointCount(const std::string &utf8_string);
 std::string UTF8Substr(const std::string &utf8_string, const size_t pos = 0, const size_t len = std::string::npos);
 
 
-/** Pads "utf8_string" with leading "pad_char"'s if the number of codepoints in "utf8_string" is less than min_length. */
+/** Pads "utf8_string" with leading "pad_char"'s if the number of codepoints in "utf8_string" is less than "min_length". */
 inline std::string PadLeading(const std::string &utf8_string, const std::string::size_type min_length, const char pad_char = ' ') {
+    if (unlikely(static_cast<unsigned char>(pad_char) & 128u))
+        LOG_ERROR("we can only pad with ASCII characters!");
+
     const std::string::size_type length(CodePointCount(utf8_string));
 
     if (length >= min_length)
@@ -552,10 +556,38 @@ inline std::string PadLeading(const std::string &utf8_string, const std::string:
 }
 
 
-inline std::string &Pad(std::string * const utf8_string, const std::string::size_type min_length, const char pad_char = ' ') {
+inline std::string &PadLeading(std::string * const utf8_string, const std::string::size_type min_length, const char pad_char = ' ') {
+    if (unlikely((static_cast<unsigned char>(pad_char) & 128u) != 0))
+        LOG_ERROR("we can only pad with ASCII characters!");
+
     const auto length(CodePointCount(*utf8_string));
     if (length < min_length)
         utf8_string->insert(0, min_length - length, pad_char);
+    return *utf8_string;
+}
+
+
+/** Pads "utf8_string" with trailing "pad_char"'s if the number of codepoints in "utf8_string" is less than "min_length". */
+inline std::string PadTrailing(const std::string &utf8_string, const std::string::size_type min_length, const char pad_char = ' ') {
+    if (unlikely((static_cast<unsigned char>(pad_char) & 128u) != 0))
+        LOG_ERROR("we can only pad with ASCII characters!");
+
+    const std::string::size_type length(CodePointCount(utf8_string));
+
+    if (length >= min_length)
+        return utf8_string;
+
+    return utf8_string + std::string(min_length - length, pad_char);
+}
+
+
+inline std::string &PadTrailing(std::string * const utf8_string, const std::string::size_type min_length, const char pad_char = ' ') {
+    if (unlikely((static_cast<unsigned char>(pad_char) & 128u) != 0))
+        LOG_ERROR("we can only pad with ASCII characters!");
+
+    const auto length(CodePointCount(*utf8_string));
+    if (length < min_length)
+        utf8_string->append(min_length - length, pad_char);
     return *utf8_string;
 }
 
