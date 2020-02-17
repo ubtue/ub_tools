@@ -541,4 +541,23 @@ size_t CodePointCount(const std::string &utf8_string);
 std::string UTF8Substr(const std::string &utf8_string, const size_t pos = 0, const size_t len = std::string::npos);
 
 
+/** Pads "s" with leading "pad_char"'s if s.length() < min_length. */
+inline std::string PadLeading(const std::string &utf8_string, const std::string::size_type min_length, const char pad_char = ' ') {
+    const std::string::size_type length(CodePointCount(utf8_string));
+
+    if (length >= min_length)
+        return utf8_string;
+
+    return std::string(min_length - length, pad_char) + utf8_string;
+}
+
+
+inline std::string &Pad(std::string * const utf8_string, const std::string::size_type min_length, const char pad_char = ' ') {
+    const auto length(CodePointCount(*utf8_string));
+    if (length < min_length)
+        utf8_string->insert(0, min_length - length, pad_char);
+    return *utf8_string;
+}
+
+
 } // namespace TextUtil
