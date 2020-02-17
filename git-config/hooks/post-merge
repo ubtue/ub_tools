@@ -28,11 +28,11 @@ fi
 if [[ $compare_against_installer_schema && -r /tmp/new_ub_tools.schema ]]; then
     MYSQL_PWD=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_password)
     MYSQL_USER=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_username)
-    echo "DROP DATABASE IF EXISTS ub_tools_tmp;" | mysql -u $MYSQL_USER -$MYSQL_PWD
-    echo "CREATE DATABASE ub_tools_tmp;" | mysql -u $MYSQL_USER -$MYSQL_PWD
-    echo "USE ub_tools_tmp" | cat - /usr/local/ub_tools/cpp/data/installer/ub_tools.sql | mysql -u $MYSQL_USER -$MYSQL_PWD
+    echo "DROP DATABASE IF EXISTS ub_tools_tmp;" | mysql -u $MYSQL_USER -p"$MYSQL_PWD"
+    echo "CREATE DATABASE ub_tools_tmp;" | mysql -u $MYSQL_USER -p"$MYSQL_PWD"
+    echo "USE ub_tools_tmp" | cat - /usr/local/ub_tools/cpp/data/installer/ub_tools.sql | mysql -u $MYSQL_USER -p"$MYSQL_PWD"
     mysql_list_tables ub_tools_tmp ub_tools $MYSQL_PWD > /tmp/installer_ub_tools.schema
-    echo "DROP DATABASE ub_tools_tmp;" | mysql -u $MYSQL_USER -$MYSQL_PWD
+    echo "DROP DATABASE ub_tools_tmp;" | mysql -u $MYSQL_USER -p"$MYSQL_PWD"
     /usr/local/bin/mysql_diff_schemas /tmp/installer_ub_tools.schema /tmp/new_ub_tools.schema | tee /tmp/schema_diffs
     if [ -s /tmp/schema_diffs ]; then
         MYSQL_DB=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_database)
