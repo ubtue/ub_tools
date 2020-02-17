@@ -541,7 +541,7 @@ size_t CodePointCount(const std::string &utf8_string);
 std::string UTF8Substr(const std::string &utf8_string, const size_t pos = 0, const size_t len = std::string::npos);
 
 
-/** Pads "s" with leading "pad_char"'s if s.length() < min_length. */
+/** Pads "utf8_string" with leading "pad_char"'s if the number of codepoints in "utf8_string" is less than min_length. */
 inline std::string PadLeading(const std::string &utf8_string, const std::string::size_type min_length, const char pad_char = ' ') {
     const std::string::size_type length(CodePointCount(utf8_string));
 
