@@ -164,7 +164,7 @@ while [ "$counter" -lt "$file_count" ]; do
     upload_to_bsz_ftp_server.sh ${source_filepaths[counter]} \
                                 ${dest_filepaths[counter]} >> "${log}" 2>&1
     if [[ -d "${dest_filepaths_local[$counter]}" ]]; then
-        cp "${source_filepaths[counter]}" "${dest_filepaths_local[$counter]}"
+        cp "${source_filepaths[counter]}" "${dest_filepaths_local[$counter]}" >> "${log}" 2>&1
     fi
     counter=$((counter+1))
 done
@@ -191,7 +191,7 @@ StartPhase "Check for Overdue Articles"
 LOGGER_FORMAT=no_decorations,strip_call_site \
 BACKTRACE=1 \
 UTIL_LOG_DEBUG=true \
-journal_timeliness_checker "$harvester_config_file" "journal_timeliness_checker@$(hostname)" "$email_address"
+journal_timeliness_checker "$harvester_config_file" "journal_timeliness_checker@$(hostname)" "$email_address" >> "${log}" 2>&1
 EndPhase
 
 
