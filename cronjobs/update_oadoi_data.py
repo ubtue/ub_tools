@@ -20,7 +20,7 @@ import time
 import traceback
 import urllib.request, urllib.parse, urllib.error
 import util
-from shutil import copy2
+from shutil import copy2, move, rmtree
 
 def GetChangelists(url, api_key):
     print("Get Changelists")
@@ -146,7 +146,8 @@ def DumpMongoDB(config):
     intermediate_dump_dir = dump_base_path + '/.' + dump_root
     util.ExecOrDie(util.Which("mongodump"), [ "--out=" + intermediate_dump_dir , "--gzip" ])
     final_dump_dir = dump_base_path + '/' + dump_root
-    os.rename(intermediate_dump_dir, final_dump_dir)
+    rmtree(final_dump_dir)
+    move(intermediate_dump_dir, final_dump_dir)
 
 
 def Main():
