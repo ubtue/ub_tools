@@ -560,31 +560,19 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (code_to_material_type_map.containsKey(materialType))
                 materialType = code_to_material_type_map.get(materialType);
 
-            // Extract all links from u-subfields and resolve URNs:
-            for (final Subfield subfield_u : field.getSubfields('u')) {
-                Set<String> URLs = materialTypeToURLsMap.get(materialType);
-                if (URLs == null) {
-                    URLs = new HashSet<String>();
-                    materialTypeToURLsMap.put(materialType, URLs);
+            // Get all URNs + generate URLs:
+            final Set<String> urns = getURNs(record);
+            for (final String urn : urns) {
+                Set<String> urls = materialTypeToURLsMap.get(materialType);
+                if (urls == null) {
+                    urls = new HashSet<String>();
+                    materialTypeToURLsMap.put(materialType, urls);
                 }
 
-                final String rawLink = subfield_u.getData();
-                final String link;
-                if (rawLink.startsWith("urn:"))
-                    link = "https://nbn-resolving.org/" + rawLink;
-                else if (rawLink.startsWith("http://nbn-resolving.de"))
-                    // Replace HTTP w/ HTTPS.
-                    link = "https://nbn-resolving.org/" + rawLink.substring(23);
-
-
-                else if (rawLink.startsWith("http://nbn-resolving.org"))
-                    // Replace HTTP w/ HTTPS.
-                    link = "https://nbn-resolving.org/" + rawLink.substring(24);
-                else
-                    link = rawLink;
-                URLs.add(link);
+                final String url = "https://nbn-resolving.org/" + urn;
+                urls.add(url);
                 if (!materialType.equals(UNKNOWN_MATERIAL_TYPE))
-                    nonUnknownMaterialTypeURLs.add(link);
+                    nonUnknownMaterialTypeURLs.add(url);
             }
         }
 
