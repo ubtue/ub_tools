@@ -1187,11 +1187,13 @@ public class TuelibMixin extends SolrIndexerMixin {
         // From 2020-01-07 on, URNs will only be exported in 024.
         for (final VariableField variableField : record.getVariableFields("024")) {
             final DataField field = (DataField) variableField;
-            final Subfield subfield_2 = field.getSubfield('2');
-            if (subfield_2 != null && subfield_2.getData().equals("urn")) {
-                final Subfield subfield_a = field.getSubfield('a');
-                if (subfield_a != null)
-                    result.add(resultPrefix + subfield_a.getData());
+            if (field.getIndicator1() == '7') {
+                final Subfield subfield_2 = field.getSubfield('2');
+                if (subfield_2 != null && subfield_2.getData().equals("urn")) {
+                    final Subfield subfield_a = field.getSubfield('a');
+                    if (subfield_a != null)
+                        result.add(resultPrefix + subfield_a.getData());
+                }
             }
         }
 
@@ -1223,11 +1225,13 @@ public class TuelibMixin extends SolrIndexerMixin {
         // From 2020-01-07 on, Handles will only be exported in 024.
         for (final VariableField variableField : record.getVariableFields("024")) {
             final DataField field = (DataField) variableField;
-            final Subfield subfield_2 = field.getSubfield('2');
-            if (subfield_2 != null && subfield_2.getData().equals("hdl")) {
-                final Subfield subfield_a = field.getSubfield('a');
-                if (subfield_a != null)
-                    result.add(resultPrefix + subfield_a.getData());
+            if (field.getIndicator1() == '7') {
+                final Subfield subfield_2 = field.getSubfield('2');
+                if (subfield_2 != null && subfield_2.getData().equals("hdl")) {
+                    final Subfield subfield_a = field.getSubfield('a');
+                    if (subfield_a != null)
+                        result.add(resultPrefix + subfield_a.getData());
+                }
             }
         }
 
@@ -1257,11 +1261,13 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         for (final VariableField variableField : record.getVariableFields("024")) {
             final DataField field = (DataField) variableField;
-            final Subfield subfield_2 = field.getSubfield('2');
-            if (subfield_2 != null && subfield_2.getData().equals("doi")) {
-                final Subfield subfield_a = field.getSubfield('a');
-                if (subfield_a != null)
-                    result.add(resultPrefix + subfield_a.getData());
+            if (field.getIndicator1() == '7') {
+                final Subfield subfield_2 = field.getSubfield('2');
+                if (subfield_2 != null && subfield_2.getData().equals("doi")) {
+                    final Subfield subfield_a = field.getSubfield('a');
+                    if (subfield_a != null)
+                        result.add(resultPrefix + subfield_a.getData());
+                }
             }
         }
 
