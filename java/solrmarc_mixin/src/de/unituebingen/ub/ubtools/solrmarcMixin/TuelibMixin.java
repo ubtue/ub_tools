@@ -1175,27 +1175,43 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
+    /**
+     * Return all identifiers from 024. (Ind1 must always be 7)
+     *
+     * @param record            The record
+     * @param subfield2Value    The value of subfield 2, e.g. "urn", "doi", "hdl", ...
+     * @param resultPrefix      A prefix which will be prepended to each result entry.
+     */
+    private static Set<String> getIdentifiersFrom024(final Record record,
+                                                     final String subfield2Value,
+                                                     final String resultPrefix)
+    {
+        final Set<String> result = new TreeSet<>();
+
+        for (final VariableField variableField : record.getVariableFields("024")) {
+            final DataField field = (DataField) variableField;
+            if (field.getIndicator1() != '7')
+                continue;
+
+            final Subfield subfield_2 = field.getSubfield('2');
+            if (subfield_2 == null || !subfield_2.getData().equals(subfield2Value))
+                continue;
+
+            final Subfield subfield_a = field.getSubfield('a');
+            if (subfield_a != null)
+                result.add(resultPrefix + subfield_a.getData());
+        }
+
+        return result;
+    }
 
     private static Set<String> getURNs(final Record record) {
         return getURNs(record, "");
     }
 
-
     private static Set<String> getURNs(final Record record, final String resultPrefix) {
-        final Set<String> result = new TreeSet<>();
-
         // From 2020-01-07 on, URNs will only be exported in 024.
-        for (final VariableField variableField : record.getVariableFields("024")) {
-            final DataField field = (DataField) variableField;
-            if (field.getIndicator1() == '7') {
-                final Subfield subfield_2 = field.getSubfield('2');
-                if (subfield_2 != null && subfield_2.getData().equals("urn")) {
-                    final Subfield subfield_a = field.getSubfield('a');
-                    if (subfield_a != null)
-                        result.add(resultPrefix + subfield_a.getData());
-                }
-            }
-        }
+        final Set<String> result = getIdentifiersFrom024(record, "urn", resultPrefix);
 
         // Also keep 856 as fallback if something goes wrong:
         for (final VariableField variableField : record.getVariableFields("856")) {
@@ -1215,25 +1231,21 @@ public class TuelibMixin extends SolrIndexerMixin {
         return result;
     }
 
+    private static Set<String> getDOIs(final Record record) {
+        return getDOIs(record, "");
+    }
+
+    private static Set<String> getDOIs(final Record record, final String resultPrefix) {
+        return getIdentifiersFrom024(record, "doi", resultPrefix);
+    }
+
     private static Set<String> getHandles(final Record record) {
         return getHandles(record, "");
     }
 
     private static Set<String> getHandles(final Record record, final String resultPrefix) {
-        final Set<String> result = new TreeSet<>();
-
         // From 2020-01-07 on, Handles will only be exported in 024.
-        for (final VariableField variableField : record.getVariableFields("024")) {
-            final DataField field = (DataField) variableField;
-            if (field.getIndicator1() == '7') {
-                final Subfield subfield_2 = field.getSubfield('2');
-                if (subfield_2 != null && subfield_2.getData().equals("hdl")) {
-                    final Subfield subfield_a = field.getSubfield('a');
-                    if (subfield_a != null)
-                        result.add(resultPrefix + subfield_a.getData());
-                }
-            }
-        }
+        final Set<String> result = getIdentifiersFrom024(record, "hdl", resultPrefix);
 
         // Also keep 856 as fallback if something goes wrong:
         for (final VariableField variableField : record.getVariableFields("856")) {
@@ -1245,28 +1257,6 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (index >= 0) {
                     final String link = rawLink.substring("http://hdl.handle.net/".length());
                     result.add(resultPrefix + link);
-                }
-            }
-        }
-
-        return result;
-    }
-
-    private static Set<String> getDOIs(final Record record) {
-        return getDOIs(record, "");
-    }
-
-    private static Set<String> getDOIs(final Record record, final String resultPrefix) {
-        final Set<String> result = new TreeSet<>();
-
-        for (final VariableField variableField : record.getVariableFields("024")) {
-            final DataField field = (DataField) variableField;
-            if (field.getIndicator1() == '7') {
-                final Subfield subfield_2 = field.getSubfield('2');
-                if (subfield_2 != null && subfield_2.getData().equals("doi")) {
-                    final Subfield subfield_a = field.getSubfield('a');
-                    if (subfield_a != null)
-                        result.add(resultPrefix + subfield_a.getData());
                 }
             }
         }
@@ -1286,7 +1276,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         final Set<String> result = getDOIs(record, "DOI:");
         result.addAll(getURNs(record, "URN:"));
         result.addAll(getHandles(record, "HDL:"));
-
         return result;
     }
 
