@@ -2,7 +2,7 @@
 set -o nounset
 
 function IsResultEmpty() {
-    item_count=$(grep '^[^#]' "$1" | wc -l)
+    item_count=$(grep '^[^#]' "$1" | wc --lines)
     [ $item_count == "0" ]
 }
 
