@@ -2381,9 +2381,27 @@ inline std::string PadLeading(const std::string &s, const std::string::size_type
 }
 
 
-inline std::string &Pad(std::string * const s, const std::string::size_type min_length, const char pad_char = ' ') {
+inline std::string &PadLeading(std::string * const s, const std::string::size_type min_length, const char pad_char = ' ') {
     if (s->length() < min_length)
         s->insert(0, min_length - s->length(), pad_char);
+    return *s;
+}
+
+
+/** Pads "s" with leading "pad_char"'s if s.length() < min_length. */
+inline std::string PadTrailing(const std::string &s, const std::string::size_type min_length, const char pad_char = ' ') {
+    const std::string::size_type length(s.length());
+
+    if (length >= min_length)
+        return s;
+
+    return s + std::string(min_length - length, pad_char);
+}
+
+
+inline std::string &PadTrailing(std::string * const s, const std::string::size_type min_length, const char pad_char = ' ') {
+    if (s->length() < min_length)
+        s->append(min_length - s->length(), pad_char);
     return *s;
 }
 
