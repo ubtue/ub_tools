@@ -15,10 +15,10 @@ if [ $? == 0 ]; then
     if [ ! $(IsResultEmpty archivportal-d.beacon.temp) ]; then
         mv archivportal-d.beacon.temp archivportal-d.beacon
     else
-        error_message .= "Obtained empty file from Kalliope"
+        error_message .= "Obtained empty file from Archivportal-d"
     fi
 else
-    error_message .= "Failed to download the Beacon file from Archiveportal-D."
+    error_message .= "Failed to download the Beacon file from Archivportal-D."
 fi
 
 wget http://kalliope.staatsbibliothek-berlin.de/beacon/beacon.txt -O kalliope.staatsbibliothek-berlin.beacon.temp
