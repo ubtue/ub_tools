@@ -620,8 +620,10 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
         LOG_WARNING("expected language '" + *journal_params.language_params_.expected_languages_.begin() + "' but found '"
                     + metadata_record->language_ + "'");
         metadata_record->language_ = *journal_params.language_params_.expected_languages_.begin();
-    }
-    else if (metadata_record->language_.length() == 2 or metadata_record->language_.length() == 3) {
+    } else if (metadata_record->language_.length() == 2 or
+               metadata_record->language_.length() == 3 or
+               metadata_record->language_.length() == 4)
+    {
         if (TranslationUtil::IsValidInternational2LetterCode(metadata_record->language_))
             metadata_record->language_ = TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(metadata_record->language_);
 
