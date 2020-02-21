@@ -55,13 +55,14 @@ std::string GetId(DbConnection * const connection, const std::string &german_tex
 
 const std::map<std::string, std::string> international_2letter_code_to_german_3or4letter_code{
     { "de", "deu" },
+    { "el", "gre" },
     { "en", "eng" },
+    { "es", "spa" },
     { "fr", "fra" },
     { "it", "ita" },
-    { "es", "spa" },
-    { "ru", "rus" },
     { "pt", "por" },
-    { "el", "gre" }
+    { "ru", "rus" },
+    { "tr", "tur" },
 };
 
 
@@ -72,6 +73,19 @@ std::string MapInternational2LetterCodeToGerman3Or4LetterCode(const std::string 
         logger->error("in TranslationUtil::MapInternational2LetterCodeToGerman3LetterCode: unknown international "
                       "2-letter code \"" + international_2letter_code + "\"!");
     return _2letter_and_3letter_codes->second;
+}
+
+
+bool IsValidInternational2LetterCode(const std::string &international_2letter_code_candidate) {
+    if (international_2letter_code_candidate.length() != 2)
+        return false;
+
+    for (const auto &_2letter_and_3letter_codes : international_2letter_code_to_german_3or4letter_code) {
+        if (_2letter_and_3letter_codes.first == international_2letter_code_candidate)
+            return true;
+    }
+
+    return false;
 }
 
 
@@ -135,11 +149,12 @@ static std::map<std::string, std::string> german_to_3or4letter_english_codes {
     { "deu", "ger" },
     { "eng", "eng" },
     { "fra", "fre" },
+    { "gre", "gre" },
     { "ita", "ita" },
-    { "spa", "spa" },
     { "por", "por" },
     { "rus", "rus" },
-    { "gre", "gre" },
+    { "spa", "spa" },
+    { "tur", "tur" },
     { "hans", "hans" },
     { "hant", "hant" }
 };
