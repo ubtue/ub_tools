@@ -165,15 +165,15 @@ void Clear(DbConnection * const db_connection, KeyValueDB * const notified_db, c
     const std::string user_id(result_set.getNextRow()["id"]);
 
     if (subscription_name == "all") {
-        db_connection->queryOrDie("SELECT journal_control_number_or_bundle_name FROM vufind.ixtheo_journal_subscriptions WHERE user_id="
+        db_connection->queryOrDie("SELECT journal_control_number_or_bundle_name FROM ixtheo_journal_subscriptions WHERE user_id="
                                   + user_id);
         DbResultSet result_set2(db_connection->getLastResultSet());
         while (const DbRow row = result_set2.getNextRow())
             notified_db->remove(row["journal_control_number_or_bundle_name"]);
-        db_connection->queryOrDie("DELETE FROM vufind.ixtheo_journal_subscriptions WHERE user_id=" + user_id);
+        db_connection->queryOrDie("DELETE FROM ixtheo_journal_subscriptions WHERE user_id=" + user_id);
         std::cout << "Deleted " << db_connection->getNoOfAffectedRows() << " subscriptions.\n";
     } else {
-        db_connection->queryOrDie("DELETE FROM vufind.ixtheo_journal_subscriptions WHERE user_id=" + user_id
+        db_connection->queryOrDie("DELETE FROM ixtheo_journal_subscriptions WHERE user_id=" + user_id
                                   + " AND journal_control_number_or_bundle_name=" + db_connection->escapeAndQuoteString(subscription_name));
         const unsigned affected_rows(db_connection->getNoOfAffectedRows());
         if (affected_rows == 0)
