@@ -230,7 +230,7 @@ int Main(int argc, char **argv) {
         const std::string username(argv[3]);
         if (username == "all" and argc > 4)
             Usage();
-        const std::string subscription_name(argc == 5 ? argv[4] : "");
+        const std::string subscription_name(argc == 5 ? argv[4] : "all");
         Clear(db_connection.get(), notified_db.get(), username, subscription_name);
     } else
         Usage();
