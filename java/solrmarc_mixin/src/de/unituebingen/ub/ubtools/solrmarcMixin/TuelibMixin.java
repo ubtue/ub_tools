@@ -553,6 +553,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         final Set<String> nonUnknownMaterialTypeURLs = new HashSet<String>();
         final Map<String, Set<String>> materialTypeToURLsMap = new TreeMap<String, Set<String>>();
         final Set<String> urls_and_material_types = new LinkedHashSet<>();
+
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
             final Subfield materialTypeSubfield = getFirstNonEmptySubfield(field, '3', 'z', 'y', 'x');
@@ -560,19 +561,28 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (code_to_material_type_map.containsKey(materialType))
                 materialType = code_to_material_type_map.get(materialType);
 
-            // Get all URNs + generate URLs:
-            final Set<String> urns = getURNs(record);
-            for (final String urn : urns) {
-                Set<String> urls = materialTypeToURLsMap.get(materialType);
-                if (urls == null) {
-                    urls = new HashSet<String>();
-                    materialTypeToURLsMap.put(materialType, urls);
+            for (final Subfield subfield_u : field.getSubfields('u')) {
+                Set<String> URLs = materialTypeToURLsMap.get(materialType);
+                if (URLs == null) {
+                    URLs = new HashSet<String>();
+                    materialTypeToURLsMap.put(materialType, URLs);
                 }
 
-                final String url = "https://nbn-resolving.org/" + urn;
-                urls.add(url);
+                final String rawLink = subfield_u.getData();
+                final String link;
+                if (rawLink.startsWith("urn:"))
+                    link = "https://nbn-resolving.org/" + rawLink;
+                else if (rawLink.startsWith("http://nbn-resolving.de"))
+                    // Replace HTTP w/ HTTPS.
+                    link = "https://nbn-resolving.org/" + rawLink.substring(23);
+                else if (rawLink.startsWith("http://nbn-resolving.org"))
+                    // Replace HTTP w/ HTTPS.
+                    link = "https://nbn-resolving.org/" + rawLink.substring(24);
+                else
+                    link = rawLink;
+                URLs.add(link);
                 if (!materialType.equals(UNKNOWN_MATERIAL_TYPE))
-                    nonUnknownMaterialTypeURLs.add(url);
+                    nonUnknownMaterialTypeURLs.add(link);
             }
         }
 
