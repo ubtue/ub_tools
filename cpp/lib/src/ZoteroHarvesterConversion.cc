@@ -1039,7 +1039,7 @@ std::string CalculateMarcRecordHash(const MARC::Record &marc_record) {
 
 
 const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST {
-    "journalArticle", "magazineArticle"
+    "journalArticle", "magazineArticle", "review"
 };
 
 
