@@ -82,6 +82,7 @@
 /mysql_list_tables
 /mysql_schema_diff
 /new_journal_alert
+/new_journal_tool
 /normalise_and_deduplicate_language
 /normalise_author_name
 /normalise_marc_contents
