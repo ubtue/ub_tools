@@ -170,7 +170,7 @@ void Clear(DbConnection * const db_connection, KeyValueDB * const notified_db, c
         DbResultSet result_set2(db_connection->getLastResultSet());
         while (const DbRow row = result_set2.getNextRow())
             notified_db->remove(row["journal_control_number_or_bundle_name"]);
-        db_connection->queryOrDie("DELETE * FROM vufind.ixtheo_journal_subscriptions WHERE user_id=" + user_id);
+        db_connection->queryOrDie("DELETE FROM vufind.ixtheo_journal_subscriptions WHERE user_id=" + user_id);
         std::cout << "Deleted " << db_connection->getNoOfAffectedRows() << " subscriptions.\n";
     } else {
         db_connection->queryOrDie("DELETE FROM vufind.ixtheo_journal_subscriptions WHERE user_id=" + user_id
