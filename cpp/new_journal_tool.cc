@@ -83,18 +83,18 @@ void ListUsers(DbConnection * const db_connection, const std::string &user_type)
 
 std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
     const std::string NO_SERIES_TITLE("*No Series Title*");
-    const std::shared_ptr<const JSON::JSONNode> titel(doc_obj->getNode("title"));
-    if (titel == nullptr) {
-        LOG_WARNING("\"titel\" is null");
+    const std::shared_ptr<const JSON::JSONNode> title(doc_obj->getNode("title"));
+    if (title == nullptr) {
+        LOG_WARNING("\"title\" is null");
         return NO_SERIES_TITLE;
     }
 
-    const std::shared_ptr<const JSON::StringNode> titel_node(
-        JSON::JSONNode::CastToStringNodeOrDie("titel", titel));
-    if (unlikely(titel_node == nullptr))
-        LOG_ERROR("titel_node is not a JSON string!");
+    const std::shared_ptr<const JSON::StringNode> title_node(
+        JSON::JSONNode::CastToStringNodeOrDie("title", title));
+    if (unlikely(title_node == nullptr))
+        LOG_ERROR("title_node is not a JSON string!");
 
-    return titel_node->getValue().empty() ? NO_SERIES_TITLE : titel_node->getValue();
+    return title_node->getValue().empty() ? NO_SERIES_TITLE : title_node->getValue();
 }
 
 
