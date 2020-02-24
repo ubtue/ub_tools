@@ -55,15 +55,6 @@ namespace {
 }
 
 
-std::unique_ptr<KeyValueDB> OpenKeyValueDB(const std::string &user_type) {
-    const std::string DB_FILENAME(UBTools::GetTuelibPath() + user_type + "_notified.db");
-    if (not FileUtil::Exists(DB_FILENAME))
-        LOG_ERROR(DB_FILENAME + " does not exist!");
-
-    return std::unique_ptr<KeyValueDB>(new KeyValueDB(DB_FILENAME));
-}
-
-
 void ListUsers(DbConnection * const db_connection, const std::string &user_type) {
     const std::string QUERY("SELECT username,firstname,lastname FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id "
                             "WHERE ixtheo_user.user_type='" + user_type + "'");
@@ -216,7 +207,9 @@ int Main(int argc, char **argv) {
     const std::string user_type(argv[1]);
     if (user_type != "ixtheo" and user_type != "relbib")
         LOG_ERROR("user_type parameter must be either \"ixtheo\" or \"relbib\"!");
-    std::unique_ptr<KeyValueDB> notified_db(OpenKeyValueDB(user_type));
+
+    const std::string DB_FILENAME(UBTools::GetTuelibPath() + user_type + "_notified.db");
+    std::unique_ptr<KeyValueDB> notified_db(OpenKeyValueDBOrDie(DB_FILENAME));
 
     std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
 
