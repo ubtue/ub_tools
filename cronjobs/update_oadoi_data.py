@@ -146,7 +146,8 @@ def DumpMongoDB(config):
     intermediate_dump_dir = dump_base_path + '/.' + dump_root
     util.ExecOrDie(util.Which("mongodump"), [ "--out=" + intermediate_dump_dir , "--gzip" ])
     final_dump_dir = dump_base_path + '/' + dump_root
-    rmtree(final_dump_dir)
+    if os.path.exists(final_dump_dir) and os.path.isdir(final_dump_dir):
+        rmtree(final_dump_dir)
     move(intermediate_dump_dir, final_dump_dir)
 
 
