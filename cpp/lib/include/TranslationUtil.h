@@ -42,6 +42,9 @@ std::string GetId(DbConnection * const connection, const std::string &german_tex
 std::string MapInternational2LetterCodeToGerman3Or4LetterCode(const std::string &international_2letter_code);
 
 
+bool IsValidInternational2LetterCode(const std::string &international_2letter_code_candidate);
+
+
 /** \note Aborts if "german_3letter_code" is unknown. */
 std::string MapGerman3Or4LetterCodeToInternational2LetterCode(const std::string &german_3letter_code);
 

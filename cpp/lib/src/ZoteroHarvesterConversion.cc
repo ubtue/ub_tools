@@ -24,6 +24,7 @@
 #include "StlHelpers.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
+#include "TranslationUtil.h"
 #include "UBTools.h"
 #include "UrlUtil.h"
 #include "ZoteroHarvesterConversion.h"
@@ -619,6 +620,12 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
         LOG_WARNING("expected language '" + *journal_params.language_params_.expected_languages_.begin() + "' but found '"
                     + metadata_record->language_ + "'");
         metadata_record->language_ = *journal_params.language_params_.expected_languages_.begin();
+    } else if (metadata_record->language_.length() >= 2 and metadata_record->language_.length() <= 4) {
+        // map language code from Zotero translator to english 3 letter code, if possible
+        if (TranslationUtil::IsValidInternational2LetterCode(metadata_record->language_))
+            metadata_record->language_ = TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(metadata_record->language_);
+        if (TranslationUtil::IsValidGerman3Or4LetterCode(metadata_record->language_))
+            metadata_record->language_ = TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(metadata_record->language_);
     }
 
     // fill-in license and SSG values
@@ -1032,7 +1039,7 @@ std::string CalculateMarcRecordHash(const MARC::Record &marc_record) {
 
 
 const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST {
-    "journalArticle", "magazineArticle"
+    "journalArticle", "magazineArticle", "review"
 };
 
 

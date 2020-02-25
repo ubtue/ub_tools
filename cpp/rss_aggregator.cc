@@ -291,6 +291,7 @@ int Main(int argc, char *argv[]) {
     const unsigned DEFAULT_POLL_INTERVAL(ini_file.getUnsigned("", "default_poll_interval"));
     const unsigned DEFAULT_DOWNLOADER_TIME_LIMIT(ini_file.getUnsigned("", "default_downloader_time_limit"));
     const unsigned UPDATE_INTERVAL(ini_file.getUnsigned("", "update_interval"));
+    const std::string PROXY(ini_file.getString("", "proxy", ""));
 
     if (not one_shot) {
         SignalUtil::InstallHandler(SIGTERM, SigTermHandler);
@@ -304,6 +305,11 @@ int Main(int argc, char *argv[]) {
 
     uint64_t ticks(0);
     Downloader downloader;
+    if (not PROXY.empty()) {
+        LOG_INFO("using proxy: " + PROXY);
+        downloader.params_.proxy_host_and_port_ = PROXY;
+    }
+
     for (;;) {
         LOG_DEBUG("now we're at " + std::to_string(ticks) + ".");
 
