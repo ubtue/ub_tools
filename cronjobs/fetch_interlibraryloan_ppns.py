@@ -17,7 +17,12 @@ PPN_LIST_FILE    = "gvi_ppn_list-" + datetime.datetime.today().strftime('%y%m%d'
 
 
 def GetDataFromGVI(cursor_mark):
-    response = urllib.request.urlopen(GVI_URL + '&cursorMark=' + cursor_mark)
+    TIMEOUT: int = 120
+    try:
+        response = urllib.request.urlopen(GVI_URL + '&cursorMark=' + cursor_mark, timeout=TIMEOUT)
+    except urllib.error.HTTPError:
+        util.Error("GVI gateway timeout out after + " str(TIMEOUT) + " seconds!")
+
     try:
         jdata = json.load(response)
     except ValueError:
