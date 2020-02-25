@@ -138,13 +138,13 @@ def StopMongoDB():
     job = manager.StopUnit(GetMongoServiceDependingOnSystem(), 'ignore-dependencies')
 
 
-def DumpMongoDB(config):
+def DumpMongoDB(config, log_file_name="/dev/stderr"):
     # Backup to intermediate hidden directory that is exluded from backup
     # to prevent inconsistent saving
     dump_base_path = config.get("LocalConfig", "dump_base_path")
     dump_root = config.get("LocalConfig", "dump_root")
     intermediate_dump_dir = dump_base_path + '/.' + dump_root
-    util.ExecOrDie(util.Which("mongodump"), [ "--out=" + intermediate_dump_dir , "--gzip" ])
+    util.ExecOrDie(util.Which("mongodump"), [ "--out=" + intermediate_dump_dir , "--gzip" ], log_file_name)
     final_dump_dir = dump_base_path + '/' + dump_root
     if os.path.exists(final_dump_dir) and os.path.isdir(final_dump_dir):
         rmtree(final_dump_dir)
@@ -187,7 +187,7 @@ def Main():
     krimdok_urls_file = config.get("LocalConfig", "krimdok_urls_file")
     ExtractOADOIURLs(share_directory, krimdok_dois_file, krimdok_urls_file, log_file_name)
     ShareOADOIURLs(share_directory, krimdok_urls_file)
-    DumpMongoDB(config)
+    DumpMongoDB(config, log_file_name)
     StopMongoDB()
     util.SendEmail("Update OADOI Data",
                    "Successfully created \"" + ixtheo_urls_file + "\" and \""  + krimdok_urls_file +
