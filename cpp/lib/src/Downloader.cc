@@ -51,11 +51,12 @@ int GlobalInit() {
 }
 
 
+#if 0
 /** \brief  Remove all entries in "slist" that start with "prefix".
  *  \return The new list head.
  *  \note   May return an empty list, i.e. the null pointer!
  */
-curl_slist *RemoveAll(curl_slist * const slist, const char * const prefix) {
+static curl_slist *RemoveAllWithMatchingPrefix(curl_slist * const slist, const char * const prefix) {
     const size_t prefix_length(std::strlen(prefix));
     curl_slist *head(slist), *current(slist), *previous(nullptr);
     while (current != nullptr) {
@@ -76,6 +77,7 @@ curl_slist *RemoveAll(curl_slist * const slist, const char * const prefix) {
     }
     return head;
 }
+#endif
 
 
 } // unnamed namespace
