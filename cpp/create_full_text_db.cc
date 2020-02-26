@@ -53,6 +53,7 @@ constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 120; // seconds
             "\"--only-open-access\" means that only open access texts will be processed.\n"
             "\"--store-pdfs-as-html\" means that an HTML representation of downloaded PDF's is stored if possible.\n"
             "\"--use-separate-entries-per-url\": Store individual entries for the fulltext locations in a record\n"
+            "\"--include-all-tocs\": Extract TOCs even if they are not matched by the only-open-access-filter\n"
            );
 
     std::exit(EXIT_FAILURE);
@@ -148,7 +149,8 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
                         std::map<std::string, unsigned> * const hostname_to_outstanding_request_count_map,
                         std::map<int, std::string> * const process_id_to_hostname_map,
                         unsigned * const child_reported_failure_count, unsigned * const active_child_count,
-                        const bool store_pdfs_as_html, const bool use_separate_entries_per_url)
+                        const bool store_pdfs_as_html, const bool use_separate_entries_per_url,
+                        const bool include_all_tocs)
 {
     constexpr unsigned MAX_CONCURRENT_DOWNLOADS_PER_SERVER = 2;
 
@@ -175,6 +177,8 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
     }
     if (use_separate_entries_per_url)
         args.emplace_back("--use-separate-entries-per-url");
+    if (include_all_tocs)
+        args.emplace_back("--include-all-tocs");
     args.emplace_back(std::to_string(marc_record_start));
     args.emplace_back(marc_input_filename);
     args.emplace_back(marc_output_filename);
@@ -193,7 +197,8 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
                             const std::vector<std::pair<off_t, std::string>> &download_record_offsets_and_urls,
                             const unsigned process_count_low_watermark, const unsigned process_count_high_watermark,
                             const bool store_pdfs_as_html,
-                            const bool use_separate_entries_per_url)
+                            const bool use_separate_entries_per_url,
+                            const bool include_all_tocs)
 {
     Semaphore semaphore("/full_text_cached_counter", Semaphore::CREATE);
     unsigned active_child_count(0), child_reported_failure_count(0);
@@ -222,7 +227,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
         ScheduleSubprocess(authority, offset_and_url.first, pdf_extraction_timeout, marc_reader->getPath(),
                            marc_writer->getFile().getPath(), &hostname_to_outstanding_request_count_map,
                            &process_id_to_hostname_map, &child_reported_failure_count, &active_child_count,
-                           store_pdfs_as_html, use_separate_entries_per_url);
+                           store_pdfs_as_html, use_separate_entries_per_url, include_all_tocs);
 
         if (active_child_count > process_count_high_watermark)
             CleanUpZombies(active_child_count - process_count_low_watermark, &hostname_to_outstanding_request_count_map,
@@ -302,6 +307,12 @@ int Main(int argc, char **argv) {
         ++argv, --argc;
     }
 
+    bool include_all_tocs(false);
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--include-all-tocs")) {
+        include_all_tocs = true;
+        ++argv, --argc;
+    }
+
     if (argc != 3)
         Usage();
 
@@ -322,7 +333,7 @@ int Main(int argc, char **argv) {
 
         ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), pdf_extraction_timeout, 
                                download_record_offsets_and_urls, process_count_low_watermark, process_count_high_watermark,
-                               store_pdfs_as_html, use_separate_entries_per_url);
+                               store_pdfs_as_html, use_separate_entries_per_url, include_all_tocs);
     } catch (const std::exception &e) {
         LOG_ERROR("Caught exception: " + std::string(e.what()));
     }

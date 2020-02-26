@@ -36,7 +36,6 @@
 #include "KeyValueDB.h"
 #include "Solr.h"
 #include "StringUtil.h"
-#include "Template.h"
 #include "TimeUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -426,7 +425,7 @@ void ProcessSingleUser(
     const std::string &sender_email, const std::string &email_subject,
     std::vector<SerialControlNumberAndMaxLastModificationTime> &control_numbers_or_bundle_names_and_last_modification_times)
 {
-    db_connection->queryOrDie("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id WHERE user.id='" + user_id + "'");
+    db_connection->queryOrDie("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id WHERE user.id=" + user_id);
     DbResultSet result_set(db_connection->getLastResultSet());
 
     if (result_set.empty())

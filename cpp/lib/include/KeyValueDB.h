@@ -4,7 +4,7 @@
  */
 
 /*
- *  Copyright 2019 Library of the University of Tübingen
+ *  Copyright 2019-2020 Library of the University of Tübingen
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -22,8 +22,9 @@
 #pragma once
 
 
-#include <db.h>
+#include <memory>
 #include <string>
+#include <db.h>
 
 
 class KeyValueDB {
@@ -41,3 +42,6 @@ public:
 
     static void Create(const std::string &path);
 };
+
+
+std::unique_ptr<KeyValueDB> OpenKeyValueDBOrDie(const std::string &db_path);
