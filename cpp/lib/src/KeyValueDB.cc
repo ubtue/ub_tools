@@ -22,6 +22,7 @@
 #include "KeyValueDB.h"
 #include <db.h>
 #include <strings.h>
+#include "FileUtil.h"
 #include "util.h"
 
 
@@ -138,4 +139,12 @@ void KeyValueDB::Create(const std::string &path) {
 
     if ((retcode = db->open(db, /* txnid = */nullptr, path.c_str(), /* database = */nullptr, DB_HASH, DB_CREATE, /* mode = */0600)) != 0)
         LOG_ERROR("DB->open() failed! (" + std::string(db_strerror(retcode)) + ")");
+}
+
+
+std::unique_ptr<KeyValueDB> OpenKeyValueDBOrDie(const std::string &db_path) {
+    if (not FileUtil::Exists(db_path))
+        LOG_ERROR(db_path + " does not exist!");
+
+    return std::unique_ptr<KeyValueDB>(new KeyValueDB(db_path));
 }
