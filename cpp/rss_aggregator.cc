@@ -304,11 +304,12 @@ int Main(int argc, char *argv[]) {
     const std::string xml_output_filename(argv[1]);
 
     uint64_t ticks(0);
-    Downloader downloader;
+    Downloader::Params params;
     if (not PROXY.empty()) {
         LOG_INFO("using proxy: " + PROXY);
-        downloader.params_.proxy_host_and_port_ = PROXY;
+        params.proxy_host_and_port_ = PROXY;
     }
+    Downloader downloader(params);
 
     for (;;) {
         LOG_DEBUG("now we're at " + std::to_string(ticks) + ".");
