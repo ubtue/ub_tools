@@ -196,11 +196,6 @@ protected:
 private:
     Params params_;
 
-    void InitCurlEasyHandle(const long dns_cache_timeout, const char * const error_buffer,
-                            const bool debugging, WriteFunc write_func, LockFunc lock_func,
-                            UnlockFunc unlock_func, HeaderFunc header_func,
-                            DebugFunc debug_func, CURL ** const easy_handle, std::string * const user_agent,
-                            const bool follow_redirect);
     void init();
     bool internalNewUrl(const Url &url, const TimeLimit &time_limit);
     size_t writeFunction(void *data, size_t size, size_t nmemb);
