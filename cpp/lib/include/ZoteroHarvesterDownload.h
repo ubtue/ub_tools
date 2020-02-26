@@ -21,13 +21,13 @@
 
 #include <atomic>
 #include <memory>
+#include <queue>
 #include <set>
 #include <unordered_map>
 #include "Downloader.h"
 #include "JSON.h"
 #include "RegexMatcher.h"
 #include "RobotsDotTxt.h"
-#include "SimpleCrawler.h"
 #include "SyndicationFormat.h"
 #include "ThreadUtil.h"
 #include "TimeLimit.h"
