@@ -290,7 +290,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         }
     } else {
         bool at_least_one_expired(false);
-        for (auto url_and_text_type(urls_and_text_types.begin()); url_and_text_type != urls_and_text_types.end();) {
+        for (auto url_and_text_type(urls_and_text_types.begin()); url_and_text_type != urls_and_text_types.end();/* intentionally empty */) {
             const bool expired(cache.entryExpired(ppn, { url_and_text_type->url_ }));
             if (not expired) {
                 url_and_text_type = urls_and_text_types.erase(url_and_text_type);
