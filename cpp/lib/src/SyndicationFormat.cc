@@ -59,9 +59,9 @@ enum SyndicationFormatType { TYPE_UNKNOWN, TYPE_RSS20, TYPE_RSS091, TYPE_ATOM, T
 // set options to 0 so default setting ENABLE_UTF8 will be disabled
 // if ENABLE_UTF8 is used, detection will fail for non-utf8-feeds
 // even if the corresponding characters are NOT in the header!
-const ThreadSafeRegexMatcher RSS20_MATCHER("<rss[^>]+version=\"2.0\"", /* options */ 0);
-const ThreadSafeRegexMatcher RSS091_MATCHER("<rss[^>]+version=\"0.91\"", /* options */ 0);
-const ThreadSafeRegexMatcher ATOM_MATCHER("<feed[^>]+2005/Atom\"", /* options */ 0);
+const ThreadSafeRegexMatcher RSS20_MATCHER("<rss[^>]+version=['\"]2.0['\"]", /* options */ 0);
+const ThreadSafeRegexMatcher RSS091_MATCHER("<rss[^>]+version=['\"]0.91['\"]", /* options */ 0);
+const ThreadSafeRegexMatcher ATOM_MATCHER("<feed[^>]+2005/Atom['\"]", /* options */ 0);
 const ThreadSafeRegexMatcher RDF_MATCHER("<rdf:RDF|<RDF", /* options */ 0);
 
 
