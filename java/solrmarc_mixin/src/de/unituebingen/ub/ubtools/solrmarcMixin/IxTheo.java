@@ -61,7 +61,7 @@ public class IxTheo extends SolrIndexerMixin {
 
                 final StringBuilder key = new StringBuilder();
                 final StringBuilder value = new StringBuilder();
-                if (!parseIniFileLine(line, key, value) || value.length() < key.length() + 2 /* 1 space and at least one character */)
+                if (!parseIniFileLine(line, key, value) || value.length() < key.length() - ENTRY_PREFIX_LENGTH + 2 /* 1 space and at least one character */)
                     continue;
 
                 final String notationCode = key.toString().substring(ENTRY_PREFIX_LENGTH);
@@ -82,18 +82,25 @@ public class IxTheo extends SolrIndexerMixin {
         }
     }
 
+    final static String LANGUAGES_DIRECTORY = "/usr/local/vufind/local/tuefind/languages";
+
     static HashMap<String, TreeSet<String>> processLanguageIniFiles()
     {
         final HashMap<String, TreeSet<String>> ixtheoNotationsToDescriptionsMap = new HashMap<>();
 
-        final File[] dir_entries = new File("/usr/local/vufind/local/tuefind/languages").listFiles();
+        final File[] dir_entries = new File(LANGUAGES_DIRECTORY).listFiles();
+        boolean foundAtLeastOne = false;
         for (final File dir_entry : dir_entries) {
             if (dir_entry.getName().length() != 6 || !dir_entry.getName().endsWith(".ini")) {
                 logger.warning("Unexpected language file: " + dir_entry.getName());
                 continue;
             }
-
+            foundAtLeastOne = true;
             processLanguageIniFile(dir_entry, ixtheoNotationsToDescriptionsMap, "ixtheo-");
+        }
+        if (!foundAtLeastOne) {
+            logger.severe("No language files found in \"" + LANGUAGES_DIRECTORY + "\"!");
+            System.exit(1);
         }
 
         return ixtheoNotationsToDescriptionsMap;
@@ -129,7 +136,7 @@ public class IxTheo extends SolrIndexerMixin {
         final Set<String> notationCodes = getIxTheoNotations(record);
 
         final HashSet<String> expandedIxTheoNotations = new HashSet<>();
-        for (final String notationCode : getIxTheoNotations(record)) {
+        for (final String notationCode : notationCodes) {
             final Set<String> notationDescriptions = ixtheoNotationsToDescriptionsMap.get(notationCode);
             if (notationDescriptions != null) {
                 for (final String notationDescription : notationDescriptions)
