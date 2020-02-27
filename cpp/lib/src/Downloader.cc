@@ -51,7 +51,6 @@ int GlobalInit() {
 }
 
 
-#if 0
 /** \brief  Remove all entries in "slist" that start with "prefix".
  *  \return The new list head.
  *  \note   May return an empty list, i.e. the null pointer!
@@ -62,7 +61,7 @@ static curl_slist *RemoveAllWithMatchingPrefix(curl_slist * const slist, const c
     while (current != nullptr) {
         curl_slist *next(current->next);
 
-        if (std::strncmp(current->data, prefix, prefix_length) != 0)
+        if (::strncasecmp(current->data, prefix, prefix_length) != 0)
             previous = current;
         else {
             if (current == head)
@@ -77,7 +76,6 @@ static curl_slist *RemoveAllWithMatchingPrefix(curl_slist * const slist, const c
     }
     return head;
 }
-#endif
 
 
 } // unnamed namespace
@@ -335,9 +333,75 @@ void Downloader::init() {
 
     last_error_message_.clear();
 
-    Downloader::InitCurlEasyHandle(params_.dns_cache_timeout_, error_buffer_, params_.debugging_, WriteFunction,
-                                   LockFunction, UnlockFunction, HeaderFunction, DebugFunction, &easy_handle_,
-                                   &params_.user_agent_, params_.follow_redirects_);
+    easy_handle_ = ::curl_easy_init();
+    if (unlikely(easy_handle_ == nullptr))
+        throw std::runtime_error("in Downloader::init: curl_easy_init() failed!");
+
+    if (share_handle_ == nullptr) {
+        share_handle_ = ::curl_share_init( );
+        if (unlikely(share_handle_ == nullptr))
+            throw std::runtime_error("in Downloader::init: curl_share_init() failed!");
+        if (unlikely(::curl_share_setopt(share_handle_, CURLSHOPT_LOCKFUNC, LockFunction) != 0))
+            throw std::runtime_error("in Downloader::init: curl_share_setopt() failed (1)!");
+        if (unlikely(::curl_share_setopt(share_handle_, CURLSHOPT_UNLOCKFUNC, UnlockFunction) != 0))
+            throw std::runtime_error("in Downloader::init: curl_share_setopt() failed (2)!");
+        if (unlikely(::curl_share_setopt(share_handle_, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS) != 0))
+            throw std::runtime_error("in Downloader::init: curl_share_setopt() failed (3)!");
+        if (unlikely(::curl_share_setopt(share_handle_, CURLSHOPT_SHARE, CURL_LOCK_DATA_COOKIE) != 0))
+            throw std::runtime_error("in Downloader::init: curl_share_setopt() failed (4)!");
+    }
+
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_SHARE, share_handle_) != CURLE_OK))
+        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (0)!");
+
+    if (params_.debugging_) {
+        if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_VERBOSE, 1L) != CURLE_OK))
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (1)!");
+        if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_DEBUGFUNCTION, DebugFunction) != CURLE_OK))
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (2)!");
+        if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_DEBUGDATA, reinterpret_cast<void *>(this)) != CURLE_OK))
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (3)!");
+    }
+
+    // Do not include headers in the data provided to the CURLOPT_WRITEDATA callback:
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_HEADER, 0L) != CURLE_OK))
+        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (4)!");
+
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_NOPROGRESS, 1L) != CURLE_OK))
+        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (5)!");
+
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_NOSIGNAL, 1L) != CURLE_OK))
+        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (6)!");
+
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_WRITEFUNCTION, WriteFunction) != CURLE_OK))
+        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (7)!");
+
+    // Enabling the following option seems to greatly slow down the downloading of Web pages!
+    //  if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_IGNORE_CONTENT_LENGTH, 1L) != CURLE_OK))
+    //          throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (7.5)!");
+
+    long should_follow = params_.follow_redirects_ ? 1L : 0L;
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_FOLLOWLOCATION, should_follow) != CURLE_OK))
+        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (8)!");
+
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_DNS_CACHE_TIMEOUT, params_.dns_cache_timeout_) != CURLE_OK))
+        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (9)!");
+
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_HEADERFUNCTION, HeaderFunction) != CURLE_OK))
+        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (10)!");
+
+    setUserAgent(params_.user_agent_);
+
+    // Disable `passive' FTP operation:
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_FTPPORT, "-") != CURLE_OK))
+        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (11)!");
+
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_ERRORBUFFER, error_buffer_) != CURLE_OK))
+        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (12)!");
+
+    // Enable automatic setting of the "Referer" HTTP-header field when following a "Location:" redirect:
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_AUTOREFERER, 1L) != CURLE_OK))
+        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (13)!");
 
     if (not params_.acceptable_languages_.empty())
         additional_http_headers_ = curl_slist_append(additional_http_headers_,
@@ -347,125 +411,31 @@ void Downloader::init() {
         additional_http_headers_ = curl_slist_append(additional_http_headers_, additional_header.c_str());
 
     if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_WRITEDATA, reinterpret_cast<void *>(this)) != CURLE_OK))
-        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (1)!");
+        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (14)!");
 
     if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_WRITEHEADER, reinterpret_cast<void *>(this)) != CURLE_OK))
-        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (2)!");
+        throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (15)!");
 
-    if (params_.debugging_) {
-        if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_DEBUGDATA, reinterpret_cast<void *>(this)) != CURLE_OK))
-            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (3)!");
-    }
+    if (params_.ignore_ssl_certificates_)
+        setIgnoreSslCertificates(params_.ignore_ssl_certificates_);
 
-    if (params_.ignore_ssl_certificates_) {
-        if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_SSL_VERIFYPEER, 0L) != CURLE_OK))
-            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (4)!");
-        if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_SSL_VERIFYHOST, 0L) != CURLE_OK))
-            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (5)!");
-    }
-
-    if (not params_.proxy_host_and_port_.empty())  {
-        if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_PROXY, params_.proxy_host_and_port_.c_str())
-                     != CURLE_OK))
-            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (6)!");
-    }
+    if (not params_.proxy_host_and_port_.empty())
+        setProxy(params_.proxy_host_and_port_);
 
     if (not params_.post_data_.empty()) {
         if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_POSTFIELDS, params_.post_data_.c_str())))
-            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (7)!");
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (16)!");
     }
 
     if (not params_.authentication_username_.empty() or not params_.authentication_password_.empty()) {
         if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_HTTPAUTH, CURLAUTH_ANY)))
-            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (8)!");
-
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (17)!");
         if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_USERNAME, params_.authentication_username_.c_str())))
-            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (9)!");
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (18)!");
         if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_PASSWORD, params_.authentication_password_.c_str())))
-            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (10)!");
+            throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (19)!");
     }
 
-}
-
-
-void Downloader::InitCurlEasyHandle(const long dns_cache_timeout, const char * const error_buffer,
-                                    const bool debugging, WriteFunc write_func, LockFunc lock_func,
-                                    UnlockFunc unlock_func, HeaderFunc header_func,
-                                    DebugFunc debug_func, CURL ** const easy_handle, std::string * const user_agent,
-                                    const bool follow_redirects)
-{
-    *easy_handle = ::curl_easy_init();
-    if (unlikely(*easy_handle == nullptr))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_init() failed!");
-
-    if (share_handle_ == nullptr) {
-        share_handle_ = ::curl_share_init( );
-        if (unlikely(share_handle_ == nullptr))
-            throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_share_init() failed!");
-        if (unlikely(::curl_share_setopt(share_handle_, CURLSHOPT_LOCKFUNC, lock_func) != 0))
-            throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_share_setopt() failed (1)!");
-        if (unlikely(::curl_share_setopt(share_handle_, CURLSHOPT_UNLOCKFUNC, unlock_func) != 0))
-            throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_share_setopt() failed (2)!");
-        if (unlikely(::curl_share_setopt(share_handle_, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS) != 0))
-            throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_share_setopt() failed (3)!");
-        if (unlikely(::curl_share_setopt(share_handle_, CURLSHOPT_SHARE, CURL_LOCK_DATA_COOKIE) != 0))
-            throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_share_setopt() failed (4)!");
-    }
-
-    if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_SHARE, share_handle_) != CURLE_OK))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (0)!");
-
-    if (debugging and unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_VERBOSE, 1L) != CURLE_OK))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (1)!");
-
-    // Do not include headers in the data provided to the CURLOPT_WRITEDATA callback:
-    if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_HEADER, 0L) != CURLE_OK))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (2)!");
-
-    if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_NOPROGRESS, 1L) != CURLE_OK))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (3)!");
-
-    if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_NOSIGNAL, 1L) != CURLE_OK))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (4)!");
-
-    if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_WRITEFUNCTION, write_func) != CURLE_OK))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (5)!");
-
-    // Enabling the following option seems to greatly slow down the downloading of Web pages!
-    //  if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_IGNORE_CONTENT_LENGTH, 1L) != CURLE_OK))
-    //          throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (6)!");
-
-    long should_follow = follow_redirects ? 1L : 0L;
-    if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_FOLLOWLOCATION, should_follow) != CURLE_OK))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (7)!");
-
-    if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_DNS_CACHE_TIMEOUT, dns_cache_timeout) != CURLE_OK))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (8)!");
-
-    if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_HEADERFUNCTION, header_func) != CURLE_OK))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (9)!");
-
-    // User agent information:
-    if (user_agent->empty())
-        *user_agent = Downloader::DEFAULT_USER_AGENT_STRING;
-    if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_USERAGENT, user_agent->c_str()) != CURLE_OK))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (10)!");
-
-    // Disable `passive' FTP operation:
-    if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_FTPPORT, "-") != CURLE_OK))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (11)!");
-
-    if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_ERRORBUFFER, error_buffer) != CURLE_OK))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (12)!");
-
-    // Enable automatic setting of the "Referer" HTTP-header field when following a "Location:" redirect:
-    if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_AUTOREFERER, 1L) != CURLE_OK))
-        throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (13)!");
-
-    if (debugging) {
-        if (unlikely(::curl_easy_setopt(*easy_handle, CURLOPT_DEBUGFUNCTION, debug_func) != CURLE_OK))
-            throw std::runtime_error("in Downloader::InitCurlEasyHandle: curl_easy_setopt() failed (14)!");
-    }
 }
 
 
@@ -703,6 +673,41 @@ bool Downloader::getHttpEquivRedirect(std::string * const redirect_url) const {
     StringUtil::Trim(redirect_url);
 
     return not redirect_url->empty();
+}
+
+
+void Downloader::setAcceptableLanguages(const std::string &acceptable_languages) {
+    params_.acceptable_languages_ = acceptable_languages;
+    RemoveAllWithMatchingPrefix(additional_http_headers_, "Accept-Language:");
+    additional_http_headers_ = curl_slist_append(additional_http_headers_,
+                                                 ("Accept-Language: " + params_.acceptable_languages_).c_str());
+}
+
+
+void Downloader::setIgnoreSslCertificates(const bool ignore_ssl_certificates) {
+    params_.ignore_ssl_certificates_ = ignore_ssl_certificates;
+    long curl_value(ignore_ssl_certificates ? 0L : 1L);
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_SSL_VERIFYPEER, curl_value) != CURLE_OK))
+        throw std::runtime_error("in Downloader::setIgnoreSslCertificates(): curl_easy_setopt() failed!");
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_SSL_VERIFYHOST, curl_value) != CURLE_OK))
+        throw std::runtime_error("in Downloader::setIgnoreSslCertificates(): curl_easy_setopt() failed!");
+}
+
+
+void Downloader::setProxy(const std::string &proxy_host_and_port) {
+    params_.proxy_host_and_port_ = proxy_host_and_port;
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_PROXY, proxy_host_and_port.c_str()) != CURLE_OK))
+        throw std::runtime_error("Downloader::setProxy(): curl_easy_setopt() failed! (" + proxy_host_and_port + ")");
+}
+
+
+void Downloader::setUserAgent(const std::string &user_agent) {
+    if (user_agent.empty())
+        params_.user_agent_ = Downloader::DEFAULT_USER_AGENT_STRING;
+    else
+        params_.user_agent_ = user_agent;
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_USERAGENT, params_.user_agent_.c_str()) != CURLE_OK))
+        throw std::runtime_error("Downloader::setUserAgent(): curl_easy_setopt() failed! (" + user_agent + ")");
 }
 
 
