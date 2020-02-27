@@ -170,7 +170,11 @@ public:
     void setAcceptableLanguages(const std::string &acceptable_languages);
     void setHonourRobotsDotTxt(const bool honour_robots_dot_txt) { params_.honour_robots_dot_txt_ = honour_robots_dot_txt; };
     void setIgnoreSslCertificates(const bool ignore_ssl_certificates);
+
+    /** \note Pass empty string to disable previously set proxy. */
     void setProxy(const std::string &proxy_host_and_port);
+
+    /** \note If empty, DEFAULT_USER_AGENT_STRING will be used. */
     void setUserAgent(const std::string &user_agent);
 
     static unsigned GetInstanceCount() { return instance_count_; }

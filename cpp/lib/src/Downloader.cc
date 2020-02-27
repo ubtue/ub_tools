@@ -61,7 +61,7 @@ static curl_slist *RemoveAllWithMatchingPrefix(curl_slist * const slist, const c
     while (current != nullptr) {
         curl_slist *next(current->next);
 
-        if (strncasecmp(current->data, prefix, prefix_length) != 0)
+        if (::strncasecmp(current->data, prefix, prefix_length) != 0)
             previous = current;
         else {
             if (current == head)
@@ -390,9 +390,6 @@ void Downloader::init() {
     if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_HEADERFUNCTION, HeaderFunction) != CURLE_OK))
         throw std::runtime_error("in Downloader::init: curl_easy_setopt() failed (10)!");
 
-    // User agent information:
-    if (params_.user_agent_.empty())
-        params_.user_agent_ = Downloader::DEFAULT_USER_AGENT_STRING;
     setUserAgent(params_.user_agent_);
 
     // Disable `passive' FTP operation:
@@ -699,14 +696,17 @@ void Downloader::setIgnoreSslCertificates(const bool ignore_ssl_certificates) {
 
 void Downloader::setProxy(const std::string &proxy_host_and_port) {
     params_.proxy_host_and_port_ = proxy_host_and_port;
-    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_USERAGENT, proxy_host_and_port.c_str()) != CURLE_OK))
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_PROXY, proxy_host_and_port.c_str()) != CURLE_OK))
         throw std::runtime_error("Downloader::setProxy(): curl_easy_setopt() failed! (" + proxy_host_and_port + ")");
 }
 
 
 void Downloader::setUserAgent(const std::string &user_agent) {
-    params_.user_agent_ = user_agent;
-    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_USERAGENT, user_agent.c_str()) != CURLE_OK))
+    if (user_agent.empty())
+        params_.user_agent_ = Downloader::DEFAULT_USER_AGENT_STRING;
+    else
+        params_.user_agent_ = user_agent;
+    if (unlikely(::curl_easy_setopt(easy_handle_, CURLOPT_USERAGENT, params_.user_agent_.c_str()) != CURLE_OK))
         throw std::runtime_error("Downloader::setUserAgent(): curl_easy_setopt() failed! (" + user_agent + ")");
 }
 
