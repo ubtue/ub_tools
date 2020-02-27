@@ -233,10 +233,10 @@ FullTextCache::TextType GetTextTypes(const std::set<UrlAndTextType> &urls_and_te
 }
 
 const std::string LOCAL_520_TEXT("LOCAL 520 FIELD");
-void GetUrlsAndTextTypes(MARC::Record * const record, std::set<UrlAndTextType> * const urls_and_text_types,
+void GetUrlsAndTextTypes(const MARC::Record &record, std::set<UrlAndTextType> * const urls_and_text_types,
                          const bool use_only_open_access_links, const bool include_all_tocs, const bool skip_reviews)
 {
-   for (const auto _856_field : record->getTagRange("856")) {
+   for (const auto _856_field : record.getTagRange("856")) {
        const MARC::Subfields _856_subfields(_856_field.getSubfields());
 
        if (_856_field.getIndicator1() == '7' or not _856_subfields.hasSubfield('u'))
@@ -255,7 +255,7 @@ void GetUrlsAndTextTypes(MARC::Record * const record, std::set<UrlAndTextType> *
                                                      _856_subfields.getFirstSubfieldWithCode('3') } ));
    }
 
-   if (record->hasFieldWithTag("520"))
+   if (record.hasFieldWithTag("520"))
        urls_and_text_types->emplace(UrlAndTextType({ LOCAL_520_TEXT, "Zusammenfassung" }));
 }
 
@@ -273,7 +273,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                        const bool skip_reviews = false) {
     const std::string ppn(record->getControlNumber());
     std::set<UrlAndTextType> urls_and_text_types;
-    GetUrlsAndTextTypes(record, &urls_and_text_types, use_only_open_access_links, include_all_tocs, skip_reviews);
+    GetUrlsAndTextTypes(*record, &urls_and_text_types, use_only_open_access_links, include_all_tocs, skip_reviews);
     std::set<std::string> urls;
     ExtractUrlsFromUrlsAndTextTypes(urls_and_text_types, &urls);;
     FullTextCache cache;
@@ -288,18 +288,18 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                 record->insertField("FUL", { { 'e', "http://localhost/cgi-bin/full_text_lookup?id=" + ppn } });
             return true;
         }
-    }
-    else {
+    } else {
         bool at_least_one_expired(false);
-        for (const auto &url_and_text_type : urls_and_text_types) {
-            bool expired = cache.entryExpired(ppn, { url_and_text_type.url_ });
+        for (auto url_and_text_type(urls_and_text_types.begin()); url_and_text_type != urls_and_text_types.end();/* intentionally empty */) {
+            const bool expired(cache.entryExpired(ppn, { url_and_text_type->url_ }));
             if (not expired) {
-                urls_and_text_types.erase(url_and_text_type);
+                url_and_text_type = urls_and_text_types.erase(url_and_text_type);
                 Semaphore semaphore("/full_text_cached_counter", Semaphore::ATTACH);
                 ++semaphore;
-            }
-            else
+            } else {
+                ++url_and_text_type;
                 at_least_one_expired |= expired;
+            }
         }
         if (not at_least_one_expired)
             return true;
