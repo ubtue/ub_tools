@@ -496,6 +496,30 @@ unsigned ToUnsigned(const std::string &s, const unsigned base = 10);
 bool ToUnsigned(const std::string &s, unsigned * const n, const unsigned base = 10);
 
 
+/** \brief   Convert a string into a signed integer.
+ *  \param   s     The string to convert.
+ *  \param   base  The base of the string representation.  A value of "0" after an optional sign has the special meaning that if the string
+ *                 starts with a "0" followed by one or more digits the base is assumed to be 8, if the string starts
+ *                 with "0x" the base is assumed to be 16, in all other cases the base is assumed to be 10.
+ *  \return  The converted number.
+ *
+ *  If the input is not comprised solely of digits with an optional leading sign (except for base "0" and a leading "0x"),
+ *  then this function will generate an error.  (Unlike the other version, which will simply return false.)
+ */
+int ToInt(const std::string &s, const unsigned base = 10);
+
+
+/** \brief   Convert a string into a signed integer.
+ *  \param   s     The string to convert.
+ *  \param   n     Number that will hold the result.
+ *  \param   base  The base of the string representation.  A value of "0" after an optional sign has the special meaning that if the string
+ *                 starts with a "0" followed by one or more digits the base is assumed to be 8, if the string starts
+ *                 with "0x" the base is assumed to be 16, in all other cases the base is assumed to be 10.
+ *  \return  true if the conversion was successful, false otherwise.
+ */
+bool ToInt(const std::string &s, int * const n, const unsigned base = 10);
+
+
 /** \brief   Convert a string into a long unsigned number.
  *  \param   s     The string to convert.
  *  \param   base  The base of the string representation.  A value of "0" has the special meaning that if the string
