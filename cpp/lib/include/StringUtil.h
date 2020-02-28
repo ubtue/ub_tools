@@ -517,7 +517,9 @@ int ToInt(const std::string &s, const unsigned base = 10);
  *                 with "0x" the base is assumed to be 16, in all other cases the base is assumed to be 10.
  *  \return  true if the conversion was successful, false otherwise.
  */
-bool ToInt(const std::string &s, int * const n, const unsigned base = 10);
+inline bool ToInt(const std::string &s, int * const n, const unsigned base = 10) {
+    return ToNumber(s, n, base);
+}
 
 
 /** \brief   Convert a string into a long unsigned number.
