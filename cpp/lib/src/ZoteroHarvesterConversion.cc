@@ -250,6 +250,8 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
     metadata_record->short_title_ = zotero_item->getOptionalStringValue("shortTitle");
     metadata_record->abstract_note_ = zotero_item->getOptionalStringValue("abstractNote");
     metadata_record->publication_title_ = zotero_item->getOptionalStringValue("publicationTitle");
+    if (metadata_record->publication_title_.empty())
+        metadata_record->publication_title_ = zotero_item->getOptionalStringValue("websiteTitle");
     metadata_record->volume_ = zotero_item->getOptionalStringValue("volume");
     metadata_record->issue_ = zotero_item->getOptionalStringValue("issue");
     metadata_record->pages_ = zotero_item->getOptionalStringValue("pages");
