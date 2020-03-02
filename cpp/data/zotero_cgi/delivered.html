@@ -1,0 +1,27 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+
+</head>
+<body>
+<h1>Zotero Harvesting</h1>
+<h2>Delivered records for Zeder ID {zeder_id}</h2>
+<table border="1">
+    <tr>
+        <th>delivered at</th>
+        <th>main title</th>
+        <th>hash</th>
+        <th>url</th>
+    </tr>
+    {LOOP delivered_datetimes,titles,hashes,urls}
+        <tr>
+            <td>{delivered_datetimes}</td>
+            <td>{titles}</td>
+            <td>{hashes}</td>
+            <td><a href="{urls}" target="_blank">{urls}</a></td>
+        </tr>
+    {ENDLOOP}
+</table>
+
+</body>
+</html>
