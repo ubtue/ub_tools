@@ -114,9 +114,11 @@
                         <td>{all_journal_online_ppns}</td>
                         <td>{all_journal_methods}</td>
                         <td>
-                            {IF all_journal_delivery_modes == "NONE"}NONE{ENDIF}
-                            {IF all_journal_delivery_modes == "TEST"}<a href="?action=show_downloaded&zeder_id={all_journal_zeder_ids}" target="_blank">TEST</a>{ENDIF}
-                            {IF all_journal_delivery_modes == "LIVE"}<a href="?action=show_downloaded&zeder_id={all_journal_zeder_ids}" target="_blank">LIVE</a>{ENDIF}
+                            {IF all_journal_delivery_modes == "NONE"}
+                                {all_journal_delivery_modes}
+                            {ELSE}
+                                <a href="?action=show_downloaded&zeder_id={all_journal_zeder_ids}" target="_blank">{all_journal_delivery_modes}</a>
+                            {ENDIF}
                         </td>
                         <td>
                             {IF all_journal_methods == "RSS"}<a href="#rss" onclick="TryRss('{all_journal_titles}')">try rss</a>{ENDIF}
