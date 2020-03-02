@@ -524,6 +524,7 @@ public:
     struct Entry {
         std::string url_;
         std::string journal_name_;
+        std::string main_title_;
         time_t delivered_at_;
         std::string delivered_at_str_;
         std::string hash_;
@@ -538,6 +539,8 @@ public:
     bool urlAlreadyDelivered(const std::string &url, Entry * const entry = nullptr) const;
     bool hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries = nullptr) const;
     bool recordAlreadyDelivered(const MARC::Record &record) const;
+
+    std::vector<Entry> getEntriesByZederId(const std::string &zeder_id);
 
     // Returns when the last URL of the given journal was delivered to the BSZ. If found,
     // returns the timestamp of the last delivery, TimeUtil::BAD_TIME_T otherwise.
