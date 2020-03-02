@@ -28,6 +28,7 @@
 #include <sys/wait.h>
 #include "ExecUtil.h"
 #include "FileUtil.h"
+#include "HtmlUtil.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
 #include "Template.h"
@@ -420,9 +421,9 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     ZoteroHarvester::Util::UploadTracker upload_tracker;
     const auto entries(upload_tracker.getEntriesByZederId(zeder_id));
     for (const auto &entry : entries) {
-        delivered_datetimes.emplace_back(entry.delivered_at_str_);
-        titles.emplace_back(entry.main_title_);
-        hashes.emplace_back(entry.hash_);
+        delivered_datetimes.emplace_back(HtmlUtil::HtmlEscape(entry.delivered_at_str_));
+        titles.emplace_back(HtmlUtil::HtmlEscape(entry.main_title_));
+        hashes.emplace_back(HtmlUtil::HtmlEscape(entry.hash_));
         urls.emplace_back(entry.url_);
     }
 
