@@ -28,6 +28,8 @@
 #include <sys/wait.h>
 #include "ExecUtil.h"
 #include "FileUtil.h"
+#include "HtmlUtil.h"
+#include "SqlUtil.h"
 #include "StringUtil.h"
 #include "Template.h"
 #include "WallClockTimer.h"
@@ -35,6 +37,7 @@
 #include "UBTools.h"
 #include "util.h"
 #include "ZoteroHarvesterConfig.h"
+#include "ZoteroHarvesterUtil.h"
 
 
 namespace {
@@ -375,6 +378,23 @@ void ExecuteHarvestAction(const std::string &title, const std::string &output_fo
 }
 
 
+const std::string TEMPLATE_DIRECTORY(UBTools::GetTuelibPath() + "zotero_cgi/");
+
+
+void RenderHtmlTemplate(const std::string &template_filename, const Template::Map &names_to_values_map) {
+    const std::string template_path(TEMPLATE_DIRECTORY + template_filename);
+    std::string error_message;
+    if (not FileUtil::IsReadable(template_path, &error_message))
+        LOG_ERROR(error_message);
+
+    std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+
+    std::ifstream template_html(template_path);
+    Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
+    std::cout << std::flush;
+}
+
+
 void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string path(GetCGIParameterOrDefault(cgi_args, "id"));
 
@@ -387,7 +407,33 @@ void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_ar
 }
 
 
-const std::string TEMPLATE_DIRECTORY(UBTools::GetTuelibPath() + "zotero_cgi/");
+void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &cgi_args) {
+    const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
+
+    Template::Map names_to_values_map;
+    names_to_values_map.insertScalar("zeder_id", zeder_id);
+
+    std::vector<std::string> delivered_datetimes;
+    std::vector<std::string> titles;
+    std::vector<std::string> hashes;
+    std::vector<std::string> urls;
+
+    ZoteroHarvester::Util::UploadTracker upload_tracker;
+    const auto entries(upload_tracker.getEntriesByZederId(zeder_id));
+    for (const auto &entry : entries) {
+        delivered_datetimes.emplace_back(HtmlUtil::HtmlEscape(entry.delivered_at_str_));
+        titles.emplace_back(HtmlUtil::HtmlEscape(entry.main_title_));
+        hashes.emplace_back(HtmlUtil::HtmlEscape(entry.hash_));
+        urls.emplace_back(entry.url_);
+    }
+
+    names_to_values_map.insertArray("delivered_datetimes", delivered_datetimes);
+    names_to_values_map.insertArray("titles", titles);
+    names_to_values_map.insertArray("hashes", hashes);
+    names_to_values_map.insertArray("urls", urls);
+
+    RenderHtmlTemplate("delivered.html", names_to_values_map);
+}
 
 
 } // unnamed namespace
@@ -404,9 +450,9 @@ int Main(int argc, char *argv[]) {
 
     if (action == "download")
         ProcessDownloadAction(cgi_args);
+    else if (action == "show_downloaded")
+        ProcessShowDownloadedAction(cgi_args);
     else {
-        std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
-
         Template::Map names_to_values_map;
         names_to_values_map.insertScalar("action", action);
 
@@ -424,20 +470,12 @@ int Main(int argc, char *argv[]) {
         const std::string selected_output_format_id(GetCGIParameterOrDefault(cgi_args, "output_format_id"));
         names_to_values_map.insertScalar("selected_output_format_id", selected_output_format_id);
         names_to_values_map.insertArray("output_format_ids", GetOutputFormatIds());
-
-        const std::string TEMPLATE_FILENAME(TEMPLATE_DIRECTORY + "index.html");
-        std::string error_message;
-        if (not FileUtil::IsReadable(TEMPLATE_FILENAME, &error_message))
-            LOG_ERROR(error_message);
-
         names_to_values_map.insertScalar("running_processes_count", std::to_string(ExecUtil::FindActivePrograms("zotero_harvester").size()));
 
-        std::ifstream template_html(TEMPLATE_FILENAME);
         std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> group_name_to_params_map;
         std::unordered_map<std::string, std::string>journal_name_to_group_name_map;
         ParseConfigFile(cgi_args, &names_to_values_map, &group_name_to_params_map, &journal_name_to_group_name_map);
-        Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
-        std::cout << std::flush;
+        RenderHtmlTemplate("index.html", names_to_values_map);
 
         std::string journal_title, output_format;
         if (action == "rss") {
