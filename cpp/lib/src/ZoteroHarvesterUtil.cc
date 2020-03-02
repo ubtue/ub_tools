@@ -297,6 +297,7 @@ std::string UploadTracker::Entry::toString() const {
     out += "\turl: " + url_ + "\n";
     out += "\tdelivered_at: " + delivered_at_str_ + "\n";
     out += "\tjournal: "  + journal_name_ + "\n";
+    out += "\tmain_title: " + main_title_ + "\n";
     out += "\thash: " + hash_ + "\n";
     return out;
 }
@@ -310,6 +311,7 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
     entry->delivered_at_str_ = row["delivered_at"];
     entry->delivered_at_ = SqlUtil::DatetimeToTimeT(entry->delivered_at_str_);
     entry->journal_name_ = row["journal_name"];
+    entry->main_title_ = row["main_title"];
     entry->hash_ = row["hash"];
 }
 
@@ -317,7 +319,8 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
 bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const entry,
                                         DbConnection * const db_connection) const
 {
-    db_connection->queryOrDie("SELECT t2.url, t1.delivered_at, t1.journal_name, t1.hash FROM delivered_marc_records_urls as t2 "
+    db_connection->queryOrDie("SELECT t2.url, t1.delivered_at, t1.journal_name, t1.main_title, t1.hash "
+                              "FROM delivered_marc_records_urls as t2 "
                               "LEFT JOIN delivered_marc_records as t1 ON t2.record_id = t1.id WHERE t2.url='"
                               + db_connection->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'");
     auto result_set(db_connection->getLastResultSet());
@@ -334,7 +337,8 @@ bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const en
 bool UploadTracker::hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries,
                                          DbConnection * const db_connection) const
 {
-    db_connection->queryOrDie("SELECT t2.url, t1.delivered_at, t1.journal_name, t1.hash FROM delivered_marc_records_urls as t2 "
+    db_connection->queryOrDie("SELECT t2.url, t1.delivered_at, t1.journal_name, t1.main_title, t1.hash "
+                              "FROM delivered_marc_records_urls as t2 "
                               "LEFT JOIN delivered_marc_records as t1 ON t2.record_id = t1.id WHERE t1.hash='"
                               + db_connection->escapeString(hash) + "'");
     auto result_set(db_connection->getLastResultSet());
@@ -429,6 +433,25 @@ time_t UploadTracker::getLastUploadTime(const std::string &journal_name) const {
         return TimeUtil::BAD_TIME_T;
 
     return SqlUtil::DatetimeToTimeT(result_set.getNextRow()["delivered_at"]);
+}
+
+
+std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederId(const std::string &zeder_id) {
+    DbConnection db_connection;
+
+    db_connection.queryOrDie("SELECT t2.url, t1.delivered_at, t1.journal_name, t1.main_title, t1.hash "
+                             "FROM delivered_marc_records_urls as t2 "
+                             "LEFT JOIN delivered_marc_records as t1 ON t2.record_id = t1.id WHERE t1.zeder_id="
+                             + db_connection.escapeString(zeder_id));
+
+    auto result_set(db_connection.getLastResultSet());
+    std::vector<Entry> entries;
+    Entry entry;
+    while (const DbRow row = result_set.getNextRow()) {
+        UpdateUploadTrackerEntryFromDbRow(row, &entry);
+        entries.emplace_back(entry);
+    }
+    return entries;
 }
 
 
