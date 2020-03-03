@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2016-2017 Universitätsbibliothek Tübingen
+ *  Copyright 2016-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -31,6 +31,7 @@
 #include <cstdlib>
 #include <cstring>
 #include "HtmlParser.h"
+#include "StringUtil.h"
 
 
 namespace HtmlUtil {
@@ -667,6 +668,35 @@ size_t ExtractAllLinks(const std::string &html_document, std::vector<std::string
         urls->emplace_back(url_and_anchor_text.url_);
 
     return urls->size();
+}
+
+
+const char NUL('\0');
+
+
+std::string StripHtmlTag(const std::string &text_with_optional_tags, const bool replace_entities) {
+    std::string stripped_text;
+    stripped_text.reserve(text_with_optional_tags.size());
+
+    bool in_tag(false), quote(NUL);
+    for (auto ch(text_with_optional_tags.cbegin()); ch != text_with_optional_tags.cend(); ++ch) {
+        if (quote != NUL) {
+            if (*ch == quote)
+                quote = NUL;
+        } else if (in_tag) {
+            if (*ch == '>')
+                in_tag = false;
+            else if (*ch == '\'' or *ch == '"')
+                quote = *ch;
+        } else {
+            if (*ch == '<' and ch + 1 != text_with_optional_tags.cend() and StringUtil::IsAsciiLetter(*(ch + 1)))
+                in_tag = true;
+            else
+                stripped_text += *ch;
+        }
+    }
+
+    return replace_entities ? ReplaceEntities(&stripped_text) : stripped_text;
 }
 
 
