@@ -311,10 +311,30 @@ bool File::truncate(const off_t new_length) {
 }
 
 
+// This function is used by File::setPipeBufferSize.  It is used to read from the proc filesystem.
+// The files in the proc filesystem all have a file size of 0 even if they are not empty.
+static std::string ReadEntireFile(const std::string &path) {
+    std::string file_contents;
+    File input(path, "r");
+    for (;;) {
+        char byte;
+        if (input.read(&byte, 1) == 1)
+            file_contents += byte;
+        else
+            return file_contents;
+    }
+
+}
+
+
 bool File::setPipeBufferSize(int new_buffer_size) {
     if (new_buffer_size == 0) {
-        std::string pipe_max_size;
-        FileUtil::ReadStringOrDie("/proc/sys/fs/pipe-max-size", &pipe_max_size);
+        std::string pipe_max_size(ReadEntireFile("/proc/sys/fs/pipe-max-size"));
+
+        // Strip a trailing newline, if it is present:
+        if (not pipe_max_size.empty() and pipe_max_size.back() == '\n')
+            pipe_max_size.resize(pipe_max_size.size() - 1);
+
         if (not StringUtil::ToInt(pipe_max_size, &new_buffer_size))
             LOG_ERROR("can't convert \"" + pipe_max_size + "\" to an unsigned long!");
     }
