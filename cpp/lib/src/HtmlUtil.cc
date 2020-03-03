@@ -32,6 +32,7 @@
 #include <cstring>
 #include "HtmlParser.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 
 
 namespace HtmlUtil {
@@ -674,7 +675,7 @@ size_t ExtractAllLinks(const std::string &html_document, std::vector<std::string
 const char NUL('\0');
 
 
-std::string StripHtmlTag(const std::string &text_with_optional_tags, const bool replace_entities) {
+std::string StripHtmlTags(const std::string &text_with_optional_tags, const bool replace_entities) {
     std::string stripped_text;
     stripped_text.reserve(text_with_optional_tags.size());
 
@@ -684,19 +685,21 @@ std::string StripHtmlTag(const std::string &text_with_optional_tags, const bool 
             if (*ch == quote)
                 quote = NUL;
         } else if (in_tag) {
-            if (*ch == '>')
+            if (*ch == '>') {
                 in_tag = false;
-            else if (*ch == '\'' or *ch == '"')
+                stripped_text += ' ';
+            } else if (*ch == '\'' or *ch == '"')
                 quote = *ch;
-        } else {
-            if (*ch == '<' and ch + 1 != text_with_optional_tags.cend() and StringUtil::IsAsciiLetter(*(ch + 1)))
-                in_tag = true;
-            else
-                stripped_text += *ch;
-        }
+        } else if (*ch == '<' and ch + 1 != text_with_optional_tags.cend() and StringUtil::IsAsciiLetter(*(ch + 1)))
+            in_tag = true;
+        else
+            stripped_text += *ch;
     }
 
-    return replace_entities ? ReplaceEntities(&stripped_text) : stripped_text;
+    if (replace_entities)
+        ReplaceEntities(&stripped_text);
+
+    return TextUtil::CollapseAndTrimWhitespace(&stripped_text);
 }
 
 
