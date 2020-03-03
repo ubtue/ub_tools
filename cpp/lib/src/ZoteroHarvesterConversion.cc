@@ -19,6 +19,7 @@
 
 #include "Downloader.h"
 #include "FileUtil.h"
+#include "HtmlUtil.h"
 #include "LobidUtil.h"
 #include "NGram.h"
 #include "StlHelpers.h"
@@ -519,6 +520,31 @@ const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})
 void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params,
                            const Config::GroupParams &group_params, const Config::EnhancementMaps &enhancement_maps)
 {
+    // Strip HTML tags + replace entities
+    metadata_record->title_ = HtmlUtil::StripHtmlTags(metadata_record->title_);
+    metadata_record->short_title_ = HtmlUtil::StripHtmlTags(metadata_record->short_title_);
+    metadata_record->abstract_note_ = HtmlUtil::StripHtmlTags(metadata_record->abstract_note_);
+    metadata_record->publication_title_ = HtmlUtil::StripHtmlTags(metadata_record->publication_title_);
+    metadata_record->volume_ = HtmlUtil::StripHtmlTags(metadata_record->volume_);
+    metadata_record->issue_ = HtmlUtil::StripHtmlTags(metadata_record->issue_);
+    metadata_record->pages_ = HtmlUtil::StripHtmlTags(metadata_record->pages_);
+    metadata_record->date_ = HtmlUtil::StripHtmlTags(metadata_record->date_);
+    metadata_record->doi_ = HtmlUtil::StripHtmlTags(metadata_record->doi_);
+    metadata_record->issn_ = HtmlUtil::StripHtmlTags(metadata_record->issn_);
+    metadata_record->license_ = HtmlUtil::StripHtmlTags(metadata_record->license_);
+    metadata_record->superior_ppn_ = HtmlUtil::StripHtmlTags(metadata_record->superior_ppn_);
+    metadata_record->language_ = HtmlUtil::StripHtmlTags(metadata_record->language_);
+    for (auto &keyword : metadata_record->keywords_)
+        keyword = HtmlUtil::StripHtmlTags(keyword);
+    for (auto &creator : metadata_record->creators_) {
+        creator.first_name_ = HtmlUtil::StripHtmlTags(creator.first_name_);
+        creator.last_name_ = HtmlUtil::StripHtmlTags(creator.last_name_);
+        creator.affix_ = HtmlUtil::StripHtmlTags(creator.affix_);
+        creator.title_ = HtmlUtil::StripHtmlTags(creator.title_);
+        creator.type_ = HtmlUtil::StripHtmlTags(creator.type_);
+        creator.ppn_ = HtmlUtil::StripHtmlTags(creator.ppn_);
+        creator.gnd_number_ = HtmlUtil::StripHtmlTags(creator.gnd_number_);
+    }
 
     // normalise date
     if (not metadata_record->date_.empty()) {
