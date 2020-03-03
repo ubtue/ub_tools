@@ -19,6 +19,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "Elasticsearch.h"
+#include <climits>
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "UBTools.h"
@@ -98,7 +99,7 @@ bool Elasticsearch::deleteDocument(const std::string &document_id) {
 
 
 std::unordered_set<std::string> Elasticsearch::selectAll(const std::string &field) const {
-    const std::vector<std::map<std::string, std::string>> result(simpleSelect({ field }));
+    const std::vector<std::map<std::string, std::string>> result(simpleSelect({ field }, {}, UINT_MAX));
     std::unordered_set<std::string> unique_values;
     for (const auto &map : result) {
         const auto key_and_value(map.find(field));
@@ -111,7 +112,7 @@ std::unordered_set<std::string> Elasticsearch::selectAll(const std::string &fiel
 
 
 std::unordered_multiset<std::string> Elasticsearch::selectAllNonUnique(const std::string &field) const {
-    const std::vector<std::map<std::string, std::string>> result(simpleSelect({ field }));
+    const std::vector<std::map<std::string, std::string>> result(simpleSelect({ field }, {}, UINT_MAX));
     std::unordered_multiset<std::string> values;
     for (const auto &map : result) {
         const auto key_and_value(map.find(field));
