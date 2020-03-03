@@ -88,7 +88,7 @@ bool IsHtmlEscaped(const std::string &raw_text);
 size_t ExtractAllLinks(const std::string &html_document, std::vector<std::string> * const urls);
 
 
-std::string StripHtmlTag(const std::string &text_with_optional_tags, const bool replace_entities = true);
+std::string StripHtmlTags(const std::string &text_with_optional_tags, const bool replace_entities = true);
 
 
 } // namespace HtmlUtil
