@@ -679,7 +679,8 @@ std::string StripHtmlTags(const std::string &text_with_optional_tags, const bool
     std::string stripped_text;
     stripped_text.reserve(text_with_optional_tags.size());
 
-    bool in_tag(false), quote(NUL);
+    bool in_tag(false);
+    char quote(NUL);
     for (auto ch(text_with_optional_tags.cbegin()); ch != text_with_optional_tags.cend(); ++ch) {
         if (quote != NUL) {
             if (*ch == quote)
@@ -690,7 +691,8 @@ std::string StripHtmlTags(const std::string &text_with_optional_tags, const bool
                 stripped_text += ' ';
             } else if (*ch == '\'' or *ch == '"')
                 quote = *ch;
-        } else if (*ch == '<' and ch + 1 != text_with_optional_tags.cend() and StringUtil::IsAsciiLetter(*(ch + 1)))
+        } else if (*ch == '<' and (ch + 1) != text_with_optional_tags.cend()
+                   and (StringUtil::IsAsciiLetter(*(ch + 1)) or *(ch + 1) == '/'))
             in_tag = true;
         else
             stripped_text += *ch;
