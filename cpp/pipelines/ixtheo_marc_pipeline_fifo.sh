@@ -114,12 +114,6 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --replace 100a:700a /usr/local/var/lib/tuelib/author_normalisation.map \
     --replace 260b:264b /usr/local/var/lib/tuelib/publisher_normalisation.map \
     --replace 245a "^L' (.*)" "L'\\1" `#  Replace "L' arbe" with "L'arbe" etc.` \
-    --replace 689d "v([0-9]+) ?- ?v([0-9]+)" "\\1 v. Chr. - \\2 v. Chr." `# Replace "v384-v322" with "384 v. Chr. - 322 v. Chr."` \
-    --replace 689d "v([0-9]+)" "\\1 v. Chr." `# Replace "v384" with "384 v. Chr."` \
-    --replace 689d 'v(\d+) ?- ?(\d+)' '\1 v.Chr.-\2' `# Replace v1-29 with 1 v.Chr-29` \
-    --replace 109a "v([0-9]+) ?- ?v([0-9]+)" "\\1 v. Chr. - \\2 v. Chr." `# Replace "v384-v322" with "384 v. Chr. - 322 v. Chr."` \
-    --replace 109a "v([0-9]+)" "\\1 v. Chr." `# Replace "v384" with "384 v. Chr."` \
-    --replace 109a 'v(\d+) ?- ?(\d+)' '\1 v.Chr.-\2' `# Replace v1-29 with 1 v.Chr-29` \
 >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -356,6 +350,14 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
                                  Normdaten-partially-augmented2-"${date}".mrc \
                                  Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+
+
+StartPhase "Patching German BCE references"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(patch_german_bce_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                             GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
 
 
 StartPhase "Tag PDA candidates"
