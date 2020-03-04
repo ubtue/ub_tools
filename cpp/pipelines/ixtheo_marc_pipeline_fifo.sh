@@ -359,7 +359,6 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
-
 StartPhase "Tag PDA candidates"
 # Use the most recent GVI PPN list.
 (augment_pda \
@@ -391,6 +390,7 @@ StartPhase "Check Record Integrity at the End of the Pipeline"
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
+
 
 StartPhase "Cleanup of Intermediate Files"
 for p in $(seq 0 "$((PHASE-2))"); do
