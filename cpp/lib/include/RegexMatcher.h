@@ -2,7 +2,7 @@
  *  \brief  Interface for the RegexMatcher class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014,2015,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -128,6 +128,18 @@ public:
 
     // Replaces all matches of the pattern with the replacement string.
     std::string replaceAll(const std::string &subject, const std::string &replacement);
+
+    /** \brief Does what it says on the tin.
+     *  \param subject The text in which the replacements take place.
+     *  \param replacement  The replacement text which may contain backreferences of the form \N where N is a single digit
+     *                      ASCII number.  N refers to the N-th matched group in the pattern.  If the pattern didn't match,
+     *                      the original "subject" will be returned, o/w N must not exceed the number of matched groups in
+     *                      the pattern.  When N is 0 the backreference refers to the entire match, e.g., if the pattern
+     *                      was "\([0-9]+)-([0-9]+)" and the subject is "xx 81-102 yy" then \0 refers to "81-102", \1
+     *                      refers to "81" and \2 refers to "102" and N must not exceed 2.
+     *                      if "global" is true, the matching continues until the end of "subject" has been reached.
+     */
+    std::string replaceWithBackreferences(const std::string &subject, const std::string &replacement, const bool global = false);
 
     const std::string &getPattern() const { return pattern_; }
     bool utf8Enabled() const { return options_ & ENABLE_UTF8; }

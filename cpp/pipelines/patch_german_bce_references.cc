@@ -28,32 +28,6 @@
 namespace {
 
 
-std::string InsertReplacement(const RegexMatcher &matcher, const std::string &replacement_pattern) {
-    std::string replacement_text;
-
-    bool backslash_seen(false);
-    for (const char ch : replacement_pattern) {
-        if (backslash_seen) {
-            if (unlikely(ch == '\\'))
-                replacement_text += '\\';
-            else {
-                if (unlikely(not StringUtil::IsDigit(ch)))
-                    LOG_ERROR("not a digit nor a backslash found in the replacement pattern \"" + replacement_pattern + "\"!");
-                const unsigned group_no(ch - '0'); // Only works with ASCII!
-                replacement_text += matcher[group_no];
-            }
-
-            backslash_seen = false;
-        } else if (ch == '\\')
-            backslash_seen = true;
-        else
-            replacement_text += ch;
-    }
-
-    return replacement_text;
-}
-
-
 std::vector<std::pair<RegexMatcher *, std::string>> CompileMatchers() {
     // Please note that the order in the following vector matters.  The first successful match will be used.
     const std::vector<std::pair<std::string, std::string>> patterns_and_replacements {
@@ -83,13 +57,9 @@ bool PatchSubfields(MARC::Record::Field * const field, const char subfield_code)
 
         for (const auto &matcher_and_replacement : matchers_and_replacements) {
             RegexMatcher * const matcher(matcher_and_replacement.first);
-            if (matcher->matched(subfield.value_)) {
-                const std::string complete_match((*matcher)[0]);
-                const size_t match_start(subfield.value_.find(complete_match));
-                std::string new_subfield_value(subfield.value_.substr(0, match_start));
-                new_subfield_value += InsertReplacement(*matcher, matcher_and_replacement.second);
-                new_subfield_value += subfield.value_.substr(match_start + complete_match.length());
-                subfield.value_ = new_subfield_value;
+            const std::string replaced_string(matcher->replaceWithBackreferences(subfield.value_, matcher_and_replacement.second));
+            if (replaced_string != subfield.value_) {
+                subfield.value_ = replaced_string;
                 patched_at_least_one_subfield = true;
                 break;
             }
