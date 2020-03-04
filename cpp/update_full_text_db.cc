@@ -232,6 +232,7 @@ FullTextCache::TextType GetTextTypes(const std::set<UrlAndTextType> &urls_and_te
     return joined_text_types;
 }
 
+
 const std::string LOCAL_520_TEXT("LOCAL 520 FIELD");
 void GetUrlsAndTextTypes(const MARC::Record &record, std::set<UrlAndTextType> * const urls_and_text_types,
                          const bool use_only_open_access_links, const bool include_all_tocs, const bool skip_reviews)
@@ -251,8 +252,13 @@ void GetUrlsAndTextTypes(const MARC::Record &record, std::set<UrlAndTextType> * 
        if (skip_reviews and IsProbablyAReview(_856_subfields))
            continue;
 
+       // Only get the first item of each category to to avoid superfluous matches that garble up the result
+       const std::string text_type_description(_856_subfields.getFirstSubfieldWithCode('3'));
+       if (GetTextTypes(*urls_and_text_types) and FullTextCache::MapTextDescriptionToTextType(text_type_description))
+           continue;
+
        urls_and_text_types->emplace(UrlAndTextType({ _856_subfields.getFirstSubfieldWithCode('u'),
-                                                     _856_subfields.getFirstSubfieldWithCode('3') } ));
+                                                     text_type_description } ));
    }
 
    if (record.hasFieldWithTag("520"))
