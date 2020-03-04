@@ -2,7 +2,7 @@
  *  \brief  Implementation of the RegexMatcher class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,6 +20,7 @@
 #include "RegexMatcher.h"
 #include <unordered_map>
 #include "Compiler.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -300,6 +301,61 @@ std::string RegexMatcher::replaceAll(const std::string &subject, const std::stri
         replaced_string += subject.substr(subject_start_offset, match_start_offset - subject_start_offset);
         replaced_string += replacement;
         subject_start_offset = match_end_offset;
+    }
+
+    while (subject_start_offset < subject.length())
+        replaced_string += subject[subject_start_offset++];
+
+    return replaced_string;
+}
+
+
+static std::string InsertReplacement(const RegexMatcher &matcher, const std::string &replacement_pattern) {
+    std::string replacement_text;
+
+    bool backslash_seen(false);
+    for (const char ch : replacement_pattern) {
+        if (backslash_seen) {
+            if (unlikely(ch == '\\'))
+                replacement_text += '\\';
+            else {
+                if (unlikely(not StringUtil::IsDigit(ch)))
+                    LOG_ERROR("not a digit nor a backslash found in the replacement pattern \"" + replacement_pattern + "\"!");
+                const unsigned group_no(ch - '0'); // Only works with ASCII!
+                replacement_text += matcher[group_no];
+            }
+
+            backslash_seen = false;
+        } else if (ch == '\\')
+            backslash_seen = true;
+        else
+            replacement_text += ch;
+    }
+
+    return replacement_text;
+}
+
+
+std::string RegexMatcher::replaceWithBackreferences(const std::string &subject, const std::string &replacement, const bool global) {
+    if (not matched(subject))
+        return subject;
+
+    std::string replaced_string;
+    // the matches need to be sequentially sorted from left to right
+    size_t subject_start_offset(0), match_start_offset(0), match_end_offset(0);
+    while (subject_start_offset < subject.length() and
+           matched(subject, subject_start_offset, /* err_msg */ nullptr, &match_start_offset, &match_end_offset))
+    {
+        if (subject_start_offset == match_start_offset and subject_start_offset == match_end_offset) {
+            replaced_string += subject[subject_start_offset++];
+            continue;
+        }
+
+        replaced_string += subject.substr(subject_start_offset, match_start_offset - subject_start_offset);
+        replaced_string += InsertReplacement(*this, replacement);
+        subject_start_offset = match_end_offset;
+        if (not global)
+            break;
     }
 
     while (subject_start_offset < subject.length())
