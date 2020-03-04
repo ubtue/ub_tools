@@ -17,7 +17,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <map>
+#include <utility>
+#include <vector>
 #include <cstdlib>
 #include "MARC.h"
 #include "RegexMatcher.h"
@@ -53,21 +54,23 @@ std::string InsertReplacement(const RegexMatcher &matcher, const std::string &re
 }
 
 
-std::map<RegexMatcher *, std::string> CompileMatchers() {
-    const std::map<std::string, std::string> patterns_to_replacements_map {
+std::vector<std::pair<RegexMatcher *, std::string>> CompileMatchers() {
+    // Please note that the order in the following vector matters.  The first successful match will be used.
+    const std::vector<std::pair<std::string, std::string>> patterns_and_replacements {
         { "v([0-9]+) ?- ?v([0-9]+)", "\\1 v. Chr. - \\2 v. Chr." },
         { "v([0-9]+)"              , "\\1 v. Chr."               },
     };
 
-    std::map<RegexMatcher *, std::string> compiled_patterns_to_replacements_map;
-    for (const auto &pattern_and_replacement : patterns_to_replacements_map)
-        compiled_patterns_to_replacements_map[RegexMatcher::RegexMatcherFactoryOrDie(pattern_and_replacement.first)]
-            = pattern_and_replacement.second;
-    return compiled_patterns_to_replacements_map;
+    std::vector<std::pair<RegexMatcher *, std::string>> compiled_patterns_and_replacements;
+    for (const auto &pattern_and_replacement : patterns_and_replacements)
+        compiled_patterns_and_replacements.push_back(
+            std::pair<RegexMatcher *, std::string>(RegexMatcher::RegexMatcherFactoryOrDie(pattern_and_replacement.first),
+                                                   pattern_and_replacement.second));
+    return compiled_patterns_and_replacements;
 }
 
 
-const std::map<RegexMatcher *, std::string> matchers_to_replacements_map(CompileMatchers());
+const std::vector<std::pair<RegexMatcher *, std::string>> matchers_and_replacements(CompileMatchers());
 
 
 // \return True if we patched at least one subfield, o/w false.
@@ -78,7 +81,7 @@ bool PatchSubfields(MARC::Record::Field * const field, const char subfield_code)
         if (subfield.code_ != subfield_code)
             continue;
 
-        for (const auto &matcher_and_replacement : matchers_to_replacements_map) {
+        for (const auto &matcher_and_replacement : matchers_and_replacements) {
             RegexMatcher *matcher(matcher_and_replacement.first);
             if (matcher->matched(subfield.value_)) {
                 const std::string complete_match((*matcher)[0]);
