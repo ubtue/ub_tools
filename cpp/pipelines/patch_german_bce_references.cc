@@ -82,7 +82,7 @@ bool PatchSubfields(MARC::Record::Field * const field, const char subfield_code)
             continue;
 
         for (const auto &matcher_and_replacement : matchers_and_replacements) {
-            RegexMatcher *matcher(matcher_and_replacement.first);
+            RegexMatcher * const matcher(matcher_and_replacement.first);
             if (matcher->matched(subfield.value_)) {
                 const std::string complete_match((*matcher)[0]);
                 const size_t match_start(subfield.value_.find(complete_match));
