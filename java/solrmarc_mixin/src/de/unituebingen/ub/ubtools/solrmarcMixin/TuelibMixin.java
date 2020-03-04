@@ -183,18 +183,32 @@ public class TuelibMixin extends SolrIndexerMixin {
         phys_code_to_full_name_map = Collections.unmodifiableMap(tempMap);
     }
 
-
+    // Must match constants in FullTextCache.h
     private final static Map<String, String> text_type_to_description_map = new TreeMap<String, String>() {
         {
-            this.put("0", "Fulltext");
-            this.put("1", "Table of Contents");
-            this.put("255", "Unknown");
+            this.put("1", "Fulltext");
+            this.put("2", "Table of Contents");
+            this.put("4", "Abstract");
+            this.put("8", "Summary");
+            this.put("0", "Unknown");
         }
     };
+
 
     private Set<String> isils_cache = null;
     private Map<String, Collection<Collection<Topic>>> collectedTopicsCache = new TreeMap<>();
     private JSONArray fulltext_server_hits = new JSONArray();
+    private static final String fullHostName;
+    static {
+        String tmp = ""; // Needed for syntactical reasons
+        try {
+            tmp = InetAddress.getLocalHost().getHostName();
+        } catch(java.net.UnknownHostException e) {
+            throw new RuntimeException ("Could not determine Hostname", e);
+        }
+        fullHostName = tmp;
+    }
+
 
     @Override
     public void perRecordInit(Record record) throws Exception {
@@ -539,6 +553,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         final Set<String> nonUnknownMaterialTypeURLs = new HashSet<String>();
         final Map<String, Set<String>> materialTypeToURLsMap = new TreeMap<String, Set<String>>();
         final Set<String> urls_and_material_types = new LinkedHashSet<>();
+
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
             final Subfield materialTypeSubfield = getFirstNonEmptySubfield(field, '3', 'z', 'y', 'x');
@@ -546,7 +561,6 @@ public class TuelibMixin extends SolrIndexerMixin {
             if (code_to_material_type_map.containsKey(materialType))
                 materialType = code_to_material_type_map.get(materialType);
 
-            // Extract all links from u-subfields and resolve URNs:
             for (final Subfield subfield_u : field.getSubfields('u')) {
                 Set<String> URLs = materialTypeToURLsMap.get(materialType);
                 if (URLs == null) {
@@ -561,8 +575,6 @@ public class TuelibMixin extends SolrIndexerMixin {
                 else if (rawLink.startsWith("http://nbn-resolving.de"))
                     // Replace HTTP w/ HTTPS.
                     link = "https://nbn-resolving.org/" + rawLink.substring(23);
-
-
                 else if (rawLink.startsWith("http://nbn-resolving.org"))
                     // Replace HTTP w/ HTTPS.
                     link = "https://nbn-resolving.org/" + rawLink.substring(24);
@@ -1173,28 +1185,79 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
-    private static Set<String> getURNs(final Record record) {
+    /**
+     * Return all identifiers from 024. (Ind1 must always be 7)
+     *
+     * @param record            The record
+     * @param subfield2Value    The value of subfield 2, e.g. "urn", "doi", "hdl", ...
+     * @param resultPrefix      A prefix which will be prepended to each result entry.
+     */
+    private static Set<String> getIdentifiersFrom024(final Record record,
+                                                     final String subfield2Value,
+                                                     final String resultPrefix)
+    {
         final Set<String> result = new TreeSet<>();
 
+        for (final VariableField variableField : record.getVariableFields("024")) {
+            final DataField field = (DataField) variableField;
+            if (field.getIndicator1() != '7')
+                continue;
+
+            final Subfield subfield_2 = field.getSubfield('2');
+            if (subfield_2 == null || !subfield_2.getData().equals(subfield2Value))
+                continue;
+
+            final Subfield subfield_a = field.getSubfield('a');
+            if (subfield_a != null)
+                result.add(resultPrefix + subfield_a.getData());
+        }
+
+        return result;
+    }
+
+    private static Set<String> getURNs(final Record record) {
+        return getURNs(record, "");
+    }
+
+    private static Set<String> getURNs(final Record record, final String resultPrefix) {
+        // From 2020-01-07 on, URNs will only be exported in 024.
+        final Set<String> result = getIdentifiersFrom024(record, "urn", resultPrefix);
+
+        // Also keep 856 as fallback if something goes wrong:
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
 
             for (final Subfield subfield_u : field.getSubfields('u')) {
                 final String rawLink = subfield_u.getData();
-                final int index = rawLink.indexOf("urn:", 0);
-                if (index >= 0) {
-                    final String link = rawLink.substring("urn:".length());
-                    result.add("URN:" + link);
-                }
+                if (rawLink.startsWith("http://nbn-resolving.de/urn:nbn:de"))
+                    result.add(resultPrefix + rawLink.substring("http://nbn-resolving.de/".length()));
+                else if (rawLink.startsWith("urn:nbn:de"))
+                    result.add(resultPrefix + rawLink);
+                else if (rawLink.startsWith("https://nbn-resolving.de/urn:nbn:de"))
+                    result.add(resultPrefix + rawLink.substring("https://nbn-resolving.de/".length()));
             }
         }
 
         return result;
     }
 
-    private static Set<String> getHandles(final Record record) {
-        final Set<String> result = new TreeSet<>();
+    private static Set<String> getDOIs(final Record record) {
+        return getDOIs(record, "");
+    }
 
+    private static Set<String> getDOIs(final Record record, final String resultPrefix) {
+        return getIdentifiersFrom024(record, "doi", resultPrefix);
+    }
+
+    private static Set<String> getHandles(final Record record) {
+        return getHandles(record, "");
+    }
+
+    private static Set<String> getHandles(final Record record, final String resultPrefix) {
+        // From 2020-01-07 on, Handles will only be exported in 024.
+        final Set<String> result = getIdentifiersFrom024(record, "hdl", resultPrefix);
+
+        // Also keep 856 as fallback if something goes wrong:
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
 
@@ -1203,24 +1266,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                 final int index = rawLink.indexOf("http://hdl.handle.net/", 0);
                 if (index >= 0) {
                     final String link = rawLink.substring("http://hdl.handle.net/".length());
-                    result.add("HDL:" + link);
-                }
-            }
-        }
-
-        return result;
-    }
-
-    private static Set<String> getDOIs(final Record record) {
-        final Set<String> result = new TreeSet<>();
-
-        for (final VariableField variableField : record.getVariableFields("024")) {
-            final DataField field = (DataField) variableField;
-            final Subfield subfield_2 = field.getSubfield('2');
-            if (subfield_2 != null && subfield_2.getData().equals("doi")) {
-                final Subfield subfield_a = field.getSubfield('a');
-                if (subfield_a != null) {
-                    result.add("DOI:" + subfield_a.getData());
+                    result.add(resultPrefix + link);
                 }
             }
         }
@@ -1234,14 +1280,12 @@ public class TuelibMixin extends SolrIndexerMixin {
      *  DOI:<doi1>
      *  URN:<urn1>
      *  URN:<urn2>
-     * URLs are scanned for URNs from 856$u. "urn:" will be part of the URN.
-     * Furthermore 024$2 will be checked for "doi".
+     *  HDL:<handle1>
      */
     public Set<String> getTypesAndPersistentIdentifiers(final Record record) {
-        final Set<String> result = getDOIs(record);
-        result.addAll(getURNs(record));
-        result.addAll(getHandles(record));
-
+        final Set<String> result = getDOIs(record, "DOI:");
+        result.addAll(getURNs(record, "URN:"));
+        result.addAll(getHandles(record, "HDL:"));
         return result;
     }
 
@@ -3022,7 +3066,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    protected String extractFullTextFromJSON(final JSONArray hits) {
+    protected String extractFullTextFromJSON(final JSONArray hits, final String text_type_description) {
         if (hits.isEmpty())
             return "";
 
@@ -3030,14 +3074,17 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final Object obj : hits) {
              JSONObject hit = (JSONObject) obj;
              JSONObject _source = (JSONObject) hit.get("_source");
-             fulltextBuilder.append(_source.get("full_text"));
+             final String description = mapTextTypeToDescription((String) _source.get("text_type"));
+             if (description.equals(text_type_description))
+                 fulltextBuilder.append(_source.get("full_text"));
         }
         return fulltextBuilder.toString();
     }
 
 
     protected String mapTextTypeToDescription(final String text_type) {
-        return text_type_to_description_map.get(text_type);
+        String type_candidate = text_type_to_description_map.get(text_type);
+        return type_candidate != null ? type_candidate : "Unknown";
     }
 
 
@@ -3093,7 +3140,6 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     public String getMyHostnameShort() throws java.net.UnknownHostException {
-       final String fullHostName = InetAddress.getLocalHost().getHostName();
        return fullHostName.replaceAll("\\..*", "");
     }
 
@@ -3162,8 +3208,24 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
     }
 
+
     public String getFullTextElasticsearch(final Record record) {
-        return extractFullTextFromJSON(fulltext_server_hits);
+        return extractFullTextFromJSON(fulltext_server_hits, "Fulltext");
+    }
+
+
+    public String getFullTextElasticsearchTOC(final Record record) {
+        return extractFullTextFromJSON(fulltext_server_hits, "Table of Contents");
+    }
+
+
+    public String getFullTextElasticsearchAbstract(final Record record) {
+        return extractFullTextFromJSON(fulltext_server_hits, "Abstract");
+    }
+
+
+    public String getFullTextElasticsearchSummary(final Record record) {
+        return extractFullTextFromJSON(fulltext_server_hits, "Summary");
     }
 
 

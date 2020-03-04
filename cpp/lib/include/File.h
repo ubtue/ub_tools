@@ -231,6 +231,15 @@ public:
     static File &endl(File &f) { f.put('\n'), f.flush(); return f; }
     static SingleArgManipulator<int> setprecision(int new_precision) {
         return SingleArgManipulator<int>(SetPrecision, new_precision); }
+
+    /** \brief Sets the buffer size if the file references a pipe or FIFO.
+     *  \param new_buffer_size  If 0, we attempt to set the buffer size to the contents of /proc/sys/fs/pipe-max-size
+     *         o/w we attempt to set it to the specified value.
+     *  \note  A process can only set the buffer size to a larger value then the contents of /proc/sys/fs/pipe-max-size
+     *         if it has the CAP_SYS_RESOURCE capability set.
+     *  \note  If this function fails you can consult errno for the reason.
+     */
+    bool setPipeBufferSize(int new_buffer_size = 0);
 private:
     void fillBuffer();
     static File &SetPrecision(File &f, int new_precision) { f.precision_ = new_precision; return f; }

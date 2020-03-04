@@ -19,7 +19,7 @@ def ClearSolrIndex(index):
         data = values.encode('utf-8')
         headers = {"Content-Type": "application/xml"}
         request = urllib.request.Request(url, data, headers)
-        response = urllib.request.urlopen(request, timeout=120)
+        response = urllib.request.urlopen(request, timeout=300)
     except Exception as e:
         util.SendEmail("MARC-21 Pipeline", "Failed to clear the SOLR index \"" + index + "\" [" + str(e) + "]!", priority=1)
         sys.exit(-1)
@@ -95,6 +95,16 @@ def FoundNewBSZDataFile(link_filename):
     return old_timestamp < file_creation_time
 
 
+REFTERM_MUTEX_FILE = "/tmp/create_refterm_successful" # Must match mutex file name in create_refterm_file.py
+
+
+def FoundReftermMutex():
+    return os.path.exists(REFTERM_MUTEX_FILE)
+
+def DeleteReftermMutex():
+    os.remove(REFTERM_MUTEX_FILE)
+
+
 def Main():
     util.default_email_sender = "initiate_marc_pipeline@ub.uni-tuebingen.de"
     if len(sys.argv) != 3:
@@ -115,6 +125,8 @@ def Main():
     conf = util.LoadConfigFile()
     link_name = conf.get("Misc", "link_name")
     if FoundNewBSZDataFile(link_name):
+        if not FoundReftermMutex():
+             util.Error("No Refterm Mutex found")
         bsz_data = util.ResolveSymlink(link_name)
         if not bsz_data.endswith(".tar.gz"):
             util.Error("BSZ data file must end in .tar.gz!")
@@ -124,6 +136,7 @@ def Main():
         util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.", priority=5,
                        attachments=[solrmarc_log_summary, import_log_summary])
         util.WriteTimestamp()
+        DeleteReftermMutex();
     else:
         util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.", priority=5)
 

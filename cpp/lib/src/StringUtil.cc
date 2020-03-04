@@ -598,6 +598,15 @@ bool ToUnsigned(const std::string &s, unsigned * const n, const unsigned base) {
 }
 
 
+int ToInt(const std::string &s, const unsigned base) {
+    int n;
+    if (unlikely(not ToNumber(s, &n, base)))
+        throw std::runtime_error("in StringUtil::ToInt: can't convert \"" + s + "\" to an int!");
+
+    return n;
+}
+
+
 // ToUnsignedLong -- convert a string to an unsigned long number.
 //
 unsigned long ToUnsignedLong(const std::string &s, const unsigned base) {

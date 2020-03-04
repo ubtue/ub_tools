@@ -9,9 +9,10 @@ api_key = MY_API_KEY
 changelist_file_regex = changed_dois_with_versions_([\d-]+)(.*)([\d-]).*.jsonl.gz
 """
 
-
+import dbus
 import json
 import os
+import platform
 import process_util
 import re
 import sys
@@ -19,7 +20,7 @@ import time
 import traceback
 import urllib.request, urllib.parse, urllib.error
 import util
-from shutil import copy2
+from shutil import copy2, move, rmtree
 
 def GetChangelists(url, api_key):
     print("Get Changelists")
@@ -110,6 +111,46 @@ def ShareOADOIURLs(share_directory, urls_file):
     copy2(urls_file, share_directory)
 
 
+def GetMongoServiceDependingOnSystem():
+    distro = platform.linux_distribution()[0];
+    if re.search('CentOS', distro):
+        return 'mongod.service'
+    if re.search('Ubuntu', distro):
+        return 'mongodb.service'
+    util.SendEmail("Update OADOI Data", "Cannot handle Distro \"" + distro + "\"", priority=1);
+    sys.exit(-1)
+
+
+def GetSystemDDBusManager():
+    sysbus = dbus.SystemBus()
+    systemd1 = sysbus.get_object('org.freedesktop.systemd1', '/org/freedesktop/systemd1')
+    manager = dbus.Interface(systemd1, 'org.freedesktop.systemd1.Manager')
+    return manager
+
+
+def StartMongoDB():
+    manager = GetSystemDDBusManager()
+    job = manager.RestartUnit(GetMongoServiceDependingOnSystem(), 'fail')
+
+
+def StopMongoDB():
+    manager = GetSystemDDBusManager()
+    job = manager.StopUnit(GetMongoServiceDependingOnSystem(), 'ignore-dependencies')
+
+
+def DumpMongoDB(config, log_file_name="/dev/stderr"):
+    # Backup to intermediate hidden directory that is exluded from backup
+    # to prevent inconsistent saving
+    dump_base_path = config.get("LocalConfig", "dump_base_path")
+    dump_root = config.get("LocalConfig", "dump_root")
+    intermediate_dump_dir = dump_base_path + '/.' + dump_root
+    util.ExecOrDie(util.Which("mongodump"), [ "--out=" + intermediate_dump_dir , "--gzip" ], log_file_name)
+    final_dump_dir = dump_base_path + '/' + dump_root
+    if os.path.exists(final_dump_dir) and os.path.isdir(final_dump_dir):
+        rmtree(final_dump_dir)
+    move(intermediate_dump_dir, final_dump_dir)
+
+
 def Main():
     util.default_email_sender = "update_oadoi_data@ub.uni-tuebingen.de"
     util.default_email_recipient = "johannes.riedl@uni-tuebingen.de"
@@ -126,6 +167,7 @@ def Main():
     api_key = config.get("Unpaywall", "api_key")
     oadoi_download_directory = config.get("LocalConfig", "download_dir")
     oadoi_imported_directory = oadoi_download_directory + "/imported/"
+    StartMongoDB()
     json_update_objects = GetChangelists(changelist_url, api_key)
     remote_update_files = GetRemoteUpdateFiles(json_update_objects)
     local_update_files = GetLocalUpdateFiles(config, oadoi_download_directory)
@@ -145,6 +187,8 @@ def Main():
     krimdok_urls_file = config.get("LocalConfig", "krimdok_urls_file")
     ExtractOADOIURLs(share_directory, krimdok_dois_file, krimdok_urls_file, log_file_name)
     ShareOADOIURLs(share_directory, krimdok_urls_file)
+    DumpMongoDB(config, log_file_name)
+    StopMongoDB()
     util.SendEmail("Update OADOI Data",
                    "Successfully created \"" + ixtheo_urls_file + "\" and \""  + krimdok_urls_file +
                    "\" in " + share_directory, priority=5)
