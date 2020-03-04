@@ -380,10 +380,7 @@ bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Con
             LOG_ERROR("unexpected negative time difference '" + std::to_string(diff) + "'");
 
         const auto harvest_threshold(journal_params.update_window_ > 0 ? journal_params.update_window_ : feed_harvest_interval_);
-        {
-            std::lock_guard<std::recursive_mutex> locale_lock(Util::non_threadsafe_locale_modification_guard);
-            LOG_INFO("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
-        }
+        LOG_INFO("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
         LOG_INFO("feed harvest threshold: " + std::to_string(harvest_threshold) + " days | diff: " + std::to_string(diff) + " days");
 
         if (diff >= harvest_threshold) {

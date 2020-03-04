@@ -33,8 +33,10 @@
 
 class Locale {
     bool is_valid_;
-    std::string old_locale_;
-    const int category_;
+    locale_t old_locale_;
+    locale_t new_locale_;
+    std::string new_locale_string_;
+    const int new_locale_category_;
     const bool restore_;
 public:
     /** \brief  Constructs a new locale setting object.
@@ -51,12 +53,4 @@ public:
     ~Locale();
 
     inline bool isValid() const { return is_valid_; }
-
-    /** \brief   Returns the name of the locale that is currently in effect for category "category".
-     *  \param   category  The category for which we'd like the current locale for.  See setlocale(3) for
-     *                     a list of possible categories LC_*.
-     *  \return  The opaque locale name associated with "category".
-     *  \note    In the case that anything goes wrong (invalid "category"?) this function throws an exception!
-     */
-    static std::string GetLocaleName(const int category = LC_CTYPE);
 };
