@@ -110,7 +110,7 @@ public:
                         const std::string &post_data = "",
                         const std::string &authentication_username = "",
                         const std::string &authentication_password = "");
-    } params_;
+    };
 
     typedef size_t (*WriteFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);
     typedef void (*LockFunc)(CURL *handle, curl_lock_data data, curl_lock_access access, void */* unused */);
@@ -167,6 +167,16 @@ public:
     /** \note Get HTTP response code */
     unsigned getResponseCode();
 
+    void setAcceptableLanguages(const std::string &acceptable_languages);
+    void setHonourRobotsDotTxt(const bool honour_robots_dot_txt) { params_.honour_robots_dot_txt_ = honour_robots_dot_txt; };
+    void setIgnoreSslCertificates(const bool ignore_ssl_certificates);
+
+    /** \note Pass empty string to disable previously set proxy. */
+    void setProxy(const std::string &proxy_host_and_port);
+
+    /** \note If empty, DEFAULT_USER_AGENT_STRING will be used. */
+    void setUserAgent(const std::string &user_agent);
+
     static unsigned GetInstanceCount() { return instance_count_; }
 
     /** \brief    Get's rid of all memory allocations related to Downloader instances.
@@ -180,7 +190,6 @@ public:
     static const PerlCompatRegExps &GetBannedUrlRegExps();
 
     static const std::string &GetDefaultUserAgentString();
-
 protected:
     void setMultiMode(const bool multi) { multi_mode_ = multi; }
 
@@ -189,11 +198,8 @@ protected:
     CURL *getEasyHandle() const { return easy_handle_; }
 
 private:
-    static void InitCurlEasyHandle(const long dns_cache_timeout, const char * const error_buffer,
-                                   const bool debugging, WriteFunc write_func, LockFunc lock_func,
-                                   UnlockFunc unlock_func, HeaderFunc header_func,
-                                   DebugFunc debug_func, CURL ** const easy_handle, std::string * const user_agent,
-                                   const bool follow_redirect);
+    Params params_;
+
     void init();
     bool internalNewUrl(const Url &url, const TimeLimit &time_limit);
     size_t writeFunction(void *data, size_t size, size_t nmemb);

@@ -104,11 +104,11 @@ SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params)
     if (url_ignore_regex_matcher_ == nullptr)
         LOG_ERROR("could not initialize URL ignore regex matcher: " + err_msg);
 
-    downloader_.params_.user_agent_              = params.user_agent_;
-    downloader_.params_.acceptable_languages_    = params.acceptable_languages_;
-    downloader_.params_.honour_robots_dot_txt_   = not params.ignore_robots_dot_txt_;
-    downloader_.params_.ignore_ssl_certificates_ = params.ignore_ssl_certificates_;
-    downloader_.params_.proxy_host_and_port_     = params.proxy_host_and_port_;
+    downloader_.setAcceptableLanguages(params.acceptable_languages_);
+    downloader_.setHonourRobotsDotTxt(not params.ignore_robots_dot_txt_);
+    downloader_.setIgnoreSslCertificates(params.ignore_ssl_certificates_);
+    downloader_.setProxy(params.proxy_host_and_port_);
+    downloader_.setUserAgent(params.user_agent_);
 }
 
 

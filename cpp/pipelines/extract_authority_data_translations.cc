@@ -132,14 +132,14 @@ void ExtractOneTranslation(const MARC::Subfields &all_subfields, const std::stri
 
 void RemoveMACSIfIxTheoPresent(std::vector<std::string> * const translations) {
 
-    if (std::find(translations->begin(), translations->end(), "IxTheo_eng") != translations->end()) {
+    if (std::find(translations->begin(), translations->end(), "IxTheo_eng-AF") != translations->end()) {
         auto lcsh_it(std::find(translations->begin(), translations->end(), "lcsh"));
         if (lcsh_it != translations->end())
             translations->erase(lcsh_it, lcsh_it + 2);
 
     }
 
-    if (std::find(translations->begin(), translations->end(), "IxTheo_fre") != translations->end()) {
+    if (std::find(translations->begin(), translations->end(), "IxTheo_fre-AF") != translations->end()) {
         auto ram_it(std::find(translations->begin(), translations->end(), "ram"));
         if (ram_it != translations->end())
             translations->erase(ram_it, ram_it + 2);

@@ -1,5 +1,5 @@
 [Unit]
-After=network.target httpd.service
+After=network.target
 
 [Service]
 Type=forking
@@ -8,7 +8,8 @@ PIDFile=/usr/local/vufind/solr/vendor/bin/solr-8080.pid
 ExecStop=/bin/sh -l -c '/usr/local/vufind/solr.sh stop' -x
 SuccessExitStatus=0
 User=solr
+LimitNOFILE=65000
+LimitNPROC=65000
 
 [Install]
 WantedBy=multi-user.target
-

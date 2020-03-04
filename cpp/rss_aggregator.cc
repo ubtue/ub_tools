@@ -291,6 +291,7 @@ int Main(int argc, char *argv[]) {
     const unsigned DEFAULT_POLL_INTERVAL(ini_file.getUnsigned("", "default_poll_interval"));
     const unsigned DEFAULT_DOWNLOADER_TIME_LIMIT(ini_file.getUnsigned("", "default_downloader_time_limit"));
     const unsigned UPDATE_INTERVAL(ini_file.getUnsigned("", "update_interval"));
+    const std::string PROXY(ini_file.getString("", "proxy", ""));
 
     if (not one_shot) {
         SignalUtil::InstallHandler(SIGTERM, SigTermHandler);
@@ -303,7 +304,13 @@ int Main(int argc, char *argv[]) {
     const std::string xml_output_filename(argv[1]);
 
     uint64_t ticks(0);
-    Downloader downloader;
+    Downloader::Params params;
+    if (not PROXY.empty()) {
+        LOG_INFO("using proxy: " + PROXY);
+        params.proxy_host_and_port_ = PROXY;
+    }
+    Downloader downloader(params);
+
     for (;;) {
         LOG_DEBUG("now we're at " + std::to_string(ticks) + ".");
 

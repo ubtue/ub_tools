@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2016-2017 Universitätsbibliothek Tübingen
+ *  Copyright 2016-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -86,6 +86,9 @@ bool IsHtmlEscaped(const std::string &raw_text);
  *  \return The number of extracted hrefs
  */
 size_t ExtractAllLinks(const std::string &html_document, std::vector<std::string> * const urls);
+
+
+std::string StripHtmlTags(const std::string &text_with_optional_tags, const bool replace_entities = true);
 
 
 } // namespace HtmlUtil
