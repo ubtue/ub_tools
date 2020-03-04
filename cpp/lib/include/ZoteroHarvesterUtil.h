@@ -558,12 +558,6 @@ private:
 };
 
 
-// The Locale class is inherently not thread-safe as it it modifies the locale at the process level.
-// To work around this, we need to wrap all calls that have a transitive dependency on the class within
-// a critical section. This primitive is used to ensure mutual-exclusion inside multi-threaded Zotero contexts.
-extern std::recursive_mutex non_threadsafe_locale_modification_guard;
-
-
 // Returns URLs found in 856 and URL fields.
 std::set<std::string> GetMarcRecordUrls(const MARC::Record &record);
 

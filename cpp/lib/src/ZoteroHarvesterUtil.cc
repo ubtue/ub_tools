@@ -524,9 +524,6 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
 }
 
 
-std::recursive_mutex non_threadsafe_locale_modification_guard;
-
-
 std::set<std::string> GetMarcRecordUrls(const MARC::Record &record) {
     std::set<std::string> urls;
 

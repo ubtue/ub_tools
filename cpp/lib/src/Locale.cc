@@ -27,32 +27,33 @@
 #include "Locale.h"
 #include <stdexcept>
 #include <cassert>
+#include "util.h"
 
 
 Locale::Locale(const std::string &new_locale, const int category, const bool restore)
-    : category_(category), restore_(restore)
+    : old_locale_(0), new_locale_(0), new_locale_string_(new_locale), new_locale_category_(category), restore_(restore)
 {
-    if (restore_)
-        // Save current locale for later restoration:
-        old_locale_ = ::setlocale(category, nullptr);
+    // Fetch the calling thread's active locale
+    old_locale_ = ::uselocale(0);
 
-    // Attempt to set the new locale:
-    is_valid_ = ::setlocale(category, new_locale.c_str()) != nullptr;
+    // Allocate and set new locale
+    new_locale_ = ::newlocale(category, new_locale_string_.c_str(), 0);
+    is_valid_ = new_locale_ != 0;
+
+    if (is_valid_) {
+        if (::uselocale(new_locale_) == 0)
+            LOG_ERROR("failed to set thread locale to '" + new_locale_string_ + "' (" + std::to_string(new_locale_category_) + ")");
+    } else
+        LOG_ERROR("failed to allocate new locale for '" + new_locale_string_ + "' (" + std::to_string(new_locale_category_) + ")");
 }
 
 
 Locale::~Locale() {
-    if (restore_ and is_valid_)
-        // Restore original locale:
-        assert(::setlocale(category_, old_locale_.c_str()) != nullptr);
-}
+    if (restore_) {
+        if (::uselocale(old_locale_) == 0)
+            LOG_ERROR("failed to restore thread locale");
+    }
 
-
-std::string Locale::GetLocaleName(const int category) {
-    // Attempt to get the locale for "category":
-    const char *locale = ::setlocale(category, nullptr);
-    if (locale == nullptr)
-        throw std::runtime_error("in Locale::Locale: can't get locale for requested category!");
-
-    return locale;
+    if (is_valid_)
+        ::freelocale(new_locale_);
 }
