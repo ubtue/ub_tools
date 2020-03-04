@@ -111,7 +111,7 @@ const std::map<std::string, char> patch_field_to_subfield_code_map{
 bool PatchBCEReferences(MARC::Record * const record) {
     bool patched_at_least_one_subfield(false);
 
-    for (auto field : *record) {
+    for (auto &field : *record) {
         const auto tag_and_subfield_code(patch_field_to_subfield_code_map.find(field.getTag().toString()));
         if (tag_and_subfield_code != patch_field_to_subfield_code_map.cend()
             and PatchSubfields(&field, tag_and_subfield_code->second))
