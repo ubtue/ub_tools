@@ -243,32 +243,37 @@ bool ZoteroItemMatchesExclusionFilters(const Util::HarvestableItem &download_ite
 }
 
 
+static inline std::string GetStrippedHTMLStringFromJSON(const std::shared_ptr<JSON::ObjectNode> &json_object,
+                                                        const std::string &field_name)
+{ return HtmlUtil::StripHtmlTags(json_object->getOptionalStringValue(field_name)); }
+
+
 void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &zotero_item,
                                        MetadataRecord * const metadata_record)
 {
-    metadata_record->item_type_ = HtmlUtil::StripHtmlTags(zotero_item->getStringValue("itemType"));
-    metadata_record->title_ = HtmlUtil::StripHtmlTags(zotero_item->getOptionalStringValue("title"));
-    metadata_record->short_title_ = HtmlUtil::StripHtmlTags(zotero_item->getOptionalStringValue("shortTitle"));
-    metadata_record->abstract_note_ = HtmlUtil::StripHtmlTags(zotero_item->getOptionalStringValue("abstractNote"));
-    metadata_record->publication_title_ = HtmlUtil::StripHtmlTags(zotero_item->getOptionalStringValue("publicationTitle"));
+    metadata_record->item_type_ = GetStrippedHTMLStringFromJSON(zotero_item, "itemType");
+    metadata_record->title_ = GetStrippedHTMLStringFromJSON(zotero_item, "title");
+    metadata_record->short_title_ = GetStrippedHTMLStringFromJSON(zotero_item, "shortTitle");
+    metadata_record->abstract_note_ = GetStrippedHTMLStringFromJSON(zotero_item, "abstractNote");
+    metadata_record->publication_title_ = GetStrippedHTMLStringFromJSON(zotero_item, "publicationTitle");
     if (metadata_record->publication_title_.empty())
-        metadata_record->publication_title_ = HtmlUtil::StripHtmlTags(zotero_item->getOptionalStringValue("websiteTitle"));
-    metadata_record->volume_ = HtmlUtil::StripHtmlTags(zotero_item->getOptionalStringValue("volume"));
-    metadata_record->issue_ = HtmlUtil::StripHtmlTags(zotero_item->getOptionalStringValue("issue"));
-    metadata_record->pages_ = HtmlUtil::StripHtmlTags(zotero_item->getOptionalStringValue("pages"));
-    metadata_record->date_ = HtmlUtil::StripHtmlTags(zotero_item->getOptionalStringValue("date"));
-    metadata_record->doi_ = HtmlUtil::StripHtmlTags(zotero_item->getOptionalStringValue("DOI"));
-    metadata_record->language_ = HtmlUtil::StripHtmlTags(zotero_item->getOptionalStringValue("language"));
-    metadata_record->url_ = HtmlUtil::StripHtmlTags(zotero_item->getOptionalStringValue("url"));
-    metadata_record->issn_ = HtmlUtil::StripHtmlTags(zotero_item->getOptionalStringValue("ISSN"));
+        metadata_record->publication_title_ = GetStrippedHTMLStringFromJSON(zotero_item, "websiteTitle");
+    metadata_record->volume_ = GetStrippedHTMLStringFromJSON(zotero_item, "volume");
+    metadata_record->issue_ = GetStrippedHTMLStringFromJSON(zotero_item, "issue");
+    metadata_record->pages_ = GetStrippedHTMLStringFromJSON(zotero_item, "pages");
+    metadata_record->date_ = GetStrippedHTMLStringFromJSON(zotero_item, "date");
+    metadata_record->doi_ = GetStrippedHTMLStringFromJSON(zotero_item, "DOI");
+    metadata_record->language_ = GetStrippedHTMLStringFromJSON(zotero_item, "language");
+    metadata_record->url_ = GetStrippedHTMLStringFromJSON(zotero_item, "url");
+    metadata_record->issn_ = GetStrippedHTMLStringFromJSON(zotero_item, "ISSN");
 
     const auto creators_array(zotero_item->getOptionalArrayNode("creators"));
     if (creators_array) {
         for (const auto &entry :*creators_array) {
             const auto creator_object(JSON::JSONNode::CastToObjectNodeOrDie("array_element", entry));
-            metadata_record->creators_.emplace_back(HtmlUtil::StripHtmlTags(creator_object->getOptionalStringValue("firstName")),
-                                                    HtmlUtil::StripHtmlTags(creator_object->getOptionalStringValue("lastName")),
-                                                    HtmlUtil::StripHtmlTags(creator_object->getOptionalStringValue("creatorType")));
+            metadata_record->creators_.emplace_back(GetStrippedHTMLStringFromJSON(creator_object, "firstName"),
+                                                    GetStrippedHTMLStringFromJSON(creator_object, "lastName"),
+                                                    GetStrippedHTMLStringFromJSON(creator_object, "creatorType"));
         }
     }
 
@@ -276,7 +281,7 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
     if (tags_array) {
         for (const auto &entry :*tags_array) {
             const auto tag_object(JSON::JSONNode::CastToObjectNodeOrDie("array_element", entry));
-            const auto tag(HtmlUtil::StripHtmlTags(tag_object->getOptionalStringValue("tag")));
+            const auto tag(GetStrippedHTMLStringFromJSON(tag_object, "tag"));
             if (not tag.empty())
                 metadata_record->keywords_.emplace_back(tag);
         }
