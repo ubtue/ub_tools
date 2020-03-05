@@ -138,6 +138,23 @@ std::string GroupParams::GetIniKeyString(const IniKey ini_key) {
 }
 
 
+JournalParams::JournalParams(const GlobalParams &global_params) {
+    zeder_id_ = 1;
+    name_ = "Default Journal";
+    group_ = "Default Group";
+    entry_point_url_ = "Default URL";
+    harvester_operation_ = HarvesterOperation::DIRECT;
+    upload_operation_ = UploadOperation::NONE;
+    ppn_.online_ = "Default PPN";
+    issn_.online_ = "Default ISSN";
+    strptime_format_string_ = global_params.strptime_format_string_;
+    update_window_ = 0;
+    language_params_.force_automatic_language_detection_ = false;
+    language_params_.expected_languages_.emplace("eng");
+    crawl_params_.max_crawl_depth_ = 1;
+}
+
+
 JournalParams::JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params) {
     zeder_id_ = journal_section.getUnsigned(GetIniKeyString(ZEDER_ID));
     name_ = journal_section.getSectionName();

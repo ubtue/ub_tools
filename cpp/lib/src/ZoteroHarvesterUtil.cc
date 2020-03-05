@@ -18,6 +18,7 @@
 */
 
 #include "ZoteroHarvesterUtil.h"
+#include <csignal>
 #include <unistd.h>
 #include "GzStream.h"
 #include "MiscUtil.h"
@@ -44,7 +45,8 @@ std::string HarvestableItem::toString() const {
     std::string journal_name(TextUtil::CollapseAndTrimWhitespace(journal_.name_));
     TextUtil::UnicodeTruncate(&journal_name, 20);
 
-    as_string += " [" + journal_name + "...] | " + url_.toString();
+    as_string += " [" + journal_name + "...] | " + url_.toString() + " {"
+                 + std::to_string(std::hash<HarvestableItem>()(*this)) + "}";
     return as_string;
 }
 
@@ -74,10 +76,14 @@ ZoteroLogger::ContextData::ContextData(const Util::HarvestableItem &item)
 
 void ZoteroLogger::queueContextMessage(const std::string &level, std::string msg, const TaskletContext &tasklet_context) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
+    if (fatal_error_all_stop_.load())
+        return;
 
     auto harvestable_item_and_context(active_contexts_.find(tasklet_context.associated_item_));
-    if (harvestable_item_and_context == active_contexts_.end())
+    if (harvestable_item_and_context == active_contexts_.end()) {
+        ::raise(SIGSTOP);
         error("message from unknown tasklet!");
+    }
 
     formatMessage(level, &msg);
     harvestable_item_and_context->second.buffer_ += msg;
@@ -86,6 +92,8 @@ void ZoteroLogger::queueContextMessage(const std::string &level, std::string msg
 
 void ZoteroLogger::queueGlobalMessage(const std::string &level, std::string msg) {
     std::lock_guard<std::recursive_mutex> locker(log_buffer_mutex_);
+    if (fatal_error_all_stop_.load())
+        return;
 
     formatMessage(level, &msg);
     log_buffer_.emplace_back(std::move(msg));
@@ -94,6 +102,8 @@ void ZoteroLogger::queueGlobalMessage(const std::string &level, std::string msg)
 
 void ZoteroLogger::flushBufferAndPrintProgressImpl(const unsigned num_active_tasks, const unsigned num_queued_tasks) {
     std::lock_guard<std::recursive_mutex> locker(log_buffer_mutex_);
+    if (fatal_error_all_stop_.load())
+        return;
 
     if (::isatty(fd_) == 1) {
         // reset the progress bar
@@ -128,8 +138,12 @@ void ZoteroLogger::writeToBackingLog(const std::string &msg) {
 void ZoteroLogger::error(const std::string &msg) {
     // This is unrecoverable, so flush the global buffer and print out a preamble
     // with Zotero related info before displaying the actual error message and terminating the process
-    const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
-    writeToBackingLog("FATAL ERROR: Dumping active contexts...");
+    if (fatal_error_all_stop_.load()) {
+        // Sleep indefinitely until the original call terminates the process.
+        while (true)
+            ::usleep(10 * 1000);
+    }
+    fatal_error_all_stop_.store(true);
 
     // Flush the global buffer
     {
@@ -140,8 +154,16 @@ void ZoteroLogger::error(const std::string &msg) {
         }
     }
 
+    writeToBackingLog(std::string(100, '=') + "\n");
+    writeToBackingLog("!!! FATAL ERROR !!!\n");
+    writeToBackingLog(std::string(100, '=') + "\n");
+
+    const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
     std::string faulty_tasklet_buffer;
+
     // Flush all active contexts (except the faulting one)
+    writeToBackingLog("Dumping active contexts...\n");
+    writeToBackingLog(std::string(100, '=') + "\n");
     {
         std::lock_guard<std::recursive_mutex> context_locker(active_context_mutex_);
         for (auto &item_and_context : active_contexts_) {
@@ -153,24 +175,32 @@ void ZoteroLogger::error(const std::string &msg) {
             }
         }
     }
+    writeToBackingLog(std::string(100, '=') + "\n");
 
-    if (context == nullptr)
+    if (context == nullptr) {
+        writeToBackingLog("Fatal error in main thread:\n");
         ::Logger::error(msg);       // pass-through
+    }
 
     // Flush the tasklet's buffer
     writeToBackingLog("Faulty Zotero tasklet:");
     writeToBackingLog("\tparent tasklet: " + context->description_ + " (handle: " + std::to_string(::pthread_self()) + ")\n");
     writeToBackingLog("\titem: " + context->associated_item_.toString() + "\n\n");
+    writeToBackingLog(std::string(100, '=') + "\n");
     writeToBackingLog("Faulty Zotero tasklet log buffer:\n");
+    writeToBackingLog(std::string(100, '=') + "\n");
     writeToBackingLog(faulty_tasklet_buffer);
+    writeToBackingLog(std::string(100, '=') + "\n");
 
     // Write the final error message and terminate the process
-    ::Logger::error(msg);
+    ::Logger::error(msg + "\n" + std::string(100, '='));
 }
 
 
 void ZoteroLogger::warning(const std::string &msg) {
-    if (min_log_level_ < LL_WARNING)
+    if (fatal_error_all_stop_.load())
+        return;
+    else if (min_log_level_ < LL_WARNING)
         return;
 
     const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
@@ -182,7 +212,9 @@ void ZoteroLogger::warning(const std::string &msg) {
 
 
 void ZoteroLogger::info(const std::string &msg) {
-    if (min_log_level_ < LL_INFO)
+    if (fatal_error_all_stop_.load())
+        return;
+    else if (min_log_level_ < LL_INFO)
         return;
 
     const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
@@ -194,7 +226,9 @@ void ZoteroLogger::info(const std::string &msg) {
 
 
 void ZoteroLogger::debug(const std::string &msg) {
-    if ((min_log_level_ < LL_DEBUG) and (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") != "true"))
+    if (fatal_error_all_stop_.load())
+        return;
+    else if ((min_log_level_ < LL_DEBUG) and (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") != "true"))
         return;
 
     const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
@@ -207,10 +241,14 @@ void ZoteroLogger::debug(const std::string &msg) {
 
 void ZoteroLogger::pushContext(const Util::HarvestableItem &context_item) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
+    if (fatal_error_all_stop_.load())
+        return;
 
     auto harvestable_item_and_context(active_contexts_.find(context_item));
-    if (harvestable_item_and_context != active_contexts_.end())
+    if (harvestable_item_and_context != active_contexts_.end()) {
+        ::raise(SIGSTOP);
         error("Harvestable item " + context_item.toString() + " already registered");
+    }
 
     active_contexts_.emplace(context_item, context_item);
 }
@@ -218,10 +256,14 @@ void ZoteroLogger::pushContext(const Util::HarvestableItem &context_item) {
 
 void ZoteroLogger::popContext(const Util::HarvestableItem &context_item) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
+    if (fatal_error_all_stop_.load())
+        return;
 
     auto harvestable_item_and_context(active_contexts_.find(context_item));
-    if (harvestable_item_and_context == active_contexts_.end())
+    if (harvestable_item_and_context == active_contexts_.end()) {
+        ::raise(SIGSTOP);
         error("Harvestable " + context_item.toString() + " not registered");
+    }
 
     harvestable_item_and_context->second.buffer_ += "\n\n";
     {
@@ -241,6 +283,12 @@ void ZoteroLogger::Init() {
     zotero_logger_initialized = true;
 
     LOG_INFO("Zotero Logger initialized!\n\n\n");
+}
+
+
+ZoteroLogger &ZoteroLogger::Get() {
+    assert(zotero_logger_initialized == true);
+    return *reinterpret_cast<ZoteroLogger *>(logger);
 }
 
 
