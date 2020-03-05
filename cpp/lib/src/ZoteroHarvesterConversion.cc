@@ -243,32 +243,37 @@ bool ZoteroItemMatchesExclusionFilters(const Util::HarvestableItem &download_ite
 }
 
 
+static inline std::string GetStrippedHTMLStringFromJSON(const std::shared_ptr<JSON::ObjectNode> &json_object,
+                                                        const std::string &field_name)
+{ return HtmlUtil::StripHtmlTags(json_object->getOptionalStringValue(field_name)); }
+
+
 void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &zotero_item,
                                        MetadataRecord * const metadata_record)
 {
-    metadata_record->item_type_ = zotero_item->getStringValue("itemType");
-    metadata_record->title_ = zotero_item->getOptionalStringValue("title");
-    metadata_record->short_title_ = zotero_item->getOptionalStringValue("shortTitle");
-    metadata_record->abstract_note_ = zotero_item->getOptionalStringValue("abstractNote");
-    metadata_record->publication_title_ = zotero_item->getOptionalStringValue("publicationTitle");
+    metadata_record->item_type_ = GetStrippedHTMLStringFromJSON(zotero_item, "itemType");
+    metadata_record->title_ = GetStrippedHTMLStringFromJSON(zotero_item, "title");
+    metadata_record->short_title_ = GetStrippedHTMLStringFromJSON(zotero_item, "shortTitle");
+    metadata_record->abstract_note_ = GetStrippedHTMLStringFromJSON(zotero_item, "abstractNote");
+    metadata_record->publication_title_ = GetStrippedHTMLStringFromJSON(zotero_item, "publicationTitle");
     if (metadata_record->publication_title_.empty())
-        metadata_record->publication_title_ = zotero_item->getOptionalStringValue("websiteTitle");
-    metadata_record->volume_ = zotero_item->getOptionalStringValue("volume");
-    metadata_record->issue_ = zotero_item->getOptionalStringValue("issue");
-    metadata_record->pages_ = zotero_item->getOptionalStringValue("pages");
-    metadata_record->date_ = zotero_item->getOptionalStringValue("date");
-    metadata_record->doi_ = zotero_item->getOptionalStringValue("DOI");
-    metadata_record->language_ = zotero_item->getOptionalStringValue("language");
-    metadata_record->url_ = zotero_item->getOptionalStringValue("url");
-    metadata_record->issn_ = zotero_item->getOptionalStringValue("ISSN");
+        metadata_record->publication_title_ = GetStrippedHTMLStringFromJSON(zotero_item, "websiteTitle");
+    metadata_record->volume_ = GetStrippedHTMLStringFromJSON(zotero_item, "volume");
+    metadata_record->issue_ = GetStrippedHTMLStringFromJSON(zotero_item, "issue");
+    metadata_record->pages_ = GetStrippedHTMLStringFromJSON(zotero_item, "pages");
+    metadata_record->date_ = GetStrippedHTMLStringFromJSON(zotero_item, "date");
+    metadata_record->doi_ = GetStrippedHTMLStringFromJSON(zotero_item, "DOI");
+    metadata_record->language_ = GetStrippedHTMLStringFromJSON(zotero_item, "language");
+    metadata_record->url_ = GetStrippedHTMLStringFromJSON(zotero_item, "url");
+    metadata_record->issn_ = GetStrippedHTMLStringFromJSON(zotero_item, "ISSN");
 
     const auto creators_array(zotero_item->getOptionalArrayNode("creators"));
     if (creators_array) {
         for (const auto &entry :*creators_array) {
             const auto creator_object(JSON::JSONNode::CastToObjectNodeOrDie("array_element", entry));
-            metadata_record->creators_.emplace_back(creator_object->getOptionalStringValue("firstName"),
-                                                    creator_object->getOptionalStringValue("lastName"),
-                                                    creator_object->getOptionalStringValue("creatorType"));
+            metadata_record->creators_.emplace_back(GetStrippedHTMLStringFromJSON(creator_object, "firstName"),
+                                                    GetStrippedHTMLStringFromJSON(creator_object, "lastName"),
+                                                    GetStrippedHTMLStringFromJSON(creator_object, "creatorType"));
         }
     }
 
@@ -276,7 +281,7 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
     if (tags_array) {
         for (const auto &entry :*tags_array) {
             const auto tag_object(JSON::JSONNode::CastToObjectNodeOrDie("array_element", entry));
-            const auto tag(tag_object->getOptionalStringValue("tag"));
+            const auto tag(GetStrippedHTMLStringFromJSON(tag_object, "tag"));
             if (not tag.empty())
                 metadata_record->keywords_.emplace_back(tag);
         }
@@ -520,36 +525,8 @@ const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})
 void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params,
                            const Config::GroupParams &group_params, const Config::EnhancementMaps &enhancement_maps)
 {
-    // Strip HTML tags + replace entities
-    metadata_record->title_ = HtmlUtil::StripHtmlTags(metadata_record->title_);
-    metadata_record->short_title_ = HtmlUtil::StripHtmlTags(metadata_record->short_title_);
-    metadata_record->abstract_note_ = HtmlUtil::StripHtmlTags(metadata_record->abstract_note_);
-    metadata_record->publication_title_ = HtmlUtil::StripHtmlTags(metadata_record->publication_title_);
-    metadata_record->volume_ = HtmlUtil::StripHtmlTags(metadata_record->volume_);
-    metadata_record->issue_ = HtmlUtil::StripHtmlTags(metadata_record->issue_);
-    metadata_record->pages_ = HtmlUtil::StripHtmlTags(metadata_record->pages_);
-    metadata_record->date_ = HtmlUtil::StripHtmlTags(metadata_record->date_);
-    metadata_record->doi_ = HtmlUtil::StripHtmlTags(metadata_record->doi_);
-    metadata_record->issn_ = HtmlUtil::StripHtmlTags(metadata_record->issn_);
-    metadata_record->license_ = HtmlUtil::StripHtmlTags(metadata_record->license_);
-    metadata_record->superior_ppn_ = HtmlUtil::StripHtmlTags(metadata_record->superior_ppn_);
-    metadata_record->language_ = HtmlUtil::StripHtmlTags(metadata_record->language_);
-    for (auto &keyword : metadata_record->keywords_)
-        keyword = HtmlUtil::StripHtmlTags(keyword);
-    for (auto &creator : metadata_record->creators_) {
-        creator.first_name_ = HtmlUtil::StripHtmlTags(creator.first_name_);
-        creator.last_name_ = HtmlUtil::StripHtmlTags(creator.last_name_);
-        creator.affix_ = HtmlUtil::StripHtmlTags(creator.affix_);
-        creator.title_ = HtmlUtil::StripHtmlTags(creator.title_);
-        creator.type_ = HtmlUtil::StripHtmlTags(creator.type_);
-        creator.ppn_ = HtmlUtil::StripHtmlTags(creator.ppn_);
-        creator.gnd_number_ = HtmlUtil::StripHtmlTags(creator.gnd_number_);
-    }
-
     // normalise date
     if (not metadata_record->date_.empty()) {
-        // The TimeUtil::StringToStructTm() call is not thread-safe as it can modify the process' locale
-        std::lock_guard<std::recursive_mutex> locale_lock(Util::non_threadsafe_locale_modification_guard);
         struct tm tm(TimeUtil::StringToStructTm(metadata_record->date_, journal_params.strptime_format_string_));
         const std::string date_normalized(std::to_string(tm.tm_year + 1900) + "-"
                                           + StringUtil::ToString(tm.tm_mon + 1, 10, 2, '0') + "-"
@@ -626,11 +603,12 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
             if (not creator.first_name_.empty())
                 combined_name += ", " + creator.first_name_;
 
-            creator.ppn_ = FetchAuthorPPN(combined_name, group_params.author_ppn_lookup_url_);
+            creator.ppn_ = HtmlUtil::StripHtmlTags(FetchAuthorPPN(combined_name, group_params.author_ppn_lookup_url_));
             if (not creator.ppn_.empty())
                 LOG_DEBUG("added PPN " + creator.ppn_ + " for author " + combined_name);
 
-            creator.gnd_number_ = LobidUtil::GetAuthorGNDNumber(combined_name, group_params.author_gnd_lookup_query_params_);
+            creator.gnd_number_ = HtmlUtil::StripHtmlTags(LobidUtil::GetAuthorGNDNumber(
+                                                          combined_name, group_params.author_gnd_lookup_query_params_));
             if (not creator.gnd_number_.empty())
                 LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name);
         }
@@ -872,10 +850,8 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     std::string year;
     if (TimeUtil::StringToYear(date, &year_num))
         year = std::to_string(year_num);
-    else {
-        std::lock_guard<std::recursive_mutex> locale_lock(Util::non_threadsafe_locale_modification_guard);
+    else
         year = TimeUtil::GetCurrentYear();
-    }
 
     marc_record->insertField("264", { { 'c', year } });
 
@@ -1029,11 +1005,8 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
 
     // Has to be generated in the very end as it contains the hash of the record
     *marc_record_hash = CalculateMarcRecordHash(*marc_record);
-    {
-        std::lock_guard<std::recursive_mutex> locale_lock(Util::non_threadsafe_locale_modification_guard);
-        marc_record->insertField("001", group_params.name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
-                                 + "#" + *marc_record_hash);
-    }
+    marc_record->insertField("001", group_params.name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
+                             + "#" + *marc_record_hash);
 }
 
 
