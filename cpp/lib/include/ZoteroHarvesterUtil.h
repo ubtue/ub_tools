@@ -19,6 +19,7 @@
 #pragma once
 
 
+#include <atomic>
 #include <memory>
 #include <functional>
 #include <unordered_map>
@@ -149,6 +150,7 @@ class ZoteroLogger : public ::Logger {
     std::string progress_bar_buffer_;
     std::recursive_mutex active_context_mutex_;
     std::recursive_mutex log_buffer_mutex_;
+    mutable std::atomic_bool fatal_error_all_stop_;
 
     void queueContextMessage(const std::string &level, std::string msg, const TaskletContext &tasklet_context);
     void queueGlobalMessage(const std::string &level, std::string msg);
@@ -169,6 +171,8 @@ public:
     // so that all LOG_XXX calls are routed through it.
     // Must ONLY be called once at the beginning of the main thread.
     static void Init();
+
+    static ZoteroLogger &Get();
 
     // Flushes the logger's buffer and prints a progress message.
     // Must be called in a loop (and ONLY) in the main thread.
@@ -301,7 +305,6 @@ template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::
     Tasklet<Parameter, Result> * const parameter)
 {
     Tasklet<Parameter, Result> * const tasklet(reinterpret_cast<Tasklet<Parameter, Result> *>(parameter));
-    const auto zotero_logger(dynamic_cast<ZoteroLogger *>(::logger));
     const auto thread_id(tasklet->thread_id_);
     assert(thread_id == ::pthread_self());
     SqlUtil::ThreadSafetyGuard sql_guard(SqlUtil::ThreadSafetyGuard::ThreadType::WORKER_THREAD);
@@ -312,7 +315,7 @@ template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::
     // be automatically released when the tasklet gets destroyed.
     TASKLET_CONTEXT_MANAGER.setThreadLocalContext(tasklet->context_);
     // Register the tasklet context with the logger to track messages from this thread.
-    zotero_logger->pushContext(tasklet->context_.associated_item_);
+    ZoteroLogger::Get().pushContext(tasklet->context_.associated_item_);
     ++(*tasklet->running_instance_counter_);
 
     Status completion_status(Status::COMPLETED_SUCCESS);
@@ -330,7 +333,7 @@ template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::
     }
 
     // Deregister the tasklet context and flush its log messages.
-    zotero_logger->popContext(tasklet->context_.associated_item_);
+    ZoteroLogger::Get().popContext(tasklet->context_.associated_item_);
     --(*tasklet->running_instance_counter_);
 
     // Detach the thread so that its resources are automatically cleaned up.

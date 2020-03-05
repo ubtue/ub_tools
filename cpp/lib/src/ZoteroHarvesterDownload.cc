@@ -452,11 +452,15 @@ void Tasklet::run(const Params &parameters, Result * const result) {
         return;
     }
 
+    unsigned num_items_queued(0);
     for (const auto &item : *syndication_format) {
         const auto new_download_item(parameters.harvestable_manager_->newHarvestableItem(item.getLink(), parameters.download_item_.journal_));
         result->downloaded_items_.emplace_back(download_manager_->directDownload(new_download_item, parameters.user_agent_,
                                                                                  DirectDownload::Operation::USE_TRANSLATION_SERVER));
+        ++num_items_queued;
     }
+
+    LOG_INFO("Queued " + std::to_string(num_items_queued) + " items");
 }
 
 

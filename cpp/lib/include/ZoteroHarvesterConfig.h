@@ -180,6 +180,7 @@ struct JournalParams {
         std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
     } marc_metadata_params_;
 public:
+    JournalParams(const GlobalParams &global_params);
     JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);
     JournalParams(const GroupParams &rhs) = delete;
     JournalParams &operator=(const GroupParams &rhs) = delete;
