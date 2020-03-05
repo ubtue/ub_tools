@@ -54,6 +54,8 @@ Locale::~Locale() {
             LOG_ERROR("failed to restore thread locale");
     }
 
-    if (is_valid_)
+    if (is_valid_) {
+        ::uselocale(LC_GLOBAL_LOCALE);
         ::freelocale(new_locale_);
+    }
 }
