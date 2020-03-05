@@ -593,22 +593,19 @@ int Main(int argc, char *argv[]) {
     case CommandLineArgs::SelectionMode::UPLOAD:
     case CommandLineArgs::SelectionMode::JOURNAL:
         for (const auto &journal : harvester_config.journal_params_) {
-            bool skip_journal(false);
-
             if (commandline_args.selection_mode_ == CommandLineArgs::SelectionMode::UPLOAD
                 and commandline_args.selected_upload_operation_ != Config::UploadOperation::NONE
                 and journal->upload_operation_ != commandline_args.selected_upload_operation_)
             {
-                skip_journal = true;
-            } else if (commandline_args.selection_mode_ == CommandLineArgs::SelectionMode::JOURNAL
-                    and not commandline_args.selected_journals_.empty()
-                    and commandline_args.selected_journals_.find(journal->name_) == commandline_args.selected_journals_.end())
-            {
-                skip_journal = true;
+                continue;
             }
 
-            if (skip_journal)
+            if (commandline_args.selection_mode_ == CommandLineArgs::SelectionMode::JOURNAL
+                and not commandline_args.selected_journals_.empty()
+                and commandline_args.selected_journals_.find(journal->name_) == commandline_args.selected_journals_.end())
+            {
                 continue;
+            }
 
             auto current_journal_datastore(QueueDownloadsForJournal(*journal, harvester_config, &harvestable_manager,
                                                                     &download_manager, &harvester_metrics));
