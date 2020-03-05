@@ -360,8 +360,9 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
              --globally-substitute 689d 'v(\d+) ?- ?(\d+)' '\1 v.Chr.-\2' `# Replace v1-29 with 1 v.Chr-29` \
              --globally-substitute 689d 'v(\d+)' '\1 v. Chr.' `# Replace "v384" with "384 v. Chr."` \
              --globally-substitute 109a 'v(\d+) ?- ?v(\d+)' '\1 v. Chr.-\2 v. Chr.' `# Replace "v384-v322" with "384 v. Chr. - 322 v. Chr."` \
-             --globally-substitute 109a 'v(\d+)' '\1 v. Chr.' `# Replace "v384" with "384 v. Chr."` \
              --globally-substitute 109a 'v(\d+) ?- ?(\d+)' '\1 v.Chr.-\2' `# Replace v1-29 with 1 v.Chr-29` \
+             --globally-substitute 109a 'v(\d+)' '\1 v. Chr.' `# Replace "v384" with "384 v. Chr."` \
+             --globally-substitute SYGa 'v(\d+) ?- ?v(\d+)' '\1 v. Chr.-\2 v. Chr.' `# Replace "v384-v322" with "384 v. Chr. - 322 v. Chr."` \
              --globally-substitute SYGa 'v(\d+) ?- ?(\d+)' '\1 v.Chr.-\2' `# Replace v1-29 with 1 v.Chr-29` \
              --globally-substitute SYGa 'v(\d+)' '\1 v. Chr.' `# Replace "v384" with "384 v. Chr."` \
              >> "${log}" 2>&1 && \
