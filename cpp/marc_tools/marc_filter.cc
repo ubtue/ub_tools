@@ -650,9 +650,11 @@ bool SubstituteWithinSubfields(const std::vector<std::string> &subfield_specs, R
             if (subfield_codes.find(subfield.code_) == std::string::npos)
                 continue;
 
-            const auto new_field_contents(matcher.replaceWithBackreferences(subfield.value_, replacement, /* global = */true));
-            if (new_field_contents != field.getContents())
+            auto new_field_contents(matcher.replaceWithBackreferences(subfield.value_, replacement, /* global = */true));
+            if (new_field_contents != field.getContents()) {
+                subfield.value_.swap(new_field_contents);
                 modified_at_least_one_subfield = true;
+            }
         }
 
         if (modified_at_least_one_subfield) {
