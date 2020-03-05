@@ -1,7 +1,7 @@
 /** \brief A MARC-21 filter utility that can remove records or fields based on patterns for MARC subfields.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -58,24 +58,27 @@ void Usage() {
               << "           --remove-subfields field_or_subfield_specs\n"
               << "               Any subfields that matched will be dropped.\n"
               << "           --filter-chars subfield_specs characters_to_delete\n"
-              << "                Drops any characters in characters_to_delete from matching subfields.\n"
+              << "               Drops any characters in characters_to_delete from matching subfields.\n"
               << "           --max-count count\n"
               << "               Quit after we had count records that matched any one of our conditions.\n"
               << "           --translate subfield_specs character_set1 character_set2\n"
-              << "                 Inspired by tr, this is used to specify a mapping from one set of Unicode\n"
-              << "                 characters to another.  character_set1 and character_set2 must both must be either\n"
-              << "                 explicit and equally long lists of individual characters or the sequences [:upper:] or\n"
-              << "                 [:lower:] where currently [:upper:] and [:lower:] may only be mapped to each\n"
-              << "                 other.\n"
+              << "               Inspired by tr, this is used to specify a mapping from one set of Unicode\n"
+              << "               characters to another.  character_set1 and character_set2 must both must be either\n"
+              << "               explicit and equally long lists of individual characters or the sequences [:upper:] or\n"
+              << "               [:lower:] where currently [:upper:] and [:lower:] may only be mapped to each other.\n"
               << "           --replace subfield_specs pcre_regex replacement_string\n"
-              << "                replacement_string may contain back references like \\3 etc.\n"
+              << "               replacement_string may contain back references like \\3 etc.\n"
               << "             or\n"
               << "           --replace subfield_specs map_file\n"
-              << "             every line in \"map_file\" must either start with a hash character in which case it is\n"
-              << "             ignored or lines that look like \"regex->replacement\" followed by a newline.\n"
+              << "               every line in \"map_file\" must either start with a hash character in which case it is\n"
+              << "               ignored or lines that look like \"regex->replacement\" followed by a newline.\n"
               << "           --replace-strings subfield_specs map_file\n"
-              << "             every line in \"map_file\" must either start with a hash character in which case it is\n"
-              << "             ignored or lines that look like \"string1|string2|...|stringN->replacement\" followed by a newline.\n"
+              << "               every line in \"map_file\" must either start with a hash character in which case it is\n"
+              << "               ignored or lines that look like \"string1|string2|...|stringN->replacement\" followed by a newline.\n"
+              << "           --globally-substitute subfield_specs pcre_regex replacement_string\n"
+              << "               replacement_string may contain back references like \\3 etc.\n"
+              << "               Unlike --replace only the matched parts will be replaced.  This works like se s/.../.../g.\n"
+              << "             or\n"
               << "       --filter-chars and --translate character sets may contain any of the following escapes:\n"
               << "         \\n, \\t, \\b, \\r, \\f, \\v, \\a, \\\\, \\uNNNN and \\UNNNNNNNN\n"
               << "       If you don't specify an output format it will be the same as the input format.\n\n";
@@ -219,8 +222,8 @@ bool MatchedSubfield(const MARC::Record &record, const std::vector<CompiledPatte
 
 
 enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
-enum class FilterType { KEEP, DROP, KEEP_BIBLIOGRAPHIC_LEVEL, DROP_BIBLIOGRAPHIC_LEVEL, REMOVE_FIELDS,
-                        REMOVE_SUBFIELDS, FILTER_CHARS, MAX_COUNT, TRANSLATE, REPLACE, MAP_STRING_TO_STRING };
+enum class FilterType { KEEP, DROP, KEEP_BIBLIOGRAPHIC_LEVEL, DROP_BIBLIOGRAPHIC_LEVEL, REMOVE_FIELDS, REMOVE_SUBFIELDS, FILTER_CHARS,
+                        MAX_COUNT, TRANSLATE, REPLACE, MAP_STRING_TO_STRING, REPLACEMENT, GLOBAL_SUBSTITUTION };
 
 
 class TranslateMap {
@@ -343,6 +346,7 @@ private:
     RegexMatcher *regex_matcher_;
     std::unordered_map<std::string, std::string> originals_to_replacements_map_;
     std::vector<StringFragmentOrBackreference> string_fragments_and_back_references_;
+    std::string replacement_;
 public:
     inline FilterType getFilterType() const { return filter_type_; }
     inline const std::string &getBiblioLevels() const { return biblio_levels_; }
@@ -371,6 +375,8 @@ public:
     inline const std::vector<StringFragmentOrBackreference> &getStringFragmentsAndBackreferences() const {
         return string_fragments_and_back_references_;
     }
+
+    inline const std::string &getReplacement() const { return replacement_; }
 
     inline static FilterDescriptor MakeDropFilter(const std::vector<CompiledPattern *> &compiled_patterns) {
         return FilterDescriptor(FilterType::DROP, compiled_patterns);
@@ -415,7 +421,7 @@ public:
     inline static FilterDescriptor MakeReplacementFilter(const std::vector<std::string> &subfield_specs,
                                                          const std::string &regex, const std::string &replacement)
     {
-        return FilterDescriptor(subfield_specs, regex, replacement);
+        return FilterDescriptor(FilterType::REPLACEMENT, subfield_specs, regex, replacement);
     }
 
     inline static FilterDescriptor MakeStringReplacementFilter(
@@ -423,6 +429,12 @@ public:
         const std::unordered_map<std::string, std::string> &originals_to_replacements_map)
     {
         return FilterDescriptor(subfield_specs, originals_to_replacements_map);
+    }
+
+    inline static FilterDescriptor MakeGlobalSubstitutionFilter(const std::vector<std::string> &subfield_specs,
+                                                                const std::string &regex, const std::string &replacement)
+    {
+        return FilterDescriptor(FilterType::GLOBAL_SUBSTITUTION, subfield_specs, regex, replacement);
     }
 private:
     FilterDescriptor(const FilterType filter_type, const std::vector<CompiledPattern *> &compiled_patterns)
@@ -439,7 +451,7 @@ private:
     FilterDescriptor(const std::vector<std::string> &subfield_specs, const TranslateMap &translate_map)
         : filter_type_(FilterType::TRANSLATE), subfield_specs_(subfield_specs),
           translate_map_(translate_map.clone()), regex_matcher_(nullptr) { }
-    FilterDescriptor(const std::vector<std::string> &subfield_specs, const std::string &regex,
+    FilterDescriptor(const FilterType filter_type, const std::vector<std::string> &subfield_specs, const std::string &regex,
                      const std::string &replacement);
     FilterDescriptor(const std::vector<std::string> &subfield_specs,
                      const std::unordered_map<std::string, std::string> &originals_to_replacements_map)
@@ -483,14 +495,22 @@ void ParseReplacementString(const std::string &replacement,
 }
 
 
-FilterDescriptor::FilterDescriptor(const std::vector<std::string> &subfield_specs, const std::string &regex,
+FilterDescriptor::FilterDescriptor(const FilterType filter_type, const std::vector<std::string> &subfield_specs, const std::string &regex,
                                    const std::string &replacement)
-    : filter_type_(FilterType::REPLACE), subfield_specs_(subfield_specs), translate_map_(nullptr)
+    : filter_type_(filter_type), subfield_specs_(subfield_specs), translate_map_(nullptr)
 {
+    if (filter_type != FilterType::REPLACEMENT and filter_type != FilterType::GLOBAL_SUBSTITUTION)
+        LOG_ERROR("filter_type must be either REPLACEMENT or GLOBAL_SUBSTITUTION!");
+
     std::string err_msg;
     if ((regex_matcher_ = RegexMatcher::RegexMatcherFactory(regex, &err_msg)) == nullptr)
         LOG_ERROR("failed to compile regex \"" + regex + "\"! (" + err_msg + ")");
-    ParseReplacementString(replacement, &string_fragments_and_back_references_);
+    if (filter_type == FilterType::REPLACEMENT)
+        ParseReplacementString(replacement, &string_fragments_and_back_references_);
+    else if (filter_type == FilterType::GLOBAL_SUBSTITUTION)
+        replacement_ = replacement;
+    else
+        LOG_ERROR("unknown filter type " + std::to_string(static_cast<int>(filter_type)) + "!");
 }
 
 
@@ -615,6 +635,38 @@ bool ReplaceSubfields(const std::vector<std::string> &subfield_specs, RegexMatch
 }
 
 
+bool SubstituteWithinSubfields(const std::vector<std::string> &subfield_specs, RegexMatcher &matcher, const std::string &replacement,
+                               MARC::Record * const record)
+{
+    bool modified_at_least_one_field(false);
+    for (auto &field : *record) {
+        const std::string subfield_codes(GetSubfieldCodes(field.getTag(), subfield_specs));
+        if (subfield_codes.empty())
+            continue;
+
+        bool modified_at_least_one_subfield(false);
+        MARC::Subfields subfields(field.getSubfields());
+        for (auto &subfield : subfields) {
+            if (subfield_codes.find(subfield.code_) == std::string::npos)
+                continue;
+
+            auto new_field_contents(matcher.replaceWithBackreferences(subfield.value_, replacement, /* global = */true));
+            if (new_field_contents != subfield.value_) {
+                subfield.value_.swap(new_field_contents);
+                modified_at_least_one_subfield = true;
+            }
+        }
+
+        if (modified_at_least_one_subfield) {
+            modified_at_least_one_field = true;
+            field.setContents(std::string(1, field.getIndicator1()) + std::string(1, field.getIndicator2()) + subfields.toString());
+        }
+    }
+
+    return modified_at_least_one_field;
+}
+
+
 bool ReplaceStringsWithStrings(const std::vector<std::string> &subfield_specs,
                                const std::unordered_map<std::string, std::string> &originals_to_replacements_map,
                                MARC::Record * const record)
@@ -665,8 +717,7 @@ void Filter(const std::vector<FilterDescriptor> &filters, MARC::Reader * const m
                     continue;
                 }
             } else if (filter.getFilterType() == FilterType::DROP_BIBLIOGRAPHIC_LEVEL) {
-                if (std::strchr(filter.getBiblioLevels().c_str(),
-                                MARC::Record::BibliographicLevelToChar(record.getBibliographicLevel()))
+                if (std::strchr(filter.getBiblioLevels().c_str(), MARC::Record::BibliographicLevelToChar(record.getBibliographicLevel()))
                     != nullptr)
                 {
                     deleted_record = true;
@@ -698,7 +749,13 @@ void Filter(const std::vector<FilterDescriptor> &filters, MARC::Reader * const m
                 }
             } else if (filter.getFilterType() == FilterType::REPLACE) {
                 if (ReplaceSubfields(filter.getSubfieldSpecs(), filter.getRegexMatcher(),
-                                     filter.getStringFragmentsAndBackreferences(), &record)) {
+                                     filter.getStringFragmentsAndBackreferences(), &record))
+                {
+                    modified_record = true;
+                    continue;
+                }
+            } else if (filter.getFilterType() == FilterType::GLOBAL_SUBSTITUTION) {
+                if (SubstituteWithinSubfields(filter.getSubfieldSpecs(), filter.getRegexMatcher(), filter.getReplacement(), &record)){
                     modified_record = true;
                     continue;
                 }
@@ -867,7 +924,7 @@ void ProcessReplaceCommand(char ***argvp, std::vector<FilterDescriptor> * const 
     std::vector<std::string> subfield_specs;
     ExtractSubfieldSpecs("--replace", argvp, &subfield_specs);
     if (**argvp == nullptr or StringUtil::StartsWith(**argvp, "--"))
-        LOG_ERROR("missing regex or map-filename arg after --replace!");
+        LOG_ERROR("missing regex or map-filename arg after the subfield specification of --replace!");
     const std::string regex_or_map_filename(**argvp);
     ++*argvp;
     if (**argvp == nullptr or StringUtil::StartsWith(**argvp, "--")) {
@@ -881,6 +938,21 @@ void ProcessReplaceCommand(char ***argvp, std::vector<FilterDescriptor> * const 
         filters->emplace_back(FilterDescriptor::MakeReplacementFilter(subfield_specs, regex_or_map_filename, replacement));
         ++*argvp;
     }
+}
+
+
+void ProcessGloballySubstituteCommand(char ***argvp, std::vector<FilterDescriptor> * const filters) {
+    std::vector<std::string> subfield_specs;
+    ExtractSubfieldSpecs("--globally-substitute", argvp, &subfield_specs);
+    if (**argvp == nullptr or StringUtil::StartsWith(**argvp, "--"))
+        LOG_ERROR("missing regex after the subfield specification of --globally-substitute!");
+    const std::string regex(**argvp);
+    ++*argvp;
+    if (**argvp == nullptr or StringUtil::StartsWith(**argvp, "--"))
+        LOG_ERROR("missing replacement after the regex specification of --globally-substitute!");
+    const std::string replacement(**argvp);
+    ++*argvp;
+    filters->emplace_back(FilterDescriptor::MakeGlobalSubstitutionFilter(subfield_specs, regex, replacement));
 }
 
 
@@ -1002,6 +1074,8 @@ void ProcessFilterArgs(char **argv, std::vector<FilterDescriptor> * const filter
             ProcessReplaceCommand(&argv, filters);
         else if (std::strcmp(*argv, "--replace-strings") == 0)
             ProcessReplaceStringsCommand(&argv, filters);
+        else if (std::strcmp(*argv, "--globally-substitute") == 0)
+            ProcessGloballySubstituteCommand(&argv, filters);
         else
             LOG_ERROR("unknown operation type \"" + std::string(*argv) + "\"!");
     }
