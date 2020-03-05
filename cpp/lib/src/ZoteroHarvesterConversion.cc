@@ -574,7 +574,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
     const auto &ppn(journal_params.ppn_);
     if (not issn.online_.empty()) {
         if (ppn.online_.empty())
-            LOG_ERROR("cannot use online ISSN \"" + issn.online_ + "\" because no online PPN is given!");
+            throw std::runtime_error("cannot use online ISSN \"" + issn.online_ + "\" because no online PPN is given!");
         metadata_record->issn_ = issn.online_;
         metadata_record->superior_ppn_ = ppn.online_;
         metadata_record->superior_type_ = MetadataRecord::SuperiorType::ONLINE;
@@ -582,16 +582,16 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
         LOG_DEBUG("use online ISSN \"" + issn.online_ + "\" with online PPN \"" + ppn.online_ + "\"");
     } else if (not issn.print_.empty()) {
         if (ppn.print_.empty())
-            LOG_ERROR("cannot use print ISSN \"" + issn.print_ + "\" because no print PPN is given!");
+            throw std::runtime_error("cannot use print ISSN \"" + issn.print_ + "\" because no print PPN is given!");
         metadata_record->issn_ = issn.print_;
         metadata_record->superior_ppn_ = ppn.print_;
         metadata_record->superior_type_ = MetadataRecord::SuperiorType::PRINT;
 
         LOG_DEBUG("use print ISSN \"" + issn.print_ + "\" with print PPN \"" + ppn.print_ + "\"");
     } else {
-        LOG_ERROR("ISSN and PPN could not be chosen! ISSN online: \"" + issn.online_ + "\""
-                  + ", ISSN print: \"" + issn.print_ + "\", ISSN zotero: \"" + metadata_record->issn_ + "\""
-                  + ", PPN online: \"" + ppn.online_ + "\", PPN print: \"" + ppn.print_ + "\"");
+        throw std::runtime_error("ISSN and PPN could not be chosen! ISSN online: \"" + issn.online_ + "\""
+                                 + ", ISSN print: \"" + issn.print_ + "\", ISSN zotero: \"" + metadata_record->issn_ + "\""
+                                 + ", PPN online: \"" + ppn.online_ + "\", PPN print: \"" + ppn.print_ + "\"");
     }
 
     // fetch creator PPNs/GNDs and postprocess names
@@ -828,7 +828,7 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
 
     // Title
     if (metadata_record.title_.empty())
-        LOG_ERROR("no title provided for download item from URL " + download_item.url_.toString());
+        throw std::runtime_error("no title provided for download item from URL " + download_item.url_.toString());
     else
         marc_record->insertField("245", { { 'a', metadata_record.title_ } }, /* indicator 1 = */'0', /* indicator 2 = */'0');
 
@@ -1146,7 +1146,7 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
             }
 
             result->marc_records_.emplace_back(new_marc_record.release());
-            LOG_INFO("Generated record with hash '" + new_marc_record_hash + "'");
+            LOG_INFO("Generated record with hash '" + new_marc_record_hash + "'\n");
         } catch (const std::exception &x) {
             LOG_WARNING("couldn't convert record: " + std::string(x.what()));
         }
