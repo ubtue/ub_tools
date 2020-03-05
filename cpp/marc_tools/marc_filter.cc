@@ -651,7 +651,7 @@ bool SubstituteWithinSubfields(const std::vector<std::string> &subfield_specs, R
                 continue;
 
             auto new_field_contents(matcher.replaceWithBackreferences(subfield.value_, replacement, /* global = */true));
-            if (new_field_contents != field.getContents()) {
+            if (new_field_contents != subfield.value_) {
                 subfield.value_.swap(new_field_contents);
                 modified_at_least_one_subfield = true;
             }
@@ -665,7 +665,6 @@ bool SubstituteWithinSubfields(const std::vector<std::string> &subfield_specs, R
 
     return modified_at_least_one_field;
 }
-
 
 
 bool ReplaceStringsWithStrings(const std::vector<std::string> &subfield_specs,
