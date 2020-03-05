@@ -78,15 +78,6 @@ public:
 };
 
 
-std::string GetJournalNameOrDie(const MARC::Record &record) {
-    const auto journal_name(record.getSuperiorTitle());
-    if (unlikely(journal_name.empty()))
-        LOG_ERROR("the record w/ control number \"" + record.getControlNumber() + "\" is missing a superior title!");
-
-    return journal_name;
-}
-
-
 FieldPresence StringToFieldPresence(const std::string &s) {
     if (s == "always")
         return ALWAYS;
@@ -208,7 +199,7 @@ void SendEmail(const std::string &email_address, const std::string &message_subj
                           /* use_ssl = */ true, /* use_authentication = */ true));
 
     if (reply_code >= 300)
-        LOG_ERROR("failed to send email, the response code was: " + std::to_string(reply_code));
+        LOG_WARNING("failed to send email, the response code was: " + std::to_string(reply_code));
 }
 
 
@@ -229,30 +220,43 @@ int Main(int argc, char *argv[]) {
     unsigned total_record_count(0), new_record_count(0), missed_expectation_count(0);
     while (const auto record = reader->read()) {
         ++total_record_count;
-        const auto journal_name(GetJournalNameOrDie(record));
+        bool validation_failed(false);
 
-        auto journal_name_and_info(journal_name_to_info_map.find(journal_name));
-        bool first_record(false); // True if the current record is the first encounter of a journal
-        if (journal_name_and_info == journal_name_to_info_map.end()) {
-            first_record = true;
-            JournalInfo new_journal_info;
-            LoadFromDatabaseOrCreateFromScratch(&db_connection, journal_name, &new_journal_info);
-            journal_name_to_info_map[journal_name] = new_journal_info;
-            journal_name_and_info = journal_name_to_info_map.find(journal_name);
-        }
-
-        bool missed_expectation(false);
-        if (journal_name_and_info->second.isInDatabase()) {
-            if (not RecordMeetsExpectations(record, journal_name_and_info->first, journal_name_and_info->second)) {
-                missed_expectation = true;
-                ++missed_expectation_count;
+        // Intentionally true to allow early breaking
+        while (true) {
+            const auto journal_name(record.getSuperiorTitle());
+            if (journal_name.empty()) {
+                LOG_WARNING("Record w/ control number \"" + record.getControlNumber() + "\" is missing a superior title!");
+                validation_failed = true;
+                break;
             }
-        } else {
-            AnalyseNewJournalRecord(record, first_record, &journal_name_and_info->second);
-            ++new_record_count;
+
+            auto journal_name_and_info(journal_name_to_info_map.find(journal_name));
+            bool first_record(false); // True if the current record is the first encounter of a journal
+            if (journal_name_and_info == journal_name_to_info_map.end()) {
+                first_record = true;
+                JournalInfo new_journal_info;
+                LoadFromDatabaseOrCreateFromScratch(&db_connection, journal_name, &new_journal_info);
+                journal_name_to_info_map[journal_name] = new_journal_info;
+                journal_name_and_info = journal_name_to_info_map.find(journal_name);
+            }
+
+            if (journal_name_and_info->second.isInDatabase()) {
+                if (not RecordMeetsExpectations(record, journal_name_and_info->first, journal_name_and_info->second)) {
+                    validation_failed = true;
+                    ++missed_expectation_count;
+                    break;
+                }
+            } else {
+                AnalyseNewJournalRecord(record, first_record, &journal_name_and_info->second);
+                ++new_record_count;
+            }
+
+            // Break unconditionally
+            break;
         }
 
-        if (missed_expectation)
+        if (validation_failed)
             delinquent_records_writer->write(record);
         else
             valid_records_writer->write(record);

@@ -161,6 +161,7 @@ void ZoteroLogger::error(const std::string &msg) {
     writeToBackingLog("Faulty Zotero tasklet:");
     writeToBackingLog("\tparent tasklet: " + context->description_ + " (handle: " + std::to_string(::pthread_self()) + ")\n");
     writeToBackingLog("\titem: " + context->associated_item_.toString() + "\n\n");
+    writeToBackingLog("Faulty Zotero tasklet log buffer:\n");
     writeToBackingLog(faulty_tasklet_buffer);
 
     // Write the final error message and terminate the process
@@ -521,9 +522,6 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
 
     return true;
 }
-
-
-std::recursive_mutex non_threadsafe_locale_modification_guard;
 
 
 std::set<std::string> GetMarcRecordUrls(const MARC::Record &record) {

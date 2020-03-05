@@ -34,6 +34,8 @@
 //      1. Disable optimizations (the Makefile should refer to the environment variable that needs to be modified).
 //      3. Turn on ThreadSanitizer/AddressSanitizer in the Makefile.
 //      4. Set the symbolizer path environment variables (c.f https://clang.llvm.org/docs/SanitizerSpecialCaseList.html)
+// Notes:
+//      1. The race-condition triggered by WebUtil::ParseWebDateAndTime in tzset() is benign and can be ignored.
 namespace {
 
 
