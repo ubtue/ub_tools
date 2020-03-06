@@ -514,21 +514,6 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
     if (recordAlreadyDelivered(hash, urls, &db_connection))
         return false;
 
-    std::string publication_year, volume, issue, pages;
-    const auto _936_field(record.getFirstField("936"));
-    if (_936_field != record.end()) {
-        const MARC::Subfields subfields(_936_field->getSubfields());
-        if (subfields.hasSubfield('j'))
-            publication_year = ",publication_year=" + db_connection.escapeAndQuoteString(subfields.getFirstSubfieldWithCode('j'));
-        if (subfields.hasSubfield('d'))
-            volume = ",volume=" + db_connection.escapeAndQuoteString(subfields.getFirstSubfieldWithCode('d'));
-        if (subfields.hasSubfield('e'))
-            issue = ",issue=" + db_connection.escapeAndQuoteString(subfields.getFirstSubfieldWithCode('e'));
-        if (subfields.hasSubfield('h'))
-            pages = ",pages=" + db_connection.escapeAndQuoteString(subfields.getFirstSubfieldWithCode('h'));
-    }
-
-    std::string resource_type(record.getFirstFieldContents("007") == "tu" ? "print" : "online");
     const auto zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
     const auto journal_name(record.getFirstSubfieldValue("JOU", 'a'));
     const auto main_title(record.getMainTitle());
@@ -536,8 +521,6 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
                              + ",journal_name=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(journal_name))
                              + ",hash=" + db_connection.escapeAndQuoteString(hash)
                              + ",main_title=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(main_title))
-                             + publication_year + volume + issue + pages
-                             + ",resource_type=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(resource_type))
                              + ",record="
                              + db_connection.escapeAndQuoteString(GzStream::CompressString(record.toBinaryString(), GzStream::GZIP)));
 
