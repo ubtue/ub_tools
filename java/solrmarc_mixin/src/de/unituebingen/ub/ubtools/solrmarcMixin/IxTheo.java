@@ -14,6 +14,7 @@ import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.VariableField;
 import org.marc4j.marc.*;
+import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.DataUtil;
 import org.solrmarc.tools.Utils;
@@ -188,5 +189,87 @@ public class IxTheo extends SolrIndexerMixin {
 
     public String getIsCanonLaw(final Record record) {
         return record.getVariableFields("CAN").isEmpty() ? "false" : "true";
+    }
+
+    /** \class RegexAndReplacement
+     *  \brief Combines a compiled regular expression w/ a replacement string w/ backreferences
+     */
+    public static class RegexAndReplacement {
+        Pattern pattern;
+        char[] replacement;
+        public RegexAndReplacement(final String pattern, final String replacement) {
+            this.pattern = Pattern.compile(pattern);
+            this.replacement = replacement.toCharArray();
+        }
+
+        /** \return If the regex matched all matches will be replaced by the replacemnt pattern o/w the original
+            "subject" will be returned. */
+        public String replaceAll(final String subject) {
+            final Matcher matcher = this.pattern.matcher(subject);
+            final StringBuilder stringBuilder = new StringBuilder();
+            boolean foundAtLeastOneMatch = false;
+            int lastEnd = 0;
+            while (matcher.find()) {
+                foundAtLeastOneMatch = true;
+                stringBuilder.append(subject.substring(lastEnd, matcher.start()));
+                boolean backslash_seen = false;
+                for (final char ch : this.replacement) {
+                    if (backslash_seen) {
+                        if (ch == '\\')
+                            stringBuilder.append('\\');
+                        else {
+                            final int groupIndex = Character.digit(ch, 10);
+                            if (groupIndex == -1) {
+                                System.err.println("bad backreference group index character in " + this.replacement);
+                                System.exit(-1);
+                            }
+                            stringBuilder.append(matcher.group(groupIndex));
+                        }
+                        backslash_seen = false;
+                    } else if (ch == '\\')
+                          backslash_seen = true;
+                    else
+                        stringBuilder.append(ch);
+
+                }
+                lastEnd = matcher.end();
+            }
+
+            return foundAtLeastOneMatch ? stringBuilder.toString() : subject;
+        }
+    }
+
+    // Non-standard BCE year references and their standardized replacements. Backreferences for matched groups look like \\N
+    // where N is a single-digit ASCII character referecing the N-th matched group.
+    private static List<RegexAndReplacement> bce_replacement_map;
+    static {
+        final ArrayList<RegexAndReplacement> tempList = new ArrayList<RegexAndReplacement>();
+        tempList.add(new RegexAndReplacement("v(\\d+) ?- ?v(\\d+)", "\\1 v.Chr.-\\2 v.Chr"));
+        tempList.add(new RegexAndReplacement("v(\\d+) ?- ?(\\d+)", "\\1 v.Chr.-\\2"));
+        tempList.add(new RegexAndReplacement("v(\\d+)", "\\1 v. Chr."));
+        bce_replacement_map = Collections.unmodifiableList(tempList);
+    }
+
+    // Replaces all occurences of the first match found in bce_replacement_map, or returns the original string if no matches were found.
+    static String replaceBCEPatterns(final String s) {
+        for (final RegexAndReplacement regex_and_replacement : bce_replacement_map) {
+            final String patchedString = regex_and_replacement.replaceAll(s);
+            if (!patchedString.equals(s))
+                return patchedString;
+        }
+
+        return s;
+    }
+
+    // For subfields sepcified by "fieldSpecs" matches found in "bce_replacement_map" will be substituted w/ their replacements.
+    // Non-matching subfields contents will be returned unaltered.
+    public Set<String> getBCENormalizedContents(final Record record, final String fieldSpecs) {
+        Set<String> normalizedValues = new HashSet<String>();
+
+        final Set<String> values = SolrIndexer.instance().getFieldList(record, fieldSpecs);
+        for (final String value : values)
+            normalizedValues.add(replaceBCEPatterns(value));
+
+        return normalizedValues;
     }
 }
