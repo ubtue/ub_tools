@@ -196,57 +196,28 @@ public class IxTheo extends SolrIndexerMixin {
      */
     public static class RegexAndReplacement {
         Pattern pattern;
-        char[] replacement;
+        String replacement;
         public RegexAndReplacement(final String pattern, final String replacement) {
             this.pattern = Pattern.compile(pattern);
-            this.replacement = replacement.toCharArray();
+            this.replacement = replacement;
         }
 
         /** \return If the regex matched all matches will be replaced by the replacemnt pattern o/w the original
             "subject" will be returned. */
         public String replaceAll(final String subject) {
             final Matcher matcher = this.pattern.matcher(subject);
-            final StringBuilder stringBuilder = new StringBuilder();
-            boolean foundAtLeastOneMatch = false;
-            int lastEnd = 0;
-            while (matcher.find()) {
-                foundAtLeastOneMatch = true;
-                stringBuilder.append(subject.substring(lastEnd, matcher.start()));
-                boolean backslash_seen = false;
-                for (final char ch : this.replacement) {
-                    if (backslash_seen) {
-                        if (ch == '\\')
-                            stringBuilder.append('\\');
-                        else {
-                            final int groupIndex = Character.digit(ch, 10);
-                            if (groupIndex == -1) {
-                                System.err.println("bad backreference group index character in " + this.replacement);
-                                System.exit(-1);
-                            }
-                            stringBuilder.append(matcher.group(groupIndex));
-                        }
-                        backslash_seen = false;
-                    } else if (ch == '\\')
-                          backslash_seen = true;
-                    else
-                        stringBuilder.append(ch);
-
-                }
-                lastEnd = matcher.end();
-            }
-
-            return foundAtLeastOneMatch ? stringBuilder.toString() : subject;
+            return matcher.replaceAll(this.replacement);
         }
     }
 
-    // Non-standard BCE year references and their standardized replacements. Backreferences for matched groups look like \\N
+    // Non-standard BCE year references and their standardized replacements. Backreferences for matched groups look like $N
     // where N is a single-digit ASCII character referecing the N-th matched group.
     private static List<RegexAndReplacement> bce_replacement_map;
     static {
         final ArrayList<RegexAndReplacement> tempList = new ArrayList<RegexAndReplacement>();
-        tempList.add(new RegexAndReplacement("v(\\d+) ?- ?v(\\d+)", "\\1 v.Chr.-\\2 v.Chr"));
-        tempList.add(new RegexAndReplacement("v(\\d+) ?- ?(\\d+)", "\\1 v.Chr.-\\2"));
-        tempList.add(new RegexAndReplacement("v(\\d+)", "\\1 v. Chr."));
+        tempList.add(new RegexAndReplacement("v(\\d+) ?- ?v(\\d+)", "$1 v.Chr.-$2 v.Chr"));
+        tempList.add(new RegexAndReplacement("v(\\d+) ?- ?(\\d+)", "$1 v.Chr.-$2"));
+        tempList.add(new RegexAndReplacement("v(\\d+)", "$1 v. Chr."));
         bce_replacement_map = Collections.unmodifiableList(tempList);
     }
 
