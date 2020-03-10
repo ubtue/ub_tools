@@ -6,6 +6,7 @@ import urllib.request, urllib.error, urllib.parse
 import os
 import struct
 import sys
+import time
 import traceback
 import util
 
@@ -101,8 +102,15 @@ REFTERM_MUTEX_FILE = "/tmp/create_refterm_successful" # Must match mutex file na
 def FoundReftermMutex():
     return os.path.exists(REFTERM_MUTEX_FILE)
 
+
 def DeleteReftermMutex():
     os.remove(REFTERM_MUTEX_FILE)
+
+
+def WriteImportFinishedFile():
+    import_finished_file = '/usr/local/vufind/public/last_import.txt'
+    with open(import_finished_file, "w") as import_finished:
+        import_finished.write(time.strftime("%Y%m%d-%H%M%S"))
 
 
 def Main():
@@ -137,6 +145,7 @@ def Main():
                        attachments=[solrmarc_log_summary, import_log_summary])
         util.WriteTimestamp()
         DeleteReftermMutex();
+        WriteImportFinishedFile()
     else:
         util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.", priority=5)
 
