@@ -107,10 +107,10 @@ const std::vector<std::pair<RegexMatcher *, std::string>> matchers_and_replaceme
 
 std::string ReplaceNonStandardBCEDates(const std::string &dates) {
     for (const auto &matcher_and_replacement : matchers_and_replacements) {
-            RegexMatcher * const matcher(matcher_and_replacement.first);
-            const std::string replaced_string(matcher->replaceWithBackreferences(dates, matcher_and_replacement.second));
-            if (replaced_string != dates)
-                return replaced_string;
+        RegexMatcher * const matcher(matcher_and_replacement.first);
+        const std::string replaced_string(matcher->replaceWithBackreferences(dates, matcher_and_replacement.second));
+        if (replaced_string != dates)
+            return replaced_string;
     }
 
     return dates;
