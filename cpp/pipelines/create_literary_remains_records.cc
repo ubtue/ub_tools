@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2019, Library of the University of Tübingen
+    Copyright (C) 2019-2020, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -25,6 +25,7 @@
 #include <unordered_set>
 #include "FileUtil.h"
 #include "MARC.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
 #include "util.h"
@@ -85,6 +86,37 @@ public:
 };
 
 
+std::vector<std::pair<RegexMatcher *, std::string>> CompileMatchers() {
+    // Please note that the order in the following vector matters.  The first successful match will be used.
+    const std::vector<std::pair<std::string, std::string>> patterns_and_replacements {
+        { "v([0-9]+) ?- ?v([0-9]+)", "\\1 v. Chr. - \\2 v. Chr." },
+        { "v([0-9]+)"              , "\\1 v. Chr."               },
+    };
+
+    std::vector<std::pair<RegexMatcher *, std::string>> compiled_patterns_and_replacements;
+    for (const auto &pattern_and_replacement : patterns_and_replacements)
+        compiled_patterns_and_replacements.push_back(
+            std::pair<RegexMatcher *, std::string>(RegexMatcher::RegexMatcherFactoryOrDie(pattern_and_replacement.first),
+                                                   pattern_and_replacement.second));
+    return compiled_patterns_and_replacements;
+}
+
+
+const std::vector<std::pair<RegexMatcher *, std::string>> matchers_and_replacements(CompileMatchers());
+
+
+std::string ReplaceNonStandardBCEDates(const std::string &dates) {
+    for (const auto &matcher_and_replacement : matchers_and_replacements) {
+        RegexMatcher * const matcher(matcher_and_replacement.first);
+        const std::string replaced_string(matcher->replaceWithBackreferences(dates, matcher_and_replacement.second));
+        if (replaced_string != dates)
+            return replaced_string;
+    }
+
+    return dates;
+}
+
+
 void LoadAuthorGNDNumbersAndTagAuthors(
     MARC::Reader * const reader, MARC::Writer * const writer,
     const std::unordered_map<std::string, TitleRecordCounter> &author_ppn_to_relstudies_titles_counters,
@@ -116,7 +148,7 @@ void LoadAuthorGNDNumbersAndTagAuthors(
                                    ? name_and_numeration + " (" + titles_and_other_words_associated_with_a_name + ")"
                                    : name_and_numeration);
 
-        const auto dates(_100_field->getFirstSubfieldWithCode('d'));
+        const auto dates(ReplaceNonStandardBCEDates(_100_field->getFirstSubfieldWithCode('d')));
 
         std::vector<LiteraryRemainsInfo> literary_remains_infos;
         while (beacon_field != record.end() and beacon_field->getTag() == "BEA") {
