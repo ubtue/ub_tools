@@ -157,7 +157,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
                                               tuelibMixin.getTranslationOrNull(String.join(" / ", complexElements), lang) : null;
             String keywordString = (complexTranslation != null) ? complexTranslation : keyword.toString();
             keywordString = keywordString.replace("/", "\\/");
-            keyWordChain.add(keywordString);
+            keyWordChain.add(lang.equals("de") ? BCEReplacer.replaceBCEPatterns(keywordString) : keywordString);
         }
     }
 
