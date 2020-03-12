@@ -2,7 +2,7 @@
  *  \brief   A simple tool for performing single lookups in a JSON file.
  *  \author  Dr. Johannes Ruscheinski
  *
- *  \copyright (C) 2017,2018,2020 Library of the University of Tübingen
+ *  \copyright (C) 2017-2020 Library of the University of Tübingen
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -65,20 +65,18 @@ int Main(int /*argc*/, char *argv[]) {
 
     JSON::Parser parser(json_document);
     std::shared_ptr<JSON::JSONNode> tree;
-    if (not parser.parse(&tree)) {
-        std::cerr << ::progname << ": " << parser.getErrorMessage() << '\n';
-        return EXIT_FAILURE;
-    }
+    if (not parser.parse(&tree))
+        LOG_ERROR(parser.getErrorMessage());
 
     if (print)
         std::cout << tree->toString() << '\n';
 
     if (not lookup_path.empty())
-        std::cerr << lookup_path << ": "
+        std::cout << lookup_path << ": "
                   << (default_value.empty() ? JSON::LookupString(lookup_path, tree) : JSON::LookupString(lookup_path, tree, default_value))
                   << '\n';
     else
-        std::cerr << "lookup_path is empty!!!\n";
+        LOG_DEBUG("lookup_path is empty!");
 
     return EXIT_SUCCESS;
 }
