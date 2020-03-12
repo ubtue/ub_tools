@@ -411,6 +411,12 @@ std::vector<T> RemoveDuplicatesKeepOrder(std::vector<T>& vec) {
 }
 
 
+bool ColumnExists(DbConnection * const db_connection, const std::string &column_name) {
+    const std::string column_exists_query("SHOW COLUMNS FROM ikr LIKE \'" + column_name + "\'");
+    return not ExecSqlAndReturnResultsOrDie(column_exists_query, db_connection).empty();
+}
+
+
 // Use this as a workaround for titles that lead to problems if handled case insensitively
 const std::set<std::string> case_insensitive_blocked{ "Utrumque Ius" };
 
@@ -427,8 +433,16 @@ void AugmentDBEntries(DbConnection * const db_connection,
                       const bool keep_a_gnd)
 
 {
+    // Text the existence of originally newly added fields
+    const bool f_ppn_exists(ColumnExists(db_connection, "f_ppn"));
+    const bool f_quelle_exists(ColumnExists(db_connection, "f_quelle"));
+
     // Iterate over Database
-    const std::string ikr_query("SELECT id,autor,stichwort,cicbezug,fundstelle,jahr,abstract" + (keep_a_gnd ? std::string(",a_gnd") : std::string("")) + " FROM ikr");
+    const std::string ikr_query("SELECT id,autor,stichwort,cicbezug,fundstelle,jahr,abstract" +
+                                 (keep_a_gnd ? std::string(",a_gnd") : std::string("")) +
+                                 (f_ppn_exists ? std::string(",f_ppn") : "") +
+                                 (f_quelle_exists ? std::string(",f_quelle") : "") +
+                                 + " FROM ikr");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(ikr_query, db_connection));
     while (const DbRow db_row = result_set.getNextRow()) {
         // Authors
@@ -520,14 +534,22 @@ void AugmentDBEntries(DbConnection * const db_connection,
         const std::string fundstelle_row(db_row["fundstelle"]);
         std::string f_ppn;
         std::string f_quelle;
-        for (const auto &entry : find_discovery_map) {
-            size_t start, end;
-            unsigned options(RegexMatcher::ENABLE_UTF8);
-            options |= case_insensitive_blocked.find(entry.second) == case_insensitive_blocked.end() ? RegexMatcher::CASE_INSENSITIVE : 0;
-            if (RegexMatcher::Matched("(?<!\\pL)" + entry.second + "(?!\\pL)", fundstelle_row, options, nullptr, &start, &end)) {
-                f_ppn = entry.first;
-                f_quelle = ExtractAndFormatSource(fundstelle_row.substr(end), fundstelle_row.substr(0, start));
-                break;
+
+        // We have manual changes after our run on the original file......
+        if (result_set.hasColumn("f_quelle") and not db_row["f_quelle"].empty())
+            f_quelle = db_row["f_quelle"];
+        if (result_set.hasColumn("f_ppn") and not db_row["f_ppn"].empty())
+            f_ppn = db_row["f_ppn"];
+        else {
+            for (const auto &entry : find_discovery_map) {
+                size_t start, end;
+                unsigned options(RegexMatcher::ENABLE_UTF8);
+                options |= case_insensitive_blocked.find(entry.second) == case_insensitive_blocked.end() ? RegexMatcher::CASE_INSENSITIVE : 0;
+                if (RegexMatcher::Matched("(?<!\\pL)" + entry.second + "(?!\\pL)", fundstelle_row, options, nullptr, &start, &end)) {
+                    f_ppn = entry.first;
+                    f_quelle = ExtractAndFormatSource(fundstelle_row.substr(end), fundstelle_row.substr(0, start));
+                    break;
+                }
             }
         }
 
