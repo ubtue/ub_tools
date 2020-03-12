@@ -370,7 +370,8 @@ bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Con
     if (force_downloads_)
         return true;
 
-    const auto last_harvest_timestamp(upload_tracker_.getLastUploadTime(journal_params.name_));
+    const auto last_harvest_timestamp(upload_tracker_.getLastUploadTime(journal_params.zeder_id_,
+                                      Config::GetZederInstanceForJournal(journal_params)));
     if (last_harvest_timestamp == TimeUtil::BAD_TIME_T) {
         LOG_INFO("feed will be harvested for the first time");
         return true;

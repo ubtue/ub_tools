@@ -323,6 +323,18 @@ void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr
 }
 
 
+Zeder::Flavour GetZederInstanceForJournal(const JournalParams &journal_params) {
+    if (journal_params.group_ == "IxTheo" or journal_params.group_ == "ixtheo")
+        return Zeder::Flavour::IXTHEO;
+    else if (journal_params.group_ == "RelBib" or journal_params.group_ == "relbib")
+        return Zeder::Flavour::IXTHEO;
+    else if (journal_params.group_ == "KrimDok" or journal_params.group_ == "krimdok")
+        return Zeder::Flavour::KRIMDOK;
+
+    LOG_ERROR("unknown group '" + journal_params.group_ + "' for journal '" + journal_params.name_ + "'");
+}
+
+
 } // end namespace Config
 
 

@@ -1,0 +1,10 @@
+DROP TABLE delivered_marc_records_superior_info;
+
+DROP INDEX delivered_marc_records_journal_name_index on delivered_marc_records;
+
+ALTER TABLE delivered_marc_records DROP COLUMN journal_name;
+
+ALTER TABLE delivered_marc_records ADD COLUMN zeder_instance ENUM('ixtheo', 'krimdok') NOT NULL;
+CREATE INDEX delivered_marc_records_zeder_instance_index on delivered_marc_records(zeder_instance);
+
+
