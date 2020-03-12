@@ -59,29 +59,26 @@ int Main(int /*argc*/, char *argv[]) {
         ++argv;
     }
 
-    try {
-        std::string json_document;
-        if (not FileUtil::ReadString(json_input_filename, &json_document))
-            logger->error("could not read \"" + json_input_filename + "\"!");
+    std::string json_document;
+    if (not FileUtil::ReadString(json_input_filename, &json_document))
+        LOG_ERROR("could not read \"" + json_input_filename + "\"!");
 
-        JSON::Parser parser(json_document);
-        std::shared_ptr<JSON::JSONNode> tree;
-        if (not parser.parse(&tree)) {
-            std::cerr << ::progname << ": " << parser.getErrorMessage() << '\n';
-            return EXIT_FAILURE;
-        }
-
-        if (print)
-            std::cout << tree->toString() << '\n';
-
-        if (not lookup_path.empty())
-            std::cerr << lookup_path << ": "
-                      << (default_value.empty() ? JSON::LookupString(lookup_path, tree)
-                                                : JSON::LookupString(lookup_path, tree), default_value)
-                      << '\n';
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+    JSON::Parser parser(json_document);
+    std::shared_ptr<JSON::JSONNode> tree;
+    if (not parser.parse(&tree)) {
+        std::cerr << ::progname << ": " << parser.getErrorMessage() << '\n';
+        return EXIT_FAILURE;
     }
+
+    if (print)
+        std::cout << tree->toString() << '\n';
+
+    if (not lookup_path.empty())
+        std::cerr << lookup_path << ": "
+                  << (default_value.empty() ? JSON::LookupString(lookup_path, tree) : JSON::LookupString(lookup_path, tree, default_value))
+                  << '\n';
+    else
+        std::cerr << "lookup_path is empty!!!\n";
 
     return EXIT_SUCCESS;
 }
