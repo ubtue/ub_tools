@@ -545,7 +545,7 @@ public:
     bool hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries = nullptr) const;
     bool recordAlreadyDelivered(const MARC::Record &record) const;
 
-    std::vector<Entry> getEntriesByZederId(const std::string &zeder_id);
+    std::vector<Entry> getEntriesByZederId(const std::string &zeder_id, const Zeder::Flavour zeder_flavour);
 
     // Returns when the last URL of the given journal was delivered to the BSZ. If found,
     // returns the timestamp of the last delivery, TimeUtil::BAD_TIME_T otherwise.

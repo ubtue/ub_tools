@@ -478,7 +478,6 @@ time_t UploadTracker::getLastUploadTime(const unsigned zeder_id, const Zeder::Fl
     DbConnection db_connection;
 
     const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
-
     db_connection.queryOrDie("SELECT delivered_at FROM delivered_marc_records WHERE zeder_id=" + std::to_string(zeder_id)
                              + " AND zeder_instance='" + db_connection.escapeString(zeder_instance) + "' ORDER BY delivered_at DESC");
     auto result_set(db_connection.getLastResultSet());
@@ -489,13 +488,16 @@ time_t UploadTracker::getLastUploadTime(const unsigned zeder_id, const Zeder::Fl
 }
 
 
-std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederId(const std::string &zeder_id) {
+std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederId(const std::string &zeder_id, const Zeder::Flavour zeder_flavour) {
+    WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
 
+    const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
     db_connection.queryOrDie("SELECT t2.url, t1.delivered_at, t1.zeder_id, t1.zeder_instance, t1.main_title, t1.hash "
                              "FROM delivered_marc_records_urls as t2 "
                              "LEFT JOIN delivered_marc_records as t1 ON t2.record_id = t1.id WHERE t1.zeder_id="
-                             + db_connection.escapeString(zeder_id));
+                             + db_connection.escapeString(zeder_id) + " AND t1.zeder_instance="
+                             + db_connection.escapeAndQuoteString(zeder_instance));
 
     auto result_set(db_connection.getLastResultSet());
     std::vector<Entry> entries;
