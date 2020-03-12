@@ -39,23 +39,17 @@ CREATE TABLE delivered_marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hash VARCHAR(40) NOT NULL,
     zeder_id VARCHAR(10) NOT NULL,
+    zeder_instance ENUM('ixtheo', 'krimdok') NOT NULL,
     delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    journal_name VARCHAR(1000) NOT NULL,
     main_title VARCHAR(1000) NOT NULL,
     record BLOB NOT NULL,
     INDEX delivered_marc_records_hash_index(hash),
     INDEX delivered_marc_records_zeder_id_index(zeder_id),
+    INDEX delivered_marc_records_zeder_instance_index(zeder_instance),
     INDEX delivered_marc_records_delivered_at_index(delivered_at),
-    INDEX delivered_marc_records_journal_name_index(journal_name(768)),
     INDEX delivered_marc_records_main_title_index(main_title(768))
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
-CREATE TABLE delivered_marc_records_superior_info (
-    zeder_id VARCHAR(10) PRIMARY KEY,
-    control_number VARCHAR(20) DEFAULT NULL,
-    title VARCHAR(1000) NOT NULL,
-    CONSTRAINT zeder_id FOREIGN KEY (zeder_id) REFERENCES delivered_marc_records (zeder_id) ON DELETE CASCADE ON UPDATE CASCADE
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 CREATE TABLE delivered_marc_records_urls (
     record_id INT,

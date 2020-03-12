@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include "IniFile.h"
 #include "RegexMatcher.h"
+#include "Zeder.h"
 
 
 namespace ZoteroHarvester {
@@ -212,6 +213,9 @@ public:
 void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
                              std::vector<std::unique_ptr<JournalParams>> * const journal_params);
+
+
+Zeder::Flavour GetZederInstanceForJournal(const JournalParams &journal_params);
 
 
 } // end namespace Config
