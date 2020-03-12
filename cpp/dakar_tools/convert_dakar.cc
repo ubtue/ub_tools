@@ -536,10 +536,10 @@ void AugmentDBEntries(DbConnection * const db_connection,
         std::string f_quelle;
 
         // We have manual changes after our run on the original file......
-        if (result_set.hasColumn("f_quelle") and not db_row["f_quelle"].empty())
-            f_quelle = db_row["f_quelle"];
         if (result_set.hasColumn("f_ppn") and not db_row["f_ppn"].empty())
             f_ppn = db_row["f_ppn"];
+        if (result_set.hasColumn("f_quelle") and not db_row["f_quelle"].empty())
+            f_quelle = db_row["f_quelle"];
         else {
             for (const auto &entry : find_discovery_map) {
                 size_t start, end;
