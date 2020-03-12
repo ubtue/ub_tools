@@ -554,6 +554,8 @@ public:
     // Saves the record blob and its associated metadata in the host's database.
     // Returns true on success, false otherwise.
     bool archiveRecord(const MARC::Record &record);
+
+    static std::string GetZederInstanceString(const Zeder::Flavour zeder_flavour);
 private:
     bool urlAlreadyDelivered(const std::string &url, Entry * const entry, DbConnection * const db_connection) const;
     bool hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries,
