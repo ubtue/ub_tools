@@ -2,7 +2,7 @@
  *  \brief  Implementation of functions relating to PDF documents.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -139,7 +139,7 @@ bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_
 
 
 bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tesseract_language_code,
-                         std::string * const extracted_text, unsigned timeout)
+                         std::string * const extracted_text, const unsigned timeout)
 {
     extracted_text->clear();
 
@@ -170,7 +170,7 @@ bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tes
             LOG_WARNING("failed to extract text from image " + pdf_image_filename);
             return false;
         }
-         *extracted_text += " " + image_text;
+        *extracted_text += " " + image_text;
     }
 
     *extracted_text = StringUtil::TrimWhite(*extracted_text);
@@ -179,7 +179,8 @@ bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tes
 
 
 bool GetOCRedTextFromPDF(const std::string &pdf_document_path, const std::string &tesseract_language_code,
-                         std::string * const extracted_text, unsigned timeout) {
+                         std::string * const extracted_text, const unsigned timeout)
+{
     extracted_text->clear();
     static std::string pdf_to_image_command(ExecUtil::LocateOrDie("convert"));
     const FileUtil::AutoTempDirectory auto_temp_dir;

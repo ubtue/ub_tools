@@ -2,7 +2,7 @@
  *  \brief  Functions relating to PDF documents.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -51,11 +51,11 @@ bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_
 
 /** \brief Uses pdfimages + tesseract API to attempt OCR. */
 bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tesseract_language_code,
-                         std::string * const extracted_text, unsigned timeout=DEFAULT_PDF_EXTRACTION_TIMEOUT /* in s */);
+                         std::string * const extracted_text, const unsigned timeout = DEFAULT_PDF_EXTRACTION_TIMEOUT /* in s */);
 
 /** \brief Convert pdf to image and then attempt tesseract OCR. */
 bool GetOCRedTextFromPDF(const std::string &pdf_document_path, const std::string &tesseract_language_code,
-                         std::string * const extracted_text, unsigned timeout=DEFAULT_PDF_EXTRACTION_TIMEOUT);
+                         std::string * const extracted_text, const unsigned timeout = DEFAULT_PDF_EXTRACTION_TIMEOUT);
 
 
 /** \brief Get the output of the pdfinfo program */
