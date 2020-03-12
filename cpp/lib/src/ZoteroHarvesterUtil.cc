@@ -585,7 +585,7 @@ Zeder::Flavour GetZederInstanceFromMarcRecord(const MARC::Record &record) {
             return Zeder::Flavour::KRIMDOK;
     }
 
-    LOG_ERROR("missing sigil field in Zotero record '" + record.getControlNumber() + "'");
+    throw std::runtime_error("missing sigil field in Zotero record '" + record.getControlNumber() + "'");
 }
 
 
