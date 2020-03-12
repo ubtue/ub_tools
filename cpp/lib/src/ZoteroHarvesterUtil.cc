@@ -488,7 +488,7 @@ time_t UploadTracker::getLastUploadTime(const unsigned zeder_id, const Zeder::Fl
 }
 
 
-std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederId(const std::string &zeder_id, const Zeder::Flavour zeder_flavour) {
+std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(const std::string &zeder_id, const Zeder::Flavour zeder_flavour) {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
 
