@@ -477,7 +477,7 @@ time_t UploadTracker::getLastUploadTime(const unsigned zeder_id, const Zeder::Fl
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
 
-    const std::string zeder_instance(zeder_flavour == Zeder::Flavour::IXTHEO ? "ixtheo" : "krimdok");
+    const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
 
     db_connection.queryOrDie("SELECT delivered_at FROM delivered_marc_records WHERE zeder_id=" + std::to_string(zeder_id)
                              + " AND zeder_instance='" + db_connection.escapeString(zeder_instance) + "' ORDER BY delivered_at DESC");
@@ -519,7 +519,7 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
         return false;
 
     const auto zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
-    const auto zeder_instance(GetZederInstanceFromMarcRecord(record) == Zeder::Flavour::IXTHEO ? "ixtheo" : "krimdok");
+    const auto zeder_instance(GetZederInstanceString(GetZederInstanceFromMarcRecord(record)));
     const auto main_title(record.getMainTitle());
     db_connection.queryOrDie("INSERT INTO delivered_marc_records SET zeder_id=" + db_connection.escapeAndQuoteString(zeder_id)
                              + ",zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance)
@@ -541,6 +541,19 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
     }
 
     return true;
+}
+
+
+std::string UploadTracker::GetZederInstanceString(const Zeder::Flavour zeder_flavour) {
+    // These strings need to be updated in the SQL schema as well.
+    switch (zeder_flavour) {
+    case Zeder::Flavour::IXTHEO:
+        return "ixtheo";
+    case Zeder::Flavour::KRIMDOK:
+        return "krimdok";
+    default:
+        LOG_ERROR("unknown zeder flavour '" + std::to_string(zeder_flavour) + "'");
+    }
 }
 
 
