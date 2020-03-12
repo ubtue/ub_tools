@@ -34,6 +34,7 @@
 #include "SqlUtil.h"
 #include "ThreadUtil.h"
 #include "Url.h"
+#include "Zeder.h"
 #include "ZoteroHarvesterConfig.h"
 #include "util.h"
 
@@ -526,8 +527,9 @@ class UploadTracker {
 public:
     struct Entry {
         std::string url_;
-        std::string journal_name_;
         std::string main_title_;
+        std::string zeder_id_;
+        std::string zeder_instance_;
         time_t delivered_at_;
         std::string delivered_at_str_;
         std::string hash_;
@@ -547,7 +549,7 @@ public:
 
     // Returns when the last URL of the given journal was delivered to the BSZ. If found,
     // returns the timestamp of the last delivery, TimeUtil::BAD_TIME_T otherwise.
-    time_t getLastUploadTime(const std::string &journal_name) const;
+    time_t getLastUploadTime(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) const;
 
     // Saves the record blob and its associated metadata in the host's database.
     // Returns true on success, false otherwise.
@@ -563,6 +565,8 @@ private:
 
 // Returns URLs found in 856 and URL fields.
 std::set<std::string> GetMarcRecordUrls(const MARC::Record &record);
+
+Zeder::Flavour GetZederInstanceFromMarcRecord(const MARC::Record &record);
 
 
 } // end namespace Util
