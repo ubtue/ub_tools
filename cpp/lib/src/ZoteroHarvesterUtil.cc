@@ -345,7 +345,8 @@ std::string UploadTracker::Entry::toString() const {
     std::string out("delivered_marc_records entry:\n");
     out += "\turl: " + url_ + "\n";
     out += "\tdelivered_at: " + delivered_at_str_ + "\n";
-    out += "\tjournal: "  + journal_name_ + "\n";
+    out += "\tzeder id: "  + zeder_id_ + "\n";
+    out += "\tzeder instance: "  + zeder_instance_ + "\n";
     out += "\tmain_title: " + main_title_ + "\n";
     out += "\thash: " + hash_ + "\n";
     return out;
@@ -359,7 +360,8 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
     entry->url_ = row["url"];
     entry->delivered_at_str_ = row["delivered_at"];
     entry->delivered_at_ = SqlUtil::DatetimeToTimeT(entry->delivered_at_str_);
-    entry->journal_name_ = row["journal_name"];
+    entry->zeder_id_ = row["zeder_id"];
+    entry->zeder_instance_ = row["zeder_instance"];
     entry->main_title_ = row["main_title"];
     entry->hash_ = row["hash"];
 }
@@ -368,7 +370,7 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
 bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const entry,
                                         DbConnection * const db_connection) const
 {
-    db_connection->queryOrDie("SELECT t2.url, t1.delivered_at, t1.journal_name, t1.main_title, t1.hash "
+    db_connection->queryOrDie("SELECT t2.url, t1.delivered_at, t1.zeder_id, t1.zeder_instance, t1.main_title, t1.hash "
                               "FROM delivered_marc_records_urls as t2 "
                               "LEFT JOIN delivered_marc_records as t1 ON t2.record_id = t1.id WHERE t2.url='"
                               + db_connection->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'");
@@ -386,7 +388,7 @@ bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const en
 bool UploadTracker::hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries,
                                          DbConnection * const db_connection) const
 {
-    db_connection->queryOrDie("SELECT t2.url, t1.delivered_at, t1.journal_name, t1.main_title, t1.hash "
+    db_connection->queryOrDie("SELECT t2.url, t1.delivered_at, t1.zeder_id, t1.zeder_instance, t1.main_title, t1.hash "
                               "FROM delivered_marc_records_urls as t2 "
                               "LEFT JOIN delivered_marc_records as t1 ON t2.record_id = t1.id WHERE t1.hash='"
                               + db_connection->escapeString(hash) + "'");
@@ -471,12 +473,13 @@ bool UploadTracker::recordAlreadyDelivered(const MARC::Record &record) const {
 }
 
 
-time_t UploadTracker::getLastUploadTime(const std::string &journal_name) const {
+time_t UploadTracker::getLastUploadTime(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) const {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
 
-    db_connection.queryOrDie("SELECT delivered_at FROM delivered_marc_records WHERE journal_name='" +
-                             db_connection.escapeString(journal_name) + "' ORDER BY delivered_at DESC");
+    const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
+    db_connection.queryOrDie("SELECT delivered_at FROM delivered_marc_records WHERE zeder_id=" + std::to_string(zeder_id)
+                             + " AND zeder_instance='" + db_connection.escapeString(zeder_instance) + "' ORDER BY delivered_at DESC");
     auto result_set(db_connection.getLastResultSet());
     if (result_set.empty())
         return TimeUtil::BAD_TIME_T;
@@ -485,13 +488,16 @@ time_t UploadTracker::getLastUploadTime(const std::string &journal_name) const {
 }
 
 
-std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederId(const std::string &zeder_id) {
+std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(const std::string &zeder_id, const Zeder::Flavour zeder_flavour) {
+    WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
 
-    db_connection.queryOrDie("SELECT t2.url, t1.delivered_at, t1.journal_name, t1.main_title, t1.hash "
+    const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
+    db_connection.queryOrDie("SELECT t2.url, t1.delivered_at, t1.zeder_id, t1.zeder_instance, t1.main_title, t1.hash "
                              "FROM delivered_marc_records_urls as t2 "
                              "LEFT JOIN delivered_marc_records as t1 ON t2.record_id = t1.id WHERE t1.zeder_id="
-                             + db_connection.escapeString(zeder_id));
+                             + db_connection.escapeString(zeder_id) + " AND t1.zeder_instance="
+                             + db_connection.escapeAndQuoteString(zeder_instance));
 
     auto result_set(db_connection.getLastResultSet());
     std::vector<Entry> entries;
@@ -515,10 +521,10 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
         return false;
 
     const auto zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
-    const auto journal_name(record.getFirstSubfieldValue("JOU", 'a'));
+    const auto zeder_instance(GetZederInstanceString(GetZederInstanceFromMarcRecord(record)));
     const auto main_title(record.getMainTitle());
     db_connection.queryOrDie("INSERT INTO delivered_marc_records SET zeder_id=" + db_connection.escapeAndQuoteString(zeder_id)
-                             + ",journal_name=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(journal_name))
+                             + ",zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance)
                              + ",hash=" + db_connection.escapeAndQuoteString(hash)
                              + ",main_title=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(main_title))
                              + ",record="
@@ -536,22 +542,20 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
                                  + ", url=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(url)));
     }
 
-    db_connection.queryOrDie("SELECT * FROM delivered_marc_records_superior_info WHERE zeder_id="
-                             + db_connection.escapeAndQuoteString(zeder_id));
-
-    if (db_connection.getLastResultSet().empty()) {
-        const std::string superior_title(record.getSuperiorTitle());
-        const auto superior_control_number(record.getSuperiorControlNumber());
-        const std::string superior_control_number_sql(superior_control_number.empty() ? "" : ",control_number="
-                                                      + db_connection.escapeAndQuoteString(superior_control_number));
-
-        db_connection.queryOrDie("INSERT INTO delivered_marc_records_superior_info SET zeder_id="
-                                 + db_connection.escapeAndQuoteString(zeder_id) + ",title="
-                                 + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(superior_title))
-                                 + superior_control_number_sql);
-    }
-
     return true;
+}
+
+
+std::string UploadTracker::GetZederInstanceString(const Zeder::Flavour zeder_flavour) {
+    // These strings need to be updated in the SQL schema as well.
+    switch (zeder_flavour) {
+    case Zeder::Flavour::IXTHEO:
+        return "ixtheo";
+    case Zeder::Flavour::KRIMDOK:
+        return "krimdok";
+    default:
+        LOG_ERROR("unknown zeder flavour '" + std::to_string(zeder_flavour) + "'");
+    }
 }
 
 
@@ -569,6 +573,19 @@ std::set<std::string> GetMarcRecordUrls(const MARC::Record &record) {
         urls.emplace(harvest_url_field->getFirstSubfieldWithCode('a'));
 
     return urls;
+}
+
+
+Zeder::Flavour GetZederInstanceFromMarcRecord(const MARC::Record &record) {
+    for (const auto &field : record.getTagRange("935")) {
+        const auto sigil(field.getFirstSubfieldWithCode('a'));
+        if (sigil == "mteo")
+            return Zeder::Flavour::IXTHEO;
+        else if (sigil == "mkri")
+            return Zeder::Flavour::KRIMDOK;
+    }
+
+    LOG_ERROR("missing sigil field in Zotero record '" + record.getControlNumber() + "'");
 }
 
 

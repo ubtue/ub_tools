@@ -24,6 +24,7 @@
 #include "GzStream.h"
 #include "MARC.h"
 #include "util.h"
+#include "Zeder.h"
 #include "ZoteroHarvesterConversion.h"
 #include "ZoteroHarvesterUtil.h"
 
@@ -71,6 +72,15 @@ void SaveRecordUrls(const std::string &record_id, const MARC::Record &record, Db
 }
 
 
+void UpdateZederInstance(const std::string &record_id, const MARC::Record &record, DbConnection * const db_connection) {
+    const auto zeder_instance(ZoteroHarvester::Util::UploadTracker::GetZederInstanceString
+                              (ZoteroHarvester::Util::GetZederInstanceFromMarcRecord(record)));
+
+    db_connection->queryOrDie("UPDATE delivered_marc_records SET zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance)
+                              + " WHERE id=" + record_id);
+}
+
+
 } // unnamed namespace
 
 
@@ -91,6 +101,7 @@ int Main(int /* argc */, char ** /* argv */) {
             ++updated_record_hashes;
 
         SaveRecordUrls(record_id, record, &db_connection);
+        UpdateZederInstance(record_id, record, &db_connection);
 
         ++read_records;
     }
