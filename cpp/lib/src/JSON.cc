@@ -85,7 +85,8 @@ TokenType Scanner::getToken() {
     default:
         const std::string bad_char(::isprint(*ch_) ? std::string(1, *ch_)
                                    : "\\x" + StringUtil::ToHexString(static_cast<unsigned char>(*ch_)));
-        last_error_message_ = "unexpected character '" + bad_char + "'!";
+        last_error_message_ = "unexpected character '" + bad_char + "', offset into the input is " + std::to_string(ch_ - begin_)
+                              + " bytes!";
         return ERROR;
     }
 }
@@ -553,9 +554,8 @@ bool Parser::parseArray(std::shared_ptr<JSONNode> * const new_array_node) {
 
     for (;;) {
         std::shared_ptr<JSONNode> new_node(nullptr);
-        if (unlikely(not parseAny(&new_node))) {
+        if (unlikely(not parseAny(&new_node)))
             return false;
-        }
         JSONNode::CastToArrayNodeOrDie("new_array_node", *new_array_node)->push_back(new_node);
 
 
@@ -745,6 +745,11 @@ static std::shared_ptr<const JSONNode> GetLastPathComponent(const std::string &p
     }
 
     return next_node;
+}
+
+
+std::shared_ptr<const JSONNode> LookupNode(const std::string &path, const std::shared_ptr<const JSONNode> &tree) {
+    return GetLastPathComponent(path, tree, /* have_default = */false);
 }
 
 
