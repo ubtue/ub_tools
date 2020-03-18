@@ -3074,8 +3074,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final Object obj : hits) {
              JSONObject hit = (JSONObject) obj;
              JSONObject _source = (JSONObject) hit.get("_source");
-             final String description = mapTextTypeToDescription((String) _source.get("text_type"));
-             if (description.equals(text_type_description))
+             final String description = _source.containsKey("text_type") ?
+		                        mapTextTypeToDescription((String) _source.get("text_type")) : "";
+             if (description.isEmpty() || description.equals(text_type_description))
                  fulltextBuilder.append(_source.get("full_text"));
         }
         return fulltextBuilder.toString();
