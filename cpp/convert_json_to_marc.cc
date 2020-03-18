@@ -71,7 +71,8 @@ class JSONNodeToBibliographicLevelMapper {
     std::vector<std::pair<RegexMatcher *, MARC::Record::BibliographicLevel>> regex_to_bibliographic_level_map;
 public:
     JSONNodeToBibliographicLevelMapper(const std::string &item_type_tag, const std::string &item_type_map);
-    MARC::Record::BibliographicLevel getBibliographicLevel(const JSON::ObjectNode &node) const;
+    MARC::Record::BibliographicLevel getBibliographicLevel(const JSON::ObjectNode &object_node) const;
+    MARC::Record::BibliographicLevel getBibliographicLevel(const std::string &string_value) const;
 };
 
 
@@ -145,7 +146,39 @@ JSONNodeToBibliographicLevelMapper::JSONNodeToBibliographicLevelMapper(const std
 }
 
 
-MARC::Record::BibliographicLevel JSONNodeToBibliographicLevelMapper::getBibliographicLevel(const JSON::ObjectNode &node) const {
+MARC::Record::BibliographicLevel JSONNodeToBibliographicLevelMapper::getBibliographicLevel(const std::string &string_value) const {
+    for (const auto &regex_and_bibliographic_level : regex_to_bibliographic_level_map) {
+        if (regex_and_bibliographic_level.first->matched(string_value))
+            return regex_and_bibliographic_level.second;
+    }
+
+    return default_;
+}
+
+
+MARC::Record::BibliographicLevel JSONNodeToBibliographicLevelMapper::getBibliographicLevel(const JSON::ObjectNode &object_node) const {
+    if (json_tag_.empty())
+        return default_;
+
+    const auto string_or_array_node(object_node.getNode(json_tag_));
+    if (string_or_array_node == nullptr)
+        return default_;
+
+    const auto node_type(string_or_array_node->getType());
+    if (node_type == JSON::JSONNode::STRING_NODE)
+        return getBibliographicLevel(JSON::JSONNode::CastToStringNodeOrDie("string_or_array_node", string_or_array_node)->getValue());
+
+    if (node_type != JSON::JSONNode::ARRAY_NODE)
+        LOG_ERROR("item type node \"" + json_tag_ + "\" is neither a string nor an array node but a " + JSON::JSONNode::TypeToString(node_type) + "!");
+
+    const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("string_or_array_node", string_or_array_node));
+    for (const auto element_node : *array_node) {
+        const auto bibliographic_level(getBibliographicLevel(JSON::JSONNode::CastToStringNodeOrDie("element_node", element_node)->getValue()));
+        if (bibliographic_level != default_)
+            return bibliographic_level;
+    }
+
+    return default_;
 }
 
 
@@ -192,8 +225,8 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
                 if (not StringUtil::StartsWith(section_entry.name_, "subfield_"))
                     continue;
 
-                if (section_entry.name_.length() != __builtin_strlen("subfield_" + 1))
-                    LOG_ERROR("invalid section entry \"" + section_entry.name_ + "\"!");
+                if (section_entry.name_.length() != __builtin_strlen("subfield_") + 1)
+                    LOG_ERROR("invalid section entry in section \"" + section_name + "\": \"" + section_entry.name_ + "\"!");
                 const char subfield_code(section_entry.name_.back());
                 const auto json_tag(section_entry.value_);
                 subfield_codes_to_json_tags.emplace_back(subfield_code, json_tag);
@@ -237,7 +270,7 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::
         } else if (field_descriptor.required_)
             LOG_ERROR("missing JSON tag \"" + field_descriptor.json_tag_ + "\" for required field \"" + field_descriptor.name_ + "\"!");
     } else { // Data field
-
+        created_at_least_one_field = true;
     }
 
     if (field_descriptor.required_ and not created_at_least_one_field)
