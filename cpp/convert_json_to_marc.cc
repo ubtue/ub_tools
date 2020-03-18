@@ -136,7 +136,7 @@ JSONNodeToBibliographicLevelMapper::JSONNodeToBibliographicLevelMapper(const std
         }
 
         std::string err_msg;
-        const auto regex(RegexMatcher::RegexMatcherFactory(pattern, &err_msg));
+        const auto regex(RegexMatcher::RegexMatcherFactory(pattern, &err_msg, RegexMatcher::ENABLE_UTF8 | RegexMatcher::CASE_INSENSITIVE));
         if (regex == nullptr)
             LOG_ERROR("bad regex pattern in pattern to item type mapping: \"" + *pattern_and_type + "\"! (" + err_msg + ")");
 
