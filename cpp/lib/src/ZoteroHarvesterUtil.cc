@@ -576,19 +576,6 @@ std::set<std::string> GetMarcRecordUrls(const MARC::Record &record) {
 }
 
 
-Zeder::Flavour GetZederInstanceFromMarcRecord(const MARC::Record &record) {
-    for (const auto &field : record.getTagRange("935")) {
-        const auto sigil(field.getFirstSubfieldWithCode('a'));
-        if (sigil == "mteo")
-            return Zeder::Flavour::IXTHEO;
-        else if (sigil == "mkri")
-            return Zeder::Flavour::KRIMDOK;
-    }
-
-    throw std::runtime_error("missing sigil field in Zotero record '" + record.getControlNumber() + "'");
-}
-
-
 } // end namespace Util
 
 

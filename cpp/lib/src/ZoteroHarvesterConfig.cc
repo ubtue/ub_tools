@@ -194,7 +194,7 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     }
     StringUtil::Split(expected_languages, ',', &language_params_.expected_languages_, /* suppress_empty_components = */true);
 
-    crawl_params_.max_crawl_depth_ = journal_section.getUnsigned(GetIniKeyString(CRAWL_MAX_DEPTH), 1);
+    crawl_params_.max_crawl_depth_ = journal_section.getUnsigned(GetIniKeyString(CRAWL_MAX_DEPTH), 0);
     const auto extraction_regex(journal_section.getString(GetIniKeyString(CRAWL_EXTRACTION_REGEX), ""));
     if (not extraction_regex.empty())
         crawl_params_.extraction_regex_.reset(new ThreadSafeRegexMatcher(extraction_regex));
@@ -265,12 +265,41 @@ const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_
     { CRAWL_URL_REGEX,         "zotero_crawl_url_regex" },
 };
 
+const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_MAP {
+    { "zeder_id",                   ZEDER_ID },
+    { "zeder_modified_time",        ZEDER_MODIFIED_TIME },
+    { "zotero_group",               GROUP },
+    { "zotero_url",                 ENTRY_POINT_URL },
+    { "zotero_type",                HARVESTER_OPERATION },
+    { "zotero_delivery_mode",       UPLOAD_OPERATION },
+    { "online_ppn",                 ONLINE_PPN },
+    { "print_ppn",                  PRINT_PPN },
+    { "online_issn",                ONLINE_ISSN },
+    { "print_issn",                 PRINT_ISSN },
+    { "zotero_strptime_format",     STRPTIME_FORMAT_STRING },
+    { "zotero_update_window",       UPDATE_WINDOW },
+    { "zotero_review_regex",        REVIEW_REGEX },
+    { "zotero_expected_languages",  EXPECTED_LANGUAGES },
+    { "zotero_ssgn",                SSGN },
+    { "zotero_max_crawl_depth",     CRAWL_MAX_DEPTH },
+    { "zotero_extraction_regex",    CRAWL_EXTRACTION_REGEX },
+    { "zotero_crawl_url_regex",     CRAWL_URL_REGEX },
+};
+
 
 std::string JournalParams::GetIniKeyString(const IniKey ini_key) {
     const auto key_and_string(KEY_TO_STRING_MAP.find(ini_key));
     if (key_and_string == KEY_TO_STRING_MAP.end())
-        LOG_ERROR("invalid GroupParams INI key '" + std::to_string(ini_key) + "'");
+        LOG_ERROR("invalid JournalParams INI key '" + std::to_string(ini_key) + "'");
     return key_and_string->second;
+}
+
+
+JournalParams::IniKey JournalParams::GetIniKey(const std::string &ini_key_string) {
+    const auto string_and_key(STRING_TO_KEY_MAP.find(ini_key_string));
+    if (string_and_key == STRING_TO_KEY_MAP.end())
+        LOG_ERROR("invalid JournalParams INI key string '" + std::to_string(ini_key_string) + "'");
+    return string_and_key->second;
 }
 
 
@@ -300,19 +329,20 @@ std::string EnhancementMaps::lookupSSG(const std::string &issn) const {
 
 void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
-                             std::vector<std::unique_ptr<JournalParams>> * const journal_params)
+                             std::vector<std::unique_ptr<JournalParams>> * const journal_params,
+                             std::unique_ptr<IniFile> * const config_file)
 {
-    const IniFile ini(config_filepath);
+    std::unique_ptr<IniFile> ini(new IniFile(config_filepath));
 
-    global_params->reset(new Config::GlobalParams(*ini.getSection("")));
+    global_params->reset(new Config::GlobalParams(*ini->getSection("")));
 
     std::set<std::string> group_names;
     StringUtil::Split((*global_params)->group_names_, ',', &group_names, /* suppress_empty_components = */ true);
 
     for (const auto &group_name : group_names)
-        group_params->emplace_back(new Config::GroupParams(*ini.getSection(group_name)));
+        group_params->emplace_back(new Config::GroupParams(*ini->getSection(group_name)));
 
-    for (const auto &section : ini) {
+    for (const auto &section : *ini) {
         if (section.getSectionName().empty())
             continue;
         else if (group_names.find(section.getSectionName()) != group_names.end())
@@ -320,18 +350,9 @@ void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr
 
         journal_params->emplace_back(new Config::JournalParams(section, **global_params));
     }
-}
 
-
-Zeder::Flavour GetZederInstanceForJournal(const JournalParams &journal_params) {
-    if (journal_params.group_ == "IxTheo" or journal_params.group_ == "ixtheo")
-        return Zeder::Flavour::IXTHEO;
-    else if (journal_params.group_ == "RelBib" or journal_params.group_ == "relbib")
-        return Zeder::Flavour::IXTHEO;
-    else if (journal_params.group_ == "KrimDok" or journal_params.group_ == "krimdok")
-        return Zeder::Flavour::KRIMDOK;
-
-    LOG_ERROR("unknown group '" + journal_params.group_ + "' for journal '" + journal_params.name_ + "'");
+    if (config_file != nullptr)
+        config_file->reset(ini.release());
 }
 
 
