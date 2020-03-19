@@ -38,23 +38,24 @@ namespace {
 struct FieldDescriptor {
     std::string name_;
     std::string tag_, overflow_tag_;
+    char indicator1_, indicator2_;
     bool repeat_field_;
     std::vector<std::pair<char, std::string>> subfield_codes_to_json_tags_; // For mapping to variable fields
     std::string json_tag_; // For mapping to control fields
     std::string field_contents_prefix_; // For mapping to control fields
     bool required_;
 public:
-    explicit FieldDescriptor(const std::string &name, const std::string &tag, const std::string &overflow_tag, const bool repeat_field,
-                             const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags, const std::string &json_tag,
-                             const std::string &field_contents_prefix, const bool required);
+    explicit FieldDescriptor(const std::string &name, const std::string &tag, const std::string &overflow_tag, const char indicator1,
+                             const char indicator2, const bool repeat_field, const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags,
+                             const std::string &json_tag, const std::string &field_contents_prefix, const bool required);
     bool operator<(const FieldDescriptor &other) const { return tag_ < other.tag_; }
 };
 
 
-FieldDescriptor::FieldDescriptor(const std::string &name, const std::string &tag, const std::string &overflow_tag, const bool repeat_field,
-                                 const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags, const std::string &json_tag,
-                                 const std::string &field_contents_prefix, const bool required)
-    : name_(name), tag_(tag), overflow_tag_(overflow_tag), repeat_field_(repeat_field),
+FieldDescriptor::FieldDescriptor(const std::string &name, const std::string &tag, const std::string &overflow_tag, const char indicator1,
+                                 const char indicator2, const bool repeat_field, const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags,
+                                 const std::string &json_tag, const std::string &field_contents_prefix, const bool required)
+    : name_(name), tag_(tag), overflow_tag_(overflow_tag), indicator1_(indicator1), indicator2_(indicator2), repeat_field_(repeat_field),
       subfield_codes_to_json_tags_(subfield_codes_to_json_tags), json_tag_(json_tag), field_contents_prefix_(field_contents_prefix),
       required_(required)
 {
@@ -219,7 +220,7 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
             if (tag.empty())
                 LOG_ERROR("missing tag in section \"" + section_name + "\" in \"" + ini_file.getFilename() + "\"!");
             if (tag.length() != MARC::Record::TAG_LENGTH)
-                LOG_ERROR("invalid tag in section \"" + section_name + "\" in \"" + ini_file.getFilename() + "\"!");
+                LOG_ERROR("invalid tag \"" + tag + "\" in section \"" + section_name + "\" in \"" + ini_file.getFilename() + "\"!");
 
             std::vector<std::pair<char, std::string>> subfield_codes_to_json_tags;
             for (const auto section_entry : section) {
@@ -243,7 +244,8 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
                 LOG_ERROR("can't specify a field contents prefix when subfields have been specified for MARC field tag \""
                           + tag + "\" in section \"" + section_name + "\"!");
 
-            field_descriptors.emplace_back(section_name, tag, section.getString("overflow_tag", ""), section.getBool("repeat_field", false),
+            field_descriptors.emplace_back(section_name, tag, section.getString("overflow_tag", ""), section.getChar("indicator1", ' '),
+                                           section.getChar("indicator2", ' '), section.getBool("repeat_field", false),
                                            subfield_codes_to_json_tags, json_tag, field_contents_prefix,
                                            section.getBool("required", false));
         }
@@ -311,13 +313,10 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::
     if (not field_descriptor.json_tag_.empty()) { // Control field
         const auto node(object->getNode(field_descriptor.json_tag_));
         if (node != nullptr) {
-            if (node->getType() != JSON::JSONNode::ARRAY_NODE)
-                record->insertField(MARC::Tag(field_descriptor.tag_), GetScalarJSONStringValueWithoutQuotes(node));
-            else {
-                const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("node", node));
-                if (field_descriptor.repeat_field_) {
-                }
-            }
+            if (node->getType() == JSON::JSONNode::ARRAY_NODE)
+                LOG_ERROR("no implemented support for control fields if the JSON data source is an array!");
+
+            record->insertField(MARC::Tag(field_descriptor.tag_), GetScalarJSONStringValueWithoutQuotes(node));
             created_at_least_one_field = true;
         } else if (field_descriptor.required_)
             LOG_ERROR("missing JSON tag \"" + field_descriptor.json_tag_ + "\" for required field \"" + field_descriptor.name_ + "\"!");
