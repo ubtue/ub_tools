@@ -40,30 +40,39 @@ struct FieldDescriptor {
     std::string tag_, overflow_tag_;
     char indicator1_, indicator2_;
     bool repeat_field_;
-    std::vector<std::pair<char, std::string>> subfield_codes_to_json_tags_; // For mapping to variable fields
+    std::vector<std::pair<char, std::string>> subfield_codes_to_json_tags_, subfield_codes_to_prefixes_,
+                                              subfield_codes_to_fixed_subfields_; // For mapping to variable fields
     std::string json_tag_; // For mapping to control fields
     std::string field_contents_prefix_; // For mapping to control fields
     bool required_;
 public:
     explicit FieldDescriptor(const std::string &name, const std::string &tag, const std::string &overflow_tag, const char indicator1,
-                             const char indicator2, const bool repeat_field, const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags,
+                             const char indicator2, const bool repeat_field,
+                             const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags,
+                             const std::vector<std::pair<char, std::string>> &subfield_codes_to_prefixes,
+                             const std::vector<std::pair<char, std::string>> &subfield_codes_to_fixed_subfields,
                              const std::string &json_tag, const std::string &field_contents_prefix, const bool required);
     bool operator<(const FieldDescriptor &other) const { return tag_ < other.tag_; }
 };
 
 
 FieldDescriptor::FieldDescriptor(const std::string &name, const std::string &tag, const std::string &overflow_tag, const char indicator1,
-                                 const char indicator2, const bool repeat_field, const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags,
+                                 const char indicator2, const bool repeat_field,
+                                 const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags,
+                                 const std::vector<std::pair<char, std::string>> &subfield_codes_to_prefixes,
+                                 const std::vector<std::pair<char, std::string>> &subfield_codes_to_fixed_subfields,
                                  const std::string &json_tag, const std::string &field_contents_prefix, const bool required)
     : name_(name), tag_(tag), overflow_tag_(overflow_tag), indicator1_(indicator1), indicator2_(indicator2), repeat_field_(repeat_field),
-      subfield_codes_to_json_tags_(subfield_codes_to_json_tags), json_tag_(json_tag), field_contents_prefix_(field_contents_prefix),
-      required_(required)
+      subfield_codes_to_json_tags_(subfield_codes_to_json_tags), subfield_codes_to_prefixes_(subfield_codes_to_prefixes),
+      subfield_codes_to_fixed_subfields_(subfield_codes_to_fixed_subfields), json_tag_(json_tag),
+      field_contents_prefix_(field_contents_prefix), required_(required)
 {
     if (not overflow_tag_.empty() and repeat_field_)
         LOG_ERROR("field \"" + name_ + "\" can't have both, an over flow tag and being a repeat field!");
 
     if (subfield_codes_to_json_tags_.empty() and json_tag_.empty())
-        LOG_ERROR("field \"" + name_ + "\" neither a mapping to the contents of a control field nor the contents of data subfields has been specified!");
+        LOG_ERROR("field \"" + name_
+                  + "\" neither a mapping to the contents of a control field nor the contents of data subfields has been specified!");
 }
 
 
@@ -143,7 +152,6 @@ JSONNodeToBibliographicLevelMapper::JSONNodeToBibliographicLevelMapper(const std
             LOG_ERROR("bad regex pattern in pattern to item type mapping: \"" + *pattern_and_type + "\"! (" + err_msg + ")");
 
         regex_to_bibliographic_level_map.emplace_back(regex, MapTypeStringToBibliographicLevel(type));
-
     }
 }
 
@@ -171,7 +179,8 @@ MARC::Record::BibliographicLevel JSONNodeToBibliographicLevelMapper::getBibliogr
         return getBibliographicLevel(JSON::JSONNode::CastToStringNodeOrDie("string_or_array_node", string_or_array_node)->getValue());
 
     if (node_type != JSON::JSONNode::ARRAY_NODE)
-        LOG_ERROR("item type node \"" + json_tag_ + "\" is neither a string nor an array node but a " + JSON::JSONNode::TypeToString(node_type) + "!");
+        LOG_ERROR("item type node \"" + json_tag_ + "\" is neither a string nor an array node but a "
+                  + JSON::JSONNode::TypeToString(node_type) + "!");
 
     const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("string_or_array_node", string_or_array_node));
     for (const auto element_node : *array_node) {
@@ -213,6 +222,9 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
     const IniFile ini_file(inifile_path);
     for (const auto &section : ini_file) {
         const auto &section_name(section.getSectionName());
+        if (section_name.empty())
+            continue;
+
         if (section_name == "Global")
             ProcessGlobalSection(section, root_path, json_node_to_bibliographic_level_mapper);
         else { // A section describing a mapping to a field
@@ -222,12 +234,30 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
             if (tag.length() != MARC::Record::TAG_LENGTH)
                 LOG_ERROR("invalid tag \"" + tag + "\" in section \"" + section_name + "\" in \"" + ini_file.getFilename() + "\"!");
 
-            std::vector<std::pair<char, std::string>> subfield_codes_to_json_tags;
+            std::vector<std::pair<char, std::string>> subfield_codes_to_json_tags, subfield_codes_to_prefixes, subfield_codes_to_fixed_subfields;
             for (const auto section_entry : section) {
+                if (StringUtil::StartsWith(section_entry.name_, "add_fixed_subfield_")) {
+                    if (section_entry.name_.length() != __builtin_strlen("add_fixed_subfield_?"))
+                        LOG_ERROR("invalid section entry in section \"" + section_name + "\": \"" + section_entry.name_ + "\"!");
+                    const char subfield_code(section_entry.name_.back());
+                    const auto fixed_subfield_value(section_entry.value_);
+                    subfield_codes_to_fixed_subfields.emplace_back(subfield_code, fixed_subfield_value);
+                    continue;
+                }
+
                 if (not StringUtil::StartsWith(section_entry.name_, "subfield_"))
                     continue;
 
-                if (section_entry.name_.length() != __builtin_strlen("subfield_") + 1)
+                if (StringUtil::EndsWith(section_entry.name_, "_prefix")) {
+                    if (section_entry.name_.length() != __builtin_strlen("subfield_?_prefix"))
+                        LOG_ERROR("invalid section entry in section \"" + section_name + "\": \"" + section_entry.name_ + "\"!");
+                    const char subfield_code(section_entry.name_[__builtin_strlen("subfield_")]);
+                    const auto subfield_prefix(section_entry.value_);
+                    subfield_codes_to_prefixes.emplace_back(subfield_code, subfield_prefix);
+                    continue;
+                }
+
+                if (section_entry.name_.length() != __builtin_strlen("subfield_?"))
                     LOG_ERROR("invalid section entry in section \"" + section_name + "\": \"" + section_entry.name_ + "\"!");
                 const char subfield_code(section_entry.name_.back());
                 const auto json_tag(section_entry.value_);
@@ -246,8 +276,8 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
 
             field_descriptors.emplace_back(section_name, tag, section.getString("overflow_tag", ""), section.getChar("indicator1", ' '),
                                            section.getChar("indicator2", ' '), section.getBool("repeat_field", false),
-                                           subfield_codes_to_json_tags, json_tag, field_contents_prefix,
-                                           section.getBool("required", false));
+                                           subfield_codes_to_json_tags, subfield_codes_to_prefixes, subfield_codes_to_fixed_subfields,
+                                           json_tag, field_contents_prefix, section.getBool("required", false));
         }
     }
 
@@ -256,8 +286,8 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
 }
 
 
-enum ReferencedJSONDataState { NO_DATA_FOUND, ONLY_SCALAR_DATA_FOUND, ONLY_ARRAY_DATA_FOUND, SCALAR_AND_ARRAY_DATA_FOUND, FOUND_AT_LEAST_ONE_OBJECT,
-                               INCONSISTENT_ARRAY_LENGTHS };
+enum ReferencedJSONDataState { NO_DATA_FOUND, ONLY_SCALAR_DATA_FOUND, ONLY_ARRAY_DATA_FOUND, SCALAR_AND_ARRAY_DATA_FOUND,
+                               FOUND_AT_LEAST_ONE_OBJECT, INCONSISTENT_ARRAY_LENGTHS };
 
 
 ReferencedJSONDataState CategorizeJSONReferences(const std::shared_ptr<const JSON::ObjectNode> &object,
@@ -306,6 +336,15 @@ std::string GetScalarJSONStringValueWithoutQuotes(const std::shared_ptr<const JS
 }
 
 
+// Returns the empty string if an entry for "subfield_code" was not found.
+std::string FindMapEntryForSubfieldCode(const char subfield_code, const std::vector<std::pair<char, std::string>> &subfield_codes_to_values_map) {
+    const auto subfield_code_and_value(std::find_if(subfield_codes_to_values_map.cbegin(), subfield_codes_to_values_map.cend(),
+                                                    [&](const std::pair<char, std::string> &subfield_code_and_prefix)
+                                                        { return subfield_code_and_prefix.first == subfield_code; }));
+    return (subfield_code_and_value == subfield_codes_to_values_map.cend()) ? "" : subfield_code_and_value->second;
+}
+
+
 void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::shared_ptr<const JSON::ObjectNode> &object,
                             MARC::Record * const record)
 {
@@ -338,9 +377,16 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::
 
             for (const auto &subfield_code_and_json_tag : field_descriptor.subfield_codes_to_json_tags_) {
                 const auto scalar_node_or_null(object->getNode(subfield_code_and_json_tag.second));
-                if (scalar_node_or_null != nullptr)
-                    new_field.appendSubfield(subfield_code_and_json_tag.first, GetScalarJSONStringValueWithoutQuotes(scalar_node_or_null));
+                if (scalar_node_or_null != nullptr) {
+                    const std::string subfield_prefix(FindMapEntryForSubfieldCode(subfield_code_and_json_tag.first,
+                                                                                  field_descriptor.subfield_codes_to_prefixes_));
+                    new_field.appendSubfield(subfield_code_and_json_tag.first,
+                                             subfield_prefix + GetScalarJSONStringValueWithoutQuotes(scalar_node_or_null));
+                }
             }
+
+            for (const auto &subfield_code_and_fixed_subfield : field_descriptor.subfield_codes_to_fixed_subfields_)
+                new_field.appendSubfield(subfield_code_and_fixed_subfield.first, subfield_code_and_fixed_subfield.second);
 
             record->insertField(new_field);
             created_at_least_one_field = true;
@@ -356,9 +402,12 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::
                     if (node == nullptr)
                         continue;
 
+                    const std::string subfield_prefix(FindMapEntryForSubfieldCode(subfield_code_and_json_tag.first,
+                                                                                  field_descriptor.subfield_codes_to_prefixes_));
                     const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("array_node", node));
                     const auto scalar_node(array_node->getNode(json_array_index));
-                    new_field.appendSubfield(subfield_code_and_json_tag.first, GetScalarJSONStringValueWithoutQuotes(scalar_node));
+                    new_field.appendSubfield(subfield_code_and_json_tag.first,
+                                             subfield_prefix + GetScalarJSONStringValueWithoutQuotes(scalar_node));
                 }
 
                 record->insertField(new_field);

@@ -1,0 +1,8 @@
+This is the documentation for the convert_json_to_marc tool which converts JSON to MARC 21.
+This conversion is controlled by an ini file based on our local IniFile class.
+The ini file must contain two types of sections, a "Global" section describing various
+global settings and one section each for MARC-21 fields that should be mapped from JSON.
+
+1. The "Global" Section
+
+2. The MARC-21 Field Section
