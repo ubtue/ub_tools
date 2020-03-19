@@ -21,6 +21,7 @@
 */
 
 #include <algorithm>
+#include <limits>
 #include <utility>
 #include <vector>
 #include "FileUtil.h"
@@ -253,13 +254,16 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
 }
 
 
-enum ReferencedJSONDataState { NO_DATA_FOUND, ONLY_SCALAR_DATA_FOUND, ONLY_ARRAY_DATA_FOUND, SCALAR_AND_ARRAY_DATA_FOUND, FOUND_AT_LEAST_ONE_OBJECT };
+enum ReferencedJSONDataState { NO_DATA_FOUND, ONLY_SCALAR_DATA_FOUND, ONLY_ARRAY_DATA_FOUND, SCALAR_AND_ARRAY_DATA_FOUND, FOUND_AT_LEAST_ONE_OBJECT,
+                               INCONSISTENT_ARRAY_LENGTHS };
 
 
 ReferencedJSONDataState CategorizeJSONReferences(const std::shared_ptr<const JSON::ObjectNode> &object,
-                                                 const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags)
+                                                 const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags,
+                                                 size_t * const common_array_length)
 {
     unsigned array_references_count(0), subfield_data_found_count(0);
+    size_t last_array_length(std::numeric_limits<size_t>::max());
     for (const auto &subfield_code_and_json_tag : subfield_codes_to_json_tags) {
         const auto node(object->getNode(subfield_code_and_json_tag.second));
         if (node != nullptr) {
@@ -267,8 +271,14 @@ ReferencedJSONDataState CategorizeJSONReferences(const std::shared_ptr<const JSO
             if (node->getType() == JSON::JSONNode::OBJECT_NODE)
                 return FOUND_AT_LEAST_ONE_OBJECT;
 
-            if (node->getType() == JSON::JSONNode::ARRAY_NODE)
+            if (node->getType() == JSON::JSONNode::ARRAY_NODE) {
                 ++array_references_count;
+                const size_t array_length(JSON::JSONNode::CastToArrayNodeOrDie("CategorizeJSONReferences", node)->size());
+                if (last_array_length == std::numeric_limits<size_t>::max())
+                    last_array_length = array_length;
+                else if (last_array_length != array_length)
+                    return INCONSISTENT_ARRAY_LENGTHS;
+            }
         }
     }
 
@@ -276,9 +286,21 @@ ReferencedJSONDataState CategorizeJSONReferences(const std::shared_ptr<const JSO
         return NO_DATA_FOUND;
     if (array_references_count == 0)
         return ONLY_SCALAR_DATA_FOUND;
-    if (array_references_count == subfield_data_found_count)
+    if (array_references_count == subfield_data_found_count) {
+        *common_array_length = last_array_length;
         return ONLY_ARRAY_DATA_FOUND;
+    }
     return SCALAR_AND_ARRAY_DATA_FOUND;
+}
+
+
+// We need this because StringNode's toString() does extra quoting.
+std::string GetScalarJSONStringValueWithoutQuotes(const std::shared_ptr<const JSON::JSONNode> &node) {
+    if (node->getType() != JSON::JSONNode::STRING_NODE)
+        return node->toString();
+
+    const auto string_node(JSON::JSONNode::CastToStringNodeOrDie("GetScalarJSONStringValueWithoutQuotes", node));
+    return string_node->getValue();
 }
 
 
@@ -290,7 +312,7 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::
         const auto node(object->getNode(field_descriptor.json_tag_));
         if (node != nullptr) {
             if (node->getType() != JSON::JSONNode::ARRAY_NODE)
-                record->insertField(MARC::Tag(field_descriptor.tag_), node->toString());
+                record->insertField(MARC::Tag(field_descriptor.tag_), GetScalarJSONStringValueWithoutQuotes(node));
             else {
                 const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("node", node));
                 if (field_descriptor.repeat_field_) {
@@ -300,20 +322,50 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::
         } else if (field_descriptor.required_)
             LOG_ERROR("missing JSON tag \"" + field_descriptor.json_tag_ + "\" for required field \"" + field_descriptor.name_ + "\"!");
     } else { // Data field
-        const auto referenced_json_data_state(CategorizeJSONReferences(object, field_descriptor.subfield_codes_to_json_tags_));
+        size_t array_length;
+        const auto referenced_json_data_state(CategorizeJSONReferences(object, field_descriptor.subfield_codes_to_json_tags_, &array_length));
         if (referenced_json_data_state == NO_DATA_FOUND)
             goto final_processing;
 
         if (referenced_json_data_state == SCALAR_AND_ARRAY_DATA_FOUND)
             LOG_ERROR("mixed scalar and array data found for \"" + field_descriptor.name_ + "\"!");
+        if (referenced_json_data_state == INCONSISTENT_ARRAY_LENGTHS)
+            LOG_ERROR("JSON arrays of inconsistent lengths found for \"" + field_descriptor.name_ + "\"!");
         if (referenced_json_data_state == FOUND_AT_LEAST_ONE_OBJECT)
             LOG_ERROR("at least some object data found for \"" + field_descriptor.name_ + "\"!");
 
-        if (referenced_json_data_state == ONLY_ARRAY_DATA_FOUND) {
-        } else {
-        }
+        if (referenced_json_data_state == ONLY_SCALAR_DATA_FOUND) {
+            MARC::Record::Field new_field(field_descriptor.tag_);
 
-        created_at_least_one_field = true;
+            for (const auto &subfield_code_and_json_tag : field_descriptor.subfield_codes_to_json_tags_) {
+                const auto scalar_node_or_null(object->getNode(subfield_code_and_json_tag.second));
+                if (scalar_node_or_null != nullptr)
+                    new_field.appendSubfield(subfield_code_and_json_tag.first, GetScalarJSONStringValueWithoutQuotes(scalar_node_or_null));
+            }
+
+            record->insertField(new_field);
+            created_at_least_one_field = true;
+        } else { // All our data resides in JSON arrays.
+            for (unsigned json_array_index(0); json_array_index < array_length; ++json_array_index) {
+                std::string tag(field_descriptor.tag_);
+                if (json_array_index > 0 and not field_descriptor.overflow_tag_.empty())
+                    tag = field_descriptor.overflow_tag_;
+                MARC::Record::Field new_field(tag);
+
+                for (const auto &subfield_code_and_json_tag : field_descriptor.subfield_codes_to_json_tags_) {
+                    const auto node(object->getNode(subfield_code_and_json_tag.second));
+                    if (node == nullptr)
+                        continue;
+
+                    const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("array_node", node));
+                    const auto scalar_node(array_node->getNode(json_array_index));
+                    new_field.appendSubfield(subfield_code_and_json_tag.first, GetScalarJSONStringValueWithoutQuotes(scalar_node));
+                }
+
+                record->insertField(new_field);
+                created_at_least_one_field = true;
+            }
+        }
     }
 
 final_processing:
