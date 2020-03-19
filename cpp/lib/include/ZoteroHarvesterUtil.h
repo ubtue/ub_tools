@@ -568,8 +568,6 @@ private:
 // Returns URLs found in 856 and URL fields.
 std::set<std::string> GetMarcRecordUrls(const MARC::Record &record);
 
-Zeder::Flavour GetZederInstanceFromMarcRecord(const MARC::Record &record);
-
 
 } // end namespace Util
 

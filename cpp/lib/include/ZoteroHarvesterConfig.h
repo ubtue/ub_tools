@@ -187,8 +187,10 @@ public:
     JournalParams &operator=(const GroupParams &rhs) = delete;
 
     static std::string GetIniKeyString(const IniKey ini_key);
+    static IniKey GetIniKey(const std::string &ini_key_string);
 private:
     static const std::map<IniKey, std::string> KEY_TO_STRING_MAP;
+    static const std::map<std::string, IniKey> STRING_TO_KEY_MAP;
 };
 
 
@@ -212,10 +214,8 @@ public:
 
 void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
-                             std::vector<std::unique_ptr<JournalParams>> * const journal_params);
-
-
-Zeder::Flavour GetZederInstanceForJournal(const JournalParams &journal_params);
+                             std::vector<std::unique_ptr<JournalParams>> * const journal_params,
+                             std::unique_ptr<IniFile> * const config_file = nullptr);
 
 
 } // end namespace Config
