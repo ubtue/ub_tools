@@ -21,6 +21,8 @@ item_type_map[O]: If specified, item_type_tag must be also specified.  This cons
     the empty string will always match.
 
 2. The MARC-21 Field Section
+indicatior1[O] = the first indicator for the generated field if it is a data field.  The default is a blank.
+indicatior2[O] = the second indicator for the generated field if it is a data field.  The default is a blank.
 
 
 R = required section entry
