@@ -278,7 +278,8 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                        const bool use_separate_entries_per_url = false,
                        const bool include_all_tocs = false,
                        const bool only_pdf_fulltexts = false,
-                       const bool skip_reviews = false) {
+                       const bool skip_reviews = false)
+{
     const std::string ppn(record->getControlNumber());
     std::set<UrlAndTextType> urls_and_text_types;
     GetUrlsAndTextTypes(*record, &urls_and_text_types, use_only_open_access_links, include_all_tocs, skip_reviews);
