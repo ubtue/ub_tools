@@ -40,7 +40,7 @@ struct FieldDescriptor {
     bool repeat_field_;
     std::vector<std::pair<char, std::string>> subfield_codes_to_json_tags_; // For mapping to variable fields
     std::string json_tag_; // For mapping to control fields
-    std::string field_contents_prefix_; // For mapping to data fields
+    std::string field_contents_prefix_; // For mapping to control fields
     bool required_;
 public:
     explicit FieldDescriptor(const std::string &name, const std::string &tag, const std::string &overflow_tag, const bool repeat_field,
@@ -253,6 +253,35 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
 }
 
 
+enum ReferencedJSONDataState { NO_DATA_FOUND, ONLY_SCALAR_DATA_FOUND, ONLY_ARRAY_DATA_FOUND, SCALAR_AND_ARRAY_DATA_FOUND, FOUND_AT_LEAST_ONE_OBJECT };
+
+
+ReferencedJSONDataState CategorizeJSONReferences(const std::shared_ptr<const JSON::ObjectNode> &object,
+                                                 const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags)
+{
+    unsigned array_references_count(0), subfield_data_found_count(0);
+    for (const auto &subfield_code_and_json_tag : subfield_codes_to_json_tags) {
+        const auto node(object->getNode(subfield_code_and_json_tag.second));
+        if (node != nullptr) {
+            ++subfield_data_found_count;
+            if (node->getType() == JSON::JSONNode::OBJECT_NODE)
+                return FOUND_AT_LEAST_ONE_OBJECT;
+
+            if (node->getType() == JSON::JSONNode::ARRAY_NODE)
+                ++array_references_count;
+        }
+    }
+
+    if (subfield_data_found_count == 0)
+        return NO_DATA_FOUND;
+    if (array_references_count == 0)
+        return ONLY_SCALAR_DATA_FOUND;
+    if (array_references_count == subfield_data_found_count)
+        return ONLY_ARRAY_DATA_FOUND;
+    return SCALAR_AND_ARRAY_DATA_FOUND;
+}
+
+
 void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::shared_ptr<const JSON::ObjectNode> &object,
                             MARC::Record * const record)
 {
@@ -267,12 +296,27 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::
                 if (field_descriptor.repeat_field_) {
                 }
             }
+            created_at_least_one_field = true;
         } else if (field_descriptor.required_)
             LOG_ERROR("missing JSON tag \"" + field_descriptor.json_tag_ + "\" for required field \"" + field_descriptor.name_ + "\"!");
     } else { // Data field
+        const auto referenced_json_data_state(CategorizeJSONReferences(object, field_descriptor.subfield_codes_to_json_tags_));
+        if (referenced_json_data_state == NO_DATA_FOUND)
+            goto final_processing;
+
+        if (referenced_json_data_state == SCALAR_AND_ARRAY_DATA_FOUND)
+            LOG_ERROR("mixed scalar and array data found for \"" + field_descriptor.name_ + "\"!");
+        if (referenced_json_data_state == FOUND_AT_LEAST_ONE_OBJECT)
+            LOG_ERROR("at least some object data found for \"" + field_descriptor.name_ + "\"!");
+
+        if (referenced_json_data_state == ONLY_ARRAY_DATA_FOUND) {
+        } else {
+        }
+
         created_at_least_one_field = true;
     }
 
+final_processing:
     if (field_descriptor.required_ and not created_at_least_one_field)
         LOG_ERROR("required entry for \"" + field_descriptor.name_ + "\" not found!");
 }
