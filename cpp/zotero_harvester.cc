@@ -47,7 +47,7 @@ using namespace ZoteroHarvester;
               << "\n"
               << "\tOptions:\n"
               << "\t[--min-log-level=log_level]         Possible log levels are ERROR, WARNING (default), INFO and DEBUG\n"
-              << "\t[--force-downloads]                 All URLs are unconditionally downloaded and converted.\n"
+              << "\t[--force-downloads]                 All URLs are unconditionally downloaded.\n"
               << "\t[--ignore-robots-dot-txt]           Ignore crawling/rate-limiting parameters specified in robots.txt files and disable download restrictions globally\n"
               << "\t[--output-directory=output_dir]     Generated files are saved to /tmp/zotero_harvester by default\n"
               << "\t[--output-filename=output_filename] Overrides the automatically-generated filename based on the current date/time. Output format is always MARC-XML\n"
@@ -62,7 +62,6 @@ using namespace ZoteroHarvester;
 
 struct CommandLineArgs {
     enum SelectionMode { INVALID, UPLOAD, JOURNAL, URL };
-
 
     bool force_downloads_;
     bool ignore_robots_dot_txt_;
@@ -576,9 +575,9 @@ int Main(int argc, char *argv[]) {
     download_manager_params.ignore_robots_txt_ = commandline_args.ignore_robots_dot_txt_;
     Download::DownloadManager download_manager(download_manager_params);
 
-    Conversion::ConversionManager::GlobalParams conversion_manager_params(commandline_args.force_downloads_,
-                                                                          harvester_config.global_params_->skip_online_first_articles_unconditonally_,
-                                                                          *harvester_config.enhancement_maps);
+    Conversion::ConversionManager::GlobalParams conversion_manager_params(
+        harvester_config.global_params_->skip_online_first_articles_unconditonally_,
+        *harvester_config.enhancement_maps);
     Conversion::ConversionManager conversion_manager(conversion_manager_params);
     OutputFileCache output_file_cache(commandline_args, harvester_config);
     Util::UploadTracker upload_tracker;
