@@ -49,6 +49,7 @@ namespace {
             "\"--store-pdfs-as-html\": Also store HTML representation of downloaded PDFs\n"
             "\"--use-separate-entries-per-url\": Store individual entries for the fulltext locations in a record\n"
             "\"--include-all-tocs\": Extract TOCs even if they are not matched by the only-open-access-filter\n"
+            "\"--only-pdf-fulltexts\": Download real Fulltexts only if the link points to a PDF\n"
             "\"file_offset\" Where to start reading a MARC data set from in marc_input.");
 }
 
@@ -276,7 +277,9 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                        const bool use_only_open_access_links, const bool store_pdfs_as_html,
                        const bool use_separate_entries_per_url = false,
                        const bool include_all_tocs = false,
-                       const bool skip_reviews = false) {
+                       const bool only_pdf_fulltexts = false,
+                       const bool skip_reviews = false)
+{
     const std::string ppn(record->getControlNumber());
     std::set<UrlAndTextType> urls_and_text_types;
     GetUrlsAndTextTypes(*record, &urls_and_text_types, use_only_open_access_links, include_all_tocs, skip_reviews);
@@ -339,6 +342,9 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                 continue;
             }
 
+            if (only_pdf_fulltexts and not StringUtil::StartsWith(media_type, "application/pdf"))
+                continue;
+
             extracted_text = ConvertToPlainText(media_type, media_subtype, http_header_charset, GetTesseractLanguageCode(*record),
                                                 document, pdf_extraction_timeout, &error_message);
             if (unlikely(extracted_text.empty())) {
@@ -359,13 +365,14 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         } else
             combined_text_buffer << ((combined_text_buffer.tellp() != std::streampos(0)) ? " " : "") << extracted_text;
 
-        if (store_pdfs_as_html and StringUtil::StartsWith(media_type, "application/pdf")) {
+        if (store_pdfs_as_html and StringUtil::StartsWith(media_type, "application/pdf") and not PdfUtil::PdfFileContainsNoText(document)) {
             const FileUtil::AutoTempFile auto_temp_file("/tmp/fulltext_pdf");
             const std::string temp_pdf_path(auto_temp_file.getFilePath());
             FileUtil::WriteStringOrDie(temp_pdf_path, document);
-            cache.extractAndImportHTMLPages(ppn, temp_pdf_path,
-                                            use_only_open_access_links ? FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_)
-                                            : FullTextCache::UNKNOWN);
+            if (not PdfUtil::PdfFileContainsNoText(temp_pdf_path))
+                cache.extractAndImportHTMLPages(ppn, temp_pdf_path,
+                                                use_only_open_access_links ? FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_)
+                                                : FullTextCache::UNKNOWN);
         }
 
         // Do not save 520-pseudo URLs in default mode
@@ -386,12 +393,12 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
 
 bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_filename, const unsigned pdf_extraction_timeout,
                    const bool use_only_open_access_links, const bool extract_html_from_pdfs, const bool use_separate_entries_per_url,
-                   const bool include_all_tocs)
+                   const bool include_all_tocs, const bool only_pdf_fulltexts)
 {
     bool success(false);
     try {
         success = ProcessRecordUrls(record, pdf_extraction_timeout, use_only_open_access_links,
-                                    extract_html_from_pdfs, use_separate_entries_per_url, include_all_tocs);
+                                    extract_html_from_pdfs, use_separate_entries_per_url, include_all_tocs, only_pdf_fulltexts);
     } catch (const std::exception &x) {
         LOG_WARNING("caught exception: " + std::string(x.what()));
     }
@@ -408,13 +415,13 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
 // Returns true if text has been successfully extracted, else false.
 bool ProcessRecord(MARC::Reader * const marc_reader, const std::string &marc_output_filename, const unsigned pdf_extraction_timeout,
                    const bool use_only_open_access_links, const bool extract_html_from_pdfs, const bool use_separate_entries_per_url,
-                   const bool include_all_tocs)
+                   const bool include_all_tocs, const bool only_pdf_fulltexts)
 {
     MARC::Record record(marc_reader->read());
     try {
         LOG_INFO("processing record " + record.getControlNumber());
         return ProcessRecord(&record, marc_output_filename, pdf_extraction_timeout, use_only_open_access_links,
-                             extract_html_from_pdfs, use_separate_entries_per_url, include_all_tocs);
+                             extract_html_from_pdfs, use_separate_entries_per_url, include_all_tocs, only_pdf_fulltexts);
     } catch (const std::exception &x) {
         throw std::runtime_error(x.what() + std::string(" (PPN: ") + record.getControlNumber() + ")");
     }
@@ -458,6 +465,13 @@ int Main(int argc, char *argv[]) {
         ++argv, --argc;
     }
 
+
+    bool only_pdf_fulltexts(false);
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--only-pdf-fulltexts")) {
+        only_pdf_fulltexts = true;
+        ++argv, --argc;
+    }
+
     if (argc != 4)
         Usage();
 
@@ -471,7 +485,7 @@ int Main(int argc, char *argv[]) {
 
     try {
         return ProcessRecord(marc_reader.get(), argv[3], pdf_extraction_timeout, use_only_open_access_documents, store_html_from_pdfs,
-                             use_separate_entries_per_url, include_all_tocs) ? EXIT_SUCCESS : EXIT_FAILURE;
+                             use_separate_entries_per_url, include_all_tocs, only_pdf_fulltexts) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &e) {
         LOG_ERROR("While reading \"" + marc_reader->getPath() + "\" starting at offset \""
               + std::string(argv[1]) + "\", caught exception: " + std::string(e.what()));

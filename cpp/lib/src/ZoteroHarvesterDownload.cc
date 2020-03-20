@@ -367,10 +367,13 @@ namespace RSS {
 bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Config::JournalParams &journal_params,
                                      const SyndicationFormat::AugmentParams &syndication_format_site_params) const
 {
-    if (force_downloads_)
+    if (force_downloads_) {
+        LOG_DEBUG("forcing downloads - feed will be harvested unconditionally");
         return true;
+    }
 
-    const auto last_harvest_timestamp(upload_tracker_.getLastUploadTime(journal_params.name_));
+    const auto last_harvest_timestamp(upload_tracker_.getLastUploadTime(journal_params.zeder_id_,
+                                      Config::GetZederInstanceForJournal(journal_params)));
     if (last_harvest_timestamp == TimeUtil::BAD_TIME_T) {
         LOG_INFO("feed will be harvested for the first time");
         return true;

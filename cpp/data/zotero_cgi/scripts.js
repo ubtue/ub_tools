@@ -72,7 +72,7 @@ function OnChangeCrawlingJournal() {
 function RenderDataTable() {
     $('#all_journals').DataTable({
         "order": [[0, "asc"], [1, "asc"]],
-        "iDisplayLength": 25
+        "iDisplayLength": 75
     });
 
     $('.issn_generate_link').each(function(index){
