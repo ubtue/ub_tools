@@ -58,6 +58,8 @@ public:
     public:
         Entry(const std::string &name, const std::string &value, const std::string &comment)
             : name_(name), value_(value), comment_(comment) { }
+        inline bool empty() const
+            { return name_.empty() and value_.empty() and comment_.empty(); }
     };
 public:
     class Section {
@@ -240,7 +242,7 @@ public:
         bool deleteEntry(const std::string &entry_name);
         const std::string &getComment(const std::string &entry_name) const;
     private:
-        void write(File * const output, const bool pretty_print) const;
+        void write(File * const output, const bool pretty_print, const bool compact) const;
     };
 public:
     typedef std::vector<Section> Sections;
@@ -524,7 +526,8 @@ public:
     bool variableIsDefined(const std::string &section_name, const std::string &variable_name) const;
 
     // \param pretty_print  If true we vertically align equal signs w/in each section.
-    void write(const std::string &path, const bool pretty_print = true) const;
+    // \param compact       If true we remove all empty lines except for section-final ones
+    void write(const std::string &path, const bool pretty_print = true, const bool compact = false) const;
 
     /** \brief  Generate an ini file name based upon the program name, i.e, /usr/local/var/lib/tuelib/programname.conf */
     static std::string DefaultIniFileName();
