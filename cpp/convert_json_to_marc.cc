@@ -290,6 +290,24 @@ enum ReferencedJSONDataState { NO_DATA_FOUND, ONLY_SCALAR_DATA_FOUND, ONLY_ARRAY
                                FOUND_AT_LEAST_ONE_OBJECT, INCONSISTENT_ARRAY_LENGTHS };
 
 
+std::string ReferencedJSONDataStateToString(const ReferencedJSONDataState referenced_json_data_state) {
+    switch (referenced_json_data_state) {
+    case NO_DATA_FOUND:
+        return "NO_DATA_FOUND";
+    case ONLY_SCALAR_DATA_FOUND:
+        return "ONLY_SCALAR_DATA_FOUND";
+    case ONLY_ARRAY_DATA_FOUND:
+        return "ONLY_ARRAY_DATA_FOUND";
+    case SCALAR_AND_ARRAY_DATA_FOUND:
+        return "SCALAR_AND_ARRAY_DATA_FOUND";
+    case FOUND_AT_LEAST_ONE_OBJECT:
+        return "FOUND_AT_LEAST_ONE_OBJECT";
+    case INCONSISTENT_ARRAY_LENGTHS:
+        return "INCONSISTENT_ARRAY_LENGTHS";
+    }
+}
+
+
 ReferencedJSONDataState CategorizeJSONReferences(const std::shared_ptr<const JSON::ObjectNode> &object,
                                                  const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags,
                                                  size_t * const common_array_length)
@@ -297,7 +315,7 @@ ReferencedJSONDataState CategorizeJSONReferences(const std::shared_ptr<const JSO
     unsigned array_references_count(0), subfield_data_found_count(0);
     size_t last_array_length(std::numeric_limits<size_t>::max());
     for (const auto &subfield_code_and_json_tag : subfield_codes_to_json_tags) {
-        const auto node(object->getNode(subfield_code_and_json_tag.second));
+        const auto node(object->deepResolveNode(subfield_code_and_json_tag.second));
         if (node != nullptr) {
             ++subfield_data_found_count;
             if (node->getType() == JSON::JSONNode::OBJECT_NODE)
@@ -348,9 +366,10 @@ std::string FindMapEntryForSubfieldCode(const char subfield_code, const std::vec
 void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::shared_ptr<const JSON::ObjectNode> &object,
                             MARC::Record * const record)
 {
+    LOG_DEBUG("Processing " + field_descriptor.name_);
     bool created_at_least_one_field(false);
     if (not field_descriptor.json_tag_.empty()) { // Control field
-        const auto node(object->getNode(field_descriptor.json_tag_));
+        const auto node(object->deepResolveNode(field_descriptor.json_tag_));
         if (node != nullptr) {
             if (node->getType() == JSON::JSONNode::ARRAY_NODE)
                 LOG_ERROR("no implemented support for control fields if the JSON data source is an array!");
@@ -362,6 +381,7 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::
     } else { // Data field
         size_t array_length;
         const auto referenced_json_data_state(CategorizeJSONReferences(object, field_descriptor.subfield_codes_to_json_tags_, &array_length));
+        LOG_DEBUG("\t" + ReferencedJSONDataStateToString(referenced_json_data_state));
         if (referenced_json_data_state == NO_DATA_FOUND)
             goto final_processing;
 
@@ -373,10 +393,11 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::
             LOG_ERROR("at least some object data found for \"" + field_descriptor.name_ + "\"!");
 
         if (referenced_json_data_state == ONLY_SCALAR_DATA_FOUND) {
+LOG_DEBUG("\tONLY_SCALAR_DATA_FOUND");
             MARC::Record::Field new_field(field_descriptor.tag_);
 
             for (const auto &subfield_code_and_json_tag : field_descriptor.subfield_codes_to_json_tags_) {
-                const auto scalar_node_or_null(object->getNode(subfield_code_and_json_tag.second));
+                const auto scalar_node_or_null(object->deepResolveNode(subfield_code_and_json_tag.second));
                 if (scalar_node_or_null != nullptr) {
                     const std::string subfield_prefix(FindMapEntryForSubfieldCode(subfield_code_and_json_tag.first,
                                                                                   field_descriptor.subfield_codes_to_prefixes_));
@@ -398,7 +419,7 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::
                 MARC::Record::Field new_field(tag);
 
                 for (const auto &subfield_code_and_json_tag : field_descriptor.subfield_codes_to_json_tags_) {
-                    const auto node(object->getNode(subfield_code_and_json_tag.second));
+                    const auto node(object->deepResolveNode(subfield_code_and_json_tag.second));
                     if (node == nullptr)
                         continue;
 
