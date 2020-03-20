@@ -122,6 +122,7 @@ private:
 // Parameters that pertain to a specific journal.
 struct JournalParams {
     enum IniKey : unsigned {
+        NAME,       // not an actual INI key; placeholder for the journal name (name of the INI section)
         ZEDER_ID,
         ZEDER_MODIFIED_TIME,
         GROUP,

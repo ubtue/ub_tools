@@ -29,6 +29,7 @@ namespace ZederInterop {
 
 
 const std::map<Config::JournalParams::IniKey, std::string> INI_KEY_TO_ZEDER_COLUMN_MAP {
+    { Config::JournalParams::IniKey::NAME, "tit" },
     { Config::JournalParams::IniKey::ZEDER_ID, "Z" },
     { Config::JournalParams::IniKey::ZEDER_MODIFIED_TIME, "Mtime" },
     { Config::JournalParams::IniKey::ONLINE_PPN, "eppn" },
@@ -132,6 +133,8 @@ std::string GetJournalParamsIniValueFromZederEntry(const Zeder::Entry &zeder_ent
         zeder_value = INI_KEY_TO_ZEDER_RESOLVER_MAP.at(ini_key)(zeder_entry, zeder_flavour);
     else
         LOG_ERROR("unable to resolve value from Zeder entry for INI key '" + Config::JournalParams::GetIniKeyString(ini_key) + "'");
+
+    zeder_value = TextUtil::CollapseAndTrimWhitespace(zeder_value);
 
     if (IsValidZederValue(zeder_value))
         return zeder_value;
