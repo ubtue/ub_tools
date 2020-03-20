@@ -450,7 +450,7 @@ LOG_DEBUG("\tONLY_SCALAR_DATA_FOUND");
 
 final_processing:
     if (field_descriptor.required_ and not created_at_least_one_field)
-        LOG_ERROR("required entry for \"" + field_descriptor.name_ + "\" not found!");
+        LOG_WARNING("required entry for \"" + field_descriptor.name_ + "\" not found!");
 }
 
 
@@ -481,21 +481,28 @@ void GenerateMARCFromJSON(const std::shared_ptr<const JSON::JSONNode> &object_or
                           const JSONNodeToBibliographicLevelMapper &json_node_to_bibliographic_level_mapper,
                           const std::vector<FieldDescriptor> &field_descriptors, MARC::Writer * const marc_writer)
 {
+    unsigned created_count(0);
+
     switch (object_or_array_root->getType()) {
     case JSON::JSONNode::OBJECT_NODE:
         GenerateSingleMARCRecordFromJSON(JSON::JSONNode::CastToObjectNodeOrDie("object_or_array_root", object_or_array_root),
                                          json_node_to_bibliographic_level_mapper, field_descriptors, marc_writer);
+        ++created_count;
         break;
     case JSON::JSONNode::ARRAY_NODE: {
         const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("object_or_array_root", object_or_array_root));
-        for (const auto &array_element : *array_node)
+        for (const auto &array_element : *array_node) {
             GenerateSingleMARCRecordFromJSON(JSON::JSONNode::CastToObjectNodeOrDie("array_element", array_element),
                                              json_node_to_bibliographic_level_mapper, field_descriptors, marc_writer);
+            ++created_count;
+        }
         break;
     }
     default:
         LOG_ERROR("\"root_path\" in section \"Gobal\" does not reference a JSON object or array!");
     }
+
+    LOG_INFO("created " + std::to_string(created_count) + " MARC record(s).");
 }
 
 
