@@ -143,9 +143,6 @@ std::string GetJournalParamsIniValueFromZederEntry(const Zeder::Entry &zeder_ent
 }
 
 
-
-
-
 Zeder::Flavour GetZederInstanceForJournal(const Config::JournalParams &journal_params) {
     if (journal_params.group_ == "IxTheo" or journal_params.group_ == "ixtheo")
         return Zeder::Flavour::IXTHEO;

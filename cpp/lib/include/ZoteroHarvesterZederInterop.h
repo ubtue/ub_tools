@@ -47,10 +47,6 @@ extern const std::map<Config::JournalParams::IniKey, std::function<std::string(c
 std::string GetJournalParamsIniValueFromZederEntry(const Zeder::Entry &zeder_entry, const Zeder::Flavour zeder_flavour,
                                                    const Config::JournalParams::IniKey ini_key);
 
-
-
-
-
 Zeder::Flavour GetZederInstanceForJournal(const Config::JournalParams &journal_params);
 Zeder::Flavour GetZederInstanceFromMarcRecord(const MARC::Record &record);
 

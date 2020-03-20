@@ -298,7 +298,7 @@ std::string JournalParams::GetIniKeyString(const IniKey ini_key) {
 JournalParams::IniKey JournalParams::GetIniKey(const std::string &ini_key_string) {
     const auto string_and_key(STRING_TO_KEY_MAP.find(ini_key_string));
     if (string_and_key == STRING_TO_KEY_MAP.end())
-        LOG_ERROR("invalid JournalParams INI key string '" + std::to_string(ini_key_string) + "'");
+        LOG_ERROR("invalid JournalParams INI key string '" + ini_key_string + "'");
     return string_and_key->second;
 }
 
