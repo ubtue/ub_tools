@@ -426,7 +426,7 @@ int Main(int argc, char *argv[]) {
         break;
     }
 
-    harvester_config.config_file_->write(commandline_args.config_path_);
+    harvester_config.config_file_->write(commandline_args.config_path_, /* pretty_print = */ true, /* compact = */ true);
 
     return EXIT_SUCCESS;
 }
