@@ -242,6 +242,12 @@ public:
     std::shared_ptr<const JSONNode> getNode(const std::string &label) const;
     std::shared_ptr<JSONNode> getNode(const std::string &label);
 
+    /** \brief  Recursive lookup
+     *  \param  path a path relative to the current object
+     *  \return The resolved node or NULL if no entity referenced by the path was found.
+     */
+    std::shared_ptr<const JSONNode> deepResolveNode(const std::string &path) const;
+
     // Automatic cast value retrieval.  If the requested type is not applicable, the functions abort.
     std::shared_ptr<const ArrayNode> getArrayNode(const std::string &label) const { return getNode<ArrayNode>(label, ARRAY_NODE); }
     std::shared_ptr<ArrayNode> getArrayNode(const std::string &label) { return getNode<ArrayNode>(label, ARRAY_NODE); }
