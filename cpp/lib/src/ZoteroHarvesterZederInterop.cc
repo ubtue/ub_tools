@@ -30,14 +30,18 @@ namespace ZederInterop {
 
 const std::map<Config::JournalParams::IniKey, std::string> INI_KEY_TO_ZEDER_COLUMN_MAP {
     { Config::JournalParams::IniKey::NAME, "tit" },
-    { Config::JournalParams::IniKey::ZEDER_ID, "Z" },
-    { Config::JournalParams::IniKey::ZEDER_MODIFIED_TIME, "Mtime" },
     { Config::JournalParams::IniKey::ONLINE_PPN, "eppn" },
     { Config::JournalParams::IniKey::PRINT_PPN, "pppn" },
     { Config::JournalParams::IniKey::ONLINE_ISSN, "essn" },
     { Config::JournalParams::IniKey::PRINT_ISSN, "issn" },
     { Config::JournalParams::IniKey::EXPECTED_LANGUAGES, "spr" },
     { Config::JournalParams::IniKey::SSGN, "ber" }
+//  The following two columns/INI keys are intentionally excluded as they are special cases.
+//  Even though there is a one-to-one correspondence for each to the two columns,
+//  they are stored differently in memory (in the Zeder::Entry class) than all other
+//  columns. Therefore, they can't be trivially mapped to each other.
+//  { Config::JournalParams::IniKey::ZEDER_ID, "Z" },
+//  { Config::JournalParams::IniKey::ZEDER_MODIFIED_TIME, "Mtime" },
 };
 
 
