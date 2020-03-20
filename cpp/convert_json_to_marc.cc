@@ -72,7 +72,7 @@ FieldDescriptor::FieldDescriptor(const std::string &name, const std::string &tag
 
     if (subfield_codes_to_json_tags_.empty() and json_tag_.empty())
         LOG_ERROR("field \"" + name_
-                  + "\" neither a mapping to the contents of a control field nor the contents of data subfields has been specified!");
+                  + "\" is missing a mapping to the contents of a control field or to the contents of data subfields!");
 }
 
 
@@ -82,39 +82,10 @@ class JSONNodeToBibliographicLevelMapper {
     std::vector<std::pair<RegexMatcher *, MARC::Record::BibliographicLevel>> regex_to_bibliographic_level_map;
 public:
     JSONNodeToBibliographicLevelMapper(const std::string &item_type_tag, const std::string &item_type_map);
+    ~JSONNodeToBibliographicLevelMapper();
     MARC::Record::BibliographicLevel getBibliographicLevel(const JSON::ObjectNode &object_node) const;
     MARC::Record::BibliographicLevel getBibliographicLevel(const std::string &string_value) const;
 };
-
-
-// Expects two values separated by a colon.  Backslash-escaped colons do not count as the separator colon!
-void SplitPatternAndItemType(const std::string &pattern_and_type, std::string * const pattern, std::string * const type) {
-    bool escaped(false), in_pattern(true);
-    for (const char ch : pattern_and_type) {
-        if (escaped) {
-            if (in_pattern)
-                *pattern += ch;
-            else
-                *type += ch;
-            escaped = false;
-        } else if (ch == '\\')
-            escaped = true;
-        else if (ch == ':') {
-            if (not in_pattern)
-                LOG_ERROR("bad regex pattern to item type mapping with additional unescaped colon: \"" + pattern_and_type + "\"!");
-            in_pattern = false;
-        } else {
-            if (in_pattern)
-                *pattern += ch;
-            else
-                *type += ch;
-            escaped = false;
-        }
-    }
-
-    if (escaped)
-        LOG_ERROR("bad regex pattern to item type mapping: \"" + pattern_and_type + "\"!");
-}
 
 
 MARC::Record::BibliographicLevel MapTypeStringToBibliographicLevel(const std::string &item_type) {
@@ -129,30 +100,70 @@ MARC::Record::BibliographicLevel MapTypeStringToBibliographicLevel(const std::st
 }
 
 
+bool SplitPatternsAndTypes(const std::string &patterns_and_types, std::vector<std::pair<std::string, std::string>> * const split_pairs) {
+    bool escaped(false), in_pattern(true);
+    std::string pattern, type;
+    for (const char ch : patterns_and_types) {
+        if (escaped) {
+            escaped = false;
+            if (in_pattern)
+                pattern += ch;
+            else
+                type += ch;
+        } else if (ch == '\\')
+            escaped = true;
+        else if (ch == '|') {
+            split_pairs->emplace_back(pattern, type);
+            pattern.clear(), type.clear();
+            in_pattern = true;
+        } else if (ch == ':') {
+            if (not in_pattern) // types may not contain colons!
+                return false;
+            in_pattern = false;
+        } else if (in_pattern)
+            pattern += ch;
+        else
+            type += ch;
+    }
+
+    if (not escaped and not in_pattern) {
+        split_pairs->emplace_back(pattern, type);
+        return true;
+    }
+
+    return false;
+}
+
+
 JSONNodeToBibliographicLevelMapper::JSONNodeToBibliographicLevelMapper(const std::string &item_type_tag, const std::string &item_type_map)
     : json_tag_(item_type_tag)
 {
     default_ = MARC::Record::UNDEFINED;
 
-    std::vector<std::string> pattens_and_types;
-    StringUtil::Split(item_type_map, '|', &pattens_and_types);
-    for (auto pattern_and_type(pattens_and_types.cbegin()); pattern_and_type != pattens_and_types.cend(); ++pattern_and_type) {
-        std::string pattern, type;
-        SplitPatternAndItemType(*pattern_and_type, &pattern, &type);
-        if (pattern.empty()) {
-            if (pattern_and_type != pattens_and_types.cend() - 1)
+    std::vector<std::pair<std::string, std::string>> patterns_and_types;
+    if (not SplitPatternsAndTypes(item_type_map, &patterns_and_types))
+        LOG_ERROR("bad structure of value to item_type_map in Global section!");
+    for (auto pattern_and_type(patterns_and_types.cbegin()); pattern_and_type != patterns_and_types.cend(); ++pattern_and_type) {
+        if (pattern_and_type->first.empty()) {
+            if (pattern_and_type != patterns_and_types.cend() - 1)
                 LOG_ERROR("default w/o pattern must be the last entry in the pattern to item type mapping!");
-            default_ = MapTypeStringToBibliographicLevel(type);
+            default_ = MapTypeStringToBibliographicLevel(pattern_and_type->second);
             return;
         }
 
         std::string err_msg;
-        const auto regex(RegexMatcher::RegexMatcherFactory(pattern, &err_msg, RegexMatcher::ENABLE_UTF8 | RegexMatcher::CASE_INSENSITIVE));
+        const auto regex(RegexMatcher::RegexMatcherFactory(pattern_and_type->first, &err_msg, RegexMatcher::ENABLE_UTF8 | RegexMatcher::CASE_INSENSITIVE));
         if (regex == nullptr)
-            LOG_ERROR("bad regex pattern in pattern to item type mapping: \"" + *pattern_and_type + "\"! (" + err_msg + ")");
+            LOG_ERROR("bad regex pattern in pattern to item type mapping: \"" + pattern_and_type->first + "\"! (" + err_msg + ")");
 
-        regex_to_bibliographic_level_map.emplace_back(regex, MapTypeStringToBibliographicLevel(type));
+        regex_to_bibliographic_level_map.emplace_back(regex, MapTypeStringToBibliographicLevel(pattern_and_type->second));
     }
+}
+
+
+JSONNodeToBibliographicLevelMapper::~JSONNodeToBibliographicLevelMapper() {
+    for (const auto &regex_and_bibliographic_level : regex_to_bibliographic_level_map)
+        delete regex_and_bibliographic_level.first;
 }
 
 
@@ -194,7 +205,7 @@ MARC::Record::BibliographicLevel JSONNodeToBibliographicLevelMapper::getBibliogr
 
 
 void ProcessGlobalSection(const IniFile::Section &global_section, std::string * const root_path,
-                          JSONNodeToBibliographicLevelMapper ** const json_node_to_bibliographic_level_mapper)
+                          std::unique_ptr<JSONNodeToBibliographicLevelMapper> * const json_node_to_bibliographic_level_mapper)
 {
     *root_path = global_section.getString("root_path");
 
@@ -210,12 +221,12 @@ void ProcessGlobalSection(const IniFile::Section &global_section, std::string * 
         item_type_map = global_section.getString("item_type_map");
     }
 
-    *json_node_to_bibliographic_level_mapper = new JSONNodeToBibliographicLevelMapper(item_type_tag, item_type_map);
+    json_node_to_bibliographic_level_mapper->reset(new JSONNodeToBibliographicLevelMapper(item_type_tag, item_type_map));
 }
 
 
 std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_path, std::string * const root_path,
-                                                  JSONNodeToBibliographicLevelMapper ** const json_node_to_bibliographic_level_mapper)
+                                                  std::unique_ptr<JSONNodeToBibliographicLevelMapper> * const json_node_to_bibliographic_level_mapper)
 {
     std::vector<FieldDescriptor> field_descriptors;
 
@@ -237,7 +248,7 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
             std::vector<std::pair<char, std::string>> subfield_codes_to_json_tags, subfield_codes_to_prefixes, subfield_codes_to_fixed_subfields;
             for (const auto section_entry : section) {
                 if (StringUtil::StartsWith(section_entry.name_, "add_fixed_subfield_")) {
-                    if (section_entry.name_.length() != __builtin_strlen("add_fixed_subfield_?"))
+                    if (section_entry.name_.length() != __builtin_strlen("add_fixed_subfield_?")) // Note: ? used as a placeholder for a subfield code
                         LOG_ERROR("invalid section entry in section \"" + section_name + "\": \"" + section_entry.name_ + "\"!");
                     const char subfield_code(section_entry.name_.back());
                     const auto fixed_subfield_value(section_entry.value_);
@@ -249,7 +260,7 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
                     continue;
 
                 if (StringUtil::EndsWith(section_entry.name_, "_prefix")) {
-                    if (section_entry.name_.length() != __builtin_strlen("subfield_?_prefix"))
+                    if (section_entry.name_.length() != __builtin_strlen("subfield_?_prefix")) // Note: ? used as a placeholder for a subfield code
                         LOG_ERROR("invalid section entry in section \"" + section_name + "\": \"" + section_entry.name_ + "\"!");
                     const char subfield_code(section_entry.name_[__builtin_strlen("subfield_")]);
                     const auto subfield_prefix(section_entry.value_);
@@ -257,7 +268,7 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
                     continue;
                 }
 
-                if (section_entry.name_.length() != __builtin_strlen("subfield_?"))
+                if (section_entry.name_.length() != __builtin_strlen("subfield_?")) // Note: ? used as a placeholder for a subfield code
                     LOG_ERROR("invalid section entry in section \"" + section_name + "\": \"" + section_entry.name_ + "\"!");
                 const char subfield_code(section_entry.name_.back());
                 const auto json_tag(section_entry.value_);
@@ -496,7 +507,7 @@ int Main(int argc, char **argv) {
         ::Usage("config_file json_input marc_output");
 
     std::string root_path;
-    JSONNodeToBibliographicLevelMapper *json_node_to_bibliographic_level_mapper;
+    std::unique_ptr<JSONNodeToBibliographicLevelMapper> json_node_to_bibliographic_level_mapper;
     const auto field_descriptors(LoadFieldDescriptors(argv[1], &root_path, &json_node_to_bibliographic_level_mapper));
 
     const std::string json_file_path(argv[2]);
