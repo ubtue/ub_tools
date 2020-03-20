@@ -27,6 +27,7 @@
 #include "TimeUtil.h"
 #include "util.h"
 #include "ZoteroHarvesterConversion.h"
+#include "ZoteroHarvesterZederInterop.h"
 
 
 namespace ZoteroHarvester {
@@ -521,7 +522,7 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
         return false;
 
     const auto zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
-    const auto zeder_instance(GetZederInstanceString(GetZederInstanceFromMarcRecord(record)));
+    const auto zeder_instance(GetZederInstanceString(ZederInterop::GetZederInstanceFromMarcRecord(record)));
     const auto main_title(record.getMainTitle());
     db_connection.queryOrDie("INSERT INTO delivered_marc_records SET zeder_id=" + db_connection.escapeAndQuoteString(zeder_id)
                              + ",zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance)
