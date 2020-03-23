@@ -3,7 +3,7 @@
 # Create temporary indices and alias them to enable importing from scratch
 # while keeping read access to the old index.
 # Notice that you might obtain duplicate results during indexing that must be handled on client side
-
+set -e
 
 host_and_port=$(inifile_lookup /usr/local/var/lib/tuelib/Elasticsearch.conf Elasticsearch host)
 
@@ -45,6 +45,8 @@ function CreateReadWriteIndicesAndAliases {
 
         curl --silent --request POST "${host_and_port}/${index}/_clone/${index}_write" --header 'Content-Type: application/json'
         curl --silent --request GET "${host_and_port}/_cluster/health/${index}_write?wait_for_status=yellow&timeout=30s" --header 'Content-Type: application/json'
+        curl --silent --request PUT "${host_and_port}/${index}_write/_settings" --header 'Content-Type: application/json'  \
+            --data '{ "settings": { "index.blocks.write": null } }'
         curl --request POST "${host_and_port}/_aliases" --header 'Content-Type: application/json' --data-binary @- << ENDJSON
                        { "actions" :
                           [
