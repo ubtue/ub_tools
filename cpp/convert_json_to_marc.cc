@@ -27,12 +27,23 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "JSON.h"
+#include "KeyValueDB.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
+#include "TimeUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
 namespace {
+
+
+[[noreturn]] void Usage() {
+    ::Usage("[--create-unique-id-db|--ignore-unique-id-dups] config_file json_input marc_output\n"
+            "\t--create-unique-id-db: This flag has to be specified the first time this program will be executed only.\n"
+            "\t--ignore-unique-id-dups]: If specified MARC records will be created for unique ID's which we have encountered\n"
+            "\t                          begfore.  The unique ID database will still be updated.\n\n");
+}
 
 
 struct FieldDescriptor {
@@ -454,9 +465,11 @@ final_processing:
 }
 
 
-void GenerateSingleMARCRecordFromJSON(const std::shared_ptr<const JSON::ObjectNode> &object,
+// \return True if we generated a MARC record or false if we suppressed the generation due to a duplicate unique ID.
+bool GenerateSingleMARCRecordFromJSON(const std::shared_ptr<const JSON::ObjectNode> &object,
                                       const JSONNodeToBibliographicLevelMapper &json_node_to_bibliographic_level_mapper,
-                                      const std::vector<FieldDescriptor> &field_descriptors, MARC::Writer * const marc_writer)
+                                      const std::vector<FieldDescriptor> &field_descriptors, MARC::Writer * const marc_writer,
+                                      const bool ignore_unique_id_dups, KeyValueDB * const unique_id_to_date_map)
 {
     std::string control_number;
     const auto descriptor_for_field_001(std::find_if(field_descriptors.begin(), field_descriptors.end(),
@@ -465,7 +478,12 @@ void GenerateSingleMARCRecordFromJSON(const std::shared_ptr<const JSON::ObjectNo
         control_number = object->getOptionalStringValue(descriptor_for_field_001->json_tag_);
         if (not control_number.empty())
             control_number = descriptor_for_field_001->field_contents_prefix_ + control_number;
+        else
+            LOG_ERROR("missing unique ID! We do need a basis for the generation of a control number!");
     }
+
+    if (not ignore_unique_id_dups and unique_id_to_date_map->keyIsPresent(control_number))
+        return false;
 
     const auto bibliographic_level(json_node_to_bibliographic_level_mapper.getBibliographicLevel(*object));
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level, control_number);
@@ -474,27 +492,37 @@ void GenerateSingleMARCRecordFromJSON(const std::shared_ptr<const JSON::ObjectNo
             ProcessFieldDescriptor(field_descriptor, object, &new_record);
     }
     marc_writer->write(new_record);
+    unique_id_to_date_map->addOrReplace(control_number, TimeUtil::GetCurrentDateAndTime());
+
+    return true;
 }
 
 
 void GenerateMARCFromJSON(const std::shared_ptr<const JSON::JSONNode> &object_or_array_root,
                           const JSONNodeToBibliographicLevelMapper &json_node_to_bibliographic_level_mapper,
-                          const std::vector<FieldDescriptor> &field_descriptors, MARC::Writer * const marc_writer)
+                          const std::vector<FieldDescriptor> &field_descriptors, MARC::Writer * const marc_writer,
+                          const bool ignore_unique_id_dups, KeyValueDB * const unique_id_to_date_map)
 {
-    unsigned created_count(0);
+    unsigned created_count(0), duplicate_skipped_count(0);
 
     switch (object_or_array_root->getType()) {
     case JSON::JSONNode::OBJECT_NODE:
-        GenerateSingleMARCRecordFromJSON(JSON::JSONNode::CastToObjectNodeOrDie("object_or_array_root", object_or_array_root),
-                                         json_node_to_bibliographic_level_mapper, field_descriptors, marc_writer);
-        ++created_count;
+        if (GenerateSingleMARCRecordFromJSON(JSON::JSONNode::CastToObjectNodeOrDie("object_or_array_root", object_or_array_root),
+                                             json_node_to_bibliographic_level_mapper, field_descriptors, marc_writer,
+                                             ignore_unique_id_dups, unique_id_to_date_map))
+            ++created_count;
+        else
+            ++duplicate_skipped_count;
         break;
     case JSON::JSONNode::ARRAY_NODE: {
         const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("object_or_array_root", object_or_array_root));
         for (const auto &array_element : *array_node) {
-            GenerateSingleMARCRecordFromJSON(JSON::JSONNode::CastToObjectNodeOrDie("array_element", array_element),
-                                             json_node_to_bibliographic_level_mapper, field_descriptors, marc_writer);
-            ++created_count;
+            if (GenerateSingleMARCRecordFromJSON(JSON::JSONNode::CastToObjectNodeOrDie("array_element", array_element),
+                                                 json_node_to_bibliographic_level_mapper, field_descriptors, marc_writer,
+                                                 ignore_unique_id_dups, unique_id_to_date_map))
+                ++created_count;
+            else
+                ++duplicate_skipped_count;
         }
         break;
     }
@@ -502,16 +530,33 @@ void GenerateMARCFromJSON(const std::shared_ptr<const JSON::JSONNode> &object_or
         LOG_ERROR("\"root_path\" in section \"Gobal\" does not reference a JSON object or array!");
     }
 
-    LOG_INFO("created " + std::to_string(created_count) + " MARC record(s).");
+    LOG_INFO("created " + std::to_string(created_count) + " MARC record(s) and skipped "  + std::to_string(duplicate_skipped_count) + " duplicate(s).");
 }
+
+
+const std::string UNIQUE_ID_TO_DATE_MAP_PATH(UBTools::GetTuelibPath() + "convert_json_to_marc.db");
 
 
 } // namespace
 
 
 int Main(int argc, char **argv) {
+    if (argc != 4 and argc != 5)
+        Usage();
+
+        if (std::strcmp(argv[1], "--create-unique-id-db") == 0) {
+        KeyValueDB::Create(UNIQUE_ID_TO_DATE_MAP_PATH);
+        --argc, ++argv;
+    }
+
+    bool ignore_unique_id_dups(false);
+    if (std::strcmp(argv[1], "--ignore-unique-id-dups") == 0) {
+        ignore_unique_id_dups = true;
+        --argc, ++argv;
+    }
+
     if (argc != 4)
-        ::Usage("config_file json_input marc_output");
+        Usage();
 
     std::string root_path;
     std::unique_ptr<JSONNodeToBibliographicLevelMapper> json_node_to_bibliographic_level_mapper;
@@ -525,8 +570,10 @@ int Main(int argc, char **argv) {
         LOG_ERROR("Failed to parse the contents of \"" + json_file_path + "\": " + parser.getErrorMessage());
     const auto object_or_array_root(JSON::LookupNode(root_path, tree_root));
 
+    KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
     auto marc_writer(MARC::Writer::Factory(argv[3]));
-    GenerateMARCFromJSON(object_or_array_root, *json_node_to_bibliographic_level_mapper, field_descriptors, marc_writer.get());
+    GenerateMARCFromJSON(object_or_array_root, *json_node_to_bibliographic_level_mapper, field_descriptors, marc_writer.get(),
+                         ignore_unique_id_dups, &unique_id_to_date_map);
 
     return EXIT_SUCCESS;
 }
