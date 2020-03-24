@@ -838,7 +838,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         // Handle fields that need special treatment
         //
 
-        MARC::Record::Field augmented_import_field("999");
+        MARC::Record::Field augmented_import_field(MARC::Tag("999"));
         if (MergeFieldPair022(&merge_field, import_field, merge_record, *import_record, &augmented_import_field)) {
             if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)) {
                 merge_field_pos->swap(merge_field);
