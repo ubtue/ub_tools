@@ -21,7 +21,9 @@
 */
 
 #include <algorithm>
+#include <iostream>
 #include <limits>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 #include "FileUtil.h"
@@ -39,10 +41,13 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--create-unique-id-db|--ignore-unique-id-dups] config_file json_input marc_output\n"
+    ::Usage("[--create-unique-id-db|--ignore-unique-id-dups|--extract-and-count-issns-only] config_file json_input [marc_output}\n"
             "\t--create-unique-id-db: This flag has to be specified the first time this program will be executed only.\n"
             "\t--ignore-unique-id-dups]: If specified MARC records will be created for unique ID's which we have encountered\n"
-            "\t                          begfore.  The unique ID database will still be updated.\n\n");
+            "\t                          begfore.  The unique ID database will still be updated.\n"
+            "\t--extract-and-count-issns-only: Generates stats on the frequency of ISSN's in the JSON input and does not enerate any \n"
+            "\t                                MARC output files.  This requires the existence of the \"magic\" \"ISSN\" config file entry!\n"
+            "\tmarc_outpt: required unless --extract-and-count-issns-only was specified!\n\n");
 }
 
 
@@ -52,7 +57,8 @@ struct FieldDescriptor {
     char indicator1_, indicator2_;
     bool repeat_field_;
     std::vector<std::pair<char, std::string>> subfield_codes_to_json_tags_, subfield_codes_to_prefixes_,
-                                              subfield_codes_to_fixed_subfields_; // For mapping to variable fields
+        subfield_codes_to_fixed_subfields_; // For mapping to variable fields
+    std::map<char, std::shared_ptr<RegexMatcher *>> subfield_codes_to_extraction_regexes_map_;
     std::string json_tag_; // For mapping to control fields
     std::string field_contents_prefix_; // For mapping to control fields
     bool required_;
@@ -62,6 +68,7 @@ public:
                              const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags,
                              const std::vector<std::pair<char, std::string>> &subfield_codes_to_prefixes,
                              const std::vector<std::pair<char, std::string>> &subfield_codes_to_fixed_subfields,
+                             const std::map<char, std::shared_ptr<RegexMatcher *>> subfield_codes_to_extraction_regexes_map,
                              const std::string &json_tag, const std::string &field_contents_prefix, const bool required);
     bool operator<(const FieldDescriptor &other) const { return tag_ < other.tag_; }
 };
@@ -72,10 +79,12 @@ FieldDescriptor::FieldDescriptor(const std::string &name, const std::string &tag
                                  const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags,
                                  const std::vector<std::pair<char, std::string>> &subfield_codes_to_prefixes,
                                  const std::vector<std::pair<char, std::string>> &subfield_codes_to_fixed_subfields,
+                                 const std::map<char, std::shared_ptr<RegexMatcher *>> subfield_codes_to_extraction_regexes_map,
                                  const std::string &json_tag, const std::string &field_contents_prefix, const bool required)
     : name_(name), tag_(tag), overflow_tag_(overflow_tag), indicator1_(indicator1), indicator2_(indicator2), repeat_field_(repeat_field),
       subfield_codes_to_json_tags_(subfield_codes_to_json_tags), subfield_codes_to_prefixes_(subfield_codes_to_prefixes),
-      subfield_codes_to_fixed_subfields_(subfield_codes_to_fixed_subfields), json_tag_(json_tag),
+      subfield_codes_to_fixed_subfields_(subfield_codes_to_fixed_subfields),
+      subfield_codes_to_extraction_regexes_map_(subfield_codes_to_extraction_regexes_map), json_tag_(json_tag),
       field_contents_prefix_(field_contents_prefix), required_(required)
 {
     if (not overflow_tag_.empty() and repeat_field_)
@@ -257,6 +266,7 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
                 LOG_ERROR("invalid tag \"" + tag + "\" in section \"" + section_name + "\" in \"" + ini_file.getFilename() + "\"!");
 
             std::vector<std::pair<char, std::string>> subfield_codes_to_json_tags, subfield_codes_to_prefixes, subfield_codes_to_fixed_subfields;
+            std::map<char, std::shared_ptr<RegexMatcher *>> subfield_codes_to_extraction_regexes_map;
             for (const auto section_entry : section) {
                 if (StringUtil::StartsWith(section_entry.name_, "add_fixed_subfield_")) {
                     if (section_entry.name_.length() != __builtin_strlen("add_fixed_subfield_?")) // Note: ? used as a placeholder for a subfield code
@@ -276,6 +286,20 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
                     const char subfield_code(section_entry.name_[__builtin_strlen("subfield_")]);
                     const auto subfield_prefix(section_entry.value_);
                     subfield_codes_to_prefixes.emplace_back(subfield_code, subfield_prefix);
+                    continue;
+                }
+
+                if (StringUtil::EndsWith(section_entry.name_, "_extraction_regex")) {
+                    if (section_entry.name_.length() != __builtin_strlen("subfield_?_extraction_regex")) // Note: ? used as a placeholder for a subfield code
+                        LOG_ERROR("invalid section entry in section \"" + section_name + "\": \"" + section_entry.name_ + "\"!");
+                    const char subfield_code(section_entry.name_[__builtin_strlen("subfield_")]);
+                    const auto extraction_regex(section_entry.value_);
+                    std::string error_message;
+                    const auto regex_matcher(RegexMatcher::RegexMatcherFactory(extraction_regex, &error_message));
+                    if (regex_matcher == nullptr)
+                        LOG_ERROR("bad regex for \"" + section_entry.name_ + "\" in section \"" + section_name + "\"! ("
+                                  + error_message + ")");
+                    subfield_codes_to_extraction_regexes_map.emplace(subfield_code, std::make_shared<RegexMatcher *>(regex_matcher));
                     continue;
                 }
 
@@ -299,7 +323,8 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
             field_descriptors.emplace_back(section_name, tag, section.getString("overflow_tag", ""), section.getChar("indicator1", ' '),
                                            section.getChar("indicator2", ' '), section.getBool("repeat_field", false),
                                            subfield_codes_to_json_tags, subfield_codes_to_prefixes, subfield_codes_to_fixed_subfields,
-                                           json_tag, field_contents_prefix, section.getBool("required", false));
+                                           subfield_codes_to_extraction_regexes_map, json_tag, field_contents_prefix,
+                                           section.getBool("required", false));
         }
     }
 
@@ -385,7 +410,18 @@ std::string FindMapEntryForSubfieldCode(const char subfield_code, const std::vec
 }
 
 
+#if 0
+RegexMatcher *GetRegexMatcherOrNULL(const char subfield_code,
+                                    const std::map<char, std::shared_ptr<RegexMatcher *>> &subfield_codes_to_regex_matchers_map)
+{
+    const auto subfield_code_and_regex_matcher(subfield_codes_to_regex_matchers_map.find(subfield_code));
+    return (subfield_code_and_regex_matcher == subfield_codes_to_regex_matchers_map.cend()) ? nullptr : subfield_code_and_regex_matcher->second;
+}
+#endif
+
+
 void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::shared_ptr<const JSON::ObjectNode> &object,
+                            std::unordered_map<std::string, unsigned> * const issns_to_counts_map,
                             MARC::Record * const record)
 {
     LOG_DEBUG("Processing " + field_descriptor.name_);
@@ -415,24 +451,36 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::
             LOG_ERROR("at least some object data found for \"" + field_descriptor.name_ + "\"!");
 
         if (referenced_json_data_state == ONLY_SCALAR_DATA_FOUND) {
-LOG_DEBUG("\tONLY_SCALAR_DATA_FOUND");
             MARC::Record::Field new_field(field_descriptor.tag_);
+            bool created_at_least_one_subfield(false);
 
             for (const auto &subfield_code_and_json_tag : field_descriptor.subfield_codes_to_json_tags_) {
                 const auto scalar_node_or_null(object->deepResolveNode(subfield_code_and_json_tag.second));
                 if (scalar_node_or_null != nullptr) {
                     const std::string subfield_prefix(FindMapEntryForSubfieldCode(subfield_code_and_json_tag.first,
                                                                                   field_descriptor.subfield_codes_to_prefixes_));
-                    new_field.appendSubfield(subfield_code_and_json_tag.first,
-                                             subfield_prefix + GetScalarJSONStringValueWithoutQuotes(scalar_node_or_null));
+                    const std::string json_value_as_string(GetScalarJSONStringValueWithoutQuotes(scalar_node_or_null));
+                    if (field_descriptor.name_ == "ISSN") {
+                        auto issn_and_count(issns_to_counts_map->find(json_value_as_string));
+                        if (issn_and_count == issns_to_counts_map->end())
+                            (*issns_to_counts_map)[json_value_as_string] = 1;
+                        else
+                            ++(issn_and_count->second);
+                    }
+                    new_field.appendSubfield(subfield_code_and_json_tag.first, subfield_prefix + json_value_as_string);
+                    created_at_least_one_subfield = true;
                 }
             }
 
-            for (const auto &subfield_code_and_fixed_subfield : field_descriptor.subfield_codes_to_fixed_subfields_)
+            for (const auto &subfield_code_and_fixed_subfield : field_descriptor.subfield_codes_to_fixed_subfields_) {
                 new_field.appendSubfield(subfield_code_and_fixed_subfield.first, subfield_code_and_fixed_subfield.second);
+                created_at_least_one_subfield = true;
+            }
 
-            record->insertField(new_field);
-            created_at_least_one_field = true;
+            if (created_at_least_one_subfield) {
+                record->insertField(new_field);
+                created_at_least_one_field = true;
+            }
         } else { // All our data resides in JSON arrays.
             for (unsigned json_array_index(0); json_array_index < array_length; ++json_array_index) {
                 std::string tag(field_descriptor.tag_);
@@ -449,8 +497,15 @@ LOG_DEBUG("\tONLY_SCALAR_DATA_FOUND");
                                                                                   field_descriptor.subfield_codes_to_prefixes_));
                     const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("array_node", node));
                     const auto scalar_node(array_node->getNode(json_array_index));
-                    new_field.appendSubfield(subfield_code_and_json_tag.first,
-                                             subfield_prefix + GetScalarJSONStringValueWithoutQuotes(scalar_node));
+                    const std::string json_value_as_string(GetScalarJSONStringValueWithoutQuotes(scalar_node));
+                    if (field_descriptor.name_ == "ISSN") {
+                        auto issn_and_count(issns_to_counts_map->find(json_value_as_string));
+                        if (issn_and_count == issns_to_counts_map->end())
+                            (*issns_to_counts_map)[json_value_as_string] = 1;
+                        else
+                            ++(issn_and_count->second);
+                    }
+                    new_field.appendSubfield(subfield_code_and_json_tag.first, subfield_prefix + json_value_as_string);
                 }
 
                 record->insertField(new_field);
@@ -469,6 +524,8 @@ final_processing:
 bool GenerateSingleMARCRecordFromJSON(const std::shared_ptr<const JSON::ObjectNode> &object,
                                       const JSONNodeToBibliographicLevelMapper &json_node_to_bibliographic_level_mapper,
                                       const std::vector<FieldDescriptor> &field_descriptors, MARC::Writer * const marc_writer,
+                                      const bool extract_and_count_issns_only,
+                                      std::unordered_map<std::string, unsigned> * const issns_to_counts_map,
                                       const bool ignore_unique_id_dups, KeyValueDB * const unique_id_to_date_map)
 {
     std::string control_number;
@@ -482,25 +539,28 @@ bool GenerateSingleMARCRecordFromJSON(const std::shared_ptr<const JSON::ObjectNo
             LOG_ERROR("missing unique ID! We do need a basis for the generation of a control number!");
     }
 
-    if (not ignore_unique_id_dups and unique_id_to_date_map->keyIsPresent(control_number))
+    if (not extract_and_count_issns_only and (not ignore_unique_id_dups and unique_id_to_date_map->keyIsPresent(control_number)))
         return false;
 
     const auto bibliographic_level(json_node_to_bibliographic_level_mapper.getBibliographicLevel(*object));
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level, control_number);
     for (const auto field_descriptor : field_descriptors) {
         if (field_descriptor.tag_ != "001")
-            ProcessFieldDescriptor(field_descriptor, object, &new_record);
+            ProcessFieldDescriptor(field_descriptor, object, issns_to_counts_map, &new_record);
     }
-    marc_writer->write(new_record);
+    if (not extract_and_count_issns_only)
+        marc_writer->write(new_record);
     unique_id_to_date_map->addOrReplace(control_number, TimeUtil::GetCurrentDateAndTime());
 
-    return true;
+    return not extract_and_count_issns_only;
 }
 
 
 void GenerateMARCFromJSON(const std::shared_ptr<const JSON::JSONNode> &object_or_array_root,
                           const JSONNodeToBibliographicLevelMapper &json_node_to_bibliographic_level_mapper,
                           const std::vector<FieldDescriptor> &field_descriptors, MARC::Writer * const marc_writer,
+                          const bool extract_and_count_issns_only,
+                          std::unordered_map<std::string, unsigned> * const issns_to_counts_map,
                           const bool ignore_unique_id_dups, KeyValueDB * const unique_id_to_date_map)
 {
     unsigned created_count(0), duplicate_skipped_count(0);
@@ -509,6 +569,7 @@ void GenerateMARCFromJSON(const std::shared_ptr<const JSON::JSONNode> &object_or
     case JSON::JSONNode::OBJECT_NODE:
         if (GenerateSingleMARCRecordFromJSON(JSON::JSONNode::CastToObjectNodeOrDie("object_or_array_root", object_or_array_root),
                                              json_node_to_bibliographic_level_mapper, field_descriptors, marc_writer,
+                                             extract_and_count_issns_only, issns_to_counts_map,
                                              ignore_unique_id_dups, unique_id_to_date_map))
             ++created_count;
         else
@@ -519,6 +580,7 @@ void GenerateMARCFromJSON(const std::shared_ptr<const JSON::JSONNode> &object_or
         for (const auto &array_element : *array_node) {
             if (GenerateSingleMARCRecordFromJSON(JSON::JSONNode::CastToObjectNodeOrDie("array_element", array_element),
                                                  json_node_to_bibliographic_level_mapper, field_descriptors, marc_writer,
+                                                 extract_and_count_issns_only, issns_to_counts_map,
                                                  ignore_unique_id_dups, unique_id_to_date_map))
                 ++created_count;
             else
@@ -555,7 +617,13 @@ int Main(int argc, char **argv) {
         --argc, ++argv;
     }
 
-    if (argc != 4)
+    bool extract_and_count_issns_only(false);
+    if (std::strcmp(argv[1], "--extract-and-count-issns-only") == 0) {
+        extract_and_count_issns_only = true;
+        --argc, ++argv;
+    }
+
+    if ((extract_and_count_issns_only and argc != 3) or (not extract_and_count_issns_only and argc != 4))
         Usage();
 
     std::string root_path;
@@ -571,9 +639,21 @@ int Main(int argc, char **argv) {
     const auto object_or_array_root(JSON::LookupNode(root_path, tree_root));
 
     KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
-    auto marc_writer(MARC::Writer::Factory(argv[3]));
+    std::unordered_map<std::string, unsigned> issns_to_counts_map;
+    const std::unique_ptr<MARC::Writer> marc_writer(extract_and_count_issns_only ? nullptr : MARC::Writer::Factory(argv[3]));
     GenerateMARCFromJSON(object_or_array_root, *json_node_to_bibliographic_level_mapper, field_descriptors, marc_writer.get(),
-                         ignore_unique_id_dups, &unique_id_to_date_map);
+                         extract_and_count_issns_only, &issns_to_counts_map, ignore_unique_id_dups, &unique_id_to_date_map);
+
+    if (extract_and_count_issns_only) {
+        std::vector<std::pair<std::string, unsigned>> issns_and_counts;
+        issns_and_counts.reserve(issns_to_counts_map.size());
+        for (const auto &issn_and_count : issns_to_counts_map)
+            issns_and_counts.emplace_back(issn_and_count);
+        std::sort(issns_and_counts.begin(), issns_and_counts.end(),
+                  [](const auto &a, const auto &b) { return a.second > b.second; });
+        for (const auto &issn_and_count : issns_and_counts)
+            std::cout << issn_and_count.first << '\t' << issn_and_count.second << '\n';
+    }
 
     return EXIT_SUCCESS;
 }
