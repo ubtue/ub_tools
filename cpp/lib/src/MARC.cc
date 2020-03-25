@@ -2879,4 +2879,24 @@ std::set<std::string> ExtractPrintAndOnlineCrossLinkPPNs(const MARC::Record &rec
 }
 
 
+const std::unordered_map<std::string, std::string> UNKNOWN_CODE_TO_MARC_CODE{
+    { "eng", "eng" },
+    { "en",  "eng" },
+    { "fre", "fre" },
+    { "fr",  "fre" },
+    { "por", "por" },
+    { "pt",  "por" },
+    { "ger", "ger" },
+    { "de",  "ger" },
+};
+
+
+std::string MapToMARCLanguageCode(const std::string &some_code) {
+    const auto unknown_code_and_marc_code(UNKNOWN_CODE_TO_MARC_CODE.find(StringUtil::ASCIIToLower(some_code)));
+    if (unknown_code_and_marc_code != UNKNOWN_CODE_TO_MARC_CODE.cend())
+        return unknown_code_and_marc_code->second;
+    return "";
+}
+
+
 } // namespace MARC
