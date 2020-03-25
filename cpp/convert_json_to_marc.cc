@@ -58,7 +58,7 @@ struct FieldDescriptor {
     bool repeat_field_;
     std::vector<std::pair<char, std::string>> subfield_codes_to_json_tags_, subfield_codes_to_prefixes_,
         subfield_codes_to_fixed_subfields_; // For mapping to variable fields
-    std::map<char, std::shared_ptr<RegexMatcher *>> subfield_codes_to_extraction_regexes_map_;
+    std::map<char, std::shared_ptr<RegexMatcher>> subfield_codes_to_extraction_regexes_map_;
     std::string json_tag_; // For mapping to control fields
     std::string field_contents_prefix_; // For mapping to control fields
     bool required_;
@@ -68,7 +68,7 @@ public:
                              const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags,
                              const std::vector<std::pair<char, std::string>> &subfield_codes_to_prefixes,
                              const std::vector<std::pair<char, std::string>> &subfield_codes_to_fixed_subfields,
-                             const std::map<char, std::shared_ptr<RegexMatcher *>> subfield_codes_to_extraction_regexes_map,
+                             const std::map<char, std::shared_ptr<RegexMatcher>> subfield_codes_to_extraction_regexes_map,
                              const std::string &json_tag, const std::string &field_contents_prefix, const bool required);
     bool operator<(const FieldDescriptor &other) const { return tag_ < other.tag_; }
 };
@@ -79,7 +79,7 @@ FieldDescriptor::FieldDescriptor(const std::string &name, const std::string &tag
                                  const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_tags,
                                  const std::vector<std::pair<char, std::string>> &subfield_codes_to_prefixes,
                                  const std::vector<std::pair<char, std::string>> &subfield_codes_to_fixed_subfields,
-                                 const std::map<char, std::shared_ptr<RegexMatcher *>> subfield_codes_to_extraction_regexes_map,
+                                 const std::map<char, std::shared_ptr<RegexMatcher>> subfield_codes_to_extraction_regexes_map,
                                  const std::string &json_tag, const std::string &field_contents_prefix, const bool required)
     : name_(name), tag_(tag), overflow_tag_(overflow_tag), indicator1_(indicator1), indicator2_(indicator2), repeat_field_(repeat_field),
       subfield_codes_to_json_tags_(subfield_codes_to_json_tags), subfield_codes_to_prefixes_(subfield_codes_to_prefixes),
@@ -266,7 +266,7 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
                 LOG_ERROR("invalid tag \"" + tag + "\" in section \"" + section_name + "\" in \"" + ini_file.getFilename() + "\"!");
 
             std::vector<std::pair<char, std::string>> subfield_codes_to_json_tags, subfield_codes_to_prefixes, subfield_codes_to_fixed_subfields;
-            std::map<char, std::shared_ptr<RegexMatcher *>> subfield_codes_to_extraction_regexes_map;
+            std::map<char, std::shared_ptr<RegexMatcher>> subfield_codes_to_extraction_regexes_map;
             for (const auto section_entry : section) {
                 if (StringUtil::StartsWith(section_entry.name_, "add_fixed_subfield_")) {
                     if (section_entry.name_.length() != __builtin_strlen("add_fixed_subfield_?")) // Note: ? used as a placeholder for a subfield code
@@ -299,7 +299,7 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
                     if (regex_matcher == nullptr)
                         LOG_ERROR("bad regex for \"" + section_entry.name_ + "\" in section \"" + section_name + "\"! ("
                                   + error_message + ")");
-                    subfield_codes_to_extraction_regexes_map.emplace(subfield_code, std::make_shared<RegexMatcher *>(regex_matcher));
+                    subfield_codes_to_extraction_regexes_map.emplace(subfield_code, regex_matcher);
                     continue;
                 }
 
@@ -410,14 +410,74 @@ std::string FindMapEntryForSubfieldCode(const char subfield_code, const std::vec
 }
 
 
-#if 0
 RegexMatcher *GetRegexMatcherOrNULL(const char subfield_code,
-                                    const std::map<char, std::shared_ptr<RegexMatcher *>> &subfield_codes_to_regex_matchers_map)
+                                    const std::map<char, std::shared_ptr<RegexMatcher>> &subfield_codes_to_regex_matchers_map)
 {
     const auto subfield_code_and_regex_matcher(subfield_codes_to_regex_matchers_map.find(subfield_code));
-    return (subfield_code_and_regex_matcher == subfield_codes_to_regex_matchers_map.cend()) ? nullptr : subfield_code_and_regex_matcher->second;
+    return (subfield_code_and_regex_matcher == subfield_codes_to_regex_matchers_map.cend()) ? nullptr
+                                                                                            : subfield_code_and_regex_matcher->second.get();
 }
-#endif
+
+
+void UpdateISSNReferenceCount(const FieldDescriptor &field_descriptor, const std::string &cleaned_up_json_value,
+                              std::unordered_map<std::string, unsigned> * const issns_to_counts_map)
+{
+    if (StringUtil::FindCaseInsensitive(field_descriptor.name_, "ISSN") != std::string::npos) {
+        auto issn_and_count(issns_to_counts_map->find(cleaned_up_json_value));
+        if (issn_and_count == issns_to_counts_map->end())
+            (*issns_to_counts_map)[cleaned_up_json_value] = 1;
+        else
+            ++(issn_and_count->second);
+    }
+}
+
+
+// \return True if a subfield was inserted into "record" and false o/w.
+// \note   "array_index" is only used if the node lookup in this function results in a JSON array.
+bool ExtractJSONAndGenerateSubfields(MARC::Record * const record, const MARC::Tag &tag, const FieldDescriptor &field_descriptor,
+                                     const std::shared_ptr<const JSON::ObjectNode> &object, const size_t json_array_index,
+                                     std::unordered_map<std::string, unsigned> * const issns_to_counts_map)
+{
+    MARC::Record::Field new_field(tag);
+    bool created_at_least_one_subfield(false);
+
+    for (const auto &subfield_code_and_json_tag : field_descriptor.subfield_codes_to_json_tags_) {
+        auto scalar_or_array_node(object->deepResolveNode(subfield_code_and_json_tag.second));
+        if (scalar_or_array_node == nullptr)
+            continue;
+
+        // If we have an arry node we need to go one level deeper into the JSON structure:
+        if (scalar_or_array_node->getType() == JSON::JSONNode::ARRAY_NODE) {
+            const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("array_node", scalar_or_array_node));
+            scalar_or_array_node = array_node->getNode(json_array_index);
+        }
+
+        const std::string subfield_prefix(FindMapEntryForSubfieldCode(subfield_code_and_json_tag.first,
+                                                                      field_descriptor.subfield_codes_to_prefixes_));
+        std::string extracted_value(GetScalarJSONStringValueWithoutQuotes(scalar_or_array_node));
+
+        const auto regex_matcher(GetRegexMatcherOrNULL(subfield_code_and_json_tag.first,
+                                                       field_descriptor.subfield_codes_to_extraction_regexes_map_));
+        if (regex_matcher != nullptr) {
+            if (not regex_matcher->matched(extracted_value))
+                continue;
+            extracted_value = (*regex_matcher)[0];
+        }
+
+        UpdateISSNReferenceCount(field_descriptor, extracted_value, issns_to_counts_map);
+        new_field.appendSubfield(subfield_code_and_json_tag.first, subfield_prefix + extracted_value);
+        created_at_least_one_subfield = true;
+    }
+
+    if (created_at_least_one_subfield) {
+        for (const auto &subfield_code_and_fixed_subfield : field_descriptor.subfield_codes_to_fixed_subfields_)
+            new_field.appendSubfield(subfield_code_and_fixed_subfield.first, subfield_code_and_fixed_subfield.second);
+        record->insertField(new_field);
+        return true;
+    }
+
+    return false;
+}
 
 
 void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::shared_ptr<const JSON::ObjectNode> &object,
@@ -450,66 +510,16 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::
         if (referenced_json_data_state == FOUND_AT_LEAST_ONE_OBJECT)
             LOG_ERROR("at least some object data found for \"" + field_descriptor.name_ + "\"!");
 
-        if (referenced_json_data_state == ONLY_SCALAR_DATA_FOUND) {
-            MARC::Record::Field new_field(field_descriptor.tag_);
-            bool created_at_least_one_subfield(false);
-
-            for (const auto &subfield_code_and_json_tag : field_descriptor.subfield_codes_to_json_tags_) {
-                const auto scalar_node_or_null(object->deepResolveNode(subfield_code_and_json_tag.second));
-                if (scalar_node_or_null != nullptr) {
-                    const std::string subfield_prefix(FindMapEntryForSubfieldCode(subfield_code_and_json_tag.first,
-                                                                                  field_descriptor.subfield_codes_to_prefixes_));
-                    const std::string json_value_as_string(GetScalarJSONStringValueWithoutQuotes(scalar_node_or_null));
-                    if (field_descriptor.name_ == "ISSN") {
-                        auto issn_and_count(issns_to_counts_map->find(json_value_as_string));
-                        if (issn_and_count == issns_to_counts_map->end())
-                            (*issns_to_counts_map)[json_value_as_string] = 1;
-                        else
-                            ++(issn_and_count->second);
-                    }
-                    new_field.appendSubfield(subfield_code_and_json_tag.first, subfield_prefix + json_value_as_string);
-                    created_at_least_one_subfield = true;
-                }
-            }
-
-            for (const auto &subfield_code_and_fixed_subfield : field_descriptor.subfield_codes_to_fixed_subfields_) {
-                new_field.appendSubfield(subfield_code_and_fixed_subfield.first, subfield_code_and_fixed_subfield.second);
-                created_at_least_one_subfield = true;
-            }
-
-            if (created_at_least_one_subfield) {
-                record->insertField(new_field);
-                created_at_least_one_field = true;
-            }
-        } else { // All our data resides in JSON arrays.
+        if (referenced_json_data_state == ONLY_SCALAR_DATA_FOUND)
+            created_at_least_one_field = ExtractJSONAndGenerateSubfields(record, field_descriptor.tag_, field_descriptor, object,
+                                                                         /* json_array_index = */-1, issns_to_counts_map);
+        else { // All our data resides in JSON arrays.
             for (unsigned json_array_index(0); json_array_index < array_length; ++json_array_index) {
                 std::string tag(field_descriptor.tag_);
                 if (json_array_index > 0 and not field_descriptor.overflow_tag_.empty())
                     tag = field_descriptor.overflow_tag_;
-                MARC::Record::Field new_field(tag);
-
-                for (const auto &subfield_code_and_json_tag : field_descriptor.subfield_codes_to_json_tags_) {
-                    const auto node(object->deepResolveNode(subfield_code_and_json_tag.second));
-                    if (node == nullptr)
-                        continue;
-
-                    const std::string subfield_prefix(FindMapEntryForSubfieldCode(subfield_code_and_json_tag.first,
-                                                                                  field_descriptor.subfield_codes_to_prefixes_));
-                    const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("array_node", node));
-                    const auto scalar_node(array_node->getNode(json_array_index));
-                    const std::string json_value_as_string(GetScalarJSONStringValueWithoutQuotes(scalar_node));
-                    if (field_descriptor.name_ == "ISSN") {
-                        auto issn_and_count(issns_to_counts_map->find(json_value_as_string));
-                        if (issn_and_count == issns_to_counts_map->end())
-                            (*issns_to_counts_map)[json_value_as_string] = 1;
-                        else
-                            ++(issn_and_count->second);
-                    }
-                    new_field.appendSubfield(subfield_code_and_json_tag.first, subfield_prefix + json_value_as_string);
-                }
-
-                record->insertField(new_field);
-                created_at_least_one_field = true;
+                if (ExtractJSONAndGenerateSubfields(record, tag, field_descriptor, object, json_array_index, issns_to_counts_map))
+                    created_at_least_one_field = true;
             }
         }
     }
