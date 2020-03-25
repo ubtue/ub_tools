@@ -12,7 +12,8 @@ item_type_tag[O]: If specified, item_type_map must be also specified.  If neithe
 item_type_map[O]: If specified, item_type_tag must be also specified.  This consists of a map where
     each key-value entry is separated from the other key-value by vertical bars.  Keys and values are
     separated by colons.  If you wish to include vertical bars, colons of backslashes in keys or
-    values you must backslash-escape them.  The values are not arbitray but must be one of
+    values you must backslash-escape them.  You can also use hexadecimal escape sequences in the
+    PCRE patterns that look like \xFF.  The values are not arbitray but must be one of
     "book_chapter", "monograph" or "journal article".  If that is not sufficient you need to update
     this documentation and modify convert_json_to_marc.cc to support additional values.
     The ordering of the key-value pairs is significant.  The matching will be attempted in the
