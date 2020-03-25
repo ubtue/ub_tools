@@ -1,7 +1,7 @@
 #!/bin/bash
 # Convert the alias setup created by create_import_indices.sh back to a single index per aspect
 # Make sure the import of each write index is finished
-set -e
+set -o errexit -o nounset
 
 host_and_port=$(inifile_lookup /usr/local/var/lib/tuelib/Elasticsearch.conf Elasticsearch host)
 

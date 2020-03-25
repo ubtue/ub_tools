@@ -3,7 +3,8 @@
 # Create temporary indices and alias them to enable importing from scratch
 # while keeping read access to the old index.
 # Notice that you might obtain duplicate results during indexing that must be handled on client side
-set -e
+set -o errexit -o nounset
+
 
 host_and_port=$(inifile_lookup /usr/local/var/lib/tuelib/Elasticsearch.conf Elasticsearch host)
 
@@ -30,7 +31,7 @@ function GetExistingFulltextAliases {
     for index in ${existing_fulltext_indices[@]}; do
         check_output+=($(curl --silent --request GET "${host_and_port}/_cat/aliases/${index}" --header 'Content-Type: application/json'))
     done
-    echo ${check_output}
+    echo ${check_output[@]}
 }
 
 
@@ -47,7 +48,7 @@ function CreateReadWriteIndicesAndAliases {
         curl --silent --request GET "${host_and_port}/_cluster/health/${index}_write?wait_for_status=yellow&timeout=30s" --header 'Content-Type: application/json'
         curl --silent --request PUT "${host_and_port}/${index}_write/_settings" --header 'Content-Type: application/json'  \
             --data '{ "settings": { "index.blocks.write": null } }'
-        curl --request POST "${host_and_port}/_aliases" --header 'Content-Type: application/json' --data-binary @- << ENDJSON
+        curl --silent --request POST "${host_and_port}/_aliases" --header 'Content-Type: application/json' --data-binary @- << ENDJSON
                        { "actions" :
                           [
                              { "remove_index" : { "index" : "${index}" } },
@@ -67,7 +68,7 @@ ENDJSON
 }
 
 #Check whether all necessary indices exist = Abort if not
-existing_fulltext_indices=($(GetExistingFulltextIndices))
+existing_fulltext_indices=$(GetExistingFulltextIndices)
 
 
 #Check whether aliases exist => Abort if they do
