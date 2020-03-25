@@ -1120,4 +1120,9 @@ bool IsSubjectAccessTag(const Tag &tag);
 std::set<std::string> ExtractPrintAndOnlineCrossLinkPPNs(const MARC::Record &record);
 
 
+// \warning Only very few codes are currently supported!
+// \return The mapped code if found o/w an empty string.
+std::string MapToMARCLanguageCode(const std::string &some_code);
+
+
 } // namespace MARC
