@@ -29,6 +29,7 @@
 #include "UBTools.h"
 #include "UrlUtil.h"
 #include "ZoteroHarvesterConversion.h"
+#include "ZoteroHarvesterZederInterop.h"
 #include "util.h"
 
 
@@ -636,7 +637,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
 
     // fill-in license and SSG values
     metadata_record->license_ = enhancement_maps.lookupLicense(metadata_record->issn_);
-    metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(enhancement_maps.lookupSSG(metadata_record->issn_));
+    metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(journal_params.ssgn_);
 
     // tag reviews
     const auto &review_matcher(journal_params.review_regex_);
@@ -878,9 +879,9 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     // License data
     const auto &license(metadata_record.license_);
     if (license == "l")
-        marc_record->insertField("856", { { 'z', "Kostenfrei" } }, /* indicator1 = */'4', /* indicator2 = */'0');
+        marc_record->insertField("856", { { 'z', "LF" } }, /* indicator1 = */'4', /* indicator2 = */'0');
     else if (license == "kw")
-        marc_record->insertField("856", { { 'z', "Teilw. kostenfrei" } }, /* indicator1 = */'4', /* indicator2 = */'0');
+        marc_record->insertField("856", { { 'z', "KW" } }, /* indicator1 = */'4', /* indicator2 = */'0');
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     MARC::Subfields _936_subfields;
@@ -968,16 +969,16 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     marc_record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
 
     // Abrufzeichen und ISIL
-    if (group_params.output_folder_ == "krimdok") {
-        marc_record->insertField("852", { { 'a', group_params.isil_ } });
-        marc_record->insertField("935", { { 'a', "mkri" } });
-    } else if (group_params.output_folder_ == "ixtheo"
-               and metadata_record.ssg_ != MetadataRecord::SSGType::INVALID)
-    {
-        marc_record->insertField("852", { { 'a', group_params.isil_ } });
+    switch (ZederInterop::GetZederInstanceForGroup(group_params)) {
+    case Zeder::Flavour::IXTHEO:
         marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
         marc_record->insertField("935", { { 'a', "mteo" } });
+        break;
+    case Zeder::Flavour::KRIMDOK:
+        marc_record->insertField("935", { { 'a', "mkri" } });
+        break;
     }
+    marc_record->insertField("852", { { 'a', group_params.isil_ } });
 
     // Book-keeping fields
     marc_record->insertField("URL", { { 'a', download_item.url_.toString() } });

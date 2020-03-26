@@ -20,8 +20,9 @@
 #include "JSON.h"
 #include "StringUtil.h"
 #include "WebUtil.h"
-#include "ZoteroHarvesterDownload.h"
 #include "util.h"
+#include "ZoteroHarvesterDownload.h"
+#include "ZoteroHarvesterZederInterop.h"
 
 
 namespace ZoteroHarvester {
@@ -373,7 +374,7 @@ bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Con
     }
 
     const auto last_harvest_timestamp(upload_tracker_.getLastUploadTime(journal_params.zeder_id_,
-                                      Config::GetZederInstanceForJournal(journal_params)));
+                                      ZederInterop::GetZederInstanceForJournal(journal_params)));
     if (last_harvest_timestamp == TimeUtil::BAD_TIME_T) {
         LOG_INFO("feed will be harvested for the first time");
         return true;

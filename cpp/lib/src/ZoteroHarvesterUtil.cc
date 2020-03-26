@@ -27,6 +27,7 @@
 #include "TimeUtil.h"
 #include "util.h"
 #include "ZoteroHarvesterConversion.h"
+#include "ZoteroHarvesterZederInterop.h"
 
 
 namespace ZoteroHarvester {
@@ -521,7 +522,7 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
         return false;
 
     const auto zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
-    const auto zeder_instance(GetZederInstanceString(GetZederInstanceFromMarcRecord(record)));
+    const auto zeder_instance(GetZederInstanceString(ZederInterop::GetZederInstanceFromMarcRecord(record)));
     const auto main_title(record.getMainTitle());
     db_connection.queryOrDie("INSERT INTO delivered_marc_records SET zeder_id=" + db_connection.escapeAndQuoteString(zeder_id)
                              + ",zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance)
@@ -573,19 +574,6 @@ std::set<std::string> GetMarcRecordUrls(const MARC::Record &record) {
         urls.emplace(harvest_url_field->getFirstSubfieldWithCode('a'));
 
     return urls;
-}
-
-
-Zeder::Flavour GetZederInstanceFromMarcRecord(const MARC::Record &record) {
-    for (const auto &field : record.getTagRange("935")) {
-        const auto sigil(field.getFirstSubfieldWithCode('a'));
-        if (sigil == "mteo")
-            return Zeder::Flavour::IXTHEO;
-        else if (sigil == "mkri")
-            return Zeder::Flavour::KRIMDOK;
-    }
-
-    throw std::runtime_error("missing sigil field in Zotero record '" + record.getControlNumber() + "'");
 }
 
 
