@@ -365,7 +365,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         } else
             combined_text_buffer << ((combined_text_buffer.tellp() != std::streampos(0)) ? " " : "") << extracted_text;
 
-        if (store_pdfs_as_html and StringUtil::StartsWith(media_type, "application/pdf") and not PdfUtil::PdfFileContainsNoText(document)) {
+        if (store_pdfs_as_html and StringUtil::StartsWith(media_type, "application/pdf") and not PdfUtil::PdfDocContainsNoText(document)) {
             const FileUtil::AutoTempFile auto_temp_file("/tmp/fulltext_pdf");
             const std::string temp_pdf_path(auto_temp_file.getFilePath());
             FileUtil::WriteStringOrDie(temp_pdf_path, document);
