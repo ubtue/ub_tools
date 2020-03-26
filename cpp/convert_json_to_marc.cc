@@ -44,8 +44,8 @@ namespace {
 [[noreturn]] void Usage() {
     ::Usage("[--create-unique-id-db|--ignore-unique-id-dups|--extract-and-count-issns-only] config_file json_input [marc_output]\n"
             "\t--create-unique-id-db: This flag has to be specified the first time this program will be executed only.\n"
-            "\t--ignore-unique-id-dups]: If specified MARC records will be created for unique ID's which we have encountered\n"
-            "\t                          before.  The unique ID database will still be updated.\n"
+            "\t--ignore-unique-id-dups: If specified MARC records will be created for unique ID's which we have encountered\n"
+            "\t                         before.  The unique ID database will still be updated.\n"
             "\t--extract-and-count-issns-only: Generates stats on the frequency of ISSN's in the JSON input and does not generate any \n"
             "\t                                MARC output files.  This requires the existence of the \"magic\" \"ISSN\" config file entry!\n"
             "\tmarc_outpt: required unless --extract-and-count-issns-only was specified!\n\n");
