@@ -636,7 +636,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
 
     // fill-in license and SSG values
     metadata_record->license_ = enhancement_maps.lookupLicense(metadata_record->issn_);
-    metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(enhancement_maps.lookupSSG(metadata_record->issn_));
+    metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(journal_params.ssgn_);
 
     // tag reviews
     const auto &review_matcher(journal_params.review_regex_);
