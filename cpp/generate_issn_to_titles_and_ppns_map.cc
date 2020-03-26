@@ -1,5 +1,5 @@
-/** \file    convert_json_to_marc.cc
- *  \brief   Generates a filoew needed by convert_json_to_marc.
+/** \file    generate_issn_to_titles_and_ppns_map.cc
+ *  \brief   Generates a file needed by convert_json_to_marc.
  *  \author  Dr. Johannes Ruscheinski
  */
 
@@ -70,7 +70,7 @@ void ProcessRecords(MARC::Reader * const reader, File * const output) {
 }
 
 
-} // namespace
+} // unnamed namespace
 
 
 int Main(int argc, char **argv) {
