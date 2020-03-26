@@ -489,6 +489,9 @@ void UpdateISSNReferenceCount(const std::string &cleaned_up_json_value,
 }
 
 
+static unsigned matched_issn_count, not_matched_issn_count;
+
+
 // \return True if a subfield was inserted into "record" and false o/w.
 // \note   "array_index" is only used if the node lookup in this function results in a JSON array.
 bool ExtractJSONAndGenerateSubfields(MARC::Record * const record, const MARC::Tag &tag, const FieldDescriptor &field_descriptor,
@@ -537,16 +540,20 @@ bool ExtractJSONAndGenerateSubfields(MARC::Record * const record, const MARC::Ta
                 extracted_value = normalised_issn;
         }
 
+        // ISSN processing:
         if (StringUtil::FindCaseInsensitive(field_descriptor.name_, "ISSN") != std::string::npos) {
             UpdateISSNReferenceCount(extracted_value, issns_to_counts_map);
             const auto issn_and_journal_title_and_ppn(issns_to_journal_titles_and_ppns_map.find(extracted_value));
-            if (issn_and_journal_title_and_ppn != issns_to_journal_titles_and_ppns_map.cend()) {
+            if (issn_and_journal_title_and_ppn == issns_to_journal_titles_and_ppns_map.cend())
+                ++not_matched_issn_count;
+            else {
                 MARC::Record::Field _773_field(MARC::Tag("773"));
                 _773_field.appendSubfield('t', issn_and_journal_title_and_ppn->second.journal_title_);
                 if (not issn_and_journal_title_and_ppn->second.ppn_.empty())
                     _773_field.appendSubfield('w', "(DE-657)" + issn_and_journal_title_and_ppn->second.ppn_);
                 _773_field.appendSubfield('x', extracted_value); // ISSN subfield
                 record->insertField(_773_field);
+                ++matched_issn_count;
             }
         }
 
@@ -697,6 +704,8 @@ void GenerateMARCFromJSON(const std::shared_ptr<const JSON::JSONNode> &object_or
     }
 
     LOG_INFO("created " + std::to_string(created_count) + " MARC record(s) and skipped "  + std::to_string(duplicate_skipped_count) + " duplicate(s).");
+    LOG_INFO(std::to_string(matched_issn_count) + " of " + std::to_string(matched_issn_count + not_matched_issn_count)
+             + " encountered ISSN's were resolved and those records were linked to their respective serials.");
 }
 
 
@@ -759,8 +768,10 @@ int Main(int argc, char **argv) {
             issns_and_counts.emplace_back(issn_and_count);
         std::sort(issns_and_counts.begin(), issns_and_counts.end(),
                   [](const auto &a, const auto &b) { return a.second > b.second; });
-        for (const auto &issn_and_count : issns_and_counts)
-            std::cout << issn_and_count.first << '\t' << issn_and_count.second << '\n';
+        for (const auto &issn_and_count : issns_and_counts) {
+            if (issns_to_journal_titles_and_ppns_map.find(issn_and_count.first) == issns_to_journal_titles_and_ppns_map.end())
+                std::cout << issn_and_count.first << '\t' << issn_and_count.second << '\n';
+        }
     }
 
     return EXIT_SUCCESS;
