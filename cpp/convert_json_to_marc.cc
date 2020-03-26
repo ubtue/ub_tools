@@ -768,8 +768,10 @@ int Main(int argc, char **argv) {
             issns_and_counts.emplace_back(issn_and_count);
         std::sort(issns_and_counts.begin(), issns_and_counts.end(),
                   [](const auto &a, const auto &b) { return a.second > b.second; });
-        for (const auto &issn_and_count : issns_and_counts)
-            std::cout << issn_and_count.first << '\t' << issn_and_count.second << '\n';
+        for (const auto &issn_and_count : issns_and_counts) {
+            if (issns_to_journal_titles_and_ppns_map.find(issn_and_count.first) == issns_to_journal_titles_and_ppns_map.end())
+                std::cout << issn_and_count.first << '\t' << issn_and_count.second << '\n';
+        }
     }
 
     return EXIT_SUCCESS;
