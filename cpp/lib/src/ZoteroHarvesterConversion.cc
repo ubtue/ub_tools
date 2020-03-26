@@ -878,9 +878,9 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     // License data
     const auto &license(metadata_record.license_);
     if (license == "l")
-        marc_record->insertField("856", { { 'z', "Kostenfrei" } }, /* indicator1 = */'4', /* indicator2 = */'0');
+        marc_record->insertField("856", { { 'z', "LF" } }, /* indicator1 = */'4', /* indicator2 = */'0');
     else if (license == "kw")
-        marc_record->insertField("856", { { 'z', "Teilw. kostenfrei" } }, /* indicator1 = */'4', /* indicator2 = */'0');
+        marc_record->insertField("856", { { 'z', "KW" } }, /* indicator1 = */'4', /* indicator2 = */'0');
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     MARC::Subfields _936_subfields;
