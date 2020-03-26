@@ -2,7 +2,7 @@
  *  \brief  Wrapper class for Xerces XML parser
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -12,7 +12,7 @@
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Affero %General Public License for more details.
+ *  GNU Affero General Public License for more details.
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -26,6 +26,7 @@
 #include <deque>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <xercesc/framework/XMLPScanToken.hpp>
 #include <xercesc/parsers/SAXParser.hpp>
 #include <xercesc/sax/HandlerBase.hpp>
@@ -42,6 +43,7 @@ class XMLParser final {
     bool prolog_parsing_done_ = false;
     bool body_has_more_contents_;
     unsigned open_elements_;
+    std::unordered_map<std::string, std::string> tag_aliases_to_canonical_tags_map_;
 public:
     class Error : public std::runtime_error {
     public:
@@ -128,8 +130,12 @@ private:
     static std::string ToStdString(const XMLCh * const xmlch);
 public:
     explicit XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
-    ~XMLParser() { delete parser_; delete handler_; delete error_handler_; xercesc::XMLPlatformUtils::Terminate(); }
-    void rewind();
+    ~XMLParser();
+
+    /** \brief Restarts parsing of a new file or string. */
+    void reset(const std::string &xml_filename_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
+
+    inline void rewind() { reset(xml_filename_or_string_, type_, options_); }
 
     bool peek(XMLPart * const xml_part);
 
@@ -140,16 +146,30 @@ public:
 
     off_t tell();
 
-    inline unsigned getLineNo() { return static_cast<unsigned>(locator_->getLineNumber()); }
-    inline unsigned getColumnNo() { return static_cast<unsigned>(locator_->getColumnNumber()); }
+    inline std::string getXmlFilenameOrString() const { return xml_filename_or_string_; }
+    inline unsigned getLineNo() const { return static_cast<unsigned>(locator_->getLineNumber()); }
+    inline unsigned getColumnNo() const { return static_cast<unsigned>(locator_->getColumnNumber()); }
 
+    /** \brief Add a mapping for tag names.
+     *  \note After a call to this function, keys and values in "tag_aliases_to_canonical_tags_map" will be considered as equivalent.
+     *        All returned tag names will be the canonical names.
+     */
+    inline void setTagAliases(const std::unordered_map<std::string, std::string> &tag_aliases_to_canonical_tags_map)
+        { tag_aliases_to_canonical_tags_map_ = tag_aliases_to_canonical_tags_map; }
 
     /** \return true if there are more elements to parse, o/w false.
+     *  \param  guard_opening_tags  Contains a set of opening tags.  If any of these tags is encountered, parsing will stop and this
+     *                              function returns false.  The next call will then return the previously encountered guard opening tag.
      *  \note   parsing is done in progressive mode, meaning that the document is
      *          still being parsed during consecutive getNext() calls.
      *  \throws XMLParser::Error
      */
-    bool getNext(XMLPart * const next, bool combine_consecutive_characters = true);
+    bool getNext(XMLPart * const next, const bool combine_consecutive_characters = true,
+                 const std::set<std::string> &guard_opening_tags = {});
+
+    inline bool getNext(XMLPart * const next, const std::set<std::string> &guard_opening_tags,
+                        const bool combine_consecutive_characters = true)
+        { return getNext(next, combine_consecutive_characters, guard_opening_tags); }
 
 
     /** \brief Skip forward until we encounter a certain element.
@@ -173,11 +193,21 @@ public:
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
     inline bool skipTo(const XMLPart::Type expected_type, const std::string &expected_tag = "",
-                XMLPart * const part = nullptr, std::string * const skipped_data = nullptr)
-        {
-            if (expected_tag.empty())
-                return skipTo(expected_type, std::set<std::string>{}, part, skipped_data);
-            else
-                return skipTo(expected_type, std::set<std::string>{ expected_tag }, part, skipped_data);
-        }
+                       XMLPart * const part = nullptr, std::string * const skipped_data = nullptr)
+    {
+        if (expected_tag.empty())
+            return skipTo(expected_type, std::set<std::string>{}, part, skipped_data);
+        else
+            return skipTo(expected_type, std::set<std::string>{ expected_tag }, part, skipped_data);
+    }
+
+    /** \brief  Extracts text between an opening and closing tag pair.
+     *  \param  tag   The opening and closing tag name.
+     *  \param  text  The extracted text.
+     *  \param  guard_tags  If not empty, we give up looking for "tag" if we see any of these tags but we do not skip over them.
+     *  \return True if we found the opening and closing "tag", o/w false.
+     *  \note   This function does not deal well with tags that are nested, e.g. <x><x>text</x></x>.  Here we'd return after having
+     *          processed the first closing x.
+     */
+    bool extractTextBetweenTags(const std::string &tag, std::string * const text, const std::set<std::string> &guard_tags = {});
 };

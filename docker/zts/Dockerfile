@@ -10,6 +10,7 @@ RUN npm install
 COPY . /app
 
 # Cloning zotero translators repository
+RUN rm -Rf /app/modules/translators/
 RUN git clone --depth=1 https://github.com/ubtue/zotero-translators /app/modules/translators/
 
 # run the application

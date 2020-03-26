@@ -6,7 +6,7 @@
 /*
  *  Copyright 2005-2008 Project iVia.
  *  Copyright 2005-2008 The Regents of The University of California.
- *  Copyright 2015-2018 Library of the University of Tübingen
+ *  Copyright 2015-2019 Library of the University of Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -29,7 +29,6 @@
 
 #include <stdexcept>
 #include <string>
-#include <cstdio>
 #include "Compiler.h"
 
 
@@ -47,7 +46,7 @@ private:
     enum OpenMode { READING, WRITING, READING_AND_WRITING };
 private:
     std::string filename_;
-    char buffer_[BUFSIZ];
+    char buffer_[81920];
     char *buffer_ptr_;
     size_t read_count_;
     FILE *file_;
@@ -180,6 +179,9 @@ public:
         return line;
     }
 
+    /* \brief Accepts any of { CR, LF, CR/LF } */
+    std::string getLineAny();
+
     inline const std::string &getPath() const { return filename_; }
 
     /** Returns a File's size in bytes. */
@@ -229,6 +231,15 @@ public:
     static File &endl(File &f) { f.put('\n'), f.flush(); return f; }
     static SingleArgManipulator<int> setprecision(int new_precision) {
         return SingleArgManipulator<int>(SetPrecision, new_precision); }
+
+    /** \brief Sets the buffer size if the file references a pipe or FIFO.
+     *  \param new_buffer_size  If 0, we attempt to set the buffer size to the contents of /proc/sys/fs/pipe-max-size
+     *         o/w we attempt to set it to the specified value.
+     *  \note  A process can only set the buffer size to a larger value then the contents of /proc/sys/fs/pipe-max-size
+     *         if it has the CAP_SYS_RESOURCE capability set.
+     *  \note  If this function fails you can consult errno for the reason.
+     */
+    bool setPipeBufferSize(int new_buffer_size = 0);
 private:
     void fillBuffer();
     static File &SetPrecision(File &f, int new_precision) { f.precision_ = new_precision; return f; }

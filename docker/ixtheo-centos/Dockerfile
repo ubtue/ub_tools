@@ -1,4 +1,4 @@
-FROM centos:latest
+FROM centos:8
 MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 
 # add needed configuration files
@@ -31,7 +31,9 @@ RUN source /etc/profile.d/vufind.sh \
 EXPOSE 80
 EXPOSE 443
 ADD httpd/*.conf /etc/httpd/conf.d/
-ADD httpd/*.pem /etc/ssl/certs/
+ADD httpd/*.conf.include /etc/httpd/conf.d/
+ADD httpd/*.crt /etc/pki/tls/certs/
+ADD httpd/*.key /etc/pki/tls/private/
 
 # start services when container is run
 ADD startup.sh /startup.sh

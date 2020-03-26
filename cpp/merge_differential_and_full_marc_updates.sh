@@ -1,5 +1,5 @@
 #!/bin/bash
-set -o errexit -o nounset
+set -o errexit -o nounset -o history -o histexpand
 
 
 no_problems_found=1
@@ -8,8 +8,10 @@ function SendEmail {
         send_email --recipients="$email_address" --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
         exit 0
     else
-        send_email --priority=high --recipients="$email_address" --subject="$0 failed on $(hostname)" \
-                   --message-body="Check /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log for details."
+        send_email --priority=high --recipients="$email_address" --subject="$0 failed on $(hostname)"  \
+                   --message-body="$(printf '%q' "$(echo -e "Check /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log for details.\n\n"" \
+                                     "$(tail -20 /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log)" \
+                                     "'\n')")"
         exit 1
     fi
 }
@@ -51,9 +53,19 @@ fi
 email_address=$1
 
 
+MUTEX_FILE=/tmp/bsz_download_happened # Must be the same path as in fetch_marc_updates.py!
+if [ ! -e $MUTEX_FILE ]; then
+    no_problems_found=0
+    send_email --recipients="$email_address" --subject="Mutex file not found on $(hostname)" \
+               --message-body="$MUTEX_FILE"' is missing => new data was probably not downloaded!'
+    exit 0
+fi
+
+
 target_filename=Complete-MARC-$(date +%y%m%d).tar.gz
 if [[ -e $target_filename ]]; then
     echo "Nothing to do: ${target_filename} already exists."
+    rm --force $MUTEX_FILE
     exit 0
 fi
 
@@ -74,17 +86,22 @@ cd "$extraction_directory"
 tar xzf ../"$input_filename"
 cd -
 
+if [[ "$(generate_merge_order | wc --lines=1)" == 1 && "${input_filename:0:8}" = "SA-MARC-" ]]; then
+    generate_complete_dumpfile "$input_filename" "$target_filename"
+fi
+
 input_directory=$extraction_directory
 
 declare -i counter=0
 last_temp_directory=
+> entire_record_deletion.log
 for update in $(generate_merge_order | tail --lines=+2); do
     ((++counter))
     temp_directory=temp_directory.$BASHPID.$counter
-    if [[ ${update:0:6} == "LOEPPN" ]]; then
+    if [[ ${update:0:6} == "LOEKXP" ]]; then
         echo "[$(date +%y%m%d-%R:%S)] Processing deletion list: $update"
-        echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
-        archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
+        echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory  entire_record_deletion.log
+        archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory entire_record_deletion.log
     else
         echo "[$(date +%y%m%d-%R:%S)] Processing differential dump: $update"
         echo apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
@@ -119,4 +136,5 @@ else
 fi
 
 
+rm --force $MUTEX_FILE
 no_problems_found=0

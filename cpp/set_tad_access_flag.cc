@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2018, Library of the University of Tübingen
+    Copyright (C) 2016-2020, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -21,6 +21,7 @@
 */
 
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 #include <cctype>
@@ -40,8 +41,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " (--update-all-users|user_ID)\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("(--update-all-users|user_ID|--patch-ixtheo_user)\n"
+            "When --patch-ixtheo_user has been specified missing entries for users ID's in vufind.user will be created.");
 }
 
 
@@ -217,7 +218,7 @@ std::string PermissionParser::ToString(const TokenType token) {
         return "END_OF_INPUT";
     }
 
-    logger->error("in PermissionParser::ToString: we should *never* get here!");
+    LOG_ERROR("we should *never* get here!");
 }
 
 
@@ -256,7 +257,7 @@ void SkipToNextDashOrEndOfInput(PermissionParser * const parser) {
 void ParseRule(PermissionParser * const parser, std::vector<Pattern> * const patterns) {
     PermissionParser::TokenType token(parser->getToken());
     if (unlikely(token != PermissionParser::ALLOW and token != PermissionParser::DENY))
-        logger->error("on line " + std::to_string(parser->getCurrentLineNumber()) + " expected either ALLOW or DENY!");
+        LOG_ERROR("on line " + std::to_string(parser->getCurrentLineNumber()) + " expected either ALLOW or DENY!");
     const bool allow(token == PermissionParser::ALLOW);
 
     token = parser->getToken();
@@ -266,13 +267,13 @@ void ParseRule(PermissionParser * const parser, std::vector<Pattern> * const pat
     } else if (token == PermissionParser::QUESTION_MARK) {
         token = parser->getToken();
         if (unlikely(token != PermissionParser::OPEN_SQUARE_BRACKET))
-            logger->error("on line "  + std::to_string(parser->getCurrentLineNumber()) + ": expected '[' but found "
+            LOG_ERROR("on line "  + std::to_string(parser->getCurrentLineNumber()) + ": expected '[' but found "
                   + PermissionParser::ToString(token) + "!");
         for (;;) { // Parse the comma-separated list.
             token = parser->getToken();
             if (unlikely(token != PermissionParser::STRING_CONST))
-                logger->error("on line "  + std::to_string(parser->getCurrentLineNumber())
-                              + ": expected a string constant but found " + PermissionParser::ToString(token) + "!");
+                LOG_ERROR("on line "  + std::to_string(parser->getCurrentLineNumber())
+                          + ": expected a string constant but found " + PermissionParser::ToString(token) + "!");
             patterns->emplace_back(parser->getLastStringConstant(), allow);
 
             token = parser->getToken();
@@ -280,12 +281,12 @@ void ParseRule(PermissionParser * const parser, std::vector<Pattern> * const pat
                 SkipToNextDashOrEndOfInput(parser);
                 return;
             } else if (unlikely(token != PermissionParser::COMMA))
-                logger->error("on line "  + std::to_string(parser->getCurrentLineNumber())
-                              + ": expected ']' or ',' but found " + PermissionParser::ToString(token) + "!");
+                LOG_ERROR("on line "  + std::to_string(parser->getCurrentLineNumber())
+                          + ": expected ']' or ',' but found " + PermissionParser::ToString(token) + "!");
         }
     } else
-        logger->error("on line " + std::to_string(parser->getCurrentLineNumber()) + " unexpected token "
-                      + PermissionParser::ToString(token) + "!");
+        LOG_ERROR("on line " + std::to_string(parser->getCurrentLineNumber()) + " unexpected token "
+                  + PermissionParser::ToString(token) + "!");
 }
 
 
@@ -299,8 +300,8 @@ void ParseEmailRules(File * const input, std::vector<Pattern> * const patterns) 
         if (token == PermissionParser::DASH)
             ParseRule(&parser, patterns);
         else
-            logger->error("unexpected token " + PermissionParser::ToString(token) + " on line "
-                          + std::to_string(parser.getCurrentLineNumber()) + "!");
+            LOG_ERROR("unexpected token " + PermissionParser::ToString(token) + " on line "
+                      + std::to_string(parser.getCurrentLineNumber()) + "!");
     }
 }
 
@@ -315,30 +316,44 @@ bool CanUseTAD(const std::string &email_address, const std::vector<Pattern> &pat
 }
 
 
-const std::string EMAIL_RULES_FILE(UBTools::GetTuelibPath() + "tad_email_acl.yaml");
-
-
-void UpdateSingleUser(DbConnection * const db_connection, const std::vector<Pattern> &patterns,
-                      const std::string &user_ID)
-{
+std::string GetEmailAddress(DbConnection * const db_connection, const std::string &user_ID) {
     db_connection->queryOrDie("SELECT email FROM user WHERE id=" + user_ID);
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty())
-        logger->error("No email address found for user ID " + user_ID + "!");
-    const std::string email_address(result_set.getNextRow()["email"]);
+        LOG_ERROR("No email address found for user ID " + user_ID + "!");
+    return result_set.getNextRow()["email"];
+}
 
+
+void CreateSingleUser(DbConnection * const db_connection, const std::vector<Pattern> &patterns, const std::string &user_ID) {
+    const std::string email_address(GetEmailAddress(db_connection, user_ID));
+    db_connection->queryOrDie("INSERT INTO ixtheo_user SET id=" + user_ID + ", can_use_tad="
+                              + std::string(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE"));
+}
+
+
+void UpdateSingleUser(DbConnection * const db_connection, const std::vector<Pattern> &patterns, const std::string &user_ID) {
+    const std::string email_address(GetEmailAddress(db_connection, user_ID));
     db_connection->queryOrDie("UPDATE ixtheo_user SET can_use_tad="
                               + std::string(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE")
                               + " WHERE id=" + user_ID);
 }
 
 
-void UpdateAllUsers(DbConnection * const db_connection, const std::vector<Pattern> &patterns) {
-    db_connection->queryOrDie("SELECT id FROM ixtheo_user");
-    DbResultSet result_set(db_connection->getLastResultSet());
+void UpdateAllUsers(DbConnection * const db_connection, const std::vector<Pattern> &patterns, const bool create_missing_ix_theo_users) {
+    if (create_missing_ix_theo_users) {
+        db_connection->queryOrDie("SELECT id FROM user WHERE id NOT IN (SELECT id FROM ixtheo_user)");
+        DbResultSet result_set(db_connection->getLastResultSet());
 
-    while (const DbRow row = result_set.getNextRow())
-        UpdateSingleUser(db_connection, patterns, row["id"]);
+        while (const DbRow row = result_set.getNextRow())
+            CreateSingleUser(db_connection, patterns, row["id"]);
+    } else {
+        db_connection->queryOrDie("SELECT id FROM ixtheo_user");
+        DbResultSet result_set(db_connection->getLastResultSet());
+
+        while (const DbRow row = result_set.getNextRow())
+            UpdateSingleUser(db_connection, patterns, row["id"]);
+    }
 }
 
 
@@ -346,25 +361,23 @@ void UpdateAllUsers(DbConnection * const db_connection, const std::vector<Patter
 
 
 int Main(int argc, char **argv) {
-    progname = argv[0];
-
     if (argc != 2)
         Usage();
 
     const std::string flag_or_user_ID(argv[1]);
 
+    const std::string EMAIL_RULES_FILE(UBTools::GetTuelibPath() + "tad_email_acl.yaml");
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(EMAIL_RULES_FILE));
     std::vector<Pattern> patterns;
     ParseEmailRules(input.get(), &patterns);
-
-    std::string mysql_url;
-    VuFind::GetMysqlURL(&mysql_url);
-    DbConnection db_connection(mysql_url);
+    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
 
     if (flag_or_user_ID == "--update-all-users")
-        UpdateAllUsers(&db_connection, patterns);
+        UpdateAllUsers(db_connection.get(), patterns, /* create_missing_ix_theo_users = */false);
+    else if (flag_or_user_ID == "--patch-ixtheo_user")
+        UpdateAllUsers(db_connection.get(), patterns, /* create_missing_ix_theo_users = */true);
     else
-        UpdateSingleUser(&db_connection, patterns, flag_or_user_ID);
+        UpdateSingleUser(db_connection.get(), patterns, flag_or_user_ID);
 
     return EXIT_SUCCESS;
 }

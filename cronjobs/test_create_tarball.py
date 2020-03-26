@@ -1,8 +1,7 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
 #
 # Test harness for util.CreateTarball().
-
 import sys
 import util
 

@@ -42,15 +42,20 @@ constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 120; // seconds
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " [--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout] [--only-open-access] marc_input marc_output\n"
-              << "       \"--process-count-low-and-high-watermarks\" sets the maximum and minimum number of spawned\n"
-              << "           child processes.  When we hit the high water mark we wait for child processes to exit\n"
-              << "           until we reach the low watermark.\n"
-              << "       \"--pdf-extraction-timeout\" which has a default of " << DEFAULT_PDF_EXTRACTION_TIMEOUT << '\n'
-              << "           seconds is the maximum amount of time spent by a subprocess in attemting text extraction from a\n"
-              << "           downloaded PDF document.\n"
-              << "       \"--only-open-access\" means that only open access texts will be processed.\n\n";
+    ::Usage("[--min-log-level=min_verbosity] [--process-count-low-and-high-watermarks low:high] [--pdf-extraction-timeout=timeout]\n"
+            "[--only-open-access] [--store-pdfs-as-html] marc_input marc_output\n"
+            "\"--process-count-low-and-high-watermarks\" sets the maximum and minimum number of spawned\n"
+            "    child processes.  When we hit the high water mark we wait for child processes to exit\n"
+            "    until we reach the low watermark.\n"
+            "\"--pdf-extraction-timeout\" which has a default of " + std::to_string(DEFAULT_PDF_EXTRACTION_TIMEOUT) + "\n"
+            "    seconds is the maximum amount of time spent by a subprocess in attemting text extraction from a\n"
+            "    downloaded PDF document.\n"
+            "\"--only-open-access\" means that only open access texts will be processed.\n"
+            "\"--store-pdfs-as-html\" means that an HTML representation of downloaded PDF's is stored if possible.\n"
+            "\"--use-separate-entries-per-url\": Store individual entries for the fulltext locations in a record\n"
+            "\"--include-all-tocs\": Extract TOCs even if they are not matched by the only-open-access-filter\n"
+            "\"--only-pdf-fulltexts\": Download real Fulltexts only if the link points to a PDF\n"
+           );
 
     std::exit(EXIT_FAILURE);
 }
@@ -84,7 +89,7 @@ bool FoundAtLeastOneNonReviewOrCoverLink(const MARC::Record &record, std::string
 
 
 void ProcessNoDownloadRecords(const bool only_open_access, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                              std::vector<std::pair<off_t, std::string>> * const download_record_offsets_and_urls)
+        std::vector<std::pair<off_t, std::string>> * const download_record_offsets_and_urls)
 {
     unsigned total_record_count(0);
     off_t record_start(marc_reader->tell());
@@ -95,7 +100,7 @@ void ProcessNoDownloadRecords(const bool only_open_access, MARC::Reader * const 
         std::string first_non_review_link;
         const bool insert_in_cache(FoundAtLeastOneNonReviewOrCoverLink(record, &first_non_review_link)
                                    or (record.getSubfieldValues("856", 'u').empty()
-                                       and not record.getSubfieldValues("520", 'a').empty()));
+                                   and not record.getSubfieldValues("520", 'a').empty()));
         if (insert_in_cache and (not only_open_access or MARC::IsOpenAccess(record)))
             download_record_offsets_and_urls->emplace_back(record_start, first_non_review_link);
         else
@@ -107,9 +112,9 @@ void ProcessNoDownloadRecords(const bool only_open_access, MARC::Reader * const 
     if (unlikely(not marc_writer->flush()))
         LOG_ERROR("flush to \"" + marc_writer->getFile().getPath() + "\" failed!");
 
-    std::cerr << "Read " << total_record_count << " records.\n";
-    std::cerr << "Wrote " << (total_record_count - download_record_offsets_and_urls->size())
-              << " records that did not require any downloads.\n";
+    LOG_INFO("Read " + std::to_string(total_record_count) + " records.\n");
+    LOG_INFO("Wrote " + std::to_string(total_record_count - download_record_offsets_and_urls->size()) +
+             " records that did not require any downloads.\n");
 }
 
 
@@ -144,7 +149,9 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
                         const std::string &marc_input_filename, const std::string &marc_output_filename,
                         std::map<std::string, unsigned> * const hostname_to_outstanding_request_count_map,
                         std::map<int, std::string> * const process_id_to_hostname_map,
-                        unsigned * const child_reported_failure_count, unsigned * const active_child_count)
+                        unsigned * const child_reported_failure_count, unsigned * const active_child_count,
+                        const bool store_pdfs_as_html, const bool use_separate_entries_per_url,
+                        const bool include_all_tocs, const bool only_pdf_fulltexts)
 {
     constexpr unsigned MAX_CONCURRENT_DOWNLOADS_PER_SERVER = 2;
 
@@ -165,11 +172,23 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
 
     std::vector<std::string> args;
     args.emplace_back("--pdf-extraction-timeout=" + std::to_string(pdf_extraction_timeout));
+    if (store_pdfs_as_html) {
+        args.emplace_back("--use-only-open-access-documents");
+        args.emplace_back("--store-pdfs-as-html");
+    }
+    if (use_separate_entries_per_url)
+        args.emplace_back("--use-separate-entries-per-url");
+    if (include_all_tocs)
+        args.emplace_back("--include-all-tocs");
+    if (only_pdf_fulltexts)
+        args.emplace_back("--only-pdf-fulltexts");
     args.emplace_back(std::to_string(marc_record_start));
     args.emplace_back(marc_input_filename);
     args.emplace_back(marc_output_filename);
 
-    const int child_pid(ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH, args));
+    const int child_pid(ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH, args, "" /* no new stdin */,
+                                        "" /* no new stdout */, "" /* no new stderr */,
+                                        { std::pair("OMP_THREAD_LIMIT", "1") }));
     if (unlikely(child_pid == -1))
         LOG_ERROR("ExecUtil::Spawn failed! (no more resources?)");
 
@@ -181,7 +200,11 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
 void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                             const unsigned pdf_extraction_timeout,
                             const std::vector<std::pair<off_t, std::string>> &download_record_offsets_and_urls,
-                            const unsigned process_count_low_watermark, const unsigned process_count_high_watermark)
+                            const unsigned process_count_low_watermark, const unsigned process_count_high_watermark,
+                            const bool store_pdfs_as_html,
+                            const bool use_separate_entries_per_url,
+                            const bool include_all_tocs,
+                            const bool only_pdf_fulltexts)
 {
     Semaphore semaphore("/full_text_cached_counter", Semaphore::CREATE);
     unsigned active_child_count(0), child_reported_failure_count(0);
@@ -192,8 +215,9 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
     for (const auto &offset_and_url : download_record_offsets_and_urls) {
         const std::string &url(offset_and_url.second);
         std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
-        if (not url.empty() and not UrlUtil::ParseUrl(url, &scheme, &username_password, &authority, &port, &path, &params,
-                                                      &query, &fragment, &relative_url))
+        if (not url.empty()
+            and not UrlUtil::ParseUrl(url, &scheme, &username_password, &authority, &port, &path, &params,
+                                      &query, &fragment, &relative_url))
         {
             LOG_WARNING("failed to parse URL: " + url);
 
@@ -208,7 +232,8 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
 
         ScheduleSubprocess(authority, offset_and_url.first, pdf_extraction_timeout, marc_reader->getPath(),
                            marc_writer->getFile().getPath(), &hostname_to_outstanding_request_count_map,
-                           &process_id_to_hostname_map, &child_reported_failure_count, &active_child_count);
+                           &process_id_to_hostname_map, &child_reported_failure_count, &active_child_count,
+                           store_pdfs_as_html, use_separate_entries_per_url, include_all_tocs, only_pdf_fulltexts);
 
         if (active_child_count > process_count_high_watermark)
             CleanUpZombies(active_child_count - process_count_low_watermark, &hostname_to_outstanding_request_count_map,
@@ -247,8 +272,7 @@ void ExtractLowAndHighWatermarks(const std::string &arg, unsigned * const proces
 } // unnamed namespace
 
 
-int main(int argc, char **argv) {
-    ::progname = argv[0];
+int Main(int argc, char **argv) {
     MiscUtil::SetEnv("LOGGER_FORMAT", "process_pids");
 
     if (argc < 3)
@@ -277,6 +301,30 @@ int main(int argc, char **argv) {
         ++argv, --argc;
     }
 
+    bool store_pdfs_as_html(false);
+    if (argc > 1 and std::strcmp(argv[1], "--store-pdfs-as-html") == 0) {
+        store_pdfs_as_html = true;
+        ++argv, --argc;
+    }
+
+    bool use_separate_entries_per_url(false);
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--use-separate-entries-per-url")) {
+        use_separate_entries_per_url = true;
+        ++argv, --argc;
+    }
+
+    bool include_all_tocs(false);
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--include-all-tocs")) {
+        include_all_tocs = true;
+        ++argv, --argc;
+    }
+
+    bool only_pdf_fulltexts(false);
+    if (argc > 1 and std::strcmp(argv[1], "--only-pdf-fulltexts") == 0) {
+        only_pdf_fulltexts = true;
+        ++argv, --argc;
+    }
+
     if (argc != 3)
         Usage();
 
@@ -295,9 +343,12 @@ int main(int argc, char **argv) {
         // Try to prevent clumps of URL's from the same server:
         std::random_shuffle(download_record_offsets_and_urls.begin(), download_record_offsets_and_urls.end());
 
-        ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), pdf_extraction_timeout, download_record_offsets_and_urls,
-                               process_count_low_watermark, process_count_high_watermark);
+        ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), pdf_extraction_timeout,
+                               download_record_offsets_and_urls, process_count_low_watermark, process_count_high_watermark,
+                               store_pdfs_as_html, use_separate_entries_per_url, include_all_tocs, only_pdf_fulltexts);
     } catch (const std::exception &e) {
         LOG_ERROR("Caught exception: " + std::string(e.what()));
     }
+
+    return EXIT_SUCCESS;
 }

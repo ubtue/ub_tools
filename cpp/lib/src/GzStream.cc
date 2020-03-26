@@ -92,7 +92,7 @@ GzStream::~GzStream() {
 bool GzStream::compress(const char * const input_data, unsigned input_data_size, char * const output_data,
                         unsigned output_data_size, unsigned * const bytes_consumed, unsigned * const bytes_produced)
 {
-    stream_.next_in   = reinterpret_cast<Bytef * const>(const_cast<char * const>(input_data));
+    stream_.next_in   = reinterpret_cast<Bytef *>(const_cast<char *>(input_data));
     stream_.avail_in  = input_data_size;
     stream_.next_out  = reinterpret_cast<Bytef *>(output_data);
     stream_.avail_out = output_data_size;
@@ -121,7 +121,7 @@ bool GzStream::decompress(const char * const input_data, unsigned input_data_siz
                           unsigned output_data_size, unsigned * const bytes_consumed,
                           unsigned * const bytes_produced)
 {
-    stream_.next_in   = reinterpret_cast<Bytef * const>(const_cast<char * const>(input_data));
+    stream_.next_in   = reinterpret_cast<Bytef *>(const_cast<char *>(input_data));
     stream_.avail_in  = (input_data == nullptr) ? 0 : input_data_size;
     stream_.next_out  = reinterpret_cast<Bytef *>(output_data);
     stream_.avail_out = output_data_size;

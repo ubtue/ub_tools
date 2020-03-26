@@ -1,0 +1,7 @@
+Place SQL schema changes here.  The file name pattern has to be as follows:
+
+    database_name.patch_level
+
+where patch_level is a positive integer.
+
+Caution: table names must be qualified by the database names, i.e. "database.table".

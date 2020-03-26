@@ -46,7 +46,7 @@ namespace SqlUtil {
 extern const std::string DATETIME_RANGE_MIN;
 extern const std::string DATETIME_RANGE_MAX;
 // As supported by MariaDB on CentOS
-constexpr size_t VARCHAR_UTF8_MAX_LENGTH(191);
+constexpr size_t VARCHAR_UTF8_MAX_INDEX_LENGTH(768);
 
 
 /** \class TransactionGuard
@@ -77,7 +77,7 @@ public:
 
 
 /* Returns the string truncated to the maximum number of UTF-8 characters supported by our codebase */
-std::string TruncateToVarCharMaxLength(const std::string &s);
+std::string TruncateToVarCharMaxIndexLength(const std::string &s);
 
 
 /** \brief   Escape special characters in a MySQL BLOB
@@ -133,6 +133,18 @@ std::set<std::string> GetColumnNames(DbConnection * const connection, const std:
 
 /** \return The number of rows in "table_name". */
 unsigned GetTableSize(DbConnection * const connection, const std::string &table_name);
+
+
+// Ensures that thread-specific variables are initialized for the correct functioning
+// of the MySQL connector. Must be initialized at the very beginning of the invoking thread.
+struct ThreadSafetyGuard {
+    enum ThreadType { MAIN_THREAD, WORKER_THREAD };
+private:
+    ThreadType invoker_thread_;
+public:
+    explicit ThreadSafetyGuard(const ThreadType invoker_thread);
+    ~ThreadSafetyGuard();
+};
 
 
 } // namespace SqlUtil

@@ -2,7 +2,7 @@
  *  \brief  Implementation of the RegexMatcher class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,10 +20,42 @@
 #include "RegexMatcher.h"
 #include <unordered_map>
 #include "Compiler.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
-bool RegexMatcher::utf8_configured_;
+static bool CheckPCRE_UTF8Compatibility() {
+    int utf8_available;
+    if (::pcre_config(PCRE_CONFIG_UTF8, reinterpret_cast<void *>(&utf8_available)) == PCRE_ERROR_BADOPTION
+        or utf8_available != 1)
+    {
+        LOG_ERROR("This version of the PCRE library does not support UTF8!");
+    }
+
+    return true;
+}
+
+
+static const bool dummy_variable(CheckPCRE_UTF8Compatibility());
+
+
+ThreadSafeRegexMatcher::MatchResult::MatchResult(const std::string &subject)
+    : subject_(subject), matched_(false), match_count_(0)
+{
+    substr_indices_.resize(ThreadSafeRegexMatcher::MAX_SUBSTRING_MATCHES * 3);
+}
+
+
+std::string ThreadSafeRegexMatcher::MatchResult::operator[](const unsigned group) const {
+    if (unlikely(group >= match_count_)) {
+        throw std::out_of_range("in ThreadSafeRegexMatcher::MatchResult::operator[]: group("
+                                + std::to_string(group) + ") >= " + std::to_string(match_count_) + "!");
+    }
+
+    const unsigned first_index(group * 2);
+    const unsigned substring_length(substr_indices_[first_index + 1] - substr_indices_[first_index]);
+    return (substring_length == 0) ? "" : subject_.substr(substr_indices_[first_index], substring_length);
+}
 
 
 bool CompileRegex(const std::string &pattern, const unsigned options, ::pcre **pcre_arg,
@@ -64,6 +96,83 @@ bool CompileRegex(const std::string &pattern, const unsigned options, ::pcre **p
 
     return true;
 }
+
+
+ThreadSafeRegexMatcher::ThreadSafeRegexMatcher(const std::string &pattern, const unsigned options)
+ : pattern_(pattern), options_(options), pcre_data_(new PcreData)
+{
+    std::string err_msg;
+    if (not CompileRegex(pattern_, options_, &pcre_data_->pcre_, &pcre_data_->pcre_extra_, &err_msg)) {
+        if (err_msg.empty())
+            LOG_ERROR("failed to compile pattern: \"" + pattern + "\": " + err_msg);
+    }
+}
+
+
+ThreadSafeRegexMatcher::MatchResult ThreadSafeRegexMatcher::match(
+    const std::string &subject, const size_t subject_start_offset, size_t * const start_pos,
+    size_t * const end_pos) const
+{
+    MatchResult match_result(subject);
+    const int retcode(::pcre_exec(pcre_data_->pcre_, pcre_data_->pcre_extra_, subject.data(), subject.length(),
+                      subject_start_offset, 0, &match_result.substr_indices_[0], match_result.substr_indices_.size()));
+
+    if (retcode == 0) {
+        LOG_ERROR("Too many captured substrings! (We only support " + std::to_string(match_result.substr_indices_.size() / 3 - 1)
+                  + " substrings.)");
+    }
+
+    if (retcode > 0) {
+        match_result.match_count_ = retcode;
+        match_result.matched_ = true;
+        if (start_pos != nullptr)
+            *start_pos = match_result.substr_indices_[0];
+        if (end_pos != nullptr)
+            *end_pos = match_result.substr_indices_[1];
+
+        return match_result;
+    }
+
+    if (retcode != PCRE_ERROR_NOMATCH) {
+        if (retcode == PCRE_ERROR_BADUTF8)
+            match_result.error_message_ = "invalid UTF-8 in subject";
+        else
+            match_result.error_message_ = "unknown PCRE error for pattern '" + pattern_ + "': " + std::to_string(retcode);
+    }
+
+    return match_result;
+}
+
+
+std::string ThreadSafeRegexMatcher::replaceAll(const std::string &subject, const std::string &replacement) const {
+    if (not match(subject))
+        return subject;
+
+    std::string replaced_string;
+    // the matches need to be sequentially sorted from left to right
+    size_t subject_start_offset(0), match_start_offset(0), match_end_offset(0);
+    while (subject_start_offset < subject.length()) {
+        if (not match(subject, subject_start_offset, &match_start_offset, &match_end_offset))
+            break;
+
+        if (subject_start_offset == match_start_offset and subject_start_offset == match_end_offset) {
+            replaced_string += subject[subject_start_offset++];
+            continue;
+        }
+
+        replaced_string += subject.substr(subject_start_offset, match_start_offset - subject_start_offset);
+        replaced_string += replacement;
+        subject_start_offset = match_end_offset;
+    }
+
+    while (subject_start_offset < subject.length())
+        replaced_string += subject[subject_start_offset++];
+
+    return replaced_string;
+}
+
+
+bool RegexMatcher::utf8_configured_;
 
 
 RegexMatcher *RegexMatcher::RegexMatcherFactory(const std::string &pattern, std::string * const err_msg,
@@ -136,14 +245,14 @@ RegexMatcher::RegexMatcher(RegexMatcher &&that)
 }
 
 
-bool RegexMatcher::matched(const std::string &subject, std::string * const err_msg,
+bool RegexMatcher::matched(const std::string &subject, const size_t subject_start_offset, std::string * const err_msg,
                            size_t * const start_pos, size_t * const end_pos)
 {
     if (err_msg != nullptr)
         err_msg->clear();
 
-    const int retcode = ::pcre_exec(pcre_, pcre_extra_, subject.data(), subject.length(), 0, 0,
-                                    &substr_vector_[0], substr_vector_.size());
+    const int retcode(::pcre_exec(pcre_, pcre_extra_, subject.data(), subject.length(), subject_start_offset, 0,
+                                    &substr_vector_[0], substr_vector_.size()));
 
     if (retcode == 0) {
         if (err_msg != nullptr)
@@ -171,6 +280,88 @@ bool RegexMatcher::matched(const std::string &subject, std::string * const err_m
     }
 
     return false;
+}
+
+
+std::string RegexMatcher::replaceAll(const std::string &subject, const std::string &replacement) {
+    if (not matched(subject))
+        return subject;
+
+    std::string replaced_string;
+    // the matches need to be sequentially sorted from left to right
+    size_t subject_start_offset(0), match_start_offset(0), match_end_offset(0);
+    while (subject_start_offset < subject.length() and
+           matched(subject, subject_start_offset, /* err_msg */ nullptr, &match_start_offset, &match_end_offset))
+    {
+        if (subject_start_offset == match_start_offset and subject_start_offset == match_end_offset) {
+            replaced_string += subject[subject_start_offset++];
+            continue;
+        }
+
+        replaced_string += subject.substr(subject_start_offset, match_start_offset - subject_start_offset);
+        replaced_string += replacement;
+        subject_start_offset = match_end_offset;
+    }
+
+    while (subject_start_offset < subject.length())
+        replaced_string += subject[subject_start_offset++];
+
+    return replaced_string;
+}
+
+
+static std::string InsertReplacement(const RegexMatcher &matcher, const std::string &replacement_pattern) {
+    std::string replacement_text;
+
+    bool backslash_seen(false);
+    for (const char ch : replacement_pattern) {
+        if (backslash_seen) {
+            if (unlikely(ch == '\\'))
+                replacement_text += '\\';
+            else {
+                if (unlikely(not StringUtil::IsDigit(ch)))
+                    LOG_ERROR("not a digit nor a backslash found in the replacement pattern \"" + replacement_pattern + "\"!");
+                const unsigned group_no(ch - '0'); // Only works with ASCII!
+                replacement_text += matcher[group_no];
+            }
+
+            backslash_seen = false;
+        } else if (ch == '\\')
+            backslash_seen = true;
+        else
+            replacement_text += ch;
+    }
+
+    return replacement_text;
+}
+
+
+std::string RegexMatcher::replaceWithBackreferences(const std::string &subject, const std::string &replacement, const bool global) {
+    if (not matched(subject))
+        return subject;
+
+    std::string replaced_string;
+    // the matches need to be sequentially sorted from left to right
+    size_t subject_start_offset(0), match_start_offset(0), match_end_offset(0);
+    while (subject_start_offset < subject.length() and
+           matched(subject, subject_start_offset, /* err_msg */ nullptr, &match_start_offset, &match_end_offset))
+    {
+        if (subject_start_offset == match_start_offset and subject_start_offset == match_end_offset) {
+            replaced_string += subject[subject_start_offset++];
+            continue;
+        }
+
+        replaced_string += subject.substr(subject_start_offset, match_start_offset - subject_start_offset);
+        replaced_string += InsertReplacement(*this, replacement);
+        subject_start_offset = match_end_offset;
+        if (not global)
+            break;
+    }
+
+    while (subject_start_offset < subject.length())
+        replaced_string += subject[subject_start_offset++];
+
+    return replaced_string;
 }
 
 

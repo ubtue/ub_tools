@@ -3,7 +3,7 @@
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -36,11 +36,11 @@ class ControlNumberGuesser {
     const size_t MAX_CONTROL_NUMBER_LENGTH;
     std::unique_ptr<DbConnection> db_connection_;
     mutable std::unique_ptr<DbResultSet> title_cursor_, author_cursor_, year_cursor_;
-    bool transaction_in_progress_;
+    DbTransaction *db_transaction_;
 public:
     explicit ControlNumberGuesser()
         : MAX_CONTROL_NUMBER_LENGTH(BSZUtil::PPN_LENGTH_NEW), db_connection_(new DbConnection(DATABASE_PATH, DbConnection::CREATE)),
-          transaction_in_progress_(false) {}
+          db_transaction_(nullptr) { }
     ~ControlNumberGuesser();
 public:
     void clearDatabase();
@@ -67,9 +67,6 @@ public:
     void lookupDOI(const std::string &doi, std::set<std::string> * const control_numbers) const;
     void lookupISSN(const std::string &issn, std::set<std::string> * const control_numbers) const;
     void lookupISBN(const std::string &isbn, std::set<std::string> * const control_numbers) const;
-
-    /** \return The number of entries w/ at least one change. */
-    unsigned swapControlNumbers(const std::unordered_map<std::string, std::string> &old_to_new_map);
 
     /** For testing purposes. */
     static std::string NormaliseTitle(const std::string &title);

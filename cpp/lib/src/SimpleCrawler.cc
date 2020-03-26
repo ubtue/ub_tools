@@ -28,13 +28,16 @@ SimpleCrawler::Params::Params(const std::string &acceptable_languages, const uns
                               const bool print_last_http_header, const bool ignore_robots_dot_txt,
                               const bool print_redirects, const std::string &user_agent,
                               const std::string &url_ignore_pattern, const bool ignore_ssl_certificates,
-                              const std::string &proxy_host_and_port)
+                              const std::string &proxy_host_and_port,
+                              const bool print_queued_urls,
+                              const bool print_skipped_urls)
     : acceptable_languages_(acceptable_languages), timeout_(timeout),
       min_url_processing_time_(min_url_processing_time), print_all_http_headers_(print_all_http_headers),
       print_last_http_header_(print_last_http_header), ignore_robots_dot_txt_(ignore_robots_dot_txt),
       print_redirects_(print_redirects), user_agent_(user_agent),
       url_ignore_pattern_(url_ignore_pattern), ignore_ssl_certificates_(ignore_ssl_certificates),
-      proxy_host_and_port_(proxy_host_and_port) {}
+      proxy_host_and_port_(proxy_host_and_port), print_queued_urls_(print_queued_urls),
+      print_skipped_urls_(print_skipped_urls) {}
 
 
 void SimpleCrawler::extractLocationUrls(const std::string &header_blob, std::list<std::string> * const location_urls) {
@@ -94,22 +97,18 @@ SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params)
     : remaining_crawl_depth_(site_desc.max_crawl_depth_), url_regex_matcher_(site_desc.url_regex_matcher_),
       min_url_processing_time_(params.min_url_processing_time_), params_(params)
 {
-    std::queue<std::string> url_queue_start;
-    url_queue_start.push(site_desc.start_url_);
-    url_queue_current_depth_.swap(url_queue_start);
-    std::queue<std::string> url_queue_empty;
-    url_queue_next_depth_.swap(url_queue_empty);
+    url_queue_current_depth_.push(site_desc.start_url_);
 
     std::string err_msg;
     url_ignore_regex_matcher_.reset(RegexMatcher::RegexMatcherFactory(params.url_ignore_pattern_, &err_msg, RegexMatcher::Option::CASE_INSENSITIVE));
     if (url_ignore_regex_matcher_ == nullptr)
         LOG_ERROR("could not initialize URL ignore regex matcher: " + err_msg);
 
-    downloader_.params_.user_agent_              = params.user_agent_;
-    downloader_.params_.acceptable_languages_    = params.acceptable_languages_;
-    downloader_.params_.honour_robots_dot_txt_   = not params.ignore_robots_dot_txt_;
-    downloader_.params_.ignore_ssl_certificates_ = params.ignore_ssl_certificates_;
-    downloader_.params_.proxy_host_and_port_     = params.proxy_host_and_port_;
+    downloader_.setAcceptableLanguages(params.acceptable_languages_);
+    downloader_.setHonourRobotsDotTxt(not params.ignore_robots_dot_txt_);
+    downloader_.setIgnoreSslCertificates(params.ignore_ssl_certificates_);
+    downloader_.setProxy(params.proxy_host_and_port_);
+    downloader_.setUserAgent(params.user_agent_);
 }
 
 
@@ -186,8 +185,13 @@ bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
         WebUtil::ExtractURLs(message_body, url, WebUtil::ABSOLUTE_URLS, &urls_and_anchor_texts, EXTRACT_URL_FLAGS);
         for (const auto &url_and_anchor_texts : urls_and_anchor_texts) {
             const std::string extracted_url(url_and_anchor_texts.getUrl());
-            if (not url_regex_matcher_ or url_regex_matcher_->matched(extracted_url))
+            if (not url_regex_matcher_ or url_regex_matcher_->matched(extracted_url)) {
                 url_queue_next_depth_.push(extracted_url);
+
+                if (params_.print_queued_urls_)
+                    LOG_DEBUG("queued URL for further crawling: '" + extracted_url + "'");
+            } else if (params_.print_skipped_urls_)
+                LOG_DEBUG("skipped URL: '" + extracted_url + "'");
         }
     }
 

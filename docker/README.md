@@ -48,6 +48,9 @@ Wichtig: Pro Image können theoretisch mehrere Container laufen, für weitere Be
 
 Hinweis: Bei bestimmten Aktionen, z.B. Neustarten des Apache Servers kann der Container abstürzen!
 
+## Container starten obwohl er kein Startskript hat (z.B. Standard CentOS Container)
+docker run -d centos tail -f /dev/null
+
 ## File vom Host in laufenden Container kopieren
 `docker cp test.js 6714d880fad:/tmp/test.js`
 
@@ -58,3 +61,14 @@ Hinweis: Bei bestimmten Aktionen, z.B. Neustarten des Apache Servers kann der Co
 Container: `docker rm $(docker ps -a -q)`
 
 Images: `docker rmi $(docker images -q)`
+
+
+# CentOS 8
+Es gibt aktuell noch keine Version von Docker für CentOS 8. Die Emulation über "podman-docker" ist ebenfalls nicht geeignet. Stattdessen sollte ein Repository für CentOS 7 eingebunden werden:
+
+`dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo`
+`dnf install docker-ce`
+
+Außerdem muss Masquerading für firewalld aktiviert werden, da sonst aus dem Docker-Container keine DNS-Abfragen möglich sind:
+
+`firewall-cmd --zone=public --add-masquerade --permanent`

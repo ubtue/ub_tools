@@ -6,7 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
- *  Copyright 2016-2018 Universitätsbibliothek Tübingen.
+ *  Copyright 2016-2019 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -159,11 +159,14 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count = 0)
 
 
 /** \brief  Performs a topological sort.
- *  \param  The sorted list of nodes will be stored here if the sort succeeded.
+ *  \param  edges       The edges defining our graph.
+ *  \param  node_order  The sorted list of nodes will be stored here if the sort succeeded.
+ *  \param  cycle       If not NULL and if at least one cycle exists in the graph, a node order of a cycle will be returned here.
  *  \return True if no cycle exists in the input graph and false o/w.
  *  \note   Nodes must be labelled 0 to N-1 (in any order) where N is the number of nodes.
  */
-bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &vertices, std::vector<unsigned> * const node_order);
+bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &edges, std::vector<unsigned> * const node_order,
+                     std::vector<unsigned> * const cycle = nullptr);
 
 
 // \return the list of functions that were called at the point of invocation of this function.
@@ -217,6 +220,27 @@ template<typename ElementType> std::set<ElementType> Intersect(const std::unorde
                           std::inserter(result, result.begin()));
     return result;
 }
+
+
+/** \return of "container1" ⟍  "container2" */
+template<typename ContainerType> ContainerType AbsoluteComplement(const ContainerType &container1, const ContainerType &container2) {
+    ContainerType result;
+    for (const auto &element : container1) {
+        if (container2.find(element) == container2.end())
+            result.emplace(element);
+    }
+    return result;
+}
+
+
+enum class PreferredPathLocation { LEADING, TRAILING };
+
+
+/** \brief Add a new component to $PATH.
+ *  \note  The new path component will not be added if it is already a part of $PATH.
+ *  \return True if we added the new path componnent and false if it was already part of $PATH.
+ */
+bool AddToPATH(const std::string &new_directory_path, const PreferredPathLocation preferred_path_location);
 
 
 } // namespace MiscUtil

@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015,2018 Universitätsbibliothek Tübingen
+ *  Copyright 2015-2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -306,7 +306,6 @@ const std::string &IniFile::Section::getComment(const std::string &entry_name) c
 }
 
 
-
 static inline bool ContainsSpacesOrDoubleQuotes(const std::string &value) {
     if (value.find(' ') != std::string::npos)
         return true;
@@ -339,7 +338,10 @@ void IniFile::Section::write(File * const output, const bool pretty_print) const
             const bool need_quotes(entry.value_.empty() or ContainsSpacesOrDoubleQuotes(entry.value_));
             if (need_quotes)
                 line += '"';
-            line += TextUtil::CStyleEscape(entry.value_);
+            if (need_quotes)
+                line += TextUtil::CStyleEscape(entry.value_);
+            else
+                line += entry.value_;
             if (need_quotes)
                 line += '"';
             line += entry.comment_;
@@ -370,7 +372,7 @@ IniFile::IniFile(const std::string &ini_file_name, const bool ignore_failed_incl
 
 
 std::string IniFile::DefaultIniFileName() {
-    return UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + std::string(".conf");
+    return UBTools::GetTuelibPath() + FileUtil::GetBasename(::program_invocation_name) + std::string(".conf");
 }
 
 
@@ -563,6 +565,9 @@ void IniFile::processFile(const std::string &external_filename) {
             std::getline(ini_file, buf);
             ++getCurrentLineNo();
             line += buf;
+            if (line.empty())
+                continue;
+
             continued_line = line[line.length() - 1] == '\\';
             if (continued_line)
                 line = line.substr(0, line.length() - 1);
@@ -651,7 +656,7 @@ bool IniFile::lookup(const std::string &section_name, const std::string &variabl
 unsigned IniFile::getUnsigned(const std::string &section_name, const std::string &variable_name) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.cend())
-        LOG_ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"! (variable: \"" + variable_name + "\")");
 
     return section->getUnsigned(variable_name);
 }
@@ -667,7 +672,7 @@ unsigned IniFile::getUnsigned(const std::string &section_name, const std::string
 uint64_t IniFile::getUint64T(const std::string &section_name, const std::string &variable_name) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.cend())
-        LOG_ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"! (variable: \"" + variable_name + "\")");
 
     return section->getUint64T(variable_name);
 }
@@ -681,7 +686,7 @@ uint64_t IniFile::getUint64T(const std::string &section_name, const std::string 
 long IniFile::getInteger(const std::string &section_name, const std::string &variable_name) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.cend())
-        LOG_ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"! (variable: \"" + variable_name + "\")");
 
     return section->getInteger(variable_name);
 }
@@ -699,7 +704,7 @@ long IniFile::getInteger(const std::string &section_name, const std::string &var
 double IniFile::getDouble(const std::string &section_name, const std::string &variable_name) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.end())
-        LOG_ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"! (variable: \"" + variable_name + "\")");
 
     return section->getDouble(variable_name);
 }
@@ -717,7 +722,7 @@ double IniFile::getDouble(const std::string &section_name, const std::string &va
 std::string IniFile::getString(const std::string &section_name, const std::string &variable_name) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.cend())
-        LOG_ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"! (variable: \"" + variable_name + "\")");
 
     return section->getString(variable_name);
 }
@@ -735,7 +740,7 @@ std::string IniFile::getString(const std::string &section_name, const std::strin
 char IniFile::getChar(const std::string &section_name, const std::string &variable_name) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.cend())
-        LOG_ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"! (variable: \"" + variable_name + "\")");
 
     return section->getChar(variable_name);
 }
@@ -753,7 +758,7 @@ char IniFile::getChar(const std::string &section_name, const std::string &variab
 bool IniFile::getBool(const std::string &section_name, const std::string &variable_name) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.cend())
-        LOG_ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"! (variable: \"" + variable_name + "\")");
 
     return section->getBool(variable_name);
 }
@@ -773,7 +778,7 @@ int IniFile::getEnum(const std::string &section_name, const std::string &variabl
 {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.cend())
-        LOG_ERROR("no such section: \"" + section_name + "\"!");
+        LOG_ERROR("no such section: \"" + section_name + "\"! (variable: \"" + variable_name + "\")");
 
     return section->getEnum(variable_name, string_to_value_map);
 }

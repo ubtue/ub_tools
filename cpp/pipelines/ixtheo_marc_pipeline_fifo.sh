@@ -58,7 +58,7 @@ function EndPhase {
 
 
 function CleanUp {
-    rm -f GesamtTiteldaten-post-phase?*-"${date}".mrc
+    rm -f GesamtTiteldaten-post-phase*.mrc
 }
 
 
@@ -74,29 +74,47 @@ OVERALL_START=$(date +%s.%N)
 
 
 StartPhase "Check Record Integrity at the Beginning of the Pipeline"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
-            --write-data=GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc GesamtTiteldaten-"${date}".mrc \
+            --write-data=GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc GesamtTiteldaten-"${date}".mrc
     >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+if [[ $(date +%d) == "01" ]]; then # Only do this on the 1st of every month.
+    echo "*** Occasional Phase: Checking Rule Violations ***" | tee --append "${log}"
+    marc_check_log="/usr/local/var/log/tuefind/marc_check_rule_violations.log"
+    marc_check --check-rule-violations-only GesamtTiteldaten-"${date}".mrc \
+               /usr/local/var/lib/tuelib/marc_check.rules "${marc_check_log}" >> "${log}" 2>&1 &&
+    if [ -s "${marc_check_log}" ]; then
+        send_email --priority=high \
+                   --recipients=ixtheo-team@ub.uni-tuebingen.de \
+                   --subject="marc_check Found Rule Violations" \
+                   --message-body="PPNs im Anhang." \
+                   --attachment="${marc_check_log}"
+    fi
+fi
+
+
+StartPhase "Swap and Delete PPN's in Various Databases"
+(patch_ppns_in_databases --report-only GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
+                         -- entire_record_deletion.log >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
-StartPhase "Drop Records Containing mtex in 935" \
-           "\n\tFilter out Self-referential 856 Fields" \
+StartPhase "Filter out Self-referential 856 Fields" \
            "\n\tRemove Sorting Chars From Title Subfields" \
            "\n\tRemove blmsh Subject Heading Terms" \
            "\n\tFix Local Keyword Capitalisations"
 (marc_filter \
-     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-    --drop 935a:mtex \
+     GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --remove-fields '856u:ixtheo\.de' \
-    --remove-fields 'LOK:086630(.*)\x{1F}x' `# Remove internal bibliographic comments`  \
+    --remove-fields 'LOK:086630(.*)\x{1F}x' `# Remove internal bibliographic comments` \
     --filter-chars 130a:240a:245a '@' \
     --remove-subfields '6002:blmsh' '6102:blmsh' '6302:blmsh' '6892:blmsh' '6502:blmsh' '6512:blmsh' '6552:blmsh' \
-    --replace 600a:610a:630a:648a:650a:651a:655a /usr/local/var/lib/tuelib/keyword_normalisation.map \
+    --replace-strings 600a:610a:630a:648a:650a:650x:651a:655a /usr/local/var/lib/tuelib/keyword_normalisation.map \
     --replace 100a:700a /usr/local/var/lib/tuelib/author_normalisation.map \
     --replace 260b:264b /usr/local/var/lib/tuelib/publisher_normalisation.map \
-    >> "${log}" 2>&1 && \
+    --replace 245a "^L' (.*)" "L'\\1" `#  Replace "L' arbe" with "L'arbe" etc.` \
+>> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
@@ -106,6 +124,14 @@ StartPhase "Rewrite Authors and Standardized Keywords from Authority Data"
                                                   Normdaten-"${date}".mrc \
                                                   GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
+
+
+StartPhase "Add Missing Cross Links Between Records"
+(add_missing_cross_links GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
 
 
 StartPhase "Extract Translations and Generate Interface Translation Files"
@@ -113,20 +139,27 @@ StartPhase "Extract Translations and Generate Interface Translation Files"
     "$VUFIND_HOME"/local/tuefind/languages/de.ini `# German terms before all others.` \
     $(ls -1 "$VUFIND_HOME"/local/tuefind/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
 generate_vufind_translation_files "$VUFIND_HOME"/local/tuefind/languages/ >> "${log}" 2>&1 && \
-clean_vufind_cache.sh >> "${log}" 2>&1 && \
+"$VUFIND_HOME"/clean_vufind_cache.sh >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
 StartPhase "Augment Authority Data with Keyword Translations"
 (augment_authority_data_with_translations Normdaten-"${date}".mrc \
-                                          Normdaten-augmented-"${date}".mrc \
+                                          Normdaten-partially-augmented1-"${date}".mrc \
                                           >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
 
+StartPhase "Add BEACON Information to Authority Data"
+(add_authority_beacon_information Normdaten-partially-augmented1-"${date}".mrc \
+                                  Normdaten-partially-augmented2-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
 StartPhase "Cross Link Articles"
-(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-3))"-"${date}".mrc \
+(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-4))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                          article_matches.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &
@@ -141,13 +174,22 @@ wait
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                   GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
+StartPhase "Add Additional Open Access URL's"
+# Execute early for programs that rely on it for determining the open access property
+OADOI_URLS_FILE="/mnt/ZE020150/FID-Entwicklung/oadoi/oadoi_urls_ixtheo.json"
+(add_oa_urls ${OADOI_URLS_FILE} GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Extract Normdata Translations"
-(extract_authority_data_translations Normdaten-augmented-"${date}".mrc \
+(extract_authority_data_translations Normdaten-partially-augmented2-"${date}".mrc \
                                      normdata_translations.txt >> "${log}" 2>&1 &&
 EndPhase || Abort) &
 wait
@@ -182,9 +224,9 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
-StartPhase "Flag Electronic Records"
-(flag_electronic_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+StartPhase "Flag Electronic and Open-Access Records"
+(flag_electronic_and_open_access_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
@@ -195,6 +237,22 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
                          Normdaten-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 cp pericopes_to_codes.map /usr/local/var/lib/tuelib/bibleRef/ && \
+EndPhase || Abort) &
+
+
+StartPhase "Augment Canon Law References"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(augment_canones_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                            Normdaten-"${date}".mrc \
+                            GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
+StartPhase "Augment Time Aspect References"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(augment_time_aspects GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                      Normdaten-"${date}".mrc \
+                      GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -227,7 +285,7 @@ EndPhase || Abort) &
 StartPhase "Add Keyword Synonyms from Authority Data"
 (add_synonyms \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    Normdaten-augmented-"${date}".mrc \
+    Normdaten-partially-augmented2-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -257,14 +315,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Integrate Refterms"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_referenceterms Hinweissätze-Ergebnisse-"${date}".txt GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-
-
-StartPhase "Add Additional Open Access URL's"
-(add_oa_urls oadoi_urls_ixtheo.json GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -279,17 +330,26 @@ EndPhase || Abort) &
 
 
 StartPhase "Add Entries for Subscription Bundles and Tag Journals"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_subscription_bundle_entries GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Add Tags for subsystems"
-(add_subsystem_tags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+(add_subsystem_tags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
+                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
+
+
+StartPhase "Appending Literary Remains Records"
+mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                                 Normdaten-partially-augmented2-"${date}".mrc \
+                                 Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
 
 
 StartPhase "Tag PDA candidates"
@@ -299,17 +359,19 @@ StartPhase "Tag PDA candidates"
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
-StartPhase "Export Subsystem Tags to VuFind SQL Database"
-(export_subsystem_ids_to_db GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
-     >> "${log}" 2>&1 && \
+StartPhase "Patch Transitive Church Law, Religous Studies and Bible Studies Records"
+(find_transitive_record_set GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                            GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc 2>&1 \
+                            dangling_references.list && \
 EndPhase || Abort) &
 wait
 
 
 StartPhase "Cross-link Type Tagging"
-(add_cross_link_type GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+(add_cross_link_type GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -323,15 +385,8 @@ EndPhase || Abort) &
 wait
 
 
-StartPhase "Extract Referenced Authors and add BEACON Information"
-(extract_referenced_author_records GesamtTiteldaten-post-pipeline-"${date}".mrc \
-                                   Normdaten-"${date}".mrc \
-                                   ReferencedAuthors-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-wait
-
 StartPhase "Cleanup of Intermediate Files"
-for p in $(seq 0 "$((PHASE-1))"); do
+for p in $(seq 0 "$((PHASE-2))"); do
     rm -f GesamtTiteldaten-post-phase"$p"-??????.mrc
 done
 rm -f child_refs child_titles parent_refs

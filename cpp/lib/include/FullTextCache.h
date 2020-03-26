@@ -27,7 +27,7 @@
 
 
 class FullTextCache {
-    Elasticsearch full_text_cache_, full_text_cache_urls_;
+    Elasticsearch full_text_cache_, full_text_cache_urls_, full_text_cache_html_;
 public:
     struct Entry {
         std::string id_;
@@ -55,7 +55,8 @@ public:
             : count_(count), domain_(domain), error_message_(error_message), example_entry_(id, url, domain, error_message) { }
     };
 public:
-    FullTextCache(): full_text_cache_("full_text_cache"), full_text_cache_urls_("full_text_cache_urls") { }
+    FullTextCache(): full_text_cache_("full_text_cache"), full_text_cache_urls_("full_text_cache_urls"),
+                     full_text_cache_html_("full_text_cache_html") { }
 
     /** \brief Test whether an entry in the cache has expired or not.
      *  \return True if we don't find "id" in the database, or the entry is older than now-CACHE_EXPIRE_TIME_DELTA,
@@ -63,10 +64,11 @@ public:
      *  \note Deletes expired entries and associated data in the key/value database found at "full_text_db_path".
      */
     bool entryExpired(const std::string &key, std::vector<std::string> urls);
+    enum TextType { FULLTEXT = 1, TOC = 2, ABSTRACT = 4, SUMMARY = 8, UNKNOWN = 0 }; // Must match constants in TuelibMixin.java
 
     /** \brief Delete all records whose expiration field is in the past */
     void expireEntries();
-    inline std::unordered_set<std::string> getDomains() const { return full_text_cache_urls_.selectAll("domain"); }
+    inline std::unordered_multiset<std::string> getDomains() const { return full_text_cache_urls_.selectAllNonUnique("domain"); }
     bool getDomainFromUrl(const std::string &url, std::string * const domain) const;
     bool getEntry(const std::string &id, Entry * const entry) const;
     std::vector<EntryUrl> getEntryUrls(const std::string &id) const;
@@ -92,8 +94,30 @@ public:
     /** \brief Get the number of datasets in full_text_cache table */
     unsigned getSize() const;
 
+
+    /** \brief Extract and Import Page oriented Full Text */
+    void extractAndImportHTMLPages(const std::string &id, const std::string &full_text_location,
+                                   const TextType &text_type = FULLTEXT);
+
     /* \note If "data" is empty only an entry will be made in the SQL database but not in the key/value store.  Also
      *       either "data" must be non-empty or "error_message" must be non-empty.
      */
-    void insertEntry(const std::string &id, const std::string &full_text, const std::vector<EntryUrl> &entry_urls);
+    void insertEntry(const std::string &id, const std::string &full_text, const std::vector<EntryUrl> &entry_urls,
+                     const TextType &text_type = FULLTEXT);
+
+    bool deleteEntry(const std::string &id);
+
+    static TextType MapTextDescriptionToTextType(const std::string &text_description);
 };
+
+
+inline FullTextCache::TextType operator|(const FullTextCache::TextType &lhs, const FullTextCache::TextType &rhs) {
+    return static_cast<FullTextCache::TextType>(static_cast<std::underlying_type_t<FullTextCache::TextType>>(lhs) |
+                                                static_cast<std::underlying_type_t<FullTextCache::TextType>>(rhs));
+}
+
+
+inline FullTextCache::TextType operator|=(FullTextCache::TextType &lhs, const FullTextCache::TextType &rhs) {
+    return lhs = lhs | rhs;
+}
+

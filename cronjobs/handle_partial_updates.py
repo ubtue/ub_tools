@@ -1,4 +1,4 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
 #
 # A tool that creates a pseudo complete MARC data download from the BSZ from a differential download
@@ -6,7 +6,7 @@
 # A typical config file looks like this:
 """
 [Files]
-loesch_liste    = LOEPPN-current
+loesch_liste    = LOEKXP-current
 komplett_abzug  = WA-MARC-krimdok-current.tar.gz
 differenz_abzug = SA-MARC-krimdok-current.tar.gz
 
@@ -15,7 +15,6 @@ server_address  = smtpserv.uni-tuebingen.de
 server_user     = XXXXXX
 server_password = XXXXXX
 """
-
 
 from ftplib import FTP
 import datetime

@@ -58,6 +58,8 @@ public:
         std::string url_ignore_pattern_;
         bool ignore_ssl_certificates_;
         std::string proxy_host_and_port_;
+        bool print_queued_urls_;
+        bool print_skipped_urls_;
     public:
         explicit Params(const std::string &acceptable_languages = "",
                         const unsigned timeout = DEFAULT_TIMEOUT,
@@ -69,7 +71,9 @@ public:
                         const std::string &user_agent = "ub_tools (https://ixtheo.de/docs/user_agents)",
                         const std::string &url_ignore_pattern = "(?i)\\.(js|css|bmp|pdf|jpg|gif|png|tif|tiff)(\\?[^?]*)?$",
                         const bool ignore_ssl_certificates_ = false,
-                        const std::string &proxy_host_and_port = ""
+                        const std::string &proxy_host_and_port = "",
+                        const bool print_queued_urls = false,
+                        const bool print_skipped_urls = false
                         );
         ~Params() = default;
     } params_;

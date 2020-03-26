@@ -1,4 +1,4 @@
-/** \brief Utility to determine Zeder entries that have yet to be imported into zts_harvester.
+/** \brief Utility to determine Zeder entries that have yet to be imported into Zotero Harvester.
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
  *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -22,22 +22,33 @@
 #include <algorithm>
 #include <set>
 #include "IniFile.h"
-#include "JournalConfig.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 #include "Zeder.h"
+#include "ZoteroHarvesterConfig.h"
 
 
 namespace {
 
 
-void LoadToolConfig(const IniFile &config_file, const Zeder::Flavour flavour,
-                    std::unordered_map<std::string, std::string> * const filter_regexps)
-{
-    const auto flavour_section(config_file.getSection(Zeder::FLAVOUR_TO_STRING_MAP.at(flavour)));
-    for (const auto &column_name : flavour_section->getEntryNames())
-        (*filter_regexps)[column_name] = flavour_section->getString(column_name);
+[[noreturn]] void Usage() {
+    ::Usage("harvester_config_file flavour [filter_regexps]\n"
+            "    filter_regexps - Whitespace-separated regex filter expressions for Zeder columns.\n"
+            "                     Format: <column-1>:<regex-1> <column-2>:<regex-2>...\n");
+    std::exit(EXIT_FAILURE);
+}
+
+
+void ParseArgs(const int argc, char * const argv[], std::unordered_map<std::string, std::string> * const filter_regexps) {
+    for (int i(3); i < argc; ++i) {
+        const std::string current_arg(argv[i]);
+        const auto seperator(current_arg.find(":"));
+        if (seperator == std::string::npos)
+            LOG_ERROR("couldn't find separator character in filter expression '" + current_arg + "'");
+
+        (*filter_regexps)[current_arg.substr(0, seperator)] = current_arg.substr(seperator + 1);
+    }
 }
 
 
@@ -45,8 +56,8 @@ void DownloadFullDump(const Zeder::Flavour flavour, const std::unordered_map<std
                       Zeder::EntryCollection * const downloaded_entries)
 {
     const auto endpoint_url(Zeder::GetFullDumpEndpointPath(flavour));
-    const std::unordered_set<unsigned> entries_to_download;  // intentionally empty
-    const std::unordered_set<std::string> columns_to_download;  // intentionally empty
+    const std::unordered_set<unsigned> entries_to_download {};  // intentionally empty
+    const std::unordered_set<std::string> columns_to_download {};  // intentionally empty
     std::unique_ptr<Zeder::FullDumpDownloader::Params> downloader_params(new Zeder::FullDumpDownloader::Params(endpoint_url,
                                                                          entries_to_download, columns_to_download, filter_regexps));
 
@@ -60,44 +71,48 @@ void DownloadFullDump(const Zeder::Flavour flavour, const std::unordered_map<std
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 4)
-        ::Usage("flavour config_file harvester_config_file");
+    if (argc < 3)
+        Usage();
 
-    const Zeder::Flavour flavour(Zeder::ParseFlavour(argv[1]));
-    const IniFile tool_config(argv[2]);
-    const IniFile harvester_config(argv[3]);
-    const JournalConfig::Reader bundle_reader(harvester_config);
+    const IniFile harvester_config(argv[1]);
+    const Zeder::Flavour flavour(Zeder::ParseFlavour(argv[2]));
     std::unordered_map<std::string, std::string> column_filter_regexps;
     Zeder::EntryCollection full_dump;
 
-    LoadToolConfig(tool_config, flavour, &column_filter_regexps);
+    ParseArgs(argc, argv, &column_filter_regexps);
     DownloadFullDump(flavour, column_filter_regexps, &full_dump);
 
-    std::set<unsigned int> imported_ids;
+    std::set<unsigned int> full_dump_ids, not_imported_ids, imported_ids;
+
+    std::transform(full_dump.begin(), full_dump.end(), std::inserter(full_dump_ids, full_dump_ids.begin()),
+                [](const Zeder::Entry &entry) -> unsigned int { return entry.getId(); });
+
     for (const auto &section : harvester_config) {
         const auto section_name(section.getSectionName());
-        const auto group(bundle_reader.zotero(section_name).value(JournalConfig::Zotero::GROUP, ""));
+        const auto group(section.getString(ZoteroHarvester::Config::JournalParams::GetIniKeyString(
+            ZoteroHarvester::Config::JournalParams::GROUP)));
         if (group != Zeder::FLAVOUR_TO_STRING_MAP.at(flavour))
             continue;
 
-        imported_ids.insert(StringUtil::ToUnsigned(bundle_reader.zeder(section_name).value(JournalConfig::Zeder::ID)));
+        const auto entry_id(StringUtil::ToUnsigned(section.getString(ZoteroHarvester::Config::JournalParams::GetIniKeyString(
+            ZoteroHarvester::Config::JournalParams::ZEDER_ID))));
+        if (full_dump_ids.find(entry_id) != full_dump_ids.end())
+            imported_ids.insert(entry_id);      // only count those that belong to the set of downloaded entries
     }
 
-    std::set<unsigned int> full_dump_ids, not_imported_ids;
-    std::transform(full_dump.begin(), full_dump.end(), std::inserter(full_dump_ids, full_dump_ids.begin()),
-                   [](const Zeder::Entry &entry) -> unsigned int { return entry.getId(); });
+
     std::set_difference(full_dump_ids.begin(), full_dump_ids.end(), imported_ids.begin(),
                         imported_ids.end(), std::inserter(not_imported_ids, not_imported_ids.begin()));
 
-    LOG_INFO("Zeder '" + Zeder::FLAVOUR_TO_STRING_MAP.at(flavour) + "' instance: " + std::to_string(full_dump.size()) + " entries");
-    LOG_INFO("Number of imported entries: " + std::to_string(imported_ids.size()));
-    LOG_INFO("Number of yet-to-be-imported entries: " + std::to_string(not_imported_ids.size()));
+    LOG_INFO("Zeder '" + Zeder::FLAVOUR_TO_STRING_MAP.at(flavour) + "' instance: " + std::to_string(full_dump.size()) + " filtered entries");
+    LOG_INFO("Number of filtered entries already imported: " + std::to_string(imported_ids.size()));
+    LOG_INFO("Number of filtered entries yet to be imported: " + std::to_string(not_imported_ids.size()));
 
     std::set<std::string> buffer;
 
     std::transform(imported_ids.begin(), imported_ids.end(), std::inserter(buffer, buffer.begin()),
                    [](unsigned int id) -> std::string { return std::to_string(id); });
-    LOG_INFO("\nImported entries: " + StringUtil::Join(buffer.begin(), buffer.end(), ","));
+    LOG_INFO("\nAlready imported entries: " + StringUtil::Join(buffer.begin(), buffer.end(), ","));
 
     buffer.clear();
     std::transform(not_imported_ids.begin(), not_imported_ids.end(), std::inserter(buffer, buffer.begin()),

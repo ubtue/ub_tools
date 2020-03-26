@@ -1,7 +1,7 @@
 /** \brief Tool for cross linking articles that are likely to refer to the same work.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -58,6 +58,9 @@ void ExtractYearVolumeIssue(const MARC::Record &record, RecordInfo * const recor
     record_info->issue_  = ISSUE_WILDCARD;
 
     for (const auto &field : record.getTagRange("936")) {
+        if (field.getIndicator1() != 'u' or field.getIndicator2() != 'w')
+            continue;
+
         const MARC::Subfields subfields(field.getSubfields());
 
         const auto year(subfields.getFirstSubfieldWithCode('j'));
@@ -90,7 +93,7 @@ void CollectInfos(MARC::Reader * const marc_reader, std::unordered_map<std::stri
         else
             new_info.type_ = RecordInfo::OTHER;
         ExtractYearVolumeIssue(record, &new_info);
-        new_info.may_be_a_review_ = MARC::PossiblyAReviewArticle(record);
+        new_info.may_be_a_review_ = record.isPossiblyReviewArticle();
         new_info.is_electronic_ = record.isElectronicResource();
 
         (*ppns_to_infos_map)[record.getControlNumber()] = new_info;
@@ -101,8 +104,10 @@ void CollectInfos(MARC::Reader * const marc_reader, std::unordered_map<std::stri
 bool SetContainsOnlyArticlePPNs(const std::set<std::string> &ppns, const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map) {
     for (const auto &ppn : ppns) {
         const auto ppn_and_record_info(ppns_to_infos_map.find(ppn));
-        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN "+ ppn + " is missing in ppns_to_infos_map! (1)");
+        if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
+            LOG_WARNING("PPN "+ ppn + " is missing in ppns_to_infos_map! (1)");
+            continue;
+        }
         if (ppn_and_record_info->second.type_ != RecordInfo::ARTICLE)
             return false;
     }
@@ -267,7 +272,7 @@ bool AugmentRecord(MARC::Record * const record, const std::set<std::string> &dup
             const bool is_electronic(ppn_and_record_info->second.is_electronic_);
             record->insertField("776",
                                 { { 'i', "Erscheint auch als" }, { 'n', (is_electronic ? "elektronische Ausgabe" : "Druckausgabe") },
-                                  { 'w', "(DE-576)" + cross_link_ppn } });
+                                  { 'w', "(DE-627)" + cross_link_ppn } });
             added_at_least_one_new_cross_link = true;
         }
     }

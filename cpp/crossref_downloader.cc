@@ -2,7 +2,7 @@
  *  \brief   Downloads metadata from crossref.org and generates MARC-21 records.
  *  \author  Dr. Johannes Ruscheinski
  *
- *  \copyright (C) 2017,2018, Library of the University of Tübingen
+ *  \copyright (C) 2017-2019, Library of the University of Tübingen
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -23,12 +23,12 @@
 #include <vector>
 #include <cstdlib>
 #include <cstring>
-#include <kchashdb.h>
 #include "Compiler.h"
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "HttpHeader.h"
 #include "JSON.h"
+#include "KeyValueDB.h"
 #include "MARC.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
@@ -423,7 +423,7 @@ bool AddTitle(const JSON::ObjectNode &message_tree, MARC::Record * const marc_re
 
 
 /** \return True, if we wrote a record and false if we suppressed a duplicate. */
-bool CreateAndWriteMarcRecord(MARC::Writer * const marc_writer, kyotocabinet::HashDB * const notified_db,
+bool CreateAndWriteMarcRecord(MARC::Writer * const marc_writer, KeyValueDB * const notified_db,
                               const std::string &DOI, const std::string &ISSN, const JSON::ObjectNode &message_tree,
                               const std::vector<MapDescriptor *> &map_descriptors)
 {
@@ -457,14 +457,12 @@ bool CreateAndWriteMarcRecord(MARC::Writer * const marc_writer, kyotocabinet::Ha
     AddIssueInfo(message_tree, &record);
 
     // If we have already encountered the exact same record in the past we skip writing it:
-    std::string old_hash, new_hash(MARC::CalcChecksum(record));
-    if (notified_db->get(DOI, &old_hash)) {
-        if (old_hash == new_hash)
+    std::string new_hash(MARC::CalcChecksum(record));
+    if (notified_db->keyIsPresent(DOI)) {
+        if (notified_db->getValue(DOI) == new_hash)
             return false;
     }
-    if (unlikely(not notified_db->set(DOI, new_hash)))
-        LOG_ERROR("failed to write the DOI \"" + DOI + "\" into \"" + notified_db->path() + "\"! ("
-                  + std::string(notified_db->error().message()) + ")");
+    notified_db->addOrReplace(DOI, new_hash);
 
     marc_writer->write(record);
     return true;
@@ -481,7 +479,7 @@ bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * 
         return false;
     }
 
-    if (StringUtil::Split(line.substr(0, first_space_pos), ',', issns) == 0) {
+    if (StringUtil::Split(line.substr(0, first_space_pos), ',', issns, /* suppress_empty_components = */true) == 0) {
         LOG_WARNING("No ISSNS found!");
         return false;
     }
@@ -499,7 +497,7 @@ bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * 
 
 
 void ProcessISSN(const std::string &ISSN, const unsigned timeout, MARC::Writer * const marc_writer,
-                 kyotocabinet::HashDB * const notified_db, const std::vector<MapDescriptor *> &map_descriptors,
+                 KeyValueDB * const notified_db, const std::vector<MapDescriptor *> &map_descriptors,
                  std::unordered_set<std::string> * const already_seen, unsigned * const written_count,
                  unsigned * const suppressed_count)
 {
@@ -561,7 +559,7 @@ void ProcessISSN(const std::string &ISSN, const unsigned timeout, MARC::Writer *
 
 
 void ProcessJournal(const unsigned timeout, const std::string &line, MARC::Writer * const marc_writer,
-                    kyotocabinet::HashDB * const notified_db, const std::vector<MapDescriptor *> &map_descriptors,
+                    KeyValueDB * const notified_db, const std::vector<MapDescriptor *> &map_descriptors,
                     unsigned * const total_written_count, unsigned * const total_suppressed_count)
 {
     std::vector<std::string> issns;
@@ -581,12 +579,12 @@ void ProcessJournal(const unsigned timeout, const std::string &line, MARC::Write
 }
 
 
-std::unique_ptr<kyotocabinet::HashDB> CreateOrOpenKeyValueDB() {
+std::unique_ptr<KeyValueDB> CreateOrOpenKeyValueDB() {
     const std::string DB_FILENAME(UBTools::GetTuelibPath() + "crossref_downloader/notified.db");
-    std::unique_ptr<kyotocabinet::HashDB> db(new kyotocabinet::HashDB());
-    if (not (db->open(DB_FILENAME, kyotocabinet::HashDB::OWRITER | kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::OCREATE)))
-        LOG_ERROR("failed to open or create \"" + DB_FILENAME + "\"!");
-    return db;
+    if (not FileUtil::Exists(DB_FILENAME))
+        KeyValueDB::Create(DB_FILENAME);
+
+    return std::unique_ptr<KeyValueDB>(new KeyValueDB(DB_FILENAME));
 }
 
 
@@ -612,7 +610,7 @@ int Main(int argc, char *argv[]) {
     const std::string journal_list_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
 
-    std::unique_ptr<kyotocabinet::HashDB> notified_db(CreateOrOpenKeyValueDB());
+    std::unique_ptr<KeyValueDB> notified_db(CreateOrOpenKeyValueDB());
 
     const auto journal_list_file(FileUtil::OpenInputFileOrDie(journal_list_filename));
     const auto marc_writer(MARC::Writer::Factory(marc_output_filename));

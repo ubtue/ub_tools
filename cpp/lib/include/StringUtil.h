@@ -11,7 +11,7 @@
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
  *  Copyright 2002-2004 Dr. Johannes Ruscheinski.
- *  Copyright 2015-2019 Universitätsbibliothek Tübingen
+ *  Copyright 2015-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -88,6 +88,27 @@ const std::string IVIA_STANDARD_LOCALE("en_US.utf8");
 const std::string IVIA_FALLBACK_LOCALE("en_US.UTF-8");
 const std::string EmptyString;
 const std::string WHITE_SPACE(" \t\n\v\r\f");
+
+
+// Replace target += source.substr(start, count); with calls to this function.
+inline std::string AppendSubstring(std::string &target, const std::string &source, const size_t start, const size_t count) {
+    if (target.capacity() - target.size() < count)
+        target.reserve(target.size() + count);
+
+    if (unlikely(start > source.size()))
+        throw std::out_of_range("in StringUtil::AppendSubstring: start is " + std::to_string(start) + " and count is "
+                                + std::to_string(count) + " which is out of range!");
+    std::string::const_iterator end;
+    if (start + count >= source.size())
+        end = source.cend();
+    else
+        end = source.cbegin() + start + count;
+
+    for (auto ch(source.cbegin() + start); ch < end; ++ch)
+        target += *ch;
+
+    return target;
+}
 
 
 /** \brief Converts the ASCII letters in "s" to lowercase. */
@@ -287,8 +308,8 @@ inline std::string TrimWhite(const char * const s) { return TrimWhite(std::strin
 /** \brief  Convert a number to a string.
  *  \param  n              The number to convert.
  *  \param  radix          The base to use for the resulting string representation.
- *  \param  width          If this is < 0 then pad resulting string up to width on the left, if this is > 0 then pad resulting string up to width on the right.
- *                         Default is 0 (do not pad).
+ *  \param  width          If this is < 0 then pad resulting string up to width on the left, if this is > 0
+ *                         then pad resulting string up to width on the right.  Default is 0 (do not pad).
  *  \param  padding_char   Used to pad the resulting string
  *  \param  grouping_char  If non-NUL, this character will be inserted after each group of "grouping_size" characters
  *                         starting at the end of the string.  Should this rule result in a leading character position
@@ -301,9 +322,9 @@ template <typename IntegerType> std::string ToString(IntegerType n, const unsign
                                                      const char padding_char = ' ', const char grouping_char = '\0',
                                                      const unsigned grouping_size = 3)
 {
-    assert(radix >= 2 and radix <= 36);
+    assert(radix >= 2 and radix <= 62);
 
-    static const char DIGITS[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    static const char DIGITS[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     char buf[129 + 1]; // enough room for a base-2 negative 128 bit number
     char *cp = buf + sizeof(buf) - 1;
     *cp = '\0';
@@ -366,7 +387,7 @@ std::string ToHexString(const uint8_t u8);
 
 /** Converts "data" to a string consisting of hexadecimal numbers (one per nibble). */
 inline std::string ToHexString(const void * const data, size_t data_size)
-{ return ToHexString(std::string(reinterpret_cast<const char * const>(data), data_size)); }
+    { return ToHexString(std::string(reinterpret_cast<const char *>(data), data_size)); }
 
 
 /** Returns a binary nibble corresponding to "ch". */
@@ -473,6 +494,32 @@ unsigned ToUnsigned(const std::string &s, const unsigned base = 10);
  *  \return  true if the conversion was successful, false otherwise.
  */
 bool ToUnsigned(const std::string &s, unsigned * const n, const unsigned base = 10);
+
+
+/** \brief   Convert a string into a signed integer.
+ *  \param   s     The string to convert.
+ *  \param   base  The base of the string representation.  A value of "0" after an optional sign has the special meaning that if the string
+ *                 starts with a "0" followed by one or more digits the base is assumed to be 8, if the string starts
+ *                 with "0x" the base is assumed to be 16, in all other cases the base is assumed to be 10.
+ *  \return  The converted number.
+ *
+ *  If the input is not comprised solely of digits with an optional leading sign (except for base "0" and a leading "0x"),
+ *  then this function will generate an error.  (Unlike the other version, which will simply return false.)
+ */
+int ToInt(const std::string &s, const unsigned base = 10);
+
+
+/** \brief   Convert a string into a signed integer.
+ *  \param   s     The string to convert.
+ *  \param   n     Number that will hold the result.
+ *  \param   base  The base of the string representation.  A value of "0" after an optional sign has the special meaning that if the string
+ *                 starts with a "0" followed by one or more digits the base is assumed to be 8, if the string starts
+ *                 with "0x" the base is assumed to be 16, in all other cases the base is assumed to be 10.
+ *  \return  true if the conversion was successful, false otherwise.
+ */
+inline bool ToInt(const std::string &s, int * const n, const unsigned base = 10) {
+    return ToNumber(s, n, base);
+}
 
 
 /** \brief   Convert a string into a long unsigned number.
@@ -791,7 +838,7 @@ std::string ExtractHead(std::string * const target, const std::string &delimiter
  */
 template<typename StringType, typename InsertableContainer> unsigned Split(
     const StringType &source, const StringType &delimiter_string, InsertableContainer * const container,
-    const bool suppress_empty_components = true)
+    const bool suppress_empty_components = false)
 {
     if (unlikely(delimiter_string.empty()))
         throw std::runtime_error("in StringUtil::Split: empty delimited string!");
@@ -802,7 +849,6 @@ template<typename StringType, typename InsertableContainer> unsigned Split(
 
     typename StringType::size_type start(0);
     typename StringType::size_type next_delimiter(0);
-    unsigned count(0);
 
     while (next_delimiter != StringType::npos) {
         // Search for first occurence of delimiter that appears after start
@@ -812,11 +858,9 @@ template<typename StringType, typename InsertableContainer> unsigned Split(
         if (next_delimiter == StringType::npos) {
             if (not suppress_empty_components or start < source.length())
                 container->insert(container->end(), source.substr(start));
-            ++count;
-        } else if (next_delimiter > start) {
+        } else if (next_delimiter >= start) {
             if (not suppress_empty_components or start < next_delimiter)
                 container->insert(container->end(), source.substr(start, next_delimiter - start));
-            ++count;
         }
 
         // Move the start pointer along the array
@@ -826,7 +870,7 @@ template<typename StringType, typename InsertableContainer> unsigned Split(
             next_delimiter = StringType::npos;
     }
 
-    return count;
+    return container->size();
 }
 
 
@@ -854,7 +898,7 @@ bool SplitOnString(const std::string &s, const std::string &separator, std::stri
  */
 template<typename StringType, typename InsertableContainer> unsigned Split(const StringType &source, const char delimiter,
                                                                            InsertableContainer * const container,
-                                                                           const bool suppress_empty_components = true)
+                                                                           const bool suppress_empty_components = false)
 {
     container->clear();
     if (source.empty())
@@ -862,7 +906,6 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
 
     typename StringType::size_type start(0);
     typename StringType::size_type next_delimiter(0);
-    unsigned count(0);
 
     while (next_delimiter != StringType::npos) {
         // Search for first occurence of delimiter that appears after start:
@@ -872,11 +915,9 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
         if (next_delimiter == StringType::npos) {
             if (not suppress_empty_components or start < source.length())
                 container->insert(container->end(), source.substr(start));
-            ++count;
-        } else if (next_delimiter > start) {
+        } else if (next_delimiter >= start) {
             if (not suppress_empty_components or start < next_delimiter)
                 container->insert(container->end(), source.substr(start, next_delimiter - start));
-            ++count;
         }
 
         // Move the start pointer along the string:
@@ -886,7 +927,7 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
             next_delimiter = StringType::npos;
     }
 
-    return count;
+    return container->size();
 }
 
 
@@ -902,7 +943,7 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
  */
 template<typename StringType, typename InsertableContainer> unsigned Split(const StringType &source, const std::set<char> &delimiters,
                                                                            InsertableContainer * const container,
-                                                                           const bool suppress_empty_components = true)
+                                                                           const bool suppress_empty_components = false)
 {
     container->clear();
     if (source.empty())
@@ -910,7 +951,6 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
 
     typename StringType::size_type start(0);
     typename StringType::size_type next_delimiter(0);
-    unsigned count(0);
 
     while (next_delimiter != StringType::npos) {
         // Search for first occurence a delimiter that appears after start:
@@ -925,12 +965,10 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
         if (next_delimiter == StringType::npos) {
             if (not suppress_empty_components or start < source.length())
                 container->insert(container->end(), source.substr(start));
-            ++count;
         }
         else if (next_delimiter > start) {
             if (not suppress_empty_components or start < next_delimiter)
                 container->insert(container->end(), source.substr(start, next_delimiter - start));
-            ++count;
         }
 
         // Move the start pointer along the string:
@@ -940,7 +978,7 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
             next_delimiter = StringType::npos;
     }
 
-    return count;
+    return container->size();
 }
 
 
@@ -955,7 +993,7 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
  */
 template<typename InsertableContainer> inline unsigned WhiteSpaceSplit(const std::string &source,
                                                                        InsertableContainer * const container,
-                                                                       const bool suppress_empty_components = true)
+                                                                       const bool suppress_empty_components = false)
 {
     return Split(source, MiscUtil::GetWhiteSpaceSet(), container, suppress_empty_components);
 }
@@ -1929,6 +1967,18 @@ inline bool IsDigit(const int ch)
 }
 
 
+inline bool ConsistsOfAllASCIIDigits(const std::string &s) {
+    if (s.empty())
+        return false;
+    for (const char ch : s) {
+        if (not IsDigit(ch))
+            return false;
+    }
+
+    return true;
+}
+
+
 /** \brief  Returns what isalnum would return in the "C" locale.
  *  \param  ch  The character to test.
  *  \return True if "ch" is an alphanumeric character in the "C" locale, else false.
@@ -2357,15 +2407,33 @@ inline std::string PadLeading(const std::string &s, const std::string::size_type
 }
 
 
-inline std::string &Pad(std::string * const s, const std::string::size_type min_length, const char pad_char = ' ') {
+inline std::string &PadLeading(std::string * const s, const std::string::size_type min_length, const char pad_char = ' ') {
     if (s->length() < min_length)
         s->insert(0, min_length - s->length(), pad_char);
     return *s;
 }
 
 
+/** Pads "s" with leading "pad_char"'s if s.length() < min_length. */
+inline std::string PadTrailing(const std::string &s, const std::string::size_type min_length, const char pad_char = ' ') {
+    const std::string::size_type length(s.length());
+
+    if (length >= min_length)
+        return s;
+
+    return s + std::string(min_length - length, pad_char);
+}
+
+
+inline std::string &PadTrailing(std::string * const s, const std::string::size_type min_length, const char pad_char = ' ') {
+    if (s->length() < min_length)
+        s->append(min_length - s->length(), pad_char);
+    return *s;
+}
+
+
 /** \return If "needle" was found in "haystack", the starting position in "haystack" else std::string::npos. */
-size_t FindCaseInsensitive(const std::string &haystack, const std::string &needle);
+size_t FindCaseInsensitive(const std::string &haystack, const std::string &needle, const size_t search_start_pos = 0);
 
 
 /** Removes all occurrences of any of the characters in "remove_set" from "source"
@@ -2403,6 +2471,22 @@ inline std::string Truncate(const size_t max_length, std::string * const s) {
 inline std::string Truncate(const size_t max_length, std::string s) {
     return Truncate(max_length, &s);
 }
+
+
+/** \brief Backslash escapes double quotes and backslashes. */
+std::string EscapeDoubleQuotes(const std::string &s);
+
+
+/** \brief Generate a string of a given maximum length.
+ *
+ *  If "text" has a length of no more than "max_length" or text has a length of <= 3, we return text. Otherwise we return a prefix of
+ *  text with a length of max_length - 3 and an appended ellipsis.
+ */
+std::string ShortenText(const std::string &text, const size_t max_length);
+
+
+/** \brief Converts roman numerals to decimals. */
+unsigned RomanNumeralToDecimal(const std::string &s);
 
 
 } // Namespace StringUtil

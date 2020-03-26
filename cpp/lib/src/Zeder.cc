@@ -1,7 +1,7 @@
 /** \brief API to interact with the Zeder collaboration tool
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -35,9 +35,18 @@ const std::string &Entry::getAttribute(const std::string &name) const {
 }
 
 
+const std::string &Entry::getAttribute(const std::string &name, const std::string &default_value) const {
+    const auto match(attributes_.find(name));
+    if (match == attributes_.end())
+        return default_value;
+    else
+        return match->second;
+}
+
+
 void Entry::setAttribute(const std::string &name, const std::string &value, bool overwrite) {
     if (attributes_.find(name) == attributes_.end() or overwrite)
-        attributes_[name] = value;
+        attributes_[name] = StringUtil::Map(value, Zeder::ATTRIBUTE_INVALID_CHARS, std::string(Zeder::ATTRIBUTE_INVALID_CHARS.length(), '_'));
     else
         LOG_ERROR("Attribute '" + name + "' already exists in entry " + std::to_string(id_));
 }
@@ -123,7 +132,7 @@ Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool ski
     } else {
         delta.timestamp_is_newer_ = true;
         delta.timestamp_time_difference_ = 0;
-        delta.last_modified_timestamp_ = TimeUtil::GetCurrentTimeGMT();
+        delta.last_modified_timestamp_ = lhs.getLastModifiedTimestamp();
     }
 
     for (const auto &key_value : rhs) {
@@ -221,6 +230,16 @@ void CsvReader::parse(EntryCollection * const collection) {
                 LOG_ERROR("Mandatory fields were not found in the first and last columns!");
 
             continue;
+        }
+
+        if (splits.size() != columns.size()) {
+            std::string debug_data("column\tvalue\n\n");
+            for (unsigned i(0); i < columns.size(); ++i)
+                debug_data += columns.at(i) + "\t" + (i < splits.size() ? splits.at(i) : "<MISSING>") + "\n";
+
+            LOG_ERROR("column length mismatch on line " + std::to_string(line) + "! expected " +
+                      std::to_string(columns.size()) + ", found " + std::to_string(splits.size()) +
+                      ". debug data:\n" + debug_data);
         }
 
         // the first and last columns are Z and Mtime respectively
@@ -514,21 +533,37 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
             if (column_metadata == column_to_metadata_map.end())
                 LOG_ERROR("Unknown column '" + column_name + "'");
 
-            if (column_metadata->second.column_type_ == "multi") {
-                if (params.columns_to_download_.empty())
-                    continue;
-                else
-                    LOG_ERROR("Columns with multiple values are not supported! Invalid column: " + column_name);
-            }
+            std::string resolved_value;
+            if (column_metadata->second.column_type_ == "text")
+                resolved_value = JSON::JSONNode::CastToStringNodeOrDie(column_name, field.second)->getValue();
+            else if (column_metadata->second.column_type_ == "dropdown") {
+                resolved_value = JSON::JSONNode::CastToStringNodeOrDie(column_name, field.second)->getValue();
+                if (not resolved_value.empty()) {
+                    const auto ordinal(StringUtil::ToInt64T(resolved_value));
+                    const auto match(column_metadata->second.ordinal_to_value_map_.find(ordinal));
+                    if (match == column_metadata->second.ordinal_to_value_map_.end())
+                        LOG_ERROR("Unknown value ordinal " + std::to_string(ordinal) + " in column '" + column_name + "'");
 
-            auto resolved_value(JSON::JSONNode::CastToStringNodeOrDie(column_name, field.second)->getValue());
-            if (column_metadata->second.column_type_ == "dropdown" and not resolved_value.empty()) {
-                const auto ordinal(StringUtil::ToInt64T(resolved_value));
-                const auto match(column_metadata->second.ordinal_to_value_map_.find(ordinal));
-                if (match == column_metadata->second.ordinal_to_value_map_.end())
-                    LOG_ERROR("Unknown value ordinal " + std::to_string(ordinal) + " in column '" + column_name + "'");
+                    resolved_value = match->second;
+                }
+            } else if (column_metadata->second.column_type_ == "multi") {
+                const auto selected_values(JSON::JSONNode::CastToArrayNodeOrDie(column_name, field.second));
+                std::vector<std::string> resolved_items;
 
-                resolved_value = match->second;
+                for (const auto &entry : *selected_values) {
+                    if (entry->getType() != JSON::JSONNode::Type::STRING_NODE)
+                        continue;
+
+                    const auto value_string(JSON::JSONNode::CastToStringNodeOrDie("entry", entry)->getValue());
+                    const auto ordinal(StringUtil::ToInt64T(value_string));
+                    const auto match(column_metadata->second.ordinal_to_value_map_.find(ordinal));
+                    if (match == column_metadata->second.ordinal_to_value_map_.end())
+                        LOG_ERROR("Unknown value ordinal " + std::to_string(ordinal) + " in column '" + column_name + "'");
+
+                    resolved_items.emplace_back(match->second);
+                }
+
+                resolved_value = StringUtil::Join(resolved_items, ',');
             }
 
             resolved_value = TextUtil::CollapseAndTrimWhitespace(resolved_value);
@@ -604,8 +639,9 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
         return IXTHEO;
     else if (flavour_str == krimdok_str)
         return KRIMDOK;
-    else
+    else {
         LOG_ERROR("unknown Zeder flavour '" + flavour + "'");
+    }
 }
 
 

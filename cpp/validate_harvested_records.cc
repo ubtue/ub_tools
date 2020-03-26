@@ -1,7 +1,7 @@
 /** \brief Utility for validating and fixing up records harvested by zts_harvester
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -27,7 +27,6 @@
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "EmailSender.h"
-#include "FileUtil.h"
 #include "IniFile.h"
 #include "MARC.h"
 #include "UBTools.h"
@@ -37,9 +36,8 @@
 namespace {
 
 
-[[noreturn]]
-void Usage() {
-   ::Usage("marc_file email_address");
+[[noreturn]] void Usage() {
+   ::Usage("marc_input marc_output missed_expectations_file email_address");
 }
 
 
@@ -78,15 +76,6 @@ public:
                             [&field_name](const FieldInfo &field_info){ return field_name == field_info.name_; });
     }
 };
-
-
-std::string GetJournalNameOrDie(const MARC::Record &record) {
-    const auto journal_name(record.getSuperiorTitle());
-    if (unlikely(journal_name.empty()))
-        LOG_ERROR("the record w/ control number \"" + record.getControlNumber() + "\" is missing a superior title!");
-
-    return journal_name;
-}
 
 
 FieldPresence StringToFieldPresence(const std::string &s) {
@@ -129,7 +118,6 @@ void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, con
     *journal_info = JournalInfo(/* not_in_database_yet = */false);
     while (auto row = result_set.getNextRow())
         journal_info->addField(row["metadata_field_name"], StringToFieldPresence(row["field_presence"]));
-    LOG_INFO("Loadad " + std::to_string(journal_info->size()) + " entries for \"" + journal_name + "\" from the database.");
 }
 
 
@@ -204,13 +192,14 @@ void WriteToDatabase(DbConnection * const db_connection, const std::string &jour
 }
 
 
-void SendEmail(const std::string &email_address, const std::string &message_body) {
+void SendEmail(const std::string &email_address, const std::string &message_subject, const std::string &message_body) {
     const auto reply_code(EmailSender::SendEmail("zts_harvester_delivery_pipeline@uni-tuebingen.de",
-                          email_address, "validate_harvested_records encountered problems", message_body,
-                          EmailSender::MEDIUM));
+                          email_address, message_subject, message_body,
+                          EmailSender::MEDIUM, EmailSender::PLAIN_TEXT, /* reply_to = */ "",
+                          /* use_ssl = */ true, /* use_authentication = */ true));
 
     if (reply_code >= 300)
-        LOG_ERROR("failed to send email, the response code was: " + std::to_string(reply_code));
+        LOG_WARNING("failed to send email, the response code was: " + std::to_string(reply_code));
 }
 
 
@@ -218,44 +207,59 @@ void SendEmail(const std::string &email_address, const std::string &message_body
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
+    if (argc != 5)
         Usage();
 
     DbConnection db_connection;
     auto reader(MARC::Reader::Factory(argv[1]));
-    FileUtil::AutoTempFile temp_output_file("/tmp/ATF", ".xml");
-    auto writer(MARC::Writer::Factory(temp_output_file.getFilePath()));
+    auto valid_records_writer(MARC::Writer::Factory(argv[2]));
+    auto delinquent_records_writer(MARC::Writer::Factory(argv[3]));
     std::map<std::string, JournalInfo> journal_name_to_info_map;
-    const std::string email_address(argv[2]);
+    const std::string email_address(argv[4]);
 
     unsigned total_record_count(0), new_record_count(0), missed_expectation_count(0);
     while (const auto record = reader->read()) {
         ++total_record_count;
-        const auto journal_name(GetJournalNameOrDie(record));
+        bool validation_failed(false);
 
-        auto journal_name_and_info(journal_name_to_info_map.find(journal_name));
-        bool first_record(false); // True if the current record is the first encounter of a journal
-        if (journal_name_and_info == journal_name_to_info_map.end()) {
-            first_record = true;
-            JournalInfo new_journal_info;
-            LoadFromDatabaseOrCreateFromScratch(&db_connection, journal_name, &new_journal_info);
-            journal_name_to_info_map[journal_name] = new_journal_info;
-            journal_name_and_info = journal_name_to_info_map.find(journal_name);
-        }
-
-        bool missed_expectation(false);
-        if (journal_name_and_info->second.isInDatabase()) {
-            if (not RecordMeetsExpectations(record, journal_name_and_info->first, journal_name_and_info->second)) {
-                missed_expectation = true;
-                ++missed_expectation_count;
+        // Intentionally true to allow early breaking
+        while (true) {
+            const auto journal_name(record.getSuperiorTitle());
+            if (journal_name.empty()) {
+                LOG_WARNING("Record w/ control number \"" + record.getControlNumber() + "\" is missing a superior title!");
+                validation_failed = true;
+                break;
             }
-        } else {
-            AnalyseNewJournalRecord(record, first_record, &journal_name_and_info->second);
-            ++new_record_count;
+
+            auto journal_name_and_info(journal_name_to_info_map.find(journal_name));
+            bool first_record(false); // True if the current record is the first encounter of a journal
+            if (journal_name_and_info == journal_name_to_info_map.end()) {
+                first_record = true;
+                JournalInfo new_journal_info;
+                LoadFromDatabaseOrCreateFromScratch(&db_connection, journal_name, &new_journal_info);
+                journal_name_to_info_map[journal_name] = new_journal_info;
+                journal_name_and_info = journal_name_to_info_map.find(journal_name);
+            }
+
+            if (journal_name_and_info->second.isInDatabase()) {
+                if (not RecordMeetsExpectations(record, journal_name_and_info->first, journal_name_and_info->second)) {
+                    validation_failed = true;
+                    ++missed_expectation_count;
+                    break;
+                }
+            } else {
+                AnalyseNewJournalRecord(record, first_record, &journal_name_and_info->second);
+                ++new_record_count;
+            }
+
+            // Break unconditionally
+            break;
         }
 
-        if (not missed_expectation)
-            writer->write(record);
+        if (validation_failed)
+            delinquent_records_writer->write(record);
+        else
+            valid_records_writer->write(record);
     }
 
     for (const auto &journal_name_and_info : journal_name_to_info_map) {
@@ -263,17 +267,11 @@ int Main(int argc, char *argv[]) {
             WriteToDatabase(&db_connection, journal_name_and_info.first, journal_name_and_info.second);
     }
 
-    // replace the original file with the modified, temporary one
     if (missed_expectation_count > 0) {
-        reader.reset();
-        writer.reset();
-
-        const auto absolute_source_file_path(FileUtil::MakeAbsolutePath(argv[1]));
-        FileUtil::CopyOrDie(temp_output_file.getFilePath(), absolute_source_file_path);
-
         // send notification to the email address
-        SendEmail(email_address, "Some records missed expectations with respect to MARC fields. Check "
-                  "/usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log for details.");
+        SendEmail(email_address, "validate_harvested_records encountered warnings",
+                  "Some records missed expectations with respect to MARC fields. "
+                  "Check the log at '/usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log' for details.");
     }
 
     LOG_INFO("Processed " + std::to_string(total_record_count) + " record(s) of which " + std::to_string(new_record_count)

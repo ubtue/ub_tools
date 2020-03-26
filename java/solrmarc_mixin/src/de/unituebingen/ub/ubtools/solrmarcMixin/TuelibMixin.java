@@ -1,10 +1,12 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
+import java.net.InetAddress;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.YearMonth;
@@ -14,6 +16,18 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.apache.http.HttpEntity;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.marc4j.marc.ControlField;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
@@ -22,38 +36,42 @@ import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.DataUtil;
+import org.solrmarc.tools.PropertyUtils;
 import org.solrmarc.tools.Utils;
+import org.solrmarc.driver.Boot;
 import org.vufind.index.DatabaseManager;
+import org.vufind.index.CreatorTools;
 import java.sql.*;
 
 public class TuelibMixin extends SolrIndexerMixin {
     public final static String UNASSIGNED_STRING = "[Unassigned]";
     public final static Set<String> UNASSIGNED_SET = Collections.singleton(UNASSIGNED_STRING);
 
-    private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
-    private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
+    protected final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
+    protected final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
 
-    private final static String ISIL_BSZ = "DE-576";
-    private final static String ISIL_GND = "DE-588";
+    protected final static String ISIL_BSZ = "DE-576";
+    protected final static String ISIL_GND = "DE-588";
+    protected final static String ISIL_K10PLUS = "DE-627";
 
-    private final static String ISIL_PREFIX_BSZ = "(" + ISIL_BSZ + ")";
-    private final static String ISIL_PREFIX_GND = "(" + ISIL_GND + ")";
+    protected final static String ISIL_PREFIX_BSZ = "(" + ISIL_BSZ + ")";
+    protected final static String ISIL_PREFIX_GND = "(" + ISIL_GND + ")";
+    protected final static String ISIL_PREFIX_K10PLUS = "(" + ISIL_K10PLUS + ")";
+    protected final static String ES_FULLTEXT_PROPERTIES_FILE = "es_fulltext.properties";
 
-    private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
-    private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
-    private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
-    private final static Pattern PPN_EXTRACTION_PATTERN = Pattern.compile("^\\([^)]+\\)(.+)$");
-    private final static Pattern START_PAGE_MATCH_PATTERN = Pattern.compile("\\[?(\\d+)\\]?([-–]\\d+)?");
-    private final static Pattern VALID_FOUR_DIGIT_YEAR_PATTERN = Pattern.compile("\\d{4}");
-    private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
-    private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
-    private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
-    private final static Pattern UNICODE_QUOTATION_MARKS_PATTERN = Pattern.compile("[«‹»›„‚ʺ“‟‘‛”’ʻ\"❛❜❟❝❞❮❯⹂〝〞〟＂¿¡…]");
-    private final static Pattern SUPERIOR_PPN_PATTERN = Pattern.compile("\\s*." + ISIL_BSZ + ".(.*)");
-    private final static Pattern NON_SUPERIOR_SUBFIELD_I_CONTENT = Pattern.compile("\\s*Erscheint auch als.*|\\s*Elektronische Reproduktion.*|\\s*Äquivalent.*|\\s*Reproduktion von.*|\\s*Reproduziert als*");
+    protected final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
+    protected final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
+    protected final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
+    protected final static Pattern PAGE_MATCH_PATTERN = Pattern.compile("^\\[?(\\d+)\\]?([-–](\\d+))?$");
+    protected final static Pattern VALID_FOUR_DIGIT_YEAR_PATTERN = Pattern.compile("\\d{4}");
+    protected final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
+    protected final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
+    protected final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
+    protected final static Pattern PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN = Pattern.compile("\\(" + ISIL_K10PLUS + "\\)(.*)");
+    protected final static Pattern SUPERIOR_PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN = PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN;
 
     // TODO: This should be in a translation mapping file
-    private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
+    protected final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
         {
             this.put("Unknown", "Unknown");
             this.put("DE-21", "Universit\u00E4tsbibliothek T\u00FCbingen");
@@ -127,11 +145,12 @@ public class TuelibMixin extends SolrIndexerMixin {
             this.put("DE-21-203", "Universit\u00E4t T\u00FCbingen, Sammlung Werner Schweikert - Archiv der Weltliteratur");
             this.put("DE-21-205", "Universit\u00E4t T\u00FCbingen, Zentrum f\u00FCr Islamische Theologie");
             this.put("DE-Frei85", "Freiburg MPI Ausl\u00E4nd.Recht, Max-Planck-Institut f\u00FCr ausl\u00E4ndisches und internationales Strafrecht");
+            this.put("DE-2619", "KrimDok - kriminologische Bibliographie");
         }
     };
 
     // Map used by getPhysicalType().
-    private static final Map<String, String> phys_code_to_full_name_map;
+    protected static final Map<String, String> phys_code_to_full_name_map;
 
     static {
         Map<String, String> tempMap = new HashMap<>();
@@ -164,15 +183,42 @@ public class TuelibMixin extends SolrIndexerMixin {
         phys_code_to_full_name_map = Collections.unmodifiableMap(tempMap);
     }
 
-    private Set<String> isils_cache = null;
-    private Set<String> reviews_cache = null;
-    private Set<String> reviewedRecords_cache = null;
+    // Must match constants in FullTextCache.h
+    protected final static Map<String, String> text_type_to_description_map = new TreeMap<String, String>() {
+        {
+            this.put("1", "Fulltext");
+            this.put("2", "Table of Contents");
+            this.put("4", "Abstract");
+            this.put("8", "Summary");
+            this.put("0", "Unknown");
+        }
+    };
 
-    public void perRecordInit(Record record) {
-        reviews_cache = reviewedRecords_cache = isils_cache = null;
+
+    protected Set<String> isils_cache = null;
+    protected Map<String, Collection<Collection<Topic>>> collectedTopicsCache = new TreeMap<>();
+    protected JSONArray fulltext_server_hits = new JSONArray();
+    protected static final String fullHostName;
+    static {
+        String tmp = ""; // Needed for syntactical reasons
+        try {
+            tmp = InetAddress.getLocalHost().getHostName();
+        } catch(java.net.UnknownHostException e) {
+            throw new RuntimeException ("Could not determine Hostname", e);
+        }
+        fullHostName = tmp;
     }
 
-    private String getTitleFromField(final DataField titleField) {
+
+    @Override
+    public void perRecordInit(Record record) throws Exception {
+        isils_cache = null;
+        collectedTopicsCache = new TreeMap<>();
+        final String es_search_response = getElasticsearchSearchResponse(record);
+        fulltext_server_hits = getElasticsearchHits(es_search_response);
+    }
+
+    protected String getTitleFromField(final DataField titleField) {
         if (titleField == null)
             return null;
 
@@ -229,31 +275,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         return otherTitles;
     }
 
-    /**
-     * Determine Record Title Subfield
-     *
-     * @param record
-     *            the record
-     * @param subfield_code
-     * @return String nicely formatted title subfield
-     */
-    public String getTitleSubfield(final Record record, final String subfield_code) {
-        final DataField title = (DataField) record.getVariableField("245");
-        if (title == null)
-            return null;
 
-        final Subfield subfield = title.getSubfield(subfield_code.charAt(0));
-        if (subfield == null)
-            return null;
-
-        final String subfield_data = subfield.getData();
-        if (subfield_data == null)
-            return null;
-
-        return DataUtil.cleanData(subfield_data);
-    }
-
-    static private Set<String> getAllSubfieldsBut(final Record record, final String fieldSpecList,
+    static protected Set<String> getAllSubfieldsBut(final Record record, final String fieldSpecList,
                                                   char excludeSubfield)
     {
         final Set<String> extractedValues = new TreeSet<>();
@@ -327,6 +350,17 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
+    public String getAuthorityType(final Record record) {
+        if (record.getVariableFields("100").size() > 0)
+            return "person";
+        if (record.getVariableFields("110").size() > 0)
+            return "corporate";
+        if (record.getVariableFields("111").size() > 0)
+            return "meeting";
+        return null;
+    }
+
+
     /**
      * Hole das Sachschlagwort aus 689|a (wenn 689|d != z oder f)
      * und füge auch Schlagwörter aus LOK 689 ein
@@ -373,7 +407,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *            the subfield identifiers to search for
      * @return a nonempty subfield or null
      */
-    private Subfield getFirstNonEmptySubfield(final DataField dataField, final char... subfieldIDs) {
+    protected Subfield getFirstNonEmptySubfield(final DataField dataField, final char... subfieldIDs) {
         for (final char subfieldID : subfieldIDs) {
             for (final Subfield subfield : dataField.getSubfields(subfieldID)) {
                 if (subfield != null && subfield.getData() != null && !subfield.getData().isEmpty()) {
@@ -382,6 +416,124 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
         return null;
+    }
+
+    protected interface SubfieldMatcher {
+        boolean matched(final Subfield subfield);
+    }
+
+    /**
+     * Get all subfields matching a tagList definition
+     * (Iteration taken from VuFind's CreatorTools.getAuthorsFilteredByRelator)
+     *
+     * @param record       The record
+     * @param subfieldList Like in marc.properties, e.g. "110ab:111abc:710ab:711ab"
+     * @param matcher      Instance of SubfieldMatcher or null
+     * @return             A list with all subfields matching the tagList
+     */
+    protected List<Subfield> getSubfieldsMatchingList(final Record record, final String subfieldList, final SubfieldMatcher matcher)
+    {
+        List<Subfield> returnSubfields = new ArrayList<>();
+        HashMap<String, Set<String>> parsedTagList = getParsedTagList(subfieldList);
+        List<VariableField> fields = SolrIndexer.instance().getFieldSetMatchingTagList(record, subfieldList);
+
+        for (final VariableField variableField : fields) {
+            DataField field = (DataField)variableField;
+            for (final String subfieldCharacters : parsedTagList.get(field.getTag())) {
+                final List<Subfield> subfields = field.getSubfields("[" + subfieldCharacters + "]");
+                for (final Subfield subfield : subfields) {
+                    if (matcher == null || matcher.matched(subfield))
+                        returnSubfields.add(subfield);
+                }
+            }
+        }
+        return returnSubfields;
+    }
+
+    protected List<Subfield> getSubfieldsMatchingList(final Record record, final String subfieldList)
+    {
+        return getSubfieldsMatchingList(record, subfieldList, null);
+    }
+
+    protected Subfield getFirstSubfieldWithPrefix(final Record record, final String subfieldList, final String prefix)
+    {
+        SubfieldMatcher matcher = new SubfieldMatcher() {
+            public boolean matched(final Subfield subfield) {
+                return subfield.getData().startsWith(prefix);
+            }
+        };
+        final List<Subfield> subfields = getSubfieldsMatchingList(record, subfieldList, matcher);
+        for (final Subfield subfield : subfields) {
+            final String data = subfield.getData();
+            if (data.startsWith(prefix))
+                return subfield;
+        }
+        return null;
+    }
+
+    public String getFirstSubfieldValueWithPrefix(final Record record, final String subfieldList, final String prefix)
+    {
+        final Subfield subfield = getFirstSubfieldWithPrefix(record, subfieldList, prefix);
+        if (subfield == null)
+            return null;
+        return subfield.getData().substring(prefix.length());
+    }
+
+    public Set<String> getSubfieldValuesWithPrefix(final Record record, final String subfieldList, final String prefix)
+    {
+        Set<String> results = new HashSet<>();
+        SubfieldMatcher matcher = new SubfieldMatcher() {
+            public boolean matched(final Subfield subfield) {
+                return subfield.getData().startsWith(prefix);
+            }
+        };
+        final List<Subfield> subfields = getSubfieldsMatchingList(record, subfieldList, matcher);
+        for (final Subfield subfield : subfields) {
+            final String data = subfield.getData();
+            if (data.startsWith(prefix))
+                results.add(data.substring(prefix.length()));
+        }
+        return results;
+    }
+
+    // Map used by getPhysicalType().
+    protected static final Map<String, String> code_to_material_type_map;
+
+    // Entries are from http://swbtools.bsz-bw.de/cgi-bin/k10plushelp.pl?cmd=kat&val=4960&kattype=Standard#$3
+    static {
+        Map<String, String> tempMap = new TreeMap<>();
+        tempMap.put("01", "Inhaltstext");
+        tempMap.put("02", "Kurzbeschreibung");
+        tempMap.put("03", "Ausführliche Beschreibung");
+        tempMap.put("04", "Inhaltsverzeichnis");
+        tempMap.put("07", "Rezension");
+        tempMap.put("08", "Rezension (Auszug)");
+        tempMap.put("09", "Werbliche Überschrift");
+        tempMap.put("10", "Zitat aus einer vorhergehenden Besprechung");
+        tempMap.put("11", "Autorenkommentar");
+        tempMap.put("12", "Beschreibung für Leser");
+        tempMap.put("13", "Autorenbiografie");
+        tempMap.put("14", "Beschreibung für Lesegruppen");
+        tempMap.put("15", "Fragen für Lesegruppen ");
+        tempMap.put("16", "Konkurrierende Titel");
+        tempMap.put("17", "Klappentext");
+        tempMap.put("18", "Umschlagtext");
+        tempMap.put("23", "Auszug");
+        tempMap.put("24", "Erstes Kapitel");
+        tempMap.put("25", "Beschreibung für Marketing");
+        tempMap.put("26", "Pressetext");
+        tempMap.put("27", "Beschreibung für die Lizenzabteilung");
+        tempMap.put("28", "Beschreibung für Lehrer/Erzieher");
+        tempMap.put("30", "Unveröffentlichter Kommentar");
+        tempMap.put("31", "Beschreibung für Buchhändler");
+        tempMap.put("32", "Beschreibung für Bibliotheken");
+        tempMap.put("33", "Einführung/Vorwort");
+        tempMap.put("34", "Volltext");
+        tempMap.put("90", "Objektabbildung");           // GBV extension
+        tempMap.put("91", "Objektabbildung Thumbnail"); // GBV extension
+        tempMap.put("92", "Schlüsselseiten");           // GBV extension
+        tempMap.put("93", "Cover");                     // GBV extension
+        code_to_material_type_map = Collections.unmodifiableMap(tempMap);
     }
 
     /**
@@ -401,12 +553,14 @@ public class TuelibMixin extends SolrIndexerMixin {
         final Set<String> nonUnknownMaterialTypeURLs = new HashSet<String>();
         final Map<String, Set<String>> materialTypeToURLsMap = new TreeMap<String, Set<String>>();
         final Set<String> urls_and_material_types = new LinkedHashSet<>();
+
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
             final Subfield materialTypeSubfield = getFirstNonEmptySubfield(field, '3', 'z', 'y', 'x');
-            final String materialType = (materialTypeSubfield == null) ? UNKNOWN_MATERIAL_TYPE : materialTypeSubfield.getData();
+            String materialType = (materialTypeSubfield == null) ? UNKNOWN_MATERIAL_TYPE : materialTypeSubfield.getData();
+            if (code_to_material_type_map.containsKey(materialType))
+                materialType = code_to_material_type_map.get(materialType);
 
-            // Extract all links from u-subfields and resolve URNs:
             for (final Subfield subfield_u : field.getSubfields('u')) {
                 Set<String> URLs = materialTypeToURLsMap.get(materialType);
                 if (URLs == null) {
@@ -421,17 +575,14 @@ public class TuelibMixin extends SolrIndexerMixin {
                 else if (rawLink.startsWith("http://nbn-resolving.de"))
                     // Replace HTTP w/ HTTPS.
                     link = "https://nbn-resolving.org/" + rawLink.substring(23);
-
-
                 else if (rawLink.startsWith("http://nbn-resolving.org"))
                     // Replace HTTP w/ HTTPS.
                     link = "https://nbn-resolving.org/" + rawLink.substring(24);
                 else
                     link = rawLink;
                 URLs.add(link);
-                if (!materialType.equals(UNKNOWN_MATERIAL_TYPE)) {
+                if (!materialType.equals(UNKNOWN_MATERIAL_TYPE))
                     nonUnknownMaterialTypeURLs.add(link);
-                }
             }
         }
 
@@ -466,6 +617,19 @@ public class TuelibMixin extends SolrIndexerMixin {
         return urls_and_material_types;
     }
 
+    protected final static Pattern PPN_EXTRACTION_PATTERN = Pattern.compile("^\\(DE-627\\)(.+)$");
+
+    /** @return A PPN or null if we did not find one. */
+    String getPPNFromWSubfield(final DataField field) {
+        for (final Subfield wSubfield : field.getSubfields('w')) {
+            final Matcher matcher = PPN_EXTRACTION_PATTERN.matcher(wSubfield.getData());
+            if (matcher.matches())
+                return matcher.group(1);
+        }
+
+        return null;
+    }
+
     /**
      * Returns a Set<String> of parent (ID + colon + parent title + optional volume). Only
      * ID's w/o titles will not be returned.
@@ -477,7 +641,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getContainerIdsWithTitles(final Record record) {
         final Set<String> containerIdsTitlesAndOptionalVolumes = new TreeSet<>();
 
-        for (final String tag : new String[] { "773", "776", "800", "810", "830" }) {
+        for (final String tag : new String[] { "773", "800", "810", "830" }) {
             for (final VariableField variableField : record.getVariableFields(tag)) {
                 final DataField field = (DataField) variableField;
                 final Subfield titleSubfield = getFirstNonEmptySubfield(field, 't', 'a');
@@ -487,15 +651,10 @@ public class TuelibMixin extends SolrIndexerMixin {
                 if (titleSubfield == null || idSubfield == null)
                     continue;
 
-                final Matcher matcher = PPN_EXTRACTION_PATTERN.matcher(idSubfield.getData());
-                if (!matcher.matches())
+                final String parentId = getPPNFromWSubfield(field);
+                if (parentId == null)
                     continue;
 
-                // Don't confuse cross-references w/ up-references:
-                if (HasNonSuperior776IField(field))
-                        continue; // Was not a reference to a container/superior record.
-
-                final String parentId = matcher.group(1);
 
                 containerIdsTitlesAndOptionalVolumes
                         .add(parentId + (char) 0x1F + titleSubfield.getData()
@@ -508,52 +667,26 @@ public class TuelibMixin extends SolrIndexerMixin {
         return containerIdsTitlesAndOptionalVolumes;
     }
 
-    private void collectReviewsAndReviewedRecords(final Record record) {
-        if (reviews_cache != null && reviewedRecords_cache != null) {
-            return;
-        }
+    protected final static char SUBFIELD_SEPARATOR = (char)0x1F;
 
-        reviews_cache = new TreeSet<>();
-        reviewedRecords_cache = new TreeSet<>();
-        for (final VariableField variableField : record.getVariableFields("787")) {
-            final DataField field = (DataField) variableField;
-            final Subfield reviewTypeSubfield = getFirstNonEmptySubfield(field, 'i');
-            final Subfield titleSubfield = getFirstNonEmptySubfield(field, 't');
-            if (titleSubfield == null || reviewTypeSubfield == null)
-                continue;
+    protected String normalizeSortableString(String string) {
+        // Only keep letters & numbers. For unicode character classes, see:
+        // https://en.wikipedia.org/wiki/Template:General_Category_(Unicode)
+        if (string != null)
+            string = string.replaceAll("[^\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lo}\\p{N}]+", "").trim();
 
-            String title = titleSubfield.getData();
-            final Subfield locationAndPublisher = getFirstNonEmptySubfield(field, 'd');
-            if (locationAndPublisher != null)
-                title = title + " (" + locationAndPublisher.getData() + ")";
-
-            String parentId = "000000000";
-            final Subfield idSubfield = field.getSubfield('w');
-            if (idSubfield != null) {
-                final Matcher matcher = PPN_EXTRACTION_PATTERN.matcher(idSubfield.getData());
-                if (matcher.matches())
-                    parentId = matcher.group(1);
-            }
-
-            final Subfield reviewerSubfield = getFirstNonEmptySubfield(field, 'a');
-            final String reviewer = (reviewerSubfield == null) ? "" : reviewerSubfield.getData();
-
-            if (reviewTypeSubfield.getData().equals("Rezension")) {
-                reviews_cache.add(parentId + (char) 0x1F + reviewerSubfield.getData() + (char) 0x1F + title);
-            } else if (reviewTypeSubfield.getData().equals("Rezension von")) {
-                reviewedRecords_cache.add(parentId + (char) 0x1F + reviewer + (char) 0x1F + title);
-            }
-        }
+        return string;
     }
 
-    public Set<String> getReviews(final Record record) {
-        collectReviewsAndReviewedRecords(record);
-        return reviews_cache;
-    }
+    public String getSortableAuthorUnicode(final Record record, final String tagList, final String acceptWithoutRelator,
+                                           final String relatorConfig)
+    {
+        CreatorTools tools = new CreatorTools();
+        String author = tools.getFirstAuthorFilteredByRelator(record, tagList,
+                                                              acceptWithoutRelator,
+                                                              relatorConfig);
 
-    public Set<String> getReviewedRecords(final Record record) {
-        collectReviewsAndReviewedRecords(record);
-        return reviewedRecords_cache;
+        return normalizeSortableString(author);
     }
 
     /**
@@ -566,11 +699,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
     public String getSortableTitleUnicode(final Record record) {
         String title = SolrIndexer.instance().getSortableTitle(record);
-        final Matcher matcher = UNICODE_QUOTATION_MARKS_PATTERN.matcher(title);
-        title = matcher.replaceAll("");
-        // Remove all Unicode control characters
-        // (cf. https://stackoverflow.com/questions/3438854/replace-unicode-control-characters/3439206#3439206) (180201)
-        return title.replaceAll("\\p{Cc}", "").trim();
+        return normalizeSortableString(title);
     }
 
     /**
@@ -702,7 +831,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         final List<Subfield> wSubfields = _773Field.getSubfields('w');
         for (final Subfield wSubfield : wSubfields) {
             final String subfieldContents = wSubfield.getData();
-            if (subfieldContents.startsWith(ISIL_PREFIX_BSZ))
+            if (subfieldContents.startsWith(ISIL_PREFIX_K10PLUS))
                 subfields.add(subfieldContents);
         }
 
@@ -760,7 +889,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return collections.iterator().next();
     }
 
-    private static boolean isValidMonthCode(final String month_candidate) {
+    protected static boolean isValidMonthCode(final String month_candidate) {
         try {
             final int month_code = Integer.parseInt(month_candidate);
             return month_code >= 1 && month_code <= 12;
@@ -852,18 +981,41 @@ public class TuelibMixin extends SolrIndexerMixin {
         return YearMonth.of(Integer.valueOf(year), Integer.valueOf(month)).atEndOfMonth().getDayOfMonth();
     }
 
+    /**
+     * This function is copied from VuFind's CreatorTools
+     * (can't be re-used since it's protected)
+     */
+    protected HashMap<String, Set<String>> getParsedTagList(final String tagList)
+    {
+        final String[] tags = tagList.split(":");//convert string input to array
+        HashMap<String, Set<String>> tagMap = new HashMap<String, Set<String>>();
+        //cut tags array up into key/value pairs in hash map
+        Set<String> currentSet;
+        for (final String tagsItem : tags) {
+            String tag = tagsItem.substring(0, 3);
+            if (!tagMap.containsKey(tag)) {
+                currentSet = new LinkedHashSet<String>();
+                tagMap.put(tag, currentSet);
+            } else {
+                currentSet = tagMap.get(tag);
+            }
+            currentSet.add(tagsItem.substring(3));
+        }
+        return tagMap;
+    }
+
     /*
      * translation map cache
      */
-    static private Map<String, String> translation_map_en = new HashMap<String, String>();
-    static private Map<String, String> translation_map_fr = new HashMap<String, String>();
-    static private Map<String, String> translation_map_it = new HashMap<String, String>();
-    static private Map<String, String> translation_map_es = new HashMap<String, String>();
-    static private Map<String, String> translation_map_hant = new HashMap<String, String>();
-    static private Map<String, String> translation_map_hans = new HashMap<String, String>();
-    static private Map<String, String> translation_map_pt = new HashMap<String, String>();
-    static private Map<String, String> translation_map_ru = new HashMap<String, String>();
-    static private Map<String, String> translation_map_el = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_en = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_fr = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_it = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_es = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_hant = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_hans = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_pt = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_ru = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_el = new HashMap<String, String>();
 
     /**
      * get translation map for normdata translations
@@ -974,12 +1126,33 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     // Returns the contents of the first data field with tag "tag" and subfield code "subfield_code" or null if no
     // such field and subfield were found.
-    static private String getFirstSubfieldValue(final Record record, final String tag, final char subfieldCode) {
+    static protected String getFirstSubfieldValue(final Record record, final String tag, final char subfieldCode) {
         if (tag == null || tag.length() != 3)
             throw new IllegalArgumentException("bad tag (null or length != 3)!");
 
         for (final VariableField variableField : record.getVariableFields(tag)) {
             final DataField dataField = (DataField) variableField;
+            final Subfield subfield = dataField.getSubfield(subfieldCode);
+            if (subfield != null)
+                return subfield.getData();
+        }
+
+        return null;
+    }
+
+    // Returns the contents of the first data field with tag "tag", indicator1 "indicator1", indicator2 "indicator2"
+    // and subfield code "subfield_code" or null if no such field and subfield were found.
+    static protected String getFirstSubfieldValue(final Record record, final String tag, final char indicator1, final char indicator2,
+                                                final char subfieldCode)
+    {
+        if (tag == null || tag.length() != 3)
+            throw new IllegalArgumentException("bad tag (null or length != 3)!");
+
+        for (final VariableField variableField : record.getVariableFields(tag)) {
+            final DataField dataField = (DataField) variableField;
+            if (dataField.getIndicator1() != indicator1 || dataField.getIndicator2() != indicator2)
+                continue;
+
             final Subfield subfield = dataField.getSubfield(subfieldCode);
             if (subfield != null)
                 return subfield.getData();
@@ -1012,36 +1185,88 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
-    private static Set<String> getURNs(final Record record) {
+    /**
+     * Return all identifiers from 024. (Ind1 must always be 7)
+     *
+     * @param record            The record
+     * @param subfield2Value    The value of subfield 2, e.g. "urn", "doi", "hdl", ...
+     * @param resultPrefix      A prefix which will be prepended to each result entry.
+     */
+    protected static Set<String> getIdentifiersFrom024(final Record record,
+                                                     final String subfield2Value,
+                                                     final String resultPrefix)
+    {
         final Set<String> result = new TreeSet<>();
 
+        for (final VariableField variableField : record.getVariableFields("024")) {
+            final DataField field = (DataField) variableField;
+            if (field.getIndicator1() != '7')
+                continue;
+
+            final Subfield subfield_2 = field.getSubfield('2');
+            if (subfield_2 == null || !subfield_2.getData().equals(subfield2Value))
+                continue;
+
+            final Subfield subfield_a = field.getSubfield('a');
+            if (subfield_a != null)
+                result.add(resultPrefix + subfield_a.getData());
+        }
+
+        return result;
+    }
+
+    protected static Set<String> getURNs(final Record record) {
+        return getURNs(record, "");
+    }
+
+    protected static Set<String> getURNs(final Record record, final String resultPrefix) {
+        // From 2020-01-07 on, URNs will only be exported in 024.
+        final Set<String> result = getIdentifiersFrom024(record, "urn", resultPrefix);
+
+        // Also keep 856 as fallback if something goes wrong:
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
 
             for (final Subfield subfield_u : field.getSubfields('u')) {
                 final String rawLink = subfield_u.getData();
-                final int index = rawLink.indexOf("urn:", 0);
-
-                if (index >= 0) {
-                    final String link = rawLink.substring(index);
-                    result.add("URN:" + link);
-                }
+                if (rawLink.startsWith("http://nbn-resolving.de/urn:nbn:de"))
+                    result.add(resultPrefix + rawLink.substring("http://nbn-resolving.de/".length()));
+                else if (rawLink.startsWith("urn:nbn:de"))
+                    result.add(resultPrefix + rawLink);
+                else if (rawLink.startsWith("https://nbn-resolving.de/urn:nbn:de"))
+                    result.add(resultPrefix + rawLink.substring("https://nbn-resolving.de/".length()));
             }
         }
 
         return result;
     }
 
-    private static Set<String> getDOIs(final Record record) {
-        final Set<String> result = new TreeSet<>();
+    protected static Set<String> getDOIs(final Record record) {
+        return getDOIs(record, "");
+    }
 
-        for (final VariableField variableField : record.getVariableFields("024")) {
+    protected static Set<String> getDOIs(final Record record, final String resultPrefix) {
+        return getIdentifiersFrom024(record, "doi", resultPrefix);
+    }
+
+    protected static Set<String> getHandles(final Record record) {
+        return getHandles(record, "");
+    }
+
+    protected static Set<String> getHandles(final Record record, final String resultPrefix) {
+        // From 2020-01-07 on, Handles will only be exported in 024.
+        final Set<String> result = getIdentifiersFrom024(record, "hdl", resultPrefix);
+
+        // Also keep 856 as fallback if something goes wrong:
+        for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
-            final Subfield subfield_2 = field.getSubfield('2');
-            if (subfield_2 != null && subfield_2.getData().equals("doi")) {
-                final Subfield subfield_a = field.getSubfield('a');
-                if (subfield_a != null) {
-                    result.add("DOI:" + subfield_a.getData());
+
+            for (final Subfield subfield_u : field.getSubfields('u')) {
+                final String rawLink = subfield_u.getData();
+                final int index = rawLink.indexOf("http://hdl.handle.net/", 0);
+                if (index >= 0) {
+                    final String link = rawLink.substring("http://hdl.handle.net/".length());
+                    result.add(resultPrefix + link);
                 }
             }
         }
@@ -1055,13 +1280,12 @@ public class TuelibMixin extends SolrIndexerMixin {
      *  DOI:<doi1>
      *  URN:<urn1>
      *  URN:<urn2>
-     * URLs are scanned for URNs from 856$u. "urn:" will be part of the URN.
-     * Furthermore 024$2 will be checked for "doi".
+     *  HDL:<handle1>
      */
     public Set<String> getTypesAndPersistentIdentifiers(final Record record) {
-        final Set<String> result = getDOIs(record);
-        result.addAll(getURNs(record));
-
+        final Set<String> result = getDOIs(record, "DOI:");
+        result.addAll(getURNs(record, "URN:"));
+        result.addAll(getHandles(record, "HDL:"));
         return result;
     }
 
@@ -1070,7 +1294,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *            the record
      */
     public String getContainerYear(final Record record) {
-        final String field_value = getFirstSubfieldValue(record, "936", 'j');
+        final String field_value = getFirstSubfieldValue(record, "936", 'u', 'w', 'j');
         if (field_value == null)
             return null;
 
@@ -1123,7 +1347,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     // Removes any non-letters from "original_role".
-    private static String cleanRole(final String original_role) {
+    protected static String cleanRole(final String original_role) {
         final StringBuilder canonised_role = new StringBuilder();
         for (final char ch : original_role.toCharArray()) {
             if (Character.isLetter(ch))
@@ -1133,9 +1357,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         return canonised_role.toString();
     }
 
-    private static final char[] author2SubfieldCodes = new char[] { 'a', 'b', 'c', 'd' };
+    protected static final char[] author2SubfieldCodes = new char[] { 'a', 'b', 'c', 'd' };
 
-    private boolean isHonoree(final List<Subfield> subfieldFields4) {
+    protected boolean isHonoree(final List<Subfield> subfieldFields4) {
         for (final Subfield subfield4 : subfieldFields4) {
             if (subfield4.getData().equals("hnr"))
                 return true;
@@ -1145,26 +1369,13 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    private boolean isInFactPrimaryAuthor(final List<Subfield> subfieldFields4) {
+    protected boolean isInFactPrimaryAuthor(final List<Subfield> subfieldFields4) {
         for (final Subfield subfield4 : subfieldFields4) {
             if (subfield4.getData().equals("aut"))
                 return true;
         }
 
         return false;
-    }
-
-
-    public Set<String> getAuthorPPNs(final Record record, final String fieldSpecs) {
-        final Set<String> values = SolrIndexer.instance().getFieldList(record, fieldSpecs);
-        final Set<String> ppns = new TreeSet<>();
-
-        for (final String value : values) {
-            if (value.startsWith(ISIL_PREFIX_BSZ))
-                ppns.add(value.substring(ISIL_PREFIX_BSZ.length()));
-        }
-
-        return ppns;
     }
 
 
@@ -1189,14 +1400,18 @@ public class TuelibMixin extends SolrIndexerMixin {
                 continue;
 
             final List<Subfield> _4Subfields = dataField.getSubfields('4');
-            if (_4Subfields == null || _4Subfields.isEmpty() || isHonoree(_4Subfields) || isInFactPrimaryAuthor(_4Subfields))
+            if (isHonoree(_4Subfields) || isInFactPrimaryAuthor(_4Subfields))
                 continue;
 
             final StringBuilder author2AndRoles = new StringBuilder();
             author2AndRoles.append(author2.toString().replace("$", ""));
-            for (final Subfield _4Subfield : _4Subfields) {
+            if (_4Subfields == null || _4Subfields.isEmpty())
                 author2AndRoles.append('$');
-                author2AndRoles.append(cleanRole(_4Subfield.getData()));
+            else {
+                for (final Subfield _4Subfield : _4Subfields) {
+                    author2AndRoles.append('$');
+                    author2AndRoles.append(cleanRole(_4Subfield.getData()));
+                }
             }
             results.add(author2AndRoles.toString());
         }
@@ -1204,7 +1419,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return results;
     }
 
-    private Set<String> addHonourees(final Record record, final Set<String> values, String lang) {
+    protected Set<String> addHonourees(final Record record, final Set<String> values, String lang) {
         for (final VariableField variableField : record.getVariableFields("700")) {
             final DataField dataField = (DataField) variableField;
             final List<Subfield> subfieldFields4 = dataField.getSubfields('4');
@@ -1248,7 +1463,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Parse the field specifications
      */
-    private Map<String, String> parseTopicSeparators(String separatorSpec) {
+    protected Map<String, String> parseTopicSeparators(String separatorSpec) {
         final Map<String, String> separators = new HashMap<String, String>();
 
         // Split the string at unescaped ":"
@@ -1286,7 +1501,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     /*
      * Helper Class for passing symbol pairs in bracket directives
      */
-     private class SymbolPair {
+     protected class SymbolPair {
         public char opening;
         public char closing;
      }
@@ -1297,7 +1512,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * e.g. opening and closing parentheses
      * Changes the character arguments
      */
-    private SymbolPair parseBracketDirective(final String separator) {
+    protected SymbolPair parseBracketDirective(final String separator) {
         final Matcher matcher = BRACKET_DIRECTIVE_PATTERN.matcher(separator);
         if (!matcher.matches())
             throw new IllegalArgumentException("Invalid Bracket Specification");
@@ -1309,13 +1524,13 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    private Boolean isBracketDirective(final String separator) {
+    protected Boolean isBracketDirective(final String separator) {
         final Matcher matcher = BRACKET_DIRECTIVE_PATTERN.matcher(separator);
         return matcher.matches();
     }
 
 
-    private final static Pattern NUMBER_END_PATTERN = Pattern.compile("([^\\d\\s<>]+)(\\s*<?\\d+(-\\d+)>?$)");
+    protected final static Pattern NUMBER_END_PATTERN = Pattern.compile("([^\\d\\s<>]+)(\\s*<?\\d+(-\\d+)>?$)");
 
     /**
      * Translate a single term to given language if a translation is found
@@ -1333,10 +1548,11 @@ public class TuelibMixin extends SolrIndexerMixin {
             String[] subtopics = topic.split("\\\\/");
             int i = 0;
             for (String subtopic : subtopics) {
+                subtopic = subtopic.trim();
                 subtopics[i] = (translation_map.get(subtopic) != null) ? translation_map.get(subtopic) : subtopic;
                 ++i;
             }
-            topic = Utils.join(new HashSet<String>(Arrays.asList(subtopics)), "/");
+            topic = Utils.join(new HashSet<String>(Arrays.asList(subtopics)), " / ");
         }
         // If we have a topic and a following number, try to separate the word and join it afterwards
         // This is especially important for time informations where we provide special treatment
@@ -1418,7 +1634,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     };
 
 
-    private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
+    @Deprecated
+    protected void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
                                     Collection<String> collector, String langAbbrev) {
         getTopicsCollector(record, fieldSpec, separators, collector, langAbbrev, null);
     }
@@ -1428,7 +1645,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * Construct a regular expression from the subfield tags where all character subfields are extracted and for number
      * subfields the subsequent character subSubfield-Code is skipped (e.g. abctnpz9g => a|b|c|t|n|p|z|9 (without the g)
      */
-    private String extractNormalizedSubfieldPatternHelper(final String subfldTags) {
+    protected String extractNormalizedSubfieldPatternHelper(final String subfldTags) {
         String[] tokens =  subfldTags.split("(?<=[0-9]?[a-z])");
         Stream<String> tokenStream = Arrays.stream(tokens);
         Stream<String> normalizedTokenStream = tokenStream.map(t -> "" + t.charAt(0)); // extract only first character
@@ -1439,7 +1656,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Strip subSubfield-Codes from the value part of a field
      */
-    private String stripSubSubfieldCode(final String term) {
+    protected String stripSubSubfieldCode(final String term) {
         return term.replaceAll("^[a-z]:", "");
     }
 
@@ -1447,11 +1664,11 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Abstract out topic extract from LOK and ordinary field handling
      */
-    private void extractTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<String> collector,
+    protected void extractTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<String> collector,
                             final  String langAbbrev, final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate) {
         final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "[a-z]" : extractNormalizedSubfieldPatternHelper(subfldTags));
         for (final VariableField vf : marcFieldList) {
-            final StringBuffer buffer = new StringBuffer("");
+            final StringBuilder buffer = new StringBuilder("");
             final List<String> complexElements = new ArrayList<String>();
             final DataField marcField = (DataField) vf;
             // Skip fields that do not match our criteria
@@ -1532,7 +1749,8 @@ public class TuelibMixin extends SolrIndexerMixin {
      *   opening_character       :== A single character to be prepended on the left side
      *   closing character       :== A single character to be appended on the right side
      */
-    private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
+    @Deprecated
+    protected void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
                                     Collection<String> collector, String langAbbrev, Predicate<DataField> includeFieldPredicate)
 
     {
@@ -1541,26 +1759,26 @@ public class TuelibMixin extends SolrIndexerMixin {
         String subfldTags;
         List<VariableField> marcFieldList;
 
-        for (int i = 0; i < fldTags.length; i++) {
+        for (final String fldTagItem : fldTags) {
             // Check to ensure tag length is at least 3 characters
-            if (fldTags[i].length() < 3) {
+            if (fldTagItem.length() < 3) {
                 continue;
             }
 
             // Handle "Lokaldaten" appropriately
-            if (fldTags[i].substring(0, 3).equals("LOK")) {
+            if (fldTagItem.substring(0, 3).equals("LOK")) {
 
-                if (fldTags[i].substring(3, 6).length() < 3) {
-                    logger.severe("Invalid tag for \"Lokaldaten\": " + fldTags[i]);
+                if (fldTagItem.substring(3, 6).length() < 3) {
+                    logger.severe("Invalid tag for \"Lokaldaten\": " + fldTagItem);
                     continue;
                 }
                 // Save LOK-Subfield
                 // Currently we do not support specifying an indicator
-                fldTag = fldTags[i].substring(0, 6);
-                subfldTags = fldTags[i].substring(6);
+                fldTag = fldTagItem.substring(0, 6);
+                subfldTags = fldTagItem.substring(6);
             } else {
-                fldTag = fldTags[i].substring(0, 3);
-                subfldTags = fldTags[i].substring(3);
+                fldTag = fldTagItem.substring(0, 3);
+                subfldTags = fldTagItem.substring(3);
             }
             // Case 1: We have a LOK-Field
             if (fldTag.startsWith("LOK")) {
@@ -1580,6 +1798,207 @@ public class TuelibMixin extends SolrIndexerMixin {
         return;
     }
 
+    protected class Topic {
+        public String topic;
+        public SymbolPair symbolPair = new SymbolPair();
+        public String separator;
+
+        public Topic() {}
+
+        public Topic(final String topic) {
+            this.topic = topic;
+        }
+
+        public Topic(final String topic, final SymbolPair symbolPair) {
+            this.topic = topic;
+            this.symbolPair = symbolPair;
+        }
+    }
+
+    protected void getCachedTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
+                                          Collection<String> collector, String langAbbrev)
+    {
+        getCachedTopicsCollector(record, fieldSpec, separators, collector, langAbbrev, null);
+    }
+
+    /**
+     * Generic function for topics that abstracts from a set or list collector
+     * It is based on original SolrIndex.getAllSubfieldsCollector but allows to
+     * specify several different separators to concatenate the single subfields
+     * Separators can be defined on a subfield basis as a list in
+     * the format
+     *   separator_spec          :== separator | subfield_separator_list
+     *   subfield_separator_list :== subfield_separator_spec |  subfield_separator_spec ":" subfield_separator_list |
+     *                               subfield_separator_spec ":" separator
+     *   subfield_separator_spec :== subfield_spec separator subfield_spec :== "$" character_subfield
+     *   character_subfield      :== A character subfield (e.g. p,n,t,x...)
+     *   separator               :== separator_without_control_characters+ | separator "\:" separator |
+     *                               separator "\$" separator | separator "\[" separator | separator "\]" separator |
+     *                               bracket_directive
+     *   separator_without_control_characters :== All characters without ":" and "$" | empty_string
+     *   bracket_directive       :== [opening_character no_space closing_character]
+     *   no_space                :== ""
+     *   opening_character       :== A single character to be prepended on the left side
+     *   closing character       :== A single character to be appended on the right side
+     */
+    protected void getCachedTopicsCollector(final Record record, String fieldSpec, final Map<String, String> separators,
+                                          final Collection<String> collector, final String langAbbrev,
+					  final Predicate<DataField> includeFieldPredicate)
+    {
+        final String cacheKey = fieldSpec;
+        Collection<Collection<Topic>> subcollector = new ArrayList<>();
+
+        // Part 1: Get raw topics either from cache or from record
+        if (collectedTopicsCache.containsKey(cacheKey)) {
+            subcollector = collectedTopicsCache.get(cacheKey);
+        } else {
+            String[] fieldTags = fieldSpec.split(":");
+            String fieldTag;
+            String subfieldTags;
+            List<VariableField> marcFieldList;
+
+            for (final String fieldTagsEntry : fieldTags) {
+                // Check to ensure tag length is at least 3 characters
+                if (fieldTagsEntry.length() < 3) {
+                    continue;
+                }
+
+                // Handle "Lokaldaten" appropriately
+                if (fieldTagsEntry.substring(0, 3).equals("LOK")) {
+
+                    if (fieldTagsEntry.substring(3, 6).length() < 3) {
+                        logger.severe("Invalid tag for \"Lokaldaten\": " + fieldTagsEntry);
+                        continue;
+                    }
+                    // Save LOK-Subfield
+                    // Currently we do not support specifying an indicator
+                    fieldTag = fieldTagsEntry.substring(0, 6);
+                    subfieldTags = fieldTagsEntry.substring(6);
+                } else {
+                    fieldTag = fieldTagsEntry.substring(0, 3);
+                    subfieldTags = fieldTagsEntry.substring(3);
+                }
+                // Case 1: We have a LOK-Field
+                if (fieldTag.startsWith("LOK")) {
+                    // Get subfield 0 since the "subtag" is saved here
+                    marcFieldList = record.getVariableFields("LOK");
+                    if (!marcFieldList.isEmpty())
+                        extractCachedTopicsHelper(marcFieldList, separators, subcollector, fieldTag, subfieldTags, includeFieldPredicate);
+                }
+                // Case 2: We have an ordinary MARC field
+                else {
+                    marcFieldList = record.getVariableFields(fieldTag);
+                    if (!marcFieldList.isEmpty())
+                        extractCachedTopicsHelper(marcFieldList, separators, subcollector, fieldTag, subfieldTags, includeFieldPredicate);
+                }
+            }
+
+            collectedTopicsCache.put(cacheKey, subcollector);
+        }
+
+        // Part 2: Translate & deliver previously collected topics
+        for (final Collection<Topic> topicParts : subcollector) {
+            if (topicParts.size() == 1) {
+                // if topic consists of 1 part, directly try to translate + add
+                collector.add(translateTopic(DataUtil.cleanData(topicParts.iterator().next().topic.replace("/", "\\/")), langAbbrev));
+            } else {
+                // if topic consists of multiple parts:
+                // try to translate the whole string
+                // if that fails, translate each part
+                // (replaces old "complexTranslation" logic)
+                StringBuilder topicStringBuilder = new StringBuilder();
+                for (final Topic topic : topicParts) {
+                    if (topicStringBuilder.length() > 0)
+                        topicStringBuilder.append(" / ");
+                    topicStringBuilder.append(topic.topic.replace("/", "\\/"));
+                }
+                String translation = getTranslationOrNull(topicStringBuilder.toString(), langAbbrev);
+                if (translation != null)
+                    collector.add(translation);
+                else {
+                    StringBuilder translationStringBuilder = new StringBuilder();
+                    for (final Topic topic : topicParts) {
+                        if (topic.separator != null)
+                            translationStringBuilder.append(topic.separator);
+                        else if (translationStringBuilder.length() > 0)
+                            translationStringBuilder.append(" ");
+
+                        // '\u0000' is java default for non-set characters
+                        // (compare to this value instead of null)
+                        if (topic.symbolPair.opening != '\u0000')
+                            translationStringBuilder.append(topic.symbolPair.opening);
+                        translationStringBuilder.append(translateTopic(DataUtil.cleanData(topic.topic.replace("/", "\\/")), langAbbrev));
+                        if (topic.symbolPair.closing != '\u0000')
+                            translationStringBuilder.append(topic.symbolPair.closing);
+                    }
+                    collector.add(translationStringBuilder.toString());
+                }
+            }
+        }
+    }
+
+    /**
+     * Abstract out topic extract from LOK and ordinary field handling
+     */
+    protected void extractCachedTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators,
+					   final Collection<Collection<Topic>> collector, final String fieldTag, final String subfieldTags,
+					   final Predicate<DataField> includeFieldPredicate)
+    {
+        final Pattern subfieldPattern = Pattern.compile(subfieldTags.length() == 0 ? "[a-z]"
+							                         : extractNormalizedSubfieldPatternHelper(subfieldTags));
+
+        for (final VariableField vf : marcFieldList) {
+            final ArrayList<Topic> topicParts = new ArrayList<>();
+            final DataField marcField = (DataField) vf;
+            // Skip fields that do not match our criteria
+            if (includeFieldPredicate != null && (!includeFieldPredicate.test(marcField)))
+                continue;
+            final List<Subfield> subfields = marcField.getSubfields();
+
+            // Case 1: The separator specification is empty thus we add the subfields individually
+            if (separators.get("default").equals("")) {
+                for (final Subfield subfield : subfields) {
+                    if (Character.isDigit(subfield.getCode()))
+                        continue;
+                    final String term = subfield.getData().trim();
+                    if (term.length() > 0)
+                        topicParts.add(new Topic(term));
+                }
+            }
+            // Case 2: Generate a complex string using the separators
+            else {
+                for (final Subfield subfield : subfields) {
+                    char subfieldCode = subfield.getCode();
+                    final Matcher matcher = subfieldPattern.matcher("" + subfield.getCode());
+                    if (!matcher.matches())
+                        continue;
+
+                    Topic topic = new Topic();
+                    String term = subfield.getData().trim();
+
+                    if (topicParts.size() > 0) {
+                        final String separator = getSubfieldBasedSeparator(separators, subfield.getCode(), term);
+                        // Make sure we strip the subSubfield code from our term
+                        if (Character.isDigit(subfieldCode))
+                            term = stripSubSubfieldCode(term);
+                        if (separator != null) {
+                            if (isBracketDirective(separator))
+                                topic.symbolPair = parseBracketDirective(separator);
+                            else
+                                topic.separator = separator;
+                        }
+
+                    }
+                    topic.topic = term;
+                    topicParts.add(topic);
+                }
+            }
+
+            if (topicParts.size() > 0)
+                collector.add(topicParts);
+        }
+    } // end extractTopicsHelper
+
     public Set<String> getTopics(final Record record, String fieldSpec, String separatorSpec, String langAbbrev)
         throws FileNotFoundException
     {
@@ -1588,7 +2007,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         // are converted to a '.'
         // $n is converted to a space if there is additional information
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
-        getTopicsCollector(record, fieldSpec, separators, topics, langAbbrev);
+        getCachedTopicsCollector(record, fieldSpec, separators, topics, langAbbrev);
         return addHonourees(record, topics, langAbbrev);
     }
 
@@ -1613,7 +2032,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getTopicFacetTranslated(final Record record, final String fieldSpecs, String separatorSpec, final String lang) {
         final Map<String, String> separators = parseTopicSeparators(separatorSpec);
         final Set<String> valuesTranslated = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, valuesTranslated, lang, _689IsOrdinarySubject);
+        getCachedTopicsCollector(record, fieldSpecs, separators, valuesTranslated, lang, _689IsOrdinarySubject);
         // The topic collector generates a chain of all specified subfields for a field
         // In some cases this is unintended behaviour since different topics are are independent
         // To ensure that those chains are broken up again, make sure to specify a triple pipe (="|||") separator for these
@@ -1644,18 +2063,18 @@ public class TuelibMixin extends SolrIndexerMixin {
         return values.iterator().next();
     }
 
-    private static boolean isSerialComponentPart(final Record record) {
+    protected static boolean isSerialComponentPart(final Record record) {
         final String leader = record.getLeader().toString();
         return leader.charAt(7) == 'b';
     }
 
 
-    private String checkValidYear(String fourDigitYear) {
+    protected String checkValidYear(String fourDigitYear) {
         Matcher validFourDigitYearMatcher = VALID_FOUR_DIGIT_YEAR_PATTERN.matcher(fourDigitYear);
         return validFourDigitYearMatcher.matches() ? fourDigitYear : "";
     }
 
-    private String yyMMDateToString(final String controlNumber, final String yyMMDate) {
+    protected String yyMMDateToString(final String controlNumber, final String yyMMDate) {
         int currentYear = Calendar.getInstance().get(Calendar.YEAR);
         int yearTwoDigit = currentYear - 2000;  // If extraction fails later we fall back to current year
         try {
@@ -1678,7 +2097,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     public Set<String> getDatesBasedOnRecordType(final Record record) {
         final Set<String> dates = new LinkedHashSet<>();
-        final Set<String> format = getFormatIncludingElectronic(record);
+        final Set<String> format = getFormats(record);
 
         // Case 1 [Website]
         if (format.contains("Website")) {
@@ -1712,8 +2131,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         // newer entries
         if (format.contains("Article") || (format.contains("Review") && !format.contains("Book"))) {
             final List<VariableField> _936Fields = record.getVariableFields("936");
-            for (VariableField _936VField : _936Fields) {
-                DataField _936Field = (DataField) _936VField;
+            for (final VariableField _936VField : _936Fields) {
+                final DataField _936Field = (DataField) _936VField;
+                if (_936Field.getIndicator1() != 'u' || _936Field.getIndicator2() != 'w')
+                    continue;
+
                 final Subfield jSubfield = _936Field.getSubfield('j');
                 if (jSubfield != null) {
                     String yearOrYearRange = jSubfield.getData();
@@ -1724,10 +2146,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                     dates.add(yearOrYearRange.length() > 4 ? yearOrYearRange.substring(0, 4) : yearOrYearRange);
                 }
             }
-            if (dates.isEmpty())
-                logger.severe("getDatesBasedOnRecordType [Could not find proper 936 field date content for: "
-                              + record.getControlNumber() + "]");
-            else
+            if (!dates.isEmpty())
                 return dates;
         }
 
@@ -1745,7 +2164,6 @@ public class TuelibMixin extends SolrIndexerMixin {
 
             return dates;
         }
-
 
         // Case 5:
         // Use the sort date given in the 008-Field
@@ -1768,7 +2186,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return dates;
     }
 
-
     public String isSuperiorWork(final Record record) {
         final DataField sprField = (DataField) record.getVariableField("SPR");
         if (sprField == null)
@@ -1783,10 +2200,10 @@ public class TuelibMixin extends SolrIndexerMixin {
         return Boolean.toString(sprField.getSubfield('b') != null);
     }
 
-    private static String currentYear = null;
+    protected static String currentYear = null;
 
     /** @return the last two digits of the current year. */
-    private static String getCurrentYear() {
+    protected static String getCurrentYear() {
         if (currentYear == null) {
             final DateFormat df = new SimpleDateFormat("yy");
             currentYear = df.format(Calendar.getInstance().getTime());
@@ -1821,40 +2238,33 @@ public class TuelibMixin extends SolrIndexerMixin {
         final ControlField _005_field = (ControlField) record.getVariableField("005");
         final String fieldContents = _005_field.getData();
 
-        final StringBuilder iso8601_date = new StringBuilder(19);
-        iso8601_date.append(fieldContents.substring(0, 4));
-        iso8601_date.append('-');
-        iso8601_date.append(fieldContents.substring(4, 6));
-        iso8601_date.append('-');
-        iso8601_date.append(fieldContents.substring(6, 8));
-        iso8601_date.append('T');
-        iso8601_date.append(fieldContents.substring(8, 10));
-        iso8601_date.append(':');
-        iso8601_date.append(fieldContents.substring(10, 12));
-        iso8601_date.append(':');
-        iso8601_date.append(fieldContents.substring(12, 14));
-        iso8601_date.append('Z');
+        final StringBuilder iso8601dateBuilder = new StringBuilder(19);
+        iso8601dateBuilder.append(fieldContents.substring(0, 4));
+        iso8601dateBuilder.append('-');
+        iso8601dateBuilder.append(fieldContents.substring(4, 6));
+        iso8601dateBuilder.append('-');
+        iso8601dateBuilder.append(fieldContents.substring(6, 8));
+        iso8601dateBuilder.append('T');
+        iso8601dateBuilder.append(fieldContents.substring(8, 10));
+        iso8601dateBuilder.append(':');
+        iso8601dateBuilder.append(fieldContents.substring(10, 12));
+        iso8601dateBuilder.append(':');
+        iso8601dateBuilder.append(fieldContents.substring(12, 14));
+        iso8601dateBuilder.append('Z');
 
-        return iso8601_date.toString();
+        final String iso8601date = iso8601dateBuilder.toString();
+
+        if (iso8601date.equals("0000-00-00T00:00:00Z"))
+            return null;
+
+        return iso8601date;
     }
 
 
     public Set<String> getGenreTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> genres = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, genres, lang, _689IsGenreSubject);
-
-        // Also try to find the code for "Festschrift" in 935$c:
-        List<VariableField> _935Fields = record.getVariableFields("935");
-        for (final VariableField _935Field : _935Fields) {
-            DataField dataField = (DataField) _935Field;
-            final List<Subfield> cSubfields = dataField.getSubfields('c');
-            for (final Subfield cSubfield : cSubfields) {
-                if (cSubfield.getData().toLowerCase().equals("fe"))
-                    genres.add("Festschrift");
-            }
-        }
-
+        getCachedTopicsCollector(record, fieldSpecs, separators, genres, lang, _689IsGenreSubject);
         if (genres.size() == 0)
             genres.add(UNASSIGNED_STRING);
 
@@ -1865,7 +2275,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getRegionTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> region = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, region, lang, _689IsRegionSubject);
+        getCachedTopicsCollector(record, fieldSpecs, separators, region, lang, _689IsRegionSubject);
 
         if (region.size() == 0)
             region.add(UNASSIGNED_STRING);
@@ -1877,7 +2287,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public Set<String> getTimeTranslated(final Record record, final String fieldSpecs, final String separatorSpec, final String lang) {
         Map<String, String> separators = parseTopicSeparators(separatorSpec);
         Set<String> time = new HashSet<String>();
-        getTopicsCollector(record, fieldSpecs, separators, time, lang, _689IsTimeSubject);
+        getCachedTopicsCollector(record, fieldSpecs, separators, time, lang, _689IsTimeSubject);
 
         if (time.size() == 0)
             time.add(UNASSIGNED_STRING);
@@ -1888,7 +2298,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     // Map used by getPhysicalType().
-    private static final Map<String, String> phys_code_to_format_map;
+    protected static final Map<String, String> phys_code_to_format_map;
 
     static {
         Map<String, String> tempMap = new HashMap<>();
@@ -1921,12 +2331,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         phys_code_to_format_map = Collections.unmodifiableMap(tempMap);
     }
 
-    // Map used by getMultipleFormats().
-    private static final Map<String, String> _935a_to_format_map;
+    // Map used by getFormats().
+    protected static final Map<String, String> _935a_to_format_map;
 
     static {
         Map<String, String> tempMap = new HashMap<>();
-        tempMap.put("uwlx", "DictionaryEntryOrArticle");
         tempMap.put("BIDL", "Microfiche");
         tempMap.put("BIST", "Microfiche");
         tempMap.put("CICO", "Microfiche");
@@ -1935,6 +2344,48 @@ public class TuelibMixin extends SolrIndexerMixin {
         tempMap.put("WABU", "Microfiche");
         _935a_to_format_map = Collections.unmodifiableMap(tempMap);
     }
+
+    boolean isReview(final Record record) {
+        for (final VariableField variableField : record.getVariableFields("856")) {
+            final DataField field = (DataField) variableField;
+            final Subfield materialTypeSubfield = getFirstNonEmptySubfield(field, '3', 'z', 'y', 'x');
+            if (materialTypeSubfield != null) {
+                final String materialType = materialTypeSubfield.getData();
+                if (materialType.equals("07") || materialType.equals("08"))
+                    return true;
+            }
+        }
+
+        // Evaluate topic fields in some cases
+        final List<VariableField> _655Fields = record.getVariableFields("655");
+        for (final VariableField _655Field : _655Fields) {
+            final DataField dataField = (DataField) _655Field;
+            final Subfield aSubfield = dataField.getSubfield('a');
+            if (aSubfield != null && dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7'
+                && aSubfield.getData().startsWith("Rezension"))
+                    return true;
+        }
+
+        final List<VariableField> _787Fields = record.getVariableFields("787");
+        if (foundInSubfield(_787Fields, 'i', "Rezension von"))
+            return true;
+
+        return false;
+    }
+
+    boolean isVideo(final Record record) {
+        final List<VariableField> _337Fields = record.getVariableFields("337");
+        if (foundInSubfield(_337Fields, 'a', "video"))
+            return true;
+
+        final List<VariableField> _935Fields = record.getVariableFields("935");
+        if (foundInSubfield(_935Fields, 'c', "vide"))
+            return true;
+        return false;
+    }
+
+    protected final static String electronicRessource = "Electronic";
+    protected final static String nonElectronicRessource = "Non-Electronic";
 
     /**
      * Determine Record Formats
@@ -1948,8 +2399,8 @@ public class TuelibMixin extends SolrIndexerMixin {
      *            MARC record
      * @return set of record format
      */
-    public Set<String> getMultipleFormats(final Record record) {
-        final Set<String> result = map935b(record, TuelibMixin.phys_code_to_format_map);
+    public Set<String> getFormats(final Record record) {
+        final Set<String> formats = map935b(record, TuelibMixin.phys_code_to_format_map);
         final String leader = record.getLeader().toString();
         final ControlField fixedField = (ControlField) record.getVariableField("008");
         final DataField title = (DataField) record.getVariableField("245");
@@ -1957,10 +2408,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         char formatCode = ' ';
         char formatCode2 = ' ';
         char formatCode4 = ' ';
-
-        final VariableField electronicField = record.getVariableField("ELC");
-        if (electronicField != null)
-            result.add("Electronic");
 
         // check the 007 - this is a repeating field
         List<VariableField> fields = record.getVariableFields("007");
@@ -1976,162 +2423,162 @@ public class TuelibMixin extends SolrIndexerMixin {
                 case 'A':
                     switch (formatCode2) {
                     case 'D':
-                        result.add("Atlas");
+                        formats.add("Atlas");
                         break;
                     default:
-                        result.add("Map");
+                        formats.add("Map");
                         break;
                     }
                     break;
                 case 'C':
                     switch (formatCode2) {
                     case 'A':
-                        result.add("TapeCartridge");
+                        formats.add("TapeCartridge");
                         break;
                     case 'B':
-                        result.add("ChipCartridge");
+                        formats.add("ChipCartridge");
                         break;
                     case 'C':
-                        result.add("DiscCartridge");
+                        formats.add("DiscCartridge");
                         break;
                     case 'F':
-                        result.add("TapeCassette");
+                        formats.add("TapeCassette");
                         break;
                     case 'H':
-                        result.add("TapeReel");
+                        formats.add("TapeReel");
                         break;
                     case 'J':
-                        result.add("FloppyDisk");
+                        formats.add("FloppyDisk");
                         break;
                     case 'M':
                     case 'O':
-                        result.add("CDROM");
+                        formats.add("CDROM");
                         break;
                     case 'R':
                         // Do not return - this will cause anything with an
-                        // 856 field to be labeled as "Electronic"
+                        // 856 field to be labeled as electronicRessource
                         break;
                     default:
-                        result.add("Software");
+                        formats.add("Software");
                         break;
                     }
                     break;
                 case 'D':
-                    result.add("Globe");
+                    formats.add("Globe");
                     break;
                 case 'F':
-                    result.add("Braille");
+                    formats.add("Braille");
                     break;
                 case 'G':
                     switch (formatCode2) {
                     case 'C':
                     case 'D':
-                        result.add("Filmstrip");
+                        formats.add("Filmstrip");
                         break;
                     case 'T':
-                        result.add("Transparency");
+                        formats.add("Transparency");
                         break;
                     default:
-                        result.add("Slide");
+                        formats.add("Slide");
                         break;
                     }
                     break;
                 case 'H':
-                    result.add("Microfilm");
+                    formats.add("Microfilm");
                     break;
                 case 'K':
                     switch (formatCode2) {
                     case 'C':
-                        result.add("Collage");
+                        formats.add("Collage");
                         break;
                     case 'D':
-                        result.add("Drawing");
+                        formats.add("Drawing");
                         break;
                     case 'E':
-                        result.add("Painting");
+                        formats.add("Painting");
                         break;
                     case 'F':
-                        result.add("Print");
+                        formats.add("Print");
                         break;
                     case 'G':
-                        result.add("Photonegative");
+                        formats.add("Photonegative");
                         break;
                     case 'J':
-                        result.add("Print");
+                        formats.add("Print");
                         break;
                     case 'L':
-                        result.add("Drawing");
+                        formats.add("Drawing");
                         break;
                     case 'O':
-                        result.add("FlashCard");
+                        formats.add("FlashCard");
                         break;
                     case 'N':
-                        result.add("Chart");
+                        formats.add("Chart");
                         break;
                     default:
-                        result.add("Photo");
+                        formats.add("Photo");
                         break;
                     }
                     break;
                 case 'M':
                     switch (formatCode2) {
                     case 'F':
-                        result.add("VideoCassette");
+                        formats.add("VideoCassette");
                         break;
                     case 'R':
-                        result.add("Filmstrip");
+                        formats.add("Filmstrip");
                         break;
                     default:
-                        result.add("MotionPicture");
+                        formats.add("MotionPicture");
                         break;
                     }
                     break;
                 case 'O':
-                    result.add("Kit");
+                    formats.add("Kit");
                     break;
                 case 'Q':
-                    result.add("MusicalScore");
+                    formats.add("MusicalScore");
                     break;
                 case 'R':
-                    result.add("SensorImage");
+                    formats.add("SensorImage");
                     break;
                 case 'S':
                     switch (formatCode2) {
                     case 'D':
-                        result.add("SoundDisc");
+                        formats.add("SoundDisc");
                         break;
                     case 'S':
-                        result.add("SoundCassette");
+                        formats.add("SoundCassette");
                         break;
                     default:
-                        result.add("SoundRecording");
+                        formats.add("SoundRecording");
                         break;
                     }
                     break;
                 case 'V':
                     switch (formatCode2) {
                     case 'C':
-                        result.add("VideoCartridge");
+                        formats.add("VideoCartridge");
                         break;
                     case 'D':
                         switch (formatCode4) {
                         case 'S':
-                            result.add("BRDisc");
+                            formats.add("BRDisc");
                             break;
                         case 'V':
                         default:
-                            result.add("VideoDisc");
+                            formats.add("VideoDisc");
                             break;
                         }
                         break;
                     case 'F':
-                        result.add("VideoCassette");
+                        formats.add("VideoCassette");
                         break;
                     case 'R':
-                        result.add("VideoReel");
+                        formats.add("VideoReel");
                         break;
                     default:
-                        result.add("Video");
+                        formats.add("Video");
                         break;
                     }
                     break;
@@ -2139,73 +2586,100 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
         // check the Leader at position 6
-        char leaderBit = leader.charAt(6);
-        switch (Character.toUpperCase(leaderBit)) {
-        case 'C':
-        case 'D':
-            result.add("MusicalScore");
+        switch (leader.charAt(6)) {
+        case 'c':
+        case 'd':
+            formats.add("MusicalScore");
             break;
-        case 'E':
-        case 'F':
-            result.add("Map");
+        case 'e':
+        case 'f':
+            formats.add("Map");
             break;
-        case 'G':
-            result.add("Slide");
+        case 'g':
+            formats.add(isVideo(record) ? "Video" : "Slide");
             break;
-        case 'I':
-            result.add("SoundRecording");
+        case 'i':
+            formats.add("SoundRecording");
             break;
-        case 'J':
-            result.add("MusicRecording");
+        case 'j':
+            formats.add("MusicRecording");
             break;
-        case 'K':
-            result.add("Photo");
+        case 'k':
+            formats.add("Photo");
             break;
-        case 'O':
-        case 'P':
-            result.add("Kit");
+        case 'o':
+        case 'p':
+            formats.add("Kit");
             break;
-        case 'R':
-            result.add("PhysicalObject");
+        case 'r':
+            formats.add("PhysicalObject");
             break;
-        case 'T':
-            result.add("Manuscript");
+        case 't':
+            formats.add("Manuscript");
             break;
         }
 
         // check the Leader at position 7
-        leaderBit = leader.charAt(7);
-        switch (Character.toUpperCase(leaderBit)) {
+        switch (leader.charAt(7)) {
         // Monograph
-        case 'M':
-            if (formatCode == 'C') {
-                result.add("eBook");
-            } else {
-                result.add("Book");
-            }
+        case 'm':
+            formats.add("Book");
             break;
         // Component parts
-        case 'A':
-            result.add("BookComponentPart");
+        case 'a': // BookComponentPart
+            formats.add("Article");
             break;
-        case 'B':
-            result.add("SerialComponentPart");
+        case 'b': // SerialComponentPart
+            formats.add("Article");
+            break;
+            // Integrating resource
+        case 'i':
+            // Look in 008 to determine the exact type
+            formatCode = fixedField.getData().toUpperCase().charAt(21);
+            switch (formatCode) {
+            case 'W':
+                formats.add("Website");
+                break;
+            case 'D':
+                formats.add("Database");
+                break;
+            }
             break;
         // Serial
-        case 'S':
+        case 's':
             // Look in 008 to determine what type of Continuing Resource
             formatCode = fixedField.getData().toUpperCase().charAt(21);
             switch (formatCode) {
             case 'N':
-                result.add("Newspaper");
+                formats.add("Newspaper");
                 break;
             case 'P':
-                result.add("Journal");
+                formats.add("Journal");
                 break;
             default:
-                result.add("Serial");
+                formats.add("Serial");
                 break;
             }
+        }
+
+        // Literary remains
+        final List<VariableField> _856Fields = record.getVariableFields("856");
+        for (final VariableField variableField : _856Fields) {
+            final DataField _856Field = (DataField) variableField;
+            for (final Subfield subfield3 : _856Field.getSubfields('3')) {
+                if (subfield3.getData().startsWith("Nachlassdatenbank")) {
+                    formats.remove("Kit");
+                    formats.add("LiteraryRemains");
+                    return formats;
+                }
+            }
+        }
+
+        // Festschrift
+        if (fixedField.getData().length() >= 31) {
+            formatCode = fixedField.getData().toUpperCase().charAt(30);
+            if (formatCode == '1')
+                formats.add("Festschrift");
         }
 
         // Check 935$a entries:
@@ -2216,23 +2690,22 @@ public class TuelibMixin extends SolrIndexerMixin {
                 for (final Subfield aSubfield : _935Field.getSubfields('a')) {
                     final String subfieldContents = aSubfield.getData();
                     if (_935a_to_format_map.containsKey(subfieldContents)) {
-                        result.remove("Article");
-                        result.add(_935a_to_format_map.get(subfieldContents));
+                        formats.remove("Article");
+                        formats.add(_935a_to_format_map.get(subfieldContents));
                     }
                 }
             }
         }
 
-        // Records that contain the code "sodr" in 935$c should be classified as "Article" and not as "Book":
-        if (!result.contains("Article")) {
+        // Records that contain the code "so" in 935$c should be classified as "Article" and not as "Book":
+        if (!formats.contains("Article")) {
             for (final VariableField variableField : _935Fields) {
                 final DataField _935Field = (DataField) variableField;
                 if (_935Field != null) {
                     for (final Subfield cSubfield : _935Field.getSubfields('c')) {
-                        if (cSubfield.getData().equals("sodr")) {
-                            result.remove("Book");
-                            result.remove("eBook");
-                            result.add("Article");
+                        if (cSubfield.getData().equals("so")) {
+                            formats.remove("Book");
+                            formats.add("Article");
                             break;
                         }
                     }
@@ -2240,208 +2713,56 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
         }
 
-        // Nothing worked!
-        if (result.isEmpty()) {
-            result.add("Unknown");
+        if (foundInSubfield(_935Fields, 'c', "uwlx")) {
+            formats.remove("Article");
+            formats.add("DictionaryEntryOrArticle");
         }
 
-        return result;
-    }
+        // Determine whether record is a 'Festschrift', i.e. has "fe" in 935$c
+        if (foundInSubfield(_935Fields, 'c', "fe"))
+            formats.add("Festschrift");
 
-    /**
-     * Determine Record Format(s)
-     *
-     * @param record
-     *            the record
-     * @return format of record
-     */
-    public Set<String> getFormatsWithGermanHandling(final Record record) {
-        // We've been facing the problem that the original SolrMarc cannot deal
-        // with
-        // german descriptions in the 245h and thus assigns a wrong format
-        // for e.g. electronic resource
-        // Thus we must handle this manually
+        // Determine whether a record is a subscription package, i.e. has "subskriptionspaket" in 935$c
+        if (foundInSubfield(_935Fields, 'c', "subskriptionspaket"))
+            formats.add("SubscriptionBundle");
 
-        Set<String> rawFormats = new LinkedHashSet<String>();
-        DataField title = (DataField) record.getVariableField("245");
-
-        if (title != null) {
-            if (title.getSubfield('h') != null) {
-                if (title.getSubfield('h').getData().toLowerCase().contains("[elektronische ressource]")) {
-                    rawFormats.addAll(getMultipleFormats(record));
-                    return rawFormats;
-                } else
-                    return getMultipleFormats(record);
-            }
+        if (isReview(record)) {
+            formats.remove("Article");
+            formats.add("Review");
         }
-
-        // Catch case of empty title
-        return getMultipleFormats(record);
-    }
-
-    /**
-     * Determine Record Format(s) including the electronic tag The electronic
-     * category is filtered out in the actual getFormat function but needed to
-     * determine the media type
-     *
-     * @param record
-     *            the record
-     * @return format of record
-     */
-    public Set<String> getFormatIncludingElectronic(final Record record) {
-        final Set<String> formats = new HashSet<>();
-        Set<String> rawFormats = getFormatsWithGermanHandling(record);
-
-        for (final String rawFormat : rawFormats) {
-            if (rawFormat.equals("BookComponentPart") || rawFormat.equals("SerialComponentPart"))
-                formats.add("Article");
-            else
-                formats.add(rawFormat);
-        }
-
-        final VariableField electronicField = record.getVariableField("ELC");
-        if (electronicField != null)
-            formats.add("Electronic");
 
         // Evaluate topic fields in some cases
-        final List<VariableField> _655Fields = record.getVariableFields("655");
-        for (final VariableField _655Field : _655Fields) {
+        for (final VariableField _655Field : record.getVariableFields("655")) {
             final DataField dataField = (DataField) _655Field;
             final Subfield aSubfield = dataField.getSubfield('a');
             if (aSubfield != null) {
-                if (aSubfield.getData().startsWith("Rezension") && dataField.getIndicator1() == ' '
-                    && dataField.getIndicator2() == '7') {
-                    formats.remove("Article");
-                    formats.add("Review");
-                    break;
-                }
                 if (aSubfield.getData().startsWith("Weblog")) {
                     formats.remove("Journal");
                     formats.add("Blog");
                     break;
                 }
                 if (aSubfield.getData().startsWith("Forschungsdaten") & dataField.getIndicator1() == ' '
-                    && dataField.getIndicator2() == '7') {
+                    && dataField.getIndicator2() == '7')
+                {
                     formats.remove("Book");
-                    formats.remove("eBook");
                     formats.add("ResearchData");
                     break;
                 }
             }
         }
 
-        // A review can also be indicated if 935$c set to "uwre"
-        final List<VariableField> _935Fields = record.getVariableFields("935");
-outer:  for (final VariableField _935Field : _935Fields) {
-            final DataField dataField = (DataField) _935Field;
+        // Nothing worked!
+        if (formats.isEmpty())
+            formats.add("Unknown");
+
+        return formats;
+    }
+
+    protected boolean foundInSubfield(final List<VariableField> fields, final char subfieldCode, final String subfieldContents) {
+        for (final VariableField field : fields) {
+            final DataField dataField = (DataField) field;
             for (final Subfield subfield : dataField.getSubfields()) {
-                if (subfield.getCode() == 'c' && subfield.getData().contains("uwre")) {
-                    formats.remove("Article");
-                    formats.add("Review");
-                    break outer;
-                }
-            }
-        }
-
-        // Determine whether record is a 'Festschrift', i.e. has "fe" in 935$c
-        for (final VariableField _935Field : _935Fields) {
-            final DataField dataField = (DataField) _935Field;
-            final Subfield cSubfield = dataField.getSubfield('c');
-            if (cSubfield != null && cSubfield.getData().contains("fe")) {
-                formats.add("Festschrift");
-                break;
-            }
-        }
-
-        // Determine whether record is a Website, i.e. has "website" in 935$c
-        for (final VariableField _935Field : _935Fields) {
-            final DataField dataField = (DataField) _935Field;
-            List<Subfield> subfields = dataField.getSubfields();
-            boolean foundMatch = false;
-            for (Subfield subfield : subfields) {
-                if (subfield.getCode() == 'c' && subfield.getData().contains("website")) {
-                    formats.add("Website");
-                    foundMatch = true;
-                    break;
-                }
-            }
-            if (foundMatch == true)
-                break;
-        }
-
-        // Determine whether a record is a database, i.e. has "daten" in 935$c
-        for (final VariableField _935Field : _935Fields) {
-            final DataField dataField = (DataField) _935Field;
-            List<Subfield> subfields = dataField.getSubfields();
-            boolean foundMatch = false;
-            for (Subfield subfield : subfields) {
-                if (subfield.getCode() == 'c' && subfield.getData().contains("daten")) {
-                    formats.add("Database");
-                    foundMatch = true;
-                    break;
-                }
-            }
-            if (foundMatch == true)
-                break;
-        }
-
-        // Determine whether a record is a subscription package, i.e. has "subskriptionspaket" in 935$c
-        for (final VariableField _935Field : _935Fields) {
-            final DataField dataField = (DataField) _935Field;
-            List<Subfield> subfields = dataField.getSubfields();
-            boolean foundMatch = false;
-            for (Subfield subfield : subfields) {
-                if (subfield.getCode() == 'c' && subfield.getData().contains("subskriptionspaket")) {
-                    formats.add("SubscriptionBundle");
-                    foundMatch = true;
-                    break;
-                }
-            }
-            if (foundMatch == true)
-                break;
-        }
-
-        // Rewrite all E-Books as electronic Books
-        if (formats.contains("eBook")) {
-            formats.remove("eBook");
-            formats.add("Book");
-        }
-
-        // If we classified an object as "DictionaryEntryOrArticle" we don't also want it to be classified as an article:
-        if (formats.contains("Article") && formats.contains("DictionaryEntryOrArticle"))
-            formats.remove("Article");
-
-        if (formats.contains("Unknown") && formats.size() > 1)
-            formats.remove("Unknown");
-
-        return formats;
-    }
-
-    /**
-     * Determine Format(s) but do away with the electronic tag
-     *
-     * @param record
-     *            the record
-     * @return mediatype of the record
-     */
-
-    public Set<String> getFormatsWithoutElectronic(final Record record) {
-        Set<String> formats = getFormatIncludingElectronic(record);
-
-        // Since we now have an additional facet mediatype we remove the
-        // electronic label
-        formats.remove("Electronic");
-        return formats;
-    }
-
-    private final static String electronicRessource = "Electronic";
-    private final static String nonElectronicRessource = "Non-Electronic";
-
-    private boolean isPrintResource(final Record record) {
-        for (final VariableField _935_field : record.getVariableFields("935")) {
-            final DataField data_field = (DataField) _935_field;
-            for (final Subfield subfield_b : data_field.getSubfields('b')) {
-                if (subfield_b.equals("druck"))
+                if (subfield.getCode() == subfieldCode && subfield.getData().contains(subfieldContents))
                     return true;
             }
         }
@@ -2460,23 +2781,22 @@ outer:  for (final VariableField _935Field : _935Fields) {
 
     public Set<String> getMediatype(final Record record) {
         final Set<String> mediatypes = new HashSet<>();
-        final VariableField field = record.getVariableField("ZWI");
-        if (field != null) {
+        if (record.getVariableField("ZWI") != null) {
             mediatypes.add(electronicRessource);
             mediatypes.add(nonElectronicRessource);
             return mediatypes;
         }
 
-        final Set<String> formats = getFormatIncludingElectronic(record);
-
-        if (formats.contains(electronicRessource)) {
-            mediatypes.add(electronicRessource);
-            if (isPrintResource(record))
-                mediatypes.add(nonElectronicRessource);
-        } else
+        final VariableField elcField = record.getVariableField("ELC");
+        if (elcField == null)
             mediatypes.add(nonElectronicRessource);
-        if (!getDOIs(record).isEmpty())
-            mediatypes.add(electronicRessource);
+        else {
+            final DataField dataField = (DataField) elcField;
+            if (dataField.getSubfield('a') != null)
+                mediatypes.add(electronicRessource);
+            if (dataField.getSubfield('b') != null)
+                mediatypes.add(nonElectronicRessource);
+        }
 
         return mediatypes;
     }
@@ -2542,7 +2862,7 @@ outer:  for (final VariableField _935Field : _935Fields) {
     /**
      * Helper to cope with differing dates and possible special characters
      *
-     * @param dates
+     * @param dateString
      *            String of possible publication dates
      * @return the first publication date
      */
@@ -2602,61 +2922,49 @@ outer:  for (final VariableField _935Field : _935Fields) {
         return result;
     }
 
-    public String getZDBNumber(final Record record) {
-        final List<VariableField> _035Fields = record.getVariableFields("035");
-
-        for (final VariableField _035Field : _035Fields) {
-            DataField field = (DataField)_035Field;
-            final Subfield subfieldA = field.getSubfield('a');
-            if (subfieldA != null && subfieldA.getData().startsWith("(DE-599)ZDB"))
-                return subfieldA.getData().substring(11);
-        }
-
-        return null;
-    }
-
-    public String getStartPage(final Record record) {
+    protected String getPages(final Record record) {
         final DataField _936Field = (DataField)record.getVariableField("936");
         if (_936Field == null)
-           return null;
+            return null;
         final Subfield subfieldH = _936Field.getSubfield('h');
         if (subfieldH == null)
             return null;
+        return subfieldH.getData();
+    }
 
-        final String pages = subfieldH.getData();
-        final Matcher matcher = START_PAGE_MATCH_PATTERN.matcher(pages);
+    public String getStartPage(final Record record) {
+        final String pages = getPages(record);
+        if (pages == null)
+            return null;
+        final Matcher matcher = PAGE_MATCH_PATTERN.matcher(pages);
+        if (matcher.matches())
+            return matcher.group(1);
+        return null;
+    }
+
+    public String getEndPage(final Record record) {
+        final String pages = getPages(record);
+        if (pages == null)
+            return null;
+        final Matcher matcher = PAGE_MATCH_PATTERN.matcher(pages);
         if (matcher.matches()) {
-            final String start_page = matcher.group(1);
-            return start_page;
+            if (matcher.group(3) != null && !matcher.group(3).isEmpty())
+                return matcher.group(3);
+            return matcher.group(1);
         }
         return null;
     }
 
     /** @return "open-access" if we have an open access publication, else "non-open-access". */
     public String getOpenAccessStatus(final Record record) {
-        for (final VariableField variableField : record.getVariableFields("856")) {
-            final DataField dataField = (DataField) variableField;
-            for (final Subfield subfieldZ : dataField.getSubfields('z'))
-                if (subfieldZ.getData().toLowerCase().startsWith("kostenfrei")) {
-                    final Subfield subfield3 = dataField.getSubfield('3');
-                    if (subfield3 == null || subfield3.getData().toLowerCase().equals("volltext"))
-                        return "open-access";
-            }
-            for (final Subfield subfieldX : dataField.getSubfields('x')) {
-                if (subfieldX != null && subfieldX.getData().toLowerCase().equals("unpaywall"))
-                   return "open-access";
-            }
-        }
+        final DataField _OASField = (DataField)record.getVariableField("OAS");
+        if (_OASField == null)
+            return "non-open-access";
+        final Subfield subfieldA = _OASField.getSubfield('a');
+        if (subfieldA == null)
+            return "non-open-access";
 
-        for (final VariableField variableField : record.getVariableFields("655")) {
-            final DataField dataField = (DataField) variableField;
-            for (final Subfield subfieldA : dataField.getSubfields('a')) {
-                if (subfieldA.getData().toLowerCase().startsWith("open access"))
-                   return "open-access";
-            }
-        }
-
-        return "non-open-access";
+        return subfieldA.getData().equals("1") ? "open-access" : "non-open-access";
     }
 
     // Try to get a numerically sortable representation of an issue
@@ -2678,17 +2986,23 @@ outer:  for (final VariableField _935Field : _935Fields) {
         return "0";
     }
 
-    public Set<String> getRVKs(final Record record) {
-        final Set<String> result = new TreeSet<String>();
-
+    // Returns a canonized number for volume sorting
+    public String getVolumeSort(final Record record) {
         for (final VariableField variableField : record.getVariableFields("936")) {
             final DataField dataField = (DataField) variableField;
-            final Subfield subfield_a = dataField.getSubfield('a');
-            if (subfield_a != null)
-                result.add(subfield_a.getData());
+            final Subfield subfieldD = dataField.getSubfield('d');
+            if (subfieldD == null)
+                return "0";
+            final String volumeString = subfieldD.getData();
+            if (volumeString.matches("^\\d+$"))
+                return volumeString;
+            // Handle Some known special cases
+            if (volumeString.matches("[\\[]\\d+[\\]]"))
+                return volumeString.replaceAll("[\\[\\]]","");
+            if (volumeString.matches("\\d+/\\d+"))
+                return volumeString.split("/")[0];
         }
-
-        return result;
+        return "0";
     }
 
 
@@ -2715,34 +3029,21 @@ outer:  for (final VariableField _935Field : _935Fields) {
         }
     }
 
-
-    boolean HasNonSuperior776IField(DataField field) {
-        if (!field.getTag().equals("776"))
-            return false;
-        for (final Subfield subfield : field.getSubfields('i')) {
-            final Matcher matcher = NON_SUPERIOR_SUBFIELD_I_CONTENT.matcher(subfield.getData());
-            if (matcher.matches())
-                return true;
-        }
-        return false;
-
-    }
-
     // Detect "real" superior_ppns
     public String getSuperiorPPN(final Record record) {
         // The order of the subfields matters, since 8XX can contain information about the series in which
         // an article in a volume is published but we do not want this as an immediate superior work
-        Vector<String> superiorDescriptors = new Vector<String>(Arrays.asList("773w:776w:800w:810w:830w".split(":")));
+        Vector<String> superiorDescriptors = new Vector<String>(Arrays.asList("773w:800w:810w:830w".split(":")));
         for (String superiorDescriptor : superiorDescriptors) {
-            final List<VariableField> superiorFields = record.getVariableFields(superiorDescriptor.substring(0,3));
+            final List<VariableField> superiorFields = record.getVariableFields(superiorDescriptor.substring(0, 3));
             for (final VariableField superiorField : superiorFields) {
                 final DataField field = (DataField)superiorField;
                 final char subfieldCode = superiorDescriptor.charAt(3);
                 final Subfield subfield = field.getSubfield(subfieldCode);
                 if (subfield == null)
                     continue;
-                final Matcher matcher = SUPERIOR_PPN_PATTERN.matcher(subfield.getData());
-                if (matcher.matches() && !HasNonSuperior776IField(field))
+                final Matcher matcher = SUPERIOR_PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN.matcher(subfield.getData());
+                if (matcher.matches())
                      return matcher.group(1);
             }
         }
@@ -2754,7 +3055,6 @@ outer:  for (final VariableField _935Field : _935Fields) {
         return Boolean.toString(field != null);
     }
 
-
     public String hasUnpaywallEntry(final Record record) {
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField dataField = (DataField) variableField;
@@ -2763,5 +3063,198 @@ outer:  for (final VariableField _935Field : _935Fields) {
                 return Boolean.TRUE.toString();
         }
         return Boolean.FALSE.toString();
+    }
+
+
+    protected String extractFullTextFromJSON(final JSONArray hits, final String text_type_description) {
+        if (hits.isEmpty())
+            return "";
+
+        StringBuilder fulltextBuilder = new StringBuilder();
+        for (final Object obj : hits) {
+             JSONObject hit = (JSONObject) obj;
+             JSONObject _source = (JSONObject) hit.get("_source");
+             final String description = _source.containsKey("text_type") ?
+		                        mapTextTypeToDescription((String) _source.get("text_type")) : "";
+             if (description.isEmpty() || text_type_description.isEmpty() ||
+                 description.equals(text_type_description))
+                     fulltextBuilder.append(_source.get("full_text"));
+        }
+        return fulltextBuilder.toString();
+    }
+
+
+    protected String mapTextTypeToDescription(final String text_type) {
+        String type_candidate = text_type_to_description_map.get(text_type);
+        return type_candidate != null ? type_candidate : "Unknown";
+    }
+
+
+    protected Set<String> extractTextTypeFromJSON(final JSONArray hits) {
+        final Set<String> text_types = new TreeSet<String>();
+        if (hits.isEmpty())
+            return text_types;
+        for (final Object obj : hits) {
+             JSONObject hit = (JSONObject) obj;
+             JSONObject _source = (JSONObject) hit.get("_source");
+             final String description = mapTextTypeToDescription((String) _source.get("text_type"));
+             if (description != null)
+                 text_types.add(description);
+        }
+        return text_types;
+    }
+
+
+    protected JSONArray getElasticsearchHits(final String responseString) {
+        if (responseString.isEmpty())
+            return new JSONArray();
+        try {
+            JSONObject responseObject = (JSONObject) new JSONParser().parse(responseString);
+            JSONObject hits = (JSONObject) responseObject.get("hits");
+            return (JSONArray) hits.get("hits");
+        } catch(ParseException e) {
+           e.printStackTrace();
+        }
+        return new JSONArray(); /* should not be reached */
+    }
+
+
+    protected Properties getPropertiesFromFile(final String configProps) {
+        String homeDir = Boot.getDefaultHomeDir();
+        File configFile = new File(configProps);
+        if (!configFile.isAbsolute())
+        {
+            configFile = new File(homeDir, configProps);
+        }
+        return PropertyUtils.loadProperties(new String[0], configFile.getAbsolutePath(), true);
+    }
+
+
+    protected static Properties esFulltextProperties = null;
+
+
+    public Properties getESFulltextProperties() {
+        if (esFulltextProperties != null)
+            return esFulltextProperties;
+        esFulltextProperties = getPropertiesFromFile(ES_FULLTEXT_PROPERTIES_FILE);
+        return esFulltextProperties;
+    }
+
+
+    public String getMyHostnameShort() throws java.net.UnknownHostException {
+       return fullHostName.replaceAll("\\..*", "");
+    }
+
+
+    public String getElasticsearchHost() throws java.net.UnknownHostException {
+        final Properties esFullTextProperties = getESFulltextProperties();
+        final String myhostname = getMyHostnameShort();
+        return PropertyUtils.getProperty(esFullTextProperties, myhostname + ".host", "localhost");
+    }
+
+
+    public String getElasticsearchPort() throws java.net.UnknownHostException {
+        final Properties esFullTextProperties = getESFulltextProperties();
+        final String myhostname = getMyHostnameShort();
+        return PropertyUtils.getProperty(esFullTextProperties, myhostname + ".port", "9200");
+    }
+
+
+    public boolean isFullTextDisabled() throws java.net.UnknownHostException {
+        final Properties esFullTextProperties = getESFulltextProperties();
+        final String myhostname = getMyHostnameShort();
+        final String isDisabled = PropertyUtils.getProperty(esFullTextProperties, myhostname + ".disabled", "false");
+        return Boolean.parseBoolean(isDisabled);
+    }
+
+
+    protected static Set<String> fulltextIDList = new HashSet<String>();
+
+
+    static public boolean IsInFulltextPPNList(final String ppn) {
+        final String fulltextIDListFile = "/usr/local/ub_tools/bsz_daten/fulltext_ids.txt";
+        if (fulltextIDList.isEmpty() && (new File(fulltextIDListFile).length() != 0)) {
+            try {
+                BufferedReader in = new BufferedReader(new FileReader(fulltextIDListFile));
+                String ppnLine;
+                while ((ppnLine = in.readLine()) != null)
+                    fulltextIDList.add(ppnLine);
+             } catch (IOException e) {
+                logger.severe("Could not read file: " + e.toString());
+             }
+        }
+        return fulltextIDList.contains(ppn);
+    }
+
+
+    protected String getElasticsearchSearchResponse(final Record record) throws IOException {
+        if (isFullTextDisabled())
+            return "";
+        if (!IsInFulltextPPNList(record.getControlNumber()))
+            return "";
+        final String esHost = getElasticsearchHost();
+        final String esPort = getElasticsearchPort();
+        CloseableHttpClient httpclient = HttpClients.createDefault();
+        HttpPost httpPost = new HttpPost("http://" + esHost + ":" + esPort + "/full_text_cache/_search");
+        String fulltextById = "{ \"query\" : { \"match\" : { \"id\" : \"" + record.getControlNumber() + "\" } } }";
+        StringEntity stringEntity = new StringEntity(fulltextById);
+        httpPost.setEntity(stringEntity);
+        httpPost.setHeader("Accept", "application/json");
+        httpPost.setHeader("Content-type", "application/json");
+        CloseableHttpResponse response = httpclient.execute(httpPost);
+        try {
+            HttpEntity entity = response.getEntity();
+            return EntityUtils.toString(entity, StandardCharsets.UTF_8);
+        } finally {
+            response.close();
+        }
+    }
+
+
+    public String getFullTextElasticsearch(final Record record) {
+        return extractFullTextFromJSON(fulltext_server_hits, "Fulltext");
+    }
+
+
+    public String getFullTextElasticsearchTOC(final Record record) {
+        return extractFullTextFromJSON(fulltext_server_hits, "Table of Contents");
+    }
+
+
+    public String getFullTextElasticsearchAbstract(final Record record) {
+        return extractFullTextFromJSON(fulltext_server_hits, "Abstract");
+    }
+
+
+    public String getFullTextElasticsearchSummary(final Record record) {
+        return extractFullTextFromJSON(fulltext_server_hits, "Summary");
+    }
+
+
+    public Set<String> getFullTextTypes(final Record record) {
+        return extractTextTypeFromJSON(fulltext_server_hits);
+    }
+
+
+    public String extractFirstK10PlusPPNAndTitle(final Record record, final String fieldAndSubfieldCode) throws IllegalArgumentException {
+        if (fieldAndSubfieldCode.length() != 3 + 1)
+            throw new IllegalArgumentException("expected a field tag plus a subfield code, got \"" + fieldAndSubfieldCode + "\"!");
+
+        final DataField field = (DataField) record.getVariableField(fieldAndSubfieldCode.substring(0, 3));
+        if (field == null)
+            return null;
+
+        for (final Subfield subfield : field.getSubfields(fieldAndSubfieldCode.charAt(3))) {
+            final Matcher matcher = PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN.matcher(subfield.getData());
+            if (matcher.matches()) {
+                Subfield titleSubfield = field.getSubfield('t');
+                if (titleSubfield == null)
+                    titleSubfield = field.getSubfield('a');
+                final String title = (titleSubfield != null) ? titleSubfield.getData() : "";
+                return matcher.group(1) + ":" + title;
+            }
+        }
+
+        return null;
     }
 }

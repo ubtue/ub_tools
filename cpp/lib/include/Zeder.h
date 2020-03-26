@@ -37,10 +37,12 @@ namespace Zeder {
 enum Flavour { IXTHEO, KRIMDOK };
 
 
-} // Zeder namespace
+} // end Zeder namespace
 
 
 namespace std {
+
+
     template <>
     struct hash<Zeder::Flavour> {
         size_t operator()(const Zeder::Flavour &flavour) const {
@@ -48,7 +50,9 @@ namespace std {
             return hash<int>()(flavour);
         }
     };
-} // namespace std
+
+
+} // end namespace std
 
 
 namespace Zeder {
@@ -61,6 +65,9 @@ const std::unordered_map<Flavour, std::string> FLAVOUR_TO_STRING_MAP{
 
 
 static constexpr auto MODIFIED_TIMESTAMP_FORMAT_STRING = "%Y-%m-%d %H:%M:%S";
+
+// Characters that need to be stripped from attribute( value)s imported from Zeder before they are (de)serialised
+const std::string ATTRIBUTE_INVALID_CHARS = "#\"'";
 
 
 // A basic entry in a Zeder spreadsheet. Each column maps to an attribute.
@@ -81,6 +88,9 @@ public:
     const tm &getLastModifiedTimestamp() const { return last_modified_timestamp_; }
     void setModifiedTimestamp(const tm &timestamp) { std::memcpy(&last_modified_timestamp_, &timestamp, sizeof(timestamp)); }
     const std::string &getAttribute(const std::string &name) const;
+    const std::string &getAttribute(const std::string &name, const std::string &default_value) const;
+
+    // Invalid characters (as found in 'ATTRIBUTE_INVALID_CHARS') in 'value' will be replaced with '_'.
     void setAttribute(const std::string &name, const std::string &value, bool overwrite = false);
     bool hasAttribute(const std::string &name) const { return attributes_.find(name) != attributes_.end(); }
     void removeAttribute(const std::string &name);
@@ -220,7 +230,7 @@ public:
 };
 
 
-// Reader for zts_harvester compatible INI/config files.
+// Reader for Zotero Harvester compatible INI/config files.
 class IniReader : public Importer {
     friend class Importer;
 
@@ -282,7 +292,7 @@ public:
 };
 
 
-// Writer for zts_harvester compatible INI/config files.
+// Writer for Zotero Harvester compatible INI/config files.
 class IniWriter : public Exporter {
     friend class Exporter;
 
@@ -436,4 +446,4 @@ std::string GetFullDumpEndpointPath(Flavour zeder_flavour);
 Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive = false);
 
 
-} // namespace Zeder
+} // end namespace Zeder

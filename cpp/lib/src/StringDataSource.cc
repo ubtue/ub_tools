@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright 2017 Library of the University of Tübingen
+    Copyright 2017-2020 Library of the University of Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -84,7 +84,8 @@ bool StringDataSource::seek(const off_t offset, const int whence) {
         ch_ += offset;
         return true;
     } default:
-        logger->error("in StringDataSource::seek: \"whence\" must be one of SEEK_SET, SEEK_END, and SEEK_CUR!");
+        LOG_ERROR("in StringDataSource::seek: \"whence\" must be one of SEEK_SET, SEEK_END, and SEEK_CUR!");
     }
-}
 
+    __builtin_unreachable();
+}

@@ -7,7 +7,7 @@
 /*
  *  Copyright 2004-2008 Project iVia.
  *  Copyright 2004-2008 The Regents of The University of California.
- *  Copyright 2016 Universitätsbibliothek Tübingen.
+ *  Copyright 2016,2019 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -27,14 +27,18 @@
  */
 
 #include "MediaTypeUtil.h"
+#include <mutex>
 #include <stdexcept>
+#include <unordered_set>
 #include <cctype>
 #include <alloca.h>
 #include <magic.h>
 #include "File.h"
+#include "FileUtil.h"
 #include "HttpHeader.h"
 #include "PerlCompatRegExp.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "Url.h"
 #include "util.h"
 #include "WebUtil.h"
@@ -45,7 +49,7 @@ namespace MediaTypeUtil {
 
 
 std::string GetHtmlMediaType(const std::string &document) {
-    static const PerlCompatRegExp doctype_regexp("^\\s*<(?:!DOCTYPE\\s+HTML\\s+PUBLIC\\s+\"-//W3C//DTD\\s+){0,1}(X?HTML)",
+    static const PerlCompatRegExp doctype_regexp("^\\s*<(?:!DOCTYPE\\s+HTML\\s+PUBLIC\\s+\"-//W3C//DTD\\s+){0,1}(X?HTML)|<(HTML)[^>]*>",
                                                  PerlCompatRegExp::OPTIMIZE_FOR_MULTIPLE_USE, PCRE_CASELESS);
 
     // If we have a match we have either HTML or XHTML...
@@ -58,7 +62,8 @@ std::string GetHtmlMediaType(const std::string &document) {
 }
 
 
-static std::string LZ4_MAGIC("\000\042\115\030");
+static const std::string LZ4_MAGIC("\000\042\115\030", 4);
+static const std::string KYOTOCABINET_MAGIC("KC\n");
 
 
 // GetMediaType -- Get the media type of a document.
@@ -73,10 +78,14 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
         return media_type;
 
     // 2. Check for LZ4 compression:
-    if (document.substr(0, 4) == LZ4_MAGIC)
+    if (document.substr(0, LZ4_MAGIC.length()) == LZ4_MAGIC)
         return "application/lz4";
 
-    // 3. Next try libmagic:
+    // 3. Check for a kyotocabinet database:
+    if (document.substr(0, KYOTOCABINET_MAGIC.length()) == KYOTOCABINET_MAGIC)
+        return "application/kyotocabinet";
+
+    // 4. Next try libmagic:
     const magic_t cookie = ::magic_open(MAGIC_MIME);
     if (unlikely(cookie == nullptr))
         throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not open libmagic!");
@@ -117,9 +126,8 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
 
 std::string GetMediaType(const std::string &document, std::string * const subtype, const bool auto_simplify) {
     std::string media_type(GetMediaType(document, auto_simplify));
-
     // also include "text/html" which is reported by libmagic if xml prolog is missing
-    if (media_type == "text/xml" or media_type == "text/html") {
+    if (media_type == "text/xml" or (media_type == "text/html" and not (GetHtmlMediaType(document) == "text/html"))) {
         XMLParser parser(document, XMLParser::XML_STRING);
         XMLParser::XMLPart part;
         if (parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "", &part)) {
@@ -138,21 +146,19 @@ std::string GetMediaType(const std::string &document, std::string * const subtyp
 std::string GetFileMediaType(const std::string &filename, const bool auto_simplify) {
     const magic_t cookie(::magic_open(MAGIC_MIME | MAGIC_SYMLINK));
     if (unlikely(cookie == nullptr))
-        throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not open libmagic!");
+        LOG_ERROR("could not open libmagic!");
 
     // Load the default "magic" definitions file:
     if (unlikely(::magic_load(cookie, nullptr /* use default magic file */) != 0)) {
         ::magic_close(cookie);
-        throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not load libmagic ("
-                                 + std::string(::magic_error(cookie)) + ").");
+        LOG_ERROR("could not load libmagic (" + std::string(::magic_error(cookie)) + ").");
     }
 
     // Use magic to get the mime type of the buffer:
     const char *magic_mime_type(::magic_file(cookie, filename.c_str()));
     if (unlikely(magic_mime_type == nullptr)) {
         ::magic_close(cookie);
-        throw std::runtime_error("in MediaTypeUtil::GetFileMediaType: error in libmagic ("
-                                 + std::string(::magic_error(cookie)) + ").");
+        LOG_ERROR("error in libmagic (" + std::string(::magic_error(cookie)) + ").");
     }
 
     // Attempt to remove possible leading junk (no idea why libmagic behaves in this manner every now and then):
@@ -167,12 +173,12 @@ std::string GetFileMediaType(const std::string &filename, const bool auto_simpli
         SimplifyMediaType(&media_type);
 
     if (StringUtil::StartsWith(media_type, "application/octet-stream")) {
-        File input(filename, "r");
-        if (unlikely(input.anErrorOccurred()))
-            logger->error("in MediaTypeUtil::GetFileMediaType: failed to open \"" + filename + "\" for reading!");
+        const auto input(FileUtil::OpenInputFileOrDie(filename));
         char * const buf(reinterpret_cast<char *>(::alloca(LZ4_MAGIC.size())));
-        if ((input.read(buf, sizeof(buf)) == sizeof(buf)) and std::strncmp(LZ4_MAGIC.c_str(), buf, LZ4_MAGIC.size()) == 0)
+        if ((input->read(buf, LZ4_MAGIC.size()) == LZ4_MAGIC.size()) and std::strncmp(LZ4_MAGIC.c_str(), buf, LZ4_MAGIC.size()) == 0)
             return "application/lz4";
+        if (LZ4_MAGIC.size() >= KYOTOCABINET_MAGIC.size() and std::strncmp(KYOTOCABINET_MAGIC.c_str(), buf, KYOTOCABINET_MAGIC.size()) == 0)
+            return "application/kyotocabinet";
     }
 
     return media_type;
@@ -284,6 +290,22 @@ bool SimplifyMediaType(std::string * const media_type) {
 
     // Return if "media_type" has changed:
     return initial_media_type != *media_type;
+}
+
+
+bool IsValidMIMEType(const std::string &mime_type_candidate) {
+    static std::unordered_set<std::string> valid_mime_types;
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> mutex_guard(mutex);
+    if (unlikely(valid_mime_types.empty())) {
+        valid_mime_types.reserve(2000);
+        for (auto mime_type : FileUtil::ReadLines(UBTools::GetTuelibPath() + "mime.types")) {
+            if (likely(not mime_type.empty()))
+                valid_mime_types.emplace(mime_type);
+        }
+    }
+
+    return valid_mime_types.find(mime_type_candidate) != valid_mime_types.cend();
 }
 
 

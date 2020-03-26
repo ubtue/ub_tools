@@ -1,0 +1,14 @@
+CREATE TABLE delivered_marc_records_urls (
+    record_id INT,
+    url VARCHAR(767) NOT NULL,
+    CONSTRAINT record_id_and_url PRIMARY KEY (record_id, url),
+    CONSTRAINT delivered_marc_records_id FOREIGN KEY (record_id) REFERENCES delivered_marc_records (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX delivered_marc_records_urls_index(url)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+
+
+INSERT INTO delivered_marc_records_urls (record_id, url) SELECT id, url FROM delivered_marc_records;
+
+
+DROP INDEX delivered_marc_records_url_index ON delivered_marc_records;
+ALTER TABLE delivered_marc_records DROP COLUMN url;

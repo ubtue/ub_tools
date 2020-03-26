@@ -2,7 +2,7 @@
  *  \brief  Downloads and aggregates RSS feeds.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -31,6 +31,7 @@
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "IniFile.h"
+#include "RegexMatcher.h"
 #include "SignalUtil.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
@@ -43,7 +44,7 @@
 namespace {
 
 
-volatile sig_atomic_t sigterm_seen = false;
+volatile sig_atomic_t sigterm_seen(false);
 
 
 void SigTermHandler(int /* signum */) {
@@ -51,7 +52,7 @@ void SigTermHandler(int /* signum */) {
 }
 
 
-volatile sig_atomic_t sighup_seen = false;
+volatile sig_atomic_t sighup_seen(false);
 
 
 void SigHupHandler(int /* signum */) {
@@ -64,6 +65,7 @@ void SigHupHandler(int /* signum */) {
             "       When --one-shot has been specified the program does not daemonise and exits after generating the feed XML.\n"
             "       The default config file path is \"" + UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf\".");
 }
+
 
 // These must be in sync with the sizes in data/ub_tools.sql (rss_aggregator table)
 const size_t MAX_ITEM_ID_LENGTH(100);
@@ -141,7 +143,8 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
                                             { "serial_name",      StringUtil::Truncate(MAX_SERIAL_NAME_LENGTH, section_name)   },
                                             { "feed_url",         StringUtil::Truncate(MAX_ITEM_URL_LENGTH, feed_url)          },
                                             { "pub_date",         SqlUtil::TimeTToDatetime(item.getPubDate())                  }
-                                        });
+                                        },
+                                        DbConnection::DuplicateKeyBehaviour::DKB_IGNORE);
 
     return true;
 }
@@ -180,11 +183,18 @@ unsigned ProcessSection(const bool one_shot, const IniFile::Section &section,
     augment_params.strptime_format_ = section.getString("strptime_format", "");
     const std::string &section_name(section.getSectionName());
 
+    const std::string title_suppression_regex_str(section.getString("title_suppression_regex", ""));
+    const auto title_suppression_regex(
+        title_suppression_regex_str.empty() ? nullptr : RegexMatcher::RegexMatcherFactoryOrDie(title_suppression_regex_str));
+
     if (one_shot) {
         std::cout << "Processing section \"" << section_name << "\":\n"
                   << "\tfeed_url: " << feed_url << '\n'
                   << "\tpoll_interval: " << poll_interval << " (ignored)\n"
-                  << "\tdownloader_time_limit: " << downloader_time_limit << "\n\n";
+                  << "\tdownloader_time_limit: " << downloader_time_limit
+                  << (augment_params.strptime_format_.empty() ? "" : augment_params.strptime_format_ + "\n")
+                  << (title_suppression_regex_str.empty() ? "" : title_suppression_regex_str + "\n")
+                  << "\n\n";
     }
 
     const auto section_name_and_ticks(section_name_to_ticks_map.find(section_name));
@@ -216,6 +226,11 @@ unsigned ProcessSection(const bool one_shot, const IniFile::Section &section,
                     CheckForSigTermAndExitIfSeen();
                 SignalUtil::SignalBlocker sigterm_blocker2(SIGTERM);
 
+                if (title_suppression_regex != nullptr and title_suppression_regex->matched(item.getTitle())) {
+                    LOG_INFO("Suppressed item because of title: \"" + StringUtil::ShortenText(item.getTitle(), 40) + "\".");
+                    continue; // Skip suppressed item.
+                }
+
                 if (ProcessRSSItem(item, section_name, feed_url, db_connection))
                     ++new_item_count;
             }
@@ -238,7 +253,7 @@ size_t SelectItems(DbConnection * const db_connection, std::vector<HarvestedRSSI
     while (const DbRow row = result_set.getNextRow())
         harvested_items->emplace_back(SyndicationFormat::Item(row["item_title"], row["item_description"], row["item_url"], row["item_id"],
                                                               SqlUtil::DatetimeToTimeT(row["pub_date"])),
-                                      row["serial_name"], row["item_url"]);
+                                                              row["serial_name"], row["feed_url"]);
     return result_set.size();
 }
 
@@ -276,6 +291,7 @@ int Main(int argc, char *argv[]) {
     const unsigned DEFAULT_POLL_INTERVAL(ini_file.getUnsigned("", "default_poll_interval"));
     const unsigned DEFAULT_DOWNLOADER_TIME_LIMIT(ini_file.getUnsigned("", "default_downloader_time_limit"));
     const unsigned UPDATE_INTERVAL(ini_file.getUnsigned("", "update_interval"));
+    const std::string PROXY(ini_file.getString("", "proxy", ""));
 
     if (not one_shot) {
         SignalUtil::InstallHandler(SIGTERM, SigTermHandler);
@@ -288,7 +304,13 @@ int Main(int argc, char *argv[]) {
     const std::string xml_output_filename(argv[1]);
 
     uint64_t ticks(0);
-    Downloader downloader;
+    Downloader::Params params;
+    if (not PROXY.empty()) {
+        LOG_INFO("using proxy: " + PROXY);
+        params.proxy_host_and_port_ = PROXY;
+    }
+    Downloader downloader(params);
+
     for (;;) {
         LOG_DEBUG("now we're at " + std::to_string(ticks) + ".");
 

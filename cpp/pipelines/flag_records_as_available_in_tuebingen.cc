@@ -7,7 +7,7 @@
  */
 
 /*
-    Copyright (C) 2017-2018, Library of the University of Tübingen
+    Copyright (C) 2017-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -75,7 +75,7 @@ void LoadDE21PPNs(MARC::Reader * const marc_reader, RegexMatcher * const tue_sig
 
 
 void CollectSuperiorPPNs(const MARC::Record &record, std::unordered_set<std::string> * const superior_ppn_set) {
-    static RegexMatcher * const superior_ppn_matcher(RegexMatcher::RegexMatcherFactory(".DE-576.(.*)"));
+    static RegexMatcher * const superior_ppn_matcher(RegexMatcher::RegexMatcherFactory(".DE-627.(.*)"));
     static const std::vector<std::string> tags{ "800", "810", "830", "773", "776" };
 
     for (const auto &tag : tags) {

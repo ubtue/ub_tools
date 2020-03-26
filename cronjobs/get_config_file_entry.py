@@ -1,4 +1,4 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
 """
 Given an absolut path for the config file, that will be used.  If it is a relative path, the first location
@@ -7,8 +7,7 @@ searched will be /usr/local/var/lib/tuelib/$hostname/$config_file.  If that is n
 error message.
 """
 
-
-import ConfigParser
+import configparser
 import os
 import socket
 import sys
@@ -25,7 +24,7 @@ def Main():
 
     config_file = sys.argv[1]
     if not config_file.startswith("/"):
-        if os.access(DEFAULT_CONFIG_FILE_LOCATION + socket.gethostname() + "/", os.R_OK):
+        if os.access(DEFAULT_CONFIG_FILE_LOCATION + socket.gethostname() + "/" + config_file, os.R_OK):
             config_file = DEFAULT_CONFIG_FILE_LOCATION + socket.gethostname() + "/" + config_file
         else:
             config_file = DEFAULT_CONFIG_FILE_LOCATION + config_file
@@ -33,7 +32,7 @@ def Main():
         util.Info(sys.argv[0] + ": can't read \"" + config_file + "\"!", file=sys.stderr)
         sys.exit(-1)
 
-    config = ConfigParser.ConfigParser()
+    config = configparser.ConfigParser()
     config.read(config_file)
     util.Info(config.get(sys.argv[2], sys.argv[3]))
 

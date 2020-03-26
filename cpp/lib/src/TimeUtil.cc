@@ -8,7 +8,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2018 Universitätsbibliothek Tübingen
+ *  Copyright 2018,2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -133,32 +133,53 @@ std::string FormatTime(const double time_in_millisecs, const std::string &separa
 
 // GetCurrentTime -- Get the current date and time as a string
 //
-std::string GetCurrentDateAndTime(const std::string &format, const TimeZone time_zone) {
+std::string GetCurrentDateAndTime(const std::string &format, const TimeZone time_zone, const std::string &time_locale) {
     time_t now;
     std::time(&now);
-    return TimeTToString(now, format, time_zone);
+    return TimeTToString(now, format, time_zone, time_locale);
+}
+
+
+void GetCurrentDate(unsigned * const year, unsigned * const month, unsigned * const day, const TimeZone time_zone) {
+    const time_t now(::time(nullptr));
+    struct tm tm;
+    if (unlikely((time_zone == LOCAL ? ::localtime_r(&now, &tm) : ::gmtime_r(&now, &tm)) == nullptr))
+        LOG_ERROR("time conversion error!");
+
+    *year  = tm.tm_year + 1900;
+    *month = tm.tm_mon + 1;
+    *day   = tm.tm_mday;
 }
 
 
 // TimeTToLocalTimeString -- Convert a time from a time_t to a string.
 //
-std::string TimeTToString(const time_t &the_time, const std::string &format, const TimeZone time_zone) {
+std::string TimeTToString(const time_t &the_time, const std::string &format, const TimeZone time_zone, const std::string &time_locale) {
+    Locale locale(time_locale, LC_TIME);
+
+    struct tm tm;
+    if (unlikely((time_zone == LOCAL ? ::localtime_r(&the_time, &tm) : ::gmtime_r(&the_time, &tm)) == nullptr))
+        LOG_ERROR("time conversion error!");
     char time_buf[50 + 1];
-    std::strftime(time_buf, sizeof(time_buf), format.c_str(),
-                  (time_zone == LOCAL ? std::localtime(&the_time) : std::gmtime(&the_time)));
+    errno = 0;
+    if (unlikely(std::strftime(time_buf, sizeof(time_buf), format.c_str(), &tm) == 0 or errno != 0))
+        LOG_ERROR("strftime(3) failed! (format: " + format + ")");
     return time_buf;
 }
 
 
 time_t TimeGm(const struct tm &tm) {
-    const char * const saved_time_zone = ::getenv("TZ");
+    const char * const saved_time_zone(::getenv("TZ"));
 
     // Set the time zone to UTC:
     ::setenv("TZ", "UTC", /* overwrite = */true);
     ::tzset();
 
     struct tm temp_tm(tm);
-    const time_t ret_val = ::mktime(&temp_tm);
+    errno = 0;
+    time_t ret_val(::mktime(&temp_tm));
+    if (unlikely(errno != 0))
+        ret_val = BAD_TIME_T;
 
     // Restore the original time zone:
     if (saved_time_zone != nullptr)
@@ -171,12 +192,13 @@ time_t TimeGm(const struct tm &tm) {
 }
 
 
+static const ThreadSafeRegexMatcher ISO8601_MATCHER(
+    "[0-9]{4}-[0-9]{2}-[0-9]{2}([[:space:]]|T){1}[0-9]{2}:[0-9]{2}:[0-9]{2}(\\+|\\-|\\s){1}[0-9]{2}(:)[0-9]{2}");
+
+
 // Strips out the colon in the date string to preserve compatibility with CentOS.
 static void NormalizeTimeZoneOffset(std::string * const date_str) {
-    static RegexMatcher * const matcher_iso8601(RegexMatcher::RegexMatcherFactory(
-        "[0-9]{4}-[0-9]{2}-[0-9]{2}([[:space:]]|T){1}[0-9]{2}:[0-9]{2}:[0-9]{2}(\\+|\\-|\\s){1}[0-9]{2}(:)[0-9]{2}"));
-
-    if (matcher_iso8601->matched(*date_str))
+    if (ISO8601_MATCHER.match(*date_str))
         date_str->erase(date_str->length() - 3, 1);
 }
 
@@ -228,10 +250,16 @@ static void CorrectForSymbolicTimeZone(struct tm * const tm, const std::string &
     if (time_zone_name == "GMT" or time_zone_name == "UTC")
         return; // GMT is the same as UTC
 
+    errno = 0;
     time_t converted_tm(::mktime(tm));
+    if (unlikely(errno != 0))
+        LOG_ERROR("bad time conversion!");
+
     const char *offset = "+00:00";
     if (time_zone_name == "PDT")
         offset = "-07:00";
+    else if (time_zone_name == "PST")
+        offset = "-08:00";
     else
         LOG_ERROR("Unhandled timezone symbolic name '" + time_zone_name + "'");
 
@@ -248,6 +276,7 @@ static void CorrectForSymbolicTimeZone(struct tm * const tm, const std::string &
 //        So, we need to strip it out before we pass it to the function.
 static bool StringToStructTmHelper(std::string date_str, std::string optional_strptime_format, struct tm * const tm) {
     time_t unix_time(TimeUtil::BAD_TIME_T);
+
     if (optional_strptime_format.empty())
         unix_time = WebUtil::ParseWebDateAndTime(date_str);
     else {
@@ -259,7 +288,7 @@ static bool StringToStructTmHelper(std::string date_str, std::string optional_st
                 throw std::runtime_error("TimeUtil::StringToStructTm: bad locale specification \"" + optional_strptime_format + "\"!");
             const std::string locale_specifications(optional_strptime_format.substr(1, closing_paren_pos - 1));
             std::vector<std::string> locales_list;
-            StringUtil::Split(locale_specifications, '|', &locales_list);
+            StringUtil::Split(locale_specifications, '|', &locales_list, /* suppress_empty_components = */true);
             for (const auto &locale_specification : locales_list) {
                 Locale *new_locale(new Locale(locale_specification, LC_TIME));
                 if (new_locale->isValid()) {
@@ -331,18 +360,19 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
 {
     *hour_offset = *minute_offset = 0;
     char plus_or_minus[1 + 1];
+    char space_or_t[1 + 1];
 
     // First check for a simple time and date (can be local or UTC):
     if (possible_date.length() == 19
-        and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u %2u:%2u:%2u",
-                        year, month, day, hour, minute, second) == 6)
+        and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u%[Tt ]%2u:%2u:%2u",
+                        year, month, day, space_or_t, hour, minute, second) == 7)
     {
         *is_definitely_zulu_time = false;
-        return 6;
+        return 7;
     }
     // Check for ISO 8601 w/ offset:
     else if (possible_date.length() == 25
-             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2uT%2u:%2u:%2u%[+-]%2d:%2d",
+             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u[Tt]%2u:%2u:%2u%[+-]%2d:%2d",
                              year, month, day, hour, minute, second, plus_or_minus, hour_offset, minute_offset) == 9)
     {
         if (plus_or_minus[0] == '-') {
@@ -355,7 +385,7 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
     }
     // Check for Zulu time format (must be UTC)
     else if (possible_date.length() == 20
-             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2uT%2u:%2u:%2uZ",
+             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u[Tt]%2u:%2u:%2u[Zz]",
                              year, month, day, hour, minute, second) == 6)
     {
         *is_definitely_zulu_time = true;
@@ -393,7 +423,6 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
     bool is_definitely_zulu_time;
     const unsigned match_count = StringToBrokenDownTime(iso_time, &year, &month, &day, &hour, &minute, &second,
                                                         &hour_offset, &minute_offset, &is_definitely_zulu_time);
-
     // First check for Zulu time format w/ an offset
     if (match_count == 9) {
         if (time_zone == LOCAL) {
@@ -435,7 +464,7 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
     }
 
     // Check for a simple time and date (can be local or UTC):
-    else if (match_count == 6) {
+    else if (match_count == 7) {
         tm_struct.tm_year  = year - 1900;
         tm_struct.tm_mon   = month - 1;
         tm_struct.tm_mday  = day;
@@ -445,7 +474,11 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
         if (time_zone == LOCAL) {
             ::tzset();
             tm_struct.tm_isdst = -1;
+
+            errno = 0;
             *converted_time = std::mktime(&tm_struct);
+            if (unlikely(errno != 0))
+                LOG_ERROR("bad time conversion! (2)");
         }
         else
             *converted_time = TimeGm(tm_struct);
@@ -463,9 +496,12 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
         if (time_zone == LOCAL) {
             ::tzset();
             tm_struct.tm_isdst = -1;
+
+            errno = 0;
             *converted_time = std::mktime(&tm_struct);
-        }
-        else
+            if (unlikely(errno != 0))
+                LOG_ERROR("bad time conversion! (3)");
+        } else
             *converted_time = ::timegm(&tm_struct);
         if (*converted_time == static_cast<time_t>(-1)) {
             *err_msg = "cannot convert '" + iso_time + "' to a time_t!";
@@ -593,7 +629,12 @@ time_t ConvertHumanDateTimeToTimeT(const std::string &human_date) {
     if (not found)
         return BAD_TIME_T;
 
-    return std::mktime(&time_elements);
+    errno = 0;
+    const time_t ret_val(std::mktime(&time_elements));
+    if (unlikely(errno != 0))
+        return BAD_TIME_T;
+
+    return ret_val;
 }
 
 
@@ -620,8 +661,7 @@ void Millisleep(const unsigned sleep_interval) {
 
 time_t _mkgmtime(const struct tm &tm) {
     // Month-to-day offset for non-leap-years.
-    static const int month_day[12] =
-    {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
+    static const int month_day[]{ 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
 
     // Most of the calculation is easy; leap years are the main difficulty.
     int month = tm.tm_mon % 12;
@@ -634,14 +674,14 @@ time_t _mkgmtime(const struct tm &tm) {
     // This is the number of Februaries since 1900.
     const int year_for_leap = (month > 1) ? year + 1 : year;
 
-    time_t rt = tm.tm_sec                             // Seconds
-        + 60 * (tm.tm_min                          // Minute = 60 seconds
-        + 60 * (tm.tm_hour                         // Hour = 60 minutes
-        + 24 * (month_day[month] + tm.tm_mday - 1  // Day = 24 hours
-        + 365 * (year - 70)                         // Year = 365 days
-        + (year_for_leap - 69) / 4                  // Every 4 years is     leap...
-        - (year_for_leap - 1) / 100                 // Except centuries...
-        + (year_for_leap + 299) / 400)));           // Except 400s.
+    const time_t rt(tm.tm_sec                                  // Seconds
+                    + 60 * (tm.tm_min                          // Minute = 60 seconds
+                    + 60 * (tm.tm_hour                         // Hour = 60 minutes
+                    + 24 * (month_day[month] + tm.tm_mday - 1  // Day = 24 hours
+                    + 365 * (year - 70)                        // Year = 365 days
+                    + (year_for_leap - 69) / 4                 // Every 4 years is     leap...
+                    - (year_for_leap - 1) / 100                // Except centuries...
+                    + (year_for_leap + 299) / 400))));         // Except 400s.
     return rt < 0 ? -1 : rt;
 }
 
@@ -840,6 +880,11 @@ struct tm StringToStructTm(std::string date_str, std::string optional_strptime_f
         return tm;
 
     throw std::runtime_error("TimeUtil::StringToStructTm: gmtime(3) failed to convert a time_t! (" + date_str + ")");
+}
+
+
+bool StringToStructTm(struct tm * const tm, std::string date_str, std::string optional_strptime_format) {
+    return StringToStructTmHelper(date_str, optional_strptime_format, tm);
 }
 
 

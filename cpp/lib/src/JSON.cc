@@ -2,7 +2,7 @@
  *  \brief  Implementation of JSON-related functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -388,11 +388,18 @@ ObjectNode::ObjectNode(const std::string &object_as_string) {
 
 ObjectNode::ObjectNode(const std::unordered_map<std::string, std::string> &map) {
     for (const auto &key_and_value : map) {
-        std::shared_ptr<JSON::StringNode> value_node(new JSON::StringNode(JSON::EscapeString(key_and_value.second)));
+        std::shared_ptr<JSON::StringNode> value_node(new JSON::StringNode(key_and_value.second));
         insert(key_and_value.first, value_node);
     }
 }
 
+
+ObjectNode::ObjectNode(const std::map<std::string, std::string> &map) {
+    for (const auto &key_and_value : map) {
+        std::shared_ptr<JSON::StringNode> value_node(new JSON::StringNode(key_and_value.second));
+        insert(key_and_value.first, value_node);
+    }
+}
 
 std::shared_ptr<JSONNode> ObjectNode::clone() const {
     std::shared_ptr<ObjectNode> the_clone(new ObjectNode);
@@ -657,19 +664,15 @@ std::string TokenTypeToString(const TokenType token) {
         return "error";
     }
 
-    #ifdef __GNUC__
-        #if __GNUC__ > 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 5)
-            __builtin_unreachable();
-        #endif
-    #endif
+    __builtin_unreachable();
 }
 
 
 static size_t ParsePath(const std::string &path, std::deque<std::string> * const components) {
-    std::string component;
-
-    if (not StringUtil::StartsWith(path, "/"))
+    if (unlikely(not StringUtil::StartsWith(path, "/")))
         throw std::runtime_error("in JSON::ParsePath: path must start with a slash!");
+
+    std::string component;
     bool escaped(false);
     for (const char ch : path.substr(1)) {
         if (escaped) {
@@ -703,23 +706,30 @@ static std::shared_ptr<const JSONNode> GetLastPathComponent(const std::string &p
     std::shared_ptr<const JSONNode> next_node(tree);
     for (const auto &path_component : path_components) {
         if (next_node == nullptr) {
-            if (unlikely(not have_default))
+            if (not have_default)
                 throw std::runtime_error("in JSON::GetLastPathComponent: can't find \"" + path + "\" in our JSON tree!");
             return nullptr;
         }
 
         switch (next_node->getType()) {
         case JSONNode::OBJECT_NODE:
-            next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component);
+            if ((next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component)) == nullptr) {
+                if (not have_default)
+                    throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
+                                             + " is not a key in an object node!");
+            }
             break;
         case JSONNode::ARRAY_NODE: {
             unsigned index;
-            if (unlikely(not StringUtil::ToUnsigned(path_component, &index)))
-                throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
-                                         + "\" in path \"" + path + "\" can't be converted to an array index!");
+            if (unlikely(not StringUtil::ToUnsigned(path_component, &index))) {
+                if (not have_default)
+                    throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
+                                             + "\" in path \"" + path + "\" can't be converted to an array index!");
+                return nullptr;
+            }
             const std::shared_ptr<const ArrayNode> array_node(JSONNode::CastToArrayNodeOrDie("next_node", next_node));
             if (unlikely(index >= array_node->size())) {
-                if (unlikely(not have_default))
+                if (not have_default)
                     throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
                                              + "\" in path \"" + path + "\" is too large as an array index!");
                 return nullptr;
@@ -728,7 +738,9 @@ static std::shared_ptr<const JSONNode> GetLastPathComponent(const std::string &p
             break;
         }
         default:
-            throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node!");
+            if (not have_default)
+                throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node!");
+            return nullptr;
         }
     }
 
@@ -763,11 +775,7 @@ static std::string LookupString(const std::string &path, const std::shared_ptr<c
         throw std::runtime_error("in JSON::LookupString: can't get a unique value from an array node!");
     }
 
-    #ifdef __GNUC__
-        #if __GNUC__ > 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 5)
-            __builtin_unreachable();
-        #endif
-    #endif
+    __builtin_unreachable();
 }
 
 
@@ -864,11 +872,7 @@ static int64_t LookupInteger(const std::string &path, const std::shared_ptr<cons
         throw std::runtime_error("in JSON::LookupInteger: can't get a unique value from an array node!");
     }
 
-    #ifdef __GNUC__
-        #if __GNUC__ > 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 5)
-            __builtin_unreachable();
-        #endif
-    #endif
+    __builtin_unreachable();
 }
 
 
@@ -886,38 +890,38 @@ int64_t LookupInteger(const std::string &path, const std::shared_ptr<const JSONN
 std::string EscapeString(const std::string &unescaped_string) {
     std::string escaped_string;
     for (const char ch : unescaped_string) {
-        if (static_cast<unsigned char>(ch) <= 0x1Fu) { // Escape control characters.
-            escaped_string += "\\x";
-            escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) >> 4u);
-            escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) & 0xFu);
-        } else {
-            switch (ch) {
-            case '\\':
-                escaped_string += "\\\\";
-                break;
-            case '"':
-                escaped_string += "\\\"";
-                break;
-            case '/':
-                escaped_string += "\\/";
-                break;
-            case '\b':
-                escaped_string += "\\b";
-                break;
-            case '\f':
-                escaped_string += "\\f";
-                break;
-            case '\n':
-                escaped_string += "\\n";
-                break;
-            case '\r':
-                escaped_string += "\\r";
-                break;
-            case '\t':
-                escaped_string += "\\t";
-                break;
-            default:
+        switch (ch) {
+        case '\\':
+            escaped_string += "\\\\";
+            break;
+        case '"':
+            escaped_string += "\\\"";
+            break;
+        case '/':
+            escaped_string += "\\/";
+            break;
+        case '\b':
+            escaped_string += "\\b";
+            break;
+        case '\f':
+            escaped_string += "\\f";
+            break;
+        case '\n':
+            escaped_string += "\\n";
+            break;
+        case '\r':
+            escaped_string += "\\r";
+            break;
+        case '\t':
+            escaped_string += "\\t";
+            break;
+        default:
+            if (static_cast<unsigned char>(ch) > 0x1Fu)
                 escaped_string += ch;
+            else { // Escape control characters.
+                escaped_string += "\\u00";
+                escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) >> 4u);
+                escaped_string += StringUtil::ToHex(static_cast<unsigned char>(ch) & 0xFu);
             }
         }
     }
@@ -953,20 +957,6 @@ bool IsValidUTF8(const JSONNode &node) {
     }
 
     LOG_ERROR("we should *never* get here!");
-}
-
-
-std::string EscapeDoubleQuotes(const std::string &s) {
-    std::string escaped_s;
-    escaped_s.reserve(s.size());
-
-    for (auto ch : s) {
-        if (unlikely(ch == '"'))
-            escaped_s += '\\';
-        escaped_s += ch;
-    }
-
-    return escaped_s;
 }
 
 

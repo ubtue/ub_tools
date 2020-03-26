@@ -1,7 +1,7 @@
 /** \brief Various classes, functions etc. having to do with the Library of Congress MARC bibliographic format.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,14 +20,17 @@
 #include "MARC.h"
 #include <set>
 #include <unordered_map>
+#include <cerrno>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "BSZUtil.h"
 #include "FileLocker.h"
 #include "FileUtil.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
-#include "StringUtil.h"
+#include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
 
@@ -44,9 +47,37 @@ inline unsigned ToUnsigned(const char *cp, const unsigned count) {
 }
 
 
-inline std::string ToStringWithLeadingZeros(const unsigned n, const unsigned width) {
-    const std::string as_string(std::to_string(n));
-    return (as_string.length() < width) ? (std::string(width - as_string.length(), '0') + as_string) : as_string;
+inline unsigned NoOfDigits(const unsigned n) {
+    if (n < 10)
+        return 1;
+    if (n < 100)
+        return 2;
+    if (n < 1000)
+        return 3;
+    if (n < 10000)
+        return 4;
+    if (n < 100000)
+        return 5;
+    throw std::out_of_range("in NoOfDigits: n == " + std::to_string(n));
+}
+
+
+inline std::string &AppendToStringWithLeadingZeros(std::string &target, unsigned n, const unsigned width) {
+    const unsigned no_of_digits(NoOfDigits(n));
+
+    for (unsigned i(no_of_digits); i < width; ++i)
+        target += '0';
+
+    static const unsigned powers_of_ten[] = { 1, 10, 100, 1000, 10000, 100000 };
+
+    unsigned divisor(powers_of_ten[no_of_digits - 1]);
+    for (unsigned i(0); i < no_of_digits; ++i) {
+        target += '0' + (n / divisor);
+        n %= divisor;
+        divisor /= 10u;
+    }
+
+    return target;
 }
 
 
@@ -329,13 +360,13 @@ Record::KeywordAndSynonyms &Record::KeywordAndSynonyms::swap(KeywordAndSynonyms 
 }
 
 
-Record::Record(const std::string &leader): leader_(leader) {
+Record::Record(const std::string &leader): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */), leader_(leader) {
     if (unlikely(leader_.length() != LEADER_LENGTH))
         LOG_ERROR("supposed leader has invalid length!");
 }
 
 
-Record::Record(const size_t record_size, char * const record_start)
+Record::Record(const size_t record_size, const char * const record_start)
     : record_size_(record_size), leader_(record_start, LEADER_LENGTH)
 {
     const char * const base_address_of_data(record_start + ToUnsigned(record_start + 12, 5));
@@ -394,24 +425,24 @@ static std::string TypeOfRecordToString(const Record::TypeOfRecord type_of_recor
 }
 
 
-std::string Record::BibliographicLevelToString(const Record::BibliographicLevel bibliographic_level) {
+char Record::BibliographicLevelToChar(const Record::BibliographicLevel bibliographic_level) {
     switch (bibliographic_level) {
     case Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART:
-        return std::string(1, 'a');
+        return 'a';
     case Record::BibliographicLevel::SERIAL_COMPONENT_PART:
-        return std::string(1, 'b');
+        return 'b';
     case Record::BibliographicLevel::COLLECTION:
-        return std::string(1, 'c');
+        return 'c';
     case Record::BibliographicLevel::SUBUNIT:
-        return std::string(1, 'd');
+        return 'd';
     case Record::BibliographicLevel::INTEGRATING_RESOURCE:
-        return std::string(1, 'i');
+        return 'i';
     case Record::BibliographicLevel::MONOGRAPH_OR_ITEM:
-        return std::string(1, 'm');
+        return 'm';
     case Record::BibliographicLevel::SERIAL:
-        return std::string(1, 's');
+        return 's';
     case Record::BibliographicLevel::UNDEFINED:
-        return std::string(1, ' ');
+        return ' ';
     default:
         LOG_ERROR("unknown bibliographic level: " + std::to_string(static_cast<int>(bibliographic_level)) + "!");
     }
@@ -420,13 +451,121 @@ std::string Record::BibliographicLevelToString(const Record::BibliographicLevel 
 Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
                const std::string &control_number)
 {
-    leader_ = "00000" "n" + TypeOfRecordToString(type_of_record) + BibliographicLevelToString(bibliographic_level)
+    leader_ = "00000" "n" + TypeOfRecordToString(type_of_record) + std::string(1, BibliographicLevelToChar(bibliographic_level))
               + " a22004452  4500";
 
     if (not control_number.empty())
         insertField("001", control_number);
 }
 
+
+std::string Record::toBinaryString() const {
+    std::string as_string;
+
+    Record::const_iterator start(begin());
+    do {
+        const bool record_is_oversized(start > begin());
+        Record::const_iterator end(start);
+        unsigned record_size(Record::LEADER_LENGTH + 2 /* end-of-directory and end-of-record */);
+        if (record_is_oversized) // Include size of the 001 field.
+            record_size += fields_.front().getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
+        while (end != this->end()
+               and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH < Record::MAX_RECORD_LENGTH))
+        {
+            record_size += end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
+            ++end;
+        }
+
+        std::string raw_record;
+        raw_record.reserve(record_size);
+        const unsigned no_of_fields(end - start + (record_is_oversized ? 1 /* for the added 001 field */ : 0));
+        AppendToStringWithLeadingZeros(raw_record, record_size, /* width = */ 5);
+        StringUtil::AppendSubstring(raw_record, leader_, 5, 12 - 5);
+        const unsigned base_address_of_data(Record::LEADER_LENGTH + no_of_fields * Record::DIRECTORY_ENTRY_LENGTH
+                                            + 1 /* end-of-directory */);
+        AppendToStringWithLeadingZeros(raw_record, base_address_of_data, /* width = */ 5);
+        StringUtil::AppendSubstring(raw_record, leader_, 17, Record::LEADER_LENGTH - 17);
+
+        // Append the directory:
+        unsigned field_start_offset(0);
+        if (record_is_oversized) {
+            raw_record += "001";
+            AppendToStringWithLeadingZeros(raw_record, fields_.front().getContents().length() + 1 /* field terminator */, 4);
+            AppendToStringWithLeadingZeros(raw_record, field_start_offset, /* width = */ 5);
+            field_start_offset += fields_.front().getContents().length() + 1 /* field terminator */;
+        }
+        for (Record::const_iterator entry(start); entry != end; ++entry) {
+            const size_t contents_length(entry->getContents().length());
+            if (unlikely(contents_length > Record::MAX_VARIABLE_FIELD_DATA_LENGTH))
+                LOG_ERROR("can't generate a directory entry w/ a field w/ data length " + std::to_string(contents_length) + "!");
+            raw_record += entry->getTag().toString();
+            AppendToStringWithLeadingZeros(raw_record, entry->getContents().length() + 1 /* field terminator */, 4);
+            AppendToStringWithLeadingZeros(raw_record, field_start_offset, /* width = */ 5);
+            field_start_offset += contents_length + 1 /* field terminator */;
+        }
+        raw_record += '\x1E'; // end-of-directory
+
+        // Now append the field data:
+        if (record_is_oversized) {
+            raw_record += fields_.front().getContents();
+            raw_record += '\x1E'; // end-of-field
+        }
+        for (Record::const_iterator entry(start); entry != end; ++entry) {
+            raw_record += entry->getContents();
+            raw_record += '\x1E'; // end-of-field
+        }
+        raw_record += '\x1D'; // end-of-record
+
+        if (as_string.empty())
+            as_string.swap(raw_record);
+        else
+            as_string += raw_record;
+
+        start = end;
+    } while (start != end());
+
+    return as_string;
+}
+
+
+void Record::toXmlStringHelper(MarcXmlWriter * const xml_writer) const {
+    xml_writer->openTag("record");
+    xml_writer->writeTagsWithData("leader", leader_, /* suppress_newline = */ true);
+    for (const auto &field : *this) {
+        if (field.isControlField())
+            xml_writer->writeTagsWithData("controlfield", { std::make_pair("tag", field.getTag().toString()) }, field.getContents(),
+                                         /* suppress_newline = */ true);
+        else { // We have a data field.
+            xml_writer->openTag("datafield",
+                                { std::make_pair("tag", field.getTag().toString()),
+                                  std::make_pair("ind1", std::string(1, field.getIndicator1())),
+                                  std::make_pair("ind2", std::string(1, field.getIndicator2()))
+                                });
+
+            const Subfields subfields(field.getSubfields());
+            for (const auto &subfield : subfields)
+                xml_writer->writeTagsWithData("subfield", { std::make_pair("code", std::string(1, subfield.code_)) },
+                                              subfield.value_, /* suppress_newline = */ true);
+
+            xml_writer->closeTag(); // Close "datafield".
+        }
+    }
+    xml_writer->closeTag(); // Close "record".
+}
+
+
+std::string Record::toString(const RecordFormat record_format, const unsigned indent_amount,
+                             const MarcXmlWriter::TextConversionType text_conversion_type) const
+{
+    if (record_format == RecordFormat::MARC21_BINARY)
+        return toBinaryString();
+    else {
+        std::string as_string;
+        MarcXmlWriter xml_writer(&as_string, /* suppress_header_and_tailer = */true, indent_amount, text_conversion_type);
+        toXmlStringHelper(&xml_writer);
+        return as_string;
+    }
+}
 
 
 void Record::merge(const Record &other) {
@@ -435,17 +574,53 @@ void Record::merge(const Record &other) {
 }
 
 
+bool Record::isMonograph() const {
+    for (const auto &_935_field : getTagRange("935")) {
+        for (const auto subfield : _935_field.getSubfields()) {
+            if (subfield.code_ == 'c' and subfield.value_ == "so")
+                return false;
+        }
+    }
+
+    return leader_[7] == 'm';
+}
+
+
+bool Record::isArticle() const {
+    if (leader_[7] == 'm') {
+        for (const auto &_935_field : getTagRange("935")) {
+            for (const auto subfield : _935_field.getSubfields()) {
+                if (subfield.code_ == 'c' and subfield.value_ == "so")
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    return leader_[7] == 'a' or leader_[7] == 'b';
+}
+
+
 static const std::set<std::string> ELECTRONIC_CARRIER_TYPES{ "cb", "cd", "ce", "ca", "cf", "ch", "cr", "ck", "cz" };
 
 
-bool Record::isElectronicResource() const {
-    if (leader_[6] == 'm')
-        return true;
+bool Record::isWebsite() const {
+    if (leader_.length() < 7 or leader_[6] != 'i')
+        return false;
 
-    if (isMonograph()) {
-        for (const auto &_007_field : getTagRange("007")) {
-            const std::string &_007_field_contents(_007_field.getContents());
-            if (not _007_field_contents.empty() and _007_field_contents[0] == 'c')
+    const auto _008_field(findTag("008"));
+    if (unlikely(_008_field == end()))
+        return false;
+
+    const auto &_008_contents(_008_field->getContents());
+    return _008_contents.length() > 21 and _008_contents[21] == 'W';
+}
+
+
+bool Record::isElectronicResource() const {
+    if (leader_.length() > 6 and (leader_[6] == 'a' or leader_[6] == 'm')) {
+        for (const auto _007_field : getTagRange("007")) {
+            if (*_007_field.getContents().c_str() == 'c')
                 return true;
         }
     }
@@ -491,9 +666,25 @@ bool Record::isElectronicResource() const {
         }
     }
 
-    for (const auto &_024_field : getTagRange("024")) {
-        if (_024_field.getFirstSubfieldWithCode('2') == "doi")
-            return true;
+    return not getDOIs().empty();
+
+    return false;
+}
+
+
+bool Record::isPrintResource() const {
+    if (leader_.length() > 6 and leader_[6] == 'a') {
+        for (const auto _007_field : getTagRange("007")) {
+            if (*_007_field.getContents().c_str() == 't')
+                return true;
+        }
+    }
+
+    for (const auto _935_field : getTagRange("935")) {
+        for (const auto &subfield : _935_field.getSubfields()) {
+            if (subfield.code_ == 'b' and subfield.value_ == "druck")
+                return true;
+        }
     }
 
     return false;
@@ -525,7 +716,7 @@ enum Record::BibliographicLevel Record::getBibliographicLevel() {
 
 
 void Record::setBibliographicLevel(const Record::BibliographicLevel new_bibliographic_level) {
-    leader_[7] = BibliographicLevelToString(new_bibliographic_level)[0];
+    leader_[7] = BibliographicLevelToChar(new_bibliographic_level);
 }
 
 
@@ -703,8 +894,8 @@ std::string  Record::getSuperiorTitle() const {
 std::string Record::getSuperiorControlNumber() const {
     for (const auto &field : getTagRange("773")) {
         const auto w_subfield(field.getFirstSubfieldWithCode('w'));
-        if (likely(StringUtil::StartsWith(w_subfield, "(DE-576)")))
-            return w_subfield.substr(__builtin_strlen("(DE-576)"));
+        if (likely(StringUtil::StartsWith(w_subfield, "(DE-627)")))
+            return w_subfield.substr(__builtin_strlen("(DE-627)"));
     }
 
     return "";
@@ -726,26 +917,101 @@ std::string Record::getSummary() const {
 }
 
 
-std::set<std::string> Record::getAllAuthors() const {
-    static const std::vector<std::string> AUTHOR_TAGS { "100", "109", "700" };
+static inline bool ConsistsOfDigitsOnly(const std::string &s) {
+    for (const char ch : s) {
+        if (not StringUtil::IsDigit(ch))
+            return false;
+    }
 
-    std::set<std::string> author_names;
-    for (const auto tag : AUTHOR_TAGS) {
-        for (const auto &field : getTagRange(tag)) {
-            for (const auto &subfield : field.getSubfields()) {
-                if (subfield.code_ == 'a')
-                    author_names.emplace(subfield.value_);
+    return true;
+}
+
+
+std::string Record::getPublicationYear(const std::string &fallback) const {
+    if (isReproduction()) {
+        const auto _534_field(findTag("534"));
+        if (unlikely(_534_field == end()))
+            LOG_ERROR("No 534 Field for reproduction w/ control number " + getControlNumber() + "!");
+
+        const auto c_contents(_534_field->getFirstSubfieldWithCode('c'));
+        if (not c_contents.empty()) {
+            static const auto digit_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d+)"));
+            if (digit_matcher->matched(c_contents))
+                return (*digit_matcher)[1];
+        }
+    }
+
+    if ((isArticle() or isReviewArticle()) and not isMonograph()) {
+        for (const auto &_936_field : getTagRange("936")) {
+            const auto j_contents(_936_field.getFirstSubfieldWithCode('j'));
+            if (not j_contents.empty()) {
+                static const auto year_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(\\d{4})"));
+                if (year_matcher->matched(j_contents))
+                    return (*year_matcher)[1];
             }
         }
     }
 
-    return author_names;
+    for (const auto &_190_field : getTagRange("190")) {
+        const auto j_contents(_190_field.getFirstSubfieldWithCode('j'));
+        if (likely(not j_contents.empty()))
+            return j_contents;
+    }
+
+    const auto _008_field(findTag("008"));
+    if (likely(_008_field != end())) {
+        const auto &field_contents(_008_field->getContents());
+        if (likely(field_contents.length() >= 12)) {
+            const std::string year_candidate(field_contents.substr(7, 4));
+            if (ConsistsOfDigitsOnly(year_candidate) and year_candidate != "9999")
+                return year_candidate;
+        }
+    }
+
+    return fallback;
+}
+
+
+std::map<std::string, std::string> Record::getAllAuthorsAndPPNs() const {
+    static const std::vector<std::string> AUTHOR_TAGS { "100", "109", "700" };
+
+    std::map<std::string, std::string> author_names_to_authority_ppns_map;
+    std::set<std::string> already_seen_author_names;
+    for (const auto tag : AUTHOR_TAGS) {
+        for (const auto &field : getTagRange(tag)) {
+            for (const auto &subfield : field.getSubfields()) {
+                if (subfield.code_ == 'a' and already_seen_author_names.find(subfield.value_) == already_seen_author_names.end()) {
+                    already_seen_author_names.emplace(subfield.value_);
+                    author_names_to_authority_ppns_map[subfield.value_] = BSZUtil::GetK10PlusPPNFromSubfield(field, '0');
+                }
+            }
+        }
+    }
+
+    return author_names_to_authority_ppns_map;
+}
+
+
+std::set<std::string> Record::getAllISSNs() const {
+    static const std::vector<std::string> ISSN_TAGS_AND_SUBFIELDS { "022a", "029a", "440x", "490x", "730x", "773x", "776x", "780x", "785x" };
+    std::set<std::string> all_issns;
+    for (const auto &tag_and_subfield : ISSN_TAGS_AND_SUBFIELDS) {
+        for (const auto &field: getTagRange(tag_and_subfield.substr(0, 3))) {
+            const char subfield_code(tag_and_subfield[3]);
+            for (const auto &subfield : field.getSubfields()) {
+                if (subfield.code_ == subfield_code)
+                   all_issns.emplace(subfield.value_);
+            }
+        }
+    }
+
+    return all_issns;
 }
 
 
 std::set<std::string> Record::getDOIs() const {
     std::set<std::string> dois;
-    for (const auto field : getTagRange("024")) {
+    for (const auto &field : getTagRange("024")) {
         const Subfields subfields(field.getSubfields());
         if (field.getIndicator1() == '7' and subfields.getFirstSubfieldWithCode('2') == "doi")
             dois.emplace(StringUtil::Trim(subfields.getFirstSubfieldWithCode('a')));
@@ -757,17 +1023,34 @@ std::set<std::string> Record::getDOIs() const {
 
 std::set<std::string> Record::getISSNs() const {
     std::set<std::string> issns;
-    for (const auto field : getTagRange("022"))
-        issns.emplace(field.getFirstSubfieldWithCode('a'));
+    for (const auto &field : getTagRange("022")) {
+        const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
+        if (not first_subfield_a.empty())
+            issns.emplace(first_subfield_a);
+    }
 
     return issns;
 }
 
 
+std::set<std::string> Record::getSuperiorISSNs() const {
+    std::set<std::string> superior_issns;
+    for (const auto &field : getTagRange("773")) {
+        const std::string first_subfield_x(field.getFirstSubfieldWithCode('x'));
+        if (not first_subfield_x.empty())
+            superior_issns.emplace(first_subfield_x);
+    }
+
+    return superior_issns;
+}
+
 std::set<std::string> Record::getISBNs() const {
     std::set<std::string> isbns;
-    for (const auto field : getTagRange("020"))
-        isbns.emplace(field.getFirstSubfieldWithCode('a'));
+    for (const auto &field : getTagRange("020")) {
+        const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
+        if (not first_subfield_a.empty())
+            isbns.emplace(first_subfield_a);
+    }
 
     return isbns;
 }
@@ -775,7 +1058,7 @@ std::set<std::string> Record::getISBNs() const {
 
 std::set<std::string> Record::getDDCs() const {
     std::set<std::string> ddcs;
-    for (const auto field : getTagRange("082"))
+    for (const auto &field : getTagRange("082"))
         // Many DDC's have superfluous backslashes which are non-standard and should be removed.
         ddcs.emplace(StringUtil::RemoveChars("/", field.getFirstSubfieldWithCode('a')));
 
@@ -785,12 +1068,49 @@ std::set<std::string> Record::getDDCs() const {
 
 std::set<std::string> Record::getRVKs() const {
     std::set<std::string> rvks;
-    for (const auto field : getTagRange("084")) {
+    for (const auto &field : getTagRange("084")) {
         if (field.getFirstSubfieldWithCode('2') == "rvk")
             rvks.emplace(field.getFirstSubfieldWithCode('a'));
     }
 
     return rvks;
+}
+
+
+std::set<std::string> Record::getSSGNs() const {
+    std::set<std::string> ssgns;
+    for (const auto &field : getTagRange("084")) {
+        if (field.getFirstSubfieldWithCode('2') == "ssgn") {
+            for (const auto &subfield : field.getSubfields()) {
+                if (subfield.code_ == 'a')
+                    ssgns.insert(StringUtil::TrimWhite(subfield.value_));
+            }
+        }
+    }
+
+    return ssgns;
+}
+
+
+std::set<std::string> Record::getReferencedGNDNumbers(const std::set<std::string> &tags) const {
+    std::set<std::string> referenced_gnd_numbers;
+    for (const auto &field : fields_) {
+        if (not field.isDataField())
+            continue;
+
+        if (not tags.empty() and tags.find(field.getTag().toString()) == tags.cend())
+            continue;
+
+        const char FIRST_TAG_CHAR(field.getTag().c_str()[0]);
+        if (FIRST_TAG_CHAR == '6' or FIRST_TAG_CHAR == 'L') {
+            for (const auto &subfield : field.getSubfields()) {
+                if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-588)"))
+                    referenced_gnd_numbers.emplace(subfield.value_.substr(__builtin_strlen("(DE-588)")));
+            }
+        }
+    }
+
+    return referenced_gnd_numbers;
 }
 
 
@@ -979,6 +1299,19 @@ bool Record::insertField(const Tag &new_field_tag, const std::string &new_field_
 }
 
 
+bool Record::insertFieldAtEnd(const Tag &new_field_tag, const std::string &new_field_value) {
+    auto insertion_location(fields_.begin());
+    while (insertion_location != fields_.end() and new_field_tag >= insertion_location->getTag())
+        ++insertion_location;
+    if (insertion_location != fields_.begin() and (insertion_location - 1)->getTag() == new_field_tag
+        and not IsRepeatableField(new_field_tag))
+        return false;
+    fields_.emplace(insertion_location, new_field_tag, new_field_value);
+    record_size_ += DIRECTORY_ENTRY_LENGTH + new_field_value.length() + 1 /* field separator */;
+    return true;
+}
+
+
 void Record::appendField(const Tag &new_field_tag, const std::string &field_contents, const char indicator1, const char indicator2) {
     if (unlikely(not fields_.empty() and fields_.back().getTag() > new_field_tag))
         LOG_ERROR("attempt to append a \"" + new_field_tag.toString() + "\" field after a \"" + fields_.back().getTag().toString()
@@ -1009,9 +1342,31 @@ void Record::appendField(const Field &field) {
 }
 
 
+void Record::replaceField(const Tag &field_tag, const std::string &field_contents, const char indicator1, const char indicator2) {
+    std::string new_field_value;
+    new_field_value += indicator1;
+    new_field_value += indicator2;
+    new_field_value += field_contents;
+
+    auto insertion_location(fields_.begin());
+    while (insertion_location != fields_.end() and field_tag > insertion_location->getTag())
+        ++insertion_location;
+
+    if (insertion_location != fields_.end() and field_tag == insertion_location->getTag()) {
+        record_size_ += new_field_value.size();
+        record_size_ -= insertion_location->getContents().size();
+        insertion_location->setContents(new_field_value);
+        return;
+    }
+
+    fields_.emplace(insertion_location, field_tag, new_field_value);
+    record_size_ += DIRECTORY_ENTRY_LENGTH + new_field_value.length() + 1 /* field separator */;
+}
+
+
 bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) {
-    const auto field(std::find_if(fields_.begin(), fields_.end(),
-                                  [&field_tag](const Field &field1) -> bool { return field1.getTag() == field_tag; }));
+    const auto &field(std::find_if(fields_.begin(), fields_.end(),
+                                   [&field_tag](const Field &field1) -> bool { return field1.getTag() == field_tag; }));
     if (field == fields_.end())
         return false;
 
@@ -1215,7 +1570,33 @@ bool Record::fieldOrSubfieldMatched(const std::string &field_or_field_and_subfie
 }
 
 
+std::vector<Record::iterator> Record::getMatchedFields(const std::string &field_or_field_and_subfield_code,
+                                                       RegexMatcher * const regex_matcher)
+{
+    if (unlikely(field_or_field_and_subfield_code.length() < TAG_LENGTH or field_or_field_and_subfield_code.length() > TAG_LENGTH + 1))
+        LOG_ERROR("\"field_or_field_and_subfield_code\" must be a tag or a tag plus a subfield code!");
+
+    const char subfield_code((field_or_field_and_subfield_code.length() == TAG_LENGTH + 1) ? field_or_field_and_subfield_code[TAG_LENGTH]
+                                                                                               : '\0');
+    std::vector<iterator> matched_fields;
+    const Range field_range(getTagRange(field_or_field_and_subfield_code.substr(0, TAG_LENGTH)));
+    for (auto field_itr(field_range.begin()); field_itr != field_range.end(); ++field_itr) {
+        const auto &field(*field_itr);
+        if (subfield_code != '\0' and field.hasSubfield(subfield_code)) {
+            if (regex_matcher->matched(field.getFirstSubfieldWithCode(subfield_code)))
+                matched_fields.emplace_back(field_itr);
+        } else if (regex_matcher->matched(field.getContents()))
+            matched_fields.emplace_back(field_itr);
+    }
+
+    return matched_fields;
+}
+
+
 enum class MediaType { XML, MARC21, OTHER };
+
+
+const ThreadSafeRegexMatcher MARC21_MAGIC_MATCHER("(^[0-9]{5})([acdnp][^bhlnqsu-z]|[acdnosx][z]|[cdn][uvxy]|[acdn][w]|[cdn][q])");
 
 
 static MediaType GetMediaType(const std::string &filename) {
@@ -1242,16 +1623,7 @@ static MediaType GetMediaType(const std::string &filename) {
     if (StringUtil::StartsWith(magic, "<?xml"))
         return MediaType::XML;
 
-    static RegexMatcher *marc21_matcher;
-    if (marc21_matcher == nullptr) {
-        std::string err_msg;
-        marc21_matcher = RegexMatcher::RegexMatcherFactory("(^[0-9]{5})([acdnp][^bhlnqsu-z]|[acdnosx][z]|[cdn][uvxy]|[acdn][w]|[cdn][q])",
-                                                           &err_msg);
-        if (marc21_matcher == nullptr)
-            LOG_ERROR("failed to compile a regex! (" + err_msg + ")");
-    }
-
-    return marc21_matcher->matched(magic) ? MediaType::MARC21 : MediaType::XML;
+    return MARC21_MAGIC_MATCHER.match(magic) ? MediaType::MARC21 : MediaType::XML;
 }
 
 
@@ -1304,19 +1676,54 @@ std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, FileT
 }
 
 
+BinaryReader::BinaryReader(File * const input)
+    : Reader(input), next_record_start_(0)
+{
+    struct stat stat_buf;
+    if (::fstat(input->getFileDescriptor(), &stat_buf) != 0)
+        LOG_ERROR("stat(2) on \"" + input->getPath() + "\" failed!");
+    if (S_ISFIFO(stat_buf.st_mode)) {
+        mmap_ = nullptr;
+        if (not input->setPipeBufferSize())
+            LOG_ERROR("failed to increase the pipe (FIFO) buffer size!");
+    } else {
+        offset_ = 0;
+        input_file_size_ = stat_buf.st_size;
+        if (input_file_size_ == 0) {
+            mmap_ = nullptr;
+            last_record_ = Record();
+            return;
+        }
+        mmap_ = reinterpret_cast<char *>(::mmap(nullptr, stat_buf.st_size, PROT_READ, MAP_PRIVATE, input->getFileDescriptor(), 0));
+        if (mmap_ == MAP_FAILED or mmap_ == nullptr)
+            LOG_ERROR("Failed to mmap \"" + input->getPath() + "\"!");
+    }
+
+    last_record_ = actualRead();
+}
+
+
+BinaryReader::~BinaryReader() {
+    if (mmap_ != nullptr and ::munmap((void *)(mmap_), input_file_size_) != 0)
+        LOG_ERROR("munmap(2) failed!");
+}
+
+
 Record BinaryReader::read() {
     if (unlikely(not last_record_))
         return last_record_;
 
     Record new_record;
     do {
-        next_record_start_ = input_->tell();
+        next_record_start_ = (mmap_ == nullptr) ? input_->tell() : offset_;
         new_record = actualRead();
         if (unlikely(new_record.getControlNumber() == last_record_.getControlNumber()))
             last_record_.merge(new_record);
     } while (new_record.getControlNumber() == last_record_.getControlNumber());
 
     new_record.swap(last_record_);
+
+    // This should not be necessary unless we got bad data!
     new_record.sortFieldTags(new_record.begin(), new_record.end());
 
     return new_record;
@@ -1324,30 +1731,83 @@ Record BinaryReader::read() {
 
 
 Record BinaryReader::actualRead() {
-    char buf[Record::MAX_RECORD_LENGTH];
-    size_t bytes_read;
-    if (unlikely((bytes_read = input_->read(buf, Record::RECORD_LENGTH_FIELD_LENGTH)) == 0))
-        return Record();
+    if (mmap_ == nullptr) {
+        char buf[Record::MAX_RECORD_LENGTH];
+        size_t bytes_read;
+        if (unlikely((bytes_read = input_->read(buf, Record::RECORD_LENGTH_FIELD_LENGTH)) == 0))
+            return Record();
 
-    if (unlikely(bytes_read != Record::RECORD_LENGTH_FIELD_LENGTH))
-        LOG_ERROR("failed to read record length!");
-    const unsigned record_length(ToUnsigned(buf, Record::RECORD_LENGTH_FIELD_LENGTH));
+        if (unlikely(bytes_read != Record::RECORD_LENGTH_FIELD_LENGTH))
+            LOG_ERROR("failed to read record length!");
+        const unsigned record_length(ToUnsigned(buf, Record::RECORD_LENGTH_FIELD_LENGTH));
 
-    bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH, record_length - Record::RECORD_LENGTH_FIELD_LENGTH);
-    if (unlikely(bytes_read != record_length - Record::RECORD_LENGTH_FIELD_LENGTH))
-        LOG_ERROR("failed to read a record from \"" + input_->getPath() + "\"!");
+        bytes_read = input_->read(buf + Record::RECORD_LENGTH_FIELD_LENGTH, record_length - Record::RECORD_LENGTH_FIELD_LENGTH);
+        if (unlikely(bytes_read != record_length - Record::RECORD_LENGTH_FIELD_LENGTH))
+            LOG_ERROR("failed to read a record from \"" + input_->getPath() + "\"!");
 
-    return Record(record_length, buf);
+        return Record(record_length, buf);
+    } else { // Use memory-mapped I/O.
+        if (unlikely(offset_ == input_file_size_))
+            return Record();
+
+        if (unlikely(offset_ + Record::RECORD_LENGTH_FIELD_LENGTH >= input_file_size_))
+            LOG_ERROR("not enough remaining room for a record length in the memory mapping! (input_file_size_ = "
+                      + std::to_string(input_file_size_) + ", offset_ = " + std::to_string(offset_) + ")");
+        const unsigned record_length(ToUnsigned(mmap_ + offset_, Record::RECORD_LENGTH_FIELD_LENGTH));
+
+        if (unlikely(offset_ + record_length > input_file_size_))
+            LOG_ERROR("not enough remaining room for the rest of the record in the memory mapping!");
+        offset_ += record_length;
+
+        return Record(record_length, mmap_ + offset_ - record_length);
+    }
+}
+
+
+void BinaryReader::rewind() {
+    if (mmap_ == nullptr)
+        input_->rewind();
+    else
+        offset_ = 0;
+    next_record_start_ = 0;
+    last_record_ = actualRead();
 }
 
 
 bool BinaryReader::seek(const off_t offset, const int whence) {
-    if (input_->seek(offset, whence)) {
-        next_record_start_ = input_->tell();
+    if (mmap_ == nullptr) {
+        if (input_->seek(offset, whence)) {
+            next_record_start_ = input_->tell();
+            last_record_ = actualRead();
+            return true;
+        } else
+            return false;
+    } else { // Use memory-mapped I/O.
+        switch (whence) {
+        case SEEK_SET:
+            if (offset < 0 or static_cast<size_t>(offset) > input_file_size_)
+                return false;
+            offset_ = offset;
+            break;
+        case SEEK_CUR:
+            if (static_cast<ssize_t>(offset_) + offset < 0
+                or static_cast<ssize_t>(offset_) + offset > static_cast<ssize_t>(input_file_size_))
+                return false;
+            offset_ += offset;
+            break;
+        case SEEK_END:
+            if (offset < 0 or static_cast<size_t>(offset) > input_file_size_)
+                return false;
+            offset_ = input_file_size_ - offset;
+            break;
+        default:
+            LOG_ERROR("bad value for \"whence\": " + std::to_string(whence) + "!");
+        }
+        next_record_start_ = offset_;
         last_record_ = actualRead();
+
         return true;
-    } else
-        return false;
+    }
 }
 
 
@@ -1750,109 +2210,21 @@ void BinaryWriter::write(const Record &record) {
     std::string error_message;
     if (not record.isValid(&error_message))
         LOG_ERROR("trying to write an invalid record: " + error_message + " (Control number: " + record.getControlNumber() + ")");
-
-    Record::const_iterator start(record.begin());
-    do {
-        const bool record_is_oversized(start > record.begin());
-        Record::const_iterator end(start);
-        unsigned record_size(Record::LEADER_LENGTH + 2 /* end-of-directory and end-of-record */);
-        if (record_is_oversized) // Include size of the 001 field.
-            record_size += record.fields_.front().getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
-        while (end != record.end()
-               and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH < Record::MAX_RECORD_LENGTH))
-        {
-            record_size += end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
-            ++end;
-        }
-
-        std::string raw_record;
-        raw_record.reserve(record_size);
-        const unsigned no_of_fields(end - start);
-        raw_record += ToStringWithLeadingZeros(record_size, /* width = */ 5);
-        raw_record += record.leader_.substr(5, 12 - 5);
-        const unsigned base_address_of_data(Record::LEADER_LENGTH + no_of_fields * Record::DIRECTORY_ENTRY_LENGTH
-                                            + 1 /* end-of-directory */);
-        raw_record += ToStringWithLeadingZeros(base_address_of_data, /* width = */ 5);
-        raw_record += record.leader_.substr(17, Record::LEADER_LENGTH - 17);
-
-        // Append the directory:
-        unsigned field_start_offset(0);
-        if (record_is_oversized) {
-            raw_record += "001"
-                          + ToStringWithLeadingZeros(record.fields_.front().getContents().length() + 1 /* field terminator */, 4)
-                          + ToStringWithLeadingZeros(field_start_offset, /* width = */ 5);
-            field_start_offset += record.fields_.front().getContents().length() + 1 /* field terminator */;
-        }
-        for (Record::const_iterator entry(start); entry != end; ++entry) {
-            const size_t contents_length(entry->getContents().length());
-            if (unlikely(contents_length > Record::MAX_VARIABLE_FIELD_DATA_LENGTH))
-                LOG_ERROR("can't generate a directory entry w/ a field w/ data length " + std::to_string(contents_length) + "!");
-            raw_record += entry->getTag().toString()
-                          + ToStringWithLeadingZeros(entry->getContents().length() + 1 /* field terminator */, 4)
-                          + ToStringWithLeadingZeros(field_start_offset, /* width = */ 5);
-            field_start_offset += contents_length + 1 /* field terminator */;
-        }
-        raw_record += '\x1E'; // end-of-directory
-
-        // Now append the field data:
-        if (record_is_oversized) {
-            raw_record += record.fields_.front().getContents();
-            raw_record += '\x1E'; // end-of-field
-        }
-        for (Record::const_iterator entry(start); entry != end; ++entry) {
-            raw_record += entry->getContents();
-            raw_record += '\x1E'; // end-of-field
-        }
-        raw_record += '\x1D'; // end-of-record
-
-        output_->write(raw_record);
-
-        start = end;
-    } while (start != record.end());
+    output_->write(record.toBinaryString());
 }
 
 
-XmlWriter::XmlWriter(File * const output_file, const unsigned indent_amount,
-                     const MarcXmlWriter::TextConversionType text_conversion_type)
-{
-    xml_writer_ = new MarcXmlWriter(output_file, indent_amount, text_conversion_type);
-}
-
-
-XmlWriter::XmlWriter(std::string * const output_string, const unsigned indent_amount,
-                     const MarcXmlWriter::TextConversionType text_conversion_type)
-{
-    xml_writer_ = new MarcXmlWriter(output_string, indent_amount, text_conversion_type);
+XmlWriter::~XmlWriter() {
+    // the MarcXmlWriter owns the File pointer as well, so we cede ownership to it entirely
+    output_.release();
 }
 
 
 void XmlWriter::write(const Record &record) {
-    xml_writer_->openTag("record");
-
-    xml_writer_->writeTagsWithData("leader", record.leader_, /* suppress_newline = */ true);
-
-    for (const auto &field : record) {
-        if (field.isControlField())
-            xml_writer_->writeTagsWithData("controlfield", { std::make_pair("tag", field.getTag().toString()) },
-                                           field.getContents(),
-                    /* suppress_newline = */ true);
-        else { // We have a data field.
-            xml_writer_->openTag("datafield",
-                                 { std::make_pair("tag", field.getTag().toString()),
-                                   std::make_pair("ind1", std::string(1, field.getIndicator1())),
-                                   std::make_pair("ind2", std::string(1, field.getIndicator2()))
-                                 });
-
-            const Subfields subfields(field.getSubfields());
-            for (const auto &subfield : subfields)
-                xml_writer_->writeTagsWithData("subfield", { std::make_pair("code", std::string(1, subfield.code_)) },
-                                               subfield.value_, /* suppress_newline = */ true);
-
-            xml_writer_->closeTag(); // Close "datafield".
-        }
-    }
-
-    xml_writer_->closeTag(); // Close "record".
+    std::string error_message;
+    if (not record.isValid(&error_message))
+        LOG_ERROR("trying to write an invalid record: " + error_message + " (Control number: " + record.getControlNumber() + ")");
+    record.toXmlStringHelper(&xml_writer_);
 }
 
 
@@ -1872,7 +2244,7 @@ unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename) {
     // Open a scope because we need the MARC::Reader to go out-of-scope before we unlink the associated file.
     {
         std::unique_ptr<Reader> marc_reader(Reader::Factory(marc_filename));
-        temp_filename = "/tmp/" + std::string(::basename(::progname)) + std::to_string(::getpid())
+        temp_filename = "/tmp/" + std::string(::basename(::program_invocation_name)) + std::to_string(::getpid())
                         + (marc_reader->getReaderType() == FileType::XML ? ".xml" : ".mrc");
         std::unique_ptr<Writer> marc_writer(Writer::Factory(temp_filename));
         std::unordered_set<std::string> already_seen_control_numbers;
@@ -1977,7 +2349,11 @@ std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fie
 
     std::string blob;
     blob.reserve(200000); // Roughly twice the maximum size of a single MARC-21 record.
-    blob += record.leader_;
+
+    // Only include leader data that are parameterised
+    // c.f https://www.loc.gov/marc/bibliographic/bdleader.html
+    StringUtil::AppendSubstring(blob, record.leader_, 5, 12 - 5);
+    StringUtil::AppendSubstring(blob, record.leader_, 17, 20 - 17);
 
     for (const auto &field_ref : field_refs)
         blob += field_ref->getTag().toString() + field_ref->getContents();
@@ -1997,16 +2373,19 @@ bool UBTueIsAquisitionRecord(const Record &marc_record) {
 }
 
 
+const ThreadSafeRegexMatcher PARENT_PPN_MATCHER("^\\([^)]+\\)(.+)$");
+
+
 std::string GetParentPPN(const Record &record) {
     static const std::vector<Tag> parent_reference_tags{ "800", "810", "830", "773", "776" };
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^\\([^)]+\\)(.+)$"));
     for (auto &field : record) {
         if (std::find_if(parent_reference_tags.cbegin(), parent_reference_tags.cend(),
                          [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == parent_reference_tags.cend())
             continue;
 
-        if (matcher->matched(field.getFirstSubfieldWithCode('w'))) {
-            const std::string ppn_candidate((*matcher)[1]);
+        auto matches(PARENT_PPN_MATCHER.match(field.getFirstSubfieldWithCode('w')));
+        if (matches) {
+            const std::string ppn_candidate(matches[1]);
             if (MiscUtil::IsValidPPN(ppn_candidate))
                 return ppn_candidate;
         }
@@ -2021,6 +2400,7 @@ static std::unordered_map<Tag, bool> tag_to_repeatable_map{
     { Tag("001"), false },
     { Tag("003"), false },
     { Tag("005"), false },
+    { Tag("006"), true  },
     { Tag("007"), true  },
     { Tag("008"), false },
     { Tag("010"), false },
@@ -2304,10 +2684,17 @@ bool UBTueIsElectronicResource(const Record &marc_record) {
 bool IsOpenAccess(const Record &marc_record) {
     for (const auto &_856_field : marc_record.getTagRange("856")) {
         const Subfields subfields(_856_field.getSubfields());
-        const std::string subfield_z_contents(TextUtil::UTF8ToLower(subfields.getFirstSubfieldWithCode('z')));
-        if (StringUtil::StartsWith(subfield_z_contents, "kostenfrei")) {
+        const std::string subfield_z_contents(subfields.getFirstSubfieldWithCode('z'));
+        if (subfield_z_contents == "LF")
+            return true;
+        if (StringUtil::StartsWith(TextUtil::UTF8ToLower(subfield_z_contents), "kostenfrei")) {
             const std::string subfield_3_contents(TextUtil::UTF8ToLower(subfields.getFirstSubfieldWithCode('3')));
-            if (subfield_3_contents == "volltext")
+            if (subfield_3_contents.empty() or subfield_3_contents == "volltext")
+                return true;
+        }
+
+        for (const auto &subfield : subfields) {
+            if (subfield.code_ == 'x' and TextUtil::UTF8ToLower(subfield.value_) == "unpaywall")
                 return true;
         }
     }
@@ -2370,13 +2757,13 @@ FileType GetOptionalWriterType(int * const argc, char *** const argv, const int 
 }
 
 
-bool IsAReviewArticle(const Record &record) {
-    for (const auto _655_field : record.getTagRange("655")) {
+bool Record::isReviewArticle() const {
+    for (const auto _655_field : getTagRange("655")) {
         if (StringUtil::FindCaseInsensitive(_655_field.getFirstSubfieldWithCode('a'), "rezension") != std::string::npos)
             return true;
     }
 
-    for (const auto _935_field : record.getTagRange("935")) {
+    for (const auto _935_field : getTagRange("935")) {
         if (_935_field.getFirstSubfieldWithCode('c') == "uwre")
             return true;
     }
@@ -2385,23 +2772,27 @@ bool IsAReviewArticle(const Record &record) {
 }
 
 
-bool PossiblyAReviewArticle(const Record &record) {
-    if (IsAReviewArticle(record))
+bool Record::isPossiblyReviewArticle() const {
+    if (isReviewArticle())
         return true;
 
-    return StringUtil::FindCaseInsensitive(record.getMainTitle(), "review") != std::string::npos
-           or StringUtil::FindCaseInsensitive(record.getMainTitle(), "rezension") != std::string::npos;
+    return StringUtil::FindCaseInsensitive(getMainTitle(), "review") != std::string::npos
+           or StringUtil::FindCaseInsensitive(getMainTitle(), "rezension") != std::string::npos;
 }
 
 
-bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const partner_control_number) {
-    if ((field.getTag() != "775" and field.getTag() != "776") or not field.hasSubfield('w'))
+const std::vector<Tag> CROSS_LINK_FIELDS{ Tag("775"), Tag("776"), Tag("780"), Tag("785") };
+
+
+bool IsCrossLinkField (const MARC::Record::Field &field, std::string * const partner_control_number, const std::vector<MARC::Tag> &cross_link_fields) {
+    if (not field.hasSubfield('w')
+        or std::find(cross_link_fields.cbegin(), cross_link_fields.cend(), field.getTag().toString()) == cross_link_fields.cend())
         return false;
 
     const MARC::Subfields subfields(field.getSubfields());
     for (const auto &w_subfield : subfields.extractSubfields('w')) {
-        if (StringUtil::StartsWith(w_subfield, "(DE-576)")) {
-            *partner_control_number = w_subfield.substr(__builtin_strlen("(DE-576)"));
+        if (StringUtil::StartsWith(w_subfield, "(DE-627)")) {
+            *partner_control_number = w_subfield.substr(__builtin_strlen("(DE-627)"));
             return true;
         }
     }
@@ -2410,26 +2801,24 @@ bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const part
 }
 
 
-// Returns a partner PPN or the empty string if none was found.
-static void ExtractCrossReferencePPNsFromTag(const MARC::Record &record, const std::string &tag, std::set<std::string> * const partner_ppns)
-{
-    for (const auto &field : record.getTagRange(tag)) {
-        std::string partner_control_number;
-        if (IsCrossLinkField(field, &partner_control_number))
-            partner_ppns->emplace(partner_control_number);
-    }
-}
-
-
 std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record) {
     std::set<std::string> partner_ppns;
-    ExtractCrossReferencePPNsFromTag(record, "775", &partner_ppns);
-    ExtractCrossReferencePPNsFromTag(record, "776", &partner_ppns);
+    for (const auto &field : record) {
+        if (std::find(CROSS_LINK_FIELDS.cbegin(), CROSS_LINK_FIELDS.cend(), field.getTag()) == CROSS_LINK_FIELDS.cend())
+            continue;
+
+        std::string partner_control_number;
+        if (IsCrossLinkField(field, &partner_control_number))
+            partner_ppns.emplace(partner_control_number);
+    }
+
     return partner_ppns;
 }
 
 
-static void LoadTermsToFieldsMap(std::unordered_map<std::string, Record::Field> * const terms_to_fields_map) {
+static std::unordered_map<std::string, Record::Field> LoadTermsToFieldsMap() {
+    std::unordered_map<std::string, Record::Field> terms_to_fields_map;
+
     const auto MAP_FILENAME(UBTools::GetTuelibPath() + "tags_and_keyword_fields.map");
     const auto map_file(FileUtil::OpenInputFileOrDie(MAP_FILENAME));
     unsigned line_no(0);
@@ -2442,19 +2831,18 @@ static void LoadTermsToFieldsMap(std::unordered_map<std::string, Record::Field> 
             LOG_ERROR("bad entry on line #" + std::to_string(line_no) + " in \"" + MAP_FILENAME + "\"!");
 
         const Record::Field field(line.substr(0, Record::TAG_LENGTH), StringUtil::CStyleUnescape(line.substr(Record::TAG_LENGTH)));
-        terms_to_fields_map->emplace(field.getFirstSubfieldWithCode('a'), field);
+        terms_to_fields_map.emplace(field.getFirstSubfieldWithCode('a'), field);
     }
+
+    return terms_to_fields_map;
 }
 
 
 Record::Field GetIndexField(const std::string &index_term) {
+    static const std::unordered_map<std::string, Record::Field> TERMS_TO_FIELDS_MAP(LoadTermsToFieldsMap());
     static const Tag DEFAULT_TAG("650");
-    static std::unordered_map<std::string, Record::Field> terms_to_fields_map;
-    if (unlikely(terms_to_fields_map.empty()))
-        LoadTermsToFieldsMap(&terms_to_fields_map);
-
-    const auto term_and_field(terms_to_fields_map.find(TextUtil::UTF8ToLower(index_term)));
-    if (term_and_field == terms_to_fields_map.cend())
+    const auto term_and_field(TERMS_TO_FIELDS_MAP.find(TextUtil::UTF8ToLower(index_term)));
+    if (term_and_field == TERMS_TO_FIELDS_MAP.cend())
         return Record::Field(Tag(DEFAULT_TAG), { { { 'a', index_term } } }, /* indicator1 = */' ', /* indicator2 = */'4');
     return term_and_field->second;
 }
@@ -2463,6 +2851,31 @@ Record::Field GetIndexField(const std::string &index_term) {
 // See https://www.loc.gov/marc/bibliographic/bd6xx.html to understand our implementation.
 bool IsSubjectAccessTag(const Tag &tag) {
     return tag.toString()[0] == '6';
+}
+
+
+// Extracts print and online cross links.
+std::set<std::string> ExtractPrintAndOnlineCrossLinkPPNs(const MARC::Record &record) {
+    std::set<std::string> cross_reference_ppns;
+    for (const auto _776_field : record.getTagRange("776")) {
+        const auto ppn(BSZUtil::GetK10PlusPPNFromSubfield(_776_field, 'w'));
+        if (ppn.empty())
+            continue;
+
+        const auto subfield_i_contents(_776_field.getFirstSubfieldWithCode('i'));
+        if (StringUtil::StartsWith(subfield_i_contents, "Druckausg") or StringUtil::StartsWith(subfield_i_contents, "Online")) {
+            cross_reference_ppns.emplace(ppn);
+            continue;
+        }
+
+        const auto subfield_n_contents(_776_field.getFirstSubfieldWithCode('n'));
+        if (StringUtil::StartsWith(subfield_n_contents, "Druck-Ausgabe") or StringUtil::StartsWith(subfield_n_contents, "Online") ) {
+            cross_reference_ppns.emplace(ppn);
+            continue;
+        }
+    }
+
+    return cross_reference_ppns;
 }
 
 

@@ -3,6 +3,7 @@ categorise_marc
 control_number_filter
 delete_ids
 enumerate_non_standard_tags
+lcsh_filter
 make_marc_xml
 marc21_scramble
 marc21_size
@@ -13,11 +14,15 @@ marc_convert
 marc_diff
 marc_filter
 marc_grep
+marc_grep_ng
 marc_info
 marc_ngram_language_stats
+marc_ppn_patcher
+marc_range_filter
 marc_remove_dups
 marc_size
 marc_split
 marc_tag_grep
 replace_marc_records
 subfield_code_replacer
+debs/

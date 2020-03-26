@@ -1,7 +1,7 @@
 /** \brief Various classes, functions etc. having to do with the Library of Congress MARC bibliographic format.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -31,6 +32,7 @@
 #include "Compiler.h"
 #include "File.h"
 #include "MarcXmlWriter.h"
+#include "StringUtil.h"
 #include "XMLSubsetParser.h"
 
 
@@ -93,6 +95,10 @@ public:
     bool isLocal() const;
     Tag &swap(Tag &other);
 };
+
+
+bool IsRepeatableField(const Tag &tag);
+bool IsStandardTag(const Tag &tag);
 
 
 } // namespace MARC
@@ -327,6 +333,7 @@ public:
         }
         inline bool isControlField() const __attribute__ ((pure)) { return tag_ <= "009"; }
         inline bool isDataField() const __attribute__ ((pure)) { return tag_ > "009"; }
+        inline bool isRepeatableField() const { return MARC::IsRepeatableField(tag_); };
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
@@ -365,6 +372,10 @@ public:
 
         /** \note Do *not* call this on control fields! */
         void deleteAllSubfieldsWithCode(const char subfield_code);
+
+        std::string getHash() const { return StringUtil::Sha1(toString()); }
+
+        inline void swap(Field &other) { tag_.swap(other.tag_); contents_.swap(other.contents_); }
     };
 
     enum class RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
@@ -453,8 +464,9 @@ public:
 private:
     Record(): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */) { }
 public:
-    explicit Record(const std::string &leader); // Make an empty record that only has a leader.
-    explicit Record(const size_t record_size, char * const record_start);
+    explicit Record(const std::string &leader); // Make an empty record that only has a leader and sets the record size to
+                                                // LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */
+    explicit Record(const size_t record_size, const char * const record_start);
     Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
            const std::string &control_number = "");
     Record(const Record &other) = default;
@@ -479,17 +491,34 @@ public:
         fields_.clear();
     }
 
+    enum class RecordFormat { MARC21_BINARY, MARC_XML };
+
+    /** \brief Creates a string representation of a MARC record.
+     *  \note  "indent_amount" and "text_conversion_type" are only used if "record_format" == MARC_XML.
+     */
+    std::string toString(const RecordFormat record_format, const unsigned indent_amount = 0,
+                         const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion) const;
+
     /** \brief Adds fields of "other" to this.
      *  \note  If non-repeatable fields of "other" already exist in this they will be silently ignored.
      */
     void merge(const Record &other);
     inline size_t getNumberOfFields() const { return fields_.size(); }
     inline const std::string &getLeader() const { return leader_; }
+    inline std::string &getLeader() { return leader_; }
     inline bool hasValidLeader() const { return leader_.length() == LEADER_LENGTH; }
-    inline bool isMonograph() const { return leader_[7] == 'm'; }
+    bool isMonograph() const;
     inline bool isSerial() const { return leader_[7] == 's'; }
-    inline bool isArticle() const { return leader_[7] == 'a' or leader_[7] == 'b'; }
+    bool isArticle() const;
+    bool isPossiblyReviewArticle() const;
+    bool isReviewArticle() const;
+    bool isWebsite() const;
+    inline bool isReproduction() const { return getFirstField("534") != end(); }
     bool isElectronicResource() const;
+    bool isPrintResource() const;
+    inline bool isCorporateBody() const { return getRecordType() == RecordType::AUTHORITY and hasTag("110"); }
+    inline bool isMeeting() const { return getRecordType() == RecordType::AUTHORITY and hasTag("111"); }
+    inline bool isPerson() const { return getRecordType() == RecordType::AUTHORITY and hasTag("100"); }
 
     inline std::string getControlNumber() const {
         if (unlikely(fields_.empty() or fields_.front().getTag() != "001"))
@@ -515,13 +544,28 @@ public:
     /** \return A "summary" (could be an abstract etc.), if found, else the empty string. */
     std::string getSummary() const;
 
-    /** \return All author names in fields 100$a and 700$a. */
-    std::set<std::string> getAllAuthors() const;
+    /** \return A guess at the publication year or the fallback value if we could not find one. */
+    std::string getPublicationYear(const std::string &fallback = "") const;
+
+    /** \return All author names in fields 100$a and 700$a and theitr associated authority record PPN's. */
+    std::map<std::string, std::string> getAllAuthorsAndPPNs() const;
+
+    /** \return All ISSN's including ISSN's of superior works */
+    std::set<std::string> getAllISSNs() const;
+
     std::set<std::string> getDOIs() const;
     std::set<std::string> getISSNs() const;
+    std::set<std::string> getSuperiorISSNs() const;
     std::set<std::string> getISBNs() const;
     std::set<std::string> getDDCs() const;
     std::set<std::string> getRVKs() const;
+    std::set<std::string> getSSGNs() const;
+
+    /** \brief  Return the extracted GND codes from the fields determined by the provided tags.
+     *  \param  tags  If non-empty extract codes from the fields w/ these tags o/w extract codes from all data fields.
+     *  \return The extracted GND codes.
+     */
+    std::set<std::string> getReferencedGNDNumbers(const std::set<std::string> &tags = {}) const;
 
     /** \brief  Extracts a keyword and its synonyms from an authority record.
      *  \note   Aborts if the record is not an authority record.
@@ -575,7 +619,8 @@ public:
     inline const Field &getField(const size_t field_index) const { return fields_[field_index]; }
     inline size_t getFieldIndex(const const_iterator &field) const { return field - fields_.begin(); }
 
-    /** \return True if we added the new field and false if it is a non-repeatable field and we already have this tag.
+    /** Insert a new field at the beginning of the range for that field.
+     *  \return True if we added the new field and false if it is a non-repeatable field and we already have this tag.
      *  \note   "new_field_value" includes the two indicators and any subfield structure if "new_field_tag" references a
      *          variable field.
      */
@@ -587,7 +632,7 @@ public:
 
     inline bool insertField(const Field &field) { return insertField(field.getTag(), field.getContents()); }
 
-    inline bool insertField(const Tag &new_field_tag, std::vector<Subfield> subfields, const char indicator1 = ' ',
+    inline bool insertField(const Tag &new_field_tag, const std::vector<Subfield> &subfields, const char indicator1 = ' ',
                             const char indicator2 = ' ')
     {
         std::string new_field_value;
@@ -598,9 +643,41 @@ public:
         return insertField(new_field_tag, new_field_value);
     }
 
+    /** Insert a new field at the end of the range for that field.
+     *  \return True if we added the new field and false if it is a non-repeatable field and we already have this tag.
+     *  \note   "new_field_value" includes the two indicators and any subfield structure if "new_field_tag" references a
+     *          variable field.
+     */
+    bool insertFieldAtEnd(const Tag &new_field_tag, const std::string &new_field_value);
+
+    inline bool insertFieldAtEnd(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
+                            const char indicator2 = ' ')
+        { return insertFieldAtEnd(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString()); }
+
+    inline bool insertFieldAtEnd(const Field &field) { return insertFieldAtEnd(field.getTag(), field.getContents()); }
+
+    inline bool insertFieldAtEnd(const Tag &new_field_tag, const std::vector<Subfield> &subfields, const char indicator1 = ' ',
+                                 const char indicator2 = ' ')
+    {
+        std::string new_field_value;
+        new_field_value += indicator1;
+        new_field_value += indicator2;
+        for (const auto &subfield : subfields)
+            new_field_value += subfield.toString();
+        return insertFieldAtEnd(new_field_tag, new_field_value);
+    }
+
     void appendField(const Tag &new_field_tag, const std::string &field_contents, const char indicator1 = ' ', const char indicator2 = ' ');
     void appendField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ', const char indicator2 = ' ');
     void appendField(const Field &field);
+
+    /** \brief Replaces the first field w/ tag "field_tag".
+     *  \note  If no field w/ tag "field_tag" exists, a new field will be inserted.
+     */
+    void replaceField(const Tag &field_tag, const std::string &field_contents, const char indicator1 = ' ', const char indicator2 = ' ');
+    inline void replaceField(const Tag &field_tag, const Subfields &subfields, const char indicator1 = ' ', const char indicator2 = ' ') {
+        replaceField(field_tag, subfields.toString(), indicator1, indicator2);
+    }
 
     /** \brief  Adds a subfield to the first existing field with tag "field_tag".
      *  \return True if a field with field tag "field_tag" existed and false if no such field was found.
@@ -694,6 +771,15 @@ public:
      */
     size_t reTag(const Tag &from_tag, const Tag &to_tag);
 
+    /** \return The list of tags in the record, including duplicates. */
+    inline std::vector<std::string> getTags()  {
+        std::vector<std::string> tags;
+        tags.reserve(fields_.size());
+        for (const auto &field : fields_)
+            tags.emplace_back(field.getTag().toString());
+        return tags;
+    }
+
     /** \brief Removes the element at pos
      *  \return The iterator following pos.
      */
@@ -764,9 +850,15 @@ public:
      */
     bool fieldOrSubfieldMatched(const std::string &field_or_field_and_subfield_code, RegexMatcher * const regex_matcher) const;
 
-    static std::string BibliographicLevelToString(const BibliographicLevel bibliographic_level);
-};
+    /** \return A vector of iterators to fields that match the regular expression.
+     */
+    std::vector<iterator> getMatchedFields(const std::string &field_or_field_and_subfield_code, RegexMatcher * const regex_matcher);
 
+    std::string toBinaryString() const;
+    void toXmlStringHelper(MarcXmlWriter * const xml_writer) const;
+
+    static char BibliographicLevelToChar(const BibliographicLevel bibliographic_level);
+};
 
 
 enum class FileType { AUTO, BINARY, XML };
@@ -816,14 +908,16 @@ class BinaryReader: public Reader {
     friend class Reader;
     Record last_record_;
     off_t next_record_start_;
+    const char *mmap_;
+    size_t offset_, input_file_size_;
 private:
-    explicit BinaryReader(File * const input): Reader(input), last_record_(actualRead()), next_record_start_(0) { }
+    explicit BinaryReader(File * const input);
 public:
-    virtual ~BinaryReader() = default;
+    virtual ~BinaryReader() final;
 
     virtual FileType getReaderType() override final { return FileType::BINARY; }
     virtual Record read() override final;
-    virtual void rewind() override final { input_->rewind(); next_record_start_ = 0; last_record_ = actualRead(); }
+    virtual void rewind() override final;
 
     /** \return The file position of the start of the next record. */
     virtual off_t tell() const override final { return next_record_start_; }
@@ -874,20 +968,24 @@ private:
 
 
 class Writer {
+protected:
+    std::unique_ptr<File> output_;
+protected:
+    explicit Writer(File * const output): output_(output) { }
 public:
     enum WriterMode { OVERWRITE, APPEND };
 public:
-    virtual ~Writer() { }
+    virtual ~Writer() = default;
 
     virtual void write(const Record &record) = 0;
 
     /** \return a reference to the underlying, assocaiated file. */
-    virtual File &getFile() = 0;
+    File &getFile() { return *output_; }
 
     /** \brief Flushes the buffers of the underlying File to the storage medium.
      *  \return True on success and false on failure.  Sets errno if there is a failure.
      */
-    virtual bool flush() = 0;
+    bool flush() { return output_->flush(); }
 
     /** \note If you pass in AUTO for "writer_type", "output_filename" must end in ".mrc" or ".xml"! */
     static std::unique_ptr<Writer> Factory(const std::string &output_filename, FileType writer_type = FileType::AUTO,
@@ -897,44 +995,26 @@ public:
 
 class BinaryWriter: public Writer {
     friend class Writer;
-    File * const output_;
 private:
-    BinaryWriter(File * const output): output_(output) { }
+    BinaryWriter(File * const output): Writer(output) { }
 public:
-    virtual ~BinaryWriter() { delete output_; }
+    virtual ~BinaryWriter() override final = default;
 
     virtual void write(const Record &record) override final;
-
-    /** \return a reference to the underlying, associated file. */
-    virtual File &getFile() override final { return *output_; }
-
-    /** \brief Flushes the buffers of the underlying File to the storage medium.
-     *  \return True on success and false on failure.  Sets errno if there is a failure.
-     */
-    virtual bool flush() override final { return output_->flush(); }
 };
 
 
 class XmlWriter: public Writer {
     friend class Writer;
-    MarcXmlWriter *xml_writer_;
+    MarcXmlWriter xml_writer_;
 private:
-    explicit XmlWriter(File * const output_file, const unsigned indent_amount = 0,
-                       const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion);
+    explicit XmlWriter(File * const output, const unsigned indent_amount = 0,
+                       const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion)
+        : Writer(output), xml_writer_(output, /* suppress_header_and_tailer = */false, indent_amount, text_conversion_type) { }
 public:
-    explicit XmlWriter(std::string * const output_string, const unsigned indent_amount = 0,
-                       const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion);
-    virtual ~XmlWriter() final { delete xml_writer_; }
+    virtual ~XmlWriter() override final;
 
     virtual void write(const Record &record) override final;
-
-    /** \return a reference to the underlying, assocaiated file. */
-    virtual File &getFile() override final { return *xml_writer_->getAssociatedOutputFile(); }
-
-    /** \brief Flushes the buffers of the underlying File to the storage medium.
-     *  \return True on success and false on failure.  Sets errno if there is a failure.
-     */
-    virtual bool flush() override final { return xml_writer_->flush(); }
 };
 
 
@@ -980,10 +1060,6 @@ bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
 std::string CalcChecksum(const Record &record, const std::set<Tag> &excluded_fields = { "001" }, const bool suppress_local_fields = true);
 
 
-bool IsRepeatableField(const Tag &tag);
-bool IsStandardTag(const Tag &tag);
-
-
 // Takes local UB Tübingen criteria into account.
 bool UBTueIsElectronicResource(const Record &marc_record);
 
@@ -1023,12 +1099,9 @@ FileType GetOptionalReaderType(int * const argc, char *** const argv, const int 
 FileType GetOptionalWriterType(int * const argc, char *** const argv, const int arg_no, const FileType default_file_type = FileType::AUTO);
 
 
-bool IsAReviewArticle(const Record &record);
-bool PossiblyAReviewArticle(const Record &record);
-
-
 /** \return True if field "field" contains a reference to another MARC record that is not a link to a superior work and false, if not. */
-bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const partner_control_number);
+extern const std::vector<Tag> CROSS_LINK_FIELDS;
+bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const partner_control_number, const std::vector<MARC::Tag> &cross_link_fields = CROSS_LINK_FIELDS);
 
 
 /** \return partner PPN's or the empty set if none were found. */
@@ -1040,6 +1113,9 @@ Record::Field GetIndexField(const std::string &index_term);
 
 
 bool IsSubjectAccessTag(const Tag &tag);
+
+// Extracts print and online cross links.
+std::set<std::string> ExtractPrintAndOnlineCrossLinkPPNs(const MARC::Record &record);
 
 
 } // namespace MARC

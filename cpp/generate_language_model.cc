@@ -22,17 +22,28 @@
 #include <stdexcept>
 #include <cstdlib>
 #include "NGram.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
 [[noreturn]] void Usage() {
-    ::Usage("language_blob language_model\n"
+    ::Usage("[--topmost-use-count=N] language_blob language_model\n"
+            "The default for N is " + std::to_string(NGram::DEFAULT_TOPMOST_USE_COUNT) + ".\n"
             "The \"language_blob\" should be a file containing example text w/o markup in whatever language.\n"
             "\"language_model\" should be named after the language followed by \".lm\".\n");
 }
 
 
 int Main(int argc, char *argv[]) {
+    if (argc < 3)
+        Usage();
+
+    unsigned topmost_use_count(NGram::DEFAULT_TOPMOST_USE_COUNT);
+    if (StringUtil::StartsWith(argv[1], "--topmost-use-count=")) {
+        topmost_use_count = StringUtil::ToUnsigned(argv[1] + __builtin_strlen("--topmost-use-count="));
+        --argc, ++argv;
+    }
+
     if (argc != 3)
         Usage();
 
@@ -40,7 +51,7 @@ int Main(int argc, char *argv[]) {
     if (not input)
         LOG_ERROR("failed to open \"" + std::string(argv[1]) + "\" for reading!");
 
-    NGram::CreateAndWriteLanguageModel(input, argv[2]);
+    NGram::CreateAndWriteLanguageModel(input, argv[2], NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD, topmost_use_count);
 
     return EXIT_SUCCESS;
 }

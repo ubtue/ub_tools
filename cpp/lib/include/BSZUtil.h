@@ -3,7 +3,7 @@
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -31,11 +31,13 @@
 namespace BSZUtil {
 
 
-extern const size_t PPN_LENGTH_OLD;
-extern const size_t PPN_LENGTH_NEW;
+constexpr size_t PPN_LENGTH_OLD(9);
+constexpr size_t PPN_LENGTH_NEW(10);
 
 
-// Extracts PPNs (ID's) from a LOEPPN file as provided by the BSZ.
+/** \brief Extracts PPNs (ID's) from a LOEKXP file as provided by the BSZ.
+ *  \note The sets will not be cleared so that multiple calls to this function will accumulate the ID's.
+ */
 void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const delete_full_record_ids,
                         std::unordered_set <std::string> * const local_deletion_ids);
 
@@ -60,6 +62,12 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
 
 
 void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year, std::string * const volume, std::string * const issue);
+
+
+/** \brief Attempts to extract a K10+ PPN from a subfield.
+ *  \return The extracted PPN or the empty string if nothing was found.
+ */
+std::string GetK10PlusPPNFromSubfield(const MARC::Record::Field &field, const char subfield_code);
 
 
 } // namespace BSZUtil

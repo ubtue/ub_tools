@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -19,10 +19,10 @@
  */
 #include "DbConnection.h"
 #include <stdexcept>
+#include <cerrno>
 #include <cstdlib>
 #include "FileUtil.h"
 #include "IniFile.h"
-#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
@@ -96,6 +96,7 @@ DbConnection::DbConnection(const std::string &database_path, const OpenMode open
 
     if (::sqlite3_open_v2(database_path.c_str(), &sqlite3_, flags, nullptr) != SQLITE_OK)
         LOG_ERROR("failed to create or open an Sqlite3 database with path \"" + database_path + "\"!");
+    errno = 0; // It seems that sqlite3_open_v2 internally tries something that fails but doesn't clear errno afterwards.
     stmt_handle_ = nullptr;
     initialised_ = true;
 }
@@ -119,22 +120,37 @@ DbConnection::~DbConnection() {
 }
 
 
+int DbConnection::getLastErrorCode() const {
+    if (type_ == T_MYSQL)
+        return static_cast<int>(::mysql_errno(&mysql_));
+    else
+        return ::sqlite3_errcode(sqlite3_);
+}
+
+
 const std::string DbConnection::DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath() + "ub_tools.conf");
 
 
 bool DbConnection::query(const std::string &query_statement) {
     if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") == "true")
         FileUtil::AppendString("/usr/local/var/log/tuefind/sql_debug.log",
-                               std::string(::progname) + ": " +  query_statement);
+                               std::string(::program_invocation_name) + ": " +  query_statement + '\n');
 
-    if (type_ == T_MYSQL)
-        return ::mysql_query(&mysql_, query_statement.c_str()) == 0;
-    else {
+    if (type_ == T_MYSQL) {
+        if (::mysql_query(&mysql_, query_statement.c_str()) != 0) {
+            LOG_WARNING("Could not successfully execute statement \"" + query_statement + "\": SQL error code:"
+                        + std::to_string(::mysql_errno(&mysql_)));
+            return false;
+        }
+	return true;
+    } else {
         if (stmt_handle_ != nullptr) {
             const int result_code(::sqlite3_finalize(stmt_handle_));
-            if (result_code != SQLITE_OK)
-                LOG_ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was "
-                      + std::to_string(result_code) + ")");
+            if (result_code != SQLITE_OK) {
+                LOG_WARNING("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was "
+                            + std::to_string(result_code) + ")");
+                return false;
+            }
         }
 
         const char *rest;
@@ -179,7 +195,7 @@ enum ParseState { NORMAL, IN_DOUBLE_DASH_COMMENT, IN_C_STYLE_COMMENT, IN_STRING_
 void AddStatement(const std::string &statement_candidate, std::vector<std::string> * const individual_statements) {
     static RegexMatcher *create_trigger_matcher(
         RegexMatcher::RegexMatcherFactoryOrDie("^CREATE\\s+(TEMP|TEMPORARY)?\\s+TRIGGER",
-                                   RegexMatcher::ENABLE_UTF8 | RegexMatcher::CASE_INSENSITIVE));
+                                               RegexMatcher::ENABLE_UTF8 | RegexMatcher::CASE_INSENSITIVE));
 
     if (individual_statements->empty())
         individual_statements->emplace_back(statement_candidate);
@@ -253,12 +269,14 @@ void SplitSqliteStatements(const std::string &compound_statement, std::vector<st
 bool DbConnection::queryFile(const std::string &filename) {
     std::string statements;
     if (not FileUtil::ReadString(filename, &statements))
-        LOG_ERROR("failed to read \"" + filename + "\"!");
+        return false;
 
     if (type_ == T_MYSQL) {
+        ::mysql_set_server_option(&mysql_, MYSQL_OPTION_MULTI_STATEMENTS_ON);
         const bool query_result(query(StringUtil::TrimWhite(&statements)));
         if (query_result)
             mySQLSyncMultipleResults();
+        ::mysql_set_server_option(&mysql_, MYSQL_OPTION_MULTI_STATEMENTS_OFF);
         return query_result;
     } else {
         std::vector<std::string> individual_statements;
@@ -274,19 +292,59 @@ bool DbConnection::queryFile(const std::string &filename) {
 
 
 void DbConnection::queryFileOrDie(const std::string &filename) {
-    std::string statements;
-    if (not FileUtil::ReadString(filename, &statements))
-        LOG_ERROR("failed to read \"" + filename + "\"!");
+    if (not queryFile(filename))
+        LOG_ERROR("failed to execute statements from \"" + filename + "\"!");
+}
 
-    if (type_ == T_MYSQL) {
-        queryOrDie(StringUtil::TrimWhite(&statements));
-        mySQLSyncMultipleResults();
-    } else {
-        std::vector<std::string> individual_statements;
-        SplitSqliteStatements(statements, &individual_statements);
-        for (const auto &statement : individual_statements)
-            queryOrDie(statement);
+
+bool DbConnection::backup(const std::string &output_filename, std::string * const err_msg) {
+    if (type_ != T_SQLITE) {
+        *err_msg = "only Sqlite is supported at this time!";
+        return false;
     }
+
+    sqlite3 *sqlite3_backup_file;
+    int return_code;
+    if ((return_code = ::sqlite3_open(output_filename.c_str(), &sqlite3_backup_file)) != SQLITE_OK) {
+        *err_msg = "failed to create backup to \"" + output_filename + "\": " + std::string(::sqlite3_errmsg(sqlite3_backup_file));
+        return false;
+    }
+
+    sqlite3_backup *backup_handle(::sqlite3_backup_init(sqlite3_backup_file, "main", sqlite3_, "main"));
+    if (backup_handle == nullptr) {
+        ::sqlite3_close(sqlite3_backup_file);
+        *err_msg = "failed to initialize Sqlite3 backup to \"" + output_filename
+                   + "\": there is already a read or read-write transaction open on the destination database!";
+        return false;
+    }
+
+    const int DATABASE_PAGE_COUNT(500); // How many pages to copy to the backup at each iteration.
+    const int SLEEP_INTERVAL(100);      // in milliseconds.
+    bool backup_incomplete;
+    do {
+        return_code = ::sqlite3_backup_step(backup_handle, DATABASE_PAGE_COUNT);
+        backup_incomplete = return_code == SQLITE_OK or return_code == SQLITE_BUSY or return_code == SQLITE_LOCKED;
+        if (backup_incomplete)
+            ::sqlite3_sleep(SLEEP_INTERVAL);
+    } while (backup_incomplete);
+    ::sqlite3_backup_finish(backup_handle);
+
+    return_code = ::sqlite3_errcode(sqlite3_backup_file);
+    ::sqlite3_close(sqlite3_backup_file);
+    if (return_code != SQLITE_OK) {
+        *err_msg = "an error occurred during the backup to \"" + output_filename + "\": "
+                   + std::string(::sqlite3_errmsg(sqlite3_backup_file));
+        return false;
+    }
+
+    return true;
+}
+
+
+void DbConnection::backupOrDie(const std::string &output_filename) {
+    std::string err_msg;
+    if (not backup(output_filename, &err_msg))
+        LOG_ERROR(err_msg);
 }
 
 
@@ -348,7 +406,7 @@ DbResultSet DbConnection::getLastResultSet() {
 
 
 std::string DbConnection::escapeString(const std::string &unescaped_string, const bool add_quotes) {
-    char * const buffer(reinterpret_cast<char * const>(std::malloc(unescaped_string.size() * 2 + 1)));
+    char * const buffer(reinterpret_cast<char *>(std::malloc(unescaped_string.size() * 2 + 1)));
     size_t escaped_length;
 
     if (sqlite3_ == nullptr)
@@ -388,6 +446,7 @@ void DbConnection::setTimeZone(const TimeZone time_zone) {
             LOG_ERROR("failed to set the connection time zone to UTC! (" + std::string(::mysql_error(&mysql_)) + ")");
         break;
     }
+    time_zone_ = time_zone;
 }
 
 
@@ -395,22 +454,31 @@ void DbConnection::init(const std::string &database_name, const std::string &use
                         const std::string &host, const unsigned port, const Charset charset, const TimeZone time_zone)
 {
     initialised_ = false;
+    sqlite3_ = nullptr;
+    type_ = T_MYSQL;
 
     if (::mysql_init(&mysql_) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_init() failed!");
 
     if (::mysql_real_connect(&mysql_, host.c_str(), user.c_str(), passwd.c_str(), database_name.c_str(), port,
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
+
+        // password is intentionally omitted here!
         throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage()
-                                 + ", host=\"" + host + "\", user=\"" + user + "\", passwd=\"" + passwd + "\", database_name=\""
+                                 + ", host=\"" + host + "\", user=\"" + user + "\", passwd=\"********\", database_name=\""
                                  + database_name + "\", port=" + std::to_string(port) + ")");
     if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
+    errno = 0; // Don't ask unless you want to cry!
 
-    sqlite3_ = nullptr;
-    type_ = T_MYSQL;
     initialised_ = true;
     setTimeZone(time_zone);
+    database_name_ = database_name;
+    user_ = user;
+    passwd_ = passwd;
+    host_ = host;
+    port_ = port;
+    charset_ = charset;
 }
 
 
@@ -418,6 +486,8 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
                         const Charset charset, const TimeZone time_zone)
 {
     initialised_ = false;
+    sqlite3_ = nullptr;
+    type_ = T_MYSQL;
 
     if (::mysql_init(&mysql_) == nullptr)
         throw std::runtime_error("in DbConnection::init: mysql_init() failed!");
@@ -428,10 +498,13 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
     if (::mysql_set_character_set(&mysql_, CharsetToString(charset).c_str()) != 0)
         throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
 
-    sqlite3_ = nullptr;
-    type_ = T_MYSQL;
     initialised_ = true;
     setTimeZone(time_zone);
+    user_ = user;
+    passwd_ = passwd;
+    host_ = host;
+    port_ = port;
+    charset_ = charset;
 }
 
 
@@ -442,6 +515,8 @@ std::string DbConnection::CharsetToString(const Charset charset) {
     case UTF8MB4:
         return "utf8mb4";
     }
+
+    __builtin_unreachable();
 }
 
 
@@ -452,12 +527,28 @@ std::string DbConnection::CollationToString(const Collation collation) {
     case UTF8MB4_BIN:
         return "utf8mb4_bin";
     }
+
+    __builtin_unreachable();
 }
 
 
 bool DbConnection::mySQLDatabaseExists(const std::string &database_name) {
     std::vector<std::string> databases(mySQLGetDatabaseList());
     return (std::find(databases.begin(), databases.end(), database_name) != databases.end());
+}
+
+
+bool DbConnection::tableExists(const std::string &database_name, const std::string &table_name) {
+    if (type_ == T_MYSQL) {
+        queryOrDie("SELECT EXISTS(SELECT * FROM information_schema.tables WHERE table_schema = '" + escapeString(database_name)
+                   + "' AND table_name = '" + escapeString(table_name) + "')");
+        DbResultSet result_set(getLastResultSet());
+        return result_set.getNextRow()[0] == "1";
+    } else { // Sqlite
+        DbConnection connection(database_name, READONLY);
+        connection.queryOrDie("SELECT name FROM sqlite_master WHERE type='table' AND name='" + connection.escapeString(table_name) + "'");
+        return not connection.getLastResultSet().empty();
+    }
 }
 
 
@@ -507,13 +598,8 @@ void DbConnection::mySQLSyncMultipleResults() {
 void DbConnection::MySQLImportFile(const std::string &sql_file, const std::string &database_name, const std::string &user,
                                    const std::string &passwd, const std::string &host, const unsigned port, const Charset charset)
 {
-    std::string sql_data;
-    FileUtil::ReadStringOrDie(sql_file, &sql_data);
-
     DbConnection db_connection(database_name, user, passwd, host, port, charset);
-    ::mysql_set_server_option(&db_connection.mysql_, MYSQL_OPTION_MULTI_STATEMENTS_ON);
-    db_connection.queryOrDie(sql_data);
-    db_connection.mySQLSyncMultipleResults();
+    db_connection.queryFileOrDie(sql_file);
 }
 
 
@@ -522,4 +608,147 @@ bool DbConnection::mySQLUserExists(const std::string &user, const std::string &h
     DbResultSet result_set(getLastResultSet());
     const DbRow result_row(result_set.getNextRow());
     return result_row["user_count"] != "0";
+}
+
+
+const std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::MYSQL_ALL_PRIVILEGES {
+    P_SELECT,
+    P_INSERT,
+    P_UPDATE,
+    P_DELETE,
+    P_CREATE,
+    P_DROP,
+    P_REFERENCES,
+    P_INDEX,
+    P_ALTER,
+    P_CREATE_TEMPORARY_TABLES,
+    P_LOCK_TABLES,
+    P_EXECUTE,
+    P_CREATE_VIEW,
+    P_SHOW_VIEW,
+    P_CREATE_ROUTINE,
+    P_ALTER_ROUTINE,
+    P_EVENT,
+    P_TRIGGER
+};
+
+
+static const std::unordered_map<std::string, DbConnection::MYSQL_PRIVILEGE> string_to_privilege_map {
+    { "SELECT", DbConnection::P_SELECT },
+    { "INSERT", DbConnection::P_INSERT },
+    { "UPDATE", DbConnection::P_UPDATE },
+    { "DELETE", DbConnection::P_DELETE },
+    { "CREATE", DbConnection::P_CREATE },
+    { "DROP", DbConnection::P_DROP },
+    { "REFERENCES", DbConnection::P_REFERENCES },
+    { "INDEX", DbConnection::P_INDEX },
+    { "ALTER", DbConnection::P_ALTER },
+    { "CREATE TEMPORARY TABLES", DbConnection::P_CREATE_TEMPORARY_TABLES},
+    { "LOCK TABLES", DbConnection::P_LOCK_TABLES },
+    { "EXECUTE", DbConnection::P_EXECUTE },
+    { "CREATE VIEW", DbConnection::P_CREATE_VIEW },
+    { "SHOW VIEW", DbConnection::P_SHOW_VIEW },
+    { "CREATE ROUTINE", DbConnection::P_CREATE_ROUTINE },
+    { "ALTER ROUTINE", DbConnection::P_ALTER_ROUTINE },
+    { "EVENT", DbConnection::P_EVENT},
+    { "TRIGGER", DbConnection::P_TRIGGER },
+};
+
+
+DbConnection::MYSQL_PRIVILEGE MySQLPrivilegeStringToEnum(const std::string &candidate) {
+    const auto string_and_privilege(string_to_privilege_map.find(candidate));
+    if (unlikely(string_and_privilege == string_to_privilege_map.end()))
+        LOG_ERROR(candidate + " is not in our map!");
+    return string_and_privilege->second;
+}
+
+
+std::string MySQLPrivilegeEnumToString(const DbConnection::MYSQL_PRIVILEGE privilege) {
+    for (const auto &string_and_privilege : string_to_privilege_map) {
+        if (string_and_privilege.second == privilege)
+            return string_and_privilege.first;
+    }
+
+    LOG_ERROR("Privilege " + std::to_string(privilege) + " is not in our map!");
+}
+
+
+std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPrivileges(const std::string &user,
+                                                                                       const std::string &database_name,
+                                                                                       const std::string &host)
+{
+    const std::string QUERY("SHOW GRANTS FOR " + user + "@" + host + ";");
+    if (not query(QUERY)) {
+        // catch "No such privileges defined" error and return empty set
+        if (getLastErrorCode() == 1141)
+            return {};
+        LOG_ERROR(QUERY + " failed: " + getLastErrorMessage());
+    }
+
+    DbResultSet result_set(getLastResultSet());
+    while (const auto row = result_set.getNextRow()) {
+        static RegexMatcher * const mysql_privileges_matcher(
+            RegexMatcher::RegexMatcherFactory("GRANT (.+) ON `" + database_name + "`.* TO '" + user + "'@'" + host + "'"));
+
+        if (mysql_privileges_matcher->matched(row[0])) {
+            const std::string matched_privileges((*mysql_privileges_matcher)[1]);
+            if (matched_privileges == "ALL PRIVILEGES")
+                return MYSQL_ALL_PRIVILEGES;
+
+            std::unordered_set<std::string> privileges_strings;
+            StringUtil::SplitThenTrimWhite(matched_privileges, ',', &privileges_strings);
+
+            std::unordered_set<DbConnection::MYSQL_PRIVILEGE> privileges;
+            for (const auto &privilege_string : privileges_strings)
+                privileges.emplace(MySQLPrivilegeStringToEnum(privilege_string));
+
+            return privileges;
+        }
+    }
+
+    return {};
+}
+
+
+unsigned DbTransaction::active_count_;
+
+
+DbTransaction::DbTransaction(DbConnection * const db_connection, const bool rollback_when_exceptions_are_in_flight)
+    : db_connection_(*db_connection), rollback_when_exceptions_are_in_flight_(rollback_when_exceptions_are_in_flight)
+{
+    if (active_count_ > 0)
+        LOG_ERROR("no nested transactions are allowed!");
+    ++active_count_;
+
+    if (db_connection_.getType() == DbConnection::T_SQLITE)
+        db_connection_.queryOrDie("BEGIN TRANSACTION");
+    else {
+        db_connection_.queryOrDie("SHOW VARIABLES LIKE 'autocommit'");
+        DbResultSet result_set(db_connection_.getLastResultSet());
+        if (unlikely(result_set.empty()))
+            LOG_ERROR("this should never happen!");
+
+        const std::string autocommit_status(result_set.getNextRow()["Value"]);
+        if (autocommit_status == "ON") {
+            autocommit_was_on_ = true;
+            db_connection_.queryOrDie("SET autocommit=OFF");
+        } else if (autocommit_status == "OFF")
+            autocommit_was_on_ = false;
+        else
+            LOG_ERROR("unknown autocommit status \"" + autocommit_status + "\"!");
+        db_connection_.queryOrDie("START TRANSACTION");
+    }
+
+}
+
+
+DbTransaction::~DbTransaction() {
+    if (std::uncaught_exceptions() == 0)
+        db_connection_.queryOrDie("COMMIT");
+    else if (rollback_when_exceptions_are_in_flight_)
+        db_connection_.queryOrDie("ROLLBACK");
+
+    if (db_connection_.getType() == DbConnection::T_MYSQL and autocommit_was_on_)
+        db_connection_.queryOrDie("SET autocommit=ON");
+    --active_count_;
 }

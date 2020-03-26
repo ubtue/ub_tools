@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2018, Library of the University of Tübingen
+    Copyright (C) 2018-2020 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -44,7 +44,7 @@ namespace {
 
 // Return the first matching primary field (Vorzugsbenennung) from authority data
 // This implicitly assumes that the correct tag can be uniquely identified from the PPN
-MARC::Record::const_iterator GetFirstPrimaryField(const MARC::Record& authority_record) {
+MARC::Record::const_iterator GetFirstPrimaryField(const MARC::Record &authority_record) {
      static const std::vector<std::string> tags_to_check{ "100", "151", "150", "110", "111", "130", "153" };
      for (const auto &tag_to_check : tags_to_check) {
          MARC::Record::const_iterator primary_field(authority_record.findTag(tag_to_check));
@@ -56,7 +56,8 @@ MARC::Record::const_iterator GetFirstPrimaryField(const MARC::Record& authority_
 
 
 bool GetAuthorityRecordFromPPN(const std::string &bsz_authority_ppn, MARC::Record * const authority_record,
-                               MARC::Reader * const authority_reader, const std::unordered_map<std::string, off_t> &authority_offsets)
+                               MARC::Reader * const authority_reader, const std::unordered_map<std::string, off_t> &authority_offsets,
+                               const MARC::Record &record)
 {
     auto authority_offset(authority_offsets.find(bsz_authority_ppn));
     if (authority_offset != authority_offsets.end()) {
@@ -69,12 +70,15 @@ bool GetAuthorityRecordFromPPN(const std::string &bsz_authority_ppn, MARC::Recor
             else
                 return true;
         } else
-            LOG_ERROR("Unable to seek to record for authority PPN " + bsz_authority_ppn);
+            LOG_ERROR("Unable to seek to record for authority PPN " + bsz_authority_ppn
+                      + " referenced in title PPN " + record.getControlNumber());
     } else {
-        LOG_WARNING("Unable to find offset for authority PPN " + bsz_authority_ppn);
+        LOG_WARNING("Unable to find offset for authority PPN " + bsz_authority_ppn
+                    + " referenced in title PPN " + record.getControlNumber());
         return false;
     }
-    std::runtime_error("Logical flaw in GetAuthorityRecordFromPPN");
+
+    LOG_ERROR("Logical flaw in GetAuthorityRecordFromPPN: we should *never* get here!");
 }
 
 
@@ -83,10 +87,12 @@ bool IsWorkTitleField(const MARC::Subfields &subfields) {
 }
 
 
-void UpdateTitleDataField(MARC::Record::Field * const field, const MARC::Record authority_record) {
+bool UpdateTitleDataField(MARC::Record::Field * const field, const MARC::Record authority_record) {
     auto authority_primary_field(GetFirstPrimaryField(authority_record));
-    if (authority_primary_field == authority_record.end())
-        LOG_ERROR("Could not find appropriate Tag for authority PPN " + authority_record.getControlNumber());
+    if (authority_primary_field == authority_record.end()) {
+        LOG_WARNING("Could not find appropriate Tag for authority PPN " + authority_record.getControlNumber());
+        return false;
+    }
     MARC::Subfields subfields(field->getSubfields());
     // We have to make sure that the order of the subfields is inherited from the authority data
     // so delete the subfields to be replaced first
@@ -98,13 +104,14 @@ void UpdateTitleDataField(MARC::Record::Field * const field, const MARC::Record 
         else
             subfields.deleteAllSubfieldsWithCode(authority_subfield.code_);
     }
-    for (const auto &authority_subfield : authority_primary_field->getSubfields()){
+    for (const auto &authority_subfield : authority_primary_field->getSubfields()) {
         if (IsWorkTitleField(subfields) and authority_subfield.code_ == 'a')
             subfields.appendSubfield('t', authority_subfield.value_);
         else
             subfields.appendSubfield(authority_subfield.code_, authority_subfield.value_);
     }
     field->setSubfields(subfields);
+    return true;
 }
 
 
@@ -118,9 +125,9 @@ void AugmentAuthors(MARC::Record * const record, MARC::Reader * const authority_
             std::string _author_content(field.getContents());
             if (matcher->matched(_author_content)) {
                 MARC::Record authority_record(std::string(MARC::Record::LEADER_LENGTH, ' '));
-                if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets)) {
-                    UpdateTitleDataField(&field, authority_record);
-                    *modified_record = true;
+                if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets, *record)) {
+                    if (UpdateTitleDataField(&field, authority_record))
+                        *modified_record = true;
                 }
             }
         }
@@ -136,7 +143,7 @@ void AugmentKeywords(MARC::Record * const record, MARC::Reader * const authority
         std::string _689_content(field.getContents());
         if (matcher->matched(_689_content)) {
              MARC::Record authority_record(std::string(MARC::Record::LEADER_LENGTH, ' '));
-             if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets)) {
+             if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets, *record)) {
                  UpdateTitleDataField(&field, authority_record);
                  *modified_record = true;
              }
@@ -149,7 +156,7 @@ void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * 
                                const std::unordered_map<std::string, off_t>& authority_offsets)
 {
     std::string err_msg;
-    RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\x1F""0\\(DE-576\\)([^\x1F]+).*\x1F?", &err_msg));
+    RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\x1F""0\\(DE-627\\)([^\x1F]+).*\x1F?", &err_msg));
 
     if (matcher == nullptr)
         LOG_ERROR("Failed to compile standardized keywords regex matcher: " + err_msg);

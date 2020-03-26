@@ -2,7 +2,7 @@
  *  \brief  Implementation of functions relating to PDF documents.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -22,6 +22,7 @@
 #include <tesseract/baseapi.h>
 #include "ExecUtil.h"
 #include "FileUtil.h"
+#include "MediaTypeUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -29,7 +30,9 @@
 namespace PdfUtil {
 
 
-bool ExtractText(const std::string &pdf_document, std::string * const extracted_text) {
+bool ExtractText(const std::string &pdf_document, std::string * const extracted_text,
+                 const std::string &start_page, const std::string &end_page)
+{
     static std::string pdftotext_path;
     if (pdftotext_path.empty())
         pdftotext_path = ExecUtil::LocateOrDie("pdftotext");
@@ -43,9 +46,13 @@ bool ExtractText(const std::string &pdf_document, std::string * const extracted_
 
     const FileUtil::AutoTempFile auto_temp_file2;
     const std::string &output_filename(auto_temp_file2.getFilePath());
-
-    const int retval(ExecUtil::Exec(pdftotext_path,
-                                    { "-enc", "UTF-8", "-nopgbrk", input_filename, output_filename }));
+    std::vector<std::string> pdftotext_params { "-enc", "UTF-8", "-nopgbrk" };
+    if (not start_page.empty())
+        pdftotext_params.insert(pdftotext_params.end(), { "-f", start_page });
+    if (not end_page.empty())
+        pdftotext_params.insert(pdftotext_params.end(), { "-l", end_page });
+    pdftotext_params.insert(pdftotext_params.end(), { input_filename, output_filename });
+    const int retval(ExecUtil::Exec(pdftotext_path, pdftotext_params));
     if (retval != 0) {
         LOG_WARNING("failed to execute \"" + pdftotext_path + "\"!");
         return false;
@@ -97,24 +104,42 @@ bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_
         return false;
     }
 
-    Pix *image(pixRead(img_path.c_str()));
-    api->SetImage(image);
+    const std::string filetype(MediaTypeUtil::GetFileMediaType(img_path));
 
-    char *utf8_text(api->GetUTF8Text());
-    *extracted_text = utf8_text;
-    delete[] utf8_text;
+    // Special Handling for tiff multipages
+    if (filetype == "image/tiff") {
+        extracted_text->clear();
+        Pixa *multipage_image(pixaReadMultipageTiff(img_path.c_str()));
+        for (l_int32 offset(0); offset < multipage_image->n; ++offset) {
+             LOG_INFO("Extracting page " + std::to_string(offset + 1));
+             api->SetImage(multipage_image->pix[offset]);
+             char *utf8_page(api->GetUTF8Text());
+             extracted_text->append(utf8_page);
+             delete[] utf8_page;
+        }
+        api->End();
+        delete api;
+        pixaDestroy(&multipage_image);
+        delete multipage_image;
 
-    api->End();
-    delete api;
-    pixDestroy(&image);
-    delete image;
+    } else {
+        Pix *image(pixRead(img_path.c_str()));
+        api->SetImage(image);
+        char *utf8_text(api->GetUTF8Text());
+        *extracted_text = utf8_text;
+        delete[] utf8_text;
+        api->End();
+        delete api;
+        pixDestroy(&image);
+        delete image;
 
+    }
     return not extracted_text->empty();
 }
 
 
 bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tesseract_language_code,
-                         std::string * const extracted_text, unsigned timeout)
+                         std::string * const extracted_text, const unsigned timeout)
 {
     extracted_text->clear();
 
@@ -145,11 +170,97 @@ bool GetTextFromImagePDF(const std::string &pdf_document, const std::string &tes
             LOG_WARNING("failed to extract text from image " + pdf_image_filename);
             return false;
         }
-         *extracted_text += " " + image_text;
+        *extracted_text += " " + image_text;
     }
 
     *extracted_text = StringUtil::TrimWhite(*extracted_text);
     return not extracted_text->empty();
+}
+
+
+bool GetOCRedTextFromPDF(const std::string &pdf_document_path, const std::string &tesseract_language_code,
+                         std::string * const extracted_text, const unsigned timeout)
+{
+    extracted_text->clear();
+    static std::string pdf_to_image_command(ExecUtil::LocateOrDie("convert"));
+    const FileUtil::AutoTempDirectory auto_temp_dir;
+    const std::string &image_dirname(auto_temp_dir.getDirectoryPath());
+    const std::string temp_image_location = image_dirname + "/img.tiff";
+    if (ExecUtil::Exec(pdf_to_image_command, { "-density", "300", pdf_document_path, "-depth", "8", "-strip",
+                                               "-background", "white", "-alpha", "off", temp_image_location
+                                             }, "", "", "", timeout) != 0) {
+        LOG_WARNING("failed to convert PDF to image!");
+        return false;
+    }
+    if (not GetTextFromImage(temp_image_location, tesseract_language_code, extracted_text))
+        LOG_WARNING("failed to extract OCRed text");
+
+    *extracted_text = StringUtil::TrimWhite(*extracted_text);
+    return not extracted_text->empty();
+}
+
+
+bool ExtractPDFInfo(const std::string &pdf_document, std::string * const pdf_output) {
+    static std::string pdfinfo_path;
+    if (pdfinfo_path.empty())
+        pdfinfo_path = ExecUtil::LocateOrDie("pdfinfo");
+    const FileUtil::AutoTempFile auto_temp_file1;
+    const std::string &input_filename(auto_temp_file1.getFilePath());
+    if (not FileUtil::WriteString(input_filename, pdf_document)) {
+        LOG_WARNING("can't write document to \"" + input_filename + "\"!");
+        return false;
+    }
+    const FileUtil::AutoTempFile auto_temp_file2;
+    const std::string &pdfinfo_output_filename(auto_temp_file2.getFilePath());
+
+    const std::vector<std::string> pdfinfo_params { input_filename };
+    const int retval(ExecUtil::Exec(pdfinfo_path, pdfinfo_params, pdfinfo_output_filename /* stdout */,
+                     pdfinfo_output_filename /* stderr */));
+    if (retval != 0) {
+        LOG_WARNING("failed to execute \"" + pdfinfo_path + "\"!");
+        return false;
+    }
+    std::string pdfinfo_output;
+    if (unlikely(not FileUtil::ReadString(pdfinfo_output_filename, pdf_output)))
+        LOG_ERROR("Unable to extract pdfinfo output");
+
+    return true;
+}
+
+
+bool ExtractHTMLAsPages(const std::string &pdf_document, const std::string &output_dirname) {
+    static std::string pdftohtml_path;
+    if (pdftohtml_path.empty())
+        pdftohtml_path = ExecUtil::LocateOrDie("pdftohtml");
+
+    std::vector<std::string> pdftohtml_params { "-i" /* ignore images */,
+                                                "-c" /* generate complex output */,
+                                                "-hidden" /* force hidden text extraction */,
+                                                "-fontfullname" /* outputs the font name without any substitutions */
+                                              };
+    const std::string pdf_temp_link(output_dirname + '/' + FileUtil::GetBasename(pdf_document));
+    FileUtil::CreateSymlink(pdf_document, pdf_temp_link);
+    pdftohtml_params.emplace_back(pdf_temp_link);
+    ExecUtil::ExecOrDie(pdftohtml_path, pdftohtml_params, "" /* stdin */, "" /* stdout */, "" /* stderr */, 0 /* timeout */,
+                        SIGKILL, std::unordered_map<std::string, std::string>() /* env */, output_dirname /* working dir */);
+
+    // Clean up HTML
+    static std::string tidy_path;
+    if (tidy_path.empty())
+        tidy_path = ExecUtil::LocateOrDie("tidy");
+
+    FileUtil::Directory html_pages(output_dirname, ".*\\.html$");
+    for (const auto &html_page : html_pages) {
+        const std::vector<std::string> tidy_params({ "-modify" /* write back to original file */, "-quiet", html_page.getName() });
+        // return code 1 means there were only warnings
+        const int tidy_retval(ExecUtil::Exec(tidy_path, tidy_params,  "" /* stdin */, "" /* stdout */, "" /* stderr */, 0 /* timeout */,
+                        SIGKILL, std::unordered_map<std::string, std::string>() /* env */, output_dirname /* working dir */));
+        if (tidy_retval != 0 and tidy_retval != 1)
+            LOG_ERROR("Error while cleaning up " + html_page.getName());
+
+    }
+
+    return true;
 }
 
 

@@ -2,7 +2,7 @@
  *  \brief  Interface for JSON-related functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,8 +20,9 @@
 #pragma once
 
 
-#include <string>
+#include <map>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 #include <cinttypes>
@@ -146,7 +147,7 @@ public:
 class StringNode final : public JSONNode {
     std::string value_;
 public:
-    explicit StringNode(const std::string value): value_(value) { }
+    explicit StringNode(const std::string &value): value_(value) { }
 
     inline virtual Type getType() const override { return STRING_NODE; }
     inline virtual std::shared_ptr<JSONNode> clone() const override { return std::make_shared<StringNode>(value_); }
@@ -219,6 +220,8 @@ public:
 public:
     ObjectNode(const std::string &object_as_string = "");
     ObjectNode(const std::unordered_map<std::string, std::string> &map);
+    ObjectNode(const std::map<std::string, std::string> &map);
+
 
     virtual std::shared_ptr<JSONNode> clone() const override;
     virtual Type getType() const override { return OBJECT_NODE; }
@@ -432,8 +435,34 @@ std::string EscapeString(const std::string &unescaped_string);
 bool IsValidUTF8(const JSONNode &node);
 
 
-/** \note In standard JSON single quotes are not used as an alternative to double quotes, IOW, they are treated as ordinary characters. */
-std::string EscapeDoubleQuotes(const std::string &s);
+// Iterates through a JSON node depth-first and invokes a callback on leaf nodes.
+// The callback function takes the name of the leaf node and a pointer to the same as its
+// first two parameters, and then a list of optional parameters.
+template <class ... ParamTypes, class CallbackType = void(const std::string &, const std::shared_ptr<JSON::JSONNode> &, ParamTypes...)>
+void VisitLeafNodes(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                    const CallbackType callback, ParamTypes... params)
+{
+    switch (node->getType()) {
+    case JSON::JSONNode::OBJECT_NODE:
+        for (const auto &key_and_node : *static_cast<JSON::ObjectNode*>(node.get()))
+            VisitLeafNodes(key_and_node.first, key_and_node.second, callback, params...);
+        break;
+    case JSON::JSONNode::ARRAY_NODE: {
+        for (const auto &element : *static_cast<JSON::ArrayNode*>(node.get())) {
+            if (element->getType() != JSON::JSONNode::OBJECT_NODE)
+                continue;
+
+            const auto object_node(static_cast<JSON::ObjectNode*>(element.get()));
+            for (auto &key_and_node : *object_node)
+                VisitLeafNodes(key_and_node.first, key_and_node.second, callback, params...);
+        }
+        break;
+    } case JSON::JSONNode::NULL_NODE:
+        /* intentionally empty */ break;
+    default:
+        callback(node_name, node, params...);
+    }
+}
 
 
 } // namespace JSON

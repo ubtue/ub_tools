@@ -1,4 +1,4 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
 # Transfers uploaded fulltexts to the fulltext server
 """
@@ -49,21 +49,28 @@ def ExtractDirectories(entry):
     return os.path.dirname(entry)
 
 
-def GetExistingSevenZFiles(local_top_dir):
-    return FindFilesByPattern('*.7z', local_top_dir)
+def GetExistingFiles(local_top_dir):
+    return FindFilesByPattern('*', local_top_dir)
 
 
-def GetFulltextDirectoriesToTransfer(local_top_dir, full_7zFiles_paths):
+def GetFulltextDirectoriesToTransfer(local_top_dir, fulltext_files_path):
     os.chdir(local_top_dir)
-    stripped_paths = list(map(lambda path:StripPathPrefix(path, local_top_dir), full_7zFiles_paths))
+    stripped_paths = list([StripPathPrefix(path, local_top_dir) for path in fulltext_files_path])
     directory_set = set(list(map(ExtractDirectories, stripped_paths)))
     return directory_set
 
 
-def CleanUp7ZFiles(SevenZFiles):
-    backup_dir = "/usr/local/tmp"
-    for SevenZFile in SevenZFiles:
-        shutil.move(SevenZFile, backup_dir)
+def CleanUpFiles(fulltext_dirs):
+    today = datetime.datetime.today().strftime('%y%m%d')
+    backup_dir = "/usr/local/tmp/webdav_backup/" + today
+    if not os.path.exists(backup_dir):
+        os.makedirs(backup_dir)
+        for fulltext_dir in fulltext_dirs:
+            shutil.move(fulltext_dir, backup_dir)
+    else:
+        util.SendEmail("Transfer Fulltexts", "Did not move directory to backup since directory for this day already present")
+        return
+
 
 
 def Main():
@@ -84,8 +91,8 @@ def Main():
         util.Error("failed to read config file! (" + str(e) + ")")
 
     # Check directories with new Data
-    SevenZFiles = GetExistingSevenZFiles(local_directory)
-    dirs_to_transfer = GetFulltextDirectoriesToTransfer(local_directory, SevenZFiles)
+    fulltext_files = GetExistingFiles(local_directory)
+    dirs_to_transfer = GetFulltextDirectoriesToTransfer(local_directory, fulltext_files)
 
     # If nothing to do
     if not dirs_to_transfer:
@@ -97,11 +104,8 @@ def Main():
                    [sftp_host, sftp_user, sftp_keyfile, local_directory, directory_on_sftp_server]
                    + list(dirs_to_transfer))
     # Clean up on the server
-    CleanUp7ZFiles(SevenZFiles)
-    email_msg_body = ("Found Files:\n\n" +
-                       string.join(SevenZFiles, "\n") +
-                       "\n\nTransferred directories:\n\n" +
-                       string.join(dirs_to_transfer, "\n"))
+    CleanUpFiles(fulltext_files)
+    email_msg_body = "Found Files:\n\n" + '\n'.join(fulltext_files) + "\n\nTransferred directories:\n\n" + '\n'.join(dirs_to_transfer)
     util.SendEmail("Transfer Fulltexts", email_msg_body, priority=5)
 
 

@@ -2,7 +2,7 @@
  *  \brief  Various utility functions that did not seem to logically fit anywhere else.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014,2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -43,15 +43,21 @@
  *       commas.
  */
 class Logger {
+public:
+    enum LogLevel { LL_ERROR = 1, LL_WARNING = 2, LL_INFO = 3, LL_DEBUG = 4 };
     friend Logger *LoggerInstantiator();
+protected:
+    static const std::string FUNCTION_NAME_SEPARATOR;
+
     std::mutex mutex_;
     int fd_;
     bool log_process_pids_, log_no_decorations_, log_strip_call_site_;
-public:
-    enum LogLevel { LL_ERROR = 1, LL_WARNING = 2, LL_INFO = 3, LL_DEBUG = 4 };
-private:
     LogLevel min_log_level_;
+
+    void formatMessage(const std::string &level, std::string * const msg);
+public:
     Logger();
+    virtual ~Logger() = default;
 public:
     void redirectOutput(const int new_fd) { fd_ = new_fd; }
 
@@ -59,34 +65,37 @@ public:
     LogLevel getMinimumLogLevel() const { return min_log_level_; }
 
     //* Emits "msg" and then calls exit(3), also generates a call stack trace if the environment variable BACKTRACE has been set.
-    [[noreturn]] void error(const std::string &msg) __attribute__((noreturn));
-    [[noreturn]] inline void error(const std::string &function_name, const std::string &msg) __attribute__((noreturn))
-        { error("in " + function_name + ": " + msg); }
+    [[noreturn]] virtual void error(const std::string &msg) __attribute__((noreturn));
+    [[noreturn]] virtual void error(const std::string &function_name, const std::string &msg) __attribute__((noreturn))
+        { error("in " + function_name + FUNCTION_NAME_SEPARATOR + msg); __builtin_unreachable(); }
 
-    void warning(const std::string &msg);
-    inline void warning(const std::string &function_name, const std::string &msg) { warning("in " + function_name + ": " + msg); }
+    virtual void warning(const std::string &msg);
+    inline void warning(const std::string &function_name, const std::string &msg)
+        { warning("in " + function_name + FUNCTION_NAME_SEPARATOR + msg); }
 
-    void info(const std::string &msg);
-    inline void info(const std::string &function_name, const std::string &msg) { info("in " + function_name + ": " + msg); }
+    virtual void info(const std::string &msg);
+    inline void info(const std::string &function_name, const std::string &msg)
+        { info("in " + function_name + FUNCTION_NAME_SEPARATOR + msg); }
 
     /** \note Only writes actual log messages if the environment variable "UTIL_LOG_DEBUG" exists and is set
      *  to "true"!
      */
-    void debug(const std::string &msg);
-    inline void debug(const std::string &function_name, const std::string &msg) { debug("in " + function_name + ": " + msg); }
+    virtual void debug(const std::string &msg);
+    inline void debug(const std::string &function_name, const std::string &msg)
+        { debug("in " + function_name + FUNCTION_NAME_SEPARATOR + msg); }
 
     //* \note Aborts if ""level_candidate" is not one of "ERROR", "WARNING", "INFO" or "DEBUG".
     static LogLevel StringToLogLevel(const std::string &level_candidate);
 
     // \brief Returns a string representation of "log_level".
     static std::string LogLevelToString(const LogLevel log_level);
-private:
-    void writeString(const std::string &level, std::string msg);
+protected:
+    virtual void writeString(const std::string &level, std::string msg, const bool format_message = true);
 };
 extern Logger *logger;
 
 
-#define LOG_ERROR(message)   logger->error(__PRETTY_FUNCTION__, message)
+#define LOG_ERROR(message)   logger->error(__PRETTY_FUNCTION__, message), __builtin_unreachable()
 #define LOG_WARNING(message) logger->warning(__PRETTY_FUNCTION__, message)
 #define LOG_INFO(message)    logger->info(__PRETTY_FUNCTION__, message)
 #define LOG_DEBUG(message)   logger->debug(__PRETTY_FUNCTION__, message)
