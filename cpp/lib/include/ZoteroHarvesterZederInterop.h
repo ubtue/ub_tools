@@ -48,6 +48,7 @@ std::string GetJournalParamsIniValueFromZederEntry(const Zeder::Entry &zeder_ent
                                                    const Config::JournalParams::IniKey ini_key);
 
 Zeder::Flavour GetZederInstanceForJournal(const Config::JournalParams &journal_params);
+Zeder::Flavour GetZederInstanceForGroup(const Config::GroupParams &group_params);
 Zeder::Flavour GetZederInstanceFromMarcRecord(const MARC::Record &record);
 
 
