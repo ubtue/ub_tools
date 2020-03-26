@@ -159,6 +159,7 @@ struct JournalParams {
     } issn_;
     std::string strptime_format_string_;
     unsigned update_window_;
+    std::string ssgn_;
     std::unique_ptr<ThreadSafeRegexMatcher> review_regex_;
     struct {
         std::set<std::string> expected_languages_;
@@ -199,7 +200,6 @@ private:
 // in the configuration INI file. Will eventually be subsumed into the former.
 class EnhancementMaps {
     std::unordered_map<std::string, std::string> ISSN_to_license_;
-    std::unordered_map<std::string, std::string> ISSN_to_SSG_;
 
     std::string lookup(const std::string &issn, const std::unordered_map<std::string, std::string> &map) const;
 public:
@@ -209,7 +209,6 @@ public:
     EnhancementMaps& operator=(const EnhancementMaps &rhs) = default;
 
     std::string lookupLicense(const std::string &issn) const;
-    std::string lookupSSG(const std::string &issn) const;
 };
 
 
