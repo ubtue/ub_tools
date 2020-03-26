@@ -147,15 +147,28 @@ std::string GetJournalParamsIniValueFromZederEntry(const Zeder::Entry &zeder_ent
 }
 
 
-Zeder::Flavour GetZederInstanceForJournal(const Config::JournalParams &journal_params) {
-    if (journal_params.group_ == "IxTheo" or journal_params.group_ == "ixtheo")
+static Zeder::Flavour GetZederInstanceFromGroupName(const std::string &group_name, const std::string &journal_name = "") {
+    if (group_name == "IxTheo" or group_name == "ixtheo")
         return Zeder::Flavour::IXTHEO;
-    else if (journal_params.group_ == "RelBib" or journal_params.group_ == "relbib")
+    else if (group_name == "RelBib" or group_name == "relbib")
         return Zeder::Flavour::IXTHEO;
-    else if (journal_params.group_ == "KrimDok" or journal_params.group_ == "krimdok")
+    else if (group_name == "KrimDok" or group_name == "krimdok")
         return Zeder::Flavour::KRIMDOK;
 
-    LOG_ERROR("unknown group '" + journal_params.group_ + "' for journal '" + journal_params.name_ + "'");
+    if (not journal_name.empty())
+        LOG_ERROR("group '" + group_name + "' for journal '" + journal_name + "' could not be assigned to either Zeder instance");
+    else
+        LOG_ERROR("group '" + group_name + "' could not be assigned to either Zeder instance");
+}
+
+
+Zeder::Flavour GetZederInstanceForJournal(const Config::JournalParams &journal_params) {
+    return GetZederInstanceFromGroupName(journal_params.group_, journal_params.name_);
+}
+
+
+Zeder::Flavour GetZederInstanceForGroup(const Config::GroupParams &group_params) {
+    return GetZederInstanceFromGroupName(group_params.name_);
 }
 
 

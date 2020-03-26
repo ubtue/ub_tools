@@ -29,6 +29,7 @@
 #include "UBTools.h"
 #include "UrlUtil.h"
 #include "ZoteroHarvesterConversion.h"
+#include "ZoteroHarvesterZederInterop.h"
 #include "util.h"
 
 
@@ -968,16 +969,16 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     marc_record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
 
     // Abrufzeichen und ISIL
-    if (group_params.output_folder_ == "krimdok") {
-        marc_record->insertField("852", { { 'a', group_params.isil_ } });
-        marc_record->insertField("935", { { 'a', "mkri" } });
-    } else if (group_params.output_folder_ == "ixtheo"
-               and metadata_record.ssg_ != MetadataRecord::SSGType::INVALID)
-    {
-        marc_record->insertField("852", { { 'a', group_params.isil_ } });
+    switch (ZederInterop::GetZederInstanceForGroup(group_params)) {
+    case Zeder::Flavour::IXTHEO:
         marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
         marc_record->insertField("935", { { 'a', "mteo" } });
+        break;
+    case Zeder::Flavour::KRIMDOK:
+        marc_record->insertField("935", { { 'a', "mkri" } });
+        break;
     }
+    marc_record->insertField("852", { { 'a', group_params.isil_ } });
 
     // Book-keeping fields
     marc_record->insertField("URL", { { 'a', download_item.url_.toString() } });
