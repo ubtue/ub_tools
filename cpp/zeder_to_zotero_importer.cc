@@ -35,27 +35,26 @@ using namespace ZoteroHarvester;
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [options] config_file_path mode zeder_flavour zeder_ids fields_to_update\n"
-              << "\n"
-              << "\tOptions:\n"
-              << "\t[--min-log-level=log_level]     Possible log levels are ERROR, WARNING (default), INFO and DEBUG\n"
-              << "\t[--overwrite-on-import]         Overwrite existing entries/sections when performing an import\n"
-              << "\n"
-              << "\tconfig_file_path                Path to the Zotero Harvester config file\n"
-              << "\tmode                            Either IMPORT or UPDATE\n"
-              << "\tzeder_flavour                   Either IXTHEO or KRIMDOK\n"
-              << "\tzeder_ids                       Comma-separated list of Zeder entry IDs to import/update.\n"
-              << "\t                                Special-case for updating: Use '*' to update all entries found in the config that belong to the Zeder flavour\n"
-              << "\tfields_to_update                Comma-separated list of the following fields to update: \n"
-              << "\t                                \tONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW.\n"
-              << "\t                                Ignored when importing entries (all importable fields will be imported).\n\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("[options] config_file_path mode zeder_flavour zeder_ids fields_to_update\n"
+            "\n"
+            "\tOptions:\n"
+            "\t[--min-log-level=log_level]     Possible log levels are ERROR, WARNING (default), INFO and DEBUG\n"
+            "\t[--overwrite-on-import]         Overwrite existing entries/sections when performing an import\n"
+            "\n"
+            "\tconfig_file_path                Path to the Zotero Harvester config file\n"
+            "\tmode                            Either IMPORT or UPDATE\n"
+            "\tzeder_flavour                   Either IXTHEO or KRIMDOK\n"
+            "\tzeder_ids                       Comma-separated list of Zeder entry IDs to import/update.\n"
+            "\t                                Special-case for updating: Use '*' to update all entries found in the config that belong to the Zeder flavour\n"
+            "\tfields_to_update                Comma-separated list of the following fields to update: \n"
+            "\t                                \tONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSG.\n"
+            "\t                                Ignored when importing entries (all importable fields will be imported).\n\n");
 }
 
 
 struct CommandLineArgs {
     enum Mode { INVALID, IMPORT, UPDATE };
-
+public:
     bool overwrite_on_import_;
     std::string config_path_;
     Mode mode_;
@@ -112,13 +111,14 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
         return;
 
     static const std::map<std::string, Config::JournalParams::IniKey> ALLOWED_INI_KEYS {
-        { "ENTRY_POINT_URL",    Config::JournalParams::ENTRY_POINT_URL },
-        { "UPLOAD_OPERATION",   Config::JournalParams::UPLOAD_OPERATION },
-        { "ONLINE_PPN",         Config::JournalParams::ONLINE_PPN },
-        { "PRINT_PPN",          Config::JournalParams::PRINT_PPN },
-        { "ONLINE_ISSN",        Config::JournalParams::ONLINE_ISSN },
-        { "PRINT_ISSN",         Config::JournalParams::PRINT_ISSN },
-        { "UPDATE_WINDOW",      Config::JournalParams::UPDATE_WINDOW },
+        { "ENTRY_POINT_URL", Config::JournalParams::ENTRY_POINT_URL       },
+        { "UPLOAD_OPERATION", Config::JournalParams::UPLOAD_OPERATION     },
+        { "ONLINE_PPN", Config::JournalParams::ONLINE_PPN                 },
+        { "PRINT_PPN", Config::JournalParams::PRINT_PPN                   },
+        { "ONLINE_ISSN", Config::JournalParams::ONLINE_ISSN               },
+        { "PRINT_ISSN", Config::JournalParams::PRINT_ISSN                 },
+        { "UPDATE_WINDOW", Config::JournalParams::UPDATE_WINDOW           },
+        { "SSGN", Config::JournalParams::SSGN                             },
         { "EXPECTED_LANGUAGES", Config::JournalParams::EXPECTED_LANGUAGES },
     };
 

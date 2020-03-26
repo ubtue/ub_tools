@@ -51,7 +51,6 @@ Zeder::Flavour GetZederInstanceForJournal(const Config::JournalParams &journal_p
 Zeder::Flavour GetZederInstanceFromMarcRecord(const MARC::Record &record);
 
 
-
 } // end namespace ZederInterop
 
 
