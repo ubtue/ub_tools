@@ -70,8 +70,8 @@ void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
             charset_ = key_and_value->second;
         } else if (((key_and_value = chunk.attribute_map_->find("http-equiv")) != chunk.attribute_map_->end())
                      and (StringUtil::ASCIIToLower(key_and_value->second) == "content-type")
-                     and ((key_and_value = chunk.attribute_map_->find("content")) != chunk.attribute_map_->end())) {
-
+                     and ((key_and_value = chunk.attribute_map_->find("content")) != chunk.attribute_map_->end()))
+        {
             static RegexMatcher *matcher(nullptr);
             if (unlikely(matcher == nullptr)) {
                 const std::string pattern("charset=([^ ;]+)");
@@ -128,7 +128,9 @@ bool EncodingConverter::convert(const std::string &input, std::string * const ou
     size_t inbytes_left(input.length()), outbytes_left(OUTBYTE_COUNT);
     const ssize_t converted_count(
         static_cast<ssize_t>(::iconv(iconv_handle_, &in_bytes, &inbytes_left, &out_bytes, &outbytes_left)));
-    if (unlikely(converted_count == -1)) {
+    if (unlikely((converted_count == -1) and (getToEncoding().find("//TRANSLIT") == std::string::npos) and
+                 (getToEncoding().find("//IGNORE") == std::string::npos or errno == E2BIG)))
+    {
         LOG_WARNING("iconv(3) failed! (Trying to convert \"" + from_encoding_ + "\" to \"" + to_encoding_ + "\"!");
         delete [] in_bytes_start;
         delete [] out_bytes_start;
@@ -232,6 +234,7 @@ bool IsUnsignedInteger(const std::string &s) {
 
 bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_string) {
     wchar_string->clear();
+    wchar_string->reserve(utf8_string.length());
 
     const char *cp(utf8_string.c_str());
     size_t remainder(utf8_string.size());
@@ -239,7 +242,7 @@ bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_stri
     while (*cp != '\0') {
         wchar_t wch;
         const size_t retcode(std::mbrtowc(&wch, cp, remainder, &state));
-        if (retcode == static_cast<size_t>(-1) or retcode == static_cast<size_t>(-2))
+        if (unlikely(retcode == static_cast<size_t>(-1) or retcode == static_cast<size_t>(-2)))
             return false;
         if (retcode == 0)
             return true;
@@ -253,12 +256,9 @@ bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_stri
 
 
 bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string) {
-    static iconv_t iconv_handle((iconv_t)-1);
-    if (unlikely(iconv_handle == (iconv_t)-1)) {
-        iconv_handle = ::iconv_open("UTF-8", "WCHAR_T");
-        if (unlikely(iconv_handle == (iconv_t)-1))
-            LOG_ERROR("iconv_open(3) failed!");
-    }
+    iconv_t iconv_handle(::iconv_open("UTF-8", "WCHAR_T"));
+    if (unlikely(iconv_handle == (iconv_t)-1))
+        LOG_ERROR("iconv_open(3) failed!");
 
     const size_t INBYTE_COUNT(wchar_string.length() * sizeof(wchar_t));
     char *in_bytes(new char[INBYTE_COUNT]);
@@ -270,8 +270,7 @@ bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_stri
     const char *out_bytes_start(out_bytes);
 
     size_t inbytes_left(INBYTE_COUNT), outbytes_left(OUTBYTE_COUNT);
-    const ssize_t converted_count(static_cast<ssize_t>(::iconv(iconv_handle, &in_bytes, &inbytes_left, &out_bytes,
-                                                               &outbytes_left)));
+    const ssize_t converted_count(static_cast<ssize_t>(::iconv(iconv_handle, &in_bytes, &inbytes_left, &out_bytes, &outbytes_left)));
 
     delete [] in_bytes_start;
     if (unlikely(converted_count == -1)) {
@@ -282,6 +281,7 @@ bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_stri
 
     utf8_string->assign(out_bytes_start, OUTBYTE_COUNT - outbytes_left);
     delete [] out_bytes_start;
+    ::iconv_close(iconv_handle);
 
     return true;
 }
@@ -1482,6 +1482,37 @@ std::string InitialCaps(const std::string &text) {
 }
 
 
+std::string ToTitleCase(const std::string &text) {
+    if (text.empty())
+        return "";
+
+    std::wstring wchar_string;
+    if (unlikely(not UTF8ToWCharString(text, &wchar_string)))
+        LOG_ERROR("can't convert a supposed UTF-8 string to a wide string!");
+
+    bool force_next_char_to_uppercase(true);
+    for (auto &wide_ch : wchar_string) {
+        if (TextUtil::IsWhitespace(wide_ch)) {
+            force_next_char_to_uppercase = true;
+            continue;
+        }
+
+        if (force_next_char_to_uppercase)
+            wide_ch = std::towupper(wide_ch);
+        else
+            wide_ch = std::towlower(wide_ch);
+
+        force_next_char_to_uppercase = false;
+    }
+
+    std::string utf8_string;
+    if (unlikely(not WCharToUTF8String(wchar_string, &utf8_string)))
+        LOG_ERROR("can't convert a supposed wide string to a UTF-8 string!");
+
+    return utf8_string;
+}
+
+
 std::string CanonizeCharset(std::string charset) {
     StringUtil::ASCIIToLower(&charset);
     StringUtil::RemoveChars("- ", &charset);
@@ -1533,8 +1564,26 @@ double CalcTextSimilarity(const std::string &text1, const std::string &text2, co
 
 bool IsSomeKindOfDash(const uint32_t ch) {
     return ch == '-' /*ordinary minus */ or ch == EN_DASH or ch == EM_DASH or ch == TWO_EM_DASH or ch == THREE_EM_DASH
-           or ch == SMALL_EM_DASH;
+           or ch == SMALL_EM_DASH or ch == NON_BREAKING_HYPHEN;
 
+}
+
+
+std::string &NormaliseDashes(std::string * const s) {
+    std::vector<uint32_t> utf32_string;
+    if (unlikely(not UTF8ToUTF32(*s, &utf32_string)))
+        LOG_ERROR("can't convert from UTF-8 to UTF-32!");
+
+    for (auto &utf32_char :  utf32_string) {
+        if (IsSomeKindOfDash(utf32_char))
+            utf32_char = '-'; // ASCII minus sign.
+    }
+
+    s->clear();
+    for (const auto utf32_char :  utf32_string)
+        s->append(UTF32ToUTF8(utf32_char));
+
+    return *s;
 }
 
 
@@ -1683,6 +1732,125 @@ std::string RemoveDiacritics(const std::string &utf8_string) {
         LOG_ERROR("failed to convert a wide character string to a UTF8 string!");
 
     return utf8_without_diacritics;
+}
+
+
+static const std::vector<wchar_t> quotation_marks_to_normalise {
+L'«',  L'‹',  L'»',  L'›',  L'„',  L'‚',  L'“',  L'‟',  L'‘',  L'‛',  L'”',  L'’',  L'"',  L'❛',  L'❜',  L'❟',  L'❝',  L'❞',  L'❮',  L'❯',  L'⹂',  L'〝',  L'〞',  L'〟',  L'＂'
+};
+
+
+std::wstring NormaliseQuotationMarks(const std::wstring &string) {
+   std::wstring string_with_normalised_quotes;
+   for (const auto wchar : string) {
+       if (likely(std::find(quotation_marks_to_normalise.cbegin(), quotation_marks_to_normalise.cend(), wchar) ==
+                  quotation_marks_to_normalise.cend()))
+           string_with_normalised_quotes += wchar;
+       else
+           string_with_normalised_quotes += '"';
+   }
+
+   return string_with_normalised_quotes;
+}
+
+
+std::string NormaliseQuotationMarks(const std::string &utf8_string) {
+    std::wstring wstring;
+    if (unlikely(not UTF8ToWCharString(utf8_string, &wstring)))
+        LOG_ERROR("failed to convert a UTF8 string to a wide character string!");
+
+    const auto wstring_normalised_quotations_marks(NormaliseQuotationMarks(wstring));
+    std::string utf8_normalised_quotations_marks;
+    if (unlikely(not WCharToUTF8String(wstring_normalised_quotations_marks, &utf8_normalised_quotations_marks)))
+        LOG_ERROR("failed to convert a wide character string to a UTF8 string!");
+
+    return utf8_normalised_quotations_marks;
+}
+
+
+bool ConvertToUTF8(const std::string &encoding, const std::string &text, std::string * const utf8_text) {
+    utf8_text->clear();
+
+    std::string error_message;
+    const auto to_utf8_converter(EncodingConverter::Factory(encoding, "UTF-8", &error_message));
+    if (to_utf8_converter.get() == nullptr)
+        return false;
+
+    return to_utf8_converter->convert(text, utf8_text);
+}
+
+
+bool ConsistsEntirelyOfLetters(const std::string &utf8_string) {
+    std::wstring wstring;
+    if (unlikely(not UTF8ToWCharString(utf8_string, &wstring)))
+        LOG_ERROR("invalid UTF-8 input!");
+
+    for (const auto wch : wstring) {
+        if (not std::iswalpha(wch))
+            return false;
+    }
+
+    return true;
+}
+
+
+static inline bool IsStartOfUTF8CodePoint(const char ch) {
+    // Test whether we have an ASCII character or a character whose uppermost two bits are both 1.
+    return (static_cast<unsigned char>(ch) & 128u) == 0 or (static_cast<unsigned char>(ch) & 192u) == 192u;
+}
+
+
+size_t CodePointCount(const std::string &utf8_string) {
+    size_t code_point_count(0);
+    for (const char ch : utf8_string) {
+        if (IsStartOfUTF8CodePoint(ch))
+            ++code_point_count;
+    }
+
+    return code_point_count;
+}
+
+
+static std::string ExtractUTF8Substring(const std::string::const_iterator start, const std::string::const_iterator end,
+                                        const size_t max_length)
+{
+    std::string substring;
+    size_t substring_length(0);
+    for (auto ch(start); ch != end; ++ch) {
+        if (IsStartOfUTF8CodePoint(*ch)) {
+            if (substring_length == max_length)
+                break;
+            ++substring_length;
+        }
+        substring += *ch;
+    }
+    return substring;
+}
+
+
+std::string UTF8Substr(const std::string &utf8_string, const size_t pos, const size_t len) {
+    const size_t total_length(CodePointCount(utf8_string));
+    if (pos == 0) {
+        if (unlikely(len == std::string::npos))
+            return utf8_string;
+        return ExtractUTF8Substring(utf8_string.cbegin(), utf8_string.cend(), len);
+    } else if (pos == total_length)
+        return "";
+    else if (unlikely(pos > total_length))
+        throw std::out_of_range("substring start is out-of-range in TextUtil::UTF8Substr!");
+    else {
+        std::string::const_iterator start(utf8_string.cbegin());
+        size_t skip_count(0);
+        while (start != utf8_string.cend() and skip_count < pos) {
+            if (IsStartOfUTF8CodePoint(*start)) {
+                if (skip_count == pos)
+                    break;
+                ++skip_count;
+            }
+            ++start;
+        }
+        return ExtractUTF8Substring(start, utf8_string.cend(), len);
+    }
 }
 
 

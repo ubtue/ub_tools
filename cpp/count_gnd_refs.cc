@@ -1,7 +1,7 @@
 /** \brief Utility for counting references to GND numbers.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -17,8 +17,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <iostream>
-#include <stdexcept>
 #include <unordered_map>
 #include <cstdlib>
 #include "FileUtil.h"
@@ -30,14 +28,11 @@
 namespace {
 
 
-void Usage() __attribute__((noreturn));
-
-
-void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--control-number-list=list_filename] gnd_number_list marc_data counts\n"
-              << "       If a control-number-list filename has been specified only references of records\n"
-              << "       matching entries in that file will be counted.\n\n";
-    std::exit(EXIT_FAILURE);
+[[noreturn]] void Usage() {
+    ::Usage("[--control-number-list=list_filename] [--filter-field=tag] gnd_number_list marc_data counts\n"
+            "If a control-number-list filename has been specified only references of records\n"
+            "matching entries in that file will be counted.\n"
+            "If --filter-field has been specified then only title records that contain the specified field will be evaluated.\n");
 }
 
 
@@ -48,7 +43,7 @@ void LoadGNDNumbers(File * const input, std::unordered_map<std::string, unsigned
             gnd_numbers_and_counts->emplace(line, 0);
     }
 
-    std::cout << "Loaded " << gnd_numbers_and_counts->size() << " GND numbers.\n";
+    LOG_INFO("Loaded " + std::to_string(gnd_numbers_and_counts->size()) + " GND numbers.");
 }
 
 
@@ -56,12 +51,17 @@ const std::vector<std::string> GND_REFERENCE_FIELDS{ "100", "600", "689", "700" 
 
 
 void ProcessRecords(MARC::Reader * const marc_reader, const std::unordered_set<std::string> &filter_set,
-                    std::unordered_map<std::string, unsigned> * const gnd_numbers_and_counts)
+                    const std::string &filter_tag, std::unordered_map<std::string, unsigned> * const gnd_numbers_and_counts)
 {
     unsigned matched_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         if (not filter_set.empty()) {
             if (filter_set.find(record.getControlNumber()) == filter_set.cend())
+                continue;
+        }
+
+        if (not filter_tag.empty()) {
+            if (record.findTag(filter_tag) == record.end())
                 continue;
         }
 
@@ -83,8 +83,8 @@ void ProcessRecords(MARC::Reader * const marc_reader, const std::unordered_set<s
         }
     }
 
-    std::cerr << "Found " << matched_count << " reference(s) to " << gnd_numbers_and_counts->size()
-              << " matching GND number(s).\n";
+    LOG_INFO("Found " + std::to_string(matched_count) + " reference(s) to " + std::to_string(gnd_numbers_and_counts->size())
+             + " matching GND number(s).");
 }
 
 
@@ -106,39 +106,43 @@ void LoadFilterSet(const std::string &input_filename, std::unordered_set<std::st
             filter_set->emplace(line);
     }
 
-    logger->info("loaded " + std::to_string(filter_set->size()) + " control numbers from \"" + input_filename
-                 + "\".");
+    LOG_INFO("loaded " + std::to_string(filter_set->size()) + " control numbers from \"" + input_filename + "\".");
 }
 
 
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
-    if (argc != 4 and argc != 5)
+int Main(int argc, char *argv[]) {
+    if (argc != 4 and argc != 5 and argc != 6)
         Usage();
 
     std::unordered_set<std::string> filter_set;
-    if (argc == 5) {
-        if (not StringUtil::StartsWith(argv[1], "--control-number-list="))
-            Usage();
+    if (StringUtil::StartsWith(argv[1], "--control-number-list=")) {
         LoadFilterSet(argv[1] + __builtin_strlen("--control-number-list="), &filter_set);
         --argc, ++argv;
     }
 
-    try {
-        std::unique_ptr<File> gnd_numbers_and_counts_file(FileUtil::OpenInputFileOrDie(argv[1]));
-        std::unordered_map<std::string, unsigned> gnd_numbers_and_counts;
-        LoadGNDNumbers(gnd_numbers_and_counts_file.get(), &gnd_numbers_and_counts);
-
-        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
-        ProcessRecords(marc_reader.get(), filter_set, &gnd_numbers_and_counts);
-
-        std::unique_ptr<File> counts_file(FileUtil::OpenOutputFileOrDie(argv[3]));
-        WriteCounts(gnd_numbers_and_counts, counts_file.get());
-    } catch (const std::exception &e) {
-        logger->error("Caught exception: " + std::string(e.what()));
+    std::string filter_tag;
+    if (StringUtil::StartsWith(argv[1], "--filter-field=")) {
+        filter_tag = argv[1] + __builtin_strlen("--filter-field=");
+        if (filter_tag.length() != MARC::Record::TAG_LENGTH)
+            LOG_ERROR("bad field tag \"" + filter_tag + "\"!");
+        --argc, ++argv;
     }
+
+    if (argc != 4)
+        Usage();
+
+    std::unique_ptr<File> gnd_numbers_and_counts_file(FileUtil::OpenInputFileOrDie(argv[1]));
+    std::unordered_map<std::string, unsigned> gnd_numbers_and_counts;
+    LoadGNDNumbers(gnd_numbers_and_counts_file.get(), &gnd_numbers_and_counts);
+
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
+    ProcessRecords(marc_reader.get(), filter_set, filter_tag, &gnd_numbers_and_counts);
+
+    std::unique_ptr<File> counts_file(FileUtil::OpenOutputFileOrDie(argv[3]));
+    WriteCounts(gnd_numbers_and_counts, counts_file.get());
+
+    return EXIT_SUCCESS;
 }

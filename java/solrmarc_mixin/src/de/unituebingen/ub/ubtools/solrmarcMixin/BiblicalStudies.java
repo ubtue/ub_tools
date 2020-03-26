@@ -11,12 +11,7 @@ import org.solrmarc.index.SolrIndexerMixin;
 import org.solrmarc.tools.Utils;
 
 public class BiblicalStudies extends IxTheo {
-
-    final static String TRUE = "true";
-    final static String FALSE = "false";
- 
     public String getIsBiblicalStudies(final Record record) {
-        final List<VariableField> _BIBFields = record.getVariableFields("BIB");
-        return !_BIBFields.isEmpty() ? TRUE : FALSE;
+        return record.getVariableFields("BIB").isEmpty() ? "false" : "true";
     }
 }

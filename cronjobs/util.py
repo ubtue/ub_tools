@@ -1,17 +1,18 @@
-# Python 2 module
+# Python 3 module
 # -*- coding: utf-8 -*-
-
-
-from __future__ import print_function
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from ftplib import FTP
-import ConfigParser
+from typing import List
+import configparser
 import ctypes
 import datetime
+import email
+import enum
 import glob
 import inspect
+import mmap
 import os
 import process_util
 import re
@@ -21,6 +22,62 @@ import struct
 import sys
 import tarfile
 import time
+import urllib.request
+
+
+def HTTPDateToSecondsRelativetoUnixEpoch(http_date: str) -> int:
+    return email.utils.mktime_tz(email.utils.parsedate_tz(http_date))
+
+
+class RetrieveFileByURLReturnCode(enum.Enum):
+    SUCCESS = 0
+    TIMEOUT = 1
+    URL_NOT_FOUND = 2
+    HTTP_ERROR = 3
+    UNSPECIFIED_ERROR = 4
+    BAD_CONTENT_TYPE = 5
+
+
+# @brief Fetch a file given a URL
+# @param url                    The URL to fetch.
+# @param timeout                Give up if it takes longer than this many seconds to retrieve the file.
+# @param accepted_content_types If non-empty, a list of acceptable content types.  If empty, anything will be accepted.
+def RetrieveFileByURL(url: str, timeout: int, accepted_content_types: List[str] = []) -> RetrieveFileByURLReturnCode:
+    deadline: int = time.time() + timeout
+    attempt_no: int = 0
+    while time.time() < deadline:
+        try:
+            headers = urllib.request.urlretrieve(url)[1]
+            if accepted_content_types:
+                content_type: str = headers["Content-type"].lower()
+                for accepted_content_type in accepted_content_types:
+                    if accepted_content_type.lower() == content_type:
+                        return RetrieveFileByURLReturnCode.SUCCESS
+                return RetrieveFileByURLReturnCode.BAD_CONTENT_TYPE
+            return RetrieveFileByURLReturnCode.SUCCESS
+        except urllib.error.URLError:
+            return RetrieveFileByURLReturnCode.URL_NOT_FOUND
+        except urllib.error.HTTPError as http_error:
+            if http_error.code != 429:
+                print("HTTP error reason: " + http_error.reason)
+                print("HTTP headers: " + str(http_error.headers))
+                return RetrieveFileByURLReturnCode.HTTP_ERROR
+            if http_error.headers["Retry-After"]:
+                timeout_or_date: str = http_error.headers["Retry-After"]
+                try:
+                    sleep_interval = int(http_error.headers["Retry-After"])
+                except:
+                    sleep_interval = HTTPDateToSecondsRelativetoUnixEpoch(http_error.headers["Retry-After"]) - time.time()
+                if time.time() + sleep_interval > deadline:
+                    return RetrieveFileByURLReturnCode.TIMEOUT
+        except:
+            return RetrieveFileByURLReturnCode.UNSPECIFIED_ERROR
+
+        if 'sleep_interval' not in locals():
+            sleep_interval: int = max(0, min(deadline - time.time(), 10 * 2 ** attempt_no))
+        attempt_no += 1
+        time.sleep(sleep_interval)
+    return RetrieveFileByURLReturnCode.TIMEOUT
 
 
 default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
@@ -29,12 +86,13 @@ default_config_file_dir = "/usr/local/var/lib/tuelib/cronjobs/"
 
 # @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the lowest priority.
 # @param attachment A path to the file that should be attached. Can be string or list of strings.
-def SendEmail(subject, msg, sender=None, recipient=None, cc=None, priority=None, attachments=None):
+def SendEmail(subject: str, msg: str, sender: str = None, recipient: str = None, cc : str = None, priority: int = None,
+              attachments: List[str] = None, log: bool = True):
     subject = os.path.basename(sys.argv[0]) +  ": " + subject + " (from: " + socket.gethostname() + ")"
     if recipient is None:
         recipient = default_email_recipient
     if priority is not None:
-        if type(priority) is not int:
+        if not isinstance(priority, int):
             Error("util.Sendmail called with a non-int priority!")
         if priority < 1 or priority > 5:
             Error("util.Sendmail called with a prioity that is not in [1..5]!")
@@ -60,7 +118,7 @@ def SendEmail(subject, msg, sender=None, recipient=None, cc=None, priority=None,
     message.attach(MIMEText(msg, 'plain', 'utf-8'))
 
     if attachments is not None:
-        if not type(attachments) is list:
+        if not isinstance(attachments, list):
             attachments = [ attachments ]
 
         for attachment in attachments:
@@ -80,6 +138,25 @@ def SendEmail(subject, msg, sender=None, recipient=None, cc=None, priority=None,
         sys.exit(-1)
     server.quit()
 
+    if log:
+        message = "Sent email " + subject
+        if sender is not None:
+            message += ", sender: " + sender
+        if recipient is not None:
+            message += ", recipient: " + recipient
+        if cc is not None:
+            message += ", cc: " + cc
+        Info(message)
+
+
+# @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the lowest priority.
+# @param attachment A path to the file that should be attached. Can be string or list of strings.
+# @note Calls sys.exit with exit code -1 after sending the email
+def SendEmailAndExit(subject: str, msg: str, sender: str = None, recipient: str = None, cc: str = None, priority: int = None,
+                     attachments: List[str] = None, log: bool = True):
+    SendEmail(subject, msg, sender, recipient, cc, priority, attachments, log)
+    sys.exit(-1)
+
 
 def Error(msg):
     msg = os.path.basename(inspect.stack()[1][1]) + "." + inspect.stack()[1][3] + ": " + msg
@@ -93,9 +170,10 @@ def Warning(msg):
     Info(sys.argv[0] + ": " + msg, file=sys.stderr)
 
 
-def Info(*args, **kwargs):
-    print(*args, **kwargs)
-    sys.stdout.flush()
+def Info(*args, file=sys.stdout):
+    for arg in args:
+        print(arg, file=file, end='')
+    print(file=file, flush=True)
 
 
 # @brief Copy the contents, in order, of "files" into "target".
@@ -172,7 +250,7 @@ def ReadTimestamp(prefix = None):
 def WriteTimestamp(prefix=None, timestamp=None):
     if prefix is None:
         prefix = os.path.basename(sys.argv[0])[:-3]
-    elif type(timestamp) is not float:
+    elif not isinstance(timestamp, float):
         raise TypeError("timestamp argument of WriteTimestamp() must be of type \"float\"!")
     if timestamp is None:
         timestamp = time.time()
@@ -194,7 +272,7 @@ def LoadConfigFile(path=None, no_error=False):
             if no_error:
                 raise OSError("in util.LoadConfigFile: can't open \"" + path + "\" for reading!")
             Error("in util.LoadConfigFile: can't open \"" + path + "\" for reading!")
-        config = ConfigParser.ConfigParser()
+        config = configparser.ConfigParser()
         config.read(path)
         return config
     except Exception as e:
@@ -396,3 +474,32 @@ def Which(executable_name):
         if os.access(path_component + "/" + executable_name, os.X_OK):
             return path_component + "/" + executable_name
     return ""
+
+
+# Returns the last "max_no_of_lines" of "filename" or the contents of the entire file if the file contains no more than
+# "max_no_of_lines".
+# @return The requested lines.
+def Tail(filename, max_no_of_lines):
+    with open(filename, "rb") as f:
+        map = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)
+
+        map.seek(0, os.SEEK_END)
+        no_of_lines = 0
+        requested_lines = bytearray()
+        while map.tell() != 0:
+            cur_pos = map.tell()
+            map.seek(cur_pos - 1)
+            previous_byte = map.read_byte()
+            if previous_byte == '\n':
+                no_of_lines += 1
+                if no_of_lines == max_no_of_lines + 1:
+                    return str(requested_lines[::-1])
+            map.seek(cur_pos - 1)
+            requested_lines += previous_byte
+
+        map.close()
+        return str(requested_lines[::-1])
+
+
+def RenameFile(old_path : str, new_path : str) -> None:
+    ExecOrDie("/bin/mv", [ "--force", old_path, new_path ])

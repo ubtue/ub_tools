@@ -2,10 +2,11 @@
  *  \brief   Add additional tags for interfaces to identitify subset views of
              IxTheo like RelBib and Bibstudies
  *  \author  Johannes Riedl
+ *  \author  Dr. Johannes Ruscheinski
  */
 
 /*
-    Copyright (C) 2018, Library of the University of Tübingen
+    Copyright (C) 2018,2019 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -38,26 +39,43 @@
 namespace {
 
 
-const std::string RELBIB_TAG("REL");
-const std::string BIBSTUDIES_TAG("BIB");
+// See https://github.com/ubtue/tuefind/wiki/Daten-Abzugskriterien#abzugskriterien-bibelwissenschaften, both entries Nr. 6 in order
+// to understand this implementation.
+void CollectGNDNumbers(const std::string &authority_records_filename, std::unordered_set<std::string> * const bible_studies_gnd_numbers,
+                       std::unordered_set<std::string> * const canon_law_gnd_numbers)
+{
+    auto authority_reader(MARC::Reader::Factory(authority_records_filename));
+    unsigned record_count(0);
+    while (MARC::Record record = authority_reader->read()) {
+        ++record_count;
 
-enum SubSystem { RELBIB, BIBSTUDIES };
-const unsigned NUM_OF_SUBSYSTEMS(2);
+        for (const auto &field : record.getTagRange("065")) {
+            const MARC::Subfields subfields(field.getSubfields());
+            if (subfields.hasSubfieldWithValue('2', "ssgn")) {
+                for (const auto &subfield : subfields) {
+                    std::string gnd_code;
+                    if (subfield.code_ == 'a' and StringUtil::StartsWith(subfield.value_, "3.2") and MARC::GetGNDCode(record, &gnd_code))
+                        bible_studies_gnd_numbers->emplace(gnd_code);
+                }
+            }
 
+            if (subfields.hasSubfieldWithValue('2', "sswd") and subfields.hasSubfieldWithValue('a', "7.13")) {
+                std::string gnd_code;
+                if (MARC::GetGNDCode(record, &gnd_code))
+                    canon_law_gnd_numbers->emplace(gnd_code);
+            }
+        }
+    }
 
-[[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
-    std::exit(EXIT_FAILURE);
+    LOG_INFO("Processed " + std::to_string(record_count) + " authority record(s) and found "
+             + std::to_string(bible_studies_gnd_numbers->size()) + " bible studies and " + std::to_string(canon_law_gnd_numbers->size())
+             + " canon law GND number(s).");
 }
 
 
 bool HasRelBibSSGN(const MARC::Record &record) {
-    for (const auto& field : record.getTagRange("084")) {
-        const MARC::Subfields subfields(field.getSubfields());
-        if (subfields.hasSubfieldWithValue('2', "ssgn") and subfields.hasSubfieldWithValue('a', "0"))
-            return true;
-    }
-    return false;
+    const auto ssgns(record.getSSGNs());
+    return ssgns.find("0") != ssgns.cend();
 }
 
 
@@ -121,7 +139,8 @@ bool HasRelBibExcludeDDC(const MARC::Record &record) {
 
     // Exclude item if it has only a 400 or 800 DDC notation
     static const std::string RELBIB_EXCLUDE_DDC_CATEGORIES_PATTERN("^[48][0-9][0-9]$");
-    static RegexMatcher * const relbib_exclude_ddc_categories_matcher(RegexMatcher::RegexMatcherFactoryOrDie(RELBIB_EXCLUDE_DDC_CATEGORIES_PATTERN));
+    static RegexMatcher * const relbib_exclude_ddc_categories_matcher(
+        RegexMatcher::RegexMatcherFactoryOrDie(RELBIB_EXCLUDE_DDC_CATEGORIES_PATTERN));
     for (const auto &field : record.getTagRange("082")) {
         for (const auto &subfield_a : field.getSubfields().extractSubfields('a')) {
             if (HasPlausibleDDCPrefix(subfield_a) and not relbib_exclude_ddc_categories_matcher->matched(subfield_a))
@@ -132,19 +151,19 @@ bool HasRelBibExcludeDDC(const MARC::Record &record) {
 }
 
 
-bool MatchesRelBibDDC(const MARC::Record &record) {
+inline bool MatchesRelBibDDC(const MARC::Record &record) {
     return not HasRelBibExcludeDDC(record);
 }
 
 
-bool IsDefinitelyRelBib(const MARC::Record &record) {
+inline bool IsDefinitelyRelBib(const MARC::Record &record) {
    return HasRelBibSSGN(record) or HasRelBibIxTheoNotation(record) or MatchesRelBibDDC(record);
 }
 
 
 bool IsProbablyRelBib(const MARC::Record &record) {
-    for (const auto& field : record.getTagRange("191")) {
-        for (const auto& subfield : field.getSubfields().extractSubfields("a")) {
+    for (const auto &field : record.getTagRange("191")) {
+        for (const auto &subfield : field.getSubfields().extractSubfields("a")) {
             if (subfield == "1")
                 return true;
         }
@@ -172,6 +191,7 @@ bool IsTemporaryRelBibSuperior(const MARC::Record &record) {
 }
 
 
+// Tagged as not a relbib record?
 bool ExcludeBecauseOfRWEX(const MARC::Record &record) {
     for (const auto &field : record.getTagRange("LOK")) {
         const auto &subfields(field.getSubfields());
@@ -188,29 +208,79 @@ bool ExcludeBecauseOfRWEX(const MARC::Record &record) {
 }
 
 
-bool IsRelBibRecord(const MARC::Record &record) {
-    return ((IsDefinitelyRelBib(record) or
-             IsProbablyRelBib(record) or
-             IsTemporaryRelBibSuperior(record))
-             and not ExcludeBecauseOfRWEX(record));
+inline bool IsRelBibRecord(const MARC::Record &record) {
+    return ((IsDefinitelyRelBib(record) or IsProbablyRelBib(record) or IsTemporaryRelBibSuperior(record))
+            and not ExcludeBecauseOfRWEX(record));
 }
 
 
-bool HasBibStudiesIxTheoNotation(const MARC::Record &record) {
-    static const std::string BIBSTUDIES_IXTHEO_PATTERN("^[H][A-Z].*|.*:[H][A-Z].*");
-    static RegexMatcher * const relbib_ixtheo_notations_matcher(RegexMatcher::RegexMatcherFactory(BIBSTUDIES_IXTHEO_PATTERN));
-    for (const auto &field : record.getTagRange("652")) {
-        for (const auto &subfield_a : field.getSubfields().extractSubfields("a")) {
-            if (relbib_ixtheo_notations_matcher->matched(subfield_a))
+// See https://github.com/ubtue/tuefind/wiki/Daten-Abzugskriterien#abzugskriterien-bibelwissenschaften for the documentation.
+bool IsBibleStudiesRecord(const MARC::Record &record, const std::unordered_set<std::string> &bible_studies_gnd_numbers) {
+    // 1. Abrufzeichen
+    for (const auto &field : record.getTagRange("935")) {
+        if (field.hasSubfieldWithValue('a', "BIIN"))
+            return true;
+    }
+
+    // 2. IxTheo-Klassen
+    for (const auto &field : record.getTagRange("LOK")) {
+        if (field.hasSubfieldWithValue('0', "936ln")) {
+            for (const auto &subfield : field.getSubfields()) {
+                if (subfield.code_ == 'a' and likely(not subfield.value_.empty()) and subfield.value_[0] == 'H')
+                    return true;
+            }
+        }
+    }
+
+    // 3. DDC Klassen
+    for (const auto &field : record.getTagRange("082")) {
+        if (field.getIndicator1() != ' ' or field.getIndicator2() != '0')
+            continue;
+        for (const auto &subfield : field.getSubfields()) {
+            if (subfield.code_ == 'a' and StringUtil::StartsWith(subfield.value_, "22"))
                 return true;
         }
     }
+
+    // 4. RVK Klassen
+    for (const auto &field : record.getTagRange("084")) {
+        if (not field.hasSubfieldWithValue('2', "rvk"))
+            continue;
+        for (const auto &subfield : field.getSubfields()) {
+            if (subfield.code_ == 'a' and StringUtil::StartsWith(subfield.value_, "BC"))
+                return true;
+        }
+    }
+
+    // 5. Basisklassifikation (BK)
+    for (const auto &field : record.getTagRange("936")) {
+        if (field.getIndicator1() != 'b' or field.getIndicator2() != 'k')
+            continue;
+        for (const auto &subfield : field.getSubfields()) {
+            if (subfield.code_ == 'a'
+                and (StringUtil::StartsWith(subfield.value_, "11.3") or StringUtil::StartsWith(subfield.value_, "11.4")))
+                return true;
+        }
+    }
+
+    // 6. Titel, die mit einem Normsatz verknüpft sind, der die GND Systematik enthält
+    const auto gnd_references(record.getReferencedGNDNumbers());
+    for (const auto &gnd_reference : gnd_references) {
+        if (bible_studies_gnd_numbers.find(gnd_reference) != bible_studies_gnd_numbers.cend())
+            return true;
+    }
+
+    // 7. SSG-Kennzeichen für den Alten Orient
+    for (const auto &field : record.getTagRange("084")) {
+        if (not field.hasSubfieldWithValue('2', "ssgn"))
+            continue;
+        for (const auto &subfield : field.getSubfields()) {
+            if (subfield.code_ == 'a' and StringUtil::StartsWith(subfield.value_, "6,22"))
+                return true;
+        }
+    }
+
     return false;
-}
-
-
-bool IsBibStudiesRecord(const MARC::Record &record) {
-    return HasBibStudiesIxTheoNotation(record);
 }
 
 
@@ -231,25 +301,106 @@ void CollectSuperiorOrParallelWorks(const MARC::Record &record, std::unordered_s
 }
 
 
+// See https://github.com/ubtue/tuefind/wiki/Daten-Abzugskriterien#abzugskriterien-bibelwissenschaften for the documentation.
+bool IsCanonLawRecord(const MARC::Record &record, const std::unordered_set<std::string> &canon_law_gnd_numbers) {
+    // 1. Abrufzeichen
+    for (const auto &field : record.getTagRange("935")) {
+        if (field.hasSubfieldWithValue('a', "KALD"))
+            return true;
+    }
+
+    // 2. IxTheo-Klassen
+    for (const auto &field : record.getTagRange("LOK")) {
+        if (field.hasSubfieldWithValue('0', "936ln")) {
+            for (const auto &subfield : field.getSubfields()) {
+                if (subfield.code_ == 'a' and likely(not subfield.value_.empty()) and subfield.value_[0] == 'S')
+                    return true;
+            }
+        }
+    }
+
+    // 3. DDC Klassen
+    for (const auto &field : record.getTagRange("082")) {
+        if (field.getIndicator1() != ' ' or field.getIndicator2() != '0')
+            continue;
+        for (const auto &subfield : field.getSubfields()) {
+            if (subfield.code_ == 'a'
+                and (StringUtil::StartsWith(subfield.value_, "262.91") or StringUtil::StartsWith(subfield.value_, "262.92")
+                     or StringUtil::StartsWith(subfield.value_, "262.93") or StringUtil::StartsWith(subfield.value_, "262.94")
+                     or StringUtil::StartsWith(subfield.value_, "262.98")))
+                return true;
+        }
+    }
+
+    // 4. RVK Klassen
+    for (const auto &field : record.getTagRange("084")) {
+        if (not field.hasSubfieldWithValue('2', "rvk"))
+            continue;
+        for (const auto &subfield : field.getSubfields()) {
+            if (subfield.code_ == 'a' and StringUtil::StartsWith(subfield.value_, "BR"))
+                return true;
+        }
+    }
+
+    // 5. Basisklassifikation (BK)
+    for (const auto &field : record.getTagRange("936")) {
+        if (field.getIndicator1() != 'b' or field.getIndicator2() != 'k')
+            continue;
+        for (const auto &subfield : field.getSubfields()) {
+            if (subfield.code_ == 'a' and subfield.value_ == "86.97")
+                return true;
+        }
+    }
+
+    // 6. Titel, die mit einem Normsatz verknüpft sind, der die GND Systematik enthält
+    const auto gnd_references(record.getReferencedGNDNumbers());
+    for (const auto &gnd_reference : gnd_references) {
+        if (canon_law_gnd_numbers.find(gnd_reference) != canon_law_gnd_numbers.cend())
+            return true;
+    }
+
+    return false;
+}
+
+
+enum SubSystem { RELBIB, BIBSTUDIES, CANON_LAW, NUM_OF_SUBSYSTEMS };
+
+
 // Get set of immediately belonging or superior or parallel records
-void GetSubsystemPPNSet(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                      std::vector<std::unordered_set<std::string>> * const subsystem_sets) {
+void GetSubsystemPPNSet(MARC::Reader * const marc_reader,
+                        const std::unordered_set<std::string> &bible_studies_gnd_numbers,
+                        const std::unordered_set<std::string> &canon_law_gnd_numbers,
+                        std::vector<std::unordered_set<std::string>> * const subsystem_sets)
+{
     while (const MARC::Record record = marc_reader->read()) {
         if (IsRelBibRecord(record)) {
             ((*subsystem_sets)[RELBIB]).emplace(record.getControlNumber());
             CollectSuperiorOrParallelWorks(record, &((*subsystem_sets)[RELBIB]));
         }
-        if (IsBibStudiesRecord(record)) {
+        if (IsBibleStudiesRecord(record, bible_studies_gnd_numbers)) {
             ((*subsystem_sets)[BIBSTUDIES]).emplace(record.getControlNumber());
             CollectSuperiorOrParallelWorks(record, &((*subsystem_sets)[BIBSTUDIES]));
         }
-        marc_writer->write(record);
+        if (IsCanonLawRecord(record, canon_law_gnd_numbers)) {
+            ((*subsystem_sets)[CANON_LAW]).emplace(record.getControlNumber());
+            CollectSuperiorOrParallelWorks(record, &((*subsystem_sets)[CANON_LAW]));
+        }
     }
+
+    LOG_INFO("collected " + std::to_string((*subsystem_sets)[RELBIB].size()) + " RelBib PPN's.");
+    LOG_INFO("collected " + std::to_string((*subsystem_sets)[BIBSTUDIES].size()) + " BibStudies PPN's.");
+    LOG_INFO("collected " + std::to_string((*subsystem_sets)[CANON_LAW].size()) + " CanonLaw PPN's.");
 }
 
 
+const std::string RELBIB_TAG("REL");
+const std::string BIBSTUDIES_TAG("BIB");
+const std::string CANON_LAW_TAG("CAN");
+
+
 void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                      const std::vector<std::unordered_set<std::string>> &subsystem_sets) {
+                      const std::vector<std::unordered_set<std::string>> &subsystem_sets)
+{
     unsigned record_count(0), modified_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
@@ -258,8 +409,12 @@ void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const mar
             AddSubsystemTag(&record, RELBIB_TAG);
             modified_record = true;
         }
-        if ((subsystem_sets[BIBSTUDIES]).find(record.getControlNumber()) != subsystem_sets[RELBIB].end()) {
+        if ((subsystem_sets[BIBSTUDIES]).find(record.getControlNumber()) != subsystem_sets[BIBSTUDIES].end()) {
             AddSubsystemTag(&record, BIBSTUDIES_TAG);
+            modified_record = true;
+        }
+        if ((subsystem_sets[CANON_LAW]).find(record.getControlNumber()) != subsystem_sets[CANON_LAW].end()) {
+            AddSubsystemTag(&record, CANON_LAW_TAG);
             modified_record = true;
         }
         if (modified_record)
@@ -270,36 +425,27 @@ void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const mar
 }
 
 
-void InitializeSubsystemPPNSets(std::vector<std::unordered_set<std::string>> * const subsystem_ppn_sets) {
-    for (unsigned i(0); i < NUM_OF_SUBSYSTEMS; ++i)
-        subsystem_ppn_sets->push_back(std::unordered_set<std::string>());
-}
-
-
 } //unnamed namespace
 
 
 int Main(int argc, char **argv) {
-    if (argc != 3)
-        Usage();
+    if (argc != 4)
+        ::Usage("marc_input authority_records marc_output");
 
     const std::string marc_input_filename(argv[1]);
-    const std::string marc_output_filename(argv[2]);
+    const std::string marc_output_filename(argv[3]);
     if (unlikely(marc_input_filename == marc_output_filename))
         LOG_ERROR("Title data input file name equals output file name!");
 
-    std::vector<std::unordered_set<std::string>> subsystem_sets;
-    InitializeSubsystemPPNSets(&subsystem_sets);
+    std::unordered_set<std::string> bible_studies_gnd_numbers, canon_law_gnd_numbers;
+    CollectGNDNumbers(argv[2], &bible_studies_gnd_numbers, &canon_law_gnd_numbers);
 
+    std::vector<std::unordered_set<std::string>> subsystem_sets(NUM_OF_SUBSYSTEMS);
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
-    FileUtil::AutoTempFile tmp_marc_file("/dev/shm/", ".mrc");
-    std::unique_ptr<MARC::Writer> marc_tmp_writer(MARC::Writer::Factory(tmp_marc_file.getFilePath()));
-    GetSubsystemPPNSet(marc_reader.get(), marc_tmp_writer.get(), &subsystem_sets);
-    if (not marc_tmp_writer->flush())
-        LOG_ERROR("Could not flush to " + tmp_marc_file.getFilePath());
-    std::unique_ptr<MARC::Reader> marc_tmp_reader(MARC::Reader::Factory(tmp_marc_file.getFilePath()));
+    GetSubsystemPPNSet(marc_reader.get(), bible_studies_gnd_numbers, canon_law_gnd_numbers, &subsystem_sets);
+    marc_reader->rewind();
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
-    AddSubsystemTags(marc_tmp_reader.get(), marc_writer.get(), subsystem_sets);
+    AddSubsystemTags(marc_reader.get(), marc_writer.get(), subsystem_sets);
 
     return EXIT_SUCCESS;
 }

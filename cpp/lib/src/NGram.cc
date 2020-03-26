@@ -128,19 +128,25 @@ UnitVector::UnitVector(const NGramCounts &ngram_counts): std::vector<std::pair<s
             norm_squared2 += ngram_and_weight.second * ngram_and_weight.second;
         LOG_DEBUG("norm is " + std::to_string(std::sqrt(norm_squared2)));
     }
+
+    std::sort(begin(), end(),
+              [](const std::pair<std::wstring, double> &a, const std::pair<std::wstring, double> &b){ return a.first < b.first; });
 }
 
 
 double UnitVector::dotProduct(const UnitVector &rhs) const {
-    std::unordered_map<std::wstring, double> rhs_map;
-    for (const auto &rhs_ngram_and_weight : rhs)
-        rhs_map.emplace(rhs_ngram_and_weight);
+    auto lhs_ngram_and_weight(cbegin()), rhs_ngram_and_weight(rhs.cbegin());
 
     double dot_product(0.0);
-    for (const auto &ngram_and_weight : *this) {
-        const auto rhs_ngram_and_weight(rhs_map.find(ngram_and_weight.first));
-        if (rhs_ngram_and_weight != rhs_map.cend())
-            dot_product += ngram_and_weight.second * rhs_ngram_and_weight->second;
+    while (lhs_ngram_and_weight != cend() and rhs_ngram_and_weight != rhs.cend()) {
+        if (lhs_ngram_and_weight->first < rhs_ngram_and_weight->first)
+            ++lhs_ngram_and_weight;
+        else if (rhs_ngram_and_weight->first < lhs_ngram_and_weight->first)
+            ++rhs_ngram_and_weight;
+        else {
+            dot_product += lhs_ngram_and_weight->second * rhs_ngram_and_weight->second;
+            ++lhs_ngram_and_weight, ++rhs_ngram_and_weight;
+        }
     }
 
     return dot_product;
@@ -193,6 +199,7 @@ void LoadLanguageModel(const std::string &language, LanguageModel * const langua
     if (input->fail())
         LOG_ERROR("can't open language model file \"" + model_path + "\" for reading!");
     language_model->deserialise(*input);
+    language_model->setLanguage(language);
 }
 
 
@@ -218,8 +225,8 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
     Split(filtered_text, &words);
 
     std::unordered_map<std::wstring, double> ngram_counts_map;
-    for (std::vector<std::wstring>::const_iterator word(words.begin()); word != words.end(); ++word) {
-        const std::wstring funny_word(L"_" + *word + L"_");
+    for (const auto &word : words) {
+        const std::wstring funny_word(L"_" + word + L"_");
         const std::wstring::size_type funny_word_length(funny_word.length());
         std::wstring::size_type length(funny_word_length);
         for (unsigned i(0); i < funny_word_length; ++i, --length) {
@@ -231,57 +238,62 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
                 ExtractAndCountNGram(funny_word, i, 3, &ngram_counts_map);
             if (length > 1)
                 ExtractAndCountNGram(funny_word, i, 2, &ngram_counts_map);
-            ExtractAndCountNGram(funny_word, i, 1, &ngram_counts_map);
+            if (funny_word[i] != '_') // Ignore single spaces!
+                ExtractAndCountNGram(funny_word, i, 1, &ngram_counts_map);
         }
     }
 
-    if (unlikely(ngram_counts_map.size() < topmost_use_count))
-        LOG_ERROR("generated too few ngrams (" + std::to_string(ngram_counts_map.size()) + " < " + std::to_string(topmost_use_count)
-                  + ") (1)!");
-
     NGramCounts ngram_counts_vector;
     ngram_counts_vector.reserve(ngram_counts_map.size());
-    for (const auto &ngram_and_count : ngram_counts_map)
-        ngram_counts_vector.emplace_back(ngram_and_count);
+    for (const auto &ngram_and_count : ngram_counts_map) {
+        if (ngram_and_count.second >= ngram_number_threshold)
+            ngram_counts_vector.emplace_back(ngram_and_count);
+    }
 
     std::sort(ngram_counts_vector.begin(), ngram_counts_vector.end(),
               [](const std::pair<std::wstring, double> &a, const std::pair<std::wstring, double> &b){ return a.second > b.second; });
 
-    // Eliminate all entries that have a count < ngram_number_threshold:
-    auto iter(ngram_counts_vector.rbegin());
-    for (/* Intentionally empty! */; iter != ngram_counts_vector.rend(); ++iter) {
-        if (iter->second > ngram_number_threshold)
-            break;
-    }
-    ngram_counts_vector.resize(ngram_counts_vector.rend() - iter);
-    if (unlikely(ngram_counts_vector.size() < topmost_use_count))
-        LOG_ERROR("generated too few ngrams (" + std::to_string(ngram_counts_vector.size()) + " < " + std::to_string(topmost_use_count)
-                  + ") (2)!");
-
-    if (ngram_counts_vector.size() >= topmost_use_count)
+    if (unlikely(ngram_counts_map.size() < topmost_use_count))
+        LOG_DEBUG("generated too few ngrams (" + std::to_string(ngram_counts_map.size()) + " < " + std::to_string(topmost_use_count)
+                    + ")!");
+    else
         ngram_counts_vector.resize(topmost_use_count);
 
     *language_model = LanguageModel("unknown", ngram_counts_vector);
 }
 
 
+static std::vector<LanguageModel> LoadDefaultLanguageModels() {
+    std::vector<LanguageModel> language_models;
+
+    const std::string override_language_models_directory("");   // intentionally empty
+    if (not LoadLanguageModels(&language_models, override_language_models_directory))
+        LOG_ERROR("no language models available in \"" + GetLoadLanguageModelDirectory(override_language_models_directory) + "\"!");
+    return language_models;
+}
+
+
+static const std::vector<LanguageModel> DEFAULT_LANGUAGE_MODELS(LoadDefaultLanguageModels());
+
+
 void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_languages, const std::set<std::string> &considered_languages,
                       const double alternative_cutoff_factor, const std::string &override_language_models_directory)
 {
     LanguageModel unknown_language_model;
-    CreateLanguageModel(input, &unknown_language_model, /* ngram_number_threshold = */0, /* topmost_use_count = */1);
+    CreateLanguageModel(input, &unknown_language_model);
 
-    static std::vector<LanguageModel> language_models;
-    if (language_models.empty()) {
-        if (not LoadLanguageModels(&language_models, override_language_models_directory))
+    std::vector<LanguageModel> new_language_models;
+    if (not override_language_models_directory.empty()) {
+        if (not LoadLanguageModels(&new_language_models, override_language_models_directory))
             LOG_ERROR("no language models available in \"" + GetLoadLanguageModelDirectory(override_language_models_directory) + "\"!");
-        LOG_DEBUG("loaded " + std::to_string(language_models.size()) + " language models.");
     }
+
+    const auto &language_models_to_use(not new_language_models.empty() ? new_language_models : DEFAULT_LANGUAGE_MODELS);
 
     // Verify that we do have models for all requested languages:
     if (not considered_languages.empty()) {
         std::unordered_set<std::string> all_languages;
-        for (const auto &language_model : language_models)
+        for (const auto &language_model : language_models_to_use)
             all_languages.emplace(language_model.getLanguage());
 
         for (const auto &requested_language : considered_languages) {
@@ -291,16 +303,16 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
     }
 
     std::vector<std::pair<std::string, double>> languages_and_scores;
-    for (const auto &language_model : language_models) {
+    for (const auto &language_model : language_models_to_use) {
         if (not considered_languages.empty() and considered_languages.find(language_model.getLanguage()) == considered_languages.cend())
             continue;
 
         const double similarity(language_model.similarity(unknown_language_model));
         languages_and_scores.emplace_back(language_model.getLanguage(), similarity);
-        LOG_DEBUG(language_model.getLanguage() + " scored + " + std::to_string(similarity));
+        LOG_DEBUG(language_model.getLanguage() + " scored :" + std::to_string(similarity));
     }
     std::sort(languages_and_scores.begin(), languages_and_scores.end(),
-              [](const std::pair<std::string, double> &a, const std::pair<std::string, double> &b){ return a.second < b.second; });
+              [](const std::pair<std::string, double> &a, const std::pair<std::string, double> &b){ return a.second > b.second; });
 
     // Select the top scoring language and anything that's close (as defined by alternative_cutoff_factor):
     const double high_score(languages_and_scores[0].second);

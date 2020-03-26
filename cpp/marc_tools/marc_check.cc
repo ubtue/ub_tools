@@ -1,7 +1,7 @@
 /** \brief Utility for displaying various bits of info about a collection of MARC records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -25,7 +25,9 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
+#include "FileUtil.h"
 #include "MARC.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -34,11 +36,157 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " [--do-not-abort-on-empty-subfields] [--do-not-abort-on-invalid-repeated-fields] "
-              << "[--write-data=output_filename] marc_data\n"
-              << "       If \"--write-data\" has been specified, the read records will be written out again.\n\n";
+    ::Usage("[--do-not-abort-on-empty-subfields] [--do-not-abort-on-invalid-repeated-fields] [--check-rule-violations-only]"
+            " [--write-data=output_filename] marc_data [rules violated_rules_control_number_list]\n"
+            "       If \"--write-data\" has been specified, the read records will be written out again.\n");
     std::exit(EXIT_FAILURE);
+}
+
+
+class Rule {
+public:
+    virtual ~Rule() { }
+
+    virtual bool hasBeenViolated(const MARC::Record &record, std::string * const err_msg) const = 0;
+};
+
+
+class SubfieldMatches final: public Rule {
+    MARC::Tag tag_;
+    char indicator1_, indicator2_;
+    char subfield_code_;
+    std::shared_ptr<RegexMatcher> matcher_;
+public:
+    SubfieldMatches(const MARC::Tag &tag, const char indicator1, const char indicator2, const char subfield_code,
+                    RegexMatcher * const matcher)
+        : tag_(tag), indicator1_(indicator1), indicator2_(indicator2), subfield_code_(subfield_code), matcher_(matcher) { }
+    virtual ~SubfieldMatches() = default;
+
+    virtual bool hasBeenViolated(const MARC::Record &record, std::string * const err_msg) const final;
+};
+
+
+bool SubfieldMatches::hasBeenViolated(const MARC::Record &record, std::string * const err_msg) const {
+    for (const auto &field : record.getTagRange(tag_)) {
+        if (indicator1_ == '#' or field.getIndicator1() != indicator1_)
+            continue;
+        if (indicator2_ == '#' or field.getIndicator2() != indicator2_)
+            continue;
+
+        for (const auto &subfield : field.getSubfields()) {
+            if (subfield.code_ == subfield_code_ and not matcher_->matched(subfield.value_)) {
+                *err_msg = "\"" + subfield.value_ +"\" does not match \"" + matcher_->getPattern() + "\"";
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+
+class FirstSubfieldMatches final: public Rule {
+    MARC::Tag tag_;
+    char indicator1_, indicator2_;
+    char subfield_code_;
+    std::shared_ptr<RegexMatcher> matcher_;
+public:
+    FirstSubfieldMatches(const MARC::Tag &tag, const char indicator1, const char indicator2, const char subfield_code,
+                         RegexMatcher * const matcher)
+        : tag_(tag), indicator1_(indicator1), indicator2_(indicator2), subfield_code_(subfield_code), matcher_(matcher) { }
+    virtual ~FirstSubfieldMatches() = default;
+
+    virtual bool hasBeenViolated(const MARC::Record &record, std::string * const err_msg) const final;
+};
+
+
+bool FirstSubfieldMatches::hasBeenViolated(const MARC::Record &record, std::string * const err_msg) const {
+    for (const auto &field : record.getTagRange(tag_)) {
+        if (indicator1_ == '#' or field.getIndicator1() != indicator1_)
+            continue;
+        if (indicator2_ == '#' or field.getIndicator2() != indicator2_)
+            continue;
+
+        for (const auto &subfield : field.getSubfields()) {
+            if (subfield.code_ == subfield_code_ and not matcher_->matched(subfield.value_)) {
+                *err_msg = "\"" + subfield.value_ +"\" does not match \"" + matcher_->getPattern() + "\"";
+                return true;
+            } else if (subfield.code_ == subfield_code_ and matcher_->matched(subfield.value_))
+                break;
+        }
+    }
+
+    return false;
+}
+
+
+// Parse a line with "words" separated by spaces.  Backslash escapes are supported.
+bool ParseLine(const std::string &line, std::vector<std::string> * const parts) {
+    parts->clear();
+
+    std::string current_part;
+    bool escaped(false);
+    for (const char ch : line) {
+        if (escaped) {
+            current_part += ch;
+            escaped = false;
+        } else if (ch == '\\')
+            escaped = true;
+        else if (ch == ' ') {
+            parts->emplace_back(current_part);
+            current_part.clear();
+        } else
+            current_part += ch;
+
+    }
+    if (not current_part.empty())
+        parts->emplace_back(current_part);
+
+    return not escaped and not parts->empty();
+}
+
+
+void LoadRules(const std::string &rules_filename, std::vector<Rule *> * const rules) {
+    unsigned line_no(0);
+    for (const auto line : FileUtil::ReadLines(rules_filename, FileUtil::ReadLines::DO_NOT_TRIM)) {
+        ++line_no;
+
+        // Allow hash-comment lines:
+        if (not line.empty() and line[0] == '#')
+            continue;
+
+        std::vector<std::string> parts;
+        if (not ParseLine(line, &parts) or parts.empty())
+            LOG_ERROR("bad rule in \"" + rules_filename + "\" on line #" + std::to_string(line_no) + "!");
+
+        if (parts[0] == "subfield_match" or parts[0] == "first_subfield_match") {
+            if (parts.size() != 4)
+                LOG_ERROR("bad subfield_match rule in \"" + rules_filename + "\" on line #" + std::to_string(line_no) + "!");
+
+            // Indicators
+            if (parts[1].length() != 2)
+                LOG_ERROR("there need to be two indicators on line #" + std::to_string(line_no) + "!");
+            const char indicator1(parts[1][0]), indicator2(parts[1][1]);
+
+            if (parts[2].length() != MARC::Record::TAG_LENGTH + 1)
+                LOG_ERROR("bad " + parts[0] + " rule in \"" + rules_filename + "\" on line #" + std::to_string(line_no)
+                          + "! (Bad tag and subfield code.)");
+
+            std::string err_msg;
+            const auto matcher(RegexMatcher::RegexMatcherFactory(parts[3], &err_msg));
+            if (matcher == nullptr)
+                LOG_ERROR("bad " + parts[0] + " rule in \"" + rules_filename + "\" on line #" + std::to_string(line_no)
+                          + "! (Bad regex: " + err_msg + ".)");
+
+            if (parts[0] == "subfield_match")
+                rules->emplace_back(new SubfieldMatches(parts[2].substr(0, MARC::Record::TAG_LENGTH),
+                                                        indicator1, indicator2, parts[2][MARC::Record::TAG_LENGTH], matcher));
+            else
+                rules->emplace_back(new FirstSubfieldMatches(parts[2].substr(0, MARC::Record::TAG_LENGTH),
+                                                             indicator1, indicator2, parts[2][MARC::Record::TAG_LENGTH], matcher));
+        } else
+            LOG_ERROR("unknown rule \"" + parts[0] + "\" in \"" + rules_filename + "\" on line #" + std::to_string(line_no) + "!");
+    }
 }
 
 
@@ -47,7 +195,8 @@ void CheckFieldOrder(const bool do_not_abort_on_invalid_repeated_fields, const M
     for (const auto &field : record) {
         const MARC::Tag current_tag(field.getTag());
         if (unlikely(current_tag < last_tag))
-            LOG_ERROR("invalid tag order in the record with control number \"" + record.getControlNumber() + "\"!");
+            LOG_ERROR("invalid tag order in the record with control number \"" + record.getControlNumber() + "\" (\""
+                      + last_tag.toString() + "\" followed by \"" + current_tag.toString() + "\")!");
         if (unlikely(not MARC::IsRepeatableField(current_tag) and current_tag == last_tag)) {
             if (do_not_abort_on_invalid_repeated_fields)
                 LOG_WARNING("repeated non-repeatable tag \"" + current_tag.toString() + "\" found in the record with control number \""
@@ -133,9 +282,10 @@ void CheckLocalBlockConsistency(const MARC::Record &record) {
 
 
 void ProcessRecords(const bool do_not_abort_on_empty_subfields, const bool do_not_abort_on_invalid_repeated_fields,
-                    MARC::Reader * const marc_reader, MARC::Writer * const marc_writer)
+                    const bool check_rule_violations_only, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                    const std::vector<Rule *> &rules, File * const rule_violation_list)
 {
-    unsigned record_count(0), control_number_duplicate_count(0);
+    unsigned record_count(0), control_number_duplicate_count(0), rule_violation_count(0);
     std::unordered_set<std::string> already_seen_control_numbers;
 
     while (const MARC::Record record = marc_reader->read()) {
@@ -145,26 +295,38 @@ void ProcessRecords(const bool do_not_abort_on_empty_subfields, const bool do_no
         if (unlikely(CONTROL_NUMBER.empty()))
             LOG_ERROR("Record #" + std::to_string(record_count) + " is missing a control number!");
 
-        if (already_seen_control_numbers.find(CONTROL_NUMBER) == already_seen_control_numbers.end())
-            already_seen_control_numbers.emplace(CONTROL_NUMBER);
-        else {
-            ++control_number_duplicate_count;
-            LOG_WARNING("found duplicate control number \"" + CONTROL_NUMBER + "\"!");
+        if (not check_rule_violations_only) {
+            if (already_seen_control_numbers.find(CONTROL_NUMBER) == already_seen_control_numbers.end())
+                already_seen_control_numbers.emplace(CONTROL_NUMBER);
+            else {
+                ++control_number_duplicate_count;
+                LOG_WARNING("found duplicate control number \"" + CONTROL_NUMBER + "\"!");
+            }
+
+            CheckFieldOrder(do_not_abort_on_invalid_repeated_fields, record);
+
+            MARC::Tag last_tag(std::string(MARC::Record::TAG_LENGTH, ' '));
+            for (const auto &field : record) {
+                if (not field.getTag().isTagOfControlField())
+                    CheckDataField(do_not_abort_on_empty_subfields, field, CONTROL_NUMBER);
+
+                if (unlikely(field.getTag() < last_tag))
+                    LOG_ERROR("Incorrect non-alphanumeric field order in record w/ control number \"" + CONTROL_NUMBER + "\"!");
+                last_tag = field.getTag();
+            }
+
+            CheckLocalBlockConsistency(record);
         }
 
-        CheckFieldOrder(do_not_abort_on_invalid_repeated_fields, record);
-
-        MARC::Tag last_tag(std::string(MARC::Record::TAG_LENGTH, ' '));
-        for (const auto &field : record) {
-            if (not field.getTag().isTagOfControlField())
-                CheckDataField(do_not_abort_on_empty_subfields, field, CONTROL_NUMBER);
-
-            if (unlikely(field.getTag() < last_tag))
-                LOG_ERROR("Incorrect non-alphanumeric field order in record w/ control number \"" + CONTROL_NUMBER + "\"!");
-            last_tag = field.getTag();
+        if (rule_violation_list != nullptr and not rules.empty()) {
+            for (const auto rule : rules) {
+                std::string err_msg;
+                if (rule->hasBeenViolated(record, &err_msg)) {
+                    ++rule_violation_count;
+                    (*rule_violation_list) << record.getControlNumber() << ": " << err_msg << '\n';
+                }
+            }
         }
-
-        CheckLocalBlockConsistency(record);
 
         if (marc_writer != nullptr)
             marc_writer->write(record);
@@ -172,7 +334,9 @@ void ProcessRecords(const bool do_not_abort_on_empty_subfields, const bool do_no
 
     if (control_number_duplicate_count > 0)
         LOG_ERROR("Found " + std::to_string(control_number_duplicate_count) + " duplicate control numbers!");
-    std::cout << "Data set contains " << record_count << " valid MARC record(s).\n";
+
+    LOG_INFO("Data set contains " + std::to_string(record_count) + " valid MARC record(s) w/ " + std::to_string(rule_violation_count)
+             + " rule violations.");
 }
 
 
@@ -201,14 +365,30 @@ int Main(int argc, char *argv[]) {
     if (argc < 2)
         Usage();
 
+    bool check_rule_violations_only(false);
+    if (std::strcmp(argv[1], "--check-rule-violations-only") == 0) {
+        check_rule_violations_only = true;
+        --argc, ++argv;
+    }
+
+    if (argc < 2)
+        Usage();
+
     std::string output_filename;
     if (StringUtil::StartsWith(argv[1], "--write-data=")) {
         output_filename = argv[1] + __builtin_strlen("--write-data=");
         --argc, ++argv;
     }
 
-    if (argc != 2)
+    if (argc != 2 and argc != 4)
         Usage();
+
+    std::vector<Rule *> rules;
+    std::unique_ptr<File> rule_violation_list;
+    if (argc == 4) {
+        LoadRules(argv[2], &rules);
+        rule_violation_list = FileUtil::OpenOutputFileOrDie(argv[3]);
+    }
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
 
@@ -216,7 +396,8 @@ int Main(int argc, char *argv[]) {
     if (not output_filename.empty())
         marc_writer = MARC::Writer::Factory(output_filename);
 
-    ProcessRecords(do_not_abort_on_empty_subfields, do_not_abort_on_invalid_repeated_fields, marc_reader.get(), marc_writer.get());
+    ProcessRecords(do_not_abort_on_empty_subfields, do_not_abort_on_invalid_repeated_fields, check_rule_violations_only,
+                   marc_reader.get(), marc_writer.get(), rules, rule_violation_list.get());
 
     return EXIT_SUCCESS;
 }

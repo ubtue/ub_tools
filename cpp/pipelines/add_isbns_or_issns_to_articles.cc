@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2015-2018, Library of the University of Tübingen
+    Copyright (C) 2015-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -64,45 +64,17 @@ void PopulateParentIdToISBNAndISSNMap(MARC::Reader * const marc_reader,
         if (not record.isSerial() and not record.isMonograph())
             continue;
 
-        // Try to see if we have an ISBN:
-        const auto field_020(record.findTag("020"));
-        if (field_020 != record.end()) {
-            const std::string isbn(field_020->getFirstSubfieldWithCode('a'));
-            if (not isbn.empty()) {
-                (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { isbn, MARC::IsOpenAccess(record) };
-                ++extracted_isbn_count;
-                continue;
-            }
-        } else
+        const auto isbns(record.getISBNs());
+        for (const auto &isbn : isbns) {
+            (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { isbn, MARC::IsOpenAccess(record) };
+            ++extracted_isbn_count;
+        }
+        if (not isbns.empty())
             continue;
 
-        std::string issn;
-        // 1. First try to get an ISSN from 029$a, (according to the BSZ's PICA-to-MARC mapping
-        // documentation this contains the "authorised" ISSN) but only if the indicators are correct:
-        for (const auto &_029_field : record.getTagRange("029")) {
-            const auto subfields(_029_field.getSubfields());
-
-            // We only want fields with indicators 'x' and 'a':
-            if (_029_field.getIndicator1() != 'x' or _029_field.getIndicator2() != 'a')
-                continue;
-
-            issn = subfields.getFirstSubfieldWithCode('a');
-            if (not issn.empty()) {
-                (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { issn, MARC::IsOpenAccess(record) };
-                ++extracted_issn_count;
-            }
-        }
-
-        // 2. If we don't already have an ISSN check 022$a as a last resort:
-        if (issn.empty()) {
-            const auto field_022(record.findTag("022"));
-            if (field_022 != record.end()) {
-                issn = field_022->getFirstSubfieldWithCode('a');
-                if (not issn.empty()) {
-                    (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { issn, MARC::IsOpenAccess(record) };
-                    ++extracted_issn_count;
-                }
-            }
+        for (const auto &issn : record.getISSNs()) {
+            (*parent_id_to_isbn_issn_and_open_access_status_map)[record.getControlNumber()] = { issn, MARC::IsOpenAccess(record) };
+            ++extracted_issn_count;
         }
     }
 
@@ -130,7 +102,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(
             continue;
         }
 
-        const auto _773_field(record.findTag("773"));
+        auto _773_field(record.findTag("773"));
         if (_773_field == record.end()) {
             marc_writer->write(record);
             continue;
@@ -144,7 +116,7 @@ void AddMissingISBNsOrISSNsToArticleEntries(
         }
 
         std::string host_id(subfields.getFirstSubfieldWithCode('w'));
-        if (StringUtil::StartsWith(host_id, "(DE-576)"))
+        if (StringUtil::StartsWith(host_id, "(DE-627)"))
             host_id = host_id.substr(8);
         const auto parent_isbn_or_issn_iter(parent_id_to_isbn_issn_and_open_access_status_map.find(host_id));
         if (parent_isbn_or_issn_iter == parent_id_to_isbn_issn_and_open_access_status_map.end()) {
@@ -154,8 +126,10 @@ void AddMissingISBNsOrISSNsToArticleEntries(
         }
 
         // If parent is open access and we're not, add it!
-        if (parent_isbn_or_issn_iter->second.is_open_access_ and not MARC::IsOpenAccess(record))
-            record.insertField("655", { { 'a', "Open Access" } }, /* indicator1 = */' ', /* indicator2 = */'4');
+        if (parent_isbn_or_issn_iter->second.is_open_access_ and not MARC::IsOpenAccess(record)) {
+            record.insertField("OAS", { { 'a', "1" }, { 'b', "inherited from superior work" } });
+            _773_field = record.findTag("773"); // Iterator was invalidated by previous line!
+        }
 
         if (subfields.hasSubfield('x')) {
             marc_writer->write(record);

@@ -8,7 +8,7 @@
 /*
  *  Copyright 2003-2008 Project iVia.
  *  Copyright 2003-2008 The Regents of The University of California.
- *  Copyright 2018 Universitätsbibliothek Tübingen
+ *  Copyright 2018,2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -44,11 +44,11 @@
 namespace TimeUtil {
 
 
-constexpr time_t BAD_TIME_T = static_cast<time_t>(-1);
+constexpr time_t BAD_TIME_T = std::numeric_limits<time_t>::min();
 constexpr time_t MAX_TIME_T = std::numeric_limits<time_t>::max();
 
 
-const std::string ISO_8601_FORMAT("%Y-%m-%d %T");
+const std::string ISO_8601_FORMAT("%Y-%m-%dT%T"); // This is only one of several possible ISO 8601 date/time formats!
 
 
 /** The default strftime(3) format string for representing dates and times. */
@@ -85,7 +85,8 @@ std::string FormatTime(const double time_in_millisecs, const std::string &separa
 /** \brief   Get the current date time as a string
  *  \return  A string representing the current date and time.
  */
-std::string GetCurrentDateAndTime(const std::string &format = DEFAULT_FORMAT, const TimeZone time_zone = LOCAL);
+std::string GetCurrentDateAndTime(const std::string &format = DEFAULT_FORMAT, const TimeZone time_zone = LOCAL,
+                                  const std::string &time_locale = "en_US.UTF8");
 
 
 /** \brief   Get the current time as a string.
@@ -100,14 +101,17 @@ inline std::string GetCurrentTime(const TimeZone time_zone = LOCAL) { return Get
 inline std::string GetCurrentYear(const TimeZone time_zone = LOCAL) { return GetCurrentDateAndTime("%Y", time_zone); }
 
 
+void GetCurrentDate(unsigned * const year, unsigned * const month, unsigned * const day, const TimeZone time_zone = LOCAL);
+
+
 /** \brief  Convert a time from a time_t to a string.
  *  \param  the_time   The time to convert.
  *  \param  format     The format of the result, in strftime(3) format.
  *  \param  time_zone  Whether to use local time (the default) or UTC.
  *  \return The converted time.
  */
-std::string TimeTToString(const time_t &the_time, const std::string &format = DEFAULT_FORMAT,
-                          const TimeZone time_zone = LOCAL);
+std::string TimeTToString(const time_t &the_time, const std::string &format = DEFAULT_FORMAT, const TimeZone time_zone = LOCAL,
+                          const std::string &time_locale = "en_US");
 
 
 /** \brief  Inverse of gmtime(3).
@@ -309,6 +313,7 @@ std::string StructTmToString(const struct tm &tm);
  *        local has been provided, conversions will be attempted until one succeeds of the list has been exhausted.
  */
 struct tm StringToStructTm(std::string date_str, std::string optional_strptime_format = DEFAULT_FORMAT);
+bool StringToStructTm(struct tm * const tm, std::string date_str, std::string optional_strptime_format = DEFAULT_FORMAT);
 
 
 /* Returns the difference in seconds between beginning and end. */

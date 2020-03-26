@@ -1,18 +1,127 @@
 {
-    "mappings": {
-        "_doc": {
-            "properties": {
-                "id": {
-                    "type": "keyword"
+    "settings": {
+        "analysis" : {
+            "analyzer" : {
+                "fulltext_analyzer" : {
+                    "tokenizer" : "icu_tokenizer",
+                    "filter" : ["icu_folding", "snowball_german", "lowercase"]
                 },
-                "full_text": {
-                    "type": "text"
+                "synonyms_all" : {
+                    "tokenizer" : "icu_tokenizer",
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_all" ]
                 },
-                "expiration": {
-                    "type": "date",
-                    "format": "strict_date_optional_time"
+                "synonyms_de" : {
+                    "tokenizer" : "icu_tokenizer",
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_de" ]
+                },
+                "synonyms_en" : {
+                    "tokenizer" : "icu_tokenizer",
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_en" ]
+                },
+                "synonyms_fr" : {
+                    "tokenizer" : "icu_tokenizer",
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_fr" ]
+                },
+                "synonyms_it" : {
+                    "tokenizer" : "icu_tokenizer",
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_it" ]
+                },
+                "synonyms_es" : {
+                    "tokenizer" : "icu_tokenizer",
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_es" ]
+                },
+                "synonyms_pt" : {
+                    "tokenizer" : "icu_tokenizer",
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_pt" ]
+                },
+                "synonyms_ru" : {
+                    "tokenizer" : "icu_tokenizer",
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_ru" ]
+                },
+                "synonyms_el" : {
+                    "tokenizer" : "icu_tokenizer",
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_el" ]
+                },
+                "synonyms_hans" : {
+                    "tokenizer" : "icu_tokenizer",
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_hans" ]
+                },
+                "synonyms_hant" : {
+                    "tokenizer" : "icu_tokenizer",
+                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_hant" ]
+                }
+            },
+            "filter" : {
+                "snowball_german" : {
+                    "type" : "snowball",
+                    "language" : "German2"
+                },
+                "synonym_graph_all" : {
+                    "type" : "synonym_graph",
+                    "synonyms_path" : "synonyms/synonyms_all.txt"
+                },
+                "synonym_graph_de" : {
+                    "type" : "synonym_graph",
+                    "synonyms_path" : "synonyms/synonyms_de.txt"
+                },
+                "synonym_graph_en" : {
+                    "type" : "synonym_graph",
+                    "synonyms_path" : "synonyms/synonyms_en.txt"
+                },
+                "synonym_graph_fr" : {
+                    "type" : "synonym_graph",
+                    "synonyms_path" : "synonyms/synonyms_fr.txt"
+                },
+                 "synonym_graph_it" : {
+                    "type" : "synonym_graph",
+                    "synonyms_path" : "synonyms/synonyms_it.txt"
+                },
+                "synonym_graph_es" : {
+                    "type" : "synonym_graph",
+                    "synonyms_path" : "synonyms/synonyms_es.txt"
+                },
+                "synonym_graph_pt" : {
+                    "type" : "synonym_graph",
+                    "synonyms_path" : "synonyms/synonyms_pt.txt"
+                },
+                "synonym_graph_ru" : {
+                    "type" : "synonym_graph",
+                    "synonyms_path" : "synonyms/synonyms_ru.txt"
+                },
+                "synonym_graph_el" : {
+                    "type" : "synonym_graph",
+                    "synonyms_path" : "synonyms/synonyms_el.txt"
+                },
+                "synonym_graph_hans" : {
+                    "type" : "synonym_graph",
+                    "synonyms_path" : "synonyms/synonyms_hans.txt"
+                },
+                "synonym_graph_hant" : {
+                    "type" : "synonym_graph",
+                    "synonyms_path" : "synonyms/synonyms_hant.txt"
                 }
             }
         }
-    }
+    },
+
+    "mappings": {
+       "properties": {
+           "id": {
+               "type": "keyword"
+           },
+           "full_text": {
+               "type" : "text",
+               "index_options" : "offsets",
+               "term_vector" : "with_positions_offsets_payloads",
+               "analyzer" : "fulltext_analyzer"
+           },
+           "text_type" : {
+               "type": "keyword"
+           },
+           "expiration": {
+               "type": "date",
+               "format": "strict_date_optional_time"
+           }
+       }
+   }
 }

@@ -19,11 +19,15 @@
  */
 #include "FullTextCache.h"
 #include <algorithm>
-#include <tuple>
 #include <ctime>
+#include <sstream>
+#include <tuple>
 #include "Compiler.h"
 #include "DbRow.h"
+#include "FileUtil.h"
+#include "PdfUtil.h"
 #include "Random.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
 #include "UrlUtil.h"
@@ -33,6 +37,14 @@
 
 constexpr unsigned MIN_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60); // About 1 month in seconds.
 constexpr unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 months in seconds.
+
+
+static const std::map<std::string, FullTextCache::TextType> description_to_text_type_map {
+    { "Volltext", FullTextCache::FULLTEXT },
+    { "Inhaltsverzeichnis", FullTextCache::TOC },
+    { "Inhaltstext", FullTextCache::ABSTRACT },
+    { "Zusammenfassung", FullTextCache::SUMMARY }
+};
 
 
 bool FullTextCache::getDomainFromUrl(const std::string &url, std::string * const domain) const {
@@ -50,10 +62,10 @@ bool FullTextCache::entryExpired(const std::string &id, std::vector<std::string>
     Entry entry;
     if (not getEntry(id, &entry))
         return true;
-
     const time_t now(std::time(nullptr));
     if (entry.expiration_ == TimeUtil::BAD_TIME_T or now < entry.expiration_) {
         std::vector<std::string> existing_urls(FullTextCache::getEntryUrlsAsStrings(id));
+
         std::sort(existing_urls.begin(), existing_urls.end());
         std::sort(urls.begin(), urls.end());
         if (urls == existing_urls)
@@ -70,7 +82,7 @@ void FullTextCache::expireEntries() {
 
 
 bool FullTextCache::getEntry(const std::string &id, Entry * const entry) const {
-    const auto results(full_text_cache_urls_.simpleSelect({ "expiration" }, "id", id));
+    const auto results(full_text_cache_.simpleSelect({ "expiration" }, "id", id));
     if (results.empty())
         return false;
 
@@ -111,6 +123,7 @@ std::vector<std::string> FullTextCache::getEntryUrlsAsStrings(const std::string 
 
     std::vector<std::string> urls;
     for (const auto &map : results) {
+
         const auto url(GetValueOrEmptyString(map, "url"));
         if (not url.empty())
             urls.emplace_back(url);
@@ -120,15 +133,7 @@ std::vector<std::string> FullTextCache::getEntryUrlsAsStrings(const std::string 
 
 
 unsigned FullTextCache::getErrorCount() const {
-    const auto results(full_text_cache_urls_.simpleSelect({ "id", "error_message" }));
-
-    std::unordered_set<std::string> unique_ids;
-    for (const auto &map : results) {
-        if (map.find("error_message") != map.cend())
-            unique_ids.emplace(map.find("id")->second);
-    }
-
-    return static_cast<unsigned>(unique_ids.size());
+    return full_text_cache_urls_.count({ { "error_message", "*" } });
 }
 
 
@@ -149,37 +154,38 @@ const std::string US("\x1F"); // ASCII unit separator
 std::vector<FullTextCache::EntryGroup> FullTextCache::getEntryGroupsByDomainAndErrorMessage() const {
     const auto results(full_text_cache_urls_.simpleSelect({ "url", "domain", "error_message", "id" }));
 
-    std::unordered_map<std::string, std::tuple<std::string, unsigned>> urls_and_domains_to_ids_and_counts_map;
+    std::unordered_map<std::string, std::tuple<std::string, std::string, unsigned>> domains_and_errors_to_ids_and_urls_and_counts_map;
     for (const auto &map : results) {
         const auto url_pair(map.find("url"));
         const auto domain_pair(map.find("domain"));
         const auto error_message_pair(map.find("error_message"));
-        if (url_pair != map.cend() or domain_pair != map.cend() or error_message_pair != map.cend())
+        if (url_pair == map.cend() or domain_pair == map.cend() or error_message_pair == map.cend())
             continue;
 
         const auto id_pair(map.find("id"));
-        const auto key(url_pair->second + US + domain_pair->second + US + error_message_pair->second);
-        auto url_and_domain_and_id_and_count(urls_and_domains_to_ids_and_counts_map.find(key));
-        if (url_and_domain_and_id_and_count != urls_and_domains_to_ids_and_counts_map.end())
-            ++std::get<1>(url_and_domain_and_id_and_count->second);
+        const auto key(domain_pair->second + US + error_message_pair->second);
+        auto id_and_url_and_count(domains_and_errors_to_ids_and_urls_and_counts_map.find(key));
+        if (id_and_url_and_count != domains_and_errors_to_ids_and_urls_and_counts_map.end())
+            ++std::get<2>(id_and_url_and_count->second);
         else
-            urls_and_domains_to_ids_and_counts_map[key] = std::make_tuple(id_pair->second, 1);
+            domains_and_errors_to_ids_and_urls_and_counts_map[key] = std::make_tuple(id_pair->second, url_pair->second, 1);
     }
 
     std::vector<EntryGroup> groups;
-    groups.reserve(urls_and_domains_to_ids_and_counts_map.size());
-    for (const auto &url_and_domain_and_id_and_count : urls_and_domains_to_ids_and_counts_map) {
+    groups.reserve(domains_and_errors_to_ids_and_urls_and_counts_map.size());
+    for (const auto &domain_and_error_to_id_and_url_and_count : domains_and_errors_to_ids_and_urls_and_counts_map) {
         std::vector<std::string> parts;
-        StringUtil::Split(url_and_domain_and_id_and_count.first, US, &parts);
-        const std::string &url(parts[0]);
-        const std::string &domain(parts[1]);
-        const std::string &error_message(parts[2]);
+        if (unlikely(StringUtil::Split(domain_and_error_to_id_and_url_and_count.first, US, &parts) != 2))
+            LOG_ERROR("This should never happen (" + std::to_string(parts.size()) + "): "
+                      + StringUtil::CStyleEscape(domain_and_error_to_id_and_url_and_count.first));
 
-        groups.emplace_back(EntryGroup(std::get<1>(url_and_domain_and_id_and_count.second), domain, error_message,
-                                       std::get<0>(url_and_domain_and_id_and_count.second), url));
+        groups.emplace_back(EntryGroup(std::get<2>(domain_and_error_to_id_and_url_and_count.second),
+                                       parts[0], parts[1],
+                                       std::get<0>(domain_and_error_to_id_and_url_and_count.second),
+                                       std::get<1>(domain_and_error_to_id_and_url_and_count.second)));
     }
 
-    std::sort(groups.begin(), groups.end(), [](const EntryGroup &eg1, const EntryGroup &eg2){ return eg1.count_ < eg2.count_;});
+    std::sort(groups.begin(), groups.end(), [](const EntryGroup &eg1, const EntryGroup &eg2){ return eg1.count_ > eg2.count_;});
     return groups;
 }
 
@@ -200,6 +206,7 @@ std::vector<FullTextCache::EntryUrl> FullTextCache::getJoinedEntriesByDomainAndE
         entries.emplace_back(EntryUrl(id, url, domain, error_message));
     }
 
+    std::sort(entries.begin(), entries.end(), [](const EntryUrl &eu1, const EntryUrl &eu2){ return eu1.id_ < eu2.id_; });
     return entries;
 }
 
@@ -227,7 +234,38 @@ unsigned FullTextCache::getSize() const {
 }
 
 
-void FullTextCache::insertEntry(const std::string &id, const std::string &full_text, const std::vector<EntryUrl> &entry_urls) {
+FullTextCache::TextType FullTextCache::MapTextDescriptionToTextType(const std::string &text_description) {
+    const auto text_type(description_to_text_type_map.find(text_description));
+    if (text_type == description_to_text_type_map.cend())
+        return UNKNOWN;
+    return text_type->second;
+}
+
+
+void FullTextCache::extractAndImportHTMLPages(const std::string &id, const std::string &full_text_location, const TextType &text_type) {
+   const FileUtil::AutoTempDirectory auto_temp_dir("/tmp/ADT");
+   const std::string html_export_directory(auto_temp_dir.getDirectoryPath());
+   PdfUtil::ExtractHTMLAsPages(full_text_location, html_export_directory);
+   FileUtil::Directory html_pages(html_export_directory, ".*-\\d+\\.html");
+   for (const auto &html_page : html_pages) {
+       static const auto page_number_matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*-(\\d+)\\.html$"));
+       const std::string page_file_name(html_export_directory + '/' + html_page.getName());
+       if (not page_number_matcher->matched(page_file_name))
+           LOG_ERROR("Invalid naming scheme for file \"" + page_file_name + "\"");
+       const std::string page_number((*page_number_matcher)[1]);
+       // Read in the file to full_text string
+       std::ifstream page_file(page_file_name);
+       std::stringstream full_text_stream;
+       full_text_stream << page_file.rdbuf();
+       std::string page_text(full_text_stream.str());
+       full_text_cache_html_.simpleInsert({ { "id", id }, { "page", page_number },  { "full_text", page_text }, { "text_type", std::to_string(text_type) } });
+   }
+}
+
+
+void FullTextCache::insertEntry(const std::string &id, const std::string &full_text,
+                                const std::vector<EntryUrl> &entry_urls, const TextType &text_type)
+{
     const time_t now(std::time(nullptr));
     Random::Rand rand(now);
     time_t expiration(TimeUtil::BAD_TIME_T);
@@ -239,12 +277,18 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
             expiration = now + MIN_CACHE_EXPIRE_TIME_ON_ERROR + rand(MAX_CACHE_EXPIRE_TIME_ON_ERROR - MIN_CACHE_EXPIRE_TIME_ON_ERROR);
     }
 
-    std::string expiration_string;
-    if (expiration == TimeUtil::BAD_TIME_T)
-        full_text_cache_.simpleInsert({ { "id", id } });
-    else
-        full_text_cache_.simpleInsert({ { "id", id }, { "expiration", TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT) } });
-        expiration_string = "\"" + TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT) + "\"";
+    if (expiration == TimeUtil::BAD_TIME_T) {
+        if (not full_text.empty())
+            full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text },  { "text_type", std::to_string(text_type) } });
+    }
+    else {
+        const std::string expiration_string = TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT);
+        if (full_text.empty())
+            full_text_cache_.simpleInsert({ { "id", id }, { "expiration", expiration_string } });
+        else
+            full_text_cache_.simpleInsert({ { "id", id }, { "expiration", expiration_string }, { "full_text", full_text },
+                                          { "text_type", std::to_string(text_type) } });
+    }
 
     for (const auto &entry_url : entry_urls) {
         if (entry_url.error_message_.empty())
@@ -253,4 +297,10 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
             full_text_cache_urls_.simpleInsert({ { "id", id }, { "url", entry_url.url_ }, { "domain", entry_url.domain_ },
                                                  { "error_message", entry_url.error_message_ } });
     }
+
+}
+
+
+bool FullTextCache::deleteEntry(const std::string &id) {
+    return full_text_cache_.deleteDocument(id) and full_text_cache_urls_.deleteDocument(id) and full_text_cache_html_.deleteDocument(id);
 }

@@ -20,7 +20,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
-#include "BibleUtil.h"
+#include "RangeUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
 
     const std::string book_code("01");
     std::set<std::pair<std::string, std::string>> start_end;
-    if (not BibleUtil::ParseBibleReference(argv[1], book_code, &start_end)) {
+    if (not RangeUtil::ParseBibleReference(argv[1], book_code, &start_end)) {
         if (argc == 2)
             std::cerr << "Bad bible reference: " << argv[1] << '\n';
         std::exit(EXIT_FAILURE);

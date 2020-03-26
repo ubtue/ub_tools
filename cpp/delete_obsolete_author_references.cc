@@ -1,7 +1,7 @@
-/** \brief Utility for deleting 100$0 fields if id is given in a LOEPPN list.
+/** \brief Utility for deleting 100$0 fields if id is given in a LOEKXP list.
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -49,7 +49,7 @@ void ProcessTag(MARC::Record * const record, const std::string &tag, const std::
             bool remove_subfield(false);
             if (subfield.code_ == '0') {
                 const std::string author_reference(subfield.value_);
-                if (StringUtil::StartsWith(author_reference, "(DE-576)")) {
+                if (StringUtil::StartsWith(author_reference, "(DE-627)")) {
                     const std::string ppn(author_reference.substr(8));
                     if (title_deletion_ids.find(ppn) != title_deletion_ids.end()) {
                         LOG_INFO("deleting author " + ppn + " from title " + record->getControlNumber());
@@ -75,7 +75,7 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
                     MARC::Reader * const marc_reader, MARC::Writer * const marc_writer)
 {
     const std::vector<std::string> tags{ "100", "110", "111", "700", "710", "711" };
-    
+
     unsigned total_record_count(0), deleted_reference_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++total_record_count;
@@ -95,8 +95,6 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
 
 
 int Main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
     if (argc != 4)
         Usage();
 

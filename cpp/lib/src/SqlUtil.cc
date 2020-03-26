@@ -8,7 +8,7 @@
 /*
  *  \copyright 2002-2009 Project iVia.
  *  \copyright 2002-2009 The Regents of The University of California.
- *  \copyright 2016,2017 Universitätsbibliothek Tübingen.
+ *  \copyright 2016,2017,2019 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -37,6 +37,7 @@
 #include "DbResultSet.h"
 #include "DbRow.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include "util.h"
 
 
@@ -86,10 +87,10 @@ TransactionGuard::~TransactionGuard() {
 }
 
 
-std::string TruncateToVarCharMaxLength(const std::string &s) {
+std::string TruncateToVarCharMaxIndexLength(const std::string &s) {
     auto truncated(s);
-    if (truncated.length() > VARCHAR_UTF8_MAX_LENGTH)
-        truncated.erase(VARCHAR_UTF8_MAX_LENGTH);
+    if (truncated.length() > VARCHAR_UTF8_MAX_INDEX_LENGTH)
+        truncated.erase(VARCHAR_UTF8_MAX_INDEX_LENGTH);
 
     return truncated;
 }
@@ -176,7 +177,11 @@ tm DatetimeToTm(const std::string &datetime) {
 
 time_t DatetimeToTimeT(const std::string &datetime) {
     tm time_struct(DatetimeToTm(datetime));
-    return mktime(&time_struct);
+    errno = 0;
+    const time_t ret_val(::mktime(&time_struct));
+    if (unlikely(errno != 0))
+        return TimeUtil::BAD_TIME_T;
+    return ret_val;
 }
 
 
@@ -249,6 +254,38 @@ unsigned GetTableSize(DbConnection * const connection, const std::string &table_
     const DbRow first_row(result_set.getNextRow());
 
     return StringUtil::ToUnsigned(first_row[0]);
+}
+
+
+ThreadSafetyGuard::ThreadSafetyGuard(const ThreadType invoker_thread)
+    : invoker_thread_(invoker_thread)
+{
+    switch (invoker_thread_) {
+    case ThreadType::MAIN_THREAD:
+        if (::mysql_library_init(0, nullptr, nullptr))
+            LOG_ERROR("mysql_library_init failed");
+        break;
+    case ThreadType::WORKER_THREAD:
+        if (::mysql_thread_init())
+            LOG_ERROR("mysql_thread_init failed in worker thread " + std::to_string(::pthread_self()));
+        break;
+    default:
+        LOG_ERROR("unknown invoker thread " + std::to_string(invoker_thread_));
+    }
+}
+
+
+ThreadSafetyGuard::~ThreadSafetyGuard() {
+    switch (invoker_thread_) {
+    case ThreadType::MAIN_THREAD:
+        ::mysql_library_end();
+        break;
+    case ThreadType::WORKER_THREAD:
+        ::mysql_thread_end();
+        break;
+    default:
+        LOG_ERROR("unknown invoker thread " + std::to_string(invoker_thread_));
+    }
 }
 
 

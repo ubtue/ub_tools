@@ -16,9 +16,9 @@ std::mutex io_mutex;
 void *Consumer(void *shared_data) {
     int old_state;
     if (::pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old_state) != 0)
-        logger->error("consumer thread failed to enable cancelability!");
+        LOG_ERROR("consumer thread failed to enable cancelability!");
 
-    SharedBuffer<unsigned> * const shared_buffer(reinterpret_cast<SharedBuffer<unsigned> * const>(shared_data));
+    SharedBuffer<unsigned> * const shared_buffer(reinterpret_cast<SharedBuffer<unsigned> *>(shared_data));
     for (;;) {
         const unsigned u(shared_buffer->pop_front());
         std::unique_lock<std::mutex> mutex_locker(io_mutex);
@@ -36,16 +36,14 @@ void Usage() {
 }
 
 
-int main(int argc, char *argv[]) {
-    progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     if (argc != 3)
         Usage();
-    
+
     unsigned number_count;
     if (not StringUtil::ToUnsigned(argv[1], &number_count) or number_count == 0)
         Usage();
-    
+
     unsigned consumer_thread_count;
     if (not StringUtil::ToUnsigned(argv[2], &consumer_thread_count) or consumer_thread_count == 0)
         Usage();
@@ -58,6 +56,6 @@ int main(int argc, char *argv[]) {
 
     while (not number_buffer.empty())
         ::sleep(1);
+
+    return EXIT_SUCCESS;
 }
-
-

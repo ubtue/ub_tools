@@ -2,7 +2,7 @@
  *  \brief  Implementation of file related utility classes and functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -23,6 +23,7 @@
 #include <memory>
 #include <stdexcept>
 #include <cassert>
+#include <cerrno>
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
@@ -34,13 +35,16 @@
 #endif
 #include <sys/sendfile.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 #include "Compiler.h"
 #include "FileDescriptor.h"
+#include "MiscUtil.h"
+#include "RegexMatcher.h"
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
-#include "RegexMatcher.h"
+#include "TimeLimit.h"
 #include "util.h"
 
 
@@ -70,6 +74,8 @@ std::string ReadLines::const_iterator::operator*() {
     case TRIM_LEFT_AND_RIGHT:
         return StringUtil::Trim(&line);
     }
+
+    __builtin_unreachable();
 }
 
 
@@ -87,10 +93,8 @@ AutoTempFile::AutoTempFile(const std::string &path_prefix, const std::string &pa
 {
     std::string path_template(path_prefix + "XXXXXX" + path_suffix);
     const int fd(::mkstemps(const_cast<char *>(path_template.c_str()), path_suffix.length()));
-    if (fd == -1) {
-        throw std::runtime_error("in AutoTempFile::AutoTempFile: mkstemps(3) for path prefix \"" + path_prefix
-                                 + "\" failed! (" + std::string(::strerror(errno)) + ")");
-    }
+    if (fd == -1)
+        LOG_ERROR("mkstemps(3) for path prefix \"" + path_prefix + "\" failed!");
 
     ::close(fd);
     path_ = path_template;
@@ -281,6 +285,35 @@ void ReadStringOrDie(const std::string &path, std::string * const data) {
 std::string ReadStringOrDie(const std::string &path) {
     std::string data;
     if (not FileUtil::ReadString(path, &data))
+        LOG_ERROR("failed to read \"" + path + "\"!");
+    return data;
+}
+
+
+bool ReadStringFromPseudoFile(const std::string &path, std::string * const data) {
+    data->clear();
+
+    std::ifstream input(path, std::ios_base::in | std::ios_base::binary);
+    if (input.fail())
+        return false;
+
+    std::string line;
+    while (std::getline(input, line))
+        *data += line + "\n";
+
+    return input.fail();
+}
+
+
+void ReadStringFromPseudoFileOrDie(const std::string &path, std::string * const data) {
+    if (not FileUtil::ReadStringFromPseudoFile(path, data))
+        LOG_ERROR("failed to read \"" + path + "\"!");
+}
+
+
+std::string ReadStringFromPseudoFileOrDie(const std::string &path) {
+    std::string data;
+    if (not FileUtil::ReadStringFromPseudoFile(path, &data))
         LOG_ERROR("failed to read \"" + path + "\"!");
     return data;
 }
@@ -603,7 +636,7 @@ bool MakeDirectory(const std::string &path, const bool recursive, const mode_t m
     }
 
     std::vector<std::string> path_components;
-    StringUtil::Split(path, '/', &path_components);
+    StringUtil::Split(path, '/', &path_components, /* suppress_empty_components = */true);
 
     std::string path_so_far;
     if (absolute)
@@ -621,6 +654,12 @@ bool MakeDirectory(const std::string &path, const bool recursive, const mode_t m
     }
 
     return true;
+}
+
+
+void MakeDirectoryOrDie(const std::string &path, const bool recursive, const mode_t mode) {
+    if (not MakeDirectory(path, recursive, mode))
+        LOG_ERROR("failed to create directory \"" + path + "\"!");
 }
 
 
@@ -692,7 +731,7 @@ AutoTempDirectory::~AutoTempDirectory() {
     if (not IsDirectory(path_))
         LOG_ERROR("\"" + path_ + "\" doesn't exist anymore!");
 
-    if (remove_when_out_of_scope_ and ((not std::uncaught_exception() or cleanup_if_exception_is_active_) and not RemoveDirectory(path_)))
+    if (remove_when_out_of_scope_ and ((not std::uncaught_exceptions() or cleanup_if_exception_is_active_) and not RemoveDirectory(path_)))
         LOG_ERROR("can't remove \"" + path_ + "\"!");
 }
 
@@ -1010,50 +1049,67 @@ std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename) {
 }
 
 
-bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
-    errno = 0;
-    std::string buffer;
-    buffer.resize(no_of_bytes);
-    if (unlikely(from->read((void *)buffer.data(), no_of_bytes) != no_of_bytes))
-        return false;
-    return to->write((void *)buffer.data(), no_of_bytes) == no_of_bytes;
+// Hack for CentOS 7 which only has ::sync_file_range
+static loff_t copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags) {
+    return syscall(__NR_copy_file_range, fd_in, off_in, fd_out, off_out, len, flags);
 }
 
 
-bool Copy(const std::string &from_path, const std::string &to_path) {
+static bool ActualCopy(const int &from_fd, const int &to_fd, const size_t no_of_bytes_to_copy, const loff_t offset, const int whence) {
+    if (whence != SEEK_SET and whence != SEEK_CUR and whence != SEEK_END)
+        LOG_ERROR("whence need to be one of {SEEK_SET, SEEK_CUR, SEEK_END}!");
+
+    loff_t remaining_bytes;
+    if (no_of_bytes_to_copy > 0)
+        remaining_bytes = no_of_bytes_to_copy;
+    else {
+        struct stat stat_buf;
+        if (::fstat(from_fd, &stat_buf) == -1)
+            return false;
+        remaining_bytes = stat_buf.st_size;
+    }
+
+    if (offset != 0 or whence != SEEK_CUR) {
+        if (::lseek(from_fd, offset, whence) == static_cast<loff_t>(-1))
+            return false;
+    }
+
+    do {
+        const loff_t actually_copied(copy_file_range(from_fd, nullptr, to_fd, nullptr, remaining_bytes, 0));
+        if (unlikely(actually_copied == -1))
+            return false;
+
+        remaining_bytes -= actually_copied;
+    } while (remaining_bytes > 0);
+
+    return true;
+}
+
+
+bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
+    return ActualCopy(from->getFileDescriptor(), to->getFileDescriptor(), no_of_bytes, 0, SEEK_CUR);
+}
+
+
+bool Copy(const std::string &from_path, const std::string &to_path, const bool truncate_target, const size_t no_of_bytes_to_copy,
+          const loff_t offset, const int whence)
+{
     const int from_fd(::open(from_path.c_str(), O_RDONLY));
     if (unlikely(from_fd == -1))
         return false;
 
-    const int to_fd(::open(to_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600));
+    const int to_fd(::open(to_path.c_str(), O_WRONLY | O_CREAT | (truncate_target ? O_TRUNC : 0), 0600));
     if (unlikely(to_fd == -1)) {
         ::close(from_fd);
         return false;
     }
 
-    char buf[BUFSIZ];
-    for (;;) {
-        const ssize_t no_of_bytes(::read(from_fd, &buf[0], sizeof(buf)));
-        if (no_of_bytes == 0)
-            break;
-
-        if (unlikely(no_of_bytes < 0)) {
-            ::close(from_fd);
-            ::close(to_fd);
-            return false;
-        }
-
-        if (unlikely(::write(to_fd, &buf[0], no_of_bytes) != no_of_bytes)) {
-            ::close(from_fd);
-            ::close(to_fd);
-            return false;
-        }
-    }
+    const bool retcode(ActualCopy(from_fd, to_fd, no_of_bytes_to_copy, offset, whence));
 
     ::close(from_fd);
     ::close(to_fd);
 
-    return true;
+    return retcode;
 }
 
 
@@ -1069,12 +1125,12 @@ bool DeleteFile(const std::string &path) {
 
 
 bool DescriptorIsReadyForReading(const int fd, const TimeLimit &time_limit) {
-    return SocketUtil::TimedRead(fd, time_limit, reinterpret_cast<void *>(NULL), 0) == 0;
+    return SocketUtil::TimedRead(fd, time_limit, static_cast<void *>(nullptr), 0) == 0;
 }
 
 
 bool DescriptorIsReadyForWriting(const int fd, const TimeLimit &time_limit) {
-    return SocketUtil::TimedWrite(fd, time_limit, reinterpret_cast<void *>(NULL), 0) == 0;
+    return SocketUtil::TimedWrite(fd, time_limit, nullptr, 0) == 0;
 }
 
 
@@ -1094,15 +1150,13 @@ bool GetLine(std::istream &stream, std::string * const line, const char terminat
 }
 
 
-std::string UniqueFileName(const std::string &directory, const std::string &filename_prefix,
-			   const std::string &filename_suffix)
-{
+std::string UniqueFileName(const std::string &directory, const std::string &filename_prefix, const std::string &filename_suffix) {
     static unsigned generation_number(1);
 
     // Set default for prefix if necessary.
     std::string prefix(filename_prefix);
     if (prefix.empty())
-        prefix = ::progname;
+        prefix = ::program_invocation_name;
 
     std::string suffix(filename_suffix);
     if (not suffix.empty() and suffix[0] != '.')
@@ -1112,9 +1166,7 @@ std::string UniqueFileName(const std::string &directory, const std::string &file
     if (dir.empty())
         dir = "/tmp";
 
-    return (dir + "/" + prefix + "." +
-            std::to_string(getpid()) + "." +
-            std::to_string(generation_number++) + suffix);
+    return dir + "/" + prefix + "." + std::to_string(getpid()) + "." + std::to_string(generation_number++) + suffix;
 }
 
 
@@ -1239,10 +1291,10 @@ size_t CountLines(const std::string &filename) {
 
 // Strips all extensions from "filename" and returns what is left after that.
 std::string GetFilenameWithoutExtensionOrDie(const std::string &filename) {
-    const auto first_dot_pos(filename.find('.'));
-    if (unlikely(first_dot_pos == std::string::npos))
+    const auto last_dot_pos(filename.rfind('.'));
+    if (unlikely(last_dot_pos == std::string::npos))
         LOG_ERROR("\"" + filename + "\" has no extension!");
-    return filename.substr(0, first_dot_pos);
+    return filename.substr(0, last_dot_pos);
 }
 
 
@@ -1261,7 +1313,7 @@ std::string GetExtension(const std::string &filename, const bool to_lowercase) {
 
 std::string StripLastPathComponent(const std::string &path) {
     std::vector<std::string> path_components;
-    if (StringUtil::Split(path, '/', &path_components) < 1)
+    if (StringUtil::Split(path, '/', &path_components, /* suppress_empty_components = */true) < 1)
         LOG_ERROR("\"" + path + "\" has no path components");
     path_components.pop_back();
     return (path[0] == '/' ? "/" : "") + StringUtil::Join(path_components, '/');
@@ -1319,6 +1371,44 @@ std::string GetPathFromFileDescriptor(const int fd) {
             std::free(buf);
             return str_buf;
         }
+    }
+}
+
+
+std::string ExpandTildePath(const std::string &path) {
+    if (path.empty() or path[0] != '~')
+        return path;
+
+    const std::string HOME(MiscUtil::SafeGetEnv("HOME"));
+    if (unlikely(HOME.empty()))
+        LOG_ERROR("HOME has not been set!");
+
+    if (path.length() == 1)
+        return HOME;
+
+    if (HOME[HOME.length() - 1] == '/') {
+        if (path[1] == '/')
+            return HOME + path.substr(2);
+        else
+            return HOME + path.substr(1);
+    } else if (path[1] == '/')
+        return HOME + path.substr(1);
+    else
+        return HOME + "/" + path.substr(1);
+}
+
+
+bool WaitForFile(const std::string &path, const unsigned timeout, const unsigned sleep_increment) {
+    TimeLimit time_limit(timeout * 1000);
+
+    for (;;) {
+        if (Exists(path))
+            return true;
+
+        if (time_limit.limitExceeded())
+            return false;
+
+        ::sleep(std::min((time_limit.getRemainingTime() + 500) / 1000, sleep_increment));
     }
 }
 

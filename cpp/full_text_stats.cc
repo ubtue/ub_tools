@@ -1,7 +1,7 @@
 /** \brief Utility for monitoring our full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -22,6 +22,7 @@
 #include <unordered_map>
 #include <cstdlib>
 #include "Compiler.h"
+#include "DnsUtil.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
 #include "FullTextCache.h"
@@ -33,9 +34,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " stats_file_path email_address\n"
-              << "       A report will be sent to \"email_address\".\n\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("stats_file_path email_address\n"
+            "A report will be sent to \"email_address\".");
 }
 
 
@@ -87,7 +87,7 @@ void DetermineNewStats(std::vector<std::pair<std::string, unsigned>> * const dom
 inline bool CompareDomainsAndCountsByDomains(const std::pair<std::string, unsigned> &domain_and_count1,
                                              const std::pair<std::string, unsigned> &domain_and_count2)
 {
-    return domain_and_count1.first > domain_and_count2.first;
+    return domain_and_count1.first < domain_and_count2.first;
 }
 
 
@@ -135,7 +135,8 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
     report_text = "Overall " + std::to_string(added_count) + " new items were added and " + std::to_string(disappeared_count)
                   + " old items disappeared.\n\n" + report_text;
 
-    const unsigned short response_code(EmailSender::SendEmail("no-reply@ub.uni-tuebingen.de", email_address, "Full Text Stats", report_text,
+    const unsigned short response_code(EmailSender::SendEmail("no-reply@ub.uni-tuebingen.de", email_address,
+                                                              "Full Text Stats (" + DnsUtil::GetHostname() + ")", report_text,
                                                               found_one_or_more_problems ? EmailSender::VERY_HIGH : EmailSender::VERY_LOW));
     if (response_code > 299)
         LOG_ERROR("failed to send email! (response code was " + std::to_string(response_code) + ")");
@@ -158,8 +159,6 @@ void WriteStats(const std::string &stats_filename,
 
 
 int Main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
     if (argc != 3)
         Usage();
 

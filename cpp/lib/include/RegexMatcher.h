@@ -2,7 +2,7 @@
  *  \brief  Interface for the RegexMatcher class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014,2015,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -20,14 +20,75 @@
 #pragma once
 
 
+#include <memory>
 #include <string>
 #include <stdexcept>
 #include <vector>
 #include <pcre.h>
 
 
-/** \class RegexMatcher
- *  \brief Wrapper class for simple use cases of the PCRE library and UTF-8 strings.
+class ThreadSafeRegexMatcher {
+public:
+    class MatchResult {
+        friend class ThreadSafeRegexMatcher;
+
+        std::string subject_;
+        bool matched_;
+        unsigned match_count_;
+        std::vector<int> substr_indices_;
+        std::string error_message_;
+    public:
+        MatchResult(const std::string &subject);
+        MatchResult(const MatchResult &) = default;
+        MatchResult(MatchResult &&) = default;
+        MatchResult &operator=(const MatchResult &) = default;
+
+        inline operator bool() const { return matched_; }
+        inline unsigned size() const { return match_count_; }
+        std::string operator[](const unsigned group) const;
+    };
+
+    friend class MatchResult;
+
+    // We need this wrapper class to use the incomplete
+    // PCRE types with the STL smart pointers
+    struct PcreData {
+        ::pcre *pcre_;
+        ::pcre_extra *pcre_extra_;
+    public:
+        PcreData() : pcre_(nullptr), pcre_extra_(nullptr) {}
+        ~PcreData() {
+            if (pcre_extra_ != nullptr)
+                ::pcre_free_study(pcre_extra_);
+
+            if (pcre_)
+                ::pcre_free(pcre_);
+        }
+    };
+
+    enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4 };
+private:
+    static constexpr size_t MAX_SUBSTRING_MATCHES = 40;
+
+    const std::string pattern_;
+    const unsigned options_;
+    std::shared_ptr<PcreData> pcre_data_;
+public:
+    ThreadSafeRegexMatcher(const std::string &pattern, const unsigned options = ENABLE_UTF8);
+    ThreadSafeRegexMatcher(const ThreadSafeRegexMatcher &rhs)
+        : pattern_(rhs.pattern_), options_(rhs.options_), pcre_data_(rhs.pcre_data_) {}
+    MatchResult &operator=(const MatchResult &) = delete;
+
+    inline const std::string &getPattern() const { return pattern_; }
+    MatchResult match(const std::string &subject, const size_t subject_start_offset = 0,
+                      size_t * const start_pos = nullptr, size_t * const end_pos = nullptr) const;
+    std::string replaceAll(const std::string &subject, const std::string &replacement) const;
+};
+
+
+/** \class (DEPRECATED) RegexMatcher
+ *  \brief DEPRECATED. Use ThreadSafeRegexMatcher instead.
+           Wrapper class for simple use cases of the PCRE library and UTF-8 strings.
  */
 class RegexMatcher {
     static bool utf8_configured_;
@@ -48,7 +109,7 @@ public:
     /** Move constructor. */
     RegexMatcher(RegexMatcher &&that);
 
-    /** Destrcutor. */
+    /** Destructor. */
     virtual ~RegexMatcher() {
         ::pcre_free_study(pcre_extra_);
         ::pcre_free(pcre_);
@@ -59,8 +120,26 @@ public:
      *  In the case of a successful match, "start_pos" and "end_pos" will point to the first and last+1
      *  character of the matched part of "s" respectively.
      */
-    bool matched(const std::string &subject, std::string * const err_msg = nullptr,
+    inline bool matched(const std::string &subject, std::string * const err_msg = nullptr, size_t * const start_pos = nullptr,
+                        size_t * const end_pos = nullptr)
+        { return matched(subject, 0, err_msg, start_pos, end_pos); }
+    bool matched(const std::string &subject, const size_t subject_start_offset, std::string * const err_msg = nullptr,
                  size_t * const start_pos = nullptr, size_t * const end_pos = nullptr);
+
+    // Replaces all matches of the pattern with the replacement string.
+    std::string replaceAll(const std::string &subject, const std::string &replacement);
+
+    /** \brief Does what it says on the tin.
+     *  \param subject The text in which the replacements take place.
+     *  \param replacement  The replacement text which may contain backreferences of the form \N where N is a single digit
+     *                      ASCII number.  N refers to the N-th matched group in the pattern.  If the pattern didn't match,
+     *                      the original "subject" will be returned, o/w N must not exceed the number of matched groups in
+     *                      the pattern.  When N is 0 the backreference refers to the entire match, e.g., if the pattern
+     *                      was "\([0-9]+)-([0-9]+)" and the subject is "xx 81-102 yy" then \0 refers to "81-102", \1
+     *                      refers to "81" and \2 refers to "102" and N must not exceed 2.
+     *                      if "global" is true, the matching continues until the end of "subject" has been reached.
+     */
+    std::string replaceWithBackreferences(const std::string &subject, const std::string &replacement, const bool global = false);
 
     const std::string &getPattern() const { return pattern_; }
     bool utf8Enabled() const { return options_ & ENABLE_UTF8; }

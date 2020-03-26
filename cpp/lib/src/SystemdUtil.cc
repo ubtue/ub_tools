@@ -2,7 +2,7 @@
  *  \brief  Helper functions to use with systemd
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -25,27 +25,28 @@
 #include "util.h"
 
 
-const std::string SYSTEMD_EXECUTABLE("systemctl");
-const std::string SYSTEMD_SERVICE_DIRECTORY("/usr/local/lib/systemd/system/");
+const std::string SYSTEMCTL_EXECUTABLE("systemctl");
+const std::string SYSTEMD_SERVICE_DIRECTORY("/etc/systemd/system/");
 
 
 bool SystemdUtil::IsAvailable() {
-    return not ExecUtil::Which(SYSTEMD_EXECUTABLE).empty();
+    static const bool is_available(ExecUtil::GetOriginalCommandNameFromPID(1) == "systemd");
+    return is_available;
 }
 
 
 void SystemdUtil::Reload() {
-    ExecUtil::ExecOrDie(ExecUtil::Which(SYSTEMD_EXECUTABLE), { "daemon-reload"});
+    ExecUtil::ExecOrDie(ExecUtil::Which(SYSTEMCTL_EXECUTABLE), { "daemon-reload"});
 }
 
 
 void SystemdUtil::DisableUnit(const std::string &unit) {
-    ExecUtil::ExecOrDie(ExecUtil::Which(SYSTEMD_EXECUTABLE), { "disable", unit });
+    ExecUtil::ExecOrDie(ExecUtil::Which(SYSTEMCTL_EXECUTABLE), { "disable", unit });
 }
 
 
 void SystemdUtil::EnableUnit(const std::string &unit) {
-    ExecUtil::ExecOrDie(ExecUtil::Which(SYSTEMD_EXECUTABLE), { "enable", unit });
+    ExecUtil::ExecOrDie(ExecUtil::Which(SYSTEMCTL_EXECUTABLE), { "enable", unit });
 }
 
 
@@ -61,30 +62,30 @@ void SystemdUtil::InstallUnit(const std::string &service_file_path) {
 
 bool SystemdUtil::IsUnitAvailable(const std::string &unit) {
     std::string out, err;
-    ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::Which(SYSTEMD_EXECUTABLE), { "--all", "list-unit-files" }, &out, &err);
+    ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::Which(SYSTEMCTL_EXECUTABLE), { "--all", "list-unit-files" }, &out, &err);
     return RegexMatcher::Matched("^" + unit + "\\.service", out, RegexMatcher::MULTILINE);
 }
 
 
 bool SystemdUtil::IsUnitEnabled(const std::string &unit) {
     std::string out, err;
-    ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::Which(SYSTEMD_EXECUTABLE), { "is-enabled", unit }, &out, &err);
+    ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::Which(SYSTEMCTL_EXECUTABLE), { "is-enabled", unit }, &out, &err);
     return StringUtil::StartsWith(out, "enabled", /* ignore_case */ true);
 }
 
 
 bool SystemdUtil::IsUnitRunning(const std::string &unit) {
     std::string out, err;
-    ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::Which(SYSTEMD_EXECUTABLE), { "status", unit }, &out, &err);
+    ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::Which(SYSTEMCTL_EXECUTABLE), { "status", unit }, &out, &err);
     return RegexMatcher::Matched("(running)", out);
 }
 
 
 void SystemdUtil::RestartUnit(const std::string &unit) {
-    ExecUtil::ExecOrDie(ExecUtil::Which(SYSTEMD_EXECUTABLE), { "restart", unit });
+    ExecUtil::ExecOrDie(ExecUtil::Which(SYSTEMCTL_EXECUTABLE), { "restart", unit });
 }
 
 
 void SystemdUtil::StartUnit(const std::string &unit) {
-    ExecUtil::ExecOrDie(ExecUtil::Which(SYSTEMD_EXECUTABLE), { "start", unit });
+    ExecUtil::ExecOrDie(ExecUtil::Which(SYSTEMCTL_EXECUTABLE), { "start", unit });
 }

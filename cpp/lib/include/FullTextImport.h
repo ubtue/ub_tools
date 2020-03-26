@@ -2,7 +2,7 @@
  *  \brief   Interface to upload metadata-augmented full-text to Elasticsearch
  *  \author  Madeeswaran Kannan
  *
- *  Copyright (C) 2018, Library of the University of Tübingen
+ *  Copyright (c) 2018,2019 Library of the University of Tübingen
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -49,7 +49,11 @@ struct FullTextData {
     std::string doi_;
     std::string issn_;
     std::string isbn_;
+    std::string text_type_;
     std::string full_text_;
+    std::string full_text_location_;
+public:
+    std::string toString(const char separator = ',') const;
 };
 
 
@@ -58,14 +62,26 @@ struct FullTextData {
 // Line 2: <authors>
 // Line 3: <year>
 // Line 4: <doi>
-// Line 5: <full_text>
+// Line 5: <issn>
+// Line 6: <isbn>
+// Line 7: <text_type>
+// Line 8: <full_text_location>
+// Lines 9ff: <full_text>
 void WriteExtractedTextToDisk(const std::string &full_text, const std::string &title,
                               const std::set<std::string> &authors, const std::string &year, const std::string &doi,
-                              const std::string &issn, const std::string &isbn, File * const output_file);
+                              const std::string &issn, const std::string &isbn, const std::string &text_type,
+                              const std::string &full_text_location, File * const output_file);
+
 
 
 // Reads in and parses a text file previously written to disk with WriteExtractedTextToDisk() into a FullTextData instance.
 void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const full_text_data);
+
+
+// \brief Match full-text data with all existing record's control number, if any.
+// \return true if matches were found false otherwise
+bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, const FullTextData &full_text_data,
+                           std::set<std::string> * const control_numbers);
 
 
 // \brief Match full-text data with an existing record's control number, if any.

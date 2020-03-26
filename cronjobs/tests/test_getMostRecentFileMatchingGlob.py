@@ -1,9 +1,9 @@
-#!/bin/python2
-# Python 2 module
+#!/bin/python3
+# Python 3 module
 # -*- coding: utf-8 -*-
 
 
-from __future__ import print_function
+
 import sys
 import util
 

@@ -1,4 +1,5 @@
 LIB := ../lib
+INC = $(LIB)/include
 include ../Makefile.inc
 PROGS = full_text_cache_monitor full_text_lookup translate_chainer translator_ajax translator display_translate_stats zotero_cgi
 

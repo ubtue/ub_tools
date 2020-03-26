@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2018, Library of the University of Tübingen
+    Copyright (C) 2018-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -87,6 +87,7 @@ void Augment856(MARC::Reader * const marc_reader, MARC::Writer * const marc_writ
                 const std::unordered_map<std::string, oadoi_info> &doi_to_oainfo)
 {
     while (MARC::Record record = marc_reader->read()) {
+        bool flag_as_open_access_resource(false);
         for (const auto &field : record.getTagRange("024")) {
             if (field.hasSubfieldWithValue('2', "doi")) {
                 const std::string doi(field.getFirstSubfieldWithCode('a'));
@@ -99,8 +100,12 @@ void Augment856(MARC::Reader * const marc_reader, MARC::Writer * const marc_writ
                     if (not AlreadyHasIdenticalUrl(record, url))
                         record.insertField("856", { { 'u', url }, { 'x', "unpaywall" }, { 'z', "Vermutlich kostenfreier Zugang" },
                                                     { 'h', host_type + " [" + evidence + "]" } });
+                    flag_as_open_access_resource = true;
                 }
             }
+
+            if (flag_as_open_access_resource and record.getFirstField("OAS") == record.end())
+                record.insertField("OAS", { MARC::Subfield('a', "1") });
         }
         marc_writer->write(record);
     }
@@ -122,4 +127,3 @@ int Main(int argc, char *argv[]) {
 
    return EXIT_SUCCESS;
 }
-

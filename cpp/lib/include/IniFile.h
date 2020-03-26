@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015,2018 Universitätsbibliothek Tübingen
+ *  Copyright 2015-2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -31,6 +31,7 @@
 
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 #include <stack>
 #include <string>
 #include <vector>
@@ -75,6 +76,7 @@ public:
         inline bool operator==(const std::string &section_name) const { return section_name == section_name_; }
 
         inline const std::string &getSectionName() const { return section_name_; }
+        inline void setSectionName(const std::string &section_name) { section_name_ = section_name; }
 
         inline const_iterator begin() const { return entries_.cbegin(); }
         inline const_iterator end() const { return entries_.cend(); }
@@ -271,7 +273,7 @@ public:
     /**  \brief  Construct an IniFile based on the program's configuration file.
      *
      *   This constructor creates an instance based on a program-specific configuration file.  The file is in the
-     *   /usr/local/var/lib/tuelib/ directory, and is named X.conf (where "X" is the program name, as stored in "progname"
+     *   /usr/local/var/lib/tuelib/ directory, and is named X.conf (where "X" is the program name, as stored in "program_invocation_name"
      *   in "util.h".
      */
     IniFile();

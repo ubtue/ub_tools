@@ -1,7 +1,7 @@
 /** \brief Command-line utility to send email messages.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -21,6 +21,7 @@
 #include <cstdlib>
 #include "IniFile.h"
 #include "EmailSender.h"
+#include "FileUtil.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -34,7 +35,8 @@ namespace {
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " [--sender=sender] [-reply-to=reply_to] --recipients=recipients\n"
               << "  [--cc-recipients=cc_recipients] [--bcc-recipients=bcc_recipients] [--expand-newline-escapes]\n"
-              << "  --subject=subject --message-body=message_body [--priority=priority] [--format=format]\n\n"
+              << "  --subject=subject (--message-body=message_body | --message-body-file=path) [--priority=priority] [--format=format]\n"
+              << "  [--attachment=file1 --attachment=file2 .. --attachment=fileN]\n\n"
               << "       \"priority\" has to be one of \"very_low\", \"low\", \"medium\", \"high\", or\n"
               << "       \"very_high\".  \"format\" has to be one of \"plain_text\" or \"html\"  At least one\n"
               << "       of \"sender\" or \"reply-to\" has to be specified. If \"--expand-newline-escapes\" has\n"
@@ -81,26 +83,38 @@ bool ExtractArg(const char * const argument, const std::string &arg_name, std::s
 }
 
 
-void ParseCommandLine(char **argv, std::string * const sender, std::string * const reply_to,
-                      std::string * const recipients, std::string * const cc_recipients, std::string * const bcc_recipients,
-                      std::string * const subject, std::string * const message_body, std::string * const priority,
-                      std::string * const format, bool * const expand_newline_escapes)
+void ParseCommandLine(char **argv, std::string * const sender, std::string * const reply_to, std::string * const recipients,
+                      std::string * const cc_recipients, std::string * const bcc_recipients, std::string * const subject,
+                      std::string * const message_body, std::string * const priority, std::string * const format,
+                      bool * const expand_newline_escapes, std::vector<std::string> * const attachments)
 {
     *expand_newline_escapes = false;
+    std::string attachment, message_body_path;
     while (*argv != nullptr) {
         if (std::strcmp(*argv, "--expand-newline-escapes") == 0) {
             *expand_newline_escapes = true;
             ++argv;
+        } else if (ExtractArg(*argv, "attachment", &attachment)) {
+            attachment = FileUtil::ExpandTildePath(attachment);
+            if (not FileUtil::IsReadable(attachment))
+                LOG_ERROR("attachment \"" + attachment + "\" does not exist or isn't readable!");
+            attachments->emplace_back(attachment);
+            ++argv;
         } else if (ExtractArg(*argv, "sender", sender) or ExtractArg(*argv, "reply-to", reply_to)
             or ExtractArg(*argv, "recipients", recipients) or ExtractArg(*argv, "cc-recipients", cc_recipients)
             or ExtractArg(*argv, "bcc-recipients", bcc_recipients) or ExtractArg(*argv, "subject", subject)
-            or ExtractArg(*argv, "message-body", message_body) or ExtractArg(*argv, "priority", priority)
+            or ExtractArg(*argv, "message-body", message_body) or ExtractArg(*argv, "message-body-file", &message_body_path)
+            or ExtractArg(*argv, "priority", priority) or ExtractArg(*argv, "format", format)
             or ExtractArg(*argv, "format", format))
             ++argv;
         else
             LOG_ERROR("unknown argument: " + std::string(*argv));
     }
 
+    if (not message_body->empty() and not message_body_path.empty())
+        LOG_ERROR("you must not specify both, --message-body and --message-body-file!");
+    if (not message_body_path.empty())
+        FileUtil::ReadStringOrDie(message_body_path, message_body);
     if (recipients->empty() and cc_recipients->empty() and bcc_recipients->empty())
         LOG_ERROR("you must specify a recipient!");
     if (subject->empty())
@@ -112,7 +126,7 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
 
 std::vector<std::string> SplitRecipients(const std::string &recipients) {
     std::vector<std::string> individual_recipients;
-    StringUtil::Split(recipients, ',', &individual_recipients);
+    StringUtil::Split(recipients, ',', &individual_recipients, /* suppress_empty_components = */true);
     return individual_recipients;
 }
 
@@ -164,8 +178,9 @@ int Main(int argc, char *argv[]) {
     std::string sender, reply_to, recipients, cc_recipients, bcc_recipients, subject, message_body, priority_as_string,
         format_as_string;
     bool expand_newline_escapes;
+    std::vector<std::string> attachments;
     ParseCommandLine(++argv, &sender, &reply_to, &recipients, &cc_recipients, &bcc_recipients, &subject, &message_body,
-                     &priority_as_string, &format_as_string, &expand_newline_escapes);
+                     &priority_as_string, &format_as_string, &expand_newline_escapes, &attachments);
 
     if (sender.empty() and reply_to.empty()) {
         IniFile ini_file(UBTools::GetTuelibPath() + "cronjobs/smtp_server.conf");
@@ -182,7 +197,7 @@ int Main(int argc, char *argv[]) {
 
     const unsigned short response_code(EmailSender::SendEmail(sender, SplitRecipients(recipients), SplitRecipients(cc_recipients),
                                                               SplitRecipients(bcc_recipients), subject, message_body, priority, format,
-                                                              reply_to));
+                                                              reply_to, /* use_ssl = */true, /* use_authentication = */true, attachments));
     if (response_code >= 300) {
         if (not MiscUtil::EnvironmentVariableExists("ENABLE_SMPT_CLIENT_PERFORM_LOGGING"))
             LOG_ERROR("failed to send your email, the response code was: " + std::to_string(response_code)

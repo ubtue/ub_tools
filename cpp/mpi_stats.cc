@@ -2,7 +2,7 @@
  *  \brief A tool for generating some stats.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -28,8 +28,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_title_file\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("marc_title_file");
 }
 
 
@@ -68,30 +67,6 @@ bool IsUBOrIFKRecord(const MARC::Record &record, const std::vector<MARC::Record:
 }
 
 
-bool IsARecognisableYear(const std::string &year_candidate) {
-    if (year_candidate.length() != 4)
-        return false;
-
-    for (char ch : year_candidate) {
-        if (not StringUtil::IsDigit(ch))
-            return false;
-    }
-
-    return true;
-}
-
-
-// If we can find a recognisable year in 260$c we return it, o/w we return the empty string.
-std::string GetPublicationYear(const MARC::Record &record) {
-    const auto _260_field(record.getFirstField("260"));
-    if (_260_field == record.end())
-        return "";
-
-    const std::string year_candidate(_260_field->getFirstSubfieldWithCode('c'));
-    return IsARecognisableYear(year_candidate) ? year_candidate : "";
-}
-
-
 void FindNonMPIInstitutions(const MARC::Record &record, const std::vector<MARC::Record::const_iterator> &local_block_starts,
                             std::vector<std::string> * const non_mpi_institutions)
 {
@@ -123,7 +98,7 @@ void GenerateStats(MARC::Reader * const marc_reader) {
 
         const auto local_block_starts(record.findStartOfAllLocalDataBlocks());
         if (IsMPIRecord(record, local_block_starts) and not IsUBOrIFKRecord(record, local_block_starts)) {
-            const std::string publication_year(GetPublicationYear(record));
+            const std::string publication_year(record.getPublicationYear());
             if (publication_year >= "2014") {
                 ++recent_mpi_only_count;
                 std::vector<std::string> non_mpi_institutions;
@@ -145,9 +120,7 @@ void GenerateStats(MARC::Reader * const marc_reader) {
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     if (argc != 2)
         Usage();
 

@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2015,2017,2018 Universitätsbibliothek Tübingen.
+ *  Copyright 2015-2020 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -34,6 +34,7 @@
 #include <vector>
 #include <cwchar>
 #include <iconv.h>
+#include "util.h"
 
 
 namespace TextUtil {
@@ -45,6 +46,7 @@ constexpr uint32_t EM_DASH(0x2014u);
 constexpr uint32_t TWO_EM_DASH(0x2E3Au);
 constexpr uint32_t THREE_EM_DASH(0x2E3Bu);
 constexpr uint32_t SMALL_EM_DASH(0xFE58u);
+constexpr uint32_t NON_BREAKING_HYPHEN(0x2011u);
 
 
 /** \brief Converter between many text encodings.
@@ -154,6 +156,10 @@ bool UTF8ToUpper(const std::string &utf8_string, std::string * const uppercase_u
  *  \note Throws an exception if an error occurred.
  */
 std::string UTF8ToUpper(std::string * const utf8_string);
+inline std::string UTF8ToUpper(const std::string &utf8_string) {
+    std::string temp_string(utf8_string);
+    return UTF8ToUpper(&temp_string);
+}
 
 
 /** Converts UTF-32 a.k.a. UCS-4 to UTF-8. */
@@ -457,6 +463,12 @@ inline std::string CStyleEscape(std::string s) {
 std::string InitialCaps(const std::string &text);
 
 
+/** \brief Converts the first character of each token in "text" to uppercase and the remainder to lowercase, if possible.
+ *  \note  We treat "text" as UTF-8.
+ */
+std::string ToTitleCase(const std::string &text);
+
+
 /** \brief Returns the canonical form of a charset string.
  */
 std::string CanonizeCharset(std::string charset);
@@ -489,6 +501,13 @@ double CalcTextSimilarity(const std::string &text1, const std::string &text2, co
 bool IsSomeKindOfDash(const uint32_t ch);
 
 
+/** \brief Replaces various hyphens and dashes with minus signs.
+ *  \param  s  A UFT-8 string that will be modified in place.
+ *  \return A reference to the modified argument.
+ */
+std::string &NormaliseDashes(std::string * const s);
+
+
 std::wstring ExpandLigatures(const std::wstring &string);
 std::string ExpandLigatures(const std::string &utf8_string);
 
@@ -496,6 +515,81 @@ std::string ExpandLigatures(const std::string &utf8_string);
 // Removes the diacritics from letters found in Latin-1 and a few others
 std::wstring RemoveDiacritics(const std::wstring &string);
 std::string RemoveDiacritics(const std::string &utf8_string);
+
+// Normalises different quotation marks to standard double quotes
+std::wstring NormaliseQuotationMarks(const std::wstring &string);
+std::string NormaliseQuotationMarks(const std::string &utf8_string);
+
+bool ConvertToUTF8(const std::string &encoding, const std::string &text, std::string * const utf8_text);
+
+
+bool ConsistsEntirelyOfLetters(const std::string &utf8_string);
+
+
+size_t CodePointCount(const std::string &utf8_string);
+
+
+/** \brief A Unicode-aware substring.
+ *  \param pos  position of the first character to be copied as a substring.
+ *              If this is equal to the string length, the function returns an empty string.
+ *              If this is greater than the string length, it throws out_of_range.
+ *  \param len  Number of characters to include in the substring (if the string is shorter, as many characters as possible are used).
+ *              A value of string::npos indicates all characters until the end of the string.
+ *  \note The first character is denoted by a value of 0 (not 1).
+ *  \warning This function does not take into account Unicode character composition and only has a chance to return a reasonable
+ *           result with normalised strings/
+ */
+std::string UTF8Substr(const std::string &utf8_string, const size_t pos = 0, const size_t len = std::string::npos);
+
+
+/** Pads "utf8_string" with leading "pad_char"'s if the number of codepoints in "utf8_string" is less than "min_length". */
+inline std::string PadLeading(const std::string &utf8_string, const std::string::size_type min_length, const char pad_char = ' ') {
+    if (unlikely(static_cast<unsigned char>(pad_char) & 128u))
+        LOG_ERROR("we can only pad with ASCII characters!");
+
+    const std::string::size_type length(CodePointCount(utf8_string));
+
+    if (length >= min_length)
+        return utf8_string;
+
+    return std::string(min_length - length, pad_char) + utf8_string;
+}
+
+
+inline std::string &PadLeading(std::string * const utf8_string, const std::string::size_type min_length, const char pad_char = ' ') {
+    if (unlikely((static_cast<unsigned char>(pad_char) & 128u) != 0))
+        LOG_ERROR("we can only pad with ASCII characters!");
+
+    const auto length(CodePointCount(*utf8_string));
+    if (length < min_length)
+        utf8_string->insert(0, min_length - length, pad_char);
+    return *utf8_string;
+}
+
+
+/** Pads "utf8_string" with trailing "pad_char"'s if the number of codepoints in "utf8_string" is less than "min_length". */
+inline std::string PadTrailing(const std::string &utf8_string, const std::string::size_type min_length, const char pad_char = ' ') {
+    if (unlikely((static_cast<unsigned char>(pad_char) & 128u) != 0))
+        LOG_ERROR("we can only pad with ASCII characters!");
+
+    const std::string::size_type length(CodePointCount(utf8_string));
+
+    if (length >= min_length)
+        return utf8_string;
+
+    return utf8_string + std::string(min_length - length, pad_char);
+}
+
+
+inline std::string &PadTrailing(std::string * const utf8_string, const std::string::size_type min_length, const char pad_char = ' ') {
+    if (unlikely((static_cast<unsigned char>(pad_char) & 128u) != 0))
+        LOG_ERROR("we can only pad with ASCII characters!");
+
+    const auto length(CodePointCount(*utf8_string));
+    if (length < min_length)
+        utf8_string->append(min_length - length, pad_char);
+    return *utf8_string;
+}
 
 
 } // namespace TextUtil

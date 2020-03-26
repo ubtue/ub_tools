@@ -1,9 +1,9 @@
-/** \file   BSZUtil.h
+/** \file   BSZUtil.cc
  *  \brief  Various utility functions related to data etc. having to do w/ the BSZ.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \author Oliver Obenland (oliver.obenland@uni-tuebingen.de)
  *
- *  \copyright 2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -47,8 +47,6 @@ const size_t MAX_LINE_LENGTH_OLD_NO_ILN(21);
 const size_t MAX_LINE_LENGTH_NEW_WITH_ILN(26);
 const size_t MAX_LINE_LENGTH_NEW_NO_ILN(22);
 
-const size_t PPN_LENGTH_OLD(9);
-const size_t PPN_LENGTH_NEW(10);
 const size_t PPN_START_INDEX(12);
 const size_t SEPARATOR_INDEX(PPN_START_INDEX - 1);
 
@@ -59,7 +57,7 @@ void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::str
     unsigned line_no(0);
 top_loop:
     while (not deletion_list->eof()) {
-        const std::string line(StringUtil::Trim(deletion_list->getline()));
+        const std::string line(StringUtil::TrimWhite(deletion_list->getline()));
         ++line_no;
         if (unlikely(line.empty())) // Ignore empty lines.
             continue;
@@ -201,6 +199,15 @@ void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year
     *year = field_936->getFirstSubfieldWithCode('j');
     *volume = field_936->getFirstSubfieldWithCode('d');
     *issue = field_936->getFirstSubfieldWithCode('e');
+}
+
+
+std::string GetK10PlusPPNFromSubfield(const MARC::Record::Field &field, const char subfield_code) {
+    for (const auto &subfield_code_and_value : field.getSubfields()) {
+        if (subfield_code_and_value.code_ == subfield_code and StringUtil::StartsWith(subfield_code_and_value.value_, "(DE-627)"))
+            return subfield_code_and_value.value_.substr(__builtin_strlen( "(DE-627)"));
+    }
+    return "";
 }
 
 

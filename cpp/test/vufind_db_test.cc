@@ -1,7 +1,7 @@
 /** \brief Test program for interfacing to the VuFind MySQL tables.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -17,6 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <cstdlib>
@@ -38,12 +39,9 @@ int main(int argc, char *argv[]) {
         Usage();
 
     try {
-        std::string mysql_url;
-        VuFind::GetMysqlURL(&mysql_url);
-
         // The following definition would throw an exception if the "mysql_url" was invalid:
-        DbConnection db_connection(mysql_url);
+        std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
     } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
+        LOG_ERROR("caught exception: " + std::string(x.what()));
     }
 }

@@ -7,7 +7,7 @@
 /*
  *  Copyright 2004-2008 Project iVia.
  *  Copyright 2004-2008 The Regents of The University of California.
- *  Copyright 2017-2018 Universitätsbibliothek Tübingen
+ *  Copyright 2017-2019 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -29,9 +29,11 @@
 
 
 #include <unordered_set>
+#include <unordered_map>
 #include <string>
 #include <vector>
 #include <signal.h>
+#include <sys/types.h>
 
 
 namespace ExecUtil {
@@ -57,16 +59,22 @@ public:
  *  \param  timeout_in_seconds  If not zero, the subprocess will be killed if the timeout expires before
  *                              the process terminates.
  *  \param  tardy_child_signal  The signal to send to our offspring if there was a timeout.
+ *  \param  envs                The environment variables to be set in the child process.
+ *  \param  working_directory   The working directory to be set in the child process.
  *  \note   in case of a timeout, we set errno to ETIME and return -1
  *  \return The exit code of the subcommand or an error code if there was a failure along the way.
  */
-int Exec(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
-         const std::string &new_stdout = "", const std::string &new_stderr = "",
-         const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL);
+int Exec(const std::string &command, const std::vector<std::string> &args = std::vector<std::string>{}, const std::string &new_stdin = "",
+         const std::string &new_stdout = "", const std::string &new_stderr = "", const unsigned timeout_in_seconds = 0,
+         const int tardy_child_signal = SIGKILL,
+         const std::unordered_map<std::string, std::string> &envs = std::unordered_map<std::string, std::string>(),
+         const std::string &working_directory = "");
 
-void ExecOrDie(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
-               const std::string &new_stdout = "", const std::string &new_stderr = "",
-               const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL);
+void ExecOrDie(const std::string &command, const std::vector<std::string> &args = std::vector<std::string>{},
+               const std::string &new_stdin = "", const std::string &new_stdout = "", const std::string &new_stderr = "",
+               const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL,
+               const std::unordered_map<std::string, std::string> &envs = std::unordered_map<std::string, std::string>(),
+               const std::string &working_directory = "");
 
 /** \brief  Kicks off a subcommand and returns.
  *  \param  command             The path to the command that should be executed.
@@ -74,10 +82,14 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &args 
  *  \param  new_stdin           An optional replacement file path for stdin.
  *  \param  new_stdout          An optional replacement file path for stdout.
  *  \param  new_stderr          An optional replacement file path for stderr.
+ *  \param  envs                The environment variables to be set in the child process.
+ *  \param  working_directory   The working directory to be set in the child process.
  *  \return The PID of the child.
  */
-pid_t Spawn(const std::string &command, const std::vector<std::string> &args = {}, const std::string &new_stdin = "",
-            const std::string &new_stdout = "", const std::string &new_stderr = "");
+pid_t Spawn(const std::string &command, const std::vector<std::string> &args = std::vector<std::string>{}, const std::string &new_stdin = "",
+            const std::string &new_stdout = "", const std::string &new_stderr = "",
+            const std::unordered_map<std::string, std::string> &envs = std::unordered_map<std::string, std::string>(),
+            const std::string &working_directory = "");
 
 
 /** \brief Tries to find a path, with the help of the environment variable PATH, to "executable_candidate".
@@ -94,11 +106,13 @@ std::string LocateOrDie(const std::string &executable_candidate);
 
 
 /** \brief  Retrieve the stdout of a subcommand.
- *  \param  command        A shell command.  Can include arguments. E.g. "ls -l".
- *  \param  stdout_output  Where to store the output of the command.
+ *  \param  command          A shell command.  Can include arguments. E.g. "ls -l".
+ *  \param  stdout_output    Where to store the output of the command.
+ *  \param  suppress_stderr  If true, stderr will be redirected to /dev/null.
  *  \note   The command will be executed by passing it to the standard shell interpreter: "/bin/sh -c command".
  */
-bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output);
+bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output,
+                                    const bool suppress_stderr = false);
 
 
 /** \brief  Retrieve the stdout and stderr of a subcommand.
@@ -132,6 +146,11 @@ std::unordered_set<unsigned> FindActivePrograms(const std::string &program_name)
  *        length of the original process name.
  */
 bool SetProcessName(char *argv0, const std::string &new_process_name);
+
+
+/** \return The unmodified, i.e. orginal, command-name for the given PID or the empty string if no process with
+    the provided PID was found. */
+std::string GetOriginalCommandNameFromPID(const pid_t pid);
 
 
 } // namespace ExecUtil

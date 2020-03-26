@@ -1,0 +1,5 @@
+ALTER TABLE delivered_marc_records DROP COLUMN publication_year;
+ALTER TABLE delivered_marc_records DROP COLUMN volume;
+ALTER TABLE delivered_marc_records DROP COLUMN issue;
+ALTER TABLE delivered_marc_records DROP COLUMN pages;
+ALTER TABLE delivered_marc_records DROP COLUMN resource_type;

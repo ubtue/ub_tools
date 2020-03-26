@@ -1,10 +1,10 @@
 /** \file    db_lookup.cc
- *  \brief   A tool for database lookups in a kyotokabinet key/value database.
+ *  \brief   A tool for database lookups in a key/value database.
  *  \author  Dr. Johannes Ruscheinski
  */
 
 /*
-    Copyright (C) 2015,2017 Library of the University of Tübingen
+    Copyright (C) 2015-2019 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -21,32 +21,16 @@
 */
 #include <iostream>
 #include <cstdlib>
-#include <kchashdb.h>
+#include "KeyValueDB.h"
 #include "util.h"
 
 
-void Usage() {
-    std::cerr << "Usage: " << progname << " db_path key\n";
-    std::exit(EXIT_FAILURE);
-}
-
-
-int main(int argc, char *argv[]) {
-    progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     if (argc != 3)
-        Usage();
+        ::Usage("db_path key");
 
-    kyotocabinet::HashDB db;
-    if (not db.open(argv[1], kyotocabinet::HashDB::OREADER | kyotocabinet::HashDB::ONOLOCK))
-        logger->error("Failed to open database \"" + std::string(argv[1]) + "\" for reading ("
-                      + std::string(db.error().message()) + ")!");
+    KeyValueDB db(argv[1]);
+    std::cout << db.getValue(argv[2]) << '\n';
 
-    std::string data;
-    if (not db.get(argv[2], &data))
-        logger->error("Lookup failed: " + std::string(db.error().message()));
-
-    std::cout << data;
-
-    db.close();
+    return EXIT_SUCCESS;
 }

@@ -73,6 +73,21 @@ try_again:
 }
 
 
+bool Semaphore::tryWait() {
+try_again:
+    const auto retcode(::sem_trywait(semaphore_));
+    if (retcode == 0)
+        return true;
+    else if (retcode == -1 and errno == EAGAIN)
+        return false;
+    else if (errno == EINTR) {
+        errno = 0;
+        goto try_again;
+    } else
+        throw std::runtime_error("in ThreadUtil::Semaphore::tryWait: sem_trywait(3) failed!");
+}
+
+
 void Semaphore::post() {
 try_again:
     if (::sem_post(semaphore_) != 0) {
@@ -94,7 +109,7 @@ Spinlock::Spinlock(const Scope scope) {
 
 Spinlock::~Spinlock() {
     if (unlikely((errno = ::pthread_spin_destroy(&spinlock_)) != 0)) {
-        if (std::uncaught_exception())
+        if (std::uncaught_exceptions())
             return;
         logger->error("in ThreadUtil::Spinlock::~Spinlock: pthread_spin_destroy(3) failed!");
     }
@@ -122,7 +137,7 @@ bool Spinlock::tryLock() {
 
 void Spinlock::unlock() {
     if (unlikely((errno = ::pthread_spin_unlock(&spinlock_)) != 0)) {
-        if (std::uncaught_exception())
+        if (std::uncaught_exceptions())
             return;
         throw std::runtime_error("in ThreadUtil::Spinlock::unlock: pthread_spin_unlock(3) failed!");
     }

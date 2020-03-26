@@ -1,7 +1,7 @@
 /** \brief A tool to add DDC metadata to title data using various means.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -99,12 +99,12 @@ void ExtractTopicIDs(const std::string &tags, const MARC::Record &record, const 
     topic_ids->clear();
 
     std::vector<std::string> individual_tags;
-    StringUtil::Split(tags, ':', &individual_tags);
+    StringUtil::Split(tags, ':', &individual_tags, /* suppress_empty_components = */true);
 
     for (const auto &tag : individual_tags) {
         for (const auto &field : record.getTagRange(tag)) {
             for (const auto &subfield_value : field.getSubfields().extractSubfields('0')) {
-                if (not StringUtil::StartsWith(subfield_value, "(DE-576)"))
+                if (not StringUtil::StartsWith(subfield_value, "(DE-627)"))
                     continue;
 
                 const std::string topic_id(subfield_value.substr(8));

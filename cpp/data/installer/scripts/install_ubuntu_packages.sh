@@ -1,7 +1,7 @@
 #!/bin/bash
 if [[ $# > 1 ]]; then
     echo "usage: $0 [system_type]"
-    echo "          tuefind: Also install tuefind dependencies"
+    echo "          ixtheo|krimdok: Also install specific dependencies"
     exit 1
 fi
 
@@ -9,7 +9,7 @@ function ColorEcho {
     echo -e "\033[1;34m" $1 "\033[0m"
 }
 
-if [[ $1 != "" && $1 != "tuefind" ]]; then
+if [[ $1 != "" && $1 != "ixtheo" && $1 != "krimdok" ]]; then
     ColorEcho "invalid system_type \"$1\"!"
     exit 1
 fi
@@ -21,13 +21,19 @@ apt-get --yes update
 
 # install software-properties-common for apt-add-repository
 apt-get --yes install software-properties-common
+wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
+apt-add-repository --yes --update 'deb https://artifacts.elastic.co/packages/7.x/apt stable main'
 
 # main installation
 apt-get --quiet --yes --allow-unauthenticated install \
     curl wget \
     ant cifs-utils clang cron gcc git locales-all make openjdk-8-jdk sudo \
-    apache2 ca-certificates libarchive-dev libcurl4-gnutls-dev libkyotocabinet-dev liblept5 libleptonica-dev liblz4-tool libmagic-dev libmysqlclient-dev libpcre3-dev libpoppler73 libsqlite3-dev libssl-dev libtesseract-dev libtokyocabinet-dev libwebp6 libxerces-c-dev libxml2-dev libxml2-utils mawk mysql-utilities poppler-utils unzip uuid-dev \
-    tesseract-ocr tesseract-ocr-bul tesseract-ocr-ces tesseract-ocr-dan tesseract-ocr-deu tesseract-ocr-eng tesseract-ocr-fin tesseract-ocr-fra tesseract-ocr-heb tesseract-ocr-hun tesseract-ocr-ita tesseract-ocr-lat tesseract-ocr-nld tesseract-ocr-nor tesseract-ocr-pol tesseract-ocr-por tesseract-ocr-rus tesseract-ocr-script-grek tesseract-ocr-slv tesseract-ocr-spa tesseract-ocr-swe
+    apache2 ca-certificates imagemagick libarchive-dev libcurl4-gnutls-dev liblept5 libleptonica-dev liblz4-tool libmagic-dev libmysqlclient-dev \
+    libpcre3-dev libpoppler73 libsqlite3-dev libssl-dev libtesseract-dev libwebp6 libxerces-c-dev libxml2-dev libxml2-utils jq mawk \
+    mysql-utilities poppler-utils unzip uuid-dev tesseract-ocr tesseract-ocr-bul tesseract-ocr-ces tesseract-ocr-dan tesseract-ocr-deu \
+    tesseract-ocr-eng tesseract-ocr-fin tesseract-ocr-fra tesseract-ocr-heb tesseract-ocr-hun tesseract-ocr-ita tesseract-ocr-lat \
+    tesseract-ocr-nld tesseract-ocr-nor tesseract-ocr-pol tesseract-ocr-por tesseract-ocr-rus tesseract-ocr-script-grek tesseract-ocr-slv \
+    tesseract-ocr-spa tesseract-ocr-swe libdb-dev tcl-expect-dev tidy
 
 # From 18.04 on, Java 8 needs to be enabled as well for Solr + mixins (18.04 ships with 10)
 # (unfortunately, >= string comparison is impossible in Bash, so we compare > 17.10)
@@ -48,8 +54,17 @@ mkdir -p /var/run/mysqld
 chown -R mysql:mysql /var/run/mysqld
 
 #---------------------------------- TUEFIND ---------------------------------#
-if [[ $1 == "tuefind" ]]; then
+if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
+
+    if [[ $1 == "krimdok" ]]; then
+        apt-get --quiet --yes install elasticsearch
+        if ! /usr/share/elasticsearch/bin/elasticsearch-plugin list | grep --quiet analysis-icu; then
+            /usr/share/elasticsearch/bin/elasticsearch-plugin install analysis-icu
+        fi
+        mkdir -p /etc/elasticsearch/synonyms
+        for i in all de en fr it es pt ru el hans hant; do touch /etc/elasticsearch/synonyms/synonyms_$i.txt; done
+    fi
 
     apt-get --quiet --yes install \
         composer \

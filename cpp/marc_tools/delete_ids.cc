@@ -1,7 +1,8 @@
 /** \brief Utility for deleting partial or entire MARC records based on an input list.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
+ *  \documentation https://wiki.bsz-bw.de/doku.php?id=v-team:daten:datendienste:sekkor under "Löschungen".
  *
- *  \copyright 2015-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -32,9 +33,9 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " [--input-format=(marc-21|marc-xml)] [--output-format=(marc-21|marc-xml)] deletion_list input_marc21 output_marc21\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("[--input-format=(marc-21|marc-xml)] [--output-format=(marc-21|marc-xml)]"
+            " deletion_list input_marc21 output_marc21 entire_record_deletion_log\n"
+            "Record ID's of records that were deleted and not merely modified will be written to \"entire_record_deletion_log\".");
 }
 
 
@@ -70,15 +71,16 @@ bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_
 
 void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
                     const std::unordered_set <std::string> &local_deletion_ids, MARC::Reader * const marc_reader,
-                    MARC::Writer * const marc_writer)
+                    MARC::Writer * const marc_writer, File * const entire_record_deletion_log)
 {
     unsigned total_record_count(0), deleted_record_count(0), modified_record_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++total_record_count;
 
-        if (title_deletion_ids.find(record.getControlNumber()) != title_deletion_ids.end())
+        if (title_deletion_ids.find(record.getControlNumber()) != title_deletion_ids.end()) {
             ++deleted_record_count;
-        else { // Look for local (LOK) data sets that may need to be deleted.
+            (*entire_record_deletion_log) << record.getControlNumber() << '\n';
+        } else { // Look for local (LOK) data sets that may need to be deleted.
             if (DeleteLocalSections(local_deletion_ids, &record))
                 ++modified_record_count;
             marc_writer->write(record);
@@ -95,15 +97,13 @@ void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
 
 
 int Main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
-    if (argc < 4)
+    if (argc < 5)
         Usage();
 
     const auto reader_type(MARC::GetOptionalReaderType(&argc, &argv, 1));
     const auto writer_type(MARC::GetOptionalWriterType(&argc, &argv, 1));
 
-    if (argc != 4)
+    if (argc != 5)
         Usage();
 
     const auto deletion_list(FileUtil::OpenInputFileOrDie(argv[1]));
@@ -112,8 +112,9 @@ int Main(int argc, char *argv[]) {
 
     const auto marc_reader(MARC::Reader::Factory(argv[2], reader_type));
     const auto marc_writer(MARC::Writer::Factory(argv[3], writer_type));
+    const auto entire_record_deletion_log(FileUtil::OpenForAppendingOrDie(argv[4]));
 
-    ProcessRecords(title_deletion_ids, local_deletion_ids, marc_reader.get(), marc_writer.get());
+    ProcessRecords(title_deletion_ids, local_deletion_ids, marc_reader.get(), marc_writer.get(), entire_record_deletion_log.get());
 
     return EXIT_SUCCESS;
 }

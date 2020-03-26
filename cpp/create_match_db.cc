@@ -2,7 +2,7 @@
  *  \brief   Creates mapping databases from normalised author names and titles to control numbers.
  *  \author  Dr. Johannes Ruscheinski
  *
- *  Copyright (C) 2018,2019 Library of the University of Tübingen
+ *  Copyright (C) 2018-2020 Library of the University of Tübingen
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -47,7 +47,10 @@ void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::R
         ++processed_record_count;
         const auto control_number(record.getControlNumber());
 
-        std::set<std::string> author_names(record.getAllAuthors());
+        const std::map<std::string, std::string> author_names_and_ppns(record.getAllAuthorsAndPPNs());
+        std::set<std::string> author_names;
+        for (const auto &author_name_and_ppn : author_names_and_ppns)
+            author_names.emplace(author_name_and_ppn.first);
         control_number_guesser->insertAuthors(author_names, control_number);
 
         const auto title(record.getCompleteTitle());
@@ -67,6 +70,9 @@ void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::R
 
         for (const auto &issn : record.getISSNs())
             control_number_guesser->insertISSN(issn, control_number);
+
+        for (const auto &superior_issn: record.getSuperiorISSNs())
+            control_number_guesser->insertISSN(superior_issn, control_number);
 
         for (const auto &isbn : record.getISBNs())
             control_number_guesser->insertISBN(isbn, control_number);

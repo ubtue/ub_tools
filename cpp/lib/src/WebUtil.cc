@@ -235,8 +235,7 @@ time_t ParseWebDateAndTime(const std::string &possible_web_date_and_time) {
             return TimeUtil::BAD_TIME_T;
         if ((month = MonthToInt(possible_web_date_and_time.substr(4, 3))) == BAD_MONTH)
             return TimeUtil::BAD_TIME_T;
-        if (std::sscanf(possible_web_date_and_time.substr(8).c_str(), "%d %2d:%2d:%2d %4d", &day, &hour, &min, &sec,
-                        &year) != 5)
+        if (std::sscanf(possible_web_date_and_time.substr(8).c_str(), "%d %2d:%2d:%2d %4d", &day, &hour, &min, &sec, &year) != 5)
             return TimeUtil::BAD_TIME_T;
     } else if (comma_pos == 3) {
         // We should have the following formats: "Mon, 06 Aug 1999 19:01:42" or "Mon, 06-Aug-1999 19:01:42 GMT" or
@@ -247,8 +246,7 @@ time_t ParseWebDateAndTime(const std::string &possible_web_date_and_time) {
             return TimeUtil::BAD_TIME_T;
         if ((month = MonthToInt(possible_web_date_and_time.substr(8, 3))) == BAD_MONTH)
             return TimeUtil::BAD_TIME_T;
-        if (std::sscanf(possible_web_date_and_time.substr(12).c_str(), "%4d %2d:%2d:%2d", &year, &hour, &min, &sec)
-            != 4)
+        if (std::sscanf(possible_web_date_and_time.substr(12).c_str(), "%4d %2d:%2d:%2d", &year, &hour, &min, &sec) != 4)
             return TimeUtil::BAD_TIME_T;
 
         // Normalise "year" to include the century:
@@ -264,8 +262,7 @@ time_t ParseWebDateAndTime(const std::string &possible_web_date_and_time) {
             return TimeUtil::BAD_TIME_T;
         if ((month = MonthToInt(possible_web_date_and_time.substr(comma_pos + 5, 3))) == BAD_MONTH)
             return TimeUtil::BAD_TIME_T;
-        if (std::sscanf(possible_web_date_and_time.substr(comma_pos+9).c_str(), "%d %2d:%2d:%2d", &year, &hour, &min,
-                        &sec) != 4)
+        if (std::sscanf(possible_web_date_and_time.substr(comma_pos+9).c_str(), "%d %2d:%2d:%2d", &year, &hour, &min, &sec) != 4)
             return TimeUtil::BAD_TIME_T;
 
         // Normalise "year" to include the century:
@@ -285,8 +282,9 @@ time_t ParseWebDateAndTime(const std::string &possible_web_date_and_time) {
     time_struct.tm_sec   = sec;
     time_struct.tm_isdst = -1; // Don't change this!
 
-    time_t retval = std::mktime(&time_struct);
-    if (retval == TimeUtil::BAD_TIME_T)
+    errno = 0;
+    time_t retval(std::mktime(&time_struct));
+    if (unlikely(errno != 0))
         return TimeUtil::BAD_TIME_T;
 
     return retval;
@@ -300,9 +298,7 @@ std::string ConvertToLatin9(const HttpHeader &http_header, const std::string &or
     character_encoding = http_header.getCharset();
 
     // ...if not available from the header, let's try to get it from the HTML:
-    if (character_encoding.empty()
-        and (http_header.getMediaType() == "text/html" or http_header.getMediaType() == "text/xhtml"))
-    {
+    if (character_encoding.empty() and (http_header.getMediaType() == "text/html" or http_header.getMediaType() == "text/xhtml")) {
         std::list< std::pair<std::string, std::string> > extracted_data;
         HttpEquivExtractor http_equiv_extractor(original_document, "Content-Type", &extracted_data);
         http_equiv_extractor.parse();
@@ -790,7 +786,7 @@ std::string GetMajorSite(const Url &url) {
 
     // Parse the URL:
     std::vector<std::string> parts;
-    StringUtil::Split(authority, '.', &parts);
+    StringUtil::Split(authority, '.', &parts, /* suppress_empty_components = */true);
     const unsigned size(parts.size());
     if (size < 2)
         return "";

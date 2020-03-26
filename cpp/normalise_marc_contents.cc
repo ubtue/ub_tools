@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2018 Library of the University of Tübingen
+    Copyright (C) 2018,2019 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -68,7 +68,7 @@ void LoadTagAndSubfieldCodesGroupsFromGlobalSection(const IniFile &ini_file,
             LOG_ERROR("missing subfields spec for \"" + entry.name_ + "\"!");
 
         std::vector<std::string> tags_and_subfield_codes;
-        StringUtil::Split(entry.value_, ':', &tags_and_subfield_codes);
+        StringUtil::Split(entry.value_, ':', &tags_and_subfield_codes, /* suppress_empty_components */true);
         for (const auto &tag_and_subfield_code : tags_and_subfield_codes) {
             if (unlikely(tag_and_subfield_code.length() != MARC::Record::TAG_LENGTH + 1))
                 LOG_ERROR("bad subfields spec for \"" + entry.name_ + "\"!");

@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -32,8 +32,7 @@ std::string GetId(DbConnection * const connection, const std::string &german_tex
     const std::string SELECT_EXISTING("SELECT id FROM translations WHERE text=\""
                                       + connection->escapeString(german_text) + "\" AND language_code=\"deu\"");
     if (not connection->query(SELECT_EXISTING))
-        logger->error("in TranslationUtil::GetId: SELECT failed: " + SELECT_EXISTING
-                      + " (" + connection->getLastErrorMessage() + ")");
+        LOG_ERROR("SELECT failed: " + SELECT_EXISTING + " (" + connection->getLastErrorMessage() + ")");
     DbResultSet id_result_set(connection->getLastResultSet());
     std::string id;
     if (not id_result_set.empty())
@@ -53,15 +52,17 @@ std::string GetId(DbConnection * const connection, const std::string &german_tex
     }
 }
 
-static std::map<std::string, std::string> international_2letter_code_to_german_3or4letter_code{
+
+const std::map<std::string, std::string> international_2letter_code_to_german_3or4letter_code{
     { "de", "deu" },
+    { "el", "gre" },
     { "en", "eng" },
+    { "es", "spa" },
     { "fr", "fra" },
     { "it", "ita" },
-    { "es", "spa" },
-    { "ru", "rus" },
     { "pt", "por" },
-    { "el", "gre" }
+    { "ru", "rus" },
+    { "tr", "tur" },
 };
 
 
@@ -75,13 +76,25 @@ std::string MapInternational2LetterCodeToGerman3Or4LetterCode(const std::string 
 }
 
 
+bool IsValidInternational2LetterCode(const std::string &international_2letter_code_candidate) {
+    if (international_2letter_code_candidate.length() != 2)
+        return false;
+
+    for (const auto &_2letter_and_3letter_codes : international_2letter_code_to_german_3or4letter_code) {
+        if (_2letter_and_3letter_codes.first == international_2letter_code_candidate)
+            return true;
+    }
+
+    return false;
+}
+
+
 std::string MapGerman3Or4LetterCodeToInternational2LetterCode(const std::string &german_3or4letter_code) {
     for (const auto &_2letter_and_3letter_codes : international_2letter_code_to_german_3or4letter_code) {
         if (_2letter_and_3letter_codes.second == german_3or4letter_code)
             return _2letter_and_3letter_codes.first;
     }
-    logger->error("in TranslationUtil::MapGerman3LetterCodeToInternational2LetterCode: unknown German 3-letter "
-                  "code \"" + german_3or4letter_code + "\"!");
+    LOG_ERROR("unknown German 3-letter code \"" + german_3or4letter_code + "\"!");
 }
 
 
@@ -136,11 +149,12 @@ static std::map<std::string, std::string> german_to_3or4letter_english_codes {
     { "deu", "ger" },
     { "eng", "eng" },
     { "fra", "fre" },
+    { "gre", "gre" },
     { "ita", "ita" },
-    { "spa", "spa" },
     { "por", "por" },
     { "rus", "rus" },
-    { "gre", "gre" },
+    { "spa", "spa" },
+    { "tur", "tur" },
     { "hans", "hans" },
     { "hant", "hant" }
 };

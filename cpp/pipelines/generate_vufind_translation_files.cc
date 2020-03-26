@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2018, Library of the University of Tübingen
+    Copyright (C) 2016-2019, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -63,24 +63,22 @@ void ProcessLanguage(const bool verbose, const std::string &output_file_path, co
 
     std::unordered_map<std::string, std::pair<unsigned, std::string>> token_to_line_no_and_other_map;
     if (::access(output_file_path.c_str(), R_OK) != 0)
-        logger->warning("\"" + output_file_path + "\" is not readable, maybe it doesn't exist?");
+        LOG_WARNING("\"" + output_file_path + "\" is not readable, maybe it doesn't exist?");
     else {
         TranslationUtil::ReadIniFile(output_file_path, &token_to_line_no_and_other_map);
 
         if (unlikely(not FileUtil::RenameFile(output_file_path, output_file_path + ".bak", /* remove_target = */true)))
-            logger->error("failed to rename \"" + output_file_path + "\" to \"" + output_file_path + ".bak\"! ("
-                          + std::string(::strerror(errno)) + ")");
+            LOG_ERROR("failed to rename \"" + output_file_path + "\" to \"" + output_file_path + ".bak\"!");
     }
 
     File output(output_file_path, "w");
     if (unlikely(output.fail()))
-        logger->error("failed to open \"" + output_file_path + "\" for writing!");
+        LOG_ERROR("failed to open \"" + output_file_path + "\" for writing!");
 
-    db_connection->queryOrDie("SELECT token,translation FROM vufind_translations WHERE language_code='"
-                              + _3letter_code + "'");
+    db_connection->queryOrDie("SELECT token,translation FROM vufind_translations WHERE language_code='" + _3letter_code + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (unlikely(result_set.empty()))
-        logger->error("found no translations for language code \"" + _3letter_code + "\"!");
+        LOG_ERROR("found no translations for language code \"" + _3letter_code + "\"!");
     if (verbose)
         std::cerr << "\tFound " << result_set.size() << " (token,translation) pairs.\n";
 
@@ -94,20 +92,18 @@ void ProcessLanguage(const bool verbose, const std::string &output_file_path, co
     }
 
     std::sort(line_nos_tokens_and_translations.begin(), line_nos_tokens_and_translations.end(),
-              [](const std::tuple<unsigned, std::string,std::string> &left,
-                 const std::tuple<unsigned, std::string,std::string> &right)
-              { return std::get<0>(left) < std::get<0>(right); });
+              [](const std::tuple<unsigned, std::string, std::string> &left, const std::tuple<unsigned, std::string, std::string> &right)
+                  { return std::get<0>(left) < std::get<0>(right); });
 
     for (const auto &line_no_token_and_translation : line_nos_tokens_and_translations) {
         const std::string token(std::get<1>(line_no_token_and_translation));
-        const std::string translation(std::get<2>(line_no_token_and_translation));
+        const std::string translation(StringUtil::TrimWhite(std::get<2>(line_no_token_and_translation)));
         if (not translation.empty())
             output << token << " = \"" << StringUtil::TrimWhite(NormalizeBrackets(translation)) << "\"\n";
     }
 
     if (verbose)
-        std::cerr << "Wrote " << line_nos_tokens_and_translations.size() << " language mappings to \""
-                  << output_file_path << "\"\n";
+        std::cerr << "Wrote " << line_nos_tokens_and_translations.size() << " language mappings to \"" << output_file_path << "\"\n";
 }
 
 
@@ -117,7 +113,7 @@ void GetLanguageCodes(const bool verbose, DbConnection * const db_connection,
     db_connection->queryOrDie("SELECT DISTINCT language_code FROM vufind_translations");
     DbResultSet language_codes_result_set(db_connection->getLastResultSet());
     if (unlikely(language_codes_result_set.empty()))
-        logger->error("no language codes found, expected multiple!");
+        LOG_ERROR("no language codes found, expected multiple!");
 
     while (const DbRow row = language_codes_result_set.getNextRow()) {
         const std::string german_language_code(
@@ -155,7 +151,7 @@ int Main(int argc, char **argv) {
 
     const std::string output_directory(argv[1]);
     if (unlikely(not FileUtil::IsDirectory(output_directory)))
-        logger->error("\"" + output_directory + "\" is not a directory or can't be read!");
+        LOG_ERROR("\"" + output_directory + "\" is not a directory or can't be read!");
 
     const IniFile ini_file(CONF_FILE_PATH);
     const std::string sql_database(ini_file.getString("Database", "sql_database"));

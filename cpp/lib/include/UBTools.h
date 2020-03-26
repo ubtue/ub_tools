@@ -1,7 +1,7 @@
 /** \file   UBTools.h
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -25,7 +25,10 @@
 namespace UBTools {
 
 
-std::string GetTuelibPath();
+// \return A slash-terminated absolute path.
+inline std::string GetTuelibPath() {
+    return "/usr/local/var/lib/tuelib/";
+}
 
 
 } // namespace UBTools

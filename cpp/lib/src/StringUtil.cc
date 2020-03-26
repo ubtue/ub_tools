@@ -32,6 +32,7 @@
 
 #include "StringUtil.h"
 #include <algorithm>
+#include <map>
 #include <set>
 #include <cctype>
 #include <cerrno>
@@ -267,10 +268,9 @@ std::string RightTrim(std::string * const s, char trim_char) {
 }
 
 
-std::string RightTrim(const std::string &s, char trim_char)
-{
-        std::string temp_s(s);
-        return RightTrim(&temp_s, trim_char);
+std::string RightTrim(const std::string &s, char trim_char) {
+    std::string temp_s(s);
+    return RightTrim(&temp_s, trim_char);
 }
 
 
@@ -298,7 +298,7 @@ std::string RightTrim(const std::string &trim_set, const std::string &s) {
 
 
 char *strrtrim(char *s, char trim_char) {
-    const size_t len = std::strlen(s);
+    const size_t len(std::strlen(s));
     char *cp = s + len;
     while (--cp >= s and *cp == trim_char)
         /* intentionally empty */;
@@ -309,7 +309,7 @@ char *strrtrim(char *s, char trim_char) {
 
 
 std::string LeftTrim(std::string * const s, char trim_char) {
-    size_t original_length = s->length();
+    const size_t original_length(s->length());
     if (original_length == 0)
         return *s;
 
@@ -331,7 +331,7 @@ std::string LeftTrim(const std::string &s, char trim_char) {
 
 
 std::string LeftTrim(const std::string &trim_set, std::string * const s) {
-    size_t original_length = s->length();
+    const size_t original_length(s->length());
     if (original_length == 0)
         return *s;
 
@@ -598,6 +598,15 @@ bool ToUnsigned(const std::string &s, unsigned * const n, const unsigned base) {
 }
 
 
+int ToInt(const std::string &s, const unsigned base) {
+    int n;
+    if (unlikely(not ToNumber(s, &n, base)))
+        throw std::runtime_error("in StringUtil::ToInt: can't convert \"" + s + "\" to an int!");
+
+    return n;
+}
+
+
 // ToUnsignedLong -- convert a string to an unsigned long number.
 //
 unsigned long ToUnsignedLong(const std::string &s, const unsigned base) {
@@ -681,7 +690,7 @@ bool ToUInt64T(const std::string &s, uint64_t * const n, const unsigned base) {
 uint64_t ToUInt64T(const std::string &s, const unsigned base) {
     uint64_t n;
     if (unlikely(not ToUInt64T(s, &n, base)))
-        throw std::runtime_error("in StringUtil::ToUInt64T: can't convert " + s);
+        throw std::runtime_error("in StringUtil::ToUInt64T: can't convert \"" + s + "\"!");
 
     return n;
 }
@@ -1971,7 +1980,7 @@ uint32_t SuperFastHash(const char * data, unsigned len) {
 
 uint32_t Adler32(const char * const s, const size_t s_length) {
     const uint32_t MOD_ADLER(65521u);
-    const uint8_t *data(reinterpret_cast<const uint8_t * const>(s)); // Pointer to the data to be summed.
+    const uint8_t *data(reinterpret_cast<const uint8_t *>(s)); // Pointer to the data to be summed.
     size_t len(s_length);                                            // Length in bytes.
     uint32_t low(1), high(0);
 
@@ -2136,7 +2145,7 @@ void SplitListValues(std::list<std::string> * const values, const std::string &d
     // Join the list into one string, then split it again:
     std::string joined_list;
     StringUtil::Join(*values, delimiter, &joined_list);
-    StringUtil::Split(joined_list, delimiter, values, /* suppress_empty_components = */ false);
+    StringUtil::Split(joined_list, delimiter, values);
 }
 
 
@@ -2686,8 +2695,8 @@ static inline bool CaseInsensitiveEqual(const char ch1, const char ch2) {
 }
 
 
-size_t FindCaseInsensitive(const std::string &haystack, const std::string &needle) {
-    const auto iter(std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(),
+size_t FindCaseInsensitive(const std::string &haystack, const std::string &needle, const size_t search_start_pos) {
+    const auto iter(std::search(haystack.begin() + search_start_pos, haystack.end(), needle.begin(), needle.end(),
                                 CaseInsensitiveEqual));
     return iter == haystack.end() ? std::string::npos : iter - haystack.begin();
 }
@@ -2743,6 +2752,66 @@ std::string ISO8859_15ToUTF8(const char &latin9_char) {
     return std::string(1, latin9_char);
 }
 
+
+std::string EscapeDoubleQuotes(const std::string &s) {
+    std::string escaped_s;
+    escaped_s.reserve(s.size());
+
+    for (auto ch : s) {
+        if (unlikely(ch == '"'))
+            escaped_s += '\\';
+        escaped_s += ch;
+    }
+
+    return escaped_s;
+}
+
+
+std::string ShortenText(const std::string &text, const size_t max_length) {
+    if (text.length() <= 3 or text.length() <= max_length)
+        return text;
+    return text.substr(0, max_length - 3) + "...";
+}
+
+
+static const std::map<std::string, unsigned> ROMAN_NUMERAL_TO_DECIMAL_MAP {
+    { "I" , 1    },
+    { "IV", 4    },
+    { "V" , 5    },
+    { "IX", 9    },
+    { "X" , 10   },
+    { "XL", 40   },
+    { "L" , 50   },
+    { "XC", 90   },
+    { "C" , 100  },
+    { "CD", 400  },
+    { "D" , 500  },
+    { "CM", 900  },
+    { "M",  1000 }
+};
+
+
+unsigned RomanNumeralToDecimal(const std::string &s) {
+    if (not TextUtil::IsRomanNumeral(s))
+        throw std::runtime_error("invalid roman numeral '" + s + "'");
+
+    unsigned decimal(0), i(0);
+    while (i < s.length()) {
+        if (i + 1 < s.length()) {
+            const auto match(ROMAN_NUMERAL_TO_DECIMAL_MAP.find(s.substr(i, 2)));
+            if (match != ROMAN_NUMERAL_TO_DECIMAL_MAP.end()) {
+                decimal += match->second;
+                i += 2;
+                continue;
+            }
+        }
+
+        decimal += ROMAN_NUMERAL_TO_DECIMAL_MAP.find(std::string(1, s[i]))->second;
+        ++i;
+    }
+
+    return decimal;
+}
 
 
 } // namespace StringUtil

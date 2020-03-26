@@ -4,8 +4,14 @@
 # download ub_tools (via git)
 # compile cpp installer
 # run it
+
+# check prerequisites and invariants
 if [ "$(id -u)" != "0" ]; then
     echo "This script must be run as root" 1>&2
+    exit 1
+fi
+if [[ ! $PATH =~ "/usr/local/bin" ]]; then
+    echo "Please add /usr/local/bin to your PATH before starting the installation!"
     exit 1
 fi
 
@@ -21,13 +27,13 @@ if [ -e /etc/debian_version ]; then
         chmod 700 ./install_ubuntu_packages.sh
     fi
     ./install_ubuntu_packages.sh
-elif [ -e /etc/redhat-release ]; then
+elif [ -e /etc/centos-release ]; then
     # centos
     echo "CentOS detected! installing dependencies..."
     cd /tmp
     if [ ! -e ./install_centos_packages.sh ]; then
-        yum --quiet --assumeyes update
-        yum --assumeyes install curl
+        dnf --quiet --assumeyes update
+        dnf --assumeyes install curl
         curl https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/scripts/install_centos_packages.sh -o ./install_centos_packages.sh
         chmod 700 ./install_centos_packages.sh
     fi

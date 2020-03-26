@@ -31,9 +31,9 @@
 #include <utility>
 #include <cstdlib>
 #include <cstring>
-#include "BibleUtil.h"
-#include "MapIO.h"
+#include "MapUtil.h"
 #include "MARC.h"
+#include "RangeUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "UBTools.h"
@@ -277,20 +277,8 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
         CreateNumberedBooks(book_name_candidate, &n_subfield_values, &books);
 
         // Special processing for 2 Esdras, 5 Esra and 6 Esra
-        for (auto &book : books) {
-            if (book == "5esra") { // an alias for 4Esra1-2
-                if (n_subfield_values.empty())
-                    n_subfield_values.emplace_back("1-2");
-                book = "4esra";
-            } else if (book == "6esra") { // an alias for 4Esra15-16
-                book = "4esra";
-                if (n_subfield_values.empty())
-                    n_subfield_values.emplace_back("15-16");
-                else // So far this case does nor appear in our data.
-                    LOG_ERROR("n_subfield_values for 6esra: " + StringUtil::Join(n_subfield_values, "++"));
-            } else if (book == "2esdras")
-                book = "4esra";
-        }
+        for (auto &book : books)
+            RangeUtil::EsraSpecialProcessing(&book, &n_subfield_values);
 
         if (not HaveBibleBookCodes(books, bible_book_to_code_map)) {
             LOG_WARNING(record.getControlNumber() + ": found no bible book code for \"" + book_name_candidate
@@ -307,9 +295,9 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
 
         if (book_codes.size() > 1 or n_subfield_values.empty())
             ranges->insert(
-                std::make_pair(book_codes.front() + std::string(BibleUtil::MAX_CHAPTER_LENGTH + BibleUtil::MAX_VERSE_LENGTH, '0'),
-                               book_codes.back() + std::string(BibleUtil::MAX_CHAPTER_LENGTH + BibleUtil::MAX_VERSE_LENGTH, '9')));
-        else if (not BibleUtil::ParseBibleReference(n_subfield_values.front(), book_codes[0], ranges)) {
+                std::make_pair(book_codes.front() + std::string(RangeUtil::MAX_CHAPTER_LENGTH + RangeUtil::MAX_VERSE_LENGTH, '0'),
+                               book_codes.back() + std::string(RangeUtil::MAX_CHAPTER_LENGTH + RangeUtil::MAX_VERSE_LENGTH, '9')));
+        else if (not RangeUtil::ParseBibleReference(n_subfield_values.front(), book_codes[0], ranges)) {
             LOG_WARNING(record.getControlNumber() + ": failed to parse bible references (1): " + n_subfield_values.front());
             continue;
         }
@@ -337,31 +325,27 @@ void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book
     unsigned count(0), bible_ref_count(0), pericope_count(0);
     std::unordered_multimap<std::string, std::string> pericopes_to_ranges_map;
     while (const MARC::Record record = authority_reader->read()) {
-        try {
-            ++count;
+        ++count;
 
-            std::string gnd_code;
-            if (not MARC::GetGNDCode(record, &gnd_code))
+        std::string gnd_code;
+        if (not MARC::GetGNDCode(record, &gnd_code))
+            continue;
+
+        std::set<std::pair<std::string, std::string>> ranges;
+        if (not GetBibleRanges("130", record, books_of_the_bible, bible_book_to_code_map, &ranges)) {
+            if (not GetBibleRanges("430", record, books_of_the_bible, bible_book_to_code_map, &ranges))
                 continue;
-
-            std::set<std::pair<std::string, std::string>> ranges;
-            if (not GetBibleRanges("130", record, books_of_the_bible, bible_book_to_code_map, &ranges)) {
-                if (not GetBibleRanges("430", record, books_of_the_bible, bible_book_to_code_map, &ranges))
-                    continue;
-                if (not FindPericopes(record, ranges, &pericopes_to_ranges_map))
-                    continue;
-                ++pericope_count;
-            }
-
-            gnd_codes_to_bible_ref_codes_map->emplace(gnd_code, ranges);
-            ++bible_ref_count;
-        } catch (const std::exception &x) {
-            LOG_ERROR("caught exception for authority record w/ PPN " + record.getControlNumber() + ": " + std::string(x.what()));
+            if (not FindPericopes(record, ranges, &pericopes_to_ranges_map))
+                continue;
+            ++pericope_count;
         }
+
+        gnd_codes_to_bible_ref_codes_map->emplace(gnd_code, ranges);
+        ++bible_ref_count;
     }
 
     LOG_INFO("About to write \"pericopes_to_codes.map\".");
-    MapIO::SerialiseMap("pericopes_to_codes.map", pericopes_to_ranges_map);
+    MapUtil::SerialiseMap("pericopes_to_codes.map", pericopes_to_ranges_map);
 
     LOG_INFO("Read " + std::to_string(count) + " norm data records.");
     LOG_INFO("Found " + std::to_string(unknown_book_count) + " records w/ unknown bible books.");
@@ -376,31 +360,18 @@ bool FindGndCodes(const std::string &tags, const MARC::Record &record,
 {
     ranges->clear();
 
-    std::vector<std::string> individual_tags;
-    StringUtil::Split(tags, ':', &individual_tags);
+    std::set<std::string> individual_tags;
+    StringUtil::Split(tags, ':', &individual_tags, /* suppress_empty_components = */true);
 
     bool found_at_least_one(false);
-    for (const auto &tag : individual_tags) {
-        for (const auto &field : record.getTagRange(tag)) {
-            const auto subfields(field.getSubfields());
-            const std::string subfield2(subfields.getFirstSubfieldWithCode('2'));
-            if (subfield2.empty() or subfield2 != "gnd")
-                continue;
-
-            for (const auto &subfield_value : subfields.extractSubfields('0')) {
-                if (not StringUtil::StartsWith(subfield_value, "(DE-588)"))
-                    continue;
-
-                const std::string gnd_code(subfield_value.substr(8));
-                const auto gnd_code_and_ranges(gnd_codes_to_bible_ref_codes_map.find(gnd_code));
-                if (gnd_code_and_ranges != gnd_codes_to_bible_ref_codes_map.end()) {
-                    found_at_least_one = true;
-                    for (const auto &range : gnd_code_and_ranges->second)
-                        ranges->insert(range.first + ":" + range.second);
-                } else
-                    LOG_INFO(record.getControlNumber() + ": GND code \"" + gnd_code + "\" was not found in our map.");
-            }
-        }
+    for (const auto &gnd_code : record.getReferencedGNDNumbers(individual_tags)) {
+        const auto gnd_code_and_ranges(gnd_codes_to_bible_ref_codes_map.find(gnd_code));
+        if (gnd_code_and_ranges != gnd_codes_to_bible_ref_codes_map.end()) {
+            found_at_least_one = true;
+            for (const auto &range : gnd_code_and_ranges->second)
+                ranges->insert(range.first + ":" + range.second);
+        } else
+            LOG_DEBUG(record.getControlNumber() + ": GND code \"" + gnd_code + "\" was not found in our map.");
     }
 
     return found_at_least_one;
@@ -421,9 +392,9 @@ void AugmentBibleRefs(MARC::Reader * const marc_reader, MARC::Writer * const mar
 
             // Make sure that we don't use a bible reference tag that is already in use for another
             // purpose:
-            auto bible_reference_tag_field(record.findTag(BibleUtil::BIB_REF_RANGE_TAG));
+            auto bible_reference_tag_field(record.findTag(RangeUtil::BIB_REF_RANGE_TAG));
             if (bible_reference_tag_field != record.end())
-                LOG_ERROR("We need another bible reference tag than \"" + BibleUtil::BIB_REF_RANGE_TAG + "\"!");
+                LOG_ERROR("We need another bible reference tag than \"" + RangeUtil::BIB_REF_RANGE_TAG + "\"!");
 
             std::set<std::string> ranges;
             if (FindGndCodes("600:610:611:630:648:651:655:689", record, gnd_codes_to_bible_ref_codes_map, &ranges)) {
@@ -436,7 +407,7 @@ void AugmentBibleRefs(MARC::Reader * const marc_reader, MARC::Writer * const mar
                 }
 
                 // Put the data into the $a subfield:
-                record.insertField(BibleUtil::BIB_REF_RANGE_TAG, { { 'a', range_string } });
+                record.insertField(RangeUtil::BIB_REF_RANGE_TAG, { { 'a', range_string }, { 'b', "biblesearch" } });
             }
 
             marc_writer->write(record);
@@ -445,7 +416,7 @@ void AugmentBibleRefs(MARC::Reader * const marc_reader, MARC::Writer * const mar
         }
     }
 
-    LOG_INFO("Augmented the " + BibleUtil::BIB_REF_RANGE_TAG + "$a field of " + std::to_string(augment_count)
+    LOG_INFO("Augmented the " + RangeUtil::BIB_REF_RANGE_TAG + "$a field of " + std::to_string(augment_count)
              + " records of a total of " + std::to_string(total_count) + " records.");
 }
 

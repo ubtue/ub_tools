@@ -1,6 +1,5 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
-
 import atexit
 import datetime
 import glob
@@ -13,6 +12,9 @@ import traceback
 import process_util
 import re
 import util
+
+
+REFTERM_MUTEX_FILE = "/tmp/create_refterm_successful" # Must match path in initiate_marc_pipeline.py
 
 
 def ExecOrCleanShutdownAndDie(cmd_name, args, log_file_name=None):
@@ -95,6 +97,16 @@ def CreateSerialSortDate(title_data_file, date_string, log_file_name):
     ExecOrCleanShutdownAndDie("/usr/local/bin/query_serial_sort_data.sh", [title_data_file, serial_ppn_sort_list], log_file_name)
 
 
+# Extract existing Fulltext PPN's from the Elasticsearch instance
+def CreateFulltextIdsFile(ids_output_file, log_file_name):
+    elasticsearch_access_conf = "/usr/local/var/lib/tuelib/Elasticsearch.conf"
+    if os.access(elasticsearch_access_conf, os.F_OK):
+        util.ExecOrDie("/usr/local/bin/extract_existing_fulltext_ids.sh", [ ids_output_file ], log_file_name)
+    else: # Skip if configuration is not present
+        util.ExecOrDie(util.Which("truncate"), [ "-s", "0",  log_file_name ])
+        util.ExecOrDie(util.Which("echo"), [ "Skip extraction since " + elasticsearch_access_conf + " not present" ], log_file_name)
+
+
 # Create the database for matching fulltext to vufind entries
 def CreateMatchDB(title_marc_data, log_file_name):
     util.ExecOrDie("/usr/local/bin/create_match_db", [ title_marc_data ], log_file_name, setsid=False);
@@ -102,6 +114,7 @@ def CreateMatchDB(title_marc_data, log_file_name):
 
 def CreateLogFile():
     return util.MakeLogFileName(os.path.basename(__file__), util.GetLogDirectory())
+
 
 def CleanUp(title_data_file, log_file_name):
     # Terminate the temporary solr instance
@@ -121,6 +134,11 @@ def ExecuteInParallel(*processes):
             util.Error(process.name + " failed")
 
 
+def CleanStaleMutex():
+    if os.path.exists(REFTERM_MUTEX_FILE):
+       os.remove(REFTERM_MUTEX_FILE)
+
+
 def Main():
     util.default_email_sender = "create_refterm_file@ub.uni-tuebingen.de"
     util.default_email_recipient = "johannes.riedl@uni-tuebingen.de"
@@ -130,6 +148,7 @@ def Main():
                         + "the default email recipient\n", priority=1);
          sys.exit(-1)
     util.default_email_recipient = sys.argv[1]
+    CleanStaleMutex()
     conf = util.LoadConfigFile()
     title_data_link_name = conf.get("Misc", "link_name")
     ref_data_pattern = conf.get("Hinweisabzug", "filename_pattern")
@@ -156,9 +175,13 @@ def Main():
         create_match_db_log_file_name = util.MakeLogFileName("create_match_db", util.GetLogDirectory())
         create_match_db_process = multiprocessing.Process(target=CreateMatchDB, name="Create Match DB",
                                       args=[ title_data_file, create_match_db_log_file_name ])
-        ExecuteInParallel(create_ref_term_process, create_serial_sort_term_process, create_match_db_process)
+        extract_fulltext_ids_log_file_name = util.MakeLogFileName("extract_fulltext_ids", util.GetLogDirectory())
+        extract_fulltext_ids_process = multiprocessing.Process(target=CreateFulltextIdsFile, name="Create Fulltext IDs File",
+                                           args=[ "/usr/local/ub_tools/bsz_daten/fulltext_ids.txt", extract_fulltext_ids_log_file_name ])
+        ExecuteInParallel(create_ref_term_process, create_serial_sort_term_process, create_match_db_process, extract_fulltext_ids_process)
         end  = datetime.datetime.now()
         duration_in_minutes = str((end - start).seconds / 60.0)
+        util.Touch(REFTERM_MUTEX_FILE)
         util.SendEmail("Create Refterm File", "Refterm file successfully created in " + duration_in_minutes + " minutes.", priority=5)
     else:
         util.SendEmail("Create Refterm File", "No new data was found.", priority=5)

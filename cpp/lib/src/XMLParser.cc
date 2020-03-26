@@ -2,7 +2,7 @@
  *  \brief  Wrapper class for Xerces XML parser
  *  \author Mario Trojan (mario.trojan@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -19,9 +19,28 @@
  */
 #include "XMLParser.h"
 #include <xercesc/framework/MemBufInputSource.hpp>
+#include <cassert>
 #include "FileUtil.h"
+#include "Main.h"
 #include "StringUtil.h"
 #include "XmlUtil.h"
+
+
+// Perform process-level init/deinit related to Xerces library.
+static int SetupXercesPlatform() {
+    RegisterProgramPrologueHandler(/* priority = */ 0, []() -> void {
+        xercesc::XMLPlatformUtils::Initialize();
+    });
+
+    RegisterProgramEpilogueHandler(/* priority = */ 0, []() -> void {
+        xercesc::XMLPlatformUtils::Terminate();
+    });
+
+    return 0;
+}
+
+
+const int throwaway(SetupXercesPlatform());
 
 
 const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
@@ -131,16 +150,9 @@ void XMLParser::Handler::setDocumentLocator(const xercesc::Locator * const locat
 }
 
 
-XMLParser::XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options) {
-    xml_filename_or_string_ = xml_filename_or_string;
-    type_ = type;
-    options_ = options;
-    rewind();
-}
-
-
-void XMLParser::rewind() {
-    xercesc::XMLPlatformUtils::Initialize();
+XMLParser::XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options)
+    : xml_filename_or_string_(xml_filename_or_string), type_(type), options_(options)
+{
     parser_  = new xercesc::SAXParser();
 
     handler_ = new XMLParser::Handler();
@@ -154,6 +166,23 @@ void XMLParser::rewind() {
     parser_->setDoSchema(options_.do_schema_);
     parser_->setCalculateSrcOfs(true);
 
+    open_elements_ = 0;
+    locator_ = nullptr;
+    prolog_parsing_done_ = false;
+}
+
+
+XMLParser::~XMLParser() {
+    delete parser_;
+    delete handler_;
+    delete error_handler_;
+}
+
+
+void XMLParser::reset(const std::string &xml_filename_or_string, const Type type, const Options &options) {
+    xml_filename_or_string_ = xml_filename_or_string;
+    type_ = type;
+    options_ = options;
     open_elements_ = 0;
     locator_ = nullptr;
     prolog_parsing_done_ = false;
@@ -215,7 +244,7 @@ off_t XMLParser::getMaxOffset() {
 }
 
 
-bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_characters) {
+bool XMLParser::getNext(XMLPart * const next, const bool combine_consecutive_characters, const std::set<std::string> &guard_opening_tags) {
     try {
         if (not prolog_parsing_done_) {
             parser_->setLoadExternalDTD(options_.load_external_dtds_);
@@ -239,7 +268,16 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
             body_has_more_contents_ = parser_->parseNext(token_);
 
         if (not buffer_.empty()) {
-            buffer_.front();
+            if (buffer_.front().type_ == XMLPart::OPENING_TAG or buffer_.front().type_ == XMLPart::CLOSING_TAG) {
+                const auto alias_tag_and_canonical_tag(tag_aliases_to_canonical_tags_map_.find(buffer_.front().data_));
+                if (alias_tag_and_canonical_tag != tag_aliases_to_canonical_tags_map_.cend())
+                    buffer_.front().data_ = alias_tag_and_canonical_tag->second;
+
+                if (buffer_.front().type_ == XMLPart::OPENING_TAG
+                    and guard_opening_tags.find(buffer_.front().data_) != guard_opening_tags.cend())
+                    return false;
+            }
+
             if (next != nullptr)
                 *next = buffer_.front();
             buffer_.pop_front();
@@ -251,8 +289,9 @@ bool XMLParser::getNext(XMLPart * const next, bool combine_consecutive_character
                     buffer_.emplace_front(peek);
             }
 
-            if (options_.ignore_whitespace_ and next != nullptr and next->type_ == XMLPart::CHARACTERS and StringUtil::IsWhitespace(next->data_))
-                return getNext(next);
+            if (options_.ignore_whitespace_ and next != nullptr and next->type_ == XMLPart::CHARACTERS
+                and StringUtil::IsWhitespace(next->data_))
+                return getNext(next, combine_consecutive_characters, guard_opening_tags);
         }
     } catch (xercesc::RuntimeException &exc) {
         ConvertAndThrowException(exc);
@@ -275,7 +314,8 @@ bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::st
             if (expected_type == XMLPart::OPENING_TAG or expected_type == XMLPart::CLOSING_TAG) {
                 if (expected_tags.empty())
                     return_value = true;
-                else if (expected_tags.find(xml_part.data_) != expected_tags.end())
+                else if (expected_tags.find(xml_part.data_) != expected_tags.end()
+                         or tag_aliases_to_canonical_tags_map_.find(xml_part.data_) != tag_aliases_to_canonical_tags_map_.cend())
                     return_value = true;
             } else
                 return_value = true;
@@ -295,4 +335,40 @@ bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::st
     }
 
     return return_value;
+}
+
+
+bool XMLParser::extractTextBetweenTags(const std::string &tag, std::string * const text, const std::set<std::string> &guard_tags) {
+    text->clear();
+
+    XMLPart xml_part;
+
+    // Look for the opening tag:
+    for (;;) {
+        if (not peek(&xml_part))
+            return false;
+
+        if (not guard_tags.empty()
+            and (guard_tags.find(xml_part.data_) != guard_tags.cend() or tag_aliases_to_canonical_tags_map_.find(xml_part.data_)
+                 != tag_aliases_to_canonical_tags_map_.cend()))
+            return false;
+
+        assert(getNext(&xml_part));
+        if (xml_part.data_ == tag) {
+            if (unlikely(xml_part.type_ != XMLPart::OPENING_TAG))
+                return false;
+            break;
+        }
+    }
+
+    // Extract the text:
+    while (getNext(&xml_part)) {
+        if (xml_part.data_ == tag and xml_part.type_ == XMLPart::CLOSING_TAG)
+            return true;
+
+        if (xml_part.type_ == XMLPart::CHARACTERS)
+            text->append(xml_part.data_);
+    }
+
+    return false;
 }

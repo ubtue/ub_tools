@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  Copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -126,7 +126,10 @@ public:
         unsigned char type_;
     public:
         Entry(const Entry &other);
-        inline std::string getName() const { return name_; }
+
+        /** \return the full name of the entry, i.e., including the directory path. */
+        inline const std::string &getName() const { return name_; }
+
         inline SELinuxFileContext getSELinuxFileContext() const { return SELinuxFileContext(dirname_ + "/" + name_); }
 
         // \return One of DT_BLK(block device), DT_CHR(character device), DT_DIR(directory), DT_FIFO(named pipe),
@@ -187,11 +190,38 @@ public:
 };
 
 
+/** \class AutoTempDirectory
+ *  \brief Creates a temp directory and removes it when going out of scope.
+ */
+class AutoTempDirectory {
+    std::string path_;
+    bool cleanup_if_exception_is_active_;
+    bool remove_when_out_of_scope_;
+public:
+    explicit AutoTempDirectory(const std::string &path_prefix = "/tmp/ATD",
+                               const bool cleanup_if_exception_is_active = true,
+                               const bool remove_when_out_of_scope = true);
+    AutoTempDirectory(const AutoTempDirectory &rhs) = delete;
+    ~AutoTempDirectory();
+
+    const std::string &getDirectoryPath() const { return path_; }
+};
+
+
+
+
+
+
 bool WriteString(const std::string &path, const std::string &data);
 void WriteStringOrDie(const std::string &path, const std::string &data);
 bool ReadString(const std::string &path, std::string * const data);
 void ReadStringOrDie(const std::string &path, std::string * const data);
 std::string ReadStringOrDie(const std::string &path);
+
+/* Same as ReadString, but can be used on /proc files (size 0 bytes) */
+bool ReadStringFromPseudoFile(const std::string &path, std::string * const data);
+void ReadStringFromPseudoFileOrDie(const std::string &path, std::string * const data);
+std::string ReadStringFromPseudoFileOrDie(const std::string &path);
 
 
 /** \brief Append "data" to "path".  If "path" does not exist, it will be created. */
@@ -294,11 +324,12 @@ bool IsDirectory(const std::string &dir_name);
 
 /** \brief  Create a directory.
  *  \param  path       The path to create.
- *  \param  recursive  If true, attempt to recursively create parent directoris too.
+ *  \param  recursive  If true, attempt to recursively create parent directories too.
  *  \param  mode       The access permission for the directory/directories that will be created.
  *  \return True if the directory already existed or has been created else false.
  */
 bool MakeDirectory(const std::string &path, const bool recursive = false, const mode_t mode = 0755);
+void MakeDirectoryOrDie(const std::string &path, const bool recursive = false, const mode_t mode = 0755);
 
 
 /** \brief  Recursively delete a directory and all the files and subdirectories contained in it.
@@ -308,24 +339,6 @@ bool MakeDirectory(const std::string &path, const bool recursive = false, const 
  *          for the failure.
  */
 bool RemoveDirectory(const std::string &dir_name);
-
-
-/** \class AutoTempDirectory
- *  \brief Creates a temp directory and removes it when going out of scope.
- */
-class AutoTempDirectory {
-    std::string path_;
-    bool cleanup_if_exception_is_active_;
-    bool remove_when_out_of_scope_;
-public:
-    explicit AutoTempDirectory(const std::string &path_prefix = "/tmp/ATD",
-                               const bool cleanup_if_exception_is_active = true,
-                               const bool remove_when_out_of_scope = true);
-    AutoTempDirectory(const AutoTempDirectory &rhs) = delete;
-    ~AutoTempDirectory();
-
-    const std::string &getDirectoryPath() const { return path_; }
-};
 
 
 /** \brief Removes files and possibly directories matching a regular expression pattern.
@@ -428,7 +441,14 @@ std::unique_ptr<File> OpenForAppendingOrDie(const std::string &filename);
 bool Copy(File * const from, File * const to, const size_t no_of_bytes);
 
 
-bool Copy(const std::string &from_path, const std::string &to_path);
+/** \brief Copy parts or all of one file to another.
+ *  \param truncate_target      If true and "to_path" already exists we truncate "to_path" before we start copying.
+ *  \param no_of_bytes_to_copy  If 0 we copy the entire file from the starting offset o/w we copy "no_of_bytes_to_copy".
+ *  \param offset               Where we start copying.  The interpretation depends on the value of "whence".
+ *  \param whence               One of {SEEK_SET, SEEK_CUR, SEEK_END}.  See lseek(2) for what these values mean.
+ */
+bool Copy(const std::string &from_path, const std::string &to_path, const bool truncate_target = true, const size_t no_of_bytes_to_copy = 0,
+          const loff_t offset = 0, const int whence = SEEK_CUR);
 void CopyOrDie(const std::string &from_path, const std::string &to_path);
 
 
@@ -522,6 +542,17 @@ bool IsPipeOrFIFO(const std::string &path);
 bool IsSymlink(const std::string &path);
 void ChangeDirectoryOrDie(const std::string &directory);
 std::string GetPathFromFileDescriptor(const int fd);
+
+
+/** Replaces leading tildes with the home directory of the current user. */
+std::string ExpandTildePath(const std::string &path);
+
+
+/**  \brief  Wait until a file appears.
+ *   \param  sleep_increment  For how long to suspend the current process before we look again. (In seconds.)
+ *   \return True if "path" was found before "timeout" seconds have elapsed, o/w/ false.
+ */
+bool WaitForFile(const std::string &path, const unsigned timeout, const unsigned sleep_increment = 10);
 
 
 } // namespace FileUtil

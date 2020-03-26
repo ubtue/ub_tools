@@ -1,8 +1,26 @@
 auth USERNAME_PASSWORD
 open z3950cat.bl.uk:9909
 base BNB03U
-format xml
-find @attr 1=1016 "YYYYMM?"
-find @and @set 2 @attr 1=13 @or @or @or @or @or @or @or @or @or 20* 21* 22* 23* 24* 25* 26* 27* 28* 29*
+format marc21
+set_marcdump MARC_FILENAME
+find @and @attr 1=1016 "YYYYMM?" @attr 1=13 20*
+show all
+find @and @attr 1=1016 "YYYYMM?" @attr 1=13 21*
+show all
+find @and @attr 1=1016 "YYYYMM?" @attr 1=13 22*
+show all
+find @and @attr 1=1016 "YYYYMM?" @attr 1=13 23*
+show all
+find @and @attr 1=1016 "YYYYMM?" @attr 1=13 24*
+show all
+find @and @attr 1=1016 "YYYYMM?" @attr 1=13 25*
+show all
+find @and @attr 1=1016 "YYYYMM?" @attr 1=13 26*
+show all
+find @and @attr 1=1016 "YYYYMM?" @attr 1=13 27*
+show all
+find @and @attr 1=1016 "YYYYMM?" @attr 1=13 28*
+show all
+find @and @attr 1=1016 "YYYYMM?" @attr 1=13 29*
 show all
 exit

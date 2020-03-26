@@ -1,81 +1,60 @@
--- under CentOS we still have MariaDB 5, which has a limitation of 767 bytes for keys.
--- this means e.g. for VARCHAR with utf8mb4, we can use at most a VARCHAR(191)!
+-- under CentOS we still have MariaDB 5, which has a limitation of 768 bytes for index keys.
+-- this means we need to use a prefix length <= 768 when creating an index on a particular VARCHAR column.
 -- Also, the default collating sequence is a Swedish one.  This leads to aliasing problems for characters with
 -- diacritical marks => we need to override it and use utf8mb4_bin.
 
 -- The sizes here must be in sync with the constants defined in rss_aggregator.cc!
+CREATE TABLE database_versions (
+    version INT UNSIGNED NOT NULL,
+    database_name VARCHAR(64) NOT NULL,
+    UNIQUE (database_name)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+
 CREATE TABLE rss_aggregator (
-    item_id VARCHAR(191) NOT NULL,
-    item_url VARCHAR(512) NOT NULL,
-    item_title VARCHAR(200) NOT NULL,
+    item_id VARCHAR(768) NOT NULL,
+    item_url VARCHAR(1000) NOT NULL,
+    item_title VARCHAR(1000) NOT NULL,
     item_description TEXT NOT NULL,
-    serial_name VARCHAR(200) NOT NULL,
-    feed_url VARCHAR(512) NOT NULL,
+    serial_name VARCHAR(1000) NOT NULL,
+    feed_url VARCHAR(1000) NOT NULL,
     pub_date DATETIME NOT NULL,
     insertion_time TIMESTAMP DEFAULT NOW() NOT NULL,
-    UNIQUE (item_id)
+    UNIQUE (item_id),
+    INDEX item_id_index(item_id(768)),
+    INDEX item_url_index(item_url(768)),
+    INDEX insertion_time_index(insertion_time)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE INDEX item_id_index ON rss_aggregator(item_id);
-CREATE INDEX item_url_index ON rss_aggregator(item_url);
-CREATE INDEX insertion_time_index ON rss_aggregator(insertion_time);
 
-
-CREATE TABLE rss_feeds (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    feed_url VARCHAR(191) NOT NULL,
-    last_build_date DATETIME NOT NULL,
-    UNIQUE (feed_url)
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE INDEX rss_feeds_ids_index ON rss_feeds(id);
-CREATE INDEX rss_feeds_feed_url_index ON rss_feeds(feed_url);
-
-
-CREATE TABLE rss_items (
-    feed_id INT NOT NULL,
-    item_id VARCHAR(191) NOT NULL,
-    creation_datetime TIMESTAMP NOT NULL DEFAULT NOW(),
-    UNIQUE KEY feed_url_and_item_id(feed_id,item_id),
-    CONSTRAINT feed_id FOREIGN KEY (feed_id) REFERENCES rss_feeds (id) ON DELETE CASCADE
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE INDEX rss_items_feed_id_and_item_id_index ON rss_items(feed_id,item_id);
-CREATE INDEX rss_items_creation_datetime_index ON rss_items(creation_datetime);
-
-
--- Table to be used w/ our find_missing_metadata tool:
+-- Table to be used w/ our validate_harvested_records tool:
 CREATE TABLE metadata_presence_tracer (
-       journal_name VARCHAR(191) NOT NULL,
-       metadata_field_name VARCHAR(191) NOT NULL,
-       field_presence ENUM('always', 'sometimes', 'ignore') NOT NULL,
-       UNIQUE(journal_name, metadata_field_name)
+    journal_name VARCHAR(764) NOT NULL,
+    metadata_field_name CHAR(4) NOT NULL,
+    field_presence ENUM('always', 'sometimes', 'ignore') NOT NULL,
+    UNIQUE(journal_name, metadata_field_name),
+    INDEX journal_name_and_metadata_field_name_index(journal_name, metadata_field_name)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE INDEX journal_name_and_metadata_field_name_index ON metadata_presence_tracer(journal_name, metadata_field_name);
 
 
 CREATE TABLE delivered_marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    url VARCHAR(191) NOT NULL,
     hash VARCHAR(40) NOT NULL,
     zeder_id VARCHAR(10) NOT NULL,
+    zeder_instance ENUM('ixtheo', 'krimdok') NOT NULL,
     delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    journal_name VARCHAR(191) NOT NULL,
-    main_title VARCHAR(191) NOT NULL,
-    publication_year CHAR(4) DEFAULT NULL,
-    volume CHAR(40) DEFAULT NULL,
-    issue CHAR(40) DEFAULT NULL,
-    pages CHAR(20) DEFAULT NULL,
-    resource_type ENUM('print','online','unknown') NOT NULL,
-    record BLOB NOT NULL
+    main_title VARCHAR(1000) NOT NULL,
+    record BLOB NOT NULL,
+    INDEX delivered_marc_records_hash_index(hash),
+    INDEX delivered_marc_records_zeder_id_index(zeder_id),
+    INDEX delivered_marc_records_zeder_instance_index(zeder_instance),
+    INDEX delivered_marc_records_delivered_at_index(delivered_at),
+    INDEX delivered_marc_records_main_title_index(main_title(768))
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE INDEX delivered_marc_records_url_index ON delivered_marc_records(url);
-CREATE INDEX delivered_marc_records_hash_index ON delivered_marc_records(hash);
-CREATE INDEX delivered_marc_records_zeder_id_index ON delivered_marc_records(zeder_id);
-CREATE INDEX delivered_marc_records_delivered_at_index ON delivered_marc_records(delivered_at);
-CREATE INDEX delivered_marc_records_journal_name_index ON delivered_marc_records(journal_name);
-CREATE INDEX delivered_marc_records_main_title_index ON delivered_marc_records(main_title);
 
-CREATE TABLE delivered_marc_records_superior_info (
-    zeder_id VARCHAR(10) PRIMARY KEY,
-    control_number VARCHAR(20) DEFAULT NULL,
-    title VARCHAR(191) NOT NULL,
-    CONSTRAINT zeder_id FOREIGN KEY (zeder_id) REFERENCES delivered_marc_records (zeder_id) ON DELETE CASCADE
+
+CREATE TABLE delivered_marc_records_urls (
+    record_id INT,
+    url VARCHAR(767) NOT NULL,
+    CONSTRAINT record_id_and_url PRIMARY KEY (record_id, url),
+    CONSTRAINT delivered_marc_records_id FOREIGN KEY (record_id) REFERENCES delivered_marc_records (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX delivered_marc_records_urls_index(url)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;

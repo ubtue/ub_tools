@@ -7,7 +7,7 @@
 /*
  *  Copyright 2004-2008 Project iVia.
  *  Copyright 2004-2008 The Regents of The University of California.
- *  Copyright 2017-2018 Universitätsbibliothek Tübingen
+ *  Copyright 2017-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -73,9 +73,9 @@ enum class ExecMode {
 };
 
 
-int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
-         const std::string &new_stdout, const std::string &new_stderr, const ExecMode exec_mode,
-         unsigned timeout_in_seconds, const int tardy_child_signal)
+int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin, const std::string &new_stdout,
+         const std::string &new_stderr, const ExecMode exec_mode, unsigned timeout_in_seconds, const int tardy_child_signal,
+         const std::unordered_map<std::string, std::string> &envs, const std::string &working_directory)
 {
     errno = 0;
     if (::access(command.c_str(), X_OK) != 0)
@@ -121,6 +121,16 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
             if (::dup2(new_stderr_fd, STDERR_FILENO) == -1)
                 ::_exit(-1);
             ::close(new_stderr_fd);
+        }
+
+        // Set environment variables
+        for (const auto &env : envs)
+            ::setenv(env.first.c_str(), env.second.c_str(), 1);
+
+        // Change working directory
+        if (not working_directory.empty()) {
+            if (::chdir(working_directory.c_str()) == -1)
+                throw std::runtime_error("in ExecUtil::Exec: ::chdir() failed: " + std::to_string(errno));
         }
 
         // Build the argument list for execve(2):
@@ -220,30 +230,36 @@ SignalBlocker::~SignalBlocker() {
 }
 
 
-int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
-         const std::string &new_stdout, const std::string &new_stderr, const unsigned timeout_in_seconds,
-         const int tardy_child_signal)
+int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin, const std::string &new_stdout,
+         const std::string &new_stderr, const unsigned timeout_in_seconds, const int tardy_child_signal,
+         const std::unordered_map<std::string, std::string> &envs, const std::string &working_directory)
 {
     return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::WAIT, timeout_in_seconds,
-                  tardy_child_signal);
+                  tardy_child_signal, envs, working_directory);
 }
 
 
-void ExecOrDie(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
-               const std::string &new_stdout, const std::string &new_stderr, const unsigned timeout_in_seconds,
-               const int tardy_child_signal)
+void ExecOrDie(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin, const std::string &new_stdout,
+               const std::string &new_stderr, const unsigned timeout_in_seconds, const int tardy_child_signal,
+               const std::unordered_map<std::string, std::string> &envs, const std::string &working_directory)
 {
     int exit_code;
-    if ((exit_code = Exec(command, args, new_stdin, new_stdout, new_stderr, timeout_in_seconds, tardy_child_signal)) != 0)
-        LOG_ERROR("Failed to execute \"" + command + "\"! (exit code was " + std::to_string(exit_code) + ")");
+    if ((exit_code = Exec(command, args, new_stdin, new_stdout, new_stderr, timeout_in_seconds,
+                          tardy_child_signal, envs, working_directory)) != 0)
+    {
+        LOG_ERROR("Failed to execute \"" + command + "\""
+                  " with args \"" + StringUtil::Join(args, ";") + "\"!"
+                  " (exit code was " + std::to_string(exit_code) + ")");
+    }
 }
 
 
-pid_t Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
-          const std::string &new_stdout , const std::string &new_stderr)
+pid_t Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin, const std::string &new_stdout,
+            const std::string &new_stderr, const std::unordered_map<std::string, std::string> &envs,
+            const std::string &working_directory)
 {
     return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::DETACH, 0,
-                  SIGKILL /* Not used because the timeout is 0. */);
+                  SIGKILL /* Not used because the timeout is 0. */, envs, working_directory);
 }
 
 
@@ -270,7 +286,7 @@ std::string Which(const std::string &executable_candidate) {
             return "";
 
         std::vector<std::string> path_compoments;
-        StringUtil::Split(PATH, ':', &path_compoments);
+        StringUtil::Split(PATH, ':', &path_compoments, /* suppress_empty_components = */true);
         for (const auto &path_compoment : path_compoments) {
             const std::string full_path(path_compoment + "/" + executable_candidate);
             if (IsExecutableFile(full_path)) {
@@ -299,10 +315,10 @@ std::string LocateOrDie(const std::string &executable_candidate) {
 
 
 
-bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output) {
+bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output, const bool suppress_stderr) {
     stdout_output->clear();
 
-    FILE * const subcommand_stdout(::popen(command.c_str(), "r"));
+    FILE * const subcommand_stdout(::popen((command + (suppress_stderr ? " 2>/dev/null" : "")).c_str(), "r"));
     if (subcommand_stdout == nullptr)
         return false;
 
@@ -312,7 +328,7 @@ bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * co
 
     const int ret_code(::pclose(subcommand_stdout));
     if (ret_code == -1)
-        logger->error("pclose(3) failed: " + std::string(::strerror(errno)));
+        LOG_ERROR("pclose(3) failed: " + std::string(::strerror(errno)));
 
     return WEXITSTATUS(ret_code) == 0;
 }
@@ -327,9 +343,9 @@ bool ExecSubcommandAndCaptureStdoutAndStderr(const std::string &command, const s
     const int retcode(Exec(command, args, /* new_stdin = */ "", stdout_temp.getFilePath(), stderr_temp.getFilePath()));
 
     if (not FileUtil::ReadString(stdout_temp.getFilePath(), stdout_output))
-        logger->error("failed to read temporary file w/ stdout contents!");
+        LOG_ERROR("failed to read temporary file w/ stdout contents!");
     if (not FileUtil::ReadString(stderr_temp.getFilePath(), stderr_output))
-        logger->error("failed to read temporary file w/ stderr contents!");
+        LOG_ERROR("failed to read temporary file w/ stderr contents!");
 
     return retcode == 0;
 }
@@ -347,11 +363,34 @@ bool ShouldScheduleNewProcess() {
 void FindActivePrograms(const std::string &program_name, std::unordered_set<unsigned> * const pids) {
     pids->clear();
 
+    FILE * const subcommand_stdout(::popen(("pgrep " + program_name + " 2>/dev/null").c_str(), "r"));
+    if (subcommand_stdout == nullptr)
+        LOG_ERROR("failed to execute \"" "pgrep " + program_name + "\"!");
+
     std::string stdout;
-    ExecSubcommandAndCaptureStdout("pgrep " + program_name, &stdout);
+    int ch;
+    while ((ch = std::getc(subcommand_stdout)) != EOF)
+        stdout += static_cast<char>(ch);
+
+    const int ret_code(::pclose(subcommand_stdout));
+    if (ret_code == -1)
+        LOG_ERROR("pclose(3) failed: " + std::string(::strerror(errno)));
+
+    switch (WEXITSTATUS(ret_code)) {
+    case 0: // We found some PIDs.
+        break;
+    case 1: // No processes matched.
+        return;
+    case 2:
+        LOG_ERROR("pgrep: Syntax error in the command line.");
+    case 3:
+        LOG_ERROR("pgrep: Fatal error: out of memory etc.");
+    default:
+        LOG_ERROR("unexpected exit code from pgrep!");
+    }
 
     std::unordered_set<std::string> pids_strings;
-    StringUtil::Split(stdout, '\n', &pids_strings);
+    StringUtil::Split(stdout, '\n', &pids_strings, /* suppress_empty_components = */true);
 
     for (const auto pid : pids_strings)
         pids->emplace(StringUtil::ToUnsigned(pid));
@@ -375,6 +414,24 @@ bool SetProcessName(char *argv0, const std::string &new_process_name) {
     std::memset(argv0, 0, std::strlen(argv0));
     std::strcpy(argv0, new_process_name.c_str());
     return ::prctl(PR_SET_NAME, (unsigned long)new_process_name.c_str(), 0) == 0;
+}
+
+
+std::string GetOriginalCommandNameFromPID(const pid_t pid) {
+    std::string ps_path;
+    if (FileUtil::Exists("/bin/ps"))
+        ps_path = "/bin/ps";
+    else if (FileUtil::Exists("/usr/bin/ps"))
+        ps_path = "/usr/bin/ps";
+    else
+        LOG_ERROR("Neither /bin/ps nor /usr/bin/ps can be found!");
+
+    std::string stdout_output;
+    if (not ExecSubcommandAndCaptureStdout(ps_path + " --pid " + std::to_string(pid) + " --no-headers -o comm",
+                                           &stdout_output, /* suppress_stderr = */true))
+        return "";
+    else
+        return StringUtil::EndsWith(stdout_output, "\n") ? stdout_output.substr(0, stdout_output.length() - 1) : stdout_output;
 }
 
 

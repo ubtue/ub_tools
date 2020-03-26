@@ -1,4 +1,4 @@
-#!/bin/python2
+#!/bin/python3
 # -*- coding: utf-8 -*-
 #
 # A tool for the automation of tarball downloads from the BSZ.
@@ -31,11 +31,11 @@ filename_pattern = ^(?:WA-MARCcomb)-(\d\d\d\d\d\d).tar.gz$
 directory_on_ftp_server = /sekkor
 
 [Loeschlisten]
-filename_pattern = ^LOEPPN-(\d\d\d\d\d\d)$
+filename_pattern = ^LOEKXP-(\d\d\d\d\d\d)$
 directory_on_ftp_server = /sekkor
 
 [Loeschlisten2]
-filename_pattern = ^LOEPPN_m-(\d\d\d\d\d\d)$
+filename_pattern = ^LOEKXP_m-(\d\d\d\d\d\d)$
 directory_on_ftp_server = /ixtheo
 
 [Errors]
@@ -56,6 +56,7 @@ import traceback
 import util
 import shutil
 import string
+import tempfile
 
 
 # Returns "yymmdd_string" incremented by one day unless it equals "000000" (= minus infinity).
@@ -98,7 +99,7 @@ def GetListOfRemoteFiles(ftp, filename_regex, directory, download_cutoff_date):
 
     # Retry calling GetMostRecentFile() up to 3 times:
     exception = None
-    for i in xrange(3):
+    for attempt_number in range(3):
         try:
             filename_list = []
             for filename in ftp.nlst():
@@ -108,7 +109,7 @@ def GetListOfRemoteFiles(ftp, filename_regex, directory, download_cutoff_date):
             return filename_list
         except Exception as e:
             exception = e
-            time.sleep(10 * (i + 1))
+            time.sleep(10 * (attempt_number + 1))
     raise exception
 
 
@@ -117,7 +118,7 @@ def DownLoadFile(ftp, remote_filename):
     try:
         output = open(remote_filename, "wb")
     except Exception as e:
-        util.Error("local open of \"" + remote_filename + "\" failed! (" + str(e) + ")") 
+        util.Error("local open of \"" + remote_filename + "\" failed! (" + str(e) + ")")
     try:
         def RetrbinaryCallback(chunk):
             try:
@@ -129,16 +130,35 @@ def DownLoadFile(ftp, remote_filename):
         util.Error("File download failed! (" + str(e) + ")")
 
 
+# For IxTheo our setup requires that we obtain both the files with and without local data because otherwise
+# we get data inconsistencies
+def AreBothInstancesPresent(filename_regex, remote_files):
+     if not remote_files:
+        return True
+     matching_remote_files = list(filter(filename_regex.match, remote_files))
+     return True if len(matching_remote_files) % 2 == 0 else False
+
+
+# Check whether all the instances are needed
+def NeedsBothInstances(filename_regex):
+     without_localdata_pattern = "_o[)]?-[(]?.*[)]?"
+     without_localdata_regex = re.compile(without_localdata_pattern)
+     return without_localdata_regex.search(filename_regex.pattern) is not None
+
+
 # Downloads matching files found in "remote_directory" on the FTP server that have a datestamp
-# more recent than "download_cutoff_date".
-def DownloadRemoteFiles(ftp, filename_regex, remote_directory, download_cutoff_date):
+# more recent than "download_cutoff_date" if some consistency check succeeds
+def DownloadRemoteFiles(config, ftp, filename_regex, remote_directory, download_cutoff_date):
     filenames = GetListOfRemoteFiles(ftp, filename_regex, remote_directory, download_cutoff_date)
+    if NeedsBothInstances(filename_regex):
+        if not AreBothInstancesPresent(filename_regex, filenames):
+            util.Error("Skip downloading since apparently generation of the files on the FTP server is not complete!")
     for filename in filenames:
         DownLoadFile(ftp, filename)
     return filenames
 
 
-# Cumulatively saves downloaded data to an external location to have a complete trace of 
+# Cumulatively saves downloaded data to an external location to have a complete trace of
 # the downloaded data. Thus, the complete data should be reconstructible.
 def AddToCumulativeCollection(downloaded_files, config):
     try:
@@ -154,7 +174,8 @@ def AddToCumulativeCollection(downloaded_files, config):
 
     try:
         for downloaded_file in downloaded_files:
-            shutil.copy(downloaded_file, output_directory)
+            if not os.path.exists(output_directory + '/' + os.path.basename(downloaded_file)):
+                shutil.move(downloaded_file, output_directory)
     except Exception as e:
         util.Error("Adding file to cumulative collection failed! (" + str(e) + ")")
 
@@ -232,7 +253,7 @@ def CurrentIncrementalAuthorityDumpPresent(config, cutoff_date):
     return most_recent_file_incremental_authority_date > cutoff_date
 
 
-# Delete all files that are older than a given date     
+# Delete all files that are older than a given date
 def DeleteAllFilesOlderThan(date, directory, exclude_pattern=""):
      filename_pattern = '\\D*?-(\\d{6}).*'
      try:
@@ -274,23 +295,32 @@ def DownloadData(config, section, ftp, download_cutoff_date, msg):
     except Exception as e:
         util.Error("Invalid section \"" + section + "\" in config file! (" + str(e) + ")")
 
-    downloaded_files = DownloadRemoteFiles(ftp, filename_regex, directory_on_ftp_server, download_cutoff_date)
+    downloaded_files = DownloadRemoteFiles(config, ftp, filename_regex, directory_on_ftp_server, download_cutoff_date)
     if len(downloaded_files) == 0:
         msg.append("No more recent file for pattern \"" + filename_regex.pattern + "\"!\n")
     else:
-        msg.append("Successfully downloaded:\n" + string.join(downloaded_files, '\n') + '\n')
-        AddToCumulativeCollection(downloaded_files, config)
+        msg.append("Successfully downloaded:\n" + '\n'.join(downloaded_files) + '\n')
     return downloaded_files
 
 
 def DownloadCompleteData(config, ftp, download_cutoff_date, msg):
     downloaded_files = DownloadData(config, "Kompletter Abzug", ftp, download_cutoff_date, msg)
-    if len(downloaded_files) == 1:
-        return downloaded_files[0]
-    elif len(downloaded_files) == 0:
-        return None
+    complete_filename_pattern = config.get("Kompletter Abzug", "filename_pattern")
+    if not NeedsBothInstances(re.compile(complete_filename_pattern)):
+        if len(downloaded_files) == 1:
+            return downloaded_files
+        elif len(downloaded_files) == 0:
+            return None
+        else:
+            util.Error("downloaded multiple complete date tar files!")
     else:
-        util.Error("downloaded multiple complete date tar files!")
+        if not downloaded_files:
+            return None
+        remote_file_date = ExtractDateFromFilename(downloaded_files[0])
+        for filename in downloaded_files:
+            if ExtractDateFromFilename(filename) != remote_file_date:
+               util.error("We have a complete data dump set with differing dates")
+        return downloaded_files
 
 
 def ShiftDateToTenDaysBefore(date_to_shift):
@@ -314,27 +344,43 @@ def Main():
 
     ftp = util.FTPLogin(ftp_host, ftp_user, ftp_passwd)
     msg = []
-
+    tempdir = tempfile.TemporaryDirectory()
+    bsz_dir = os.getcwd()
+    os.chdir(tempdir.name)
     download_cutoff_date = IncrementStringDate(GetCutoffDateForDownloads(config))
-    complete_data_filename = DownloadCompleteData(config, ftp, download_cutoff_date, msg)
-    if complete_data_filename is not None:
-        download_cutoff_date = ExtractDateFromFilename(complete_data_filename)
-    DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
-    DownloadData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
+    complete_data_filenames = DownloadCompleteData(config, ftp, download_cutoff_date, msg)
+    all_downloaded_files = [] if complete_data_filenames == None else complete_data_filenames
+    downloaded_at_least_some_new_titles = False
+    if complete_data_filenames is not None:
+        download_cutoff_date = ExtractDateFromFilename(complete_data_filenames[0])
+        downloaded_at_least_some_new_titles = True
+    all_downloaded_files += DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
+    if all_downloaded_files is not []:
+        downloaded_at_least_some_new_titles = True
+    all_downloaded_files += DownloadData(config, "Loeschlisten", ftp, download_cutoff_date, msg)
     if config.has_section("Loeschlisten2"):
-        DownloadData(config, "Loeschlisten2", ftp, download_cutoff_date, msg)
+        all_downloaded_files += DownloadData(config, "Loeschlisten2", ftp, download_cutoff_date, msg)
     if config.has_section("Hinweisabzug"):
         DownloadData(config, "Hinweisabzug", ftp, "000000", msg)
     if config.has_section("Errors"):
-        DownloadData(config, "Errors", ftp, download_cutoff_date, msg)
+        all_downloaded_files += DownloadData(config, "Errors", ftp, download_cutoff_date, msg)
     incremental_authority_cutoff_date =  ShiftDateToTenDaysBefore(download_cutoff_date)
     if config.has_section("Normdatendifferenzabzug"):
        if (not CurrentIncrementalAuthorityDumpPresent(config, incremental_authority_cutoff_date)):
-           DownloadData(config, "Normdatendifferenzabzug", ftp, incremental_authority_cutoff_date, msg)
+           all_downloaded_files += DownloadData(config, "Normdatendifferenzabzug", ftp, incremental_authority_cutoff_date, msg)
        else:
            msg.append("Skipping Download of \"Normdatendifferenzabzug\" since already present\n")
+    try:
+        for downloaded_file in all_downloaded_files:
+            shutil.copy(downloaded_file, bsz_dir)
+    except Exception as e:
+        util.Error("Moving a downloaded file to the BSZ download directory failed! (" + str(e) + ")")
+
+    AddToCumulativeCollection(all_downloaded_files, config)
     CleanUpCumulativeCollection(config)
-    util.SendEmail("BSZ File Update", string.join(msg, ""), priority=5)
+    if downloaded_at_least_some_new_titles:
+        util.Touch("/tmp/bsz_download_happened") # Must be the same path as in the merge script!
+    util.SendEmail("BSZ File Update", ''.join(msg), priority=5)
 
 
 try:
