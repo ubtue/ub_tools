@@ -148,11 +148,11 @@ std::string GetJournalParamsIniValueFromZederEntry(const Zeder::Entry &zeder_ent
 
 
 static Zeder::Flavour GetZederInstanceFromGroupName(const std::string &group_name, const std::string &journal_name = "") {
-    if (group_name == "IxTheo" or group_name == "ixtheo")
+    if (::strcasecmp(group_name.c_str(), "ixtheo") == 0)
         return Zeder::Flavour::IXTHEO;
-    else if (group_name == "RelBib" or group_name == "relbib")
+    else if (::strcasecmp(group_name.c_str(), "relbib") == 0)
         return Zeder::Flavour::IXTHEO;
-    else if (group_name == "KrimDok" or group_name == "krimdok")
+    else if (::strcasecmp(group_name.c_str(), "krimdok") == 0)
         return Zeder::Flavour::KRIMDOK;
 
     if (not journal_name.empty())
