@@ -460,7 +460,7 @@ const std::unique_ptr<MARC::Writer> &OutputFileCache::getWriter(const Config::Gr
 
 void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, OutputFileCache * const outputfile_cache,
                                   const Util::UploadTracker &upload_tracker, const Download::DownloadManager &download_manager,
-                                  Conversion::ConversionManager &conversion_manager,
+                                  const bool force_downloads, Conversion::ConversionManager &conversion_manager,
                                   std::unordered_set<std::string> * const urls_harvested_during_current_session,
                                   Metrics * const metrics)
 {
@@ -520,7 +520,7 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
                 // by comparing its hash and URLs with the ones stored in our database.
                 const auto record_urls(Util::GetMarcRecordUrls(*record));
 
-                if (upload_tracker.recordAlreadyDelivered(*record)) {
+                if (not force_downloads and upload_tracker.recordAlreadyDelivered(*record)) {
                     ++metrics->num_marc_conversions_skipped_since_already_delivered_;
                     LOG_INFO("Item " + current_download_item.toString() + " already delivered");
                     continue;
@@ -636,7 +636,7 @@ int Main(int argc, char *argv[]) {
             EnqueueCrawlAndRssResults(journal_datastore.get(), &jobs_running, &harvester_metrics);
             EnqueueCompletedDownloadsForConversion(journal_datastore.get(), &jobs_running, &conversion_manager, harvester_config,
                                                    urls_harvested_during_current_session, &harvester_metrics);
-            WriteConversionResultsToDisk(journal_datastore.get(), &output_file_cache, upload_tracker, download_manager,
+            WriteConversionResultsToDisk(journal_datastore.get(), &output_file_cache, upload_tracker, download_manager, commandline_args.force_downloads_,
                                          conversion_manager, &urls_harvested_during_current_session, &harvester_metrics);
 
             if (not jobs_running)
