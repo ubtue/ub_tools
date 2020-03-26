@@ -111,14 +111,14 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
         return;
 
     static const std::map<std::string, Config::JournalParams::IniKey> ALLOWED_INI_KEYS {
-        { "ENTRY_POINT_URL", Config::JournalParams::ENTRY_POINT_URL       },
-        { "UPLOAD_OPERATION", Config::JournalParams::UPLOAD_OPERATION     },
-        { "ONLINE_PPN", Config::JournalParams::ONLINE_PPN                 },
-        { "PRINT_PPN", Config::JournalParams::PRINT_PPN                   },
-        { "ONLINE_ISSN", Config::JournalParams::ONLINE_ISSN               },
-        { "PRINT_ISSN", Config::JournalParams::PRINT_ISSN                 },
-        { "UPDATE_WINDOW", Config::JournalParams::UPDATE_WINDOW           },
-        { "SSGN", Config::JournalParams::SSGN                             },
+        { "ENTRY_POINT_URL",    Config::JournalParams::ENTRY_POINT_URL    },
+        { "UPLOAD_OPERATION",   Config::JournalParams::UPLOAD_OPERATION   },
+        { "ONLINE_PPN",         Config::JournalParams::ONLINE_PPN         },
+        { "PRINT_PPN",          Config::JournalParams::PRINT_PPN          },
+        { "ONLINE_ISSN",        Config::JournalParams::ONLINE_ISSN        },
+        { "PRINT_ISSN",         Config::JournalParams::PRINT_ISSN         },
+        { "UPDATE_WINDOW",      Config::JournalParams::UPDATE_WINDOW      },
+        { "SSGN",               Config::JournalParams::SSGN               },
         { "EXPECTED_LANGUAGES", Config::JournalParams::EXPECTED_LANGUAGES },
     };
 
@@ -290,7 +290,8 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
             Config::JournalParams::ONLINE_ISSN,
             Config::JournalParams::PRINT_ISSN,
             Config::JournalParams::UPDATE_WINDOW,
-            Config::JournalParams::EXPECTED_LANGUAGES
+            Config::JournalParams::EXPECTED_LANGUAGES,
+            Config::JournalParams::SSGN,
         };
 
         // special-case the Zeder ID and modified timestamp fields
