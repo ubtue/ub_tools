@@ -176,6 +176,7 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
         strptime_format_string_ += global_params.strptime_format_string_;
     }
     update_window_ = journal_section.getUnsigned(GetIniKeyString(UPDATE_WINDOW), 0);
+    ssgn_ = journal_section.getString(GetIniKeyString(SSGN), "");
 
     const auto review_regex(journal_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
     if (not review_regex.empty())
@@ -305,7 +306,6 @@ JournalParams::IniKey JournalParams::GetIniKey(const std::string &ini_key_string
 
 EnhancementMaps::EnhancementMaps(const std::string &enhancement_map_directory) {
     MapUtil::DeserialiseMap(enhancement_map_directory + "/ISSN_to_licence.map", &ISSN_to_license_);
-    MapUtil::DeserialiseMap(enhancement_map_directory + "/ISSN_to_SSG.map", &ISSN_to_SSG_);
 }
 
 
@@ -319,11 +319,6 @@ std::string EnhancementMaps::lookup(const std::string &issn, const std::unordere
 
 std::string EnhancementMaps::lookupLicense(const std::string &issn) const {
     return lookup(issn, ISSN_to_license_);
-}
-
-
-std::string EnhancementMaps::lookupSSG(const std::string &issn) const {
-    return lookup(issn, ISSN_to_SSG_);
 }
 
 
