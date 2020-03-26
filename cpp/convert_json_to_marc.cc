@@ -42,13 +42,65 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--create-unique-id-db|--ignore-unique-id-dups|--extract-and-count-issns-only] config_file json_input [marc_output}\n"
+    ::Usage("[--create-unique-id-db|--ignore-unique-id-dups|--extract-and-count-issns-only] config_file json_input [marc_output]\n"
             "\t--create-unique-id-db: This flag has to be specified the first time this program will be executed only.\n"
             "\t--ignore-unique-id-dups]: If specified MARC records will be created for unique ID's which we have encountered\n"
             "\t                          begfore.  The unique ID database will still be updated.\n"
-            "\t--extract-and-count-issns-only: Generates stats on the frequency of ISSN's in the JSON input and does not enerate any \n"
+            "\t--extract-and-count-issns-only: Generate stats on the frequency of ISSN's in the JSON input and does not enerate any \n"
             "\t                                MARC output files.  This requires the existence of the \"magic\" \"ISSN\" config file entry!\n"
             "\tmarc_outpt: required unless --extract-and-count-issns-only was specified!\n\n");
+}
+
+
+struct JournalTitleAndPPN {
+    std::string journal_title_;
+    std::string ppn_;
+public:
+    JournalTitleAndPPN(const std::string &journal_title, const std::string &ppn)
+        : journal_title_(journal_title), ppn_(ppn) { }
+};
+
+
+std::vector<std::string> SplitLineOnColons(const std::string &line) {
+    std::vector<std::string> parts;
+
+    bool escaped(false);
+    parts.push_back("");
+    for (const char ch : line) {
+        if (escaped) {
+            parts.back() += ch;
+            escaped = false;
+        } else if (ch == '\\')
+            escaped = true;
+        else if (ch == ':')
+            parts.push_back("");
+        else
+            parts.back() += ch;
+    }
+    if (escaped)
+        parts.clear(); // This way we signal to the caller that we have a bad input line.
+
+    return parts;
+}
+
+
+// Parses an input file that has three (the last component may be empty) parts per line that are colon-separated.  Embedded colons may
+// be backslash escaped.
+void LoadISSNsToJournalTitlesAndPPNsMap(std::unordered_map<std::string, JournalTitleAndPPN> * const issns_to_journal_titles_and_ppns_map) {
+    const std::string MAP_FILE_PATH(UBTools::GetTuelibPath() + "issns_to_journaltitles_and_ppns.map");
+    const auto input(FileUtil::OpenInputFileOrDie(MAP_FILE_PATH));
+
+    unsigned line_no(0);
+    while (not input->eof()) {
+        ++line_no;
+        const std::string line(input->getline());
+        if (line.empty())
+            continue;
+        const std::vector<std::string> parts(SplitLineOnColons(line));
+        if (parts.size() != 3 or parts[0].empty() or parts[1].empty()) // ISSN and titles are required, PPN's are optionsl.
+            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + MAP_FILE_PATH + "\"!");
+        issns_to_journal_titles_and_ppns_map->emplace(parts[0], JournalTitleAndPPN(parts[1], parts[2]));
+    }
 }
 
 
@@ -426,22 +478,21 @@ RegexMatcher *GetRegexMatcherOrNULL(const char subfield_code,
 }
 
 
-void UpdateISSNReferenceCount(const FieldDescriptor &field_descriptor, const std::string &cleaned_up_json_value,
+void UpdateISSNReferenceCount(const std::string &cleaned_up_json_value,
                               std::unordered_map<std::string, unsigned> * const issns_to_counts_map)
 {
-    if (StringUtil::FindCaseInsensitive(field_descriptor.name_, "ISSN") != std::string::npos) {
-        auto issn_and_count(issns_to_counts_map->find(cleaned_up_json_value));
-        if (issn_and_count == issns_to_counts_map->end())
-            (*issns_to_counts_map)[cleaned_up_json_value] = 1;
-        else
-            ++(issn_and_count->second);
-    }
+    auto issn_and_count(issns_to_counts_map->find(cleaned_up_json_value));
+    if (issn_and_count == issns_to_counts_map->end())
+        (*issns_to_counts_map)[cleaned_up_json_value] = 1;
+    else
+        ++(issn_and_count->second);
 }
 
 
 // \return True if a subfield was inserted into "record" and false o/w.
 // \note   "array_index" is only used if the node lookup in this function results in a JSON array.
 bool ExtractJSONAndGenerateSubfields(MARC::Record * const record, const MARC::Tag &tag, const FieldDescriptor &field_descriptor,
+                                     const std::unordered_map<std::string, JournalTitleAndPPN> &issns_to_journal_titles_and_ppns_map,
                                      const std::shared_ptr<const JSON::ObjectNode> &object, const size_t json_array_index,
                                      std::unordered_map<std::string, unsigned> * const issns_to_counts_map)
 {
@@ -486,7 +537,19 @@ bool ExtractJSONAndGenerateSubfields(MARC::Record * const record, const MARC::Ta
                 extracted_value = normalised_issn;
         }
 
-        UpdateISSNReferenceCount(field_descriptor, extracted_value, issns_to_counts_map);
+        if (StringUtil::FindCaseInsensitive(field_descriptor.name_, "ISSN") != std::string::npos) {
+            UpdateISSNReferenceCount(extracted_value, issns_to_counts_map);
+            const auto issn_and_journal_title_and_ppn(issns_to_journal_titles_and_ppns_map.find(extracted_value));
+            if (issn_and_journal_title_and_ppn != issns_to_journal_titles_and_ppns_map.cend()) {
+                MARC::Record::Field _773_field(MARC::Tag("773"));
+                _773_field.appendSubfield('t', issn_and_journal_title_and_ppn->second.journal_title_);
+                if (not issn_and_journal_title_and_ppn->second.ppn_.empty())
+                    _773_field.appendSubfield('w', "(DE-657)" + issn_and_journal_title_and_ppn->second.ppn_);
+                _773_field.appendSubfield('x', extracted_value); // ISSN subfield
+                record->insertField(_773_field);
+            }
+        }
+
         new_field.appendSubfield(subfield_code_and_json_tag.first, subfield_prefix + extracted_value);
         created_at_least_one_subfield = true;
     }
@@ -502,7 +565,9 @@ bool ExtractJSONAndGenerateSubfields(MARC::Record * const record, const MARC::Ta
 }
 
 
-void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::shared_ptr<const JSON::ObjectNode> &object,
+void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor,
+                            const std::unordered_map<std::string, JournalTitleAndPPN> &issns_to_journal_titles_and_ppns_map,
+                            const std::shared_ptr<const JSON::ObjectNode> &object,
                             std::unordered_map<std::string, unsigned> * const issns_to_counts_map,
                             MARC::Record * const record)
 {
@@ -533,14 +598,16 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor, const std::
             LOG_ERROR("at least some object data found for \"" + field_descriptor.name_ + "\"!");
 
         if (referenced_json_data_state == ONLY_SCALAR_DATA_FOUND)
-            created_at_least_one_field = ExtractJSONAndGenerateSubfields(record, field_descriptor.tag_, field_descriptor, object,
-                                                                         /* json_array_index = */-1, issns_to_counts_map);
+            created_at_least_one_field = ExtractJSONAndGenerateSubfields(record, field_descriptor.tag_, field_descriptor,
+                                                                         issns_to_journal_titles_and_ppns_map, object, /* json_array_index = */-1,
+                                                                         issns_to_counts_map);
         else { // All our data resides in JSON arrays.
             for (unsigned json_array_index(0); json_array_index < array_length; ++json_array_index) {
                 std::string tag(field_descriptor.tag_);
                 if (json_array_index > 0 and not field_descriptor.overflow_tag_.empty())
                     tag = field_descriptor.overflow_tag_;
-                if (ExtractJSONAndGenerateSubfields(record, tag, field_descriptor, object, json_array_index, issns_to_counts_map))
+                if (ExtractJSONAndGenerateSubfields(record, tag, field_descriptor, issns_to_journal_titles_and_ppns_map, object,
+                                                    json_array_index, issns_to_counts_map))
                     created_at_least_one_field = true;
             }
         }
@@ -555,8 +622,9 @@ final_processing:
 // \return True if we generated a MARC record or false if we suppressed the generation due to a duplicate unique ID.
 bool GenerateSingleMARCRecordFromJSON(const std::shared_ptr<const JSON::ObjectNode> &object,
                                       const JSONNodeToBibliographicLevelMapper &json_node_to_bibliographic_level_mapper,
-                                      const std::vector<FieldDescriptor> &field_descriptors, MARC::Writer * const marc_writer,
-                                      const bool extract_and_count_issns_only,
+                                      const std::vector<FieldDescriptor> &field_descriptors,
+                                      const std::unordered_map<std::string, JournalTitleAndPPN> &issns_to_journal_titles_and_ppns_map,
+                                      MARC::Writer * const marc_writer, const bool extract_and_count_issns_only,
                                       std::unordered_map<std::string, unsigned> * const issns_to_counts_map,
                                       const bool ignore_unique_id_dups, KeyValueDB * const unique_id_to_date_map)
 {
@@ -578,7 +646,7 @@ bool GenerateSingleMARCRecordFromJSON(const std::shared_ptr<const JSON::ObjectNo
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level, control_number);
     for (const auto field_descriptor : field_descriptors) {
         if (field_descriptor.tag_ != "001")
-            ProcessFieldDescriptor(field_descriptor, object, issns_to_counts_map, &new_record);
+            ProcessFieldDescriptor(field_descriptor, issns_to_journal_titles_and_ppns_map, object, issns_to_counts_map, &new_record);
     }
     if (not extract_and_count_issns_only)
         marc_writer->write(new_record);
@@ -590,7 +658,9 @@ bool GenerateSingleMARCRecordFromJSON(const std::shared_ptr<const JSON::ObjectNo
 
 void GenerateMARCFromJSON(const std::shared_ptr<const JSON::JSONNode> &object_or_array_root,
                           const JSONNodeToBibliographicLevelMapper &json_node_to_bibliographic_level_mapper,
-                          const std::vector<FieldDescriptor> &field_descriptors, MARC::Writer * const marc_writer,
+                          const std::vector<FieldDescriptor> &field_descriptors,
+                          const std::unordered_map<std::string, JournalTitleAndPPN> &issns_to_journal_titles_and_ppns_map,
+                          MARC::Writer * const marc_writer,
                           const bool extract_and_count_issns_only,
                           std::unordered_map<std::string, unsigned> * const issns_to_counts_map,
                           const bool ignore_unique_id_dups, KeyValueDB * const unique_id_to_date_map)
@@ -600,7 +670,8 @@ void GenerateMARCFromJSON(const std::shared_ptr<const JSON::JSONNode> &object_or
     switch (object_or_array_root->getType()) {
     case JSON::JSONNode::OBJECT_NODE:
         if (GenerateSingleMARCRecordFromJSON(JSON::JSONNode::CastToObjectNodeOrDie("object_or_array_root", object_or_array_root),
-                                             json_node_to_bibliographic_level_mapper, field_descriptors, marc_writer,
+                                             json_node_to_bibliographic_level_mapper, field_descriptors,
+                                             issns_to_journal_titles_and_ppns_map, marc_writer,
                                              extract_and_count_issns_only, issns_to_counts_map,
                                              ignore_unique_id_dups, unique_id_to_date_map))
             ++created_count;
@@ -611,7 +682,8 @@ void GenerateMARCFromJSON(const std::shared_ptr<const JSON::JSONNode> &object_or
         const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("object_or_array_root", object_or_array_root));
         for (const auto &array_element : *array_node) {
             if (GenerateSingleMARCRecordFromJSON(JSON::JSONNode::CastToObjectNodeOrDie("array_element", array_element),
-                                                 json_node_to_bibliographic_level_mapper, field_descriptors, marc_writer,
+                                                 json_node_to_bibliographic_level_mapper, field_descriptors,
+                                                 issns_to_journal_titles_and_ppns_map, marc_writer,
                                                  extract_and_count_issns_only, issns_to_counts_map,
                                                  ignore_unique_id_dups, unique_id_to_date_map))
                 ++created_count;
@@ -658,7 +730,8 @@ int Main(int argc, char **argv) {
     if ((extract_and_count_issns_only and argc != 3) or (not extract_and_count_issns_only and argc != 4))
         Usage();
 
-    std::unordered_map<std::string, std::string> issn_to_journal_title_map;
+    std::unordered_map<std::string, JournalTitleAndPPN> issns_to_journal_titles_and_ppns_map;
+    LoadISSNsToJournalTitlesAndPPNsMap(&issns_to_journal_titles_and_ppns_map);
 
     std::string root_path;
     std::unique_ptr<JSONNodeToBibliographicLevelMapper> json_node_to_bibliographic_level_mapper;
@@ -675,8 +748,9 @@ int Main(int argc, char **argv) {
     KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
     std::unordered_map<std::string, unsigned> issns_to_counts_map;
     const std::unique_ptr<MARC::Writer> marc_writer(extract_and_count_issns_only ? nullptr : MARC::Writer::Factory(argv[3]));
-    GenerateMARCFromJSON(object_or_array_root, *json_node_to_bibliographic_level_mapper, field_descriptors, marc_writer.get(),
-                         extract_and_count_issns_only, &issns_to_counts_map, ignore_unique_id_dups, &unique_id_to_date_map);
+    GenerateMARCFromJSON(object_or_array_root, *json_node_to_bibliographic_level_mapper, field_descriptors,
+                         issns_to_journal_titles_and_ppns_map, marc_writer.get(), extract_and_count_issns_only,
+                         &issns_to_counts_map, ignore_unique_id_dups, &unique_id_to_date_map);
 
     if (extract_and_count_issns_only) {
         std::vector<std::pair<std::string, unsigned>> issns_and_counts;
