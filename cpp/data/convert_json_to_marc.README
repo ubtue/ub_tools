@@ -22,9 +22,13 @@ item_type_map[O]: If specified, item_type_tag must be also specified.  This cons
     the empty string will always match.
 
 2. The MARC-21 Field Section
-indicatior1[O] = the first indicator for the generated field if it is a data field.  The default is a blank.
-indicatior2[O] = the second indicator for the generated field if it is a data field.  The default is a blank.
-
+indicatior1[O]  = the first indicator for the generated field if it is a data field.  The default is a blank.
+indicatior2[O]  = the second indicator for the generated field if it is a data field.  The default is a blank.
+tag[R]          = the MARC tag of the MARC field that the extracted JSON will be written to
+overflow_tag[O] = if specified the first value will be stored in a MARC field with tag "tag" and subsequent
+                  values are stored in MARC fields with tag "overflow_tag", e.g. 100 and 700 for authors.
+normalise_issn  = if true, values of the form XXXX-YYYY will be stored as XXXXYYYY, values that started out
+                  without the hyphen will be unaffected.
 
 R = required section entry
 O = optional section entry

@@ -31,6 +31,7 @@
 #include "JSON.h"
 #include "KeyValueDB.h"
 #include "MARC.h"
+#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "TimeUtil.h"
 #include "UBTools.h"
@@ -62,6 +63,7 @@ struct FieldDescriptor {
     std::string json_tag_; // For mapping to control fields
     std::string field_contents_prefix_; // For mapping to control fields
     bool map_to_marc_language_code_;
+    bool normalise_issn_;
     bool required_;
 public:
     explicit FieldDescriptor(const std::string &name, const std::string &tag, const std::string &overflow_tag, const char indicator1,
@@ -71,7 +73,7 @@ public:
                              const std::vector<std::pair<char, std::string>> &subfield_codes_to_fixed_subfields,
                              const std::map<char, std::shared_ptr<RegexMatcher>> subfield_codes_to_extraction_regexes_map,
                              const std::string &json_tag, const std::string &field_contents_prefix, const bool map_to_marc_language_code,
-                             const bool required);
+                             const bool normalise_issn, const bool required);
     bool operator<(const FieldDescriptor &other) const { return tag_ < other.tag_; }
 };
 
@@ -83,12 +85,13 @@ FieldDescriptor::FieldDescriptor(const std::string &name, const std::string &tag
                                  const std::vector<std::pair<char, std::string>> &subfield_codes_to_fixed_subfields,
                                  const std::map<char, std::shared_ptr<RegexMatcher>> subfield_codes_to_extraction_regexes_map,
                                  const std::string &json_tag, const std::string &field_contents_prefix,
-                                 const bool map_to_marc_language_code, const bool required)
+                                 const bool map_to_marc_language_code, const bool normalise_issn, const bool required)
     : name_(name), tag_(tag), overflow_tag_(overflow_tag), indicator1_(indicator1), indicator2_(indicator2), repeat_field_(repeat_field),
       subfield_codes_to_json_tags_(subfield_codes_to_json_tags), subfield_codes_to_prefixes_(subfield_codes_to_prefixes),
       subfield_codes_to_fixed_subfields_(subfield_codes_to_fixed_subfields),
       subfield_codes_to_extraction_regexes_map_(subfield_codes_to_extraction_regexes_map), json_tag_(json_tag),
-      field_contents_prefix_(field_contents_prefix), map_to_marc_language_code_(map_to_marc_language_code), required_(required)
+      field_contents_prefix_(field_contents_prefix), map_to_marc_language_code_(map_to_marc_language_code),
+      normalise_issn_(normalise_issn), required_(required)
 {
     if (not overflow_tag_.empty() and repeat_field_)
         LOG_ERROR("field \"" + name_ + "\" can't have both, an over flow tag and being a repeat field!");
@@ -327,7 +330,8 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
                                            section.getChar("indicator2", ' '), section.getBool("repeat_field", false),
                                            subfield_codes_to_json_tags, subfield_codes_to_prefixes, subfield_codes_to_fixed_subfields,
                                            subfield_codes_to_extraction_regexes_map, json_tag, field_contents_prefix,
-                                           section.getBool("map_to_marc_language_code", false), section.getBool("required", false));
+                                           section.getBool("map_to_marc_language_code", false), section.getBool("normalise_issn", false),
+                                           section.getBool("required", false));
         }
     }
 
@@ -474,6 +478,12 @@ bool ExtractJSONAndGenerateSubfields(MARC::Record * const record, const MARC::Ta
                 LOG_WARNING("can't map \"" + original_value + "\" to a MARC language code!");
                 continue;
             }
+        }
+
+        if (field_descriptor.normalise_issn_) {
+            std::string normalised_issn;
+            if (MiscUtil::NormaliseISSN(extracted_value, &normalised_issn))
+                extracted_value = normalised_issn;
         }
 
         UpdateISSNReferenceCount(field_descriptor, extracted_value, issns_to_counts_map);
@@ -647,6 +657,8 @@ int Main(int argc, char **argv) {
 
     if ((extract_and_count_issns_only and argc != 3) or (not extract_and_count_issns_only and argc != 4))
         Usage();
+
+    std::unordered_map<std::string, std::string> issn_to_journal_title_map;
 
     std::string root_path;
     std::unique_ptr<JSONNodeToBibliographicLevelMapper> json_node_to_bibliographic_level_mapper;
