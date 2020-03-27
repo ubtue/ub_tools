@@ -501,7 +501,7 @@ std::string NormalizeAuthorName(const std::string &author_name) {
         if (*ch == ',')
             insert_spaces_after_periods = true;
         modified_author_name += *ch;
-        if (insert_spaces_after_periods and *ch == '.' and ch != author_name.cend() - 1)
+        if (insert_spaces_after_periods and *ch == '.' and ch != author_name.cend() - 1 and *(ch + 1) != ' ')
             modified_author_name += ' ';
     }
 
