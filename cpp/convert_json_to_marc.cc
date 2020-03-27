@@ -489,6 +489,26 @@ void UpdateISSNReferenceCount(const std::string &cleaned_up_json_value,
 }
 
 
+std::string NormalizeAuthorName(const std::string &author_name) {
+    static const auto author_with_trailing_initials_matcher(RegexMatcher::RegexMatcherFactoryOrDie("([\\p{L}-]+, ?)(\\p{L}\\.){2,}(.)"));
+    if (not author_with_trailing_initials_matcher->matched(author_name))
+        return author_name;
+
+    std::string modified_author_name;
+    modified_author_name.reserve(author_name.size() + 3);
+    bool insert_spaces_after_periods(false);
+    for (auto ch(author_name.cbegin()); ch != author_name.cend(); ++ch) {
+        if (*ch == ',')
+            insert_spaces_after_periods = true;
+        modified_author_name += *ch;
+        if (insert_spaces_after_periods and *ch == '.' and ch != author_name.cend() - 1 and *(ch + 1) != ' ')
+            modified_author_name += ' ';
+    }
+
+    return modified_author_name;
+}
+
+
 static unsigned matched_issn_count, not_matched_issn_count;
 
 
@@ -499,7 +519,7 @@ bool ExtractJSONAndGenerateSubfields(MARC::Record * const record, const MARC::Ta
                                      const std::shared_ptr<const JSON::ObjectNode> &object, const size_t json_array_index,
                                      std::unordered_map<std::string, unsigned> * const issns_to_counts_map)
 {
-    MARC::Record::Field new_field(tag);
+    MARC::Record::Field new_field(tag, field_descriptor.indicator1_, field_descriptor.indicator2_);
     bool created_at_least_one_subfield(false);
 
     for (const auto &subfield_code_and_json_tag : field_descriptor.subfield_codes_to_json_tags_) {
@@ -538,7 +558,8 @@ bool ExtractJSONAndGenerateSubfields(MARC::Record * const record, const MARC::Ta
             std::string normalised_issn;
             if (MiscUtil::NormaliseISSN(extracted_value, &normalised_issn))
                 extracted_value = normalised_issn;
-        }
+        } else if (tag == "100" or tag == "700") // Author fields
+            extracted_value = NormalizeAuthorName(extracted_value);
 
         // ISSN processing:
         if (StringUtil::FindCaseInsensitive(field_descriptor.name_, "ISSN") != std::string::npos) {
