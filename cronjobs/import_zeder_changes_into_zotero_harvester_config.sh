@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# This script updates the local zotero-enhancement-maps repository with
-# auto-generated maps and pushes the changes to GitHub
+# This script updates the local Zotero Harvester configuration file
+# with changes imported from Zeder
 set -o errexit -o nounset
 
 # Set up the log file:
