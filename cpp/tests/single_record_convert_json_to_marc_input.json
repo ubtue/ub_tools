@@ -1,0 +1,71 @@
+[
+  {
+    "status": "OK",
+    "totalHits": 140891,
+    "data": [
+      {
+        "id": "20344186",
+        "authors": [
+          "Hayward, K.",
+          "Schuilenburg, M.B."
+        ],
+        "contributors": [],
+        "datePublished": "2014",
+        "identifiers": [
+          "oai:dare.ubvu.vu.nl:1871/50994",
+          "10.5553/tcc/221195072013003003003"
+        ],
+        "journals": [
+          {
+            "title": null,
+            "identifiers": [
+              "2211-9507",
+              "issn:2211-9507"
+            ]
+          }
+        ],
+        "relations": [],
+        "repositories": [
+          {
+            "id": "573",
+            "openDoarId": 0,
+            "name": "DSpace at VU",
+            "uri": null,
+            "urlHomepage": null,
+            "urlOaipmh": null,
+            "uriJournals": null,
+            "physicalName": "noname",
+            "source": null,
+            "software": null,
+            "metadataFormat": null,
+            "description": null,
+            "journal": null,
+            "roarId": 0,
+            "pdfStatus": null,
+            "nrUpdates": 0,
+            "disabled": false,
+            "lastUpdateTime": null,
+            "repositoryLocation": null
+          }
+        ],
+        "repositoryDocument": {
+          "pdfStatus": 1,
+          "metadataAdded": 1401307352000,
+          "metadataUpdated": 1559589005000,
+          "depositedDate": 1399503600000
+        },
+        "subjects": [
+          "Article / Letter to editor"
+        ],
+        "title": "To Resist = to Create? Some Thoughts on the Concept of Resistance in Cultural Criminology",
+        "topics": [],
+        "types": [],
+        "year": 2014,
+        "fulltextIdentifier": "https://core.ac.uk/download/pdf/20344186.pdf",
+        "doi": "10.5553/tcc/221195072013003003003",
+        "oai": "oai:dare.ubvu.vu.nl:1871/50994",
+        "downloadUrl": "https://core.ac.uk/download/pdf/20344186.pdf"
+      }
+    ]
+  }
+]

@@ -29,10 +29,10 @@
 KeyValueDB::KeyValueDB(const std::string &path){
     int retcode;
     if ((retcode = ::db_create(&db_, nullptr, 0)) != 0)
-        LOG_ERROR("db_create() failed! (" + std::string(db_strerror(retcode)) + ")");
+        LOG_ERROR("db_create on \"" + path + "\" failed! (" + std::string(db_strerror(retcode)) + ")");
     if ((retcode  = db_->open(db_, /* txnid = */nullptr, path.c_str(), /* database = */nullptr, DB_HASH, /* flags = */0, /* mode = */0600))
         != 0)
-        LOG_ERROR("DB->open()() failed! (" + std::string(db_strerror(retcode)) + ")");
+        LOG_ERROR("DB->open on \"" + path + "\" failed! (" + std::string(db_strerror(retcode)) + ")");
 }
 
 

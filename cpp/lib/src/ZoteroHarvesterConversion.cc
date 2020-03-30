@@ -29,6 +29,7 @@
 #include "UBTools.h"
 #include "UrlUtil.h"
 #include "ZoteroHarvesterConversion.h"
+#include "ZoteroHarvesterZederInterop.h"
 #include "util.h"
 
 
@@ -636,7 +637,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
 
     // fill-in license and SSG values
     metadata_record->license_ = enhancement_maps.lookupLicense(metadata_record->issn_);
-    metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(enhancement_maps.lookupSSG(metadata_record->issn_));
+    metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(journal_params.ssgn_);
 
     // tag reviews
     const auto &review_matcher(journal_params.review_regex_);
@@ -878,9 +879,9 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     // License data
     const auto &license(metadata_record.license_);
     if (license == "l")
-        marc_record->insertField("856", { { 'z', "Kostenfrei" } }, /* indicator1 = */'4', /* indicator2 = */'0');
+        marc_record->insertField("856", { { 'z', "LF" } }, /* indicator1 = */'4', /* indicator2 = */'0');
     else if (license == "kw")
-        marc_record->insertField("856", { { 'z', "Teilw. kostenfrei" } }, /* indicator1 = */'4', /* indicator2 = */'0');
+        marc_record->insertField("856", { { 'z', "KW" } }, /* indicator1 = */'4', /* indicator2 = */'0');
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     MARC::Subfields _936_subfields;
@@ -894,12 +895,8 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
         _936_subfields.appendSubfield('d', issue);
 
     const std::string pages(metadata_record.pages_);
-    if (not pages.empty()) {
-        if (pages.find('-') == std::string::npos)
-            _936_subfields.appendSubfield('g', pages);
-        else
-            _936_subfields.appendSubfield('h', pages);
-    }
+    if (not pages.empty())
+        _936_subfields.appendSubfield('h', pages);
 
     _936_subfields.appendSubfield('j', year);
     if (not _936_subfields.empty())
@@ -972,16 +969,16 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     marc_record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
 
     // Abrufzeichen und ISIL
-    if (group_params.output_folder_ == "krimdok") {
-        marc_record->insertField("852", { { 'a', group_params.isil_ } });
-        marc_record->insertField("935", { { 'a', "mkri" } });
-    } else if (group_params.output_folder_ == "ixtheo"
-               and metadata_record.ssg_ != MetadataRecord::SSGType::INVALID)
-    {
-        marc_record->insertField("852", { { 'a', group_params.isil_ } });
+    switch (ZederInterop::GetZederInstanceForGroup(group_params)) {
+    case Zeder::Flavour::IXTHEO:
         marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
         marc_record->insertField("935", { { 'a', "mteo" } });
+        break;
+    case Zeder::Flavour::KRIMDOK:
+        marc_record->insertField("935", { { 'a', "mkri" } });
+        break;
     }
+    marc_record->insertField("852", { { 'a', group_params.isil_ } });
 
     // Book-keeping fields
     marc_record->insertField("URL", { { 'a', download_item.url_.toString() } });
@@ -1052,9 +1049,7 @@ bool ExcludeOnlineFirstRecord(const MetadataRecord &metadata_record, const Conve
         return false;
     }
 
-    if (metadata_record.issue_.empty() and metadata_record.volume_.empty()
-        and not parameters.force_downloads_)
-    {
+    if (metadata_record.issue_.empty() and metadata_record.volume_.empty()) {
         if (parameters.skip_online_first_articles_unconditonally_) {
             LOG_DEBUG("Skipping: online-first article unconditionally");
             return true;
@@ -1068,7 +1063,7 @@ bool ExcludeOnlineFirstRecord(const MetadataRecord &metadata_record, const Conve
 }
 
 
-bool ExcludeEarlyViewRecord(const MetadataRecord &metadata_record, const ConversionParams &parameters) {
+bool ExcludeEarlyViewRecord(const MetadataRecord &metadata_record, const ConversionParams &/*unused*/) {
     if (std::find(VALID_ITEM_TYPES_FOR_ONLINE_FIRST.begin(),
                   VALID_ITEM_TYPES_FOR_ONLINE_FIRST.end(),
                   metadata_record.item_type_) == VALID_ITEM_TYPES_FOR_ONLINE_FIRST.end())
@@ -1076,9 +1071,7 @@ bool ExcludeEarlyViewRecord(const MetadataRecord &metadata_record, const Convers
         return false;
     }
 
-    if ((metadata_record.issue_ == "n/a" or metadata_record.volume_ == "n/a")
-        and not parameters.force_downloads_)
-    {
+    if (metadata_record.issue_ == "n/a" or metadata_record.volume_ == "n/a") {
         LOG_DEBUG("Skipping: early-view article");
         return true;
     }
@@ -1232,7 +1225,7 @@ std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> ConversionMana
                                                                                              const std::string &json_metadata,
                                                                                              const Config::GroupParams &group_params)
 {
-    std::unique_ptr<ConversionParams> parameters(new ConversionParams(source, json_metadata, global_params_.force_downloads_,
+    std::unique_ptr<ConversionParams> parameters(new ConversionParams(source, json_metadata,
                                                  global_params_.skip_online_first_articles_unconditonally_, group_params,
                                                  global_params_.enhancement_maps_));
     std::shared_ptr<ConversionTasklet> new_tasklet(new ConversionTasklet(&conversion_tasklet_execution_counter_,

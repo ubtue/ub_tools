@@ -123,15 +123,14 @@ std::string CalculateMarcRecordHash(const MARC::Record &marc_record);
 struct ConversionParams {
     Util::HarvestableItem download_item_;
     std::string json_metadata_;
-    bool force_downloads_;
     bool skip_online_first_articles_unconditonally_;
     const Config::GroupParams &group_params_;
     const Config::EnhancementMaps &enhancement_maps_;
 public:
-    ConversionParams(const Util::HarvestableItem &download_item, const std::string &json_metadata, const bool force_downloads,
+    ConversionParams(const Util::HarvestableItem &download_item, const std::string &json_metadata,
                      const bool skip_online_first_articles_unconditonally, const Config::GroupParams &group_params,
                      const Config::EnhancementMaps &enhancement_maps)
-     : download_item_(download_item), json_metadata_(json_metadata), force_downloads_(force_downloads),
+     : download_item_(download_item), json_metadata_(json_metadata),
        skip_online_first_articles_unconditonally_(skip_online_first_articles_unconditonally),
        group_params_(group_params), enhancement_maps_(enhancement_maps) {}
 };
@@ -164,18 +163,17 @@ public:
 class ConversionManager {
 public:
     struct GlobalParams {
-        bool force_downloads_;
         bool skip_online_first_articles_unconditonally_;
         const Config::EnhancementMaps &enhancement_maps_;
     public:
-        GlobalParams(const bool force_downloads, const bool skip_online_first_articles_unconditonally,
+        GlobalParams(const bool skip_online_first_articles_unconditonally,
                      const Config::EnhancementMaps &enhancement_maps)
-            : force_downloads_(force_downloads), skip_online_first_articles_unconditonally_(skip_online_first_articles_unconditonally),
+            : skip_online_first_articles_unconditonally_(skip_online_first_articles_unconditonally),
               enhancement_maps_(enhancement_maps) {}
         GlobalParams(const GlobalParams &rhs) = default;
     };
 private:
-    static constexpr unsigned MAX_CONVERSION_TASKLETS = 12;
+    static constexpr unsigned MAX_CONVERSION_TASKLETS = 15;
 
     GlobalParams global_params_;
     pthread_t background_thread_;

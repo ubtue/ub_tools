@@ -47,7 +47,7 @@ using namespace ZoteroHarvester;
               << "\n"
               << "\tOptions:\n"
               << "\t[--min-log-level=log_level]         Possible log levels are ERROR, WARNING (default), INFO and DEBUG\n"
-              << "\t[--force-downloads]                 All URLs are unconditionally downloaded and converted.\n"
+              << "\t[--force-downloads]                 All URLs are unconditionally downloaded.\n"
               << "\t[--ignore-robots-dot-txt]           Ignore crawling/rate-limiting parameters specified in robots.txt files and disable download restrictions globally\n"
               << "\t[--output-directory=output_dir]     Generated files are saved to /tmp/zotero_harvester by default\n"
               << "\t[--output-filename=output_filename] Overrides the automatically-generated filename based on the current date/time. Output format is always MARC-XML\n"
@@ -62,7 +62,6 @@ using namespace ZoteroHarvester;
 
 struct CommandLineArgs {
     enum SelectionMode { INVALID, UPLOAD, JOURNAL, URL };
-
 
     bool force_downloads_;
     bool ignore_robots_dot_txt_;
@@ -461,7 +460,7 @@ const std::unique_ptr<MARC::Writer> &OutputFileCache::getWriter(const Config::Gr
 
 void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, OutputFileCache * const outputfile_cache,
                                   const Util::UploadTracker &upload_tracker, const Download::DownloadManager &download_manager,
-                                  Conversion::ConversionManager &conversion_manager,
+                                  const bool force_downloads, Conversion::ConversionManager &conversion_manager,
                                   std::unordered_set<std::string> * const urls_harvested_during_current_session,
                                   Metrics * const metrics)
 {
@@ -521,7 +520,7 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
                 // by comparing its hash and URLs with the ones stored in our database.
                 const auto record_urls(Util::GetMarcRecordUrls(*record));
 
-                if (upload_tracker.recordAlreadyDelivered(*record)) {
+                if (not force_downloads and upload_tracker.recordAlreadyDelivered(*record)) {
                     ++metrics->num_marc_conversions_skipped_since_already_delivered_;
                     LOG_INFO("Item " + current_download_item.toString() + " already delivered");
                     continue;
@@ -576,9 +575,9 @@ int Main(int argc, char *argv[]) {
     download_manager_params.ignore_robots_txt_ = commandline_args.ignore_robots_dot_txt_;
     Download::DownloadManager download_manager(download_manager_params);
 
-    Conversion::ConversionManager::GlobalParams conversion_manager_params(commandline_args.force_downloads_,
-                                                                          harvester_config.global_params_->skip_online_first_articles_unconditonally_,
-                                                                          *harvester_config.enhancement_maps);
+    Conversion::ConversionManager::GlobalParams conversion_manager_params(
+        harvester_config.global_params_->skip_online_first_articles_unconditonally_,
+        *harvester_config.enhancement_maps);
     Conversion::ConversionManager conversion_manager(conversion_manager_params);
     OutputFileCache output_file_cache(commandline_args, harvester_config);
     Util::UploadTracker upload_tracker;
@@ -637,7 +636,7 @@ int Main(int argc, char *argv[]) {
             EnqueueCrawlAndRssResults(journal_datastore.get(), &jobs_running, &harvester_metrics);
             EnqueueCompletedDownloadsForConversion(journal_datastore.get(), &jobs_running, &conversion_manager, harvester_config,
                                                    urls_harvested_during_current_session, &harvester_metrics);
-            WriteConversionResultsToDisk(journal_datastore.get(), &output_file_cache, upload_tracker, download_manager,
+            WriteConversionResultsToDisk(journal_datastore.get(), &output_file_cache, upload_tracker, download_manager, commandline_args.force_downloads_,
                                          conversion_manager, &urls_harvested_during_current_session, &harvester_metrics);
 
             if (not jobs_running)

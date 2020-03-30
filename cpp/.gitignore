@@ -20,6 +20,7 @@
 /concat
 /control_number_guesser
 /convert_bible_references
+/convert_json_to_marc
 /convert_oai_pmh_dc_to_marc21
 /convert_tags_to_keywords
 /count_gnd_refs
@@ -54,6 +55,7 @@
 /full_text_stats
 /generate_complete_dumpfile
 /generate_issn_maps_from_zeder
+/generate_issn_to_titles_and_ppns_map
 /generate_keyword_normalizations
 /generate_language_model
 /generate_library_dependency_graph
@@ -119,7 +121,7 @@
 /zeder_count_imported
 /zeder_entry_downloader
 /zeder_ppn_to_title_importer
-/zeder_to_zotero_conversion_tools
+/zeder_to_zotero_importer
 /zotero_cgi
 /zotero_harvester
 

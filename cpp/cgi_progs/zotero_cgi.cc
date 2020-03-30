@@ -36,6 +36,7 @@
 #include "WebUtil.h"
 #include "UBTools.h"
 #include "util.h"
+#include "Zeder.h"
 #include "ZoteroHarvesterConfig.h"
 #include "ZoteroHarvesterUtil.h"
 
@@ -409,6 +410,8 @@ void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_ar
 
 void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
+    const std::string group(GetCGIParameterOrDefault(cgi_args, "group"));
+    const Zeder::Flavour zeder_flavour(group == "IxTheo" or group == "RelBib" ? Zeder::Flavour::IXTHEO : Zeder::Flavour::KRIMDOK);
 
     Template::Map names_to_values_map;
     names_to_values_map.insertScalar("zeder_id", zeder_id);
@@ -419,7 +422,7 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     std::vector<std::string> urls;
 
     ZoteroHarvester::Util::UploadTracker upload_tracker;
-    const auto entries(upload_tracker.getEntriesByZederId(zeder_id));
+    const auto entries(upload_tracker.getEntriesByZederIdAndFlavour(zeder_id, zeder_flavour));
     for (const auto &entry : entries) {
         delivered_datetimes.emplace_back(HtmlUtil::HtmlEscape(entry.delivered_at_str_));
         titles.emplace_back(HtmlUtil::HtmlEscape(entry.main_title_));
