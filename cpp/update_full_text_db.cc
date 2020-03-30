@@ -386,10 +386,6 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                                                 : FullTextCache::UNKNOWN);
         }
 
-        // Do not save 520-pseudo URLs in default mode
-        if (not use_separate_entries_per_url and entry_url.url_ == LOCAL_520_TEXT)
-            continue;
-
         entry_urls.push_back(entry_url);
         already_present_text_types |= text_type;
     }
