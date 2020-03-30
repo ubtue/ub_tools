@@ -236,7 +236,8 @@ FullTextCache::TextType GetTextTypes(const std::set<UrlAndTextType> &urls_and_te
 
 const std::string LOCAL_520_TEXT("LOCAL 520 FIELD");
 void GetUrlsAndTextTypes(const MARC::Record &record, std::set<UrlAndTextType> * const urls_and_text_types,
-                         const bool use_only_open_access_links, const bool include_all_tocs, const bool skip_reviews)
+                         const bool use_only_open_access_links, const bool include_all_tocs, const bool only_pdf_fulltexts,
+                         const bool skip_reviews)
 {
    for (const auto _856_field : record.getTagRange("856")) {
        const MARC::Subfields _856_subfields(_856_field.getSubfields());
@@ -254,9 +255,14 @@ void GetUrlsAndTextTypes(const MARC::Record &record, std::set<UrlAndTextType> * 
            continue;
 
        // Only get the first item of each category to to avoid superfluous matches that garble up the result
+       // For the Only-PDF-Fulltext-mode there is currently no really reliable way to determine the filetype beforehand
+       // Thus we must add all candidates to the download list
        const std::string text_type_description(_856_subfields.getFirstSubfieldWithCode('3'));
-       if (GetTextTypes(*urls_and_text_types) and FullTextCache::MapTextDescriptionToTextType(text_type_description))
-           continue;
+       FullTextCache::TextType text_type(FullTextCache::MapTextDescriptionToTextType(text_type_description));
+       if (GetTextTypes(*urls_and_text_types) and text_type) {
+           if (not only_pdf_fulltexts)
+               continue;
+       }
 
        urls_and_text_types->emplace(UrlAndTextType({ _856_subfields.getFirstSubfieldWithCode('u'),
                                                      text_type_description } ));
@@ -282,7 +288,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
 {
     const std::string ppn(record->getControlNumber());
     std::set<UrlAndTextType> urls_and_text_types;
-    GetUrlsAndTextTypes(*record, &urls_and_text_types, use_only_open_access_links, include_all_tocs, skip_reviews);
+    GetUrlsAndTextTypes(*record, &urls_and_text_types, use_only_open_access_links, include_all_tocs, only_pdf_fulltexts, skip_reviews);
     std::set<std::string> urls;
     ExtractUrlsFromUrlsAndTextTypes(urls_and_text_types, &urls);;
     FullTextCache cache;
@@ -318,6 +324,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
     constexpr unsigned PER_DOC_TIMEOUT(30000); // in milliseconds
     bool at_least_one_error(false);
     std::stringstream combined_text_buffer;
+    unsigned already_present_text_types(0);
 
     for (const auto &url_and_text_type : urls_and_text_types) {
         FullTextCache::EntryUrl entry_url;
@@ -328,6 +335,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         cache.getDomainFromUrl(url, &domain);
         entry_url.domain_ = domain;
         std::string document, media_type, media_subtype, http_header_charset, error_message, extracted_text;
+        FullTextCache::TextType text_type(FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_));
 
         if (url_and_text_type.url_ == LOCAL_520_TEXT)
             extracted_text =  GetTextFrom520a(*record);
@@ -341,7 +349,10 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                 continue;
             }
 
-            if (only_pdf_fulltexts and not StringUtil::StartsWith(media_type, "application/pdf"))
+            // In Only-PDF-Fulltext-Mode we get all download candidates
+            // So only go on if a text of this category is not already present
+            if (only_pdf_fulltexts and (not StringUtil::StartsWith(media_type, "application/pdf") or
+                                        (text_type and already_present_text_types)))
                 continue;
 
             extracted_text = ConvertToPlainText(media_type, media_subtype, http_header_charset, GetTesseractLanguageCode(*record),
@@ -378,7 +389,9 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         // Do not save 520-pseudo URLs in default mode
         if (not use_separate_entries_per_url and entry_url.url_ == LOCAL_520_TEXT)
             continue;
+
         entry_urls.push_back(entry_url);
+        already_present_text_types |= text_type;
     }
 
     if (not use_separate_entries_per_url) {
