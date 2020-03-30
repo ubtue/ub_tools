@@ -338,10 +338,11 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         FullTextCache::TextType text_type(FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_));
 
         if (url_and_text_type.url_ == LOCAL_520_TEXT)
-            extracted_text =  GetTextFrom520a(*record);
+            extracted_text = GetTextFrom520a(*record);
         else {
             if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &media_subtype, &http_header_charset,
-                                             &error_message))) {
+                                             &error_message)))
+            {
                 LOG_WARNING("URL " + url + ": could not get document and media type! (" + error_message + ")");
                 entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
                 at_least_one_error = true;
@@ -372,9 +373,8 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                               TextUtil::CollapseAndTrimWhitespace(&extracted_text),
                               { entry_url },
                               FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_));
-        } else {
+        } else
             combined_text_buffer << ((combined_text_buffer.tellp() != std::streampos(0)) ? " " : "") << extracted_text;
-        }
 
         if (store_pdfs_as_html and StringUtil::StartsWith(media_type, "application/pdf") and not PdfUtil::PdfDocContainsNoText(document)) {
             const FileUtil::AutoTempFile auto_temp_file("/tmp/fulltext_pdf");
@@ -448,7 +448,6 @@ int Main(int argc, char *argv[]) {
                 LOG_ERROR("bad value for --pdf-extraction-timeout!");
         ++argv, --argc;
     }
-
 
     bool use_only_open_access_documents(false);
     if (argc > 1 and StringUtil::StartsWith(argv[1], "--use-only-open-access-documents")) {

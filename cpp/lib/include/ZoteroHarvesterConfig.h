@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include "IniFile.h"
 #include "RegexMatcher.h"
+#include "Zeder.h"
 
 
 namespace ZoteroHarvester {
@@ -121,6 +122,7 @@ private:
 // Parameters that pertain to a specific journal.
 struct JournalParams {
     enum IniKey : unsigned {
+        NAME,       // not an actual INI key; placeholder for the journal name (name of the INI section)
         ZEDER_ID,
         ZEDER_MODIFIED_TIME,
         GROUP,
@@ -157,6 +159,7 @@ struct JournalParams {
     } issn_;
     std::string strptime_format_string_;
     unsigned update_window_;
+    std::string ssgn_;
     std::unique_ptr<ThreadSafeRegexMatcher> review_regex_;
     struct {
         std::set<std::string> expected_languages_;
@@ -186,8 +189,10 @@ public:
     JournalParams &operator=(const GroupParams &rhs) = delete;
 
     static std::string GetIniKeyString(const IniKey ini_key);
+    static IniKey GetIniKey(const std::string &ini_key_string);
 private:
     static const std::map<IniKey, std::string> KEY_TO_STRING_MAP;
+    static const std::map<std::string, IniKey> STRING_TO_KEY_MAP;
 };
 
 
@@ -195,7 +200,6 @@ private:
 // in the configuration INI file. Will eventually be subsumed into the former.
 class EnhancementMaps {
     std::unordered_map<std::string, std::string> ISSN_to_license_;
-    std::unordered_map<std::string, std::string> ISSN_to_SSG_;
 
     std::string lookup(const std::string &issn, const std::unordered_map<std::string, std::string> &map) const;
 public:
@@ -205,13 +209,13 @@ public:
     EnhancementMaps& operator=(const EnhancementMaps &rhs) = default;
 
     std::string lookupLicense(const std::string &issn) const;
-    std::string lookupSSG(const std::string &issn) const;
 };
 
 
 void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
-                             std::vector<std::unique_ptr<JournalParams>> * const journal_params);
+                             std::vector<std::unique_ptr<JournalParams>> * const journal_params,
+                             std::unique_ptr<IniFile> * const config_file = nullptr);
 
 
 } // end namespace Config

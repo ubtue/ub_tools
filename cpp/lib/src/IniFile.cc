@@ -313,7 +313,7 @@ static inline bool ContainsSpacesOrDoubleQuotes(const std::string &value) {
 }
 
 
-void IniFile::Section::write(File * const output, const bool pretty_print) const {
+void IniFile::Section::write(File * const output, const bool pretty_print, const bool compact) const {
     if (unlikely(not section_name_.empty() and not output->writeln("[" + section_name_ + "]")))
         LOG_ERROR("failed to write section header to \"" + output->getPath() + "\"!");
 
@@ -326,7 +326,19 @@ void IniFile::Section::write(File * const output, const bool pretty_print) const
         }
     }
 
-    for (const auto &entry : entries_) {
+    bool last_line_empty(false);
+    for (size_t i(0); i < entries_.size(); ++i) {
+        const auto &entry(entries_.at(i));
+        bool last_line(i == entries_.size() - 1);
+
+        // when compacting, strip all empty lines except for the final one
+        if (entry.empty()) {
+            if (last_line)
+                last_line_empty = true;
+            else if (compact)
+                continue;
+        }
+
         if (entry.name_.empty()) {
             if (unlikely(not output->writeln(entry.comment_)))
                 LOG_ERROR("failed to write a comment to \"" + output->getPath() + "\"!");
@@ -349,6 +361,9 @@ void IniFile::Section::write(File * const output, const bool pretty_print) const
                 LOG_ERROR("failed to write a name/value pair to \"" + output->getPath() + "\"!");
         }
     }
+
+    if (not last_line_empty and unlikely(not output->writeln("")))
+        LOG_ERROR("failed to write section final empty line to \"" + output->getPath() + "\"!");
 }
 
 
@@ -894,9 +909,9 @@ bool IniFile::variableIsDefined(const std::string &section_name, const std::stri
 }
 
 
-void IniFile::write(const std::string &path, const bool pretty_print) const {
+void IniFile::write(const std::string &path, const bool pretty_print, const bool compact) const {
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(path));
 
     for (const auto &section : sections_)
-        section.write(output.get(), pretty_print);
+        section.write(output.get(), pretty_print, compact);
 }
