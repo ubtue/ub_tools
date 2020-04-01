@@ -80,8 +80,7 @@ bool FullTextCache::singleUrlExpired(const std::string &id, const std::string &u
     Entry entry;
     if (not getEntry(id, &entry))
         return true;
-    const time_t now(std::time(nullptr));
-    if (entry.expiration_ == TimeUtil::BAD_TIME_T or now < entry.expiration_) {
+    if (entry.expiration_ == TimeUtil::BAD_TIME_T or (std::time(nullptr) < entry.expiration_)) {
         for (const auto &entry_url : FullTextCache::getEntryUrls(id)) {
             if (entry_url.url_ == url and entry_url.error_message_.empty())
                 return false;
