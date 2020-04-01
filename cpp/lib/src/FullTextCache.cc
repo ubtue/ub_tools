@@ -72,7 +72,7 @@ bool FullTextCache::entryExpired(const std::string &id, std::vector<std::string>
             return false;
     }
 
-    return full_text_cache_urls_.deleteDocument(id);
+    return true;
 }
 
 
