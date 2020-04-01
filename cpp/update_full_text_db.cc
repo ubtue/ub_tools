@@ -302,11 +302,12 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             if (not combined_text_final.empty())
                 record->insertField("FUL", { { 'e', "http://localhost/cgi-bin/full_text_lookup?id=" + ppn } });
             return true;
-        }
+        } else
+            cache.deleteEntry(ppn);
     } else {
         bool at_least_one_expired(false);
         for (auto url_and_text_type(urls_and_text_types.begin()); url_and_text_type != urls_and_text_types.end();/* intentionally empty */) {
-            const bool expired(cache.entryExpired(ppn, { url_and_text_type->url_ }));
+            const bool expired(cache.singleUrlExpired(ppn, url_and_text_type->url_));
             if (not expired) {
                 url_and_text_type = urls_and_text_types.erase(url_and_text_type);
                 Semaphore semaphore("/full_text_cached_counter", Semaphore::ATTACH);
