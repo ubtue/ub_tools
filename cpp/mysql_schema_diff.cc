@@ -88,7 +88,7 @@ int Main(int argc, char *argv[]) {
 
         --argc, ++argv;
     } else if (std::strcmp(db_name.c_str(), "vufind") == 0)
-        db_connection.reset(new DbConnection(VuFind::GetMysqlURL()));
+        db_connection.reset(new DbConnection(VuFind::GetMysqlURLOrDie()));
     else if (std::strcmp(db_name.c_str(), "ub_tools") == 0)
         db_connection.reset(new DbConnection());
     else
