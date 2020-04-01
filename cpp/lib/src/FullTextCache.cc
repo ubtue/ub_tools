@@ -76,6 +76,21 @@ bool FullTextCache::entryExpired(const std::string &id, std::vector<std::string>
 }
 
 
+bool FullTextCache::singleUrlExpired(const std::string &id, const std::string &url) {
+    Entry entry;
+    if (not getEntry(id, &entry))
+        return true;
+    const time_t now(std::time(nullptr));
+    if (entry.expiration_ == TimeUtil::BAD_TIME_T or now < entry.expiration_) {
+        for (const auto &entry_url : FullTextCache::getEntryUrls(id)) {
+            if (entry_url.url_ == url and entry_url.error_message_.empty())
+                return false;
+        }
+    }
+    return true;
+}
+
+
 void FullTextCache::expireEntries() {
     full_text_cache_urls_.deleteRange("expiration", Elasticsearch::RO_LTE, "now");
 }
