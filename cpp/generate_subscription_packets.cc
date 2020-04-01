@@ -76,6 +76,15 @@ ColumnNamesToEnumMaps GetZederEnumMappings(const JSON::ArrayNode &meta_array) {
 }
 
 
+// In order to understand this function you need the following information:
+// 1. Someone, who will remain unnamed to protect the guilty has, in his infinite wisdom (that was sacrasm for the Americans..)
+//    decided not to simply have empty values but to instead use NV (= no value??)
+// 2. There appear to be two kinds of legitimate values, real immediate value and values that represent an enum value.
+//    The enum values are not provided as literals but are represented by small integers instead.  In order to convert those
+//    integers to their string literals equivalents we need to use "column_names_to_enum_maps."  Fo those columns for which
+//    such a mapping exists we have the complete mapping stored under the short column name key in "column_names_to_enum_maps."
+//    IOW, if the short column name does not exist in "column_names_to_enum_maps" it is not a enum-valued column and the value
+//    should be taken as is and not mapped.
 std::string GetString(const JSON::ObjectNode &journal_node, const std::string &key, const ColumnNamesToEnumMaps &column_names_to_enum_maps) {
     if (not journal_node.hasNode(key))
         return "";
