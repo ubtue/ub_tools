@@ -220,6 +220,8 @@ int Main(int argc, char *argv[]) {
     if (not parser.parse(&tree_root))
         LOG_ERROR("failed to parse the Zeder JSON: " + parser.getErrorMessage());
 
+    // Zeder JSON has two top-level keys, "meta" and "daten."  "daten" contains the actual rows corresponding to one journal
+    // per row.  "meta" contains mappings from small integers to enumerated constants for those columns that use enum values.
     const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root));
     if (not root_node->hasNode("meta"))
         LOG_ERROR("top level object of Zeder JSON does not have a \"meta\" key!");
