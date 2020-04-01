@@ -203,7 +203,8 @@ void GenerateBundleDefinition(const JSON::ArrayNode &journals_array, const IniFi
 
 int Main(int argc, char *argv[]) {
     if (argc != 3)
-        ::Usage("packet_definition_config_file packet_subscriptions_output");
+        ::Usage("packet_definition_config_file packet_subscriptions_output\n"
+                "\tFor the documentation of the input config file, please see data/generate_subscription_packets.README.");
 
     const IniFile packet_definitions_ini_file(argv[1]);
     const auto zeder_instance(packet_definitions_ini_file.getString("", "instance"));
