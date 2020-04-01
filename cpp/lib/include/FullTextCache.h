@@ -64,6 +64,7 @@ public:
      *  \note Deletes expired entries and associated data in the key/value database found at "full_text_db_path".
      */
     bool entryExpired(const std::string &key, std::vector<std::string> urls);
+    bool singleUrlExpired(const std::string &key, const std::string &url);
     enum TextType { FULLTEXT = 1, TOC = 2, ABSTRACT = 4, SUMMARY = 8, UNKNOWN = 0 }; // Must match constants in TuelibMixin.java
 
     /** \brief Delete all records whose expiration field is in the past */
