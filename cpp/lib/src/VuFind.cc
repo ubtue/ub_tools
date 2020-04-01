@@ -34,20 +34,30 @@ static const std::string DATABASE_CONF_ALTERNATIVE("local/tuefind/local_override
 
 
 std::shared_ptr<DbConnection> GetDbConnection() {
-    return std::make_shared<DbConnection>(GetMysqlURL());
+    return std::make_shared<DbConnection>(GetMysqlURLOrDie());
 }
 
 
 std::string GetDefaultDatabaseConf() {
-    const std::string VUFIND_HOME(MiscUtil::GetEnv("VUFIND_HOME"));
+    const std::string VUFIND_HOME(MiscUtil::SafeGetEnv("VUFIND_HOME"));
+    if (VUFIND_HOME.empty())
+        return "";
     const std::string database_conf(VUFIND_HOME + "/" + VuFind::DATABASE_CONF);
     return FileUtil::Exists(database_conf)  ? database_conf : VUFIND_HOME + "/" + VuFind::DATABASE_CONF_ALTERNATIVE;
 }
 
 
-std::string GetMysqlURL(const std::string &vufind_config_file_path) {
+std::string GetDefaultDatabaseConfOrDie() {
+    const std::string conf_path(GetDefaultDatabaseConf());
+    if (conf_path.empty())
+        LOG_ERROR("VuFind database conf file missing");
+    return conf_path;
+}
+
+
+std::string GetMysqlURLOrDie(const std::string &vufind_config_file_path) {
     const std::string database_conf_filename(vufind_config_file_path.empty()
-                                             ? GetDefaultDatabaseConf() : vufind_config_file_path);
+                                             ? GetDefaultDatabaseConfOrDie() : vufind_config_file_path);
     File database_conf(database_conf_filename, "r", File::THROW_ON_ERROR);
     const std::string line(database_conf.getline());
     const size_t schema_pos(line.find("mysql://"));

@@ -22,13 +22,33 @@ item_type_map[O]: If specified, item_type_tag must be also specified.  This cons
     the empty string will always match.
 
 2. The MARC-21 Field Section
-indicatior1[O]  = the first indicator for the generated field if it is a data field.  The default is a blank.
-indicatior2[O]  = the second indicator for the generated field if it is a data field.  The default is a blank.
-tag[R]          = the MARC tag of the MARC field that the extracted JSON will be written to
-overflow_tag[O] = if specified the first value will be stored in a MARC field with tag "tag" and subsequent
-                  values are stored in MARC fields with tag "overflow_tag", e.g. 100 and 700 for authors.
-normalise_issn  = if true, values of the form XXXX-YYYY will be stored as XXXXYYYY, values that started out
-                  without the hyphen will be unaffected.
+indicator1[O]              = the first indicator for the generated field if it is a data field.  The default is a blank.
+indicator2[O]              = the second indicator for the generated field if it is a data field.  The default is a blank.
+tag[R]                     = the MARC tag of the MARC field that the extracted JSON will be written to
+overflow_tag[O]            = if specified the first value will be stored in a MARC field with tag "tag" and subsequent
+                             values are stored in MARC fields with tag "overflow_tag", e.g. 100 and 700 for authors.
+normalise_issn             = if true, values of the form XXXX-YYYY will be stored as XXXXYYYY, values that started out
+                             without the hyphen will be unaffected.
+field_contents_prefix      = used for control fields.  If present the value of this entry will be prepended to
+                             the data that will be inserted in the control field
+subfield_x                 = used for variable fields; specified which JSON data will be extracted and inserted
+                             into subfield x; the JSON extraction path is relative to "root_path" in the Global
+                             section
+subfield_x_extraction_regex= if present, this regex will be used to extract data from the JSON data before inserting
+                             it into the MARC subfield "x".
+required                   = the default, if this entry is not present, is "false".  If present and "true", a
+                             warning is issued if the referenced JSON data is missing
+subfield_x_prefix          = if present, the value of this entry will be prepended to values inserted into
+                             subfield "x"
+add_fixed_subfield_x       = if subfields are generated at all for a field then the value of this entry will be
+                             used to generate an additional subfield "x"
+map_to_marc_language_code  = if present, an attempt will be made to map what will be inserted into a subfield
+                             to a language code from the MARC standard.  If the mapping fails nothing will be
+                             inserted
+json_tag                   = only used for control fields, specifies, relative to "root_path" where to extract
+                             the data that will be inserted into the control field
+repeat_field               = default false, if true, multiple MARC fields may be generated depending on whether
+                             repeated JSON data exists
 
 R = required section entry
 O = optional section entry
