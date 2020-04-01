@@ -132,10 +132,10 @@ bool IncludeJournal(const JSON::ObjectNode &journal_object, const IniFile::Secti
         if (value_as_string.empty())
             return false;
 
-        if (entry.name_ == "class" and entry.name_ != "except_class") {
+        if (zeder_column_name != "class") {
             if (value_as_string != entry.value_)
                 return false;
-        } else {
+        } else { // class or except_class
             const bool found_it(FoundExpectedClassValue(entry.value_, value_as_string));
             if ((not found_it and entry.name_ == "class")
                 or (found_it and entry.name_ == "except_class"))
