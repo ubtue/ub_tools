@@ -51,7 +51,9 @@ void GetZederJSON(const std::string &zeder_instance, std::string * const json_bl
 typedef std::unordered_map<std::string, std::map<std::string, std::string>> ColumnNamesToEnumMaps;
 
 
-// Returns a mapping from short column name to a map from short integer values as strings y=to symbolic enum names.
+// Returns a mapping from short column name to a map from short integer values as strings to symbolic enum names.
+// This is needed because columns containing enum values are not specified with the actual enum constants but with
+// small integers which must be mapped to the actual enum constants.
 ColumnNamesToEnumMaps GetZederEnumMappings(const JSON::ArrayNode &meta_array) {
     ColumnNamesToEnumMaps column_names_to_enum_maps;
     for (const auto &entry : meta_array) {
