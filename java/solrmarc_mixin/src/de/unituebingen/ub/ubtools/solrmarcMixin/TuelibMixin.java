@@ -255,7 +255,9 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @return String nicely formatted title
      */
     public String getMainTitle(final Record record) {
-        final DataField mainTitleField = (DataField) record.getVariableField("245");
+        DataField mainTitleField = (DataField) record.getVariableField("245");
+        if (mainTitleField == null)
+            mainTitleField = (DataField) record.getVariableField("249");
         return getTitleFromField(mainTitleField);
     }
 
