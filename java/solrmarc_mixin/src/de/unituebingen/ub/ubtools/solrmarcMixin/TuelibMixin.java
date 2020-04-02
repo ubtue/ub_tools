@@ -556,10 +556,36 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
-            final Subfield materialTypeSubfield = getFirstNonEmptySubfield(field, '3', 'z', 'y', 'x');
-            String materialType = (materialTypeSubfield == null) ? UNKNOWN_MATERIAL_TYPE : materialTypeSubfield.getData();
-            if (code_to_material_type_map.containsKey(materialType))
-                materialType = code_to_material_type_map.get(materialType);
+            final Subfield subfield_3 = getFirstNonEmptySubfield(field, '3');
+            final Subfield subfield_z = getFirstNonEmptySubfield(field, 'z');
+            final Subfield subfield_x = getFirstNonEmptySubfield(field, 'x');
+            final Subfield subfield_y = getFirstNonEmptySubfield(field, 'y');
+            String materialType;
+            String materialLicence = "";
+            if (subfield_3 != null) {
+                materialType =  subfield_3.getData();
+                if (code_to_material_type_map.containsKey(materialType))
+                    materialType = code_to_material_type_map.get(materialType);
+                if (subfield_z != null)
+                    materialLicence = subfield_z.getData();
+                else if (subfield_x != null)
+                    materialLicence = subfield_x.getData();
+            } else {
+                if (subfield_z != null)
+                    materialType = subfield_z.getData();
+                else if (subfield_y != null)
+                    materialType = subfield_y.getData();
+                else if (subfield_x != null)
+                    materialType = subfield_x.getData();
+                else
+                    materialType = UNKNOWN_MATERIAL_TYPE;
+
+                if (code_to_material_type_map.containsKey(materialType))
+                    materialType = code_to_material_type_map.get(materialType);
+            }
+
+            if (!materialLicence.isEmpty())
+                materialType = materialType + " (" + materialLicence + ")";
 
             for (final Subfield subfield_u : field.getSubfields('u')) {
                 Set<String> URLs = materialTypeToURLsMap.get(materialType);
@@ -604,6 +630,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                     } else if (url.startsWith("http://d-nb.info"))
                         preferredURL = url;
                 }
+
 
                 if (preferredURL != null)
                     urls_and_material_types.add(preferredURL + ":" + material_type);
