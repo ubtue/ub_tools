@@ -32,16 +32,22 @@ namespace VuFind {
 
 
 /**
- * \return path to database config file in local_overrides directory.
+ * \return path to database config file in local_overrides directory, or empty string if missing.
  */
 std::string GetDefaultDatabaseConf();
+
+
+/**
+ * \return path to database config file in local_overrides directory, die if missing.
+ */
+std::string GetDefaultDatabaseConfOrDie();
 
 
 /** \brief Extracts the MySQL connection URL from a VuFind config file.
  *  \param vufind_config_file_path  If not specified, $VUFIND_HOME + "/" + VuFind::DATABASE_CONF will be used.
  *  \return The extracted URL
  */
-std::string GetMysqlURL(const std::string &vufind_config_file_path = "");
+std::string GetMysqlURLOrDie(const std::string &vufind_config_file_path = "");
 
 
 std::shared_ptr<DbConnection> GetDbConnection();
