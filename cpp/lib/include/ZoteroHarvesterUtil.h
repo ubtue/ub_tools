@@ -136,6 +136,18 @@ struct TaskletContext;
 // TaskletContext. When found, the message is written directly to the context's buffer. When not, it's
 // queued in the global buffer and eventually flushed.
 class ZoteroLogger : public ::Logger {
+    using ContextKey = std::pair<::pthread_t, HarvestableItem>;
+    struct ContextKeyHasher {
+        std::size_t operator()(const ContextKey &key) const {
+            // http://stackoverflow.com/a/1646913/126995
+            std::size_t res = 17;
+            res = res * 31 + std::hash<::pthread_t>()(key.first);
+            res = res * 31 + std::hash<HarvestableItem>()(key.second);
+            return res;
+        }
+    };
+
+
     struct ContextData {
         static constexpr unsigned BUFFER_SIZE = 64 * 1024;
 
@@ -146,14 +158,14 @@ class ZoteroLogger : public ::Logger {
     };
 
 
-    std::unordered_map<HarvestableItem, ContextData> active_contexts_;
+    std::unordered_map<ContextKey, ContextData, ContextKeyHasher> active_contexts_;
     std::deque<std::string> log_buffer_;
     std::string progress_bar_buffer_;
     std::recursive_mutex active_context_mutex_;
     std::recursive_mutex log_buffer_mutex_;
     mutable std::atomic_bool fatal_error_all_stop_;
 
-    void queueContextMessage(const std::string &level, std::string msg, const TaskletContext &tasklet_context);
+    void queueContextMessage(const std::string &level, std::string msg, const ::pthread_t tasklet_thread_id, const TaskletContext &tasklet_context);
     void queueGlobalMessage(const std::string &level, std::string msg);
     void flushBufferAndPrintProgressImpl(const unsigned num_active_tasks, const unsigned num_queued_tasks);
     void writeToBackingLog(const std::string &msg);
@@ -165,8 +177,8 @@ public:
     virtual void warning(const std::string &msg) override;
     virtual void info(const std::string &msg) override;
     virtual void debug(const std::string &msg) override;
-    void pushContext(const Util::HarvestableItem &context_item);
-    void popContext(const Util::HarvestableItem &context_item);
+    void registerTasklet(const ::pthread_t tasklet_thread_id, const HarvestableItem &associated_item);
+    void deregisterTasklet(const ::pthread_t tasklet_thread_id, const HarvestableItem &associated_item);
 
     // Replaces the global logger instance with one of this class
     // so that all LOG_XXX calls are routed through it.
@@ -286,6 +298,8 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
         return status_ == Status::COMPLETED_SUCCESS or status_ == Status::COMPLETED_ERROR;
     }
+    inline const HarvestableItem &getHarvestableItem() const
+        { return context_.associated_item_; }
     inline const Parameter &getParameter() const
         { return *parameter_.get(); }
 
@@ -316,7 +330,7 @@ template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::
     // be automatically released when the tasklet gets destroyed.
     TASKLET_CONTEXT_MANAGER.setThreadLocalContext(tasklet->context_);
     // Register the tasklet context with the logger to track messages from this thread.
-    ZoteroLogger::Get().pushContext(tasklet->context_.associated_item_);
+    ZoteroLogger::Get().registerTasklet(tasklet->getID(), tasklet->context_.associated_item_);
     ++(*tasklet->running_instance_counter_);
 
     Status completion_status(Status::COMPLETED_SUCCESS);
@@ -334,7 +348,7 @@ template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::
     }
 
     // Deregister the tasklet context and flush its log messages.
-    ZoteroLogger::Get().popContext(tasklet->context_.associated_item_);
+    ZoteroLogger::Get().deregisterTasklet(tasklet->getID(), tasklet->context_.associated_item_);
     --(*tasklet->running_instance_counter_);
 
     // Detach the thread so that its resources are automatically cleaned up.
