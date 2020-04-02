@@ -646,6 +646,17 @@ bool Record::isElectronicResource() const {
         }
     }
 
+    for (const auto &_249_field : getTagRange("249")) {
+        const Subfields subfields(_249_field.getSubfields());
+        for (const auto &subfield : subfields) {
+            if (subfield.code_ != 'h')
+                continue;
+            if (::strcasestr(subfield.value_.c_str(), "[Elektronische Ressource]") != nullptr
+                or ::strcasestr(subfield.value_.c_str(), "[electronic resource]") != nullptr)
+                return true;
+        }
+    }
+
     for (const auto &_300_field : getTagRange("300")) {
         const Subfields subfields(_300_field.getSubfields());
         for (const auto &subfield : subfields) {
@@ -824,7 +835,9 @@ std::vector<std::string> Record::getSubfieldAndNumericSubfieldValues(const Tag &
 
 std::string Record::getMainTitle() const {
     std::string title;
-    const auto title_field(getFirstField("245"));
+    auto title_field(getFirstField("245"));
+    if (unlikely(title_field == end()))
+        title_field = getFirstField("249");
     if (unlikely(title_field == end()))
         return "";
 
@@ -837,7 +850,9 @@ std::string Record::getMainTitle() const {
 
 
 std::string Record::getCompleteTitle() const {
-    const auto title_field(getFirstField("245"));
+    auto title_field(getFirstField("245"));
+    if (unlikely(title_field == end()))
+        title_field = getFirstField("249");
     if (title_field == end())
         return "";
 
@@ -2672,6 +2687,13 @@ bool UBTueIsElectronicResource(const Record &marc_record) {
 
     for (const auto &_245_field : marc_record.getTagRange("245")) {
         for (const auto subfield : _245_field.getSubfields()) {
+            if (subfield.code_ == 'h' and subfield.value_.find("[Elektronische Ressource]") != std::string::npos)
+                return true;
+        }
+    }
+
+    for (const auto &_249_field : marc_record.getTagRange("249")) {
+        for (const auto subfield : _249_field.getSubfields()) {
             if (subfield.code_ == 'h' and subfield.value_.find("[Elektronische Ressource]") != std::string::npos)
                 return true;
         }
