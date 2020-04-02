@@ -2,9 +2,9 @@ This is the docmentation for config files as used by our generate_subscription_p
 
 The config files conform to the format as accepted by our IniFile class.
 
-The global section currently has only a single entry "instance" which selects the Zeder
-instance that should be used.  Currently (2020-04-01) the possible values are "ixtheo"
-and "krim".
+The global section currently has two entries "zeder_instance" which selects the Zeder
+instance ("ixtheo" or "krim") and "bundle_instances" which is a comma-separated list of
+"ixtheo" and "rebib."
 
 Each named section corresponds to a single subscription bundle as used by our
 "new_journal_subscription" tool.  The section name is the bundle description as
