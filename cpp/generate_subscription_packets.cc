@@ -127,8 +127,9 @@ bool FoundExpectedClassValue(const std::string &expected_values_str, const std::
 bool IncludeJournal(const JSON::ObjectNode &journal_object, const IniFile::Section &filter_section,
                     const ColumnNamesToEnumMaps &column_names_to_enum_maps)
 {
+    std::string true_string;
     for (const auto &entry : filter_section) {
-        if (entry.name_ == "description")
+        if (entry.name_.empty() or entry.name_ == "description")
             continue;
 
         std::string zeder_column_name(entry.name_);
@@ -137,14 +138,15 @@ bool IncludeJournal(const JSON::ObjectNode &journal_object, const IniFile::Secti
 
         const auto node(journal_object.getNode(zeder_column_name));
         if (node == nullptr)
-            continue;
-
-        const auto value_as_string(GetString(journal_object, zeder_column_name, column_names_to_enum_maps));
-        if (value_as_string.empty())
             return false;
 
+        const auto value_as_string(StringUtil::TrimWhite(GetString(journal_object, zeder_column_name, column_names_to_enum_maps)));
+        if (value_as_string.empty())
+            return false;
+        true_string += " " + zeder_column_name + ":" + value_as_string;
+
         if (zeder_column_name != "class") {
-            if (value_as_string != entry.value_)
+            if (::strcasecmp(value_as_string.c_str(),entry.value_.c_str()) != 0)
                 return false;
         } else { // class or except_class
             const bool found_it(FoundExpectedClassValue(entry.value_, value_as_string));
@@ -180,9 +182,13 @@ void GenerateBundleDefinition(const JSON::ArrayNode &journals_array, const IniFi
         if (not IncludeJournal(*journal_object, section, column_names_to_enum_maps))
             continue;
 
+        const auto ZEDER_ID(journal_object->getIntegerNode("DT_RowId")->toString());
         ++included_journal_count;
         const auto print_ppns(GetString(*journal_object, "pppn", column_names_to_enum_maps));
         const auto online_ppns(GetString(*journal_object, "eppn", column_names_to_enum_maps));
+        const std::string all_ppns(print_ppns + online_ppns);
+        if (all_ppns.find("1290746834") != std::string::npos)
+            LOG_ERROR("ID: " + ZEDER_ID);
 
         if (print_ppns.empty() and online_ppns.empty()) {
             --included_journal_count;
