@@ -19,6 +19,7 @@
 
 #include <map>
 #include <unordered_map>
+#include <set>
 #include "Compiler.h"
 #include "Downloader.h"
 #include "FileUtil.h"
@@ -162,33 +163,41 @@ bool IncludeJournal(const JSON::ObjectNode &journal_object, const IniFile::Secti
 
 // Please note that Zeder PPN entries are separated by spaces and, unlike what the column names "print_ppn" and
 // "online_ppn" imply may in rare cases contain space-separated lists of PPN's.
-void ProcessPPNs(const std::string &ppns, unsigned * const ppn_counter, File * const output_file) {
+void ProcessPPNs(const std::string &ppns, std::set<std::string> * const bundle_ppns) {
     std::vector<std::string> individual_ppns;
     StringUtil::Split(ppns, ' ', &individual_ppns);
-    for (const auto &ppn : individual_ppns) {
-        ++*ppn_counter;
-        (*output_file) << "ppn" << (*ppn_counter) << " = " << ppn << '\n';
-    }
+    bundle_ppns->insert(individual_ppns.cbegin(), individual_ppns.cend());
 }
 
 
-void GenerateBundleDefinition(const JSON::ArrayNode &journals_array, const IniFile::Section &section,
+std::string EscapeDoubleQuotes(const std::string &s) {
+    std::string escaped_s;
+    escaped_s.reserve(s.size());
+
+    for (const char ch : s) {
+        if (ch == '"' or ch == '\\')
+            escaped_s += '\\';
+        escaped_s += ch;
+    }
+
+    return escaped_s;
+}
+
+
+void GenerateBundleDefinition(const JSON::ArrayNode &journals_array, const std::string &bundle_instances,
+                              const IniFile::Section &section,
                               const ColumnNamesToEnumMaps &column_names_to_enum_maps, File * const output_file)
 {
-    unsigned included_journal_count(0), ppn_counter(0);
-    (*output_file) << '[' << section.getSectionName() << "]\n";
+    unsigned included_journal_count(0);
+    std::set<std::string> bundle_ppns; // We use a std::set because it is automatically being sorted for us.
     for (const auto &entry : journals_array) {
         const auto journal_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
         if (not IncludeJournal(*journal_object, section, column_names_to_enum_maps))
             continue;
 
-        const auto ZEDER_ID(journal_object->getIntegerNode("DT_RowId")->toString());
         ++included_journal_count;
         const auto print_ppns(GetString(*journal_object, "pppn", column_names_to_enum_maps));
         const auto online_ppns(GetString(*journal_object, "eppn", column_names_to_enum_maps));
-        const std::string all_ppns(print_ppns + online_ppns);
-        if (all_ppns.find("1290746834") != std::string::npos)
-            LOG_ERROR("ID: " + ZEDER_ID);
 
         if (print_ppns.empty() and online_ppns.empty()) {
             --included_journal_count;
@@ -197,11 +206,21 @@ void GenerateBundleDefinition(const JSON::ArrayNode &journals_array, const IniFi
             continue;
         }
 
-        ProcessPPNs(print_ppns, &ppn_counter, output_file);
-        ProcessPPNs(online_ppns, &ppn_counter, output_file);
+        ProcessPPNs(print_ppns, &bundle_ppns);
+        ProcessPPNs(online_ppns, &bundle_ppns);
     }
 
-    LOG_INFO("included " + std::to_string(included_journal_count) + " journal(s) with " + std::to_string(ppn_counter)
+    if (bundle_ppns.empty())
+        LOG_WARNING("No bundle generated for \"" + section.getSectionName() + "\" because there were no matching entries in Zeder!");
+    else {
+        (*output_file) << '[' << section.getSectionName() << "]\n";
+        (*output_file) << "display_name = \"" << EscapeDoubleQuotes(section.getSectionName()) << "\"\n";
+        (*output_file) << "instances    = \"" << bundle_instances << "\"\n";
+        (*output_file) << "ppns         = " << StringUtil::Join(bundle_ppns, ',') << '\n';
+        (*output_file) << '\n';
+    }
+
+    LOG_INFO("included " + std::to_string(included_journal_count) + " journal(s) with " + std::to_string(bundle_ppns.size())
              + " PPN's in the bundle for \"" + section.getSectionName() + "\".");
 }
 
@@ -215,7 +234,8 @@ int Main(int argc, char *argv[]) {
                 "\tFor the documentation of the input config file, please see data/generate_subscription_packets.README.");
 
     const IniFile packet_definitions_ini_file(argv[1]);
-    const auto zeder_instance(packet_definitions_ini_file.getString("", "instance"));
+    const auto zeder_instance(packet_definitions_ini_file.getString("", "zeder_instance"));
+    const auto bundle_instances(packet_definitions_ini_file.getString("", "bundle_instances"));
 
     std::string json_blob;
     GetZederJSON(zeder_instance, &json_blob);
@@ -240,7 +260,7 @@ int Main(int argc, char *argv[]) {
     for (const auto &section : packet_definitions_ini_file) {
         if (section.getSectionName().empty())
             continue; // Skip the global section.
-        GenerateBundleDefinition(*daten, section, column_names_to_enum_maps, bundle_definitions_output_file.get());
+        GenerateBundleDefinition(*daten, bundle_instances, section, column_names_to_enum_maps, bundle_definitions_output_file.get());
     }
 
     return EXIT_SUCCESS;
