@@ -209,10 +209,14 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
     const std::string GITHUB_ROBOT_PUBlIC_KEY_LOCAL(SSH_KEYS_DIR + "github-robot.pub");
     if (not FileUtil::Exists(SSH_KEYS_DIR))
         FileUtil::MakeDirectoryOrDie(SSH_KEYS_DIR, false, 0700);
-    if (not FileUtil::Exists(GITHUB_ROBOT_PRIVATE_KEY_LOCAL))
+    if (not FileUtil::Exists(GITHUB_ROBOT_PRIVATE_KEY_LOCAL)) {
         FileUtil::CopyOrDie(GITHUB_ROBOT_PRIVATE_KEY_REMOTE, GITHUB_ROBOT_PRIVATE_KEY_LOCAL);
-    if (not FileUtil::Exists(GITHUB_ROBOT_PUBlIC_KEY_LOCAL))
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chmod"), { "600", GITHUB_ROBOT_PRIVATE_KEY_LOCAL });
+    }
+    if (not FileUtil::Exists(GITHUB_ROBOT_PUBlIC_KEY_LOCAL)) {
         FileUtil::CopyOrDie(GITHUB_ROBOT_PUBLIC_KEY_REMOTE, GITHUB_ROBOT_PUBlIC_KEY_LOCAL);
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chmod"), { "600", GITHUB_ROBOT_PUBlIC_KEY_LOCAL });
+    }
 }
 
 
