@@ -72,7 +72,21 @@ bool FullTextCache::entryExpired(const std::string &id, std::vector<std::string>
             return false;
     }
 
-    return full_text_cache_urls_.deleteDocument(id);
+    return true;
+}
+
+
+bool FullTextCache::singleUrlExpired(const std::string &id, const std::string &url) {
+    Entry entry;
+    if (not getEntry(id, &entry))
+        return true;
+    if (entry.expiration_ == TimeUtil::BAD_TIME_T or (std::time(nullptr) < entry.expiration_)) {
+        for (const auto &entry_url : FullTextCache::getEntryUrls(id)) {
+            if (entry_url.url_ == url and entry_url.error_message_.empty())
+                return false;
+        }
+    }
+    return true;
 }
 
 

@@ -1,0 +1,7 @@
+# Insert your journal bundle definitions here. A bundle consists of a section. Section names can be chosen arbitrarily.
+# Keys are "display_name" i.e. the titel for the pseudo record
+# "instance" (ixtheo, relbib) for for the target system to appear in and "ppns" for a comma separated list of PPNs, i.e. e.g.
+# [Testbundle]
+# display_name = "Testbundle"
+# instances = ixtheo,relbib
+# ppns = 1678790427, 1670158624

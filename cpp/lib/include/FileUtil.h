@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  Copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -36,6 +36,7 @@
 #include <cstdio>
 #include <dirent.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include "File.h"
@@ -553,6 +554,14 @@ std::string ExpandTildePath(const std::string &path);
  *   \return True if "path" was found before "timeout" seconds have elapsed, o/w/ false.
  */
 bool WaitForFile(const std::string &path, const unsigned timeout, const unsigned sleep_increment = 10);
+
+
+/** \brief Change the acces mode on "path", see chmod(2) for "mode".
+ *  \note  If this function returns false you can consult errno for the reason that it failed.
+ */
+bool ChangeMode(const std::string &path, const mode_t mode);
+
+void ChangeModeOrDie(const std::string &path, const mode_t mode);
 
 
 } // namespace FileUtil
