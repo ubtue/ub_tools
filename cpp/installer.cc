@@ -201,6 +201,22 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
         ExecUtil::ExecOrDie("/bin/mount", { MOUNT_POINT });
         Echo("Successfully mounted the department drive.");
     }
+
+    const std::string SSH_KEYS_DIR("/root/.ssh");
+    const std::string GITHUB_ROBOT_PRIVATE_KEY_REMOTE(MOUNT_POINT + "github-robot");
+    const std::string GITHUB_ROBOT_PRIVATE_KEY_LOCAL(SSH_KEYS_DIR + "github-robot");
+    const std::string GITHUB_ROBOT_PUBLIC_KEY_REMOTE(MOUNT_POINT + "github-robot.pub");
+    const std::string GITHUB_ROBOT_PUBlIC_KEY_LOCAL(SSH_KEYS_DIR + "github-robot.pub");
+    if (not FileUtil::Exists(SSH_KEYS_DIR))
+        FileUtil::MakeDirectoryOrDie(SSH_KEYS_DIR, false, 0700);
+    if (not FileUtil::Exists(GITHUB_ROBOT_PRIVATE_KEY_LOCAL)) {
+        FileUtil::CopyOrDie(GITHUB_ROBOT_PRIVATE_KEY_REMOTE, GITHUB_ROBOT_PRIVATE_KEY_LOCAL);
+        FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PRIVATE_KEY_LOCAL, 600);
+    }
+    if (not FileUtil::Exists(GITHUB_ROBOT_PUBlIC_KEY_LOCAL)) {
+        FileUtil::CopyOrDie(GITHUB_ROBOT_PUBLIC_KEY_REMOTE, GITHUB_ROBOT_PUBlIC_KEY_LOCAL);
+        FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PUBlIC_KEY_LOCAL, 600);
+    }
 }
 
 
@@ -835,8 +851,9 @@ int Main(int argc, char **argv) {
     // Where to find our own stuff:
     MiscUtil::AddToPATH("/usr/local/bin/", MiscUtil::PreferredPathLocation::LEADING);
 
+    MountDeptDriveOrDie(vufind_system_type);
+
     if (not ub_tools_only) {
-        MountDeptDriveOrDie(vufind_system_type);
         CreateDirectoryIfNotExistsOrDie("/mnt/zram");
         DownloadVuFind();
         #ifndef __clang__
