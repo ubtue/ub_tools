@@ -4,102 +4,132 @@
 # with changes imported from Zeder
 set -o errexit -o nounset
 
-# Set up the log file:
-readonly logdir=/usr/local/var/log/tuefind
-readonly log_filename=$(basename "$0")
-readonly log="${logdir}/${log_filename%.*}.log"
-rm -f "${log}"
-
-no_problems_found=false
-function SendEmail {
-    if [ "$no_problems_found" = true ]; then
-        send_email --priority=low --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
-                   --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
-        exit 0
-    else
-        send_email --priority=high --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
-                   --subject="$0 failed on $(hostname)" \
-                   --message-body="Check the log file at $log for details."
-        echo "*** ZEDER CHANGES TO ZOTERO UPDATE FAILED ***" | tee --append "${log}"
-        exit 1
-    fi
-}
-trap SendEmail EXIT
-
+readonly LOGDIR=/usr/local/var/log/tuefind
+readonly LOG_FILENAME=$(basename "$0")
+readonly LOG="${LOGDIR}/${LOG_FILENAME%.*}.log"
 
 function Usage {
-    echo "usage: $0 email"
-    echo "       email = email address to which notifications are sent upon (un)successful completion of the update"
+    echo "usage: $0 TEST|LIVE email"
+    echo "       TEST = git pull, zeder pull, no email"
+    echo "       LIVE = git pull, zeder pull, git commit/push,"
+    echo "              result mail to given address,"
+    echo "              logging to $LOG"
     exit 1
 }
 
-
-function EndUpdate {
-    echo -e "*** ZEDER CHANGES TO ZOTERO UPDATE DONE ***" | tee --append "${log}"
-    no_problems_found=true
-    exit 0
-}
-
-
-if [ $# != 1 ]; then
+if [[ $# != 1 && $# != 2 ]]; then
     Usage
 fi
 
+readonly MODE=$1
+if [[ $MODE != 'TEST' && $MODE != 'LIVE' ]]; then
+    Usage
+elif [[ $MODE == 'TEST' && $# != 1 ]]; then
+    Usage
+elif [[ $MODE == 'LIVE' && $# != 2 ]]; then
+    Usage
+fi
 
-readonly email_address=$1
-readonly working_dir=/usr/local/ub_tools/cpp/data
-readonly config_path=zotero_harvester.conf
-readonly github_ssh_key=~/.ssh/github-robot
-readonly fields_to_update=UPLOAD_OPERATION
+if [[ $MODE == 'LIVE' && $# != 2 ]]; then
+    readonly EMAIL_ADDRESS=$2
+fi
 
+readonly WORKING_DIR=/usr/local/ub_tools/cpp/data
+readonly CONFIG_PATH=zotero_harvester.conf
+readonly GITHUB_SSH_KEY=~/.ssh/github-robot
+readonly FIELDS_TO_UPDATE=UPLOAD_OPERATION
+rm -f "${LOG}"
 
-echo -e "*** ZEDER CHANGES TO ZOTERO UPDATE START ***\n" | tee --append "${log}"
-cd $working_dir
+function Echo {
+    if [[ "$MODE" = "LIVE" ]]; then
+        echo -e "{$1}\n" | tee --append "${LOG}"
+    elif [[ "$MODE" = "TEST" ]]; then
+        echo -e "$1"
+    fi
+}
 
+no_problems_found=false
+ssh_agent_pid=0
+function Exit {
+    if [[ $ssh_agent_pid != 0 && $(ps -p $ssh_agent_pid) ]]; then
+        Echo "cleanup: killing ssh-agent pid $ssh_agent_pid"
+        kill $ssh_agent_pid
+    fi
 
-echo -e "Start SSH agent\n" | tee --append "${log}"
+    if [ "$no_problems_found" = true ]; then
+        if [[ "$MODE" = "LIVE" ]]; then
+            send_email --priority=low --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
+                       --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
+        fi
+        Echo "*** ZEDER CHANGES TO ZOTERO UPDATE DONE ***"
+        exit 0
+    else
+        if [[ "$MODE" = "LIVE" ]]; then
+            send_email --priority=high --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
+                   --subject="$0 failed on $(hostname)" \
+                   --message-body="Check the log file at $LOG for details."
+        fi
+        Echo "*** ZEDER CHANGES TO ZOTERO UPDATE FAILED ***"
+        exit 1
+    fi
+}
+trap Exit EXIT
+
+Echo "*** ZEDER CHANGES TO ZOTERO UPDATE START ***"
+cd $WORKING_DIR
+
+Echo "Start SSH agent"
 eval "$(ssh-agent -s)"
-ssh-add "$github_ssh_key"
+ssh_agent_pid=$(pgrep -n ssh-agent)
+Echo "Add SSH key"
+ssh-add "$GITHUB_SSH_KEY"
 
 
-echo -e "Pull changes from upstream\n" | tee --append "${log}"
-git pull >> "${log}" 2>&1
-
-
-echo -e "Import changes from Zeder instance IxTheo\n" | tee --append "${log}"
-zeder_to_zotero_importer        \
-    --min-log-level=DEBUG       \
-    $config_path                \
-    UPDATE                      \
-    IXTHEO                      \
-    '*'                         \
-    $fields_to_update           \
-    >> "${log}" 2>&1
-
-
-echo -e "Import changes from Zeder instance KrimDok\n" | tee --append "${log}"
-zeder_to_zotero_importer        \
-    --min-log-level=DEBUG       \
-    $config_path                \
-    UPDATE                      \
-    KRIMDOK                     \
-    '*'                         \
-    $fields_to_update           \
-    >> "${log}" 2>&1
-
-
-git diff --exit-code $config_path
-config_modified=$?
-if [ $config_modified -ne 0]; then
-    echo -e "No new changes to commit\n" | tee --append "${log}"
-    EndUpdate
+Echo "Pull changes from upstream"
+if [[ "$MODE" = "TEST" ]];then
+    git pull
+elif [[ "$MODE" = "LIVE" ]];then
+    git pull >> "${LOG}" 2>&1
 fi
 
 
-echo -e "Push changes to GitHub\n" | tee --append "${log}"
-git add $config_path
-git commit "--author=\"ubtue_robot <>\"" "-mUpdated fields from Zeder"
-git push
+Echo "Import changes from Zeder instance IxTheo"
+zeder_to_zotero_importer        \
+    --min-log-level=DEBUG       \
+    $CONFIG_PATH                \
+    UPDATE                      \
+    IXTHEO                      \
+    '*'                         \
+    $FIELDS_TO_UPDATE           \
+    >> "${LOG}" 2>&1
 
 
-EndUpdate
+Echo "Import changes from Zeder instance KrimDok"
+zeder_to_zotero_importer        \
+    --min-log-level=DEBUG       \
+    $CONFIG_PATH                \
+    UPDATE                      \
+    KRIMDOK                     \
+    '*'                         \
+    $FIELDS_TO_UPDATE           \
+    >> "${LOG}" 2>&1
+
+
+if [[ "$MODE" = "LIVE" ]]; then
+    git diff --exit-code $CONFIG_PATH
+    config_modified=$?
+    if [ $config_modified -ne 0]; then
+        Echo "No new changes to commit"
+        EndUpdate
+    fi
+
+
+    Echo "Push changes to GitHub"
+    git add $CONFIG_PATH
+    git commit "--author=\"ubtue_robot <>\"" "-mUpdated fields from Zeder"
+    git push
+fi
+
+
+no_problems_found=true
+exit 0
