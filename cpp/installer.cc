@@ -211,11 +211,11 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
         FileUtil::MakeDirectoryOrDie(SSH_KEYS_DIR, false, 0700);
     if (not FileUtil::Exists(GITHUB_ROBOT_PRIVATE_KEY_LOCAL)) {
         FileUtil::CopyOrDie(GITHUB_ROBOT_PRIVATE_KEY_REMOTE, GITHUB_ROBOT_PRIVATE_KEY_LOCAL);
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chmod"), { "600", GITHUB_ROBOT_PRIVATE_KEY_LOCAL });
+        FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PRIVATE_KEY_LOCAL, 600);
     }
     if (not FileUtil::Exists(GITHUB_ROBOT_PUBlIC_KEY_LOCAL)) {
         FileUtil::CopyOrDie(GITHUB_ROBOT_PUBLIC_KEY_REMOTE, GITHUB_ROBOT_PUBlIC_KEY_LOCAL);
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chmod"), { "600", GITHUB_ROBOT_PUBlIC_KEY_LOCAL });
+        FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PUBlIC_KEY_LOCAL, 600);
     }
 }
 
