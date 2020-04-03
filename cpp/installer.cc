@@ -847,8 +847,9 @@ int Main(int argc, char **argv) {
     // Where to find our own stuff:
     MiscUtil::AddToPATH("/usr/local/bin/", MiscUtil::PreferredPathLocation::LEADING);
 
+    MountDeptDriveOrDie(vufind_system_type);
+
     if (not ub_tools_only) {
-        MountDeptDriveOrDie(vufind_system_type);
         CreateDirectoryIfNotExistsOrDie("/mnt/zram");
         DownloadVuFind();
         #ifndef __clang__
