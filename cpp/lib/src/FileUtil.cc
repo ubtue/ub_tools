@@ -1414,6 +1414,7 @@ bool WaitForFile(const std::string &path, const unsigned timeout, const unsigned
 
 
 bool ChangeMode(const std::string &path, const mode_t mode) {
+    errno = 0;
     return ::chmod(path.c_str(), mode) == 0;
 }
 

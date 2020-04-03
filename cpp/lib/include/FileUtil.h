@@ -556,8 +556,11 @@ std::string ExpandTildePath(const std::string &path);
 bool WaitForFile(const std::string &path, const unsigned timeout, const unsigned sleep_increment = 10);
 
 
-// Change the acces mode on "path", see chmod(2) for "mode".
+/** \brief Change the acces mode on "path", see chmod(2) for "mode".
+ *  \note  If this function returns false you can consult errno for the reason that it failed.
+ */
 bool ChangeMode(const std::string &path, const mode_t mode);
+
 void ChangeModeOrDie(const std::string &path, const mode_t mode);
 
 
