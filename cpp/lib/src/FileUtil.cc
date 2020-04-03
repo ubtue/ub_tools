@@ -1413,4 +1413,16 @@ bool WaitForFile(const std::string &path, const unsigned timeout, const unsigned
 }
 
 
+bool ChangeMode(const std::string &path, const mode_t mode) {
+    errno = 0;
+    return ::chmod(path.c_str(), mode) == 0;
+}
+
+
+void ChangeModeOrDie(const std::string &path, const mode_t mode) {
+    if (not ChangeMode(path, mode))
+        LOG_ERROR("failed to set the mode to 0" + StringUtil::ToString(mode, 8) + " for \"" + path + "\"!");
+}
+
+
 } // namespace FileUtil
