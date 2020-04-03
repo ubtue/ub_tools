@@ -75,14 +75,13 @@ ZoteroLogger::ContextData::ContextData(const Util::HarvestableItem &item)
 }
 
 
-void ZoteroLogger::queueContextMessage(const std::string &level, std::string msg, const TaskletContext &tasklet_context) {
+void ZoteroLogger::queueContextMessage(const std::string &level, std::string msg, const ::pthread_t tasklet_thread_id, const TaskletContext &tasklet_context) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
     if (fatal_error_all_stop_.load())
         return;
 
-    auto harvestable_item_and_context(active_contexts_.find(tasklet_context.associated_item_));
+    auto harvestable_item_and_context(active_contexts_.find(std::make_pair(tasklet_thread_id, tasklet_context.associated_item_)));
     if (harvestable_item_and_context == active_contexts_.end()) {
-        ::raise(SIGSTOP);
         error("message from unknown tasklet!");
     }
 
@@ -168,7 +167,7 @@ void ZoteroLogger::error(const std::string &msg) {
     {
         std::lock_guard<std::recursive_mutex> context_locker(active_context_mutex_);
         for (auto &item_and_context : active_contexts_) {
-            if (context != nullptr and context->associated_item_.operator==(item_and_context.first))
+            if (context != nullptr and context->associated_item_.operator==(item_and_context.first.second))
                 faulty_tasklet_buffer.swap(item_and_context.second.buffer_);
             else {
                 item_and_context.second.buffer_ += "\n\n";
@@ -205,10 +204,11 @@ void ZoteroLogger::warning(const std::string &msg) {
         return;
 
     const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
+    const auto thread_id(::pthread_self());
     if (context == nullptr)
         queueGlobalMessage("WARN", msg);
     else
-        queueContextMessage("WARN", msg, *context);
+        queueContextMessage("WARN", msg, thread_id, *context);
 }
 
 
@@ -219,10 +219,11 @@ void ZoteroLogger::info(const std::string &msg) {
         return;
 
     const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
+    const auto thread_id(::pthread_self());
     if (context == nullptr)
         queueGlobalMessage("INFO", msg);
     else
-        queueContextMessage("INFO", msg, *context);
+        queueContextMessage("INFO", msg, thread_id, *context);
 }
 
 
@@ -233,38 +234,36 @@ void ZoteroLogger::debug(const std::string &msg) {
         return;
 
     const auto context(TASKLET_CONTEXT_MANAGER.getThreadLocalContext());
+    const auto thread_id(::pthread_self());
     if (context == nullptr)
         queueGlobalMessage("DEBUG", msg);
     else
-        queueContextMessage("DEBUG", msg, *context);
+        queueContextMessage("DEBUG", msg, thread_id, *context);
 }
 
 
-void ZoteroLogger::pushContext(const Util::HarvestableItem &context_item) {
+void ZoteroLogger::registerTasklet(const ::pthread_t tasklet_thread_id, const HarvestableItem &associated_item) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
     if (fatal_error_all_stop_.load())
         return;
 
-    auto harvestable_item_and_context(active_contexts_.find(context_item));
-    if (harvestable_item_and_context != active_contexts_.end()) {
-        ::raise(SIGSTOP);
-        error("Harvestable item " + context_item.toString() + " already registered");
-    }
+    auto context_key(std::make_pair(tasklet_thread_id, associated_item));
+    auto harvestable_item_and_context(active_contexts_.find(context_key));
+    if (harvestable_item_and_context != active_contexts_.end())
+        error("Harvestable item " + associated_item.toString() + " (thread: " + std::to_string(tasklet_thread_id) + ") already registered");
 
-    active_contexts_.emplace(context_item, context_item);
+    active_contexts_.emplace(context_key, associated_item);
 }
 
 
-void ZoteroLogger::popContext(const Util::HarvestableItem &context_item) {
+void ZoteroLogger::deregisterTasklet(const ::pthread_t tasklet_thread_id, const HarvestableItem &associated_item) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
     if (fatal_error_all_stop_.load())
         return;
 
-    auto harvestable_item_and_context(active_contexts_.find(context_item));
-    if (harvestable_item_and_context == active_contexts_.end()) {
-        ::raise(SIGSTOP);
-        error("Harvestable " + context_item.toString() + " not registered");
-    }
+    auto harvestable_item_and_context(active_contexts_.find(std::make_pair(tasklet_thread_id, associated_item)));
+    if (harvestable_item_and_context == active_contexts_.end())
+        error("Harvestable " + associated_item.toString() + " (thread: " + std::to_string(tasklet_thread_id) + ") not registered");
 
     harvestable_item_and_context->second.buffer_ += "\n\n";
     {
