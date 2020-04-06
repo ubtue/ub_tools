@@ -42,7 +42,7 @@ rm -f "${LOG}"
 
 function Echo {
     if [[ "$MODE" = "LIVE" ]]; then
-        echo -e "{$1}\n" | tee --append "${LOG}"
+        echo -e "$1\n" | tee --append "${LOG}"
     elif [[ "$MODE" = "TEST" ]]; then
         echo -e "$1"
     fi
@@ -116,8 +116,10 @@ zeder_to_zotero_importer        \
 
 
 if [[ "$MODE" = "LIVE" ]]; then
+    set +o errexit
     git diff --exit-code $CONFIG_PATH
     config_modified=$?
+    set -o errexit
     if [ $config_modified -ne 0]; then
         Echo "No new changes to commit"
         EndUpdate
