@@ -53,19 +53,19 @@ export DEBIAN_FRONTEND=(DEBIAN_FRONTEND_OLD)
 mkdir -p /var/run/mysqld
 chown -R mysql:mysql /var/run/mysqld
 
+#----------------------------------ELASTICSEARCH-----------------------------#
+if [[ $1 == "krimdok" || $1 == "fulltext_backend" ]]; then
+    apt-get --quiet --yes install elasticsearch
+    if ! /usr/share/elasticsearch/bin/elasticsearch-plugin list | grep --quiet analysis-icu; then
+        /usr/share/elasticsearch/bin/elasticsearch-plugin install analysis-icu
+    fi
+    mkdir -p /etc/elasticsearch/synonyms
+    for i in all de en fr it es pt ru el hans hant; do touch /etc/elasticsearch/synonyms/synonyms_$i.txt; done
+fi
+
 #---------------------------------- TUEFIND ---------------------------------#
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
-
-    if [[ $1 == "krimdok" ]]; then
-        apt-get --quiet --yes install elasticsearch
-        if ! /usr/share/elasticsearch/bin/elasticsearch-plugin list | grep --quiet analysis-icu; then
-            /usr/share/elasticsearch/bin/elasticsearch-plugin install analysis-icu
-        fi
-        mkdir -p /etc/elasticsearch/synonyms
-        for i in all de en fr it es pt ru el hans hant; do touch /etc/elasticsearch/synonyms/synonyms_$i.txt; done
-    fi
-
     apt-get --quiet --yes install \
         composer \
         php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-soap php-xsl php-pear \
