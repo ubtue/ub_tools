@@ -334,9 +334,13 @@ int Main(int argc, char *argv[]) {
                 already_seen_sections.emplace(section_name);
 
                 LOG_INFO("Processing section \"" + section_name + "\".");
-                const unsigned new_item_count(ProcessSection(one_shot, section, &downloader, &db_connection,
-                                                             DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL, ticks));
-                LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
+                try {
+                    const unsigned new_item_count(ProcessSection(one_shot, section, &downloader, &db_connection,
+                                                                 DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL, ticks));
+                    LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
+                } catch (const std::runtime_error &x) {
+                    LOG_WARNING("Error processing section \"" + section_name + "\": " + x.what());
+                }
             }
         }
 
