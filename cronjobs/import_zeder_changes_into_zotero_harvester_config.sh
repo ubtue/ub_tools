@@ -30,7 +30,7 @@ elif [[ $MODE == 'LIVE' && $# != 2 ]]; then
     Usage
 fi
 
-if [[ $MODE == 'LIVE' && $# != 2 ]]; then
+if [[ $MODE == 'LIVE' ]]; then
     readonly EMAIL_ADDRESS=$2
 fi
 
