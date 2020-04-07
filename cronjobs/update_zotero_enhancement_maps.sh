@@ -8,7 +8,46 @@ set -o errexit -o nounset
 readonly LOGDIR=/usr/local/var/log/tuefind
 readonly LOG_FILENAME=$(basename "$0")
 readonly LOG="${LOGDIR}/${LOG_FILENAME%.*}.log"
-rm -f "${LOG}"
+
+function Usage {
+    echo "usage: $0 TEST|LIVE email"
+    echo "       TEST = git pull, update files, no commit/push, no email, no log"
+    echo "       LIVE = git pull, update files, git commit/push,"
+    echo "              result mail to given address,"
+    echo "              logging to $LOG"
+    exit 1
+}
+
+if [[ $# != 1 && $# != 2 ]]; then
+    Usage
+fi
+
+readonly MODE=$1
+if [[ $MODE != 'TEST' && $MODE != 'LIVE' ]]; then
+    Usage
+elif [[ $MODE == 'TEST' && $# != 1 ]]; then
+    Usage
+elif [[ $MODE == 'LIVE' && $# != 2 ]]; then
+    Usage
+fi
+
+if [[ $MODE == 'LIVE' ]]; then
+    readonly EMAIL_ADDRESS=$2
+    rm -f "${LOG}"
+fi
+
+readonly WORKING_DIR=/usr/local/var/lib/tuelib/zotero-enhancement-maps
+readonly CONFIG_PATH=zotero_harvester.conf
+readonly GITHUB_SSH_KEY=~/.ssh/github-robot
+readonly FIELDS_TO_UPDATE=UPLOAD_OPERATION
+
+function Echo {
+    if [[ "$MODE" = "LIVE" ]]; then
+        echo -e "$1\n" | tee --append "${LOG}"
+    elif [[ "$MODE" = "TEST" ]]; then
+        echo -e "$1"
+    fi
+}
 
 no_problems_found=false
 ssh_agent_pid=0
@@ -19,54 +58,120 @@ function SendEmail {
     fi
 
     if [ "$no_problems_found" = true ]; then
-        send_email --priority=low --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
-                   --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
+        if [[ "$MODE" = "LIVE" ]]; then
+            send_email --priority=low --sender="update_zotero_enhancement_maps@uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
+                       --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
+        fi
+        Echo "*** ZOTERO ENHANCEMENT MAPS UPDATE DONE ***"
         exit 0
     else
-        send_email --priority=high --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
-                   --subject="$0 failed on $(hostname)" \
-                   --message-body="Check the log file at $LOG for details."
-        echo "*** ZOTERO ENHANCEMENT MAPS UPDATE FAILED ***" | tee --append "${LOG}"
+        if [[ "$MODE" = "LIVE" ]]; then
+            send_email --priority=high --sender="update_zotero_enhancement_maps@uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
+                       --subject="$0 failed on $(hostname)" \
+                       --message-body="Check the log file at $LOG for details."
+        fi
+        Echo "*** ZOTERO ENHANCEMENT MAPS UPDATE FAILED ***"
         exit 1
     fi
 }
 trap SendEmail EXIT
 
-function Usage {
-    echo "usage: $0 email"
-    echo "       email = email address to which notifications are sent upon (un)successful completion of the update"
-    exit 1
-}
-
-
-if [ $# != 1 ]; then
-    Usage
-fi
-
-readonly EMAIL_ADDRESS=$1
-readonly WORKING_DIR=/usr/local/var/lib/tuelib/zotero-enhancement-maps
-readonly GITHUB_SSH_KEY=~/.ssh/github-robot
-
-echo -e "*** ZOTERO ENHANCEMENT MAPS UPDATE START ***\n" | tee --append "${LOG}"
+Echo "*** ZOTERO ENHANCEMENT MAPS UPDATE START ***"
 cd $WORKING_DIR
 
-echo -e "Start SSH agent\n" | tee --append "${LOG}"
+Echo "Checking for changes before start"
+set +o errexit
+git diff --no-patch --exit-code
+config_modified=$?
+set -o errexit
+if [ $config_modified -ne 0 ]; then
+    Echo "Uncommitted changes detected, aborting..."
+    exit 1
+fi
+
+Echo "Start SSH agent"
 eval "$(ssh-agent -s)"
 ssh_agent_pid=$(pgrep -n ssh-agent)
 ssh-add "$GITHUB_SSH_KEY"
 
-echo -e "Pull changes from upstream\n" | tee --append "${LOG}"
-git pull >> "${LOG}" 2>&1
+Echo "Pull changes from upstream"
+if [[ "$MODE" = "TEST" ]]; then
+    git pull
+elif [[ "$MODE" = "LIVE" ]]; then
+    git pull >> "${LOG}" 2>&1
+fi
 
-echo -e "Generate maps and push changes to upstream\n" | tee --append "${LOG}"
-generate_issn_maps_from_zeder   \
-    --min-log-level=DEBUG       \
-    --find-duplicate-issns      \
-    --push-to-github            \
-    $WORKING_DIR                \
-    ssg=ISSN_to_SSG.map         \
-    >> "${LOG}" 2>&1
+Echo "Import changes from Zeder instance IxTheo"
+if [[ "$MODE" = "LIVE" ]]; then
+    zeder_to_zotero_importer        \
+        --min-log-level=DEBUG       \
+        $CONFIG_PATH                \
+        UPDATE                      \
+        IXTHEO                      \
+        '*'                         \
+        $FIELDS_TO_UPDATE           \
+        >> "${LOG}" 2>&1
+elif [[ "$MODE" = "TEST" ]]; then
+    zeder_to_zotero_importer        \
+        --min-log-level=DEBUG       \
+        $CONFIG_PATH                \
+        UPDATE                      \
+        IXTHEO                      \
+        '*'                         \
+        $FIELDS_TO_UPDATE
+fi
 
-echo -e "*** ZOTERO ENHANCEMENT MAPS UPDATE DONE ***" | tee --append "${LOG}"
+
+Echo "Import changes from Zeder instance KrimDok"
+if [[ "$MODE" = "LIVE" ]]; then
+    zeder_to_zotero_importer        \
+        --min-log-level=DEBUG       \
+        $CONFIG_PATH                \
+        UPDATE                      \
+        KRIMDOK                     \
+        '*'                         \
+        $FIELDS_TO_UPDATE           \
+        >> "${LOG}" 2>&1
+elif [[ "$MODE" = "TEST" ]]; then
+    zeder_to_zotero_importer        \
+        --min-log-level=DEBUG       \
+        $CONFIG_PATH                \
+        UPDATE                      \
+        KRIMDOK                     \
+        '*'                         \
+        $FIELDS_TO_UPDATE
+fi
+
+Echo "Generate maps"
+if [[ "$MODE" = "LIVE" ]]; then
+    generate_issn_maps_from_zeder   \
+        --min-log-level=DEBUG       \
+        --find-duplicate-issns      \
+        $WORKING_DIR                \
+        ssg=ISSN_to_SSG.map         \
+        >> "${LOG}" 2>&1
+elif [[ "$MODE" = "TEST" ]]; then
+    generate_issn_maps_from_zeder   \
+        --min-log-level=DEBUG       \
+        --find-duplicate-issns      \
+        $WORKING_DIR                \
+        ssg=ISSN_to_SSG.map
+fi
+
+if [[ "$MODE" = "LIVE" ]]; then
+    set +o errexit
+    git diff --no-patch --exit-code
+    config_modified=$?
+    set -o errexit
+    if [ $config_modified -ne 1 ]; then
+        Echo "No new changes to commit"
+    else
+        Echo "Push changes to GitHub"
+        git add *
+        git commit "--author=\"ubtue_robot <>\"" "-mUpdates via cronjob"
+        git push
+    fi
+fi
+
 no_problems_found=true
 exit 0
