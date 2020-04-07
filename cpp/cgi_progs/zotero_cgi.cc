@@ -45,7 +45,7 @@ namespace {
 
 
 std::string zts_client_maps_directory;
-const std::string ZTS_HARVESTER_CONF_FILE("/usr/local/ub_tools/cpp/data/zotero_harvester.conf");
+const std::string ZTS_HARVESTER_CONF_FILE(UBTools::GetTuelibPath() + "zotero-enhancement-maps/zotero_harvester.conf");
 const std::vector<std::pair<std::string,std::string>> OUTPUT_FORMAT_IDS_AND_EXTENSIONS {
     // custom formats
     { "marc-xml", "xml" }
