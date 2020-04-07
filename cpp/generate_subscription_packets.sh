@@ -24,7 +24,10 @@ function Usage() {
 }
 
 
-generate_subscription_packets /usr/local/var/lib/tuefind/relbib_packets.conf /tmp/relbib_bundles.out
+readonly email_address=$1
+
+
+generate_subscription_packets /usr/local/var/lib/tuelib/relbib_packets.conf /tmp/relbib_bundles.out
 mv /tmp/relbib_bundles.out /usr/local/var/lib/tuelib/journal_alert_bundles.conf
 
 no_problems_found=0
