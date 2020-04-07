@@ -74,9 +74,8 @@
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " (--ub-tools-only|--fulltext-backend)|(vufind_system_type [--omit-cronjobs] [--omit-systemctl])\n";
-    std::cerr << "       where \"vufind_system_type\" must be either \"krimdok\" or \"ixtheo\".\n\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage(std::string("--ub-tools-only|--fulltext-backend|(vufind_system_type [--omit-cronjobs] [--omit-systemctl])\n") +
+                        "       where \"vufind_system_type\" must be either \"krimdok\" or \"ixtheo\".\n\n");
 }
 
 
@@ -390,7 +389,7 @@ void SystemdEnableAndRunUnit(const std::string unit) {
 
 
 void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::string vufind_system_type_string,
-                                 bool ub_tools_only, bool fulltext_backend, bool install_systemctl)
+                                 const bool ub_tools_only, const bool fulltext_backend, const bool install_systemctl)
 {
     // install / update dependencies
     std::string script;
@@ -528,7 +527,7 @@ void InstallVuFindCronjobs(const VuFindSystemType vufind_system_type) {
     std::string cronjobs_generated(crontab_block_start + "\n");
     if (vufind_system_type == KRIMDOK)
         cronjobs_generated += FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/krimdok.cronjobs");
-    else 
+    else
         cronjobs_generated += Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/ixtheo.cronjobs"),
                                                        names_to_values_map);
     cronjobs_generated += crontab_block_end + "\n";
