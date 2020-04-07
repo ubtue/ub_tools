@@ -1,7 +1,7 @@
 /** \brief Interface of the SyndicationFormat class and descendents thereof.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -317,7 +317,8 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "updated") {
             const std::string updated_string(TextUtil::CollapseAndTrimWhitespace(ExtractText(xml_parser_, "updated")));
             if (augment_params_.strptime_format_.empty()) {
-                updated = TimeUtil::Iso8601StringToTimeT(updated_string, TimeUtil::UTC);
+                if (not TimeUtil::ParseRFC3339DateTime(updated_string, &updated))
+                    throw std::runtime_error("can't convert date/time \"" + updated_string + "\" in Atom \"updated\" element to a time_t!");
             } else {
                 struct tm parsed_date;
                 if (not TimeUtil::StringToStructTm(&parsed_date, updated_string, augment_params_.strptime_format_))
