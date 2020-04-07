@@ -50,8 +50,8 @@ apt-get --quiet --yes --allow-unauthenticated install mysql-server
 export DEBIAN_FRONTEND=(DEBIAN_FRONTEND_OLD)
 ## create /var/run/mysqld and change user (mysql installation right now has a bug not doing that itself)
 ## (chown needs to be done after installation = after the user has been created)
-mkdir -p /var/run/mysqld
-chown -R mysql:mysql /var/run/mysqld
+mkdir --parents /var/run/mysqld
+chown --recursive mysql:mysql /var/run/mysqld
 
 #----------------------------------ELASTICSEARCH-----------------------------#
 if [[ $1 == "krimdok" || $1 == "fulltext_backend" ]]; then
@@ -59,7 +59,7 @@ if [[ $1 == "krimdok" || $1 == "fulltext_backend" ]]; then
     if ! /usr/share/elasticsearch/bin/elasticsearch-plugin list | grep --quiet analysis-icu; then
         /usr/share/elasticsearch/bin/elasticsearch-plugin install analysis-icu
     fi
-    mkdir -p /etc/elasticsearch/synonyms
+    mkdir --parents /etc/elasticsearch/synonyms
     for i in all de en fr it es pt ru el hans hant; do touch /etc/elasticsearch/synonyms/synonyms_$i.txt; done
 fi
 

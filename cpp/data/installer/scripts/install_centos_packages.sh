@@ -58,14 +58,14 @@ dnf --assumeyes install llvm-toolset
 # Make Johannes happy :-)
 dnf --assumeyes install tmux emacs
 
-# Elasticasearch for fulltext
+# Elasticsearch for fulltext
 if [[ $1 == "krimdok" || $1 == "fulltext_backend" ]]; then
     ColorEcho "Installing Elasticsearch"
     InstallIfMissing elasticsearch
     if ! /usr/share/elasticsearch/bin/elasticsearch-plugin list | grep --quiet analysis-icu; then
         /usr/share/elasticsearch/bin/elasticsearch-plugin install analysis-icu
     fi
-    mkdir -p /etc/elasticsearch/synonyms
+    mkdir --parents /etc/elasticsearch/synonyms
     for i in all de en fr it es pt ru el hans hant; do touch /etc/elasticsearch/synonyms/synonyms_$i.txt; done
 fi
 

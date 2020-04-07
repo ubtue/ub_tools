@@ -47,10 +47,11 @@ EndPhase || Abort) &
 
 StartPhase "Harvest Title Data Fulltext"
 (create_full_text_db --store-pdfs-as-html --use-separate-entries-per-url --include-all-tocs \
-    --only-pdf-fulltexts GesamtTiteldaten-"${date}".mrc /dev/null) &
+    --only-pdf-fulltexts GesamtTiteldaten-"${date}".mrc /dev/null
     >> "${log}" 2>&1 && \
-EndPhase || Abort
+        EndPhase || Abort) &
 wait
+
 
 echo -e "\n\nPipeline done after $(CalculateTimeDifference $OVERALL_START $(date +%s.%N)) minutes." | tee --append "${log}"
 echo "*** FULL TEXT PIPELINE DONE - $(date) ***" | tee --append "${log}"
