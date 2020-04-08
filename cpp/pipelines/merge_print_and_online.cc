@@ -1060,8 +1060,15 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     bool debug(false);
+    bool skip_db_updates(false);
     if (std::strcmp(argv[1], "--debug") == 0) {
         debug = true;
+        --argc, ++argv;
+        if (argc < 4)
+            Usage();
+    }
+    if (std::strcmp(argv[1], "--skip-db-updates") == 0) {
+        skip_db_updates = true;
         --argc, ++argv;
         if (argc < 4)
             Usage();
@@ -1085,7 +1092,7 @@ int Main(int argc, char *argv[]) {
     marc_reader->rewind();
     MergeRecordsAndPatchUplinks(marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map, canonical_ppn_to_ppn_map);
 
-    if (not debug) {
+    if (not (debug or skip_db_updates)) {
         std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
         PatchSerialSubscriptions(db_connection.get(), ppn_to_canonical_ppn_map);
         PatchPDASubscriptions(db_connection.get(), ppn_to_canonical_ppn_map);

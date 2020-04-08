@@ -17,7 +17,7 @@ trap SendEmail EXIT
 
 
 function Usage() {
-    echo "Usage: $0 [--keep-intermediate-files] email_address"
+    echo "Usage: $0 [--keep-intermediate-files] [--skip-db-updates] email_address"
     exit 1
 }
 
@@ -39,7 +39,7 @@ function MergePrintAndOnlineTitles() {
     local input_filename=$1
     local output_filename=$2
     local working_dir=$3
-    merge_print_and_online ${input_filename} ${output_filename} ${working_dir}/missing_ppn_partners.list
+    merge_print_and_online ${SKIP_DB_UPDATES} ${input_filename} ${output_filename} ${working_dir}/missing_ppn_partners.list
 }
 
 # Replace the tit.mrc in an archive with a version with merged superior works"
@@ -59,10 +59,15 @@ function CreateArchiveWithMergedTitles() {
 
 
 # Argument processing
-KEEP_ITERMEDIATE_FILES=
+KEEP_INTERMEDIATE_FILES=
+SKIP_DB_UPDATES=
 if [[ $# > 1 ]]; then
     if [[ $1 == "--keep-intermediate-files" ]]; then
-        KEEP_ITERMEDIATE_FILES="--keep-intermediate-files"
+        KEEP_INTERMEDIATE_FILES="--keep-intermediate-files"
+        shift
+    fi
+    if [[ $1 == "--skip-db-updates" ]]; then
+        SKIP_DB_UPDATES="--skip-db-updates"
     else
         Usage
     fi
@@ -115,12 +120,12 @@ for update in $(generate_merge_order | tail --lines=+2); do
     temp_directory=temp_directory.$BASHPID.$counter
     if [[ ${update:0:6} == "LOEKXP" ]]; then
         echo "[$(date +%y%m%d-%R:%S)] Processing deletion list: $update"
-        echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
-        archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory entire_record_deletion.log
+        echo archive_delete_ids $KEEP_INTERMEDIATE_FILES $input_directory $update $temp_directory
+        archive_delete_ids $KEEP_INTERMEDIATE_FILES $input_directory $update $temp_directory entire_record_deletion.log
     else
         echo "[$(date +%y%m%d-%R:%S)] Processing differential dump: $update"
-        echo apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
-        apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
+        echo apply_differential_update $KEEP_INTERMEDIATE_FILES $input_directory $update $temp_directory
+        apply_differential_update $KEEP_INTERMEDIATE_FILES $input_directory $update $temp_directory
     fi
     if [[ -n "$last_temp_directory" ]]; then
         rm -r ${last_temp_directory}
