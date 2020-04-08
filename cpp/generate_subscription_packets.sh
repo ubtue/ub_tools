@@ -22,6 +22,9 @@ function Usage() {
     echo "Usage: $0 email_address"
     exit 1
 }
+if [[ $# != 1 ]]; then
+    Usage
+fi
 
 
 readonly email_address=$1
