@@ -5,7 +5,7 @@ source pipeline_functions.sh
 
 TMP_NULL="/tmp/null"
 function CreateTemporaryNullDevice {
-    if [ ! -f ${TMP_NULL} ]; then
+    if [ ! -c ${TMP_NULL} ]; then
         mknod ${TMP_NULL} c 1 3
         chmod 666 ${TMP_NULL}
     fi
