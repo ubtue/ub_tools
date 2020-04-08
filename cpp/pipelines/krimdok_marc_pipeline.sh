@@ -3,21 +3,7 @@
 set -o errexit -o nounset
 
 
-function ExitHandler {
-    (setsid kill -- -$$) &
-    exit 1
-}
-trap ExitHandler SIGINT
-
-
-function Abort {
-    kill -INT $$
-}
-
-
-if [ -z "$VUFIND_HOME" ]; then
-    VUFIND_HOME=/usr/local/vufind
-fi
+source pipeline_functions.sh
 
 if [ $# != 1 ]; then
     echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc"
@@ -29,42 +15,8 @@ if [[ ! "$1" =~ GesamtTiteldaten-[0-9][0-9][0-9][0-9][0-9][0-9].mrc ]]; then
     exit 1
 fi
 
-
 # Determines the embedded date of the files we're processing:
-date=$(echo $(echo "$1" | cut -d- -f 2) | cut -d. -f1)
-
-
-function StartPhase {
-    if [ -z ${PHASE+x} ]; then
-        PHASE=1
-    else
-        ((++PHASE))
-    fi
-    START=$(date +%s.%N)
-    echo "*** Phase $PHASE: $1 - $(date) ***" | tee --append "${log}"
-}
-
-
-# Call with "CalculateTimeDifference $start $end".
-# $start and $end have to be in seconds.
-# Returns the difference in fractional minutes as a string.
-function CalculateTimeDifference {
-    start=$1
-    end=$2
-    echo "scale=2;($end - $start)/60" | bc --mathlib
-}
-
-
-function EndPhase {
-    PHASE_DURATION=$(CalculateTimeDifference $START $(date +%s.%N))
-    echo -e "Done after ${PHASE_DURATION} minutes.\n" | tee --append "${log}"
-}
-
-
-function CleanUp {
-    rm -f GesamtTiteldaten-post-phase?*-"${date}".mrc
-}
-
+date=$(DetermineDateFromFilename $1)
 
 # Set up the log file:
 logdir=/usr/local/var/log/tuefind
