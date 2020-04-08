@@ -121,7 +121,6 @@ elif [[ "$MODE" = "TEST" ]]; then
         $FIELDS_TO_UPDATE
 fi
 
-
 Echo "Import changes from Zeder instance KrimDok"
 if [[ "$MODE" = "LIVE" ]]; then
     zeder_to_zotero_importer        \
@@ -140,22 +139,6 @@ elif [[ "$MODE" = "TEST" ]]; then
         KRIMDOK                     \
         '*'                         \
         $FIELDS_TO_UPDATE
-fi
-
-Echo "Generate maps"
-if [[ "$MODE" = "LIVE" ]]; then
-    generate_issn_maps_from_zeder   \
-        --min-log-level=DEBUG       \
-        --find-duplicate-issns      \
-        $WORKING_DIR                \
-        ssg=ISSN_to_SSG.map         \
-        >> "${LOG}" 2>&1
-elif [[ "$MODE" = "TEST" ]]; then
-    generate_issn_maps_from_zeder   \
-        --min-log-level=DEBUG       \
-        --find-duplicate-issns      \
-        $WORKING_DIR                \
-        ssg=ISSN_to_SSG.map
 fi
 
 if [[ "$MODE" = "LIVE" ]]; then
