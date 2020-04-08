@@ -2,6 +2,15 @@
 set -o errexit -o nounset
 
 
+function Usage() {
+    echo "Usage: $0 email_address"
+    exit 1
+}
+if [[ $# != 1 ]]; then
+    Usage
+fi
+
+
 no_problems_found=1
 function SendEmail {
     if [[ $no_problems_found -eq 0 ]]; then
@@ -16,15 +25,6 @@ function SendEmail {
     fi
 }
 trap SendEmail EXIT
-
-
-function Usage() {
-    echo "Usage: $0 email_address"
-    exit 1
-}
-if [[ $# != 1 ]]; then
-    Usage
-fi
 
 
 readonly email_address=$1
