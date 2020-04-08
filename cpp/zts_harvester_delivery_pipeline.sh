@@ -119,6 +119,7 @@ EndPhase
 StartPhase "Validate Generated Records"
 cd $harvester_output_directory
 counter=0
+shopt -s nullglob
 for d in */ ; do
     d=${d%/}
     if [[ $d -ef $harvester_output_directory ]]; then
