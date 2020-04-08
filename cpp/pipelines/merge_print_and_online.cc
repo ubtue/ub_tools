@@ -1060,13 +1060,13 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     bool debug(false);
-    bool skip_db_updates(false);
     if (std::strcmp(argv[1], "--debug") == 0) {
         debug = true;
         --argc, ++argv;
         if (argc < 4)
             Usage();
     }
+    bool skip_db_updates(false);
     if (std::strcmp(argv[1], "--skip-db-updates") == 0) {
         skip_db_updates = true;
         --argc, ++argv;
