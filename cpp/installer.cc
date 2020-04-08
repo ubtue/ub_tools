@@ -398,7 +398,7 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
     else
         script = INSTALLER_SCRIPTS_DIRECTORY + "/install_centos_packages.sh";
 
-    if (ub_tools_only or fulltext_backend)
+    if (ub_tools_only)
         ExecUtil::ExecOrDie(script);
     else if (fulltext_backend)
         ExecUtil::ExecOrDie(script, { "fulltext_backend" });
