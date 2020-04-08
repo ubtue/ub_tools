@@ -68,10 +68,8 @@ if [[ $# > 1 ]]; then
     fi
     if [[ $1 == "--skip-db-updates" ]]; then
         SKIP_DB_UPDATES="--skip-db-updates"
-    else
-        Usage
+        shift
     fi
-    shift
 fi
 if [[ $# != 1 ]]; then
     Usage
