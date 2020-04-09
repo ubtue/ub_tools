@@ -2,7 +2,7 @@
  *  \brief  Downloads and aggregates RSS feeds.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -18,7 +18,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <algorithm>
-#include <iostream>
 #include <unordered_map>
 #include <unordered_set>
 #include <cinttypes>
@@ -134,12 +133,11 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
 
 // \return the number of new items.
 unsigned ProcessSection(const IniFile::Section &section, Downloader * const downloader, DbConnection * const db_connection,
-                        const unsigned default_downloader_time_limit, const unsigned default_poll_interval)
+                        const unsigned default_downloader_time_limit)
 {
     SyndicationFormat::AugmentParams augment_params;
 
     const std::string feed_url(section.getString("feed_url"));
-    const unsigned poll_interval(section.getUnsigned("poll_interval", default_poll_interval));
     const unsigned downloader_time_limit(section.getUnsigned("downloader_time_limit", default_downloader_time_limit) * 1000);
     augment_params.strptime_format_ = section.getString("strptime_format", "");
     const std::string &section_name(section.getSectionName());
@@ -147,14 +145,6 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
     const std::string title_suppression_regex_str(section.getString("title_suppression_regex", ""));
     const auto title_suppression_regex(
         title_suppression_regex_str.empty() ? nullptr : RegexMatcher::RegexMatcherFactoryOrDie(title_suppression_regex_str));
-
-    std::cout << "Processing section \"" << section_name << "\":\n"
-              << "\tfeed_url: " << feed_url << '\n'
-              << "\tpoll_interval: " << poll_interval << " (ignored)\n"
-              << "\tdownloader_time_limit: " << downloader_time_limit
-              << (augment_params.strptime_format_.empty() ? "" : augment_params.strptime_format_ + "\n")
-              << (title_suppression_regex_str.empty() ? "" : title_suppression_regex_str + "\n")
-              << "\n\n";
 
     unsigned new_item_count(0);
     if (not downloader->newUrl(feed_url, downloader_time_limit))
@@ -204,7 +194,6 @@ const unsigned DEFAULT_XML_INDENT_AMOUNT(2);
 int ProcessFeeds(const std::string &xml_output_filename, IniFile * const ini_file,
                  DbConnection * const db_connection, Downloader * const downloader)
 {
-    const unsigned DEFAULT_POLL_INTERVAL(ini_file->getUnsigned("", "default_poll_interval"));
     const unsigned DEFAULT_DOWNLOADER_TIME_LIMIT(ini_file->getUnsigned("", "default_downloader_time_limit"));
 
     std::unordered_set<std::string> already_seen_sections;
@@ -216,8 +205,7 @@ int ProcessFeeds(const std::string &xml_output_filename, IniFile * const ini_fil
             already_seen_sections.emplace(section_name);
 
             LOG_INFO("Processing section \"" + section_name + "\".");
-            const unsigned new_item_count(ProcessSection(section, downloader, db_connection,
-                                                         DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL));
+            const unsigned new_item_count(ProcessSection(section, downloader, db_connection, DEFAULT_DOWNLOADER_TIME_LIMIT));
             LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
         }
     }
@@ -276,8 +264,8 @@ int Main(int argc, char *argv[]) {
         const auto subject(program_basename + " failed on " + DnsUtil::GetHostname());
         const auto message_body("caught exception: " + std::string(x.what()));
         if (EmailSender::SendEmail("no_reply@ub.uni-tuebingen.de", email_address, subject, message_body, EmailSender::VERY_HIGH) < 299)
-            return EXIT_SUCCESS;
-        else
             return EXIT_FAILURE;
+        else
+            LOG_ERROR("failed to send an email error report!");
     }
 }
