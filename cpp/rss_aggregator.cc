@@ -2,7 +2,7 @@
  *  \brief  Downloads and aggregates RSS feeds.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -18,13 +18,10 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <algorithm>
-#include <iostream>
 #include <unordered_map>
 #include <unordered_set>
 #include <cinttypes>
-#include <csignal>
 #include <cstring>
-#include <unistd.h>
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
@@ -34,7 +31,6 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "RegexMatcher.h"
-#include "SignalUtil.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
 #include "SyndicationFormat.h"
@@ -46,25 +42,8 @@
 namespace {
 
 
-volatile sig_atomic_t sigterm_seen(false);
-
-
-void SigTermHandler(int /* signum */) {
-    sigterm_seen = true;
-}
-
-
-volatile sig_atomic_t sighup_seen(false);
-
-
-void SigHupHandler(int /* signum */) {
-    sighup_seen = true;
-}
-
-
 [[noreturn]] void Usage() {
-    ::Usage("[--one-shot] [--config-file=config_file_path] [--process-name=new_process_name] email_address xml_output_path\n"
-            "       When --one-shot has been specified the program does not daemonise and exits after generating the feed XML.\n"
+    ::Usage("[--config-file=config_file_path] [--process-name=new_process_name] email_address xml_output_path\n"
             "       The default config file path is \"" + UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf\".");
 }
 
@@ -152,35 +131,13 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
 }
 
 
-void CheckForSigTermAndExitIfSeen() {
-    if (sigterm_seen) {
-        LOG_WARNING("caught SIGTERM, exiting...");
-        std::exit(EXIT_SUCCESS);
-    }
-}
-
-
-void CheckForSigHupAndReloadIniFileIfSeen(IniFile * const ini_file) {
-    if (sighup_seen) {
-        LOG_INFO("caught SIGHUP, reloading config file...");
-        ini_file->reload();
-        sighup_seen = false;
-    }
-}
-
-
-std::unordered_map<std::string, uint64_t> section_name_to_ticks_map;
-
-
 // \return the number of new items.
-unsigned ProcessSection(const bool one_shot, const IniFile::Section &section,
-                        Downloader * const downloader, DbConnection * const db_connection, const unsigned default_downloader_time_limit,
-                        const unsigned default_poll_interval, const uint64_t now)
+unsigned ProcessSection(const IniFile::Section &section, Downloader * const downloader, DbConnection * const db_connection,
+                        const unsigned default_downloader_time_limit)
 {
     SyndicationFormat::AugmentParams augment_params;
 
     const std::string feed_url(section.getString("feed_url"));
-    const unsigned poll_interval(section.getUnsigned("poll_interval", default_poll_interval));
     const unsigned downloader_time_limit(section.getUnsigned("downloader_time_limit", default_downloader_time_limit) * 1000);
     augment_params.strptime_format_ = section.getString("strptime_format", "");
     const std::string &section_name(section.getSectionName());
@@ -189,34 +146,10 @@ unsigned ProcessSection(const bool one_shot, const IniFile::Section &section,
     const auto title_suppression_regex(
         title_suppression_regex_str.empty() ? nullptr : RegexMatcher::RegexMatcherFactoryOrDie(title_suppression_regex_str));
 
-    if (one_shot) {
-        std::cout << "Processing section \"" << section_name << "\":\n"
-                  << "\tfeed_url: " << feed_url << '\n'
-                  << "\tpoll_interval: " << poll_interval << " (ignored)\n"
-                  << "\tdownloader_time_limit: " << downloader_time_limit
-                  << (augment_params.strptime_format_.empty() ? "" : augment_params.strptime_format_ + "\n")
-                  << (title_suppression_regex_str.empty() ? "" : title_suppression_regex_str + "\n")
-                  << "\n\n";
-    }
-
-    const auto section_name_and_ticks(section_name_to_ticks_map.find(section_name));
-    if (section_name_and_ticks != section_name_to_ticks_map.end()) {
-        if (section_name_and_ticks->second + poll_interval < now) {
-            LOG_DEBUG(section_name + ": not yet time to do work, last work was done at " + std::to_string(section_name_and_ticks->second)
-                      + ".");
-            return 0;
-        }
-    }
-
     unsigned new_item_count(0);
-    SignalUtil::SignalBlocker sigterm_blocker(SIGTERM);
     if (not downloader->newUrl(feed_url, downloader_time_limit))
         LOG_WARNING(section_name + ": failed to download the feed: " + downloader->getLastErrorMessage());
     else {
-        sigterm_blocker.unblock();
-        if (not one_shot)
-            CheckForSigTermAndExitIfSeen();
-
         std::string error_message;
         std::unique_ptr<SyndicationFormat> syndication_format(
             SyndicationFormat::Factory(downloader->getMessageBody(), augment_params, &error_message));
@@ -224,10 +157,6 @@ unsigned ProcessSection(const bool one_shot, const IniFile::Section &section,
             LOG_WARNING("failed to parse feed: " + error_message);
         else {
             for (const auto &item : *syndication_format) {
-                if (not one_shot)
-                    CheckForSigTermAndExitIfSeen();
-                SignalUtil::SignalBlocker sigterm_blocker2(SIGTERM);
-
                 if (title_suppression_regex != nullptr and title_suppression_regex->matched(item.getTitle())) {
                     LOG_INFO("Suppressed item because of title: \"" + StringUtil::ShortenText(item.getTitle(), 40) + "\".");
                     continue; // Skip suppressed item.
@@ -239,7 +168,6 @@ unsigned ProcessSection(const bool one_shot, const IniFile::Section &section,
         }
     }
 
-    section_name_to_ticks_map[section_name] = now;
     return new_item_count;
 }
 
@@ -263,76 +191,38 @@ size_t SelectItems(DbConnection * const db_connection, std::vector<HarvestedRSSI
 const unsigned DEFAULT_XML_INDENT_AMOUNT(2);
 
 
-int ProcessFeeds(const bool one_shot, const std::string &xml_output_filename, IniFile * const ini_file,
+int ProcessFeeds(const std::string &xml_output_filename, IniFile * const ini_file,
                  DbConnection * const db_connection, Downloader * const downloader)
 {
-    const unsigned DEFAULT_POLL_INTERVAL(ini_file->getUnsigned("", "default_poll_interval"));
     const unsigned DEFAULT_DOWNLOADER_TIME_LIMIT(ini_file->getUnsigned("", "default_downloader_time_limit"));
-    const unsigned UPDATE_INTERVAL(ini_file->getUnsigned("", "update_interval"));
 
-    uint64_t ticks(0);
-    for (;;) {
-        LOG_DEBUG("now we're at " + std::to_string(ticks) + ".");
+    std::unordered_set<std::string> already_seen_sections;
+    for (const auto &section : *ini_file) {
+        const std::string &section_name(section.getSectionName());
+        if (not section_name.empty() and section_name != "CGI Params" and section_name != "Database" and section_name != "Channel") {
+            if (unlikely(already_seen_sections.find(section_name) != already_seen_sections.end()))
+                LOG_ERROR("duplicate section: \"" + section_name + "\"!");
+            already_seen_sections.emplace(section_name);
 
-        CheckForSigHupAndReloadIniFileIfSeen(ini_file);
-
-        const time_t before(std::time(nullptr));
-
-        std::unordered_set<std::string> already_seen_sections;
-        for (const auto &section : *ini_file) {
-            if (sigterm_seen) {
-                LOG_INFO("caught SIGTERM, shutting down...");
-                return EXIT_SUCCESS;
-            }
-
-            SignalUtil::SignalBlocker sighup_blocker(SIGHUP);
-
-            const std::string &section_name(section.getSectionName());
-            if (not section_name.empty() and section_name != "CGI Params" and section_name != "Database" and section_name != "Channel") {
-                if (unlikely(already_seen_sections.find(section_name) != already_seen_sections.end()))
-                    LOG_ERROR("duplicate section: \"" + section_name + "\"!");
-                already_seen_sections.emplace(section_name);
-
-                LOG_INFO("Processing section \"" + section_name + "\".");
-                const unsigned new_item_count(ProcessSection(one_shot, section, downloader, db_connection,
-                                                             DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL, ticks));
-                LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
-            }
+            LOG_INFO("Processing section \"" + section_name + "\".");
+            const unsigned new_item_count(ProcessSection(section, downloader, db_connection, DEFAULT_DOWNLOADER_TIME_LIMIT));
+            LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
         }
-
-        std::vector<HarvestedRSSItem> harvested_items;
-        const auto feed_item_count(SelectItems(db_connection, &harvested_items));
-
-        // scoped here so that we flush and close the output file right away
-        {
-            XmlWriter xml_writer(FileUtil::OpenOutputFileOrDie(xml_output_filename).release(),
-                                 XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
-            WriteRSSFeedXMLOutput(*ini_file, &harvested_items, &xml_writer);
-        }
-        LOG_INFO("Created our feed with " + std::to_string(feed_item_count) + " items from the last " + std::to_string(HARVEST_TIME_WINDOW)
-                 + " days.");
-
-        if (one_shot) // -> only run through our loop once
-            return EXIT_SUCCESS;
-
-        const time_t after(std::time(nullptr));
-
-        uint64_t sleep_interval;
-        if (after - before > UPDATE_INTERVAL * 60)
-            sleep_interval = 0;
-        else
-            sleep_interval = (UPDATE_INTERVAL * 60 - (after - before));
-
-        unsigned total_time_slept(0);
-        do {
-            const unsigned actual_time_slept(::sleep(static_cast<unsigned>(sleep_interval - total_time_slept)));
-            CheckForSigTermAndExitIfSeen();
-            CheckForSigHupAndReloadIniFileIfSeen(ini_file);
-
-            total_time_slept += actual_time_slept;
-        } while (total_time_slept < sleep_interval);
-        ticks += UPDATE_INTERVAL;
     }
+
+    std::vector<HarvestedRSSItem> harvested_items;
+    const auto feed_item_count(SelectItems(db_connection, &harvested_items));
+
+    // scoped here so that we flush and close the output file right away
+    {
+        XmlWriter xml_writer(FileUtil::OpenOutputFileOrDie(xml_output_filename).release(),
+                             XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
+        WriteRSSFeedXMLOutput(*ini_file, &harvested_items, &xml_writer);
+    }
+    LOG_INFO("Created our feed with " + std::to_string(feed_item_count) + " items from the last " + std::to_string(HARVEST_TIME_WINDOW)
+             + " days.");
+
+    return EXIT_SUCCESS;
 }
 
 
@@ -340,14 +230,6 @@ int ProcessFeeds(const bool one_shot, const std::string &xml_output_filename, In
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 3)
-        Usage();
-
-    bool one_shot(false);
-    if (std::strcmp(argv[1], "--one-shot") == 0) {
-        one_shot = true;
-        --argc, ++argv;
-    }
     if (argc < 3)
         Usage();
 
@@ -365,14 +247,6 @@ int Main(int argc, char *argv[]) {
     IniFile ini_file;
     DbConnection db_connection(ini_file);
 
-    if (not one_shot) {
-        SignalUtil::InstallHandler(SIGTERM, SigTermHandler);
-        SignalUtil::InstallHandler(SIGHUP, SigHupHandler);
-
-        if (::daemon(0, 1 /* do not close file descriptors and redirect to /dev/null */) != 0)
-            LOG_ERROR("we failed to deamonize our process!");
-    }
-
     const std::string xml_output_filename(argv[1]);
 
     Downloader::Params params;
@@ -384,14 +258,14 @@ int Main(int argc, char *argv[]) {
     Downloader downloader(params);
 
     try {
-        return ProcessFeeds(one_shot, xml_output_filename, &ini_file, &db_connection, &downloader);
-    } catch (const std::exception &x) {
+        return ProcessFeeds(xml_output_filename, &ini_file, &db_connection, &downloader);
+    } catch (const std::runtime_error &x) {
         const auto program_basename(FileUtil::GetBasename(::progname));
         const auto subject(program_basename + " failed on " + DnsUtil::GetHostname());
         const auto message_body("caught exception: " + std::string(x.what()));
         if (EmailSender::SendEmail("no_reply@ub.uni-tuebingen.de", email_address, subject, message_body, EmailSender::VERY_HIGH) < 299)
-            return EXIT_SUCCESS;
-        else
             return EXIT_FAILURE;
+        else
+            LOG_ERROR("failed to send an email error report!");
     }
 }
