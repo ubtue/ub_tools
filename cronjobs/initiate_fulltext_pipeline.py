@@ -21,9 +21,9 @@ def Main():
     util.default_email_sender = "initiate_fulltext_pipeline@ub.uni-tuebingen.de"
     if len(sys.argv) != 3:
          print("invalid arguments! usage: initiate_marc_pipeline.py <default email recipient> <MARC21 pipeline script name>")
-         util.SendEmail("MARC-21 Pipeline Kick-Off (Failure)",
+         util.SendEmail("Fulltext Pipeline Kick-Off (Failure)",
                         "This script needs to be called with two arguments,\n"
-                        + "the default email recipient and the name of the MARC-21\n"
+                        + "the default email recipient and the name of the Fulltext\n"
                         + "pipeline script to be executed.\n", priority=1)
          sys.exit(-1)
 
@@ -42,7 +42,7 @@ def Main():
             util.Error("BSZ data file must end in .tar.gz!")
         file_name_list = util.ExtractAndRenameBSZFiles(bsz_data)
         RunPipeline(pipeline_script_name, file_name_list[0], conf)
-        util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.", priority=5)
+        util.SendEmail("Fulltext Pipeline", "Pipeline completed successfully.", priority=5)
     else:
         util.SendEmail("Fulltext Pipeline Kick-Off", "No new data was found.", priority=5)
 
@@ -51,7 +51,7 @@ try:
     Main()
 except Exception as e:
     error_msg =  "An unexpected error occurred: " + str(e) + "\n\n" + traceback.format_exc(20)
-    util.SendEmail("MARC-21 Pipeline Kick-Off", error_msg, priority=1)
+    util.SendEmail("Fulltext Pipeline Kick-Off", error_msg, priority=1)
     sys.stderr.write(error_msg)
 
 
