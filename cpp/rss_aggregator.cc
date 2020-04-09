@@ -28,7 +28,9 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
+#include "DnsUtil.h"
 #include "Downloader.h"
+#include "EmailSender.h"
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "RegexMatcher.h"
@@ -61,7 +63,7 @@ void SigHupHandler(int /* signum */) {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--one-shot] [--config-file=config_file_path] [--process-name=new_process_name] xml_output_path\n"
+    ::Usage("[--one-shot] [--config-file=config_file_path] [--process-name=new_process_name] email_address xml_output_path\n"
             "       When --one-shot has been specified the program does not daemonise and exits after generating the feed XML.\n"
             "       The default config file path is \"" + UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf\".");
 }
@@ -261,65 +263,23 @@ size_t SelectItems(DbConnection * const db_connection, std::vector<HarvestedRSSI
 const unsigned DEFAULT_XML_INDENT_AMOUNT(2);
 
 
-} // unnamed namespace
-
-
-int Main(int argc, char *argv[]) {
-    if (argc < 2)
-        Usage();
-
-    bool one_shot(false);
-    if (std::strcmp(argv[1], "--one-shot") == 0) {
-        one_shot = true;
-        --argc, ++argv;
-    }
-    if (argc < 2)
-        Usage();
-
-    std::string config_file_path(UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf");
-    if (StringUtil::StartsWith(argv[1], "--config-file=")) {
-        config_file_path = argv[1] + __builtin_strlen("--config-file=");
-        --argc, ++argv;
-    }
-
-    if (argc != 2)
-        Usage();
-
-    IniFile ini_file;
-    DbConnection db_connection(ini_file);
-
-    const unsigned DEFAULT_POLL_INTERVAL(ini_file.getUnsigned("", "default_poll_interval"));
-    const unsigned DEFAULT_DOWNLOADER_TIME_LIMIT(ini_file.getUnsigned("", "default_downloader_time_limit"));
-    const unsigned UPDATE_INTERVAL(ini_file.getUnsigned("", "update_interval"));
-    const std::string PROXY(ini_file.getString("", "proxy", ""));
-
-    if (not one_shot) {
-        SignalUtil::InstallHandler(SIGTERM, SigTermHandler);
-        SignalUtil::InstallHandler(SIGHUP, SigHupHandler);
-
-        if (::daemon(0, 1 /* do not close file descriptors and redirect to /dev/null */) != 0)
-            LOG_ERROR("we failed to deamonize our process!");
-    }
-
-    const std::string xml_output_filename(argv[1]);
+int ProcessFeeds(const bool one_shot, const std::string &xml_output_filename, IniFile * const ini_file,
+                 DbConnection * const db_connection, Downloader * const downloader)
+{
+    const unsigned DEFAULT_POLL_INTERVAL(ini_file->getUnsigned("", "default_poll_interval"));
+    const unsigned DEFAULT_DOWNLOADER_TIME_LIMIT(ini_file->getUnsigned("", "default_downloader_time_limit"));
+    const unsigned UPDATE_INTERVAL(ini_file->getUnsigned("", "update_interval"));
 
     uint64_t ticks(0);
-    Downloader::Params params;
-    if (not PROXY.empty()) {
-        LOG_INFO("using proxy: " + PROXY);
-        params.proxy_host_and_port_ = PROXY;
-    }
-    Downloader downloader(params);
-
     for (;;) {
         LOG_DEBUG("now we're at " + std::to_string(ticks) + ".");
 
-        CheckForSigHupAndReloadIniFileIfSeen(&ini_file);
+        CheckForSigHupAndReloadIniFileIfSeen(ini_file);
 
         const time_t before(std::time(nullptr));
 
         std::unordered_set<std::string> already_seen_sections;
-        for (const auto &section : ini_file) {
+        for (const auto &section : *ini_file) {
             if (sigterm_seen) {
                 LOG_INFO("caught SIGTERM, shutting down...");
                 return EXIT_SUCCESS;
@@ -334,20 +294,20 @@ int Main(int argc, char *argv[]) {
                 already_seen_sections.emplace(section_name);
 
                 LOG_INFO("Processing section \"" + section_name + "\".");
-                const unsigned new_item_count(ProcessSection(one_shot, section, &downloader, &db_connection,
+                const unsigned new_item_count(ProcessSection(one_shot, section, downloader, db_connection,
                                                              DEFAULT_DOWNLOADER_TIME_LIMIT, DEFAULT_POLL_INTERVAL, ticks));
                 LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
             }
         }
 
         std::vector<HarvestedRSSItem> harvested_items;
-        const auto feed_item_count(SelectItems(&db_connection, &harvested_items));
+        const auto feed_item_count(SelectItems(db_connection, &harvested_items));
 
         // scoped here so that we flush and close the output file right away
         {
             XmlWriter xml_writer(FileUtil::OpenOutputFileOrDie(xml_output_filename).release(),
                                  XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
-            WriteRSSFeedXMLOutput(ini_file, &harvested_items, &xml_writer);
+            WriteRSSFeedXMLOutput(*ini_file, &harvested_items, &xml_writer);
         }
         LOG_INFO("Created our feed with " + std::to_string(feed_item_count) + " items from the last " + std::to_string(HARVEST_TIME_WINDOW)
                  + " days.");
@@ -367,10 +327,71 @@ int Main(int argc, char *argv[]) {
         do {
             const unsigned actual_time_slept(::sleep(static_cast<unsigned>(sleep_interval - total_time_slept)));
             CheckForSigTermAndExitIfSeen();
-            CheckForSigHupAndReloadIniFileIfSeen(&ini_file);
+            CheckForSigHupAndReloadIniFileIfSeen(ini_file);
 
             total_time_slept += actual_time_slept;
         } while (total_time_slept < sleep_interval);
         ticks += UPDATE_INTERVAL;
+    }
+}
+
+
+} // unnamed namespace
+
+
+int Main(int argc, char *argv[]) {
+    if (argc < 3)
+        Usage();
+
+    bool one_shot(false);
+    if (std::strcmp(argv[1], "--one-shot") == 0) {
+        one_shot = true;
+        --argc, ++argv;
+    }
+    if (argc < 3)
+        Usage();
+
+    std::string config_file_path(UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf");
+    if (StringUtil::StartsWith(argv[1], "--config-file=")) {
+        config_file_path = argv[1] + __builtin_strlen("--config-file=");
+        --argc, ++argv;
+    }
+
+    if (argc != 3)
+        Usage();
+
+    const std::string email_address(argv[1]);
+
+    IniFile ini_file;
+    DbConnection db_connection(ini_file);
+
+    if (not one_shot) {
+        SignalUtil::InstallHandler(SIGTERM, SigTermHandler);
+        SignalUtil::InstallHandler(SIGHUP, SigHupHandler);
+
+        if (::daemon(0, 1 /* do not close file descriptors and redirect to /dev/null */) != 0)
+            LOG_ERROR("we failed to deamonize our process!");
+    }
+
+    const std::string xml_output_filename(argv[1]);
+
+    Downloader::Params params;
+    const std::string PROXY(ini_file.getString("", "proxy", ""));
+    if (not PROXY.empty()) {
+        LOG_INFO("using proxy: " + PROXY);
+        params.proxy_host_and_port_ = PROXY;
+    }
+    Downloader downloader(params);
+
+    try {
+        return ProcessFeeds(one_shot, xml_output_filename, &ini_file, &db_connection, &downloader);
+    } catch (const std::exception &x) {
+        const auto program_basename(FileUtil::GetBasename(::progname));
+        const auto subject(program_basename + " failed on " + DnsUtil::GetHostname());
+        const auto message_body("caught exception: " + std::string(x.what()));
+        if (EmailSender::SendEmail("no_reply@ub.uni-tuebingen.de", email_address, subject, message_body, EmailSender::VERY_HIGH) < 299)
+            return EXIT_SUCCESS;
+        else
+            return EXIT_FAILURE;
     }
 }
