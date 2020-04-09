@@ -3,6 +3,14 @@ set -o errexit -o nounset
 
 source pipeline_functions.sh
 
+TMP_NULL="/tmp/null"
+function CreateTemporaryNullDevice {
+    if [ ! -c ${TMP_NULL} ]; then
+        mknod ${TMP_NULL} c 1 3
+        chmod 666 ${TMP_NULL}
+    fi
+}
+
 if [ $# != 1 ]; then
     echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc"
     exit 1
@@ -22,7 +30,7 @@ log="${logdir}/fulltext_pipeline.log"
 rm -f "${log}"
 
 CleanUp
-
+CreateTemporaryNullDevice
 
 OVERALL_START=$(date +%s.%N)
 
@@ -47,7 +55,7 @@ EndPhase || Abort) &
 
 StartPhase "Harvest Title Data Fulltext"
 (create_full_text_db --store-pdfs-as-html --use-separate-entries-per-url --include-all-tocs \
-    --only-pdf-fulltexts GesamtTiteldaten-"${date}".mrc /dev/null
+    --only-pdf-fulltexts GesamtTiteldaten-"${date}".mrc ${TMP_NULL}
     >> "${log}" 2>&1 && \
         EndPhase || Abort) &
 wait
