@@ -800,6 +800,8 @@ int Main(int argc, char **argv) {
     bool fulltext_backend(false);
     if (std::strcmp("--fulltext-backend", argv[1]) == 0) {
         fulltext_backend = true;
+	if (FileUtil::Exists("/.dockerenv"))
+        omit_systemctl = true;
         if (argc > 2)
             Usage();
     }
@@ -807,7 +809,8 @@ int Main(int argc, char **argv) {
         ub_tools_only = true;
         if (argc > 2)
             Usage();
-    } else {
+    }
+    if (not (fulltext_backend or ub_tools_only)) {
         vufind_system_type_string = argv[1];
         if (::strcasecmp(vufind_system_type_string.c_str(), "auto") == 0) {
             vufind_system_type_string = VuFind::GetTueFindFlavour();
