@@ -202,19 +202,19 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
     }
 
     const std::string SSH_KEYS_DIR("/root/.ssh");
-    const std::string GITHUB_ROBOT_PRIVATE_KEY_REMOTE(MOUNT_POINT + "github-robot");
+    const std::string GITHUB_ROBOT_PRIVATE_KEY_REMOTE(MOUNT_POINT + "/FID-Entwicklung/github-robot");
     const std::string GITHUB_ROBOT_PRIVATE_KEY_LOCAL(SSH_KEYS_DIR + "github-robot");
-    const std::string GITHUB_ROBOT_PUBLIC_KEY_REMOTE(MOUNT_POINT + "github-robot.pub");
-    const std::string GITHUB_ROBOT_PUBlIC_KEY_LOCAL(SSH_KEYS_DIR + "github-robot.pub");
+    const std::string GITHUB_ROBOT_PUBLIC_KEY_REMOTE(MOUNT_POINT + "/FID-Entwicklung/github-robot.pub");
+    const std::string GITHUB_ROBOT_PUBLIC_KEY_LOCAL(SSH_KEYS_DIR + "github-robot.pub");
     if (not FileUtil::Exists(SSH_KEYS_DIR))
         FileUtil::MakeDirectoryOrDie(SSH_KEYS_DIR, false, 0700);
     if (not FileUtil::Exists(GITHUB_ROBOT_PRIVATE_KEY_LOCAL)) {
         FileUtil::CopyOrDie(GITHUB_ROBOT_PRIVATE_KEY_REMOTE, GITHUB_ROBOT_PRIVATE_KEY_LOCAL);
         FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PRIVATE_KEY_LOCAL, 600);
     }
-    if (not FileUtil::Exists(GITHUB_ROBOT_PUBlIC_KEY_LOCAL)) {
-        FileUtil::CopyOrDie(GITHUB_ROBOT_PUBLIC_KEY_REMOTE, GITHUB_ROBOT_PUBlIC_KEY_LOCAL);
-        FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PUBlIC_KEY_LOCAL, 600);
+    if (not FileUtil::Exists(GITHUB_ROBOT_PUBLIC_KEY_LOCAL)) {
+        FileUtil::CopyOrDie(GITHUB_ROBOT_PUBLIC_KEY_REMOTE, GITHUB_ROBOT_PUBLIC_KEY_LOCAL);
+        FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PUBLIC_KEY_LOCAL, 600);
     }
 }
 
@@ -800,6 +800,8 @@ int Main(int argc, char **argv) {
     bool fulltext_backend(false);
     if (std::strcmp("--fulltext-backend", argv[1]) == 0) {
         fulltext_backend = true;
+        if (FileUtil::Exists("/.dockerenv"))
+            omit_systemctl = true;
         if (argc > 2)
             Usage();
     }
@@ -807,7 +809,8 @@ int Main(int argc, char **argv) {
         ub_tools_only = true;
         if (argc > 2)
             Usage();
-    } else {
+    }
+    if (not (fulltext_backend or ub_tools_only)) {
         vufind_system_type_string = argv[1];
         if (::strcasecmp(vufind_system_type_string.c_str(), "auto") == 0) {
             vufind_system_type_string = VuFind::GetTueFindFlavour();
