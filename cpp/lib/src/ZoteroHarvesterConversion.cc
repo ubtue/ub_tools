@@ -404,7 +404,7 @@ void StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::s
 
 
 static const std::set<std::string> VALID_TITLES {
-    "jr", "sr", "sj", "s.j", "fr", "hr", "dr", "prof", "em"
+    "jr", "sr", "sj", "s.j", "s.j.", "fr", "hr", "dr", "prof", "em"
 };
 
 
