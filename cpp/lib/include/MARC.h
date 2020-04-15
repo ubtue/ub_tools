@@ -314,6 +314,8 @@ public:
     public:
         Field(const Field &other): tag_(other.tag_), contents_(other.contents_) { }
         Field(const std::string &tag, const std::string &contents): tag_(tag), contents_(contents) { }
+        Field(const std::string &tag, const char indicator1 = ' ', const char indicator2 = ' ')
+            : tag_(tag), contents_(std::string(1, indicator1) + std::string(1, indicator2)) { }
         Field(const Tag &tag, const std::string &contents): tag_(tag), contents_(contents) { }
         Field(const Tag &tag, const char indicator1 = ' ', const char indicator2 = ' ')
             : Field(tag, std::string(1, indicator1) + std::string(1, indicator2)) { }
@@ -1116,6 +1118,11 @@ bool IsSubjectAccessTag(const Tag &tag);
 
 // Extracts print and online cross links.
 std::set<std::string> ExtractPrintAndOnlineCrossLinkPPNs(const MARC::Record &record);
+
+
+// \warning Only very few codes are currently supported!
+// \return The mapped code if found o/w an empty string.
+std::string MapToMARCLanguageCode(const std::string &some_code);
 
 
 } // namespace MARC

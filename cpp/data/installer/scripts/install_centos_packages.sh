@@ -17,7 +17,7 @@ function InstallIfMissing {
     fi
 }
 
-if [[ $1 != "" && $1 != "ixtheo" && $1 != "krimdok" ]]; then
+if [[ $1 != "" && $1 != "ixtheo" && $1 != "krimdok" && $1 != "fulltext_backend" ]]; then
     ColorEcho "invalid system_type \"$1\"!"
     exit 1
 fi
@@ -58,18 +58,21 @@ dnf --assumeyes install llvm-toolset
 # Make Johannes happy :-)
 dnf --assumeyes install tmux emacs
 
+# Elasticsearch for fulltext
+if [[ $1 == "krimdok" || $1 == "fulltext_backend" ]]; then
+    ColorEcho "Installing Elasticsearch"
+    InstallIfMissing elasticsearch
+    if ! /usr/share/elasticsearch/bin/elasticsearch-plugin list | grep --quiet analysis-icu; then
+        /usr/share/elasticsearch/bin/elasticsearch-plugin install analysis-icu
+    fi
+    mkdir --parents /etc/elasticsearch/synonyms
+    for i in all de en fr it es pt ru el hans hant; do touch /etc/elasticsearch/synonyms/synonyms_$i.txt; done
+fi
+
+
 ### TUEFIND ###
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
-
-    if [[ $1 == "krimdok" ]]; then
-        InstallIfMissing elasticsearch
-        if ! /usr/share/elasticsearch/bin/elasticsearch-plugin list | grep --quiet analysis-icu; then
-            /usr/share/elasticsearch/bin/elasticsearch-plugin install analysis-icu
-        fi
-        mkdir -p /etc/elasticsearch/synonyms
-        for i in all de en fr it es pt ru el hans hant; do touch /etc/elasticsearch/synonyms/synonyms_$i.txt; done
-    fi
 
     # PHP
     dnf --assumeyes install php php-cli php-common php-gd php-intl php-json php-ldap php-mbstring php-mysqlnd php-soap php-xml
