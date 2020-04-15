@@ -106,7 +106,7 @@ void LoadISSNsToJournalTitlesAndPPNsMap(std::unordered_map<std::string, JournalT
     }
 
     LOG_INFO("Loaded " + std::to_string(issns_to_journal_titles_and_ppns_map->size())
-             + " mappings from print ISSN's to online ISSN's, PPPN's and journal titles.");
+             + " mappings from print ISSN's to online ISSN's, PPN's and journal titles.");
 }
 
 
