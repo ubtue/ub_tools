@@ -31,11 +31,17 @@ normalise_issn             = if true, values of the form XXXX-YYYY will be store
                              without the hyphen will be unaffected.
 field_contents_prefix      = used for control fields.  If present the value of this entry will be prepended to
                              the data that will be inserted in the control field
-subfield_x                 = used for variable fields; specified which JSON data will be extracted and inserted
-                             into subfield x; the JSON extraction path is relative to "root_path" in the Global
-                             section
+subfield_x                 = used for variable fields; specifies which JSON data will be extracted and inserted
+                             into subfield x;
+                             There are two variants, the simple one is a JSON extraction path relative to "root_path"
+                             in the Global section.  An alternate form look like "map:map_name{json_path}:selector" where
+                             "map_name" and "selector" are predefined values.  Currently "map_name" can only take
+                             on the value "journal_tites_and_ppns_map" and "selector" can be either "title" or "ppn."
+                             "json_path" is the usual JSON extraction path relative to "root_path" in the Global section.  
 subfield_x_extraction_regex= if present, this regex will be used to extract data from the JSON data before inserting
                              it into the MARC subfield "x".
+dependent_on_y_subfield_x  = This is a rule for generating a subfield x that will only be applied if at least one subfield
+                             y has been generated
 required                   = the default, if this entry is not present, is "false".  If present and "true", a
                              warning is issued if the referenced JSON data is missing
 subfield_x_prefix          = if present, the value of this entry will be prepended to values inserted into
