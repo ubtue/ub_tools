@@ -45,7 +45,7 @@ working_directory=/tmp/zts_harvester_delivery_pipeline
 
 harvester_output_directory=$working_directory
 harvester_output_filename=zts_harvester-$(date +%y%m%d).xml
-harvester_config_file=/usr/local/ub_tools/cpp/data/zotero_harvester.conf
+harvester_config_file=/usr/local/var/lib/tuelib/zotero-enhancement-maps/zotero_harvester.conf
 records_with_missing_metadata_output_filename=zts_harvester-$(date +%y%m%d)-records-with-missing-metadata.xml
 
 
@@ -119,6 +119,7 @@ EndPhase
 StartPhase "Validate Generated Records"
 cd $harvester_output_directory
 counter=0
+shopt -s nullglob
 for d in */ ; do
     d=${d%/}
     if [[ $d -ef $harvester_output_directory ]]; then

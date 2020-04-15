@@ -20,6 +20,7 @@
 /concat
 /control_number_guesser
 /convert_bible_references
+/convert_json_to_marc
 /convert_oai_pmh_dc_to_marc21
 /convert_tags_to_keywords
 /count_gnd_refs
@@ -54,12 +55,14 @@
 /full_text_stats
 /generate_complete_dumpfile
 /generate_issn_maps_from_zeder
+/generate_issn_to_titles_and_ppns_map
 /generate_keyword_normalizations
 /generate_language_model
 /generate_library_dependency_graph
 /generate_list_of_essay_collections
 /generate_merge_order
 /generate_simple_math_puzzle
+/generate_subscription_packets
 /generate_tags_and_keyword_fields_map
 /generate_title_and_author_list
 /get_dangling_title_references

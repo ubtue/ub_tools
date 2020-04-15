@@ -47,31 +47,31 @@ public class TuelibMixin extends SolrIndexerMixin {
     public final static String UNASSIGNED_STRING = "[Unassigned]";
     public final static Set<String> UNASSIGNED_SET = Collections.singleton(UNASSIGNED_STRING);
 
-    private final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
-    private final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
+    protected final static Logger logger = Logger.getLogger(TuelibMixin.class.getName());
+    protected final static String UNKNOWN_MATERIAL_TYPE = "Unbekanntes Material";
 
-    private final static String ISIL_BSZ = "DE-576";
-    private final static String ISIL_GND = "DE-588";
-    private final static String ISIL_K10PLUS = "DE-627";
+    protected final static String ISIL_BSZ = "DE-576";
+    protected final static String ISIL_GND = "DE-588";
+    protected final static String ISIL_K10PLUS = "DE-627";
 
-    private final static String ISIL_PREFIX_BSZ = "(" + ISIL_BSZ + ")";
-    private final static String ISIL_PREFIX_GND = "(" + ISIL_GND + ")";
-    private final static String ISIL_PREFIX_K10PLUS = "(" + ISIL_K10PLUS + ")";
-    private final static String ES_FULLTEXT_PROPERTIES_FILE = "es_fulltext.properties";
+    protected final static String ISIL_PREFIX_BSZ = "(" + ISIL_BSZ + ")";
+    protected final static String ISIL_PREFIX_GND = "(" + ISIL_GND + ")";
+    protected final static String ISIL_PREFIX_K10PLUS = "(" + ISIL_K10PLUS + ")";
+    protected final static String ES_FULLTEXT_PROPERTIES_FILE = "es_fulltext.properties";
 
-    private final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
-    private final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
-    private final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
-    private final static Pattern PAGE_MATCH_PATTERN = Pattern.compile("^\\[?(\\d+)\\]?([-–](\\d+))?$");
-    private final static Pattern VALID_FOUR_DIGIT_YEAR_PATTERN = Pattern.compile("\\d{4}");
-    private final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
-    private final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
-    private final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
-    private final static Pattern PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN = Pattern.compile("\\(" + ISIL_K10PLUS + "\\)(.*)");
-    private final static Pattern SUPERIOR_PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN = PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN;
+    protected final static Pattern PAGE_RANGE_PATTERN1 = Pattern.compile("\\s*(\\d+)\\s*-\\s*(\\d+)$");
+    protected final static Pattern PAGE_RANGE_PATTERN2 = Pattern.compile("\\s*\\[(\\d+)\\]\\s*-\\s*(\\d+)$");
+    protected final static Pattern PAGE_RANGE_PATTERN3 = Pattern.compile("\\s*(\\d+)\\s*ff");
+    protected final static Pattern PAGE_MATCH_PATTERN = Pattern.compile("^\\[?(\\d+)\\]?([-–](\\d+))?$");
+    protected final static Pattern VALID_FOUR_DIGIT_YEAR_PATTERN = Pattern.compile("\\d{4}");
+    protected final static Pattern VALID_YEAR_RANGE_PATTERN = Pattern.compile("^\\d*u*$");
+    protected final static Pattern VOLUME_PATTERN = Pattern.compile("^\\s*(\\d+)$");
+    protected final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
+    protected final static Pattern PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN = Pattern.compile("\\(" + ISIL_K10PLUS + "\\)(.*)");
+    protected final static Pattern SUPERIOR_PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN = PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN;
 
     // TODO: This should be in a translation mapping file
-    private final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
+    protected final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
         {
             this.put("Unknown", "Unknown");
             this.put("DE-21", "Universit\u00E4tsbibliothek T\u00FCbingen");
@@ -150,7 +150,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     };
 
     // Map used by getPhysicalType().
-    private static final Map<String, String> phys_code_to_full_name_map;
+    protected static final Map<String, String> phys_code_to_full_name_map;
 
     static {
         Map<String, String> tempMap = new HashMap<>();
@@ -184,7 +184,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     // Must match constants in FullTextCache.h
-    private final static Map<String, String> text_type_to_description_map = new TreeMap<String, String>() {
+    protected final static Map<String, String> text_type_to_description_map = new TreeMap<String, String>() {
         {
             this.put("1", "Fulltext");
             this.put("2", "Table of Contents");
@@ -195,10 +195,10 @@ public class TuelibMixin extends SolrIndexerMixin {
     };
 
 
-    private Set<String> isils_cache = null;
-    private Map<String, Collection<Collection<Topic>>> collectedTopicsCache = new TreeMap<>();
-    private JSONArray fulltext_server_hits = new JSONArray();
-    private static final String fullHostName;
+    protected Set<String> isils_cache = null;
+    protected Map<String, Collection<Collection<Topic>>> collectedTopicsCache = new TreeMap<>();
+    protected JSONArray fulltext_server_hits = new JSONArray();
+    protected static final String fullHostName;
     static {
         String tmp = ""; // Needed for syntactical reasons
         try {
@@ -218,7 +218,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         fulltext_server_hits = getElasticsearchHits(es_search_response);
     }
 
-    private String getTitleFromField(final DataField titleField) {
+    protected String getTitleFromField(final DataField titleField) {
         if (titleField == null)
             return null;
 
@@ -276,7 +276,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    static private Set<String> getAllSubfieldsBut(final Record record, final String fieldSpecList,
+    static protected Set<String> getAllSubfieldsBut(final Record record, final String fieldSpecList,
                                                   char excludeSubfield)
     {
         final Set<String> extractedValues = new TreeSet<>();
@@ -407,7 +407,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *            the subfield identifiers to search for
      * @return a nonempty subfield or null
      */
-    private Subfield getFirstNonEmptySubfield(final DataField dataField, final char... subfieldIDs) {
+    protected Subfield getFirstNonEmptySubfield(final DataField dataField, final char... subfieldIDs) {
         for (final char subfieldID : subfieldIDs) {
             for (final Subfield subfield : dataField.getSubfields(subfieldID)) {
                 if (subfield != null && subfield.getData() != null && !subfield.getData().isEmpty()) {
@@ -418,7 +418,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
-    private interface SubfieldMatcher {
+    protected interface SubfieldMatcher {
         boolean matched(final Subfield subfield);
     }
 
@@ -497,7 +497,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     // Map used by getPhysicalType().
-    private static final Map<String, String> code_to_material_type_map;
+    protected static final Map<String, String> code_to_material_type_map;
 
     // Entries are from http://swbtools.bsz-bw.de/cgi-bin/k10plushelp.pl?cmd=kat&val=4960&kattype=Standard#$3
     static {
@@ -556,10 +556,36 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         for (final VariableField variableField : record.getVariableFields("856")) {
             final DataField field = (DataField) variableField;
-            final Subfield materialTypeSubfield = getFirstNonEmptySubfield(field, '3', 'z', 'y', 'x');
-            String materialType = (materialTypeSubfield == null) ? UNKNOWN_MATERIAL_TYPE : materialTypeSubfield.getData();
-            if (code_to_material_type_map.containsKey(materialType))
-                materialType = code_to_material_type_map.get(materialType);
+            final Subfield subfield_3 = getFirstNonEmptySubfield(field, '3');
+            final Subfield subfield_z = getFirstNonEmptySubfield(field, 'z');
+            final Subfield subfield_x = getFirstNonEmptySubfield(field, 'x');
+            final Subfield subfield_y = getFirstNonEmptySubfield(field, 'y');
+            String materialType;
+            String materialLicence = "";
+            if (subfield_3 != null) {
+                materialType =  subfield_3.getData();
+                if (code_to_material_type_map.containsKey(materialType))
+                    materialType = code_to_material_type_map.get(materialType);
+                if (subfield_z != null)
+                    materialLicence = subfield_z.getData();
+                else if (subfield_x != null)
+                    materialLicence = subfield_x.getData();
+            } else {
+                if (subfield_z != null)
+                    materialType = subfield_z.getData();
+                else if (subfield_y != null)
+                    materialType = subfield_y.getData();
+                else if (subfield_x != null)
+                    materialType = subfield_x.getData();
+                else
+                    materialType = UNKNOWN_MATERIAL_TYPE;
+
+                if (code_to_material_type_map.containsKey(materialType))
+                    materialType = code_to_material_type_map.get(materialType);
+            }
+
+            if (!materialLicence.isEmpty())
+                materialType = materialType + " (" + materialLicence + ")";
 
             for (final Subfield subfield_u : field.getSubfields('u')) {
                 Set<String> URLs = materialTypeToURLsMap.get(materialType);
@@ -605,6 +631,7 @@ public class TuelibMixin extends SolrIndexerMixin {
                         preferredURL = url;
                 }
 
+
                 if (preferredURL != null)
                     urls_and_material_types.add(preferredURL + ":" + material_type);
                 else { // Add the kitchen sink.
@@ -617,7 +644,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return urls_and_material_types;
     }
 
-    private final static Pattern PPN_EXTRACTION_PATTERN = Pattern.compile("^\\(DE-627\\)(.+)$");
+    protected final static Pattern PPN_EXTRACTION_PATTERN = Pattern.compile("^\\(DE-627\\)(.+)$");
 
     /** @return A PPN or null if we did not find one. */
     String getPPNFromWSubfield(final DataField field) {
@@ -667,7 +694,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return containerIdsTitlesAndOptionalVolumes;
     }
 
-    private final static char SUBFIELD_SEPARATOR = (char)0x1F;
+    protected final static char SUBFIELD_SEPARATOR = (char)0x1F;
 
     protected String normalizeSortableString(String string) {
         // Only keep letters & numbers. For unicode character classes, see:
@@ -889,7 +916,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return collections.iterator().next();
     }
 
-    private static boolean isValidMonthCode(final String month_candidate) {
+    protected static boolean isValidMonthCode(final String month_candidate) {
         try {
             final int month_code = Integer.parseInt(month_candidate);
             return month_code >= 1 && month_code <= 12;
@@ -1007,15 +1034,15 @@ public class TuelibMixin extends SolrIndexerMixin {
     /*
      * translation map cache
      */
-    static private Map<String, String> translation_map_en = new HashMap<String, String>();
-    static private Map<String, String> translation_map_fr = new HashMap<String, String>();
-    static private Map<String, String> translation_map_it = new HashMap<String, String>();
-    static private Map<String, String> translation_map_es = new HashMap<String, String>();
-    static private Map<String, String> translation_map_hant = new HashMap<String, String>();
-    static private Map<String, String> translation_map_hans = new HashMap<String, String>();
-    static private Map<String, String> translation_map_pt = new HashMap<String, String>();
-    static private Map<String, String> translation_map_ru = new HashMap<String, String>();
-    static private Map<String, String> translation_map_el = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_en = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_fr = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_it = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_es = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_hant = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_hans = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_pt = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_ru = new HashMap<String, String>();
+    static protected Map<String, String> translation_map_el = new HashMap<String, String>();
 
     /**
      * get translation map for normdata translations
@@ -1126,7 +1153,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     // Returns the contents of the first data field with tag "tag" and subfield code "subfield_code" or null if no
     // such field and subfield were found.
-    static private String getFirstSubfieldValue(final Record record, final String tag, final char subfieldCode) {
+    static protected String getFirstSubfieldValue(final Record record, final String tag, final char subfieldCode) {
         if (tag == null || tag.length() != 3)
             throw new IllegalArgumentException("bad tag (null or length != 3)!");
 
@@ -1142,7 +1169,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     // Returns the contents of the first data field with tag "tag", indicator1 "indicator1", indicator2 "indicator2"
     // and subfield code "subfield_code" or null if no such field and subfield were found.
-    static private String getFirstSubfieldValue(final Record record, final String tag, final char indicator1, final char indicator2,
+    static protected String getFirstSubfieldValue(final Record record, final String tag, final char indicator1, final char indicator2,
                                                 final char subfieldCode)
     {
         if (tag == null || tag.length() != 3)
@@ -1192,7 +1219,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @param subfield2Value    The value of subfield 2, e.g. "urn", "doi", "hdl", ...
      * @param resultPrefix      A prefix which will be prepended to each result entry.
      */
-    private static Set<String> getIdentifiersFrom024(final Record record,
+    protected static Set<String> getIdentifiersFrom024(final Record record,
                                                      final String subfield2Value,
                                                      final String resultPrefix)
     {
@@ -1215,11 +1242,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         return result;
     }
 
-    private static Set<String> getURNs(final Record record) {
+    protected static Set<String> getURNs(final Record record) {
         return getURNs(record, "");
     }
 
-    private static Set<String> getURNs(final Record record, final String resultPrefix) {
+    protected static Set<String> getURNs(final Record record, final String resultPrefix) {
         // From 2020-01-07 on, URNs will only be exported in 024.
         final Set<String> result = getIdentifiersFrom024(record, "urn", resultPrefix);
 
@@ -1241,19 +1268,19 @@ public class TuelibMixin extends SolrIndexerMixin {
         return result;
     }
 
-    private static Set<String> getDOIs(final Record record) {
+    protected static Set<String> getDOIs(final Record record) {
         return getDOIs(record, "");
     }
 
-    private static Set<String> getDOIs(final Record record, final String resultPrefix) {
+    protected static Set<String> getDOIs(final Record record, final String resultPrefix) {
         return getIdentifiersFrom024(record, "doi", resultPrefix);
     }
 
-    private static Set<String> getHandles(final Record record) {
+    protected static Set<String> getHandles(final Record record) {
         return getHandles(record, "");
     }
 
-    private static Set<String> getHandles(final Record record, final String resultPrefix) {
+    protected static Set<String> getHandles(final Record record, final String resultPrefix) {
         // From 2020-01-07 on, Handles will only be exported in 024.
         final Set<String> result = getIdentifiersFrom024(record, "hdl", resultPrefix);
 
@@ -1347,7 +1374,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     // Removes any non-letters from "original_role".
-    private static String cleanRole(final String original_role) {
+    protected static String cleanRole(final String original_role) {
         final StringBuilder canonised_role = new StringBuilder();
         for (final char ch : original_role.toCharArray()) {
             if (Character.isLetter(ch))
@@ -1357,9 +1384,9 @@ public class TuelibMixin extends SolrIndexerMixin {
         return canonised_role.toString();
     }
 
-    private static final char[] author2SubfieldCodes = new char[] { 'a', 'b', 'c', 'd' };
+    protected static final char[] author2SubfieldCodes = new char[] { 'a', 'b', 'c', 'd' };
 
-    private boolean isHonoree(final List<Subfield> subfieldFields4) {
+    protected boolean isHonoree(final List<Subfield> subfieldFields4) {
         for (final Subfield subfield4 : subfieldFields4) {
             if (subfield4.getData().equals("hnr"))
                 return true;
@@ -1369,7 +1396,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    private boolean isInFactPrimaryAuthor(final List<Subfield> subfieldFields4) {
+    protected boolean isInFactPrimaryAuthor(final List<Subfield> subfieldFields4) {
         for (final Subfield subfield4 : subfieldFields4) {
             if (subfield4.getData().equals("aut"))
                 return true;
@@ -1419,7 +1446,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return results;
     }
 
-    private Set<String> addHonourees(final Record record, final Set<String> values, String lang) {
+    protected Set<String> addHonourees(final Record record, final Set<String> values, String lang) {
         for (final VariableField variableField : record.getVariableFields("700")) {
             final DataField dataField = (DataField) variableField;
             final List<Subfield> subfieldFields4 = dataField.getSubfields('4');
@@ -1463,7 +1490,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Parse the field specifications
      */
-    private Map<String, String> parseTopicSeparators(String separatorSpec) {
+    protected Map<String, String> parseTopicSeparators(String separatorSpec) {
         final Map<String, String> separators = new HashMap<String, String>();
 
         // Split the string at unescaped ":"
@@ -1501,7 +1528,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     /*
      * Helper Class for passing symbol pairs in bracket directives
      */
-     private class SymbolPair {
+     protected class SymbolPair {
         public char opening;
         public char closing;
      }
@@ -1512,7 +1539,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * e.g. opening and closing parentheses
      * Changes the character arguments
      */
-    private SymbolPair parseBracketDirective(final String separator) {
+    protected SymbolPair parseBracketDirective(final String separator) {
         final Matcher matcher = BRACKET_DIRECTIVE_PATTERN.matcher(separator);
         if (!matcher.matches())
             throw new IllegalArgumentException("Invalid Bracket Specification");
@@ -1524,13 +1551,13 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    private Boolean isBracketDirective(final String separator) {
+    protected Boolean isBracketDirective(final String separator) {
         final Matcher matcher = BRACKET_DIRECTIVE_PATTERN.matcher(separator);
         return matcher.matches();
     }
 
 
-    private final static Pattern NUMBER_END_PATTERN = Pattern.compile("([^\\d\\s<>]+)(\\s*<?\\d+(-\\d+)>?$)");
+    protected final static Pattern NUMBER_END_PATTERN = Pattern.compile("([^\\d\\s<>]+)(\\s*<?\\d+(-\\d+)>?$)");
 
     /**
      * Translate a single term to given language if a translation is found
@@ -1635,7 +1662,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     @Deprecated
-    private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
+    protected void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
                                     Collection<String> collector, String langAbbrev) {
         getTopicsCollector(record, fieldSpec, separators, collector, langAbbrev, null);
     }
@@ -1645,7 +1672,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      * Construct a regular expression from the subfield tags where all character subfields are extracted and for number
      * subfields the subsequent character subSubfield-Code is skipped (e.g. abctnpz9g => a|b|c|t|n|p|z|9 (without the g)
      */
-    private String extractNormalizedSubfieldPatternHelper(final String subfldTags) {
+    protected String extractNormalizedSubfieldPatternHelper(final String subfldTags) {
         String[] tokens =  subfldTags.split("(?<=[0-9]?[a-z])");
         Stream<String> tokenStream = Arrays.stream(tokens);
         Stream<String> normalizedTokenStream = tokenStream.map(t -> "" + t.charAt(0)); // extract only first character
@@ -1656,7 +1683,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Strip subSubfield-Codes from the value part of a field
      */
-    private String stripSubSubfieldCode(final String term) {
+    protected String stripSubSubfieldCode(final String term) {
         return term.replaceAll("^[a-z]:", "");
     }
 
@@ -1664,7 +1691,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Abstract out topic extract from LOK and ordinary field handling
      */
-    private void extractTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<String> collector,
+    protected void extractTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<String> collector,
                             final  String langAbbrev, final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate) {
         final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "[a-z]" : extractNormalizedSubfieldPatternHelper(subfldTags));
         for (final VariableField vf : marcFieldList) {
@@ -1750,7 +1777,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *   closing character       :== A single character to be appended on the right side
      */
     @Deprecated
-    private void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
+    protected void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
                                     Collection<String> collector, String langAbbrev, Predicate<DataField> includeFieldPredicate)
 
     {
@@ -1798,7 +1825,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return;
     }
 
-    private class Topic {
+    protected class Topic {
         public String topic;
         public SymbolPair symbolPair = new SymbolPair();
         public String separator;
@@ -1815,7 +1842,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
     }
 
-    private void getCachedTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
+    protected void getCachedTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
                                           Collection<String> collector, String langAbbrev)
     {
         getCachedTopicsCollector(record, fieldSpec, separators, collector, langAbbrev, null);
@@ -1841,7 +1868,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      *   opening_character       :== A single character to be prepended on the left side
      *   closing character       :== A single character to be appended on the right side
      */
-    private void getCachedTopicsCollector(final Record record, String fieldSpec, final Map<String, String> separators,
+    protected void getCachedTopicsCollector(final Record record, String fieldSpec, final Map<String, String> separators,
                                           final Collection<String> collector, final String langAbbrev,
 					  final Predicate<DataField> includeFieldPredicate)
     {
@@ -1940,7 +1967,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Abstract out topic extract from LOK and ordinary field handling
      */
-    private void extractCachedTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators,
+    protected void extractCachedTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators,
 					   final Collection<Collection<Topic>> collector, final String fieldTag, final String subfieldTags,
 					   final Predicate<DataField> includeFieldPredicate)
     {
@@ -2063,18 +2090,18 @@ public class TuelibMixin extends SolrIndexerMixin {
         return values.iterator().next();
     }
 
-    private static boolean isSerialComponentPart(final Record record) {
+    protected static boolean isSerialComponentPart(final Record record) {
         final String leader = record.getLeader().toString();
         return leader.charAt(7) == 'b';
     }
 
 
-    private String checkValidYear(String fourDigitYear) {
+    protected String checkValidYear(String fourDigitYear) {
         Matcher validFourDigitYearMatcher = VALID_FOUR_DIGIT_YEAR_PATTERN.matcher(fourDigitYear);
         return validFourDigitYearMatcher.matches() ? fourDigitYear : "";
     }
 
-    private String yyMMDateToString(final String controlNumber, final String yyMMDate) {
+    protected String yyMMDateToString(final String controlNumber, final String yyMMDate) {
         int currentYear = Calendar.getInstance().get(Calendar.YEAR);
         int yearTwoDigit = currentYear - 2000;  // If extraction fails later we fall back to current year
         try {
@@ -2200,10 +2227,10 @@ public class TuelibMixin extends SolrIndexerMixin {
         return Boolean.toString(sprField.getSubfield('b') != null);
     }
 
-    private static String currentYear = null;
+    protected static String currentYear = null;
 
     /** @return the last two digits of the current year. */
-    private static String getCurrentYear() {
+    protected static String getCurrentYear() {
         if (currentYear == null) {
             final DateFormat df = new SimpleDateFormat("yy");
             currentYear = df.format(Calendar.getInstance().getTime());
@@ -2298,7 +2325,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     // Map used by getPhysicalType().
-    private static final Map<String, String> phys_code_to_format_map;
+    protected static final Map<String, String> phys_code_to_format_map;
 
     static {
         Map<String, String> tempMap = new HashMap<>();
@@ -2332,7 +2359,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     // Map used by getFormats().
-    private static final Map<String, String> _935a_to_format_map;
+    protected static final Map<String, String> _935a_to_format_map;
 
     static {
         Map<String, String> tempMap = new HashMap<>();
@@ -2384,8 +2411,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         return false;
     }
 
-    private final static String electronicRessource = "Electronic";
-    private final static String nonElectronicRessource = "Non-Electronic";
+    protected final static String electronicRessource = "Electronic";
+    protected final static String nonElectronicRessource = "Non-Electronic";
 
     /**
      * Determine Record Formats
@@ -2758,7 +2785,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return formats;
     }
 
-    private boolean foundInSubfield(final List<VariableField> fields, final char subfieldCode, final String subfieldContents) {
+    protected boolean foundInSubfield(final List<VariableField> fields, final char subfieldCode, final String subfieldContents) {
         for (final VariableField field : fields) {
             final DataField dataField = (DataField) field;
             for (final Subfield subfield : dataField.getSubfields()) {
@@ -3074,9 +3101,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final Object obj : hits) {
              JSONObject hit = (JSONObject) obj;
              JSONObject _source = (JSONObject) hit.get("_source");
-             final String description = mapTextTypeToDescription((String) _source.get("text_type"));
-             if (description.equals(text_type_description))
-                 fulltextBuilder.append(_source.get("full_text"));
+             final String description = _source.containsKey("text_type") ?
+		                        mapTextTypeToDescription((String) _source.get("text_type")) : "";
+             if (description.isEmpty() || text_type_description.isEmpty() ||
+                 description.equals(text_type_description))
+                     fulltextBuilder.append(_source.get("full_text"));
         }
         return fulltextBuilder.toString();
     }
@@ -3128,7 +3157,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    private static Properties esFulltextProperties = null;
+    protected static Properties esFulltextProperties = null;
 
 
     public Properties getESFulltextProperties() {
@@ -3166,7 +3195,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    private static Set<String> fulltextIDList = new HashSet<String>();
+    protected static Set<String> fulltextIDList = new HashSet<String>();
 
 
     static public boolean IsInFulltextPPNList(final String ppn) {

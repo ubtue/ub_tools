@@ -1,0 +1,24 @@
+This is the docmentation for config files as used by our generate_subscription_packets tool.
+
+The config files conform to the format as accepted by our IniFile class.
+
+The global section currently has two entries "zeder_instance" which selects the Zeder
+instance ("ixtheo" or "krim") and "bundle_instances" which is a comma-separated list of
+"ixtheo" and "rebib."
+
+Each named section corresponds to a single subscription bundle as used by our
+"new_journal_subscription" tool.  The section name is the bundle description as
+displayed to our users in the TueFind Web interface. The optional "description"
+entry will be skipped while processing a section.  The "class" and "except_class"
+entries are special and will be explained later.  All entries act as filters as to
+which Zeder journal entries' PPN's will be added to a generated bundle definition.
+The only journal PPN's that will be added to a bundle definition are those whose
+column values match the values specified in our config file sections.  (The
+section entries must be Zeder short column names.)  The "class" and "except_class"
+entries are special in that they can reference multiple possible Zeder column values
+in the Zeder "class" (= IxTheo notation) column.  If multiple values are specified
+the must be separated by vertical bars without any additional whitespace.
+"except_class" also references the "class" column but has the opposite effect of
+other column reference entries in a section in that journal PPN's will not be
+included if their "class" column contains at least one of the values specified with
+"except_class."

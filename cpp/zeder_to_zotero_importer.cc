@@ -47,7 +47,7 @@ using namespace ZoteroHarvester;
             "\tzeder_ids                       Comma-separated list of Zeder entry IDs to import/update.\n"
             "\t                                Special-case for updating: Use '*' to update all entries found in the config that belong to the Zeder flavour\n"
             "\tfields_to_update                Comma-separated list of the following fields to update: \n"
-            "\t                                \tONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSG.\n"
+            "\t                                \tONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSGN.\n"
             "\t                                Ignored when importing entries (all importable fields will be imported).\n\n");
 }
 

@@ -336,7 +336,7 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
     if (unlikely(line == lines.cend()))
         LOG_ERROR("missing usage message!");
 
-    std::cerr << "Usage: " << ::program_invocation_name << " [--min-log-level] " << *line << '\n';
+    std::cerr << "Usage: " << ::program_invocation_name << " [--min-log-level=(ERROR|WARNING|INFO|DEBUG)] " << *line << '\n';
     const std::string padding(__builtin_strlen("Usage: ") + __builtin_strlen(::program_invocation_name) + 1, ' ');
     for (++line; line != lines.cend(); ++line)
         std::cerr << padding << *line << '\n';

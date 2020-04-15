@@ -87,7 +87,7 @@ void DetermineNewStats(std::vector<std::pair<std::string, unsigned>> * const dom
 inline bool CompareDomainsAndCountsByDomains(const std::pair<std::string, unsigned> &domain_and_count1,
                                              const std::pair<std::string, unsigned> &domain_and_count2)
 {
-    return domain_and_count1.first > domain_and_count2.first;
+    return domain_and_count1.first < domain_and_count2.first;
 }
 
 

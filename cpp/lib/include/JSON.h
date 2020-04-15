@@ -2,7 +2,7 @@
  *  \brief  Interface for JSON-related functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -43,12 +43,13 @@ class Scanner {
     std::string last_error_message_;
     unsigned line_no_;
     std::string::const_iterator ch_;
+    const std::string::const_iterator begin_;
     const std::string::const_iterator end_;
     bool pushed_back_;
     TokenType pushed_back_token_;
 public:
     explicit Scanner(const std::string &json_document)
-        : line_no_(1), ch_(json_document.cbegin()), end_(json_document.cend()), pushed_back_(false) { }
+        : line_no_(1), ch_(json_document.cbegin()), begin_(json_document.cbegin()), end_(json_document.cend()), pushed_back_(false) { }
     TokenType getToken();
     void ungetToken(const TokenType token);
     const std::string &getLastStringConstant() const { return last_string_constant_; }
@@ -241,6 +242,12 @@ public:
     std::shared_ptr<const JSONNode> getNode(const std::string &label) const;
     std::shared_ptr<JSONNode> getNode(const std::string &label);
 
+    /** \brief  Recursive lookup
+     *  \param  path a path relative to the current object
+     *  \return The resolved node or NULL if no entity referenced by the path was found.
+     */
+    std::shared_ptr<const JSONNode> deepResolveNode(const std::string &path) const;
+
     // Automatic cast value retrieval.  If the requested type is not applicable, the functions abort.
     std::shared_ptr<const ArrayNode> getArrayNode(const std::string &label) const { return getNode<ArrayNode>(label, ARRAY_NODE); }
     std::shared_ptr<ArrayNode> getArrayNode(const std::string &label) { return getNode<ArrayNode>(label, ARRAY_NODE); }
@@ -310,8 +317,8 @@ public:
     virtual Type getType() const override { return ARRAY_NODE; }
     virtual std::string toString() const override;
     bool empty() const { return values_.empty(); }
-    std::shared_ptr<const JSONNode> getNode(const size_t index) const { return values_[index]; }
-    std::shared_ptr<JSONNode> getNode(const size_t index) { return values_[index]; }
+    std::shared_ptr<const JSONNode> getNode(const size_t index) const;
+    std::shared_ptr<JSONNode> getNode(const size_t index);
 
     // Automatic cast value retrieval.  If the requested type is not applicable, the functions abort.
     bool getBooleanValue(const size_t index) const { return this->getNode<BooleanNode>(index, BOOLEAN_NODE)->getValue(); }
@@ -366,12 +373,22 @@ private:
 std::string TokenTypeToString(const TokenType token);
 
 
+/** \brief Locates a JSON node from in JSON tree structure.
+ *  \param path           A path of the form /X/Y/X...  Individual path components may contain slashes if they are
+ *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
+ *                        supported.
+ *  \param tree           The root of a JSON tree structure.
+ *  \return The referenced node if found or NULL o/w.
+ */
+std::shared_ptr<const JSONNode> LookupNode(const std::string &path, const std::shared_ptr<const JSONNode> &tree);
+
+
 /** \brief Extracts a string datum from a JSON tree structure.
  *  \param path           A path of the form /X/Y/X...  Individual path components may contain slashes if they are
  *                        backslash escaped.  Literal backslashes also have to be escaped.  No other escapes are
  *                        supported.
  *  \param tree           The root of a JSON tree structure.
- *  \return The datum, if found, "default_value" if not found and "default_value" is not NULL.
+ *  \return The string value of the referenced node.
  *  \throws std::runtime_error if the datum is not found.
  *  \note Should "path" reference a scalar node that is not a string, a string representation thereof will be
  *        returned.
