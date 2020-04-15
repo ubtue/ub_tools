@@ -347,7 +347,6 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
             std::map<char, std::shared_ptr<RegexMatcher>> subfield_codes_to_extraction_regexes_map;
             std::vector<DependentSubfield> dependent_subfields;
             for (const auto section_entry : section) {
-if (section_entry.name_ == "Host Item Entry")LOG_ERROR("Found Host Item Entry");
                 if (StringUtil::StartsWith(section_entry.name_, "add_fixed_subfield_")) {
                     if (section_entry.name_.length() != __builtin_strlen("add_fixed_subfield_?")) // Note: ? used as a placeholder for a subfield code
                         LOG_ERROR("invalid section entry in section \"" + section_name + "\": \"" + section_entry.name_ + "\"!");
