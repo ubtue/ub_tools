@@ -609,7 +609,7 @@ std::unordered_set<std::string> unmatched_issns;
 std::string MapJSONValue(const std::string &value, const std::string &map_name, const std::string &map_key,
                          const std::unordered_map<std::string, JournalTitleAndPPN> &issns_to_journal_titles_and_ppns_map)
 {
-    if (map_name != "journal_tites_and_ppns_map")
+    if (map_name != "journal_titles_and_ppns_map")
         LOG_ERROR("unknown map name \"" + map_name + "\"!");
 
     const auto issn_and_journal_title_and_ppn(issns_to_journal_titles_and_ppns_map.find(value));
