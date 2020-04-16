@@ -518,7 +518,7 @@ int Main(int argc, char *argv[]) {
         } else if (action == "url") {
             title = GetCGIParameterOrDefault(cgi_args, "url_journal_title");
             if (title.empty())
-                group_name = "Default";
+                group_name = "ixtheo";
             else
                 group_name = journal_name_to_group_name_map.at(title);
             output_format = GetCGIParameterOrDefault(cgi_args, "url_output_format");
