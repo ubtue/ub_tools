@@ -105,8 +105,8 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
     unsigned included_journal_count(0);
     std::set<std::string> bundle_ppns; // We use a std::set because it is automatically being sorted for us.
     for (const auto &journal : zeder) {
-    if (journal.size() == 1 /* only the column ID */or not IncludeJournal(journal, section))
-        continue;
+        if (journal.size() == 1 /* only the column ID */or not IncludeJournal(journal, section))
+            continue;
 
         ++included_journal_count;
         const auto print_ppns(journal.lookup("pppn"));
