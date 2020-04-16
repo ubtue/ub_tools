@@ -1,7 +1,7 @@
 /** \brief API to interact with the Zeder collaboration tool
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018, 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -108,6 +108,7 @@ public:
     const_iterator begin() const { return attributes_.begin(); }
     const_iterator end() const { return attributes_.end(); }
     size_t size() const { return attributes_.size(); }
+    bool empty() const { return attributes_.empty(); }
 
     struct DiffResult {
         // True if the modified revision's timestamp is newer than the source revision's
