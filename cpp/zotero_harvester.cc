@@ -646,7 +646,7 @@ int Main(int argc, char *argv[]) {
         break;
     case CommandLineArgs::SelectionMode::URL: {
         const auto parent_journal(harvester_config.lookupJournal(commandline_args.selected_url_parent_journal_));
-        if (parent_journal != nullptr) {
+        if (parent_journal == nullptr) {
             harvester_config.default_journal_params_->entry_point_url_ = commandline_args.selected_url_;
             auto current_journal_datastore(QueueDownloadsForJournal(*harvester_config.default_journal_params_,
                                                                     harvester_config, &harvestable_manager,
