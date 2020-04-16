@@ -325,7 +325,8 @@ std::string EnhancementMaps::lookupLicense(const std::string &issn) const {
 void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
                              std::vector<std::unique_ptr<JournalParams>> * const journal_params,
-                             std::unique_ptr<IniFile> * const config_file)
+                             std::unique_ptr<IniFile> * const config_file,
+                             const IniFile::Section config_overrides)
 {
     std::unique_ptr<IniFile> ini(new IniFile(config_filepath));
 
@@ -337,11 +338,16 @@ void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr
     for (const auto &group_name : group_names)
         group_params->emplace_back(new Config::GroupParams(*ini->getSection(group_name)));
 
-    for (const auto &section : *ini) {
+    for (auto section : *ini) {
         if (section.getSectionName().empty())
             continue;
         else if (group_names.find(section.getSectionName()) != group_names.end())
             continue;
+
+        for (const auto &override_entry : config_overrides) {
+            section.insert(override_entry.name_, override_entry.value_, override_entry.comment_,
+                           IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+        }
 
         journal_params->emplace_back(new Config::JournalParams(section, **global_params));
     }

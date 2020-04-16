@@ -55,7 +55,9 @@ using namespace ZoteroHarvester;
               << "\tSelection modes: UPLOAD, URL, JOURNAL\n"
               << "\t\tUPLOAD - Only those journals that have the specified upload operation (either LIVE or TEST) set will be processed.\n"
               << "\t\tURL - Only the specified URL is processed as a DIRECT harvester operation.\n"
-              << "\t\tJOURNAL - If no arguments are provided, all journals are processed. Otherwise, only those journals specified are processed.\n\n";
+              << "\t\tJOURNAL - If no arguments are provided, all journals are processed. Otherwise, only those journals specified are processed.\n"
+              << "\t\t          If \"--config-overrides=\" are specified, it will be treated as raw text to override parts of the config file sections.\n"
+              << "\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -72,6 +74,7 @@ struct CommandLineArgs {
     std::set<std::string> selected_journals_;
     std::string selected_url_;
     Config::UploadOperation selected_upload_operation_;
+    IniFile::Section config_overrides_;
 public:
     explicit CommandLineArgs();
 };
@@ -152,7 +155,14 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
             return; // intentional early return
         }
         case CommandLineArgs::SelectionMode::JOURNAL:
-            commandline_args->selected_journals_.emplace(current_arg);
+            if (StringUtil::StartsWith(current_arg, "--config-overrides=")) {
+                const std::string config_overrides(current_arg + __builtin_strlen("--config-overrides="));
+                FileUtil::AutoTempFile tempfile("/tmp/ATF", "", false);
+                FileUtil::WriteStringOrDie(tempfile.getFilePath(), config_overrides);
+                IniFile ini_tempfile(tempfile.getFilePath());
+                commandline_args->config_overrides_ = *ini_tempfile.begin();
+            } else
+                commandline_args->selected_journals_.emplace(current_arg);
             break;
         case CommandLineArgs::SelectionMode::URL:
             commandline_args->selected_url_ = current_arg;
@@ -178,9 +188,12 @@ struct HarvesterConfigData {
 };
 
 
-void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * const harvester_config) {
+void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * const harvester_config,
+                         const IniFile::Section &config_overrides=IniFile::Section())
+{
     Config::LoadHarvesterConfigFile(config_path, &harvester_config->global_params_,
-                                    &harvester_config->group_params_, &harvester_config->journal_params_);
+                                    &harvester_config->group_params_, &harvester_config->journal_params_,
+                                    nullptr, config_overrides);
 
     for (const auto &group : harvester_config->group_params_)
         harvester_config->group_name_to_group_params_map_.emplace(group->name_, *group);
@@ -566,7 +579,7 @@ int Main(int argc, char *argv[]) {
     ParseCommandLineArgs(&argc, &argv, &commandline_args);
 
     HarvesterConfigData harvester_config;
-    LoadHarvesterConfig(commandline_args.config_path_, &harvester_config);
+    LoadHarvesterConfig(commandline_args.config_path_, &harvester_config, commandline_args.config_overrides_);
 
     Util::HarvestableItemManager harvestable_manager(harvester_config.journal_params_);
 
