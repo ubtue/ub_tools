@@ -96,8 +96,7 @@ template<typename MapType> std::string MapToString(const MapType &map) {
             map_as_string += ", ";
         map_as_string += '"';
         map_as_string += StringUtil::BackslashEscape('"', ToString(key_and_value.first));
-        map_as_string += '"';
-        map_as_string += '"';
+        map_as_string += "\" = \"";
         map_as_string += StringUtil::BackslashEscape('"', ToString(key_and_value.second));
         map_as_string += '"';
     }
