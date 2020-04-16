@@ -23,9 +23,9 @@
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "IniFile.h"
-#include "SimpleZeder.h"
 #include "StringUtil.h"
 #include "util.h"
+#include "Zeder.h"
 
 
 namespace {
@@ -48,7 +48,7 @@ bool FoundExpectedClassValue(const std::string &expected_values_str, const std::
 }
 
 
-bool IncludeJournal(const SimpleZeder::Journal &journal, const IniFile::Section &filter_section) {
+bool IncludeJournal(const Zeder::Entry &journal, const IniFile::Section &filter_section) {
     for (const auto &entry : filter_section) {
         if (entry.name_.empty() or entry.name_ == "description")
             continue;
@@ -99,7 +99,7 @@ std::string EscapeDoubleQuotes(const std::string &s) {
 }
 
 
-void GenerateBundleDefinition(const SimpleZeder &zeder, const std::string &bundle_instances,
+void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string &bundle_instances,
                               const IniFile::Section &section, File * const output_file)
 {
     unsigned included_journal_count(0);
@@ -151,7 +151,7 @@ int Main(int argc, char *argv[]) {
     if (zeder_instance != "ixtheo" and zeder_instance != "relbib")
         LOG_ERROR("zeder_instance in \"" + packet_definitions_ini_file.getFilename() + "\" must be either \"ixtheo\" or \"relbib\"!");
 
-    const SimpleZeder zeder(zeder_instance == "ixtheo" ? SimpleZeder::IXTHEO : SimpleZeder::KRIM_DOK,
+    const Zeder::SimpleZeder zeder(zeder_instance == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK,
                             { "ausw", "ber", "bub", "DT_RowId", "class", "eppn", "ever", "kat", "pppn" });
     if (unlikely(zeder.empty()))
         LOG_ERROR("found no Zeder entries matching any of our requested columns!"
