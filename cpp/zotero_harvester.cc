@@ -51,11 +51,11 @@ using namespace ZoteroHarvester;
               << "\t[--ignore-robots-dot-txt]           Ignore crawling/rate-limiting parameters specified in robots.txt files and disable download restrictions globally\n"
               << "\t[--output-directory=output_dir]     Generated files are saved to /tmp/zotero_harvester by default\n"
               << "\t[--output-filename=output_filename] Overrides the automatically-generated filename based on the current date/time. Output format is always MARC-XML\n"
-              << "\t[--config-overrides=ini_overrides]  Overrides parts of all found journal sections in the config file (using ini syntax only with a global section). UPLOAD/JOURNAL only.\n"
+              << "\t[--config-overrides=ini_overrides]  Overrides parts of all found journal sections in the config file (using ini syntax only with a global section).\n"
               << "\n"
               << "\tSelection modes: UPLOAD, URL, JOURNAL\n"
               << "\t\tUPLOAD - Only those journals that have the specified upload operation (either LIVE or TEST) set will be processed.\n"
-              << "\t\tURL - Only the specified URL is processed as a DIRECT harvester operation.\n"
+              << "\t\tURL - Only the specified URL is processed as a DIRECT harvester operation. An optional journal name can be provided as a second argument to associate the URL with it (reqd. for config overrides)\n"
               << "\t\tJOURNAL - If no arguments are provided, all journals are processed. Otherwise, only the specified journals are processed.\n"
               << "\n";
     std::exit(EXIT_FAILURE);
@@ -70,11 +70,12 @@ struct CommandLineArgs {
     std::string output_directory_;
     std::string output_filename_;
     std::string config_path_;
+    IniFile::Section config_overrides_;
     SelectionMode selection_mode_;
     std::set<std::string> selected_journals_;
     std::string selected_url_;
+    std::string selected_url_parent_journal_;
     Config::UploadOperation selected_upload_operation_;
-    IniFile::Section config_overrides_;
 public:
     explicit CommandLineArgs();
 };
@@ -158,8 +159,7 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
         const auto current_arg((*argv)[i]);
 
         switch (commandline_args->selection_mode_) {
-        case CommandLineArgs::SelectionMode::UPLOAD:
-        {
+        case CommandLineArgs::SelectionMode::UPLOAD: {
             auto upload_op(Config::STRING_TO_UPLOAD_OPERATION_MAP.find(current_arg));
             if (upload_op != Config::STRING_TO_UPLOAD_OPERATION_MAP.end())
                 commandline_args->selected_upload_operation_ = static_cast<Config::UploadOperation>(upload_op->second);
@@ -169,7 +169,10 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
             commandline_args->selected_journals_.emplace(current_arg);
             break;
         case CommandLineArgs::SelectionMode::URL:
-            commandline_args->selected_url_ = current_arg;
+            if (i == 1)
+                commandline_args->selected_url_ = current_arg;
+            else if (i == 2)
+                commandline_args->selected_url_parent_journal_ = current_arg;
             break;
         default:
             LOG_ERROR("unknown selection mode");
@@ -186,10 +189,22 @@ struct HarvesterConfigData {
     std::map<std::string, const std::reference_wrapper<Config::GroupParams>> group_name_to_group_params_map_;
     Config::JournalParams * default_journal_params_;
 
-    inline const Config::GroupParams & lookupJournalGroup(const Config::JournalParams &journal_params) const {
+    inline const Config::GroupParams &lookupJournalGroup(const Config::JournalParams &journal_params) const {
         return group_name_to_group_params_map_.find(journal_params.group_)->second;
     }
+
+    Config::JournalParams *lookupJournal(const std::string &journal_name) const;
 };
+
+
+Config::JournalParams *HarvesterConfigData::lookupJournal(const std::string &journal_name) const {
+    for (const auto &journal_param : journal_params_) {
+        if (journal_param->name_ == journal_name)
+            return journal_param.get();
+    }
+
+    return nullptr;
+}
 
 
 void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * const harvester_config,
@@ -630,11 +645,23 @@ int Main(int argc, char *argv[]) {
 
         break;
     case CommandLineArgs::SelectionMode::URL: {
-        harvester_config.default_journal_params_->entry_point_url_ = commandline_args.selected_url_;
-        auto current_journal_datastore(QueueDownloadsForJournal(*harvester_config.default_journal_params_,
-                                                                harvester_config, &harvestable_manager,
-                                                                &download_manager, &harvester_metrics));
-        journal_datastores.emplace_back(std::move(current_journal_datastore));
+        const auto parent_journal(harvester_config.lookupJournal(commandline_args.selected_url_parent_journal_));
+        if (parent_journal != nullptr) {
+            harvester_config.default_journal_params_->entry_point_url_ = commandline_args.selected_url_;
+            auto current_journal_datastore(QueueDownloadsForJournal(*harvester_config.default_journal_params_,
+                                                                    harvester_config, &harvestable_manager,
+                                                                    &download_manager, &harvester_metrics));
+            journal_datastores.emplace_back(std::move(current_journal_datastore));
+        } else {
+            // We are permanently modifying the JournalParams instance as it will not
+            // be reused for the remainder of this session.
+            parent_journal->harvester_operation_ = Config::HarvesterOperation::DIRECT;
+            parent_journal->entry_point_url_ = commandline_args.selected_url_;
+            auto current_journal_datastore(QueueDownloadsForJournal(*parent_journal,
+                                                                    harvester_config, &harvestable_manager,
+                                                                    &download_manager, &harvester_metrics));
+            journal_datastores.emplace_back(std::move(current_journal_datastore));
+        }
 
         break;
     }

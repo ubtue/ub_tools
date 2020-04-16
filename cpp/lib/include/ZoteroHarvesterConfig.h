@@ -185,8 +185,8 @@ struct JournalParams {
 public:
     JournalParams(const GlobalParams &global_params);
     JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);
-    JournalParams(const GroupParams &rhs) = delete;
-    JournalParams &operator=(const GroupParams &rhs) = delete;
+    JournalParams(const JournalParams &rhs) = delete;
+    JournalParams &operator=(const JournalParams &rhs) = delete;
 
     static std::string GetIniKeyString(const IniKey ini_key);
     static IniKey GetIniKey(const std::string &ini_key_string);
