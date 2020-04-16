@@ -290,7 +290,8 @@ class HarvestTask {
     FileUtil::AutoTempFile log_path_;
     std::unique_ptr<FileUtil::AutoTempFile> out_path_;
 public:
-    HarvestTask(const std::string &section, const std::string &output_format_id, const std::string &bsz_upload_group);
+    HarvestTask(const std::string &section, const std::string &output_format_id,
+                const std::string &bsz_upload_group, const std::string &config_overrides="");
 
     /** \brief get shell command including args (for debug output) */
     inline const std::string &getCommand() const { return command_; }
@@ -303,7 +304,8 @@ public:
 };
 
 
-HarvestTask::HarvestTask(const std::string &section, const std::string &output_format_id, const std::string &bsz_upload_group)
+HarvestTask::HarvestTask(const std::string &section, const std::string &output_format_id,
+                         const std::string &bsz_upload_group, const std::string &config_overrides)
     : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
       executable_(ExecUtil::LocateOrDie("zotero_harvester")),
       log_path_(auto_temp_dir_.getDirectoryPath() + "/log", "", /*automatically_remove*/ false)
@@ -323,6 +325,11 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
     args.emplace_back("--output-filename=" + basename);
     args.emplace_back(ZTS_HARVESTER_CONF_FILE);
     args.emplace_back("JOURNAL");
+    if (not config_overrides.empty()) {
+        std::string arg("--config-overrides=" + config_overrides);
+        StringUtil::RemoveChars("\r", &arg);
+        args.emplace_back(arg);
+    }
     args.emplace_back(section);
 
     std::unordered_map<std::string, std::string> envs {
@@ -338,11 +345,13 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
 
 
 void ExecuteHarvestAction(const std::string &title, const std::string &output_format,
-                          const ZoteroHarvester::Config::GroupParams &group_params) {
+                          const ZoteroHarvester::Config::GroupParams &group_params,
+                          const std::string &config_overrides)
+{
     std::cout << "<h2>Result</h2>\r\n";
     std::cout << "<table>\r\n";
 
-    const HarvestTask task(title, output_format, group_params.output_folder_);
+    const HarvestTask task(title, output_format, group_params.output_folder_, config_overrides);
 
     std::cout << "<tr><td>Command</td><td>" + task.getCommand() + "</td></tr>\r\n";
     std::cout << "<tr><td>Runtime</td><td id=\"runtime\"></td></tr>\r\n";
@@ -450,6 +459,7 @@ int Main(int argc, char *argv[]) {
 
     const std::string default_action("list");
     const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));
+    const std::string config_overrides(GetCGIParameterOrDefault(cgi_args, "config_overrides"));
 
     if (action == "download")
         ProcessDownloadAction(cgi_args);
@@ -474,6 +484,7 @@ int Main(int argc, char *argv[]) {
         names_to_values_map.insertScalar("selected_output_format_id", selected_output_format_id);
         names_to_values_map.insertArray("output_format_ids", GetOutputFormatIds());
         names_to_values_map.insertScalar("running_processes_count", std::to_string(ExecUtil::FindActivePrograms("zotero_harvester").size()));
+        names_to_values_map.insertScalar("config_overrides", config_overrides);
 
         std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> group_name_to_params_map;
         std::unordered_map<std::string, std::string>journal_name_to_group_name_map;
@@ -493,7 +504,9 @@ int Main(int argc, char *argv[]) {
         } else if (action != default_action)
             LOG_ERROR("invalid action: \"" + action + '"');
 
-        ExecuteHarvestAction(journal_title, output_format, group_name_to_params_map.at(journal_name_to_group_name_map.at(journal_title)));
+        ExecuteHarvestAction(journal_title, output_format,
+                             group_name_to_params_map.at(journal_name_to_group_name_map.at(journal_title)),
+                             config_overrides);
         std::cout << "</body></html>";
     }
 
