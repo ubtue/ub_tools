@@ -50,6 +50,17 @@ inline bool Contains(const std::unordered_multimap<KeyType, ValueType> &multimap
 }
 
 
+// Converts scalar types and std::strings to std::strings.
+template<typename Type> std::string ToString(const Type value) {
+    if constexpr(std::is_same_v<Type, std::string>)
+        return value;
+    else if constexpr(std::is_same_v<Type, char>)
+        return std::string(1, value);
+    else
+        return std::to_string(value);
+}
+
+
 /** \brief Writes "map" to "output_filename" in a format that can be red in by DeserialiseMap(). */
 template<typename MapType> void SerialiseMap(const std::string &output_filename, const MapType &map) {
     std::ofstream output(output_filename, std::ofstream::out | std::ofstream::trunc);
@@ -76,15 +87,6 @@ void SerialiseMap(const std::string &output_filename, const std::unordered_multi
 void DeserialiseMap(const std::string &input_filename, std::unordered_multimap<std::string, std::string> * const multimap);
 
 void WriteEntry(File * const map_file, const std::string &key, const std::string &value);
-
-
-// Converts scalar types and std::strings to std::strings.
-template<typename Type> std::string ToString(const Type value) {
-    if constexpr(std::is_same_v<Type, std::string>)
-        return value;
-    else
-        return std::to_string(value);
-}
 
 
 // Useful for debugging..
