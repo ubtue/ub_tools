@@ -225,6 +225,8 @@ public:
 
         std::vector<std::string> getEntryNames() const;
 
+        inline size_t size() const { return entries_.size(); }
+
         // \return An iterator referencing the found entry or end() if no matching enmtry was found.
         inline const_iterator find(const std::string &variable_name) const {
             return std::find_if(entries_.cbegin(), entries_.cend(), [&variable_name](const Entry &entry)

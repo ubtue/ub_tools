@@ -51,11 +51,13 @@ using namespace ZoteroHarvester;
               << "\t[--ignore-robots-dot-txt]           Ignore crawling/rate-limiting parameters specified in robots.txt files and disable download restrictions globally\n"
               << "\t[--output-directory=output_dir]     Generated files are saved to /tmp/zotero_harvester by default\n"
               << "\t[--output-filename=output_filename] Overrides the automatically-generated filename based on the current date/time. Output format is always MARC-XML\n"
+              << "\t[--config-overrides=ini_overrides]  Overrides parts of all found journal sections in the config file (using ini syntax only with a global section). UPLOAD/JOURNAL only.\n"
               << "\n"
               << "\tSelection modes: UPLOAD, URL, JOURNAL\n"
               << "\t\tUPLOAD - Only those journals that have the specified upload operation (either LIVE or TEST) set will be processed.\n"
               << "\t\tURL - Only the specified URL is processed as a DIRECT harvester operation.\n"
-              << "\t\tJOURNAL - If no arguments are provided, all journals are processed. Otherwise, only those journals specified are processed.\n\n";
+              << "\t\tJOURNAL - If no arguments are provided, all journals are processed. Otherwise, only the specified journals are processed.\n"
+              << "\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -72,6 +74,7 @@ struct CommandLineArgs {
     std::set<std::string> selected_journals_;
     std::string selected_url_;
     Config::UploadOperation selected_upload_operation_;
+    IniFile::Section config_overrides_;
 public:
     explicit CommandLineArgs();
 };
@@ -115,6 +118,17 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
         const std::string OUTPUT_FILENAME_FLAG_PREFIX("--output-filename=");
         if (StringUtil::StartsWith((*argv)[1], OUTPUT_FILENAME_FLAG_PREFIX)) {
             commandline_args->output_filename_ = (*argv)[1] + OUTPUT_FILENAME_FLAG_PREFIX.length();
+            --*argc, ++*argv;
+            continue;
+        }
+
+        const std::string CONFIG_OVERRIDES_FLAG_PREFIX("--config-overrides=");
+        if (StringUtil::StartsWith((*argv)[1], CONFIG_OVERRIDES_FLAG_PREFIX)) {
+            const std::string config_overrides((*argv)[1] + CONFIG_OVERRIDES_FLAG_PREFIX.length());
+            FileUtil::AutoTempFile tempfile;
+            FileUtil::WriteStringOrDie(tempfile.getFilePath(), config_overrides);
+            IniFile ini_tempfile(tempfile.getFilePath());
+            commandline_args->config_overrides_ = *ini_tempfile.begin();
             --*argc, ++*argv;
             continue;
         }
@@ -178,9 +192,12 @@ struct HarvesterConfigData {
 };
 
 
-void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * const harvester_config) {
+void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * const harvester_config,
+                         const IniFile::Section &config_overrides)
+{
     Config::LoadHarvesterConfigFile(config_path, &harvester_config->global_params_,
-                                    &harvester_config->group_params_, &harvester_config->journal_params_);
+                                    &harvester_config->group_params_, &harvester_config->journal_params_,
+                                    /* config_file = */ nullptr, config_overrides);
 
     for (const auto &group : harvester_config->group_params_)
         harvester_config->group_name_to_group_params_map_.emplace(group->name_, *group);
@@ -566,7 +583,7 @@ int Main(int argc, char *argv[]) {
     ParseCommandLineArgs(&argc, &argv, &commandline_args);
 
     HarvesterConfigData harvester_config;
-    LoadHarvesterConfig(commandline_args.config_path_, &harvester_config);
+    LoadHarvesterConfig(commandline_args.config_path_, &harvester_config, commandline_args.config_overrides_);
 
     Util::HarvestableItemManager harvestable_manager(harvester_config.journal_params_);
 
