@@ -2489,4 +2489,16 @@ std::string ShortenText(const std::string &text, const size_t max_length);
 unsigned RomanNumeralToDecimal(const std::string &s);
 
 
+// Converts scalar types and std::strings to std::strings.
+// Better than std::to_string because it can also handle std::strings and chars!
+template<typename Type> std::string AnyToString(const Type value) {
+    if constexpr(std::is_same_v<Type, std::string>)
+        return value;
+    else if constexpr(std::is_same_v<Type, char>)
+        return std::string(1, value);
+    else
+        return std::to_string(value);
+}
+
+
 } // Namespace StringUtil
