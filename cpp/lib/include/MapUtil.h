@@ -50,17 +50,6 @@ inline bool Contains(const std::unordered_multimap<KeyType, ValueType> &multimap
 }
 
 
-// Converts scalar types and std::strings to std::strings.
-template<typename Type> std::string ToString(const Type value) {
-    if constexpr(std::is_same_v<Type, std::string>)
-        return value;
-    else if constexpr(std::is_same_v<Type, char>)
-        return std::string(1, value);
-    else
-        return std::to_string(value);
-}
-
-
 /** \brief Writes "map" to "output_filename" in a format that can be red in by DeserialiseMap(). */
 template<typename MapType> void SerialiseMap(const std::string &output_filename, const MapType &map) {
     std::ofstream output(output_filename, std::ofstream::out | std::ofstream::trunc);
@@ -68,7 +57,7 @@ template<typename MapType> void SerialiseMap(const std::string &output_filename,
         LOG_ERROR("Failed to open \"" + output_filename + "\" for writing!");
 
     for (const auto &key_and_value : map)
-        output << Escape(ToString(key_and_value.first)) << '=' << ToString(key_and_value.second) << '\n';
+        output << Escape(AnyToString(key_and_value.first)) << '=' << AnyToString(key_and_value.second) << '\n';
 }
 
 
@@ -97,9 +86,9 @@ template<typename MapType> std::string MapToString(const MapType &map) {
         if (not map_as_string.empty())
             map_as_string += ", ";
         map_as_string += '"';
-        map_as_string += StringUtil::BackslashEscape('"', ToString(key_and_value.first));
+        map_as_string += StringUtil::BackslashEscape('"', StringUtil::AnyToString(key_and_value.first));
         map_as_string += "\" = \"";
-        map_as_string += StringUtil::BackslashEscape('"', ToString(key_and_value.second));
+        map_as_string += StringUtil::BackslashEscape('"', StringUtil::AnyToString(key_and_value.second));
         map_as_string += '"';
     }
 
