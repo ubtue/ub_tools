@@ -105,7 +105,7 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
     unsigned included_journal_count(0);
     std::set<std::string> bundle_ppns; // We use a std::set because it is automatically being sorted for us.
     for (const auto &journal : zeder) {
-        if (journal.size() == 1 /* only the column ID */or not IncludeJournal(journal, section))
+        if (journal.empty() or not IncludeJournal(journal, section))
             continue;
 
         ++included_journal_count;
@@ -114,8 +114,7 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
 
         if (print_ppns.empty() and online_ppns.empty()) {
             --included_journal_count;
-            const auto zeder_id(journal.lookup("DT_RowId"));
-            LOG_WARNING("Zeder entry #" + zeder_id + " is missing print and online PPN's!");
+            LOG_WARNING("Zeder entry #" + std::to_string(journal.getId()) + " is missing print and online PPN's!");
             continue;
         }
 
@@ -152,7 +151,7 @@ int Main(int argc, char *argv[]) {
         LOG_ERROR("zeder_instance in \"" + packet_definitions_ini_file.getFilename() + "\" must be either \"ixtheo\" or \"relbib\"!");
 
     const Zeder::SimpleZeder zeder(zeder_instance == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK,
-                            { "ausw", "ber", "bub", "DT_RowId", "class", "eppn", "ever", "kat", "pppn" });
+                                   { "ausw", "ber", "bub", "class", "eppn", "ever", "kat", "pppn" });
     if (unlikely(zeder.empty()))
         LOG_ERROR("found no Zeder entries matching any of our requested columns!"
                   " (This *should* not happen as we included the column ID!)");
