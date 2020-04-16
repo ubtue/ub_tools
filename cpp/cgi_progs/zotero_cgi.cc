@@ -262,8 +262,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault(cgi_args, "rss_journal_title",
                                                                                              first_rss_journal_title));
 
-    names_to_values_map->insertScalar("selected_url_journal_title", GetCGIParameterOrDefault(cgi_args, "url_journal_title",
-                                                                                             "Default"));
+    names_to_values_map->insertScalar("selected_url_journal_title", GetCGIParameterOrDefault(cgi_args, "url_journal_title"));
 }
 
 
