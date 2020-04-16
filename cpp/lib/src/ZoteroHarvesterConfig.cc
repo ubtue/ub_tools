@@ -338,18 +338,21 @@ void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr
     for (const auto &group_name : group_names)
         group_params->emplace_back(new Config::GroupParams(*ini->getSection(group_name)));
 
-    for (auto section : *ini) {
+    for (const auto &section : *ini) {
         if (section.getSectionName().empty())
             continue;
         else if (group_names.find(section.getSectionName()) != group_names.end())
             continue;
 
-        for (const auto &override_entry : config_overrides) {
-            section.insert(override_entry.name_, override_entry.value_, override_entry.comment_,
-                           IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
-        }
-
-        journal_params->emplace_back(new Config::JournalParams(section, **global_params));
+        if (config_overrides.size() > 0) {
+            IniFile::Section section2(section);
+            for (const auto &override_entry : config_overrides) {
+                section2.insert(override_entry.name_, override_entry.value_, override_entry.comment_,
+                               IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+            }
+            journal_params->emplace_back(new Config::JournalParams(section2, **global_params));
+        } else
+            journal_params->emplace_back(new Config::JournalParams(section, **global_params));
     }
 
     if (config_file != nullptr)

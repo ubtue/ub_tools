@@ -323,10 +323,10 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
     args.emplace_back("--force-downloads");
     args.emplace_back("--output-directory=" + auto_temp_dir_.getDirectoryPath());
     args.emplace_back("--output-filename=" + basename);
-    args.emplace_back(ZTS_HARVESTER_CONF_FILE);
-    args.emplace_back("JOURNAL");
     if (not config_overrides.empty())
         args.emplace_back(StringUtil::RemoveChars("\r", "--config-overrides=" + config_overrides));
+    args.emplace_back(ZTS_HARVESTER_CONF_FILE);
+    args.emplace_back("JOURNAL");
     args.emplace_back(section);
 
     std::unordered_map<std::string, std::string> envs {
