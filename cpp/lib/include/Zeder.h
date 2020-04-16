@@ -90,6 +90,11 @@ public:
     const std::string &getAttribute(const std::string &name) const;
     const std::string &getAttribute(const std::string &name, const std::string &default_value) const;
 
+    // Like getAttribute but returns an empty string if the attribute (= value for the short_column_name) is missing.
+    inline std::string lookup(const std::string &short_column_name) const {
+        return getAttribute(short_column_name, "");
+    }
+
     // Invalid characters (as found in 'ATTRIBUTE_INVALID_CHARS') in 'value' will be replaced with '_'.
     void setAttribute(const std::string &name, const std::string &value, bool overwrite = false);
     bool hasAttribute(const std::string &name) const { return attributes_.find(name) != attributes_.end(); }
@@ -444,6 +449,22 @@ public:
 std::string GetFullDumpEndpointPath(Flavour zeder_flavour);
 
 Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive = false);
+
+
+class SimpleZeder {
+    typedef EntryCollection::const_iterator const_iterator;
+private:
+    EntryCollection  entries_;
+public:
+    // \param "column_filter" If not empty, only the specified short column names will be accesible via the
+    //        lookup member function of class Journal.  This is a performance and memory optimisation only.
+    explicit SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter = {});
+
+    inline size_t size() const { return entries_.size(); }
+    inline size_t empty() const { return entries_.empty(); }
+    inline const_iterator begin() const { return entries_.begin(); }
+    inline const_iterator end() const { return entries_.end(); }
+};
 
 
 } // end namespace Zeder
