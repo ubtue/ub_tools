@@ -645,4 +645,17 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
 }
 
 
+SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter) {
+    const auto endpoint_url(GetFullDumpEndpointPath(flavour));
+    const std::unordered_map<std::string, std::string> filter_regexps {}; // intentionally empty
+    const std::unordered_set<unsigned> entries_to_download; // empty means all entries
+    std::unique_ptr<FullDumpDownloader::Params> downloader_params(
+        new FullDumpDownloader::Params(endpoint_url, entries_to_download, column_filter, filter_regexps));
+
+    auto downloader(Zeder::FullDumpDownloader::Factory(FullDumpDownloader::Type::FULL_DUMP, std::move(downloader_params)));
+    if (not downloader->download(&entries_))
+        LOG_ERROR("couldn't download full dump for " + FLAVOUR_TO_STRING_MAP.at(flavour));
+}
+
+
 } // namespace Zeder
