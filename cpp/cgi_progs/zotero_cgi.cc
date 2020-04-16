@@ -261,6 +261,9 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     const std::string first_rss_journal_title(GetMinElementOrDefault(rss_journal_titles));
     names_to_values_map->insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault(cgi_args, "rss_journal_title",
                                                                                              first_rss_journal_title));
+
+    names_to_values_map->insertScalar("selected_url_journal_title", GetCGIParameterOrDefault(cgi_args, "url_journal_title",
+                                                                                             "Default"));
 }
 
 
@@ -290,8 +293,9 @@ class HarvestTask {
     FileUtil::AutoTempFile log_path_;
     std::unique_ptr<FileUtil::AutoTempFile> out_path_;
 public:
-    HarvestTask(const std::string &section, const std::string &output_format_id,
-                const std::string &bsz_upload_group, const std::string &config_overrides ="");
+    HarvestTask(const std::string &title, const std::string &output_format_id,
+                const std::string &bsz_upload_group, const std::string &url = "",
+                const std::string &config_overrides = "");
 
     /** \brief get shell command including args (for debug output) */
     inline const std::string &getCommand() const { return command_; }
@@ -304,13 +308,14 @@ public:
 };
 
 
-HarvestTask::HarvestTask(const std::string &section, const std::string &output_format_id,
-                         const std::string &bsz_upload_group, const std::string &config_overrides)
+HarvestTask::HarvestTask(const std::string &title, const std::string &output_format_id,
+                         const std::string &bsz_upload_group, const std::string &url,
+                         const std::string &config_overrides)
     : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
       executable_(ExecUtil::LocateOrDie("zotero_harvester")),
       log_path_(auto_temp_dir_.getDirectoryPath() + "/log", "", /*automatically_remove*/ false)
 {
-    const auto output_directory(auto_temp_dir_.getDirectoryPath() + "/" + bsz_upload_group + "/");
+    const auto output_directory(auto_temp_dir_.getDirectoryPath() + "/" + StringUtil::ASCIIToLower(bsz_upload_group) + "/");
     FileUtil::MakeDirectory(output_directory, true);
     out_path_.reset(new FileUtil::AutoTempFile(output_directory, "." + GetOutputFormatExtension(output_format_id),
                     /*automatically_remove*/ false));
@@ -326,8 +331,16 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
     if (not config_overrides.empty())
         args.emplace_back(StringUtil::RemoveChars("\r", "--config-overrides=" + config_overrides));
     args.emplace_back(ZTS_HARVESTER_CONF_FILE);
-    args.emplace_back("JOURNAL");
-    args.emplace_back(section);
+
+    if (not url.empty()) {
+        args.emplace_back("URL");
+        args.emplace_back(url);
+        if (not title.empty())
+            args.emplace_back(title);
+    } else {
+        args.emplace_back("JOURNAL");
+        args.emplace_back(title);
+    }
 
     std::unordered_map<std::string, std::string> envs {
         { "LOGGER_FORMAT",  "no_decorations,strip_call_site" },
@@ -342,13 +355,13 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
 
 
 void ExecuteHarvestAction(const std::string &title, const std::string &output_format,
-                          const ZoteroHarvester::Config::GroupParams &group_params,
-                          const std::string &config_overrides)
+                          const std::string &group_name, const std::string url = "",
+                          const std::string &config_overrides = "")
 {
     std::cout << "<h2>Result</h2>\r\n";
     std::cout << "<table>\r\n";
 
-    const HarvestTask task(title, output_format, group_params.output_folder_, config_overrides);
+    const HarvestTask task(title, output_format, group_name, url, config_overrides);
 
     std::cout << "<tr><td>Command</td><td>" + task.getCommand() + "</td></tr>\r\n";
     std::cout << "<tr><td>Runtime</td><td id=\"runtime\"></td></tr>\r\n";
@@ -457,6 +470,7 @@ int Main(int argc, char *argv[]) {
     const std::string default_action("list");
     const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));
     const std::string config_overrides(GetCGIParameterOrDefault(cgi_args, "config_overrides"));
+    const std::string url(GetCGIParameterOrDefault(cgi_args, "url"));
 
     if (action == "download")
         ProcessDownloadAction(cgi_args);
@@ -482,28 +496,37 @@ int Main(int argc, char *argv[]) {
         names_to_values_map.insertArray("output_format_ids", GetOutputFormatIds());
         names_to_values_map.insertScalar("running_processes_count", std::to_string(ExecUtil::FindActivePrograms("zotero_harvester").size()));
         names_to_values_map.insertScalar("config_overrides", config_overrides);
+        names_to_values_map.insertScalar("url", url);
 
         std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> group_name_to_params_map;
         std::unordered_map<std::string, std::string>journal_name_to_group_name_map;
         ParseConfigFile(cgi_args, &names_to_values_map, &group_name_to_params_map, &journal_name_to_group_name_map);
         RenderHtmlTemplate("index.html", names_to_values_map);
 
-        std::string journal_title, output_format;
+        std::string title, output_format, group_name;
         if (action == "rss") {
-            journal_title = GetCGIParameterOrDefault(cgi_args, "rss_journal_title");
+            title = GetCGIParameterOrDefault(cgi_args, "rss_journal_title");
+            group_name = journal_name_to_group_name_map.at(title);
             output_format = GetCGIParameterOrDefault(cgi_args, "rss_output_format");
         } else if (action == "direct") {
-            journal_title = GetCGIParameterOrDefault(cgi_args, "direct_journal_title");
+            title = GetCGIParameterOrDefault(cgi_args, "direct_journal_title");
+            group_name = journal_name_to_group_name_map.at(title);
             output_format = GetCGIParameterOrDefault(cgi_args, "direct_output_format");
         } else if (action == "crawling") {
-            journal_title = GetCGIParameterOrDefault(cgi_args, "crawling_journal_title");
+            title = GetCGIParameterOrDefault(cgi_args, "crawling_journal_title");
+            group_name = journal_name_to_group_name_map.at(title);
             output_format = GetCGIParameterOrDefault(cgi_args, "crawling_output_format");
+        } else if (action == "url") {
+            title = GetCGIParameterOrDefault(cgi_args, "url_journal_title");
+            if (title.empty())
+                group_name = "Default";
+            else
+                group_name = journal_name_to_group_name_map.at(title);
+            output_format = GetCGIParameterOrDefault(cgi_args, "url_output_format");
         } else if (action != default_action)
             LOG_ERROR("invalid action: \"" + action + '"');
 
-        ExecuteHarvestAction(journal_title, output_format,
-                             group_name_to_params_map.at(journal_name_to_group_name_map.at(journal_title)),
-                             config_overrides);
+        ExecuteHarvestAction(title, output_format, group_name, url, config_overrides);
         std::cout << "</body></html>";
     }
 
