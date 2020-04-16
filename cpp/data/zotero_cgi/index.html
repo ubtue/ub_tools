@@ -317,7 +317,7 @@
                         <tr><td>Journal</td>
                             <td>
                                 <select id="url_journal_title" name="url_journal_title">
-                                    <option value="">Default</option>
+                                    <option value=""{IF selected_url_journal_title == ""} selected{ENDIF}>Default</option>
                                     {LOOP all_journal_titles}
                                         <option{IF all_journal_titles == selected_url_journal_title} selected{ENDIF}>{all_journal_titles}</option>
                                     {ENDLOOP}
