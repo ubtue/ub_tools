@@ -291,7 +291,7 @@ class HarvestTask {
     std::unique_ptr<FileUtil::AutoTempFile> out_path_;
 public:
     HarvestTask(const std::string &section, const std::string &output_format_id,
-                const std::string &bsz_upload_group, const std::string &config_overrides="");
+                const std::string &bsz_upload_group, const std::string &config_overrides ="");
 
     /** \brief get shell command including args (for debug output) */
     inline const std::string &getCommand() const { return command_; }
@@ -325,11 +325,8 @@ HarvestTask::HarvestTask(const std::string &section, const std::string &output_f
     args.emplace_back("--output-filename=" + basename);
     args.emplace_back(ZTS_HARVESTER_CONF_FILE);
     args.emplace_back("JOURNAL");
-    if (not config_overrides.empty()) {
-        std::string arg("--config-overrides=" + config_overrides);
-        StringUtil::RemoveChars("\r", &arg);
-        args.emplace_back(arg);
-    }
+    if (not config_overrides.empty())
+        args.emplace_back(StringUtil::RemoveChars("\r", "--config-overrides=" + config_overrides));
     args.emplace_back(section);
 
     std::unordered_map<std::string, std::string> envs {
