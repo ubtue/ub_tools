@@ -55,7 +55,7 @@ using namespace ZoteroHarvester;
               << "\tSelection modes: UPLOAD, URL, JOURNAL\n"
               << "\t\tUPLOAD - Only those journals that have the specified upload operation (either LIVE or TEST) set will be processed.\n"
               << "\t\tURL - Only the specified URL is processed as a DIRECT harvester operation.\n"
-              << "\t\tJOURNAL - If no arguments are provided, all journals are processed. Otherwise, only those journals specified are processed.\n"
+              << "\t\tJOURNAL - If no arguments are provided, all journals are processed. Otherwise, only the specified journals are processed.\n"
               << "\t\t          If \"--config-overrides=\" are specified, it will be treated as raw text to override parts of the config file sections.\n"
               << "\n";
     std::exit(EXIT_FAILURE);
@@ -193,7 +193,7 @@ void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * c
 {
     Config::LoadHarvesterConfigFile(config_path, &harvester_config->global_params_,
                                     &harvester_config->group_params_, &harvester_config->journal_params_,
-                                    nullptr, config_overrides);
+                                    /* config_file = */ nullptr, config_overrides);
 
     for (const auto &group : harvester_config->group_params_)
         harvester_config->group_name_to_group_params_map_.emplace(group->name_, *group);

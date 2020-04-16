@@ -216,7 +216,7 @@ void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
                              std::vector<std::unique_ptr<JournalParams>> * const journal_params,
                              std::unique_ptr<IniFile> * const config_file = nullptr,
-                             const IniFile::Section config_overrides=IniFile::Section());
+                             const IniFile::Section config_overrides = IniFile::Section());
 
 
 } // end namespace Config
