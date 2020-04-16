@@ -2,7 +2,7 @@
  *  \brief  Map-Util-related utility functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,6 +24,7 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -38,18 +39,25 @@ namespace MapUtil {
 std::string Escape(const std::string &s);
 
 
+template<typename KeyType, typename ValueType>
+inline bool Contains(const std::unordered_multimap<KeyType, ValueType> &multimap, const KeyType &key, const ValueType &value) {
+    const auto range(multimap.equal_range(key));
+    for (auto key_and_value(range.first); key_and_value != range.second; ++key_and_value) {
+        if (key_and_value->second == value)
+            return true;
+    }
+    return false;
+}
+
+
 /** \brief Writes "map" to "output_filename" in a format that can be red in by DeserialiseMap(). */
-template<typename KeyType, typename ValueType> void SerialiseMap(const std::string &output_filename,
-                                                                 const std::unordered_map<KeyType, ValueType> &map)
-{
+template<typename MapType> void SerialiseMap(const std::string &output_filename, const MapType &map) {
     std::ofstream output(output_filename, std::ofstream::out | std::ofstream::trunc);
     if (output.fail())
         LOG_ERROR("Failed to open \"" + output_filename + "\" for writing!");
 
     for (const auto &key_and_value : map)
-        output << Escape(std::is_same<KeyType, std::string>::value ? key_and_value.first : std::to_string(key_and_value.first))
-               << '=' << Escape(std::is_same<ValueType, std::string>::value ? key_and_value.second : std::to_string(key_and_value.second))
-               << '\n';
+        output << Escape(AnyToString(key_and_value.first)) << '=' << AnyToString(key_and_value.second) << '\n';
 }
 
 
@@ -70,14 +78,21 @@ void DeserialiseMap(const std::string &input_filename, std::unordered_multimap<s
 void WriteEntry(File * const map_file, const std::string &key, const std::string &value);
 
 
-template<typename KeyType, typename ValueType>
-inline bool Contains(const std::unordered_multimap<KeyType, ValueType> &multimap, const KeyType &key, const ValueType &value) {
-    const auto range(multimap.equal_range(key));
-    for (auto key_and_value(range.first); key_and_value != range.second; ++key_and_value) {
-        if (key_and_value->second == value)
-            return true;
+// Useful for debugging..
+template<typename MapType> std::string MapToString(const MapType &map) {
+    std::string map_as_string;
+
+    for (const auto &key_and_value : map) {
+        if (not map_as_string.empty())
+            map_as_string += ", ";
+        map_as_string += '"';
+        map_as_string += StringUtil::BackslashEscape('"', StringUtil::AnyToString(key_and_value.first));
+        map_as_string += "\" = \"";
+        map_as_string += StringUtil::BackslashEscape('"', StringUtil::AnyToString(key_and_value.second));
+        map_as_string += '"';
     }
-    return false;
+
+    return map_as_string;
 }
 
 
