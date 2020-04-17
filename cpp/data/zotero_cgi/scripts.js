@@ -37,21 +37,6 @@ function OnChangeRssJournal() {
     $("#rss_submit").prop("disabled", journal_title == "");
 }
 
-function OnChangeDirectJournal() {
-    var journal_title = $("#direct_journal_title option:selected").text();
-
-    if (journal_title != "") {
-        var journal_options = direct_options_map[journal_title];
-        $("#direct_journal_print_issn").html(GenerateISSNSearchLink(journal_options.issn_print));
-        $("#direct_journal_online_issn").html(GenerateISSNSearchLink(journal_options.issn_online));
-        $("#direct_journal_ppn_print").html(journal_options.ppn_print);
-        $("#direct_journal_ppn_online").html(journal_options.ppn_online);
-        $("#direct_url").html("<a href=\""+journal_options.base_url+"\" target=\"_blank\">"+journal_options.base_url+"</a>");
-    }
-
-    $("#direct_submit").prop("disabled", journal_title == "");
-}
-
 function OnChangeCrawlingJournal() {
     var journal_title = $("#crawling_journal_title option:selected").text();
 
@@ -85,11 +70,6 @@ function RenderDataTable() {
 function TryRss(rss_journal_title) {
     $('#home-rss').tab('show');
     $('#rss_journal_title').val(rss_journal_title).change();
-}
-
-function TryDirect(direct_journal_title) {
-    $('#home-direct').tab('show');
-    $('#direct_journal_title').val(direct_journal_title).change();
 }
 
 function TryCrawling(crawling_journal_title) {

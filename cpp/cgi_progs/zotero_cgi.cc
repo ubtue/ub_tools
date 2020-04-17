@@ -99,14 +99,6 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> rss_feed_urls;
     std::vector<std::string> rss_strptime_formats;
 
-    std::vector<std::string> direct_journal_titles;
-    std::vector<std::string> direct_journal_print_issns;
-    std::vector<std::string> direct_journal_online_issns;
-    std::vector<std::string> direct_journal_print_ppns;
-    std::vector<std::string> direct_journal_online_ppns;
-    std::vector<std::string> direct_urls;
-    std::vector<std::string> direct_strptime_formats;
-
     std::vector<std::string> crawling_journal_titles;
     std::vector<std::string> crawling_journal_print_issns;
     std::vector<std::string> crawling_journal_online_issns;
@@ -166,14 +158,6 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             rss_journal_online_ppns.emplace_back(ppn_online);
             rss_feed_urls.emplace_back(url);
             rss_strptime_formats.emplace_back(strptime_format);
-        } else if (harvest_type == ZoteroHarvester::Config::HarvesterOperation::DIRECT) {
-            direct_journal_titles.emplace_back(title);
-            direct_journal_print_issns.emplace_back(issn_print);
-            direct_journal_online_issns.emplace_back(issn_online);
-            direct_journal_print_ppns.emplace_back(ppn_print);
-            direct_journal_online_ppns.emplace_back(ppn_online);
-            direct_urls.emplace_back(url);
-            direct_strptime_formats.emplace_back(strptime_format);
         } else if (harvest_type == ZoteroHarvester::Config::HarvesterOperation::CRAWL) {
             crawling_journal_titles.emplace_back(title);
             crawling_journal_print_issns.emplace_back(issn_print);
@@ -209,14 +193,6 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("rss_feed_urls", rss_feed_urls);
     names_to_values_map->insertArray("rss_strptime_formats", rss_strptime_formats);
 
-    names_to_values_map->insertArray("direct_journal_titles", direct_journal_titles);
-    names_to_values_map->insertArray("direct_journal_print_issns", direct_journal_print_issns);
-    names_to_values_map->insertArray("direct_journal_online_issns", direct_journal_online_issns);
-    names_to_values_map->insertArray("direct_journal_print_ppns", direct_journal_print_ppns);
-    names_to_values_map->insertArray("direct_journal_online_ppns", direct_journal_online_ppns);
-    names_to_values_map->insertArray("direct_urls", direct_urls);
-    names_to_values_map->insertArray("direct_strptime_formats", direct_strptime_formats);
-
     names_to_values_map->insertArray("crawling_journal_titles", crawling_journal_titles);
     names_to_values_map->insertArray("crawling_journal_print_issns", crawling_journal_print_issns);
     names_to_values_map->insertArray("crawling_journal_online_issns", crawling_journal_online_issns);
@@ -230,10 +206,6 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     const std::string first_crawling_journal_title(GetMinElementOrDefault(crawling_journal_titles));
     names_to_values_map->insertScalar("selected_crawling_journal_title", GetCGIParameterOrDefault(cgi_args, "crawling_journal_title",
                                                                                                   first_crawling_journal_title));
-
-    const std::string first_direct_journal_title(GetMinElementOrDefault(crawling_journal_titles));
-    names_to_values_map->insertScalar("selected_direct_journal_title", GetCGIParameterOrDefault(cgi_args, "direct_journal_title",
-                                                                                                first_direct_journal_title));
 
     const std::string first_rss_journal_title(GetMinElementOrDefault(rss_journal_titles));
     names_to_values_map->insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault(cgi_args, "rss_journal_title",
@@ -476,9 +448,6 @@ int Main(int argc, char *argv[]) {
         std::string title, group_name;
         if (action == "rss") {
             title = GetCGIParameterOrDefault(cgi_args, "rss_journal_title");
-            group_name = journal_name_to_group_name_map.at(title);
-        } else if (action == "direct") {
-            title = GetCGIParameterOrDefault(cgi_args, "direct_journal_title");
             group_name = journal_name_to_group_name_map.at(title);
         } else if (action == "crawling") {
             title = GetCGIParameterOrDefault(cgi_args, "crawling_journal_title");
