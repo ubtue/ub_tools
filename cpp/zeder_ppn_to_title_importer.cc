@@ -1,7 +1,7 @@
 /** \file   zeder_ppn_to_title_importer.cc
  *  \brief  Imports data from Zeder and writes a map file mapping online and print PPN's to journal titles.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
- *  \copyright 2018-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -29,12 +29,6 @@
 
 
 namespace {
-
-
-[[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity]\n";
-    std::exit(EXIT_FAILURE);
-}
 
 
 void WriteMapEntry(File * const output, const std::string &key, const std::string &value) {
@@ -78,22 +72,16 @@ void ProcessZederAndWriteMapFile(File * const map_file, const Zeder::SimpleZeder
 
 int Main(int argc, char */*argv*/[]) {
     if (argc != 1)
-        Usage();
+        ::Usage("[--min-log-level=min_verbosity]");
 
     const Zeder::SimpleZeder zeder(Zeder::IXTHEO, { "eppn", "pppn", "tit" });
     if (unlikely(zeder.empty()))
-        LOG_ERROR("found no Zeder entries matching any of our requested columns!"
-                  " (This *should* not happen as we included the column ID!)");
+        LOG_ERROR("found no Zeder entries matching any of our requested columns!");
 
-    char path_template[] = "/tmp/XXXXXX";
-    const int temp_fd(::mkstemp(path_template));
-    if (temp_fd == -1)
-        LOG_ERROR("failed to create temp file!");
-    File temp_file(temp_fd);
+    const auto temp_file(FileUtil::OpenTempFileOrDie("/tmp/XXXXXX"));
+    ProcessZederAndWriteMapFile(temp_file.get(), zeder);
 
-    ProcessZederAndWriteMapFile(&temp_file, zeder);
-
-    FileUtil::RenameFileOrDie(temp_file.getPath(), UBTools::GetTuelibPath() + "zeder_ppn_to_title.map", /* remove_target = */true);
+    FileUtil::RenameFileOrDie(temp_file->getPath(), UBTools::GetTuelibPath() + "zeder_ppn_to_title.map", /* remove_target = */true);
 
     return EXIT_SUCCESS;
 }

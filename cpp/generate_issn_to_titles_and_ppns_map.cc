@@ -106,8 +106,6 @@ int Main(int argc, char **argv) {
     if (argc != 2)
         ::Usage("mapfile_output");
 
-
-
     const auto temp_file(FileUtil::OpenTempFileOrDie("/tmp/XXXXXX"));
 
     unsigned total_generated_count(0);
