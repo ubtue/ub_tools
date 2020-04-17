@@ -446,22 +446,25 @@ int Main(int argc, char *argv[]) {
         RenderHtmlTemplate("index.html", names_to_values_map);
 
         std::string title, group_name;
-        if (action == "rss") {
-            title = GetCGIParameterOrDefault(cgi_args, "rss_journal_title");
-            group_name = journal_name_to_group_name_map.at(title);
-        } else if (action == "crawling") {
-            title = GetCGIParameterOrDefault(cgi_args, "crawling_journal_title");
-            group_name = journal_name_to_group_name_map.at(title);
-        } else if (action == "url") {
-            title = GetCGIParameterOrDefault(cgi_args, "url_journal_title");
-            if (title.empty())
-                group_name = "ixtheo";
-            else
-                group_name = journal_name_to_group_name_map.at(title);
-        } else if (action != default_action)
-            LOG_ERROR("invalid action: \"" + action + '"');
 
-        ExecuteHarvestAction(title, group_name, url, config_overrides);
+        if (action != default_action) {
+            if (action == "rss") {
+                title = GetCGIParameterOrDefault(cgi_args, "rss_journal_title");
+                group_name = journal_name_to_group_name_map.at(title);
+            } else if (action == "crawling") {
+                title = GetCGIParameterOrDefault(cgi_args, "crawling_journal_title");
+                group_name = journal_name_to_group_name_map.at(title);
+            } else if (action == "url") {
+                title = GetCGIParameterOrDefault(cgi_args, "url_journal_title");
+                if (title.empty())
+                    group_name = "ixtheo";
+                else
+                    group_name = journal_name_to_group_name_map.at(title);
+            } else if (action != default_action)
+                LOG_ERROR("invalid action: \"" + action + '"');
+
+            ExecuteHarvestAction(title, group_name, url, config_overrides);
+        }
         std::cout << "</body></html>";
     }
 
