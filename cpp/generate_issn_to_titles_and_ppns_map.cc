@@ -20,9 +20,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <set>
 #include "FileUtil.h"
-#include "MARC.h"
+#include "StringUtil.h"
 #include "util.h"
+#include "Zeder.h"
 
 
 namespace {
@@ -42,31 +44,58 @@ std::string EscapeColons(const std::string &unescaped_string) {
 }
 
 
-void ProcessRecords(MARC::Reader * const reader, File * const output) {
-    unsigned processed_count(0), generated_count(0);
+auto SplitAndDedupeEntries(const std::string &entries) {
+    std::vector<std::string> individual_entries;
+    StringUtil::Split(entries, ' ', &individual_entries);
+    std::set<std::string> deduplicated_entries;
+    deduplicated_entries.insert(individual_entries.cbegin(), individual_entries.cend());
+    return deduplicated_entries;
+}
 
-    while (const auto record = reader->read()) {
-        ++processed_count;
 
-        if (not record.isSerial())
+unsigned ProcessZederAndWriteMapFile(File * const output, const Zeder::SimpleZeder &zeder) {
+    unsigned generated_count(0);
+    for (const auto &journal : zeder) {
+        if (journal.empty())
             continue;
 
-        const auto issns(record.getISSNs());
-        if (issns.empty())
+        const auto print_issns(SplitAndDedupeEntries(journal.lookup("issn")));
+        if (print_issns.empty())
             continue;
 
-        const auto title(record.getMainTitle());
+        const auto electronic_issns(SplitAndDedupeEntries(journal.lookup("essn")));
+        if (electronic_issns.empty())
+            continue;
+
+        const auto title(journal.lookup("tit"));
         if (title.empty())
             continue;
 
-        const auto ppn(record.getControlNumber());
-        for (const auto issn : issns) {
-            (*output) << issn << ':' << EscapeColons(title) << ':' << ppn << '\n';
-            ++generated_count;
+        const auto electronic_ppns(SplitAndDedupeEntries(journal.lookup("eppns")));
+        if (electronic_ppns.empty() or electronic_ppns.size() != electronic_issns.size())
+            continue;
+
+        for (const auto print_issn : print_issns) {
+            auto electronic_issn(electronic_issns.cbegin());
+            auto electronic_ppn(electronic_ppns.cbegin());
+            while (electronic_issn != electronic_issns.cend()) {
+                (*output) << print_issn << ':' << EscapeColons(title) << ':' << (*electronic_issn) << ':' << (*electronic_ppn) << '\n';
+                ++generated_count;
+
+                ++electronic_issn, ++electronic_ppn;
+            }
         }
     }
 
-    LOG_INFO("Processed " + std::to_string(processed_count) + " MARC records and generated " + std::to_string(generated_count) + " map entry/entries.");
+    return generated_count;
+}
+
+
+unsigned ProcessZederFlavour(const Zeder::Flavour zeder_flavour, File * const map_output) {
+    const Zeder::SimpleZeder zeder(zeder_flavour, { "eppns", "essn", "issn", "tit" });
+    if (unlikely(zeder.empty()))
+        LOG_ERROR("found no IxTheo Zeder entries matching any of our requested columns!");
+    return ProcessZederAndWriteMapFile(map_output, zeder);
 }
 
 
@@ -74,13 +103,20 @@ void ProcessRecords(MARC::Reader * const reader, File * const output) {
 
 
 int Main(int argc, char **argv) {
-    if (argc != 3)
-        ::Usage("marc_input mapfile_output");
+    if (argc != 2)
+        ::Usage("mapfile_output");
 
-    const auto marc_reader(MARC::Reader::Factory(argv[1]));
-    const auto output(FileUtil::OpenOutputFileOrDie(argv[2]));
 
-    ProcessRecords(marc_reader.get(), output.get());
+
+    const auto temp_file(FileUtil::OpenTempFileOrDie("/tmp/XXXXXX"));
+
+    unsigned total_generated_count(0);
+    total_generated_count += ProcessZederFlavour(Zeder::IXTHEO, temp_file.get());
+    total_generated_count += ProcessZederFlavour(Zeder::KRIMDOK, temp_file.get());
+    LOG_INFO("Generated " + std::to_string(total_generated_count) + " map entry/entries.");
+
+    const std::string output_filename(argv[1]);
+    FileUtil::RenameFileOrDie(temp_file->getPath(), output_filename, /* remove_target = */true);
 
     return EXIT_SUCCESS;
 }
