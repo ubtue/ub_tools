@@ -506,6 +506,12 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
                                    const std::unordered_map<std::string, ColumnMetadata> &column_to_metadata_map,
                                    EntryCollection * const collection)
 {
+    // Validate short column names:
+    for (const auto &short_column_name : params.columns_to_download_) {
+        if (column_to_metadata_map.find(short_column_name) == column_to_metadata_map.cend())
+            LOG_ERROR("can't download unknown short column \"" + short_column_name + "\" from Zeder!");
+    }
+
     const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", json_data));
     for (const auto &data : *root_node->getArrayNode("daten")) {
         const auto data_wrapper(JSON::JSONNode::CastToObjectNodeOrDie("entry", data));
