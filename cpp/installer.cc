@@ -800,7 +800,7 @@ int Main(int argc, char **argv) {
     bool fulltext_backend(false);
     if (std::strcmp("--fulltext-backend", argv[1]) == 0) {
         fulltext_backend = true;
-	    if (FileUtil::Exists("/.dockerenv"))
+        if (FileUtil::Exists("/.dockerenv"))
             omit_systemctl = true;
         if (argc > 2)
             Usage();

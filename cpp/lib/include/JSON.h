@@ -317,8 +317,8 @@ public:
     virtual Type getType() const override { return ARRAY_NODE; }
     virtual std::string toString() const override;
     bool empty() const { return values_.empty(); }
-    std::shared_ptr<const JSONNode> getNode(const size_t index) const { return values_[index]; }
-    std::shared_ptr<JSONNode> getNode(const size_t index) { return values_[index]; }
+    std::shared_ptr<const JSONNode> getNode(const size_t index) const;
+    std::shared_ptr<JSONNode> getNode(const size_t index);
 
     // Automatic cast value retrieval.  If the requested type is not applicable, the functions abort.
     bool getBooleanValue(const size_t index) const { return this->getNode<BooleanNode>(index, BOOLEAN_NODE)->getValue(); }

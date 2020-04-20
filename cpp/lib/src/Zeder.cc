@@ -506,6 +506,12 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
                                    const std::unordered_map<std::string, ColumnMetadata> &column_to_metadata_map,
                                    EntryCollection * const collection)
 {
+    // Validate short column names:
+    for (const auto &short_column_name : params.columns_to_download_) {
+        if (column_to_metadata_map.find(short_column_name) == column_to_metadata_map.cend())
+            LOG_ERROR("can't download unknown short column \"" + short_column_name + "\" from Zeder!");
+    }
+
     const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", json_data));
     for (const auto &data : *root_node->getArrayNode("daten")) {
         const auto data_wrapper(JSON::JSONNode::CastToObjectNodeOrDie("entry", data));
@@ -642,6 +648,19 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
     else {
         LOG_ERROR("unknown Zeder flavour '" + flavour + "'");
     }
+}
+
+
+SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter) {
+    const auto endpoint_url(GetFullDumpEndpointPath(flavour));
+    const std::unordered_map<std::string, std::string> filter_regexps {}; // intentionally empty
+    const std::unordered_set<unsigned> entries_to_download; // empty means all entries
+    std::unique_ptr<FullDumpDownloader::Params> downloader_params(
+        new FullDumpDownloader::Params(endpoint_url, entries_to_download, column_filter, filter_regexps));
+
+    auto downloader(Zeder::FullDumpDownloader::Factory(FullDumpDownloader::Type::FULL_DUMP, std::move(downloader_params)));
+    if (not downloader->download(&entries_))
+        LOG_ERROR("couldn't download full dump for " + FLAVOUR_TO_STRING_MAP.at(flavour));
 }
 
 

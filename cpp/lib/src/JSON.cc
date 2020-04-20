@@ -565,6 +565,24 @@ std::string ArrayNode::toString() const {
 }
 
 
+std::shared_ptr<const JSONNode> ArrayNode::getNode(const size_t index) const {
+    if (unlikely(index >= values_.size()))
+        LOG_ERROR("index (" + std::to_string(index) + ") exceeds size of ArrayNode ("
+                  + std::to_string(values_.size()) + ")!");
+
+    return values_[index];
+}
+
+
+std::shared_ptr<JSONNode> ArrayNode::getNode(const size_t index) {
+    if (unlikely(index >= values_.size()))
+        LOG_ERROR("index (" + std::to_string(index) + ") exceeds size of ArrayNode ("
+                  + std::to_string(values_.size()) + ")!");
+
+    return values_[index];
+}
+
+
 bool ArrayNode::isNullNode(const size_t index) const {
     if (unlikely(index >= values_.size()))
         LOG_ERROR("index " + std::to_string(index) + " out of range [0," + std::to_string(values_.size()) + ")!");
