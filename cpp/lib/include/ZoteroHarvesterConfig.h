@@ -185,8 +185,8 @@ struct JournalParams {
 public:
     JournalParams(const GlobalParams &global_params);
     JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);
-    JournalParams(const GroupParams &rhs) = delete;
-    JournalParams &operator=(const GroupParams &rhs) = delete;
+    JournalParams(const JournalParams &rhs) = delete;
+    JournalParams &operator=(const JournalParams &rhs) = delete;
 
     static std::string GetIniKeyString(const IniKey ini_key);
     static IniKey GetIniKey(const std::string &ini_key_string);
@@ -215,7 +215,8 @@ public:
 void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
                              std::vector<std::unique_ptr<JournalParams>> * const journal_params,
-                             std::unique_ptr<IniFile> * const config_file = nullptr);
+                             std::unique_ptr<IniFile> * const config_file = nullptr,
+                             const IniFile::Section config_overrides = IniFile::Section());
 
 
 } // end namespace Config
