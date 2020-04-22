@@ -10,6 +10,7 @@ all:
 	fi
 
 install: install_configs Makefile
+	rm --force /usr/local/bin/*
 	$(MAKE) -C cpp/lib/mkdep install;
 	$(MAKE) -C cpp install;
 	if [ $(TUEFIND_FLAVOUR) != "unknown" ]; then\
