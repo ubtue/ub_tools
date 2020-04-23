@@ -37,11 +37,34 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-   ::Usage("marc_input marc_output missed_expectations_file email_address");
+   ::Usage("(marc_input marc_output missed_expectations_file email_address| update_db journal_name field_name field_presence)\n"
+           "\tThis tool has two operating modes 1) checking MARC data for missed expectations and 2) altering these expectations.\n"
+           "\tin the \"update_db\" mode, \"field_name\" must be a 3-character MARC tag and \"field_presence\" must be one of\n"
+           "\tALWAYS, SOMETIMES, IGNORE.  Please note that only existing entries can be changed!");
 }
 
 
 enum FieldPresence { ALWAYS, SOMETIMES, IGNORE };
+
+
+bool StringToFieldPresence(const std::string &field_presence_str, FieldPresence * const field_presence) {
+    if (field_presence_str == "ALWAYS") {
+        *field_presence = ALWAYS;
+        return true;
+    }
+
+    if (field_presence_str == "SOMETIMES") {
+        *field_presence = SOMETIMES;
+        return true;
+    }
+
+    if (field_presence_str == "IGNORE") {
+        *field_presence = IGNORE;
+        return true;
+    }
+
+    return false;
+}
 
 
 struct FieldInfo {
@@ -203,6 +226,24 @@ void SendEmail(const std::string &email_address, const std::string &message_subj
 }
 
 
+void UpdateDB(DbConnection * const db_connection, const std::string &journal_name, const std::string &field_name, const std::string &field_presence_str) {
+    FieldPresence field_presence;
+    if (not StringToFieldPresence(field_presence_str, &field_presence))
+        LOG_ERROR("\"" + field_presence_str + "\" is not a valid field_presence!");
+    if (field_name.length() != MARC::Record::TAG_LENGTH)
+        LOG_ERROR("\"" + field_name + "\" is not a valid field name!");
+
+    DbTransaction transcation(db_connection);
+    db_connection->queryOrDie("SELECT field_presence FROM metadata_presence_tracer WHERE journal_name="
+                              + db_connection->escapeAndQuoteString(journal_name) + " AND field_name='" + field_name + "'");
+    const DbResultSet result_set(db_connection->getLastResultSet());
+    if (result_set.empty())
+        LOG_ERROR("can't update non-existent database entry!");
+    db_connection->queryOrDie("UPDATE metadata_presence_tracer SET field_presence='" + field_presence_str + "' WHERE journal_name="
+                              + db_connection->escapeAndQuoteString(journal_name) + " AND field_name='" + field_name + "'");
+}
+
+
 } // unnamed namespace
 
 
@@ -211,6 +252,12 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     DbConnection db_connection;
+
+    if (std::strcmp(argv[1], "update_db") == 0) {
+        UpdateDB(&db_connection, argv[2], argv[3], argv[4]);
+        return EXIT_SUCCESS;
+    }
+
     auto reader(MARC::Reader::Factory(argv[1]));
     auto valid_records_writer(MARC::Writer::Factory(argv[2]));
     auto delinquent_records_writer(MARC::Writer::Factory(argv[3]));
