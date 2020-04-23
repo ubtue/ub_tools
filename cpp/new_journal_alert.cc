@@ -309,7 +309,7 @@ bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
 
 
 inline std::string CapitalizedUserType(const std::string &user_type) {
-    return user_type == "ixtheo" ? "IxTheo" : "KrimDok";
+    return user_type == "ixtheo" ? "IxTheo" : "RelBib";
 }
 
 
