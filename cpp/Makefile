@@ -13,6 +13,7 @@ all: .deps $(PROGS)
 	$(MAKE) -C pipelines
 	$(MAKE) -C test
 	$(MAKE) -C tests
+	$(MAKE) -C throwaways
 
 %.o: %.cc Makefile
 	@echo "Compiling $< $(OPTIMISATIONS_STATE)..."
@@ -75,3 +76,4 @@ clean: local_clean Makefile
 	$(MAKE) -C pipelines clean
 	$(MAKE) -C test clean
 	$(MAKE) -C tests clean
+	$(MAKE) -C throwaways clean

@@ -1116,7 +1116,8 @@ Record::Field GetIndexField(const std::string &index_term);
 
 bool IsSubjectAccessTag(const Tag &tag);
 
-// Extracts print and online cross links.
+std::set<std::string> ExtractOnlineCrossLinkPPNs(const MARC::Record &record);
+std::set<std::string> ExtractPrintCrossLinkPPNs(const MARC::Record &record);
 std::set<std::string> ExtractPrintAndOnlineCrossLinkPPNs(const MARC::Record &record);
 
 

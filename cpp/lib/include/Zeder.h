@@ -92,7 +92,8 @@ public:
 
     // Like getAttribute but returns an empty string if the attribute (= value for the short_column_name) is missing.
     inline std::string lookup(const std::string &short_column_name) const {
-        return getAttribute(short_column_name, "");
+        const auto attribute_value(getAttribute(short_column_name, ""));
+        return (attribute_value == "NV") ? "" : attribute_value;
     }
 
     // Invalid characters (as found in 'ATTRIBUTE_INVALID_CHARS') in 'value' will be replaced with '_'.
