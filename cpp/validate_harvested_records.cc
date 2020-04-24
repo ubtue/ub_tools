@@ -37,7 +37,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-   ::Usage("(marc_input marc_output missed_expectations_file email_address|update_db journal_name field_name field_presence)\n"
+   ::Usage("(marc_input marc_output missed_expectations_file email_address)|(update_db journal_name field_name field_presence)\n"
            "\tThis tool has two operating modes 1) checking MARC data for missed expectations and 2) altering these expectations.\n"
            "\tin the \"update_db\" mode, \"field_name\" must be a 3-character MARC tag and \"field_presence\" must be one of\n"
            "\tALWAYS, SOMETIMES, IGNORE.  Please note that only existing entries can be changed!");
