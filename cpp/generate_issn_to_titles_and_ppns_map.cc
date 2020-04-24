@@ -22,6 +22,7 @@
 
 #include <set>
 #include "FileUtil.h"
+#include "MiscUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 #include "Zeder.h"
@@ -53,17 +54,30 @@ auto SplitAndDedupeEntries(const std::string &entries) {
 }
 
 
+auto FilterOutInvalidISSNs(const std::set<std::string> &unvalidated_issns) {
+    std::set<std::string> validated_issns;
+
+    for (const auto &issn : unvalidated_issns) {
+        std::string validated_issn;
+        if (MiscUtil::IsPossibleISSN(issn) and MiscUtil::NormaliseISSN(issn, &validated_issn))
+            validated_issns.emplace(validated_issn);
+    }
+
+    return validated_issns;
+}
+
+
 unsigned ProcessZederAndWriteMapFile(File * const output, const Zeder::SimpleZeder &zeder) {
     unsigned generated_count(0);
     for (const auto &journal : zeder) {
         if (journal.empty())
             continue;
 
-        const auto print_issns(SplitAndDedupeEntries(journal.lookup("issn")));
+        const auto print_issns(FilterOutInvalidISSNs(SplitAndDedupeEntries(journal.lookup("issn"))));
         if (print_issns.empty())
             continue;
 
-        const auto electronic_issns(SplitAndDedupeEntries(journal.lookup("essn")));
+        const auto electronic_issns(FilterOutInvalidISSNs(SplitAndDedupeEntries(journal.lookup("essn"))));
         if (electronic_issns.empty())
             continue;
 
