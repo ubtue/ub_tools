@@ -111,7 +111,7 @@ void GetCurrentDate(unsigned * const year, unsigned * const month, unsigned * co
  *  \return The converted time.
  */
 std::string TimeTToString(const time_t &the_time, const std::string &format = DEFAULT_FORMAT, const TimeZone time_zone = LOCAL,
-                          const std::string &time_locale = "en_US");
+                          const std::string &time_locale = "en_US.utf8");
 
 
 /** \brief  Inverse of gmtime(3).
