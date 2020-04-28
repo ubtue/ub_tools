@@ -295,7 +295,9 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
 
     if (not use_separate_entries_per_url) {
         std::string combined_text_final;
-        if (not cache.entryExpired(ppn, std::vector<std::string>(urls.begin(), urls.end()))) {
+        if (not cache.entryExpired(ppn, std::vector<std::string>(urls.begin(), urls.end())) or
+            (only_pdf_fulltexts and not cache.dummyEntryExists(ppn)))
+        {
             cache.getFullText(ppn, &combined_text_final);
             Semaphore semaphore("/full_text_cached_counter", Semaphore::ATTACH);
             ++semaphore;
@@ -306,6 +308,11 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             cache.deleteEntry(ppn);
     } else {
         bool at_least_one_expired(false);
+        if (only_pdf_fulltexts and cache.dummyEntryExists(ppn)) {
+            Semaphore semaphore("/full_text_cached_counter", Semaphore::ATTACH);
+            ++semaphore;
+            return true;
+        }
         for (auto url_and_text_type(urls_and_text_types.begin()); url_and_text_type != urls_and_text_types.end();/* intentionally empty */) {
             const bool expired(cache.singleUrlExpired(ppn, url_and_text_type->url_));
             if (not expired) {
@@ -313,12 +320,19 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                 Semaphore semaphore("/full_text_cached_counter", Semaphore::ATTACH);
                 ++semaphore;
             } else {
-                ++url_and_text_type;
                 at_least_one_expired |= expired;
+                ++url_and_text_type;
             }
+
         }
         if (not at_least_one_expired)
             return true;
+        else {
+            for (auto url_and_text_type(urls_and_text_types.begin()); url_and_text_type != urls_and_text_types.end(); ++url_and_text_type)
+                std::cerr << record->getControlNumber() <<" " << url_and_text_type->url_ << '\n';
+        }
+
+        std::cerr << "----------------------------------------------\n";
     }
     FullTextCache::Entry entry;
     std::vector<FullTextCache::EntryUrl> entry_urls;
@@ -326,7 +340,6 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
     bool at_least_one_error(false);
     std::stringstream combined_text_buffer;
     unsigned already_present_text_types(0);
-
     for (const auto &url_and_text_type : urls_and_text_types) {
         FullTextCache::EntryUrl entry_url;
         const std::string url(url_and_text_type.url_);
@@ -354,9 +367,8 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             // In Only-PDF-Fulltext-Mode we get all download candidates
             // So only go on if a text of this category is not already present
             if (only_pdf_fulltexts and (not StringUtil::StartsWith(media_type, "application/pdf") or
-                                        (text_type and already_present_text_types)))
+                                       (text_type and already_present_text_types)))
                 continue;
-
             extracted_text = ConvertToPlainText(media_type, media_subtype, http_header_charset, GetTesseractLanguageCode(*record),
                                                 document, pdf_extraction_timeout, &error_message);
             if (unlikely(extracted_text.empty())) {
@@ -389,6 +401,18 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
 
         entry_urls.push_back(entry_url);
         already_present_text_types |= text_type;
+    }
+
+    // If we are in only_fulltext_pdfs-mode each record without pdf-links would be downloaded on each create_full_text_db run
+    // only to be discarded because it does not match our rules
+    // So, if we are in this mode and no text has been stored to the cache insert a dummy entry to save time and bandwidth
+    if (only_pdf_fulltexts and entry_urls.empty()) {
+        FullTextCache::EntryUrl dummy_entry_url;
+        dummy_entry_url.id_ = ppn;
+        dummy_entry_url.url_ = "DUMMY URL";
+        dummy_entry_url.domain_ = "DUMMY DOMAIN";
+        dummy_entry_url.error_message_ = "DUMMY ERROR";
+        cache.insertEntry(ppn, "", { dummy_entry_url });
     }
 
     if (not use_separate_entries_per_url) {

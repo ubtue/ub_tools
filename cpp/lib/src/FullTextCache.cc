@@ -34,6 +34,8 @@
 #include "util.h"
 #include "VuFind.h"
 
+#include <iostream>
+
 
 constexpr unsigned MIN_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60); // About 1 month in seconds.
 constexpr unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 months in seconds.
@@ -87,6 +89,17 @@ bool FullTextCache::singleUrlExpired(const std::string &id, const std::string &u
         }
     }
     return true;
+}
+
+bool FullTextCache::dummyEntryExists(const std::string &id) {
+    Entry entry;
+    if (not getEntry(id, &entry))
+        return false;
+    for (const auto &entry_url : FullTextCache::getEntryUrls(id)) {
+        if (entry_url.url_ == "DUMMY URL")
+            return true;
+    }
+    return false;
 }
 
 
