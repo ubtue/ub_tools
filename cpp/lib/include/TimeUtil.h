@@ -86,7 +86,7 @@ std::string FormatTime(const double time_in_millisecs, const std::string &separa
  *  \return  A string representing the current date and time.
  */
 std::string GetCurrentDateAndTime(const std::string &format = DEFAULT_FORMAT, const TimeZone time_zone = LOCAL,
-                                  const std::string &time_locale = "en_US.UTF8");
+                                  const std::string &time_locale = "");
 
 
 /** \brief   Get the current time as a string.
