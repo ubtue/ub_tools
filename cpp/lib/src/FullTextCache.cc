@@ -96,7 +96,7 @@ bool FullTextCache::dummyEntryExists(const std::string &id) {
     if (not getEntry(id, &entry))
         return false;
     for (const auto &entry_url : FullTextCache::getEntryUrls(id)) {
-        if (entry_url.url_ == "DUMMY URL")
+        if (entry_url.url_ == DUMMY_URL)
             return true;
     }
     return false;
