@@ -34,8 +34,6 @@
 #include "util.h"
 #include "VuFind.h"
 
-#include <iostream>
-
 
 constexpr unsigned MIN_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60); // About 1 month in seconds.
 constexpr unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 months in seconds.
