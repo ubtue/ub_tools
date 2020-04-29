@@ -89,6 +89,7 @@ bool FullTextCache::singleUrlExpired(const std::string &id, const std::string &u
     return true;
 }
 
+
 bool FullTextCache::dummyEntryExists(const std::string &id) {
     Entry entry;
     if (not getEntry(id, &entry))

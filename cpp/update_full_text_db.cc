@@ -397,9 +397,9 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         already_present_text_types |= text_type;
     }
 
-    // If we are in only_fulltext_pdfs-mode each record without pdf-links would be downloaded on each create_full_text_db run
-    // only to be discarded because it does not match our rules
-    // So, if we are in this mode and no text has been stored to the cache insert a dummy entry to save time and bandwidth
+    // If we are in only_fulltext_pdfs-mode each record without PDF-links would be downloaded on each create_full_text_db run
+    // only to be discarded because it does not match our rules.
+    // So, if we are in this mode and no text has been stored in the cache insert a dummy entry to save time and bandwidth
     if (only_pdf_fulltexts and entry_urls.empty()) {
         FullTextCache::EntryUrl dummy_entry_url;
         dummy_entry_url.id_ = ppn;
