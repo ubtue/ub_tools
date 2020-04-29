@@ -62,8 +62,8 @@ namespace {
 
 bool InitializeLocale() {
     // Try to force the use of the iVia standard or fallback locale:
-    if (std::setlocale(LC_ALL, STANDARD_LOCALE) == nullptr) {
-        const std::string error_message("in InitializeLocale: setlocale(3) failed: \"" STANDARD_LOCALE "\"\n");
+    if (std::setlocale(LC_ALL, UB_DEFAULT_LOCALE) == nullptr) {
+        const std::string error_message("in InitializeLocale: setlocale(3) failed: \"" UB_DEFAULT_LOCALE "\"\n");
         const ssize_t dummy = ::write(STDERR_FILENO, error_message.c_str(), error_message.length());
         (void)dummy;
         ::_exit(EXIT_FAILURE);
