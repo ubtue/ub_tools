@@ -158,6 +158,7 @@ JournalParams::JournalParams(const GlobalParams &global_params) {
 
 JournalParams::JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params) {
     zeder_id_ = journal_section.getUnsigned(GetIniKeyString(ZEDER_ID));
+    zeder_newly_synced_entry_ = journal_section.getBool(GetIniKeyString(ZEDER_NEWLY_SYNCED_ENTRY), false);
     name_ = journal_section.getSectionName();
     group_ = journal_section.getString(GetIniKeyString(GROUP));
     entry_point_url_ = journal_section.getString(GetIniKeyString(ENTRY_POINT_URL));

@@ -1,7 +1,7 @@
 /** \brief Tool to automatically download metadata from online sources by leveraging Zotero
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019,2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -57,6 +57,7 @@ using namespace ZoteroHarvester;
               << "\t\tUPLOAD - Only those journals that have the specified upload operation (either LIVE or TEST) set will be processed.\n"
               << "\t\tURL - Only the specified URL is processed as a DIRECT harvester operation. An optional journal name can be provided as a second argument to associate the URL with it (reqd. for config overrides)\n"
               << "\t\tJOURNAL - If no arguments are provided, all journals are processed. Otherwise, only the specified journals are processed.\n"
+              << "\t\t          If mode is UPLOAD or JOURNAL (without specified journals), journals marked as \"" + Config::JournalParams::GetIniKeyString(Config::JournalParams::ZEDER_NEWLY_SYNCED_ENTRY) + "\" will be ignored."
               << "\n";
     std::exit(EXIT_FAILURE);
 }
@@ -635,6 +636,12 @@ int Main(int argc, char *argv[]) {
                 and not commandline_args.selected_journals_.empty()
                 and commandline_args.selected_journals_.find(journal->name_) == commandline_args.selected_journals_.end())
             {
+                continue;
+            }
+
+            if (commandline_args.selected_journals_.empty() and journal->zeder_newly_synced_entry_ == true) {
+                LOG_INFO("Skipping journal \"" + journal->name_ + "\""
+                         " (" + Config::JournalParams::GetIniKeyString(Config::JournalParams::ZEDER_NEWLY_SYNCED_ENTRY) + ")");
                 continue;
             }
 
