@@ -1114,7 +1114,7 @@ std::set<std::string> Record::getReferencedGNDNumbers(const std::set<std::string
 }
 
 
-bool Record::getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_synonyms) {
+bool Record::getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_synonyms) const {
     if (unlikely(getRecordType() != RecordType::AUTHORITY))
         LOG_ERROR("this function can only be applied to an authority record!");
 
