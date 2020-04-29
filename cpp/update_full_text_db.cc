@@ -327,12 +327,6 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
         }
         if (not at_least_one_expired)
             return true;
-        else {
-            for (auto url_and_text_type(urls_and_text_types.begin()); url_and_text_type != urls_and_text_types.end(); ++url_and_text_type)
-                std::cerr << record->getControlNumber() <<" " << url_and_text_type->url_ << '\n';
-        }
-
-        std::cerr << "----------------------------------------------\n";
     }
     FullTextCache::Entry entry;
     std::vector<FullTextCache::EntryUrl> entry_urls;
