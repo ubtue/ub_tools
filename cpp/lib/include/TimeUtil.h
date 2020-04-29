@@ -86,7 +86,7 @@ std::string FormatTime(const double time_in_millisecs, const std::string &separa
  *  \return  A string representing the current date and time.
  */
 std::string GetCurrentDateAndTime(const std::string &format = DEFAULT_FORMAT, const TimeZone time_zone = LOCAL,
-                                  const std::string &time_locale = "");
+                                  const std::string &time_locale = DEFAULT_LOCALE);
 
 
 /** \brief   Get the current time as a string.
@@ -111,7 +111,7 @@ void GetCurrentDate(unsigned * const year, unsigned * const month, unsigned * co
  *  \return The converted time.
  */
 std::string TimeTToString(const time_t &the_time, const std::string &format = DEFAULT_FORMAT, const TimeZone time_zone = LOCAL,
-                          const std::string &time_locale = "en_US.utf8");
+                          const std::string &time_locale = DEFAULT_LOCALE);
 
 
 /** \brief  Inverse of gmtime(3).
