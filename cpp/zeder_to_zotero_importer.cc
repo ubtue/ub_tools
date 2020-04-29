@@ -271,13 +271,11 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
 
         auto existing_journal_section(harvester_config->lookupConfig(zeder_id, zeder_flavour));
         if (existing_journal_section != nullptr and not overwrite) {
-            if (not autodetect_new_datasets) {
-                LOG_WARNING("couldn't import Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists");
-                continue;
-            } else {
+            if (autodetect_new_datasets)
                 LOG_INFO("Skipping Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists");
-                continue;
-            }
+            else
+                LOG_WARNING("couldn't import Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists");
+            continue;
         } else if (existing_journal_section == nullptr and harvester_config->sectionIsDefined(title)) {
             LOG_WARNING("couldn't import Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists with different zeder id");
             continue;
