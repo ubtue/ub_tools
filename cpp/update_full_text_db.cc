@@ -409,9 +409,9 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
     if (only_pdf_fulltexts and entry_urls.empty()) {
         FullTextCache::EntryUrl dummy_entry_url;
         dummy_entry_url.id_ = ppn;
-        dummy_entry_url.url_ = "DUMMY URL";
-        dummy_entry_url.domain_ = "DUMMY DOMAIN";
-        dummy_entry_url.error_message_ = "DUMMY ERROR";
+        dummy_entry_url.url_ = FullTextCache::DUMMY_URL;
+        dummy_entry_url.domain_ = FullTextCache::DUMMY_DOMAIN;
+        dummy_entry_url.error_message_ = FullTextCache::DUMMY_ERROR;
         cache.insertEntry(ppn, "", { dummy_entry_url });
     }
 
