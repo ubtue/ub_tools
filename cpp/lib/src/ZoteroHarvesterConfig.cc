@@ -140,6 +140,7 @@ std::string GroupParams::GetIniKeyString(const IniKey ini_key) {
 
 JournalParams::JournalParams(const GlobalParams &global_params) {
     zeder_id_ = 1;
+    zeder_newly_synced_entry_ = false;
     name_ = "Default Journal";
     group_ = "Default Group";
     entry_point_url_ = "Default URL";
@@ -157,6 +158,7 @@ JournalParams::JournalParams(const GlobalParams &global_params) {
 
 JournalParams::JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params) {
     zeder_id_ = journal_section.getUnsigned(GetIniKeyString(ZEDER_ID));
+    zeder_newly_synced_entry_ = journal_section.getBool(GetIniKeyString(ZEDER_NEWLY_SYNCED_ENTRY), false);
     name_ = journal_section.getSectionName();
     group_ = journal_section.getString(GetIniKeyString(GROUP));
     entry_point_url_ = journal_section.getString(GetIniKeyString(ENTRY_POINT_URL));
@@ -246,45 +248,47 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
 
 
 const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_MAP {
-    { ZEDER_ID,               "zeder_id"                  },
-    { ZEDER_MODIFIED_TIME,    "zeder_modified_time"       },
-    { GROUP,                  "zotero_group"              },
-    { ENTRY_POINT_URL,        "zotero_url"                },
-    { HARVESTER_OPERATION,    "zotero_type"               },
-    { UPLOAD_OPERATION,       "zotero_delivery_mode"      },
-    { ONLINE_PPN,             "online_ppn"                },
-    { PRINT_PPN,              "print_ppn"                 },
-    { ONLINE_ISSN,            "online_issn"               },
-    { PRINT_ISSN,             "print_issn"                },
-    { STRPTIME_FORMAT_STRING, "zotero_strptime_format"    },
-    { UPDATE_WINDOW,          "zotero_update_window"      },
-    { REVIEW_REGEX,           "zotero_review_regex"       },
-    { EXPECTED_LANGUAGES,     "zotero_expected_languages" },
-    { SSGN,                   "zotero_ssgn"               },
-    { CRAWL_MAX_DEPTH,        "zotero_max_crawl_depth"    },
-    { CRAWL_EXTRACTION_REGEX, "zotero_extraction_regex"   },
-    { CRAWL_URL_REGEX,        "zotero_crawl_url_regex"    },
+    { ZEDER_ID,                 "zeder_id"                  },
+    { ZEDER_MODIFIED_TIME,      "zeder_modified_time"       },
+    { ZEDER_NEWLY_SYNCED_ENTRY, "zeder_newly_synced_entry"  },
+    { GROUP,                    "zotero_group"              },
+    { ENTRY_POINT_URL,          "zotero_url"                },
+    { HARVESTER_OPERATION,      "zotero_type"               },
+    { UPLOAD_OPERATION,         "zotero_delivery_mode"      },
+    { ONLINE_PPN,               "online_ppn"                },
+    { PRINT_PPN,                "print_ppn"                 },
+    { ONLINE_ISSN,              "online_issn"               },
+    { PRINT_ISSN,               "print_issn"                },
+    { STRPTIME_FORMAT_STRING,   "zotero_strptime_format"    },
+    { UPDATE_WINDOW,            "zotero_update_window"      },
+    { REVIEW_REGEX,             "zotero_review_regex"       },
+    { EXPECTED_LANGUAGES,       "zotero_expected_languages" },
+    { SSGN,                     "zotero_ssgn"               },
+    { CRAWL_MAX_DEPTH,          "zotero_max_crawl_depth"    },
+    { CRAWL_EXTRACTION_REGEX,   "zotero_extraction_regex"   },
+    { CRAWL_URL_REGEX,          "zotero_crawl_url_regex"    },
 };
 
 const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_MAP {
-    { "zeder_id",                  ZEDER_ID               },
-    { "zeder_modified_time",       ZEDER_MODIFIED_TIME    },
-    { "zotero_group",              GROUP                  },
-    { "zotero_url",                ENTRY_POINT_URL        },
-    { "zotero_type",               HARVESTER_OPERATION    },
-    { "zotero_delivery_mode",      UPLOAD_OPERATION       },
-    { "online_ppn",                ONLINE_PPN             },
-    { "print_ppn",                 PRINT_PPN              },
-    { "online_issn",               ONLINE_ISSN            },
-    { "print_issn",                PRINT_ISSN             },
-    { "zotero_strptime_format",    STRPTIME_FORMAT_STRING },
-    { "zotero_update_window",      UPDATE_WINDOW          },
-    { "zotero_review_regex",       REVIEW_REGEX           },
-    { "zotero_expected_languages", EXPECTED_LANGUAGES     },
-    { "zotero_ssgn",               SSGN                   },
-    { "zotero_max_crawl_depth",    CRAWL_MAX_DEPTH        },
-    { "zotero_extraction_regex",   CRAWL_EXTRACTION_REGEX },
-    { "zotero_crawl_url_regex",    CRAWL_URL_REGEX        },
+    { "zeder_id",                  ZEDER_ID                 },
+    { "zeder_modified_time",       ZEDER_MODIFIED_TIME      },
+    { "zeder_newly_synced_entry",  ZEDER_NEWLY_SYNCED_ENTRY },
+    { "zotero_group",              GROUP                    },
+    { "zotero_url",                ENTRY_POINT_URL          },
+    { "zotero_type",               HARVESTER_OPERATION      },
+    { "zotero_delivery_mode",      UPLOAD_OPERATION         },
+    { "online_ppn",                ONLINE_PPN               },
+    { "print_ppn",                 PRINT_PPN                },
+    { "online_issn",               ONLINE_ISSN              },
+    { "print_issn",                PRINT_ISSN               },
+    { "zotero_strptime_format",    STRPTIME_FORMAT_STRING   },
+    { "zotero_update_window",      UPDATE_WINDOW            },
+    { "zotero_review_regex",       REVIEW_REGEX             },
+    { "zotero_expected_languages", EXPECTED_LANGUAGES       },
+    { "zotero_ssgn",               SSGN                     },
+    { "zotero_max_crawl_depth",    CRAWL_MAX_DEPTH          },
+    { "zotero_extraction_regex",   CRAWL_EXTRACTION_REGEX   },
+    { "zotero_crawl_url_regex",    CRAWL_URL_REGEX          },
 };
 
 
