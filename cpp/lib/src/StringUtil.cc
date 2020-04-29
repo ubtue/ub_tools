@@ -11,7 +11,7 @@
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
  *  Copyright 2002-2005 Dr. Johannes Ruscheinski.
- *  Copyright 2017-2019 Universitätsbibliothek Tübingen
+ *  Copyright 2017-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -62,11 +62,8 @@ namespace {
 
 bool InitializeLocale() {
     // Try to force the use of the iVia standard or fallback locale:
-    if (std::setlocale(LC_ALL, StringUtil::IVIA_STANDARD_LOCALE.c_str()) == nullptr
-        and std::setlocale(LC_ALL, StringUtil::IVIA_FALLBACK_LOCALE.c_str()) == nullptr)
-    {
-        const std::string error_message("in InitializeLocale: setlocale(3) failed: "
-                                        + StringUtil::IVIA_STANDARD_LOCALE + "/" + StringUtil::IVIA_FALLBACK_LOCALE + "\n");
+    if (std::setlocale(LC_ALL, STANDARD_LOCALE) == nullptr) {
+        const std::string error_message("in InitializeLocale: setlocale(3) failed: \"" STANDARD_LOCALE "\"\n");
         const ssize_t dummy = ::write(STDERR_FILENO, error_message.c_str(), error_message.length());
         (void)dummy;
         ::_exit(EXIT_FAILURE);
