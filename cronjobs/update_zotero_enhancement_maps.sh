@@ -111,11 +111,25 @@ if [[ "$MODE" = "LIVE" ]]; then
         '*'                         \
         $FIELDS_TO_UPDATE           \
         >> "${LOG}" 2>&1
+    zeder_to_zotero_importer        \
+        --min-log-level=DEBUG       \
+        $CONFIG_PATH                \
+        IMPORT                      \
+        IXTHEO                      \
+        '*'                         \
+        >> "${LOG}" 2>&1
 elif [[ "$MODE" = "TEST" ]]; then
     zeder_to_zotero_importer        \
         --min-log-level=DEBUG       \
         $CONFIG_PATH                \
         UPDATE                      \
+        IXTHEO                      \
+        '*'                         \
+        $FIELDS_TO_UPDATE
+    zeder_to_zotero_importer        \
+        --min-log-level=DEBUG       \
+        $CONFIG_PATH                \
+        IMPORT                      \
         IXTHEO                      \
         '*'                         \
         $FIELDS_TO_UPDATE
@@ -131,6 +145,13 @@ if [[ "$MODE" = "LIVE" ]]; then
         '*'                         \
         $FIELDS_TO_UPDATE           \
         >> "${LOG}" 2>&1
+    zeder_to_zotero_importer        \
+        --min-log-level=DEBUG       \
+        $CONFIG_PATH                \
+        IMPORT                      \
+        KRIMDOK                     \
+        '*'                         \
+        >> "${LOG}" 2>&1
 elif [[ "$MODE" = "TEST" ]]; then
     zeder_to_zotero_importer        \
         --min-log-level=DEBUG       \
@@ -139,6 +160,12 @@ elif [[ "$MODE" = "TEST" ]]; then
         KRIMDOK                     \
         '*'                         \
         $FIELDS_TO_UPDATE
+    zeder_to_zotero_importer        \
+        --min-log-level=DEBUG       \
+        $CONFIG_PATH                \
+        IMPORT                      \
+        KRIMDOK                     \
+        '*'
 fi
 
 if [[ "$MODE" = "LIVE" ]]; then
