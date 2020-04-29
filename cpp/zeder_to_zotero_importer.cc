@@ -48,7 +48,8 @@ using namespace ZoteroHarvester;
             "\t                                Special-case for updating: Use '*' to update all entries found in the config that belong to the Zeder flavour\n"
             "\tfields_to_update                Comma-separated list of the following fields to update: \n"
             "\t                                \tONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSGN.\n"
-            "\t                                Ignored when importing entries (all importable fields will be imported).\n\n");
+            "\t                                Ignored when importing entries (all importable fields will be imported).\n"
+            "\t                                If mode is IMPORT and zeder_ids is '*', new journals will only be added if \"prodf\" is \"zota\" or \"zotat\".\n\n");
 }
 
 
@@ -104,8 +105,7 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
         StringUtil::SplitThenTrimWhite(zeder_id_list, ',', &buffer);
         for (const auto &id_str : buffer)
             commandline_args->zeder_ids_.emplace(StringUtil::ToUnsigned(id_str));
-    } else if (commandline_args->mode_ == CommandLineArgs::Mode::IMPORT)
-        LOG_ERROR("cannot import all Zeder entries at once");
+    }
 
     if (commandline_args->mode_ == CommandLineArgs::Mode::IMPORT)
         return;
@@ -172,6 +172,7 @@ public:
     IniFile::Section *lookupConfig(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) const;
     Config::JournalParams *lookupJournalParams(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) const;
     IniFile::Section *addNewConfigSection(const std::string &section_name);
+    inline bool sectionIsDefined(const std::string &section_name) { return config_file_->sectionIsDefined(section_name); }
     void removeConfigSection(const std::string &section_name);
 };
 
@@ -196,7 +197,7 @@ Config::JournalParams *HarvesterConfig::lookupJournalParams(const unsigned zeder
 
 
 IniFile::Section *HarvesterConfig::addNewConfigSection(const std::string &section_name) {
-    if (config_file_->sectionIsDefined(section_name))
+    if (sectionIsDefined(section_name))
         LOG_ERROR("INI section '" + section_name + "' already exists");
 
     config_file_->appendSection(section_name);
@@ -241,13 +242,13 @@ void DetermineZederEntriesToBeDownloaded(const CommandLineArgs &commandline_args
         } else for (const auto id : commandline_args.zeder_ids_)
             entries_to_download->emplace(id);
 
+        if (entries_to_download->empty())
+            LOG_ERROR("no entries to update");
+
         break;
     default:
         break;
     }
-
-    if (entries_to_download->empty())
-        LOG_ERROR("no entries to import/update");
 }
 
 
@@ -260,7 +261,7 @@ void WriteIniEntry(IniFile::Section * const section, const std::string &name, co
 
 
 unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, HarvesterConfig * const harvester_config,
-                            const Zeder::Flavour zeder_flavour, const bool overwrite)
+                            const Zeder::Flavour zeder_flavour, const bool overwrite, const bool autodetect_new_datasets)
 {
     unsigned num_entries_imported(0);
     for (const auto &zeder_entry : zeder_entries) {
@@ -270,13 +271,26 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
 
         auto existing_journal_section(harvester_config->lookupConfig(zeder_id, zeder_flavour));
         if (existing_journal_section != nullptr and not overwrite) {
-            LOG_WARNING("couldn't import Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists");
+            if (autodetect_new_datasets)
+                LOG_INFO("Skipping Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists");
+            else
+                LOG_WARNING("couldn't import Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists");
             continue;
+        } else if (existing_journal_section == nullptr and harvester_config->sectionIsDefined(title)) {
+            LOG_WARNING("couldn't import Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists with different zeder id");
+            continue;
+        } else if (existing_journal_section == nullptr and autodetect_new_datasets) {
+            const std::string prodf(zeder_entry.getAttribute("prodf", ""));
+            if (prodf != "zota" && prodf != "zotat") {
+                LOG_INFO("Skipping Zeder entry " + std::to_string(zeder_id) + " (" + title + "): prodf is neither \"zota\" nor \"zotat\"");
+                continue;
+            }
         }
 
         bool new_section(false);
         if (existing_journal_section == nullptr) {
             existing_journal_section = harvester_config->addNewConfigSection(title);
+            existing_journal_section->insert(Config::JournalParams::GetIniKeyString(Config::JournalParams::ZEDER_NEWLY_SYNCED_ENTRY), "true");
             new_section = true;
         }
 
@@ -332,17 +346,20 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                 if (skip_entry) {
                     if (new_section)
                         harvester_config->removeConfigSection(title);
-                    continue;
+                    goto next_entry;
                 }
             }
 
             if (not ini_val_str.empty()) {
+                LOG_DEBUG("\t" + ini_key_str + ": '" + ini_val_str + "'");
                 WriteIniEntry(existing_journal_section, ini_key_str, ini_val_str);
-                LOG_INFO("\t" + ini_key_str + ": '" + ini_val_str + "'");
             }
         }
 
         ++num_entries_imported;
+
+        next_entry:
+           ;// intentionally empty, continue outer for-loop
     }
 
     return num_entries_imported;
@@ -413,7 +430,8 @@ int Main(int argc, char *argv[]) {
     switch (commandline_args.mode_) {
     case CommandLineArgs::Mode::IMPORT: {
         const auto num_imported(ImportZederEntries(downloaded_entries, &harvester_config,
-                                commandline_args.zeder_flavour_, commandline_args.overwrite_on_import_));
+                                commandline_args.zeder_flavour_, commandline_args.overwrite_on_import_,
+                                /*autodetect_new_datasets = */ entries_to_download.empty()));
         LOG_INFO("Imported " + std::to_string(num_imported) + " Zeder entries");
         break;
     }
