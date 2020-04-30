@@ -60,7 +60,7 @@ void CollectNormalizedKeywordsAndTranslations(MARC::Reader * const reader,
 }
 
 
-const std::vector<std::string> non_normlized_keyword_tags{ "600", "610", "630", "648", "650", "651", "653", "655" };
+const std::vector<std::string> non_normalized_keyword_tags{ "600", "610", "630", "648", "650", "651", "653", "655" };
 
 
 void ProcessField(const MARC::Record::Field &field, const std::unordered_set<std::string> &normalized_keywords,
@@ -72,18 +72,18 @@ void ProcessField(const MARC::Record::Field &field, const std::unordered_set<std
         if (subfield_and_code.code_ != 'a')
             continue;
 
-        const auto non_normlized_keyword(NormalizeKeyword(subfield_and_code.value_));
-        if (non_normlized_keyword.empty())
+        const auto non_normalized_keyword(NormalizeKeyword(subfield_and_code.value_));
+        if (non_normalized_keyword.empty())
             continue;
 
-        if (normalized_keywords.find(non_normlized_keyword) != normalized_keywords.cend())
+        if (normalized_keywords.find(non_normalized_keyword) != normalized_keywords.cend())
             ++*matched_count;
         else {
-            auto keyword_and_count(unmatched_keywords_to_counts_map->find(non_normlized_keyword));
+            auto keyword_and_count(unmatched_keywords_to_counts_map->find(non_normalized_keyword));
             if (keyword_and_count != unmatched_keywords_to_counts_map->end())
                 ++(keyword_and_count->second);
             else
-                unmatched_keywords_to_counts_map->emplace(non_normlized_keyword, 1);
+                unmatched_keywords_to_counts_map->emplace(non_normalized_keyword, 1);
             ++*not_matched_count;
         }
     }
@@ -97,7 +97,7 @@ void ProcessTitleRecords(MARC::Reader * const marc_reader, const std::unordered_
     unsigned record_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
-        for (const auto &tag : non_normlized_keyword_tags) {
+        for (const auto &tag : non_normalized_keyword_tags) {
             for (const auto &field : record.getTagRange(tag))
                 ProcessField(field, normalized_keywords, unmatched_keywords_to_counts_map, matched_count, not_matched_count);
         }
