@@ -57,26 +57,32 @@ void CollectNormalizedKeywordsAndTranslations(MARC::Reader * const reader,
 }
 
 
-const std::vector<std::string> non_normlized_keyword_tags{ "650" };
+const std::vector<std::string> non_normlized_keyword_tags{ "600", "610", "630", "648", "650", "651", "653", "655" };
 
 
 void ProcessField(const MARC::Record::Field &field, const std::unordered_set<std::string> &normalized_keywords,
                   std::unordered_map<std::string, unsigned> * const unmatched_keywords_to_counts_map,
                   unsigned * const matched_count, unsigned * const not_matched_count)
 {
-    const auto non_normlized_keyword(NormalizeKeyword(field.getFirstSubfieldWithCode('a')));
-    if (non_normlized_keyword.empty())
-        return;
+    const auto subfields(field.getSubfields());
+    for (const auto subfield_and_code : subfields) {
+        if (subfield_and_code.code_ != 'a')
+            continue;
 
-    if (normalized_keywords.find(non_normlized_keyword) != normalized_keywords.cend())
-        ++*matched_count;
-    else {
-        auto keyword_and_count(unmatched_keywords_to_counts_map->find(non_normlized_keyword));
-        if (keyword_and_count != unmatched_keywords_to_counts_map->end())
-            ++(keyword_and_count->second);
-        else
-            unmatched_keywords_to_counts_map->emplace(non_normlized_keyword, 1);
-        ++*not_matched_count;
+        const auto non_normlized_keyword(NormalizeKeyword(subfield_and_code.value_));
+        if (non_normlized_keyword.empty())
+            continue;
+
+        if (normalized_keywords.find(non_normlized_keyword) != normalized_keywords.cend())
+            ++*matched_count;
+        else {
+            auto keyword_and_count(unmatched_keywords_to_counts_map->find(non_normlized_keyword));
+            if (keyword_and_count != unmatched_keywords_to_counts_map->end())
+                ++(keyword_and_count->second);
+            else
+                unmatched_keywords_to_counts_map->emplace(non_normlized_keyword, 1);
+            ++*not_matched_count;
+        }
     }
 }
 
