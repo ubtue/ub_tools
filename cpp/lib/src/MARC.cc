@@ -1131,7 +1131,7 @@ std::set<std::string> Record::getReferencedGNDNumbers(const std::set<std::string
 }
 
 
-bool Record::getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_synonyms) const {
+bool Record::getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_and_synonyms) const {
     const auto record_type(getRecordType());
     if (unlikely(record_type != RecordType::AUTHORITY))
         LOG_ERROR("this function can only be applied to an authority record but the type of this record is "
@@ -1142,14 +1142,14 @@ bool Record::getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_synonyms) 
             continue;
 
         std::vector<std::string> synonyms;
-        for (const auto synonym_field : getTagRange("450")) {
+        for (const auto synonym_field : getTagRange(canonical_keyword_field.getTag() == "150" ? "450" : "451")) {
             const std::string synonym(synonym_field.getFirstSubfieldWithCode('a'));
             if (likely(not synonym.empty()))
                 synonyms.emplace_back(synonym);
         }
 
         KeywordAndSynonyms temp(canonical_keyword_field.getTag(), canonical_keyword_field.getFirstSubfieldWithCode('a'), synonyms);
-        keyword_synonyms->swap(temp);
+        keyword_and_synonyms->swap(temp);
         return true;
     }
 
