@@ -448,6 +448,23 @@ char Record::BibliographicLevelToChar(const Record::BibliographicLevel bibliogra
     }
 }
 
+
+std::string Record::RecordTypeToString(const RecordType record_type) {
+    switch (record_type) {
+    case RecordType::AUTHORITY:
+        return "AUTHORITY";
+    case RecordType::UNKNOWN:
+        return "UNKNOWN";
+    case RecordType::BIBLIOGRAPHIC:
+        return "BIBLIOGRAPHIC";
+    case RecordType::CLASSIFICATION:
+        return "CLASSIFICATION";
+    }
+
+    LOG_ERROR("Unknown record type " + std::to_string(static_cast<int>(record_type)) + "!");
+}
+
+
 Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
                const std::string &control_number)
 {
@@ -1115,8 +1132,10 @@ std::set<std::string> Record::getReferencedGNDNumbers(const std::set<std::string
 
 
 bool Record::getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_synonyms) const {
-    if (unlikely(getRecordType() != RecordType::AUTHORITY))
-        LOG_ERROR("this function can only be applied to an authority record!");
+    const auto record_type(getRecordType());
+    if (unlikely(record_type != RecordType::AUTHORITY))
+        LOG_ERROR("this function can only be applied to an authority record but the type of this record is "
+                  + RecordTypeToString(record_type) + "!");
 
     for (const auto &canonical_keyword_field : getTagRange({ "150", "151" })) {
         if (unlikely(not canonical_keyword_field.hasSubfield('a')))
