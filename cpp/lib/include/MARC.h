@@ -860,6 +860,7 @@ public:
     void toXmlStringHelper(MarcXmlWriter * const xml_writer) const;
 
     static char BibliographicLevelToChar(const BibliographicLevel bibliographic_level);
+    static std::string RecordTypeToString(const RecordType record_type);
 };
 
 

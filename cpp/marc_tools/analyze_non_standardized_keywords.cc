@@ -40,9 +40,12 @@ std::string NormalizeKeyword(std::string keyword) {
 void CollectNormalizedKeywordsAndTranslations(MARC::Reader * const reader,
                                               std::unordered_set<std::string> * const normalized_keywords)
 {
-    unsigned record_count(0);
+    unsigned authority_record_count(0);
     while (const auto record = reader->read()) {
-        ++record_count;
+        if (record.getRecordType() != MARC::Record::RecordType::AUTHORITY)
+            continue;
+
+        ++authority_record_count;
 
         MARC::Record::KeywordAndSynonyms keyword_synonyms;
         if (record.getKeywordAndSynonyms(&keyword_synonyms)) {
@@ -52,7 +55,7 @@ void CollectNormalizedKeywordsAndTranslations(MARC::Reader * const reader,
         }
     }
 
-    LOG_INFO("Processd " + std::to_string(record_count) + " authority records and found "
+    LOG_INFO("Processed " + std::to_string(authority_record_count) + " authority records and found "
              + std::to_string(normalized_keywords->size()) + " normalized keywords and their translations.");
 }
 
