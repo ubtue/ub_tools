@@ -26,6 +26,7 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
+#include "DnsUtil.h"
 #include "EmailSender.h"
 #include "IniFile.h"
 #include "MARC.h"
@@ -316,7 +317,7 @@ int Main(int argc, char *argv[]) {
 
     if (missed_expectation_count > 0) {
         // send notification to the email address
-        SendEmail(email_address, "validate_harvested_records encountered warnings",
+        SendEmail(email_address, "validate_harvested_records encountered warnings (from: " + DnsUtil::GetHostname() + ")",
                   "Some records missed expectations with respect to MARC fields. "
                   "Check the log at '/usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log' for details.");
     }
