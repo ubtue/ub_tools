@@ -4,18 +4,18 @@ TUEFIND_FLAVOUR ?= "unknown"
 all:
 	$(MAKE) -C cpp/lib/mkdep;
 	$(MAKE) -C cpp;
+	$(MAKE) -C cronjobs;
 	if [ $(TUEFIND_FLAVOUR) != "unknown" ]; then\
 	    $(MAKE) -C java;\
-	    $(MAKE) -C cronjobs;\
 	fi
 
 install: install_configs Makefile
-	rm --force /usr/local/bin/*
+	rm --recursive --force /usr/local/bin/*
 	$(MAKE) -C cpp/lib/mkdep install;
 	$(MAKE) -C cpp install;
+	$(MAKE) -C cronjobs install;
 	if [ $(TUEFIND_FLAVOUR) != "unknown" ]; then\
 	    $(MAKE) -C java install;\
-	    $(MAKE) -C cronjobs install;\
 	fi
 
 clean:
