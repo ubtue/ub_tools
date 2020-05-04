@@ -90,6 +90,18 @@ bool FullTextCache::singleUrlExpired(const std::string &id, const std::string &u
 }
 
 
+bool FullTextCache::dummyEntryExists(const std::string &id) {
+    Entry entry;
+    if (not getEntry(id, &entry))
+        return false;
+    for (const auto &entry_url : FullTextCache::getEntryUrls(id)) {
+        if (entry_url.url_ == DUMMY_URL)
+            return true;
+    }
+    return false;
+}
+
+
 void FullTextCache::expireEntries() {
     full_text_cache_urls_.deleteRange("expiration", Elasticsearch::RO_LTE, "now");
 }
