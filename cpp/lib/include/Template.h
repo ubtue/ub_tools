@@ -120,6 +120,7 @@ public:
     inline std::shared_ptr<Value> operator[](const std::string &key) { return map_[key]; }
     inline const_iterator find(const std::string &key) const { return map_.find(key); }
     inline void clear() { map_.clear(); }
+    inline bool empty() const { return map_.empty(); }
 };
 
 
