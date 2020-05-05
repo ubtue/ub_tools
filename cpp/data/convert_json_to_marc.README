@@ -37,7 +37,10 @@ subfield_x                 = used for variable fields; specifies which JSON data
                              in the Global section.  An alternate form look like "map:map_name{json_path}:selector" where
                              "map_name" and "selector" are predefined values.  Currently "map_name" can only take
                              on the value "journal_tites_and_ppns_map" and "selector" can be either "title" or "ppn."
-                             "json_path" is the usual JSON extraction path relative to "root_path" in the Global section.  
+                             "json_path" is the usual JSON extraction path relative to "root_path" in the Global section.
+                             If the entry is followed by ",first", which is only valid for array-valued entries, only the
+                             first array entry will be used.  If the entry is followed by ",fallback_passthrough", if
+                             the mapping fails, the unmapped value will be used.
 subfield_x_extraction_regex= if present, this regex will be used to extract data from the JSON data before inserting
                              it into the MARC subfield "x".
 dependent_on_y_subfield_x  = This is a rule for generating a subfield x that will only be applied if at least one subfield
