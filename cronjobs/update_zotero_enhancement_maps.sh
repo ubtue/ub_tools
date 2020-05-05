@@ -131,8 +131,7 @@ elif [[ "$MODE" = "TEST" ]]; then
         $CONFIG_PATH                \
         IMPORT                      \
         IXTHEO                      \
-        '*'                         \
-        $FIELDS_TO_UPDATE
+        '*'
 fi
 
 Echo "Import changes from Zeder instance KrimDok"
