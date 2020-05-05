@@ -797,7 +797,10 @@ void InstallFullTextBackendCronjobs() {
 
 void ConfigureFullTextBackend(const bool install_cronjobs = false) {
     static const std::string elasticsearch_programs_dir("/usr/local/ub_tools/cpp/elasticsearch");
-    ExecUtil::ExecOrDie(elasticsearch_programs_dir + "/create_indices_and_type.sh");
+    ExecUtil::ExecOrDie(elasticsearch_programs_dir + "/create_indices_and_type.sh", std::vector<std::string>{} /* args */, 
+                        "" /* new_stdin */, "" /* new_stdout */, "" /* new_stderr */, 0 /* timeout_in_seconds */, 
+                        SIGKILL /* tardy_child_signal */, std::unordered_map<std::string, std::string>() /* envs */, 
+                        elasticsearch_programs_dir);
     if (install_cronjobs)
         InstallFullTextBackendCronjobs();
 }
