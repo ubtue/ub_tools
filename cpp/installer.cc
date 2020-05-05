@@ -809,7 +809,7 @@ void ConfigureFullTextBackend(const bool install_cronjobs = false) {
     } else {
         running_pids = ExecUtil::FindActivePrograms("elasticsearch");
         if (running_pids.size() == 0)
-            es_install_pid = ExecUtil::Spawn(ExecUtil::LocateOrDie("su"), { "--command" "/usr/share/elasticsearch/bin/elasticsearch",
+            es_install_pid = ExecUtil::Spawn(ExecUtil::LocateOrDie("su"), { "--command", "/usr/share/elasticsearch/bin/elasticsearch",
                                              "--shell" "/bin/bash", "elasticsearch" });
         else
             es_was_already_running = true;
