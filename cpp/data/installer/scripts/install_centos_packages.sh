@@ -1,7 +1,7 @@
 #!/bin/bash
 if [[ $# > 1 ]]; then
     echo "usage: $0 [system_type]"
-    echo "          ixtheo|krimdok: Also install specific dependencies"
+    echo "          ixtheo|krimdok|fulltext_backend: Also install specific dependencies"
     exit 1
 fi
 
@@ -67,6 +67,9 @@ if [[ $1 == "krimdok" || $1 == "fulltext_backend" ]]; then
     fi
     mkdir --parents /etc/elasticsearch/synonyms
     for i in all de en fr it es pt ru el hans hant; do touch /etc/elasticsearch/synonyms/synonyms_$i.txt; done
+    if [[ $1 == "fulltext_backend" ]]; then
+        cp --force /mnt/ZE020150/FID-Entwicklung/fulltext/synonyms/* /etc/elasticsearch/synonyms/
+    fi
 fi
 
 
