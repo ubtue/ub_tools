@@ -89,3 +89,8 @@ void SystemdUtil::RestartUnit(const std::string &unit) {
 void SystemdUtil::StartUnit(const std::string &unit) {
     ExecUtil::ExecOrDie(ExecUtil::Which(SYSTEMCTL_EXECUTABLE), { "start", unit });
 }
+
+
+void SystemdUtil::StopUnit(const std::string &unit) {
+    ExecUtil::ExecOrDie(ExecUtil::Which(SYSTEMCTL_EXECUTABLE), { "stop", unit });
+}
