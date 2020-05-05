@@ -803,10 +803,10 @@ void ConfigureFullTextBackend(const bool install_cronjobs = false) {
     if (SystemdUtil::IsAvailable()) {
         SystemdUtil::EnableUnit("elasticsearch");
         running_pids = ExecUtil::FindActivePrograms("elasticsearch");
-            if (running_pids.size() == 0)
-                 SystemdUtil::StartUnit("elasticsearch");
-            else
-                es_was_already_running = true;
+        if (running_pids.size() == 0)
+             SystemdUtil::StartUnit("elasticsearch");
+        else
+            es_was_already_running = true;
     } else {
         running_pids = ExecUtil::FindActivePrograms("elasticsearch");
         if (running_pids.size() == 0)
