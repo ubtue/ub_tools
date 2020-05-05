@@ -204,7 +204,7 @@ void GenerateControl(File * const output, const std::string &package, const std:
 
 
 void GeneratePostInst(const std::string &path) {
-    FileUtil::WriteStringOrDie(path, "#!/bin/bash\nlocale-gen en_US.UTF-8\n");
+    FileUtil::WriteStringOrDie(path, "#!/bin/bash\nlocale-gen " UB_DEFAULT_LOCALE "\n");
     if (::chmod(path.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) == -1)
         LOG_ERROR("chmod(3) on \"" + path + "\" failed!");
 }
