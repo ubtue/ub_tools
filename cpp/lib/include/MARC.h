@@ -573,7 +573,7 @@ public:
      *  \note   Aborts if the record is not an authority record.
      *  \return true if a keyword was found and false o/w.
      */
-    bool getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_synonyms);
+    bool getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_synonyms) const;
 
     /** \return An iterator pointing to the first field w/ tag "field_tag" or end() if no such field was found. */
     inline const_iterator getFirstField(const Tag &field_tag) const {
@@ -860,6 +860,7 @@ public:
     void toXmlStringHelper(MarcXmlWriter * const xml_writer) const;
 
     static char BibliographicLevelToChar(const BibliographicLevel bibliographic_level);
+    static std::string RecordTypeToString(const RecordType record_type);
 };
 
 
