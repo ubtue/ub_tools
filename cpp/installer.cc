@@ -802,8 +802,7 @@ void ConfigureFullTextBackend(const bool install_cronjobs = false) {
     std::unordered_set<unsigned> running_pids;
     if (SystemdUtil::IsAvailable()) {
         SystemdUtil::EnableUnit("elasticsearch");
-        running_pids = ExecUtil::FindActivePrograms("elasticsearch");
-        if (running_pids.size() == 0)
+        if (not SystemdUtil::IsUnitRunning("elasticsearch"))
              SystemdUtil::StartUnit("elasticsearch");
         else
             es_was_already_running = true;
