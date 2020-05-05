@@ -797,10 +797,34 @@ void InstallFullTextBackendCronjobs() {
 
 void ConfigureFullTextBackend(const bool install_cronjobs = false) {
     static const std::string elasticsearch_programs_dir("/usr/local/ub_tools/cpp/elasticsearch");
-    ExecUtil::ExecOrDie(elasticsearch_programs_dir + "/create_indices_and_type.sh", std::vector<std::string>{} /* args */, 
-                        "" /* new_stdin */, "" /* new_stdout */, "" /* new_stderr */, 0 /* timeout_in_seconds */, 
-                        SIGKILL /* tardy_child_signal */, std::unordered_map<std::string, std::string>() /* envs */, 
+    bool es_was_already_running(false);
+    pid_t es_install_pid(0);
+    std::unordered_set<unsigned> running_pids;
+    if (SystemdUtil::IsAvailable()) {
+        SystemdUtil::EnableUnit("elasticsearch");
+        if (not SystemdUtil::IsUnitRunning("elasticsearch"))
+             SystemdUtil::StartUnit("elasticsearch");
+        else
+            es_was_already_running = true;
+    } else {
+        running_pids = ExecUtil::FindActivePrograms("elasticsearch");
+        if (running_pids.size() == 0)
+            es_install_pid = ExecUtil::Spawn(ExecUtil::LocateOrDie("su"), { "--command" "/usr/share/elasticsearch/bin/elasticsearch",
+                                             "--shell" "/bin/bash", "elasticsearch" });
+        else
+            es_was_already_running = true;
+    }
+    ExecUtil::ExecOrDie(elasticsearch_programs_dir + "/create_indices_and_type.sh", std::vector<std::string>{} /* args */,
+                        "" /* new_stdin */, "" /* new_stdout */, "" /* new_stderr */, 0 /* timeout_in_seconds */,
+                        SIGKILL /* tardy_child_signal */, std::unordered_map<std::string, std::string>() /* envs */,
                         elasticsearch_programs_dir);
+    if (not es_was_already_running) {
+        if (SystemdUtil::IsAvailable())
+            SystemdUtil::StopUnit("elasticsearch");
+        else
+            ::kill(es_install_pid, SIGKILL);
+    }
+
     if (install_cronjobs)
         InstallFullTextBackendCronjobs();
 }
