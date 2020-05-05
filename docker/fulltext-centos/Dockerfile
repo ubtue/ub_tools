@@ -25,4 +25,5 @@ EXPOSE 9200
 # start services when container is run
 ADD startup.sh /startup.sh
 ADD elasticsearch.yml /etc/elasticsearch/elasticsearch.yml
+ADD Elasticsearch.conf /usr/local/var/lib/tuelib/Elasticsearch.conf
 CMD [ "/startup.sh" ]
