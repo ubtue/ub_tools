@@ -84,8 +84,6 @@ const std::set<char> &GetWhiteSpaceSet();
 namespace StringUtil {
 
 
-const std::string IVIA_STANDARD_LOCALE("en_US.utf8");
-const std::string IVIA_FALLBACK_LOCALE("en_US.UTF-8");
 const std::string EmptyString;
 const std::string WHITE_SPACE(" \t\n\v\r\f");
 
