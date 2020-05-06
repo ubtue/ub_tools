@@ -165,7 +165,10 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             crawling_journal_print_ppns.emplace_back(ppn_print);
             crawling_journal_online_ppns.emplace_back(ppn_online);
             crawling_base_urls.emplace_back(url);
-            crawling_extraction_regexes.emplace_back(journal_param->crawl_params_.extraction_regex_->getPattern());
+            if (journal_param->crawl_params_.extraction_regex_ != nullptr)
+                crawling_extraction_regexes.emplace_back(journal_param->crawl_params_.extraction_regex_->getPattern());
+            else
+                crawling_extraction_regexes.emplace_back("");
             crawling_depths.emplace_back(std::to_string(journal_param->crawl_params_.max_crawl_depth_));
             crawling_strptime_formats.emplace_back(strptime_format);
         }
