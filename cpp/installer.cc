@@ -464,6 +464,12 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mkdir"), { "-p", UBTools::GetTuelibPath() });
     }
 
+    // ..and /usr/local/var/log/tuefind
+    if (not FileUtil::Exists(UBTools::GetTuefindLogPath())) {
+        Echo("creating " + UBTools::GetTuefindLogPath());
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mkdir"), { "-p", UBTools::GetTuefindLogPath() });
+    }
+
     const std::string ZOTERO_ENHANCEMENT_MAPS_DIRECTORY(UBTools::GetTuelibPath() + "zotero-enhancement-maps");
     if (not FileUtil::Exists(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY)) {
         const std::string git_url("https://github.com/ubtue/zotero-enhancement-maps.git");
