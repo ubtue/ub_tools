@@ -201,7 +201,7 @@ void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
         Echo("Successfully mounted the department drive.");
     }
 
-    const std::string SSH_KEYS_DIR("/root/.ssh");
+    const std::string SSH_KEYS_DIR("/root/.ssh/");
     const std::string GITHUB_ROBOT_PRIVATE_KEY_REMOTE(MOUNT_POINT + "/FID-Entwicklung/github-robot");
     const std::string GITHUB_ROBOT_PRIVATE_KEY_LOCAL(SSH_KEYS_DIR + "github-robot");
     const std::string GITHUB_ROBOT_PUBLIC_KEY_REMOTE(MOUNT_POINT + "/FID-Entwicklung/github-robot.pub");
