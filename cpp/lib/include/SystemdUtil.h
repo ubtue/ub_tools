@@ -39,6 +39,7 @@ bool IsUnitEnabled(const std::string &unit);
 bool IsUnitRunning(const std::string &unit);
 void RestartUnit(const std::string &unit);
 void StartUnit(const std::string &unit);
+void StopUnit(const std::string &unit);
 
 
 } // namespace Systemd
