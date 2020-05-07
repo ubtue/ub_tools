@@ -311,7 +311,7 @@ std::unordered_map<std::string, std::string> fetch_author_ppn_url_to_ppn_cache;
 std::mutex fetch_author_ppn_url_to_ppn_cache_mutex;
 
 
-const ThreadSafeRegexMatcher AUTHOR_PPN_MATCHER("<SMALL>PPN</SMALL>.*<div><SMALL>([0-9X]+)");
+const ThreadSafeRegexMatcher AUTHOR_PPN_MATCHER("<SMALL>K10plusPPN</SMALL>.*<div><SMALL>([0-9X]+)");
 
 
 std::string FetchAuthorPPN(const std::string &author, const std::string &author_lookup_base_url) {
