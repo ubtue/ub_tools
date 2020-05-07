@@ -311,7 +311,7 @@ std::unordered_map<std::string, std::string> fetch_author_gnd_url_to_gnd_cache;
 std::mutex fetch_author_gnd_url_to_gnd_cache_mutex;
 
 
-const ThreadSafeRegexMatcher AUTHOR_GND_MATCHER("<SMALL>GND-Nummer</SMALL>.*<div><SMALL>([0-9X]+)");
+const ThreadSafeRegexMatcher AUTHOR_GND_MATCHER("<SMALL>GND-Nummer</SMALL>.*?<div><SMALL>([0-9X]+)");
 
 
 std::string GetAuthorGNDNumber(const std::string &author, const std::string &author_lookup_base_url) {
