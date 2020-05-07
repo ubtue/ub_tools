@@ -116,17 +116,17 @@ GroupParams::GroupParams(const IniFile::Section &group_section) {
     user_agent_ = group_section.getString(GetIniKeyString(USER_AGENT));
     isil_ = group_section.getString(GetIniKeyString(ISIL));
     output_folder_ = group_section.getString(GetIniKeyString(OUTPUT_FOLDER));
-    author_ppn_lookup_url_ = group_section.getString(GetIniKeyString(AUTHOR_PPN_LOOKUP_URL));
-    author_gnd_lookup_query_params_ = group_section.getString(GetIniKeyString(AUTHOR_GND_LOOKUP_QUERY_PARAMS), "");
+    author_swb_lookup_url_ = group_section.getString(GetIniKeyString(AUTHOR_SWB_LOOKUP_URL));
+    author_lobid_lookup_query_params_ = group_section.getString(GetIniKeyString(AUTHOR_LOBID_LOOKUP_QUERY_PARAMS), "");
 }
 
 
 const std::map<GroupParams::IniKey, std::string> GroupParams::KEY_TO_STRING_MAP {
-    { USER_AGENT,                     "user_agent" },
-    { ISIL,                           "isil" },
-    { OUTPUT_FOLDER,                  "output_folder" },
-    { AUTHOR_PPN_LOOKUP_URL,          "author_ppn_lookup_url" },
-    { AUTHOR_GND_LOOKUP_QUERY_PARAMS, "author_gnd_lookup_query_params" },
+    { USER_AGENT,                       "user_agent" },
+    { ISIL,                             "isil" },
+    { OUTPUT_FOLDER,                    "output_folder" },
+    { AUTHOR_SWB_LOOKUP_URL,            "author_swb_lookup_url" },
+    { AUTHOR_LOBID_LOOKUP_QUERY_PARAMS, "author_lobid_lookup_query_params" },
 };
 
 
