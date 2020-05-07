@@ -20,7 +20,7 @@ password=$(inifile_lookup --suppress-newline "${conf_path}" FTP password)
 ftp -invp "${host}" <<EOF
 user ${username} ${password}
 cd ${remote_path}
-bin
+binary
 put ${input_path} ${filename_tmp}
 rename ${filename_tmp} ${filename}
 bye
