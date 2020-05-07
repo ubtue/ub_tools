@@ -89,7 +89,7 @@ int Main(int argc, char *argv[]) {
 
         const auto delivery_mode(section.getEnum("zotero_delivery_mode", ZoteroHarvester::Config::STRING_TO_UPLOAD_OPERATION_MAP,
                                                  ZoteroHarvester::Config::UploadOperation::NONE));
-        if (delivery_mode != ZoteroHarvester::Config::UploadOperation::LIVE)
+        if (delivery_mode != ZoteroHarvester::Config::UploadOperation::LIVE or section.getBool("zeder_newly_synced_entry", false))
             continue;
 
         const std::string journal_name(section.getSectionName());
