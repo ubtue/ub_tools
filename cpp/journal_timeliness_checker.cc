@@ -1,7 +1,7 @@
 /** \brief Checks the BSZ delivery database to find journals for which we have no reasonably new articles delivered.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -16,7 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <iostream>
+
 #include <ctime>
 #include <cstdlib>
 #include "DbConnection.h"
@@ -24,6 +24,7 @@
 #include "IniFile.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
 #include "ZoteroHarvesterConfig.h"
@@ -33,28 +34,27 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " [--min-log-level=log_level] [--default-update-window=no_of_days] config_file_path sender_email_address "
-              << "notification_email_address\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("[--min-log-level=log_level] [--default-update-window=no_of_days] config_file_path sender_email_address "
+            "notification_email_address");
 }
 
 
-void ProcessJournal(DbConnection * const db_connection, const std::string &journal_name, const std::string &journal_ppn,
-                    const unsigned update_window, std::string * tardy_list)
+void ProcessJournal(DbConnection * const db_connection, const std::string &journal_name, const std::string &zeder_id,
+                    const std::string &zeder_instance, const  unsigned update_window, std::string * tardy_list)
 {
-    db_connection->queryOrDie("SELECT MAX(created_at) AS max_created_at FROM marc_records WHERE superior_control_number="
-                              + db_connection->escapeAndQuoteString(journal_ppn));
+    db_connection->queryOrDie("SELECT MAX(delivered_at) AS max_delivered_at FROM delivered_marc_records WHERE zeder_id="
+                              + db_connection->escapeAndQuoteString(zeder_id) + " and zeder_instance="
+                              + db_connection->escapeAndQuoteString(zeder_instance));
 
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty())
         return;
 
-    const std::string max_created_at_string(result_set.getNextRow()["max_created_at"]);
-    const time_t max_created_at(SqlUtil::DatetimeToTimeT(max_created_at_string));
+    const std::string max_delivered_at_string(result_set.getNextRow()["max_delivered_at"]);
+    const time_t max_delivered_at(SqlUtil::DatetimeToTimeT(max_delivered_at_string));
 
-    if (max_created_at < ::time(nullptr) - update_window * 86400)
-        *tardy_list += journal_name + ": " + max_created_at_string + "\n";
+    if (max_delivered_at < ::time(nullptr) - update_window * 86400)
+        *tardy_list += journal_name + ": " + max_delivered_at_string + "\n";
 }
 
 
@@ -94,13 +94,8 @@ int Main(int argc, char *argv[]) {
 
         const std::string journal_name(section.getSectionName());
 
-        std::string journal_ppn(section.getString("online_ppn", ""));
-        if (journal_ppn.empty())
-            journal_ppn = section.getString("print_ppn", "");
-        if (journal_ppn.empty()) {
-            LOG_WARNING("no PPN found for \"" + journal_name + "\"!");
-            continue;
-        }
+        const std::string zeder_id(section.getString("zeder_id"));
+        const std::string zeder_instance(TextUtil::UTF8ToLower(section.getString("zotero_group")));
 
         unsigned update_window;
         if (section.find("zeder_update_window") == section.end()) {
@@ -109,7 +104,7 @@ int Main(int argc, char *argv[]) {
         } else
             update_window = section.getUnsigned("update_window");
 
-        ProcessJournal(&db_connection, journal_name, journal_ppn, update_window, &tardy_list);
+        ProcessJournal(&db_connection, journal_name, zeder_id, zeder_instance, update_window, &tardy_list);
     }
 
     if (not tardy_list.empty()) {
