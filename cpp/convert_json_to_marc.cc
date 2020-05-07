@@ -101,7 +101,7 @@ void LoadISSNsToJournalTitlesAndPPNsMap(std::unordered_map<std::string, JournalT
         if (line.empty())
             continue;
         std::vector<std::string> parts(SplitLineOnColons(line));
-        if (parts.size() != 4 or parts[0].empty() or parts[1].empty()) // ISSN and titles are required, PPN's and online ISSN's are optionsl.
+        if (parts.size() != 4 or parts[0].empty() or parts[1].empty()) // ISSN and titles are required, PPN's and online ISSN's are optional.
             LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + MAP_FILE_PATH + "\"!");
         issns_to_journal_titles_and_ppns_map->emplace(parts[0], JournalTitleAndPPN(parts[1], parts[2], parts[3]));
     }
