@@ -273,4 +273,7 @@ bool IsRobotsDotTxtUrl(const Url &test_url);
 inline bool IsValidWebUrl(const std::string &url) { return Url(url).isValidWebUrl(); }
 
 
+bool URLContainsOnlyValidChars(const std::string &url);
+
+
 } // namespace UrlUtil

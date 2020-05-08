@@ -561,4 +561,16 @@ bool IsRobotsDotTxtUrl(const Url &test_url) {
 }
 
 
+bool URLContainsOnlyValidChars(const std::string &url) {
+    for (const char ch : url) {
+        // See RFC 3986 for which characters are valid.
+        if (not StringUtil::IsAsciiLetter(ch) and not StringUtil::IsDigit(ch)
+            and __builtin_strchr("%/-_.~:\\?#[]@!&$\'()*+,;=", ch) == nullptr)
+            return false;
+    }
+
+    return true;
+}
+
+
 } // namespace UrlUtil
