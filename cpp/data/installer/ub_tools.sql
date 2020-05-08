@@ -51,9 +51,12 @@ CREATE TABLE delivered_marc_records (
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 
+# Do not use utf8mb4 for URL's in big constraints, especially not if
+# combined with other fields
+# (Avoid error "Specified key was too long; max key length is 3072 bytes")
 CREATE TABLE delivered_marc_records_urls (
     record_id INT,
-    url VARCHAR(767) NOT NULL,
+    url VARCHAR(1000) CHARACTER SET 'utf8' COLLATE 'utf8_bin' NOT NULL,
     CONSTRAINT record_id_and_url PRIMARY KEY (record_id, url),
     CONSTRAINT delivered_marc_records_id FOREIGN KEY (record_id) REFERENCES delivered_marc_records (id) ON DELETE CASCADE ON UPDATE CASCADE,
     INDEX delivered_marc_records_urls_index(url)
