@@ -98,16 +98,16 @@ struct GroupParams {
         USER_AGENT,
         ISIL,
         OUTPUT_FOLDER,
-        AUTHOR_PPN_LOOKUP_URL,
-        AUTHOR_GND_LOOKUP_QUERY_PARAMS,
+        AUTHOR_SWB_LOOKUP_URL,
+        AUTHOR_LOBID_LOOKUP_QUERY_PARAMS,
     };
 
     std::string name_;
     std::string user_agent_;
     std::string isil_;
     std::string output_folder_;
-    std::string author_ppn_lookup_url_;
-    std::string author_gnd_lookup_query_params_;
+    std::string author_swb_lookup_url_;
+    std::string author_lobid_lookup_query_params_;
 public:
     GroupParams(const IniFile::Section &group_section);
     GroupParams(const GroupParams &rhs) = default;
