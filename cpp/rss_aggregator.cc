@@ -247,7 +247,7 @@ int Main(int argc, char *argv[]) {
     IniFile ini_file;
     DbConnection db_connection(ini_file);
 
-    const std::string xml_output_filename(argv[1]);
+    const std::string xml_output_filename(argv[2]);
 
     Downloader::Params params;
     const std::string PROXY(ini_file.getString("", "proxy", ""));
