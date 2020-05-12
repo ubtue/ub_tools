@@ -461,13 +461,13 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     // ...then create /usr/local/var/lib/tuelib
     if (not FileUtil::Exists(UBTools::GetTuelibPath())) {
         Echo("creating " + UBTools::GetTuelibPath());
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mkdir"), { "-p", UBTools::GetTuelibPath() });
+        FileUtil::MakeDirectory(UBTools::GetTuelibPath());
     }
 
     // ..and /usr/local/var/log/tuefind
-    if (not FileUtil::Exists(UBTools::GetTuefindLogPath())) {
-        Echo("creating " + UBTools::GetTuefindLogPath());
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mkdir"), { "-p", UBTools::GetTuefindLogPath() });
+    if (not FileUtil::Exists(UBTools::GetTueFindLogPath())) {
+        Echo("creating " + UBTools::GetTueFindLogPath());
+        FileUtil::MakeDirectory(UBTools::GetTueFindLogPath());
     }
 
     const std::string ZOTERO_ENHANCEMENT_MAPS_DIRECTORY(UBTools::GetTuelibPath() + "zotero-enhancement-maps");
@@ -723,12 +723,12 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
 }
 
 
-void PermanentlySetEnvironmentVariables(std::vector<std::pair<std::string, std::string>> &keys_and_values,
+void PermanentlySetEnvironmentVariables(const std::vector<std::pair<std::string, std::string>> &keys_and_values,
                                         const std::string &script_path)
 {
     std::string variables;
-    for (const auto &key_and_value : keys_and_values)
-        variables += "export " + key_and_value.first + "=" + key_and_value.second + "\n";
+    for (const auto &[key, value] : keys_and_values)
+        variables += "export " + key + "=" + value + "\n";
     FileUtil::WriteString(script_path, variables);
     MiscUtil::LoadExports(script_path, /* overwrite = */ true);
 }
@@ -745,7 +745,7 @@ void SetVuFindEnvironmentVariables(const std::string &vufind_system_type_string)
 
 void SetFulltextEnvironmentVariables() {
     // Currently only the IxTheo approach is supported
-    std::vector<std::pair<std::string, std::string>> keys_and_values {
+    const std::vector<std::pair<std::string, std::string>> keys_and_values {
         { "FULLTEXT_FLAVOUR", "fulltext_ixtheo" }
     };
     PermanentlySetEnvironmentVariables(keys_and_values, "/etc/profile.d/fulltext.sh");
