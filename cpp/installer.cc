@@ -461,7 +461,13 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     // ...then create /usr/local/var/lib/tuelib
     if (not FileUtil::Exists(UBTools::GetTuelibPath())) {
         Echo("creating " + UBTools::GetTuelibPath());
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mkdir"), { "-p", UBTools::GetTuelibPath() });
+        FileUtil::MakeDirectory(UBTools::GetTuelibPath());
+    }
+
+    // ..and /usr/local/var/log/tuefind
+    if (not FileUtil::Exists(UBTools::GetTueFindLogPath())) {
+        Echo("creating " + UBTools::GetTueFindLogPath());
+        FileUtil::MakeDirectory(UBTools::GetTueFindLogPath());
     }
 
     const std::string ZOTERO_ENHANCEMENT_MAPS_DIRECTORY(UBTools::GetTuelibPath() + "zotero-enhancement-maps");
@@ -717,20 +723,32 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
 }
 
 
-void SetEnvironmentVariables(const std::string &vufind_system_type_string) {
+void PermanentlySetEnvironmentVariables(const std::vector<std::pair<std::string, std::string>> &keys_and_values,
+                                        const std::string &script_path)
+{
+    std::string variables;
+    for (const auto &[key, value] : keys_and_values)
+        variables += "export " + key + "=" + value + "\n";
+    FileUtil::WriteString(script_path, variables);
+    MiscUtil::LoadExports(script_path, /* overwrite = */ true);
+}
+
+
+void SetVuFindEnvironmentVariables(const std::string &vufind_system_type_string) {
     std::vector<std::pair<std::string, std::string>> keys_and_values {
         { "VUFIND_HOME", VUFIND_DIRECTORY },
         { "VUFIND_LOCAL_DIR", VUFIND_DIRECTORY + "/local/tuefind/instances/" + vufind_system_type_string },
         { "TUEFIND_FLAVOUR", vufind_system_type_string },
     };
+    PermanentlySetEnvironmentVariables(keys_and_values, "/etc/profile.d/vufind.sh");
+}
 
-    std::string variables;
-    for (const auto &key_and_value : keys_and_values)
-        variables += "export " + key_and_value.first + "=" + key_and_value.second + "\n";
-
-    const std::string vufind_script_path("/etc/profile.d/vufind.sh");
-    FileUtil::WriteString(vufind_script_path, variables);
-    MiscUtil::LoadExports(vufind_script_path, /* overwrite = */ true);
+void SetFulltextEnvironmentVariables() {
+    // Currently only the IxTheo approach is supported
+    const std::vector<std::pair<std::string, std::string>> keys_and_values {
+        { "FULLTEXT_FLAVOUR", "fulltext_ixtheo" }
+    };
+    PermanentlySetEnvironmentVariables(keys_and_values, "/etc/profile.d/fulltext.sh");
 }
 
 
@@ -764,7 +782,7 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     Echo("solrmarc (marc_local.properties)");
     ExecUtil::ExecOrDie(VUFIND_DIRECTORY + "/import/make_marc_local_properties.sh", { vufind_system_type_string });
 
-    SetEnvironmentVariables(vufind_system_type_string);
+    SetVuFindEnvironmentVariables(vufind_system_type_string);
 
     Echo("alphabetical browse");
     UseCustomFileIfExists(VUFIND_DIRECTORY + "/index-alphabetic-browse_" + vufind_system_type_string + ".sh",
@@ -824,7 +842,7 @@ void ConfigureFullTextBackend(const bool install_cronjobs = false) {
         else
             ::kill(es_install_pid, SIGKILL);
     }
-
+    SetFulltextEnvironmentVariables();
     if (install_cronjobs)
         InstallFullTextBackendCronjobs();
 }
