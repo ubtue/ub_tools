@@ -30,5 +30,11 @@ inline std::string GetTuelibPath() {
     return "/usr/local/var/lib/tuelib/";
 }
 
+// \return A slash-terminated absolute path.
+inline std::string GetTueFindLogPath() {
+    return "/usr/local/var/log/tuefind/";
+}
+
+
 
 } // namespace UBTools
