@@ -3105,9 +3105,9 @@ public class TuelibMixin extends SolrIndexerMixin {
 		                        mapTextTypeToDescription((String) _source.get("text_type")) : "";
              if (description.isEmpty() || text_type_description.isEmpty() ||
                  description.equals(text_type_description))
-                     fulltextBuilder.append(_source.get("full_text"));
+                     fulltextBuilder.append(_source.get("full_text") != null ? _source.get("full_text") : "");
         }
-        return fulltextBuilder.toString();
+        return (fulltextBuilder.length() > 0)  ? fulltextBuilder.toString() : null;
     }
 
 
