@@ -41,6 +41,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include "DbConnection.h"
+#include "Downloader.h"
 #include "DnsUtil.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
@@ -813,6 +814,36 @@ void InstallFullTextBackendCronjobs() {
 }
 
 
+void WaitForElasticsearchReady() {
+     const std::string host("localhost");
+     const std::string base_url("http://" + host + ":9200/");
+     const unsigned MAX_ITERATIONS(5);
+     const unsigned SLEEP_TIME(5 * 1000 * 1000);
+
+     for (unsigned iteration = 1; iteration <= MAX_ITERATIONS; ++iteration) {
+         Downloader downloader(base_url);
+         if (downloader.getResponseCode() == 200)
+             break;
+         ::usleep(SLEEP_TIME);
+         if (iteration == MAX_ITERATIONS)
+             LOG_ERROR("ES apparently down [1]");
+    }
+
+    const unsigned TIMEOUT(5 * 1000);
+    for (unsigned iteration = 1; iteration <= MAX_ITERATIONS; ++iteration) {
+        std::string result;
+        Download(base_url + "_cat/health?h=status", TIMEOUT, &result);
+        result = StringUtil::TrimWhite(result);
+
+        if (result == "yellow" or result == "green")
+            break;
+        ::usleep(SLEEP_TIME);
+        if (iteration == MAX_ITERATIONS)
+            LOG_ERROR("ES apparently down [2]");
+    }
+}
+
+
 void ConfigureFullTextBackend(const bool install_cronjobs = false) {
     static const std::string elasticsearch_programs_dir("/usr/local/ub_tools/cpp/elasticsearch");
     bool es_was_already_running(false);
@@ -826,9 +857,11 @@ void ConfigureFullTextBackend(const bool install_cronjobs = false) {
             es_was_already_running = true;
     } else {
         running_pids = ExecUtil::FindActivePrograms("elasticsearch");
-        if (running_pids.size() == 0)
+        if (running_pids.size() == 0) {
             es_install_pid = ExecUtil::Spawn(ExecUtil::LocateOrDie("su"), { "--command", "/usr/share/elasticsearch/bin/elasticsearch",
                                              "--shell", "/bin/bash", "elasticsearch" });
+            WaitForElasticsearchReady();
+        }
         else
             es_was_already_running = true;
     }
