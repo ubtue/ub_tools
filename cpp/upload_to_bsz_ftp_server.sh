@@ -13,7 +13,7 @@ filename=$(basename "$input_path")
 filename_tmp="${filename%.*}.tmp"
 remote_path=$2
 
-conf_path=/usr/local/var/lib/tuelib/cronjobs/fetch_marc_updates.conf
+conf_path=/usr/local/var/lib/tuelib/cronjobs/BSZ.conf
 host=$(inifile_lookup --suppress-newline "${conf_path}" FTP host)
 username=$(inifile_lookup --suppress-newline "${conf_path}" FTP username)
 password=$(inifile_lookup --suppress-newline "${conf_path}" FTP password)

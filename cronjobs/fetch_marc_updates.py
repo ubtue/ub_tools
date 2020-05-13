@@ -3,17 +3,8 @@
 #
 # A tool for the automation of tarball downloads from the BSZ.
 # Config files for this tool look like this:
+# (in addition, see BSZ.conf and smtp_server.conf)
 """
-[FTP]
-host     = vftp.bsz-bw.de
-username = swb
-password = XXXXXX
-
-[SMTPServer]
-server_address  = smtpserv.uni-tuebingen.de
-server_user     = qubob16
-server_password = XXXXXX
-
 [Kompletter Abzug]
 filename_pattern = ^SA-MARC-ixtheo-(\d\d\d\d\d\d).tar.gz$
 directory_on_ftp_server = /ixtheo
@@ -336,9 +327,10 @@ def Main():
     util.default_email_recipient = sys.argv[1]
     try:
         config = util.LoadConfigFile()
-        ftp_host   = config.get("FTP", "host")
-        ftp_user   = config.get("FTP", "username")
-        ftp_passwd = config.get("FTP", "password")
+        bsz_config = util.LoadConfigFile(default_config_file_dir + "BSZ.conf")
+        ftp_host   = bsz_config.get("FTP", "host")
+        ftp_user   = bsz_config.get("FTP", "username")
+        ftp_passwd = bsz_config.get("FTP", "password")
     except Exception as e:
         util.Error("failed to read config file! (" + str(e) + ")")
 
