@@ -41,8 +41,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include "DbConnection.h"
-#include "Downloader.h"
 #include "DnsUtil.h"
+#include "Downloader.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "IniFile.h"
@@ -818,26 +818,26 @@ void WaitForElasticsearchReady() {
      const std::string host("localhost");
      const std::string base_url("http://" + host + ":9200/");
      const unsigned MAX_ITERATIONS(5);
-     const unsigned SLEEP_TIME(5 * 1000 * 1000);
+     const unsigned SLEEP_TIME_SECS(5);
 
-     for (unsigned iteration = 1; iteration <= MAX_ITERATIONS; ++iteration) {
+     for (unsigned iteration(1); iteration <= MAX_ITERATIONS; ++iteration) {
          Downloader downloader(base_url);
          if (downloader.getResponseCode() == 200)
              break;
-         ::usleep(SLEEP_TIME);
+         ::sleep(SLEEP_TIME_SECS);
          if (iteration == MAX_ITERATIONS)
              LOG_ERROR("ES apparently down [1]");
     }
 
-    const unsigned TIMEOUT(5 * 1000);
-    for (unsigned iteration = 1; iteration <= MAX_ITERATIONS; ++iteration) {
+    const unsigned TIMEOUT_MS(5 * 1000);
+    for (unsigned iteration(1); iteration <= MAX_ITERATIONS; ++iteration) {
         std::string result;
-        Download(base_url + "_cat/health?h=status", TIMEOUT, &result);
+        Download(base_url + "_cat/health?h=status", TIMEOUT_MS, &result);
         result = StringUtil::TrimWhite(result);
 
         if (result == "yellow" or result == "green")
             break;
-        ::usleep(SLEEP_TIME);
+        ::sleep(SLEEP_TIME_SECS);
         if (iteration == MAX_ITERATIONS)
             LOG_ERROR("ES apparently down [2]");
     }
@@ -861,8 +861,7 @@ void ConfigureFullTextBackend(const bool install_cronjobs = false) {
             es_install_pid = ExecUtil::Spawn(ExecUtil::LocateOrDie("su"), { "--command", "/usr/share/elasticsearch/bin/elasticsearch",
                                              "--shell", "/bin/bash", "elasticsearch" });
             WaitForElasticsearchReady();
-        }
-        else
+        } else
             es_was_already_running = true;
     }
     ExecUtil::ExecOrDie(elasticsearch_programs_dir + "/create_indices_and_type.sh", std::vector<std::string>{} /* args */,
