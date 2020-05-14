@@ -3339,7 +3339,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
             try {
                 final long lower = Long.parseLong(range[0]);
-                if (lower > minimum)
+                if (lower < minimum)
                     minimum = lower;
             } catch (NumberFormatException e) {
                 System.err.println(range + " is not a valid range! (4)");
