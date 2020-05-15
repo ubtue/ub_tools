@@ -345,6 +345,7 @@ bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::str
         new BvbrSmartDownloader(trace),
         new Bsz21SmartDownloader(trace),
         new LocGovSmartDownloader(trace),
+        new PublicationsTueSmartDownloader(trace),
         new DefaultDownloader(trace)
     };
 
