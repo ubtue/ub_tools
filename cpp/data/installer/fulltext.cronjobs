@@ -3,6 +3,7 @@ SHELL=/bin/bash
 BSZ_DATEN=/usr/local/ub_tools/bsz_daten
 BIN=/usr/local/bin
 EMAIL=ixtheo-team@ub.uni-tuebingen.de
+0 0 * * * "$BIN/log_rotate" --max-rotations=14 "$LOG_DIR" "(?<!(java_mem_stats))\\.log$"
 LOG_DIR=/usr/local/var/log/tuefind
 0 2 * * * cd "$BSZ_DATEN" && "$BIN/purge_old_data.py" "$EMAIL" > "$LOG_DIR/purge_old_data.log" 2>&1
 0 3 * * * cd "$BSZ_DATEN" && "$BIN/fetch_marc_updates.py" "$EMAIL" > "$LOG_DIR/fetch_marc_updates.log" 2>&1

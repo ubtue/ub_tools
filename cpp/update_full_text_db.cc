@@ -245,8 +245,8 @@ void GetUrlsAndTextTypes(const MARC::Record &record, std::set<UrlAndTextType> * 
        if (_856_field.getIndicator1() == '7' or not _856_subfields.hasSubfield('u'))
            continue;
 
-       if (use_only_open_access_links and not _856_subfields.hasSubfieldWithValue('z', "Kostenfrei")
-           and not (include_all_tocs and _856_subfields.hasSubfieldWithValue('3', "Inhaltsverzeichnis"))) {
+       if (use_only_open_access_links and not _856_subfields.hasSubfieldWithValue('z', "Kostenfrei", true /* case insensitive */)
+           and not (include_all_tocs and _856_subfields.hasSubfieldWithValue('3', "Inhaltsverzeichnis", true /* case insentitive */))) {
            LOG_WARNING("Skipping entry since not kostenfrei");
            continue;
        }
