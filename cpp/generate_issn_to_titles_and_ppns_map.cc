@@ -21,6 +21,8 @@
 */
 
 #include <set>
+#include <unordered_map>
+#include <unordered_set>
 #include "FileUtil.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
@@ -67,7 +69,35 @@ auto FilterOutInvalidISSNs(const std::set<std::string> &unvalidated_issns) {
 }
 
 
-unsigned ProcessZederAndWriteMapFile(File * const output, const Zeder::SimpleZeder &zeder) {
+struct JournalDescriptor {
+    std::set<std::string> print_issn_;
+    std::string online_issn_;
+    std::string print_ppn_;
+    std::string online_ppn_;
+    std::string title_;
+public:
+    JournalDescriptor(const std::string &print_issn, const std::string &online_issn, const std::string &print_ppn,
+                      const std::string &online_ppn, const std::string &title)
+        : print_issn_(print_issn), online_issn_(online_issn), print_ppn_(print_ppn), online_ppn_(online_ppn),
+          title_(title) { }
+    void serialize(File * const output) const;
+};
+
+
+void JournalDescriptor::serialize(File * const output) const {
+    if (not print_issn_.empty()) {
+        (*output) << print_issn_ << ':' << EscapeColons(title_) << ':' << (online_issn_.empty() ? print_issn_ : online_issn_)
+                  << (online_ppn_.empty() ? print_ppn_ : online_ppn_) << '\n';
+    }
+
+    if (not online_issn_.empty() and not online_ppn_.empty())
+        (*output) << online_issn_ << ':' << EscapeColons(title_) << ':' << online_ppn_ << '\n';
+}
+
+
+unsigned ProcessZeder(const Zeder::SimpleZeder &zeder,
+                      std::unordered_map<std::string, JournalDescriptor *> * const issns_to_journal_descs)
+{
     unsigned generated_count(0);
     for (const auto &journal : zeder) {
         if (journal.empty())
@@ -105,11 +135,40 @@ unsigned ProcessZederAndWriteMapFile(File * const output, const Zeder::SimpleZed
 }
 
 
-unsigned ProcessZederFlavour(const Zeder::Flavour zeder_flavour, File * const map_output) {
+void WriteMapFile(const std::string &map_filename, const std::unordered_map<std::string, JournalDescriptor *> &issns_to_journal_descs) {
+    const auto map_file(FileUtil::OpenOutputFileOrDie(map_filename));
+    std::unordered_set<JournalDescriptor *> already_seen;
+    for (const auto journal : issns_to_journal_descs) {
+        if (already_seen.find(journal) == already_seen.end()) {
+            already_seen.emplaced(journal);
+            journal->serialize(map_file);
+        }
+    }
+}
+
+
+unsigned ProcessZederFlavour(const Zeder::Flavour zeder_flavour,
+                             std::unordered_map<std::string, JournalDescriptor *> * const issns_to_journal_descs)
+{
     const Zeder::SimpleZeder zeder(zeder_flavour, { "eppns", "essn", "issn", "tit" });
     if (unlikely(zeder.empty()))
         LOG_ERROR("found no IxTheo Zeder entries matching any of our requested columns!");
-    return ProcessZederAndWriteMapFile(map_output, zeder);
+    return ProcessZeder(issns_to_journal_descs, zeder);
+}
+
+
+unsigned ProcessMARC(const std::string &filename, std::unordered_map<std::string, JournalDescriptor *> * const issns_to_journal_descs) {
+    const auto marc_reader(MARC::Reader::Factory(filename));
+    const unsigned journal_count(0);
+    for (const auto record : marc_reader.read()) {
+        if (not record.isSerial())
+            continue;
+
+        ++journal_count;
+    }
+
+    LOG_INFO("Found " + std::to_string(journal_count) + " journals in \"" + filename + "\".");
+    return journal_count;
 }
 
 
@@ -117,18 +176,20 @@ unsigned ProcessZederFlavour(const Zeder::Flavour zeder_flavour, File * const ma
 
 
 int Main(int argc, char **argv) {
-    if (argc != 2)
-        ::Usage("mapfile_output");
+    if (argc != 4)
+        ::Usage("unmerged_ixtheo_marc_titles unmerged_krimdok_marc_titles mapfile_output");
 
-    const auto temp_file(FileUtil::OpenTempFileOrDie("/tmp/XXXXXX"));
+    std::unordered_map<std::string, JournalDescriptor *> issns_to_journal_descs;
 
     unsigned total_generated_count(0);
-    total_generated_count += ProcessZederFlavour(Zeder::IXTHEO, temp_file.get());
-    total_generated_count += ProcessZederFlavour(Zeder::KRIMDOK, temp_file.get());
+    total_generated_count += ProcessZederFlavour(Zeder::IXTHEO, &issns_to_journal_descs);
+    total_generated_count += ProcessZederFlavour(Zeder::KRIMDOK, &issns_to_journal_descs);
+    total_generated_count += ProcessMARC(argv[2], &issns_to_journal_descs);
+    total_generated_count += ProcessMARC(argv[3], &issns_to_journal_descs);
     LOG_INFO("Generated " + std::to_string(total_generated_count) + " map entry/entries.");
 
     const std::string output_filename(argv[1]);
-    FileUtil::RenameFileOrDie(temp_file->getPath(), output_filename, /* remove_target = */true);
+    WriteMapFile(output_filename, issns_to_journal_descs);
 
     return EXIT_SUCCESS;
 }
