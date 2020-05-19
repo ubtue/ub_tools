@@ -76,17 +76,17 @@ void ProcessRecords(MARC::Reader * const marc_reader, File * const output) {
             continue;
 
         const auto subfield_d(_773_subfields.getFirstSubfieldWithCode('d'));
-        static auto year_extractor(RegexMatcher::RegexMatcherFactoryOrDie("\\d{4}($|[^0-9])"));
+        static auto year_extractor(RegexMatcher::RegexMatcherFactoryOrDie("[^0-9]*(\\d{4})[^0-9]*"));
         std::string subfield_d_year;
         if (year_extractor->matched(subfield_d))
-            subfield_d_year = (*year_extractor)[0];
+            subfield_d_year = (*year_extractor)[1];
         if (subfield_d_year.empty())
             continue;
 
         const auto subfield_g(_773_subfields.getFirstSubfieldWithCode('g'));
         std::string subfield_g_year;
         if (year_extractor->matched(subfield_g))
-            subfield_g_year = (*year_extractor)[0];
+            subfield_g_year = (*year_extractor)[1];
         if (subfield_g_year.empty())
             continue;
 
