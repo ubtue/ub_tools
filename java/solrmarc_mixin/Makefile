@@ -9,7 +9,7 @@ SRC=src
 VUFIND_SRC=/usr/local/vufind/import/index_java/src
 PACKAGE_DIRECTORY=de/unituebingen/ub/ubtools/solrmarcMixin
 PACKAGE_DIRECTORY_VUFIND=org/vufind/index
-LIB_DIRECTORY=lib/*:/usr/local/vufind/solr/lib/*:/usr/local/vufind/solr/jetty/lib/ext/*:/usr/local/vufind/solr/jetty/work/jetty-0.0.0.0-8080-solr.war-_solr-any-/webapp/WEB-INF/lib/*:/usr/local/vufind/import/lib/*:/usr/local/vufind/import/lib_local/*:/usr/local/ub_tools/java/lib/*:/usr/local/vufind/solr/vendor/dist/solrj-lib/*
+LIB_DIRECTORY=lib/*:/usr/local/vufind/solr/lib/*:/usr/local/vufind/solr/jetty/lib/ext/*:/usr/local/vufind/solr/jetty/work/jetty-0.0.0.0-8080-solr.war-_solr-any-/webapp/WEB-INF/lib/*:/usr/local/vufind/import/lib/*:/usr/local/vufind/import/lib_local/*:/usr/local/ub_tools/java/lib/*:/usr/local/vufind/solr/vendor/dist/solrj-lib/*:/usr/local/vufind/solr/vendor/server/solr-webapp/webapp/WEB-INF/lib/lucene-core-7.3.1.jar
 JAVA_VERSION=1.8
 
 # Compiler
