@@ -22,6 +22,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.lucene.document.LongPoint;
 import org.apache.http.util.EntityUtils;
 import org.apache.http.HttpEntity;
 import org.json.simple.JSONArray;
@@ -3286,7 +3287,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
-    public static Long getRangeMaximum(final Record record, final String rangeFieldTag) {
+    public static List<LongPoint> getRanges(final Record record, final String rangeFieldTag) {
         final DataField rangeField = (DataField) record.getVariableField(rangeFieldTag);
         if (rangeField == null)
             return null;
@@ -3297,7 +3298,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         final String[] parts = subfieldA.getData().split(",");
 
-        long maximum = Long.MIN_VALUE;
+        final List<LongPoint> ranges = new ArrayList<LongPoint>(parts.length);
         for (final String part : parts) {
             final String[] range = part.split(":");
             if (range.length != 2) {
@@ -3306,47 +3307,15 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
 
             try {
+                final long lower = Long.parseLong(range[0]);
                 final long upper = Long.parseLong(range[1]);
-                if (upper > maximum)
-                    maximum = upper;
+                ranges.add(new LongPoint("", lower, upper));
             } catch (NumberFormatException e) {
                 System.err.println(range + " is not a valid range! (2)");
                 System.exit(-1);
             }
         }
 
-        return maximum;
-    }
-
-    public static Long getRangeMinimum(final Record record, final String rangeFieldTag) {
-        final DataField rangeField = (DataField) record.getVariableField(rangeFieldTag);
-        if (rangeField == null)
-            return null;
-
-        final Subfield subfieldA = rangeField.getSubfield('a');
-        if (subfieldA == null)
-            return null;
-
-        final String[] parts = subfieldA.getData().split(",");
-
-        long minimum = Long.MAX_VALUE;
-        for (final String part : parts) {
-            final String[] range = part.split(":");
-            if (range.length != 2) {
-                System.err.println(range + " is not a valid range! (3)");
-                System.exit(-1);
-            }
-
-            try {
-                final long lower = Long.parseLong(range[0]);
-                if (lower < minimum)
-                    minimum = lower;
-            } catch (NumberFormatException e) {
-                System.err.println(range + " is not a valid range! (4)");
-                System.exit(-1);
-            }
-        }
-
-        return minimum;
+        return ranges;
     }
 }
