@@ -76,7 +76,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, File * const output) {
             continue;
 
         const auto subfield_d(_773_subfields.getFirstSubfieldWithCode('d'));
-        static auto year_extractor(RegexMatcher::RegexMatcherFactoryOrDie("[^0-9]*(\\d{4})[^0-9]*"));
+        static auto year_extractor(RegexMatcher::RegexMatcherFactoryOrDie("\\b(\\d{4})\\b"));
         std::string subfield_d_year;
         if (year_extractor->matched(subfield_d))
             subfield_d_year = (*year_extractor)[1];
