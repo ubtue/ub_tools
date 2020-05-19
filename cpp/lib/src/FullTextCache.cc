@@ -290,7 +290,7 @@ void FullTextCache::extractAndImportHTMLPages(const std::string &id, const std::
 
 
 void FullTextCache::insertEntry(const std::string &id, const std::string &full_text,
-                                const std::vector<EntryUrl> &entry_urls, const TextType &text_type)
+                                const std::vector<EntryUrl> &entry_urls, const TextType &text_type, const bool is_publisher_provided)
 {
     const time_t now(std::time(nullptr));
     Random::Rand rand(now);
@@ -305,7 +305,8 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
 
     if (expiration == TimeUtil::BAD_TIME_T) {
         if (not full_text.empty())
-            full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text },  { "text_type", std::to_string(text_type) } });
+            full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text },  { "text_type", std::to_string(text_type) },
+                                            { "is_publisher_provided", is_publisher_provided ? "true" : "false" } });
     }
     else {
         const std::string expiration_string = TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT);
