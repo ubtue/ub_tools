@@ -128,16 +128,22 @@ void LoadAuthorGNDNumbersAndTagAuthors(
         ++total_count;
 
         auto beacon_field(record.findTag("BEA"));
-        if (beacon_field == record.end())
+        if (beacon_field == record.end()) {
+            writer->write(record);
             continue;
+        }
 
         const auto _100_field(record.findTag("100"));
-        if (_100_field == record.end() or not _100_field->hasSubfield('a'))
+        if (_100_field == record.end() or not _100_field->hasSubfield('a')) {
+            writer->write(record);
             continue;
+        }
 
         std::string gnd_number;
-        if (not MARC::GetGNDCode(record, &gnd_number))
+        if (not MARC::GetGNDCode(record, &gnd_number)) {
+            writer->write(record);
             continue;
+        }
 
         (*gnd_numbers_to_ppns_map)[gnd_number] = record.getControlNumber();
 
