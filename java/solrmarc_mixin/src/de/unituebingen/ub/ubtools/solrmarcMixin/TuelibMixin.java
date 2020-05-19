@@ -3278,8 +3278,8 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-    public boolean getIsPublisherProvided(final Record record) {
-        return extractIsPublisherProvidedFromJSON(fulltext_server_hits);
+    public String getHasPublisherFullText(final Record record) {
+        return Boolean.toString(extractIsPublisherProvidedFromJSON(fulltext_server_hits));
     }
 
 
