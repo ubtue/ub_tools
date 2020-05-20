@@ -37,16 +37,6 @@ std::string NormalizeKeyword(std::string keyword) {
 }
 
 
-/*
-void DumpSetToFile(const std::string &output_filename, const std::unordered_set<std::string> &set) {
-    const auto output(FileUtil::OpenOutputFileOrDie(output_filename));
-    for (const auto &element : set)
-        (*output) << element << '\n';
-    LOG_ERROR("wrote " + std::to_string(set.size()) + " elements to \"" + output_filename + "\".");
-}
-*/
-
-
 void CollectNormalizedKeywordsAndTranslations(MARC::Reader * const reader,
                                               std::unordered_set<std::string> * const normalized_keywords)
 {
@@ -65,14 +55,11 @@ void CollectNormalizedKeywordsAndTranslations(MARC::Reader * const reader,
         }
     }
 
-//    DumpSetToFile("standardized_keywords.list", *normalized_keywords);
-
     LOG_INFO("Processed " + std::to_string(authority_record_count) + " authority records and found "
              + std::to_string(normalized_keywords->size()) + " normalized keywords and their translations.");
 }
 
 
-//const std::vector<std::string> non_normalized_keyword_tags{ "600", "610", "630", "648", "650", "651", "653", "655" };
 const std::vector<std::string> non_normalized_keyword_tags{ "650" };
 
 
