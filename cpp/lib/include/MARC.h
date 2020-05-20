@@ -648,6 +648,13 @@ public:
         return insertField(new_field_tag, new_field_value);
     }
 
+    inline bool insertField(const Tag &new_field_tag, const char subfield_code, const std::string &new_subfield_value,
+                            const char indicator1 = ' ', const char indicator2 = ' ')
+    {
+        return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + std::string(1, subfield_code)
+                           + "\x1F" + new_subfield_value);
+    }
+
     /** Insert a new field at the end of the range for that field.
      *  \return True if we added the new field and false if it is a non-repeatable field and we already have this tag.
      *  \note   "new_field_value" includes the two indicators and any subfield structure if "new_field_tag" references a
