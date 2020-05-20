@@ -176,6 +176,7 @@ public:
 
     /** \note If empty, DEFAULT_USER_AGENT_STRING will be used. */
     void setUserAgent(const std::string &user_agent);
+    bool getHttpRedirectedUrl(std::string * const redirected_url);
 
     static unsigned GetInstanceCount() { return instance_count_; }
 
