@@ -327,7 +327,7 @@ def Main():
     util.default_email_recipient = sys.argv[1]
     try:
         config = util.LoadConfigFile()
-        bsz_config = util.LoadConfigFile(default_config_file_dir + "BSZ.conf")
+        bsz_config = util.LoadConfigFile(util.default_config_file_dir + "BSZ.conf")
         ftp_host   = bsz_config.get("FTP", "host")
         ftp_user   = bsz_config.get("FTP", "username")
         ftp_passwd = bsz_config.get("FTP", "password")

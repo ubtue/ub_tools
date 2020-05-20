@@ -173,6 +173,16 @@ protected:
 };
 
 
+class PublicationsTueSmartDownloader : public DSpaceDownloader {
+public:
+    explicit PublicationsTueSmartDownloader(const bool trace = false) : DSpaceDownloader(trace) { }
+    virtual std::string getName() const { return "PublicationsTueSmartDownloader"; }
+    virtual bool canHandleThis(const std::string &url) const {
+        return url.find("publikationen.uni-tuebingen.de") != std::string::npos;
+    }
+};
+
+
 class DefaultDownloader: public SmartDownloader {
 public:
     explicit DefaultDownloader(const bool trace = false): SmartDownloader(".*", trace) { }
