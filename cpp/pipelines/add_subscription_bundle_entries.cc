@@ -36,13 +36,6 @@ using BundleToPPNPair = std::pair<std::string, std::set<std::string>>;
 using BundleToPPNsMap = std::map<std::string, std::set<std::string>>;
 
 
-[[noreturn]] void Usage() {
- std::cerr << "Usage: " << ::progname << " marc_input marc_output\n"
-           << "Generate a dummy entry for subscriptions from the configuration given in journal_alert_bundles.conf\n";
- std::exit(EXIT_FAILURE);
-}
-
-
 MARC::Record GenerateBundleRecord(const std::string &record_id, const std::string &bundle_name, const std::vector<std::string> &instances,
                                   const std::string &description)
 {
@@ -50,9 +43,8 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
     // exclude from Ixtheo e.g. because it's a pure Relbib list
     const bool exclude_ixtheo(std::find(instances.begin(), instances.end(), "ixtheo") == instances.end());
     const bool include_relbib(std::find(instances.begin(), instances.end(), "relbib") != instances.end());
-    const bool include_bibstudies(std::find(instances.begin(), instances.end(), "bibstudies") != instances.end() ? true : false);
-    const bool include_churchlaw(std::find(instances.begin(), instances.end(), "churchlaw") != instances.end() ? true : false);
-    //MARC::Record record("00000npi a2200000 u 4500");
+    const bool include_bibstudies(std::find(instances.begin(), instances.end(), "bibstudies") != instances.end());
+    const bool include_churchlaw(std::find(instances.begin(), instances.end(), "churchlaw") != instances.end());
     MARC::Record record("00000nac a2200000 u 4500");
     record.insertField("001", record_id);
     record.insertField("005", "20" + today + "12000000.0:");
@@ -119,7 +111,8 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 
 int Main(int argc, char **argv) {
     if (argc < 3)
-        Usage();
+        ::Usage("marc_input marc_output\n"
+                "Generate a dummy entry for subscriptions from the configuration given in journal_alert_bundles.conf\n");
 
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
