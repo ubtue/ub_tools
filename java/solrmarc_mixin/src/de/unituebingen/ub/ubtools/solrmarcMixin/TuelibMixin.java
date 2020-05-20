@@ -3106,9 +3106,9 @@ public class TuelibMixin extends SolrIndexerMixin {
 		                        mapTextTypeToDescription((String) _source.get("text_type")) : "";
              if (description.isEmpty() || text_type_description.isEmpty() ||
                  description.equals(text_type_description))
-                     fulltextBuilder.append(_source.get("full_text"));
+                     fulltextBuilder.append(_source.get("full_text") != null ? _source.get("full_text") : "");
         }
-        return fulltextBuilder.toString();
+        return (fulltextBuilder.length() > 0)  ? fulltextBuilder.toString() : null;
     }
 
 
@@ -3131,6 +3131,19 @@ public class TuelibMixin extends SolrIndexerMixin {
                  text_types.add(description);
         }
         return text_types;
+    }
+
+
+    protected boolean extractIsPublisherProvidedFromJSON(final JSONArray hits) {
+        if (hits.isEmpty())
+            return false;
+        for (final Object obj : hits) {
+             JSONObject hit = (JSONObject) obj;
+             JSONObject _source = (JSONObject) hit.get("_source");
+             if (_source.containsKey("is_publisher_provided") && _source.get("is_publisher_provided") == "true")
+                return true;
+        }
+        return false;
     }
 
 
@@ -3262,6 +3275,11 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     public Set<String> getFullTextTypes(final Record record) {
         return extractTextTypeFromJSON(fulltext_server_hits);
+    }
+
+
+    public String getHasPublisherFullText(final Record record) {
+        return Boolean.toString(extractIsPublisherProvidedFromJSON(fulltext_server_hits));
     }
 
 

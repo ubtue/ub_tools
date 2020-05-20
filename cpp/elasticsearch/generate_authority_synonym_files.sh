@@ -18,7 +18,7 @@ declare -A langmap=(["eng"]="en" ["fre"]="fr" ["ger"]="de" ["gre"]="el" ["ita"]=
 
 function GetGermanSynonyms {
     sshpass -p ${DB_PASSWORD} mysql --user=${DB_USER} --password --skip-column-names ${DB} <<EOF
-    SELECT GROUP_CONCAT(translation) FROM keyword_translations WHERE language_code='ger'
+    SELECT GROUP_CONCAT(translation SEPARATOR 0x1F) FROM keyword_translations WHERE language_code='ger'
         AND gnd_code IN (SELECT gnd_code FROM keyword_translations WHERE language_code='ger' AND status='reliable') GROUP BY gnd_code;
 EOF
 }
@@ -27,20 +27,24 @@ EOF
 function GetSynonymsForLanguage {
    lang=${1}
    sshpass -p "${DB_PASSWORD}" mysql --user="${DB_USER}" --password --skip-column-names ${DB} <<EOF
-   SELECT GROUP_CONCAT(translation) FROM keyword_translations WHERE language_code='${lang}' GROUP BY gnd_code;
+   SELECT GROUP_CONCAT(translation SEPARATOR 0x1F) FROM keyword_translations WHERE language_code='${lang}' GROUP BY gnd_code;
 EOF
 }
 
 
 function GetAllSynonyms {
    sshpass -p "${DB_PASSWORD}" mysql --user="${DB_USER}" --password --skip-column-names ${DB} <<EOF
-   SELECT GROUP_CONCAT(translation) FROM keyword_translations GROUP BY gnd_code;
+   SELECT GROUP_CONCAT(translation SEPARATOR 0x1F) FROM keyword_translations GROUP BY gnd_code;
 EOF
 }
 
 
 function CleanUp {
    file=${1}
+   # Escape comma in original data
+   sed --in-place --regexp-extended --expression 's/,/\\,/g' $file
+   # Replace field separator (0x1F) by comma
+   sed --in-place --regexp-extended --expression 's/[\x1F]/,/g' $file
    # Remove specifications that most probably do not occur in fulltext
    sed --in-place --regexp-extended --expression 's/[[:space:]]*<[^>]+>[[:space:]]*//g' $file
    # Remove erroneous newline/tab sequences

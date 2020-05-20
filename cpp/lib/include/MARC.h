@@ -163,10 +163,13 @@ public:
                                 { return subfield.code_ == subfield_code; }) != subfields_.cend();
     }
 
-    inline bool hasSubfieldWithValue(const char subfield_code, const std::string &value) const {
+    inline bool hasSubfieldWithValue(const char subfield_code, const std::string &value, const bool case_insensitive = false) const {
         return std::find_if(subfields_.cbegin(), subfields_.cend(),
-                            [subfield_code, value](const Subfield subfield) -> bool
-                                { return subfield.code_ == subfield_code and subfield.value_ == value; }) != subfields_.cend();
+                            [subfield_code, value, case_insensitive](const Subfield subfield) -> bool
+                                { return subfield.code_ == subfield_code and
+                                  (case_insensitive ? StringUtil::ToUpper(subfield.value_) == StringUtil::ToUpper(value) :
+                                                      subfield.value_ == value);
+                                }) != subfields_.cend();
     }
 
     // Inserts the new subfield after all leading subfields that have a code that preceeds "subfield_code" when using an
@@ -355,7 +358,7 @@ public:
         std::string getFirstSubfieldWithCode(const char subfield_code) const;
 
         bool hasSubfield(const char subfield_code) const;
-        bool hasSubfieldWithValue(const char subfield_code, const std::string &value) const;
+        bool hasSubfieldWithValue(const char subfield_code, const std::string &value, const bool case_insensitive = false) const;
 
         /** \param value  Where to store the extracted data, if we have a match.
          *  \return True, if a subfield with subfield code "subfield_code" matching "regex" exists, else false.
