@@ -60,7 +60,7 @@ void CollectNormalizedKeywordsAndTranslations(MARC::Reader * const reader,
 }
 
 
-const std::vector<std::string> non_normalized_keyword_tags{ "600", "610", "630", "648", "650", "651", "653", "655" };
+const std::vector<std::string> non_normalized_keyword_tags{ "650" };
 
 
 void ProcessField(const MARC::Record::Field &field, const std::unordered_set<std::string> &normalized_keywords,
