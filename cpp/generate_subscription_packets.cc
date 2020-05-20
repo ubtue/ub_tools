@@ -127,6 +127,9 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
     else {
         (*output_file) << '[' << section.getSectionName() << "]\n";
         (*output_file) << "display_name = \"" << EscapeDoubleQuotes(section.getSectionName()) << "\"\n";
+        const auto description(section.find("description"));
+        if (description != section.end())
+            (*output_file) << "description  = \"" << EscapeDoubleQuotes(description->value_) << "\"\n";
         (*output_file) << "instances    = \"" << bundle_instances << "\"\n";
         (*output_file) << "ppns         = " << StringUtil::Join(bundle_ppns, ',') << '\n';
         (*output_file) << '\n';
