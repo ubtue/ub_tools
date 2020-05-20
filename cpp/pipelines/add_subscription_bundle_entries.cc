@@ -110,7 +110,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 
 
 int Main(int argc, char **argv) {
-    if (argc < 3)
+    if (argc != 3)
         ::Usage("marc_input marc_output\n"
                 "Generate a dummy entry for subscriptions from the configuration given in journal_alert_bundles.conf\n");
 
