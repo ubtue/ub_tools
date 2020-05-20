@@ -55,7 +55,6 @@
 /full_text_stats
 /generate_complete_dumpfile
 /generate_issn_maps_from_zeder
-/generate_issn_to_titles_and_ppns_map
 /generate_keyword_normalizations
 /generate_language_model
 /generate_library_dependency_graph

@@ -41,7 +41,23 @@ namespace {
 }
 
 
-void ProcessRecords(MARC::Reader * const marc_reader, File * const output) {
+void CollectMonoPPNs(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const monograph_ppns) {
+    unsigned record_count(0);
+    std::unordered_set<std::string> superior_ppns;
+    while (const MARC::Record record = marc_reader->read()) {
+        ++record_count;
+
+        if (record.isMonograph())
+            monograph_ppns->emplace(record.getControlNumber());
+    }
+
+    LOG_INFO("Identified " + std::to_string(monograph_ppns->size()) + " monograph PPN's.");
+}
+
+
+void ProcessRecords(MARC::Reader * const marc_reader, File * const output,
+                    const std::unordered_set<std::string> &monograph_ppns)
+{
     unsigned record_count(0), matched_articles_count(0);
     std::unordered_set<std::string> superior_ppns;
     while (const MARC::Record record = marc_reader->read()) {
@@ -72,7 +88,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, File * const output) {
                 break;
             }
         }
-        if (superior_ppn.empty())
+        if (superior_ppn.empty() or monograph_ppns.find(superior_ppn) == monograph_ppns.cend())
             continue;
 
         const auto subfield_d(_773_subfields.getFirstSubfieldWithCode('d'));
@@ -113,8 +129,13 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     const auto marc_reader(MARC::Reader::Factory(argv[1]));
+
+    std::unordered_set<std::string> monograph_ppns;
+    CollectMonoPPNs(marc_reader.get(), &monograph_ppns);
+    marc_reader->rewind();
+
     const auto output(FileUtil::OpenOutputFileOrDie(argv[2]));
-    ProcessRecords(marc_reader.get(), output.get());
+    ProcessRecords(marc_reader.get(), output.get(), monograph_ppns);
 
     return EXIT_SUCCESS;
 }
