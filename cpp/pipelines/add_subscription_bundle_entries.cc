@@ -52,10 +52,10 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
     record.insertField("245", { { 'a', bundle_name }, { 'h', "Subscription Bundle" } } );
     record.insertField("SPR", { { 'a', "1" /* is superior work */ },
                                 { 'b', "1" /* series has not been completed */ } });
-    record.insertField("935", { { 'c', "subskriptionspaket" } });
+    record.insertField("935", 'c', "subskriptionspaket" );
 
     if (not description.empty())
-        record.insertField("500", { { 'a', description } });
+        record.insertField("500", 'a', description);
 
     if (exclude_ixtheo)
         record.addSubfield("935", 'x', "1");
