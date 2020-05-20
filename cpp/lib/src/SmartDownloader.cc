@@ -325,13 +325,21 @@ bool DefaultDownloader::downloadDocImpl(const std::string &url, const TimeLimit 
     return DownloadHelper(url, time_limit, document, http_header_charset, error_message);
 }
 
+bool GetRedirectedUrl(const std::string &url, const TimeLimit &time_limit, std::string * const redirected_url) {
+    Downloader::Params params;
+    params.follow_redirects_ = false;
+    Downloader downloader(url, params, time_limit);
+    return downloader.getHttpRedirectedUrl(redirected_url);
+}
+
 
 bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                    std::string * const http_header_charset, std::string * const error_message,
                    const bool trace)
 {
     document->clear();
-
+    std::string redirected_url(url);
+    GetRedirectedUrl(url, time_limit, &redirected_url);
     static std::vector<SmartDownloader *> smart_downloaders{
         new DSpaceDownloader(trace),
         new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }, trace),
@@ -350,9 +358,9 @@ bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::str
     };
 
     for (auto &smart_downloader : smart_downloaders) {
-        if (smart_downloader->canHandleThis(url)) {
-            LOG_DEBUG("Downloading url " + url + " using " + smart_downloader->getName());
-            return smart_downloader->downloadDoc(url, time_limit, document, http_header_charset, error_message);
+        if (smart_downloader->canHandleThis(redirected_url)) {
+            LOG_DEBUG("Downloading url " + redirected_url + " using " + smart_downloader->getName());
+            return smart_downloader->downloadDoc(redirected_url, time_limit, document, http_header_charset, error_message);
         }
     }
 
