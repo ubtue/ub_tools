@@ -108,7 +108,7 @@ public:
      *       either "data" must be non-empty or "error_message" must be non-empty.
      */
     void insertEntry(const std::string &id, const std::string &full_text, const std::vector<EntryUrl> &entry_urls,
-                     const TextType &text_type = FULLTEXT);
+                     const TextType &text_type = FULLTEXT, const bool is_publisher_provided = false);
 
     bool deleteEntry(const std::string &id);
 
