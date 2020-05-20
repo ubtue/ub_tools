@@ -3134,6 +3134,19 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
+    protected boolean extractIsPublisherProvidedFromJSON(final JSONArray hits) {
+        if (hits.isEmpty())
+            return false;
+        for (final Object obj : hits) {
+             JSONObject hit = (JSONObject) obj;
+             JSONObject _source = (JSONObject) hit.get("_source");
+             if (_source.containsKey("is_publisher_provided") && _source.get("is_publisher_provided") == "true")
+                return true;
+        }
+        return false;
+    }
+
+
     protected JSONArray getElasticsearchHits(final String responseString) {
         if (responseString.isEmpty())
             return new JSONArray();
@@ -3262,6 +3275,11 @@ public class TuelibMixin extends SolrIndexerMixin {
 
     public Set<String> getFullTextTypes(final Record record) {
         return extractTextTypeFromJSON(fulltext_server_hits);
+    }
+
+
+    public String getHasPublisherFullText(final Record record) {
+        return Boolean.toString(extractIsPublisherProvidedFromJSON(fulltext_server_hits));
     }
 
 
