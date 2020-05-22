@@ -66,7 +66,7 @@ public:
         }
     };
 
-    enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4 };
+    enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4, ENABLE_UCP = 8 };
 private:
     static constexpr size_t MAX_SUBSTRING_MATCHES = 40;
 
@@ -101,7 +101,7 @@ class RegexMatcher {
     mutable std::vector<int> substr_vector_;
     mutable unsigned last_match_count_;
 public:
-    enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4 }; // These need to be powers of 2.
+    enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4, ENABLE_UCP = 8 }; // These need to be powers of 2.
 public:
     /** Copy constructor. */
     RegexMatcher(const RegexMatcher &that);
