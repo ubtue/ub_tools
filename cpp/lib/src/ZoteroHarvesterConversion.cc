@@ -745,6 +745,14 @@ bool GetMatchedMARCFields(MARC::Record * marc_record, const std::string &field_o
 }
 
 
+void addLicenseSubfieldToUrlSubfields(MARC::Subfields * const subfields, const std::string &license) {
+    if (license == "l")
+        subfields->appendSubfield('z', "LF");
+    else if (license == "kw")
+        subfields->appendSubfield('z', "KW");
+}
+
+
 // Zotero values see https://raw.githubusercontent.com/zotero/zotero/master/test/tests/data/allTypesAndFields.js
 // MARC21 values see https://www.loc.gov/marc/relators/relaterm.html
 const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP {
@@ -863,16 +871,22 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     marc_record->insertField("264", { { 'c', year } });
 
     // URL
-    if (not metadata_record.url_.empty())
-        marc_record->insertField("856", { { 'u', metadata_record.url_ } }, /* indicator1 = */'4', /* indicator2 = */'0');
+    if (not metadata_record.url_.empty()) {
+        MARC::Subfields subfields({ { 'u', metadata_record.url_ } });
+        addLicenseSubfieldToUrlSubfields(&subfields, metadata_record.license_);
+        marc_record->insertField("856", subfields, /* indicator1 = */'4', /* indicator2 = */'0');
+    }
 
     // DOI
     const auto &doi(metadata_record.doi_);
     if (not doi.empty()) {
         marc_record->insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
         const std::string doi_url("https://doi.org/" + doi);
-        if (doi_url != metadata_record.url_)
-            marc_record->insertField("856", { { 'u', doi_url } }, /* indicator1 = */'4', /* indicator2 = */'0');
+        if (doi_url != metadata_record.url_) {
+            MARC::Subfields subfields({ { 'u', doi_url } });
+            addLicenseSubfieldToUrlSubfields(&subfields, metadata_record.license_);
+            marc_record->insertField("856", subfields, /* indicator1 = */'4', /* indicator2 = */'0');
+        }
     }
 
     // Review-specific modifications
@@ -881,13 +895,6 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
                                  { '0', "(DE-627)106186019" }, { '2', "gnd-content" } },
                                  /* indicator1 = */' ', /* indicator2 = */'7');
     }
-
-    // License data
-    const auto &license(metadata_record.license_);
-    if (license == "l")
-        marc_record->insertField("856", { { 'z', "LF" } }, /* indicator1 = */'4', /* indicator2 = */'0');
-    else if (license == "kw")
-        marc_record->insertField("856", { { 'z', "KW" } }, /* indicator1 = */'4', /* indicator2 = */'0');
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     MARC::Subfields _936_subfields;
