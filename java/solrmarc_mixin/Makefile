@@ -18,7 +18,7 @@ JAVAFLAGS=-g -Xlint:unchecked -Xlint:deprecation -d $(BIN) -classpath $(BIN):$(L
           -source $(JAVA_VERSION) -target $(JAVA_VERSION)
 COMPILE = $(JAVAC) $(JAVAFLAGS)
 
-JAR=jar cvf 
+JAR=jar cvf
 JAR_FLAGS=-C $(BIN)
 
 CP=cp -f
