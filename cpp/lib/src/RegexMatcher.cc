@@ -70,6 +70,8 @@ bool CompileRegex(const std::string &pattern, const unsigned options, ::pcre **p
     int pcre_options(0);
     if (options & RegexMatcher::ENABLE_UTF8)
         pcre_options |= PCRE_UTF8;
+    if (options & RegexMatcher::ENABLE_UCP)
+        pcre_options |= PCRE_UCP;
     if (options & RegexMatcher::CASE_INSENSITIVE)
         pcre_options |= PCRE_CASELESS;
     if (options & RegexMatcher::MULTILINE)
