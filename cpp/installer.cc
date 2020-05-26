@@ -815,7 +815,7 @@ void InstallFullTextBackendCronjobs() {
 
 
 void WaitForElasticsearchReady() {
-     const std::string host("localhost");
+     const std::string host("127.0.0.1"); // avoid docker address assign problem
      const std::string base_url("http://" + host + ":9200/");
      const unsigned MAX_ITERATIONS(5);
      const unsigned SLEEP_TIME_SECS(5);
