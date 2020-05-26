@@ -711,6 +711,21 @@ void Downloader::setUserAgent(const std::string &user_agent) {
 }
 
 
+bool Downloader::getHttpRedirectedUrl(std::string * const redirected_url) {
+    if (params_.follow_redirects_)
+        throw std::runtime_error(__FUNCTION__ + std::string(" Cannot determine redirect url if automatic redirection is enabled"));
+    //We only address 3XX HTTP codes
+    if (getResponseCode() / 100 != 3)
+        return false;
+    char *location(nullptr); //c.f. https://curl.haxx.se/libcurl/c/curl_easy_getinfo.html
+    curl_error_code_ = ::curl_easy_getinfo(getEasyHandle(), CURLINFO_REDIRECT_URL, &location);
+    *redirected_url = location;
+    if (curl_error_code_ != CURLE_OK)
+       throw std::runtime_error(__FUNCTION__ + std::string(" Could not determine redirect URL"));
+    return true;
+}
+
+
 bool Download(const std::string &url, const std::string &output_filename, const TimeLimit &time_limit) {
     Downloader downloader(url, Downloader::Params(), time_limit);
     if (downloader.anErrorOccurred())

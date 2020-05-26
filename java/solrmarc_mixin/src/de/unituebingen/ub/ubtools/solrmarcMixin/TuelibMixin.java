@@ -3140,8 +3140,8 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final Object obj : hits) {
              JSONObject hit = (JSONObject) obj;
              JSONObject _source = (JSONObject) hit.get("_source");
-             if (_source.containsKey("is_publisher_provided") && _source.get("is_publisher_provided") == "true")
-                return true;
+             if (_source.containsKey("is_publisher_provided") && ((String) _source.get("is_publisher_provided")).equals("true"))
+                 return true;
         }
         return false;
     }

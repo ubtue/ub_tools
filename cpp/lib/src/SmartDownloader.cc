@@ -326,12 +326,19 @@ bool DefaultDownloader::downloadDocImpl(const std::string &url, const TimeLimit 
 }
 
 
+bool GetRedirectedUrl(const std::string &url, const TimeLimit &time_limit, std::string * const redirected_url) {
+    Downloader::Params params;
+    params.follow_redirects_ = false;
+    Downloader downloader(url, params, time_limit);
+    return downloader.getHttpRedirectedUrl(redirected_url);
+}
+
+
 bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                    std::string * const http_header_charset, std::string * const error_message,
                    const bool trace)
 {
     document->clear();
-
     static std::vector<SmartDownloader *> smart_downloaders{
         new DSpaceDownloader(trace),
         new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }, trace),
@@ -358,4 +365,15 @@ bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::str
 
     *error_message = "No downloader available for URL: " + url;
     return false;
+}
+
+
+bool SmartDownloadResolveFirstRedirectHop(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                   std::string * const http_header_charset, std::string * const error_message,
+                   const bool trace)
+{
+    std::string redirected_url(url);
+    if (not GetRedirectedUrl(url, time_limit, &redirected_url))
+        redirected_url = url; // Make absolutely redirected_url was not changed internally
+    return SmartDownload(redirected_url, time_limit, document, http_header_charset, error_message, trace);
 }
