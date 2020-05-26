@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.YearMonth;
 import java.util.*;
 import java.util.function.Predicate;
@@ -22,7 +23,6 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.lucene.document.LongPoint;
 import org.apache.http.util.EntityUtils;
 import org.apache.http.HttpEntity;
 import org.json.simple.JSONArray;
@@ -3305,7 +3305,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return null;
     }
 
-    public static List<LongPoint> getRanges(final Record record, final String rangeFieldTag) {
+    public static List<String> getDateRanges(final Record record, final String rangeFieldTag) {
         final DataField rangeField = (DataField) record.getVariableField(rangeFieldTag);
         if (rangeField == null)
             return null;
@@ -3316,7 +3316,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         final String[] parts = subfieldA.getData().split(",");
 
-        final List<LongPoint> ranges = new ArrayList<LongPoint>(parts.length);
+        final List<String> ranges = new ArrayList<String>(parts.length);
         for (final String part : parts) {
             final String[] range = part.split(":");
             if (range.length != 2) {
@@ -3325,9 +3325,9 @@ public class TuelibMixin extends SolrIndexerMixin {
             }
 
             try {
-                final long lower = Long.parseLong(range[0]);
-                final long upper = Long.parseLong(range[1]);
-                ranges.add(new LongPoint("", lower, upper));
+                final Instant lower = Instant.ofEpochSecond(Long.parseLong(range[0]));
+                final Instant upper = Instant.ofEpochSecond(Long.parseLong(range[1]));
+                ranges.add("[" + lower.toString() + " TO " + upper.toString() + "]");
             } catch (NumberFormatException e) {
                 System.err.println(range + " is not a valid range! (2)");
                 System.exit(-1);
