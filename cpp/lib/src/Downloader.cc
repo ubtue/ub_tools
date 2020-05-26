@@ -717,11 +717,11 @@ bool Downloader::getHttpRedirectedUrl(std::string * const redirected_url) {
     //We only address 3XX HTTP codes
     if (getResponseCode() / 100 != 3)
         return false;
-    char *location(0);
+    char *location(nullptr); //c.f. https://curl.haxx.se/libcurl/c/curl_easy_getinfo.html
     curl_error_code_ = ::curl_easy_getinfo(getEasyHandle(), CURLINFO_REDIRECT_URL, &location);
     *redirected_url = location;
     if (curl_error_code_ != CURLE_OK)
-       throw std::runtime_error(__FUNCTION__ + std::string(" Could not determine redirect url"));
+       throw std::runtime_error(__FUNCTION__ + std::string(" Could not determine redirect URL"));
     return true;
 }
 

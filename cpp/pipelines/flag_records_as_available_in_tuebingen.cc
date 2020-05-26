@@ -64,16 +64,16 @@ void ProcessSuperiorRecord(const MARC::Record &record,
 
 
 void LoadDE21AndTADPPNs(MARC::Reader * const marc_reader,
-                  RegexMatcher * const tue_sigil_matcher, std::unordered_set<std::string> * const de21_superior_ppns,
-                  RegexMatcher * const tad_sigil_matcher, std::unordered_set<std::string> * const tad_superior_ppns,
-                  unsigned * const extracted_count, unsigned * const extracted_tad_count)
+                        RegexMatcher * const tue_sigil_matcher, std::unordered_set<std::string> * const de21_superior_ppns,
+                        RegexMatcher * const tad_sigil_matcher, std::unordered_set<std::string> * const tad_superior_ppns,
+                        unsigned * const extracted_count, unsigned * const extracted_tad_count)
 {
     while (const MARC::Record record = marc_reader->read())
          ProcessSuperiorRecord(record, tue_sigil_matcher, de21_superior_ppns, tad_sigil_matcher, tad_superior_ppns,
                                extracted_count, extracted_tad_count) ;
 
     LOG_DEBUG("Finished extracting " + std::to_string(*extracted_count) + " superior records and " +
-               std::to_string(*extracted_tad_count) + " TAD supeprior records");
+               std::to_string(*extracted_tad_count) + " TAD superior records");
 }
 
 
@@ -100,7 +100,7 @@ void CollectSuperiorPPNs(const MARC::Record &record, std::unordered_set<std::str
 
 
 void FlagRecordAsInTuebingenAvailable(MARC::Record * const record, const bool tad_available, unsigned * const modified_count) {
-    tad_available ? record->insertField("ITA", {  { 'a', "1" }, { 't', "1" } }) : record->insertField("ITA", { { 'a', "1" } });
+    tad_available ? record->insertField("ITA", {  { 'a', "1" }, { 't', "1" } }) : record->insertField("ITA", 'a', "1");
     ++*modified_count;
 }
 
@@ -124,7 +124,8 @@ bool AlreadyHasLOK852DE21(const MARC::Record &record, RegexMatcher * const tue_s
 void ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer,
                    RegexMatcher * const tue_sigil_matcher, std::unordered_set<std::string> * const de21_superior_ppns,
                    RegexMatcher * const tad_sigil_matcher, std::unordered_set<std::string> * const tad_superior_ppns,
-                   unsigned * const modified_count) {
+                   unsigned * const modified_count)
+{
     if (AlreadyHasLOK852DE21(*record, tue_sigil_matcher)) {
         const bool tad_available(AlreadyHasLOK852DE21(*record, tad_sigil_matcher));
         FlagRecordAsInTuebingenAvailable(record, tad_available, modified_count);
@@ -166,7 +167,8 @@ void AugmentRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
                     RegexMatcher * const tue_sigil_matcher, std::unordered_set<std::string> * const de21_superior_ppn,
                     RegexMatcher * const tad_sigil_matcher, std::unordered_set<std::string> * const tad_superior_ppn,
                     unsigned * const extracted_count, unsigned * const extracted_tad_count,
-                    unsigned * const modified_count) {
+                    unsigned * const modified_count)
+{
     marc_reader->rewind();
     while (MARC::Record record = marc_reader->read())
         ProcessRecord(&record, marc_writer, tue_sigil_matcher, de21_superior_ppn,

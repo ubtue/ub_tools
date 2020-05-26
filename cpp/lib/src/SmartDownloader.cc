@@ -373,6 +373,7 @@ bool SmartDownloadResolveFirstRedirectHop(const std::string &url, const TimeLimi
                    const bool trace)
 {
     std::string redirected_url(url);
-    GetRedirectedUrl(url, time_limit, &redirected_url);
+    if (not GetRedirectedUrl(url, time_limit, &redirected_url))
+        redirected_url = url; // Make absolutely redirected_url was not changed internally
     return SmartDownload(redirected_url, time_limit, document, http_header_charset, error_message, trace);
 }
