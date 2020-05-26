@@ -541,10 +541,8 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
     }
 
     // normalise issue/volume
-    if (metadata_record->issue_ == "0")
-        metadata_record->issue_ = "";
-    if (metadata_record->volume_ == "0")
-        metadata_record->volume_ = "";
+    StringUtil::LeftTrim(&metadata_record->issue_, '0');
+    StringUtil::LeftTrim(&metadata_record->volume_, '0');
 
     // normalise pages
     const auto pages(metadata_record->pages_);
