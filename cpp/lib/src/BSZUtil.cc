@@ -194,7 +194,7 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
 void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year, std::string * const volume, std::string * const issue) {
     const auto field_008(record.findTag("008"));
     if (field_008 != record.end())
-         *year = field_008->getContents().substr(7,4);
+         *year = field_008->getContents().substr(7, 4);
 
     const auto field_936(record.findTag("936"));
     if (field_936 == record.end())
