@@ -42,13 +42,19 @@ wait
 
 
 StartPhase "Import Mohr Data"
-(find /usr/local/publisher_fulltexts/mohr/ -maxdepth 1 -name '*.txt' | xargs -n 50 store_in_elasticsearch \
+(find /usr/local/publisher_fulltexts/mohr/ -maxdepth 1 -name '*.txt' | xargs -n 50 store_in_elasticsearch --set-publisher-provided \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
 StartPhase "Import Brill Data"
-(find /usr/local/publisher_fulltexts/brill/ -maxdepth 1 -name '*.txt' | xargs -n 50 store_in_elasticsearch \
+(find /usr/local/publisher_fulltexts/brill/ -maxdepth 1 -name '*.txt' | xargs -n 50 store_in_elasticsearch --set-publisher-provided \
+    >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
+StartPhase "Import Aschendorff Data"
+(find /usr/local/publisher_fulltexts/aschendorff/ -maxdepth 1 -name '*.txt' | xargs -n 50 store_in_elasticsearch --set-publisher-provided \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 

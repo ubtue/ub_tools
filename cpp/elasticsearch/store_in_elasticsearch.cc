@@ -32,12 +32,13 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--force-overwrite] [--verbose] fulltext_file1  [fulltext_file2 .. fulltext_fileN]");
+    ::Usage("[--force-overwrite] [--set-publisher-provided] [--verbose] fulltext_file1  [fulltext_file2 .. fulltext_fileN]");
 }
 
 
 bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullTextCache * const full_text_cache,
-                    const std::string &filename, const bool force_overwrite = false, const bool verbose = false)
+                    const std::string &filename, const bool force_overwrite = false, const bool is_publisher_provided = false,
+                    const bool verbose = false)
 {
     const auto input(FileUtil::OpenInputFileOrDie(filename));
     FullTextImport::FullTextData full_text_data;
@@ -59,7 +60,7 @@ bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullText
     if (entry_present)
         full_text_cache->deleteEntry(ppn);
 
-    full_text_cache->insertEntry(ppn, full_text_data.full_text_, /* entry_urls = */{});
+    full_text_cache->insertEntry(ppn, full_text_data.full_text_, /* entry_urls = */{}, FullTextCache::FULLTEXT, is_publisher_provided);
     if (not full_text_data.full_text_location_.empty())
         full_text_cache->extractAndImportHTMLPages(ppn, full_text_data.full_text_location_);
     LOG_INFO("Inserted text from \"" + filename + "\" as entry for PPN \"" + ppn + "\"");
@@ -73,13 +74,20 @@ bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullText
 
 int Main(int argc, char *argv[]) {
     bool force_overwrite(false);
-    bool verbose(false);
     if (argc > 1 and std::strcmp(argv[1], "--force-overwrite") == 0) {
         force_overwrite = true;
         --argc;
         ++argv;
     }
 
+    bool publisher_provided(false);
+    if (argc > 1 and std::strcmp(argv[1], "--set-publisher-provided") == 0) {
+        publisher_provided = true;
+        --argc;
+        ++argv;
+    }
+
+    bool verbose(false);
     if (argc > 1 and std::strcmp(argv[1], "--verbose") == 0) {
         verbose = true;
         --argc;
@@ -93,7 +101,7 @@ int Main(int argc, char *argv[]) {
     unsigned total_count(0), failure_count(0);
     for (int arg_no(1); arg_no < argc; ++arg_no) {
         ++total_count;
-        if (not ImportDocument(control_number_guesser, &full_text_cache, argv[arg_no], force_overwrite, verbose))
+        if (not ImportDocument(control_number_guesser, &full_text_cache, argv[arg_no], force_overwrite, publisher_provided, verbose))
             ++failure_count;
     }
 

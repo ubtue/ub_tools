@@ -1,5 +1,5 @@
 /** \file    add_subscription_bundle_entries.cc
- *  \brief   Generates MARC title records that represent a journal bundle for alerting and 
+ *  \brief   Generates MARC title records that represent a journal bundle for alerting and
  *           inserts link tags into the individual journal records referencing the corresponding bundle records.
  *  \author  Johannes Riedl
  */
@@ -36,19 +36,15 @@ using BundleToPPNPair = std::pair<std::string, std::set<std::string>>;
 using BundleToPPNsMap = std::map<std::string, std::set<std::string>>;
 
 
-[[noreturn]] void Usage() {
- std::cerr << "Usage: " << ::progname << "marc_input marc_output\n"
-           << "Generate a dummy entry for subscriptions from the configuration given in journal_alert_bundles.conf\n";
- std::exit(EXIT_FAILURE);
-}
-
-
-MARC::Record GenerateBundleRecord(const std::string &record_id, const std::string &bundle_name, const std::vector<std::string> &instances) {
+MARC::Record GenerateBundleRecord(const std::string &record_id, const std::string &bundle_name, const std::vector<std::string> &instances,
+                                  const std::string &description)
+{
     const std::string today(TimeUtil::GetCurrentDateAndTime("%y%m%d"));
     // exclude from Ixtheo e.g. because it's a pure Relbib list
     const bool exclude_ixtheo(std::find(instances.begin(), instances.end(), "ixtheo") == instances.end());
     const bool include_relbib(std::find(instances.begin(), instances.end(), "relbib") != instances.end());
-    const bool include_bibstudies(std::find(instances.begin(), instances.end(), "bistudies") != instances.end() ? true : false);
+    const bool include_bibstudies(std::find(instances.begin(), instances.end(), "bibstudies") != instances.end());
+    const bool include_churchlaw(std::find(instances.begin(), instances.end(), "churchlaw") != instances.end());
     MARC::Record record("00000nac a2200000 u 4500");
     record.insertField("001", record_id);
     record.insertField("005", "20" + today + "12000000.0:");
@@ -56,7 +52,10 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
     record.insertField("245", { { 'a', bundle_name }, { 'h', "Subscription Bundle" } } );
     record.insertField("SPR", { { 'a', "1" /* is superior work */ },
                                 { 'b', "1" /* series has not been completed */ } });
-    record.insertField("935", { { 'c', "subskriptionspaket" } });
+    record.insertField("935", 'c', "subskriptionspaket" );
+
+    if (not description.empty())
+        record.insertField("500", 'a', description);
 
     if (exclude_ixtheo)
         record.addSubfield("935", 'x', "1");
@@ -64,6 +63,8 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
         record.insertField("REL", { { 'a', "1" } });
     if (include_bibstudies)
         record.insertField("BIB", { { 'a', "1" } });
+    if (include_churchlaw)
+        record.insertField("CAN", { { 'a', "1" } });
     return record;
 }
 
@@ -83,9 +84,10 @@ void ExtractBundlePPNs(const std::string bundle_name, const IniFile &bundles_con
 void GenerateBundleEntry(MARC::Writer * const marc_writer, const std::string &bundle_name, const IniFile &bundles_config) {
     const std::string instances_string(bundles_config.getString(bundle_name, "instances", ""));
     std::vector<std::string> instances;
+    const std::string description(bundles_config.getString(bundle_name, "description", ""));
     if (not instances_string.empty())
         StringUtil::SplitThenTrim(instances_string, ",", " \t", &instances);
-    marc_writer->write(GenerateBundleRecord(bundle_name, bundles_config.getString(bundle_name, "display_name"), instances));
+    marc_writer->write(GenerateBundleRecord(bundle_name, bundles_config.getString(bundle_name, "display_name"), instances, description));
 }
 
 
@@ -108,8 +110,9 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 
 
 int Main(int argc, char **argv) {
-    if (argc < 3)
-        Usage();
+    if (argc != 3)
+        ::Usage("marc_input marc_output\n"
+                "Generate a dummy entry for subscriptions from the configuration given in journal_alert_bundles.conf\n");
 
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
