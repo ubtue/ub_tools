@@ -53,6 +53,12 @@ StartPhase "Import Brill Data"
 EndPhase || Abort) &
 
 
+StartPhase "Import Aschendorff Data"
+(find /usr/local/publisher_fulltexts/aschendorff/ -maxdepth 1 -name '*.txt' | xargs -n 50 store_in_elasticsearch --set-publisher-provided \
+    >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Harvest Title Data Fulltext"
 (create_full_text_db --store-pdfs-as-html --use-separate-entries-per-url --include-all-tocs \
     --only-pdf-fulltexts GesamtTiteldaten-"${date}".mrc ${TMP_NULL} \
