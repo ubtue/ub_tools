@@ -3327,7 +3327,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             try {
                 final Instant lower = Instant.ofEpochSecond(Long.parseLong(range[0]));
                 final Instant upper = Instant.ofEpochSecond(Long.parseLong(range[1]));
-                ranges.add("[" + lower.toString() + "-" + upper.toString() + "]");
+                ranges.add("[" + lower.toString() + " TO " + upper.toString() + "]");
             } catch (NumberFormatException e) {
                 System.err.println(range + " is not a valid range! (2)");
                 System.exit(-1);
