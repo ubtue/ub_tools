@@ -17,7 +17,7 @@ hour=$(date --date="${execution_time}" +%H)
 minute=$(date --date="${execution_time}" +%M)
 crontab -l 2>/dev/null | awk --assign scriptname="${scriptname}" --assign hour="${hour}" --assign minute="${minute}" \
     --field-separator '[ \t]' --file <(cat - <<-'EOF'
-    { if (match($0, scriptname)) {
+    { if (match($0, scriptname) && !match($0, "^#")) {
            $1=""; $2=""
            print minute " " hour $0;
       } else {
@@ -25,10 +25,4 @@ crontab -l 2>/dev/null | awk --assign scriptname="${scriptname}" --assign hour="
       }
     }
 EOF
-) | crontab - 
-
-
-    
-    
-    
-
+) | crontab -
