@@ -3320,7 +3320,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         for (final String part : parts) {
             final String[] range = part.split("_");
             if (range.length != 2) {
-                System.err.println(range + " is not a valid range! (1)");
+                System.err.println(part + " is not a valid range! (1)");
                 System.exit(-1);
             }
 
