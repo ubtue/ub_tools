@@ -839,6 +839,9 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
         --num_creators_left;
     }
 
+    // RDA
+    marc_record->insertField("040", { { 'a', "DE-627" }, { 'b', "ger" }, { 'c', "DE-627" }, { 'e', "rda" }, });
+
     // Title
     if (metadata_record.title_.empty())
         throw std::runtime_error("no title provided for download item from URL " + download_item.url_.toString());
