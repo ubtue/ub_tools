@@ -3318,7 +3318,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         final List<String> ranges = new ArrayList<String>(parts.length);
         for (final String part : parts) {
-            final String[] range = part.split(":");
+            final String[] range = part.split("_");
             if (range.length != 2) {
                 System.err.println(range + " is not a valid range! (1)");
                 System.exit(-1);
