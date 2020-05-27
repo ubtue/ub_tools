@@ -52,7 +52,6 @@ data_install: Makefile data/*.conf data/*.map data/*.ttf data/IxTheo_Notation.cs
 	cp data/*.map /usr/local/var/lib/tuelib/
 	cp data/*.ttf /usr/local/var/lib/tuelib/
 	cp data/IxTheo_Notation.csv /usr/local/var/lib/tuelib/
-	cp data/zotero_author_name_blacklist.txt /usr/local/var/lib/tuelib/
 	cp data/stopwords.* /usr/local/var/lib/tuelib/
 	cp -r data/bibleRef /usr/local/var/lib/tuelib/
 	cp -r data/crossref_downloader /usr/local/var/lib/tuelib/
