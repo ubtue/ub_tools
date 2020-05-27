@@ -360,7 +360,7 @@ bool FilterEmptyAndCommentLines(std::string str) {
 }
 
 
-const std::string AUTHOR_NAME_BLACKLIST(UBTools::GetTuelibPath() + "zotero_author_name_blacklist.txt");
+const std::string AUTHOR_NAME_BLACKLIST(UBTools::GetTuelibPath() + "zotero-enhancement-maps/author_name_blacklist.txt");
 
 
 ThreadSafeRegexMatcher InitializeBlacklistedAuthorTokenMatcher() {
