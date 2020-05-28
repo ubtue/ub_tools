@@ -10,18 +10,22 @@ fi
 mutex_file="$1"
 event="$2"
 
+FETCH_MARC_UPDATES_FINISHED="/usr/local/var/tmp/bsz_download_happened" # Creation
+MERGE_DIFFERENTIAL_AND_FULL_UPDATES_FINISHED="/tmp/bsz_download_happened" #Deletion
+CREATE_REFTERM_FINISHED="/usr/local/var/tmp/create_refterm_successful"
+
 if [[ ${event} == "IN_CREATE" ]]; then
     case ${mutex_file} in 
-        "/tmp/bsz_download_happened")
+        ${FETCH_MARC_UPDATES_FINISHED})
             /usr/local/bin/execute_cronjob_in_two_minutes.sh merge_differential_and_full_marc_updates.sh
             ;;
-        "/tmp/create_refterm_successful")
+        ${CREATE_REFTERM_FINISHED})
             /usr/local/bin/execute_cronjob_in_two_minutes.sh initiate_marc_pipeline.py
             ;;
     esac;
 elif [[ ${event} == "IN_DELETE" ]]; then
     case ${mutex_file} in
-        "/tmp/bsz_download_happened")
+        ${MERGE_DIFFERENTIAL_AND_FULL_UPDATES_FINISHED})
             /usr/local/bin/execute_cronjob_in_two_minutes.sh create_refterm_file.py
             ;;
     esac
