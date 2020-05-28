@@ -14,7 +14,7 @@ import re
 import util
 
 
-REFTERM_MUTEX_FILE = "/tmp/create_refterm_successful" # Must match path in initiate_marc_pipeline.py
+REFTERM_MUTEX_FILE = "/usr/local/var/tmp/create_refterm_successful" # Must match path in initiate_marc_pipeline.py
 
 
 def ExecOrCleanShutdownAndDie(cmd_name, args, log_file_name=None):
