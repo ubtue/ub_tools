@@ -28,6 +28,7 @@
 #include "ZoteroHarvesterZederInterop.h"
 
 
+// avoid conflicts with LICENSE defined in mysql_version.h
 #ifdef LICENSE
     #undef LICENSE
 #endif
