@@ -36,6 +36,7 @@ const std::map<Config::JournalParams::IniKey, std::string> INI_KEY_TO_ZEDER_COLU
     { Config::JournalParams::IniKey::PRINT_ISSN,         "issn" },
     { Config::JournalParams::IniKey::EXPECTED_LANGUAGES, "spr"  },
     { Config::JournalParams::IniKey::SSGN,               "ber"  },
+    { Config::JournalParams::IniKey::LICENSE,            "oacc"  },
 //  The following two columns/INI keys are intentionally excluded as they are special cases.
 //  Even though there is a one-to-one correspondence for each to the two columns,
 //  they are stored differently in memory (in the Zeder::Entry class) than all other
