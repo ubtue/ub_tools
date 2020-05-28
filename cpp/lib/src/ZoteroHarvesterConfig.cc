@@ -179,6 +179,7 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     }
     update_window_ = journal_section.getUnsigned(GetIniKeyString(UPDATE_WINDOW), 0);
     ssgn_ = journal_section.getString(GetIniKeyString(SSGN), "");
+    license_ = journal_section.getString(GetIniKeyString(LICENSE), "");
 
     const auto review_regex(journal_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
     if (not review_regex.empty())
@@ -259,11 +260,12 @@ const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_
     { PRINT_PPN,                "print_ppn"                 },
     { ONLINE_ISSN,              "online_issn"               },
     { PRINT_ISSN,               "print_issn"                },
+    { SSGN,                     "ssgn"                      },
+    { LICENSE,                  "license"                   },
     { STRPTIME_FORMAT_STRING,   "zotero_strptime_format"    },
     { UPDATE_WINDOW,            "zotero_update_window"      },
     { REVIEW_REGEX,             "zotero_review_regex"       },
     { EXPECTED_LANGUAGES,       "zotero_expected_languages" },
-    { SSGN,                     "zotero_ssgn"               },
     { CRAWL_MAX_DEPTH,          "zotero_max_crawl_depth"    },
     { CRAWL_EXTRACTION_REGEX,   "zotero_extraction_regex"   },
     { CRAWL_URL_REGEX,          "zotero_crawl_url_regex"    },
@@ -281,11 +283,12 @@ const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_
     { "print_ppn",                 PRINT_PPN                },
     { "online_issn",               ONLINE_ISSN              },
     { "print_issn",                PRINT_ISSN               },
+    { "ssgn",                      SSGN                     },
+    { "license",                   LICENSE                  },
     { "zotero_strptime_format",    STRPTIME_FORMAT_STRING   },
     { "zotero_update_window",      UPDATE_WINDOW            },
     { "zotero_review_regex",       REVIEW_REGEX             },
     { "zotero_expected_languages", EXPECTED_LANGUAGES       },
-    { "zotero_ssgn",               SSGN                     },
     { "zotero_max_crawl_depth",    CRAWL_MAX_DEPTH          },
     { "zotero_extraction_regex",   CRAWL_EXTRACTION_REGEX   },
     { "zotero_crawl_url_regex",    CRAWL_URL_REGEX          },
