@@ -28,6 +28,12 @@
 #include "ZoteroHarvesterZederInterop.h"
 
 
+// avoid conflicts with LICENSE defined in mysql_version.h
+#ifdef LICENSE
+    #undef LICENSE
+#endif
+
+
 namespace {
 
 
@@ -47,7 +53,7 @@ using namespace ZoteroHarvester;
             "\tzeder_ids                       Comma-separated list of Zeder entry IDs to import/update.\n"
             "\t                                Special-case for updating: Use '*' to update all entries found in the config that belong to the Zeder flavour\n"
             "\tfields_to_update                Comma-separated list of the following fields to update: \n"
-            "\t                                \tONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSGN.\n"
+            "\t                                \tONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSGN, LICENSE.\n"
             "\t                                Ignored when importing entries (all importable fields will be imported).\n"
             "\t                                If mode is IMPORT and zeder_ids is '*', new journals will only be added if \"prodf\" is \"zota\" or \"zotat\".\n\n");
 }
@@ -119,6 +125,7 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
         { "PRINT_ISSN",         Config::JournalParams::PRINT_ISSN         },
         { "UPDATE_WINDOW",      Config::JournalParams::UPDATE_WINDOW      },
         { "SSGN",               Config::JournalParams::SSGN               },
+        { "LICENSE",            Config::JournalParams::LICENSE            },
         { "EXPECTED_LANGUAGES", Config::JournalParams::EXPECTED_LANGUAGES },
     };
 
@@ -306,6 +313,7 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
             Config::JournalParams::UPDATE_WINDOW,
             Config::JournalParams::EXPECTED_LANGUAGES,
             Config::JournalParams::SSGN,
+            Config::JournalParams::LICENSE,
         };
 
         // special-case the Zeder ID and modified timestamp fields
