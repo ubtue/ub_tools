@@ -96,7 +96,7 @@ def FoundNewBSZDataFile(link_filename):
     return old_timestamp < file_creation_time
 
 
-REFTERM_MUTEX_FILE = "/tmp/create_refterm_successful" # Must match mutex file name in create_refterm_file.py
+REFTERM_MUTEX_FILE = "/usr/local/var/tmp/create_refterm_successful" # Must match mutex file name in create_refterm_file.py
 
 
 def FoundReftermMutex():
