@@ -360,7 +360,7 @@ bool FilterEmptyAndCommentLines(std::string str) {
 }
 
 
-const std::string AUTHOR_NAME_BLACKLIST(UBTools::GetTuelibPath() + "zotero_author_name_blacklist.txt");
+const std::string AUTHOR_NAME_BLACKLIST(UBTools::GetTuelibPath() + "zotero-enhancement-maps/author_name_blacklist.txt");
 
 
 ThreadSafeRegexMatcher InitializeBlacklistedAuthorTokenMatcher() {
@@ -838,6 +838,9 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
 
         --num_creators_left;
     }
+
+    // RDA
+    marc_record->insertField("040", { { 'a', "DE-627" }, { 'b', "ger" }, { 'c', "DE-627" }, { 'e', "rda" }, });
 
     // Title
     if (metadata_record.title_.empty())
