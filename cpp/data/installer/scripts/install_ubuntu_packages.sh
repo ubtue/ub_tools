@@ -33,7 +33,7 @@ apt-get --quiet --yes --allow-unauthenticated install \
     mysql-utilities poppler-utils unzip uuid-dev tesseract-ocr tesseract-ocr-bul tesseract-ocr-ces tesseract-ocr-dan tesseract-ocr-deu \
     tesseract-ocr-eng tesseract-ocr-fin tesseract-ocr-fra tesseract-ocr-heb tesseract-ocr-hun tesseract-ocr-ita tesseract-ocr-lat \
     tesseract-ocr-nld tesseract-ocr-nor tesseract-ocr-pol tesseract-ocr-por tesseract-ocr-rus tesseract-ocr-script-grek tesseract-ocr-slv \
-    tesseract-ocr-spa tesseract-ocr-swe libdb-dev tcl-expect-dev tidy
+    tesseract-ocr-spa tesseract-ocr-swe libdb-dev tcl-expect-dev tidy incron
 
 # From 18.04 on, Java 8 needs to be enabled as well for Solr + mixins (18.04 ships with 10)
 # (unfortunately, >= string comparison is impossible in Bash, so we compare > 17.10)

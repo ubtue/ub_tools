@@ -33,7 +33,6 @@ class ConditionalInsertProcessor extends UpdateRequestProcessor
     // Add has_fulltext flag if fulltext is present
     protected void addHasFulltext(AddUpdateCommand cmd) throws IOException {
         SolrInputDocument doc = cmd.getSolrInputDocument();
-        System.err.println("FULLTEXT: '" + ((String)doc.getFieldValue("fulltext")) + "'");
         boolean fulltext_exists = doc.getFieldValue("fulltext") != null &&
                                   !(((String)doc.getFieldValue("fulltext")).isEmpty());
         boolean fulltext_toc_exists = doc.getFieldValue("fulltext_toc") != null &&
