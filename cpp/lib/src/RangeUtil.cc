@@ -19,7 +19,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "RangeUtil.h"
-#include <iostream>
+#include <algorithm>
 #include <cctype>
 #include "Locale.h"
 #include "MapUtil.h"
@@ -469,8 +469,8 @@ std::string BibleBookCanoniser::canonise(const std::string &bible_book_candidate
         books_of_the_bible_to_canonical_form_map_.find(bible_book_candidate));
     if (non_canonical_form_and_canonical_form != books_of_the_bible_to_canonical_form_map_.end()) {
         if (verbose)
-            std::cerr << "Replacing \"" << bible_book_candidate << "\" with \""
-                      << non_canonical_form_and_canonical_form->second << "\".\n";
+            LOG_INFO("Replacing \"" + bible_book_candidate + "\" with \""
+                     + non_canonical_form_and_canonical_form->second + "\".");
         return non_canonical_form_and_canonical_form->second;
     }
 
@@ -487,7 +487,7 @@ std::string BibleBookToCodeMapper::mapToCode(const std::string &bible_book_candi
     const auto bible_book_and_code(bible_books_to_codes_map_.find(bible_book_candidate));
     if (bible_book_and_code == bible_books_to_codes_map_.end()) {
         if (verbose)
-            std::cerr << "No mapping from \"" << bible_book_candidate << "\" to a book code was found!\n";
+            LOG_WARNING("No mapping from \"" + bible_book_candidate + "\" to a book code was found!");
 
         return ""; // Unknown bible book!
     }
@@ -539,13 +539,13 @@ std::string BibleAliasMapper::map(const std::string &bible_reference_candidate, 
     const auto alias_and_canonical_form(aliases_to_canonical_forms_map_.find(normalised_reference_candidate));
     if (alias_and_canonical_form == aliases_to_canonical_forms_map_.end()) {
         if (verbose)
-            std::cerr << "No mapping from \"" << bible_reference_candidate << "\" to a canonical form was found!\n";
+            LOG_WARNING("No mapping from \"" + bible_reference_candidate + "\" to a canonical form was found!");
 
         return bible_reference_candidate;
     }
 
     if (verbose)
-        std::cerr << "Replaced " << bible_reference_candidate << " with " << alias_and_canonical_form->second << '\n';
+        LOG_INFO("Replaced " + bible_reference_candidate + " with " + alias_and_canonical_form->second + ".");
     return alias_and_canonical_form->second;
 }
 
@@ -653,8 +653,10 @@ inline std::string Now() {
 bool ConvertTextToTimeRange(const std::string &text, std::string * const range, const bool special_case_centuries) {
     static auto matcher1(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,4})-(\\d{1,4})$"));
     if (matcher1->matched(text)) {
-        const unsigned year1(StringUtil::ToUnsigned((*matcher1)[1]));
+        unsigned year1(StringUtil::ToUnsigned((*matcher1)[1]));
         unsigned year2(StringUtil::ToUnsigned((*matcher1)[2]));
+        if (year2 < year1)
+            std::swap(year1, year2);
         if (special_case_centuries and year1 % 100 == 0 and year2 % 100 == 0)
             --year2;
         *range = StringUtil::ToString(year1 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
