@@ -139,6 +139,7 @@ struct JournalParams {
         REVIEW_REGEX,
         EXPECTED_LANGUAGES,
         SSGN,
+        LICENSE,
         CRAWL_MAX_DEPTH,
         CRAWL_EXTRACTION_REGEX,
         CRAWL_URL_REGEX,
@@ -161,6 +162,7 @@ struct JournalParams {
     std::string strptime_format_string_;
     unsigned update_window_;
     std::string ssgn_;
+    std::string license_;
     std::unique_ptr<ThreadSafeRegexMatcher> review_regex_;
     struct {
         std::set<std::string> expected_languages_;
