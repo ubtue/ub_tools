@@ -276,20 +276,26 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
         const auto title(ZederInterop::GetJournalParamsIniValueFromZederEntry(zeder_entry, zeder_flavour,
                          Config::JournalParams::IniKey::NAME));
 
+        if (title.empty()) {
+            LOG_DEBUG("Skipping Zeder entry " + std::to_string(zeder_id) + ": title is empty");
+            continue;
+        }
+
         auto existing_journal_section(harvester_config->lookupConfig(zeder_id, zeder_flavour));
         if (existing_journal_section != nullptr and not overwrite) {
             if (autodetect_new_datasets)
-                LOG_INFO("Skipping Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists");
+                LOG_DEBUG("Skipping Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists");
             else
                 LOG_WARNING("couldn't import Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists");
             continue;
         } else if (existing_journal_section == nullptr and harvester_config->sectionIsDefined(title)) {
-            LOG_WARNING("couldn't import Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists with different zeder id");
+            const auto existing_title_section(harvester_config->config_file_->getSection(title));
+            LOG_WARNING("couldn't import Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists with different zeder id " + existing_title_section->getString("zeder_id"));
             continue;
         } else if (existing_journal_section == nullptr and autodetect_new_datasets) {
             const std::string prodf(zeder_entry.getAttribute("prodf", ""));
             if (prodf != "zota" && prodf != "zotat") {
-                LOG_INFO("Skipping Zeder entry " + std::to_string(zeder_id) + " (" + title + "): prodf is neither \"zota\" nor \"zotat\"");
+                LOG_DEBUG("Skipping Zeder entry " + std::to_string(zeder_id) + " (" + title + "): prodf is neither \"zota\" nor \"zotat\"");
                 continue;
             }
         }
@@ -397,19 +403,24 @@ unsigned UpdateZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                       time_buffer);
 
         LOG_DEBUG("updating Zeder entry " + std::to_string(zeder_id) + " (" + title + ")...");
+        bool at_least_one_field_updated(false);
         for (const auto field_to_update : fields_to_update) {
             const auto ini_key_str(Config::JournalParams::GetIniKeyString(field_to_update));
             const auto ini_old_val_str(existing_journal_section->getString(ini_key_str, ""));
             const auto ini_new_val_str(ZederInterop::GetJournalParamsIniValueFromZederEntry(zeder_entry, zeder_flavour,
                                        field_to_update));
             if (not ini_new_val_str.empty()) {
-                WriteIniEntry(existing_journal_section, ini_key_str, ini_new_val_str);
-                LOG_INFO("\t" + ini_key_str + ": '" + ini_old_val_str + "' => '" + ini_new_val_str + "'");
+                if (ini_new_val_str != ini_old_val_str) {
+                    WriteIniEntry(existing_journal_section, ini_key_str, ini_new_val_str);
+                    LOG_INFO("\t" + ini_key_str + ": '" + ini_old_val_str + "' => '" + ini_new_val_str + "'");
+                    at_least_one_field_updated = true;
+                }
             } else if (not ini_old_val_str.empty())
                 LOG_WARNING("\tinvalid new value for field '" + ini_key_str + "'. old value: " + ini_old_val_str);
         }
 
-        ++num_entries_updated;
+        if (at_least_one_field_updated)
+            ++num_entries_updated;
     }
 
     return num_entries_updated;
