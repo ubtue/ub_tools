@@ -200,22 +200,6 @@ private:
 };
 
 
-// Extraneous data pertinent to the harvesting process that is (currently) not stored
-// in the configuration INI file. Will eventually be subsumed into the former.
-class EnhancementMaps {
-    std::unordered_map<std::string, std::string> ISSN_to_license_;
-
-    std::string lookup(const std::string &issn, const std::unordered_map<std::string, std::string> &map) const;
-public:
-    explicit EnhancementMaps() = default;
-    EnhancementMaps(const std::string &enhancement_map_directory);
-    EnhancementMaps(const EnhancementMaps &rhs) = default;
-    EnhancementMaps& operator=(const EnhancementMaps &rhs) = default;
-
-    std::string lookupLicense(const std::string &issn) const;
-};
-
-
 void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
                              std::vector<std::unique_ptr<JournalParams>> * const journal_params,

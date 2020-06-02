@@ -311,24 +311,6 @@ JournalParams::IniKey JournalParams::GetIniKey(const std::string &ini_key_string
 }
 
 
-EnhancementMaps::EnhancementMaps(const std::string &enhancement_map_directory) {
-    MapUtil::DeserialiseMap(enhancement_map_directory + "/ISSN_to_licence.map", &ISSN_to_license_);
-}
-
-
-std::string EnhancementMaps::lookup(const std::string &issn, const std::unordered_map<std::string, std::string> &map) const {
-    const auto issn_and_value(map.find(issn));
-    if (issn_and_value == map.end())
-        return "";
-    return issn_and_value->second;
-}
-
-
-std::string EnhancementMaps::lookupLicense(const std::string &issn) const {
-    return lookup(issn, ISSN_to_license_);
-}
-
-
 void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
                              std::vector<std::unique_ptr<JournalParams>> * const journal_params,
