@@ -29,12 +29,25 @@
 namespace {
 
 
-} // unnamed namespace
+[[noreturn]] void Usage() {
+    ::Usage("[--date-query] canon_law_reference_candidate");
+}
+
+
+} // namespace
 
 
 int Main(int argc, char **argv) {
-    if (argc != 2)
-        ::Usage("canon_law_reference_candidate");
+    if (argc != 2 and argc != 3)
+        Usage();
+
+    bool generate_date_query(false);
+    if (argc == 3) {
+        if (__builtin_strcmp(argv[1], "--date-query") != 0)
+            Usage();
+        generate_date_query = true;
+        --argc, ++argv;
+    }
 
     const std::string canon_law_reference_candidate(StringUtil::TrimWhite(argv[1]));
     std::string range;
@@ -59,17 +72,20 @@ int Main(int argc, char **argv) {
     } else if (not RangeUtil::ParseCanonLawRanges(range, &range_start, &range_end))
         LOG_ERROR("don't know how to parse codex parts \"" + range + "\"!");
 
+    const std::string separator(generate_date_query ? ":" : "_");
+    std::string query;
     switch (codex) {
     case CIC1917:
-        std::cout << StringUtil::ToString(100000000 + range_start) << '_' << StringUtil::ToString(100000000 + range_end) << '\n';
+        query = StringUtil::ToString(100000000 + range_start) + separator + StringUtil::ToString(100000000 + range_end);
         break;
     case CIC1983:
-        std::cout << StringUtil::ToString(200000000 + range_start) << '_' << StringUtil::ToString(200000000 + range_end) << '\n';
+        query = StringUtil::ToString(200000000 + range_start) + separator + StringUtil::ToString(200000000 + range_end);
         break;
     case CCEO:
-        std::cout << StringUtil::ToString(300000000 + range_start) << '_' << StringUtil::ToString(300000000 + range_end) << '\n';
+        query = StringUtil::ToString(300000000 + range_start) + separator + StringUtil::ToString(300000000 + range_end);
         break;
     }
+    std::cout << (generate_date_query ? RangeUtil::ConvertToDatesQuery(query) : query) << '\n';
 
     return EXIT_SUCCESS;
 }
