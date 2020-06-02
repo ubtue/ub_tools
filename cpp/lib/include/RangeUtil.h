@@ -4,7 +4,7 @@
  */
 
 /*
- *  Copyright 2014-2019 Universitätsbibliothek Tübingen.
+ *  Copyright 2014-2020 Universitätsbibliothek Tübingen.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -114,6 +114,12 @@ bool ConvertTextToTimeRange(const std::string &text, std::string * const range, 
  *  4) If "book" is none of the above, neither "book " nor "chapters_and_verses" will be modified
  */
 void EsraSpecialProcessing(std::string * const book, std::vector<std::string> * const chapters_and_verses);
+
+
+/** \brief Convert one or more ranges to a Solr date-range query.
+ *  \param ranges_str a list of single-space separated ranges of the form XXX:YYY where XXX and YYY are unsigned integers.
+ */
+std::string ConvertToDatesQuery(const std::string &ranges_str);
 
 
 } // namespace RangeUtil
