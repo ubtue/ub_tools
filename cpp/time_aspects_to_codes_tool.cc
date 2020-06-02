@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2019 Library of the University of Tübingen
+    Copyright (C) 2019-2020 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -26,9 +26,28 @@
 #include "util.h"
 
 
+namespace {
+
+
+[[noreturn]] void Usage() {
+    ::Usage("[--date-query] time_aspect_reference_candidate");
+}
+
+
+} // namespace
+
+
 int Main(int argc, char **argv) {
-    if (argc != 2)
-        ::Usage("time_aspect_reference_candidate");
+    if (argc != 2 and argc != 3)
+        Usage();
+
+    bool generate_date_query(false);
+    if (argc == 3) {
+        if (__builtin_strcmp(argv[1], "--date-query") != 0)
+            Usage();
+        generate_date_query = true;
+        --argc, ++argv;
+    }
 
     const std::string time_aspect_reference_candidate(StringUtil::TrimWhite(argv[1]));
 
@@ -36,7 +55,7 @@ int Main(int argc, char **argv) {
     if (not RangeUtil::ConvertTextToTimeRange(time_aspect_reference_candidate, &range))
         LOG_ERROR("can't convert \"" + time_aspect_reference_candidate + "\" to a time aspect range!");
 
-    std::cout << range << '\n';
+    std::cout << (generate_date_query ? RangeUtil::ConvertToDatesQuery(StringUtil::Map(range, '_', ':')) : range) << '\n';
 
     return EXIT_SUCCESS;
 }
