@@ -149,12 +149,13 @@ void GenerateQuery(const OutputType output_type, std::string book_candidate,
         std::cerr << "book code = \"" << book_code << "\"\n";
 
     const char separator(output_type == RANGE_QUERY ? '_' : ':');
+    std::string query;
     if (chapters_and_verses_candidate.empty()) {
-        std::cout << book_code
-                  << std::string(RangeUtil::MAX_CHAPTER_LENGTH + RangeUtil::MAX_VERSE_LENGTH, '0')
-                  << separator << book_code
-                  << std::string(RangeUtil::MAX_CHAPTER_LENGTH + RangeUtil::MAX_VERSE_LENGTH, '9')
-                  << '\n';
+        query = book_code
+                + std::string(RangeUtil::MAX_CHAPTER_LENGTH + RangeUtil::MAX_VERSE_LENGTH, '0')
+                + separator + book_code
+                + std::string(RangeUtil::MAX_CHAPTER_LENGTH + RangeUtil::MAX_VERSE_LENGTH, '9');
+        std::cout << (output_type == DATE_RANGE_QUERY ? RangeUtil::ConvertToDatesQuery(query) : query) << '\n';
 
         std::exit(EXIT_SUCCESS);
     }
@@ -167,8 +168,10 @@ void GenerateQuery(const OutputType output_type, std::string book_candidate,
         std::exit(EXIT_FAILURE);
     }
 
-    for (const auto &pair : start_end)
-        std::cout << pair.first << separator << pair.second << '\n';
+    for (const auto &pair : start_end) {
+        query = pair.first + separator + pair.second;
+        std::cout << (output_type == DATE_RANGE_QUERY ? RangeUtil::ConvertToDatesQuery(query) : query) << '\n';
+    }
 }
 
 
