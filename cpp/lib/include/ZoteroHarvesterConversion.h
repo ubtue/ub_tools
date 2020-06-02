@@ -106,7 +106,7 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
 
 
 void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params,
-                           const Config::GroupParams &group_params, const Config::EnhancementMaps &enhancement_maps);
+                           const Config::GroupParams &group_params);
 
 
 void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_item, const MetadataRecord &metadata_record,
@@ -125,14 +125,12 @@ struct ConversionParams {
     std::string json_metadata_;
     bool skip_online_first_articles_unconditonally_;
     const Config::GroupParams &group_params_;
-    const Config::EnhancementMaps &enhancement_maps_;
 public:
     ConversionParams(const Util::HarvestableItem &download_item, const std::string &json_metadata,
-                     const bool skip_online_first_articles_unconditonally, const Config::GroupParams &group_params,
-                     const Config::EnhancementMaps &enhancement_maps)
+                     const bool skip_online_first_articles_unconditonally, const Config::GroupParams &group_params)
      : download_item_(download_item), json_metadata_(json_metadata),
        skip_online_first_articles_unconditonally_(skip_online_first_articles_unconditonally),
-       group_params_(group_params), enhancement_maps_(enhancement_maps) {}
+       group_params_(group_params) {}
 };
 
 
@@ -164,12 +162,9 @@ class ConversionManager {
 public:
     struct GlobalParams {
         bool skip_online_first_articles_unconditonally_;
-        const Config::EnhancementMaps &enhancement_maps_;
     public:
-        GlobalParams(const bool skip_online_first_articles_unconditonally,
-                     const Config::EnhancementMaps &enhancement_maps)
-            : skip_online_first_articles_unconditonally_(skip_online_first_articles_unconditonally),
-              enhancement_maps_(enhancement_maps) {}
+        GlobalParams(const bool skip_online_first_articles_unconditonally)
+            : skip_online_first_articles_unconditonally_(skip_online_first_articles_unconditonally) {}
         GlobalParams(const GlobalParams &rhs) = default;
     };
 private:

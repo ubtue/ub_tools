@@ -186,7 +186,6 @@ struct HarvesterConfigData {
     std::unique_ptr<Config::GlobalParams> global_params_;
     std::vector<std::unique_ptr<Config::GroupParams>> group_params_;
     std::vector<std::unique_ptr<Config::JournalParams>> journal_params_;
-    std::unique_ptr<Config::EnhancementMaps> enhancement_maps;
     std::map<std::string, const std::reference_wrapper<Config::GroupParams>> group_name_to_group_params_map_;
     Config::JournalParams * default_journal_params_;
 
@@ -223,9 +222,6 @@ void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * c
     harvester_config->default_journal_params_ = harvester_config->journal_params_.back().get();
     harvester_config->group_name_to_group_params_map_.emplace(harvester_config->default_journal_params_->group_,
                                                               *harvester_config->group_params_.at(0));
-
-    harvester_config->enhancement_maps.reset(
-        new Config::EnhancementMaps(harvester_config->global_params_->enhancement_maps_directory_));
 }
 
 
@@ -609,8 +605,8 @@ int Main(int argc, char *argv[]) {
     Download::DownloadManager download_manager(download_manager_params);
 
     Conversion::ConversionManager::GlobalParams conversion_manager_params(
-        harvester_config.global_params_->skip_online_first_articles_unconditonally_,
-        *harvester_config.enhancement_maps);
+        harvester_config.global_params_->skip_online_first_articles_unconditonally_
+    );
     Conversion::ConversionManager conversion_manager(conversion_manager_params);
     OutputFileCache output_file_cache(commandline_args, harvester_config);
     Util::UploadTracker upload_tracker;
