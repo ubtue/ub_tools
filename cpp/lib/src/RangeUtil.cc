@@ -725,4 +725,36 @@ void EsraSpecialProcessing(std::string * const book, std::vector<std::string> * 
 }
 
 
+std::string ConvertToDatesQuery(const std::string &ranges_str) {
+    std::vector<std::string> ranges;
+    StringUtil::Split(ranges_str, ' ', &ranges);
+
+    std::string dates_query;
+    for (const auto &range : ranges) {
+        if (not dates_query.empty())
+            dates_query += " OR ";
+
+        const auto colon_pos(range.find(':'));
+        if (colon_pos == std::string::npos)
+            LOG_ERROR("range w/o a colon: \"" + range + "\"!");
+
+        const std::string range_start_str(range.substr(0, colon_pos));
+        const std::string range_end_str(range.substr(colon_pos + 1));
+
+        unsigned range_start;
+        if (not StringUtil::ToUnsigned(range_start_str, &range_start))
+            LOG_ERROR("bad range: \"" + range + "\"! (1)");
+
+        unsigned range_end;
+        if (not StringUtil::ToUnsigned(range_end_str, &range_end))
+            LOG_ERROR("bad range: \"" + range + "\"! (1)");
+
+        // Convert to dates using UNIX EPOCH:
+        dates_query += "[" + TimeUtil::TimeTToZuluString(range_start) + " TO " + TimeUtil::TimeTToZuluString(range_end) + "]";
+    }
+
+    return dates_query;
+}
+
+
 } // namespace RangeUtil
