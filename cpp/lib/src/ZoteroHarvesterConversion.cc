@@ -1,7 +1,7 @@
 /** \brief Classes related to the Zotero Harvester's JSON-to-MARC conversion API
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -65,8 +65,6 @@ std::string MetadataRecord::toString() const {
         out += "\tlanguage: " + language_ + ",\n";
     if (not issn_.empty())
         out += "\tissn: " + issn_ + ",\n";
-    if (not license_.empty())
-        out += "\tlicense: " + license_ + ",\n";
     if (not superior_ppn_.empty())
         out += "\tsuperior_ppn: " + superior_ppn_ + ",\n";
     out += "\tsuperior_type: " + std::to_string(static_cast<int>(superior_type_)) + ",\n";
@@ -529,7 +527,7 @@ const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})
 
 
 void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params,
-                           const Config::GroupParams &group_params, const Config::EnhancementMaps &enhancement_maps)
+                           const Config::GroupParams &group_params)
 {
     // normalise date
     if (not metadata_record->date_.empty()) {
@@ -640,7 +638,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
     }
 
     // fill-in license and SSG values
-    metadata_record->license_ = enhancement_maps.lookupLicense(metadata_record->issn_);
+    metadata_record->license_ = journal_params.license_;
     metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(journal_params.ssgn_);
 
     // tag reviews
@@ -740,14 +738,6 @@ bool GetMatchedMARCFields(MARC::Record * marc_record, const std::string &field_o
     }
 
     return not matched_fields->empty();
-}
-
-
-void addLicenseSubfieldToUrlSubfields(MARC::Subfields * const subfields, const std::string &license) {
-    if (license == "l")
-        subfields->appendSubfield('z', "LF");
-    else if (license == "kw")
-        subfields->appendSubfield('z', "KW");
 }
 
 
@@ -874,7 +864,8 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     // URL
     if (not metadata_record.url_.empty()) {
         MARC::Subfields subfields({ { 'u', metadata_record.url_ } });
-        addLicenseSubfieldToUrlSubfields(&subfields, metadata_record.license_);
+        if (not metadata_record.license_.empty())
+            subfields.appendSubfield('z', metadata_record.license_);
         marc_record->insertField("856", subfields, /* indicator1 = */'4', /* indicator2 = */'0');
     }
 
@@ -885,7 +876,8 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
         const std::string doi_url("https://doi.org/" + doi);
         if (doi_url != metadata_record.url_) {
             MARC::Subfields subfields({ { 'u', doi_url } });
-            addLicenseSubfieldToUrlSubfields(&subfields, metadata_record.license_);
+            if (not metadata_record.license_.empty())
+                subfields.appendSubfield('z', metadata_record.license_);
             marc_record->insertField("856", subfields, /* indicator1 = */'4', /* indicator2 = */'0');
         }
     }
@@ -1126,8 +1118,7 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
 
             MetadataRecord new_metadata_record;
             ConvertZoteroItemToMetadataRecord(json_object, &new_metadata_record);
-            AugmentMetadataRecord(&new_metadata_record, download_item.journal_, parameters.group_params_,
-                                  parameters.enhancement_maps_);
+            AugmentMetadataRecord(&new_metadata_record, download_item.journal_, parameters.group_params_);
 
             LOG_DEBUG("Augmented metadata record: " + new_metadata_record.toString());
             if (new_metadata_record.url_.empty())
@@ -1240,8 +1231,7 @@ std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> ConversionMana
                                                                                              const Config::GroupParams &group_params)
 {
     std::unique_ptr<ConversionParams> parameters(new ConversionParams(source, json_metadata,
-                                                 global_params_.skip_online_first_articles_unconditonally_, group_params,
-                                                 global_params_.enhancement_maps_));
+                                                 global_params_.skip_online_first_articles_unconditonally_, group_params));
     std::shared_ptr<ConversionTasklet> new_tasklet(new ConversionTasklet(&conversion_tasklet_execution_counter_,
                                                    std::move(parameters)));
 
