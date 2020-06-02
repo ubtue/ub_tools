@@ -659,7 +659,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
     /**
-     * Returns a Set<String> of parent (ID + colon + parent title + optional volume). Only
+     * Returns a Set<String> of (parent ID + colon + parent title + optional volume). Only
      * ID's w/o titles will not be returned.
      *
      * @param record
@@ -682,7 +682,6 @@ public class TuelibMixin extends SolrIndexerMixin {
                 final String parentId = getPPNFromWSubfield(field);
                 if (parentId == null)
                     continue;
-
 
                 containerIdsTitlesAndOptionalVolumes
                         .add(parentId + (char) 0x1F + titleSubfield.getData()
