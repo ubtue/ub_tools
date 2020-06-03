@@ -17,5 +17,3 @@ fi
 
 CRONTAB_BAK="/usr/local/var/tmp/crontab.bak"
 crontab ${CRONTAB_BAK}
-
-
