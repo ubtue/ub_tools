@@ -32,3 +32,4 @@ endif
 PROGS          = $(patsubst %.cc,%,$(wildcard *.cc))
 SCRIPTS        = $(wildcard *.sh)
 INSTALL_PROGS  = $(PROGS) $(SCRIPTS)
+INCROND_DIR    = /etc/incron.d
