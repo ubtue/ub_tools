@@ -55,7 +55,7 @@ fi
 id_output_file=$1
 
 echo "Checking write access to output file..."
-[ -w "$id_output_file" ] || (echo "Cannot write to to $id_output_file" && exit 1)
+>> "$id_output_file" || (echo "Cannot write to $id_output_file" && exit 1)
 
 echo "Querying Elasticsearch..."
 response=$(curl --silent --request GET --header "Content-Type: application/json" $ES_HOST_AND_PORT/$ES_INDEX'/_search/?scroll=1m' --data '{ "_source": ["id"], "size" : 1000, "query":{ "match_all": {} } }')
@@ -81,5 +81,8 @@ while [ "$hit_count" != "0" ]; do
     id_arrays+=$(ObtainIds "$response")
 done
 echo "Flatten and deduplicate the scroll results and write them to file $id_output_file"
-echo $id_arrays | jq -s add | sed -e 's/[][", ]//g' | sed  '/^$/d' | sort | uniq > "$id_output_file"
+tmp_extension=$(< /dev/urandom tr --delete --complement _A-Z-a-z-0-9 | head --bytes 6)
+id_output_file_tmp="$id_output_file"."$tmp_extension"
+echo $id_arrays | jq -s add | sed -e 's/[][", ]//g' | sed  '/^$/d' | sort | uniq > "$id_output_file_tmp"
+mv --force "$id_output_file_tmp" "$id_output_file"
 echo "Finished"
