@@ -145,11 +145,7 @@ def DeleteAllFilesOlderThan(date, directory, exclude_pattern=""):
 
 def DownloadData(config, section, ftp, download_cutoff_date, msg):
     filename_regex = bsz_util.GetFilenameRegexForSection(config, section)
-    try:
-        directory_on_ftp_server = config.get(section, "directory_on_ftp_server")
-    except Exception as e:
-        util.Error("Invalid section \"" + section + "\" in config file! (" + str(e) + ")")
-
+    directory_on_ftp_server = bsz_util.GetFTPDirectoryForSection(config, section)
     downloaded_files = bsz_util.DownloadRemoteFiles(config, ftp, filename_regex, directory_on_ftp_server, download_cutoff_date)
     if len(downloaded_files) == 0:
         msg.append("No more recent file for pattern \"" + filename_regex.pattern + "\"!\n")

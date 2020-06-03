@@ -140,3 +140,11 @@ def GetFilenameRegexForSection(config, section):
         util.Error("filename pattern \"" + filename_pattern + "\" failed to compile! ("
                    + str(e) + ")")
     return filename_regex
+
+
+def GetFTPDirectoryForSection(config, section):
+    try:
+        directory_on_ftp_server = config.get(section, "directory_on_ftp_server")
+    except Exception as e:
+        util.Error("Invalid section \"" + section + "\" in config file! (" + str(e) + ")")
+    return directory_on_ftp_server
