@@ -31,6 +31,18 @@ function GetDownloadStats() {
     echo -n $(echo "$response" | wc -c) >&2
     echo " bytes" >&2
     echo "------------------------------------" >&2
+    error=$(CheckError $response)
+    if [[ $(echo -n "$error" | wc --chars) -ne 0 ]]; then
+        echo "An error occurred in Elasticsearch" >&2
+        echo "$error" >&2
+        exit 1
+    fi
+}
+
+
+function CheckError() {
+    response=$@
+    echo $response | jq  'select(.error) | .'
 }
 
 
