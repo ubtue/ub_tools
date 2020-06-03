@@ -1,0 +1,1 @@
+/usr/local/var/tmp/ IN_CREATE,IN_DELETE /usr/local/bin/trigger_pipeline_script.sh $@$# $%
