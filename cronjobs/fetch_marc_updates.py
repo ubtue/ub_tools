@@ -38,6 +38,7 @@ output_directory = /usr/local/ub_tools/bsz_daten_cumulated
 """
 
 from ftplib import FTP
+import bsz_util
 import datetime
 import os
 import re
@@ -57,51 +58,6 @@ def IncrementStringDate(yymmdd_string):
     date = datetime.datetime.strptime(yymmdd_string, "%y%m%d")
     date = date + datetime.timedelta(days=1)
     return date.strftime("%y%m%d")
-
-
-def GetMostRecentFile(filename_regex, filename_generator):
-    most_recent_date = "000000"
-    most_recent_file = None
-    for filename in filename_generator:
-        match = filename_regex.match(filename)
-        if match and match.group(1) > most_recent_date:
-            most_recent_date = match.group(1)
-            most_recent_file = filename
-    return most_recent_file
-
-
-def GetMostRecentLocalFile(filename_regex, local_directory=None):
-    def LocalFilenameGenerator():
-        if local_directory is None:
-            return os.listdir(".")
-        else:
-            return os.listdir(local_directory)
-
-    return GetMostRecentFile(filename_regex, LocalFilenameGenerator())
-
-
-# Returns a list of files found in the "directory" directory on an FTP server that match "filename_regex"
-# and have a datestamp (YYMMDD) more recent than "download_cutoff_date".
-def GetListOfRemoteFiles(ftp, filename_regex, directory, download_cutoff_date):
-    try:
-        ftp.cwd(directory)
-    except Exception as e:
-        util.Error("can't change directory to \"" + directory + "\"! (" + str(e) + ")")
-
-    # Retry calling GetMostRecentFile() up to 3 times:
-    exception = None
-    for attempt_number in range(3):
-        try:
-            filename_list = []
-            for filename in ftp.nlst():
-                 match = filename_regex.match(filename)
-                 if match and match.group(1) >= download_cutoff_date:
-                     filename_list.append(filename)
-            return filename_list
-        except Exception as e:
-            exception = e
-            time.sleep(10 * (attempt_number + 1))
-    raise exception
 
 
 # Attempts to retrieve "remote_filename" from an FTP server.
@@ -140,7 +96,7 @@ def NeedsBothInstances(filename_regex):
 # Downloads matching files found in "remote_directory" on the FTP server that have a datestamp
 # more recent than "download_cutoff_date" if some consistency check succeeds
 def DownloadRemoteFiles(config, ftp, filename_regex, remote_directory, download_cutoff_date):
-    filenames = GetListOfRemoteFiles(ftp, filename_regex, remote_directory, download_cutoff_date)
+    filenames = bsz_util.GetListOfRemoteFiles(ftp, filename_regex, remote_directory, download_cutoff_date)
     if NeedsBothInstances(filename_regex):
         if not AreBothInstancesPresent(filename_regex, filenames):
             util.Error("Skip downloading since apparently generation of the files on the FTP server is not complete!")
@@ -177,27 +133,15 @@ def CumulativeFilenameGenerator(output_directory):
      return os.listdir(output_directory)
 
 
-def GetBackupDirectoryPath(config):
-    try:
-        backup_directory = config.get("Kumulierte Abzuege", "output_directory")
-    except Exception as e:
-        util.Error("could not determine output directory (" + str(e) + ")")
-
-    if not os.path.exists(backup_directory):
-        util.Error("backup directory is missing: \"" + backup_directory + "\"!")
-
-    return backup_directory
-
-
 # We try to keep all differential updates up to and including the last complete data
 def CleanUpCumulativeCollection(config):
-    backup_directory = GetBackupDirectoryPath(config)
+    backup_directory = bsz_util.GetBackupDirectoryPath(config)
     filename_complete_data_regex = GetFilenameRegexForSection(config, "Kompletter Abzug")
     incremental_authority_data_regex = GetFilenameRegexForSection(config, "Normdatendifferenzabzug")
 
     # Find the latest complete data file
     try:
-        most_recent_complete_data_filename = GetMostRecentFile(filename_complete_data_regex,
+        most_recent_complete_data_filename = bsz_util.GetMostRecentFile(filename_complete_data_regex,
                                                                CumulativeFilenameGenerator(backup_directory))
     except Exception as e:
         util.Error("Unable to to determine the most recent complete data file (" + str(e) + ")")
@@ -237,7 +181,7 @@ def CurrentIncrementalAuthorityDumpPresent(config, cutoff_date):
     except Exception as e:
         util.Error("Extracting cumulative directory failed! (" + str(e) + ")")
 
-    most_recent_incremental_authority_dump = GetMostRecentLocalFile(filename_regex, cumulative_directory)
+    most_recent_incremental_authority_dump = bsz_util.GetMostRecentLocalFile(filename_regex, cumulative_directory)
     if (most_recent_incremental_authority_dump == None):
         return False
     most_recent_file_incremental_authority_date = ExtractDateFromFilename(most_recent_incremental_authority_dump)
@@ -271,8 +215,8 @@ def ExtractDateFromFilename(filename):
 
 
 def GetCutoffDateForDownloads(config):
-    backup_directory = GetBackupDirectoryPath(config)
-    most_recent_backup_file = GetMostRecentLocalFile(re.compile(".+(\\d{6}).+"), backup_directory)
+    backup_directory = bsz_util.GetBackupDirectoryPath(config)
+    most_recent_backup_file = bsz_util.GetMostRecentLocalFile(re.compile(".+(\\d{6}).+"), backup_directory)
     if most_recent_backup_file is None:
         return "000000"
     else:

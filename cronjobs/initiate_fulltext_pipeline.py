@@ -1,10 +1,10 @@
 #!/bin/python3
 # -*- coding: utf-8 -*-
+import bsz_util
 import datetime
 import glob
 import urllib.request, urllib.error, urllib.parse
 import os
-import pipeline_util
 import struct
 import sys
 import time
@@ -36,7 +36,7 @@ def Main():
         sys.exit(-1)
     conf = util.LoadConfigFile(util.default_config_file_dir + '/' + 'initiate_marc_pipeline.conf')
     link_name = conf.get("Misc", "link_name")
-    if pipeline_util.FoundNewBSZDataFile(link_name):
+    if bsz_util.FoundNewBSZDataFile(link_name):
         bsz_data = util.ResolveSymlink(link_name)
         if not bsz_data.endswith(".tar.gz"):
             util.Error("BSZ data file must end in .tar.gz!")
