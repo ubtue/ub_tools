@@ -19,7 +19,3 @@ else
     echo "Could not detect Linux distribution"
     exit 1
 fi
-
-
-
-
