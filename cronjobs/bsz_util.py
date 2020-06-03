@@ -79,3 +79,64 @@ def GetBackupDirectoryPath(config):
         util.Error("backup directory is missing: \"" + backup_directory + "\"!")
 
     return backup_directory
+
+
+# Check whether all the instances are needed
+def NeedsBothInstances(filename_regex):
+     without_localdata_pattern = "_o[)]?-[(]?.*[)]?"
+     without_localdata_regex = re.compile(without_localdata_pattern)
+     return without_localdata_regex.search(filename_regex.pattern) is not None
+
+
+
+# For IxTheo our setup requires that we obtain both the files with and without local data because otherwise
+# we get data inconsistencies
+def AreBothInstancesPresent(filename_regex, remote_files):
+     if not remote_files:
+        return True
+     matching_remote_files = list(filter(filename_regex.match, remote_files))
+     return True if len(matching_remote_files) % 2 == 0 else False
+
+
+
+# Downloads matching files found in "remote_directory" on the FTP server that have a datestamp
+# more recent than "download_cutoff_date" if some consistency check succeeds
+def DownloadRemoteFiles(config, ftp, filename_regex, remote_directory, download_cutoff_date):
+    filenames = GetListOfRemoteFiles(ftp, filename_regex, remote_directory, download_cutoff_date)
+    if NeedsBothInstances(filename_regex):
+        if not AreBothInstancesPresent(filename_regex, filenames):
+            util.Error("Skip downloading since apparently generation of the files on the FTP server is not complete!")
+    for filename in filenames:
+        DownLoadFile(ftp, filename)
+    return filenames
+
+
+# Extracts the first 6 digit sequence in "filename" hoping it corresponds to a YYMMDD pattern.
+def ExtractDateFromFilename(filename):
+    date_extraction_regex = re.compile(".+(\\d{6}).+")
+    match = date_extraction_regex.match(filename)
+    if not match:
+        util.Error("\"" + filename + "\" does not contain a date!")
+    return match.group(1)
+
+
+def GetCutoffDateForDownloads(config):
+    backup_directory = GetBackupDirectoryPath(config)
+    most_recent_backup_file = GetMostRecentLocalFile(re.compile(".+(\\d{6}).+"), backup_directory)
+    if most_recent_backup_file is None:
+        return "000000"
+    else:
+        return ExtractDateFromFilename(most_recent_backup_file)
+
+
+def GetFilenameRegexForSection(config, section):
+    try:
+        filename_pattern = config.get(section, "filename_pattern")
+    except Exception as e:
+        util.Error("Invalid section " + section + "in config file! (" + str(e) + ")")
+    try:
+        filename_regex = re.compile(filename_pattern)
+    except Exception as e:
+        util.Error("filename pattern \"" + filename_pattern + "\" failed to compile! ("
+                   + str(e) + ")")
+    return filename_regex
