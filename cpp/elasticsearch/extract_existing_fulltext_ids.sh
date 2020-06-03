@@ -55,7 +55,7 @@ fi
 id_output_file=$1
 
 echo "Checking write access to output file..."
-[ -w "$id_output_file" ] || echo "Cannot write to to $id_output_file"
+[ -w "$id_output_file" ] || (echo "Cannot write to to $id_output_file" && exit 1)
 
 echo "Querying Elasticsearch..."
 response=$(curl --silent --request GET --header "Content-Type: application/json" $ES_HOST_AND_PORT/$ES_INDEX'/_search/?scroll=1m' --data '{ "_source": ["id"], "size" : 1000, "query":{ "match_all": {} } }')
