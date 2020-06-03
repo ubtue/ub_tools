@@ -63,6 +63,9 @@ data_install: Makefile data/*.conf data/*.map data/*.ttf data/IxTheo_Notation.cs
 	mkdir --parents /usr/local/var/lib/tuelib/language_models
 	cp data/language_models/*.lm /usr/local/var/lib/tuelib/language_models
 	cp data/mime.types /usr/local/var/lib/tuelib/
+	if [ -d $(INCROND_DIR) ]; then \
+		cp data/pipeline_script_triggers $(INCROND_DIR); \
+	fi
 
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
