@@ -231,7 +231,7 @@ def Main():
     AddToCumulativeCollection(all_downloaded_files, config)
     CleanUpCumulativeCollection(config)
     if downloaded_at_least_some_new_titles:
-        util.Touch("/usr/local/var/tmp/bsz_download_happened") # Must be the same path as in the merge script!
+        util.Touch("/usr/local/var/tmp/bsz_download_happened") # Must be the same path as in the merge script and in trigger_pipeline_script.sh
     util.SendEmail("BSZ File Update", ''.join(msg), priority=5)
 
 

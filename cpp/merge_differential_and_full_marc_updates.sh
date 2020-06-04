@@ -52,8 +52,8 @@ if [[ $# != 1 ]]; then
 fi
 email_address=$1
 
-
-MUTEX_FILE=/usr/local/var/tmp/bsz_download_happened # Must be the same path as in fetch_marc_updates.py!
+# Must be the same path as in fetch_marc_updates.py and, if applicable, trigger_pipeline_script.sh
+MUTEX_FILE=/usr/local/var/tmp/bsz_download_happened
 if [ ! -e $MUTEX_FILE ]; then
     no_problems_found=0
     send_email --recipients="$email_address" --subject="Mutex file not found on $(hostname)" \

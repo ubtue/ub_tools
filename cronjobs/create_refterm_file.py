@@ -13,8 +13,8 @@ import process_util
 import re
 import util
 
-
-REFTERM_MUTEX_FILE = "/usr/local/var/tmp/create_refterm_successful" # Must match path in initiate_marc_pipeline.py
+# Must match path in initiate_marc_pipeline.py and, if applicable, trigger_pipeline_script.sh
+REFTERM_MUTEX_FILE = "/usr/local/var/tmp/create_refterm_successful"
 
 
 def ExecOrCleanShutdownAndDie(cmd_name, args, log_file_name=None):
