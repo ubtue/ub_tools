@@ -107,7 +107,7 @@ def DownloadRemoteFiles(config, ftp, filename_regex, remote_directory, download_
         if not AreBothInstancesPresent(filename_regex, filenames):
             util.Error("Skip downloading since apparently generation of the files on the FTP server is not complete!")
     for filename in filenames:
-        DownLoadFile(ftp, filename)
+        util.DownLoadFile(ftp, filename)
     return filenames
 
 
