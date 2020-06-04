@@ -77,7 +77,7 @@ fi
 email_address=$1
 
 
-MUTEX_FILE=/tmp/bsz_download_happened # Must be the same path as in fetch_marc_updates.py!
+MUTEX_FILE=/usr/local/var/tmp/bsz_download_happened # Must be the same path as in fetch_marc_updates.py!
 if [ ! -e $MUTEX_FILE ]; then
     trap - EXIT # Don't send another email due to the trap.
     send_email --recipients="$email_address" --subject="Mutex file not found on $(hostname)" \
