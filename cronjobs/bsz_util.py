@@ -5,13 +5,12 @@ from ftplib import FTP
 import datetime
 import os
 import re
-import sys
-import time
-import traceback
-import util
 import shutil
 import string
+import sys
 import tempfile
+import traceback
+import util
 
 
 def FoundNewBSZDataFile(link_filename):
@@ -19,7 +18,7 @@ def FoundNewBSZDataFile(link_filename):
         statinfo = os.stat(link_filename)
         file_creation_time = statinfo.st_ctime
     except OSError as e:
-        util.Error("in FoundNewBSZDataFile: Symlink \"" + link_filename + "\" is missing or dangling!")
+        util.Error("Symlink \"" + link_filename + "\" is missing or dangling!")
     old_timestamp = util.ReadTimestamp()
     return old_timestamp < file_creation_time
 
@@ -88,7 +87,6 @@ def NeedsBothInstances(filename_regex):
      return without_localdata_regex.search(filename_regex.pattern) is not None
 
 
-
 # For IxTheo our setup requires that we obtain both the files with and without local data because otherwise
 # we get data inconsistencies
 def AreBothInstancesPresent(filename_regex, remote_files):
@@ -96,7 +94,6 @@ def AreBothInstancesPresent(filename_regex, remote_files):
         return True
      matching_remote_files = list(filter(filename_regex.match, remote_files))
      return True if len(matching_remote_files) % 2 == 0 else False
-
 
 
 # Downloads matching files found in "remote_directory" on the FTP server that have a datestamp
