@@ -38,6 +38,7 @@ output_directory = /usr/local/ub_tools/bsz_daten_cumulated
 """
 
 from ftplib import FTP
+import bsz_util
 import datetime
 import os
 import re
@@ -57,96 +58,6 @@ def IncrementStringDate(yymmdd_string):
     date = datetime.datetime.strptime(yymmdd_string, "%y%m%d")
     date = date + datetime.timedelta(days=1)
     return date.strftime("%y%m%d")
-
-
-def GetMostRecentFile(filename_regex, filename_generator):
-    most_recent_date = "000000"
-    most_recent_file = None
-    for filename in filename_generator:
-        match = filename_regex.match(filename)
-        if match and match.group(1) > most_recent_date:
-            most_recent_date = match.group(1)
-            most_recent_file = filename
-    return most_recent_file
-
-
-def GetMostRecentLocalFile(filename_regex, local_directory=None):
-    def LocalFilenameGenerator():
-        if local_directory is None:
-            return os.listdir(".")
-        else:
-            return os.listdir(local_directory)
-
-    return GetMostRecentFile(filename_regex, LocalFilenameGenerator())
-
-
-# Returns a list of files found in the "directory" directory on an FTP server that match "filename_regex"
-# and have a datestamp (YYMMDD) more recent than "download_cutoff_date".
-def GetListOfRemoteFiles(ftp, filename_regex, directory, download_cutoff_date):
-    try:
-        ftp.cwd(directory)
-    except Exception as e:
-        util.Error("can't change directory to \"" + directory + "\"! (" + str(e) + ")")
-
-    # Retry calling GetMostRecentFile() up to 3 times:
-    exception = None
-    for attempt_number in range(3):
-        try:
-            filename_list = []
-            for filename in ftp.nlst():
-                 match = filename_regex.match(filename)
-                 if match and match.group(1) >= download_cutoff_date:
-                     filename_list.append(filename)
-            return filename_list
-        except Exception as e:
-            exception = e
-            time.sleep(10 * (attempt_number + 1))
-    raise exception
-
-
-# Attempts to retrieve "remote_filename" from an FTP server.
-def DownLoadFile(ftp, remote_filename):
-    try:
-        output = open(remote_filename, "wb")
-    except Exception as e:
-        util.Error("local open of \"" + remote_filename + "\" failed! (" + str(e) + ")")
-    try:
-        def RetrbinaryCallback(chunk):
-            try:
-                output.write(chunk)
-            except Exception as e:
-                util.Error("failed to write a data chunk to local file \"" + remote_filename + "\"! (" + str(e) + ")")
-        ftp.retrbinary("RETR " + remote_filename, RetrbinaryCallback)
-    except Exception as e:
-        util.Error("File download failed! (" + str(e) + ")")
-
-
-# For IxTheo our setup requires that we obtain both the files with and without local data because otherwise
-# we get data inconsistencies
-def AreBothInstancesPresent(filename_regex, remote_files):
-     if not remote_files:
-        return True
-     matching_remote_files = list(filter(filename_regex.match, remote_files))
-     return True if len(matching_remote_files) % 2 == 0 else False
-
-
-# Check whether all the instances are needed
-def NeedsBothInstances(filename_regex):
-     without_localdata_pattern = "_o[)]?-[(]?.*[)]?"
-     without_localdata_regex = re.compile(without_localdata_pattern)
-     return without_localdata_regex.search(filename_regex.pattern) is not None
-
-
-# Downloads matching files found in "remote_directory" on the FTP server that have a datestamp
-# more recent than "download_cutoff_date" if some consistency check succeeds
-def DownloadRemoteFiles(config, ftp, filename_regex, remote_directory, download_cutoff_date):
-    filenames = GetListOfRemoteFiles(ftp, filename_regex, remote_directory, download_cutoff_date)
-    if NeedsBothInstances(filename_regex):
-        if not AreBothInstancesPresent(filename_regex, filenames):
-            util.Error("Skip downloading since apparently generation of the files on the FTP server is not complete!")
-    for filename in filenames:
-        DownLoadFile(ftp, filename)
-    return filenames
 
 
 # Cumulatively saves downloaded data to an external location to have a complete trace of
@@ -177,27 +88,15 @@ def CumulativeFilenameGenerator(output_directory):
      return os.listdir(output_directory)
 
 
-def GetBackupDirectoryPath(config):
-    try:
-        backup_directory = config.get("Kumulierte Abzuege", "output_directory")
-    except Exception as e:
-        util.Error("could not determine output directory (" + str(e) + ")")
-
-    if not os.path.exists(backup_directory):
-        util.Error("backup directory is missing: \"" + backup_directory + "\"!")
-
-    return backup_directory
-
-
 # We try to keep all differential updates up to and including the last complete data
 def CleanUpCumulativeCollection(config):
-    backup_directory = GetBackupDirectoryPath(config)
-    filename_complete_data_regex = GetFilenameRegexForSection(config, "Kompletter Abzug")
-    incremental_authority_data_regex = GetFilenameRegexForSection(config, "Normdatendifferenzabzug")
+    backup_directory = bsz_util.GetBackupDirectoryPath(config)
+    filename_complete_data_regex = bsz_util.GetFilenameRegexForSection(config, "Kompletter Abzug")
+    incremental_authority_data_regex = bsz_util.GetFilenameRegexForSection(config, "Normdatendifferenzabzug")
 
     # Find the latest complete data file
     try:
-        most_recent_complete_data_filename = GetMostRecentFile(filename_complete_data_regex,
+        most_recent_complete_data_filename = bsz_util.GetMostRecentFile(filename_complete_data_regex,
                                                                CumulativeFilenameGenerator(backup_directory))
     except Exception as e:
         util.Error("Unable to to determine the most recent complete data file (" + str(e) + ")")
@@ -216,31 +115,14 @@ def CleanUpCumulativeCollection(config):
     return None
 
 
-def GetFilenameRegexForSection(config, section):
-    try:
-        filename_pattern = config.get(section, "filename_pattern")
-    except Exception as e:
-        util.Error("Invalid section " + section + "in config file! (" + str(e) + ")")
-    try:
-        filename_regex = re.compile(filename_pattern)
-    except Exception as e:
-        util.Error("filename pattern \"" + filename_pattern + "\" failed to compile! ("
-                   + str(e) + ")")
-    return filename_regex
-
-
 # Test whether we already have a current "Normdatendifferenzabzug"
 def CurrentIncrementalAuthorityDumpPresent(config, cutoff_date):
-    filename_regex = GetFilenameRegexForSection(config, "Normdatendifferenzabzug")
-    try:
-       cumulative_directory = config.get("Kumulierte Abzuege", "output_directory")
-    except Exception as e:
-        util.Error("Extracting cumulative directory failed! (" + str(e) + ")")
-
-    most_recent_incremental_authority_dump = GetMostRecentLocalFile(filename_regex, cumulative_directory)
+    filename_regex = bsz_util.GetFilenameRegexForSection(config, "Normdatendifferenzabzug")
+    cumulative_directory = bsz_util.GetBackupDirectoryPath(config)
+    most_recent_incremental_authority_dump = bsz_util.GetMostRecentLocalFile(filename_regex, cumulative_directory)
     if (most_recent_incremental_authority_dump == None):
         return False
-    most_recent_file_incremental_authority_date = ExtractDateFromFilename(most_recent_incremental_authority_dump)
+    most_recent_file_incremental_authority_date = bsz_util.ExtractDateFromFilename(most_recent_incremental_authority_dump)
     return most_recent_file_incremental_authority_date > cutoff_date
 
 
@@ -261,32 +143,10 @@ def DeleteAllFilesOlderThan(date, directory, exclude_pattern=""):
      return None
 
 
-# Extracts the first 6 digit sequence in "filename" hoping it corresponds to a YYMMDD pattern.
-def ExtractDateFromFilename(filename):
-    date_extraction_regex = re.compile(".+(\\d{6}).+")
-    match = date_extraction_regex.match(filename)
-    if not match:
-        util.Error("\"" + filename + "\" does not contain a date!")
-    return match.group(1)
-
-
-def GetCutoffDateForDownloads(config):
-    backup_directory = GetBackupDirectoryPath(config)
-    most_recent_backup_file = GetMostRecentLocalFile(re.compile(".+(\\d{6}).+"), backup_directory)
-    if most_recent_backup_file is None:
-        return "000000"
-    else:
-        return ExtractDateFromFilename(most_recent_backup_file)
-
-
 def DownloadData(config, section, ftp, download_cutoff_date, msg):
-    filename_regex = GetFilenameRegexForSection(config, section)
-    try:
-        directory_on_ftp_server = config.get(section, "directory_on_ftp_server")
-    except Exception as e:
-        util.Error("Invalid section \"" + section + "\" in config file! (" + str(e) + ")")
-
-    downloaded_files = DownloadRemoteFiles(config, ftp, filename_regex, directory_on_ftp_server, download_cutoff_date)
+    filename_regex = bsz_util.GetFilenameRegexForSection(config, section)
+    directory_on_ftp_server = bsz_util.GetFTPDirectoryForSection(config, section)
+    downloaded_files = bsz_util.DownloadRemoteFiles(config, ftp, filename_regex, directory_on_ftp_server, download_cutoff_date)
     if len(downloaded_files) == 0:
         msg.append("No more recent file for pattern \"" + filename_regex.pattern + "\"!\n")
     else:
@@ -297,7 +157,7 @@ def DownloadData(config, section, ftp, download_cutoff_date, msg):
 def DownloadCompleteData(config, ftp, download_cutoff_date, msg):
     downloaded_files = DownloadData(config, "Kompletter Abzug", ftp, download_cutoff_date, msg)
     complete_filename_pattern = config.get("Kompletter Abzug", "filename_pattern")
-    if not NeedsBothInstances(re.compile(complete_filename_pattern)):
+    if not bsz_util.NeedsBothInstances(re.compile(complete_filename_pattern)):
         if len(downloaded_files) == 1:
             return downloaded_files
         elif len(downloaded_files) == 0:
@@ -339,7 +199,7 @@ def Main():
     tempdir = tempfile.TemporaryDirectory()
     bsz_dir = os.getcwd()
     os.chdir(tempdir.name)
-    download_cutoff_date = IncrementStringDate(GetCutoffDateForDownloads(config))
+    download_cutoff_date = IncrementStringDate(bsz_util.GetCutoffDateForDownloads(config))
     complete_data_filenames = DownloadCompleteData(config, ftp, download_cutoff_date, msg)
     all_downloaded_files = [] if complete_data_filenames == None else complete_data_filenames
     downloaded_at_least_some_new_titles = False
@@ -371,7 +231,7 @@ def Main():
     AddToCumulativeCollection(all_downloaded_files, config)
     CleanUpCumulativeCollection(config)
     if downloaded_at_least_some_new_titles:
-        util.Touch("/usr/local/var/tmp/bsz_download_happened") # Must be the same path as in the merge script!
+        util.Touch("/usr/local/var/tmp/bsz_download_happened") # Must be the same path as in the merge script and in trigger_pipeline_script.sh
     util.SendEmail("BSZ File Update", ''.join(msg), priority=5)
 
 

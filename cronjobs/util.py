@@ -503,3 +503,20 @@ def Tail(filename, max_no_of_lines):
 
 def RenameFile(old_path : str, new_path : str) -> None:
     ExecOrDie("/bin/mv", [ "--force", old_path, new_path ])
+
+
+    # Attempts to retrieve "remote_filename" from an FTP server.
+def DownLoadFile(ftp, remote_filename):
+    try:
+        output = open(remote_filename, "wb")
+    except Exception as e:
+        Error("local open of \"" + remote_filename + "\" failed! (" + str(e) + ")")
+    try:
+        def RetrbinaryCallback(chunk):
+            try:
+                output.write(chunk)
+            except Exception as e:
+                Error("failed to write a data chunk to local file \"" + remote_filename + "\"! (" + str(e) + ")")
+        ftp.retrbinary("RETR " + remote_filename, RetrbinaryCallback)
+    except Exception as e:
+        Error("File download failed! (" + str(e) + ")")
