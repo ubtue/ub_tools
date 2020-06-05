@@ -24,24 +24,8 @@ public class BibleDateRange extends Range {
 
     private final static int RANGE_STRING_LENGTH = BIBLE_CODE_LENGTH + 1 + BIBLE_CODE_LENGTH;
 
-    public BibleDateRange(final String range) {
-        super(getLower(range), getUpper(range));
-    }
-
-    private static long getLower(final String range) {
-        if (range.length() == RANGE_STRING_LENGTH) {
-            return Long.valueOf(range.substring(LOWER_BIBLE_CODE_START, LOWER_BIBLE_CODE_START + BIBLE_CODE_LENGTH));
-        } else {
-            return 0;
-        }
-    }
-
-    private static long getUpper(final String range) {
-        if (range.length() == RANGE_STRING_LENGTH) {
-            return Long.valueOf(range.substring(UPPER_BIBLE_CODE_START, UPPER_BIBLE_CODE_START + BIBLE_CODE_LENGTH));
-        } else {
-            return MAX_BOOK_CODE;
-        }
+    public BibleDateRange(final String date_range) {
+        super(date_range);
     }
 
     public static BibleDateRange[] getRanges(final String[] ranges) {
