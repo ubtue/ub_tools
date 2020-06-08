@@ -27,6 +27,7 @@ elif [[ ${event} == "IN_DELETE" ]]; then
     case ${mutex_file} in
         ${MERGE_DIFFERENTIAL_AND_FULL_UPDATES_FINISHED})
             /usr/local/bin/execute_cronjob_in_two_minutes.sh create_refterm_file.py
+            /usr/local/bin/execute_cronjob_in_two_minutes.sh fetch_interlibraryloan_ppns.py
             ;;
     esac
 fi
