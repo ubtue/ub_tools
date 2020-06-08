@@ -716,18 +716,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         return normalizeSortableString(author);
     }
 
-    /**
-     * Use solrmarc default "getSortableTitle" logic.
-     * Also remove all unicode quotation marks
-     *
-     * @param record
-     *
-     * @return
-     */
-    public String getSortableTitleUnicode(final Record record) {
-        String title = SolrIndexer.instance().getSortableTitle(record);
-        return normalizeSortableString(title);
-    }
 
     /**
      * @param record
@@ -3336,5 +3324,19 @@ public class TuelibMixin extends SolrIndexerMixin {
         }
 
         return ranges;
+    }
+
+
+    /*
+     * Custom normalisation map function
+     */
+    public Collection<String> normalizeSortableString(Collection<String> extractedValues) {
+        Collection<String> results = new ArrayList<String>();
+        for (final String value : extractedValues) {
+            final String newValue = normalizeSortableString(value);
+            if (newValue != null && !newValue.isEmpty())
+                results.add(newValue);
+        }
+        return results;
     }
 }
