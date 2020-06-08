@@ -21,7 +21,7 @@ def GetDataFromGVI(cursor_mark):
     try:
         response = urllib.request.urlopen(GVI_URL + '&cursorMark=' + cursor_mark, timeout=TIMEOUT)
     except urllib.error.HTTPError:
-        util.Error("GVI gateway timeout out after + " str(TIMEOUT) + " seconds!")
+        util.Error("GVI gateway timeout out after " +  str(TIMEOUT) + " seconds!")
 
     try:
         jdata = json.load(response)
