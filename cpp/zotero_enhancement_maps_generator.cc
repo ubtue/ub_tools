@@ -84,8 +84,11 @@ std::unordered_set<std::string> GetZederEntryISSNs(const Zeder::Entry &entry, co
         if (not issn.empty()) {
             if (MiscUtil::IsPossibleISSN(issn))
                 issns.emplace(issn);
-            else
-                LOG_WARNING("Skipping invalid ISSN: " + issn);
+            else {
+                LOG_WARNING("Skipping invalid ISSN: " + issn
+                            + " (Zeder ID: " + std::to_string(entry.getId())
+                            + ", Instance: " + Zeder::FLAVOUR_TO_STRING_MAP.at(flavour) + ")");
+            }
         }
     }
 
