@@ -25,10 +25,10 @@
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "UBTools.h"
+#include "util.h"
 #include "ZoteroHarvesterConfig.h"
 #include "ZoteroHarvesterUtil.h"
 #include "ZoteroHarvesterZederInterop.h"
-#include "util.h"
 
 
 // avoid conflicts with LICENSE defined in mysql_version.h
@@ -40,11 +40,8 @@
 namespace {
 
 
-using namespace ZoteroHarvester;
-
-
 [[noreturn]] void Usage() {
-    ::Usage("[options] [zotero_enhancement_maps_directory]\n\n"
+    ::Usage("[options] [zotero_enhancement_maps_directory]\n"
             "\n"
             "\tOptions:\n"
             "\t[--min-log-level=log_level]          Possible log levels are ERROR, WARNING (default), INFO and DEBUG\n"
@@ -59,7 +56,7 @@ void DownloadZederInstanceEntries(const Zeder::Flavour flavour,
     Zeder::EntryCollection downloaded_flavour_entries;
 
     const auto endpoint_url(Zeder::GetFullDumpEndpointPath(flavour));
-    const std::unordered_set<unsigned> &entries_to_download {}; // intentionally empty
+    const std::unordered_set<unsigned> entries_to_download {}; // intentionally empty
     const std::unordered_set<std::string> columns_to_download {};  // intentionally empty
     const std::unordered_map<std::string, std::string> filter_regexps {}; // intentionally empty
     std::unique_ptr<Zeder::FullDumpDownloader::Params> downloader_params(new Zeder::FullDumpDownloader::Params(endpoint_url,
@@ -76,15 +73,20 @@ void DownloadZederInstanceEntries(const Zeder::Flavour flavour,
 std::unordered_set<std::string> GetZederEntryISSNs(const Zeder::Entry &entry, const Zeder::Flavour flavour) {
     std::unordered_set<std::string> issns;
 
-    std::unordered_set<Config::JournalParams::IniKey> ini_keys {
-        Config::JournalParams::IniKey::ONLINE_ISSN,
-        Config::JournalParams::IniKey::PRINT_ISSN
+    std::unordered_set<ZoteroHarvester::Config::JournalParams::IniKey> ini_keys {
+        ZoteroHarvester::Config::JournalParams::IniKey::ONLINE_ISSN,
+        ZoteroHarvester::Config::JournalParams::IniKey::PRINT_ISSN
     };
     for (const auto ini_key : ini_keys) {
-        const std::string issn(ZederInterop::GetJournalParamsIniValueFromZederEntry(entry, flavour,
+        const std::string issn(ZoteroHarvester::ZederInterop::GetJournalParamsIniValueFromZederEntry(entry, flavour,
                                ini_key));
-        if (MiscUtil::IsPossibleISSN(issn))
-            issns.emplace(issn);
+
+        if (not issn.empty()) {
+            if (MiscUtil::IsPossibleISSN(issn))
+                issns.emplace(issn);
+            else
+                LOG_WARNING("Skipping invalid ISSN: " + issn);
+        }
     }
 
     return issns;
@@ -98,15 +100,15 @@ void GenerateIssnToLicenseMap(const std::string &zotero_enhancement_maps_directo
     LOG_INFO("Generating " + map_path);
 
     std::map<std::string, std::string> issn_to_license_map;
-    for (const auto & [flavour, downloaded_flavour_entries] : downloaded_entries) {
+    for (const auto &[flavour, downloaded_flavour_entries] : downloaded_entries) {
         for (const auto &downloaded_flavour_entry : downloaded_flavour_entries) {
-            std::string license(ZederInterop::GetJournalParamsIniValueFromZederEntry(downloaded_flavour_entry, flavour,
-                                Config::JournalParams::IniKey::LICENSE));
+            std::string license(ZoteroHarvester::ZederInterop::GetJournalParamsIniValueFromZederEntry(downloaded_flavour_entry, flavour,
+                                ZoteroHarvester::Config::JournalParams::IniKey::LICENSE));
 
             if (not license.empty()) {
                 StringUtil::ASCIIToLower(&license);
-                const std::string name(ZederInterop::GetJournalParamsIniValueFromZederEntry(downloaded_flavour_entry, flavour,
-                                       Config::JournalParams::IniKey::NAME));
+                const std::string name(ZoteroHarvester::ZederInterop::GetJournalParamsIniValueFromZederEntry(downloaded_flavour_entry, flavour,
+                                       ZoteroHarvester::Config::JournalParams::IniKey::NAME));
                 const auto issns(GetZederEntryISSNs(downloaded_flavour_entry, flavour));
                 for (const auto &issn : issns)
                     issn_to_license_map[issn] = license + " # " + name;
@@ -115,14 +117,14 @@ void GenerateIssnToLicenseMap(const std::string &zotero_enhancement_maps_directo
     }
 
     std::string output;
-    for (const auto & [issn, license] : issn_to_license_map)
+    for (const auto &[issn, license] : issn_to_license_map)
         output += issn + "=" + license + '\n';
 
     FileUtil::WriteStringOrDie(map_path, output);
 }
 
 
-}
+} // unnamed namespace
 
 
 int Main(int argc, char *argv[]) {
