@@ -71,7 +71,7 @@ public:
     std::unordered_multiset<std::string> selectAllNonUnique(const std::string &field) const;
 
     /** \param  fields     If empty, all fields will be returned.
-     *  \param  filter     If provided, oly results will be returned where each key in "filter" matches the corresponding value.
+     *  \param  filter     If provided, only results will be returned where each key in "filter" matches the corresponding value.
      *  \param  max_count  The maximum nuber of results to return.
      *  \return A map for each matched record.
      *  \note   Not all requested fields may be contained in each map!
