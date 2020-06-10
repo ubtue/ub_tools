@@ -40,9 +40,9 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=log_level] [--keep-intermediate-files] input_directory "
-              << "difference_archive output_directory\n"
-              << "       Log levels are DEBUG, INFO, WARNING and ERROR with INFO being the default.\n\n";
+    ::Usage("[--min-log-level=log_level] [--keep-intermediate-files] input_directory "
+            "difference_archive output_directory\n"
+            "       Log levels are DEBUG, INFO, WARNING and ERROR with INFO being the default.\n");
     std::exit(EXIT_FAILURE);
 }
 
@@ -52,6 +52,10 @@ void CopyAndCollectPPNs(MARC::Reader * const reader, MARC::Writer * const writer
 {
     while (auto record = reader->read()) {
         if (previously_seen_ppns->find(record.getControlNumber()) == previously_seen_ppns->end()) {
+            const auto first_local_field(record.findTag("LOK"));
+            if (unlikely(first_local_field != record.end()))
+                record.truncate(first_local_field);
+
             previously_seen_ppns->emplace(record.getControlNumber());
             if (record.getFirstField("ORI") == record.end())
                 record.insertField("ORI", { { 'a', FileUtil::GetLastPathComponent(reader->getPath()) } });
