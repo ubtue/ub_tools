@@ -124,6 +124,7 @@
 /zeder_ppn_to_title_importer
 /zeder_to_zotero_importer
 /zotero_cgi
+/zotero_enhancement_maps_generator
 /zotero_harvester
 
 # other excludes
