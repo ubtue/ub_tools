@@ -107,6 +107,7 @@
 /set_tad_access_flag
 /simple_crawler
 /sqlite_copy
+/store_local_data
 /string_info
 /suggest_bib_refs
 /summarize_logs
