@@ -60,8 +60,10 @@ void DeleteLocalSections(DbConnection * const db_connection, const std::unordere
     std::string new_local_fields_blob;
     do {
         // Convert the 4 character hex string to the size of the following field contents:
-        const size_t field_contents_size(StringUtil::ToUnsignedLong(local_fields_blob.substr(processed_size, 4), 16));
-        processed_size += 4;
+        constexpr size_t HEX_LENGTH_PREFIX_LENGTH(4);
+        const size_t field_contents_size(
+            StringUtil::ToUnsignedLong(local_fields_blob.substr(processed_size, HEX_LENGTH_PREFIX_LENGTH), 16));
+        processed_size += HEX_LENGTH_PREFIX_LENGTH;
 
         if (unlikely(processed_size + field_contents_size > local_fields_blob.size()))
             LOG_ERROR("Inconsistent blob length for record with PPN " + ppn + " (1)");
@@ -69,10 +71,12 @@ void DeleteLocalSections(DbConnection * const db_connection, const std::unordere
         const MARC::Record::Field local_field(local_fields_blob.substr(processed_size, field_contents_size));
         const auto pseudo_tag_and_data(local_field.getFirstSubfieldWithCode('0'));
         if (StringUtil::StartsWith(pseudo_tag_and_data, "001 "))
-            keep_section = local_deletion_ids.find(pseudo_tag_and_data.substr(4)) != local_deletion_ids.cend();
+            keep_section = local_deletion_ids.find(pseudo_tag_and_data.substr(__builtin_strlen("001 ")))
+                           != local_deletion_ids.cend();
 
         if (keep_section)
-            new_local_fields_blob += local_fields_blob.substr(processed_size - 4, 4 + field_contents_size);
+            new_local_fields_blob += local_fields_blob.substr(processed_size - HEX_LENGTH_PREFIX_LENGTH,
+                                                              HEX_LENGTH_PREFIX_LENGTH + field_contents_size);
 
         processed_size += field_contents_size;
     } while (processed_size < local_fields_blob.size());
