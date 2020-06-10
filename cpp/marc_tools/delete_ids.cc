@@ -64,7 +64,7 @@ void DeleteLocalSections(DbConnection * const db_connection, const std::unordere
         processed_size += 4;
 
         if (unlikely(processed_size + field_contents_size > local_fields_blob.size()))
-            LOG_ERROR("Inconsitent blob length for record with PPN " + ppn + " (1)");
+            LOG_ERROR("Inconsistent blob length for record with PPN " + ppn + " (1)");
 
         const MARC::Record::Field local_field(local_fields_blob.substr(processed_size, field_contents_size));
         const auto pseudo_tag_and_data(local_field.getFirstSubfieldWithCode('0'));
@@ -78,7 +78,7 @@ void DeleteLocalSections(DbConnection * const db_connection, const std::unordere
     } while (processed_size < local_fields_blob.size());
 
     if (processed_size > local_fields_blob.size())
-        LOG_ERROR("Inconsitent blob length for record with PPN " + ppn + " (2)");
+        LOG_ERROR("Inconsistent blob length for record with PPN " + ppn + " (2)");
 
     if (new_local_fields_blob.size() < local_fields_blob.size()) {
         if (new_local_fields_blob.empty())
