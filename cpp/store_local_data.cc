@@ -58,7 +58,7 @@ void StoreLocalData(DbConnection * const db_connection, MARC::Reader * const rea
 
         db_connection->queryOrDie("REPLACE INTO local_data (ppn, local_fields) VALUES("
                                   + db_connection->escapeAndQuoteString(PPN) + ","
-                                  + db_connection->escapeAndQuoteString(local_fields_blob) + ")");
+                                  + db_connection->sqliteEscapeBlobData(local_fields_blob) + ")");
 
         ++local_data_extraction_count;
     }
