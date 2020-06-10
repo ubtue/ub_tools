@@ -34,6 +34,7 @@ function CleanUpStaleDirectories() {
     done
 }
 
+
 # Merges records in a bare, i.e. non-archive file
 function MergePrintAndOnlineTitles() {
     local input_filename=$1
@@ -41,6 +42,7 @@ function MergePrintAndOnlineTitles() {
     local working_dir=$3
     merge_print_and_online ${SKIP_DB_UPDATES} ${input_filename} ${output_filename} ${working_dir}/missing_ppn_partners.list
 }
+
 
 # Replace the tit.mrc in an archive with a version with merged superior works"
 function CreateArchiveWithMergedTitles() {
