@@ -59,7 +59,7 @@ void DeleteLocalSections(DbConnection * const db_connection, const std::unordere
     bool keep_section;
     std::string new_local_fields_blob;
     do {
-        // Convert the 4 character hex string to size of the following field contents:
+        // Convert the 4 character hex string to the size of the following field contents:
         const size_t field_contents_size(StringUtil::ToUnsignedLong(local_fields_blob.substr(processed_size, 4), 16));
         processed_size += 4;
 
