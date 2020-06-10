@@ -147,9 +147,8 @@ int Main(int argc, char *argv[]) {
     std::unique_ptr<FileUtil::AutoTempDirectory> working_directory;
     const std::string difference_directory(StripTarGz(difference_archive));
     Archive::UnpackArchive(difference_archive, difference_directory);
-    const auto directory_name(output_directory);
-    if (not FileUtil::MakeDirectory(directory_name))
-        LOG_ERROR("failed to create directory: \"" + directory_name + "\"!");
+    if (not FileUtil::MakeDirectory(output_directory))
+        LOG_ERROR("failed to create directory: \"" + output_directory + "\"!");
 
     std::vector<std::string> input_archive_members, difference_archive_members;
     GetDirectoryContentsWithRelativepath(input_directory, &input_archive_members);
