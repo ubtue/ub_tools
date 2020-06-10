@@ -9,57 +9,57 @@
                 },
                 "synonyms_all" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "synonym_graph_all", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "remove_duplicates" ],
+                    "filter" : [ "lowercase", "synonym_graph_all", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
                     "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_de" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "synonym_graph_de", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "remove_duplicates" ],
+                    "filter" : [ "lowercase", "synonym_graph_de", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
                     "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_en" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "synonym_graph_en", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "remove_duplicates" ],
+                    "filter" : [ "lowercase", "synonym_graph_en", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
                     "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_fr" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "synonym_graph_fr", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "remove_duplicates" ],
+                    "filter" : [ "lowercase", "synonym_graph_fr", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
                     "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_it" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "synonym_graph_it", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "remove_duplicates" ],
+                    "filter" : [ "lowercase", "synonym_graph_it", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
                     "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_es" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "synonym_graph_es", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "remove_duplicates" ],
+                    "filter" : [ "lowercase", "synonym_graph_es", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
                     "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_pt" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "synonym_graph_pt", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "remove_duplicates" ],
+                    "filter" : [ "lowercase", "synonym_graph_pt", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
                     "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_ru" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "synonym_graph_ru", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "remove_duplicates" ],
+                    "filter" : [ "lowercase", "synonym_graph_ru", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
                     "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_el" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "synonym_graph_el", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "remove_duplicates" ],
+                    "filter" : [ "lowercase", "synonym_graph_el", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
                     "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_hans" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "synonym_graph_hans", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "remove_duplicates" ],
+                    "filter" : [ "lowercase", "synonym_graph_hans", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
                     "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_hant" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "synonym_graph_hant", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "remove_duplicates" ],
+                    "filter" : [ "lowercase", "synonym_graph_hant", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
                     "char_filter": [ "mapping_char" ]
                 }
             },
