@@ -52,12 +52,12 @@ void AddLocalData(DbConnection * const db_connection, MARC::Reader * const reade
             const auto local_fields_blob(row["local_fields"]);
             size_t processed_size(0);
             do {
-                // Convert the 4 character hex string to size of the following field contents:
+                // Convert the 4 character hex string to the size of the following field contents:
                 const size_t field_contents_size(StringUtil::ToUnsignedLong(local_fields_blob.substr(processed_size, 4), 16));
                 processed_size += 4;
 
                 if (unlikely(processed_size + field_contents_size > local_fields_blob.size()))
-                    LOG_ERROR("Inconsitent blob length for record with PPN " + record.getControlNumber());
+                    LOG_ERROR("Inconsistent blob length for record with PPN " + record.getControlNumber());
 
                 record.appendField("LOK", local_fields_blob.substr(processed_size, field_contents_size));
                 processed_size += field_contents_size;
