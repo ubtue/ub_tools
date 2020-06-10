@@ -58,7 +58,7 @@ void CopyAndCollectPPNs(MARC::Reader * const reader, MARC::Writer * const writer
 
             previously_seen_ppns->emplace(record.getControlNumber());
             if (record.getFirstField("ORI") == record.end())
-                record.insertField("ORI", { { 'a', FileUtil::GetLastPathComponent(reader->getPath()) } });
+                record.insertField("ORI", 'a', FileUtil::GetLastPathComponent(reader->getPath()));
             writer->write(record);
         }
     }
