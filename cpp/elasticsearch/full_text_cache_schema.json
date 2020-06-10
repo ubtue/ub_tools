@@ -4,102 +4,144 @@
             "analyzer" : {
                 "fulltext_analyzer" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : ["icu_folding", "snowball_german", "lowercase"]
+                    "filter" : ["icu_folding", "snowball_german", "lowercase", "remove_duplicates"],
+                    "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_all" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_all" ]
+                    "filter" : [ "lowercase", "synonym_graph_all", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
+                    "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_de" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_de" ]
+                    "filter" : [ "lowercase", "synonym_graph_de", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
+                    "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_en" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_en" ]
+                    "filter" : [ "lowercase", "synonym_graph_en", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
+                    "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_fr" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_fr" ]
+                    "filter" : [ "lowercase", "synonym_graph_fr", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
+                    "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_it" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_it" ]
+                    "filter" : [ "lowercase", "synonym_graph_it", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
+                    "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_es" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_es" ]
+                    "filter" : [ "lowercase", "synonym_graph_es", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
+                    "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_pt" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_pt" ]
+                    "filter" : [ "lowercase", "synonym_graph_pt", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
+                    "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_ru" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_ru" ]
+                    "filter" : [ "lowercase", "synonym_graph_ru", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
+                    "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_el" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_el" ]
+                    "filter" : [ "lowercase", "synonym_graph_el", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
+                    "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_hans" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_hans" ]
+                    "filter" : [ "lowercase", "synonym_graph_hans", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
+                    "char_filter": [ "mapping_char" ]
                 },
                 "synonyms_hant" : {
                     "tokenizer" : "icu_tokenizer",
-                    "filter" : [ "icu_folding", "snowball_german", "lowercase", "synonym_graph_hant" ]
+                    "filter" : [ "lowercase", "synonym_graph_hant", "word_delimiter_graph", "stop", "icu_folding", "keyword_marker", "snowball_german", "lowercase", "remove_duplicates" ],
+                    "char_filter": [ "mapping_char" ]
                 }
             },
             "filter" : {
+                "word_delimiter_graph" : {
+                    "type" : "word_delimiter_graph",
+                    "generate_word_parts" : false,
+                    "split_on_case_change" : true,
+                    "split_on_numerics" : false,
+                    "catenate_numbers" : true,
+                    "catenate_words" : true,
+                    "catenate_all" : false
+                },
+                "keyword_marker" : {
+                    "type" : "keyword_marker",
+                    "keywords_path" : "protwords.txt"
+                },
                 "snowball_german" : {
                     "type" : "snowball",
                     "language" : "German2"
                 },
                 "synonym_graph_all" : {
                     "type" : "synonym_graph",
-                    "synonyms_path" : "synonyms/synonyms_all.txt"
+                    "synonyms_path" : "synonyms/synonyms_all.txt",
+                    "updateable" : true
                 },
                 "synonym_graph_de" : {
                     "type" : "synonym_graph",
-                    "synonyms_path" : "synonyms/synonyms_de.txt"
+                    "synonyms_path" : "synonyms/synonyms_de.txt",
+                    "updateable" : true
                 },
                 "synonym_graph_en" : {
                     "type" : "synonym_graph",
-                    "synonyms_path" : "synonyms/synonyms_en.txt"
+                    "synonyms_path" : "synonyms/synonyms_en.txt",
+                    "updateable" : true
                 },
                 "synonym_graph_fr" : {
                     "type" : "synonym_graph",
-                    "synonyms_path" : "synonyms/synonyms_fr.txt"
+                    "synonyms_path" : "synonyms/synonyms_fr.txt",
+                    "updateable" : true
                 },
                  "synonym_graph_it" : {
                     "type" : "synonym_graph",
-                    "synonyms_path" : "synonyms/synonyms_it.txt"
+                    "synonyms_path" : "synonyms/synonyms_it.txt",
+                    "updateable" : true
                 },
                 "synonym_graph_es" : {
                     "type" : "synonym_graph",
-                    "synonyms_path" : "synonyms/synonyms_es.txt"
+                    "synonyms_path" : "synonyms/synonyms_es.txt",
+                    "updateable" : true
                 },
                 "synonym_graph_pt" : {
                     "type" : "synonym_graph",
-                    "synonyms_path" : "synonyms/synonyms_pt.txt"
+                    "synonyms_path" : "synonyms/synonyms_pt.txt",
+                    "updateable" : true
                 },
                 "synonym_graph_ru" : {
                     "type" : "synonym_graph",
-                    "synonyms_path" : "synonyms/synonyms_ru.txt"
+                    "synonyms_path" : "synonyms/synonyms_ru.txt",
+                    "updateable" : true
                 },
                 "synonym_graph_el" : {
                     "type" : "synonym_graph",
-                    "synonyms_path" : "synonyms/synonyms_el.txt"
+                    "synonyms_path" : "synonyms/synonyms_el.txt",
+                    "updateable" : true
                 },
                 "synonym_graph_hans" : {
                     "type" : "synonym_graph",
-                    "synonyms_path" : "synonyms/synonyms_hans.txt"
+                    "synonyms_path" : "synonyms/synonyms_hans.txt",
+                    "updateable" : true
                 },
                 "synonym_graph_hant" : {
                     "type" : "synonym_graph",
-                    "synonyms_path" : "synonyms/synonyms_hant.txt"
+                    "synonyms_path" : "synonyms/synonyms_hant.txt",
+                    "updateable" : true
                 }
+            },
+             "char_filter": {
+               "mapping_char" : {
+                    "type" : "mapping",
+                    "mappings_path" : "charfilters.txt"
+               }
             }
         }
     },
