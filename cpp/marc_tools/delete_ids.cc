@@ -129,7 +129,7 @@ int Main(int argc, char *argv[]) {
     std::unordered_set<std::string> title_deletion_ids, local_deletion_ids;
     BSZUtil::ExtractDeletionIds(deletion_list.get(), &title_deletion_ids, &local_deletion_ids);
 
-    DbConnection db_connection(UBTools::GetTuelibPath() + "local_data.sq3", DbConnection::READONLY);
+    DbConnection db_connection(UBTools::GetTuelibPath() + "local_data.sq3", DbConnection::READWRITE);
 
     const auto marc_reader(MARC::Reader::Factory(argv[2], reader_type));
     const auto marc_writer(MARC::Writer::Factory(argv[3], writer_type));
