@@ -36,6 +36,9 @@ public:
     explicit LocalDataDB(const OpenMode open_mode);
     ~LocalDataDB();
 
+    // Empty out the database.
+    void clear();
+
     /** \param title_ppn the PPN of the title data set that the local fields are associated with */
     void insertOrReplace(const std::string &title_ppn, const std::vector<std::string> &local_fields);
 
