@@ -47,6 +47,12 @@ LocalDataDB::~LocalDataDB() {
 }
 
 
+void LocalDataDB::clear() {
+    db_connection_->queryOrDie("DELETE * FROM local_data");
+    db_connection_->queryOrDie("DELETE * FROM local_ppns_to_title_ppns_map");
+}
+
+
 static std::vector<std::string> BlobToLocalFieldsVector(const std::string &local_fields_blob, const std::string &title_ppn) {
     std::vector<std::string> local_fields;
 
