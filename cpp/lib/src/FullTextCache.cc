@@ -319,12 +319,26 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
 
     for (const auto &entry_url : entry_urls) {
         if (entry_url.error_message_.empty())
-            full_text_cache_urls_.simpleInsert({ { "id", id }, { "url", entry_url.url_ }, { "domain", entry_url.domain_ } });
+            full_text_cache_urls_.simpleInsert({ { "id", id }, { "url", entry_url.url_ }, { "domain", entry_url.domain_ },
+                                                 { "text_type", std::to_string(text_type) } });
         else
             full_text_cache_urls_.simpleInsert({ { "id", id }, { "url", entry_url.url_ }, { "domain", entry_url.domain_ },
                                                  { "error_message", entry_url.error_message_ } });
     }
 
+}
+
+
+bool FullTextCache::hasUrlWithTextType(const std::string &id, const TextType &text_type) {
+    const auto results(full_text_cache_urls_.simpleSelect({ "text_type" }, "id", id));
+    if (results.empty())
+        return false;
+
+    for (const auto &result : results) {
+        if (result.find("text_type")->second == std::to_string(text_type))
+            return true;
+    }
+    return false;
 }
 
 
