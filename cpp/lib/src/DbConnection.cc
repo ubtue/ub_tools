@@ -436,23 +436,8 @@ std::string DbConnection::escapeString(const std::string &unescaped_string, cons
 }
 
 
-// Creates two hex digits for each character in "s".
-static std::string StringToHexString(const std::string &s) {
-    std::string hex_string;
-    hex_string.reserve(s.length() * 2);
-
-    for (const auto ch : s) {
-        const unsigned char uch(static_cast<unsigned char>(ch));
-        hex_string += StringUtil::ToHex(uch >> 4u);
-        hex_string += StringUtil::ToHex(uch & 0xFu);
-    }
-
-    return hex_string;
-}
-
-
 std::string DbConnection::sqliteEscapeBlobData(const std::string &blob_data) {
-    return "x'" + StringToHexString(blob_data) + "'";
+    return "x'" + StringUtil::ToHexString(blob_data) + "'";
 }
 
 
