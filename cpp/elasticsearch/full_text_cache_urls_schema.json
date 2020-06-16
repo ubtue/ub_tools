@@ -10,6 +10,9 @@
             "domain": {
                 "type": "keyword"
             },
+            "text_type" : {
+                "type": "keyword"
+            },
             "error_message": {
                 "type": "keyword"
             }

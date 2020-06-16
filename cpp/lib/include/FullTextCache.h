@@ -113,6 +113,8 @@ public:
     bool deleteEntry(const std::string &id);
 
     static TextType MapTextDescriptionToTextType(const std::string &text_description);
+
+    bool hasUrlWithTextType(const std::string &id, const TextType &text_type);
 };
 
 
