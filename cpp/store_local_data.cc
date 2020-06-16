@@ -20,7 +20,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include "Compiler.h"
-#include "DbConnection.h"
+#include "LocalDataDB.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "UBTools.h"
@@ -35,7 +35,7 @@ namespace {
 }
 
 
-void StoreLocalData(DbConnection * const db_connection, MARC::Reader * const reader) {
+void StoreLocalData(LocalDataDB * const local_data_db, MARC::Reader * const reader) {
     unsigned total_record_count(0), local_data_extraction_count(0);
     while (auto record = reader->read()) {
         ++total_record_count;
@@ -48,18 +48,12 @@ void StoreLocalData(DbConnection * const db_connection, MARC::Reader * const rea
             continue;
         }
 
-        std::string local_fields_blob;
-        do {
-            const auto &field_contents(local_field->getContents());
-            local_fields_blob += StringUtil::ToString(field_contents.length(), /* radix = */16,
-                                                      /* width = */4, /* padding_char = */'0');
-            local_fields_blob += field_contents;
-        } while (++local_field != record.end());
+        std::vector<std::string> local_fields;
+        do
+            local_fields.emplace_back(local_field->getContents());
+        while (++local_field != record.end());
 
-        db_connection->queryOrDie("REPLACE INTO local_data (ppn, local_fields) VALUES("
-                                  + db_connection->escapeAndQuoteString(PPN) + ","
-                                  + db_connection->sqliteEscapeBlobData(local_fields_blob) + ")");
-
+        local_data_db->insertOrReplace(record.getControlNumber(), local_fields);
         ++local_data_extraction_count;
     }
 
@@ -76,14 +70,8 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
-
-    DbConnection db_connection(UBTools::GetTuelibPath() + "local_data.sq3", DbConnection::READWRITE);
-    db_connection.queryOrDie("CREATE TABLE IF NOT EXISTS local_data ("
-                             "    ppn TEXT PRIMARY KEY,"
-                             "    local_fields BLOB NOT NULL"
-                             ") WITHOUT ROWID");
-
-    StoreLocalData(&db_connection, marc_reader.get());
+    LocalDataDB local_data_db(LocalDataDB::READ_WRITE);
+    StoreLocalData(&local_data_db, marc_reader.get());
 
     return EXIT_SUCCESS;
 }

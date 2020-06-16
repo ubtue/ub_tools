@@ -130,7 +130,7 @@ void LocalDataDB::insertOrReplace(const std::string &title_ppn, const std::vecto
 }
 
 
-std::vector<std::string> LocalDataDB::getLocalFields(const std::string &title_ppn) {
+std::vector<std::string> LocalDataDB::getLocalFields(const std::string &title_ppn) const {
     db_connection_->queryOrDie("SELECT local_fields FROM local_data WHERE title_ppn = "
                                + db_connection_->escapeAndQuoteString(title_ppn));
     auto result_set(db_connection_->getLastResultSet());
@@ -139,6 +139,29 @@ std::vector<std::string> LocalDataDB::getLocalFields(const std::string &title_pp
 
     const auto row(result_set.getNextRow());
     return BlobToLocalFieldsVector(row["local_fields"], title_ppn);
+}
+
+
+bool LocalDataDB::removeTitleDataSet(const std::string &title_ppn) {
+    // 1. Clear out any local PPNs associated with "title_ppn":
+    db_connection_->queryOrDie("SELECT local_fields FROM local_data WHERE title_ppn = "
+                               + db_connection_->escapeAndQuoteString(title_ppn));
+    auto result_set(db_connection_->getLastResultSet());
+    if (result_set.empty())
+        return false;
+
+    const auto row(result_set.getNextRow());
+    const auto previous_local_fields(BlobToLocalFieldsVector(row["local_fields"], title_ppn));
+    const auto local_ppns(ExtractLocalPPNsFromLocalFieldsVector(previous_local_fields));
+    for (const auto &local_ppn : local_ppns)
+        db_connection_->queryOrDie("DELETE * FROM local_ppns_to_title_ppns_map WHERE local_ppn="
+                                   + db_connection_->escapeAndQuoteString(local_ppn));
+
+    // 2. Delete the local data for the title PPN:
+    db_connection_->queryOrDie("DELETE FROM local_data WHERE title_ppn = "
+                               + db_connection_->escapeAndQuoteString(title_ppn));
+
+    return true;
 }
 
 
