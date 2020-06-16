@@ -361,7 +361,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             // In Only-PDF-Fulltext-Mode we get all download candidates
             // So only go on if a text of this category is not already present
             if (only_pdf_fulltexts and (not StringUtil::StartsWith(media_type, "application/pdf") or
-                                       (text_type and already_present_text_types)))
+                                       (text_type and already_present_text_types) or cache.hasUrlWithTextType(ppn, text_type)))
                 continue;
             extracted_text = ConvertToPlainText(media_type, media_subtype, http_header_charset, GetTesseractLanguageCode(*record),
                                                 document, pdf_extraction_timeout, &error_message);
