@@ -23,8 +23,8 @@
 #include <vector>
 #include <cstdlib>
 #include "BSZUtil.h"
-#include "DbConnection.h"
 #include "FileUtil.h"
+#include "LocalDataDB.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "UBTools.h"
@@ -41,77 +41,21 @@ namespace {
 }
 
 
-/** \brief Deletes LOK sections from the local data database if their pseudo tags are found in "local_deletion_ids"
- */
-void DeleteLocalSections(DbConnection * const db_connection, const std::unordered_set <std::string> &local_deletion_ids,
-                         const std::string &ppn)
-{
-    db_connection->queryOrDie("SELECT local_fields FROM local_data WHERE ppn = "
-                              + db_connection->escapeAndQuoteString(ppn));
-    auto result_set(db_connection->getLastResultSet());
-    if (result_set.empty())
-        return; // Nothing to be done!
-
-    const auto row(result_set.getNextRow());
-    const auto local_fields_blob(row["local_fields"]);
-
-    size_t processed_size(0);
-    bool keep_section;
-    std::string new_local_fields_blob;
-    do {
-        // Convert the 4 character hex string to the size of the following field contents:
-        constexpr size_t HEX_LENGTH_PREFIX_LENGTH(4);
-        const size_t field_contents_size(
-            StringUtil::ToUnsignedLong(local_fields_blob.substr(processed_size, HEX_LENGTH_PREFIX_LENGTH), 16));
-        processed_size += HEX_LENGTH_PREFIX_LENGTH;
-
-        if (unlikely(processed_size + field_contents_size > local_fields_blob.size()))
-            LOG_ERROR("Inconsistent blob length for record with PPN " + ppn + " (1)");
-
-        const MARC::Record::Field local_field(local_fields_blob.substr(processed_size, field_contents_size));
-        const auto pseudo_tag_and_data(local_field.getFirstSubfieldWithCode('0'));
-        if (StringUtil::StartsWith(pseudo_tag_and_data, "001 "))
-            keep_section = local_deletion_ids.find(pseudo_tag_and_data.substr(__builtin_strlen("001 ")))
-                           != local_deletion_ids.cend();
-
-        if (keep_section)
-            new_local_fields_blob += local_fields_blob.substr(processed_size - HEX_LENGTH_PREFIX_LENGTH,
-                                                              HEX_LENGTH_PREFIX_LENGTH + field_contents_size);
-
-        processed_size += field_contents_size;
-    } while (processed_size < local_fields_blob.size());
-
-    if (processed_size > local_fields_blob.size())
-        LOG_ERROR("Inconsistent blob length for record with PPN " + ppn + " (2)");
-
-    if (new_local_fields_blob.size() < local_fields_blob.size()) {
-        if (new_local_fields_blob.empty())
-            db_connection->queryOrDie("DELETE FROM local_data WHERE ppn = "
-                                      + db_connection->escapeAndQuoteString(ppn));
-        else
-            db_connection->queryOrDie("REPLACE INTO local_data (ppn, local_fields) VALUES("
-                                      + db_connection->escapeAndQuoteString(ppn) + ","
-                                      + db_connection->sqliteEscapeBlobData(new_local_fields_blob) + ")");
-    }
-}
-
-
-void ProcessRecords(DbConnection * const db_connection, const std::unordered_set <std::string> &title_deletion_ids,
-                    const std::unordered_set <std::string> &local_deletion_ids, MARC::Reader * const marc_reader,
-                    MARC::Writer * const marc_writer, File * const entire_record_deletion_log)
+void ProcessRecords(LocalDataDB * const local_data_db, const std::unordered_set<std::string> &title_deletion_ids,
+                    MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                    File * const entire_record_deletion_log)
 {
     unsigned total_record_count(0), deleted_record_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++total_record_count;
 
-        if (title_deletion_ids.find(record.getControlNumber()) != title_deletion_ids.end()) {
+        const auto ppn(record.getControlNumber());
+        if (title_deletion_ids.find(ppn) != title_deletion_ids.end()) {
+            local_data_db->removeTitleDataSet(ppn);
             ++deleted_record_count;
-            (*entire_record_deletion_log) << record.getControlNumber() << '\n';
+            (*entire_record_deletion_log) << ppn << '\n';
         } else
             marc_writer->write(record);
-
-        if (not local_deletion_ids.empty())
-            DeleteLocalSections(db_connection, local_deletion_ids, record.getControlNumber());
     }
 
     LOG_INFO("Read " + std::to_string(total_record_count) + " records.");
@@ -136,13 +80,16 @@ int Main(int argc, char *argv[]) {
     std::unordered_set<std::string> title_deletion_ids, local_deletion_ids;
     BSZUtil::ExtractDeletionIds(deletion_list.get(), &title_deletion_ids, &local_deletion_ids);
 
-    DbConnection db_connection(UBTools::GetTuelibPath() + "local_data.sq3", DbConnection::READWRITE);
+    LocalDataDB local_data_db(LocalDataDB::READ_WRITE);
+    for (const auto &local_deletion_id : local_deletion_ids)
+        local_data_db.removeLocalDataSet(local_deletion_id);
 
     const auto marc_reader(MARC::Reader::Factory(argv[2], reader_type));
     const auto marc_writer(MARC::Writer::Factory(argv[3], writer_type));
     const auto entire_record_deletion_log(FileUtil::OpenForAppendingOrDie(argv[4]));
 
-    ProcessRecords(&db_connection,title_deletion_ids, local_deletion_ids, marc_reader.get(), marc_writer.get(), entire_record_deletion_log.get());
+    ProcessRecords(&local_data_db, title_deletion_ids, marc_reader.get(),
+                   marc_writer.get(), entire_record_deletion_log.get());
 
     return EXIT_SUCCESS;
 }

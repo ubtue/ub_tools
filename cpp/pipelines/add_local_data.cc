@@ -20,7 +20,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include "Compiler.h"
-#include "DbConnection.h"
+#include "LocalDataDB.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "UBTools.h"
@@ -39,29 +39,16 @@ namespace {
 // The local data is store in a format where the contents of each field is preceeded by a 4-character
 // hex string indicating the length of the immediately following field contents.
 // Multiple local fields may occur per record.
-void AddLocalData(DbConnection * const db_connection, MARC::Reader * const reader, MARC::Writer * const writer) {
+void AddLocalData(const LocalDataDB &local_data_db, MARC::Reader * const reader, MARC::Writer * const writer) {
     unsigned total_record_count(0), added_count(0);
     while (auto record = reader->read()) {
         ++total_record_count;
 
-        db_connection->queryOrDie("SELECT local_fields FROM local_data WHERE ppn = "
-                                  + db_connection->escapeAndQuoteString(record.getControlNumber()));
-        auto result_set(db_connection->getLastResultSet());
-        if (not result_set.empty()) {
-            const auto row(result_set.getNextRow());
-            const auto local_fields_blob(row["local_fields"]);
-            size_t processed_size(0);
-            do {
-                // Convert the 4 character hex string to the size of the following field contents:
-                const size_t field_contents_size(StringUtil::ToUnsignedLong(local_fields_blob.substr(processed_size, 4), 16));
-                processed_size += 4;
-
-                if (unlikely(processed_size + field_contents_size > local_fields_blob.size()))
-                    LOG_ERROR("Inconsistent blob length for record with PPN " + record.getControlNumber());
-
-                record.appendField("LOK", local_fields_blob.substr(processed_size, field_contents_size));
-                processed_size += field_contents_size;
-            } while (processed_size < local_fields_blob.size());
+        const auto local_fields(local_data_db.getLocalFields(record.getControlNumber()));
+        if (not local_fields.empty()) {
+            for (const auto &local_field : local_fields)
+                record.appendField("LOK", local_field);
+            ++added_count;
         }
 
         writer->write(record);
@@ -81,8 +68,8 @@ int Main(int argc, char *argv[]) {
     auto marc_reader(MARC::Reader::Factory(argv[1]));
     auto marc_writer(MARC::Writer::Factory(argv[2]));
 
-    DbConnection db_connection(UBTools::GetTuelibPath() + "local_data.sq3", DbConnection::READONLY);
-    AddLocalData(&db_connection, marc_reader.get(), marc_writer.get());
+    LocalDataDB local_data_db(LocalDataDB::READ_ONLY);
+    AddLocalData(local_data_db, marc_reader.get(), marc_writer.get());
 
     return EXIT_SUCCESS;
 }
