@@ -37,7 +37,8 @@ LocalDataDB::LocalDataDB(const OpenMode open_mode) {
 
     db_connection_->queryOrDie("CREATE TABLE IF NOT EXISTS local_ppns_to_title_ppns_map ("
                                "    local_ppn TEXT PRIMARY KEY,"
-                               "    title_ppn TEXT NOT NULL"
+                               "    title_ppn TEXT NOT NULL,"
+                               "    FOREIGN KEY(title_ppn) REFERENCES local_data(title_ppn)"
                                ") WITHOUT ROWID");
 }
 
