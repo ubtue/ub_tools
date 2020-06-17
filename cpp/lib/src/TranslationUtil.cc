@@ -147,6 +147,7 @@ void ReadIniFile(
 
 
 static std::map<std::string, std::string> german_to_3or4letter_english_codes {
+    { "afr", "afr" },
     { "deu", "ger" },
     { "eng", "eng" },
     { "fra", "fre" },
