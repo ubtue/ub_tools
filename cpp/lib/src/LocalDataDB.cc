@@ -60,7 +60,7 @@ static std::vector<std::string> BlobToLocalFieldsVector(const std::string &local
     size_t processed_size(0);
     do {
         // Convert the 4 character hex string to the size of the following field contents:
-        const size_t field_contents_size(StringUtil::ToUnsignedLong(local_fields_blob.substr(processed_size, 0, 4), 16));
+        const size_t field_contents_size(StringUtil::ToUnsignedLong(local_fields_blob.substr(processed_size, 4), 16));
         processed_size += 4;
 
         // Sanity check:
