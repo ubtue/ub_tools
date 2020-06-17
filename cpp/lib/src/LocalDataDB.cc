@@ -26,7 +26,7 @@
 
 LocalDataDB::LocalDataDB(const OpenMode open_mode) {
     db_connection_ = new DbConnection(UBTools::GetTuelibPath() + "local_data.sq3" /* must be the same path as in fetch_marc_updates.py */,
-                                      (open_mode == READ_WRITE) ? DbConnection::READWRITE : DbConnection::READONLY);
+                                      (open_mode == READ_WRITE) ? DbConnection::CREATE : DbConnection::READONLY);
     if (open_mode == READ_ONLY)
         return;
 
