@@ -372,7 +372,7 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
     }
     // Check for ISO 8601 w/ offset:
     else if (possible_date.length() == 25
-             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u[Tt]%2u:%2u:%2u%[+-]%2d:%2d",
+             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u%*[Tt]%2u:%2u:%2u%[+-]%2d:%2d",
                              year, month, day, hour, minute, second, plus_or_minus, hour_offset, minute_offset) == 9)
     {
         if (plus_or_minus[0] == '-') {
@@ -385,7 +385,7 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
     }
     // Check for Zulu time format (must be UTC)
     else if (possible_date.length() == 20
-             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u[Tt]%2u:%2u:%2u[Zz]",
+             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u%*[Tt]%2u:%2u:%2u%*[Zz]",
                              year, month, day, hour, minute, second) == 6)
     {
         *is_definitely_zulu_time = true;
