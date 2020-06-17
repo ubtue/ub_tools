@@ -31,6 +31,7 @@
 #include "BSZUtil.h"
 #include "Compiler.h"
 #include "FileUtil.h"
+#include "LocalDataDB.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "util.h"
@@ -47,16 +48,24 @@ namespace {
 }
 
 
-void CopyAndCollectPPNs(MARC::Reader * const reader, MARC::Writer * const writer,
+void CopyAndCollectPPNs(LocalDataDB * const local_data_db, MARC::Reader * const reader, MARC::Writer * const writer,
                         std::unordered_set<std::string> * const previously_seen_ppns)
 {
     while (auto record = reader->read()) {
-        if (previously_seen_ppns->find(record.getControlNumber()) == previously_seen_ppns->end()) {
+        const auto PPN(record.getControlNumber());
+        if (previously_seen_ppns->find(PPN) == previously_seen_ppns->end()) {
             const auto first_local_field(record.findTag("LOK"));
-            if (unlikely(first_local_field != record.end()))
-                record.truncate(first_local_field);
+            if (unlikely(first_local_field != record.end())) {
+                std::vector<std::string> local_fields;
+                auto local_field(first_local_field);
+                while (local_field != record.end())
+                    local_fields.emplace_back(local_field->getContents());
+                local_data_db->insertOrReplace(PPN, local_fields);
 
-            previously_seen_ppns->emplace(record.getControlNumber());
+                record.truncate(first_local_field);
+            }
+
+            previously_seen_ppns->emplace(PPN);
             if (record.getFirstField("ORI") == record.end())
                 record.insertField("ORI", 'a', FileUtil::GetLastPathComponent(reader->getPath()));
             writer->write(record);
@@ -65,19 +74,19 @@ void CopyAndCollectPPNs(MARC::Reader * const reader, MARC::Writer * const writer
 }
 
 
-void CopySelectedTypes(const std::vector<std::string> &archive_members, MARC::Writer * const writer,
+void CopySelectedTypes(LocalDataDB * const local_data_db, const std::vector<std::string> &archive_members, MARC::Writer * const writer,
                        const std::set<BSZUtil::ArchiveType> &selected_types, std::unordered_set<std::string> * const previously_seen_ppns)
 {
     for (const auto &archive_member : archive_members) {
         if (selected_types.find(BSZUtil::GetArchiveType(archive_member)) != selected_types.cend()) {
             const auto reader(MARC::Reader::Factory(archive_member, MARC::FileType::BINARY));
-            CopyAndCollectPPNs(reader.get(), writer, previously_seen_ppns);
+            CopyAndCollectPPNs(local_data_db, reader.get(), writer, previously_seen_ppns);
         }
     }
 }
 
 
-void PatchArchiveMembersAndCreateOutputArchive(const std::vector<std::string> &input_archive_members,
+void PatchArchiveMembersAndCreateOutputArchive(LocalDataDB * const local_data_db, const std::vector<std::string> &input_archive_members,
                                                const std::vector<std::string> &difference_archive_members, const std::string &output_directory)
 {
     if (input_archive_members.empty())
@@ -91,16 +100,16 @@ void PatchArchiveMembersAndCreateOutputArchive(const std::vector<std::string> &i
 
     const auto title_writer(MARC::Writer::Factory(output_directory + "/tit.mrc", MARC::FileType::BINARY));
     std::unordered_set<std::string> previously_seen_title_ppns;
-    CopySelectedTypes(difference_archive_members, title_writer.get(), { BSZUtil::TITLE_RECORDS, BSZUtil::SUPERIOR_TITLES },
+    CopySelectedTypes(local_data_db, difference_archive_members, title_writer.get(), { BSZUtil::TITLE_RECORDS, BSZUtil::SUPERIOR_TITLES },
                       &previously_seen_title_ppns);
-    CopySelectedTypes(input_archive_members, title_writer.get(), { BSZUtil::TITLE_RECORDS, BSZUtil::SUPERIOR_TITLES },
+    CopySelectedTypes(local_data_db, input_archive_members, title_writer.get(), { BSZUtil::TITLE_RECORDS, BSZUtil::SUPERIOR_TITLES },
                       &previously_seen_title_ppns);
 
     const auto authority_writer(MARC::Writer::Factory(output_directory + "/aut.mrc", MARC::FileType::BINARY));
     std::unordered_set<std::string> previously_seen_authority_ppns;
-    CopySelectedTypes(difference_archive_members, authority_writer.get(), { BSZUtil::AUTHORITY_RECORDS },
+    CopySelectedTypes(local_data_db, difference_archive_members, authority_writer.get(), { BSZUtil::AUTHORITY_RECORDS },
                       &previously_seen_authority_ppns);
-    CopySelectedTypes(input_archive_members, authority_writer.get(), { BSZUtil::AUTHORITY_RECORDS },
+    CopySelectedTypes(local_data_db, input_archive_members, authority_writer.get(), { BSZUtil::AUTHORITY_RECORDS },
                       &previously_seen_authority_ppns);
 }
 
@@ -158,7 +167,8 @@ int Main(int argc, char *argv[]) {
     GetDirectoryContentsWithRelativepath(input_directory, &input_archive_members);
     GetDirectoryContentsWithRelativepath(StripTarGz(difference_archive), &difference_archive_members);
 
-    PatchArchiveMembersAndCreateOutputArchive(input_archive_members, difference_archive_members, output_directory);
+    LocalDataDB local_data_db(LocalDataDB::READ_WRITE);
+    PatchArchiveMembersAndCreateOutputArchive(&local_data_db, input_archive_members, difference_archive_members, output_directory);
 
     if (not keep_intermediate_files and not FileUtil::RemoveDirectory(difference_directory))
         LOG_ERROR("failed to remove directory: \"" + difference_directory + "\"!");
