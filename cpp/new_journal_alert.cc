@@ -24,8 +24,10 @@
 #include <memory>
 #include <sstream>
 #include <vector>
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "EmailSender.h"
@@ -418,12 +420,56 @@ void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &
 }
 
 
+std::function<std::string(std::string)> SingleQuote = [](std::string to_quote) { return "'" + to_quote + "'"; };
+
+void LoadBundleMaxLastModificationTimes(DbConnection * const db_connection, const std::string &bundle_name,
+                                        std::vector<std::string> bundle_control_numbers,
+                                        std::map<std::string, std::string> * const bundle_journals_max_last_modification_times)
+{
+    bundle_journals_max_last_modification_times->clear();
+    std::vector<std::string> quoted_bundle_control_numbers;
+    std::transform(bundle_control_numbers.begin(), bundle_control_numbers.end(), std::back_inserter(quoted_bundle_control_numbers), SingleQuote);
+    db_connection->queryOrDie("SELECT journal_control_number, max_last_modification_time FROM ixtheo_journal_bundles WHERE bundle_name='"
+                               + bundle_name + "' AND journal_control_number IN (" +
+                               StringUtil::Join(quoted_bundle_control_numbers, ',') +
+                               ')');
+    DbResultSet result_set(db_connection->getLastResultSet());
+    while (const auto &row = result_set.getNextRow())
+        bundle_journals_max_last_modification_times->emplace( std::make_pair(row["journal_control_number"], row["max_last_modification_time"]));
+}
+
+
+bool IsBundle(const std::string &serial_control_number) {
+    if (serial_control_number.empty())
+        return false;
+    return not std::isdigit(serial_control_number[0]);
+}
+
+
+bool MinModificationTimeComparator(const std::pair<std::string, std::string> elem1, std::pair<std::string, std::string> elem2) {
+    return TimeUtil::Iso8601StringToTimeT(elem1.second, TimeUtil::UTC /* required by function */) <
+           TimeUtil::Iso8601StringToTimeT(elem2.second, TimeUtil::UTC /* required by function */);
+}
+
+
+std::string GetMinLastModificationTime(const std::map<std::string, std::string> &control_number_and_max_last_modification_times)
+{
+    auto min(std::min_element(control_number_and_max_last_modification_times.begin(),
+                              control_number_and_max_last_modification_times.end(),
+                              MinModificationTimeComparator));
+    if (min == control_number_and_max_last_modification_times.end())
+        return "1970-01-01T00:00:00Z";
+    return min->second;
+}
+
+
 void ProcessSingleUser(
     const bool debug, DbConnection * const db_connection, const std::unique_ptr<KeyValueDB> &notified_db,
     const IniFile &bundles_config, std::unordered_set<std::string> * const new_notification_ids,
     const std::string &user_id, const std::string &solr_host_and_port, const std::string &hostname,
     const std::string &sender_email, const std::string &email_subject,
-    std::vector<SerialControlNumberAndMaxLastModificationTime> &control_numbers_or_bundle_names_and_last_modification_times)
+    std::vector<SerialControlNumberAndMaxLastModificationTime> &control_numbers_or_bundle_names_and_last_modification_times,
+    std::map<std::string, std::map<std::string, std::string>> * const bundle_journal_last_modification_times)
 {
     db_connection->queryOrDie("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id WHERE user.id=" + user_id);
     DbResultSet result_set(db_connection->getLastResultSet());
@@ -452,17 +498,25 @@ void ProcessSingleUser(
     std::vector<NewIssueInfo> new_issue_infos;
     for (auto &control_number_or_bundle_name_and_last_modification_time : control_numbers_or_bundle_names_and_last_modification_times) {
         std::string max_last_modification_time(control_number_or_bundle_name_and_last_modification_time.last_modification_time_);
-        if (StringUtil::StartsWith(control_number_or_bundle_name_and_last_modification_time.serial_control_number_, "bundle:")) {
+        if (IsBundle(control_number_or_bundle_name_and_last_modification_time.serial_control_number_)) {
             const std::string bundle_name(
                 control_number_or_bundle_name_and_last_modification_time.serial_control_number_);
             std::vector<std::string> bundle_control_numbers;
             LoadBundleControlNumbers(bundles_config, bundle_name, &bundle_control_numbers);
+            std::map<std::string, std::string> bundles_journal_control_number_and_last_modification_times;
+            LoadBundleMaxLastModificationTimes(db_connection, bundle_name, bundle_control_numbers, &bundles_journal_control_number_and_last_modification_times);
             for (const auto &bundle_control_number : bundle_control_numbers) {
+                const std::string bundle_journal_last_modification_time(bundles_journal_control_number_and_last_modification_times.count(bundle_control_number) ?
+                                                       bundles_journal_control_number_and_last_modification_times[bundle_control_number] : max_last_modification_time);
                 if (GetNewIssues(notified_db, new_notification_ids, solr_host_and_port, bundle_control_number,
-                                 control_number_or_bundle_name_and_last_modification_time.last_modification_time_, &new_issue_infos,
+                                 bundle_journal_last_modification_time, &new_issue_infos,
                                  &max_last_modification_time))
-                    control_number_or_bundle_name_and_last_modification_time.setMaxLastModificationTime(max_last_modification_time);
+                    bundles_journal_control_number_and_last_modification_times[bundle_control_number] = max_last_modification_time;
             }
+            (*bundle_journal_last_modification_times)[bundle_name] = bundles_journal_control_number_and_last_modification_times;
+            // Get the minimum of all candidates - if they were already sent the notified_db will come in
+            control_number_or_bundle_name_and_last_modification_time.setMaxLastModificationTime(
+                        GetMinLastModificationTime(bundles_journal_control_number_and_last_modification_times));
         } else {
             if (GetNewIssues(notified_db, new_notification_ids, solr_host_and_port,
                              control_number_or_bundle_name_and_last_modification_time.serial_control_number_,
@@ -501,6 +555,21 @@ void ProcessSingleUser(
 }
 
 
+void StoreBundleJournalsMaxModificationTimes(DbConnection * const db_connection,
+                                              const std::map<std::string, std::map<std::string, std::string>>
+                                              bundle_journals_last_modification_times)
+{
+    for (const auto &bundle : bundle_journals_last_modification_times) {
+        db_connection->queryOrDie("DELETE FROM ixtheo_journal_bundles WHERE bundle_name=\"" + bundle.first + "\"");
+        for (const auto &journal_control_number_and_max_last_modification_time : bundle.second)
+             db_connection->queryOrDie("INSERT INTO ixtheo_journal_bundles VALUES('" +
+                                           bundle.first + "','" +
+                                           journal_control_number_and_max_last_modification_time.first + "','" +
+                                           ConvertDateFromZuluDate(journal_control_number_and_max_last_modification_time.second) + "')");
+    }
+}
+
+
 void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, const std::unique_ptr<KeyValueDB> &notified_db,
                           const IniFile &bundles_config, std::unordered_set<std::string> * const new_notification_ids,
                           const std::string &solr_host_and_port, const std::string &user_type, const std::string &hostname,
@@ -512,6 +581,7 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
     unsigned subscription_count(0);
     DbResultSet id_result_set(db_connection->getLastResultSet());
     const unsigned user_count(id_result_set.size());
+    std::map<std::string, std::map<std::string, std::string>> bundle_journals_last_modification_times;
     while (const DbRow id_row = id_result_set.getNextRow()) {
         const std::string user_id(id_row["user_id"]);
 
@@ -525,8 +595,11 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
             ++subscription_count;
         }
         ProcessSingleUser(debug, db_connection, notified_db, bundles_config, new_notification_ids, user_id, solr_host_and_port,
-                          hostname, sender_email, email_subject, control_numbers_or_bundle_names_and_last_modification_times);
+                          hostname, sender_email, email_subject, control_numbers_or_bundle_names_and_last_modification_times,
+                          &bundle_journals_last_modification_times);
     }
+
+    StoreBundleJournalsMaxModificationTimes(db_connection, bundle_journals_last_modification_times);
 
     LOG_INFO("Processed " + std::to_string(user_count) + " users and " + std::to_string(subscription_count) + " subscriptions.\n");
 }
