@@ -54,6 +54,7 @@ std::string GetId(DbConnection * const connection, const std::string &german_tex
 
 
 const std::map<std::string, std::string> international_2letter_code_to_german_3or4letter_code{
+    { "af", "afr" },
     { "de", "deu" },
     { "el", "gre" },
     { "en", "eng" },
