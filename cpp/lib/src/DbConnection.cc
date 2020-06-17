@@ -18,7 +18,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "DbConnection.h"
-#include <stdexcept>
 #include <cerrno>
 #include <cstdlib>
 #include "FileUtil.h"
@@ -37,7 +36,7 @@ DbConnection::DbConnection(const std::string &mysql_url, const Charset charset, 
         RegexMatcher::RegexMatcherFactory("mysql://([^:]+):([^@]+)@([^:/]+)(\\d+:)?/(.+)"));
     std::string err_msg;
     if (not mysql_url_matcher->matched(mysql_url, &err_msg))
-        throw std::runtime_error("\"" + mysql_url + "\" does not look like an expected MySQL URL! (" + err_msg + ")");
+        LOG_ERROR("\"" + mysql_url + "\" does not look like an expected MySQL URL! (" + err_msg + ")");
 
     const std::string user(UrlUtil::UrlDecode((*mysql_url_matcher)[1]));
     const std::string passwd((*mysql_url_matcher)[2]);
@@ -393,8 +392,7 @@ DbResultSet DbConnection::getLastResultSet() {
     if (sqlite3_ == nullptr) {
         MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
         if (result_set == nullptr)
-            throw std::runtime_error("in DbConnection::getLastResultSet: mysql_store_result() failed! ("
-                                     + getLastErrorMessage() + ")");
+            LOG_ERROR("::mysql_store_result() failed! (" + getLastErrorMessage() + ")");
 
         return DbResultSet(result_set);
     } else {
@@ -463,17 +461,17 @@ void DbConnection::init(const std::string &database_name, const std::string &use
     type_ = T_MYSQL;
 
     if (::mysql_init(&mysql_) == nullptr)
-        throw std::runtime_error("in DbConnection::init: mysql_init() failed!");
+        LOG_ERROR("mysql_init() failed! (1)");
 
     if (::mysql_real_connect(&mysql_, host.c_str(), user.c_str(), passwd.c_str(), database_name.c_str(), port,
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
 
         // password is intentionally omitted here!
-        throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage()
-                                 + ", host=\"" + host + "\", user=\"" + user + "\", passwd=\"********\", database_name=\""
-                                 + database_name + "\", port=" + std::to_string(port) + ")");
+        LOG_ERROR("mysql_real_connect() failed! (" + getLastErrorMessage()
+                  + ", host=\"" + host + "\", user=\"" + user + "\", passwd=\"" + passwd + "\", database_name=\""
+                  + database_name + "\", port=" + std::to_string(port) + ")");
     if (::mysql_set_character_set(&mysql_, (charset == UTF8MB4) ? "utf8mb4" : "utf8") != 0)
-        throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
+        LOG_ERROR("mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
     errno = 0; // Don't ask unless you want to cry!
 
     initialised_ = true;
@@ -495,13 +493,13 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
     type_ = T_MYSQL;
 
     if (::mysql_init(&mysql_) == nullptr)
-        throw std::runtime_error("in DbConnection::init: mysql_init() failed!");
+        LOG_ERROR("mysql_init() failed! (2)");
 
     if (::mysql_real_connect(&mysql_, host.c_str(), user.c_str(), passwd.c_str(), nullptr, port,
                              /* unix_socket = */nullptr, /* client_flag = */CLIENT_MULTI_STATEMENTS) == nullptr)
-        throw std::runtime_error("in DbConnection::init: mysql_real_connect() failed! (" + getLastErrorMessage() + ")");
+        LOG_ERROR("::mysql_real_connect() failed! (" + getLastErrorMessage() + ")");
     if (::mysql_set_character_set(&mysql_, CharsetToString(charset).c_str()) != 0)
-        throw std::runtime_error("in DbConnection::init: mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
+        LOG_ERROR("::mysql_set_character_set() failed! (" + getLastErrorMessage() + ")");
 
     initialised_ = true;
     setTimeZone(time_zone);
