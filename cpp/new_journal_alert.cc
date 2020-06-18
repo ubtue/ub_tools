@@ -448,7 +448,7 @@ void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &
 }
 
 
-std::string SingleQuote(std::string to_quote) { return "'" + to_quote + "'"; };
+std::string SingleQuote(const std::string &to_quote) { return "'" + to_quote + "'"; };
 
 
 void LoadBundleMaxLastModificationTimes(DbConnection * const db_connection, const std::string &bundle_name,
@@ -598,7 +598,7 @@ void StoreBundleJournalsMaxModificationTimes(DbConnection * const db_connection,
                                               const std::map<std::string, std::map<std::string, std::string>>
                                               bundle_journals_last_modification_times)
 {
-    for (auto const& [bundle_name, journal_control_number_and_max_last_modification_times] : bundle_journals_last_modification_times) {
+    for (auto const &[bundle_name, journal_control_number_and_max_last_modification_times] : bundle_journals_last_modification_times) {
         db_connection->queryOrDie("DELETE FROM ixtheo_journal_bundles WHERE bundle_name=\"" + bundle_name + "\"");
         for (const auto &journal_control_number_and_max_last_modification_time : journal_control_number_and_max_last_modification_times)
              db_connection->queryOrDie("INSERT INTO ixtheo_journal_bundles VALUES('" +
