@@ -41,7 +41,7 @@ bool FoundExpectedClassValue(const std::string &expected_values_str, const std::
 
     for (const auto &class_str : class_list) {
         if (std::find_if(expected_values.cbegin(), expected_values.cend(),
-                         [&class_str](auto &expected_value) { return class_str == expected_value; }) != expected_values.cend())
+                         [&class_str](auto &expected_value) { return ::strcasecmp(class_str.c_str(), expected_value.c_str()) == 0; }) != expected_values.cend())
             return true;
     }
     return false;
@@ -54,22 +54,16 @@ bool IncludeJournal(const Zeder::Entry &journal, const IniFile::Section &filter_
             continue;
 
         std::string zeder_column_name(entry.name_);
-        if (entry.name_ == "except_class")
-            zeder_column_name = "class";
-
         const auto column_value(StringUtil::TrimWhite(journal.lookup(zeder_column_name)));
         if (column_value.empty())
             return false;
 
-        if (zeder_column_name != "class") {
-            if (::strcasecmp(column_value.c_str(), entry.value_.c_str()) != 0)
+        const bool found_it(FoundExpectedClassValue(entry.value_, column_value));
+        if (zeder_column_name == "except_class") {
+            if (found_it)
                 return false;
-        } else { // class or except_class
-            const bool found_it(FoundExpectedClassValue(entry.value_, column_value));
-            if ((not found_it and entry.name_ == "class")
-                or (found_it and entry.name_ == "except_class"))
-                return false;
-        }
+        } else if (not found_it)
+            return false;
     }
 
     return true;
