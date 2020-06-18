@@ -506,8 +506,14 @@ void ProcessSingleUser(
             std::map<std::string, std::string> bundles_journal_control_number_and_last_modification_times;
             LoadBundleMaxLastModificationTimes(db_connection, bundle_name, bundle_control_numbers, &bundles_journal_control_number_and_last_modification_times);
             for (const auto &bundle_control_number : bundle_control_numbers) {
-                const std::string bundle_journal_last_modification_time(bundles_journal_control_number_and_last_modification_times.count(bundle_control_number) ?
-                                                       bundles_journal_control_number_and_last_modification_times[bundle_control_number] : max_last_modification_time);
+                const std::string bundle_journal_last_modification_time(
+                   bundles_journal_control_number_and_last_modification_times.count(bundle_control_number) and
+                      (TimeUtil::Iso8601StringToTimeT(bundles_journal_control_number_and_last_modification_times[bundle_control_number], TimeUtil::UTC) <
+                       TimeUtil::Iso8601StringToTimeT(max_last_modification_time, TimeUtil::UTC))
+                   ?
+                   bundles_journal_control_number_and_last_modification_times[bundle_control_number]
+                   :
+                   max_last_modification_time);
                 if (GetNewIssues(notified_db, new_notification_ids, solr_host_and_port, bundle_control_number,
                                  bundle_journal_last_modification_time, &new_issue_infos,
                                  &max_last_modification_time))
