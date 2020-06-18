@@ -464,7 +464,8 @@ void LoadBundleMaxLastModificationTimes(DbConnection * const db_connection, cons
                                ')');
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow())
-        bundle_journals_max_last_modification_times->emplace(std::make_pair(row["journal_control_number"], row["max_last_modification_time"]));
+        bundle_journals_max_last_modification_times->emplace(std::make_pair(row["journal_control_number"],
+                                                                            ConvertDateToZuluDate(row["max_last_modification_time"])));
 }
 
 
