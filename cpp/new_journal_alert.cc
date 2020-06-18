@@ -28,7 +28,6 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
-#include <functional>
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "EmailSender.h"
@@ -449,7 +448,8 @@ void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &
 }
 
 
-std::function<std::string(std::string)> SingleQuote = [](std::string to_quote) { return "'" + to_quote + "'"; };
+std::string SingleQuote(std::string to_quote) { return "'" + to_quote + "'"; };
+
 
 void LoadBundleMaxLastModificationTimes(DbConnection * const db_connection, const std::string &bundle_name,
                                         std::vector<std::string> bundle_control_numbers,
@@ -463,8 +463,8 @@ void LoadBundleMaxLastModificationTimes(DbConnection * const db_connection, cons
                                StringUtil::Join(quoted_bundle_control_numbers, ',') +
                                ')');
     DbResultSet result_set(db_connection->getLastResultSet());
-    while (const auto &row = result_set.getNextRow())
-        bundle_journals_max_last_modification_times->emplace( std::make_pair(row["journal_control_number"], row["max_last_modification_time"]));
+    while (const auto row = result_set.getNextRow())
+        bundle_journals_max_last_modification_times->emplace(std::make_pair(row["journal_control_number"], row["max_last_modification_time"]));
 }
 
 
@@ -475,7 +475,7 @@ bool IsBundle(const std::string &serial_control_number) {
 }
 
 
-bool MinModificationTimeComparator(const std::pair<std::string, std::string> elem1, std::pair<std::string, std::string> elem2) {
+bool MinModificationTimeLessThan(const std::pair<std::string, std::string> &elem1, const std::pair<std::string, std::string> &elem2) {
     return TimeUtil::Iso8601StringToTimeT(elem1.second, TimeUtil::UTC /* required by function */) <
            TimeUtil::Iso8601StringToTimeT(elem2.second, TimeUtil::UTC /* required by function */);
 }
@@ -483,9 +483,9 @@ bool MinModificationTimeComparator(const std::pair<std::string, std::string> ele
 
 std::string GetMinLastModificationTime(const std::map<std::string, std::string> &control_number_and_max_last_modification_times)
 {
-    auto min(std::min_element(control_number_and_max_last_modification_times.begin(),
+    const auto min(std::min_element(control_number_and_max_last_modification_times.begin(),
                               control_number_and_max_last_modification_times.end(),
-                              MinModificationTimeComparator));
+                              MinModificationTimeLessThan));
     if (min == control_number_and_max_last_modification_times.end())
         return "1970-01-01T00:00:00Z";
     return min->second;
@@ -597,11 +597,11 @@ void StoreBundleJournalsMaxModificationTimes(DbConnection * const db_connection,
                                               const std::map<std::string, std::map<std::string, std::string>>
                                               bundle_journals_last_modification_times)
 {
-    for (const auto &bundle : bundle_journals_last_modification_times) {
-        db_connection->queryOrDie("DELETE FROM ixtheo_journal_bundles WHERE bundle_name=\"" + bundle.first + "\"");
-        for (const auto &journal_control_number_and_max_last_modification_time : bundle.second)
+    for (auto const& [bundle_name, journal_control_number_and_max_last_modification_times] : bundle_journals_last_modification_times) {
+        db_connection->queryOrDie("DELETE FROM ixtheo_journal_bundles WHERE bundle_name=\"" + bundle_name + "\"");
+        for (const auto &journal_control_number_and_max_last_modification_time : journal_control_number_and_max_last_modification_times)
              db_connection->queryOrDie("INSERT INTO ixtheo_journal_bundles VALUES('" +
-                                           bundle.first + "','" +
+                                           bundle_name + "','" +
                                            journal_control_number_and_max_last_modification_time.first + "','" +
                                            ConvertDateFromZuluDate(journal_control_number_and_max_last_modification_time.second) + "')");
     }
