@@ -7,5 +7,5 @@ EMAIL=ixtheo-team@ub.uni-tuebingen.de
 LOG_DIR=/usr/local/var/log/tuefind
 0 2 * * * cd "$BSZ_DATEN" && "$BIN/purge_old_data.py" "$EMAIL" > "$LOG_DIR/purge_old_data.log" 2>&1
 0 3 * * * cd "$BSZ_DATEN" && "$BIN/fetch_marc_updates.py" "$EMAIL" > "$LOG_DIR/fetch_marc_updates.log" 2>&1
-0 4 * * * cd "$BSZ_DATEN" && "$BIN/merge_differential_and_full_marc_updates.sh" "$EMAIL" > "$LOG_DIR/merge_differential_and_full_marc_updates.log" 2>&1
-0 5 * * * cd "$BSZ_DATEN" && "$BIN/initiate_fulltext_pipeline.py" "$EMAIL" "$BIN/fulltext_pipeline.sh" > "$LOG_DIR/initiate_fulltext_pipeline.log" 2>&1
+30 3 * * * cd "$BSZ_DATEN" && "$BIN/merge_differential_and_full_marc_updates.sh" "$EMAIL" > "$LOG_DIR/merge_differential_and_full_marc_updates.log" 2>&1
+30 4 * * * cd "$BSZ_DATEN" && "$BIN/initiate_fulltext_pipeline.py" "$EMAIL" "$BIN/fulltext_pipeline.sh" > "$LOG_DIR/initiate_fulltext_pipeline.log" 2>&1
