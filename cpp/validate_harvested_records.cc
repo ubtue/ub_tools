@@ -234,14 +234,11 @@ void UpdateDB(DbConnection * const db_connection, const std::string &journal_nam
     if (field_name.length() != MARC::Record::TAG_LENGTH)
         LOG_ERROR("\"" + field_name + "\" is not a valid field name!");
 
-    DbTransaction transcation(db_connection);
-    db_connection->queryOrDie("SELECT field_presence FROM metadata_presence_tracer WHERE journal_name="
-                              + db_connection->escapeAndQuoteString(journal_name) + " AND field_name='" + field_name + "'");
-    const DbResultSet result_set(db_connection->getLastResultSet());
-    if (result_set.empty())
-        LOG_ERROR("can't update non-existent database entry!");
     db_connection->queryOrDie("UPDATE metadata_presence_tracer SET field_presence='" + field_presence_str + "' WHERE journal_name="
                               + db_connection->escapeAndQuoteString(journal_name) + " AND field_name='" + field_name + "'");
+    if (db_connection->getNoOfAffectedRows() == 0)
+        LOG_ERROR("can't update non-existent database entry! (journal_name: \"" + journal_name + "\""
+                  + ", field_name: \"" + field_name + "\"");
 }
 
 
