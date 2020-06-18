@@ -145,6 +145,7 @@ bool NewIssueInfo::operator==(const NewIssueInfo &rhs) const {
 
 } //unnamed namespace
 
+
 namespace std {
     template <>
     struct hash<NewIssueInfo> {
