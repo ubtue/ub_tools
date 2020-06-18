@@ -23,6 +23,7 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <unordered_set>
 #include <vector>
 #include <cctype>
 #include <cstdlib>
@@ -86,6 +87,7 @@ public:
         : control_number_(control_number), series_title_(series_title), issue_title_(issue_title), volume_(volume), year_(year),
           issue_(issue), start_page_(start_page), authors_(authors) { }
     bool operator<(const NewIssueInfo &rhs) const;
+    bool operator==(const NewIssueInfo &rhs) const;
     friend std::ostream &operator<<(std::ostream &output, const NewIssueInfo &new_issue_info);
 };
 
@@ -129,6 +131,33 @@ bool NewIssueInfo::operator<(const NewIssueInfo &rhs) const {
 
     return false;
 }
+
+
+bool NewIssueInfo::operator==(const NewIssueInfo &rhs) const {
+    return control_number_ == rhs.control_number_ and
+           series_title_ == rhs.series_title_ and
+           issue_title_ == rhs.issue_title_ and
+           volume_ == rhs.volume_ and
+           issue_ == rhs.issue_ and
+           start_page_ == rhs.start_page_ and
+           authors_ == rhs.authors_;
+}
+
+
+} //unnamed namespace
+
+namespace std {
+    template <>
+    struct hash<NewIssueInfo> {
+        size_t operator()(const NewIssueInfo &i) const {
+            // hash method here
+            return hash<string>()(i.control_number_);
+        }
+    };
+} // namespace std
+
+
+namespace {
 
 
 // Makes "date" look like an ISO-8601 date ("2017-01-01 00:00:00" => "2017-01-01T00:00:00Z")
@@ -508,7 +537,7 @@ void ProcessSingleUser(
             for (const auto &bundle_control_number : bundle_control_numbers) {
                 const std::string bundle_journal_last_modification_time(
                    bundles_journal_control_number_and_last_modification_times.count(bundle_control_number) and
-                      (TimeUtil::Iso8601StringToTimeT(bundles_journal_control_number_and_last_modification_times[bundle_control_number], TimeUtil::UTC) <
+                      (TimeUtil::Iso8601StringToTimeT(bundles_journal_control_number_and_last_modification_times[bundle_control_number], TimeUtil::UTC) >=
                        TimeUtil::Iso8601StringToTimeT(max_last_modification_time, TimeUtil::UTC))
                    ?
                    bundles_journal_control_number_and_last_modification_times[bundle_control_number]
@@ -531,6 +560,9 @@ void ProcessSingleUser(
                 control_number_or_bundle_name_and_last_modification_time.setMaxLastModificationTime(max_last_modification_time);
         }
     }
+    // Deduplicate and sort
+    const std::unordered_set<NewIssueInfo> new_issue_infos_set(new_issue_infos.begin(), new_issue_infos.end());
+    new_issue_infos = std::vector<NewIssueInfo>(new_issue_infos_set.begin(), new_issue_infos_set.end());
     std::sort(new_issue_infos.begin(), new_issue_infos.end());
 
     LOG_INFO("Found " + std::to_string(new_issue_infos.size()) + " new issues for " + "\"" + username + "\".");
