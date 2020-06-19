@@ -674,7 +674,7 @@ void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_s
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("find"),
                         { VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}",
                           "+" });
-    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chown"), { "-R", username + ":" + username, "/usr/local/var/log/tuefind" });
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chown"), { "-R", username + ":" + username, UBTools::GetTueFindLogPath() });
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/ixtheo/cache",
                                                      "httpd_sys_rw_content_t",
@@ -801,11 +801,11 @@ void ConfigureVuFind(const VuFindSystemType vufind_system_type, const OSSystemTy
     }
 
     Echo("creating log directory");
-    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mkdir"), { "-p", "/usr/local/var/log/tuefind" });
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mkdir"), { "-p", UBTools::GetTueFindLogPath() });
     if (SELinuxUtil::IsEnabled()) {
-        SELinuxUtil::FileContext::AddRecordIfMissing("/usr/local/var/log/tuefind",
+        SELinuxUtil::FileContext::AddRecordIfMissing(UBTools::GetTueFindLogPath(),
                                                      "httpd_sys_rw_content_t",
-                                                     "/usr/local/var/log/tuefind(/.*)?");
+                                                     UBTools::GetTueFindLogPath() + "(.*)");
     }
 
     ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
