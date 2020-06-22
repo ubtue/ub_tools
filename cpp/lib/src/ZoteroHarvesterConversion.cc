@@ -819,6 +819,7 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
             subfields.appendSubfield('b', creator->affix_ + ".");
         if (not creator->title_.empty())
             subfields.appendSubfield('c', creator->title_);
+        subfields.appendSubfield('e', "VerfasserIn");
 
         if (num_creators_left == 1)
             marc_record->insertField("100", subfields, /* indicator 1 = */'1');
