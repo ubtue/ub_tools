@@ -167,18 +167,21 @@ def Main():
         date_string = GetDateFromFilename(title_data_file_orig)
         title_data_file = RenameTitleDataFile(title_data_file_orig, date_string)
         atexit.register(CleanUp, title_data_file, log_file_name)
-        SetupTemporarySolrInstance(title_data_file, conf, log_file_name)
+        setup_temporary_solr_instance_process = multiprocessing.Process(target=SetupTemporarySolrInstance,
+                                                                        name="Setup temporary Solr instance",
+                                                                        args=[ title_data_file, conf, log_file_name ])
+        create_match_db_log_file_name = util.MakeLogFileName("create_match_db", util.GetLogDirectory())
+        create_match_db_process = multiprocessing.Process(target=CreateMatchDB, name="Create Match DB",
+                                      args=[ title_data_file, create_match_db_log_file_name ])
+        ExecuteInParallel(setup_temporary_solr_instance_process, create_match_db_process)
         create_ref_term_process = multiprocessing.Process(target=CreateRefTermFile, name="Create Reference Terms File",
                                       args=[ ref_data_archive, date_string, conf, log_file_name ])
         create_serial_sort_term_process = multiprocessing.Process(target=CreateSerialSortDate, name="Serial Sort Date",
                                               args=[ title_data_file, date_string, log_file_name ])
-        create_match_db_log_file_name = util.MakeLogFileName("create_match_db", util.GetLogDirectory())
-        create_match_db_process = multiprocessing.Process(target=CreateMatchDB, name="Create Match DB",
-                                      args=[ title_data_file, create_match_db_log_file_name ])
         extract_fulltext_ids_log_file_name = util.MakeLogFileName("extract_fulltext_ids", util.GetLogDirectory())
         extract_fulltext_ids_process = multiprocessing.Process(target=CreateFulltextIdsFile, name="Create Fulltext IDs File",
                                            args=[ "/usr/local/ub_tools/bsz_daten/fulltext_ids.txt", extract_fulltext_ids_log_file_name ])
-        ExecuteInParallel(create_ref_term_process, create_serial_sort_term_process, create_match_db_process, extract_fulltext_ids_process)
+        ExecuteInParallel(create_ref_term_process, create_serial_sort_term_process, extract_fulltext_ids_process)
         end  = datetime.datetime.now()
         duration_in_minutes = str((end - start).seconds / 60.0)
         util.Touch(REFTERM_MUTEX_FILE)
