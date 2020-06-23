@@ -1,7 +1,7 @@
 /** \brief Tool for generating reasonable input for the FulltextImporter if only a PDF fulltext is available
  *  \author Johannes Riedl
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -94,7 +94,7 @@ void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTe
     if (authors_matcher->matched(pdfinfo_output)) {
         StringUtil::Split((*authors_matcher)[1], std::set<char>{ ';', '|' }, &authors);
         for (auto &author : authors)
-            author = HtmlUtil::ReplaceEntities(author);
+            author = HtmlUtil::ReplaceEntitiesUTF8(author);
         std::copy(authors.cbegin(), authors.cend(), std::inserter(fulltext_data->authors_, fulltext_data->authors_.end()));
     }
     static RegexMatcher * const title_matcher(RegexMatcher::RegexMatcherFactoryOrDie("^Title:?\\s*(.*)", RegexMatcher::CASE_INSENSITIVE));
@@ -106,7 +106,7 @@ void GuessAuthorAndTitle(const std::string &pdf_document, FullTextImport::FullTe
         // Some cleanup
         title_candidate = StringUtil::ReplaceString("<ger>", "", title_candidate);
         title_candidate = StringUtil::ReplaceString("</ger>", "", title_candidate);
-        title_candidate = HtmlUtil::ReplaceEntities(title_candidate);
+        title_candidate = HtmlUtil::ReplaceEntitiesUTF8(title_candidate);
         fulltext_data->title_ = title_candidate;
     }
 }
