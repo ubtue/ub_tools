@@ -132,7 +132,7 @@ const std::string DbConnection::DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath(
 
 bool DbConnection::query(const std::string &query_statement) {
     if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") == "true")
-        FileUtil::AppendString("/usr/local/var/log/tuefind/sql_debug.log",
+        FileUtil::AppendString(UBTools::GetTueFindLogPath() + "sql_debug.log",
                                std::string(::program_invocation_name) + ": " +  query_statement + '\n');
 
     if (type_ == T_MYSQL) {
