@@ -146,6 +146,9 @@ public:
         return escapeString(unescaped_string, /* add_quotes = */true);
     }
 
+    // Returns a string of the form x'A554E59F' etc.
+    std::string sqliteEscapeBlobData(const std::string &blob_data);
+
     inline void mySQLCreateDatabase(const std::string &database_name, const Charset charset = UTF8MB4,
                                     const Collation collation = UTF8MB4_BIN)
     {
