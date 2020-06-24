@@ -52,8 +52,8 @@ LocalDataDB::~LocalDataDB() {
 
 
 void LocalDataDB::clear() {
-    db_connection_->queryOrDie("DROP TABLE IF EXISTSlocal_data");
-    db_connection_->queryOrDie("DROP TABLE IF EXISTSlocal_ppns_to_title_ppns_map");
+    db_connection_->queryOrDie("DROP TABLE IF EXISTS local_data");
+    db_connection_->queryOrDie("DROP TABLE IF EXISTS local_ppns_to_title_ppns_map");
 }
 
 
@@ -201,11 +201,11 @@ bool LocalDataDB::removeLocalDataSet(const std::string &local_ppn) {
     // 2. Retrieve the local data associated w/ the title PPN:
     auto local_fields(getLocalFields(title_ppn));
 
-    // 3. Remove the local data associsted w/ the local PPN:
+    // 3. Remove the local data associated w/ the local PPN:
     const auto filtered_local_fields(RemoveLocalDataSet(local_ppn, local_fields));
 
     // 4. Update our SQL tables:
-    db_connection_->queryOrDie("DELETE FROM local_ppns_to_title_ppns_map WHERE ocal_ppn="
+    db_connection_->queryOrDie("DELETE FROM local_ppns_to_title_ppns_map WHERE local_ppn="
                                + db_connection_->escapeAndQuoteString(local_ppn));
     if (filtered_local_fields.empty())
         db_connection_->queryOrDie("DELETE FROM local_fields WHERE title_ppn="
