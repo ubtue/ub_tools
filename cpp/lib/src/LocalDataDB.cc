@@ -52,8 +52,8 @@ LocalDataDB::~LocalDataDB() {
 
 
 void LocalDataDB::clear() {
-    db_connection_->queryOrDie("DELETE * FROM local_data");
-    db_connection_->queryOrDie("DELETE * FROM local_ppns_to_title_ppns_map");
+    db_connection_->queryOrDie("DROP TABLE IF EXISTSlocal_data");
+    db_connection_->queryOrDie("DROP TABLE IF EXISTSlocal_ppns_to_title_ppns_map");
 }
 
 
@@ -116,7 +116,7 @@ void LocalDataDB::insertOrReplace(const std::string &title_ppn, const std::vecto
         const auto previous_local_fields(BlobToLocalFieldsVector(row["local_fields"], title_ppn));
         const auto local_ppns(ExtractLocalPPNsFromLocalFieldsVector(previous_local_fields));
         for (const auto &local_ppn : local_ppns)
-            db_connection_->queryOrDie("DELETE * FROM local_ppns_to_title_ppns_map WHERE local_ppn="
+            db_connection_->queryOrDie("DELETE FROM local_ppns_to_title_ppns_map WHERE local_ppn="
                                        + db_connection_->escapeAndQuoteString(local_ppn));
     }
 
@@ -158,7 +158,7 @@ bool LocalDataDB::removeTitleDataSet(const std::string &title_ppn) {
     const auto previous_local_fields(BlobToLocalFieldsVector(row["local_fields"], title_ppn));
     const auto local_ppns(ExtractLocalPPNsFromLocalFieldsVector(previous_local_fields));
     for (const auto &local_ppn : local_ppns)
-        db_connection_->queryOrDie("DELETE * FROM local_ppns_to_title_ppns_map WHERE local_ppn="
+        db_connection_->queryOrDie("DELETE FROM local_ppns_to_title_ppns_map WHERE local_ppn="
                                    + db_connection_->escapeAndQuoteString(local_ppn));
 
     // 2. Delete the local data for the title PPN:
@@ -208,7 +208,7 @@ bool LocalDataDB::removeLocalDataSet(const std::string &local_ppn) {
     db_connection_->queryOrDie("DELETE FROM local_ppns_to_title_ppns_map WHERE ocal_ppn="
                                + db_connection_->escapeAndQuoteString(local_ppn));
     if (filtered_local_fields.empty())
-        db_connection_->queryOrDie("DELETE * FROM local_fields WHERE title_ppn="
+        db_connection_->queryOrDie("DELETE FROM local_fields WHERE title_ppn="
                                    + db_connection_->escapeAndQuoteString(title_ppn));
     else
         db_connection_->queryOrDie("REPLACE INTO local_data (titel_ppn, local_fields) VALUES("
