@@ -210,7 +210,7 @@ bool RecordMeetsExpectations(const MARC::Record &record, const std::string &jour
 
 void WriteToDatabase(DbConnection * const db_connection, const std::string &journal_name, const JournalInfo &journal_info) {
     for (const auto &field_info : journal_info)
-        db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET journal_name='" + journal_name
+        db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET journal_name='" + db_connection->escapeString(journal_name)
                                   + "', metadata_field_name='" + db_connection->escapeString(field_info.name_)
                                   + "', field_presence='" + FieldPresenceToString(field_info.presence_) + "'");
 }

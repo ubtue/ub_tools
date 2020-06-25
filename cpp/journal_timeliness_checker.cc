@@ -58,7 +58,7 @@ void ProcessJournal(DbConnection * const db_connection, const std::string &journ
 }
 
 
-const unsigned DEFAULT_DEFAULT_UPDATE_WINDOW(60); // days
+const unsigned DEFAULT_UPDATE_WINDOW(60); // days
 
 
 } // unnamed namespace
@@ -68,7 +68,7 @@ int Main(int argc, char *argv[]) {
     if (argc < 4)
         Usage();
 
-    unsigned default_update_window(DEFAULT_DEFAULT_UPDATE_WINDOW);
+    unsigned default_update_window(DEFAULT_UPDATE_WINDOW);
     if (StringUtil::StartsWith(argv[1], "--default-update-window=")) {
         if (not StringUtil::ToUnsigned(argv[1] + __builtin_strlen("--default-update-window=")))
             LOG_ERROR("invalid default update window: \"" + std::string(argv[1] + __builtin_strlen("--default-update-window=")) + "\"!");
