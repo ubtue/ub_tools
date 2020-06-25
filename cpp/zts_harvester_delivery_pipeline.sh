@@ -46,7 +46,6 @@ readonly WORKING_DIRECTORY=/tmp/zts_harvester_delivery_pipeline
 readonly HARVESTER_OUTPUT_DIRECTORY=$WORKING_DIRECTORY
 readonly HARVESTER_OUTPUT_FILENAME=zts_harvester-$(date +%y%m%d).xml
 readonly HARVESTER_CONFIG_FILE=/usr/local/var/lib/tuelib/zotero-enhancement-maps/zotero_harvester.conf
-readonly RECORDS_WITH_MISSING_METADATA_OUTPUT_FILENAME=zts_harvester-$(date +%y%m%d)-records-with-missing-metadata.xml
 
 readonly DEST_DIR_LOCAL_TEST=/mnt/ZE020110/FID-Projekte/Default_Test/
 readonly DEST_DIR_LOCAL_LIVE=/mnt/ZE020110/FID-Projekte/Default/
@@ -133,14 +132,24 @@ for d in */ ; do
 
     current_source_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/$HARVESTER_OUTPUT_FILENAME
     valid_records_output_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/zotero_${d}_$(date +%y%m%d)_001.xml  # we only deliver files once a day
+    invalid_records_output_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/zotero_${d}_$(date +%y%m%d)_001_errors.xml
     LOGGER_FORMAT=no_decorations,strip_call_site \
     BACKTRACE=1 \
     UTIL_LOG_DEBUG=true \
     validate_harvested_records $current_source_filepath $valid_records_output_filepath \
-                               $RECORDS_WITH_MISSING_METADATA_OUTPUT_FILENAME $EMAIL_ADDRESS >> "${log}" 2>&1
+                               $invalid_records_output_filepath $EMAIL_ADDRESS >> "${log}" 2>&1
 
-    record_count=$(marc_size "$valid_records_output_filepath")
-    if [ "$record_count" = "0" ]; then
+    invalid_record_count=$(marc_size "$invalid_records_output_filepath")
+    if [ "$invalid_record_count" != "0" ]; then
+        if [ "$DELIVERY_MODE" = "TEST" ]; then
+            cp $invalid_records_output_filepath $DEST_DIR_LOCAL_TEST
+        elif [ "$DELIVERY_MODE" = "LIVE" ]; then
+            cp $invalid_records_output_filepath $DEST_DIR_LOCAL_LIVE
+        fi
+    fi
+
+    valid_record_count=$(marc_size "$valid_records_output_filepath")
+    if [ "$valid_record_count" = "0" ]; then
         continue    # skip files with zero records
     fi
 
