@@ -2249,14 +2249,6 @@ std::string CStyleUnescape(const std::string &escaped_text);
 inline bool IsLatin9Whitespace(const char ch) { return std::strchr(WHITE_SPACE.c_str(), ch) != nullptr; }
 
 
-/** \brief  Generates a string of random characters.
- *  \param  length          How many random characters to generate.
- *  \param  character_pool  Which characters to choose from.  The empty string implies choosing uniformly from all 256 character codes.
- *  \return The random string.
- */
-std::string GenerateRandomString(const unsigned length, const std::string &character_pool = "");
-
-
 /** \brief  Determines if a given string is a suffix of another given string.
  *  \param  suffix_candidate  The suffix that we'd like to test for.
  *  \param  s                 The string that may or may not have the suffix "suffix_candidate."
