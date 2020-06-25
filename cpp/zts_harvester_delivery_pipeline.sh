@@ -187,12 +187,6 @@ done
 EndPhase
 
 
-# End the pipeline early for test deliveries
-if [ "$DELIVERY_MODE" = "TEST"]; then
-    EndPipeline
-fi
-
-
 StartPhase "Check for Overdue Articles"
 LOGGER_FORMAT=no_decorations,strip_call_site \
 BACKTRACE=1 \
