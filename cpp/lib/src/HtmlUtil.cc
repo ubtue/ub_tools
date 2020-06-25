@@ -869,7 +869,7 @@ static bool DecodeEntityUTF8(const std::string &entity_string, std::string * con
 }
 
 
-std::string &ReplaceEntitiesUTF8(std::string * const s) {
+std::string &ReplaceEntitiesUTF8(std::string * const s, const UnknownEntityMode unknown_entity_mode) {
     std::string result;
     std::string::const_iterator ch(s->begin());
     while (ch != s->end()) {
@@ -889,8 +889,13 @@ std::string &ReplaceEntitiesUTF8(std::string * const s) {
             }
 
             // Output the entity:
-            if (not DecodeEntityUTF8(entity, &result))
-                result += "�";
+            if (not DecodeEntityUTF8(entity, &result)) {
+                if (unknown_entity_mode == IGNORE_UNKNOWN_ENTITIES) {
+                    result += '&';
+                    result += entity;
+                } else
+                    result += "�";
+            }
 
             // Advance to next letter:
             if (ch != s->end() and *ch != '&')
