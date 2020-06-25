@@ -32,6 +32,8 @@ class LocalDataDB {
     DbConnection *db_connection_;
 public:
     enum OpenMode { READ_ONLY, READ_WRITE };
+private:
+    bool single_transaction_; // By default SQLite uses a transaction for each INSERT or UPDATE!
 public:
     explicit LocalDataDB(const OpenMode open_mode);
     ~LocalDataDB();
