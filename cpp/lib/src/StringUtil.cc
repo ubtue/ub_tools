@@ -388,7 +388,7 @@ std::string ToString(const double n, const unsigned precision) {
 }
 
 
-std::string ToHexString(const std::string &s){
+std::string ToHexString(const std::string &s) {
     std::string hex_string;
     hex_string.reserve(s.size() * 2);
 

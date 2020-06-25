@@ -869,6 +869,12 @@ public:
     std::string toBinaryString() const;
     void toXmlStringHelper(MarcXmlWriter * const xml_writer) const;
 
+    /** \brief   Removes all fields starting at and including "field_iter".
+     *  \return  The number of fields that were removed at the end of the records.
+     *  \warning "field_iter" must be a valid interator into the fields of the current record!
+     */
+    size_t truncate(const const_iterator field_iter);
+
     static char BibliographicLevelToChar(const BibliographicLevel bibliographic_level);
     static std::string RecordTypeToString(const RecordType record_type);
 };
