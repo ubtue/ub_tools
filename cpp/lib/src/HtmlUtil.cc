@@ -613,6 +613,10 @@ std::string &ReplaceEntitiesLatin1(std::string * const s, const UnknownEntityMod
 
 
 const std::unordered_map<std::string, std::string> entities_to_utf8_map{
+    { "lt", "<" },
+    { "gt", ">" },
+    { "amp", "&" },
+    { "quot", "\"" },
     { "Agrave", "À" },
     { "Aacute", "Á" },
     { "Acirc", "Â" },
@@ -877,9 +881,8 @@ std::string &ReplaceEntitiesUTF8(std::string * const s, const UnknownEntityMode 
             // A non-entity character:
             result += *ch;
             ++ch;
-        } else {
-            // The start of an entity:
-            ++ch;
+        } else { // Possibly the start of an entity!
+            ++ch; // Skip over the ampersand.
 
             // Read the entity:
             std::string entity;
@@ -888,22 +891,31 @@ std::string &ReplaceEntitiesUTF8(std::string * const s, const UnknownEntityMode 
                 ++ch;
             }
 
+            // Invalid end of entity candidate?
+            if (ch == s->end() or *ch == '&') {
+                if (unknown_entity_mode == IGNORE_UNKNOWN_ENTITIES) {
+                    result += '&';
+                    result += entity;
+                }
+                continue;
+            }
+
             // Output the entity:
             if (not DecodeEntityUTF8(entity, &result)) {
                 if (unknown_entity_mode == IGNORE_UNKNOWN_ENTITIES) {
                     result += '&';
                     result += entity;
+                    result += ';';
+                    ++ch; // Skip over the semicolon.
                 } else
                     result += "�";
-            }
-
-            // Advance to next letter:
-            if (ch != s->end() and *ch != '&')
-                ++ch;
+            } else
+                ++ch; // Skip over the semicolom at the end of the entity.
         }
     }
 
-    return *s = result;
+    s->swap(result);
+    return *s;
 }
 
 
