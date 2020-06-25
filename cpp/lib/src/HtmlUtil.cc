@@ -599,7 +599,7 @@ std::string &ReplaceEntitiesLatin1(std::string * const s, const UnknownEntityMod
             char decoded_char;
             if (DecodeEntityLatin1(entity, &decoded_char))
                 result += decoded_char;
-            else if (unknown_entity_mode == IGNORE_UNKNOWN_ENTITIES)
+            else if (unknown_entity_mode == DELETE_UNKNOWN_ENTITIES)
                 result += "&" + entity + ";";
 
             // Advance to next letter:
@@ -893,7 +893,7 @@ std::string &ReplaceEntitiesUTF8(std::string * const s, const UnknownEntityMode 
 
             // Invalid end of entity candidate?
             if (ch == s->end() or *ch == '&') {
-                if (unknown_entity_mode == IGNORE_UNKNOWN_ENTITIES) {
+                if (unknown_entity_mode == DELETE_UNKNOWN_ENTITIES) {
                     result += '&';
                     result += entity;
                 }
@@ -902,7 +902,7 @@ std::string &ReplaceEntitiesUTF8(std::string * const s, const UnknownEntityMode 
 
             // Output the entity:
             if (not DecodeEntityUTF8(entity, &result)) {
-                if (unknown_entity_mode == IGNORE_UNKNOWN_ENTITIES) {
+                if (unknown_entity_mode == DELETE_UNKNOWN_ENTITIES) {
                     result += '&';
                     result += entity;
                     result += ';';
