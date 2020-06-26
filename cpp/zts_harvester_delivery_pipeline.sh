@@ -93,13 +93,13 @@ function EndPipeline {
 logdir=/usr/local/var/log/tuefind
 log_filename=$(basename "$0")
 log="${logdir}/${log_filename%.*}.log"
-rm -f "${log}"
+rm --force "${log}"
 
 # Cleanup files/folders from a previous run
-mkdir -p $HARVESTER_OUTPUT_DIRECTORY
-rm -r -f -d $HARVESTER_OUTPUT_DIRECTORY/ixtheo
-rm -r -f -d $HARVESTER_OUTPUT_DIRECTORY/krimdok
-rm -r -f -d $HARVESTER_OUTPUT_DIRECTORY/ubtuebingen
+mkdir --parents $HARVESTER_OUTPUT_DIRECTORY
+rm --recursive --force --dir $HARVESTER_OUTPUT_DIRECTORY/ixtheo
+rm --recursive --force --dir $HARVESTER_OUTPUT_DIRECTORY/krimdok
+rm --recursive --force --dir $HARVESTER_OUTPUT_DIRECTORY/ubtuebingen
 
 
 OVERALL_START=$(date +%s.%N)
