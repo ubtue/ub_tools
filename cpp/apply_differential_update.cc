@@ -44,6 +44,7 @@ namespace {
     ::Usage("[--min-log-level=log_level] [--keep-intermediate-files] input_directory "
             "difference_archive output_directory\n"
             "       Log levels are DEBUG, INFO, WARNING and ERROR with INFO being the default.\n");
+    std::exit(EXIT_FAILURE);
 }
 
 
@@ -56,8 +57,11 @@ void CopyAndCollectPPNs(LocalDataDB * const local_data_db, MARC::Reader * const 
             const auto first_local_field(record.findTag("LOK"));
             if (unlikely(first_local_field != record.end())) {
                 std::vector<std::string> local_fields;
-                for (auto local_field(first_local_field); local_field != record.end(); ++local_field)
+                auto local_field(first_local_field);
+                while (local_field != record.end()) {
                     local_fields.emplace_back(local_field->getContents());
+                    ++local_field;
+                }
                 local_data_db->insertOrReplace(PPN, local_fields);
 
                 record.truncate(first_local_field);
