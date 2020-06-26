@@ -6,11 +6,11 @@ set -o errexit -o nounset
 no_problems_found=1
 function SendEmail {
     if [[ $no_problems_found -eq 0 ]]; then
-        send_email --priority=low --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
+        send_email --priority=low --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
                    --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
         exit 0
     else
-        send_email --priority=high --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$email_address" \
+        send_email --priority=high --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
                    --subject="$0 failed on $(hostname)" \
                    --message-body="Check the log file at /usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log for details."
         echo "*** ZTS_HARVESTER DELIVERY PIPELINE FAILED ***" | tee --append "${log}"
@@ -39,14 +39,19 @@ if [ "$1" != "TEST" ] && [ "$1" != "LIVE" ]; then
 fi
 
 
-delivery_mode=$1
-email_address=$2
-working_directory=/tmp/zts_harvester_delivery_pipeline
+readonly DELIVERY_MODE=$1
+readonly EMAIL_ADDRESS=$2
+readonly WORKING_DIRECTORY=/tmp/zts_harvester_delivery_pipeline
 
-harvester_output_directory=$working_directory
-harvester_output_filename=zts_harvester-$(date +%y%m%d).xml
-harvester_config_file=/usr/local/var/lib/tuelib/zotero-enhancement-maps/zotero_harvester.conf
-records_with_missing_metadata_output_filename=zts_harvester-$(date +%y%m%d)-records-with-missing-metadata.xml
+readonly HARVESTER_OUTPUT_DIRECTORY=$WORKING_DIRECTORY
+readonly HARVESTER_OUTPUT_FILENAME=zts_harvester-$(date +%y%m%d).xml
+readonly HARVESTER_CONFIG_FILE=/usr/local/var/lib/tuelib/zotero-enhancement-maps/zotero_harvester.conf
+
+readonly DEST_DIR_LOCAL_TEST=/mnt/ZE020110/FID-Projekte/Default_Test/
+readonly DEST_DIR_LOCAL_LIVE=/mnt/ZE020110/FID-Projekte/Default/
+readonly DEST_DIR_REMOTE_TEST=/pub/UBTuebingen_Default_Test/
+readonly DEST_DIR_REMOTE_LIVE=/pub/UBTuebingen_Default/
+
 
 
 function StartPhase {
@@ -88,13 +93,13 @@ function EndPipeline {
 logdir=/usr/local/var/log/tuefind
 log_filename=$(basename "$0")
 log="${logdir}/${log_filename%.*}.log"
-rm -f "${log}"
+rm --force "${log}"
 
 # Cleanup files/folders from a previous run
-mkdir -p $harvester_output_directory
-rm -r -f -d $harvester_output_directory/ixtheo
-rm -r -f -d $harvester_output_directory/krimdok
-rm -r -f -d $harvester_output_directory/ubtuebingen
+mkdir --parents $HARVESTER_OUTPUT_DIRECTORY
+rm --recursive --force --dir $HARVESTER_OUTPUT_DIRECTORY/ixtheo
+rm --recursive --force --dir $HARVESTER_OUTPUT_DIRECTORY/krimdok
+rm --recursive --force --dir $HARVESTER_OUTPUT_DIRECTORY/ubtuebingen
 
 
 OVERALL_START=$(date +%s.%N)
@@ -102,50 +107,59 @@ declare -a source_filepaths
 declare -a dest_filepaths
 declare -a dest_filepaths_local
 
-
 StartPhase "Harvest URLs"
 LOGGER_FORMAT=no_decorations,strip_call_site \
 BACKTRACE=1 \
 UTIL_LOG_DEBUG=true \
 zotero_harvester --min-log-level=DEBUG \
-             --output-directory=$harvester_output_directory \
-             --output-filename=$harvester_output_filename \
-             $harvester_config_file \
+             --output-directory=$HARVESTER_OUTPUT_DIRECTORY \
+             --output-filename=$HARVESTER_OUTPUT_FILENAME \
+             $HARVESTER_CONFIG_FILE \
              UPLOAD \
-             $delivery_mode >> "${log}" 2>&1
+             $DELIVERY_MODE >> "${log}" 2>&1
 EndPhase
 
 
 StartPhase "Validate Generated Records"
-cd $harvester_output_directory
+cd $HARVESTER_OUTPUT_DIRECTORY
 counter=0
 shopt -s nullglob
 for d in */ ; do
     d=${d%/}
-    if [[ $d -ef $harvester_output_directory ]]; then
+    if [[ $d -ef $HARVESTER_OUTPUT_DIRECTORY ]]; then
         continue
     fi
 
-    current_source_filepath=$harvester_output_directory/$d/$harvester_output_filename
-    valid_records_output_filepath=$harvester_output_directory/$d/zotero_${d}_$(date +%y%m%d)_001.xml  # we only deliver files once a day
+    current_source_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/$HARVESTER_OUTPUT_FILENAME
+    valid_records_output_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/zotero_${d}_$(date +%y%m%d)_001.xml  # we only deliver files once a day
+    invalid_records_output_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/zotero_${d}_$(date +%y%m%d)_001_errors.xml
     LOGGER_FORMAT=no_decorations,strip_call_site \
     BACKTRACE=1 \
     UTIL_LOG_DEBUG=true \
     validate_harvested_records $current_source_filepath $valid_records_output_filepath \
-                               $records_with_missing_metadata_output_filename $email_address >> "${log}" 2>&1
+                               $invalid_records_output_filepath $EMAIL_ADDRESS >> "${log}" 2>&1
 
-    record_count=$(marc_size "$valid_records_output_filepath")
-    if [ "$record_count" = "0" ]; then
+    invalid_record_count=$(marc_size "$invalid_records_output_filepath")
+    if [ "$invalid_record_count" != "0" ]; then
+        if [ "$DELIVERY_MODE" = "TEST" ]; then
+            cp $invalid_records_output_filepath $DEST_DIR_LOCAL_TEST
+        elif [ "$DELIVERY_MODE" = "LIVE" ]; then
+            cp $invalid_records_output_filepath $DEST_DIR_LOCAL_LIVE
+        fi
+    fi
+
+    valid_record_count=$(marc_size "$valid_records_output_filepath")
+    if [ "$valid_record_count" = "0" ]; then
         continue    # skip files with zero records
     fi
 
     source_filepaths[$counter]=$valid_records_output_filepath
-    if [ "$delivery_mode" = "TEST" ]; then
-        dest_filepaths[$counter]=/pub/UBTuebingen_Default_Test/
-        dest_filepaths_local[$counter]=/mnt/ZE020110/FID-Projekte/Default_Test/
-    elif [ "$delivery_mode" = "LIVE" ]; then
-        dest_filepaths[$counter]=/pub/UBTuebingen_Default/
-        dest_filepaths_local[$counter]=/mnt/ZE020110/FID-Projekte/Default/
+    if [ "$DELIVERY_MODE" = "TEST" ]; then
+        dest_filepaths[$counter]=$DEST_DIR_REMOTE_TEST
+        dest_filepaths_local[$counter]=$DEST_DIR_LOCAL_TEST
+    elif [ "$DELIVERY_MODE" = "LIVE" ]; then
+        dest_filepaths[$counter]=$DEST_DIR_REMOTE_LIVE
+        dest_filepaths_local[$counter]=$DEST_DIR_LOCAL_LIVE
     fi
     counter=$((counter+1))
 done
@@ -182,17 +196,11 @@ done
 EndPhase
 
 
-# End the pipeline early for test deliveries
-if [ "$delivery_mode" = "TEST"]; then
-    EndPipeline
-fi
-
-
 StartPhase "Check for Overdue Articles"
 LOGGER_FORMAT=no_decorations,strip_call_site \
 BACKTRACE=1 \
 UTIL_LOG_DEBUG=true \
-journal_timeliness_checker "$harvester_config_file" "journal_timeliness_checker@$(hostname)" "$email_address" >> "${log}" 2>&1
+journal_timeliness_checker "$HARVESTER_CONFIG_FILE" "journal_timeliness_checker@$(hostname)" "$EMAIL_ADDRESS" >> "${log}" 2>&1
 EndPhase
 
 

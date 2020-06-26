@@ -28,6 +28,7 @@
  */
 
 #include "HtmlUtil.h"
+#include <unordered_map>
 #include <cstdlib>
 #include <cstring>
 #include "HtmlParser.h"
@@ -38,7 +39,7 @@
 namespace HtmlUtil {
 
 
-bool DecodeEntity(const char * const entity_string, char * const ch) {
+bool DecodeEntityLatin1(const char * const entity_string, char * const ch) {
     // numeric entity?
     if (entity_string[0] == '#') { // Yes!
         errno = 0;
@@ -575,16 +576,15 @@ bool DecodeEntity(const char * const entity_string, char * const ch) {
 }
 
 
-std::string &ReplaceEntities(std::string * const s, const UnknownEntityMode unknown_entity_mode) {
+std::string &ReplaceEntitiesLatin1(std::string * const s, const UnknownEntityMode unknown_entity_mode) {
     std::string result;
     std::string::const_iterator ch(s->begin());
     while (ch != s->end()) {
-        if (*ch != '&') {
+        if (likely(*ch != '&')) {
             // A non-entity character:
             result += *ch;
             ++ch;
-        }
-        else {
+        } else {
             // The start of an entity:
             ++ch;
 
@@ -597,9 +597,9 @@ std::string &ReplaceEntities(std::string * const s, const UnknownEntityMode unkn
 
             // Output the entity:
             char decoded_char;
-            if (DecodeEntity(entity, &decoded_char))
+            if (DecodeEntityLatin1(entity, &decoded_char))
                 result += decoded_char;
-            else if (unknown_entity_mode == IGNORE_UNKNOWN_ENTITIES)
+            else if (unknown_entity_mode == DELETE_UNKNOWN_ENTITIES)
                 result += "&" + entity + ";";
 
             // Advance to next letter:
@@ -609,6 +609,318 @@ std::string &ReplaceEntities(std::string * const s, const UnknownEntityMode unkn
     }
 
     return *s = result;
+}
+
+
+const std::unordered_map<std::string, std::string> entities_to_utf8_map{
+    { "lt", "<" },
+    { "gt", ">" },
+    { "amp", "&" },
+    { "quot", "\"" },
+    { "Agrave", "À" },
+    { "Aacute", "Á" },
+    { "Acirc", "Â" },
+    { "Atilde", "Ã" },
+    { "Auml", "Ä" },
+    { "Aring", "Å" },
+    { "AElig", "Æ" },
+    { "Ccedil", "Ç" },
+    { "Egrave", "È" },
+    { "Eacute", "É" },
+    { "Ecirc", "Ê" },
+    { "Euml", "Ë" },
+    { "Igrave", "Ì" },
+    { "Iacute", "Í" },
+    { "Icirc", "Î" },
+    { "Iuml", "Ï" },
+    { "ETH", "Ð" },
+    { "Ntilde", "Ñ" },
+    { "Ograve", "Ò" },
+    { "Oacute", "Ó" },
+    { "Ocirc", "Ô" },
+    { "Otilde", "Õ" },
+    { "Ouml", "Ö" },
+    { "Oslash", "Ø" },
+    { "Ugrave", "Ù" },
+    { "Uacute", "Ú" },
+    { "Ucirc", "Û" },
+    { "Uuml", "Ü" },
+    { "Yacute", "Ý" },
+    { "THORN", "Þ" },
+    { "szlig", "ß" },
+    { "agrave", "à" },
+    { "aacute", "á" },
+    { "acirc", "â" },
+    { "atilde", "ã" },
+    { "auml", "ä" },
+    { "aring", "å" },
+    { "aelig", "æ" },
+    { "ccedil", "ç" },
+    { "egrave", "è" },
+    { "eacute", "é" },
+    { "ecirc", "ê" },
+    { "euml", "ë" },
+    { "igrave", "ì" },
+    { "iacute", "í" },
+    { "icirc", "î" },
+    { "iuml", "ï" },
+    { "eth", "ð" },
+    { "ntilde", "ñ" },
+    { "ograve", "ò" },
+    { "oacute", "ó" },
+    { "ocirc", "ô" },
+    { "otilde", "õ" },
+    { "ouml", "ö" },
+    { "oslash", "ø" },
+    { "ugrave", "ù" },
+    { "uacute", "ú" },
+    { "ucirc", "û" },
+    { "uuml", "ü" },
+    { "yacute", "ý" },
+    { "thorn", "þ" },
+    { "yuml", "ÿ" },
+    { "nbsp", " " },
+    { "iexcl", "¡" },
+    { "cent", "¢" },
+    { "pound", "£" },
+    { "curren", "¤" },
+    { "yen", "¥" },
+    { "brvbar", "¦" },
+    { "sect", "§" },
+    { "uml", "¨" },
+    { "copy", "©" },
+    { "ordf", "ª" },
+    { "laquo", "«" },
+    { "not", "¬" },
+    { "shy", "­" },
+    { "reg", "®" },
+    { "macr", "¯" },
+    { "deg", "°" },
+    { "plusmn", "±" },
+    { "sup2", "²" },
+    { "sup3", "³" },
+    { "acute", "´" },
+    { "micro", "µ" },
+    { "para", "¶" },
+    { "cedil", "¸" },
+    { "sup1", "¹" },
+    { "ordm", "º" },
+    { "raquo", "»" },
+    { "frac14", "¼" },
+    { "frac12", "½" },
+    { "frac34", "¾" },
+    { "iquest", "¿" },
+    { "times", "×" },
+    { "divide", "÷" },
+    { "forall", "∀" },
+    { "part", "∂" },
+    { "exist", "∃" },
+    { "empty", "∅" },
+    { "nabla", "∇" },
+    { "isin", "∈" },
+    { "notin", "∉" },
+    { "ni", "∋" },
+    { "prod", "∏" },
+    { "sum", "∑" },
+    { "minus", "−" },
+    { "lowast", "∗" },
+    { "radic", "√" },
+    { "prop", "∝" },
+    { "infin", "∞" },
+    { "ang", "∠" },
+    { "and", "∧" },
+    { "or", "∨" },
+    { "cap", "∩" },
+    { "cup", "∪" },
+    { "int", "∫" },
+    { "there4", "∴" },
+    { "sim", "∼" },
+    { "cong", "≅" },
+    { "asymp", "≈" },
+    { "ne", "≠" },
+    { "equiv", "≡" },
+    { "le", "≤" },
+    { "ge", "≥" },
+    { "sub", "⊂" },
+    { "sup", "⊃" },
+    { "nsub", "⊄" },
+    { "supe", "⊇" },
+    { "oplus", "⊕" },
+    { "otimes", "⊗" },
+    { "perp", "⊥" },
+    { "sdot", "⋅" },
+    { "Beta", "Β" },
+    { "Gamma", "Γ" },
+    { "Delta", "Δ" },
+    { "Epsilon", "Ε" },
+    { "Zeta", "Ζ" },
+    { "Eta", "Η" },
+    { "Iota", "Ι" },
+    { "Kappa", "Κ" },
+    { "Mu", "Μ" },
+    { "Nu", "Ν" },
+    { "Xi", "Ξ" },
+    { "Omicron", "Ο" },
+    { "Rho", "Ρ" },
+    { "Sigma", "Σ" },
+    { "Tau", "Τ" },
+    { "Upsilon", "Υ" },
+    { "Phi", "Φ" },
+    { "Chi", "Χ" },
+    { "Psi", "Ψ" },
+    { "Omega", "Ω" },
+    { "alpha", "α" },
+    { "beta", "β" },
+    { "gamma", "γ" },
+    { "delta", "δ" },
+    { "epsilon", "ε" },
+    { "eta", "η" },
+    { "theta", "θ" },
+    { "iota", "ι" },
+    { "kappa", "κ" },
+    { "lambda", "λ" },
+    { "mu", "μ" },
+    { "nu", "ν" },
+    { "xi", "ξ" },
+    { "omicron", "ο" },
+    { "rho", "ρ" },
+    { "sigmaf", "ς" },
+    { "sigma", "σ" },
+    { "upsilon", "υ" },
+    { "phi", "φ" },
+    { "chi", "χ" },
+    { "psi", "ψ" },
+    { "omega", "ω" },
+    { "thetasym", "ϑ" },
+    { "upsih", "ϒ" },
+    { "piv", "ϖ" },
+    { "OElig", "Œ" },
+    { "oelig", "œ" },
+    { "Scaron", "Š" },
+    { "scaron", "š" },
+    { "Yuml", "Ÿ" },
+    { "fnof", "ƒ" },
+    { "circ", "ˆ" },
+    { "tilde", "˜" },
+    { "ensp", " " },
+    { "emsp", " " },
+    { "thinsp", " " },
+    { "zwnj", "‌" },
+    { "zwj", "‍" },
+    { "lrm", "‎" },
+    { "rlm", "‏" },
+    { "ndash", "–" },
+    { "mdash", "—" },
+    { "lsquo", "‘" },
+    { "rsquo", "’" },
+    { "sbquo", "‚" },
+    { "ldquo", "“" },
+    { "rdquo", "”" },
+    { "bdquo", "„" },
+    { "dagger", "†" },
+    { "Dagger", "‡" },
+    { "bull", "•" },
+    { "hellip", "…" },
+    { "permil", "‰" },
+    { "prime", "′" },
+    { "Prime", "″" },
+    { "lsaquo", "‹" },
+    { "rsaquo", "›" },
+    { "oline", "‾" },
+    { "euro", "€" },
+    { "trade", "™" },
+    { "larr", "←" },
+    { "uarr", "↑" },
+    { "rarr", "→" },
+    { "darr", "↓" },
+    { "harr", "↔" },
+    { "crarr", "↵" },
+    { "lceil", "⌈" },
+    { "rceil", "⌉" },
+    { "lfloor", "⌊" },
+    { "rfloor", "⌋" },
+    { "loz", "◊" },
+    { "spades", "♠" },
+    { "clubs", "♣" },
+    { "hearts", "♥" },
+    { "diams", "♦" },
+};
+
+
+static bool DecodeEntityUTF8(const std::string &entity_string, std::string * const s) {
+    // numeric entity?
+    if (entity_string[0] == '#') { // Yes!
+        uint32_t code_point;
+        errno = 0;
+        if (entity_string[1] == 'x')
+            code_point = ::strtoul(entity_string.c_str() + 2, nullptr, 16);
+        else
+            code_point = ::strtoul(entity_string.c_str() + 1, nullptr, 10);
+        if (errno != 0)
+            return false;
+
+        const auto utf8_char(TextUtil::UTF32ToUTF8(code_point));
+        s->append(utf8_char);
+    } else {
+        const auto entity_and_utf8(entities_to_utf8_map.find(entity_string));
+        if (unlikely(entity_and_utf8 == entities_to_utf8_map.cend()))
+            return false;
+
+        s->append(entity_and_utf8->second);
+    }
+
+    return true;
+}
+
+
+static inline bool IsValidEntityCharacter(const char ch) {
+    return StringUtil::IsAsciiLetter(ch) or StringUtil::IsDigit(ch) or ch == '#';
+}
+
+
+std::string &ReplaceEntitiesUTF8(std::string * const s, const UnknownEntityMode unknown_entity_mode) {
+    std::string result;
+    std::string::const_iterator ch(s->begin());
+    while (ch != s->end()) {
+        if (likely(*ch != '&')) {
+            // A non-entity character:
+            result += *ch;
+            ++ch;
+        } else { // Possibly the start of an entity!
+            ++ch; // Skip over the ampersand.
+
+            // Read the entity:
+            std::string entity;
+            while (ch != s->end() and IsValidEntityCharacter(*ch)) {
+                entity += *ch;
+                ++ch;
+            }
+
+            // Invalid end of entity candidate?
+            if (ch == s->end() or *ch != ';') {
+                if (unknown_entity_mode == PASS_THROUGH_UNKNOWN_ENTITIES) {
+                    result += '&';
+                    result += entity;
+                }
+                continue;
+            }
+
+            // Output the entity:
+            if (not DecodeEntityUTF8(entity, &result)) {
+                if (unknown_entity_mode == PASS_THROUGH_UNKNOWN_ENTITIES) {
+                    result += '&';
+                    result += entity;
+                    result += ';';
+                    ++ch; // Skip over the semicolon.
+                } else
+                    result += "�";
+            } else
+                ++ch; // Skip over the semicolom at the end of the entity.
+        }
+    }
+
+    s->swap(result);
+    return *s;
 }
 
 
@@ -645,8 +957,8 @@ bool IsHtmlEscaped(const std::string &raw_text) {
             if (ch == raw_text.end() or *ch != ';') // No entity!
                 return false;
 
-            char dummy;
-            if (not DecodeEntity(possible_entity, &dummy))
+            std::string dummy;
+            if (not DecodeEntityUTF8(possible_entity, &dummy))
                 return false; // Not an entity!
         } else if (*ch == '<' or *ch == '>' or *ch == '"' or *ch == '\'')
             return false;
@@ -699,7 +1011,7 @@ std::string StripHtmlTags(const std::string &text_with_optional_tags, const bool
     }
 
     if (replace_entities)
-        ReplaceEntities(&stripped_text);
+        ReplaceEntitiesUTF8(&stripped_text);
 
     return TextUtil::CollapseAndTrimWhitespace(&stripped_text);
 }
