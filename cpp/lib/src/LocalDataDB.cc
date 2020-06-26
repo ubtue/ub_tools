@@ -24,7 +24,7 @@
 #include "UBTools.h"
 
 
-LocalDataDB::LocalDataDB(const OpenMode open_mode) {
+LocalDataDB::LocalDataDB(const OpenMode open_mode): single_transaction_(open_mode == READ_WRITE) {
     db_connection_ = new DbConnection(UBTools::GetTuelibPath() + "local_data.sq3" /* must be the same path as in fetch_marc_updates.py */,
                                       (open_mode == READ_WRITE) ? DbConnection::CREATE : DbConnection::READONLY);
     if (open_mode == READ_ONLY)
@@ -34,24 +34,38 @@ LocalDataDB::LocalDataDB(const OpenMode open_mode) {
                                "    title_ppn TEXT PRIMARY KEY,"
                                "    local_fields BLOB NOT NULL"
                                ") WITHOUT ROWID");
+    db_connection_->queryOrDie("CREATE UNIQUE INDEX IF NOT EXISTS local_data_index ON local_data (title_ppn)");
 
     db_connection_->queryOrDie("CREATE TABLE IF NOT EXISTS local_ppns_to_title_ppns_map ("
                                "    local_ppn TEXT PRIMARY KEY,"
                                "    title_ppn TEXT NOT NULL,"
                                "    FOREIGN KEY(title_ppn) REFERENCES local_data(title_ppn)"
                                ") WITHOUT ROWID");
+    db_connection_->queryOrDie("CREATE UNIQUE INDEX IF NOT EXISTS local_ppns_to_title_ppns_mapindex "
+                               "ON local_ppns_to_title_ppns_map (local_ppn)");
+
+    if (single_transaction_)
+        db_connection_->queryOrDie("BEGIN TRANSACTION"); // This can lead to a 3 orders of magnitude speedup for INSERTs and UPDATEs!
 }
 
 
 LocalDataDB::~LocalDataDB() {
+    if (single_transaction_)
+        db_connection_->queryOrDie("END TRANSACTION");
     delete db_connection_;
 }
 
 
 void LocalDataDB::clear() {
-    db_connection_->queryOrDie("DELETE * FROM local_data");
-    db_connection_->queryOrDie("DELETE * FROM local_ppns_to_title_ppns_map");
+    db_connection_->queryOrDie("DROP TABLE IF EXISTS local_data");
+    db_connection_->queryOrDie("DROP TABLE IF EXISTS local_ppns_to_title_ppns_map");
 }
+
+
+// Blobs representing local field contents are stored in the "local_fields" column
+// of the "local_fields" table.  Each field content is prefixed by a hexadecimal string
+// length of length STRING_LENGTH_PREFIX_LENGTH.
+const size_t STRING_LENGTH_PREFIX_LENGTH(4);
 
 
 static std::vector<std::string> BlobToLocalFieldsVector(const std::string &local_fields_blob, const std::string &title_ppn) {
@@ -59,9 +73,10 @@ static std::vector<std::string> BlobToLocalFieldsVector(const std::string &local
 
     size_t processed_size(0);
     do {
-        // Convert the 4 character hex string to the size of the following field contents:
-        const size_t field_contents_size(StringUtil::ToUnsignedLong(local_fields_blob.substr(processed_size, 4), 16));
-        processed_size += 4;
+        // Convert the hex length prefix the size of the following field contents:
+        const size_t field_contents_size(
+            StringUtil::ToUnsignedLong(local_fields_blob.substr(processed_size, STRING_LENGTH_PREFIX_LENGTH), 16));
+        processed_size += STRING_LENGTH_PREFIX_LENGTH;
 
         // Sanity check:
         if (unlikely(processed_size + field_contents_size > local_fields_blob.size()))
@@ -79,7 +94,7 @@ static std::vector<std::string> BlobToLocalFieldsVector(const std::string &local
 }
 
 
-std::vector<std::string> ExtractLocalPPNsFromLocalFieldsVector(const std::vector<std::string> &local_fields) {
+static std::vector<std::string> ExtractLocalPPNsFromLocalFieldsVector(const std::vector<std::string> &local_fields) {
     std::vector<std::string> local_ppns;
 
     for (const auto &local_field : local_fields) {
@@ -92,10 +107,15 @@ std::vector<std::string> ExtractLocalPPNsFromLocalFieldsVector(const std::vector
 
 
 static std::string ConvertLocalFieldsVectorToBlob(const std::vector<std::string> &local_fields) {
+    size_t reservation_size(0);
+    for (const auto &local_field : local_fields)
+        reservation_size += STRING_LENGTH_PREFIX_LENGTH + local_field.length();
     std::string local_fields_blob;
+    local_fields_blob.reserve(reservation_size);
+
     for (const auto &local_field : local_fields) {
         local_fields_blob += StringUtil::ToString(local_field.length(), /* radix = */16,
-                                                  /* width = */4, /* padding_char = */'0');
+                                                  /* width = */STRING_LENGTH_PREFIX_LENGTH, /* padding_char = */'0');
         local_fields_blob += local_field;
     }
 
@@ -113,7 +133,7 @@ void LocalDataDB::insertOrReplace(const std::string &title_ppn, const std::vecto
         const auto previous_local_fields(BlobToLocalFieldsVector(row["local_fields"], title_ppn));
         const auto local_ppns(ExtractLocalPPNsFromLocalFieldsVector(previous_local_fields));
         for (const auto &local_ppn : local_ppns)
-            db_connection_->queryOrDie("DELETE * FROM local_ppns_to_title_ppns_map WHERE local_ppn="
+            db_connection_->queryOrDie("DELETE FROM local_ppns_to_title_ppns_map WHERE local_ppn="
                                        + db_connection_->escapeAndQuoteString(local_ppn));
     }
 
@@ -155,7 +175,7 @@ bool LocalDataDB::removeTitleDataSet(const std::string &title_ppn) {
     const auto previous_local_fields(BlobToLocalFieldsVector(row["local_fields"], title_ppn));
     const auto local_ppns(ExtractLocalPPNsFromLocalFieldsVector(previous_local_fields));
     for (const auto &local_ppn : local_ppns)
-        db_connection_->queryOrDie("DELETE * FROM local_ppns_to_title_ppns_map WHERE local_ppn="
+        db_connection_->queryOrDie("DELETE FROM local_ppns_to_title_ppns_map WHERE local_ppn="
                                    + db_connection_->escapeAndQuoteString(local_ppn));
 
     // 2. Delete the local data for the title PPN:
@@ -198,14 +218,14 @@ bool LocalDataDB::removeLocalDataSet(const std::string &local_ppn) {
     // 2. Retrieve the local data associated w/ the title PPN:
     auto local_fields(getLocalFields(title_ppn));
 
-    // 3. Remove the local data associsted w/ the local PPN:
+    // 3. Remove the local data associated w/ the local PPN:
     const auto filtered_local_fields(RemoveLocalDataSet(local_ppn, local_fields));
 
     // 4. Update our SQL tables:
-    db_connection_->queryOrDie("DELETE FROM local_ppns_to_title_ppns_map WHERE ocal_ppn="
+    db_connection_->queryOrDie("DELETE FROM local_ppns_to_title_ppns_map WHERE local_ppn="
                                + db_connection_->escapeAndQuoteString(local_ppn));
     if (filtered_local_fields.empty())
-        db_connection_->queryOrDie("DELETE * FROM local_fields WHERE title_ppn="
+        db_connection_->queryOrDie("DELETE FROM local_fields WHERE title_ppn="
                                    + db_connection_->escapeAndQuoteString(title_ppn));
     else
         db_connection_->queryOrDie("REPLACE INTO local_data (titel_ppn, local_fields) VALUES("
