@@ -37,13 +37,13 @@
 namespace HtmlUtil {
 
 
-bool DecodeEntity(const char *entity_string, char * const ch);
+bool DecodeEntityLatin1(const char *entity_string, char * const ch);
 
-inline bool DecodeEntity(const std::string &entity_string, char * const ch)
-        { return DecodeEntity(entity_string.c_str(), ch); }
+inline bool DecodeEntityLatin1(const std::string &entity_string, char * const ch)
+    { return DecodeEntityLatin1(entity_string.c_str(), ch); }
 
 
-enum UnknownEntityMode { IGNORE_UNKNOWN_ENTITIES, REMOVE_UNKNOWN_ENTITIES };
+enum UnknownEntityMode { PASS_THROUGH_UNKNOWN_ENTITIES, DELETE_UNKNOWN_ENTITIES };
 
 
 /** \brief  Replaces all HTML entities in "s" with the actual characters.
@@ -51,15 +51,30 @@ enum UnknownEntityMode { IGNORE_UNKNOWN_ENTITIES, REMOVE_UNKNOWN_ENTITIES };
  *  \param  unknown_entity_mode  tells whether to remove unknown entities.
  *  \note   It is probably a good idea to call RemoveTags before calling this function.
  */
-std::string &ReplaceEntities(std::string * const s,
-                             const UnknownEntityMode unknown_entity_mode = REMOVE_UNKNOWN_ENTITIES);
+std::string &ReplaceEntitiesLatin1(std::string * const s,
+                                   const UnknownEntityMode unknown_entity_mode = DELETE_UNKNOWN_ENTITIES);
 
-inline std::string ReplaceEntities(const std::string &s,
-                                   const UnknownEntityMode unknown_entity_mode = REMOVE_UNKNOWN_ENTITIES)
+inline std::string ReplaceEntitiesLatin1(const std::string &s,
+                                         const UnknownEntityMode unknown_entity_mode = DELETE_UNKNOWN_ENTITIES)
 {
-        std::string temp_s(s);
-        ReplaceEntities(&temp_s, unknown_entity_mode);
-        return temp_s;
+    std::string temp_s(s);
+    ReplaceEntitiesLatin1(&temp_s, unknown_entity_mode);
+    return temp_s;
+}
+
+
+/** \brief  Replaces all HTML entities in "s" with the actual characters.
+ *  \param  s                    The string that may contain optional HTML entities.
+ *  \param  unknown_entity_mode  If set to DELETE_UNKNOWN_ENTITIES, unknown entities will be replaced with the � character.
+ *                               o/w "junk" will be passed through.
+ *  \note   It is probably a good idea to call RemoveTags before calling this function.
+ */
+std::string &ReplaceEntitiesUTF8(std::string * const s, const UnknownEntityMode unknown_entity_mode = PASS_THROUGH_UNKNOWN_ENTITIES);
+
+inline std::string ReplaceEntitiesUTF8(const std::string &s, const UnknownEntityMode unknown_entity_mode = PASS_THROUGH_UNKNOWN_ENTITIES) {
+    std::string temp_s(s);
+    ReplaceEntitiesUTF8(&temp_s, unknown_entity_mode);
+    return temp_s;
 }
 
 
@@ -88,6 +103,7 @@ bool IsHtmlEscaped(const std::string &raw_text);
 size_t ExtractAllLinks(const std::string &html_document, std::vector<std::string> * const urls);
 
 
+// \warning Assumes that "text_with_optional_tags" is UTF8 encoded!
 std::string StripHtmlTags(const std::string &text_with_optional_tags, const bool replace_entities = true);
 
 

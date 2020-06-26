@@ -139,7 +139,7 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
         const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
         if (suppression_regex->second->match(string_node->getValue())) {
             LOG_DEBUG("suppression regex '" + suppression_regex->second->getPattern() +
-                        "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
+                      "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
             string_node->setValue("");
         }
     }
@@ -617,20 +617,25 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
         }
     }
 
-    // identify language
-    if (metadata_record->language_.empty() or journal_params.language_params_.force_automatic_language_detection_) {
-        if (journal_params.language_params_.force_automatic_language_detection_)
-            LOG_DEBUG("forcing automatic language detection");
-
-        IdentifyMissingLanguage(metadata_record, journal_params);
-    } else if (journal_params.language_params_.expected_languages_.size() == 1
-               and *journal_params.language_params_.expected_languages_.begin() != metadata_record->language_)
+    // autodetect or map language
+    bool autodetect_language(false);
+    const std::string autodetect_message("forcing automatic language detection, reason: ");
+    if (journal_params.language_params_.force_automatic_language_detection_) {
+        LOG_DEBUG(autodetect_message + "conf setting");
+        autodetect_language = true;
+    } else if (metadata_record->language_.empty()) {
+        LOG_DEBUG(autodetect_message + "empty language");
+        autodetect_language = true;
+    } else if (not TranslationUtil::IsValidInternational2LetterCode(metadata_record->language_)
+               and not TranslationUtil::IsValidGerman3Or4LetterCode(metadata_record->language_))
     {
-        LOG_WARNING("expected language '" + *journal_params.language_params_.expected_languages_.begin() + "' but found '"
-                    + metadata_record->language_ + "'");
-        metadata_record->language_ = *journal_params.language_params_.expected_languages_.begin();
-    } else if (metadata_record->language_.length() >= 2 and metadata_record->language_.length() <= 4) {
-        // map language code from Zotero translator to english 3 letter code, if possible
+        LOG_DEBUG(autodetect_message + "invalid language \"" + metadata_record->language_ + "\"");
+        autodetect_language = true;
+    }
+
+    if (autodetect_language)
+        IdentifyMissingLanguage(metadata_record, journal_params);
+    else {
         if (TranslationUtil::IsValidInternational2LetterCode(metadata_record->language_))
             metadata_record->language_ = TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(metadata_record->language_);
         if (TranslationUtil::IsValidGerman3Or4LetterCode(metadata_record->language_))
@@ -653,10 +658,12 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
         } else if (review_matcher->match(metadata_record->abstract_note_)) {
             LOG_DEBUG("abstract matched review pattern");
             metadata_record->item_type_ = "review";
-        } else for (const auto &keyword : metadata_record->keywords_) {
-            if (review_matcher->match(keyword)) {
-                LOG_DEBUG("keyword matched review pattern");
-                metadata_record->item_type_ = "review";
+        } else {
+            for (const auto &keyword : metadata_record->keywords_) {
+                if (review_matcher->match(keyword)) {
+                    LOG_DEBUG("keyword matched review pattern");
+                    metadata_record->item_type_ = "review";
+                }
             }
         }
     }
@@ -814,6 +821,7 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
             subfields.appendSubfield('b', creator->affix_ + ".");
         if (not creator->title_.empty())
             subfields.appendSubfield('c', creator->title_);
+        subfields.appendSubfield('e', "VerfasserIn");
 
         if (num_creators_left == 1)
             marc_record->insertField("100", subfields, /* indicator 1 = */'1');

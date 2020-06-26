@@ -210,7 +210,7 @@ bool RecordMeetsExpectations(const MARC::Record &record, const std::string &jour
 
 void WriteToDatabase(DbConnection * const db_connection, const std::string &journal_name, const JournalInfo &journal_info) {
     for (const auto &field_info : journal_info)
-        db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET journal_name='" + journal_name
+        db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET journal_name='" + db_connection->escapeString(journal_name)
                                   + "', metadata_field_name='" + db_connection->escapeString(field_info.name_)
                                   + "', field_presence='" + FieldPresenceToString(field_info.presence_) + "'");
 }
@@ -234,14 +234,46 @@ void UpdateDB(DbConnection * const db_connection, const std::string &journal_nam
     if (field_name.length() != MARC::Record::TAG_LENGTH)
         LOG_ERROR("\"" + field_name + "\" is not a valid field name!");
 
-    DbTransaction transcation(db_connection);
-    db_connection->queryOrDie("SELECT field_presence FROM metadata_presence_tracer WHERE journal_name="
-                              + db_connection->escapeAndQuoteString(journal_name) + " AND field_name='" + field_name + "'");
-    const DbResultSet result_set(db_connection->getLastResultSet());
-    if (result_set.empty())
-        LOG_ERROR("can't update non-existent database entry!");
     db_connection->queryOrDie("UPDATE metadata_presence_tracer SET field_presence='" + field_presence_str + "' WHERE journal_name="
                               + db_connection->escapeAndQuoteString(journal_name) + " AND field_name='" + field_name + "'");
+    if (db_connection->getNoOfAffectedRows() == 0)
+        LOG_ERROR("can't update non-existent database entry! (journal_name: \"" + journal_name + "\""
+                  + ", field_name: \"" + field_name + "\"");
+}
+
+
+bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &record,
+                   std::map<std::string, JournalInfo> * const journal_name_to_info_map,
+                   unsigned * const new_record_count, unsigned * const missed_expectation_count)
+{
+    const auto journal_name(record.getSuperiorTitle());
+    if (journal_name.empty()) {
+        LOG_WARNING("Record w/ control number \"" + record.getControlNumber() + "\" is missing a superior title!");
+        ++(*missed_expectation_count);
+        return false;
+    }
+
+    auto journal_name_and_info(journal_name_to_info_map->find(journal_name));
+    bool first_record(false); // True if the current record is the first encounter of a journal
+    if (journal_name_and_info == journal_name_to_info_map->end()) {
+        first_record = true;
+        JournalInfo new_journal_info;
+        LoadFromDatabaseOrCreateFromScratch(db_connection, journal_name, &new_journal_info);
+        (*journal_name_to_info_map)[journal_name] = new_journal_info;
+        journal_name_and_info = journal_name_to_info_map->find(journal_name);
+    }
+
+    if (journal_name_and_info->second.isInDatabase()) {
+        if (not RecordMeetsExpectations(record, journal_name_and_info->first, journal_name_and_info->second)) {
+            ++(*missed_expectation_count);
+            return false;
+        }
+    } else {
+        AnalyseNewJournalRecord(record, first_record, &journal_name_and_info->second);
+        ++(*new_record_count);
+    }
+
+    return true;
 }
 
 
@@ -268,46 +300,11 @@ int Main(int argc, char *argv[]) {
     unsigned total_record_count(0), new_record_count(0), missed_expectation_count(0);
     while (const auto record = reader->read()) {
         ++total_record_count;
-        bool validation_failed(false);
-
-        // Intentionally true to allow early breaking
-        while (true) {
-            const auto journal_name(record.getSuperiorTitle());
-            if (journal_name.empty()) {
-                LOG_WARNING("Record w/ control number \"" + record.getControlNumber() + "\" is missing a superior title!");
-                validation_failed = true;
-                break;
-            }
-
-            auto journal_name_and_info(journal_name_to_info_map.find(journal_name));
-            bool first_record(false); // True if the current record is the first encounter of a journal
-            if (journal_name_and_info == journal_name_to_info_map.end()) {
-                first_record = true;
-                JournalInfo new_journal_info;
-                LoadFromDatabaseOrCreateFromScratch(&db_connection, journal_name, &new_journal_info);
-                journal_name_to_info_map[journal_name] = new_journal_info;
-                journal_name_and_info = journal_name_to_info_map.find(journal_name);
-            }
-
-            if (journal_name_and_info->second.isInDatabase()) {
-                if (not RecordMeetsExpectations(record, journal_name_and_info->first, journal_name_and_info->second)) {
-                    validation_failed = true;
-                    ++missed_expectation_count;
-                    break;
-                }
-            } else {
-                AnalyseNewJournalRecord(record, first_record, &journal_name_and_info->second);
-                ++new_record_count;
-            }
-
-            // Break unconditionally
-            break;
-        }
-
-        if (validation_failed)
-            delinquent_records_writer->write(record);
-        else
+        if (IsRecordValid(&db_connection, record, &journal_name_to_info_map,
+                          &new_record_count, &missed_expectation_count))
             valid_records_writer->write(record);
+        else
+            delinquent_records_writer->write(record);
     }
 
     for (const auto &journal_name_and_info : journal_name_to_info_map) {
@@ -319,7 +316,7 @@ int Main(int argc, char *argv[]) {
         // send notification to the email address
         SendEmail(email_address, "validate_harvested_records encountered warnings (from: " + DnsUtil::GetHostname() + ")",
                   "Some records missed expectations with respect to MARC fields. "
-                  "Check the log at '/usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log' for details.");
+                  "Check the log at '" + UBTools::GetTueFindLogPath() + "zts_harvester_delivery_pipeline.log' for details.");
     }
 
     LOG_INFO("Processed " + std::to_string(total_record_count) + " record(s) of which " + std::to_string(new_record_count)
