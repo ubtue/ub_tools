@@ -886,13 +886,13 @@ std::string &ReplaceEntitiesUTF8(std::string * const s, const UnknownEntityMode 
 
             // Read the entity:
             std::string entity;
-            while (ch != s->end() and *ch != ';' and *ch != '&') {
+            while (ch != s->end() and StringUtil::IsAsciiLetter(*ch)) {
                 entity += *ch;
                 ++ch;
             }
 
             // Invalid end of entity candidate?
-            if (ch == s->end() or *ch == '&') {
+            if (ch == s->end() or *ch != ';') {
                 if (unknown_entity_mode == PASS_THROUGH_UNKNOWN_ENTITIES) {
                     result += '&';
                     result += entity;
