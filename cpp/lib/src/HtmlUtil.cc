@@ -873,6 +873,11 @@ static bool DecodeEntityUTF8(const std::string &entity_string, std::string * con
 }
 
 
+static inline bool IsValidEnityCharacter(const char ch) {
+    return StringUtil::IsAsciiLetter(ch) or StringUtil::IsDigit(ch) or ch == '#';
+}
+
+
 std::string &ReplaceEntitiesUTF8(std::string * const s, const UnknownEntityMode unknown_entity_mode) {
     std::string result;
     std::string::const_iterator ch(s->begin());
@@ -886,7 +891,7 @@ std::string &ReplaceEntitiesUTF8(std::string * const s, const UnknownEntityMode 
 
             // Read the entity:
             std::string entity;
-            while (ch != s->end() and StringUtil::IsAsciiLetter(*ch)) {
+            while (ch != s->end() and IsValidEnityCharacter(*ch)) {
                 entity += *ch;
                 ++ch;
             }
