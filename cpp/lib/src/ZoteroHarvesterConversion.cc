@@ -139,7 +139,7 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
         const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
         if (suppression_regex->second->match(string_node->getValue())) {
             LOG_DEBUG("suppression regex '" + suppression_regex->second->getPattern() +
-                        "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
+                      "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
             string_node->setValue("");
         }
     }
@@ -627,7 +627,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
         LOG_DEBUG(autodetect_message + "empty language");
         autodetect_language = true;
     } else if (not TranslationUtil::IsValidInternational2LetterCode(metadata_record->language_)
-        and not TranslationUtil::IsValidGerman3Or4LetterCode(metadata_record->language_))
+               and not TranslationUtil::IsValidGerman3Or4LetterCode(metadata_record->language_))
     {
         LOG_DEBUG(autodetect_message + "invalid language \"" + metadata_record->language_ + "\"");
         autodetect_language = true;
@@ -658,10 +658,12 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
         } else if (review_matcher->match(metadata_record->abstract_note_)) {
             LOG_DEBUG("abstract matched review pattern");
             metadata_record->item_type_ = "review";
-        } else for (const auto &keyword : metadata_record->keywords_) {
-            if (review_matcher->match(keyword)) {
-                LOG_DEBUG("keyword matched review pattern");
-                metadata_record->item_type_ = "review";
+        } else {
+            for (const auto &keyword : metadata_record->keywords_) {
+                if (review_matcher->match(keyword)) {
+                    LOG_DEBUG("keyword matched review pattern");
+                    metadata_record->item_type_ = "review";
+                }
             }
         }
     }
