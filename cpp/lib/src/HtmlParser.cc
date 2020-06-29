@@ -660,11 +660,6 @@ const std::vector<std::string> HTML4_DOCTYPES = {
 };
 
 
-const std::vector<std::string> HTML2_DOCTYPES = {
-    "HTML PUBLIC "-//IETF//DTD HTML 2.0//EN"
-};
-
-
 bool IsHTML4Doctype(const std::string &doctype) {
     for (const auto &html4_doctype : HTML4_DOCTYPES) {
         if (StringUtil::StartsWith(doctype, html4_doctype, /* ignore_case = */ true))
@@ -674,9 +669,14 @@ bool IsHTML4Doctype(const std::string &doctype) {
 }
 
 
+const std::vector<std::string> HTML2_DOCTYPES = {
+    "HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\""
+};
+
+
 bool IsHTML2Doctype(const std::string &doctype) {
-    for (const autor &html2_doctype : HTML_2_DOCTYPES) {
-        if (StringUtil::StartsWith(doctype, html2_doctype, /*ignore_case = */ true));
+    for (const auto &html2_doctype : HTML2_DOCTYPES) {
+        if (StringUtil::StartsWith(doctype, html2_doctype, /*ignore_case = */ true))
             return true;
     }
     return false;
