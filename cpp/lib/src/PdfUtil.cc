@@ -98,42 +98,17 @@ bool PdfDocContainsNoText(const std::string &document) {
 bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_language_code,
                       std::string * const extracted_text)
 {
-    tesseract::TessBaseAPI * const api(new tesseract::TessBaseAPI());
-    if (api->Init(nullptr, tesseract_language_code.c_str())) {
-        LOG_WARNING("Could not initialize Tesseract API!");
-        return false;
-    }
+    static std::string tesseract_path(ExecUtil::LocateOrDie("tesseract"));
+    extracted_text->clear();
+    std::string stderr_output;
+    if (not ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(
+            tesseract_path, { img_path, "stdout" /*tesseract arg to redirect*/,
+            "-l", tesseract_language_code,
+            "--oem", "0" /*use legacy extract to address problems with 4.0 default engine*/},
+            extracted_text, &stderr_output)
+        )
+        LOG_WARNING("While processing " + img_path + ": " + stderr_output);
 
-    const std::string filetype(MediaTypeUtil::GetFileMediaType(img_path));
-
-    // Special Handling for tiff multipages
-    if (filetype == "image/tiff") {
-        extracted_text->clear();
-        Pixa *multipage_image(pixaReadMultipageTiff(img_path.c_str()));
-        for (l_int32 offset(0); offset < multipage_image->n; ++offset) {
-             LOG_INFO("Extracting page " + std::to_string(offset + 1));
-             api->SetImage(multipage_image->pix[offset]);
-             char *utf8_page(api->GetUTF8Text());
-             extracted_text->append(utf8_page);
-             delete[] utf8_page;
-        }
-        api->End();
-        delete api;
-        pixaDestroy(&multipage_image);
-        delete multipage_image;
-
-    } else {
-        Pix *image(pixRead(img_path.c_str()));
-        api->SetImage(image);
-        char *utf8_text(api->GetUTF8Text());
-        *extracted_text = utf8_text;
-        delete[] utf8_text;
-        api->End();
-        delete api;
-        pixDestroy(&image);
-        delete image;
-
-    }
     return not extracted_text->empty();
 }
 
