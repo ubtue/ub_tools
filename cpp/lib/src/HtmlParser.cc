@@ -660,9 +660,23 @@ const std::vector<std::string> HTML4_DOCTYPES = {
 };
 
 
+const std::vector<std::string> HTML2_DOCTYPES = {
+    "HTML PUBLIC "-//IETF//DTD HTML 2.0//EN"
+}
+
+
 bool IsHTML4Doctype(const std::string &doctype) {
     for (const auto &html4_doctype : HTML4_DOCTYPES) {
         if (StringUtil::StartsWith(doctype, html4_doctype, /* ignore_case = */ true))
+            return true;
+    }
+    return false;
+}
+
+
+bool IsHTML2Doctype(const std::string &doctype) {
+    for (const autor &html2_doctype : HTML_2_DOCTYPES) {
+        if (StringUtil::StartsWith(doctype, html2_doctype, /*ignore_case = */ true));
             return true;
     }
     return false;
@@ -692,7 +706,7 @@ void HtmlParser::processDoctype() {
 
     if (::strcasecmp(doctype.c_str(), "html") == 0)
         return;
-    if (IsHTML4Doctype(doctype)) {
+    if (IsHTML4Doctype(doctype) or IsHTML2Doctype(doctype)) {
         document_local_charset_ = "Latin-1 but using ANSI"; // See https://www.w3schools.com/charsets/default.asp for a rationale!
         std::string error_message;
         encoding_converter_ = TextUtil::EncodingConverter::Factory("MS-ANSI", "UTF8", &error_message);
