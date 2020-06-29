@@ -2,7 +2,7 @@
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \documentation https://wiki.bsz-bw.de/doku.php?id=v-team:daten:datendienste:sekkor under "Löschungen".
  *
- *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,8 +24,10 @@
 #include <cstdlib>
 #include "BSZUtil.h"
 #include "FileUtil.h"
+#include "LocalDataDB.h"
 #include "MARC.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "util.h"
 
 
@@ -39,57 +41,25 @@ namespace {
 }
 
 
-/** \brief Deletes LOK sections if their pseudo tags are found in "local_deletion_ids"
- *  \return True if at least one local section has been deleted, else false.
- */
-bool DeleteLocalSections(const std::unordered_set <std::string> &local_deletion_ids, MARC::Record * const record) {
-    bool modified(false);
-    std::vector<MARC::Record::iterator> local_block_starts_for_deletion;
-
-    for (const auto &local_block_start : record->findStartOfAllLocalDataBlocks()) {
-        const auto _001_range(record->getLocalTagRange("001", local_block_start));
-
-        if (_001_range.size() != 1)
-            LOG_ERROR("Every local data block has to have exactly one 001 field. (Record: "
-                      + record->getControlNumber() + ", First field in local block was: "
-                      + local_block_start->toString() + " - Found "
-                      + std::to_string(_001_range.size()) + ".)");
-        const MARC::Subfields subfields(_001_range.front().getSubfields());
-        const std::string subfield_contents(subfields.getFirstSubfieldWithCode('0'));
-        if (not StringUtil::StartsWith(subfield_contents, "001 ")
-            or local_deletion_ids.find(subfield_contents.substr(4)) == local_deletion_ids.end())
-            continue;
-
-        local_block_starts_for_deletion.emplace_back(local_block_start);
-        modified = true;
-    }
-    record->deleteLocalBlocks(local_block_starts_for_deletion);
-
-    return modified;
-}
-
-
-void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
-                    const std::unordered_set <std::string> &local_deletion_ids, MARC::Reader * const marc_reader,
-                    MARC::Writer * const marc_writer, File * const entire_record_deletion_log)
+void ProcessRecords(LocalDataDB * const local_data_db, const std::unordered_set<std::string> &title_deletion_ids,
+                    MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                    File * const entire_record_deletion_log)
 {
-    unsigned total_record_count(0), deleted_record_count(0), modified_record_count(0);
+    unsigned total_record_count(0), deleted_record_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++total_record_count;
 
-        if (title_deletion_ids.find(record.getControlNumber()) != title_deletion_ids.end()) {
+        const auto ppn(record.getControlNumber());
+        if (title_deletion_ids.find(ppn) != title_deletion_ids.end()) {
+            local_data_db->removeTitleDataSet(ppn);
             ++deleted_record_count;
-            (*entire_record_deletion_log) << record.getControlNumber() << '\n';
-        } else { // Look for local (LOK) data sets that may need to be deleted.
-            if (DeleteLocalSections(local_deletion_ids, &record))
-                ++modified_record_count;
+            (*entire_record_deletion_log) << ppn << '\n';
+        } else
             marc_writer->write(record);
-        }
     }
 
-    std::cerr << "Read " << total_record_count << " records.\n";
-    std::cerr << "Deleted " << deleted_record_count << " records.\n";
-    std::cerr << "Modified " << modified_record_count << " records.\n";
+    LOG_INFO("Read " + std::to_string(total_record_count) + " records.");
+    LOG_INFO("Deleted " + std::to_string(deleted_record_count) + " records.");
 }
 
 
@@ -110,11 +80,16 @@ int Main(int argc, char *argv[]) {
     std::unordered_set<std::string> title_deletion_ids, local_deletion_ids;
     BSZUtil::ExtractDeletionIds(deletion_list.get(), &title_deletion_ids, &local_deletion_ids);
 
+    LocalDataDB local_data_db(LocalDataDB::READ_WRITE);
+    for (const auto &local_deletion_id : local_deletion_ids)
+        local_data_db.removeLocalDataSet(local_deletion_id);
+
     const auto marc_reader(MARC::Reader::Factory(argv[2], reader_type));
     const auto marc_writer(MARC::Writer::Factory(argv[3], writer_type));
     const auto entire_record_deletion_log(FileUtil::OpenForAppendingOrDie(argv[4]));
 
-    ProcessRecords(title_deletion_ids, local_deletion_ids, marc_reader.get(), marc_writer.get(), entire_record_deletion_log.get());
+    ProcessRecords(&local_data_db, title_deletion_ids, marc_reader.get(),
+                   marc_writer.get(), entire_record_deletion_log.get());
 
     return EXIT_SUCCESS;
 }
