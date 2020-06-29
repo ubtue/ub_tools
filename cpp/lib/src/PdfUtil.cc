@@ -105,7 +105,9 @@ bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_
             tesseract_path, { img_path, "stdout" /*tesseract arg to redirect*/,
             "-l", tesseract_language_code,
             "--oem", "0" /*use legacy extract to address problems with 4.0 default engine*/},
-            extracted_text, &stderr_output)
+            extracted_text, &stderr_output, 0 /* timeout */, SIGKILL,
+            { {"OMP_THREAD_LIMIT", "1" } }, /* address tesseract 4 IPC problems */
+            "" /* working dir */)
         )
         LOG_WARNING("While processing " + img_path + ": " + stderr_output);
 

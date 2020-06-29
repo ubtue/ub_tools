@@ -335,12 +335,16 @@ bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * co
 
 
 bool ExecSubcommandAndCaptureStdoutAndStderr(const std::string &command, const std::vector<std::string> &args,
-                                             std::string * const stdout_output, std::string * const stderr_output)
+                                             std::string * const stdout_output, std::string * const stderr_output,
+                                             const unsigned timeout_in_seconds, const int tardy_child_signal,
+                                             const std::unordered_map<std::string, std::string> &envs,
+                                             const std::string &working_directory)
 {
     FileUtil::AutoTempFile stdout_temp;
     FileUtil::AutoTempFile stderr_temp;
 
-    const int retcode(Exec(command, args, /* new_stdin = */ "", stdout_temp.getFilePath(), stderr_temp.getFilePath()));
+    const int retcode(Exec(command, args, /* new_stdin = */ "", stdout_temp.getFilePath(), stderr_temp.getFilePath(),
+                           timeout_in_seconds, tardy_child_signal, envs, working_directory));
 
     if (not FileUtil::ReadString(stdout_temp.getFilePath(), stdout_output))
         LOG_ERROR("failed to read temporary file w/ stdout contents!");
