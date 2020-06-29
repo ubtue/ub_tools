@@ -662,7 +662,7 @@ const std::vector<std::string> HTML4_DOCTYPES = {
 
 const std::vector<std::string> HTML2_DOCTYPES = {
     "HTML PUBLIC "-//IETF//DTD HTML 2.0//EN"
-}
+};
 
 
 bool IsHTML4Doctype(const std::string &doctype) {
