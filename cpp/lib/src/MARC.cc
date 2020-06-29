@@ -574,6 +574,13 @@ void Record::toXmlStringHelper(MarcXmlWriter * const xml_writer) const {
 }
 
 
+size_t Record::truncate(const const_iterator field_iter) {
+    const auto old_field_count(fields_.size());
+    fields_.erase(field_iter, fields_.cend());
+    return old_field_count - fields_.size();
+}
+
+
 std::string Record::toString(const RecordFormat record_format, const unsigned indent_amount,
                              const MarcXmlWriter::TextConversionType text_conversion_type) const
 {
