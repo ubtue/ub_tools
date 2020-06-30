@@ -19,15 +19,17 @@
 
 #include <ctime>
 #include <cstdlib>
-#include "DbConnection.h"
 #include "EmailSender.h"
 #include "IniFile.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
+#include "TimeUtil.h"
 #include "UBTools.h"
 #include "util.h"
+#include "Zeder.h"
 #include "ZoteroHarvesterConfig.h"
+#include "ZoteroHarvesterUtil.h"
 
 
 namespace {
@@ -39,22 +41,17 @@ namespace {
 }
 
 
-void ProcessJournal(DbConnection * const db_connection, const std::string &journal_name, const std::string &zeder_id,
-                    const std::string &zeder_instance, const  unsigned update_window, std::string * tardy_list)
+void ProcessJournal(ZoteroHarvester::Util::UploadTracker * const upload_tracker, const std::string &journal_name,
+                    const std::string &zeder_id, const std::string &zeder_instance, const unsigned update_window,
+                    std::string * tardy_list)
 {
-    db_connection->queryOrDie("SELECT MAX(delivered_at) AS max_delivered_at FROM delivered_marc_records WHERE zeder_id="
-                              + db_connection->escapeAndQuoteString(zeder_id) + " and zeder_instance="
-                              + db_connection->escapeAndQuoteString(zeder_instance));
-
-    DbResultSet result_set(db_connection->getLastResultSet());
-    if (result_set.empty())
+    const time_t max_delivered_at(upload_tracker->getLastUploadTime(StringUtil::ToUnsigned(zeder_id),
+                                  Zeder::ParseFlavour(zeder_instance)));
+    if (max_delivered_at == TimeUtil::BAD_TIME_T)
         return;
 
-    const std::string max_delivered_at_string(result_set.getNextRow()["max_delivered_at"]);
-    const time_t max_delivered_at(SqlUtil::DatetimeToTimeT(max_delivered_at_string));
-
     if (max_delivered_at < ::time(nullptr) - update_window * 86400)
-        *tardy_list += journal_name + ": " + max_delivered_at_string + "\n";
+        *tardy_list += journal_name + ": " + TimeUtil::TimeTToString(max_delivered_at) + "\n";
 }
 
 
@@ -79,7 +76,7 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     const std::string sender_email_address(argv[2]), notification_email_address(argv[3]);
-    DbConnection db_connection;
+    ZoteroHarvester::Util::UploadTracker upload_tracker;
 
     IniFile ini_file(UBTools::GetTuelibPath() + "zotero-enhancement-maps/zotero_harvester.conf");
     std::string tardy_list;
@@ -104,7 +101,7 @@ int Main(int argc, char *argv[]) {
         } else
             update_window = section.getUnsigned("update_window");
 
-        ProcessJournal(&db_connection, journal_name, zeder_id, zeder_instance, update_window, &tardy_list);
+        ProcessJournal(&upload_tracker, journal_name, zeder_id, zeder_instance, update_window, &tardy_list);
     }
 
     if (not tardy_list.empty()) {
