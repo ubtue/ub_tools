@@ -25,6 +25,15 @@ CREATE TABLE rss_aggregator (
     INDEX insertion_time_index(insertion_time)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
+CREATE TABLE zeder_journals (
+  id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  zeder_id VARCHAR(10) NOT NULL,
+  zeder_instance ENUM('ixtheo', 'krimdok') NOT NULL,
+  journal_name VARCHAR(1000) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE (zeder_id, zeder_instance)
+) DEFAULT CHARSET=utf8mb4;
+
 -- Table to be used w/ our validate_harvested_records tool:
 CREATE TABLE metadata_presence_tracer (
     journal_name VARCHAR(764) NOT NULL,
