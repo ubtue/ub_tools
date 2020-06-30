@@ -643,7 +643,8 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
     }
 
     // fill-in license and SSG values
-    metadata_record->license_ = journal_params.license_;
+    if (journal_params.license_ == "LF")
+        metadata_record->license_ = journal_params.license_;
     metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(journal_params.ssgn_);
 
     // tag reviews
