@@ -73,19 +73,6 @@ void SaveRecordUrls(const std::string &record_id, const MARC::Record &record, Db
 }
 
 
-void UpdateZederInstance(const std::string &record_id, const MARC::Record &record, DbConnection * const db_connection) {
-    try {
-        const auto zeder_instance(ZoteroHarvester::Util::UploadTracker::GetZederInstanceString
-                                (ZoteroHarvester::ZederInterop::GetZederInstanceFromMarcRecord(record)));
-
-        db_connection->queryOrDie("UPDATE delivered_marc_records SET zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance)
-                                  + " WHERE id=" + record_id);
-    } catch (std::runtime_error &err) {
-        LOG_WARNING("Couldn't update Zeder instance: " + std::string(err.what()));
-    }
-}
-
-
 } // unnamed namespace
 
 
@@ -106,7 +93,6 @@ int Main(int /* argc */, char ** /* argv */) {
             ++updated_record_hashes;
 
         SaveRecordUrls(record_id, record, &db_connection);
-        UpdateZederInstance(record_id, record, &db_connection);
 
         ++read_records;
     }

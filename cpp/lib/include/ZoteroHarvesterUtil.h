@@ -565,6 +565,8 @@ public:
     // returns the timestamp of the last delivery, TimeUtil::BAD_TIME_T otherwise.
     time_t getLastUploadTime(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) const;
 
+    void registerZederJournal(const unsigned zeder_id, const std::string &zeder_instance, const std::string &journal_name);
+
     // Saves the record blob and its associated metadata in the host's database.
     // Returns true on success, false otherwise.
     bool archiveRecord(const MARC::Record &record);
