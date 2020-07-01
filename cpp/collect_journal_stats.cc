@@ -16,7 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <iostream>
+
 #include <unordered_map>
 #include <cstdlib>
 #include "Compiler.h"
@@ -29,18 +29,13 @@
 #include "StringUtil.h"
 #include "UBTools.h"
 #include "util.h"
+#include "Zeder.h"
 
 
 namespace {
 
 
-[[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=log_level] marc_titles_records\n";
-    std::exit(EXIT_FAILURE);
-}
-
-
-const std::string ZEDER_URL_PREFIX("http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo#suche=Z%3D");
+const std::string ZEDER_URL_PREFIX_TEMPLATE("http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=%ZEDER_FLAVOUR%#suche=Z%3D");
 
 
 // We expect value to consist of 3 parts separated by colons: Zeder ID, PPN type ("print" or "online") and title.
@@ -74,11 +69,14 @@ unsigned short YearStringToShort(const std::string &year_as_string) {
 }
 
 
-void ProcessRecords(MARC::Reader * const reader, const std::unordered_map<std::string, std::string> &journal_ppn_to_type_and_title_map,
+void ProcessRecords(const Zeder::Flavour zeder_flavour,  MARC::Reader * const reader,
+                    const std::unordered_map<std::string, std::string> &journal_ppn_to_type_and_title_map,
                     DbConnection * const db_connection)
 {
     const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
     const auto HOSTNAME(DnsUtil::GetHostname());
+    const auto ZEDER_URL_PREFIX(StringUtil::ReplaceString(ZEDER_URL_PREFIX_TEMPLATE, "%ZEDER_FLAVOUR%",
+                                                          (zeder_flavour == Zeder::IXTHEO ? "ixtheo" : "krim")));
 
     unsigned total_count(0), inserted_count(0);
     while (const auto record = reader->read()) {
@@ -108,7 +106,7 @@ void ProcessRecords(MARC::Reader * const reader, const std::unordered_map<std::s
             volume = _936_field->getFirstSubfieldWithCode('d');
         const std::string year(_936_field->getFirstSubfieldWithCode('j'));
 
-        db_connection->insertIntoTableOrDie( "zeder.erschliessung",
+        db_connection->insertIntoTableOrDie("zeder.erschliessung",
                                             {
                                                 { "timestamp=",    "JOB_START_TIME"                        },
                                                 { "Quellrechner=", HOSTNAME                                },
@@ -128,7 +126,7 @@ void ProcessRecords(MARC::Reader * const reader, const std::unordered_map<std::s
     }
 
     LOG_INFO("Processed " + std::to_string(total_count) + " records and inserted " + std::to_string(inserted_count)
-             + " into Ingo's database.");
+             + " record(s) into Ingo's database.");
 }
 
 
@@ -136,8 +134,11 @@ void ProcessRecords(MARC::Reader * const reader, const std::unordered_map<std::s
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 2)
-        Usage();
+    if (argc != 3)
+        ::Usage("[--min-log-level=log_level] zeder_flavour marc_titles_records\n"
+                "\twhere \"zeder_flavour\" must be either IXTHEO or KRIMDOK.\n");
+
+    const auto zeder_flavour(Zeder::ParseFlavour(argv[1]));
 
     std::unordered_map<std::string, std::string> journal_ppn_to_type_and_title_map;
     MapUtil::DeserialiseMap(UBTools::GetTuelibPath() + "zeder_ppn_to_title.map", &journal_ppn_to_type_and_title_map);
@@ -145,8 +146,8 @@ int Main(int argc, char *argv[]) {
     IniFile ini_file;
     DbConnection db_connection(ini_file);
 
-    const auto marc_reader(MARC::Reader::Factory(argv[1]));
-    ProcessRecords(marc_reader.get(), journal_ppn_to_type_and_title_map, &db_connection);
+    const auto marc_reader(MARC::Reader::Factory(argv[2]));
+    ProcessRecords(zeder_flavour, marc_reader.get(), journal_ppn_to_type_and_title_map, &db_connection);
 
     return EXIT_SUCCESS;
 }
