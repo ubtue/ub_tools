@@ -560,6 +560,7 @@ std::string UploadTracker::GetZederInstanceString(const Zeder::Flavour zeder_fla
 
 
 void UploadTracker::registerZederJournal(const unsigned zeder_id, const std::string &zeder_instance, const std::string &journal_name) {
+    WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
 
     // intentionally use INSERT INTO with ON DUPLICATE KEY UPDATE instead of REPLACE INTO
