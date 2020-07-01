@@ -53,8 +53,8 @@ bool IncludeJournal(const Zeder::Entry &journal, const IniFile::Section &filter_
         if (entry.name_.empty() or entry.name_ == "description")
             continue;
 
-        std::string zeder_column_name(entry.name_);
-        const auto column_value(StringUtil::TrimWhite(journal.lookup(zeder_column_name)));
+        const std::string &zeder_column_name(entry.name_);
+        const auto column_value(StringUtil::TrimWhite(journal.lookup(zeder_column_name == "except_class" ? "class" : zeder_column_name)));
         if (column_value.empty())
             return false;
 
