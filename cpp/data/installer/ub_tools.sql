@@ -27,7 +27,7 @@ CREATE TABLE rss_aggregator (
 
 CREATE TABLE zeder_journals (
   id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-  zeder_id VARCHAR(10) NOT NULL,
+  zeder_id INT(11) UNSIGNED NOT NULL,
   zeder_instance ENUM('ixtheo', 'krimdok') NOT NULL,
   journal_name VARCHAR(1000) NOT NULL,
   PRIMARY KEY (id),
@@ -47,7 +47,7 @@ CREATE TABLE metadata_presence_tracer (
 CREATE TABLE delivered_marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hash VARCHAR(40) NOT NULL,
-    zeder_id VARCHAR(10) NOT NULL,
+    zeder_id INT(11) UNSIGNED NOT NULL,
     zeder_instance ENUM('ixtheo', 'krimdok') NOT NULL,
     delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
     main_title VARCHAR(1000) NOT NULL,
