@@ -621,9 +621,10 @@ int Main(int argc, char *argv[]) {
     case CommandLineArgs::SelectionMode::UPLOAD:
     case CommandLineArgs::SelectionMode::JOURNAL:
         for (const auto &journal : harvester_config.journal_params_) {
-            upload_tracker.registerZederJournal(journal->zeder_id_,
-                                                StringUtil::ASCIIToLower(journal->group_),
-                                                journal->name_);
+            if (journal->zeder_id_ != Config::DEFAULT_ZEDER_ID)
+                upload_tracker.registerZederJournal(journal->zeder_id_,
+                                                    StringUtil::ASCIIToLower(journal->group_),
+                                                    journal->name_);
 
             if (commandline_args.selection_mode_ == CommandLineArgs::SelectionMode::UPLOAD
                 and commandline_args.selected_upload_operation_ != Config::UploadOperation::NONE
