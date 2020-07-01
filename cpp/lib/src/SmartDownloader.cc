@@ -191,8 +191,13 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
     std::string improved_url(url);
     if (RegexMatcher::Matched("/diglit/", url))
         improved_url = StringUtil::ReplaceString("/diglit/", "/opendigi/", &improved_url);
-    if (RegexMatcher::Matched("/opendigi/", improved_url))
-        improved_url += "/ocr";
+    if (RegexMatcher::Matched("/opendigi/", improved_url)) {
+        /* Since we currently cannot appropriately associate the text on an article level
+        / we completely omit OpenDigi documents */
+        //improved_url += "/ocr";
+        document->clear();
+        return true;
+    }
 
     if (trace_ and url != improved_url)
         LOG_INFO("converted url \"" + url + "\" to \"" + improved_url + "\"");
