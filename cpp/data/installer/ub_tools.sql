@@ -47,14 +47,12 @@ CREATE TABLE metadata_presence_tracer (
 CREATE TABLE delivered_marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hash VARCHAR(40) NOT NULL,
-    zeder_id INT(11) UNSIGNED NOT NULL,
-    zeder_instance ENUM('ixtheo', 'krimdok') NOT NULL,
+    zeder_journal_id INT(11) UNSIGNED NOT NULL,
     delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
     main_title VARCHAR(1000) NOT NULL,
     record BLOB NOT NULL,
+    CONSTRAINT zeder_journal_id FOREIGN KEY (zeder_journal_id) REFERENCES zeder_journals (id) ON DELETE CASCADE ON UPDATE CASCADE,
     INDEX delivered_marc_records_hash_index(hash),
-    INDEX delivered_marc_records_zeder_id_index(zeder_id),
-    INDEX delivered_marc_records_zeder_instance_index(zeder_instance),
     INDEX delivered_marc_records_delivered_at_index(delivered_at),
     INDEX delivered_marc_records_main_title_index(main_title(768))
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
