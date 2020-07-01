@@ -37,6 +37,9 @@ namespace ZoteroHarvester {
 namespace Config {
 
 
+static constexpr unsigned DEFAULT_ZEDER_ID(1);
+
+
 // Parameters that pertain to all harvestable journals/groups.
 struct GlobalParams {
     enum IniKey : unsigned {
