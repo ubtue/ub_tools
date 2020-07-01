@@ -37,7 +37,7 @@ namespace ZoteroHarvester {
 namespace Config {
 
 
-static constexpr unsigned DEFAULT_ZEDER_ID(1);
+static constexpr unsigned DEFAULT_ZEDER_ID(0);
 
 
 // Parameters that pertain to all harvestable journals/groups.
