@@ -54,7 +54,7 @@ bool IncludeJournal(const Zeder::Entry &journal, const IniFile::Section &filter_
             continue;
 
         std::string zeder_column_name(entry.name_);
-        const auto column_value(StringUtil::TrimWhite(journal.lookup(zeder_column_name)));
+        const auto column_value(StringUtil::TrimWhite(journal.lookup(zeder_column_name == "except_class" ? "class" : zeder_column_name)));
         if (column_value.empty())
             return false;
 
