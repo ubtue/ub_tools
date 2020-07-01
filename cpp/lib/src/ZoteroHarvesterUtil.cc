@@ -555,19 +555,6 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
 }
 
 
-void UploadTracker::registerZederJournal(const unsigned zeder_id, const std::string &zeder_instance, const std::string &journal_name) {
-    DbConnection db_connection;
-
-    // intentionally use INSERT INTO with ON DUPLICATE KEY UPDATE instead of REPLACE INTO
-    // (we do NOT want the auto increment index to change if title hasn't changed)
-    db_connection.queryOrDie("INSERT INTO zeder_journals (zeder_id, zeder_instance, journal_name) VALUES ("
-                             + db_connection.escapeAndQuoteString(std::to_string(zeder_id)) + ", "
-                             + db_connection.escapeAndQuoteString(zeder_instance) + ", "
-                             + db_connection.escapeAndQuoteString(journal_name) + ") "
-                             + "ON DUPLICATE KEY UPDATE journal_name=" + db_connection.escapeAndQuoteString(journal_name));
-}
-
-
 std::string UploadTracker::GetZederInstanceString(const Zeder::Flavour zeder_flavour) {
     // These strings need to be updated in the SQL schema as well.
     switch (zeder_flavour) {
@@ -578,6 +565,20 @@ std::string UploadTracker::GetZederInstanceString(const Zeder::Flavour zeder_fla
     default:
         LOG_ERROR("unknown zeder flavour '" + std::to_string(zeder_flavour) + "'");
     }
+}
+
+
+void UploadTracker::registerZederJournal(const unsigned zeder_id, const std::string &zeder_instance, const std::string &journal_name) {
+    WaitOnSemaphore lock(&connection_pool_semaphore_);
+    DbConnection db_connection;
+
+    // intentionally use INSERT INTO with ON DUPLICATE KEY UPDATE instead of REPLACE INTO
+    // (we do NOT want the auto increment index to change if title hasn't changed)
+    db_connection.queryOrDie("INSERT INTO zeder_journals (zeder_id, zeder_instance, journal_name) VALUES ("
+                             + db_connection.escapeAndQuoteString(std::to_string(zeder_id)) + ", "
+                             + db_connection.escapeAndQuoteString(zeder_instance) + ", "
+                             + db_connection.escapeAndQuoteString(journal_name) + ") "
+                             + "ON DUPLICATE KEY UPDATE journal_name=" + db_connection.escapeAndQuoteString(journal_name));
 }
 
 
