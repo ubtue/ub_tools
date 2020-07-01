@@ -270,26 +270,6 @@ void WriteIniEntry(IniFile::Section * const section, const std::string &name, co
 }
 
 
-void RegisterZederJournalsInDb(DbConnection * const db, const Zeder::EntryCollection &zeder_entries,
-                               const Zeder::Flavour zeder_flavour)
-{
-    for (const auto &zeder_entry : zeder_entries) {
-        const auto zeder_id(zeder_entry.getId());
-        const auto journal_name(ZederInterop::GetJournalParamsIniValueFromZederEntry(zeder_entry, zeder_flavour,
-                                Config::JournalParams::IniKey::NAME));
-        const std::string zeder_flavour_string(StringUtil::ASCIIToLower(Zeder::FLAVOUR_TO_STRING_MAP.at(zeder_flavour)));
-
-        // intentionally use INSERT INTO with ON DUPLICATE KEY UPDATE instead of REPLACE INTO
-        // (we do NOT want the auto increment index to change if title hasn't changed)
-        db->queryOrDie("INSERT INTO zeder_journals (zeder_id, zeder_instance, journal_name) VALUES ("
-                       + db->escapeAndQuoteString(std::to_string(zeder_id)) + ", "
-                       + db->escapeAndQuoteString(zeder_flavour_string) + ", "
-                       + db->escapeAndQuoteString(journal_name) + ") "
-                       + "ON DUPLICATE KEY UPDATE journal_name=" + db->escapeAndQuoteString(journal_name));
-    }
-}
-
-
 unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, HarvesterConfig * const harvester_config,
                             const Zeder::Flavour zeder_flavour, const bool overwrite, const bool autodetect_new_datasets)
 {
@@ -488,7 +468,6 @@ int Main(int argc, char *argv[]) {
     }
 
     DbConnection db;
-    RegisterZederJournalsInDb(&db, downloaded_entries, commandline_args.zeder_flavour_);
     harvester_config.config_file_->write(commandline_args.config_path_, /* pretty_print = */ true, /* compact = */ true);
 
     return EXIT_SUCCESS;
