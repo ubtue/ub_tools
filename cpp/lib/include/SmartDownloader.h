@@ -183,6 +183,16 @@ public:
 };
 
 
+class OJSSmartDownloader : public SmartDownloader {
+public:
+    explicit OJSSmartDownloader(const bool trace = false) : SmartDownloader("", trace) { }
+    virtual std::string getName() const { return "OJSSmartDownloader"; }
+protected:
+    virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                 std::string * const http_header_charset, std::string * const error_message);
+};
+
+
 class DefaultDownloader: public SmartDownloader {
 public:
     explicit DefaultDownloader(const bool trace = false): SmartDownloader(".*", trace) { }
