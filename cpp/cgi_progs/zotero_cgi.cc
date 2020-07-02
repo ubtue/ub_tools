@@ -389,7 +389,7 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     std::vector<std::string> urls;
 
     ZoteroHarvester::Util::UploadTracker upload_tracker;
-    const auto entries(upload_tracker.getEntriesByZederIdAndFlavour(zeder_id, zeder_flavour));
+    const auto entries(upload_tracker.getEntriesByZederIdAndFlavour(StringUtil::ToUnsigned(zeder_id), zeder_flavour));
     for (const auto &entry : entries) {
         delivered_datetimes.emplace_back(HtmlUtil::HtmlEscape(entry.delivered_at_str_));
         titles.emplace_back(HtmlUtil::HtmlEscape(entry.main_title_));

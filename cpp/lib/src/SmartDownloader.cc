@@ -323,6 +323,31 @@ bool LocGovSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
 }
 
 
+bool OJSSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
+                                        std::string * const document, std::string * const http_header_charset,
+                                        std::string * const error_message)
+{
+     if (not RegexMatcher::Matched("/ojs/", url))
+         return false;
+     // Try to extract the PDF URL from embedded metadata
+     std::string html_page;
+     if (not DownloadHelper(url, time_limit, &html_page, http_header_charset, error_message))
+         return false;
+     std::list<std::pair<std::string, std::string>> citation_pdf_urls;
+     MetaTagExtractor meta_tag_extractor(html_page, "citation_pdf_url", &citation_pdf_urls);
+     meta_tag_extractor.parse();
+     if (citation_pdf_urls.empty()) {
+         *error_message = "Could not extract citation_pdf_url metatag for \"" + url + '"';
+         return false;
+     }
+     const auto &[name, pdf_url] = citation_pdf_urls.front();
+     if (not DownloadHelper(pdf_url, time_limit, document, http_header_charset, error_message))
+         return false;
+     return true;
+}
+
+
+
 bool DefaultDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
                                         std::string * const document, std::string * const http_header_charset,
                                         std::string * const error_message)
@@ -358,6 +383,7 @@ bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::str
         new Bsz21SmartDownloader(trace),
         new LocGovSmartDownloader(trace),
         new PublicationsTueSmartDownloader(trace),
+        new OJSSmartDownloader(trace),
         new DefaultDownloader(trace)
     };
 
