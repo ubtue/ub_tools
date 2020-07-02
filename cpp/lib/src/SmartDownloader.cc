@@ -325,10 +325,11 @@ bool LocGovSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
 
 bool OJSSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
                                         std::string * const document, std::string * const http_header_charset,
-                                        std::string * const error_message) {
+                                        std::string * const error_message)
+{
      if (not RegexMatcher::Matched("/ojs/", url))
          return false;
-     // Try to extract the Pdf Url from embedded metadata
+     // Try to extract the PDF URL from embedded metadata
      std::string html_page;
      if (not DownloadHelper(url, time_limit, &html_page, http_header_charset, error_message))
          return false;
