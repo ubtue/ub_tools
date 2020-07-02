@@ -112,8 +112,11 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
             continue;
         }
 
-        ProcessPPNs(print_ppns, &bundle_ppns);
-        ProcessPPNs(online_ppns, &bundle_ppns);
+        // Prefer online journals to print journals:
+        if (not online_ppns.empty())
+            ProcessPPNs(online_ppns, &bundle_ppns);
+        else
+            ProcessPPNs(print_ppns, &bundle_ppns);
     }
 
     if (bundle_ppns.empty())
