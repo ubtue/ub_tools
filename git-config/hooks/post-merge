@@ -15,6 +15,7 @@ if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); th
         /usr/local/bin/mysql_list_tables > /tmp/new_ub_tools.schema
         /usr/local/bin/mysql_diff_schemas /tmp/old_ub_tools.schema /tmp/new_ub_tools.schema
         compare_against_installer_schema=1
+        echo "MYSQL schema update completed"
     else
         echo "You need to install $MYSQL_DATABASE_PATCHER and execute it!."
         exit 1
@@ -37,5 +38,7 @@ if [[ $compare_against_installer_schema && -r /tmp/new_ub_tools.schema ]]; then
     if [ -s /tmp/schema_diffs ]; then
         MYSQL_DB=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_database)
         echo "**** The patched $MYSQL_DB database schema differs from the one that the installer uses.  You *must* fix this"'! ****'
+    else
+        echo "Verification successful! (The current DB schema was successfully compared to the installer's DB schema.)"
     fi
 fi
