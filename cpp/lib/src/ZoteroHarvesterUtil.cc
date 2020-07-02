@@ -345,7 +345,7 @@ std::string UploadTracker::Entry::toString() const {
     std::string out("delivered_marc_records entry:\n");
     out += "\turl: " + url_ + "\n";
     out += "\tdelivered_at: " + delivered_at_str_ + "\n";
-    out += "\tzeder id: "  + zeder_id_ + "\n";
+    out += "\tzeder id: " + std::to_string(zeder_id_) + "\n";
     out += "\tzeder instance: "  + zeder_instance_ + "\n";
     out += "\tmain_title: " + main_title_ + "\n";
     out += "\thash: " + hash_ + "\n";
@@ -360,7 +360,7 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
     entry->url_ = row["url"];
     entry->delivered_at_str_ = row["delivered_at"];
     entry->delivered_at_ = SqlUtil::DatetimeToTimeT(entry->delivered_at_str_);
-    entry->zeder_id_ = row["zeder_id"];
+    entry->zeder_id_ = StringUtil::ToUnsigned(row["zeder_id"]);
     entry->zeder_instance_ = row["zeder_instance"];
     entry->main_title_ = row["main_title"];
     entry->hash_ = row["hash"];
@@ -488,7 +488,7 @@ time_t UploadTracker::getLastUploadTime(const unsigned zeder_id, const Zeder::Fl
 }
 
 
-std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(const std::string &zeder_id, const Zeder::Flavour zeder_flavour) {
+std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
 
@@ -496,7 +496,7 @@ std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(c
     db_connection.queryOrDie("SELECT t2.url, t1.delivered_at, t1.zeder_id, t1.zeder_instance, t1.main_title, t1.hash "
                              "FROM delivered_marc_records_urls as t2 "
                              "LEFT JOIN delivered_marc_records as t1 ON t2.record_id = t1.id WHERE t1.zeder_id="
-                             + db_connection.escapeString(zeder_id) + " AND t1.zeder_instance="
+                             + db_connection.escapeString(std::to_string(zeder_id)) + " AND t1.zeder_instance="
                              + db_connection.escapeAndQuoteString(zeder_instance));
 
     auto result_set(db_connection.getLastResultSet());
