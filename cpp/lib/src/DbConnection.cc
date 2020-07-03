@@ -160,10 +160,13 @@ static std::vector<std::string> SplitMySQLStatements(const std::string &query) {
             if ((*ch == '/' and ch + 1 < query.cend() and *(ch + 1) == '*')
                 or (*ch == '-' and ch + 2 < query.cend() and *(ch + 1) == '-' and *(ch + 2) == ' '))
             {
-                if (*ch == '/')
+                if (*ch == '/') {
                     ++ch;
-                else
+                    comment_flavour = C_STYLE_COMMENT;
+                } else {
                     ch += 2;
+                    comment_flavour = END_OF_LINE_COMMENT;
+                }
                 continue;
             }
 
