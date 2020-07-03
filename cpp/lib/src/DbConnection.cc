@@ -155,21 +155,17 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
             statement.clear();
         } else if (unlikely(*ch == '#'))
             comment_flavour = END_OF_LINE_COMMENT;
-        else {
-            // Check for comments starting with "/*" or "-- ":
-            if ((*ch == '/' and ch + 1 < query.cend() and *(ch + 1) == '*')
-                or (*ch == '-' and ch + 2 < query.cend() and *(ch + 1) == '-' and *(ch + 2) == ' '))
-            {
-                if (*ch == '/') {
-                    ++ch;
-                    comment_flavour = C_STYLE_COMMENT;
-                } else {
-                    ch += 2;
-                    comment_flavour = END_OF_LINE_COMMENT;
-                }
-                continue;
+        else if ((*ch == '/' and ch + 1 < query.cend() and *(ch + 1) == '*')
+                 or (*ch == '-' and ch + 2 < query.cend() and *(ch + 1) == '-' and *(ch + 2) == ' '))
+        { // Check for comments starting with "/*" or "-- ":
+            if (*ch == '/') {
+                ++ch;
+                comment_flavour = C_STYLE_COMMENT;
+            } else {
+                ch += 2;
+                comment_flavour = END_OF_LINE_COMMENT;
             }
-
+        } else {
             if (*ch == '\'' or *ch == '"')
                 current_quote = *ch;
             statement += *ch;
