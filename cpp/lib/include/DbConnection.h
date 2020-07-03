@@ -2,7 +2,7 @@
  *  \brief  Interface for the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -209,6 +209,8 @@ private:
     void init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port, const Charset charset,
               const TimeZone time_zone);
 public:
+    static std::vector<std::string> SplitMySQLStatements(const std::string &query);
+
     static std::string CharsetToString(const Charset charset);
 
     static std::string CollationToString(const Collation collation);

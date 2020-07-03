@@ -130,7 +130,7 @@ int DbConnection::getLastErrorCode() const {
 enum CommentFlavour { NO_COMMENT, C_STYLE_COMMENT, END_OF_LINE_COMMENT };
 
 
-static std::vector<std::string> SplitMySQLStatements(const std::string &query) {
+std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &query) {
     std::vector<std::string> statements;
 
     std::string statement;
@@ -175,8 +175,10 @@ static std::vector<std::string> SplitMySQLStatements(const std::string &query) {
             statement += *ch;
         }
     }
+
+    StringUtil::TrimWhite(&statement);
     if (not statement.empty())
-        statements.emplace_back(StringUtil::TrimWhite(&statement));
+        statements.emplace_back(statement);
 
     return statements;
 }
