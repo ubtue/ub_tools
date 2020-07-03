@@ -1,0 +1,19 @@
+ALTER TABLE database_versions DROP INDEX database_name;
+ALTER TABLE database_versions ADD CONSTRAINT database_versions_database_name UNIQUE (database_name);
+ALTER TABLE rss_aggregator DROP INDEX item_id;
+ALTER TABLE rss_aggregator ADD CONSTRAINT rss_aggregator_item_id UNIQUE (item_id);
+ALTER TABLE rss_aggregator RENAME INDEX item_id_index TO rss_aggregator_item_id_index;
+ALTER TABLE rss_aggregator RENAME INDEX item_url_index TO rss_aggregator_item_url_index;
+ALTER TABLE rss_aggregator RENAME INDEX insertion_time_index TO rss_aggregator_insertion_time_index;
+ALTER TABLE zeder_journals DROP INDEX zeder_id;
+ALTER TABLE zeder_journals ADD CONSTRAINT zeder_journal_zeder_id_and_zeder_instance UNIQUE (zeder_id, zeder_instance);
+
+ALTER TABLE delivered_marc_records ADD COLUMN zeder_journal_id INT(11) UNSIGNED AFTER hash;
+UPDATE delivered_marc_records d JOIN zeder_journals z ON d.zeder_id = z.zeder_id AND d.zeder_instance = z.zeder_instance SET d.zeder_journal_id = z.id;
+ALTER TABLE delivered_marc_records MODIFY COLUMN zeder_journal_id INT(11) UNSIGNED NOT NULL;
+ALTER TABLE delivered_marc_records ADD CONSTRAINT delivered_marc_records_zeder_journal_id FOREIGN KEY (zeder_journal_id) REFERENCES zeder_journals (id) ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE delivered_marc_records DROP INDEX delivered_marc_records_zeder_id_index;
+ALTER TABLE delivered_marc_records DROP INDEX delivered_marc_records_zeder_instance_index;
+ALTER TABLE delivered_marc_records DROP COLUMN zeder_id;
+ALTER TABLE delivered_marc_records DROP COLUMN zeder_instance;
