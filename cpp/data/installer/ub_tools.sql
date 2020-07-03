@@ -6,6 +6,7 @@
 -- The sizes here must be in sync with the constants defined in rss_aggregator.cc!
 
 -- Please always add names to your CONSTRAINTs! (for succeeding sql_updates)
+-- <table>_<field_names_with_"and"> (unless it's too long)
 CREATE TABLE database_versions (
     version INT UNSIGNED NOT NULL,
     database_name VARCHAR(64) NOT NULL,
@@ -33,7 +34,7 @@ CREATE TABLE zeder_journals (
     zeder_instance ENUM('ixtheo', 'krimdok') NOT NULL,
     journal_name VARCHAR(1000) NOT NULL,
     PRIMARY KEY (id),
-    CONSTRAINT zeder_journal_instance_and_id UNIQUE (zeder_id, zeder_instance)
+    CONSTRAINT zeder_journal_zeder_id_and_zeder_instance UNIQUE (zeder_id, zeder_instance)
 ) DEFAULT CHARSET=utf8mb4;
 
 -- Table to be used w/ our validate_harvested_records tool:
@@ -42,7 +43,7 @@ CREATE TABLE metadata_presence_tracer (
     metadata_field_name CHAR(4) NOT NULL,
     field_presence ENUM('always', 'sometimes', 'ignore') NOT NULL,
     CONSTRAINT metadata_presence_tracer_zeder_journal_id FOREIGN KEY (zeder_journal_id) REFERENCES zeder_journals (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT metadata_presence_tracer_journal_field UNIQUE (zeder_journal_id, metadata_field_name)
+    CONSTRAINT metadata_presence_tracer_journal_id_and_field_name UNIQUE (zeder_journal_id, metadata_field_name)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 

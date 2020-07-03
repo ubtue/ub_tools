@@ -5,4 +5,4 @@ ALTER TABLE metadata_presence_tracer ADD CONSTRAINT metadata_presence_tracer_zed
 
 ALTER TABLE metadata_presence_tracer DROP INDEX journal_name_and_metadata_field_name_index;
 ALTER TABLE metadata_presence_tracer DROP COLUMN journal_name;
-ALTER TABLE metadata_presence_tracer ADD CONSTRAINT metadata_presence_tracer_journal_field UNIQUE (zeder_journal_id, metadata_field_name);
+ALTER TABLE metadata_presence_tracer ADD CONSTRAINT metadata_presence_tracer_zeder_journal_id_and_metadata_field_name UNIQUE (zeder_journal_id, metadata_field_name);
