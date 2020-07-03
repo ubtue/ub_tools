@@ -151,7 +151,7 @@ static std::vector<std::string> SplitMySQLStatements(const std::string &query) {
             else if (*ch == '\\')
                 escaped = true;
         } else if (unlikely(*ch == ';')) {
-            statements.emplace_back(statement);
+            statements.emplace_back(StringUtil::TrimWhite(&statement));
             statement.clear();
         } else if (unlikely(*ch == '#'))
             comment_flavour = END_OF_LINE_COMMENT;
@@ -176,7 +176,7 @@ static std::vector<std::string> SplitMySQLStatements(const std::string &query) {
         }
     }
     if (not statement.empty())
-        statements.emplace_back(statement);
+        statements.emplace_back(StringUtil::TrimWhite(&statement));
 
     return statements;
 }
