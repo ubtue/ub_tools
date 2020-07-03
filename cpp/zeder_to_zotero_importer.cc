@@ -20,18 +20,21 @@
 #include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
-#include "FileUtil.h"
-#include "IniFile.h"
-#include "util.h"
-#include "ZoteroHarvesterConfig.h"
-#include "ZoteroHarvesterUtil.h"
-#include "ZoteroHarvesterZederInterop.h"
+#include "DbConnection.h"
 
 
 // avoid conflicts with LICENSE defined in mysql_version.h
 #ifdef LICENSE
     #undef LICENSE
 #endif
+
+
+#include "FileUtil.h"
+#include "IniFile.h"
+#include "util.h"
+#include "ZoteroHarvesterConfig.h"
+#include "ZoteroHarvesterUtil.h"
+#include "ZoteroHarvesterZederInterop.h"
 
 
 namespace {
@@ -464,6 +467,7 @@ int Main(int argc, char *argv[]) {
         break;
     }
 
+    DbConnection db;
     harvester_config.config_file_->write(commandline_args.config_path_, /* pretty_print = */ true, /* compact = */ true);
 
     return EXIT_SUCCESS;

@@ -139,7 +139,7 @@ std::string GroupParams::GetIniKeyString(const IniKey ini_key) {
 
 
 JournalParams::JournalParams(const GlobalParams &global_params) {
-    zeder_id_ = 1;
+    zeder_id_ = DEFAULT_ZEDER_ID;
     zeder_newly_synced_entry_ = false;
     name_ = "Default Journal";
     group_ = "Default Group";

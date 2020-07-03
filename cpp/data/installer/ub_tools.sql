@@ -4,10 +4,13 @@
 -- diacritical marks => we need to override it and use utf8mb4_bin.
 
 -- The sizes here must be in sync with the constants defined in rss_aggregator.cc!
+
+-- Please always add names to your CONSTRAINTs! (for succeeding sql_updates)
+-- <table>_<field_names_with_"and"> (unless it's too long)
 CREATE TABLE database_versions (
     version INT UNSIGNED NOT NULL,
     database_name VARCHAR(64) NOT NULL,
-    UNIQUE (database_name)
+    CONSTRAINT database_versions_database_name UNIQUE (database_name)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 CREATE TABLE rss_aggregator (
@@ -19,33 +22,40 @@ CREATE TABLE rss_aggregator (
     feed_url VARCHAR(1000) NOT NULL,
     pub_date DATETIME NOT NULL,
     insertion_time TIMESTAMP DEFAULT NOW() NOT NULL,
-    UNIQUE (item_id),
-    INDEX item_id_index(item_id(768)),
-    INDEX item_url_index(item_url(768)),
-    INDEX insertion_time_index(insertion_time)
+    CONSTRAINT rss_aggregator_item_id UNIQUE (item_id),
+    INDEX rss_aggregator_item_id_index(item_id(768)),
+    INDEX rss_aggregator_item_url_index(item_url(768)),
+    INDEX rss_aggregator_insertion_time_index(insertion_time)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+
+CREATE TABLE zeder_journals (
+    id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+    zeder_id INT(11) UNSIGNED NOT NULL,
+    zeder_instance ENUM('ixtheo', 'krimdok') NOT NULL,
+    journal_name VARCHAR(1000) NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT zeder_journal_zeder_id_and_zeder_instance UNIQUE (zeder_id, zeder_instance)
+) DEFAULT CHARSET=utf8mb4;
 
 -- Table to be used w/ our validate_harvested_records tool:
 CREATE TABLE metadata_presence_tracer (
-    journal_name VARCHAR(764) NOT NULL,
+    zeder_journal_id INT(11) UNSIGNED NOT NULL,
     metadata_field_name CHAR(4) NOT NULL,
     field_presence ENUM('always', 'sometimes', 'ignore') NOT NULL,
-    UNIQUE(journal_name, metadata_field_name),
-    INDEX journal_name_and_metadata_field_name_index(journal_name, metadata_field_name)
+    CONSTRAINT metadata_presence_tracer_zeder_journal_id FOREIGN KEY (zeder_journal_id) REFERENCES zeder_journals (id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT metadata_presence_tracer_journal_id_and_field_name UNIQUE (zeder_journal_id, metadata_field_name)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 
 CREATE TABLE delivered_marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hash VARCHAR(40) NOT NULL,
-    zeder_id VARCHAR(10) NOT NULL,
-    zeder_instance ENUM('ixtheo', 'krimdok') NOT NULL,
+    zeder_journal_id INT(11) UNSIGNED NOT NULL,
     delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
     main_title VARCHAR(1000) NOT NULL,
     record BLOB NOT NULL,
+    CONSTRAINT delivered_marc_records_zeder_journal_id FOREIGN KEY (zeder_journal_id) REFERENCES zeder_journals (id) ON DELETE CASCADE ON UPDATE CASCADE,
     INDEX delivered_marc_records_hash_index(hash),
-    INDEX delivered_marc_records_zeder_id_index(zeder_id),
-    INDEX delivered_marc_records_zeder_instance_index(zeder_instance),
     INDEX delivered_marc_records_delivered_at_index(delivered_at),
     INDEX delivered_marc_records_main_title_index(main_title(768))
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
