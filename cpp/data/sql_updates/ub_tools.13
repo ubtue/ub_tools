@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS zeder_journals (
+  id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  zeder_id VARCHAR(10) NOT NULL,
+  zeder_instance ENUM('ixtheo', 'krimdok') NOT NULL,
+  journal_name VARCHAR(1000) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE(zeder_id, zeder_instance)
+) DEFAULT CHARSET=utf8mb4;

@@ -641,6 +641,11 @@ int Main(int argc, char *argv[]) {
                 continue;
             }
 
+            if (journal->zeder_id_ != Config::DEFAULT_ZEDER_ID)
+                upload_tracker.registerZederJournal(journal->zeder_id_,
+                                                    StringUtil::ASCIIToLower(journal->group_),
+                                                    journal->name_);
+
             auto current_journal_datastore(QueueDownloadsForJournal(*journal, harvester_config, &harvestable_manager,
                                                                     &download_manager, &harvester_metrics));
             journal_datastores.emplace_back(std::move(current_journal_datastore));
