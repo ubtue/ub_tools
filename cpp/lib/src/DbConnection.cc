@@ -155,16 +155,12 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
             statement.clear();
         } else if (unlikely(*ch == '#'))
             comment_flavour = END_OF_LINE_COMMENT;
-        else if ((*ch == '/' and ch + 1 < query.cend() and *(ch + 1) == '*')
-                 or (*ch == '-' and ch + 2 < query.cend() and *(ch + 1) == '-' and *(ch + 2) == ' '))
-        { // Check for comments starting with "/*" or "-- ":
-            if (*ch == '/') {
-                ++ch;
-                comment_flavour = C_STYLE_COMMENT;
-            } else {
-                ch += 2;
-                comment_flavour = END_OF_LINE_COMMENT;
-            }
+        else if (*ch == '/' and ch + 1 < query.cend() and *(ch + 1) == '*') { // Check for comments starting with "/*".
+            ++ch;
+            comment_flavour = C_STYLE_COMMENT;
+        } else if (*ch == '-' and ch + 2 < query.cend() and *(ch + 1) == '-' and *(ch + 2) == ' ') { // Check for comments starting with "-- ".
+            ch += 2;
+            comment_flavour = END_OF_LINE_COMMENT;
         } else {
             if (*ch == '\'' or *ch == '"')
                 current_quote = *ch;
@@ -326,12 +322,9 @@ bool DbConnection::queryFile(const std::string &filename) {
     if (not FileUtil::ReadString(filename, &statements))
         return false;
 
-    if (type_ == T_MYSQL) {
-        const bool query_result(query(StringUtil::TrimWhite(&statements)));
-        if (query_result)
-            mySQLSyncMultipleResults();
-        return query_result;
-    } else {
+    if (type_ == T_MYSQL)
+        return query(StringUtil::TrimWhite(&statements));
+    else {
         std::vector<std::string> individual_statements;
         SplitSqliteStatements(statements, &individual_statements);
         for (const auto &statement : individual_statements) {
@@ -638,17 +631,6 @@ std::vector<std::string> DbConnection::mySQLGetTableList() {
         tables.emplace_back(result_row[0]);
 
     return tables;
-}
-
-
-void DbConnection::mySQLSyncMultipleResults() {
-    int next_result_exists;
-    do {
-        MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
-        if (result_set != nullptr)
-            ::mysql_free_result(result_set);
-        next_result_exists = ::mysql_next_result(&mysql_);
-    } while (next_result_exists == 0);
 }
 
 

@@ -182,8 +182,6 @@ public:
         ::mysql_select_db(&mysql_, database_name.c_str());
     }
 
-    void mySQLSyncMultipleResults();
-
     bool mySQLUserExists(const std::string &user, const std::string &host);
 
     inline bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges,
