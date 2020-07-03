@@ -1,7 +1,7 @@
 /** \brief Utility classes related to the Zotero Harvester
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -370,9 +370,11 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
 bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const entry,
                                         DbConnection * const db_connection) const
 {
-    db_connection->queryOrDie("SELECT t2.url, t1.delivered_at, t1.zeder_id, t1.zeder_instance, t1.main_title, t1.hash "
-                              "FROM delivered_marc_records_urls as t2 "
-                              "LEFT JOIN delivered_marc_records as t1 ON t2.record_id = t1.id WHERE t2.url='"
+    db_connection->queryOrDie("SELECT dmru.url, dmr.delivered_at, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
+                              "FROM delivered_marc_records_urls AS dmru "
+                              "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
+                              "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
+                              "WHERE dmru.url='"
                               + db_connection->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'");
     auto result_set(db_connection->getLastResultSet());
     if (result_set.empty())
@@ -388,9 +390,11 @@ bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const en
 bool UploadTracker::hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries,
                                          DbConnection * const db_connection) const
 {
-    db_connection->queryOrDie("SELECT t2.url, t1.delivered_at, t1.zeder_id, t1.zeder_instance, t1.main_title, t1.hash "
-                              "FROM delivered_marc_records_urls as t2 "
-                              "LEFT JOIN delivered_marc_records as t1 ON t2.record_id = t1.id WHERE t1.hash='"
+    db_connection->queryOrDie("SELECT dmru.url, dmr.delivered_at, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
+                              "FROM delivered_marc_records_urls AS dmru "
+                              "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
+                              "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
+                              "WHERE dmr.hash='"
                               + db_connection->escapeString(hash) + "'");
     auto result_set(db_connection->getLastResultSet());
     if (result_set.empty())
@@ -478,13 +482,15 @@ time_t UploadTracker::getLastUploadTime(const unsigned zeder_id, const Zeder::Fl
     DbConnection db_connection;
 
     const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
-    db_connection.queryOrDie("SELECT delivered_at FROM delivered_marc_records WHERE zeder_id=" + std::to_string(zeder_id)
-                             + " AND zeder_instance='" + db_connection.escapeString(zeder_instance) + "' ORDER BY delivered_at DESC");
+    db_connection.queryOrDie("SELECT MAX(delivered_at) AS max_delivered_at FROM delivered_marc_records "
+                             "LEFT JOIN zeder_journals ON delivered_marc_records.zeder_journal_id = zeder_journals.id "
+                             "WHERE zeder_id=" + std::to_string(zeder_id) + " "
+                             "AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance));
     auto result_set(db_connection.getLastResultSet());
     if (result_set.empty())
         return TimeUtil::BAD_TIME_T;
 
-    return SqlUtil::DatetimeToTimeT(result_set.getNextRow()["delivered_at"]);
+    return SqlUtil::DatetimeToTimeT(result_set.getNextRow()["max_delivered_at"]);
 }
 
 
@@ -493,11 +499,12 @@ std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(c
     DbConnection db_connection;
 
     const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
-    db_connection.queryOrDie("SELECT t2.url, t1.delivered_at, t1.zeder_id, t1.zeder_instance, t1.main_title, t1.hash "
-                             "FROM delivered_marc_records_urls as t2 "
-                             "LEFT JOIN delivered_marc_records as t1 ON t2.record_id = t1.id WHERE t1.zeder_id="
-                             + db_connection.escapeString(std::to_string(zeder_id)) + " AND t1.zeder_instance="
-                             + db_connection.escapeAndQuoteString(zeder_instance));
+    db_connection.queryOrDie("SELECT dmru.url, dmr.delivered_at, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
+                             "FROM delivered_marc_records_urls AS dmru "
+                             "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
+                             "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
+                             "WHERE zj.zeder_id=" + db_connection.escapeString(std::to_string(zeder_id)) + " "
+                             "AND zj.zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance));
 
     auto result_set(db_connection.getLastResultSet());
     std::vector<Entry> entries;
@@ -523,12 +530,14 @@ bool UploadTracker::archiveRecord(const MARC::Record &record) {
     const auto zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
     const auto zeder_instance(GetZederInstanceString(ZederInterop::GetZederInstanceFromMarcRecord(record)));
     const auto main_title(record.getMainTitle());
-    db_connection.queryOrDie("INSERT INTO delivered_marc_records SET zeder_id=" + db_connection.escapeAndQuoteString(zeder_id)
-                             + ",zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance)
-                             + ",hash=" + db_connection.escapeAndQuoteString(hash)
-                             + ",main_title=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(main_title))
-                             + ",record="
-                             + db_connection.escapeAndQuoteString(GzStream::CompressString(record.toBinaryString(), GzStream::GZIP)));
+    db_connection.queryOrDie("INSERT INTO delivered_marc_records "
+                             "SET zeder_journal_id=(SELECT id FROM zeder_journals WHERE "
+                             "zeder_id=" + db_connection.escapeAndQuoteString(zeder_id) + " "
+                             "AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance) + ")"
+                             ",hash=" + db_connection.escapeAndQuoteString(hash) +
+                             ",main_title=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(main_title)) +
+                             ",record=" +
+                             db_connection.escapeAndQuoteString(GzStream::CompressString(record.toBinaryString(), GzStream::GZIP)));
 
     // Fetch the last inserted row's ID to add the URLs
     db_connection.queryOrDie("SELECT LAST_INSERT_ID() id");

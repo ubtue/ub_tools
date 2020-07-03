@@ -130,8 +130,9 @@ std::string FieldPresenceToString(const FieldPresence field_presence) {
 void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, const std::string &journal_name,
                                          JournalInfo * const journal_info)
 {
-    db_connection->queryOrDie("SELECT metadata_field_name,field_presence FROM metadata_presence_tracer WHERE journal_name='"
-                              + db_connection->escapeString(journal_name) + "'");
+    db_connection->queryOrDie("SELECT metadata_field_name,field_presence FROM metadata_presence_tracer "
+                              "LEFT JOIN zeder_journals ON zeder_journals.id = metadata_presence_tracer.zeder_journal_id "
+                              "WHERE journal_name=" + db_connection->escapeAndQuoteString(journal_name));
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty()) {
         LOG_INFO("\"" + journal_name + "\" was not yet in the database.");
@@ -210,9 +211,10 @@ bool RecordMeetsExpectations(const MARC::Record &record, const std::string &jour
 
 void WriteToDatabase(DbConnection * const db_connection, const std::string &journal_name, const JournalInfo &journal_info) {
     for (const auto &field_info : journal_info)
-        db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET journal_name='" + db_connection->escapeString(journal_name)
-                                  + "', metadata_field_name='" + db_connection->escapeString(field_info.name_)
-                                  + "', field_presence='" + FieldPresenceToString(field_info.presence_) + "'");
+        db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET zeder_journal_id=(SELECT id FROM zeder_journals WHERE journal_name="
+                                  + db_connection->escapeAndQuoteString(journal_name) + ")"
+                                  + ", metadata_field_name='" + db_connection->escapeAndQuoteString(field_info.name_)
+                                  + ", field_presence='" + FieldPresenceToString(field_info.presence_) + "'");
 }
 
 
@@ -234,8 +236,9 @@ void UpdateDB(DbConnection * const db_connection, const std::string &journal_nam
     if (field_name.length() != MARC::Record::TAG_LENGTH)
         LOG_ERROR("\"" + field_name + "\" is not a valid field name!");
 
-    db_connection->queryOrDie("UPDATE metadata_presence_tracer SET field_presence='" + field_presence_str + "' WHERE journal_name="
-                              + db_connection->escapeAndQuoteString(journal_name) + " AND field_name='" + field_name + "'");
+    db_connection->queryOrDie("UPDATE metadata_presence_tracer SET field_presence='" + field_presence_str + "' WHERE zeder_journal_id="
+                              + "(SELECT id FROM zeder_journals WHERE journal_name="
+                              + db_connection->escapeAndQuoteString(journal_name) + ") AND field_name='" + field_name + "'");
     if (db_connection->getNoOfAffectedRows() == 0)
         LOG_ERROR("can't update non-existent database entry! (journal_name: \"" + journal_name + "\""
                   + ", field_name: \"" + field_name + "\"");
