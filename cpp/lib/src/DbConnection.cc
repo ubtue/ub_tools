@@ -127,28 +127,49 @@ int DbConnection::getLastErrorCode() const {
 }
 
 
+enum CommentFlavour { NO_COMMENT, C_STYLE_COMMENT, END_OF_LINE_COMMENT };
+
+
 static std::vector<std::string> SplitMySQLStatements(const std::string &query) {
     std::vector<std::string> statements;
 
     std::string statement;
     char current_quote('\0'); // NUL means not currently in a string constant.
     bool escaped(false); // backslash not yet seen
-    for (const char ch : query) {
-        if (current_quote != '\0') {
-            statement += ch;
+    CommentFlavour comment_flavour(NO_COMMENT);
+    for (auto ch(query.cbegin()); ch != query.cend(); ++ch) {
+        if (comment_flavour != NO_COMMENT) {
+            if ((comment_flavour == END_OF_LINE_COMMENT and *ch == '\n')
+                or (*ch == '/' and likely(ch > query.cbegin()) and *(ch - 1) == '*'))
+                comment_flavour = NO_COMMENT;
+        } else if (current_quote != '\0') {
+            statement += *ch;
             if (escaped)
                 escaped = false;
-            else if (ch == current_quote)
+            else if (*ch == current_quote)
                 current_quote = '\0';
-            else if (ch == '\\')
+            else if (*ch == '\\')
                 escaped = true;
-        } else if (unlikely(ch == ';')) {
+        } else if (unlikely(*ch == ';')) {
             statements.emplace_back(statement);
             statement.clear();
-        } else {
-            if (ch == '\'' or ch == '"')
-                current_quote = ch;
-            statement += ch;
+        } else if (unlikely(*ch == '#'))
+            comment_flavour = END_OF_LINE_COMMENT;
+        else {
+            // Check for comments starting with "/*" or "-- ":
+            if ((*ch == '/' and ch + 1 < query.cend() and *(ch + 1) == '*')
+                or (*ch == '-' and ch + 2 < query.cend() and *(ch + 1) == '-' and *(ch + 2) == ' '))
+            {
+                if (*ch == '/')
+                    ++ch;
+                else
+                    ch += 2;
+                continue;
+            }
+
+            if (*ch == '\'' or *ch == '"')
+                current_quote = *ch;
+            statement += *ch;
         }
     }
     if (not statement.empty())
