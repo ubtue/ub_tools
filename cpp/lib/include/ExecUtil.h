@@ -122,7 +122,11 @@ bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * co
  *  \param  stderr_output  Where to store the stderr of the command.
  */
 bool ExecSubcommandAndCaptureStdoutAndStderr(const std::string &command, const std::vector<std::string> &args,
-                                             std::string * const stdout_output, std::string * const stderr_output);
+                                             std::string * const stdout_output, std::string * const stderr_output,
+                                             const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL,
+                                             const std::unordered_map<std::string, std::string> &envs =
+                                             std::unordered_map<std::string, std::string>(),
+                                             const std::string &working_directory = "");
 
 
 // Based on CPU load and number of cores, tells us if it would be prudent to spawn a new process at this time or not.
