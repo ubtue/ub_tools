@@ -370,11 +370,11 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
 bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const entry,
                                         DbConnection * const db_connection) const
 {
-    db_connection->queryOrDie("SELECT t2.url, t1.delivered_at, t0.zeder_id, t0.zeder_instance, t1.main_title, t1.hash "
-                              "FROM delivered_marc_records_urls AS t2 "
-                              "LEFT JOIN delivered_marc_records AS t1 ON t2.record_id = t1.id "
-                              "LEFT JOIN zeder_journals AS t0 ON t1.zeder_journal_id = t0.id "
-                              "WHERE t2.url='"
+    db_connection->queryOrDie("SELECT dmru.url, dmr.delivered_at, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
+                              "FROM delivered_marc_records_urls AS dmru "
+                              "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
+                              "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
+                              "WHERE dmru.url='"
                               + db_connection->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'");
     auto result_set(db_connection->getLastResultSet());
     if (result_set.empty())
@@ -390,11 +390,11 @@ bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const en
 bool UploadTracker::hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries,
                                          DbConnection * const db_connection) const
 {
-    db_connection->queryOrDie("SELECT t2.url, t1.delivered_at, t0.zeder_id, t0.zeder_instance, t1.main_title, t1.hash "
-                              "FROM delivered_marc_records_urls AS t2 "
-                              "LEFT JOIN delivered_marc_records AS t1 ON t2.record_id = t1.id "
-                              "LEFT JOIN zeder_journals AS t0 ON t1.zeder_journal_id = t0.id "
-                              "WHERE t1.hash='"
+    db_connection->queryOrDie("SELECT dmru.url, dmr.delivered_at, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
+                              "FROM delivered_marc_records_urls AS dmru "
+                              "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
+                              "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
+                              "WHERE dmr.hash='"
                               + db_connection->escapeString(hash) + "'");
     auto result_set(db_connection->getLastResultSet());
     if (result_set.empty())
@@ -499,12 +499,12 @@ std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(c
     DbConnection db_connection;
 
     const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
-    db_connection.queryOrDie("SELECT t2.url, t1.delivered_at, t0.zeder_id, t0.zeder_instance, t1.main_title, t1.hash "
-                             "FROM delivered_marc_records_urls AS t2 "
-                             "LEFT JOIN delivered_marc_records AS t1 ON t2.record_id = t1.id "
-                             "LEFT JOIN zeder_journals AS t0 ON t1.zeder_journal_id = t0.id "
-                             "WHERE t0.zeder_id=" + db_connection.escapeString(std::to_string(zeder_id)) + " "
-                             "AND t0.zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance));
+    db_connection.queryOrDie("SELECT dmru.url, dmr.delivered_at, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
+                             "FROM delivered_marc_records_urls AS dmru "
+                             "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
+                             "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
+                             "WHERE zj.zeder_id=" + db_connection.escapeString(std::to_string(zeder_id)) + " "
+                             "AND zj.zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance));
 
     auto result_set(db_connection.getLastResultSet());
     std::vector<Entry> entries;
