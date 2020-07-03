@@ -2,9 +2,12 @@ ALTER TABLE database_versions DROP INDEX database_name;
 ALTER TABLE database_versions ADD CONSTRAINT database_versions_database_name UNIQUE (database_name);
 ALTER TABLE rss_aggregator DROP INDEX item_id;
 ALTER TABLE rss_aggregator ADD CONSTRAINT rss_aggregator_item_id UNIQUE (item_id);
-ALTER TABLE rss_aggregator RENAME INDEX item_id_index TO rss_aggregator_item_id_index;
-ALTER TABLE rss_aggregator RENAME INDEX item_url_index TO rss_aggregator_item_url_index;
-ALTER TABLE rss_aggregator RENAME INDEX insertion_time_index TO rss_aggregator_insertion_time_index;
+ALTER TABLE rss_aggregator DROP INDEX item_id_index;
+ALTER TABLE rss_aggregator ADD INDEX rss_aggregator_item_id_index (item_id(768));
+ALTER TABLE rss_aggregator DROP INDEX item_url_index;
+ALTER TABLE rss_aggregator ADD INDEX rss_aggregator_item_url_index (item_url(768));
+ALTER TABLE rss_aggregator DROP INDEX insertion_time_index;
+ALTER TABLE rss_aggregator ADD INDEX rss_aggregator_insertion_time_index (insertion_time);
 ALTER TABLE zeder_journals DROP INDEX zeder_id;
 ALTER TABLE zeder_journals ADD CONSTRAINT zeder_journal_zeder_id_and_zeder_instance UNIQUE (zeder_id, zeder_instance);
 
