@@ -54,7 +54,7 @@ bool IncludeJournal(const Zeder::Entry &journal, const IniFile::Section &filter_
             continue;
 
         std::string zeder_column_name(entry.name_);
-        const auto column_value(StringUtil::TrimWhite(journal.lookup(zeder_column_name)));
+        const auto column_value(StringUtil::TrimWhite(journal.lookup(zeder_column_name == "except_class" ? "class" : zeder_column_name)));
         if (column_value.empty())
             return false;
 
@@ -112,8 +112,11 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
             continue;
         }
 
-        ProcessPPNs(print_ppns, &bundle_ppns);
-        ProcessPPNs(online_ppns, &bundle_ppns);
+        // Prefer online journals to print journals:
+        if (not online_ppns.empty())
+            ProcessPPNs(online_ppns, &bundle_ppns);
+        else
+            ProcessPPNs(print_ppns, &bundle_ppns);
     }
 
     if (bundle_ppns.empty())
