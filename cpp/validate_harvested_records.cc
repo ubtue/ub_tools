@@ -213,7 +213,7 @@ void WriteToDatabase(DbConnection * const db_connection, const std::string &jour
     for (const auto &field_info : journal_info)
         db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET zeder_journal_id=(SELECT id FROM zeder_journals WHERE journal_name="
                                   + db_connection->escapeAndQuoteString(journal_name) + ")"
-                                  + ", metadata_field_name='" + db_connection->escapeAndQuoteString(field_info.name_)
+                                  + ", metadata_field_name=" + db_connection->escapeAndQuoteString(field_info.name_)
                                   + ", field_presence='" + FieldPresenceToString(field_info.presence_) + "'");
 }
 
