@@ -656,9 +656,6 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
         } else if (review_matcher->match(metadata_record->short_title_)) {
             LOG_DEBUG("short title matched review pattern");
             metadata_record->item_type_ = "review";
-        } else if (review_matcher->match(metadata_record->abstract_note_)) {
-            LOG_DEBUG("abstract matched review pattern");
-            metadata_record->item_type_ = "review";
         } else {
             for (const auto &keyword : metadata_record->keywords_) {
                 if (review_matcher->match(keyword)) {
