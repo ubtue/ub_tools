@@ -70,6 +70,7 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --replace 100a:700a /usr/local/var/lib/tuelib/author_normalisation.map \
     --replace 260b:264b /usr/local/var/lib/tuelib/publisher_normalisation.map \
     --replace 245a "^L' (.*)" "L'\\1" `#  Replace "L' arbe" with "L'arbe" etc.` \
+    --replace 100a:700a "\\s+(.*)" "\\1" `Replace " van Blerk, Nico" with "van Blerk, Nico" etc.` \
 >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
