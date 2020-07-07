@@ -143,7 +143,6 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
                 or (*ch == '/' and likely(ch > query.cbegin()) and *(ch - 1) == '*'))
                 comment_flavour = NO_COMMENT;
         } else if (current_quote != '\0') {
-            statement += *ch;
             if (escaped)
                 escaped = false;
             else if (*ch == current_quote)
@@ -151,21 +150,29 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
             else if (*ch == '\\')
                 escaped = true;
         } else if (unlikely(*ch == ';')) {
-            statements.emplace_back(StringUtil::TrimWhite(&statement));
+            StringUtil::TrimWhite(&statement);
+            if (not statement.empty())
+                statements.emplace_back(statement);
             statement.clear();
+            continue;
         } else if (unlikely(*ch == '#'))
             comment_flavour = END_OF_LINE_COMMENT;
         else if (*ch == '/' and ch + 1 < query.cend() and *(ch + 1) == '*') { // Check for comments starting with "/*".
+            statement += *ch;
             ++ch;
             comment_flavour = C_STYLE_COMMENT;
         } else if (*ch == '-' and ch + 2 < query.cend() and *(ch + 1) == '-' and *(ch + 2) == ' ') { // Check for comments starting with "-- ".
-            ch += 2;
+            statement += *ch;
+            ++ch;
+            statement += *ch;
+            ++ch;
             comment_flavour = END_OF_LINE_COMMENT;
         } else {
             if (*ch == '\'' or *ch == '"')
                 current_quote = *ch;
-            statement += *ch;
         }
+
+        statement += *ch;
     }
 
     StringUtil::TrimWhite(&statement);
