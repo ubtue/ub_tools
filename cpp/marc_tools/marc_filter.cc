@@ -217,7 +217,6 @@ bool MatchedSubfield(const MARC::Record &record, const std::vector<CompiledPatte
         }
     }
 
-LOG_INFO("in MatchedSubfield, about to return " + std::to_string(not matched_field_indices_and_subfields->empty()));
     return not matched_field_indices_and_subfields->empty();
 }
 
