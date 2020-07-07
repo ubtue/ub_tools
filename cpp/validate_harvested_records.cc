@@ -38,7 +38,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-   ::Usage("(marc_input marc_output missed_expectations_file email_address)|(update_db journal_name field_name field_presence)\n"
+   ::Usage("(marc_input marc_output missed_expectations_file email_address)|(update_db zeder_id zeder_instance field_name field_presence)\n"
            "\tThis tool has two operating modes 1) checking MARC data for missed expectations and 2) altering these expectations.\n"
            "\tin the \"update_db\" mode, \"field_name\" must be a 3-character MARC tag and \"field_presence\" must be one of\n"
            "\tALWAYS, SOMETIMES, IGNORE.  Please note that only existing entries can be changed!");
@@ -77,17 +77,23 @@ public:
 
 
 class JournalInfo {
+    std::string zeder_id_;
+    std::string zeder_instance_;
     bool not_in_database_yet_;
     std::vector<FieldInfo> field_infos_;
 public:
     using const_iterator = std::vector<FieldInfo>::const_iterator;
     using iterator = std::vector<FieldInfo>::iterator;
 public:
-    explicit JournalInfo(const bool not_in_database_yet): not_in_database_yet_(not_in_database_yet) { }
+    explicit JournalInfo(const std::string &zeder_id, const std::string &zeder_instance,
+                         const bool not_in_database_yet): zeder_id_(zeder_id), zeder_instance_(zeder_instance),
+                         not_in_database_yet_(not_in_database_yet) { }
     JournalInfo() = default;
     JournalInfo(const JournalInfo &rhs) = default;
 
     size_t size() const { return field_infos_.size(); }
+    const std::string &getZederId() const { return zeder_id_; }
+    const std::string &getZederInstance() const { return zeder_instance_; }
     bool isInDatabase() const { return not not_in_database_yet_; }
     void addField(const std::string &field_name, const FieldPresence field_presence)
         { field_infos_.emplace_back(field_name, field_presence); }
@@ -127,20 +133,21 @@ std::string FieldPresenceToString(const FieldPresence field_presence) {
 }
 
 
-void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, const std::string &journal_name,
-                                         JournalInfo * const journal_info)
+void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, const std::string &zeder_id,
+                                         const std::string &zeder_instance, JournalInfo * const journal_info)
 {
     db_connection->queryOrDie("SELECT metadata_field_name,field_presence FROM metadata_presence_tracer "
                               "LEFT JOIN zeder_journals ON zeder_journals.id = metadata_presence_tracer.zeder_journal_id "
-                              "WHERE journal_name=" + db_connection->escapeAndQuoteString(journal_name));
+                              "WHERE zeder_journals.zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) +
+                              " AND zeder_journals.zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance));
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty()) {
-        LOG_INFO("\"" + journal_name + "\" was not yet in the database.");
-        *journal_info = JournalInfo(/* not_in_database_yet = */true);
+        LOG_INFO(zeder_id + "(" + zeder_instance + ")" + " was not yet in the database.");
+        *journal_info = JournalInfo(zeder_id, zeder_instance, /* not_in_database_yet = */true);
         return;
     }
 
-    *journal_info = JournalInfo(/* not_in_database_yet = */false);
+    *journal_info = JournalInfo(zeder_id, zeder_instance, /* not_in_database_yet = */false);
     while (auto row = result_set.getNextRow())
         journal_info->addField(row["metadata_field_name"], StringToFieldPresence(row["field_presence"]));
 }
@@ -209,12 +216,13 @@ bool RecordMeetsExpectations(const MARC::Record &record, const std::string &jour
 }
 
 
-void WriteToDatabase(DbConnection * const db_connection, const std::string &journal_name, const JournalInfo &journal_info) {
+void WriteToDatabase(DbConnection * const db_connection, const JournalInfo &journal_info) {
     for (const auto &field_info : journal_info)
-        db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET zeder_journal_id=(SELECT id FROM zeder_journals WHERE journal_name="
-                                  + db_connection->escapeAndQuoteString(journal_name) + ")"
-                                  + ", metadata_field_name=" + db_connection->escapeAndQuoteString(field_info.name_)
-                                  + ", field_presence='" + FieldPresenceToString(field_info.presence_) + "'");
+        db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET zeder_journal_id=(SELECT id FROM zeder_journals "
+                                  "WHERE zeder_id=" + db_connection->escapeAndQuoteString(journal_info.getZederId()) + " "
+                                  "AND zeder_instance=" + db_connection->escapeAndQuoteString(journal_info.getZederInstance()) + ")"
+                                  ", metadata_field_name=" + db_connection->escapeAndQuoteString(field_info.name_) +
+                                  ", field_presence='" + FieldPresenceToString(field_info.presence_) + "'");
 }
 
 
@@ -229,7 +237,9 @@ void SendEmail(const std::string &email_address, const std::string &message_subj
 }
 
 
-void UpdateDB(DbConnection * const db_connection, const std::string &journal_name, const std::string &field_name, const std::string &field_presence_str) {
+void UpdateDB(DbConnection * const db_connection, const std::string &zeder_id, const std::string &zeder_instance,
+              const std::string &field_name, const std::string &field_presence_str)
+{
     FieldPresence field_presence;
     if (not StringToFieldPresence(field_presence_str, &field_presence))
         LOG_ERROR("\"" + field_presence_str + "\" is not a valid field_presence!");
@@ -237,10 +247,11 @@ void UpdateDB(DbConnection * const db_connection, const std::string &journal_nam
         LOG_ERROR("\"" + field_name + "\" is not a valid field name!");
 
     db_connection->queryOrDie("UPDATE metadata_presence_tracer SET field_presence='" + field_presence_str + "' WHERE zeder_journal_id="
-                              + "(SELECT id FROM zeder_journals WHERE journal_name="
-                              + db_connection->escapeAndQuoteString(journal_name) + ") AND field_name='" + field_name + "'");
+                              + "(SELECT id FROM zeder_journals WHERE zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) + " "
+                              + "AND zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance) + ") "
+                              + "AND field_name='" + field_name + "'");
     if (db_connection->getNoOfAffectedRows() == 0)
-        LOG_ERROR("can't update non-existent database entry! (journal_name: \"" + journal_name + "\""
+        LOG_ERROR("can't update non-existent database entry: " + zeder_id + "(" + zeder_instance + ")"
                   + ", field_name: \"" + field_name + "\"");
 }
 
@@ -249,6 +260,11 @@ bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &recor
                    std::map<std::string, JournalInfo> * const journal_name_to_info_map,
                    unsigned * const new_record_count, unsigned * const missed_expectation_count)
 {
+    const std::string zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
+    const std::string zeder_instance(record.getFirstSubfieldValue("ZID", 'b'));
+    if (zeder_id.empty() or zeder_instance.empty())
+        LOG_ERROR("Record w/ control number \"" + record.getControlNumber() + "\" has either no zeder_id or no zeder_instance!");
+
     const auto journal_name(record.getSuperiorTitle());
     if (journal_name.empty()) {
         LOG_WARNING("Record w/ control number \"" + record.getControlNumber() + "\" is missing a superior title!");
@@ -261,7 +277,7 @@ bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &recor
     if (journal_name_and_info == journal_name_to_info_map->end()) {
         first_record = true;
         JournalInfo new_journal_info;
-        LoadFromDatabaseOrCreateFromScratch(db_connection, journal_name, &new_journal_info);
+        LoadFromDatabaseOrCreateFromScratch(db_connection, zeder_id, zeder_instance, &new_journal_info);
         (*journal_name_to_info_map)[journal_name] = new_journal_info;
         journal_name_and_info = journal_name_to_info_map->find(journal_name);
     }
@@ -284,15 +300,20 @@ bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &recor
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 5)
+    if (argc != 5 and argc != 6)
         Usage();
 
     DbConnection db_connection;
 
     if (std::strcmp(argv[1], "update_db") == 0) {
-        UpdateDB(&db_connection, argv[2], argv[3], argv[4]);
+        if (argc != 6)
+            Usage();
+        UpdateDB(&db_connection, argv[2], argv[3], argv[4], argv[5]);
         return EXIT_SUCCESS;
     }
+
+    if (argc != 5)
+        Usage();
 
     auto reader(MARC::Reader::Factory(argv[1]));
     auto valid_records_writer(MARC::Writer::Factory(argv[2]));
@@ -312,7 +333,7 @@ int Main(int argc, char *argv[]) {
 
     for (const auto &journal_name_and_info : journal_name_to_info_map) {
         if (not journal_name_and_info.second.isInDatabase())
-            WriteToDatabase(&db_connection, journal_name_and_info.first, journal_name_and_info.second);
+            WriteToDatabase(&db_connection, journal_name_and_info.second);
     }
 
     if (missed_expectation_count > 0) {
