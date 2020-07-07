@@ -69,8 +69,8 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --replace-strings 600a:610a:630a:648a:650a:650x:651a:655a /usr/local/var/lib/tuelib/keyword_normalisation.map \
     --replace 100a:700a /usr/local/var/lib/tuelib/author_normalisation.map \
     --replace 260b:264b /usr/local/var/lib/tuelib/publisher_normalisation.map \
-    --replace 245a "^L' (.*)" "L'\\1" `#  Replace "L' arbe" with "L'arbe" etc.` \
-    --replace 100a:700a "\\s+(.*)" "\\1" `Replace " van Blerk, Nico" with "van Blerk, Nico" etc.` \
+    --replace 245a "^L' (.*)" "L'\\1" `# Replace "L' arbe" with "L'arbe" etc.` \
+    --replace 100a:700a "\\s+(.*)" "\\1" `# Replace " van Blerk, Nico" with "van Blerk, Nico" etc.` \
 >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
