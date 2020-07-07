@@ -981,7 +981,8 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     marc_record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
 
     // Abrufzeichen und ISIL
-    switch (ZederInterop::GetZederInstanceForGroup(group_params)) {
+    const auto zeder_instance(ZederInterop::GetZederInstanceForGroup(group_params));
+    switch (zeder_instance) {
     case Zeder::Flavour::IXTHEO:
         marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
         marc_record->insertField("935", { { 'a', "mteo" } });
@@ -994,7 +995,8 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
 
     // Book-keeping fields
     marc_record->insertField("URL", { { 'a', download_item.url_.toString() } });
-    marc_record->insertField("ZID", { { 'a', std::to_string(download_item.journal_.zeder_id_) } });
+    marc_record->insertField("ZID", { { 'a', std::to_string(download_item.journal_.zeder_id_) },
+                                      { 'b', StringUtil::ASCIIToLower(Zeder::FLAVOUR_TO_STRING_MAP.at(zeder_instance)) } });
     marc_record->insertField("JOU", { { 'a', download_item.journal_.name_ } });
 
     // Add custom fields
