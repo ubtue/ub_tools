@@ -217,13 +217,14 @@ bool MatchedSubfield(const MARC::Record &record, const std::vector<CompiledPatte
         }
     }
 
+LOG_INFO("in MatchedSubfield, about to return " + std::to_string(not matched_field_indices_and_subfields->empty()));
     return not matched_field_indices_and_subfields->empty();
 }
 
 
 enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
 enum class FilterType { KEEP, DROP, KEEP_BIBLIOGRAPHIC_LEVEL, DROP_BIBLIOGRAPHIC_LEVEL, REMOVE_FIELDS, REMOVE_SUBFIELDS, FILTER_CHARS,
-                        MAX_COUNT, TRANSLATE, REPLACE, MAP_STRING_TO_STRING, REPLACEMENT, GLOBAL_SUBSTITUTION };
+                        MAX_COUNT, TRANSLATE, REPLACE, MAP_STRING_TO_STRING, GLOBAL_SUBSTITUTION };
 
 
 class TranslateMap {
@@ -421,7 +422,7 @@ public:
     inline static FilterDescriptor MakeReplacementFilter(const std::vector<std::string> &subfield_specs,
                                                          const std::string &regex, const std::string &replacement)
     {
-        return FilterDescriptor(FilterType::REPLACEMENT, subfield_specs, regex, replacement);
+        return FilterDescriptor(FilterType::REPLACE, subfield_specs, regex, replacement);
     }
 
     inline static FilterDescriptor MakeStringReplacementFilter(
@@ -499,13 +500,13 @@ FilterDescriptor::FilterDescriptor(const FilterType filter_type, const std::vect
                                    const std::string &replacement)
     : filter_type_(filter_type), subfield_specs_(subfield_specs), translate_map_(nullptr)
 {
-    if (filter_type != FilterType::REPLACEMENT and filter_type != FilterType::GLOBAL_SUBSTITUTION)
+    if (filter_type != FilterType::REPLACE and filter_type != FilterType::GLOBAL_SUBSTITUTION)
         LOG_ERROR("filter_type must be either REPLACEMENT or GLOBAL_SUBSTITUTION!");
 
     std::string err_msg;
     if ((regex_matcher_ = RegexMatcher::RegexMatcherFactory(regex, &err_msg)) == nullptr)
         LOG_ERROR("failed to compile regex \"" + regex + "\"! (" + err_msg + ")");
-    if (filter_type == FilterType::REPLACEMENT)
+    if (filter_type == FilterType::REPLACE)
         ParseReplacementString(replacement, &string_fragments_and_back_references_);
     else if (filter_type == FilterType::GLOBAL_SUBSTITUTION)
         replacement_ = replacement;
