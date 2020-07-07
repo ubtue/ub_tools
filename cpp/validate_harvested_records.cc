@@ -92,8 +92,8 @@ public:
     JournalInfo(const JournalInfo &rhs) = default;
 
     size_t size() const { return field_infos_.size(); }
-    std::string getZederId() const { return zeder_id_; }
-    std::string getZederInstance() const { return zeder_instance_; }
+    const std::string &getZederId() const { return zeder_id_; }
+    const std::string &getZederInstance() const { return zeder_instance_; }
     bool isInDatabase() const { return not not_in_database_yet_; }
     void addField(const std::string &field_name, const FieldPresence field_presence)
         { field_infos_.emplace_back(field_name, field_presence); }
@@ -138,8 +138,8 @@ void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, con
 {
     db_connection->queryOrDie("SELECT metadata_field_name,field_presence FROM metadata_presence_tracer "
                               "LEFT JOIN zeder_journals ON zeder_journals.id = metadata_presence_tracer.zeder_journal_id "
-                              "WHERE zeder_journals.zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) + " "
-                              "AND zeder_journals.zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance));
+                              "WHERE zeder_journals.zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) +
+                              " AND zeder_journals.zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance));
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty()) {
         LOG_INFO(zeder_id + "(" + zeder_instance + ")" + " was not yet in the database.");
@@ -221,7 +221,7 @@ void WriteToDatabase(DbConnection * const db_connection, const JournalInfo &jour
         db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET zeder_journal_id=(SELECT id FROM zeder_journals "
                                   "WHERE zeder_id=" + db_connection->escapeAndQuoteString(journal_info.getZederId()) + " "
                                   "AND zeder_instance=" + db_connection->escapeAndQuoteString(journal_info.getZederInstance()) + ")"
-                                  ", metadata_field_name=" + db_connection->escapeAndQuoteString(field_info.name_) + " "
+                                  ", metadata_field_name=" + db_connection->escapeAndQuoteString(field_info.name_) +
                                   ", field_presence='" + FieldPresenceToString(field_info.presence_) + "'");
 }
 
