@@ -571,6 +571,9 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
     if (page_match and page_match[1] == page_match[2])
         metadata_record->pages_ = page_match[1];
 
+    // override publication title
+    metadata_record->publication_title_ = journal_params.name_;
+
     // override ISSN (online > print > zotero) and select superior PPN (online > print)
     const auto &issn(journal_params.issn_);
     const auto &ppn(journal_params.ppn_);
