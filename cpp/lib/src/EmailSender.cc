@@ -320,7 +320,9 @@ std::string CreateEmailMessage(const EmailSender::Priority priority, const Email
     AppendRecipientHeaders(&message, "to", recipients);
     AppendRecipientHeaders(&message, "cc", cc_recipients);
     AppendRecipientHeaders(&message, "bcc", bcc_recipients);
-    message += "Subject: " + subject + "\r\n";
+
+    // See RFC 1342
+    message += "Subject: =?utf-8?B?" + Base64Encode(subject) + "?=\r\n";
 
     if (attachments.empty())
         return CreateSinglePartEmail(priority, format, message_body, &message);
