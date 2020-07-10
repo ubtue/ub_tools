@@ -349,8 +349,12 @@ void DbConnection::backupOrDie(const std::string &output_filename) {
 
 void DbConnection::insertIntoTableOrDie(const std::string &table_name,
                                         const std::map<std::string, std::string> &column_names_to_values_map,
-                                        const DuplicateKeyBehaviour duplicate_key_behaviour)
+                                        const DuplicateKeyBehaviour duplicate_key_behaviour,
+                                        const std::string &where_clause)
 {
+    if (not where_clause.empty() and duplicate_key_behaviour != DKB_REPLACE)
+        LOG_ERROR("\"where_clause\" is only valid when using the DKB_REPLACE mode!");
+
     std::string insert_stmt(duplicate_key_behaviour == DKB_REPLACE ? "REPLACE" : "INSERT");
     if (duplicate_key_behaviour == DKB_IGNORE)
         insert_stmt += (type_ == T_MYSQL) ? " IGNORE" : " OR IGNORE";
@@ -383,6 +387,9 @@ void DbConnection::insertIntoTableOrDie(const std::string &table_name,
     }
 
     insert_stmt += ')';
+
+    if (not where_clause.empty())
+        insert_stmt += " WHERE " + where_clause;
 
     queryOrDie(insert_stmt);
 }

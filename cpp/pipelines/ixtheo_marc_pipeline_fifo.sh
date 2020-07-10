@@ -137,11 +137,16 @@ mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
                                   GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
+# Note: It is necessary to run this phase after articles have had their journal's PPN's inserted!
+StartPhase "Populate the Zeder Journal Timeliness Database Table"
+(collect_journal_stats.cc GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
 
 StartPhase "Add Additional Open Access URL's"
 # Execute early for programs that rely on it for determining the open access property
 OADOI_URLS_FILE="/mnt/ZE020150/FID-Entwicklung/oadoi/oadoi_urls_ixtheo.json"
-(add_oa_urls ${OADOI_URLS_FILE} GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_oa_urls ${OADOI_URLS_FILE} GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 

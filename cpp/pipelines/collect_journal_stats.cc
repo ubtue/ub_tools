@@ -1,7 +1,7 @@
 /** \brief Updates Zeder (via Ingo's SQL database) w/ the last N issues of harvested articles for each journal.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -23,45 +23,93 @@
 #include "DbConnection.h"
 #include "DnsUtil.h"
 #include "IniFile.h"
-#include "MapUtil.h"
 #include "MARC.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
 #include "UBTools.h"
 #include "util.h"
+#include "Zeder.h"
 
 
 namespace {
 
 
-[[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=log_level] marc_titles_records\n";
-    std::exit(EXIT_FAILURE);
+// Please note that Zeder PPN entries are separated by spaces and, unlike what the column names "print_ppn" and
+// "online_ppn" imply may in rare cases contain space-separated lists of PPN's.
+inline auto SplitZederPPNs(const std::string &ppns) {
+    std::vector<std::string> individual_ppns;
+    StringUtil::Split(ppns, ' ', &individual_ppns);
+    return individual_ppns;
 }
 
 
-const std::string ZEDER_URL_PREFIX("http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo#suche=Z%3D");
+struct ZederIdAndType {
+    unsigned zeder_id_;
+    char type_; // 'p' or 'e' for "print" or "electronic"
+public:
+    ZederIdAndType(const unsigned zeder_id, const char type)
+        : zeder_id_(zeder_id), type_(type) { }
+};
 
 
-// We expect value to consist of 3 parts separated by colons: Zeder ID, PPN type ("print" or "online") and title.
-void SplitValue(const std::string &value, std::string * const zeder_id, std::string * const type, std::string * const title) {
-    const auto first_colon_pos(value.find(':'));
-    if (unlikely(first_colon_pos == std::string::npos))
-        LOG_ERROR("colons are missing in: " + value);
-    *zeder_id = value.substr(0, first_colon_pos);
+std::unordered_map<std::string, ZederIdAndType> GetPPNsToZederIdsAndTypesMap(const std::string &system_type) {
+    std::unordered_map<std::string, ZederIdAndType> ppns_to_zeder_ids_and_types_map;
 
-    const auto second_colon_pos(value.find(':', first_colon_pos + 1));
-    if (unlikely(second_colon_pos == std::string::npos))
-        LOG_ERROR("2nd colon is missing in: " + value);
-    *type = value.substr(first_colon_pos + 1, second_colon_pos - first_colon_pos - 1);
-    if (*type == "print")
-        *type = "p";
-    else if (*type == "online")
-        *type = "e";
-    else
-        LOG_ERROR("invalid PPN type in \"" + value + "\"! (Must be \"print\" or \"online\".)");
 
-    *title = value.substr(second_colon_pos + 1);
+    const Zeder::SimpleZeder zeder(system_type == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK, { "eppn", "pppn" });
+    if (unlikely(zeder.empty()))
+        LOG_ERROR("found no Zeder entries matching any of our requested columns!"
+                  " (This *should* not happen as we included the column ID!)");
+
+    unsigned included_journal_count(0);
+    std::set<std::string> bundle_ppns; // We use a std::set because it is automatically being sorted for us.
+    for (const auto &journal : zeder) {
+        if (journal.empty())
+            continue;
+        ++included_journal_count;
+
+        const auto print_ppns(SplitZederPPNs(journal.lookup("pppn")));
+        const auto online_ppns(SplitZederPPNs(journal.lookup("eppn")));
+
+        if (print_ppns.empty() and online_ppns.empty()) {
+            --included_journal_count;
+            LOG_WARNING("Zeder entry #" + std::to_string(journal.getId()) + " is missing print and online PPN's!");
+            continue;
+        }
+
+        for (const auto &print_ppn : print_ppns)
+            ppns_to_zeder_ids_and_types_map.emplace(print_ppn, ZederIdAndType(journal.getId(), 'p'));
+
+        for (const auto &online_ppn : online_ppns)
+            ppns_to_zeder_ids_and_types_map.emplace(online_ppn, ZederIdAndType(journal.getId(), 'e'));
+    }
+
+    LOG_INFO("downloaded information for " + std::to_string(included_journal_count) + " journal(s) from Zeder.");
+
+    return ppns_to_zeder_ids_and_types_map;
+}
+
+
+bool SplitPageNumbers(const std::string &possibly_combined_pages, unsigned * const start_page, unsigned * const end_page) {
+    if (StringUtil::ToUnsigned(possibly_combined_pages, start_page)) {
+        *end_page = *start_page;
+        return true;
+    } else if (possibly_combined_pages.length() >= 2
+               and possibly_combined_pages[possibly_combined_pages.length() - 1] == 'f')
+    {
+        if (not StringUtil::ToUnsigned(possibly_combined_pages.substr(0, possibly_combined_pages.length() - 1), start_page))
+            return false;
+        *end_page = *start_page + 1;
+        return true;
+    }
+
+    // Common case, page range with a hypen.
+    const auto first_hyphen_pos(possibly_combined_pages.find('-'));
+    if (first_hyphen_pos == std::string::npos)
+        return false;
+
+    return StringUtil::ToUnsigned(possibly_combined_pages.substr(0, first_hyphen_pos), start_page)
+           and StringUtil::ToUnsigned(possibly_combined_pages.substr(first_hyphen_pos + 1), end_page);
 }
 
 
@@ -73,12 +121,14 @@ unsigned short YearStringToShort(const std::string &year_as_string) {
     return year_as_unsigned_short;
 }
 
-
-void ProcessRecords(MARC::Reader * const reader, const std::unordered_map<std::string, std::string> &journal_ppn_to_type_and_title_map,
+void ProcessRecords(MARC::Reader * const reader, const std::string &system_type,
+                    const std::unordered_map<std::string, ZederIdAndType> &ppns_to_zeder_ids_and_types_map,
                     DbConnection * const db_connection)
 {
+    const auto zeder_instance(system_type == "krimdok" ? "krim" : system_type);
     const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
     const auto HOSTNAME(DnsUtil::GetHostname());
+    const std::string ZEDER_URL_PREFIX("http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=" + zeder_instance + "#suche=Z%3D");
 
     unsigned total_count(0), inserted_count(0);
     while (const auto record = reader->read()) {
@@ -88,16 +138,13 @@ void ProcessRecords(MARC::Reader * const reader, const std::unordered_map<std::s
         if (superior_control_number.empty())
             continue;
 
-        const auto journal_ppn_and_type_and_title(journal_ppn_to_type_and_title_map.find(superior_control_number));
-        if (journal_ppn_and_type_and_title == journal_ppn_to_type_and_title_map.cend())
+        const auto zeder_id_and_type(ppns_to_zeder_ids_and_types_map.find(superior_control_number));
+        if (zeder_id_and_type == ppns_to_zeder_ids_and_types_map.cend())
             continue;
 
         const auto _936_field(record.findTag("936"));
         if (_936_field == record.end())
             continue;
-
-        std::string zeder_id, type, title;
-        SplitValue(journal_ppn_and_type_and_title->second, &zeder_id, &type, &title);
 
         const std::string pages(_936_field->getFirstSubfieldWithCode('h'));
         std::string volume;
@@ -108,22 +155,28 @@ void ProcessRecords(MARC::Reader * const reader, const std::unordered_map<std::s
             volume = _936_field->getFirstSubfieldWithCode('d');
         const std::string year(_936_field->getFirstSubfieldWithCode('j'));
 
-        db_connection->insertIntoTableOrDie( "zeder.erschliessung",
-                                            {
-                                                { "timestamp=",    "JOB_START_TIME"                        },
-                                                { "Quellrechner=", HOSTNAME                                },
-                                                { "Systemtyp",     "ixtheo",                               },
-                                                { "Zeder_ID",      zeder_id                                },
-                                                { "Zeder_URL",     ZEDER_URL_PREFIX + zeder_id             },
-                                                { "PPN_Typ",       type                                    },
-                                                { "PPN",           journal_ppn_and_type_and_title->first   },
-                                                { "Jahr",          std::to_string(YearStringToShort(year)) },
-                                                { "Band",          volume                                  },
-                                                { "Heft",          issue                                   },
-                                                { "Seitenbereich", pages                                   },
-                                                { "N_Aufsaetze",   "1"                                     }
-                                            });
+        std::map<std::string, std::string> column_names_to_values_map{
+            { "timestamp",     JOB_START_TIME                                                         },
+            { "Quellrechner",  HOSTNAME                                                               },
+            { "Systemtyp",     system_type,                                                           },
+            { "Zeder_ID",      std::to_string(zeder_id_and_type->second.zeder_id_)                    },
+            { "Zeder_URL",     ZEDER_URL_PREFIX + std::to_string(zeder_id_and_type->second.zeder_id_) },
+            { "PPN_Typ",       std::string(1, zeder_id_and_type->second.type_)                        },
+            { "PPN",           superior_control_number                                                },
+            { "Jahr",          std::to_string(YearStringToShort(year))                                },
+            { "Band",          volume                                                                 },
+            { "Heft",          issue                                                                  },
+            { "Seitenbereich", pages                                                                  }
+        };
 
+        unsigned start_page, end_page;
+        if (SplitPageNumbers(pages, &start_page, &end_page)) {
+            column_names_to_values_map["Startseite"] = StringUtil::ToString(start_page);
+            column_names_to_values_map["Endseite"]   = StringUtil::ToString(end_page);
+        }
+
+        db_connection->insertIntoTableOrDie("zeder.erschliessung", column_names_to_values_map,
+                                            DbConnection::DKB_REPLACE, "PPN='" + superior_control_number + "'");
         ++inserted_count;
     }
 
@@ -136,17 +189,25 @@ void ProcessRecords(MARC::Reader * const reader, const std::unordered_map<std::s
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 2)
-        Usage();
+    if (argc != 3)
+        ::Usage("[--min-log-level=log_level] system_type marc_titles_records\n"
+                "\twhere \"system_type\" must be one of ixtheo|krimdok");
 
-    std::unordered_map<std::string, std::string> journal_ppn_to_type_and_title_map;
-    MapUtil::DeserialiseMap(UBTools::GetTuelibPath() + "zeder_ppn_to_title.map", &journal_ppn_to_type_and_title_map);
+    std::string system_type;
+    if (__builtin_strcmp("ixtheo", argv[1]))
+        system_type = "ixtheo";
+    else if (__builtin_strcmp("krimdok", argv[1]))
+        system_type = "krimdok";
+    else
+        LOG_ERROR("system_type must be one of ixtheo|krimdok|relbib!");
+
+    const auto ppns_to_zeder_ids_and_types_map(GetPPNsToZederIdsAndTypesMap(system_type));
 
     IniFile ini_file;
     DbConnection db_connection(ini_file);
 
     const auto marc_reader(MARC::Reader::Factory(argv[1]));
-    ProcessRecords(marc_reader.get(), journal_ppn_to_type_and_title_map, &db_connection);
+    ProcessRecords(marc_reader.get(), system_type, ppns_to_zeder_ids_and_types_map, &db_connection);
 
     return EXIT_SUCCESS;
 }
