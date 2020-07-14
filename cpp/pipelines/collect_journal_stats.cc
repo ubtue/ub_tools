@@ -125,10 +125,10 @@ void ProcessRecords(MARC::Reader * const reader, const std::string &system_type,
                     const std::unordered_map<std::string, ZederIdAndType> &ppns_to_zeder_ids_and_types_map,
                     DbConnection * const db_connection)
 {
-    const auto zeder_instance(system_type == "krimdok" ? "krim" : system_type);
+    const auto zeder_flavour(system_type == "krimdok" ? Zeder::KRIMDOK : Zeder::IXTHEO);
     const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
     const auto HOSTNAME(DnsUtil::GetHostname());
-    const std::string ZEDER_URL_PREFIX("http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=" + zeder_instance + "#suche=Z%3D");
+    const std::string ZEDER_URL_PREFIX(Zeder::GetFullDumpEndpointPath(zeder_flavour) + "#suche=Z%3D");
 
     unsigned total_count(0), inserted_count(0);
     while (const auto record = reader->read()) {
