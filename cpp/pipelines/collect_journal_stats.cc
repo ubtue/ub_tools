@@ -121,7 +121,7 @@ unsigned short YearStringToShort(const std::string &year_as_string) {
     return year_as_unsigned_short;
 }
 
-void ProcessRecords(MARC::Reader * const reader, const std::string &system_type,
+void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, const std::string &system_type,
                     const std::unordered_map<std::string, ZederIdAndType> &ppns_to_zeder_ids_and_types_map,
                     DbConnection * const db_connection)
 {
@@ -133,6 +133,7 @@ void ProcessRecords(MARC::Reader * const reader, const std::string &system_type,
     unsigned total_count(0), inserted_count(0);
     while (const auto record = reader->read()) {
         ++total_count;
+        writer->write(record); // For the next pipeline phase.
 
         const std::string superior_control_number(record.getSuperiorControlNumber());
         if (superior_control_number.empty())
@@ -189,8 +190,8 @@ void ProcessRecords(MARC::Reader * const reader, const std::string &system_type,
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
-        ::Usage("[--min-log-level=log_level] system_type marc_titles_records\n"
+    if (argc != 4)
+        ::Usage("[--min-log-level=log_level] system_type marc_input marc_output\n"
                 "\twhere \"system_type\" must be one of ixtheo|krimdok");
 
     std::string system_type;
@@ -207,7 +208,8 @@ int Main(int argc, char *argv[]) {
     DbConnection db_connection(ini_file);
 
     const auto marc_reader(MARC::Reader::Factory(argv[1]));
-    ProcessRecords(marc_reader.get(), system_type, ppns_to_zeder_ids_and_types_map, &db_connection);
+    const auto marc_writer(MARC::Writer::Factory(argv[2]));
+    ProcessRecords(marc_reader.get(), marc_writer.get(), system_type, ppns_to_zeder_ids_and_types_map, &db_connection);
 
     return EXIT_SUCCESS;
 }
