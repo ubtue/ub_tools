@@ -207,8 +207,8 @@ int Main(int argc, char *argv[]) {
     IniFile ini_file;
     DbConnection db_connection(ini_file);
 
-    const auto marc_reader(MARC::Reader::Factory(argv[1]));
-    const auto marc_writer(MARC::Writer::Factory(argv[2]));
+    const auto marc_reader(MARC::Reader::Factory(argv[2]));
+    const auto marc_writer(MARC::Writer::Factory(argv[3]));
     ProcessRecords(marc_reader.get(), marc_writer.get(), system_type, ppns_to_zeder_ids_and_types_map, &db_connection);
 
     return EXIT_SUCCESS;
