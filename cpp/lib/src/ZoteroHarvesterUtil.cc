@@ -490,7 +490,11 @@ time_t UploadTracker::getLastUploadTime(const unsigned zeder_id, const Zeder::Fl
     if (result_set.empty())
         return TimeUtil::BAD_TIME_T;
 
-    return SqlUtil::DatetimeToTimeT(result_set.getNextRow()["max_delivered_at"]);
+    const auto max_delivered_at(result_set.getNextRow()["max_delivered_at"]);
+    if (max_delivered_at.empty())
+        return TimeUtil::BAD_TIME_T;
+
+    return SqlUtil::DatetimeToTimeT(max_delivered_at);
 }
 
 
