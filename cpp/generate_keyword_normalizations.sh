@@ -32,6 +32,6 @@ fi
 email_address=$1
 
 
-/usr/local/bin/generate_keyword_normalizations ptah.ub.uni-tuebingen.de:8080 /tmp/new_keyword_normalization.map
+/usr/local/bin/generate_keyword_normalizations localhost:8080 /tmp/new_keyword_normalization.map
 mv /tmp/new_keyword_normalization.map /usr/local/var/lib/tuelib/keyword_normalization.map
 no_problems_found=0
