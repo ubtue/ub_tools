@@ -127,6 +127,62 @@ int DbConnection::getLastErrorCode() const {
 }
 
 
+enum CommentFlavour { NO_COMMENT, C_STYLE_COMMENT, END_OF_LINE_COMMENT };
+
+
+std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &query) {
+    std::vector<std::string> statements;
+
+    std::string statement;
+    char current_quote('\0'); // NUL means not currently in a string constant.
+    bool escaped(false); // backslash not yet seen
+    CommentFlavour comment_flavour(NO_COMMENT);
+    for (auto ch(query.cbegin()); ch != query.cend(); ++ch) {
+        if (comment_flavour != NO_COMMENT) {
+            if ((comment_flavour == END_OF_LINE_COMMENT and *ch == '\n')
+                or (*ch == '/' and likely(ch > query.cbegin()) and *(ch - 1) == '*'))
+                comment_flavour = NO_COMMENT;
+        } else if (current_quote != '\0') {
+            if (escaped)
+                escaped = false;
+            else if (*ch == current_quote)
+                current_quote = '\0';
+            else if (*ch == '\\')
+                escaped = true;
+        } else if (unlikely(*ch == ';')) {
+            StringUtil::TrimWhite(&statement);
+            if (not statement.empty())
+                statements.emplace_back(statement);
+            statement.clear();
+            continue;
+        } else if (unlikely(*ch == '#'))
+            comment_flavour = END_OF_LINE_COMMENT;
+        else if (*ch == '/' and ch + 1 < query.cend() and *(ch + 1) == '*') { // Check for comments starting with "/*".
+            statement += *ch;
+            ++ch;
+            comment_flavour = C_STYLE_COMMENT;
+        } else if (*ch == '-' and ch + 2 < query.cend() and *(ch + 1) == '-' and *(ch + 2) == ' ') { // Check for comments starting with "-- ".
+            statement += *ch;
+            ++ch;
+            statement += *ch;
+            ++ch;
+            comment_flavour = END_OF_LINE_COMMENT;
+        } else {
+            if (*ch == '\'' or *ch == '"')
+                current_quote = *ch;
+        }
+
+        statement += *ch;
+    }
+
+    StringUtil::TrimWhite(&statement);
+    if (not statement.empty())
+        statements.emplace_back(statement);
+
+    return statements;
+}
+
+
 const std::string DbConnection::DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath() + "ub_tools.conf");
 
 
@@ -136,10 +192,13 @@ bool DbConnection::query(const std::string &query_statement) {
                                std::string(::program_invocation_name) + ": " +  query_statement + '\n');
 
     if (type_ == T_MYSQL) {
-        if (::mysql_query(&mysql_, query_statement.c_str()) != 0) {
-            LOG_WARNING("Could not successfully execute statement \"" + query_statement + "\": SQL error code:"
-                        + std::to_string(::mysql_errno(&mysql_)));
-            return false;
+        const auto statements(SplitMySQLStatements(query_statement));
+        for (const auto &statement : statements) {
+            if (::mysql_query(&mysql_, statement.c_str()) != 0) {
+                LOG_WARNING("Could not successfully execute statement \"" + query_statement + "\": SQL error code:"
+                            + std::to_string(::mysql_errno(&mysql_)));
+                return false;
+            }
         }
 	return true;
     } else {
@@ -270,14 +329,9 @@ bool DbConnection::queryFile(const std::string &filename) {
     if (not FileUtil::ReadString(filename, &statements))
         return false;
 
-    if (type_ == T_MYSQL) {
-        ::mysql_set_server_option(&mysql_, MYSQL_OPTION_MULTI_STATEMENTS_ON);
-        const bool query_result(query(StringUtil::TrimWhite(&statements)));
-        if (query_result)
-            mySQLSyncMultipleResults();
-        ::mysql_set_server_option(&mysql_, MYSQL_OPTION_MULTI_STATEMENTS_OFF);
-        return query_result;
-    } else {
+    if (type_ == T_MYSQL)
+        return query(StringUtil::TrimWhite(&statements));
+    else {
         std::vector<std::string> individual_statements;
         SplitSqliteStatements(statements, &individual_statements);
         for (const auto &statement : individual_statements) {
@@ -591,17 +645,6 @@ std::vector<std::string> DbConnection::mySQLGetTableList() {
         tables.emplace_back(result_row[0]);
 
     return tables;
-}
-
-
-void DbConnection::mySQLSyncMultipleResults() {
-    int next_result_exists;
-    do {
-        MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
-        if (result_set != nullptr)
-            ::mysql_free_result(result_set);
-        next_result_exists = ::mysql_next_result(&mysql_);
-    } while (next_result_exists == 0);
 }
 
 

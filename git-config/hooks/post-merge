@@ -12,6 +12,10 @@ if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); th
     if [[ -x $MYSQL_DATABASE_PATCHER ]]; then
 	echo "Executing MYSQL schema updates tool"
         $MYSQL_DATABASE_PATCHER $MYSQL_SCHEMA_UPDATES_PATH
+        if [[ $? != 0 ]]; then
+            echo "$MYSQL_DATABASE_PATCHER $MYSQL_SCHEMA_UPDATES_PATH failed!"
+            exit 1
+        fi
         /usr/local/bin/mysql_list_tables > /tmp/new_ub_tools.schema
         /usr/local/bin/mysql_diff_schemas /tmp/old_ub_tools.schema /tmp/new_ub_tools.schema
         compare_against_installer_schema=1
