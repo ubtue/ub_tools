@@ -1,4 +1,3 @@
-#!/bin/bash
 # Helper functions for pipelines
 set -o errexit -o nounset
 
