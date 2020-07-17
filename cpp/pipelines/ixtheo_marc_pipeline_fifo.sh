@@ -143,6 +143,7 @@ MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (collect_journal_stats.cc GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                           GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Add Additional Open Access URL's"
