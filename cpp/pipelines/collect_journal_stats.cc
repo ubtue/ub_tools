@@ -176,8 +176,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
             column_names_to_values_map["Endseite"]   = StringUtil::ToString(end_page);
         }
 
-        db_connection->insertIntoTableOrDie("zeder.erschliessung", column_names_to_values_map,
-                                            DbConnection::DKB_REPLACE, "PPN='" + superior_control_number + "'");
+        db_connection->insertIntoTableOrDie("zeder.erschliessung", column_names_to_values_map);
         ++inserted_count;
     }
 
