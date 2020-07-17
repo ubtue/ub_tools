@@ -139,7 +139,6 @@ EndPhase || Abort) &
 
 # Note: It is necessary to run this phase after articles have had their journal's PPN's inserted!
 StartPhase "Populate the Zeder Journal Timeliness Database Table"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (collect_journal_stats.cc GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                           GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
