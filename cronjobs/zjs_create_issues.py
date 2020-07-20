@@ -28,7 +28,7 @@ def CreateIssueInZoteroJournalStatus(data):
 
 
 def GetZoteroConfiguration():
-    zotero_harvester_conf_path = "/usr/local/var/lib/tuelib/zotero-enhancement-maps/zotero_harvester.conf" 
+    zotero_harvester_conf_path = "/usr/local/var/lib/tuelib/zotero-enhancement-maps/zotero_harvester.conf"
     zotero_harvester_conf_tmp_path = "/tmp/zotero_harvester.conf"
     # Section at the beginning needed for configparser
     with open(zotero_harvester_conf_path, "r") as zotero_harvester_conf, \
@@ -39,17 +39,14 @@ def GetZoteroConfiguration():
     config = configparser.ConfigParser()
     config.read(zotero_harvester_conf_tmp_path)
     return config
-    
 
-def Main():
+
+def CreateNewZoteroJournalStatusIssues():
     journal_types = [ "IxTheo", "KrimDok" ]
     zeder_titles = {}
     zotero_group = "zotero_group"
     config = GetZoteroConfiguration()
     github_existing_issues = github_api_util.GetAllIssuesForUBTueRepository(ZOTERO_JOURNAL_STATUS_REPO)
-    #with open("/tmp/zotero_journal_status_all_issues") as zotero_journal_status_file:
-    #    github_existing_issues = json.load(zotero_journal_status_file)
-    ##### end temporary
     issn_matcher = github_api_util.GetISSNMatcher()
     for section in config.sections():
         if config.has_option(section, zotero_group) and config.get(section, zotero_group) in journal_types:
@@ -74,8 +71,8 @@ def Main():
         CreateIssueInZoteroJournalStatus(data)
 
 
+def Main():
+    CreateNewZoteroJournalStatusIssues()
+
+
 Main()
-        
-
-
-
