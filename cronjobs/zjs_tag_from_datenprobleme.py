@@ -69,14 +69,11 @@ def UpdateZoteroJournalStatus(issue, labels_to_add, issn):
     if not LabelsAreIdentical(issue, new_labels):
        github_api_util.UpdateIssueInRepository('zotero-journal-status', issue_number, data)
 
-def Main():
-    #with open("/tmp/github_page_test.json", "r") as datenprobleme_file:
-    #    datenprobleme_issues = json.load(datenprobleme_file)
+
+def TagZoteroJournalStatusFromDatenProbleme():
     datenprobleme_issues = github_api_util.GetAllIssuesForUBTueRepository("Datenprobleme")
-    #with open("/tmp/zotero_journal_status_all_issues", "r") as zotero_journal_status_file:
-    #    zotero_journal_status_issues = json.load(zotero_journal_status_file) 
     zotero_journal_status_issues = github_api_util.GetAllIssuesForUBTueRepository("zotero-journal-status")
-    datenprobleme_open_issns, datenprobleme_closed_without_open_issues_issns = ExtractOpenAndClosedWithoutOpenISSNs(datenprobleme_issues) 
+    datenprobleme_open_issns, datenprobleme_closed_without_open_issues_issns = ExtractOpenAndClosedWithoutOpenISSNs(datenprobleme_issues)
     for issue in zotero_journal_status_issues:
         issn_matcher = github_api_util.GetISSNMatcher()
         issns = issn_matcher.findall(issue['title'])
@@ -86,6 +83,10 @@ def Main():
                     UpdateZoteroJournalStatus(issue, [ HAS_ISSUE_LABEL ], issn)
                 elif issn in datenprobleme_closed_without_open_issues_issns:
                     UpdateZoteroJournalStatus(issue, [ NO_OPEN_ISSUE_LABEL ], issn)
-       
+
+
+def Main():
+    TagZoteroJournalStatusFromDatenProbleme()
+
 
 Main()
