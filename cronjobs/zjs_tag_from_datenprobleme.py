@@ -17,12 +17,11 @@ def ExtractOpenAndClosedWithoutOpenISSNs(issues):
     for issue in issues:
         title = issue['title']
         issns = issn_matcher.findall(title)
-        if len(issns):
-            for issn in issns:
-                 if issue['state'] == "open":
-                     open_issues_issns.add(issn)
-                 elif issue['state'] == "closed":
-                     closed_issues_issns.add(issn)
+        for issn in issns:
+            if issue['state'] == "open":
+                open_issues_issns.add(issn)
+            elif issue['state'] == "closed":
+                closed_issues_issns.add(issn)
     closed_without_open_issues_issns = closed_issues_issns - open_issues_issns
     return open_issues_issns, closed_without_open_issues_issns
 
@@ -43,9 +42,7 @@ def LabelsAreIdentical(issue, new_labels):
     old_labels = []
     for label in current_labels:
         old_labels.append(label['name'])
-    old_labels_set = set(old_labels)
-    new_labels_set = set(new_labels)
-    return old_labels_set == new_labels_set
+    return set(old_labels) == set(new_labels)
 
 
 def UpdateZoteroJournalStatus(issue, labels_to_add, issn):
