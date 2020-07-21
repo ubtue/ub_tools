@@ -311,7 +311,7 @@ std::string LeftTrim(std::string * const s, char trim_char) {
         return *s;
 
     size_t no_of_leading_trim_chars(0);
-    while (no_of_leading_trim_chars < original_length - 1 and (*s)[no_of_leading_trim_chars] == trim_char)
+    while (no_of_leading_trim_chars < original_length and (*s)[no_of_leading_trim_chars] == trim_char)
         ++no_of_leading_trim_chars;
 
     if (no_of_leading_trim_chars > 0)
@@ -334,7 +334,7 @@ std::string LeftTrim(const std::string &trim_set, std::string * const s) {
 
     size_t no_of_leading_trim_chars(0);
     const char * const set = trim_set.c_str();
-    while (no_of_leading_trim_chars < original_length - 1 and std::strchr(set, (*s)[no_of_leading_trim_chars]) != nullptr)
+    while (no_of_leading_trim_chars < original_length and std::strchr(set, (*s)[no_of_leading_trim_chars]) != nullptr)
         ++no_of_leading_trim_chars;
 
     if (no_of_leading_trim_chars > 0)

@@ -1,4 +1,3 @@
-#!/bin/bash
 # Helper functions for pipelines
 set -o errexit -o nounset
 
@@ -49,4 +48,11 @@ function CleanUp {
 function DetermineDateFromFilename {
    echo $(echo "$1" | cut -d- -f 2) | cut -d. -f1
 
+}
+
+
+# Usage: MakeFIFO path_to_the_fifo
+function MakeFIFO {
+    rm --force $1
+    mkfifo $1
 }
