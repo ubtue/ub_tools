@@ -6,6 +6,7 @@ import re
 import requests
 import util
 
+
 def GetAllIssuesForUBTueRepository(repository):
     if 'GITHUB_OAUTH_TOKEN' in os.environ:
         github_oauth_token = os.environ.get('GITHUB_OAUTH_TOKEN')
@@ -38,7 +39,7 @@ def GetISSNMatcher():
 
 
 def ExportPersonalAuthenticationToken():
-    config = LoadConfigFile("/usr/local/var/lib/tuelib/cronjobs/github_api_util.conf", no_error=True)
+    config = util.LoadConfigFile("/usr/local/var/lib/tuelib/cronjobs/github_api_util.conf", no_error=True)
     user = config.get("Personal Authentication Token", "user")
     pat = config.get("Personal Authentication Token", "pat")
     os.environ['GITHUB_OAUTH_TOKEN']  = pat

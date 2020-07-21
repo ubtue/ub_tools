@@ -3,13 +3,16 @@
 import configparser
 import json
 import os
+import stdnum.issn as issn_checker
 import urllib.request
 import github_api_util
+
 
 ZOTERO_JOURNAL_STATUS_REPO='zotero-journal-status'
 NO_KNOWN_ISSN = 'No known ISSN'
 
-class Entry_Present(Exception):
+
+class EntryPresent(Exception):
     pass
 
 
@@ -47,23 +50,24 @@ def CreateNewZoteroJournalStatusIssues():
     zotero_group = "zotero_group"
     config = GetZoteroConfiguration()
     github_existing_issues = github_api_util.GetAllIssuesForUBTueRepository(ZOTERO_JOURNAL_STATUS_REPO)
-    issn_matcher = github_api_util.GetISSNMatcher()
     for section in config.sections():
         if config.has_option(section, zotero_group) and config.get(section, zotero_group) in journal_types:
-            issn = config.get(section, "online_issn") if config.has_option(section, "online_issn") \
-                    else config.get(section, "print_issn") if config.has_option(section, "print_issn") \
-                    else NO_KNOWN_ISSN
+            issn = NO_KNOWN_ISSN
+            if config.has_option(section, "online_issn"):
+                issn = config.get(section, "online_issn")
+            elif config.has_option(section, "print_issn"):
+                issn = config.get(section, "print_issn")
             #Filter garbage
-            issn = issn if issn_matcher.match(issn) else NO_KNOWN_ISSN
+            issn = issn if issn_checker.is_valid(issn) else NO_KNOWN_ISSN
             try:
-                    for issue in github_existing_issues:
-                        if issn != NO_KNOWN_ISSN:
-                            if issue['title'].find(issn) != -1:
-                                raise Entry_Present()
-                        else:
-                            if issue['title'].find(section) != -1:
-                                raise Entry_Present()
-            except Entry_Present:
+                for issue in github_existing_issues:
+                    if issn != NO_KNOWN_ISSN:
+                        if issue['title'].find(issn) != -1:
+                            raise EntryPresent()
+                    else:
+                        if issue['title'].find(section) != -1:
+                            raise EntryPresent()
+            except EntryPresent:
                 continue
             zeder_titles.update({ issn + ' | ' + section : config.get(section, zotero_group) })
     for issue_title in zeder_titles:
