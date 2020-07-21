@@ -106,9 +106,8 @@ def CleanUpCumulativeCollection(config):
 
     # Extract the date
     match = filename_complete_data_regex.match(most_recent_complete_data_filename)
-    date_match = bsz_util.GetFilenameDateRegex().search(most_recent_complete_data_filename)
-    if match and date_match and date_match.group():
-        most_recent_complete_data_date = date_match.group()
+    if match and match.group(1):
+        most_recent_complete_data_date = match.group(1)
         # Delete all older Files but skip incremental authority dumps
         DeleteAllFilesOlderThan(most_recent_complete_data_date, backup_directory, incremental_authority_data_regex)
         # Now explicitly delete incremental authority dumps that are too old
@@ -138,8 +137,7 @@ def DeleteAllFilesOlderThan(date, directory, exclude_pattern=""):
 
      for filename in CumulativeFilenameGenerator(directory):
          match = filename_regex.match(filename)
-         date_match = bsz_util.GetFilenameDateRegex().search(filename)
-         if match and date_match and date_match.group() < str(date) and not exclude_regex.match(filename):
+         if match and match.group(1) < date and not exclude_regex.match(filename):
             os.remove(directory + "/" +  match.group())
 
      return None

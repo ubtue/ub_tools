@@ -13,10 +13,6 @@ import traceback
 import util
 
 
-def GetFilenameDateRegex():
-    return re.compile('(\d{6})')
-
-
 def FoundNewBSZDataFile(link_filename):
     try:
         statinfo = os.stat(link_filename)
@@ -42,8 +38,7 @@ def GetListOfRemoteFiles(ftp, filename_regex, directory, download_cutoff_date):
             filename_list = []
             for filename in ftp.nlst():
                  match = filename_regex.match(filename)
-                 date_match = GetFilenameDateRegex().search(filename)
-                 if match and date_match and date_match.group() >= str(download_cutoff_date):
+                 if match and match.group(1) >= download_cutoff_date:
                      filename_list.append(filename)
             return filename_list
         except Exception as e:
@@ -57,9 +52,8 @@ def GetMostRecentFile(filename_regex, filename_generator):
     most_recent_file = None
     for filename in filename_generator:
         match = filename_regex.match(filename)
-        date_match = GetFilenameDateRegex().search(filename)
-        if match and date_match and date_match.group() > str(most_recent_date):
-            most_recent_date = date_match.group()
+        if match and match.group(1) > most_recent_date:
+            most_recent_date = match.group(1)
             most_recent_file = filename
     return most_recent_file
 
