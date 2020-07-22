@@ -372,12 +372,7 @@ ThreadSafeRegexMatcher InitializeBlacklistedAuthorTokenMatcher() {
     std::string match_pattern("\\b(");
     bool is_first_token(true);
     for (auto blacklisted_token : filtered_blacklisted_tokens) {
-        // escape backslashes first to keep from overwriting other escape sequences
-        blacklisted_token = StringUtil::ReplaceString("\\", "\\\\", blacklisted_token);
-        blacklisted_token = StringUtil::ReplaceString("(", "\\(", blacklisted_token);
-        blacklisted_token = StringUtil::ReplaceString(")", "\\)", blacklisted_token);
-        blacklisted_token = StringUtil::ReplaceString(".", "\\.", blacklisted_token);
-        blacklisted_token = StringUtil::ReplaceString("/", "\\/", blacklisted_token);
+        blacklisted_token = RegexMatcher::Escape(blacklisted_token);
 
         if (not is_first_token)
             match_pattern += "|";
