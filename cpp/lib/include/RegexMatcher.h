@@ -186,6 +186,9 @@ public:
      */
     static bool Matched(const std::string &regex, const std::string &subject, const unsigned options = 0,
                         std::string * const err_msg = nullptr, size_t * const start_pos = nullptr, size_t * const end_pos = nullptr);
+
+    /** \brief Escape all PCRE metacharacters in the given string with a backslash (see `man pcrepattern`) */
+    static std::string Escape(const std::string &subpattern);
 private:
     RegexMatcher(const std::string &pattern, const unsigned options, pcre * const pcre_arg,
                  pcre_extra * const pcre_extra_arg)
