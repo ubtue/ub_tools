@@ -159,7 +159,7 @@ std::string Unescape(std::string * const s) {
 
 tm DatetimeToTm(const std::string &datetime) {
     if (not IsValidDatetime(datetime))
-        throw std::runtime_error("in SqlUtil::DateToTm: invalid \"datetime\" argument \"" + datetime + "\"!");
+        throw std::runtime_error("in SqlUtil::DatetimeToTm: invalid \"datetime\" argument \"" + datetime + "\"!");
 
     // current time format is YYYY-MM-DD hh:mm:ss
     tm time_struct;

@@ -571,6 +571,9 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
     if (page_match and page_match[1] == page_match[2])
         metadata_record->pages_ = page_match[1];
 
+    // override publication title
+    metadata_record->publication_title_ = journal_params.name_;
+
     // override ISSN (online > print > zotero) and select superior PPN (online > print)
     const auto &issn(journal_params.issn_);
     const auto &ppn(journal_params.ppn_);
@@ -655,9 +658,6 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
             metadata_record->item_type_ = "review";
         } else if (review_matcher->match(metadata_record->short_title_)) {
             LOG_DEBUG("short title matched review pattern");
-            metadata_record->item_type_ = "review";
-        } else if (review_matcher->match(metadata_record->abstract_note_)) {
-            LOG_DEBUG("abstract matched review pattern");
             metadata_record->item_type_ = "review";
         } else {
             for (const auto &keyword : metadata_record->keywords_) {
@@ -984,7 +984,8 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     marc_record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
 
     // Abrufzeichen und ISIL
-    switch (ZederInterop::GetZederInstanceForGroup(group_params)) {
+    const auto zeder_instance(ZederInterop::GetZederInstanceForGroup(group_params));
+    switch (zeder_instance) {
     case Zeder::Flavour::IXTHEO:
         marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
         marc_record->insertField("935", { { 'a', "mteo" } });
@@ -997,7 +998,8 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
 
     // Book-keeping fields
     marc_record->insertField("URL", { { 'a', download_item.url_.toString() } });
-    marc_record->insertField("ZID", { { 'a', std::to_string(download_item.journal_.zeder_id_) } });
+    marc_record->insertField("ZID", { { 'a', std::to_string(download_item.journal_.zeder_id_) },
+                                      { 'b', StringUtil::ASCIIToLower(Zeder::FLAVOUR_TO_STRING_MAP.at(zeder_instance)) } });
     marc_record->insertField("JOU", { { 'a', download_item.journal_.name_ } });
 
     // Add custom fields

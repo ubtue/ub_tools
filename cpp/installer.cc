@@ -465,6 +465,10 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
         FileUtil::MakeDirectory(UBTools::GetTuelibPath());
     }
 
+    // ...then install the initial version of keyword_normalization.map
+    Echo("installing the initial version of keyword_normalization.map");
+    FileUtil::CopyOrDie(UB_TOOLS_DIRECTORY + "/cpp/data/keyword_normalization.map", UBTools::GetTuelibPath() + "keyword_normalization.map");
+
     // ..and /usr/local/var/log/tuefind
     if (not FileUtil::Exists(UBTools::GetTueFindLogPath())) {
         Echo("creating " + UBTools::GetTueFindLogPath());

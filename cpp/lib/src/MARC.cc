@@ -1710,7 +1710,7 @@ BinaryReader::BinaryReader(File * const input)
 {
     struct stat stat_buf;
     if (::fstat(input->getFileDescriptor(), &stat_buf) != 0)
-        LOG_ERROR("stat(2) on \"" + input->getPath() + "\" failed!");
+        LOG_ERROR("fstat(2) on \"" + input->getPath() + "\" failed!");
     if (S_ISFIFO(stat_buf.st_mode)) {
         mmap_ = nullptr;
         if (not input->setPipeBufferSize())
@@ -1794,9 +1794,14 @@ Record BinaryReader::actualRead() {
 
 
 void BinaryReader::rewind() {
-    if (mmap_ == nullptr)
+    if (mmap_ == nullptr) {
+        struct stat stat_buf;
+        if (::fstat(input_->getFileDescriptor(), &stat_buf) != 0)
+            LOG_ERROR("fstat(2) on \"" + input_->getPath() + "\" failed!");
+        if (S_ISFIFO(stat_buf.st_mode))
+            LOG_ERROR("can't rewind a FIFO (" + input_->getPath() + ")!");
         input_->rewind();
-    else
+    } else
         offset_ = 0;
     next_record_start_ = 0;
     last_record_ = actualRead();
