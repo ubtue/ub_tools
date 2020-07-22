@@ -388,12 +388,9 @@ bool RegexMatcher::Matched(const std::string &regex, const std::string &subject,
 std::string RegexMatcher::Escape(const std::string &subpattern) {
     std::string escaped_subpattern(subpattern);
 
+    // see `man pcrepattern`
     // escape backslashes first to keep from overwriting other escape sequences
-    escaped_subpattern = StringUtil::ReplaceString("\\", "\\\\", escaped_subpattern);
-    escaped_subpattern = StringUtil::ReplaceString("(", "\\(", escaped_subpattern);
-    escaped_subpattern = StringUtil::ReplaceString(")", "\\)", escaped_subpattern);
-    escaped_subpattern = StringUtil::ReplaceString(".", "\\.", escaped_subpattern);
-    escaped_subpattern = StringUtil::ReplaceString("/", "\\/", escaped_subpattern);
+    StringUtil::BackslashEscape("\\^$.[]|()?*+{}", &escaped_subpattern);
 
     return escaped_subpattern;
 }
