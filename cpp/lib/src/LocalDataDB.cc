@@ -104,12 +104,16 @@ static std::vector<std::string> BlobToLocalFieldsVector(const std::string &local
 }
 
 
+const std::string START_OF_LOCAL_001_FIELD(/* indicators */"  " /* subfield start plus subfield code */"\x1F""0"
+                                           /* tag and spacer */"001 ");
+
+
 static std::vector<std::string> ExtractLocalPPNsFromLocalFieldsVector(const std::vector<std::string> &local_fields) {
     std::vector<std::string> local_ppns;
 
     for (const auto &local_field : local_fields) {
-        if (StringUtil::StartsWith(local_field, "001 "))
-            local_ppns.emplace_back(local_field.substr(__builtin_strlen("001 ")));
+        if (StringUtil::StartsWith(local_field, START_OF_LOCAL_001_FIELD))
+            local_ppns.emplace_back(local_field.substr(START_OF_LOCAL_001_FIELD.length()));
     }
 
     return local_ppns;
@@ -179,8 +183,8 @@ static std::vector<std::string> RemoveLocalDataSet(const std::string &local_ppn,
 
     bool skipping(false);
     for (const auto &local_field : local_fields) {
-        if (StringUtil::StartsWith(local_field, "001 "))
-            skipping = local_field.substr(__builtin_strlen("001 ")) == local_ppn;
+        if (StringUtil::StartsWith(local_field, START_OF_LOCAL_001_FIELD))
+            skipping = local_field.substr(START_OF_LOCAL_001_FIELD.length()) == local_ppn;
         if (not skipping)
             filtered_local_fields.emplace_back(local_field);
     }
