@@ -166,8 +166,6 @@ void GenerateCanonizationMap(
 } // unnamed namespace
 
 
-// gets user subscriptions for superior works from MySQL
-// uses a KeyValueDB instance to prevent entries from being sent multiple times to same user
 int Main(int argc, char **argv) {
     if (argc != 3)
         ::Usage("solr_host_and_port keyword_normalization_map");

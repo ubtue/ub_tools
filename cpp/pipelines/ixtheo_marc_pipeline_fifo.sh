@@ -1,8 +1,7 @@
 #!/bin/bash
 # Runs through the phases of the IxTheo MARC processing pipeline.
-set -o errexit -o nounset
-
 source pipeline_functions.sh
+
 
 if [ $# != 1 ]; then
     echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc"
@@ -75,10 +74,12 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --remove-fields 'LOK:086630(.*)\x{1F}x' `# Remove internal bibliographic comments` \
     --filter-chars 130a:240a:245a '@' \
     --remove-subfields '6002:blmsh' '6102:blmsh' '6302:blmsh' '6892:blmsh' '6502:blmsh' '6512:blmsh' '6552:blmsh' \
+    --replace 600a:610a:630a:648a:650a:650x:651a:655a "(.*)\\.$" "\\1" `# Remove trailing periods for the following keyword normalisation.` \
     --replace-strings 600a:610a:630a:648a:650a:650x:651a:655a /usr/local/var/lib/tuelib/keyword_normalisation.map \
     --replace 100a:700a /usr/local/var/lib/tuelib/author_normalisation.map \
     --replace 260b:264b /usr/local/var/lib/tuelib/publisher_normalisation.map \
-    --replace 245a "^L' (.*)" "L'\\1" `#  Replace "L' arbe" with "L'arbe" etc.` \
+    --replace 245a "^L' (.*)" "L'\\1" `# Replace "L' arbe" with "L'arbe" etc.` \
+    --replace 100a:700a "^\\s+(.*)" "\\1" `# Replace " van Blerk, Nico" with "van Blerk, Nico" etc.` \
 >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -139,10 +140,18 @@ wait
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                   GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+
+
+# Note: It is necessary to run this phase after articles have had their journal's PPN's inserted!
+StartPhase "Populate the Zeder Journal Timeliness Database Table"
+(collect_journal_stats ixtheo GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                              GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
 
 
 StartPhase "Add Additional Open Access URL's"
@@ -182,7 +191,7 @@ wait
 
 
 StartPhase "Extracting Keywords from Titles"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  /usr/local/var/lib/tuelib/stopwords.???  >> "${log}" 2>&1 && \
@@ -197,7 +206,7 @@ wait
 
 
 StartPhase "Augment Bible References"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (augment_bible_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          Normdaten-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
@@ -206,7 +215,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Augment Canon Law References"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (augment_canones_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                             Normdaten-"${date}".mrc \
                             GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
@@ -214,7 +223,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Augment Time Aspect References"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (augment_time_aspects GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                       Normdaten-"${date}".mrc \
                       GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
@@ -222,7 +231,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Update IxTheo Notations"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (update_ixtheo_notations \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
@@ -231,7 +240,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Replace 689\$A with 689\$q"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (subfield_code_replacer GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                         "689A=q" >> "${log}" 2>&1 && \
@@ -239,7 +248,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Map DDC to IxTheo Notations"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (map_ddc_to_ixtheo_notations \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
@@ -257,21 +266,21 @@ wait
 
 
 StartPhase "Fill in missing 773\$a Subfields"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
 StartPhase "Tag further potential relbib entries"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_additional_relbib_entries GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
 StartPhase "Integrate Reasonable Sort Year for Serials"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_publication_year_to_serials \
     Schriftenreihen-Sortierung-"${date}".txt \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
@@ -287,7 +296,7 @@ wait
 
 
 StartPhase "Tag Records that are Available in Tübingen with an ITA Field"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (flag_records_as_available_in_tuebingen \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
@@ -309,7 +318,7 @@ wait
 
 
 StartPhase "Appending Literary Remains Records"
-mkfifo GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  Normdaten-partially-augmented2-"${date}".mrc \

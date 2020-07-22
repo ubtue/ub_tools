@@ -127,30 +127,55 @@ int DbConnection::getLastErrorCode() const {
 }
 
 
-static std::vector<std::string> SplitMySQLStatements(const std::string &query) {
+enum CommentFlavour { NO_COMMENT, C_STYLE_COMMENT, END_OF_LINE_COMMENT };
+
+
+std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &query) {
     std::vector<std::string> statements;
 
     std::string statement;
     char current_quote('\0'); // NUL means not currently in a string constant.
     bool escaped(false); // backslash not yet seen
-    for (const char ch : query) {
-        if (current_quote != '\0') {
-            statement += ch;
+    CommentFlavour comment_flavour(NO_COMMENT);
+    for (auto ch(query.cbegin()); ch != query.cend(); ++ch) {
+        if (comment_flavour != NO_COMMENT) {
+            if ((comment_flavour == END_OF_LINE_COMMENT and *ch == '\n')
+                or (*ch == '/' and likely(ch > query.cbegin()) and *(ch - 1) == '*'))
+                comment_flavour = NO_COMMENT;
+        } else if (current_quote != '\0') {
             if (escaped)
                 escaped = false;
-            else if (ch == current_quote)
+            else if (*ch == current_quote)
                 current_quote = '\0';
-            else if (ch == '\\')
+            else if (*ch == '\\')
                 escaped = true;
-        } else if (unlikely(ch == ';')) {
-            statements.emplace_back(statement);
+        } else if (unlikely(*ch == ';')) {
+            StringUtil::TrimWhite(&statement);
+            if (not statement.empty())
+                statements.emplace_back(statement);
             statement.clear();
+            continue;
+        } else if (unlikely(*ch == '#'))
+            comment_flavour = END_OF_LINE_COMMENT;
+        else if (*ch == '/' and ch + 1 < query.cend() and *(ch + 1) == '*') { // Check for comments starting with "/*".
+            statement += *ch;
+            ++ch;
+            comment_flavour = C_STYLE_COMMENT;
+        } else if (*ch == '-' and ch + 2 < query.cend() and *(ch + 1) == '-' and *(ch + 2) == ' ') { // Check for comments starting with "-- ".
+            statement += *ch;
+            ++ch;
+            statement += *ch;
+            ++ch;
+            comment_flavour = END_OF_LINE_COMMENT;
         } else {
-            if (ch == '\'' or ch == '"')
-                current_quote = ch;
-            statement += ch;
+            if (*ch == '\'' or *ch == '"')
+                current_quote = *ch;
         }
+
+        statement += *ch;
     }
+
+    StringUtil::TrimWhite(&statement);
     if (not statement.empty())
         statements.emplace_back(statement);
 
@@ -304,12 +329,18 @@ bool DbConnection::queryFile(const std::string &filename) {
     if (not FileUtil::ReadString(filename, &statements))
         return false;
 
+<<<<<<< HEAD
     if (type_ == T_MYSQL) {
         const bool query_result(query(StringUtil::TrimWhite(&statements)));
         if (query_result)
             mySQLSyncMultipleResults();
         return query_result;
     } else {
+=======
+    if (type_ == T_MYSQL)
+        return query(StringUtil::TrimWhite(&statements));
+    else {
+>>>>>>> d7613788e9d6cfb198fd4bdfb5c52521163107d5
         std::vector<std::string> individual_statements;
         SplitSqliteStatements(statements, &individual_statements);
         for (const auto &statement : individual_statements) {
@@ -381,8 +412,12 @@ void DbConnection::backupOrDie(const std::string &output_filename) {
 
 void DbConnection::insertIntoTableOrDie(const std::string &table_name,
                                         const std::map<std::string, std::string> &column_names_to_values_map,
-                                        const DuplicateKeyBehaviour duplicate_key_behaviour)
+                                        const DuplicateKeyBehaviour duplicate_key_behaviour,
+                                        const std::string &where_clause)
 {
+    if (not where_clause.empty() and duplicate_key_behaviour != DKB_REPLACE)
+        LOG_ERROR("\"where_clause\" is only valid when using the DKB_REPLACE mode!");
+
     std::string insert_stmt(duplicate_key_behaviour == DKB_REPLACE ? "REPLACE" : "INSERT");
     if (duplicate_key_behaviour == DKB_IGNORE)
         insert_stmt += (type_ == T_MYSQL) ? " IGNORE" : " OR IGNORE";
@@ -415,6 +450,9 @@ void DbConnection::insertIntoTableOrDie(const std::string &table_name,
     }
 
     insert_stmt += ')';
+
+    if (not where_clause.empty())
+        insert_stmt += " WHERE " + where_clause;
 
     queryOrDie(insert_stmt);
 }
@@ -616,17 +654,6 @@ std::vector<std::string> DbConnection::mySQLGetTableList() {
         tables.emplace_back(result_row[0]);
 
     return tables;
-}
-
-
-void DbConnection::mySQLSyncMultipleResults() {
-    int next_result_exists;
-    do {
-        MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
-        if (result_set != nullptr)
-            ::mysql_free_result(result_set);
-        next_result_exists = ::mysql_next_result(&mysql_);
-    } while (next_result_exists == 0);
 }
 
 
