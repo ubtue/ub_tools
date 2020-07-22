@@ -329,18 +329,9 @@ bool DbConnection::queryFile(const std::string &filename) {
     if (not FileUtil::ReadString(filename, &statements))
         return false;
 
-<<<<<<< HEAD
-    if (type_ == T_MYSQL) {
-        const bool query_result(query(StringUtil::TrimWhite(&statements)));
-        if (query_result)
-            mySQLSyncMultipleResults();
-        return query_result;
-    } else {
-=======
     if (type_ == T_MYSQL)
         return query(StringUtil::TrimWhite(&statements));
     else {
->>>>>>> d7613788e9d6cfb198fd4bdfb5c52521163107d5
         std::vector<std::string> individual_statements;
         SplitSqliteStatements(statements, &individual_statements);
         for (const auto &statement : individual_statements) {
