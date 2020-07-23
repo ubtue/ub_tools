@@ -56,7 +56,11 @@ bool IncludeJournal(const Zeder::Entry &journal, const IniFile::Section &filter_
         const std::string &zeder_column_name(entry.name_);
         const auto column_value(StringUtil::TrimWhite(journal.lookup(zeder_column_name == "except_class" ? "class" : zeder_column_name)));
         if (column_value.empty())
+        {
+            LOG_INFO("\tcolumn " + zeder_column_name + " was empty!");
             return false;
+
+        }
 
         const bool found_it(FoundExpectedClassValue(entry.value_, column_value));
         if (zeder_column_name == "except_class") {
@@ -150,8 +154,7 @@ int Main(int argc, char *argv[]) {
     if (zeder_instance != "ixtheo" and zeder_instance != "relbib")
         LOG_ERROR("zeder_instance in \"" + packet_definitions_ini_file.getFilename() + "\" must be either \"ixtheo\" or \"relbib\"!");
 
-    const Zeder::SimpleZeder zeder(zeder_instance == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK,
-                                   { "ausw", "ber", "bub", "class", "eppn", "ever", "kat", "pppn" });
+    const Zeder::SimpleZeder zeder(zeder_instance == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK);
     if (unlikely(zeder.empty()))
         LOG_ERROR("found no Zeder entries matching any of our requested columns!"
                   " (This *should* not happen as we included the column ID!)");
