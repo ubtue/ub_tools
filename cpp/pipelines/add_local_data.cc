@@ -47,7 +47,7 @@ void AddLocalData(const LocalDataDB &local_data_db, MARC::Reader * const reader,
         const auto local_fields(local_data_db.getLocalFields(record.getControlNumber()));
         if (not local_fields.empty()) {
             for (const auto &local_field : local_fields)
-                record.appendField("LOK", local_field);
+                record.insertFieldAtEnd("LOK", local_field);
             ++added_count;
         }
 
