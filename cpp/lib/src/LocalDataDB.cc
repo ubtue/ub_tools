@@ -216,7 +216,7 @@ bool LocalDataDB::removeLocalDataSet(const std::string &local_ppn) {
         db_connection_->queryOrDie("DELETE FROM local_fields WHERE title_ppn="
                                    + db_connection_->escapeAndQuoteString(title_ppn));
     else
-        db_connection_->queryOrDie("REPLACE INTO local_data (titel_ppn, local_fields) VALUES("
+        db_connection_->queryOrDie("REPLACE INTO local_data (title_ppn, local_fields) VALUES("
                                    + db_connection_->escapeAndQuoteString(title_ppn) + ","
                                    + db_connection_->sqliteEscapeBlobData(ConvertLocalFieldsVectorToBlob(local_fields)) + ")");
 
