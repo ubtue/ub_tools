@@ -149,7 +149,7 @@ void LocalDataDB::insertOrReplace(const std::string &title_ppn, const std::vecto
 
     // 3. Insert the mappings from the local PPN's to the title PPN's:
     for (const auto &local_ppn : ExtractLocalPPNsFromLocalFieldsVector(local_fields)) {
-        db_connection_->queryOrDie("INSERT INTO local_ppns_to_title_ppns_map (local_ppn, title_ppn) VALUES("
+        db_connection_->queryOrDie("REPLACE INTO local_ppns_to_title_ppns_map (local_ppn, title_ppn) VALUES("
                                    + db_connection_->escapeAndQuoteString(local_ppn) + ","
                                    + db_connection_->escapeAndQuoteString(title_ppn) + ")");
     }
