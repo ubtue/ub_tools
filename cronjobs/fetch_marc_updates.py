@@ -206,6 +206,7 @@ def Main():
     if complete_data_filenames is not None:
         download_cutoff_date = ExtractDateFromFilename(complete_data_filenames[0])
         downloaded_at_least_some_new_titles = True
+        util.Remove("/usr/local/var/lib/tuelib/local_data.sq3") # Must be the same path as in LocalDataDB.cc
     all_downloaded_files += DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
     if all_downloaded_files is not []:
         downloaded_at_least_some_new_titles = True
