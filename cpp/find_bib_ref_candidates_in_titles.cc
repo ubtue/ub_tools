@@ -561,7 +561,9 @@ void FindBibRefCandidates(
                                                                   pericopes, bible_book_canoniser, bible_book_to_code_mapper));
             if (not candidates.empty()) {
                 ++addition_title_reference_count;
-                *output << ExtractBook(candidates.front()) << ' ' << record.getControlNumber() << ": " << record.getCompleteTitle() << '\n';
+                *output << TextUtil::CSVEscape(ExtractBook(candidates.front()), /* add_quotes= */false) << ','
+                        << TextUtil::CSVEscape(record.getControlNumber(), /* add_quotes= */false) << ','
+                        << TextUtil::CSVEscape(record.getCompleteTitle(), /* add_quotes= */false) << '\n';
             }
         }
     }
