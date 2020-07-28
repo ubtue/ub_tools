@@ -167,9 +167,9 @@ def DownloadCompleteData(config, ftp, download_cutoff_date, msg):
     else:
         if not downloaded_files:
             return None
-        remote_file_date = ExtractDateFromFilename(downloaded_files[0])
+        remote_file_date = bsz_util.ExtractDateFromFilename(downloaded_files[0])
         for filename in downloaded_files:
-            if ExtractDateFromFilename(filename) != remote_file_date:
+            if bsz_util.ExtractDateFromFilename(filename) != remote_file_date:
                util.error("We have a complete data dump set with differing dates")
         return downloaded_files
 
@@ -204,7 +204,7 @@ def Main():
     all_downloaded_files = [] if complete_data_filenames == None else complete_data_filenames
     downloaded_at_least_some_new_titles = False
     if complete_data_filenames is not None:
-        download_cutoff_date = ExtractDateFromFilename(complete_data_filenames[0])
+        download_cutoff_date = bsz_util.ExtractDateFromFilename(complete_data_filenames[0])
         downloaded_at_least_some_new_titles = True
         util.Remove("/usr/local/var/lib/tuelib/local_data.sq3") # Must be the same path as in LocalDataDB.cc
     all_downloaded_files += DownloadData(config, "Differenzabzug", ftp, download_cutoff_date, msg)
