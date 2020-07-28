@@ -48,7 +48,6 @@ namespace {
     }
 
     void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
-        (void)marc_writer;
         unsigned count(0), modified(0);
         std::vector<MARC::Subfields> new_750_entries;
         while(MARC::Record record = marc_reader->read()) {
@@ -82,6 +81,7 @@ namespace {
             }
             marc_writer->write(record);
         }
+        std::cout << "Modified " << modified << " record of " << count << " altogether " << '\n';
     } 
 
 
