@@ -385,6 +385,13 @@ bool RegexMatcher::Matched(const std::string &regex, const std::string &subject,
 }
 
 
+std::string RegexMatcher::Escape(const std::string &subpattern) {
+    // escape backslashes first to keep from overwriting other escape sequences
+    std::string escaped_subpattern(subpattern);
+    return StringUtil::BackslashEscape("\\^$.[]|()?*+{}", &escaped_subpattern);
+}
+
+
 std::string RegexMatcher::operator[](const unsigned group) const {
     if (unlikely(group >= last_match_count_))
         throw std::out_of_range("in RegexMatcher::operator[]: group(" + std::to_string(group) + ") >= "

@@ -36,9 +36,6 @@ libubtue_static.a: $(STATIC_OBJS) Makefile
 libstemmer/libstemmer.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libstemmer/include/*.h)
 	$(MAKE) -C libstemmer
 
-libstemmer/libstemmer_amd64.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libstemmer/include/*.h)
-	$(MAKE) -C libstemmer libstemmer_amd64.a
-
 /usr/local/bin/iViaCore-mkdep:
 	$(MAKE) -C mkdep install
 
