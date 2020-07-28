@@ -39,7 +39,7 @@ fi
 readonly WORKING_DIR=/usr/local/var/lib/tuelib/zotero-enhancement-maps
 readonly CONFIG_PATH=zotero_harvester.conf
 readonly GITHUB_SSH_KEY=~/.ssh/github-robot
-readonly FIELDS_TO_UPDATE=UPLOAD_OPERATION,LICENSE
+readonly FIELDS_TO_UPDATE=UPLOAD_OPERATION,LICENSE,EXPECTED_LANGUAGES
 
 function Echo {
     if [[ "$MODE" = "LIVE" ]]; then
