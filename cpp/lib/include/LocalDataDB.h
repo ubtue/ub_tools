@@ -47,8 +47,8 @@ public:
     /** \param title_ppn the PPN of the title data set that the local fields are associated with */
     std::vector<std::string> getLocalFields(const std::string &title_ppn) const;
 
-    /** \param titel_ppn the PPN of the title data set that the local fields are associated with */
-    bool removeTitleDataSet(const std::string &title_ppn);
+    /** \param title_ppn the PPN of the title data set that the local fields are associated with */
+    void removeTitleDataSet(const std::string &title_ppn);
 
     /** \param local_ppn a PPN of a local data set
      *  \note  The PPN "local_ppn" here is *not* the PPN of a title data set!
