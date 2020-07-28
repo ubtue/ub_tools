@@ -8,7 +8,7 @@ import urllib.request
 import github_api_util
 
 
-ZOTERO_JOURNAL_STATUS_REPO='zotero-journal-status'
+ZOTERO_JOURNAL_STATUS_REPO = 'zotero-journal-status'
 NO_KNOWN_ISSN = 'No known ISSN'
 
 
