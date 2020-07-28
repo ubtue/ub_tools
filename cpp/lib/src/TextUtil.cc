@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2015,2017-2019 Universitätsbibliothek Tübingen.
+ *  Copyright 2015-2020 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -733,9 +733,13 @@ std::string CSVEscape(const std::string &value, const bool add_quotes) {
         escaped_value += '"';
 
     for (const char ch : value) {
-        if (unlikely(ch == '"'))
-            escaped_value += '"';
-        escaped_value += ch;
+        if (not add_quotes and unlikely(ch == ','))
+            escaped_value += "\",\"";
+        else {
+            if (unlikely(ch == '"'))
+                escaped_value += '"';
+            escaped_value += ch;
+        }
     }
 
     if (add_quotes)
