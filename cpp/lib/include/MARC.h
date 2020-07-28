@@ -663,7 +663,7 @@ public:
     bool insertFieldAtEnd(const Tag &new_field_tag, const std::string &new_field_value);
 
     inline bool insertFieldAtEnd(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
-                            const char indicator2 = ' ')
+                                 const char indicator2 = ' ')
         { return insertFieldAtEnd(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString()); }
 
     inline bool insertFieldAtEnd(const Field &field) { return insertFieldAtEnd(field.getTag(), field.getContents()); }
