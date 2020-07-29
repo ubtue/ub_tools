@@ -96,7 +96,7 @@ int Main(int argc, char **argv) {
         Usage();
 
     const std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
+    const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
     ProcessRecords(marc_reader.get(), marc_writer.get());
     return EXIT_SUCCESS;
 }
