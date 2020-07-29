@@ -109,8 +109,16 @@ generate_vufind_translation_files "$VUFIND_HOME"/local/tuefind/languages/ >> "${
 EndPhase || Abort) &
 
 
+StartPhase "Transfer 880 Authority Data Translations to 750"
+(transfer_880_translations Normdaten-"${date}".mrc \
+                           Normdaten-partially-augmented0-"${date}.mrc" \
+                           >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
 StartPhase "Augment Authority Data with Keyword Translations"
-(augment_authority_data_with_translations Normdaten-"${date}".mrc \
+(augment_authority_data_with_translations Normdaten-partially-augmented0-"${date}".mrc \
                                           Normdaten-partially-augmented1-"${date}".mrc \
                                           >> "${log}" 2>&1 && \
 EndPhase || Abort) &
@@ -125,7 +133,7 @@ wait
 
 
 StartPhase "Cross Link Articles"
-(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-4))"-"${date}".mrc \
+(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-5))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                          article_matches.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &
