@@ -209,10 +209,6 @@ public:
 };
 
 
-
-
-
-
 bool WriteString(const std::string &path, const std::string &data);
 void WriteStringOrDie(const std::string &path, const std::string &data);
 bool ReadString(const std::string &path, std::string * const data);
@@ -562,6 +558,13 @@ bool WaitForFile(const std::string &path, const unsigned timeout, const unsigned
 bool ChangeMode(const std::string &path, const mode_t mode);
 
 void ChangeModeOrDie(const std::string &path, const mode_t mode);
+
+
+/** \brief  Determine the most-recently-changed file in a given directory
+ *  \return True if there was at least one file in "directory_path", else false.
+ *  \note   This function aborts if "directory_path" does not exist.
+ */
+bool GetMostRecentlyModifiedFile(const std::string &directory_path, std::string * const filename, timespec * const last_modification_time);
 
 
 } // namespace FileUtil
