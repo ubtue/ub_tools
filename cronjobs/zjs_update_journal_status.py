@@ -10,7 +10,7 @@ def Main():
     github_api_util.ExportPersonalAuthenticationToken()
     zjs_create_issues.CreateNewZoteroJournalStatusIssues()
     zjs_tag_from_datenprobleme.TagZoteroJournalStatusFromDatenProbleme()
-    util.sendEmail("Successfully updated zotero-journal-status")
+    util.SendEmail("ZJS Update Journal Status", "Successfully updated zotero-journal-status")
 
 
 try:

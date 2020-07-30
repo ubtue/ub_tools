@@ -11,6 +11,10 @@ NO_OPEN_ISSUE_LABEL = "No Open Issues"
 HAS_ISSUE_LABEL = "Has Issue"
 
 
+if __name__ == "__main__":
+    Main()
+
+
 def ExtractOpenAndClosedWithoutOpenISSNs(issues):
     closed_issues_issns = set()
     open_issues_issns = set()
@@ -85,6 +89,3 @@ def TagZoteroJournalStatusFromDatenProbleme():
 
 def Main():
     TagZoteroJournalStatusFromDatenProbleme()
-
-
-Main()
