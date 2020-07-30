@@ -8,7 +8,7 @@
 /*
  *  Copyright 2003-2008 Project iVia.
  *  Copyright 2003-2008 The Regents of The University of California.
- *  Copyright 2018,2019 Universitätsbibliothek Tübingen
+ *  Copyright 2018-2029 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -36,6 +36,25 @@
 #   define _BSD_SOURCE
 #endif
 #include <ctime>
+
+
+//
+// Support direct comparison of timespec values:
+//
+inline bool operator<(const timespec &lhs, const timespec &rhs) {
+    if (lhs.tv_sec == rhs.tv_sec)
+        return lhs.tv_nsec < rhs.tv_nsec;
+    else
+        return lhs.tv_sec < rhs.tv_sec;
+}
+
+
+inline bool operator>(const timespec &lhs, const timespec &rhs) {
+    if (lhs.tv_sec == rhs.tv_sec)
+        return lhs.tv_nsec > rhs.tv_nsec;
+    else
+        return lhs.tv_sec > rhs.tv_sec;
+}
 
 
 /** \namespace  TimeUtil
