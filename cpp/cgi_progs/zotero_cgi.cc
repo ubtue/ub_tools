@@ -410,8 +410,6 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
 
 
 int Main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
     std::multimap<std::string, std::string> cgi_args;
     WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
 

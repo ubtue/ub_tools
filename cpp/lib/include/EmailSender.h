@@ -55,4 +55,7 @@ inline unsigned short SendEmail(const std::string &sender, const std::string &re
 }
 
 
+std::string SMTPResponseCodeToString(const unsigned short response_code);
+
+
 } // namespace EmailSender

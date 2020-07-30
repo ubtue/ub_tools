@@ -445,4 +445,57 @@ unsigned short SendEmail(const std::string &sender, const std::vector<std::strin
 }
 
 
+std::string SMTPResponseCodeToString(const unsigned short response_code) {
+    switch (response_code) { // The codes are taken from RFC 5321, section 4.2.3.
+    case 211:
+        return "System status, or system help reply";
+    case 214:
+        return "Help message (Information on how to use the receiver or the "
+               "meaning of a particular non-standard command; this reply is useful "
+               "only to the human user)";
+    case 220:
+        return "<domain> Service ready";
+    case 221:
+        return "<domain> Service closing transmission channel";
+    case 250:
+        return "Requested mail action okay, completed";
+    case 251:
+        return "User not local; will forward to <forward-path>";
+    case 252:
+        return "Cannot VRFY user, but will accept message and attempt delivery";
+    case 354:
+        return "Start mail input; end with <CRLF>.<CRLF>";
+    case 421:
+        return "<domain> Service not available, closing transmission channel "
+               "(This may be a reply to any command if the service knows it must "
+               "shut down)";
+    case 450:
+        return "Requested mail action not taken: mailbox unavailable (e.g., "
+               "mailbox busy or temporarily blocked for policy reasons)";
+    case 451:
+        return "Requested action aborted: local error in processing";
+    case 452:
+        return "Requested action not taken: insufficient system storage";
+    case 455:
+        return "Server unable to accommodate parameters";
+    case 500:
+        return "Syntax error, command unrecognized (This may include errors such "
+               "as command line too long)";
+    case 501:
+        return "Syntax error in parameters or arguments";
+    case 502:
+        return "Command not implemented";
+    case 503:
+        return "Bad sequence of commands";
+    case 504:
+        return "Command parameter not implemented";
+    case 550:
+        return "Requested action not taken: mailbox unavailable (e.g., mailbox "
+               "not found, no access, or command rejected for policy reasons)";
+    default:
+        return "Unknown response code: " + StringUtil::ToString(response_code);
+    }
+}
+
+
 } // namespace EmailSender
