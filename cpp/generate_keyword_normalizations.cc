@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2019 Library of the University of Tübingen
+    Copyright (C) 2019-2020 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -61,9 +61,9 @@ unsigned ProcessJSON(
     for (const auto &item : *docs_node) {
         ++item_count;
         const auto item_object(JSON::JSONNode::CastToObjectNodeOrDie("item", item));
-        const auto topic_de(item_object->getArrayNode(solr_field));
+        const auto topic_array(item_object->getArrayNode(solr_field));
 
-        for (const auto &single_topic : *topic_de) {
+        for (const auto &single_topic : *topic_array) {
             const auto single_topic_string(JSON::JSONNode::CastToStringNodeOrDie("single_topic_string", single_topic));
             const auto lowercase_form(TextUtil::UTF8ToLower(single_topic_string->getValue()));
             const auto lowercase_form_and_capitalizations(lowercase_form_to_capitalizations_and_counts_map->find(lowercase_form));
