@@ -21,3 +21,4 @@ bulk_mailer "$most_recent_email_contents" \
             "SELECT 'johannes.ruscheinski@uni-tuebingen.de'" \
             /mnt/ZE020150/FID-Entwicklung/KrimDok/auxillary_newsletter_email_addresses \
             johannes.ruscheinski@uni-tuebingen.de
+echo "Successfully mailed a new newsletter"
