@@ -21,3 +21,4 @@ LOG_DIR=/usr/local/var/log/tuefind
 0 20 * * 4 "$BIN/full_text_stats" "/usr/local/var/lib/tuelib/full_text_stats.txt" "$EMAIL" > "$LOG_DIR/full_text_stats.log" 2>&1
 0 21 * * 7 systemctl restart vufind
 30 21 * * 7 "$BIN/collect_solr_stats_data.py" "$EMAIL" krimdok > "$LOG_DIR/collect_solr_stats_data.log" 2>&1
+0 20 * * * "$BIN/mail_krimdok_newsletter.sh" > "$LOG_DIR/mail_krimdok_newsletter.log" 2>&1
