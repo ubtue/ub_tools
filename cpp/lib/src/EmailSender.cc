@@ -498,4 +498,26 @@ std::string SMTPResponseCodeToString(const unsigned short response_code) {
 }
 
 
+// Make sure that all line ends are <CR><LF> pairs.
+// Assumes there are no bare carriage returns.
+std::string NormaliseLineEnds(const std::string &text) {
+    std::string normalised_text;
+    normalised_text.reserve(text.length());
+
+    for (const char ch : text) {
+        switch (ch) {
+        case '\r':
+            break;
+        case '\n':
+            normalised_text += "\r\n";
+            break;
+        default:
+            normalised_text += ch;
+        }
+    }
+
+    return normalised_text;
+}
+
+
 } // namespace EmailSender

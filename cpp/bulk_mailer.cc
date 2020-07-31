@@ -68,7 +68,7 @@ void CollectRecipientsFromFile(const std::string &filename, std::vector<std::str
 
 
 void SendAllEmails(const std::string &message_file, const std::string &reply_to_address, const std::vector<std::string> &recipients) {
-    std::string message(FileUtil::ReadStringOrDie(message_file));
+    std::string message(EmailSender::NormaliseLineEnds(FileUtil::ReadStringOrDie(message_file)));
     const auto first_line_end_pos(message.find("\r\n"));
     if (first_line_end_pos == std::string::npos)
         LOG_ERROR("Missing subject line in \"" + message_file + "\"!");
