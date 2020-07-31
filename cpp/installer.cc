@@ -180,20 +180,25 @@ bool FileContainsLineStartingWith(const std::string &path, const std::string &pr
 }
 
 
+struct Mountpoint {
+    std::string path_;
+    std::string test_path_;
+    std::string unc_path_;
+public:
+    explicit Mountpoint(const std::string &path, const std::string &test_path, const std::string &unc_path): path_(path),
+                        test_path_(test_path), unc_path_(unc_path) { };
+};
+
+
 void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_type) {
-    const std::vector<std::tuple<std::string, std::string, std::string>> mount_points {
-        { "/mnt/ZE020150", "/mnt/ZE020150/FID-Entwicklung", "//sn00.zdv.uni-tuebingen.de/ZE020150" },
-        { "/mnt/ZE020110/FID-Projekte", "/mnt/ZE020110/FID-Projekte/Default", "//sn00.zdv.uni-tuebingen.de/ZE020110/FID-Projekte" }
-    };
+    std::vector<Mountpoint> mount_points;
+    mount_points.emplace_back(Mountpoint("/mnt/ZE020150", "/mnt/ZE020150/FID-Entwicklung", "//sn00.zdv.uni-tuebingen.de/ZE020150"));
+    mount_points.emplace_back(Mountpoint("/mnt/ZE020110/FID-Projekte", "/mnt/ZE020110/FID-Projekte/Default", "//sn00.zdv.uni-tuebingen.de/ZE020110/FID-Projekte"));
 
     for (const auto &mount_point : mount_points) {
-        const std::string mount_point_path(std::get<0>(mount_point));
-        const std::string mount_point_test_path(std::get<1>(mount_point));
-        const std::string mount_point_unc_path(std::get<2>(mount_point));
-
-        FileUtil::MakeDirectoryOrDie(mount_point_path);
-        if (FileUtil::IsMountPoint(mount_point_path) or FileUtil::IsDirectory(mount_point_test_path))
-            Echo("Mount point already mounted: " + mount_point_path);
+        FileUtil::MakeDirectoryOrDie(mount_point.path_);
+        if (FileUtil::IsMountPoint(mount_point.path_) or FileUtil::IsDirectory(mount_point.test_path_))
+            Echo("Mount point already mounted: " + mount_point.path_);
         else {
             const std::string credentials_file("/root/.smbcredentials");
             if (not FileUtil::Exists(credentials_file)) {
@@ -202,14 +207,14 @@ void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_t
                 if (unlikely(not FileUtil::WriteString(credentials_file, "username=" + role_account + "\npassword=" + password + "\n")))
                     Error("failed to write " + credentials_file + "!");
             }
-            if (not FileContainsLineStartingWith("/etc/fstab", mount_point_unc_path)) {
+            if (not FileContainsLineStartingWith("/etc/fstab", mount_point.unc_path_)) {
                 FileUtil::AppendStringToFile("/etc/fstab",
-                                             mount_point_unc_path + " " + mount_point_path + " cifs "
+                                             mount_point.unc_path_ + " " + mount_point.path_ + " cifs "
                                              "credentials=/root/.smbcredentials,workgroup=uni-tuebingen.de,uid=root,"
                                              "gid=root,vers=1.0,auto 0 0");
             }
-            ExecUtil::ExecOrDie("/bin/mount", { mount_point_unc_path });
-            Echo("Successfully mounted " + mount_point_unc_path);
+            ExecUtil::ExecOrDie("/bin/mount", { mount_point.path_ });
+            Echo("Successfully mounted " + mount_point.path_);
         }
     }
 
