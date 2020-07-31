@@ -58,4 +58,10 @@ inline unsigned short SendEmail(const std::string &sender, const std::string &re
 std::string SMTPResponseCodeToString(const unsigned short response_code);
 
 
+/** Ensures that all line ends are <CR><LF> pairs.
+ *  Assumes there are no bare carriage returns.
+ */
+std::string NormaliseLineEnds(const std::string &text);
+
+
 } // namespace EmailSender
