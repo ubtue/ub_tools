@@ -180,11 +180,11 @@ bool FileContainsLineStartingWith(const std::string &path, const std::string &pr
 }
 
 
-void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
-    const std::vector<std::tuple<std::string,std::string,std::string>> mount_points({
+void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_type) {
+    const std::vector<std::tuple<std::string, std::string, std::string>> mount_points {
         { "/mnt/ZE020150", "/mnt/ZE020150/FID-Entwicklung", "//sn00.zdv.uni-tuebingen.de/ZE020150" },
         { "/mnt/ZE020110/FID-Projekte", "/mnt/ZE020110/FID-Projekte/Default", "//sn00.zdv.uni-tuebingen.de/ZE020110/FID-Projekte" }
-    });
+    };
 
     for (const auto &mount_point : mount_points) {
         const std::string mount_point_path(std::get<0>(mount_point));
@@ -976,7 +976,7 @@ int Main(int argc, char **argv) {
     // Where to find our own stuff:
     MiscUtil::AddToPATH("/usr/local/bin/", MiscUtil::PreferredPathLocation::LEADING);
 
-    MountDeptDriveOrDie(vufind_system_type);
+    MountDeptDriveAndInstallSSHKeysOrDie(vufind_system_type);
 
     if (not (ub_tools_only or fulltext_backend)) {
         CreateDirectoryIfNotExistsOrDie("/mnt/zram");
