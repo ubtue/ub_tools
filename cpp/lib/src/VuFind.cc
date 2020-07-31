@@ -19,7 +19,6 @@
  */
 #include "VuFind.h"
 #include <stdexcept>
-#include "DbConnection.h"
 #include "File.h"
 #include "FileUtil.h"
 #include "MiscUtil.h"
