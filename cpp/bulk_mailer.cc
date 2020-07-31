@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2020 Library of the University of Tübingen
+    Copyright (C) 2020 Tübinge University Libarry
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -38,6 +38,7 @@ namespace {
             "\tmail_contents: the file containing the email message\n"
             "\t\t(the first line will be used as the mail's subject)\n"
             "\tsql_statement: a query to select the relevant email addresses from the vufind user table\n"
+            "\t\t(the email addresses will be selected as the first column of the query result set)\n"
             "\tauxillary_email_address_list: a path to a plain-text file containing one email address per line\n"
             "\treply_to_email_address: the email address that will be set as the reply_to field\n");
 }
@@ -53,7 +54,7 @@ void CollectRecipientsFromSqlTable(const std::string &select_statment, std::vect
     while (row = result_set.getNextRow())
         recipients->emplace_back(row[0]);
 
-    LOG_INFO("Added " + std::to_string(recipients->size() - old_size) + " recipients due to the database query.");
+    LOG_INFO("Collected " + std::to_string(recipients->size() - old_size) + " recipients from the output of the database query.");
 }
 
 
@@ -63,7 +64,7 @@ void CollectRecipientsFromFile(const std::string &filename, std::vector<std::str
     for (auto line : FileUtil::ReadLines(filename))
         recipients->emplace_back(line);
 
-    LOG_INFO("Added " + std::to_string(recipients->size() - old_size) + " from " + filename + ".");
+    LOG_INFO("Collected " + std::to_string(recipients->size() - old_size) + " from " + filename + ".");
 }
 
 
