@@ -186,7 +186,7 @@ struct Mountpoint {
     std::string unc_path_;
 public:
     explicit Mountpoint(const std::string &path, const std::string &test_path, const std::string &unc_path): path_(path),
-                        test_path_(test_path), unc_path_(unc_path) { };
+                        test_path_(test_path), unc_path_(unc_path) { }
 };
 
 
