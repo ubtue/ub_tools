@@ -313,7 +313,6 @@ void CreateUbToolsDatabase(const OSSystemType os_system_type) {
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database + "_tmp", sql_username, root_username, root_password);
         DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, root_username, root_password);
-        DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/tuefind.sql", sql_database, root_username, root_password);
     }
 
     // Populate our database versions table to reflect the patch level for each database for which patches already exist.
