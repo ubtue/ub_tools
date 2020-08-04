@@ -18,6 +18,7 @@
 */
 #include <iostream>
 #include <cstdlib>
+#include "File.h"
 #include "FileUtil.h"
 #include "TextUtil.h"
 #include "VuFind.h"
@@ -25,25 +26,23 @@
 
 
 int Main(int argc, char **argv) {
-    if (argc != 2) {
-        std::cerr << "Usage: " << ::progname << " export_file\n";
-        std::exit(EXIT_FAILURE);
-    }
-    
-    const std::string export_file(argv[1]);
-    
-    auto db_connection(VuFind::GetDbConnection());
+    if (argc != 2)
+        ::Usage("export_file");
+
+    const auto db_connection(VuFind::GetDbConnection());
     db_connection->queryOrDie("SELECT * FROM tuefind_redirect");
     auto result_set(db_connection->getLastResultSet());
-    
-    std::string csv;
-    csv += "url;group;timestamp\n";
-    while (const auto &row = result_set.getNextRow()) {
-        csv += TextUtil::CSVEscape(row["url"]) + ";";
-        csv += TextUtil::CSVEscape(row["group_name"]) + ";";
-        csv += TextUtil::CSVEscape(row["timestamp"]) + "\n";
+
+    File csv_file(argv[1], "w", File::ThrowOnOpenBehaviour::THROW_ON_ERROR);
+    csv_file.write("url;group;timestamp\n");
+    while (const auto &db_row = result_set.getNextRow()) {
+        std::string csv_row;
+        csv_row += TextUtil::CSVEscape(db_row["url"]) + ";";
+        csv_row += TextUtil::CSVEscape(db_row["group_name"]) + ";";
+        csv_row += TextUtil::CSVEscape(db_row["timestamp"]) + "\n";
+        csv_file.write(csv_row);
     }
+    csv_file.close();
     
-    FileUtil::WriteStringOrDie(export_file, csv);
     return EXIT_SUCCESS;
 }
