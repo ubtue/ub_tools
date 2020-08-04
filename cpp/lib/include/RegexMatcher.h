@@ -181,8 +181,8 @@ public:
      *  \param subject     The subject to match.
      *  \param options     Or'ed together values of type enum Option.
      *  \param err_msg     If non-nullptr, an explanation of a possible error will be written here.
-     *  \param start_pos   If match successfull, first character of the matched part of the subject.
-     *  \param end_pos     If match successfull, last+1 character of the matched part of the subject.
+     *  \param start_pos   If match successfull, first character position of the matched part of the subject.
+     *  \param end_pos     If match successfull, last+1 character position of the matched part of the subject.
      */
     static bool Matched(const std::string &regex, const std::string &subject, const unsigned options = 0,
                         std::string * const err_msg = nullptr, size_t * const start_pos = nullptr, size_t * const end_pos = nullptr);
