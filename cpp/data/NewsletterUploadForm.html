@@ -3,6 +3,9 @@
     <title>Newsletter Upload Form</title>
   </head>
   <body>
+    The uploaded file must be a plin-text file.  The first line will be used as the subject of the
+    email message and the remainder as the message body.  The encoding of the file must be UTF-8 with
+    no leading BOM.
     <form enctype="multipart/form-data" action="/var/www/cgi-bin/newsletter_uploader" method="post">
       <p>File: <input type="file" name="file"></p>
       <p><input type="submit" value="Upload"></p>
