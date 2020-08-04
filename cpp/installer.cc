@@ -180,35 +180,52 @@ bool FileContainsLineStartingWith(const std::string &path, const std::string &pr
 }
 
 
-void MountDeptDriveOrDie(const VuFindSystemType vufind_system_type) {
-    const std::string MOUNT_POINT("/mnt/ZE020150/");
-    if (not FileUtil::MakeDirectory(MOUNT_POINT))
-        Error("failed to create mount point \"" + MOUNT_POINT + "\"!");
+struct Mountpoint {
+    std::string path_;
+    std::string test_path_;
+    std::string unc_path_;
+public:
+    explicit Mountpoint(const std::string &path, const std::string &test_path, const std::string &unc_path): path_(path),
+                        test_path_(test_path), unc_path_(unc_path) { }
+};
 
-    if (FileUtil::IsMountPoint(MOUNT_POINT) or FileUtil::IsDirectory(MOUNT_POINT + "/FID-Entwicklung"))
-        Echo("Department drive already mounted");
-    else {
-        const std::string role_account(vufind_system_type == KRIMDOK ? "qubob15" : "qubob16");
-        const std::string password(MiscUtil::GetPassword("Enter password for " + role_account));
-        const std::string credentials_file("/root/.smbcredentials");
-        if (unlikely(not FileUtil::WriteString(credentials_file, "username=" + role_account + "\npassword=" + password + "\n")))
-            Error("failed to write " + credentials_file + "!");
-        if (not FileContainsLineStartingWith("/etc/fstab", "//sn00.zdv.uni-tuebingen.de/ZE020150"))
-            FileUtil::AppendStringToFile("/etc/fstab",
-                                         "//sn00.zdv.uni-tuebingen.de/ZE020150 " + MOUNT_POINT + " cifs "
-                                         "credentials=/root/.smbcredentials,workgroup=uni-tuebingen.de,uid=root,"
-                                         "gid=root,vers=1.0,auto 0 0");
-        ExecUtil::ExecOrDie("/bin/mount", { MOUNT_POINT });
-        Echo("Successfully mounted the department drive.");
+
+void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_type) {
+    std::vector<Mountpoint> mount_points;
+    mount_points.emplace_back(Mountpoint("/mnt/ZE020150", "/mnt/ZE020150/FID-Entwicklung", "//sn00.zdv.uni-tuebingen.de/ZE020150"));
+    mount_points.emplace_back(Mountpoint("/mnt/ZE020110/FID-Projekte", "/mnt/ZE020110/FID-Projekte/Default", "//sn00.zdv.uni-tuebingen.de/ZE020110/FID-Projekte"));
+
+    for (const auto &mount_point : mount_points) {
+        FileUtil::MakeDirectoryOrDie(mount_point.path_);
+        if (FileUtil::IsMountPoint(mount_point.path_) or FileUtil::IsDirectory(mount_point.test_path_))
+            Echo("Mount point already mounted: " + mount_point.path_);
+        else {
+            const std::string credentials_file("/root/.smbcredentials");
+            if (not FileUtil::Exists(credentials_file)) {
+                const std::string role_account(vufind_system_type == KRIMDOK ? "qubob15" : "qubob16");
+                const std::string password(MiscUtil::GetPassword("Enter password for " + role_account));
+                if (unlikely(not FileUtil::WriteString(credentials_file, "username=" + role_account + "\npassword=" + password + "\n")))
+                    Error("failed to write " + credentials_file + "!");
+            }
+            if (not FileContainsLineStartingWith("/etc/fstab", mount_point.unc_path_)) {
+                FileUtil::AppendStringToFile("/etc/fstab",
+                                             mount_point.unc_path_ + " " + mount_point.path_ + " cifs "
+                                             "credentials=/root/.smbcredentials,workgroup=uni-tuebingen.de,uid=root,"
+                                             "gid=root,vers=1.0,auto 0 0");
+            }
+            ExecUtil::ExecOrDie("/bin/mount", { mount_point.path_ });
+            Echo("Successfully mounted " + mount_point.path_);
+        }
     }
 
-    const std::string SSH_KEYS_DIR("/root/.ssh/");
-    const std::string GITHUB_ROBOT_PRIVATE_KEY_REMOTE(MOUNT_POINT + "/FID-Entwicklung/github-robot");
-    const std::string GITHUB_ROBOT_PRIVATE_KEY_LOCAL(SSH_KEYS_DIR + "github-robot");
-    const std::string GITHUB_ROBOT_PUBLIC_KEY_REMOTE(MOUNT_POINT + "/FID-Entwicklung/github-robot.pub");
-    const std::string GITHUB_ROBOT_PUBLIC_KEY_LOCAL(SSH_KEYS_DIR + "github-robot.pub");
-    if (not FileUtil::Exists(SSH_KEYS_DIR))
-        FileUtil::MakeDirectoryOrDie(SSH_KEYS_DIR, false, 0700);
+    const std::string SSH_KEYS_DIR_REMOTE("/mnt/ZE020150/FID-Entwicklung/");
+    const std::string SSH_KEYS_DIR_LOCAL("/root/.ssh/");
+    const std::string GITHUB_ROBOT_PRIVATE_KEY_REMOTE(SSH_KEYS_DIR_REMOTE + "github-robot");
+    const std::string GITHUB_ROBOT_PRIVATE_KEY_LOCAL(SSH_KEYS_DIR_LOCAL + "github-robot");
+    const std::string GITHUB_ROBOT_PUBLIC_KEY_REMOTE(SSH_KEYS_DIR_REMOTE + "github-robot.pub");
+    const std::string GITHUB_ROBOT_PUBLIC_KEY_LOCAL(SSH_KEYS_DIR_LOCAL + "github-robot.pub");
+    if (not FileUtil::Exists(SSH_KEYS_DIR_LOCAL))
+        FileUtil::MakeDirectoryOrDie(SSH_KEYS_DIR_LOCAL, false, 0700);
     if (not FileUtil::Exists(GITHUB_ROBOT_PRIVATE_KEY_LOCAL)) {
         FileUtil::CopyOrDie(GITHUB_ROBOT_PRIVATE_KEY_REMOTE, GITHUB_ROBOT_PRIVATE_KEY_LOCAL);
         FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PRIVATE_KEY_LOCAL, 600);
@@ -960,7 +977,7 @@ int Main(int argc, char **argv) {
     // Where to find our own stuff:
     MiscUtil::AddToPATH("/usr/local/bin/", MiscUtil::PreferredPathLocation::LEADING);
 
-    MountDeptDriveOrDie(vufind_system_type);
+    MountDeptDriveAndInstallSSHKeysOrDie(vufind_system_type);
 
     if (not (ub_tools_only or fulltext_backend)) {
         CreateDirectoryIfNotExistsOrDie("/mnt/zram");
