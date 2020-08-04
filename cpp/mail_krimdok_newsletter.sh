@@ -2,23 +2,17 @@
 set -o errexit -o nounset
 
 
-cd .
-
-
-most_recent_email_contents=$(ls -Art | tail -n 1)
-if [ -z "$most_recent_email_contents" ]; then
-    echo "No newsletters found"
-    exit 0
-fi
-
-time_since_last_modification=$(($(date +%s) - $(stat --format=%Y -- "$most_recent_email_contents")))
-if [ $time_since_last_modification -gt 86400 ]; then
-    echo "No recent newsletters found"
-    exit 0
-fi
-
-bulk_mailer "$most_recent_email_contents" \
-            "SELECT 'johannes.ruscheinski@uni-tuebingen.de'" \
-            /mnt/ZE020150/FID-Entwicklung/KrimDok/auxillary_newsletter_email_addresses \
-            johannes.ruscheinski@uni-tuebingen.de
-echo "Successfully mailed a new newsletter"
+BACKUP_DIR=/usr/local/var/lib/tuelib/sent_newsletters
+mkdir --parents "$BACKUP_DIR"
+REPLY_TO=johannes.ruscheinski@uni-tuebingen.de
+SQL_QUERY="SELECT 'johannes.ruscheinski@uni-tuebingen.de'"
+declare -i count=0
+for regular_file in $(ls -p | grep -v /); do
+    bulk_mailer "$regular_file" \
+                "$SQL_QUERY" \
+                /usr/local/var/lib/tuelib/auxillary_newsletter_email_addresses \
+                $REPLY_TO
+    let "count=count+1"
+    mv "$regular_file" "$BACKUP_DIR/regular_file.$(date +%F-%T)"
+done
+echo "Successfully mailed $count newsletter(s)"
