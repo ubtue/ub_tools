@@ -2615,6 +2615,7 @@ static std::unordered_map<Tag, bool> tag_to_repeatable_map{
     { Tag("720"), true  },
     { Tag("730"), true  },
     { Tag("740"), true  },
+    { Tag("750"), true  },
     { Tag("751"), true  },
     { Tag("752"), true  },
     { Tag("752"), true  },
