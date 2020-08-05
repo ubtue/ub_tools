@@ -191,7 +191,8 @@ def Main():
     except Exception as e:
         util.Error("failed to read config file! (" + str(e) + ")")
 
-    ftp = bsz_util.GetFTPConnection()
+    ftp_connection = bsz_util.GetFTPConnection()
+    ftp = ftp_connection.getFTP()
     msg = []
     tempdir = tempfile.TemporaryDirectory()
     bsz_dir = os.getcwd()
