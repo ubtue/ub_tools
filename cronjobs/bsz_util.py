@@ -105,7 +105,7 @@ def AreBothInstancesPresent(filename_regex, remote_files):
     if not remote_files:
         return True
     matching_remote_files = list(filter(filename_regex.match, remote_files))
-    return True if len(matching_remote_files) % 2 == 0 else False
+    return len(matching_remote_files) % 2 == 0
 
 
 # Downloads matching files found in "remote_directory" on the FTP server that have a datestamp
