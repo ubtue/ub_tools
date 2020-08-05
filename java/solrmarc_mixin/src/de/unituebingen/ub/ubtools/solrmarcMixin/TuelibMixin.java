@@ -2760,7 +2760,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
         if (isStatistic(record)) {
             formats.remove("Article");
-            formats.add("Statistic");
+            formats.add("Statistics");
         }
 
         // Evaluate topic fields in some cases
