@@ -37,7 +37,6 @@ directory_on_ftp_server = /ixtheo
 output_directory = /usr/local/ub_tools/bsz_daten_cumulated
 """
 
-from ftplib import FTP
 import bsz_util
 import datetime
 import os
@@ -191,8 +190,7 @@ def Main():
     except Exception as e:
         util.Error("failed to read config file! (" + str(e) + ")")
 
-    ftp_connection = bsz_util.GetFTPConnection()
-    ftp = ftp_connection.getFTP()
+    ftp = bsz_util.GetFTPConnection()
     msg = []
     tempdir = tempfile.TemporaryDirectory()
     bsz_dir = os.getcwd()

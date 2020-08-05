@@ -1,7 +1,6 @@
 # Python 3 module
 # -*- coding: utf-8 -*-
 
-from ftplib import FTP
 from ftp_connection import FTPConnection
 import datetime
 import os
@@ -40,7 +39,7 @@ def GetFTPConnection():
 # and have a datestamp (YYMMDD) more recent than "download_cutoff_date".
 def GetListOfRemoteFiles(ftp, filename_regex, directory, download_cutoff_date):
     try:
-        ftp.cwd(directory)
+        ftp.changeDirectory(directory)
     except Exception as e:
         util.Error("can't change directory to \"" + directory + "\"! (" + str(e) + ")")
 
@@ -49,7 +48,7 @@ def GetListOfRemoteFiles(ftp, filename_regex, directory, download_cutoff_date):
     for attempt_number in range(3):
         try:
             filename_list = []
-            for filename in ftp.nlst():
+            for filename in ftp.listDirectory():
                  match = filename_regex.match(filename)
                  if match and match.group(1) >= download_cutoff_date:
                      filename_list.append(filename)
@@ -117,7 +116,7 @@ def DownloadRemoteFiles(config, ftp, filename_regex, remote_directory, download_
         if not AreBothInstancesPresent(filename_regex, filenames):
             util.Error("Skip downloading since apparently generation of the files on the FTP server is not complete!")
     for filename in filenames:
-        util.DownLoadFile(ftp, filename)
+        ftp.downloadFile(filename, filename)
     return filenames
 
 
