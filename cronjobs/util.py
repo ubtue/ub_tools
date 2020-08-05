@@ -452,37 +452,6 @@ def FTPLogin(ftp_host, ftp_user, ftp_passwd):
     return ftp
 
 
-def FTPChangeDirectory(ftp, remote_dir_path):
-    error_message = "failed to change directory: " + remote_dir_path
-    try:
-        res = ftp.cwd(remote_dir_path)
-        if not res.startswith('250 '):
-            Error(error_message)
-    except Exception as e:
-        Error(error_message + " (" + str(e) + ")")
-
-
-def FTPUploadFile(ftp, local_file_path, remote_file_name):
-    error_message = "failed to upload file " + local_file_path + " to " + remote_file_name
-    try:
-        with open(local_file_path, 'rb') as fp:
-            res = ftp.storbinary("STOR " + remote_file_name, fp)
-            if not res.startswith('226 '):
-                Error(error_message)
-    except Exception as e:
-        Error(error_message + " (" + str(e) + ")")
-
-
-def FTPRenameFile(ftp, remote_file_name_old, remote_file_name_new):
-    error_message = "failed to rename file " + remote_file_name_old + " to " + remote_file_name_new
-    try:
-        res = ftp.rename(remote_file_name_old, remote_file_name_new)
-        if not res.startswith('250 '):
-            Error(error_message)
-    except Exception as e:
-        Error(error_message + " (" + str(e) + ")")
-
-
 def ExecOrDie(cmd_name, args, log_file_name=None, setsid=True):
     if log_file_name is None:
         log_file_name = "/proc/self/fd/2" # stderr

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from ftplib import FTP
+from ftp_connection import FTPConnection
 import datetime
 import os
 import re
@@ -32,7 +33,7 @@ def GetFTPConnection():
     except Exception as e:
         util.Error("failed to read config file! (" + str(e) + ")")
 
-    return util.FTPLogin(ftp_host, ftp_user, ftp_passwd)
+    return FTPConnection(ftp_host, ftp_user, ftp_passwd)
 
 
 # Returns a list of files found in the "directory" directory on an FTP server that match "filename_regex"
