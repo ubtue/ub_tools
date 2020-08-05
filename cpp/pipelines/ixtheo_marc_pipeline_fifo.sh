@@ -49,10 +49,19 @@ if [[ $(date +%d) == "01" ]]; then # Only do this on the 1st of every month.
 fi
 
 
+# WARNING; This phase needs to come first in the pipeline as it assumes that we have not yet
+# added any of our own tags and because later phases may need to use the local data fields!
+StartPhase "Add Local Data from Database"
+(add_local_data GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
 StartPhase "Swap and Delete PPN's in Various Databases"
 (patch_ppns_in_databases --report-only GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
                          -- entire_record_deletion.log >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+wait
 
 
 StartPhase "Filter out Self-referential 856 Fields" \
@@ -66,7 +75,7 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --filter-chars 130a:240a:245a '@' \
     --remove-subfields '6002:blmsh' '6102:blmsh' '6302:blmsh' '6892:blmsh' '6502:blmsh' '6512:blmsh' '6552:blmsh' \
     --replace 600a:610a:630a:648a:650a:650x:651a:655a "(.*)\\.$" "\\1" `# Remove trailing periods for the following keyword normalisation.` \
-    --replace-strings 600a:610a:630a:648a:650a:650x:651a:655a /usr/local/var/lib/tuelib/keyword_normalisation.map \
+    --replace-strings 600a:610a:630a:648a:650a:650x:651a:655a /usr/local/var/lib/tuelib/keyword_normalization.map \
     --replace 100a:700a /usr/local/var/lib/tuelib/author_normalisation.map \
     --replace 260b:264b /usr/local/var/lib/tuelib/publisher_normalisation.map \
     --replace 245a "^L' (.*)" "L'\\1" `# Replace "L' arbe" with "L'arbe" etc.` \
@@ -100,8 +109,16 @@ generate_vufind_translation_files "$VUFIND_HOME"/local/tuefind/languages/ >> "${
 EndPhase || Abort) &
 
 
+StartPhase "Transfer 880 Authority Data Translations to 750"
+(transfer_880_translations Normdaten-"${date}".mrc \
+                           Normdaten-partially-augmented0-"${date}.mrc" \
+                           >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
 StartPhase "Augment Authority Data with Keyword Translations"
-(augment_authority_data_with_translations Normdaten-"${date}".mrc \
+(augment_authority_data_with_translations Normdaten-partially-augmented0-"${date}".mrc \
                                           Normdaten-partially-augmented1-"${date}".mrc \
                                           >> "${log}" 2>&1 && \
 EndPhase || Abort) &
@@ -116,7 +133,7 @@ wait
 
 
 StartPhase "Cross Link Articles"
-(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-4))"-"${date}".mrc \
+(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-5))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                          article_matches.list >> "${log}" 2>&1 && \
 EndPhase || Abort) &

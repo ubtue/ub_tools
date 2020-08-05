@@ -1679,8 +1679,10 @@ public class TuelibMixin extends SolrIndexerMixin {
     /**
      * Abstract out topic extract from LOK and ordinary field handling
      */
-    protected void extractTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators, final Collection<String> collector,
-                            final  String langAbbrev, final String fldTag, final String subfldTags, final Predicate<DataField> includeFieldPredicate) {
+    protected void extractTopicsHelper(final List<VariableField> marcFieldList, final Map<String, String> separators,
+                                       final Collection<String> collector, final  String langAbbrev, final String fldTag,
+                                       final String subfldTags, final Predicate<DataField> includeFieldPredicate)
+    {
         final Pattern subfieldPattern = Pattern.compile(subfldTags.length() == 0 ? "[a-z]" : extractNormalizedSubfieldPatternHelper(subfldTags));
         for (final VariableField vf : marcFieldList) {
             final StringBuilder buffer = new StringBuilder("");
@@ -1766,8 +1768,7 @@ public class TuelibMixin extends SolrIndexerMixin {
      */
     @Deprecated
     protected void getTopicsCollector(final Record record, String fieldSpec, Map<String, String> separators,
-                                    Collection<String> collector, String langAbbrev, Predicate<DataField> includeFieldPredicate)
-
+                                      Collection<String> collector, String langAbbrev, Predicate<DataField> includeFieldPredicate)
     {
         String[] fldTags = fieldSpec.split(":");
         String fldTag;
@@ -1782,7 +1783,6 @@ public class TuelibMixin extends SolrIndexerMixin {
 
             // Handle "Lokaldaten" appropriately
             if (fldTagItem.substring(0, 3).equals("LOK")) {
-
                 if (fldTagItem.substring(3, 6).length() < 3) {
                     logger.severe("Invalid tag for \"Lokaldaten\": " + fldTagItem);
                     continue;
@@ -1857,8 +1857,8 @@ public class TuelibMixin extends SolrIndexerMixin {
      *   closing character       :== A single character to be appended on the right side
      */
     protected void getCachedTopicsCollector(final Record record, String fieldSpec, final Map<String, String> separators,
-                                          final Collection<String> collector, final String langAbbrev,
-					  final Predicate<DataField> includeFieldPredicate)
+                                            final Collection<String> collector, final String langAbbrev,
+                                            final Predicate<DataField> includeFieldPredicate)
     {
         final String cacheKey = fieldSpec;
         Collection<Collection<Topic>> subcollector = new ArrayList<>();
@@ -2311,7 +2311,6 @@ public class TuelibMixin extends SolrIndexerMixin {
     }
 
 
-
     // Map used by getPhysicalType().
     protected static final Map<String, String> phys_code_to_format_map;
 
@@ -2384,6 +2383,19 @@ public class TuelibMixin extends SolrIndexerMixin {
         final List<VariableField> _787Fields = record.getVariableFields("787");
         if (foundInSubfield(_787Fields, 'i', "Rezension von"))
             return true;
+
+        return false;
+    }
+
+    boolean isStatistic(final Record record) {
+        final List<VariableField> _655Fields = record.getVariableFields("655");
+        for (final VariableField _655Field : _655Fields) {
+            final DataField dataField = (DataField) _655Field;
+            final Subfield aSubfield = dataField.getSubfield('a');
+            if (aSubfield != null && dataField.getIndicator1() == ' ' && dataField.getIndicator2() == '7'
+                && aSubfield.getData().equals("Statistik"))
+                    return true;
+        }
 
         return false;
     }
@@ -2744,6 +2756,11 @@ public class TuelibMixin extends SolrIndexerMixin {
         if (isReview(record)) {
             formats.remove("Article");
             formats.add("Review");
+        }
+
+        if (isStatistic(record)) {
+            formats.remove("Article");
+            formats.add("Statistic");
         }
 
         // Evaluate topic fields in some cases

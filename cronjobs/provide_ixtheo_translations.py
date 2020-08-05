@@ -33,17 +33,17 @@ def ClearOutFile(outfile_name):
     outfile = open(outfile_name, 'w')
     outfile.truncate()
     outfile.close()
- 
+
 
 def DumpTranslationsDB(database, user, password, outfile_name):
     ClearOutFile(outfile_name)
-    util.ExecOrDie("/usr/bin/mysqldump", 
-                   [ "--single-transaction", "--database", re.sub('^"|"$', '', database), 
+    util.ExecOrDie("/usr/bin/mysqldump",
+                   [ "--single-transaction", "--databases", re.sub('^"|"$', '', database),
                      "--user=" + re.sub('^"|"$', '', user),
-                     "--password=" + re.sub('^"|"$', '', password) ], 
+                     "--password=" + re.sub('^"|"$', '', password) ],
                      outfile_name)
-        
-    
+
+
 def CompressAndEncryptFile(infile, outfile, archive_password):
     util.ExecOrDie("/usr/bin/7za", ['a', "-p" + archive_password, outfile, infile])
 
@@ -56,21 +56,21 @@ def MoveToDownloadPosition(file, web_server_path):
 def CleanUp(tmp_file_name):
     os.remove(tmp_file_name)
 
-    
+
 def NotifyUser(user, server, filename):
     util.SendEmail("New translations database dump provided",
-                   "A new translation database dump has been provided for you at https://" + server + "/" + 
+                   "A new translation database dump has been provided for you at https://" + server + "/" +
                     filename + "\n\n" + "Kind regards")
 
-    
+
 def DetermineServerName():
     return socket.gethostname()
-                    
-    
+
+
 def Main():
     if len(sys.argv) != 2:
         util.SendEmail(os.path.basename(sys.argv[0]),
-                      "This script requires an email address as the only argument\n", priority=1, 
+                      "This script requires an email address as the only argument\n", priority=1,
                       recipient=util.default_email_recipient)
         sys.exit(-1)
     util.default_email_recipient = sys.argv[1]

@@ -34,4 +34,3 @@ LOG_DIR=/usr/local/var/log/tuefind
 30 22 * * * "$BIN/new_journal_alert" relbib {relbib_host} "RelBib Team<no-reply@ub.uni-tuebingen.de>" "RelBib Subscriptions" > "$LOG_DIR/new_journal_alert_relbib.log" 2>&1
 0 23 * * * "$BIN/update_tad_email_acl.sh" "$EMAIL"
 30 23 * * * "$BIN/rss_aggregator" "$EMAIL" "/usr/local/vufind/public/relbib_docs/news.rss" > "$LOG_DIR/rss_aggregator.log" 2>&1
-0 0 1 * * "$BIN/generate_keyword_normalizations.sh" "$EMAIL" > "$LOG_DIR/generate_keyword_normalizations.log" 2>&1

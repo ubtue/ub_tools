@@ -27,13 +27,21 @@ CleanUp
 OVERALL_START=$(date +%s.%N)
 
 
-StartPhase "Check Record Integity at the Beginning of the Pipeline"
+StartPhase "Check Record Integrity at the Beginning of the Pipeline"
 (marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
             --write-data=GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc GesamtTiteldaten-"${date}".mrc \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
+
+# WARNING; This phase needs to come first in the pipeline as it assumes that we have not yet
+# added any of our own tags and because later phases may need to use the local data fields!
+StartPhase "Add Local Data from Database"
+(add_local_data GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
 
 StartPhase "Replace old BSZ PPN's with new K10+ PPN's"
 (patch_ppns_in_databases --report-only GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
