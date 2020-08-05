@@ -16,7 +16,7 @@ file_field = form['file']
 if file_field:
     # Strip leading path from file name to avoid directory traversal attacks
     filename = os.path.basename(file_field.filename)
-    open("/usr/local/var/lib/tuelib/newsletters" + filename, 'w').write(file_field.file.read())
+    open("/usr/local/var/lib/tuelib/newsletters/" + filename, 'w').write(file_field.file.read())
     message = 'The file "' + filename + '" was uploaded successfully.'
 else:
     message = 'No file was uploaded!'
