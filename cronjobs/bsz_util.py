@@ -23,6 +23,18 @@ def FoundNewBSZDataFile(link_filename):
     return old_timestamp < file_creation_time
 
 
+def GetFTPConnection():
+    try:
+        bsz_config = util.LoadConfigFile(util.default_config_file_dir + "BSZ.conf")
+        ftp_host   = bsz_config.get("FTP", "host")
+        ftp_user   = bsz_config.get("FTP", "username")
+        ftp_passwd = bsz_config.get("FTP", "password")
+    except Exception as e:
+        util.Error("failed to read config file! (" + str(e) + ")")
+
+    return util.FTPLogin(ftp_host, ftp_user, ftp_passwd)
+
+
 # Returns a list of files found in the "directory" directory on an FTP server that match "filename_regex"
 # and have a datestamp (YYMMDD) more recent than "download_cutoff_date".
 def GetListOfRemoteFiles(ftp, filename_regex, directory, download_cutoff_date):
@@ -82,18 +94,18 @@ def GetBackupDirectoryPath(config):
 
 # Check whether all the instances are needed
 def NeedsBothInstances(filename_regex):
-     without_localdata_pattern = "_o[)]?-[(]?.*[)]?"
-     without_localdata_regex = re.compile(without_localdata_pattern)
-     return without_localdata_regex.search(filename_regex.pattern) is not None
+    without_localdata_pattern = "_o[)]?-[(]?.*[)]?"
+    without_localdata_regex = re.compile(without_localdata_pattern)
+    return without_localdata_regex.search(filename_regex.pattern) is not None
 
 
 # For IxTheo our setup requires that we obtain both the files with and without local data because otherwise
 # we get data inconsistencies
 def AreBothInstancesPresent(filename_regex, remote_files):
-     if not remote_files:
+    if not remote_files:
         return True
-     matching_remote_files = list(filter(filename_regex.match, remote_files))
-     return True if len(matching_remote_files) % 2 == 0 else False
+    matching_remote_files = list(filter(filename_regex.match, remote_files))
+    return True if len(matching_remote_files) % 2 == 0 else False
 
 
 # Downloads matching files found in "remote_directory" on the FTP server that have a datestamp
