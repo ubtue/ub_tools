@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from ftplib import FTP
+import os
+
 
 class FTPConnection:
 
@@ -41,7 +43,32 @@ class FTPConnection:
         except Exception as e:
             Error(error_message + " (" + str(e) + ")")
 
-    def uploadFile(self, local_file_path, remote_file_name):
+    def listDirectory(self):
+        error_message = "failed to list directory"
+        try:
+            return self._ftp.nlst()
+        except Exception as e:
+            Error(error_message + " (" + str(e) + ")")
+
+    def downloadFile(self, remote_file_name, local_file_path):
+        try:
+            output = open(local_file_path, "wb")
+        except Exception as e:
+            Error("local open of \"" + local_file_path + "\" failed! (" + str(e) + ")")
+        try:
+            def RetrbinaryCallback(chunk):
+                try:
+                    output.write(chunk)
+                except Exception as e:
+                    Error("failed to write a data chunk to local file \"" + local_file_path + "\"! (" + str(e) + ")")
+            self._ftp.retrbinary("RETR " + remote_file_name, RetrbinaryCallback)
+        except Exception as e:
+            Error("File download failed! (" + str(e) + ")")
+
+
+    def uploadFile(self, local_file_path, remote_file_name=None):
+        if remote_file_name is None:
+            remote_file_name = os.path.basename(local_file_path)
         error_message = "failed to upload file " + local_file_path + " to " + remote_file_name
         try:
             with open(local_file_path, 'rb') as fp:

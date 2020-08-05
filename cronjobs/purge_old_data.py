@@ -13,7 +13,6 @@ server_password = XXXXXX
 generations_to_keep = 2
 """
 
-from ftplib import FTP
 import glob
 import os
 import re

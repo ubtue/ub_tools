@@ -16,7 +16,6 @@ server_user     = XXXXXX
 server_password = XXXXXX
 """
 
-from ftplib import FTP
 import datetime
 import glob
 import os

@@ -3,7 +3,6 @@
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from ftplib import FTP
 from typing import List
 import configparser
 import ctypes
@@ -439,19 +438,6 @@ def Touch(filename, times=None):
         os.utime(filename, times)
 
 
-def FTPLogin(ftp_host, ftp_user, ftp_passwd):
-    try:
-        ftp = FTP(host=ftp_host, timeout=120)
-    except Exception as e:
-        Error("failed to connect to FTP server! (" + str(e) + ")")
-
-    try:
-        ftp.login(user=ftp_user, passwd=ftp_passwd)
-    except Exception as e:
-        Error("failed to login to FTP server! (" + str(e) + ")")
-    return ftp
-
-
 def ExecOrDie(cmd_name, args, log_file_name=None, setsid=True):
     if log_file_name is None:
         log_file_name = "/proc/self/fd/2" # stderr
@@ -503,20 +489,3 @@ def Tail(filename, max_no_of_lines):
 
 def RenameFile(old_path : str, new_path : str) -> None:
     ExecOrDie("/bin/mv", [ "--force", old_path, new_path ])
-
-
-    # Attempts to retrieve "remote_filename" from an FTP server.
-def DownLoadFile(ftp, remote_filename):
-    try:
-        output = open(remote_filename, "wb")
-    except Exception as e:
-        Error("local open of \"" + remote_filename + "\" failed! (" + str(e) + ")")
-    try:
-        def RetrbinaryCallback(chunk):
-            try:
-                output.write(chunk)
-            except Exception as e:
-                Error("failed to write a data chunk to local file \"" + remote_filename + "\"! (" + str(e) + ")")
-        ftp.retrbinary("RETR " + remote_filename, RetrbinaryCallback)
-    except Exception as e:
-        Error("File download failed! (" + str(e) + ")")
