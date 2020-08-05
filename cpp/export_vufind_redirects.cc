@@ -36,13 +36,10 @@ int Main(int argc, char **argv) {
     File csv_file(argv[1], "w", File::ThrowOnOpenBehaviour::THROW_ON_ERROR);
     csv_file.write("url;group;timestamp\n");
     while (const auto &db_row = result_set.getNextRow()) {
-        std::string csv_row;
-        csv_row += TextUtil::CSVEscape(db_row["url"]) + ";";
-        csv_row += TextUtil::CSVEscape(db_row["group_name"]) + ";";
-        csv_row += TextUtil::CSVEscape(db_row["timestamp"]) + "\n";
-        csv_file.write(csv_row);
+        csv_file.write(TextUtil::CSVEscape(db_row["url"]) + ";");
+        csv_file.write(TextUtil::CSVEscape(db_row["group_name"]) + ";");
+        csv_file.write(TextUtil::CSVEscape(db_row["timestamp"]) + "\n");
     }
-    csv_file.close();
-    
+
     return EXIT_SUCCESS;
 }
