@@ -185,16 +185,13 @@ def Main():
                        "This script needs to be called with an email address as the only argument!\n", priority=1)
         sys.exit(-1)
     util.default_email_recipient = sys.argv[1]
+
     try:
         config = util.LoadConfigFile()
-        bsz_config = util.LoadConfigFile(util.default_config_file_dir + "BSZ.conf")
-        ftp_host   = bsz_config.get("FTP", "host")
-        ftp_user   = bsz_config.get("FTP", "username")
-        ftp_passwd = bsz_config.get("FTP", "password")
     except Exception as e:
         util.Error("failed to read config file! (" + str(e) + ")")
 
-    ftp = util.FTPLogin(ftp_host, ftp_user, ftp_passwd)
+    ftp = bsz_util.GetFTPConnection()
     msg = []
     tempdir = tempfile.TemporaryDirectory()
     bsz_dir = os.getcwd()
