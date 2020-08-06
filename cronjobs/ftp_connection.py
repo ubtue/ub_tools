@@ -47,7 +47,9 @@ class FTPConnection:
         except Exception as e:
             Error("failed to list directory (" + str(e) + ")")
 
-    def downloadFile(self, remote_file_name, local_file_path):
+    def downloadFile(self, remote_file_name, local_file_path=None):
+        if local_file_path is None:
+            local_file_path = remote_file_name
         try:
             output = open(local_file_path, "wb")
         except Exception as e:
