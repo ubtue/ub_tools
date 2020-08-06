@@ -18,9 +18,7 @@ directory_on_ftp_server = "Tuebingen_crossref2"
 """
 
 from ftp_connection import FTPConnection
-import datetime
 import os
-import re
 import subprocess
 import sys
 import time
