@@ -1,13 +1,8 @@
 #!/bin/python3
 # -*- coding: utf-8 -*-
 import bsz_util
-import datetime
-import glob
-import urllib.request, urllib.error, urllib.parse
 import os
-import struct
 import sys
-import time
 import traceback
 import util
 

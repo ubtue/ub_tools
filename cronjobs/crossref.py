@@ -15,9 +15,9 @@ server_user     = qubob16
 server_password = XXXXXX
 """
 
-from ftplib import FTP
+from ftp_connection import FTPConnection
 import os
-import process_util
+import sys
 import traceback
 import util
 
@@ -47,14 +47,10 @@ def Main():
     util.ExecOrDie("/usr/local/bin/crossref_downloader", [ crossref_xml_file ], log_file_name)
 
     # Upload the XML data to the BSZ FTP server:
-    ftp = util.FTPLogin(ftp_host, ftp_user, ftp_passwd)
-    try:
-        with open(crossref_xml_file, "rb") as xml_file:
-            ftp.storbinary("STOR crossref.xml", xml_file)
-    except Exception as e:
-        util.Error("failed to read config file! (" + str(e) + ")")
+    ftp = FTPConnection(ftp_host, ftp_user, ftp_passwd)
+    ftp.uploadFile(crossref_xml_file)
     os.unlink(crossref_xml_file)
-    
+
     util.SendEmail("Crossref Data Import",
                    "Successfully imported Crossref data and uploaded it to the BSZ FTP server.", priority=5)
 

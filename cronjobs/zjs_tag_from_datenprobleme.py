@@ -1,7 +1,5 @@
 #!/bin/python3
 # -*- coding: utf-8 -*-
-import json
-import re
 import urllib.parse
 import github_api_util
 
@@ -9,10 +7,6 @@ import github_api_util
 UNTESTED_LABEL = "Untested"
 NO_OPEN_ISSUE_LABEL = "No Open Issues"
 HAS_ISSUE_LABEL = "Has Issue"
-
-
-if __name__ == "__main__":
-    Main()
 
 
 def ExtractOpenAndClosedWithoutOpenISSNs(issues):
@@ -89,3 +83,7 @@ def TagZoteroJournalStatusFromDatenProbleme():
 
 def Main():
     TagZoteroJournalStatusFromDatenProbleme()
+
+
+if __name__ == "__main__":
+    Main()

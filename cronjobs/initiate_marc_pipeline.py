@@ -4,7 +4,6 @@ import datetime
 import glob
 import urllib.request, urllib.error, urllib.parse
 import os
-import struct
 import sys
 import time
 import traceback
@@ -20,7 +19,7 @@ def ClearSolrIndex(index):
         data = values.encode('utf-8')
         headers = {"Content-Type": "application/xml"}
         request = urllib.request.Request(url, data, headers)
-        response = urllib.request.urlopen(request, timeout=300)
+        urllib.request.urlopen(request, timeout=300)
     except Exception as e:
         util.SendEmail("MARC-21 Pipeline", "Failed to clear the SOLR index \"" + index + "\" [" + str(e) + "]!", priority=1)
         sys.exit(-1)
@@ -30,7 +29,7 @@ def OptimizeSolrIndex(index):
     try:
         request = urllib.request.Request(
             "http://localhost:8080/solr/" + index + "/update?optimize=true")
-        response = urllib.request.urlopen(request, timeout=1800)
+        urllib.request.urlopen(request, timeout=1800)
     except:
         util.SendEmail("MARC-21 Pipeline", "Failed to optimize the SOLR index \"" + index + "\"!", priority=1)
         sys.exit(-1)

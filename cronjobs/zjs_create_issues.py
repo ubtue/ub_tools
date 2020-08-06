@@ -12,9 +12,6 @@ ZOTERO_JOURNAL_STATUS_REPO = 'zotero-journal-status'
 NO_KNOWN_ISSN = 'No known ISSN'
 
 
-if __name__ == "__main__":
-    Main()
-
 class EntryPresent(Exception):
     pass
 
@@ -80,3 +77,7 @@ def CreateNewZoteroJournalStatusIssues():
 
 def Main():
     CreateNewZoteroJournalStatusIssues()
+
+
+if __name__ == "__main__":
+    Main()
