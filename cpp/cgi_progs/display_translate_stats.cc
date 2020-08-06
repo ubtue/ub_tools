@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2019, Library of the University of Tübingen
+    Copyright (C) 2016-2020, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -76,9 +76,7 @@ void GenerateStats(DbConnection * const db_connection, const std::vector<std::st
 } // unnamed namespace
 
 
-int Main(int /*argc*/, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int /*argc*/, char */*argv*/[]) {
     const IniFile ini_file(CONF_FILE_PATH);
     const std::string sql_database(ini_file.getString("Database", "sql_database"));
     const std::string sql_username(ini_file.getString("Database", "sql_username"));

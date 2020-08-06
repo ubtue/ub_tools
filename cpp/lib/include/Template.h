@@ -103,7 +103,7 @@ public:
     virtual std::string call(const std::vector<const Value *> &arguments) const = 0;
 };
 
-    
+
 class Map {
     std::unordered_map<std::string, std::shared_ptr<Value>> map_;
 public:
@@ -135,6 +135,11 @@ public:
  *  condition evaluates to false.  ELSE is optional.  Loops look like "LOOP var1[,var2..]" if more than one variable
  *  name has been specified, all variables must have the same cardinality.  In a loop "var1" etc. are automatically
  *  indexed based on the current iteration.
+ *
+ *  Predefined functions are Length, UrlEncode, RegexMatch, and Hostname which all return strings.  Length and
+ *  UrlEncode take one argument each, Hostname takes no arguments and RegexMatch takes two, the first of which is
+ *  a PCRE and the second of which is the string to match against.  It returns the matched part, which implies that
+ *  an empty string will be returned if there was no match.
  *
  *  \throws std::runtime_error if anything goes wrong, i.e. if a syntax error has been detected.
  */

@@ -6,7 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
- *  Copyright 2017-2019 Universtitätsbibliothek Tübingen
+ *  Copyright 2017-2020 Universtitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -42,6 +42,7 @@
 #include "Resolver.h"
 #include "StringUtil.h"
 #include "Url.h"
+#include "util.h"
 
 
 namespace DnsUtil {
@@ -232,14 +233,28 @@ bool CachedTimedGetHostByName(const std::string &hostname, const TimeLimit &time
 }
 
 
-std::string GetHostname() {
+std::string GetHostname(const bool fully_qualified) {
     const size_t max_hostname_length(::sysconf(_SC_HOST_NAME_MAX));
     #pragma GCC diagnostic ignored "-Wvla"
     char hostname[max_hostname_length + 1];
     #pragma GCC diagnostic warning "-Wvla"
     ::gethostname(hostname, max_hostname_length);
 
-    return hostname;
+    if (not fully_qualified)
+        return hostname;
+
+    constexpr size_t MAX_DOMAINNAME_LENGTH = 64; // See getdomainname(2).
+    char domainname[MAX_DOMAINNAME_LENGTH];
+    if (::getdomainname(domainname, MAX_DOMAINNAME_LENGTH) != 0)
+        LOG_ERROR("getdomainname(2) failed!");
+
+    std::string hostname_str(hostname);
+    const std::string domainname_str(domainname);
+    if (domainname_str.empty())
+        return hostname_str;
+    if (hostname_str[hostname_str.length() - 1] != '.')
+        hostname_str += '.';
+    return hostname_str + domainname_str;
 }
 
 
