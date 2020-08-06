@@ -68,7 +68,6 @@ data_install: Makefile data/*.conf data/*.map data/*.ttf data/IxTheo_Notation.cs
 	fi
 	@echo "Installing newsletter HTML form"
 	cp data/NewsletterUploadForm.html /usr/local/vufind/public/
-	chcon unconfined_u:object_r:usr_t:s0 /usr/local/vufind/public/NewsletterUploadForm.html
 
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
