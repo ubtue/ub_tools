@@ -1,6 +1,8 @@
 #!/bin/bash
 # Script to upload files safely to the BSZ FTP server
-
+#
+# Note that the used ftp command will not terminate if an error occurs.
+# This script will be replaced by a python script soon.
 set -e
 
 if [ $# -ne 2 ]; then

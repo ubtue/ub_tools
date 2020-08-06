@@ -16,7 +16,6 @@ server_user     = XXXXXX
 server_password = XXXXXX
 """
 
-from ftplib import FTP
 import datetime
 import glob
 import os
@@ -213,7 +212,7 @@ def Main():
         util.SendEmail("Nichts zu tun!", "Komplettabzug ist neuer als eventuell vorhandene Differenzabzüge.\n", priority=5)
         sys.exit(0)
 
-    data_dir = PrepareDataDirectory() # After this we're in the data directory...
+    PrepareDataDirectory() # After this we're in the data directory...
 
     util.ExtractAndRenameBSZFiles("../" + complete_data)
     util.ExtractAndRenameBSZFiles("../" + differential_data, "Diff")

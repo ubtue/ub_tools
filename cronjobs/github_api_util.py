@@ -1,6 +1,5 @@
 # Python 3 module
 # -*- coding: utf-8 -*-
-import json
 import os
 import re
 import requests
@@ -8,9 +7,6 @@ import util
 
 
 def GetAllIssuesForUBTueRepository(repository):
-    if 'GITHUB_OAUTH_TOKEN' in os.environ:
-        github_oauth_token = os.environ.get('GITHUB_OAUTH_TOKEN')
-        headers = { 'Authorization' :  'token ' + github_oauth_token }
     results = []
     req = requests.get('https://api.github.com/repos/ubtue/' + repository + '/issues?state=all&per_page=100')
     for result in req.json():
@@ -40,6 +36,5 @@ def GetISSNMatcher():
 
 def ExportPersonalAuthenticationToken():
     config = util.LoadConfigFile("/usr/local/var/lib/tuelib/cronjobs/github_api_util.conf", no_error=True)
-    user = config.get("Personal Authentication Token", "user")
     pat = config.get("Personal Authentication Token", "pat")
     os.environ['GITHUB_OAUTH_TOKEN']  = pat

@@ -13,7 +13,6 @@ import dbus
 import json
 import os
 import platform
-import process_util
 import re
 import sys
 import time
@@ -130,12 +129,12 @@ def GetSystemDDBusManager():
 
 def StartMongoDB():
     manager = GetSystemDDBusManager()
-    job = manager.RestartUnit(GetMongoServiceDependingOnSystem(), 'fail')
+    manager.RestartUnit(GetMongoServiceDependingOnSystem(), 'fail')
 
 
 def StopMongoDB():
     manager = GetSystemDDBusManager()
-    job = manager.StopUnit(GetMongoServiceDependingOnSystem(), 'ignore-dependencies')
+    manager.StopUnit(GetMongoServiceDependingOnSystem(), 'ignore-dependencies')
 
 
 def DumpMongoDB(config, log_file_name="/dev/stderr"):
