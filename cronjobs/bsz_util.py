@@ -1,15 +1,10 @@
 # Python 3 module
 # -*- coding: utf-8 -*-
 
-from ftplib import FTP
-import datetime
+from ftp_connection import FTPConnection
 import os
 import re
-import shutil
-import string
-import sys
-import tempfile
-import traceback
+import time
 import util
 
 
@@ -23,11 +18,23 @@ def FoundNewBSZDataFile(link_filename):
     return old_timestamp < file_creation_time
 
 
+def GetFTPConnection():
+    try:
+        bsz_config = util.LoadConfigFile(util.default_config_file_dir + "BSZ.conf")
+        ftp_host   = bsz_config.get("FTP", "host")
+        ftp_user   = bsz_config.get("FTP", "username")
+        ftp_passwd = bsz_config.get("FTP", "password")
+    except Exception as e:
+        util.Error("failed to read config file! (" + str(e) + ")")
+
+    return FTPConnection(ftp_host, ftp_user, ftp_passwd)
+
+
 # Returns a list of files found in the "directory" directory on an FTP server that match "filename_regex"
 # and have a datestamp (YYMMDD) more recent than "download_cutoff_date".
 def GetListOfRemoteFiles(ftp, filename_regex, directory, download_cutoff_date):
     try:
-        ftp.cwd(directory)
+        ftp.changeDirectory(directory)
     except Exception as e:
         util.Error("can't change directory to \"" + directory + "\"! (" + str(e) + ")")
 
@@ -36,7 +43,7 @@ def GetListOfRemoteFiles(ftp, filename_regex, directory, download_cutoff_date):
     for attempt_number in range(3):
         try:
             filename_list = []
-            for filename in ftp.nlst():
+            for filename in ftp.listDirectory():
                  match = filename_regex.match(filename)
                  if match and match.group(1) >= download_cutoff_date:
                      filename_list.append(filename)
@@ -82,18 +89,18 @@ def GetBackupDirectoryPath(config):
 
 # Check whether all the instances are needed
 def NeedsBothInstances(filename_regex):
-     without_localdata_pattern = "_o[)]?-[(]?.*[)]?"
-     without_localdata_regex = re.compile(without_localdata_pattern)
-     return without_localdata_regex.search(filename_regex.pattern) is not None
+    without_localdata_pattern = "_o[)]?-[(]?.*[)]?"
+    without_localdata_regex = re.compile(without_localdata_pattern)
+    return without_localdata_regex.search(filename_regex.pattern) is not None
 
 
 # For IxTheo our setup requires that we obtain both the files with and without local data because otherwise
 # we get data inconsistencies
 def AreBothInstancesPresent(filename_regex, remote_files):
-     if not remote_files:
+    if not remote_files:
         return True
-     matching_remote_files = list(filter(filename_regex.match, remote_files))
-     return True if len(matching_remote_files) % 2 == 0 else False
+    matching_remote_files = list(filter(filename_regex.match, remote_files))
+    return len(matching_remote_files) % 2 == 0
 
 
 # Downloads matching files found in "remote_directory" on the FTP server that have a datestamp
@@ -104,7 +111,7 @@ def DownloadRemoteFiles(config, ftp, filename_regex, remote_directory, download_
         if not AreBothInstancesPresent(filename_regex, filenames):
             util.Error("Skip downloading since apparently generation of the files on the FTP server is not complete!")
     for filename in filenames:
-        util.DownLoadFile(ftp, filename)
+        ftp.downloadFile(filename, filename)
     return filenames
 
 

@@ -37,6 +37,7 @@
 /embedded_metadata_pdf_processor
 /enrich_ddcs
 /es_store_document
+/export_vufind_redirects
 /extract_authority_data_translations
 /extract_keywords_for_translation
 /extract_local_keywords

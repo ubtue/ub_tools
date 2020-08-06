@@ -22,10 +22,7 @@
 
 #include <memory>
 #include <string>
-
-
-// Forward declaration:
-class DbConnection;
+#include "DbConnection.h"
 
 
 namespace VuFind {

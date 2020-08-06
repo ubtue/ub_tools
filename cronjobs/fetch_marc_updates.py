@@ -37,18 +37,15 @@ directory_on_ftp_server = /ixtheo
 output_directory = /usr/local/ub_tools/bsz_daten_cumulated
 """
 
-from ftplib import FTP
 import bsz_util
 import datetime
 import os
 import re
+import shutil
 import sys
-import time
+import tempfile
 import traceback
 import util
-import shutil
-import string
-import tempfile
 
 
 # Returns "yymmdd_string" incremented by one day unless it equals "000000" (= minus infinity).
@@ -128,19 +125,23 @@ def CurrentIncrementalAuthorityDumpPresent(config, cutoff_date):
 
 # Delete all files that are older than a given date
 def DeleteAllFilesOlderThan(date, directory, exclude_pattern=""):
-     filename_pattern = '\\D*?-(\\d{6}).*'
-     try:
-         filename_regex = re.compile(filename_pattern)
-         exclude_regex = re.compile(exclude_pattern)
-     except Exception as e:
-           util.Error("File name pattern \"" + filename_to_delete_pattern + "\" failed to compile! (" + str(e) + ")")
+    filename_pattern = '\\D*?-(\\d{6}).*'
+    try:
+        filename_regex = re.compile(filename_pattern)
+    except Exception as e:
+        util.Error("File name pattern \"" + filename_pattern + "\" failed to compile! (" + str(e) + ")")
 
-     for filename in CumulativeFilenameGenerator(directory):
-         match = filename_regex.match(filename)
-         if match and match.group(1) < date and not exclude_regex.match(filename):
+    try:
+        exclude_regex = re.compile(exclude_pattern)
+    except Exception as e:
+        util.Error("Exclude pattern \"" + exclude_pattern + "\" failed to compile! (" + str(e) + ")")
+
+    for filename in CumulativeFilenameGenerator(directory):
+        match = filename_regex.match(filename)
+        if match and match.group(1) < date and not exclude_regex.match(filename):
             os.remove(directory + "/" +  match.group())
 
-     return None
+    return None
 
 
 def DownloadData(config, section, ftp, download_cutoff_date, msg):
@@ -185,16 +186,13 @@ def Main():
                        "This script needs to be called with an email address as the only argument!\n", priority=1)
         sys.exit(-1)
     util.default_email_recipient = sys.argv[1]
+
     try:
         config = util.LoadConfigFile()
-        bsz_config = util.LoadConfigFile(util.default_config_file_dir + "BSZ.conf")
-        ftp_host   = bsz_config.get("FTP", "host")
-        ftp_user   = bsz_config.get("FTP", "username")
-        ftp_passwd = bsz_config.get("FTP", "password")
     except Exception as e:
         util.Error("failed to read config file! (" + str(e) + ")")
 
-    ftp = util.FTPLogin(ftp_host, ftp_user, ftp_passwd)
+    ftp = bsz_util.GetFTPConnection()
     msg = []
     tempdir = tempfile.TemporaryDirectory()
     bsz_dir = os.getcwd()

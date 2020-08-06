@@ -10,12 +10,8 @@ local_update_file_dir = /tmp/oadoi
 changelist_file_regex = changed_dois_with_versions_([\d-]+)(.*)([\d-]).*.jsonl.gz
 """
 
-from subprocess import call
-from operator import itemgetter
-import gzip
 import json
 import os
-import process_util
 import re
 import subprocess
 import sys
@@ -75,7 +71,7 @@ def DownloadUpdateFiles(download_list, json_update_objects, api_key, target_dire
     oadoi_downloader = urllib.request.URLopener()
     for url in download_urls:
         # XXX CHANGE ME TO ACTIVE
-        print("WE WOULD RETRIEVE: " + "oadoi_downloader.retrieve(" + url + ")")
+        print("WE WOULD RETRIEVE: " + oadoi_downloader.retrieve(" + url + "))
 
 
 def UpdateDatabase(update_list, config, source_directory=None):
@@ -83,7 +79,7 @@ def UpdateDatabase(update_list, config, source_directory=None):
     collection = config.get("MongoDB", "collection")
     host = config.get("MongoDB", "host")
     if not source_directory is None:
-       os.chdir(directory)
+        os.chdir(source_directory)
     for filename in update_list:
          #Pipe through zcat so we don't have to explicitly unpack
          zcat = subprocess.Popen( [ "zcat", filename ], stdout=subprocess.PIPE)
