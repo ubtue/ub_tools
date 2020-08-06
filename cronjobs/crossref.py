@@ -17,7 +17,7 @@ server_password = XXXXXX
 
 from ftp_connection import FTPConnection
 import os
-import process_util
+import sys
 import traceback
 import util
 

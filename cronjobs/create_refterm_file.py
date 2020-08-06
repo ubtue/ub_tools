@@ -2,12 +2,9 @@
 # -*- coding: utf-8 -*-
 import atexit
 import datetime
-import glob
 import multiprocessing
 import os
-import struct
 import sys
-import tarfile
 import traceback
 import process_util
 import re

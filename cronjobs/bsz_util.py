@@ -2,14 +2,9 @@
 # -*- coding: utf-8 -*-
 
 from ftp_connection import FTPConnection
-import datetime
 import os
 import re
-import shutil
-import string
-import sys
-import tempfile
-import traceback
+import time
 import util
 
 

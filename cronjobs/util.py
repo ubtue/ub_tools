@@ -9,6 +9,7 @@ import ctypes
 import datetime
 import email
 import enum
+import errno
 import glob
 import inspect
 import mmap
@@ -212,7 +213,7 @@ def ResolveSymlink(link_name):
     assert(os.path.islink(link_name))
     resolved_path = os.path.normpath(os.readlink(link_name))
     if os.path.isabs(resolved_path):
-        return path
+        return resolved_path
     return os.path.join(os.path.dirname(link_name), resolved_path)
 
 
@@ -324,21 +325,6 @@ def ExtractAndRenameBSZFiles(gzipped_tar_archive, name_prefix = None):
 
 def IsExecutableFile(executable_candidate):
     return os.path.isfile(executable_candidate) and os.access(executable_candidate, os.X_OK)
-
-
-# @return the path to the executable "executable_candidate" if found, or else None
-def Which(executable_candidate):
-    dirname, basename = os.path.split(executable_candidate)
-    if dirname:
-        if IsExecutableFile(executable_candidate):
-            return executable_candidate
-    else:
-        for path in os.environ["PATH"].split(":"):
-            full_name = os.path.join(path, executable_candidate)
-            if IsExecutableFile(full_name):
-                return full_name
-
-    return None
 
 
 # Strips the path and an optional extension from "reference_file_name" and appends ".log"

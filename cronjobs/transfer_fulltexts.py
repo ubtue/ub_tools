@@ -19,14 +19,9 @@ directory_on_sftp_server = "incoming"
 
 import datetime
 import fnmatch
-import functools
 import os
-import re
 import shutil
-import string
-import subprocess
 import sys
-import time
 import traceback
 import util
 
