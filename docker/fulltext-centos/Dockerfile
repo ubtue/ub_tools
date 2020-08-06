@@ -17,7 +17,7 @@ RUN dnf config-manager --add-repo https://download.opensuse.org/repositories/hom
 RUN rpm --import https://build.opensuse.org/projects/home:Alexander_Pozdnyakov/public_key
 RUN dnf --assumeyes update
 RUN dnf --assumeyes install tesseract-devel net-tools vim
-RUN /tmp/install_ubtools.sh --fulltext-backend
+RUN /tmp/install_ubtools.sh --production --fulltext-backend
 
 # configure ES
 EXPOSE 9200
