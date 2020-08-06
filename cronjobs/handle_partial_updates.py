@@ -98,7 +98,7 @@ def UpdateAllMarcFiles(orig_deletion_list):
     # BSZ as well as all the ID's from the files starting w/ "Diff":
     util.Remove("augmented_deletion_list")
     if orig_deletion_list is None: # Create empty file.
-        with open("augmented_deletion_list", "a") as _:
+        with open("augmented_deletion_list", "a"):
             pass
     else:
         shutil.copyfile("../" + orig_deletion_list, "augmented_deletion_list")
