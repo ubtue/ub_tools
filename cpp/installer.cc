@@ -711,6 +711,10 @@ void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_s
         SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/krimdok/cache",
                                                      "httpd_sys_rw_content_t",
                                                      VUFIND_DIRECTORY + "/local/tuefind/instances/krimdok/cache(/.*)?");
+
+        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/public",
+                                                     "httpd_sys_content_t",
+                                                     VUFIND_DIRECTORY + "/public/NewsletterUploadForm.html");
     }
 }
 
@@ -826,6 +830,19 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
         SELinuxUtil::FileContext::AddRecordIfMissing(UBTools::GetTueFindLogPath(),
                                                      "httpd_sys_rw_content_t",
                                                      UBTools::GetTueFindLogPath() + "(.*)");
+    }
+
+    const std::string NEWSLETTER_DIRECTORY_PATH(UBTools::GetTuelibPath() + "newsletters");
+    if (not FileUtil::Exists(NEWSLETTER_DIRECTORY_PATH)) {
+        Echo("creating " + NEWSLETTER_DIRECTORY_PATH);
+        FileUtil::MakeDirectory(NEWSLETTER_DIRECTORY_PATH);
+        SELinuxUtil::FileContext::AddRecordIfMissing(NEWSLETTER_DIRECTORY_PATH, "httpd_sys_rw_content_t",
+                                                     NEWSLETTER_DIRECTORY_PATH + "(/.*)?");
+
+        Echo("creating " + NEWSLETTER_DIRECTORY_PATH + "/sent");
+        FileUtil::MakeDirectory(NEWSLETTER_DIRECTORY_PATH);
+        SELinuxUtil::FileContext::AddRecordIfMissing(NEWSLETTER_DIRECTORY_PATH + "/sent", "httpd_sys_rw_content_t",
+                                                     NEWSLETTER_DIRECTORY_PATH + "/sent(/.*)?");
     }
 
     ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
