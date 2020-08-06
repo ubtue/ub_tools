@@ -17,28 +17,13 @@ server_password = XXXXXX
 directory_on_ftp_server = "Tuebingen_crossref2"
 """
 
-from ftplib import FTP
-import datetime
+from ftp_connection import FTPConnection
 import os
-import re
 import subprocess
 import sys
 import time
 import traceback
 import util
-
-
-# Attempts to upload "local_filename" to an FTP server.
-def UploadFile(ftp, local_filename, remote_filename):
-    try:
-        local_file = open(local_filename, "rb")
-    except Exception as e:
-        util.Error("local open of \"" + local_filename + "\" failed! (" + str(e) + ")")
-    try:
-        ftp.storbinary("STOR " + remote_filename, local_file)
-        local_file.close()
-    except Exception as e:
-        util.Error("File upload failed! (" + str(e) + ")")
 
 
 # Downloads metadata from Crossref.org and writes as MARC-XML to "output_marc_filename:.
@@ -76,12 +61,9 @@ def Main():
     if no_of_records == 0:
         email_msg_body = "No new records.\n\n"
     else:
-        ftp = util.FTPLogin(ftp_host, ftp_user, ftp_passwd)
-        try:
-            ftp.cwd(directory_on_ftp_server)
-        except:
-            util.Error("failed to change directory on the FTP server to \"" + directory_on_ftp_server + "\"!")
-        UploadFile(ftp, marc_filename, GenerateRemoteFilename())
+        ftp = FTPConnection(ftp_host, ftp_user, ftp_passwd)
+        ftp.changeDirectory(directory_on_ftp_server)
+        ftp.uploadFile(marc_filename, GenerateRemoteFilename())
         email_msg_body = "Uploaded " + str(no_of_records) + " MARC records to the BSZ FTP server.\n\n"
     os.unlink(marc_filename)
     util.SendEmail("BSZ Crossref File Upload", email_msg_body, priority=5)
