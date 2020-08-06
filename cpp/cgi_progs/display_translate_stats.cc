@@ -76,7 +76,7 @@ void GenerateStats(DbConnection * const db_connection, const std::vector<std::st
 } // unnamed namespace
 
 
-int Main(int /*argc*/, char *argv[]) {
+int Main(int /*argc*/, char */*argv*/[]) {
     const IniFile ini_file(CONF_FILE_PATH);
     const std::string sql_database(ini_file.getString("Database", "sql_database"));
     const std::string sql_username(ini_file.getString("Database", "sql_username"));

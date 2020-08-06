@@ -76,10 +76,10 @@
 
 
 [[noreturn]] void Usage() {
-    ::Usage(std::string("(--production|--test) --ub-tools-only|--fulltext-backend|(vufind_system_type [--omit-cronjobs] [--omit-systemctl])\n"
-                        "       If there is a difference between a test environment and a production environment --production and --test\n"
-                        "       lets you select between those two configuration types.  If there is no difference, you can select either one.\n"
-                        "       \"vufind_system_type\" must be either \"krimdok\" or \"ixtheo\".\n\n");
+    ::Usage("(--production|--test) --ub-tools-only|--fulltext-backend|(vufind_system_type [--omit-cronjobs] [--omit-systemctl])\n"
+            "       If there is a difference between a test environment and a production environment --production and --test\n"
+            "       lets you select between those two configuration types.  If there is no difference, you can select either one.\n"
+            "       \"vufind_system_type\" must be either \"krimdok\" or \"ixtheo\".\n\n");
 }
 
 
