@@ -30,6 +30,8 @@
 #include <sstream>
 #include <stack>
 #include "Compiler.h"
+#include "DnsUtil.h"
+#include "RegexMatcher.h"
 #include "UrlUtil.h"
 #include "util.h"
 
@@ -723,6 +725,54 @@ std::string UrlEncodeFunc::call(const std::vector<const Value *> &arguments) con
 }
 
 
+class HostnameFunc : public Function {
+public:
+    explicit HostnameFunc()
+        : Function("Hostname", { Function::ArgDesc("scalar-valued variable name") }) { }
+    virtual std::string call(const std::vector<const Value *> &arguments) const final;
+};
+
+
+std::string HostnameFunc::call(const std::vector<const Value *> &arguments) const {
+    if (arguments.size() != 0)
+        throw std::invalid_argument(name_ + " must be called w/o argument!");
+
+    return DnsUtil::GetHostname();
+}
+
+
+class RegexMatchFunc : public Function {
+public:
+    explicit RegexMatchFunc()
+        : Function("RegexMatch", { Function::ArgDesc("scalar-valued PCRE"), Function::ArgDesc("String to be matched") }) { }
+    virtual std::string call(const std::vector<const Value *> &arguments) const final;
+};
+
+
+std::string RegexMatchFunc::call(const std::vector<const Value *> &arguments) const {
+    if (arguments.size() != 2)
+        throw std::invalid_argument(name_ + " must be called w/ precisely two arguments!");
+
+    const ScalarValue *regex(dynamic_cast<const ScalarValue *>(arguments[0]));
+    if (regex == nullptr)
+        throw std::invalid_argument("first argument to " + name_ + " must be a scalar!");
+
+    const ScalarValue *subject(dynamic_cast<const ScalarValue *>(arguments[1]));
+    if (subject == nullptr)
+        throw std::invalid_argument("second argument to " + name_ + " must be a scalar!");
+
+    std::string err_msg;
+    size_t start_pos, end_pos;
+    if (not RegexMatcher::Matched(regex->getValue(), subject->getValue(), /* options */0, &err_msg, &start_pos, &end_pos)) {
+        if (not err_msg.empty())
+            throw std::invalid_argument("possible bad regex \"" + regex->getValue() + "\": " + err_msg);
+        return "";
+    }
+
+    return subject->getValue().substr(start_pos, end_pos - start_pos - 1);
+}
+
+
 } // unnamed namespace
 
 
@@ -734,6 +784,8 @@ void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_
     std::vector<Function *> all_functions(functions);
     all_functions.emplace_back(new LengthFunc());
     all_functions.emplace_back(new UrlEncodeFunc());
+    all_functions.emplace_back(new HostnameFunc());
+    all_functions.emplace_back(new RegexMatchFunc());
 
     TemplateScanner scanner(input, output, all_functions);
     std::vector<Scope> scopes;

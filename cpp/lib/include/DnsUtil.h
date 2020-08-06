@@ -6,7 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
- *  Copyright 2018 Universitätsbibliothek Tübingen
+ *  Copyright 2018-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -94,7 +94,7 @@ bool CachedTimedGetHostByName(const std::string &hostname, const TimeLimit &time
 
 
 /** Returns the current system's hostname. */
-std::string GetHostname();
+std::string GetHostname(const bool fully_qualified = false);
 
 
 /** \brief  This is a caching function that returns an IP address for a URL.

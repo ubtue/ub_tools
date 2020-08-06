@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2019, Library of the University of Tübingen
+    Copyright (C) 2016-2020, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -296,8 +296,6 @@ void Update(const std::multimap<std::string, std::string> &cgi_args, const std::
 
 
 int Main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
     std::multimap<std::string, std::string> cgi_args;
     WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
 

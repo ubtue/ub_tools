@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
- *  Copyright 2017 Universitätsbibliothek Tübingen
+ *  Copyright 2017-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -154,7 +154,7 @@ void GetArgvArgs(const int argc, char * argv[], std::multimap<std::string, std::
 void GetAllCgiArgs(std::multimap<std::string, std::string> * const cgi_args, int argc = 1, char *argv[] = NULL);
 
 
-/** \brief  Excutes a CGI script via POST.
+/** \brief  Executes a CGI script via POST.
  *  \param  username_password    A colon-separated username/password pair.  Currently we only support "Basic"
  *                               authorization!
  *  \param  url                  Nomen est omen.

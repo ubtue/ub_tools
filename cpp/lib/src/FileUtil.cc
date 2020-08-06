@@ -44,7 +44,7 @@
 #include "SocketUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
-#include "TimeLimit.h"
+#include "TimeUtil.h"
 #include "util.h"
 
 
@@ -1422,6 +1422,30 @@ bool ChangeMode(const std::string &path, const mode_t mode) {
 void ChangeModeOrDie(const std::string &path, const mode_t mode) {
     if (not ChangeMode(path, mode))
         LOG_ERROR("failed to set the mode to 0" + StringUtil::ToString(mode, 8) + " for \"" + path + "\"!");
+}
+
+
+bool GetMostRecentlyModifiedFile(const std::string &directory_path, std::string * const filename, timespec * const last_modification_time) {
+    if (not IsDirectory(directory_path))
+        LOG_ERROR("\"" + directory_path + "\" does not exist or is not a directory!");
+
+    Directory directory(directory_path);
+    filename->clear();
+    for (const auto &entry : directory) {
+        if (entry.getType() != DT_REG)
+            continue;
+
+        struct stat statbuf;
+        if (unlikely(::stat(entry.getName().c_str(), &statbuf) != 0))
+            LOG_ERROR("stat(2) on \"" + entry.getName() + "\" failed!");
+
+        if (filename->empty() or statbuf.st_mtim > *last_modification_time) {
+            *filename = GetBasename(entry.getName());
+            *last_modification_time = statbuf.st_mtim;
+        }
+    }
+
+    return not filename->empty();
 }
 
 

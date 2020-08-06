@@ -12,7 +12,7 @@ ENV JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
 # (use curl because it's part of standard centos installation)
 RUN curl https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/scripts/install_ubtools.sh -o /tmp/install_ubtools.sh \
     && chmod 700 /tmp/install_ubtools.sh
-RUN /tmp/install_ubtools.sh krimdok --omit-cronjobs --omit-systemctl
+RUN /tmp/install_ubtools.sh --test krimdok --omit-cronjobs --omit-systemctl
 
 # add local config
 ADD local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/

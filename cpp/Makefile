@@ -46,7 +46,7 @@ regular_install: $(INSTALL_PROGS) Makefile
 data_install: Makefile data/*.conf data/*.map data/*.ttf data/IxTheo_Notation.csv data/stopwords.* \
               data/bibleRef/* data/crossref_downloader/* data/full_text_cache_monitor/* \
               data/translate_chainer/* data/zotero_cgi/* data/marc_check.rules data/language_models/*.lm \
-              data/mime.types
+              data/mime.types data/NewsletterUploadForm.html
 	@echo "Installing data..."
 	cp data/*.conf /usr/local/var/lib/tuelib/
 	cp data/*.map /usr/local/var/lib/tuelib/
@@ -66,6 +66,8 @@ data_install: Makefile data/*.conf data/*.map data/*.ttf data/IxTheo_Notation.cs
 	if [ -d $(INCROND_DIR) ]; then \
 		cp data/pipeline_script_triggers $(INCROND_DIR); \
 	fi
+	@echo "Installing newsletter HTML form"
+	cp data/NewsletterUploadForm.html /usr/local/vufind/public/
 
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
