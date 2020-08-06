@@ -1,12 +1,10 @@
 # Python 3 module
 # -*- coding: utf-8 -*-
-
 from ftplib import FTP
 import os
 
 
 class FTPConnection:
-
     _host = ""
     _username = ""
     _password = ""
@@ -44,11 +42,10 @@ class FTPConnection:
             Error(error_message + " (" + str(e) + ")")
 
     def listDirectory(self):
-        error_message = "failed to list directory"
         try:
             return self._ftp.nlst()
         except Exception as e:
-            Error(error_message + " (" + str(e) + ")")
+            Error("failed to list directory (" + str(e) + ")")
 
     def downloadFile(self, remote_file_name, local_file_path):
         try:
@@ -77,6 +74,7 @@ class FTPConnection:
                     Error(error_message)
         except Exception as e:
             Error(error_message + " (" + str(e) + ")")
+
 
     def renameFile(self, remote_file_name_old, remote_file_name_new):
         error_message = "failed to rename file " + remote_file_name_old + " to " + remote_file_name_new

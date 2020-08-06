@@ -4,7 +4,6 @@
 # A tool to upload files to the BSZ FTP server.
 # In earlier times we had a bash script for this which was using the "ftp" command,
 # but due to problems with error handling granularity we switched to python.
-
 import bsz_util
 import os
 import sys
