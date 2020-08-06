@@ -17,7 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <cstdlib>
-#include "File.h"
+#include "FileUtil.h"
 #include "TextUtil.h"
 #include "VuFind.h"
 #include "util.h"
@@ -31,12 +31,12 @@ int Main(int argc, char **argv) {
     db_connection->queryOrDie("SELECT * FROM tuefind_redirect");
     auto result_set(db_connection->getLastResultSet());
 
-    File csv_file(argv[1], "w", File::ThrowOnOpenBehaviour::THROW_ON_ERROR);
-    csv_file.write("url;group;timestamp\n");
-    while (const auto &db_row = result_set.getNextRow()) {
-        csv_file.write(TextUtil::CSVEscape(db_row["url"]) + ";");
-        csv_file.write(TextUtil::CSVEscape(db_row["group_name"]) + ";");
-        csv_file.write(TextUtil::CSVEscape(db_row["timestamp"]) + "\n");
+    const auto csv_file(FileUtil::OpenOutputFileOrDie(argv[1]));
+    csv_file->write("url;group;timestamp\n");
+    while (const auto db_row = result_set.getNextRow()) {
+        csv_file->write(TextUtil::CSVEscape(db_row["url"]) + ";");
+        csv_file->write(TextUtil::CSVEscape(db_row["group_name"]) + ";");
+        csv_file->write(TextUtil::CSVEscape(db_row["timestamp"]) + "\n");
     }
 
     return EXIT_SUCCESS;
