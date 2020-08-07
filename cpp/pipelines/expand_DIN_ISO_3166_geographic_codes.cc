@@ -98,9 +98,11 @@ void GenerateExpandedGeographicCodes(MARC::Reader * const reader, MARC::Writer *
         if (unlikely(codes_and_keyword_chain == codes_to_keyword_chains_map.cend()))
             LOG_WARNING("record w/ PPN " + record.getControlNumber() + " contains missing code \""
                         + codes + "\" in 044$c!");
+        else {
+            record.insertField("GEO", 'a', codes_and_keyword_chain->second);
+            ++conversion_count;
+        }
 
-        record.insertField("GEO", 'a', codes_and_keyword_chain->second);
-        ++conversion_count;
         writer->write(record);
     }
 
