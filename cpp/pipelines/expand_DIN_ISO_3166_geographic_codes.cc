@@ -51,11 +51,12 @@ void InitialiseCodesToKeywordChainsMap(std::unordered_map<std::string, std::stri
 
         codes_to_keywords_map[codes] = StringUtil::Map(&keyword, KEYWORD_SEPARATOR, ';'); // The mapping is probably unnecessary.
     }
+    LOG_INFO("Extracted " + std::to_string(codes_to_keywords_map.size()) + " mappings from \"" + MAP_FILENAME + "\".");
 
     unsigned level(0);
     while (codes_to_keyword_chains_map->size() < codes_to_keywords_map.size()) {
         for (const auto &[codes, keyword] : codes_to_keywords_map) {
-            if (StringUtil::CharCount(keyword, '-') != level)
+            if (StringUtil::CharCount(codes, '-') != level)
                 continue;
 
             if (level == 0)
@@ -65,7 +66,7 @@ void InitialiseCodesToKeywordChainsMap(std::unordered_map<std::string, std::stri
                 const auto code_prefix(codes.substr(0, LAST_DASH_POS));
                 const auto code_and_keyword_prefix(codes_to_keyword_chains_map->find(code_prefix));
                 if (unlikely(code_and_keyword_prefix == codes_to_keyword_chains_map->end()))
-                    LOG_ERROR("code prefix \"" + code_prefix + "\" is missing!");
+                    LOG_ERROR("code prefix \"" + code_prefix + "\" needed for \"" + codes + "\" is missing!");
                 (*codes_to_keyword_chains_map)[codes] = code_and_keyword_prefix->second + std::string(1, KEYWORD_SEPARATOR) + keyword;
             }
         }
@@ -95,8 +96,8 @@ void GenerateExpandedGeographicCodes(MARC::Reader * const reader, MARC::Writer *
 
         const auto codes_and_keyword_chain(codes_to_keyword_chains_map.find(codes));
         if (unlikely(codes_and_keyword_chain == codes_to_keyword_chains_map.cend()))
-            LOG_ERROR("record w/ PPN " + record.getControlNumber() + " contains missing code \""
-                      + codes + "\" in 044$c!");
+            LOG_WARNING("record w/ PPN " + record.getControlNumber() + " contains missing code \""
+                        + codes + "\" in 044$c!");
 
         record.insertField("GEO", 'a', codes_and_keyword_chain->second);
         ++conversion_count;
