@@ -72,7 +72,7 @@ Costa Rica|XD-CR
 Curaçao|XD-CW
 Dänemark|XA-DK
 Dahome|XC-DYBJ
-Deutschland (s.a. einzelne Bundesländer)|XA-DE
+Deutschland|XA-DE
 Deutschland <DDR>|XA-DDDE
 Deutschland, Deutsches Reich|XA-DXDE
 Dominica|XD-DM
@@ -221,7 +221,7 @@ Norfolk-Insel|XE-NF
 Norwegen|XA-NO
 Oberösterreich|XA-AT-4
 Obwalden|XA-CH-OW
-Österreich (s.a. die einzelnen Bundesländer!)|XA-AT
+Österreich)|XA-AT
 Österreich (-12.11.1918)|XA-AAAT
 Oman|XB-OM
 Osmanisches Reich|XV
@@ -270,7 +270,7 @@ Saudi-Arabien|XB-SA
 Schaffhausen <Kanton>|XA-CH-SH
 Schleswig-Holstein|XA-DE-SH
 Schweden|XA-SE
-Schweiz (s.a. die einzelnen Kantone!)|XA-CH
+Schweiz|XA-CH
 Schwyz <Kanton>|XA-CH-SZ
 Senegal|XC-SN
 Serbien|XA-RS
