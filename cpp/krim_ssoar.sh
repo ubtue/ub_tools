@@ -34,6 +34,6 @@ rewrite_ssoar $augmented_file $rewritten_file
 
 
 #echo "Uploading to the BSZ File Server"
-#upload_to_bsz_ftp_server.sh "$rewritten_file" "/pub/UBTuebingen_Import_Test/krimdok_Test"
+#upload_to_bsz_ftp_server.py "$rewritten_file" "/pub/UBTuebingen_Import_Test/krimdok_Test"
 
 echo '*** DONE ***'
