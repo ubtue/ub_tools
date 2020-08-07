@@ -176,7 +176,7 @@ counter=0
 file_count=${#source_filepaths[@]}
 
 while [ "$counter" -lt "$file_count" ]; do
-    upload_to_bsz_ftp_server.sh ${source_filepaths[counter]} \
+    upload_to_bsz_ftp_server.py ${source_filepaths[counter]} \
                                 ${dest_filepaths[counter]} >> "${log}" 2>&1
     if [[ -d "${dest_filepaths_local[$counter]}" ]]; then
         cp "${source_filepaths[counter]}" "${dest_filepaths_local[$counter]}" >> "${log}" 2>&1
