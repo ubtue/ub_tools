@@ -120,6 +120,14 @@ MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
+StartPhase 'Convert 044$s Geographic Codes to Keyword Chains in GEO'
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+(expand_DIN_ISO_3166_geographic_codes GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                      GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
+    >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Add Additional Open Access URL's"
 OADOI_URLS_FILE="/mnt/ZE020150/FID-Entwicklung/oadoi/oadoi_urls_krimdok.json"
 (add_oa_urls ${OADOI_URLS_FILE} GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
