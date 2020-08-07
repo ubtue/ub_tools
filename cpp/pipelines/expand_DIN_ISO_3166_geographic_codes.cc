@@ -1,7 +1,7 @@
 /** \file    expand_DIN_ISO_3166_geographic_codes.cc
  *  \author  Dr Johannes Ruscheinski
  *
- *  Converts codes stores in MARC field 044 and generates geographic fully-spelled-out
+ *  Converts codes stored in MARC field 044 and generates geographic fully-spelled-out
  *  keyword chains in MARC field GEO
  */
 
@@ -61,8 +61,8 @@ void InitialiseCodesToKeywordChainsMap(std::unordered_map<std::string, std::stri
             if (level == 0)
                 (*codes_to_keyword_chains_map)[codes] = keyword;
             else {
-                const auto LAST_DASH_POS(keyword.rfind('-'));
-                const auto code_prefix(keyword.substr(0, LAST_DASH_POS));
+                const auto LAST_DASH_POS(codes.rfind('-'));
+                const auto code_prefix(codes.substr(0, LAST_DASH_POS));
                 const auto code_and_keyword_prefix(codes_to_keyword_chains_map->find(code_prefix));
                 if (unlikely(code_and_keyword_prefix == codes_to_keyword_chains_map->end()))
                     LOG_ERROR("code prefix \"" + code_prefix + "\" is missing!");
@@ -95,11 +95,12 @@ void GenerateExpandedGeographicCodes(MARC::Reader * const reader, MARC::Writer *
 
         const auto codes_and_keyword_chain(codes_to_keyword_chains_map.find(codes));
         if (unlikely(codes_and_keyword_chain == codes_to_keyword_chains_map.cend()))
-            LOG_ERROR("record w/ PPN " + record.getControlNumber() + " contains muissing code \""
+            LOG_ERROR("record w/ PPN " + record.getControlNumber() + " contains missing code \""
                       + codes + "\" in 044$c!");
 
         record.insertField("GEO", 'a', codes_and_keyword_chain->second);
         ++conversion_count;
+        writer->write(record);
     }
 
     LOG_INFO("Processed " + std::to_string(total_count) + " record(s) and converted "
