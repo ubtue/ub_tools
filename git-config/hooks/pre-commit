@@ -14,4 +14,8 @@ for forbidden_host in "${forbidden_hosts[@]}"; do
 done
 
 
+# python syntax check
+pyflakes /usr/local/ub_tools/cronjobs
+
+
 exit 0
