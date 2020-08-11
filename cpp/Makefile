@@ -66,8 +66,10 @@ data_install: Makefile data/*.conf data/*.map data/*.ttf data/IxTheo_Notation.cs
 	if [ -d $(INCROND_DIR) ]; then \
 		cp data/pipeline_script_triggers $(INCROND_DIR); \
 	fi
-	@echo "Installing newsletter HTML form"
-	cp data/NewsletterUploadForm.html /usr/local/vufind/public/
+	if [ -d /usr/local/vufind/public/ ]; then \
+	   @echo "Installing newsletter HTML form"
+	   cp data/NewsletterUploadForm.html /usr/local/vufind/public/; \
+	fi
 	cp data/DIN_ISO_3166_geographic_codes_in_German /usr/local/var/lib/tuelib/
 
 local_clean:
