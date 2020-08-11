@@ -221,7 +221,7 @@ bool BszSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit
     const std::string doc_url(url.substr(0, url.size() - 3) + "pdf");
     if (trace_)
         LOG_INFO("about to download \"" + doc_url + "\".");
-    return DownloadHelper(url, time_limit, document, http_header_charset, error_message);
+    return DownloadHelper(doc_url, time_limit, document, http_header_charset, error_message);
 }
 
 
