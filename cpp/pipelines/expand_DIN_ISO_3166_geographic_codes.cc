@@ -33,11 +33,13 @@
 namespace {
 
 
+constexpr char KEYWORD_SEPARATOR('/');
+
+
 void InitialiseCodesToKeywordChainsMap(std::unordered_map<std::string, std::string> * const codes_to_keyword_chains_map) {
     const auto MAP_FILENAME(UBTools::GetTuelibPath() + "DIN_ISO_3166_geographic_codes_in_German");
     std::unordered_map<std::string, std::string> codes_to_keywords_map;
     unsigned line_no(0);
-    constexpr char KEYWORD_SEPARATOR('/');
     for (auto line : FileUtil::ReadLines(MAP_FILENAME)) {
         ++line_no;
         if (unlikely(line.empty()))
@@ -75,8 +77,88 @@ void InitialiseCodesToKeywordChainsMap(std::unordered_map<std::string, std::stri
 }
 
 
+std::string ExtractSubfield(const std::string &line, const size_t subfield_contents_start_pos) {
+    const auto next_dollar_pos(line.find('$', subfield_contents_start_pos));
+    if (next_dollar_pos == std::string::npos)
+        return line.substr(subfield_contents_start_pos);
+    return line.substr(subfield_contents_start_pos, next_dollar_pos - subfield_contents_start_pos);
+}
+
+
+constexpr char MARC_SUBFIELD_SEPARATOR('\x1F');
+
+
+void InitialiseLocationTo689ContentsMap(std::unordered_map<std::string, std::string> * const locations_to_689_contents_map) {
+    const auto FIELD_CONTENTS_FILENAME(UBTools::GetTuelibPath() + "geographic_689_field_contents");
+
+    unsigned line_no(0);
+    for (auto line : FileUtil::ReadLines(FIELD_CONTENTS_FILENAME)) {
+        ++line_no;
+        if (unlikely(line.empty()))
+            continue;
+
+        // Primary location
+        const auto dollar_a_pos(line.find("$a"));
+        if (unlikely(dollar_a_pos == std::string::npos))
+            continue;
+        std::string location(ExtractSubfield(line, dollar_a_pos + 2));
+        if (unlikely(location == "Deutsches Reich"))
+            location = "Deutschland <Deutsches Reich>";
+        else if (unlikely(location == "Trentino-Südtirol"))
+            location = "Italien (Südtirol-Trentino s.dort)";
+        else if (unlikely(StringUtil::StartsWith(location, "Kanton ")))
+            location = location.substr(__builtin_strlen("Kanton ")) + " <Kanton>";
+        else {
+            // Optional secondary location
+            const auto dollar_g_pos(line.find("$g", dollar_a_pos + 2));
+            if (dollar_g_pos != std::string::npos)
+                location += " <" + ExtractSubfield(line, dollar_g_pos + 2) + ">";
+        }
+
+        if (unlikely(location == "Südafrika"))
+            location = "Südafrika <Staat>";
+        else if (unlikely(location == "Österreich"))
+            (*locations_to_689_contents_map)["Österreich (-12.11.1918)"] = StringUtil::Map(&line, '$', MARC_SUBFIELD_SEPARATOR);
+        else if (unlikely(location == "Föderative Republik Jugoslawien"))
+            location = "Jugoslawien <Föderative Republik> <Jugoslawien>";
+        else if (unlikely(location == "El Salvador"))
+            location = "ElSalvador";
+        else if (unlikely(location == "Demokratische Republik Kongo"))
+            location = "Kongo <Republik>";
+
+        (*locations_to_689_contents_map)[location] = StringUtil::Map(&line, '$', MARC_SUBFIELD_SEPARATOR);
+    }
+
+    LOG_INFO("Loaded " + std::to_string(locations_to_689_contents_map->size()) + " mappings from location names to 689 field contents.");
+}
+
+
+// Given "Europa/Deutschland/Baden-Württemberg" this would return "Baden-Württemberg".
+std::string GetMostSpecificGeographicLocation(const std::string &geo_keyword_chain) {
+    const auto last_keyword_separator_pos(geo_keyword_chain.rfind(KEYWORD_SEPARATOR));
+    if (last_keyword_separator_pos == std::string::npos) // Not a chain, but an individual keyword!
+        return geo_keyword_chain;
+    return geo_keyword_chain.substr(last_keyword_separator_pos + 1);
+}
+
+
+std::string &NormaliseLocation(std::string * const location) {
+    const auto comma_space_pos(location->find(", "));
+    if (comma_space_pos != std::string::npos) {
+        const auto auxillary_location(location->substr(comma_space_pos + 2));
+        location->resize(comma_space_pos);
+        *location += " <";
+        *location += auxillary_location;
+        *location += '>';
+    }
+
+    return *location;
+}
+
+
 void GenerateExpandedGeographicCodes(MARC::Reader * const reader, MARC::Writer * writer,
-                                     const std::unordered_map<std::string, std::string> &codes_to_keyword_chains_map)
+                                     const std::unordered_map<std::string, std::string> &codes_to_keyword_chains_map,
+                                     const std::unordered_map<std::string, std::string> &locations_to_689_contents_map)
 {
     unsigned total_count(0), conversion_count(0);
     while (auto record = reader->read()) {
@@ -99,6 +181,14 @@ void GenerateExpandedGeographicCodes(MARC::Reader * const reader, MARC::Writer *
             LOG_WARNING("record w/ PPN " + record.getControlNumber() + " contains missing code \""
                         + codes + "\" in 044$c!");
         else {
+            auto most_specific_location(GetMostSpecificGeographicLocation(codes_and_keyword_chain->second));
+            NormaliseLocation(&most_specific_location);
+            const auto most_specific_location_and_689_contents(locations_to_689_contents_map.find(most_specific_location));
+            if (unlikely(most_specific_location_and_689_contents == locations_to_689_contents_map.cend()))
+                LOG_WARNING("did not find \"" + most_specific_location + "\" in the locations to 689-contents map!");
+            else
+                record.insertField("689", most_specific_location_and_689_contents->second);
+
             record.insertField("GEO", 'a', codes_and_keyword_chain->second);
             ++conversion_count;
         }
@@ -121,9 +211,13 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, std::string> codes_to_keyword_chains_map;
     InitialiseCodesToKeywordChainsMap(&codes_to_keyword_chains_map);
 
+    std::unordered_map<std::string, std::string> locations_to_689_contents_map;
+    InitialiseLocationTo689ContentsMap(&locations_to_689_contents_map);
+
     const auto marc_reader(MARC::Reader::Factory(argv[1]));
     const auto marc_writer(MARC::Writer::Factory(argv[2]));
-    GenerateExpandedGeographicCodes(marc_reader.get(), marc_writer.get(), codes_to_keyword_chains_map);
+    GenerateExpandedGeographicCodes(marc_reader.get(), marc_writer.get(), codes_to_keyword_chains_map,
+                                    locations_to_689_contents_map);
 
     return EXIT_SUCCESS;
 }
