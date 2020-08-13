@@ -2,11 +2,7 @@
 # -*- coding: utf-8 -*-
 import urllib.parse
 import github_api_util
-
-
-UNTESTED_LABEL = "Untested"
-NO_OPEN_ISSUE_LABEL = "No Open Issues"
-HAS_ISSUE_LABEL = "Has Issue"
+import github_ubtue_util
 
 
 def ExtractOpenAndClosedWithoutOpenISSNs(issues):
@@ -25,38 +21,19 @@ def ExtractOpenAndClosedWithoutOpenISSNs(issues):
     return open_issues_issns, closed_without_open_issues_issns
 
 
-def AdjustZoteroStatusLabels(issue, labels_to_add, labels_to_remove):
-    current_labels = issue['labels']
-    new_labels = []
-    for label in current_labels:
-        if not label['name'] in labels_to_remove:
-            new_labels.append(label['name'])
-    for label_to_add in labels_to_add:
-        new_labels.append(label_to_add)
-    return new_labels
-
-
-def LabelsAreIdentical(issue, new_labels):
-    current_labels = issue['labels']
-    old_labels = []
-    for label in current_labels:
-        old_labels.append(label['name'])
-    return set(old_labels) == set(new_labels)
-
-
 def UpdateZoteroJournalStatus(issue, labels_to_add, issn):
     if len(labels_to_add) == 0:
         return
 
     encoded_issn = urllib.parse.quote(issn)
-    if HAS_ISSUE_LABEL in labels_to_add:
-        new_labels = AdjustZoteroStatusLabels(issue, labels_to_add, [ UNTESTED_LABEL, NO_OPEN_ISSUE_LABEL ]);
+    if github_ubtue_util.HAS_ISSUE_LABEL in labels_to_add:
+        new_labels = github_ubtue_util.AdjustZoteroStatusLabels(issue, labels_to_add, [ github_ubtue_util.UNTESTED_LABEL, github_ubtue_util.NO_OPEN_ISSUE_LABEL ]);
         data = { "labels" : new_labels, "body" : "[Open issues](https://github.com/ubtue/DatenProbleme/issues?q=is%3Aissue+is%3Aopen+" \
                                                    + encoded_issn + "+in%3Atitle+) " + \
                                                  "[All Issues](https://github.com/ubtue/DatenProbleme/issues?q=is%3Aissue+" \
                                                    + encoded_issn + "+in%3Atitle+)" }
-    elif NO_OPEN_ISSUE_LABEL in labels_to_add:
-        new_labels = AdjustZoteroStatusLabels(issue, labels_to_add, [ UNTESTED_LABEL, HAS_ISSUE_LABEL ]);
+    elif github_ubtue_util.NO_OPEN_ISSUE_LABEL in labels_to_add:
+        new_labels = github_ubtue_util.AdjustZoteroStatusLabels(issue, labels_to_add, [ github_ubtue_util.UNTESTED_LABEL, github_ubtue_util.HAS_ISSUE_LABEL ]);
         data = { "labels" : new_labels, "body" : "[Closed issues](https://github.com/ubtue/DatenProbleme/issues?q=is%3Aissue+is%3Aclosed+" \
                                                    + encoded_issn + "+in%3Atitle+)" }
     else:
@@ -76,9 +53,9 @@ def TagZoteroJournalStatusFromDatenProbleme():
         if len(issns):
             for issn in issns:
                 if issn in datenprobleme_open_issns:
-                    UpdateZoteroJournalStatus(issue, [ HAS_ISSUE_LABEL ], issn)
+                    UpdateZoteroJournalStatus(issue, [ github_ubtue_util.HAS_ISSUE_LABEL ], issn)
                 elif issn in datenprobleme_closed_without_open_issues_issns:
-                    UpdateZoteroJournalStatus(issue, [ NO_OPEN_ISSUE_LABEL ], issn)
+                    UpdateZoteroJournalStatus(issue, [ github_ubtue_util.NO_OPEN_ISSUE_LABEL ], issn)
 
 
 def Main():
