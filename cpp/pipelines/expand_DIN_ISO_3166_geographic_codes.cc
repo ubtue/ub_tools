@@ -156,11 +156,37 @@ std::string &NormaliseLocation(std::string * const location) {
 }
 
 
+std::string ExtractGeoKeyword(const MARC::Record::Field &_689_field) {
+    if (_689_field.getFirstSubfieldWithCode('D') != "g")
+        return "";
+
+    std::string geo_keyword(_689_field.getFirstSubfieldWithCode('a'));
+    const auto subfield_g_contents(_689_field.getFirstSubfieldWithCode('g'));
+    if (subfield_g_contents.empty())
+        return geo_keyword;
+    return geo_keyword + " <" + subfield_g_contents + ">";
+}
+
+
+// Returns true if we added "new_689_contents" in a new 689 field, else false.
+bool Add689GeographicKeywordIfMissing(MARC::Record * const record, const std::string &new_689_contents) {
+    const MARC::Record::Field new_689_field(MARC::Tag("689"), new_689_contents);
+    const std::string new_geo_keyword(ExtractGeoKeyword(new_689_field));
+    for (const auto &_689_field : record->getTagRange("689")) {
+        if (ExtractGeoKeyword(_689_field) == new_geo_keyword)
+            return false; // New geographic keyword is not needed because we already have it!
+    }
+
+    record->insertField(new_689_field);
+    return true;
+}
+
+
 void GenerateExpandedGeographicCodes(MARC::Reader * const reader, MARC::Writer * writer,
                                      const std::unordered_map<std::string, std::string> &codes_to_keyword_chains_map,
                                      const std::unordered_map<std::string, std::string> &locations_to_689_contents_map)
 {
-    unsigned total_count(0), conversion_count(0);
+    unsigned total_count(0), conversion_count(0), _689_addition_count(0);
     while (auto record = reader->read()) {
         ++total_count;
 
@@ -186,8 +212,8 @@ void GenerateExpandedGeographicCodes(MARC::Reader * const reader, MARC::Writer *
             const auto most_specific_location_and_689_contents(locations_to_689_contents_map.find(most_specific_location));
             if (unlikely(most_specific_location_and_689_contents == locations_to_689_contents_map.cend()))
                 LOG_WARNING("did not find \"" + most_specific_location + "\" in the locations to 689-contents map!");
-            else
-                record.insertField("689", most_specific_location_and_689_contents->second);
+            else if (Add689GeographicKeywordIfMissing(&record, most_specific_location_and_689_contents->second))
+                ++_689_addition_count;
 
             record.insertField("GEO", 'a', codes_and_keyword_chain->second);
             ++conversion_count;
@@ -196,8 +222,9 @@ void GenerateExpandedGeographicCodes(MARC::Reader * const reader, MARC::Writer *
         writer->write(record);
     }
 
-    LOG_INFO("Processed " + std::to_string(total_count) + " record(s) and converted "
-             + std::to_string(conversion_count) + " codes to keyword chains.");
+    LOG_INFO("Processed " + std::to_string(total_count) + " record(s), converted "
+             + std::to_string(conversion_count) + " code(s) to keyword chains and added "
+             + std::to_string(_689_addition_count) + " new 689 normalised keyword(s).");
 }
 
 
