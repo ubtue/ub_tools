@@ -139,12 +139,14 @@ target_filename_unmerged=${target_filename/-merged/}
 
 
 if [ -z ${temp_directory} ]; then # We did not execute the for-loop above!
+    echo 'for-loop has not been executed!'
     if [[ ! -f $target_filename ]]; then
         cp $input_filename $target_filename_unmerged
         CreateArchiveWithMergedTitles $input_filename $target_filename $extraction_directory
     fi
     ln --symbolic --force $target_filename Complete-MARC-current.tar.gz
 else
+    echo 'for-loop has been executed!'
     rm --recursive "$extraction_directory"
     cd ${temp_directory}
     tar czf ../$target_filename_unmerged *mrc
@@ -152,10 +154,13 @@ else
     mv tit_merged.mrc tit.mrc
     tar czf ../$target_filename *mrc
     cd ..
-    rm --recursive ${temp_directory}
 
     if [[ ! keep_itermediate_filenames ]]; then
-        rm temp_directory.$BASHPID.* TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
+        echo 'cleaning up all working files'
+        rm --recursive temp_directory.$BASHPID.* TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
+    else
+        echo 'removing last working directory only'
+        rm --recursive ${temp_directory}
     fi
 
     # Create symlink to newest complete dump:
