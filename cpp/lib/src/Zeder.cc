@@ -198,8 +198,8 @@ FileType GetFileTypeFromPath(const std::string &path, bool check_if_file_exists)
 
 
 const std::map<Importer::MandatoryField, std::string> Importer::MANDATORY_FIELD_TO_STRING_MAP {
-    { Importer::MandatoryField::Z,        "Z"      },
-    { Importer::MandatoryField::MTIME,    "Mtime"  }
+    { Importer::MandatoryField::Z,     "Z"     },
+    { Importer::MandatoryField::MTIME, "Mtime" }
 };
 
 
@@ -437,8 +437,8 @@ std::unique_ptr<EndpointDownloader> EndpointDownloader::Factory(Type downloader_
 FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::unordered_set<unsigned> &entries_to_download,
                                    const std::unordered_set<std::string> &columns_to_download,
                                    const std::unordered_map<std::string, std::string> &filter_regexps)
-                                   : EndpointDownloader::Params(endpoint_path), entries_to_download_(entries_to_download),
-                                     columns_to_download_(columns_to_download)
+    : EndpointDownloader::Params(endpoint_path), entries_to_download_(entries_to_download),
+      columns_to_download_(columns_to_download)
 {
     for (const auto &filter_pair : filter_regexps) {
         std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(filter_pair.second));
@@ -451,7 +451,7 @@ bool FullDumpDownloader::downloadData(const std::string &endpoint_url, std::shar
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = "ub_tools/zeder_importer";
 
-    const TimeLimit time_limit(10000U);
+    const TimeLimit time_limit(20000U);
     Downloader downloader(endpoint_url, downloader_params, time_limit);
 
     if (downloader.anErrorOccurred()) {
