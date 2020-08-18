@@ -194,12 +194,12 @@ int Main(int argc, char *argv[]) {
                 "\twhere \"system_type\" must be one of ixtheo|krimdok");
 
     std::string system_type;
-    if (__builtin_strcmp("ixtheo", argv[1]))
+    if (__builtin_strcmp("ixtheo", argv[1]) == 0)
         system_type = "ixtheo";
-    else if (__builtin_strcmp("krimdok", argv[1]))
+    else if (__builtin_strcmp("krimdok", argv[1]) == 0)
         system_type = "krimdok";
     else
-        LOG_ERROR("system_type must be one of ixtheo|krimdok|relbib!");
+        LOG_ERROR("system_type must be one of ixtheo|krimdok!");
 
     const auto ppns_to_zeder_ids_and_types_map(GetPPNsToZederIdsAndTypesMap(system_type));
 
