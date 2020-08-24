@@ -22,11 +22,15 @@
 #include "BSZUtil.h"
 #include <map>
 #include <memory>
+#include <mutex>
+#include <thread>
 #include "Archive.h"
+#include "Downloader.h"
 #include "FileUtil.h"
-#include "StringUtil.h"
-#include "util.h"
 #include "RegexMatcher.h"
+#include "StringUtil.h"
+#include "UrlUtil.h"
+#include "util.h"
 
 
 namespace BSZUtil {
@@ -135,6 +139,38 @@ ArchiveType GetArchiveType(const std::string &member_name) {
     default:
         LOG_ERROR("Unknown type character '" + std::string(1, type_char) + "'!");
     }
+}
+
+
+std::string GetAuthorGNDNumber(const std::string &author, const std::string &author_lookup_base_url) {
+    // thread-safe, since it is used in zotero harvester
+    static std::mutex fetch_author_gnd_url_to_gnd_cache_mutex;
+    static std::unordered_map<std::string, std::string> fetch_author_gnd_url_to_gnd_cache;
+    static const ThreadSafeRegexMatcher AUTHOR_GND_MATCHER("<div>\\s*GND-Nummer:[^<]*</div>.*?<div>([0-9X]+)");
+
+    // "author" must be in the lastname,firstname format
+    const std::string lookup_url(author_lookup_base_url + UrlUtil::UrlEncode(author));
+    {
+        std::lock_guard<std::mutex> lock(fetch_author_gnd_url_to_gnd_cache_mutex);
+        const auto match(fetch_author_gnd_url_to_gnd_cache.find(lookup_url));
+        if (match != fetch_author_gnd_url_to_gnd_cache.end())
+            return match->second;
+    }
+
+    Downloader downloader(lookup_url);
+    if (downloader.anErrorOccurred()) {
+        LOG_WARNING("couldn't download author GND results! downloader error: " + downloader.getLastErrorMessage());
+        return "";
+    }
+
+    const auto match(AUTHOR_GND_MATCHER.match(downloader.getMessageBody()));
+    if (match) {
+         std::lock_guard<std::mutex> lock(fetch_author_gnd_url_to_gnd_cache_mutex);
+         fetch_author_gnd_url_to_gnd_cache.emplace(lookup_url, match[1]);
+         return match[1];
+    }
+
+    return "";
 }
 
 
