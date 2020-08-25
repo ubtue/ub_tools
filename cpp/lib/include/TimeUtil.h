@@ -8,7 +8,7 @@
 /*
  *  Copyright 2003-2008 Project iVia.
  *  Copyright 2003-2008 The Regents of The University of California.
- *  Copyright 2018-2029 Universitätsbibliothek Tübingen
+ *  Copyright 2018-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
