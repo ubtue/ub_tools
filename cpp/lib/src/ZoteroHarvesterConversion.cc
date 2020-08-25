@@ -17,6 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "BSZUtil.h"
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "HtmlUtil.h"
@@ -305,40 +306,6 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
 }
 
 
-std::unordered_map<std::string, std::string> fetch_author_gnd_url_to_gnd_cache;
-std::mutex fetch_author_gnd_url_to_gnd_cache_mutex;
-
-
-const ThreadSafeRegexMatcher AUTHOR_GND_MATCHER("<SMALL>GND-Nummer</SMALL>.*?<div><SMALL>([0-9X]+)");
-
-
-std::string GetAuthorGNDNumber(const std::string &author, const std::string &author_lookup_base_url) {
-    // "author" must be in the lastname,firstname format
-    const std::string lookup_url(author_lookup_base_url + UrlUtil::UrlEncode(author));
-    {
-        std::lock_guard<std::mutex> lock(fetch_author_gnd_url_to_gnd_cache_mutex);
-        const auto match(fetch_author_gnd_url_to_gnd_cache.find(lookup_url));
-        if (match != fetch_author_gnd_url_to_gnd_cache.end())
-            return match->second;
-    }
-
-    Downloader downloader(lookup_url);
-    if (downloader.anErrorOccurred()) {
-        LOG_WARNING("couldn't download author GND results! downloader error: " + downloader.getLastErrorMessage());
-        return "";
-    }
-
-    const auto match(AUTHOR_GND_MATCHER.match(downloader.getMessageBody()));
-    if (match) {
-         std::lock_guard<std::mutex> lock(fetch_author_gnd_url_to_gnd_cache_mutex);
-         fetch_author_gnd_url_to_gnd_cache.emplace(lookup_url, match[1]);
-         return match[1];
-    }
-
-    return "";
-}
-
-
 void SplitIntoFirstAndLastAuthorNames(const std::string &author, std::string * const first_name, std::string * const last_name) {
     const auto normalised_author(TextUtil::CollapseAndTrimWhitespace(author));
     const auto name_separator(normalised_author.rfind(' '));
@@ -601,7 +568,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
             if (not creator.first_name_.empty())
                 combined_name += ", " + creator.first_name_;
 
-            creator.gnd_number_ = HtmlUtil::StripHtmlTags(GetAuthorGNDNumber(combined_name, group_params.author_swb_lookup_url_));
+            creator.gnd_number_ = HtmlUtil::StripHtmlTags(BSZUtil::GetAuthorGNDNumber(combined_name, group_params.author_swb_lookup_url_));
             if (not creator.gnd_number_.empty())
                 LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + " (SWB lookup)");
             else {
