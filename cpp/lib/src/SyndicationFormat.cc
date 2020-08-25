@@ -216,7 +216,8 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
             } else {
                 struct tm parsed_date;
                 if (not TimeUtil::StringToStructTm(&parsed_date, pub_date_string, augment_params_.strptime_format_))
-                    last_build_date_ = TimeUtil::TimeGm(parsed_date);
+                    LOG_ERROR("failed to parse \"" + pub_date_string + "\" with the given strptime_format \"" + augment_params_.strptime_format_ + "\"");
+                last_build_date_ = TimeUtil::TimeGm(parsed_date);
             }
         }
     }
@@ -244,7 +245,8 @@ RSS091::RSS091(const std::string &xml_document, const AugmentParams &augment_par
             } else {
                 struct tm parsed_date;
                 if (not TimeUtil::StringToStructTm(&parsed_date, last_build_date, augment_params_.strptime_format_))
-                    last_build_date_ = TimeUtil::TimeGm(parsed_date);
+                    LOG_ERROR("failed to parse \"" + last_build_date + "\" with the given strptime_format \"" + augment_params_.strptime_format_ + "\"");
+                last_build_date_ = TimeUtil::TimeGm(parsed_date);
             }
         }
     }
@@ -293,6 +295,10 @@ Atom::Atom(const std::string &xml_document, const AugmentParams &augment_params)
                     LOG_ERROR("failed to parse \"" + last_build_date + "\" as an RFC3339 datetime!");
             } else
                 last_build_date_ = TimeUtil::TimeGm(TimeUtil::StringToStructTm(last_build_date, augment_params_.strptime_format_));
+                struct tm parsed_date;
+                if (not TimeUtil::StringToStructTm(&parsed_date, last_build_date, augment_params_.strptime_format_))
+                    LOG_ERROR("failed to parse \"" + last_build_date + "\" with the given strptime_format \"" + augment_params_.strptime_format_ + "\"");
+                last_build_date_ = TimeUtil::TimeGm(parsed_date);
         }
     }
 }
@@ -323,7 +329,8 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
             } else {
                 struct tm parsed_date;
                 if (not TimeUtil::StringToStructTm(&parsed_date, updated_string, augment_params_.strptime_format_))
-                    updated = TimeUtil::TimeGm(parsed_date);
+                    LOG_ERROR("failed to parse \"" + updated_string + "\" with the given strptime_format \"" + augment_params_.strptime_format_ + "\"");
+                updated = TimeUtil::TimeGm(parsed_date);
             }
         }
     }
@@ -461,7 +468,8 @@ std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
                 } else {
                     struct tm parsed_date;
                     if (not TimeUtil::StringToStructTm(&parsed_date, pub_date_string, augment_params_.strptime_format_))
-                        pub_date = TimeUtil::TimeGm(parsed_date);
+                        LOG_ERROR("failed to parse \"" + pub_date_string + "\" with the given strptime_format \"" + augment_params_.strptime_format_ + "\"");
+                    pub_date = TimeUtil::TimeGm(parsed_date);
                 }
             } else if (not dc_namespace_.empty() and StringUtil::StartsWith(part.data_, dc_namespace_)) {
                 const std::string tag(part.data_);
