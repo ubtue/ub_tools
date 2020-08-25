@@ -183,7 +183,8 @@ RSS20::RSS20(const std::string &xml_document, const AugmentParams &augment_param
             } else {
                 struct tm parsed_date;
                 if (not TimeUtil::StringToStructTm(&parsed_date, last_build_date, augment_params_.strptime_format_))
-                    last_build_date_ = TimeUtil::TimeGm(parsed_date);
+                    LOG_ERROR("failed to parse \"" + last_build_date + "\" with the given strptime_format \"" + augment_params_.strptime_format_ + "\"");
+                last_build_date_ = TimeUtil::TimeGm(parsed_date);
             }
         }
     }
