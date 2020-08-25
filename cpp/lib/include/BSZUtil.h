@@ -54,7 +54,8 @@ ArchiveType GetArchiveType(const std::string &member_name);
 
 
 // Try to resolve the GND number for an author using the BSZ (SWB / OGND) website.
-// The base URL can e.g. be taken from zotero_harvester.conf
+// The base URL can e.g. be taken from zotero_harvester.conf.
+// This funciton is thread-safe, since it is used in zotero harvester.
 std::string GetAuthorGNDNumber(const std::string &author, const std::string &author_lookup_base_url);
 
 
