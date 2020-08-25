@@ -171,7 +171,7 @@ inline std::string TimeTToZuluString(const time_t &the_time)
  *  \param  to_format    an strftime format
  *  \param  time_zone  Whether to use local time (the default) or UTC.
  *  \note The strptime format may be prefixed by a comma-separated list of locale names sourrounded by paretheses.  If more than one
- *        local has been provided, conversions will be attempted until one succeeds of the list has been exhausted.
+ *        local has been provided, conversions will be attempted until one succeeds or the list has been exhausted.
  *  \return True if the input datetime matched "from_format", else false.
  */
 bool ConvertFormat(const std::string &from_format, const std::string &to_format, std::string * const datetime,
@@ -345,6 +345,12 @@ struct tm GetCurrentTimeGMT();
 
 /* Returns 0 if the date is in the range, 1 if date is greater than "last" or -1 if date is less than "first". */
 int IsDateInRange(time_t first, time_t last, time_t date);
+
+
+/** \brief  Converts output of the asctime(3) function to a struct tm
+ *  \return True if the conversion succeeded o/w false.
+ */
+bool AscTimeToStructTm(std::string asctime_output, struct tm * const tm);
 
 
 } // namespace TimeUtil
