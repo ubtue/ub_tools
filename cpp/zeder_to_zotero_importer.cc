@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include "DbConnection.h"
+#include "MiscUtil.h"
 
 
 // avoid conflicts with LICENSE defined in mysql_version.h
@@ -262,6 +263,19 @@ void DetermineZederEntriesToBeDownloaded(const CommandLineArgs &commandline_args
 }
 
 
+bool IsValidValue(const Config::JournalParams::IniKey &key, const std::string &value) {
+    if ((key == Config::JournalParams::IniKey::ONLINE_ISSN or key == Config::JournalParams::IniKey::PRINT_ISSN)
+        and not MiscUtil::IsPossibleISSN(value))
+            return false;
+
+    if ((key == Config::JournalParams::IniKey::ONLINE_PPN or key == Config::JournalParams::IniKey::PRINT_PPN)
+        and not MiscUtil::IsValidPPN(value))
+            return false;
+
+    return true;
+}
+
+
 void WriteIniEntry(IniFile::Section * const section, const std::string &name, const std::string &value) {
     // merge existing comments
     const auto existing_entry(section->find(name));
@@ -335,13 +349,16 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                       time_buffer);
 
         // write out the rest
-        LOG_DEBUG("importing Zeder entry " + std::to_string(zeder_id) + " (" + title + ")...");
+        LOG_INFO("importing Zeder entry " + std::to_string(zeder_id) + " (" + title + ")...");
         for (const auto ini_key_to_import : ini_keys_to_import) {
             const auto ini_key_str(Config::JournalParams::GetIniKeyString(ini_key_to_import));
             const auto ini_val_str(ZederInterop::GetJournalParamsIniValueFromZederEntry(zeder_entry, zeder_flavour,
                                    ini_key_to_import));
 
-            if (ini_val_str.empty()) {
+            const bool is_valid_value(IsValidValue(ini_key_to_import, ini_val_str));
+
+            // check mandatory fields
+            if (ini_val_str.empty() or not is_valid_value) {
                 bool skip_entry(false);
                 switch (ini_key_to_import) {
                 case Config::JournalParams::GROUP:
@@ -349,7 +366,7 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                 case Config::JournalParams::HARVESTER_OPERATION:
                 case Config::JournalParams::UPLOAD_OPERATION:
                     LOG_WARNING("couldn't import Zeder entry " + std::to_string(zeder_id) + " (" + title
-                                + "): invalid value for key '" + ini_key_str + "'");
+                                + "): invalid value for mandatory key '" + ini_key_str + "'");
                     if (not new_section)
                         LOG_WARNING("\timport failed! some fields may have been overwritten");
 
@@ -368,8 +385,12 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
             }
 
             if (not ini_val_str.empty()) {
-                LOG_DEBUG("\t" + ini_key_str + ": '" + ini_val_str + "'");
-                WriteIniEntry(existing_journal_section, ini_key_str, ini_val_str);
+                if (is_valid_value) {
+                    LOG_DEBUG("\t" + ini_key_str + ": '" + ini_val_str + "'");
+                    WriteIniEntry(existing_journal_section, ini_key_str, ini_val_str);
+                } else
+                    LOG_WARNING("invalid value for optional key '" + ini_key_str + "': '" + ini_val_str
+                                + "' in Zeder entry " + std::to_string(zeder_id) + " (" + title + ")");
             }
         }
 
@@ -405,7 +426,7 @@ unsigned UpdateZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
         WriteIniEntry(existing_journal_section, Config::JournalParams::GetIniKeyString(Config::JournalParams::ZEDER_MODIFIED_TIME),
                       time_buffer);
 
-        LOG_DEBUG("updating Zeder entry " + std::to_string(zeder_id) + " (" + title + ")...");
+        LOG_INFO("checking Zeder entry " + std::to_string(zeder_id) + " (" + title + ") for updates...");
         bool at_least_one_field_updated(false);
         for (const auto field_to_update : fields_to_update) {
             const auto ini_key_str(Config::JournalParams::GetIniKeyString(field_to_update));
@@ -414,12 +435,15 @@ unsigned UpdateZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                                        field_to_update));
             if (not ini_new_val_str.empty()) {
                 if (ini_new_val_str != ini_old_val_str) {
-                    WriteIniEntry(existing_journal_section, ini_key_str, ini_new_val_str);
-                    LOG_INFO("\t" + ini_key_str + ": '" + ini_old_val_str + "' => '" + ini_new_val_str + "'");
-                    at_least_one_field_updated = true;
+                    if (IsValidValue(field_to_update, ini_new_val_str)) {
+                        WriteIniEntry(existing_journal_section, ini_key_str, ini_new_val_str);
+                        LOG_INFO("\t" + ini_key_str + ": '" + ini_old_val_str + "' => '" + ini_new_val_str + "'");
+                        at_least_one_field_updated = true;
+                    } else
+                        LOG_WARNING("\tinvalid new value for field '" + ini_key_str + "': '" + ini_new_val_str + "' (old value: '" + ini_old_val_str + "')");
                 }
             } else if (not ini_old_val_str.empty())
-                LOG_WARNING("\tinvalid new value for field '" + ini_key_str + "'. old value: " + ini_old_val_str);
+                LOG_WARNING("\tinvalid empty new value for field '" + ini_key_str + "'. old value: '" + ini_old_val_str + "'");
         }
 
         if (at_least_one_field_updated)
