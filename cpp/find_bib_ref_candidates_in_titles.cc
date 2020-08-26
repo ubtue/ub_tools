@@ -371,7 +371,19 @@ std::vector<std::string> TokenizeText(std::string text) {
     TextUtil::NormaliseDashes(&text);
 
     std::vector<std::string> tokens;
-    StringUtil::Split(text, ' ', &tokens);
+    std::string current_token;
+    for (const char ch : text) {
+        if ((not current_token.empty() and StringUtil::IsDigit(current_token.back())
+             and (ch == 'a' or ch == 'b' or ch == 'c')) or ch == ' ')
+        {
+            if (not current_token.empty())
+                tokens.emplace_back(current_token);
+            current_token.clear();
+        } else
+            current_token += ch;
+    }
+    if (not current_token.empty())
+        tokens.emplace_back(current_token);
 
     return tokens;
 }
