@@ -122,7 +122,7 @@ char ToHexChar(const unsigned u) {
 namespace StringUtil {
 
 
-std::string ASCIIToLower(std::string * const s) {
+std::string &ASCIIToLower(std::string * const s) {
     for (auto &ch : *s) {
         if (ch >= 65 and ch <= 92)
             ch += 32;
