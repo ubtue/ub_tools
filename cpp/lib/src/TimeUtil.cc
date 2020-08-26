@@ -211,7 +211,7 @@ static void ExtractOptionalTimeZoneName(std::string * const date_str, std::strin
         auto ch(date_str->rbegin());
         while (ch != date_str->rend() and
                (StringUtil::IsAsciiLetter(*ch)
-                or *ch == ' ' and (ch - 1) != date_str->rend() and StringUtil::IsAsciiLetter(*(ch - 1))))
+                or *ch == ' ' and (ch + 1) != date_str->rend() and StringUtil::IsAsciiLetter(*(ch + 1))))
         {
             *time_zone_name += *ch;
             ++ch;
