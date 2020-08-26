@@ -349,7 +349,7 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                       time_buffer);
 
         // write out the rest
-        LOG_DEBUG("importing Zeder entry " + std::to_string(zeder_id) + " (" + title + ")...");
+        LOG_INFO("importing Zeder entry " + std::to_string(zeder_id) + " (" + title + ")...");
         for (const auto ini_key_to_import : ini_keys_to_import) {
             const auto ini_key_str(Config::JournalParams::GetIniKeyString(ini_key_to_import));
             const auto ini_val_str(ZederInterop::GetJournalParamsIniValueFromZederEntry(zeder_entry, zeder_flavour,
@@ -426,7 +426,7 @@ unsigned UpdateZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
         WriteIniEntry(existing_journal_section, Config::JournalParams::GetIniKeyString(Config::JournalParams::ZEDER_MODIFIED_TIME),
                       time_buffer);
 
-        LOG_DEBUG("updating Zeder entry " + std::to_string(zeder_id) + " (" + title + ")...");
+        LOG_INFO("checking Zeder entry " + std::to_string(zeder_id) + " (" + title + ") for updates...");
         bool at_least_one_field_updated(false);
         for (const auto field_to_update : fields_to_update) {
             const auto ini_key_str(Config::JournalParams::GetIniKeyString(field_to_update));
@@ -440,10 +440,10 @@ unsigned UpdateZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                         LOG_INFO("\t" + ini_key_str + ": '" + ini_old_val_str + "' => '" + ini_new_val_str + "'");
                         at_least_one_field_updated = true;
                     } else
-                        LOG_WARNING("\tinvalid new value for field '" + ini_key_str + "': " + ini_new_val_str + " (old value: " + ini_old_val_str + ")");
+                        LOG_WARNING("\tinvalid new value for field '" + ini_key_str + "': '" + ini_new_val_str + "' (old value: '" + ini_old_val_str + "')");
                 }
             } else if (not ini_old_val_str.empty())
-                LOG_WARNING("\tinvalid empty new value for field '" + ini_key_str + "'. old value: " + ini_old_val_str);
+                LOG_WARNING("\tinvalid empty new value for field '" + ini_key_str + "'. old value: '" + ini_old_val_str + "'");
         }
 
         if (at_least_one_field_updated)
