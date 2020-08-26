@@ -8,7 +8,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2018,2019 Universitätsbibliothek Tübingen
+ *  Copyright 2018-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -911,6 +911,20 @@ int IsDateInRange(time_t first, time_t last, time_t date) {
         return 0;
     else
         return 1;
+}
+
+
+bool AscTimeToStructTm(std::string asctime_output, struct tm * const tm) {
+    // Example: "Fri Sep 16 13:29:51 1994"
+    if (asctime_output.length() != 24)
+        return false;
+
+    // This is crazy but true: asctime(3) can generate a leading
+    // space or zero for single digit days of the month => we need to normalise this!
+    if (asctime_output[8] == '0')
+        asctime_output[8] = ' ';
+
+    return StringToStructTmHelper(asctime_output, "(en_US)%a %b %d %T %Y", tm);
 }
 
 
