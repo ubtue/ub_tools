@@ -32,6 +32,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <cstdio>
 #include <cstring>
@@ -208,7 +209,10 @@ static void ExtractOptionalTimeZoneName(std::string * const date_str, std::strin
     if (StringUtil::EndsWith(*format_string, "%Z")) {
         *format_string = StringUtil::RightTrim(format_string->substr(0, format_string->length() - 2));
         auto ch(date_str->rbegin());
-        while (ch != date_str->rend() and StringUtil::IsUppercaseAsciiLetter(*ch)) {
+        while (ch != date_str->rend() and
+               (StringUtil::IsAsciiLetter(*ch)
+                or *ch == ' ' and (ch - 1) != date_str->rend() and StringUtil::IsAsciiLetter(*(ch - 1))))
+        {
             *time_zone_name += *ch;
             ++ch;
         }
@@ -246,31 +250,33 @@ static bool AdjustForTimeOffset(time_t * const date_time, const char * const tim
 }
 
 
-static void CorrectForSymbolicTimeZone(struct tm * const tm, const std::string &time_zone_name) {
-    if (time_zone_name == "GMT" or time_zone_name == "UTC")
-        return; // GMT is the same as UTC
+const std::unordered_map<std::string, std::string> time_zone_names_to_offsets_map{
+    { "GMT",                    "+00:00" },
+    { "Hora de verano romance", "+01:00" },
+    { "PDT",                    "-07:00" },
+    { "PST",                    "-08:00" },
+    { "UTC",                    "+00:00" },
+};
 
+
+static void CorrectForSymbolicTimeZone(struct tm * const tm, const std::string &time_zone_name) {
     errno = 0;
     time_t converted_tm(::mktime(tm));
     if (unlikely(errno != 0))
         LOG_ERROR("bad time conversion!");
 
-    const char *offset = "+00:00";
-    if (time_zone_name == "PDT")
-        offset = "-07:00";
-    else if (time_zone_name == "PST")
-        offset = "-08:00";
-    else
+    const auto time_zone_name_and_offset(time_zone_names_to_offsets_map.find(time_zone_name));
+    if (time_zone_name_and_offset == time_zone_names_to_offsets_map.cend())
         LOG_ERROR("Unhandled timezone symbolic name '" + time_zone_name + "'");
 
-    if (not AdjustForTimeOffset(&converted_tm, offset))
-        LOG_ERROR("couldn't adjust time_t " + TimeTToString(converted_tm) + " with offset " + std::string(offset));
+    if (not AdjustForTimeOffset(&converted_tm, time_zone_name_and_offset->second.c_str()))
+        LOG_ERROR("couldn't adjust time_t " + TimeTToString(converted_tm) + " with offset " + time_zone_name_and_offset->second);
 }
 
 
 // Strptime()/CentOS idiosyncrasies:
-//      - Strptime() supports "%Z" to denote time zone names, but it doesn't perfom the time conversion.
-//        Furthermore, the above format specifier is apparently broken on CentOS.
+//      - Strptime() supports "%Z" to denote time zone names, but it doesn't perform the time conversion.
+//        Furthermore, the above format specifier is apparently broken on CentOS 7.
 //        So, we need to override the behaviour on our end.
 //      - "%z" does not support a colon in the time zone offset on CentOS.
 //        So, we need to strip it out before we pass it to the function.
