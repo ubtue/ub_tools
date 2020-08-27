@@ -281,10 +281,8 @@ static void CorrectForSymbolicTimeZone(struct tm * const tm, const std::string &
 //      - "%z" does not support a colon in the time zone offset on CentOS.
 //        So, we need to strip it out before we pass it to the function.
 static bool StringToStructTmHelper(std::string date_str, std::string optional_strptime_format, struct tm * const tm) {
-    time_t unix_time(TimeUtil::BAD_TIME_T);
-
     if (optional_strptime_format.empty()) {
-        unix_time = WebUtil::ParseWebDateAndTime(date_str);
+        const auto unix_time(WebUtil::ParseWebDateAndTime(date_str));
         if (unix_time == TimeUtil::BAD_TIME_T)
             return false;
         return ::gmtime_r(&unix_time, tm) != nullptr;
