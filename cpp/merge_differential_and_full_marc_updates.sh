@@ -115,22 +115,20 @@ for update in $(generate_merge_order | tail --lines=+2); do
 done
 
 
-if [ -z ${temp_directory} ]; then # We did not execute the for-loop above!
-    echo 'for-loop has not been executed!'
+# If we did not execute the for-loop at all, $temp_directory is unset and we need to set it to the empty string:
+temp_directory=${temp_directory:-}
+
+if [ -z ${temp_directory} ]; then
     ln --symbolic --force $input_filename Complete-MARC-current.tar.gz
 else
-    echo 'for-loop has been executed!'
     rm --recursive "$extraction_directory"
     cd ${temp_directory}
     tar czf ../$target_filename *mrc
     cd ..
+    rm --recursive ${temp_directory}
 
     if [[ ! keep_itermediate_filenames ]]; then
-        echo 'cleaning up all working files'
         rm temp_directory.$BASHPID.* TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
-    else
-        echo 'removing last working directory only'
-        rm --recursive ${temp_directory}
     fi
 
     # Create symlink to newest complete dump:

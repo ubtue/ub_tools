@@ -213,7 +213,7 @@ bool ParseBibleReference(std::string bib_ref_candidate, const std::string &book_
         return true;
     }
 
-    const Locale c_locale("C", LC_ALL); // We don't want islower() to accept characters w/ diacritical marks!
+    const Locale c_locale("C"); // We don't want islower() to accept characters w/ diacritical marks!
 
     if (bib_ref_candidate.find('.') != std::string::npos) {
         const bool parse_succeeded(ParseRefWithDot(bib_ref_candidate, book_code, start_end));

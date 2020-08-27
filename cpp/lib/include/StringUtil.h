@@ -110,7 +110,7 @@ inline std::string AppendSubstring(std::string &target, const std::string &sourc
 
 
 /** \brief Converts the ASCII letters in "s" to lowercase. */
-std::string ASCIIToLower(std::string * const s);
+std::string &ASCIIToLower(std::string * const s);
 std::string ASCIIToLower(const std::string &s);
 
 
@@ -1982,6 +1982,11 @@ inline bool ConsistsOfAllASCIIDigits(const std::string &s) {
     }
 
     return true;
+}
+
+
+inline bool IsPrintableASCIICharacter(const char ch) {
+    return static_cast<unsigned char>(ch) >= 32 and static_cast<unsigned char>(ch) <= 126;
 }
 
 

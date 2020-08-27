@@ -21,6 +21,7 @@
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 
 
 namespace Zeder {
@@ -448,8 +449,12 @@ FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::
 
 
 bool FullDumpDownloader::downloadData(const std::string &endpoint_url, std::shared_ptr<JSON::JSONNode> * const json_data) {
+    const IniFile zeder_authentification(UBTools::GetTuelibPath() + "zeder_authentification.conf");
+
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = "ub_tools/zeder_importer";
+    downloader_params.authentication_username_ = zeder_authentification.getString("", "username");
+    downloader_params.authentication_password_ = zeder_authentification.getString("", "password");
 
     const TimeLimit time_limit(20000U);
     Downloader downloader(endpoint_url, downloader_params, time_limit);
@@ -603,6 +608,8 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
 
 bool FullDumpDownloader::download(EntryCollection * const collection) {
     const auto params(dynamic_cast<FullDumpDownloader::Params * const>(downloader_params_.get()));
+    if (unlikely(params == nullptr))
+        LOG_ERROR("dynamic_cast failed!");
 
     std::unordered_map<std::string, ColumnMetadata> column_to_metadata_map;
     std::shared_ptr<JSON::JSONNode> json_data;
@@ -651,7 +658,8 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
 }
 
 
-SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter) {
+SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter)
+{
     const auto endpoint_url(GetFullDumpEndpointPath(flavour));
     const std::unordered_map<std::string, std::string> filter_regexps {}; // intentionally empty
     const std::unordered_set<unsigned> entries_to_download; // empty means all entries
