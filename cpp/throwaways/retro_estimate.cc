@@ -162,7 +162,7 @@ int Main(int argc, char *argv[]) {
     if (argc != 3)
         ::Usage("[--min-log-level=min_verbosity] marc_titles csv_output");
 
-    const Zeder::SimpleZeder zeder(Zeder::IXTHEO, ZEDER_COLUMNS);
+    const Zeder::SimpleZeder zeder(Zeder::IXTHEO, /* username = */"", /* password = */"", ZEDER_COLUMNS);
     if (unlikely(zeder.empty()))
         LOG_ERROR("found no Zeder entries matching any of our requested columns!");
 
