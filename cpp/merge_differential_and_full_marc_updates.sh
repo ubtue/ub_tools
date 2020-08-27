@@ -108,7 +108,7 @@ for update in $(generate_merge_order | tail --lines=+2); do
         apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
     fi
     if [[ -n "$last_temp_directory" ]]; then
-        rm -r ${last_temp_directory}
+        rm --recursive ${last_temp_directory}
     fi
     input_directory=$temp_directory
     last_temp_directory=$temp_directory
@@ -121,11 +121,11 @@ temp_directory=${temp_directory:-}
 if [ -z ${temp_directory} ]; then
     ln --symbolic --force $input_filename Complete-MARC-current.tar.gz
 else
-    rm -r "$extraction_directory"
+    rm --recursive "$extraction_directory"
     cd ${temp_directory}
     tar czf ../$target_filename *mrc
     cd ..
-    rm -r ${temp_directory}
+    rm --recursive ${temp_directory}
 
     if [[ ! keep_itermediate_filenames ]]; then
         rm temp_directory.$BASHPID.* TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
