@@ -6,6 +6,7 @@
 /*
  *  Copyright 2008 Project iVia.
  *  Copyright 2008 The Regents of The University of California.
+ *  Copyright 2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -38,13 +39,10 @@ Locale::Locale(const std::string &new_locale, const int category, const bool res
 
     // Allocate and set new locale
     new_locale_ = ::newlocale(category, new_locale_string_.c_str(), 0);
-    is_valid_ = new_locale_ != 0;
-
-    if (is_valid_) {
-        if (::uselocale(new_locale_) == 0)
-            LOG_ERROR("failed to set thread locale to '" + new_locale_string_ + "' (" + std::to_string(new_locale_category_) + ")");
-    } else
+    if (new_locale_ == 0)
         LOG_ERROR("failed to allocate new locale for '" + new_locale_string_ + "' (" + std::to_string(new_locale_category_) + ")");
+    else if (::uselocale(new_locale_) == 0)
+        LOG_ERROR("failed to set thread locale to '" + new_locale_string_ + "' (" + std::to_string(new_locale_category_) + ")");
 }
 
 
@@ -52,10 +50,9 @@ Locale::~Locale() {
     if (restore_) {
         if (::uselocale(old_locale_) == 0)
             LOG_ERROR("failed to restore thread locale");
-    }
-
-    if (is_valid_) {
+    } else
         ::uselocale(LC_GLOBAL_LOCALE);
+
+    if (new_locale_ != 0)
         ::freelocale(new_locale_);
-    }
 }
