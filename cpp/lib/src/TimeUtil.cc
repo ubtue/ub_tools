@@ -334,7 +334,6 @@ static bool StringToStructTmHelper(std::string date_str, std::string optional_st
         }
     }
 
-    unix_time = TimeUtil::BAD_TIME_T;
     return false;
 }
 
