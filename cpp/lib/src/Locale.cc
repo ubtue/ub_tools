@@ -32,7 +32,7 @@
 
 
 Locale::Locale(const std::string &new_locale, const int category, const bool restore)
-    : old_locale_(0), new_locale_(0), new_locale_string_(new_locale), new_locale_category_(category), restore_(restore)
+    : old_locale_(0), new_locale_(0), category_(category), new_locale_string_(new_locale), new_locale_category_(category), restore_(restore)
 {
     // Fetch the calling thread's active locale
     old_locale_ = ::uselocale(0);
@@ -50,8 +50,10 @@ Locale::~Locale() {
     if (restore_) {
         if (::uselocale(old_locale_) == 0)
             LOG_ERROR("failed to restore thread locale");
-    } else
-        ::uselocale(LC_GLOBAL_LOCALE);
+    } else {
+        static const locale_t ub_default_locale(::newlocale(category_, UB_DEFAULT_LOCALE, 0));
+        ::uselocale(ub_default_locale);
+    }
 
     ::freelocale(new_locale_);
 }
