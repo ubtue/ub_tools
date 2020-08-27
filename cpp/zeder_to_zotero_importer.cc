@@ -18,10 +18,10 @@
 */
 #include <iostream>
 #include <unordered_set>
+#include <vector>
 #include <cstdio>
 #include <cstdlib>
 #include "DbConnection.h"
-#include "MiscUtil.h"
 
 
 // avoid conflicts with LICENSE defined in mysql_version.h
@@ -32,6 +32,8 @@
 
 #include "FileUtil.h"
 #include "IniFile.h"
+#include "MiscUtil.h"
+#include "StringUtil.h"
 #include "util.h"
 #include "ZoteroHarvesterConfig.h"
 #include "ZoteroHarvesterUtil.h"
@@ -263,13 +265,23 @@ void DetermineZederEntriesToBeDownloaded(const CommandLineArgs &commandline_args
 }
 
 
-bool IsValidValue(const Config::JournalParams::IniKey &key, const std::string &value) {
-    if ((key == Config::JournalParams::IniKey::ONLINE_ISSN or key == Config::JournalParams::IniKey::PRINT_ISSN)
-        and not MiscUtil::IsPossibleISSN(value))
-            return false;
+bool GetValidValue(const Config::JournalParams::IniKey &key, std::string * const value) {
+    if (value->empty())
+        return true;
+
+    if (key == Config::JournalParams::IniKey::ONLINE_ISSN or key == Config::JournalParams::IniKey::PRINT_ISSN) {
+        std::vector<std::string> issns;
+        StringUtil::SplitThenTrimWhite(*value, ';', &issns);
+        if (MiscUtil::IsPossibleISSN(issns[0])) {
+            *value = issns[0];
+            return true;
+        }
+
+        return false;
+    }
 
     if ((key == Config::JournalParams::IniKey::ONLINE_PPN or key == Config::JournalParams::IniKey::PRINT_PPN)
-        and not MiscUtil::IsValidPPN(value))
+        and not MiscUtil::IsValidPPN(*value))
             return false;
 
     return true;
@@ -352,10 +364,10 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
         LOG_INFO("importing Zeder entry " + std::to_string(zeder_id) + " (" + title + ")...");
         for (const auto ini_key_to_import : ini_keys_to_import) {
             const auto ini_key_str(Config::JournalParams::GetIniKeyString(ini_key_to_import));
-            const auto ini_val_str(ZederInterop::GetJournalParamsIniValueFromZederEntry(zeder_entry, zeder_flavour,
-                                   ini_key_to_import));
+            auto ini_val_str(ZederInterop::GetJournalParamsIniValueFromZederEntry(zeder_entry, zeder_flavour,
+                             ini_key_to_import));
 
-            const bool is_valid_value(IsValidValue(ini_key_to_import, ini_val_str));
+            const bool is_valid_value(GetValidValue(ini_key_to_import, &ini_val_str));
 
             // check mandatory fields
             if (ini_val_str.empty() or not is_valid_value) {
@@ -431,16 +443,15 @@ unsigned UpdateZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
         for (const auto field_to_update : fields_to_update) {
             const auto ini_key_str(Config::JournalParams::GetIniKeyString(field_to_update));
             const auto ini_old_val_str(existing_journal_section->getString(ini_key_str, ""));
-            const auto ini_new_val_str(ZederInterop::GetJournalParamsIniValueFromZederEntry(zeder_entry, zeder_flavour,
-                                       field_to_update));
+            auto ini_new_val_str(ZederInterop::GetJournalParamsIniValueFromZederEntry(zeder_entry, zeder_flavour,
+                                 field_to_update));
             if (not ini_new_val_str.empty()) {
-                if (ini_new_val_str != ini_old_val_str) {
-                    if (IsValidValue(field_to_update, ini_new_val_str)) {
-                        WriteIniEntry(existing_journal_section, ini_key_str, ini_new_val_str);
-                        LOG_INFO("\t" + ini_key_str + ": '" + ini_old_val_str + "' => '" + ini_new_val_str + "'");
-                        at_least_one_field_updated = true;
-                    } else
-                        LOG_WARNING("\tinvalid new value for field '" + ini_key_str + "': '" + ini_new_val_str + "' (old value: '" + ini_old_val_str + "')");
+                if (unlikely(not GetValidValue(field_to_update, &ini_new_val_str)))
+                    LOG_WARNING("\tinvalid new value for field '" + ini_key_str + "': '" + ini_new_val_str + "' (old value: '" + ini_old_val_str + "')");
+                else if (ini_new_val_str != ini_old_val_str) {
+                    WriteIniEntry(existing_journal_section, ini_key_str, ini_new_val_str);
+                    LOG_INFO("\t" + ini_key_str + ": '" + ini_old_val_str + "' => '" + ini_new_val_str + "'");
+                    at_least_one_field_updated = true;
                 }
             } else if (not ini_old_val_str.empty())
                 LOG_WARNING("\tinvalid empty new value for field '" + ini_key_str + "'. old value: '" + ini_old_val_str + "'");
