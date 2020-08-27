@@ -34,6 +34,7 @@
 class Locale {
     locale_t old_locale_;
     locale_t new_locale_;
+    int category_;
     std::string new_locale_string_;
     const int new_locale_category_;
     const bool restore_;
