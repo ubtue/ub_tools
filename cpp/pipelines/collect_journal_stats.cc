@@ -26,7 +26,6 @@
 #include "MARC.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
-#include "UBTools.h"
 #include "util.h"
 #include "Zeder.h"
 
@@ -53,12 +52,7 @@ public:
 
 
 std::unordered_map<std::string, ZederIdAndType> GetPPNsToZederIdsAndTypesMap(const std::string &system_type) {
-    const IniFile ixtheo_zeder_authentification(UBTools::GetTuelibPath() + "cronjobs/ixtheo_zeder_authentification.conf");
-
-    const Zeder::SimpleZeder zeder(system_type == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK,
-                                   ixtheo_zeder_authentification.getString("", "username"),
-                                   ixtheo_zeder_authentification.getString("", "password"),
-                                   { "eppn", "pppn" });
+    const Zeder::SimpleZeder zeder(system_type == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK, { "eppn", "pppn" });
     if (unlikely(zeder.empty()))
         LOG_ERROR("found no Zeder entries matching any of our requested columns!"
                   " (This *should* not happen as we included the column ID!)");

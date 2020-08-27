@@ -21,6 +21,7 @@
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 
 
 namespace Zeder {
@@ -434,11 +435,10 @@ std::unique_ptr<EndpointDownloader> EndpointDownloader::Factory(Type downloader_
 }
 
 
-FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::string &username,
-                                   const std::string &password, const std::unordered_set<unsigned> &entries_to_download,
+FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::unordered_set<unsigned> &entries_to_download,
                                    const std::unordered_set<std::string> &columns_to_download,
                                    const std::unordered_map<std::string, std::string> &filter_regexps)
-    : EndpointDownloader::Params(endpoint_path, username, password), entries_to_download_(entries_to_download),
+    : EndpointDownloader::Params(endpoint_path), entries_to_download_(entries_to_download),
       columns_to_download_(columns_to_download)
 {
     for (const auto &filter_pair : filter_regexps) {
@@ -448,13 +448,13 @@ FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::
 }
 
 
-bool FullDumpDownloader::downloadData(const std::string &endpoint_url, const std::string &username, const std::string &password,
-                                      std::shared_ptr<JSON::JSONNode> * const json_data)
-{
+bool FullDumpDownloader::downloadData(const std::string &endpoint_url, std::shared_ptr<JSON::JSONNode> * const json_data) {
+    const IniFile zeder_authentification(UBTools::GetTuelibPath() + "zeder_authentification.conf");
+
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = "ub_tools/zeder_importer";
-    downloader_params.authentication_username_ = username;
-    downloader_params.authentication_password_ = password;
+    downloader_params.authentication_username_ = zeder_authentification.getString("", "username");
+    downloader_params.authentication_password_ = zeder_authentification.getString("", "password");
 
     const TimeLimit time_limit(20000U);
     Downloader downloader(endpoint_url, downloader_params, time_limit);
@@ -614,7 +614,7 @@ bool FullDumpDownloader::download(EntryCollection * const collection) {
     std::unordered_map<std::string, ColumnMetadata> column_to_metadata_map;
     std::shared_ptr<JSON::JSONNode> json_data;
 
-    if (not downloadData(params->endpoint_url_, params->username_, params->password_, &json_data))
+    if (not downloadData(params->endpoint_url_, &json_data))
         return false;
 
     parseColumnMetadata(json_data, &column_to_metadata_map);
@@ -658,14 +658,13 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
 }
 
 
-SimpleZeder::SimpleZeder(const Flavour flavour, const std::string &username, const std::string &password,
-                         const std::unordered_set<std::string> &column_filter)
+SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter)
 {
     const auto endpoint_url(GetFullDumpEndpointPath(flavour));
     const std::unordered_map<std::string, std::string> filter_regexps {}; // intentionally empty
     const std::unordered_set<unsigned> entries_to_download; // empty means all entries
     std::unique_ptr<FullDumpDownloader::Params> downloader_params(
-        new FullDumpDownloader::Params(endpoint_url, username, password, entries_to_download, column_filter, filter_regexps));
+        new FullDumpDownloader::Params(endpoint_url, entries_to_download, column_filter, filter_regexps));
 
     auto downloader(Zeder::FullDumpDownloader::Factory(FullDumpDownloader::Type::FULL_DUMP, std::move(downloader_params)));
     if (not downloader->download(&entries_))

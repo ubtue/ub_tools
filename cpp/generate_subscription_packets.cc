@@ -32,7 +32,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--username=zeder_username --password=zeder_password] packet_definition_config_file packet_subscriptions_output\n"
+    ::Usage("packet_definition_config_file packet_subscriptions_output\n"
             "\tFor the documentation of the input config file, please see data/generate_subscription_packets.README.");
 }
 
@@ -151,30 +151,15 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3 and argc != 5)
+    if (argc != 3)
         Usage();
-
-    std::string zeder_username, zeder_password;
-    if (argc == 5) {
-        const std::string username_arg(argv[1]);
-        if (not StringUtil::StartsWith(username_arg, "--username="))
-            Usage();
-        zeder_username = username_arg.substr(__builtin_strlen("--username="));
-
-        const std::string password_arg(argv[2]);
-        if (not StringUtil::StartsWith(password_arg, "--password="))
-            Usage();
-        zeder_password = password_arg.substr(__builtin_strlen("--password="));
-
-        argv += 2;
-    }
 
     const IniFile packet_definitions_ini_file(argv[1]);
     const auto zeder_instance(packet_definitions_ini_file.getString("", "zeder_instance"));
     if (zeder_instance != "ixtheo" and zeder_instance != "relbib")
         LOG_ERROR("zeder_instance in \"" + packet_definitions_ini_file.getFilename() + "\" must be either \"ixtheo\" or \"relbib\"!");
 
-    const Zeder::SimpleZeder zeder(zeder_instance == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK, zeder_username, zeder_password);
+    const Zeder::SimpleZeder zeder(zeder_instance == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK);
     if (unlikely(zeder.empty()))
         LOG_ERROR("found no Zeder entries matching any of our requested columns!"
                   " (This *should* not happen as we included the column ID!)");

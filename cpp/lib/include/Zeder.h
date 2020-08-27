@@ -391,11 +391,8 @@ public:
         friend class EndpointDownloader;
     protected:
         const std::string endpoint_url_;
-        const std::string username_;
-        const std::string password_;
     public:
-        Params(const std::string &endpoint_url, const std::string &username, const std::string &password)
-            : endpoint_url_(endpoint_url), username_(username), password_(password) { }
+        explicit Params(const std::string &endpoint_url): endpoint_url_(endpoint_url) { }
         virtual ~Params() = default;
     };
 protected:
@@ -428,8 +425,7 @@ public:
         // Filters applied to each row. Column name => Filter reg-ex.
         std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> filter_regexps_;
     public:
-        Params(const std::string &endpoint_path, const std::string &username, const std::string &password,
-               const std::unordered_set<unsigned> &entries_to_download,
+        Params(const std::string &endpoint_path, const std::unordered_set<unsigned> &entries_to_download,
                const std::unordered_set<std::string> &columns_to_download, const std::unordered_map<std::string, std::string> &filter_regexps);
         virtual ~Params() = default;
     };
@@ -439,8 +435,7 @@ private:
         std::unordered_map<int64_t, std::string> ordinal_to_value_map_;
     };
 
-    bool downloadData(const std::string &endpoint_url, const std::string &username, const std::string &password,
-                      std::shared_ptr<JSON::JSONNode> * const json_data);
+    bool downloadData(const std::string &endpoint_url, std::shared_ptr<JSON::JSONNode> * const json_data);
     void parseColumnMetadata(const std::shared_ptr<JSON::JSONNode> &json_data,
                              std::unordered_map<std::string, ColumnMetadata> * const column_to_metadata_map);
     void parseRows(const Params &params, const std::shared_ptr<JSON::JSONNode> &json_data,
@@ -464,8 +459,7 @@ private:
 public:
     // \param "column_filter" If not empty, only the specified short column names will be accesible via the
     //        lookup member function of class Journal.  This is a performance and memory optimisation only.
-    explicit SimpleZeder(const Flavour flavour, const std::string &username = "", const std::string &password = "",
-                         const std::unordered_set<std::string> &column_filter = {});
+    explicit SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter = {});
 
     inline size_t size() const { return entries_.size(); }
     inline size_t empty() const { return entries_.empty(); }

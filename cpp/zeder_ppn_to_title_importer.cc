@@ -74,7 +74,7 @@ int Main(int argc, char */*argv*/[]) {
     if (argc != 1)
         ::Usage("[--min-log-level=min_verbosity]");
 
-    const Zeder::SimpleZeder zeder(Zeder::IXTHEO, /* username = */"", /* password = */"", { "eppn", "pppn", "tit" });
+    const Zeder::SimpleZeder zeder(Zeder::IXTHEO, { "eppn", "pppn", "tit" });
     if (unlikely(zeder.empty()))
         LOG_ERROR("found no Zeder entries matching any of our requested columns!");
 
