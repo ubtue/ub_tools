@@ -6,7 +6,7 @@
 /*
  *  Copyright 2008 Project iVia.
  *  Copyright 2008 The Regents of The University of California.
- *  Copyright 2018 Universitätsbibliothek Tübingen
+ *  Copyright 2018-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -32,9 +32,9 @@
 
 
 class Locale {
-    bool is_valid_;
     locale_t old_locale_;
     locale_t new_locale_;
+    int category_;
     std::string new_locale_string_;
     const int new_locale_category_;
     const bool restore_;
@@ -46,11 +46,9 @@ public:
      *                      object destruction (for example when an auto object goes
      *                      out of scope).
      */
-    Locale(const std::string &new_locale, const int category, const bool restore = true);
+    explicit Locale(const std::string &new_locale, const int category = LC_ALL, const bool restore = true);
 
     /** Restores the original locale/category if requested by the "restore" argument to
         the constructor otherwise does nothing. */
     ~Locale();
-
-    inline bool isValid() const { return is_valid_; }
 };
