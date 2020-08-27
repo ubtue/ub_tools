@@ -88,7 +88,7 @@ static bool ParseRFC822Header(const std::string &line, std::string * const field
 
     *field_name = line.substr(0, first_colon_pos);
     for (const char ch : *field_name) {
-        if (not StringUtil::IsPrintableASCIICharacter(ch))
+        if (ch == ' ' or not StringUtil::IsPrintableASCIICharacter(ch))
             return false;
     }
     StringUtil::ASCIIToLower(field_name); // According to the RFC, case does not matter in field names.
