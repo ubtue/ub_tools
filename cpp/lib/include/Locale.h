@@ -6,7 +6,7 @@
 /*
  *  Copyright 2008 Project iVia.
  *  Copyright 2008 The Regents of The University of California.
- *  Copyright 2018 Universitätsbibliothek Tübingen
+ *  Copyright 2018-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -32,7 +32,6 @@
 
 
 class Locale {
-    bool is_valid_;
     locale_t old_locale_;
     locale_t new_locale_;
     std::string new_locale_string_;
@@ -52,5 +51,5 @@ public:
         the constructor otherwise does nothing. */
     ~Locale();
 
-    inline bool isValid() const { return is_valid_; }
+    inline bool isValid() const { return new_locale_ != 0; }
 };
