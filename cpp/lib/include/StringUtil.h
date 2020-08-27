@@ -1986,7 +1986,7 @@ inline bool ConsistsOfAllASCIIDigits(const std::string &s) {
 
 
 inline bool IsPrintableASCIICharacter(const char ch) {
-    return static_cast<unsigned char>(ch) >= 33 and static_cast<unsigned char>(ch) <= 126;
+    return static_cast<unsigned char>(ch) >= 32 and static_cast<unsigned char>(ch) <= 126;
 }
 
 
