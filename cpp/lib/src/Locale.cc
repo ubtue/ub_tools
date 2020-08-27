@@ -53,6 +53,5 @@ Locale::~Locale() {
     } else
         ::uselocale(LC_GLOBAL_LOCALE);
 
-    if (new_locale_ != 0)
-        ::freelocale(new_locale_);
+    ::freelocale(new_locale_);
 }

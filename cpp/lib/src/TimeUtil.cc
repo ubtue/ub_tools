@@ -297,11 +297,8 @@ static bool StringToStructTmHelper(std::string date_str, std::string optional_st
             StringUtil::Split(locale_specifications, '|', &locales_list, /* suppress_empty_components = */true);
             for (const auto &locale_specification : locales_list) {
                 Locale *new_locale(new Locale(locale_specification, LC_TIME));
-                if (new_locale->isValid()) {
-                    locale.reset(new_locale);
-                    break;
-                } else
-                    delete new_locale;
+                locale.reset(new_locale);
+                break;
             }
             if (unlikely(locale == nullptr))
                 LOG_ERROR("no valid locale found in \"" + locale_specifications + "\"!");

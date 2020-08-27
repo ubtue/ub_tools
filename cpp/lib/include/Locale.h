@@ -50,6 +50,4 @@ public:
     /** Restores the original locale/category if requested by the "restore" argument to
         the constructor otherwise does nothing. */
     ~Locale();
-
-    inline bool isValid() const { return new_locale_ != 0; }
 };
