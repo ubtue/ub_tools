@@ -439,8 +439,8 @@ private:
         std::unordered_map<int64_t, std::string> ordinal_to_value_map_;
     };
 
-
-    bool downloadData(const std::string &endpoint_url, std::shared_ptr<JSON::JSONNode> * const json_data);
+    bool downloadData(const std::string &endpoint_url, const std::string &username, const std::string &password,
+                      std::shared_ptr<JSON::JSONNode> * const json_data);
     void parseColumnMetadata(const std::shared_ptr<JSON::JSONNode> &json_data,
                              std::unordered_map<std::string, ColumnMetadata> * const column_to_metadata_map);
     void parseRows(const Params &params, const std::shared_ptr<JSON::JSONNode> &json_data,
