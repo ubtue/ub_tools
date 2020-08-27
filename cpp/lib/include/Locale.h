@@ -46,7 +46,7 @@ public:
      *                      object destruction (for example when an auto object goes
      *                      out of scope).
      */
-    Locale(const std::string &new_locale, const int category, const bool restore = true);
+    explicit Locale(const std::string &new_locale, const int category = LC_ALL, const bool restore = true);
 
     /** Restores the original locale/category if requested by the "restore" argument to
         the constructor otherwise does nothing. */
