@@ -53,14 +53,17 @@ public:
 
 
 std::unordered_map<std::string, ZederIdAndType> GetPPNsToZederIdsAndTypesMap(const std::string &system_type) {
-    std::unordered_map<std::string, ZederIdAndType> ppns_to_zeder_ids_and_types_map;
+    const IniFile ixtheo_zeder_authentification(UBTools::GetTuelibPath() + "cronjobs/ixtheo_zeder_authentification.conf");
 
-
-    const Zeder::SimpleZeder zeder(system_type == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK, { "eppn", "pppn" });
+    const Zeder::SimpleZeder zeder(system_type == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK,
+                                   ixtheo_zeder_authentification.getString("", "username"),
+                                   ixtheo_zeder_authentification.getString("", "password"),
+                                   { "eppn", "pppn" });
     if (unlikely(zeder.empty()))
         LOG_ERROR("found no Zeder entries matching any of our requested columns!"
                   " (This *should* not happen as we included the column ID!)");
 
+    std::unordered_map<std::string, ZederIdAndType> ppns_to_zeder_ids_and_types_map;
     unsigned included_journal_count(0);
     std::set<std::string> bundle_ppns; // We use a std::set because it is automatically being sorted for us.
     for (const auto &journal : zeder) {
