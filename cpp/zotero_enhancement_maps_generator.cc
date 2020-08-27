@@ -60,8 +60,7 @@ void DownloadZederInstanceEntries(const Zeder::Flavour flavour,
     const std::unordered_set<std::string> columns_to_download {};  // intentionally empty
     const std::unordered_map<std::string, std::string> filter_regexps {}; // intentionally empty
     std::unique_ptr<Zeder::FullDumpDownloader::Params> downloader_params(
-        new Zeder::FullDumpDownloader::Params(endpoint_url, /* username = */"", /* password = */"",
-                                              entries_to_download, columns_to_download, filter_regexps));
+        new Zeder::FullDumpDownloader::Params(endpoint_url, entries_to_download, columns_to_download, filter_regexps));
 
     auto downloader(Zeder::FullDumpDownloader::Factory(Zeder::FullDumpDownloader::Type::FULL_DUMP, std::move(downloader_params)));
     if (not downloader->download(&downloaded_flavour_entries))
