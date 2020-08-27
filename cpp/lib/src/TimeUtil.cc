@@ -323,7 +323,6 @@ static bool StringToStructTmHelper(std::string date_str, std::string optional_st
 
             std::memset(tm, 0, sizeof(*tm));
             const char * const last_char(::strptime(date_str.c_str(), format_string.c_str(), tm));
-            LOG_INFO((last_char == nullptr) ? "last_char is NULL" : "last_char is not NULL");
             if (last_char != nullptr and *last_char == '\0') {
                 if (not time_zone_name.empty())
                     CorrectForSymbolicTimeZone(tm, time_zone_name);
