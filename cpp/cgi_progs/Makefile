@@ -1,7 +1,7 @@
 LIB := ../lib
 INC = $(LIB)/include
 include ../Makefile.inc
-PROGS = full_text_cache_monitor full_text_lookup translate_chainer translator_ajax translator display_translate_stats zotero_cgi
+PROGS = full_text_cache_monitor full_text_lookup ini_validator translate_chainer translator_ajax translator display_translate_stats zotero_cgi
 
 
 .PHONY: all .deps install clean
