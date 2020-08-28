@@ -1,6 +1,7 @@
 display_translate_stats
 full_text_cache_monitor
 full_text_lookup
+ini_validator
 translator
 translator_ajax
 translate_chainer
