@@ -26,7 +26,6 @@
 #include "MARC.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
-#include "UBTools.h"
 #include "util.h"
 #include "Zeder.h"
 
@@ -53,14 +52,12 @@ public:
 
 
 std::unordered_map<std::string, ZederIdAndType> GetPPNsToZederIdsAndTypesMap(const std::string &system_type) {
-    std::unordered_map<std::string, ZederIdAndType> ppns_to_zeder_ids_and_types_map;
-
-
     const Zeder::SimpleZeder zeder(system_type == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK, { "eppn", "pppn" });
     if (unlikely(zeder.empty()))
         LOG_ERROR("found no Zeder entries matching any of our requested columns!"
                   " (This *should* not happen as we included the column ID!)");
 
+    std::unordered_map<std::string, ZederIdAndType> ppns_to_zeder_ids_and_types_map;
     unsigned included_journal_count(0);
     std::set<std::string> bundle_ppns; // We use a std::set because it is automatically being sorted for us.
     for (const auto &journal : zeder) {
@@ -194,12 +191,12 @@ int Main(int argc, char *argv[]) {
                 "\twhere \"system_type\" must be one of ixtheo|krimdok");
 
     std::string system_type;
-    if (__builtin_strcmp("ixtheo", argv[1]))
+    if (__builtin_strcmp("ixtheo", argv[1]) == 0)
         system_type = "ixtheo";
-    else if (__builtin_strcmp("krimdok", argv[1]))
+    else if (__builtin_strcmp("krimdok", argv[1]) == 0)
         system_type = "krimdok";
     else
-        LOG_ERROR("system_type must be one of ixtheo|krimdok|relbib!");
+        LOG_ERROR("system_type must be one of ixtheo|krimdok!");
 
     const auto ppns_to_zeder_ids_and_types_map(GetPPNsToZederIdsAndTypesMap(system_type));
 

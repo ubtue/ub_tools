@@ -31,6 +31,12 @@
 namespace {
 
 
+[[noreturn]] void Usage() {
+    ::Usage("packet_definition_config_file packet_subscriptions_output\n"
+            "\tFor the documentation of the input config file, please see data/generate_subscription_packets.README.");
+}
+
+
 // Return true if an entry of "class_list" equals one of the vertical-bar-separated values of "expected_values_str."
 bool FoundExpectedClassValue(const std::string &expected_values_str, const std::string &class_list_str) {
     std::vector<std::string> expected_values;
@@ -146,8 +152,7 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
 
 int Main(int argc, char *argv[]) {
     if (argc != 3)
-        ::Usage("packet_definition_config_file packet_subscriptions_output\n"
-                "\tFor the documentation of the input config file, please see data/generate_subscription_packets.README.");
+        Usage();
 
     const IniFile packet_definitions_ini_file(argv[1]);
     const auto zeder_instance(packet_definitions_ini_file.getString("", "zeder_instance"));
