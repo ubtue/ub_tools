@@ -39,7 +39,7 @@ def UpdateZoteroJournalStatus(issue, labels_to_add, issn):
     else:
         data = { "labels" : new_labels }
     issue_number = str(issue['number'])
-    if not LabelsAreIdentical(issue, new_labels):
+    if not github_ubtue_util.LabelsAreIdentical(issue, new_labels):
        github_api_util.UpdateIssueInRepository('zotero-journal-status', issue_number, data)
 
 
