@@ -392,7 +392,7 @@ public:
     protected:
         const std::string endpoint_url_;
     public:
-        Params(const std::string &endpoint_url): endpoint_url_(endpoint_url) {}
+        explicit Params(const std::string &endpoint_url): endpoint_url_(endpoint_url) { }
         virtual ~Params() = default;
     };
 protected:
@@ -434,7 +434,6 @@ private:
         std::string column_type_;
         std::unordered_map<int64_t, std::string> ordinal_to_value_map_;
     };
-
 
     bool downloadData(const std::string &endpoint_url, std::shared_ptr<JSON::JSONNode> * const json_data);
     void parseColumnMetadata(const std::shared_ptr<JSON::JSONNode> &json_data,

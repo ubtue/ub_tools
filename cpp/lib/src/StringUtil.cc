@@ -34,17 +34,17 @@
 #include <algorithm>
 #include <map>
 #include <set>
+#include <sstream>
 #include <cctype>
 #include <cerrno>
 #include <climits>
 #include <clocale>
+#include <cstdarg>
 #include <cstdio>
 #include <alloca.h>
 #include <iomanip>
 #include <openssl/md5.h>
 #include <openssl/sha.h>
-#include <stdarg.h>
-#include <sstream>
 #include <unistd.h>
 #include "Compiler.h"
 #include "TextUtil.h"
@@ -122,7 +122,7 @@ char ToHexChar(const unsigned u) {
 namespace StringUtil {
 
 
-std::string ASCIIToLower(std::string * const s) {
+std::string &ASCIIToLower(std::string * const s) {
     for (auto &ch : *s) {
         if (ch >= 65 and ch <= 92)
             ch += 32;
@@ -385,6 +385,16 @@ std::string ToString(const double n, const unsigned precision) {
         return stream.str().substr(0, stream.str().size() - 1);
 
     return stream.str();
+}
+
+
+std::string ToString(const bool b, const bool use_localisation) {
+    if (use_localisation) {
+        std::stringstream converter;
+        converter << std::boolalpha << b;
+        return converter.str();
+    } else
+        return b ? "true" : "false";
 }
 
 

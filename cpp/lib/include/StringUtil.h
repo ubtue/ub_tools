@@ -110,7 +110,7 @@ inline std::string AppendSubstring(std::string &target, const std::string &sourc
 
 
 /** \brief Converts the ASCII letters in "s" to lowercase. */
-std::string ASCIIToLower(std::string * const s);
+std::string &ASCIIToLower(std::string * const s);
 std::string ASCIIToLower(const std::string &s);
 
 
@@ -366,11 +366,19 @@ template <typename IntegerType> std::string ToString(IntegerType n, const unsign
 
 
 /** \brief  Convert a double to a string.
- * \param   n          The number to convert.
- * \param   precision  The number of decimial places to show.
- * \return  A string representing the number.
+ *  \param  n          The number to convert.
+ *  \param  precision  The number of decimial places to show.
+ *  \return A string representing the number.
  */
 std::string ToString(const double n, const unsigned precision = 5);
+
+
+/** \brief  Convert a boolean value to a string
+ *  \param  b  The value to convert.
+ *  \param  use_localisation  If true, take the locale into account, o/w return the strings "true".
+ *  \return A string representation of "b".
+ */
+std::string ToString(const bool b, const bool use_localisation = false);
 
 
 /** Converts "s" (a memory block) to a string consisting of hexadecimal numbers (one per nibble). */
@@ -1974,6 +1982,11 @@ inline bool ConsistsOfAllASCIIDigits(const std::string &s) {
     }
 
     return true;
+}
+
+
+inline bool IsPrintableASCIICharacter(const char ch) {
+    return static_cast<unsigned char>(ch) >= 32 and static_cast<unsigned char>(ch) <= 126;
 }
 
 

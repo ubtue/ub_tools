@@ -50,7 +50,7 @@ void PostToTranslationServer(const Url &translation_server_url, const unsigned t
     while (not translation_server_request_semaphore.tryWait()) {
         if (translation_server_wait_timeout.limitExceeded()) {
             *error_message = "translation server busy";
-            LOG_DEBUG("failed to fetch response from the translation server! error: timed out due to busy server");
+            LOG_WARNING("failed to fetch response from the translation server! error: timed out due to busy server");
             return;
         }
         ::usleep(16 * 1000);
@@ -75,7 +75,7 @@ void PostToTranslationServer(const Url &translation_server_url, const unsigned t
             *response_code = downloader.getResponseCode();
         }
     } catch (std::runtime_error &err) {
-        LOG_WARNING("failed to fetch response from the translation server! error: " + std::string(err.what()));
+        LOG_WARNING("failed to fetch response from the translation server! runtime error: " + std::string(err.what()));
     } catch (...) {
         LOG_WARNING("failed to fetch response from the translation server! unknown error");
     }
@@ -97,7 +97,7 @@ void QueryRemoteUrl(const std::string &url, const unsigned time_limit, const boo
         *response_code = 0;
         *error_message = downloader.getLastErrorMessage();
 
-        LOG_DEBUG("failed to fetch response from remote url '" + url + "'! error: " + *error_message);
+        LOG_WARNING("failed to fetch response from remote url '" + url + "'! error: " + *error_message);
         return;
     }
 

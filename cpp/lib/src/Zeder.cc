@@ -21,6 +21,7 @@
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 
 
 namespace Zeder {
@@ -198,8 +199,8 @@ FileType GetFileTypeFromPath(const std::string &path, bool check_if_file_exists)
 
 
 const std::map<Importer::MandatoryField, std::string> Importer::MANDATORY_FIELD_TO_STRING_MAP {
-    { Importer::MandatoryField::Z,        "Z"      },
-    { Importer::MandatoryField::MTIME,    "Mtime"  }
+    { Importer::MandatoryField::Z,     "Z"     },
+    { Importer::MandatoryField::MTIME, "Mtime" }
 };
 
 
@@ -437,8 +438,8 @@ std::unique_ptr<EndpointDownloader> EndpointDownloader::Factory(Type downloader_
 FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::unordered_set<unsigned> &entries_to_download,
                                    const std::unordered_set<std::string> &columns_to_download,
                                    const std::unordered_map<std::string, std::string> &filter_regexps)
-                                   : EndpointDownloader::Params(endpoint_path), entries_to_download_(entries_to_download),
-                                     columns_to_download_(columns_to_download)
+    : EndpointDownloader::Params(endpoint_path), entries_to_download_(entries_to_download),
+      columns_to_download_(columns_to_download)
 {
     for (const auto &filter_pair : filter_regexps) {
         std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(filter_pair.second));
@@ -448,10 +449,14 @@ FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::
 
 
 bool FullDumpDownloader::downloadData(const std::string &endpoint_url, std::shared_ptr<JSON::JSONNode> * const json_data) {
+    const IniFile zeder_authentification(UBTools::GetTuelibPath() + "zeder_authentification.conf");
+
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = "ub_tools/zeder_importer";
+    downloader_params.authentication_username_ = zeder_authentification.getString("", "username");
+    downloader_params.authentication_password_ = zeder_authentification.getString("", "password");
 
-    const TimeLimit time_limit(10000U);
+    const TimeLimit time_limit(20000U);
     Downloader downloader(endpoint_url, downloader_params, time_limit);
 
     if (downloader.anErrorOccurred()) {
@@ -603,6 +608,8 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
 
 bool FullDumpDownloader::download(EntryCollection * const collection) {
     const auto params(dynamic_cast<FullDumpDownloader::Params * const>(downloader_params_.get()));
+    if (unlikely(params == nullptr))
+        LOG_ERROR("dynamic_cast failed!");
 
     std::unordered_map<std::string, ColumnMetadata> column_to_metadata_map;
     std::shared_ptr<JSON::JSONNode> json_data;
@@ -651,7 +658,8 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
 }
 
 
-SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter) {
+SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter)
+{
     const auto endpoint_url(GetFullDumpEndpointPath(flavour));
     const std::unordered_map<std::string, std::string> filter_regexps {}; // intentionally empty
     const std::unordered_set<unsigned> entries_to_download; // empty means all entries

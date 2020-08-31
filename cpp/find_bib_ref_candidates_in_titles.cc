@@ -309,9 +309,7 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
 }
 
 
-/* Scans norm data for records that contain bible references.  Found references are converted to bible book
-   ranges and will in a later processing phase be added to title data.  We also extract pericopes which will be
-   saved to a file that maps periope names to bible ranges. */
+/* Scans authority MARC records for records that contain bible references including pericopes. */
 void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
                   MARC::Reader * const authority_reader, std::vector<std::vector<std::string>> * const pericopes,
                   std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const gnd_codes_to_bible_ref_codes_map)
@@ -373,7 +371,19 @@ std::vector<std::string> TokenizeText(std::string text) {
     TextUtil::NormaliseDashes(&text);
 
     std::vector<std::string> tokens;
-    StringUtil::Split(text, ' ', &tokens);
+    std::string current_token;
+    for (const char ch : text) {
+        if ((not current_token.empty() and StringUtil::IsDigit(current_token.back())
+             and (ch == 'a' or ch == 'b' or ch == 'c')) or ch == ' ')
+        {
+            if (not current_token.empty())
+                tokens.emplace_back(current_token);
+            current_token.clear();
+        } else
+            current_token += ch;
+    }
+    if (not current_token.empty())
+        tokens.emplace_back(current_token);
 
     return tokens;
 }
@@ -389,7 +399,7 @@ inline bool IsPossibleBookNumeral(const std::string &book_numeral_candidate) {
 inline bool IsValidBibleBook(const std::string &bible_book_candidate, const RangeUtil::BibleBookCanoniser &bible_book_canoniser,
                              const RangeUtil::BibleBookToCodeMapper &bible_book_to_code_mapper)
 {
-    return not bible_book_to_code_mapper.mapToCode(TextUtil::UTF8ToLower(bible_book_canoniser.canonise(bible_book_candidate))).empty();
+    return not bible_book_to_code_mapper.mapToCode(bible_book_canoniser.canonise(TextUtil::UTF8ToLower(bible_book_candidate))).empty();
 }
 
 

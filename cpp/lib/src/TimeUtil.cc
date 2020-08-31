@@ -8,7 +8,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2018,2019 Universitätsbibliothek Tübingen
+ *  Copyright 2018-2020 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -32,6 +32,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <cstdio>
 #include <cstring>
@@ -208,7 +209,10 @@ static void ExtractOptionalTimeZoneName(std::string * const date_str, std::strin
     if (StringUtil::EndsWith(*format_string, "%Z")) {
         *format_string = StringUtil::RightTrim(format_string->substr(0, format_string->length() - 2));
         auto ch(date_str->rbegin());
-        while (ch != date_str->rend() and StringUtil::IsUppercaseAsciiLetter(*ch)) {
+        while (ch != date_str->rend() and
+               (StringUtil::IsAsciiLetter(*ch)
+                or *ch == ' ' and (ch + 1) != date_str->rend() and StringUtil::IsAsciiLetter(*(ch + 1))))
+        {
             *time_zone_name += *ch;
             ++ch;
         }
@@ -246,92 +250,86 @@ static bool AdjustForTimeOffset(time_t * const date_time, const char * const tim
 }
 
 
-static void CorrectForSymbolicTimeZone(struct tm * const tm, const std::string &time_zone_name) {
-    if (time_zone_name == "GMT" or time_zone_name == "UTC")
-        return; // GMT is the same as UTC
+const std::unordered_map<std::string, std::string> time_zone_names_to_offsets_map{
+    { "GMT",                    "+00:00" },
+    { "Hora de verano romance", "+01:00" },
+    { "PDT",                    "-07:00" },
+    { "PST",                    "-08:00" },
+    { "UTC",                    "+00:00" },
+};
 
+
+static void CorrectForSymbolicTimeZone(struct tm * const tm, const std::string &time_zone_name) {
     errno = 0;
     time_t converted_tm(::mktime(tm));
     if (unlikely(errno != 0))
         LOG_ERROR("bad time conversion!");
 
-    const char *offset = "+00:00";
-    if (time_zone_name == "PDT")
-        offset = "-07:00";
-    else if (time_zone_name == "PST")
-        offset = "-08:00";
-    else
+    const auto time_zone_name_and_offset(time_zone_names_to_offsets_map.find(time_zone_name));
+    if (time_zone_name_and_offset == time_zone_names_to_offsets_map.cend())
         LOG_ERROR("Unhandled timezone symbolic name '" + time_zone_name + "'");
 
-    if (not AdjustForTimeOffset(&converted_tm, offset))
-        LOG_ERROR("couldn't adjust time_t " + TimeTToString(converted_tm) + " with offset " + std::string(offset));
+    if (not AdjustForTimeOffset(&converted_tm, time_zone_name_and_offset->second.c_str()))
+        LOG_ERROR("couldn't adjust time_t " + TimeTToString(converted_tm) + " with offset " + time_zone_name_and_offset->second);
 }
 
 
 // Strptime()/CentOS idiosyncrasies:
-//      - Strptime() supports "%Z" to denote time zone names, but it doesn't perfom the time conversion.
-//        Furthermore, the above format specifier is apparently broken on CentOS.
+//      - Strptime() supports "%Z" to denote time zone names, but it doesn't perform the time conversion.
+//        Furthermore, the above format specifier is apparently broken on CentOS 7.
 //        So, we need to override the behaviour on our end.
 //      - "%z" does not support a colon in the time zone offset on CentOS.
 //        So, we need to strip it out before we pass it to the function.
 static bool StringToStructTmHelper(std::string date_str, std::string optional_strptime_format, struct tm * const tm) {
-    time_t unix_time(TimeUtil::BAD_TIME_T);
-
-    if (optional_strptime_format.empty())
-        unix_time = WebUtil::ParseWebDateAndTime(date_str);
-    else {
-        std::unique_ptr<Locale> locale;
-        // Optional locale specification?
-        if (optional_strptime_format[0] == '(') {
-            const size_t closing_paren_pos(optional_strptime_format.find(')', 1));
-            if (unlikely(closing_paren_pos == std::string::npos or closing_paren_pos == 1))
-                throw std::runtime_error("TimeUtil::StringToStructTm: bad locale specification \"" + optional_strptime_format + "\"!");
-            const std::string locale_specifications(optional_strptime_format.substr(1, closing_paren_pos - 1));
-            std::vector<std::string> locales_list;
-            StringUtil::Split(locale_specifications, '|', &locales_list, /* suppress_empty_components = */true);
-            for (const auto &locale_specification : locales_list) {
-                Locale *new_locale(new Locale(locale_specification, LC_TIME));
-                if (new_locale->isValid()) {
-                    locale.reset(new_locale);
-                    break;
-                } else
-                    delete new_locale;
-            }
-            if (unlikely(locale == nullptr))
-                LOG_ERROR("no valid locale found in \"" + locale_specifications + "\"!");
-
-            optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
-        }
-
-        NormalizeTimeZoneOffset(&date_str);
-
-        std::unordered_set<std::string> format_string_splits;
-        // try available format strings until a matching one is found
-        if (StringUtil::SplitThenTrimWhite(optional_strptime_format, '|', &format_string_splits)) {
-            for (auto format_string : format_string_splits) {
-                std::string time_zone_name;
-                ExtractOptionalTimeZoneName(&date_str, &format_string, &time_zone_name);
-
-                std::memset(tm, 0, sizeof(*tm));
-                const char * const last_char(::strptime(date_str.c_str(), format_string.c_str(), tm));
-                if (last_char == nullptr or *last_char != '\0')
-                    unix_time = TimeUtil::BAD_TIME_T;
-                else {
-                    if (not time_zone_name.empty())
-                        CorrectForSymbolicTimeZone(tm, time_zone_name);
-
-                    if (tm->tm_mday == 0)
-                        tm->tm_mday = 1;
-                    return true;
-                }
-            }
-        }
+    if (optional_strptime_format.empty()) {
+        const auto unix_time(WebUtil::ParseWebDateAndTime(date_str));
+        if (unix_time == TimeUtil::BAD_TIME_T)
+            return false;
+        return ::gmtime_r(&unix_time, tm) != nullptr;
     }
 
-    if (unix_time != TimeUtil::BAD_TIME_T) {
-        if (unlikely(::gmtime_r(&unix_time, tm) == nullptr))
-            return false;
-        return true;
+    std::vector<std::string> locales;
+
+    // Optional locale specification(s)?
+    if (optional_strptime_format[0] == '(') {
+        const size_t closing_paren_pos(optional_strptime_format.find(')', 1));
+        if (unlikely(closing_paren_pos == std::string::npos or closing_paren_pos == 1))
+            LOG_ERROR("bad locale specification \"" + optional_strptime_format + "\"!");
+        const std::string locale_specifications(optional_strptime_format.substr(1, closing_paren_pos - 1));
+        StringUtil::Split(locale_specifications, '|', &locales, /* suppress_empty_components = */true);
+        if (unlikely(locales.empty()))
+            LOG_ERROR("no locales found between the paretheses \"" + locale_specifications + "\"!");
+        optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
+    } else
+        locales.emplace_back("");
+
+    NormalizeTimeZoneOffset(&date_str);
+
+    std::unordered_set<std::string> format_string_splits;
+    // try available format strings until a matching one is found
+    if (StringUtil::SplitThenTrimWhite(optional_strptime_format, '|', &format_string_splits) == 0)
+        LOG_ERROR("missing format string!");
+
+    for (auto format_string : format_string_splits) {
+        std::string time_zone_name;
+        ExtractOptionalTimeZoneName(&date_str, &format_string, &time_zone_name);
+
+        for (const auto &locale : locales) {
+            std::unique_ptr<Locale> locale_ptr;
+            if (not locale.empty())
+                locale_ptr.reset(new Locale(locale, LC_ALL));
+
+            std::memset(tm, 0, sizeof(*tm));
+            const char * const last_char(::strptime(date_str.c_str(), format_string.c_str(), tm));
+            if (last_char != nullptr and *last_char == '\0') {
+                if (not time_zone_name.empty())
+                    CorrectForSymbolicTimeZone(tm, time_zone_name);
+
+                if (tm->tm_mday == 0)
+                    tm->tm_mday = 1;
+                return true;
+            }
+        }
     }
 
     return false;
@@ -911,6 +909,20 @@ int IsDateInRange(time_t first, time_t last, time_t date) {
         return 0;
     else
         return 1;
+}
+
+
+bool AscTimeToStructTm(std::string asctime_output, struct tm * const tm) {
+    // Example: "Fri Sep 16 13:29:51 1994"
+    if (asctime_output.length() != 24)
+        return false;
+
+    // This is crazy but true: asctime(3) can generate a leading
+    // space or zero for single digit days of the month => we need to normalise this!
+    if (asctime_output[8] == '0')
+        asctime_output[8] = ' ';
+
+    return StringToStructTmHelper(asctime_output, "(en_US)%a %b %d %T %Y", tm);
 }
 
 
