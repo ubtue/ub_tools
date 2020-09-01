@@ -127,6 +127,11 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
     const auto HOSTNAME(DnsUtil::GetHostname());
     const std::string ZEDER_URL_PREFIX(Zeder::GetFullDumpEndpointPath(zeder_flavour) + "#suche=Z%3D");
 
+    const std::vector<std::string> COLUMN_NAMES{ "timestamp","Quellrechner", "Systemtyp", "Zeder_ID", "Zeder_URL", "PPN_Typ",
+                                                 "PPN", "Jahr", "Band", "Heft", "Seitenbereich", "Startseite", "Endseite" };
+    std::vector<std::vector<std::string>> column_values;
+
+    const unsigned SQL_INSERT_BATCH_SIZE(20);
     unsigned total_count(0), inserted_count(0);
     while (const auto record = reader->read()) {
         ++total_count;
@@ -153,29 +158,36 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
             volume = _936_field->getFirstSubfieldWithCode('d');
         const std::string year(_936_field->getFirstSubfieldWithCode('j'));
 
-        std::map<std::string, std::string> column_names_to_values_map{
-            { "timestamp",     JOB_START_TIME                                                         },
-            { "Quellrechner",  HOSTNAME                                                               },
-            { "Systemtyp",     system_type,                                                           },
-            { "Zeder_ID",      std::to_string(zeder_id_and_type->second.zeder_id_)                    },
-            { "Zeder_URL",     ZEDER_URL_PREFIX + std::to_string(zeder_id_and_type->second.zeder_id_) },
-            { "PPN_Typ",       std::string(1, zeder_id_and_type->second.type_)                        },
-            { "PPN",           superior_control_number                                                },
-            { "Jahr",          std::to_string(YearStringToShort(year))                                },
-            { "Band",          volume                                                                 },
-            { "Heft",          issue                                                                  },
-            { "Seitenbereich", pages                                                                  }
+        std::vector<std::string> new_column_values{
+            { /* timestamp */     JOB_START_TIME                                                         },
+            { /* Quellrechner */  HOSTNAME                                                               },
+            { /* Systemtyp */     system_type,                                                           },
+            { /* Zeder_ID */      std::to_string(zeder_id_and_type->second.zeder_id_)                    },
+            { /* Zeder_URL */     ZEDER_URL_PREFIX + std::to_string(zeder_id_and_type->second.zeder_id_) },
+            { /* PPN_Typ */       std::string(1, zeder_id_and_type->second.type_)                        },
+            { /* PPN */           superior_control_number                                                },
+            { /* Jahr */          std::to_string(YearStringToShort(year))                                },
+            { /* Band */          volume                                                                 },
+            { /* Heft */          issue                                                                  },
+            { /* Seitenbereich */ pages                                                                  },
         };
 
         unsigned start_page, end_page;
         if (SplitPageNumbers(pages, &start_page, &end_page)) {
-            column_names_to_values_map["Startseite"] = StringUtil::ToString(start_page);
-            column_names_to_values_map["Endseite"]   = StringUtil::ToString(end_page);
+            new_column_values.emplace_back(StringUtil::ToString(start_page));
+            new_column_values.emplace_back(StringUtil::ToString(end_page));
+        }
+        column_values.emplace_back(new_column_values);
+
+        if (column_values.size() == SQL_INSERT_BATCH_SIZE) {
+            db_connection->insertIntoTableOrDie("zeder.erschliessung", COLUMN_NAMES, column_values);
+            column_values.clear();
         }
 
-        db_connection->insertIntoTableOrDie("zeder.erschliessung", column_names_to_values_map);
         ++inserted_count;
     }
+    if (not column_values.empty())
+            db_connection->insertIntoTableOrDie("zeder.erschliessung", COLUMN_NAMES, column_values);
 
     LOG_INFO("Processed " + std::to_string(total_count) + " records and inserted " + std::to_string(inserted_count)
              + " into Ingo's database.");

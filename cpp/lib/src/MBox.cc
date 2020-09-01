@@ -134,7 +134,7 @@ bool ParseReceivedBody(const std::string &field_body, std::string * const host) 
 }
 
 
-MBox::Message MBox::getNextMessage() {
+MBox::Message MBox::getNextMessage() const {
     if (input_->eof())
         return Message();
 
@@ -198,7 +198,7 @@ MBox::Message MBox::getNextMessage() {
 }
 
 
-std::string MBox::getNextLogicalHeaderLine() {
+std::string MBox::getNextLogicalHeaderLine() const {
     if (unlikely(input_->eof()))
         LOG_ERROR("unexpected EOF in \"" + input_->getPath() + "\" while trying to read a message header!");
 
