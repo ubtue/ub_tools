@@ -40,7 +40,7 @@ class DbConnection {
 public:
     enum Charset { UTF8MB3, UTF8MB4 };
     enum Collation { UTF8MB3_BIN, UTF8MB4_BIN };
-    enum DuplicateKeyBehaviour { DKB_FAIL, DKB_IGNORE, DKB_REPLACE };
+    enum DuplicateKeyBehaviour { DKB_FAIL, DKB_REPLACE };
     enum OpenMode { READONLY, READWRITE, CREATE /* = create if not exists */ };
     enum TimeZone { TZ_SYSTEM, TZ_UTC };
     enum Type { T_MYSQL, T_SQLITE };

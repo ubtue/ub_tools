@@ -125,7 +125,7 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
                                             { "feed_url",         StringUtil::Truncate(MAX_ITEM_URL_LENGTH, feed_url)          },
                                             { "pub_date",         SqlUtil::TimeTToDatetime(item.getPubDate())                  }
                                         },
-                                        DbConnection::DuplicateKeyBehaviour::DKB_IGNORE);
+                                        DbConnection::DuplicateKeyBehaviour::DKB_REPLACE);
 
     return true;
 }
