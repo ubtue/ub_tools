@@ -410,8 +410,6 @@ void DbConnection::insertIntoTableOrDie(const std::string &table_name,
         LOG_ERROR("\"where_clause\" is only valid when using the DKB_REPLACE mode!");
 
     std::string insert_stmt(duplicate_key_behaviour == DKB_REPLACE ? "REPLACE" : "INSERT");
-    if (duplicate_key_behaviour == DKB_IGNORE)
-        insert_stmt += (type_ == T_MYSQL) ? " IGNORE" : " OR IGNORE";
     insert_stmt += " INTO " + table_name + " (";
 
     const char column_name_quote(type_ == T_MYSQL ? '`' : '"');
@@ -460,8 +458,6 @@ void DbConnection::insertIntoTableOrDie(const std::string &table_name, const std
         LOG_ERROR("\"where_clause\" is only valid when using the DKB_REPLACE mode!");
 
     std::string insert_stmt(duplicate_key_behaviour == DKB_REPLACE ? "REPLACE" : "INSERT");
-    if (duplicate_key_behaviour == DKB_IGNORE)
-        insert_stmt += (type_ == T_MYSQL) ? " IGNORE" : " OR IGNORE";
     insert_stmt += " INTO " + table_name + " (";
 
     const char column_name_quote(type_ == T_MYSQL ? '`' : '"');
