@@ -128,6 +128,15 @@ public:
     void insertIntoTableOrDie(const std::string &table_name, const std::map<std::string, std::string> &column_names_to_values_map,
                               const DuplicateKeyBehaviour duplicate_key_behaviour = DKB_FAIL, const std::string &where_clause = "");
 
+    /* \param   where_clause  Do not include the WHERE keyword and only use this if duplicate_key_behaviour is DKB_REPLACE.
+     * \param   column_names  The column names.
+     * \param   values        The values.  Every entry must have a matching entry for each column name.
+     * \warning All entries in "column_names_to_values_maps" must have the same keys, i.e. column names!
+     */
+    void insertIntoTableOrDie(const std::string &table_name, const std::vector<std::string> &column_names,
+                              const std::vector<std::vector<std::string>> &values,
+                              const DuplicateKeyBehaviour duplicate_key_behaviour = DKB_FAIL, const std::string &where_clause = "");
+
     DbResultSet getLastResultSet();
     inline std::string getLastErrorMessage() const
         { return (type_ == T_MYSQL) ? ::mysql_error(&mysql_) : ::sqlite3_errmsg(sqlite3_); }
