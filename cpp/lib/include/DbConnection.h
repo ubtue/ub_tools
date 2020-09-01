@@ -41,7 +41,7 @@ public:
     enum Charset { UTF8MB3, UTF8MB4 };
     enum Collation { UTF8MB3_BIN, UTF8MB4_BIN };
     enum DuplicateKeyBehaviour { DKB_FAIL, DKB_IGNORE, DKB_REPLACE };
-    enum OpenMode { READONLY, READWRITE, CREATE };
+    enum OpenMode { READONLY, READWRITE, CREATE /* = create if not exists */ };
     enum TimeZone { TZ_SYSTEM, TZ_UTC };
     enum Type { T_MYSQL, T_SQLITE };
     enum MYSQL_PRIVILEGE { P_SELECT, P_INSERT, P_UPDATE, P_DELETE, P_CREATE, P_DROP, P_REFERENCES,
@@ -76,6 +76,7 @@ public:
     // Another optional entry is "sql_port".  If that entry is missing the default value MYSQL_PORT will be used.
     explicit DbConnection(const IniFile &ini_file, const std::string &ini_file_section = "Database", const TimeZone time_zone = TZ_SYSTEM);
 
+    // Creates or opens an Sqlite3 database.
     DbConnection(const std::string &database_path, const OpenMode open_mode);
 
     /** \brief Attemps to parse something like "mysql://ruschein:xfgYu8z@localhost:3345/vufind" */
