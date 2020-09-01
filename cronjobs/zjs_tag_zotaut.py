@@ -56,7 +56,6 @@ def TagZoteroJournalStatusZotAutFromZeder():
             for issn in issns:
                 zotaut_status = GetZederZotAutStatusForISSN(issn, [ixtheo_zeder, krimdok_zeder])
                 if zotaut_status:
-                    print("ZOTAUT_STATUS TRUE")
                     break
         if zotaut_status:
             print ("ZOTAT")
