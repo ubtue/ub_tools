@@ -5,8 +5,10 @@ import urllib.request
 import github_api_util
 import github_ubtue_util
 
+
 ZEDER_URL_IXTHEO = 'http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?action=get&Dimension=wert&Instanz=ixtheo&Bearbeiter='
 ZEDER_URL_KRIMDOK = 'http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?action=get&Dimension=wert&Instanz=krim&Bearbeiter='
+
 
 def GetDataFromZeder(zeder_url):
     response = urllib.request.urlopen(zeder_url)
