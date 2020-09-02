@@ -118,6 +118,53 @@ unsigned short YearStringToShort(const std::string &year_as_string) {
     return year_as_unsigned_short;
 }
 
+
+struct DbEntry {
+    std::string jahr_;
+    std::string band_;
+    std::string heft_;
+    std::string seitenbereich_;
+public:
+    DbEntry(const std::string &jahr, const std::string &band, const std::string &heft, const std::string &seitenbereich)
+        : jahr_(jahr), band_(band), heft_(heft), seitenbereich_(seitenbereich) { }
+    DbEntry() = default;
+    DbEntry(const DbEntry &other) = default;
+
+    bool operator==(const DbEntry &rhs) const;
+};
+
+
+bool DbEntry::operator==(const DbEntry &rhs) const {
+    return jahr_ == rhs.jahr_ and band_ == rhs.band_ and heft_ == rhs.heft_ and seitenbereich_ == rhs.seitenbereich_;
+}
+
+
+size_t GetExistingDbEntries(DbConnection * const db_connection, const std::string &hostname, const std::string &system_type,
+                            std::unordered_map<std::string, DbEntry> * const existing_entries)
+{
+    db_connection->queryOrDie("SELECT MAX(timestamp),Zeder_ID,PPN_Typ,Jahr,Band,Heft,Seitenbereich"
+                              " FROM zeder.erschliessung WHERE Quellrechner='" + hostname + "' AND Systemtyp='"
+                              + system_type + "'");
+    auto result_set(db_connection->getLastResultSet());
+    while (const auto row = result_set.getNextRow())
+        (*existing_entries)[row["Zeder_ID"] + "+" + row["PPN_Typ"]] =
+            DbEntry(row["Jahr"], row["Band"], row["Heft"], row["Seitenbereich"]);
+
+    return existing_entries->size();
+}
+
+
+bool AlreadyPresentInDB(const std::unordered_map<std::string, DbEntry> &existing_entries,
+                        const std::string &zeder_id, const std::string &ppn_type, const DbEntry &test_entry)
+{
+    const auto key_and_entry(existing_entries.find(zeder_id + "+" + ppn_type));
+    if (key_and_entry == existing_entries.cend())
+        return false;
+
+    return key_and_entry->second == test_entry;
+}
+
+
 void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, const std::string &system_type,
                     const std::unordered_map<std::string, ZederIdAndType> &ppns_to_zeder_ids_and_types_map,
                     DbConnection * const db_connection)
@@ -127,6 +174,14 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
     const auto HOSTNAME(DnsUtil::GetHostname());
     const std::string ZEDER_URL_PREFIX(Zeder::GetFullDumpEndpointPath(zeder_flavour) + "#suche=Z%3D");
 
+    std::unordered_map<std::string, DbEntry> existing_entries;
+    GetExistingDbEntries(db_connection, HOSTNAME, system_type, &existing_entries);
+
+    const std::vector<std::string> COLUMN_NAMES{ "timestamp", "Quellrechner", "Systemtyp", "Zeder_ID", "Zeder_URL", "PPN_Typ",
+                                                 "PPN", "Jahr", "Band", "Heft", "Seitenbereich", "Startseite", "Endseite" };
+    std::vector<std::vector<std::optional<std::string>>> column_values;
+
+    const unsigned SQL_INSERT_BATCH_SIZE(20);
     unsigned total_count(0), inserted_count(0);
     while (const auto record = reader->read()) {
         ++total_count;
@@ -153,29 +208,46 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
             volume = _936_field->getFirstSubfieldWithCode('d');
         const std::string year(_936_field->getFirstSubfieldWithCode('j'));
 
-        std::map<std::string, std::string> column_names_to_values_map{
-            { "timestamp",     JOB_START_TIME                                                         },
-            { "Quellrechner",  HOSTNAME                                                               },
-            { "Systemtyp",     system_type,                                                           },
-            { "Zeder_ID",      std::to_string(zeder_id_and_type->second.zeder_id_)                    },
-            { "Zeder_URL",     ZEDER_URL_PREFIX + std::to_string(zeder_id_and_type->second.zeder_id_) },
-            { "PPN_Typ",       std::string(1, zeder_id_and_type->second.type_)                        },
-            { "PPN",           superior_control_number                                                },
-            { "Jahr",          std::to_string(YearStringToShort(year))                                },
-            { "Band",          volume                                                                 },
-            { "Heft",          issue                                                                  },
-            { "Seitenbereich", pages                                                                  }
+        const std::string zeder_id(std::to_string(zeder_id_and_type->second.zeder_id_));
+        const std::string ppn_type(1, zeder_id_and_type->second.type_);
+        const std::string year_as_string(std::to_string(YearStringToShort(year)));
+        if (AlreadyPresentInDB(existing_entries, zeder_id, ppn_type,
+                               DbEntry(year_as_string, volume, issue, pages)))
+            continue;
+
+        std::vector<std::optional<std::string>> new_column_values{
+            { /* timestamp */     JOB_START_TIME                                                         },
+            { /* Quellrechner */  HOSTNAME                                                               },
+            { /* Systemtyp */     system_type,                                                           },
+            { /* Zeder_ID */      zeder_id                                                               },
+            { /* Zeder_URL */     ZEDER_URL_PREFIX + std::to_string(zeder_id_and_type->second.zeder_id_) },
+            { /* PPN_Typ */       ppn_type                                                               },
+            { /* PPN */           superior_control_number                                                },
+            { /* Jahr */          year_as_string                                                         },
+            { /* Band */          volume                                                                 },
+            { /* Heft */          issue                                                                  },
+            { /* Seitenbereich */ pages                                                                  },
         };
 
         unsigned start_page, end_page;
         if (SplitPageNumbers(pages, &start_page, &end_page)) {
-            column_names_to_values_map["Startseite"] = StringUtil::ToString(start_page);
-            column_names_to_values_map["Endseite"]   = StringUtil::ToString(end_page);
+            new_column_values.emplace_back(StringUtil::ToString(start_page));
+            new_column_values.emplace_back(StringUtil::ToString(end_page));
+        } else {
+            new_column_values.emplace_back(std::optional<std::string>());
+            new_column_values.emplace_back(std::optional<std::string>());
+        }
+        column_values.emplace_back(new_column_values);
+
+        if (column_values.size() == SQL_INSERT_BATCH_SIZE) {
+            db_connection->insertIntoTableOrDie("zeder.erschliessung", COLUMN_NAMES, column_values);
+            column_values.clear();
         }
 
-        db_connection->insertIntoTableOrDie("zeder.erschliessung", column_names_to_values_map);
         ++inserted_count;
     }
+    if (not column_values.empty())
+            db_connection->insertIntoTableOrDie("zeder.erschliessung", COLUMN_NAMES, column_values);
 
     LOG_INFO("Processed " + std::to_string(total_count) + " records and inserted " + std::to_string(inserted_count)
              + " into Ingo's database.");
