@@ -176,6 +176,9 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
         if (SplitPageNumbers(pages, &start_page, &end_page)) {
             new_column_values.emplace_back(StringUtil::ToString(start_page));
             new_column_values.emplace_back(StringUtil::ToString(end_page));
+        } else {
+            new_column_values.emplace_back("NULL");
+            new_column_values.emplace_back("NULL");
         }
         column_values.emplace_back(new_column_values);
 
