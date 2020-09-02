@@ -410,8 +410,6 @@ void DbConnection::insertIntoTableOrDie(const std::string &table_name,
         LOG_ERROR("\"where_clause\" is only valid when using the DKB_REPLACE mode!");
 
     std::string insert_stmt(duplicate_key_behaviour == DKB_REPLACE ? "REPLACE" : "INSERT");
-    if (duplicate_key_behaviour == DKB_IGNORE)
-        insert_stmt += (type_ == T_MYSQL) ? " IGNORE" : " OR IGNORE";
     insert_stmt += " INTO " + table_name + " (";
 
     const char column_name_quote(type_ == T_MYSQL ? '`' : '"');
@@ -441,6 +439,62 @@ void DbConnection::insertIntoTableOrDie(const std::string &table_name,
     }
 
     insert_stmt += ')';
+
+    if (not where_clause.empty())
+        insert_stmt += " WHERE " + where_clause;
+
+    queryOrDie(insert_stmt);
+}
+
+
+void DbConnection::insertIntoTableOrDie(const std::string &table_name, const std::vector<std::string> &column_names,
+                                        const std::vector<std::vector<std::optional<std::string>>> &values,
+                                        const DuplicateKeyBehaviour duplicate_key_behaviour, const std::string &where_clause)
+{
+    if (column_names.empty())
+        LOG_ERROR("at least one column name must be provided!");
+
+    if (not where_clause.empty() and duplicate_key_behaviour != DKB_REPLACE)
+        LOG_ERROR("\"where_clause\" is only valid when using the DKB_REPLACE mode!");
+
+    std::string insert_stmt(duplicate_key_behaviour == DKB_REPLACE ? "REPLACE" : "INSERT");
+    insert_stmt += " INTO " + table_name + " (";
+
+    const char column_name_quote(type_ == T_MYSQL ? '`' : '"');
+
+    bool first(true);
+    for (const auto &column_name : column_names) {
+        if (not first)
+            insert_stmt += ',';
+        else
+            first = false;
+
+        insert_stmt += column_name_quote;
+        insert_stmt += column_name;
+        insert_stmt += column_name_quote;
+    }
+
+    insert_stmt += ") VALUES ";
+
+    for (auto column_values(values.cbegin()); column_values != values.cend(); ++column_values) {
+        insert_stmt += '(';
+        first = true;
+        for (const auto &column_value : *column_values) {
+            if (not first)
+                insert_stmt += ',';
+            else
+                first = false;
+
+            if (column_value)
+                insert_stmt += escapeAndQuoteString(*column_value);
+            else
+                insert_stmt += "NULL";
+        }
+        insert_stmt += ')';
+
+        if (column_values != values.cend() - 1)
+            insert_stmt += ',';
+    }
 
     if (not where_clause.empty())
         insert_stmt += " WHERE " + where_clause;

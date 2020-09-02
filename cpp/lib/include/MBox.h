@@ -59,7 +59,7 @@ public:
 
     class const_iterator {
         friend class MBox;
-        MBox * const mbox_;
+        const MBox * const mbox_;
         Message message_;
     public:
         inline const Message &operator*() { return message_; }
@@ -68,20 +68,20 @@ public:
         inline bool operator!=(const const_iterator &rhs) { return not operator==(rhs); }
     private:
         const_iterator(const const_iterator &rhs) = default;
-        const_iterator(Message * const message, MBox * const mbox): mbox_(mbox) { message->swap(message_); }
+        const_iterator(Message * const message, const MBox * const mbox): mbox_(mbox) { message->swap(message_); }
     };
 
 private:
-    File *input_;
-    time_t last_reception_time_;
+    mutable File *input_;
+    mutable time_t last_reception_time_;
 public:
     explicit MBox(const std::string &filename);
     ~MBox(){ delete input_; }
 
     const std::string &getPath() const { return input_->getPath(); }
-    inline const_iterator begin() { Message first_message(getNextMessage()); return const_iterator(&first_message, this); }
-    inline const_iterator end() { Message empty_message; return const_iterator(&empty_message, this); }
+    inline const_iterator begin() const { Message first_message(getNextMessage()); return const_iterator(&first_message, this); }
+    inline const_iterator end() const { Message empty_message; return const_iterator(&empty_message, this); }
 private:
-    Message getNextMessage();
-    std::string getNextLogicalHeaderLine();
+    Message getNextMessage() const;
+    std::string getNextLogicalHeaderLine() const;
 };
