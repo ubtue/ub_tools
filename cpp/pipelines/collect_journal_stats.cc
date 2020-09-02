@@ -179,7 +179,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
 
     const std::vector<std::string> COLUMN_NAMES{ "timestamp", "Quellrechner", "Systemtyp", "Zeder_ID", "Zeder_URL", "PPN_Typ",
                                                  "PPN", "Jahr", "Band", "Heft", "Seitenbereich", "Startseite", "Endseite" };
-    std::vector<std::vector<std::string>> column_values;
+    std::vector<std::vector<std::optional<std::string>>> column_values;
 
     const unsigned SQL_INSERT_BATCH_SIZE(20);
     unsigned total_count(0), inserted_count(0);
@@ -215,7 +215,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
                                DbEntry(year_as_string, volume, issue, pages)))
             continue;
 
-        std::vector<std::string> new_column_values{
+        std::vector<std::optional<std::string>> new_column_values{
             { /* timestamp */     JOB_START_TIME                                                         },
             { /* Quellrechner */  HOSTNAME                                                               },
             { /* Systemtyp */     system_type,                                                           },
@@ -234,8 +234,8 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
             new_column_values.emplace_back(StringUtil::ToString(start_page));
             new_column_values.emplace_back(StringUtil::ToString(end_page));
         } else {
-            new_column_values.emplace_back("NULL");
-            new_column_values.emplace_back("NULL");
+            new_column_values.emplace_back(std::optional<std::string>());
+            new_column_values.emplace_back(std::optional<std::string>());
         }
         column_values.emplace_back(new_column_values);
 
