@@ -448,7 +448,7 @@ void DbConnection::insertIntoTableOrDie(const std::string &table_name,
 
 
 void DbConnection::insertIntoTableOrDie(const std::string &table_name, const std::vector<std::string> &column_names,
-                                        const std::vector<std::vector<std::string>> &values,
+                                        const std::vector<std::vector<std::optional<std::string>>> &values,
                                         const DuplicateKeyBehaviour duplicate_key_behaviour, const std::string &where_clause)
 {
     if (column_names.empty())
@@ -485,7 +485,10 @@ void DbConnection::insertIntoTableOrDie(const std::string &table_name, const std
             else
                 first = false;
 
-            insert_stmt += escapeAndQuoteString(column_value);
+            if (column_value)
+                insert_stmt += escapeAndQuoteString(*column_value);
+            else
+                insert_stmt += "NULL";
         }
         insert_stmt += ')';
 

@@ -20,6 +20,7 @@
 #pragma once
 
 
+#include <optional>
 #include <string>
 #include <vector>
 #include <mysql/mysql.h>
@@ -135,7 +136,7 @@ public:
      * \warning All entries in "column_names_to_values_maps" must have the same keys, i.e. column names!
      */
     void insertIntoTableOrDie(const std::string &table_name, const std::vector<std::string> &column_names,
-                              const std::vector<std::vector<std::string>> &values,
+                              const std::vector<std::vector<std::optional<std::string>>> &values,
                               const DuplicateKeyBehaviour duplicate_key_behaviour = DKB_FAIL, const std::string &where_clause = "");
 
     DbResultSet getLastResultSet();

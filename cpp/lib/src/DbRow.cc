@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DbRow class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -59,6 +59,18 @@ std::string DbRow::operator[](const std::string &column_name) const {
 }
 
 
+std::string DbRow::getValue(const std::string &column_name, const std::string &default_value) const {
+    const auto name_and_index_iter(field_name_to_index_map_->find(column_name));
+    if (unlikely(name_and_index_iter == field_name_to_index_map_->cend()))
+        throw std::out_of_range("in DbRow::operator[](const std::string&): invalid column name \"" + column_name + "\"!");
+
+    if (isNull(name_and_index_iter->second))
+        return default_value;
+
+    return operator[](name_and_index_iter->second);
+}
+
+
 bool DbRow::isNull(const size_t i) const {
     if (unlikely(i >= field_count_))
         throw std::out_of_range("in DbRow::isNull(const size_t i): index out of range in DbRow::isNull(const size_t i): max. "
@@ -78,4 +90,3 @@ bool DbRow::isNull(const std::string &column_name) const {
                                  + column_name + "\"!");
     return isNull(name_and_index_iter->second);
 }
-
