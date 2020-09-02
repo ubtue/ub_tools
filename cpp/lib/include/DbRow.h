@@ -2,7 +2,7 @@
  *  \brief  Interface for the DbRow class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -67,6 +67,12 @@ public:
      *  \throws std::out_of_range if the "column_name" refers to a non-existent column name or the column's value is NULL.
      */
     std::string operator[](const std::string &column_name) const;
+
+    /** \brief Retrieves the field w/ column name "column_name" from the row.
+     *  \throws std::out_of_range if the "column_name" refers to a non-existent column name.
+     *  \return The column's value or "default_value" if the colum value is NULL.
+     */
+    std::string getValue(const std::string &column_name, const std::string &default_value = "") const;
 
     /** \throws std::out_of_range if the index "i" refers to an invalid column. */
     bool isNull(const size_t i) const;
