@@ -64,11 +64,14 @@ void Validate(const std::multimap<std::string, std::string> &cgi_args) {
     StringUtil::RemoveChars("\r", &ini_content);
     FileUtil::WriteStringOrDie(temp_file.getFilePath(), ini_content);
 
-    // This does not work yet, seems like due to CGI stdout redirect
-    // std::cout does not have the STDOUT_FILENO anymore,
-    // but how do you get the real fd?
+    // Redirect stderr to stdout
+    // flush is important, else we have invalid script headers!
     logger->redirectOutput(STDOUT_FILENO);
+    std::cout << "<font color=\"red\">";
+    std::cout.flush();
     IniFile ini_file(temp_file.getFilePath());
+    std::cout << "</font>";
+    logger->redirectOutput(STDERR_FILENO);
 
     // This message will only be shown if IniFile has been successfully parsed
     std::cout << "<p>Validation successful</p>";
