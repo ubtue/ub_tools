@@ -87,29 +87,6 @@ std::unordered_map<std::string, ZederIdAndType> GetPPNsToZederIdsAndTypesMap(con
 }
 
 
-bool SplitPageNumbers(const std::string &possibly_combined_pages, unsigned * const start_page, unsigned * const end_page) {
-    if (StringUtil::ToUnsigned(possibly_combined_pages, start_page)) {
-        *end_page = *start_page;
-        return true;
-    } else if (possibly_combined_pages.length() >= 2
-               and possibly_combined_pages[possibly_combined_pages.length() - 1] == 'f')
-    {
-        if (not StringUtil::ToUnsigned(possibly_combined_pages.substr(0, possibly_combined_pages.length() - 1), start_page))
-            return false;
-        *end_page = *start_page + 1;
-        return true;
-    }
-
-    // Common case, page range with a hypen.
-    const auto first_hyphen_pos(possibly_combined_pages.find('-'));
-    if (first_hyphen_pos == std::string::npos)
-        return false;
-
-    return StringUtil::ToUnsigned(possibly_combined_pages.substr(0, first_hyphen_pos), start_page)
-           and StringUtil::ToUnsigned(possibly_combined_pages.substr(first_hyphen_pos + 1), end_page);
-}
-
-
 // \return the year as a small integer or 0 if we could not parse it.
 unsigned short YearStringToShort(const std::string &year_as_string) {
     unsigned short year_as_unsigned_short;
@@ -170,17 +147,15 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
                     const std::unordered_map<std::string, ZederIdAndType> &ppns_to_zeder_ids_and_types_map,
                     const IniFile &ini_file, DbConnection * const db_connection)
 {
-    const auto zeder_flavour(system_type == "krimdok" ? Zeder::KRIMDOK : Zeder::IXTHEO);
     const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
     const auto HOSTNAME(DnsUtil::GetHostname());
-    const std::string ZEDER_URL_PREFIX(Zeder::GetFullDumpEndpointPath(zeder_flavour) + "#suche=Z%3D");
 
     std::unordered_map<std::string, DbEntry> existing_entries;
     LOG_INFO("Found " + std::to_string(GetExistingDbEntries(ini_file, HOSTNAME, system_type, &existing_entries))
              + " existing database entries.");
 
-    const std::vector<std::string> COLUMN_NAMES{ "timestamp", "Quellrechner", "Systemtyp", "Zeder_ID", "Zeder_URL", "PPN_Typ",
-                                                 "PPN", "Jahr", "Band", "Heft", "Seitenbereich", "Startseite", "Endseite" };
+    const std::vector<std::string> COLUMN_NAMES{ "timestamp", "Quellrechner", "Systemtyp", "Zeder_ID", "PPN_Typ",
+                                                 "PPN", "Jahr", "Band", "Heft", "Seitenbereich" };
     std::vector<std::vector<std::optional<std::string>>> column_values;
 
     const unsigned SQL_INSERT_BATCH_SIZE(20);
@@ -217,28 +192,18 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
                                DbEntry(year_as_string, volume, issue, pages)))
             continue;
 
-        std::vector<std::optional<std::string>> new_column_values{
-            { /* timestamp */     JOB_START_TIME                                                                     },
-            { /* Quellrechner */  HOSTNAME                                                                           },
-            { /* Systemtyp */     system_type,                                                                       },
-            { /* Zeder_ID */      zeder_id                                                                           },
-            { /* Zeder_URL */     ZEDER_URL_PREFIX + std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_) },
-            { /* PPN_Typ */       ppn_type                                                                           },
-            { /* PPN */           superior_control_number                                                            },
-            { /* Jahr */          year_as_string                                                                     },
-            { /* Band */          volume                                                                             },
-            { /* Heft */          issue                                                                              },
-            { /* Seitenbereich */ pages                                                                             },
+        const std::vector<std::optional<std::string>> new_column_values{
+            { /* timestamp */     JOB_START_TIME          },
+            { /* Quellrechner */  HOSTNAME                },
+            { /* Systemtyp */     system_type,            },
+            { /* Zeder_ID */      zeder_id                },
+            { /* PPN_Typ */       ppn_type                },
+            { /* PPN */           superior_control_number },
+            { /* Jahr */          year_as_string          },
+            { /* Band */          volume                  },
+            { /* Heft */          issue                   },
+            { /* Seitenbereich */ pages                   },
         };
-
-        unsigned start_page, end_page;
-        if (SplitPageNumbers(pages, &start_page, &end_page)) {
-            new_column_values.emplace_back(StringUtil::ToString(start_page));
-            new_column_values.emplace_back(StringUtil::ToString(end_page));
-        } else {
-            new_column_values.emplace_back(std::optional<std::string>());
-            new_column_values.emplace_back(std::optional<std::string>());
-        }
         column_values.emplace_back(new_column_values);
 
         if (column_values.size() == SQL_INSERT_BATCH_SIZE) {
