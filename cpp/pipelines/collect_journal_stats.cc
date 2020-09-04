@@ -42,22 +42,22 @@ inline auto SplitZederPPNs(const std::string &ppns) {
 }
 
 
-struct ZederIdAndType {
+struct ZederIdAndPPNType {
     unsigned zeder_id_;
     char type_; // 'p' or 'e' for "print" or "electronic"
 public:
-    ZederIdAndType(const unsigned zeder_id, const char type)
+    ZederIdAndPPNType(const unsigned zeder_id, const char type)
         : zeder_id_(zeder_id), type_(type) { }
 };
 
 
-std::unordered_map<std::string, ZederIdAndType> GetPPNsToZederIdsAndTypesMap(const std::string &system_type) {
+std::unordered_map<std::string, ZederIdAndPPNType> GetPPNsToZederIdsAndTypesMap(const std::string &system_type) {
     const Zeder::SimpleZeder zeder(system_type == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK, { "eppn", "pppn" });
     if (unlikely(zeder.empty()))
         LOG_ERROR("found no Zeder entries matching any of our requested columns!"
                   " (This *should* not happen as we included the column ID!)");
 
-    std::unordered_map<std::string, ZederIdAndType> ppns_to_zeder_ids_and_types_map;
+    std::unordered_map<std::string, ZederIdAndPPNType> ppns_to_zeder_ids_and_types_map;
     unsigned included_journal_count(0);
     std::set<std::string> bundle_ppns; // We use a std::set because it is automatically being sorted for us.
     for (const auto &journal : zeder) {
@@ -75,10 +75,10 @@ std::unordered_map<std::string, ZederIdAndType> GetPPNsToZederIdsAndTypesMap(con
         }
 
         for (const auto &print_ppn : print_ppns)
-            ppns_to_zeder_ids_and_types_map.emplace(print_ppn, ZederIdAndType(journal.getId(), 'p'));
+            ppns_to_zeder_ids_and_types_map.emplace(print_ppn, ZederIdAndPPNType(journal.getId(), 'p'));
 
         for (const auto &online_ppn : online_ppns)
-            ppns_to_zeder_ids_and_types_map.emplace(online_ppn, ZederIdAndType(journal.getId(), 'e'));
+            ppns_to_zeder_ids_and_types_map.emplace(online_ppn, ZederIdAndPPNType(journal.getId(), 'e'));
     }
 
     LOG_INFO("downloaded information for " + std::to_string(included_journal_count) + " journal(s) from Zeder.");
@@ -144,7 +144,7 @@ bool AlreadyPresentInDB(const std::unordered_map<std::string, DbEntry> &existing
 
 
 void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, const std::string &system_type,
-                    const std::unordered_map<std::string, ZederIdAndType> &ppns_to_zeder_ids_and_types_map)
+                    const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map)
 {
     const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
     const auto HOSTNAME(DnsUtil::GetHostname());
