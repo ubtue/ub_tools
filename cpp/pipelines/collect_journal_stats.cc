@@ -119,11 +119,11 @@ bool DbEntry::operator==(const DbEntry &rhs) const {
 size_t GetExistingDbEntries(const IniFile &ini_file, const std::string &hostname, const std::string &system_type,
                             std::unordered_map<std::string, DbEntry> * const existing_entries)
 {
-    DbConnection db_connection(ini_file, "DatabaseSelect");
-    db_connection.queryOrDie("SELECT MAX(timestamp),Zeder_ID,PPN,Jahr,Band,Heft,Seitenbereich"
-                             " FROM zeder.erschliessung WHERE Quellrechner='" + hostname + "' AND Systemtyp='"
-                             + system_type + "' GROUP BY Zeder_ID,PPN");
-    auto result_set(db_connection.getLastResultSet());
+    DbConnection db_connection_select(ini_file, "DatabaseSelect");
+    db_connection_select.queryOrDie("SELECT MAX(timestamp),Zeder_ID,PPN,Jahr,Band,Heft,Seitenbereich"
+                                    " FROM zeder.erschliessung WHERE Quellrechner='" + hostname + "' AND Systemtyp='"
+                                    + system_type + "' GROUP BY Zeder_ID,PPN");
+    auto result_set(db_connection_select.getLastResultSet());
     while (const auto row = result_set.getNextRow())
         (*existing_entries)[row["Zeder_ID"] + "+" + row["PPN"]] =
             DbEntry(row["Jahr"], row["Band"], row["Heft"], row["Seitenbereich"]);
@@ -144,12 +144,11 @@ bool AlreadyPresentInDB(const std::unordered_map<std::string, DbEntry> &existing
 
 
 void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, const std::string &system_type,
-                    const std::unordered_map<std::string, ZederIdAndType> &ppns_to_zeder_ids_and_types_map,
-                    const IniFile &ini_file, DbConnection * const db_connection)
+                    const std::unordered_map<std::string, ZederIdAndType> &ppns_to_zeder_ids_and_types_map)
 {
     const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
     const auto HOSTNAME(DnsUtil::GetHostname());
-
+    IniFile ini_file;
     std::unordered_map<std::string, DbEntry> existing_entries;
     LOG_INFO("Found " + std::to_string(GetExistingDbEntries(ini_file, HOSTNAME, system_type, &existing_entries))
              + " existing database entries.");
@@ -158,6 +157,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
                                                  "PPN", "Jahr", "Band", "Heft", "Seitenbereich" };
     std::vector<std::vector<std::optional<std::string>>> column_values;
 
+    DbConnection db_connection_insert(ini_file, "DatabaseInsert");
     const unsigned SQL_INSERT_BATCH_SIZE(20);
     unsigned total_count(0), inserted_count(0);
     while (const auto record = reader->read()) {
@@ -207,14 +207,14 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
         column_values.emplace_back(new_column_values);
 
         if (column_values.size() == SQL_INSERT_BATCH_SIZE) {
-            db_connection->insertIntoTableOrDie("zeder.erschliessung", COLUMN_NAMES, column_values);
+            db_connection_insert.insertIntoTableOrDie("zeder.erschliessung", COLUMN_NAMES, column_values);
             column_values.clear();
         }
 
         ++inserted_count;
     }
     if (not column_values.empty())
-            db_connection->insertIntoTableOrDie("zeder.erschliessung", COLUMN_NAMES, column_values);
+            db_connection_insert.insertIntoTableOrDie("zeder.erschliessung", COLUMN_NAMES, column_values);
 
     LOG_INFO("Processed " + std::to_string(total_count) + " records and inserted " + std::to_string(inserted_count)
              + " into Ingo's database.");
@@ -239,13 +239,9 @@ int Main(int argc, char *argv[]) {
 
     const auto ppns_to_zeder_ids_and_types_map(GetPPNsToZederIdsAndTypesMap(system_type));
 
-    IniFile ini_file;
-    DbConnection db_connection(ini_file, "DatabaseInsert");
-
     const auto marc_reader(MARC::Reader::Factory(argv[2]));
     const auto marc_writer(MARC::Writer::Factory(argv[3]));
-    ProcessRecords(marc_reader.get(), marc_writer.get(), system_type, ppns_to_zeder_ids_and_types_map,
-                   ini_file, &db_connection);
+    ProcessRecords(marc_reader.get(), marc_writer.get(), system_type, ppns_to_zeder_ids_and_types_map);
 
     return EXIT_SUCCESS;
 }
