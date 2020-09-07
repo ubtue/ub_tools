@@ -23,4 +23,4 @@ $(PROGS): % : %.o ../lib/libubtue.a Makefile
 	$(MAKE) -C ../lib
 
 clean:
-	rm -f *.o *~ $(PROGS) $(STATIC_PROGS) .deps .static_deps debs/*.deb
+	rm -f *.o *~ $(PROGS) .deps .static_deps debs/*.deb
