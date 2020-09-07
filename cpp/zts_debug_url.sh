@@ -1,5 +1,5 @@
 #!/bin/bash
-# Send request to local zts docker container and get get the logging output 
+# Send request to local zts docker container and get the logging output 
 # since the request started
 
 ZTS_SERVER_AND_PORT="127.0.0.1:1969"
