@@ -58,7 +58,6 @@ def TagZoteroJournalStatusZotAutFromZeder():
                 if zotaut_status:
                     break
         if zotaut_status:
-            print ("ZOTAT")
             new_labels = github_ubtue_util.AdjustZoteroStatusLabels(issue, [ github_ubtue_util.ZOTAUT ], [])
             if not github_ubtue_util.LabelsAreIdentical(issue, new_labels):
                 issue_number = str(issue['number'])
