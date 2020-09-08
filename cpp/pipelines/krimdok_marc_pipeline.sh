@@ -120,6 +120,15 @@ MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 EndPhase || Abort) &
 
 
+# Note: It is necessary to run this phase after articles have had their journal's PPN's inserted!
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+StartPhase "Populate the Zeder Journal Timeliness Database Table"
+(collect_journal_stats ixtheo GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                              GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
 StartPhase 'Convert 044$s Geographic Codes to Keyword Chains in GEO'
 MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (expand_DIN_ISO_3166_geographic_codes GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
