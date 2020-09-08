@@ -57,7 +57,7 @@ void ShowUploadForm() {
 
 void Validate(const std::multimap<std::string, std::string> &cgi_args) {
 
-    std::cout << "<h1>Validate</h1>";
+    std::cout << "<h1>Validate</h1>\n";
 
     FileUtil::AutoTempFile temp_file;
     std::string ini_content(GetCGIParameterOrDefault(cgi_args, "ini_content", ""));
@@ -77,8 +77,8 @@ void Validate(const std::multimap<std::string, std::string> &cgi_args) {
         // this will either exit directly (LOG_ERROR) or throw a std::runtime_error
         // so we need to cover both cases
         IniFile ini_file(temp_file.getFilePath());
-        std::cout << "</font>";
-        std::cout << "<font color=\"green\">Validation successful</font>";
+        std::cout << "</font>\n";
+        std::cout << "<font color=\"green\">Validation successful</font>\n";
     }
     catch(const std::runtime_error &e) {
         std::cout << e.what();
