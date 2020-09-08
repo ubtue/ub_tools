@@ -840,8 +840,6 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
 
         Echo("creating " + NEWSLETTER_DIRECTORY_PATH + "/sent");
         FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH);
-        SELinuxUtil::FileContext::AddRecordIfMissing(NEWSLETTER_DIRECTORY_PATH + "/sent", "httpd_sys_rw_content_t",
-                                                     NEWSLETTER_DIRECTORY_PATH + "/sent(/.*)?");
     }
 
     ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
