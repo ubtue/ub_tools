@@ -16,7 +16,6 @@
 /classify_language
 /clean_tag_db
 /canon_law_to_codes_tool
-/collect_journal_stats
 /collect_solr_stats_data
 /concat
 /control_number_guesser
@@ -109,6 +108,7 @@
 /set_tad_access_flag
 /simple_crawler
 /sqlite_copy
+/store_local_data
 /string_info
 /suggest_bib_refs
 /summarize_logs
