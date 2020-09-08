@@ -44,14 +44,14 @@ std::string GetCGIParameterOrDefault(const std::multimap<std::string, std::strin
 
 
 void ShowUploadForm() {
-    std::cout << "<h1>INI validator</h1>\n";
-    std::cout << "<p>Please paste the content of the INI file here:</p>\n";
-    std::cout << "<form id=\"upload_form\" method=\"post\">\n";
-    std::cout << "\t<textarea name=\"ini_content\" rows=\"20\" cols=\"100\"></textarea>\n";
-    std::cout << "\t<input type=\"hidden\" name=\"action\" value=\"validate\">\n";
-    std::cout << "\t<br><br>\n";
-    std::cout << "\t<button onclick=\"document.getElementById(\"upload_form\").submit()\">Validate</button>\n";
-    std::cout << "</form>\n";
+    std::cout << "<h1>INI validator</h1>\n"
+              << "<p>Please paste the contents of the INI file here:</p>\n"
+              << "<form id=\"upload_form\" method=\"post\">\n"
+              << "\t<textarea name=\"ini_content\" rows=\"20\" cols=\"100\"></textarea>\n"
+              << "\t<input type=\"hidden\" name=\"action\" value=\"validate\">\n"
+              << "\t<br><br>\n"
+              << "\t<button onclick=\"document.getElementById(\"upload_form\").submit()\">Validate</button>\n"
+              << "</form>\n";
 }
 
 
@@ -59,22 +59,35 @@ void Validate(const std::multimap<std::string, std::string> &cgi_args) {
 
     std::cout << "<h1>Validate</h1>";
 
-    FileUtil::AutoTempFile temp_file("/tmp/ATF", "", false);
+    FileUtil::AutoTempFile temp_file;
     std::string ini_content(GetCGIParameterOrDefault(cgi_args, "ini_content", ""));
     StringUtil::RemoveChars("\r", &ini_content);
     FileUtil::WriteStringOrDie(temp_file.getFilePath(), ini_content);
 
     // Redirect stderr to stdout
     // flush is important, else we have invalid script headers!
-    logger->redirectOutput(STDOUT_FILENO);
     std::cout << "<font color=\"red\">";
     std::cout.flush();
-    IniFile ini_file(temp_file.getFilePath());
-    std::cout << "</font>";
-    logger->redirectOutput(STDERR_FILENO);
+    bool log_no_decorations_old(logger->getLogNoDecorations());
+    bool log_strip_call_site_old(logger->getLogStripCallSite());
+    logger->setLogNoDecorations(true);
+    logger->setLogStripCallSite(true);
+    logger->redirectOutput(STDOUT_FILENO);
+    try {
+        // this will either exit directly (LOG_ERROR) or throw a std::runtime_error
+        // so we need to cover both cases
+        IniFile ini_file(temp_file.getFilePath());
+        std::cout << "</font>";
+        std::cout << "<font color=\"green\">Validation successful</font>";
+    }
+    catch(const std::runtime_error &e) {
+        std::cout << e.what();
+    }
 
-    // This message will only be shown if IniFile has been successfully parsed
-    std::cout << "<p>Validation successful</p>";
+    logger->redirectOutput(STDERR_FILENO);
+    logger->setLogNoDecorations(log_no_decorations_old);
+    logger->setLogStripCallSite(log_strip_call_site_old);
+
 }
 
 
