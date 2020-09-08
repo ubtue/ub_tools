@@ -109,7 +109,7 @@ public:
 
     bool operator==(const DbEntry &rhs) const;
 
-    /** \return True if the current entry repreents a more recent article than "other".  If the entry is in the same issue
+    /** \return True if the current entry represents a more recent article than "other".  If the entry is in the same issue
         we use the page numbers as an arbitrary tie breaker. */
     bool isNewerThan(const DbEntry &other) const;
 };
