@@ -148,7 +148,7 @@ wait
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
-#MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
 (add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                   GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
