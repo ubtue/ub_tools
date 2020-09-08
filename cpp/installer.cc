@@ -1,9 +1,6 @@
 /** \brief A tool for installing IxTheo and KrimDok from scratch on Ubuntu and Centos systems.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \note Compile with   g++ -std=gnu++14 -O3 -o installer installer.cc
- *  \note or             clang++ -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions -O3 -o installer installer.cc
- *
  *  \copyright 2016-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -383,9 +380,9 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, const OSSy
     if (vufind_system_type == IXTHEO) {
         IniFile translations_ini_file(UBTools::GetTuelibPath() + "translations.conf");
         const auto translations_ini_section(translations_ini_file.getSection("Database"));
-        std::string ixtheo_database(translations_ini_section->getString("sql_database"));
-        std::string ixtheo_username(translations_ini_section->getString("sql_username"));
-        std::string ixtheo_password(translations_ini_section->getString("sql_password"));
+        const std::string ixtheo_database(translations_ini_section->getString("sql_database"));
+        const std::string ixtheo_username(translations_ini_section->getString("sql_username"));
+        const std::string ixtheo_password(translations_ini_section->getString("sql_password"));
         if (not DbConnection::MySQLDatabaseExists(ixtheo_database, root_username, root_password)) {
             Echo("creating " + ixtheo_database + " database");
             DbConnection::MySQLCreateDatabase(ixtheo_database, root_username, root_password);
