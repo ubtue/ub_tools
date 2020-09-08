@@ -1,9 +1,6 @@
 /** \brief A tool for installing IxTheo and KrimDok from scratch on Ubuntu and Centos systems.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \note Compile with   g++ -std=gnu++14 -O3 -o installer installer.cc
- *  \note or             clang++ -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions -O3 -o installer installer.cc
- *
  *  \copyright 2016-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
