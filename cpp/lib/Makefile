@@ -1,6 +1,5 @@
 LIB         = .
 include ../Makefile.inc
-CCCFLAGS    += -Ilibstemmer/include
 INC         = ./include
 SRC         = src
 OBJ         = objs
@@ -23,7 +22,7 @@ $(STATIC_OBJ)/%_static.o: $(SRC)/%.cc Makefile
 	@echo "Compiling static $< $(OPTIMISATIONS_STATE)..."
 	@$(CCC) -static $(filter-out -march=native, $(CCCFLAGS)) $< -c -o $@
 
-all: /usr/local/bin/iViaCore-mkdep .deps libstemmer/libstemmer.a libubtue.a
+all: /usr/local/bin/iViaCore-mkdep .deps libubtue.a
 
 libubtue.a: $(OBJS) Makefile
 	@echo "Generating $@..."
@@ -32,9 +31,6 @@ libubtue.a: $(OBJS) Makefile
 libubtue_static.a: $(STATIC_OBJS) Makefile
 	@echo "Generating $@..."
 	@ar crs $@ $(STATIC_OBJS)
-
-libstemmer/libstemmer.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libstemmer/include/*.h)
-	$(MAKE) -C libstemmer
 
 /usr/local/bin/iViaCore-mkdep:
 	$(MAKE) -C mkdep install
@@ -48,6 +44,6 @@ libstemmer/libstemmer.a: $(wildcard libstemmer/src_c/*.c) $(wildcard libstemmer/
 	$(MAKE_DEPS) --static-objects -I $(INC) $(SRCS)
 
 clean:
-	rm -f *~ $(OBJ)/*.o $(STATIC_OBJ)/*.o *.a .deps .static_deps && cd libstemmer && make clean && rm -f libstemmer.a
+	rm -f *~ $(OBJ)/*.o $(STATIC_OBJ)/*.o *.a .deps .static_deps
 	$(MAKE) -C mkdep clean
 
