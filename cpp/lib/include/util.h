@@ -61,6 +61,12 @@ public:
 public:
     void redirectOutput(const int new_fd) { fd_ = new_fd; }
 
+    bool getLogNoDecorations() { return log_no_decorations_; }
+    void setLogNoDecorations(const bool log_no_decorations) { log_no_decorations_ = log_no_decorations; }
+
+    bool getLogStripCallSite() { return log_strip_call_site_; }
+    void setLogStripCallSite(const bool log_strip_call_site) { log_strip_call_site_ = log_strip_call_site; }
+
     void setMinimumLogLevel(const LogLevel min_log_level) { min_log_level_ = min_log_level; }
     LogLevel getMinimumLogLevel() const { return min_log_level_; }
 
