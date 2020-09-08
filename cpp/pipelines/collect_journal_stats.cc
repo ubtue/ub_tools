@@ -108,11 +108,29 @@ public:
     DbEntry(const DbEntry &other) = default;
 
     bool operator==(const DbEntry &rhs) const;
+
+    /** \return True if the current entry represents a more recent article than "other".  If the entry is in the same issue
+        we use the page numbers as an arbitrary tie breaker. */
+    bool isNewerThan(const DbEntry &other) const;
 };
 
 
-bool DbEntry::operator==(const DbEntry &rhs) const {
+inline bool DbEntry::operator==(const DbEntry &rhs) const {
     return jahr_ == rhs.jahr_ and band_ == rhs.band_ and heft_ == rhs.heft_ and seitenbereich_ == rhs.seitenbereich_;
+}
+
+
+inline bool DbEntry::isNewerThan(const DbEntry &other) const {
+    if (jahr_ > other.jahr_)
+        return true;
+    if (band_ > other.band_)
+        return true;
+    if (heft_ > other.heft_)
+        return true;
+    if (seitenbereich_ > other.seitenbereich_)
+        return true; // Somewhat nonsensical, but useful nonetheless.
+
+    return false;
 }
 
 
@@ -143,23 +161,16 @@ bool AlreadyPresentInDB(const std::unordered_map<std::string, DbEntry> &existing
 }
 
 
-void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, const std::string &system_type,
-                    const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map)
+void CollectMostRecentEntries(const IniFile &ini_file, MARC::Reader * const reader, MARC::Writer * const writer,
+                              const std::string &system_type, const std::string &hostname,
+                              const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
+                              std::unordered_map<std::string, DbEntry> * const ppns_to_most_recent_entries_map)
 {
-    const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
-    const auto HOSTNAME(DnsUtil::GetHostname());
-    IniFile ini_file;
     std::unordered_map<std::string, DbEntry> existing_entries;
-    LOG_INFO("Found " + std::to_string(GetExistingDbEntries(ini_file, HOSTNAME, system_type, &existing_entries))
+    LOG_INFO("Found " + std::to_string(GetExistingDbEntries(ini_file, hostname, system_type, &existing_entries))
              + " existing database entries.");
 
-    const std::vector<std::string> COLUMN_NAMES{ "timestamp", "Quellrechner", "Systemtyp", "Zeder_ID", "PPN_Typ",
-                                                 "PPN", "Jahr", "Band", "Heft", "Seitenbereich" };
-    std::vector<std::vector<std::optional<std::string>>> column_values;
-
-    DbConnection db_connection_insert(ini_file, "DatabaseInsert");
-    const unsigned SQL_INSERT_BATCH_SIZE(20);
-    unsigned total_count(0), inserted_count(0);
+    unsigned total_count(0);
     while (const auto record = reader->read()) {
         ++total_count;
         writer->write(record); // For the next pipeline phase.
@@ -188,21 +199,48 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
         const std::string zeder_id(std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_));
         const std::string ppn_type(1, ppn_and_zeder_id_and_ppn_type->second.type_);
         const std::string year_as_string(std::to_string(YearStringToShort(year)));
-        if (AlreadyPresentInDB(existing_entries, zeder_id, superior_control_number,
-                               DbEntry(year_as_string, volume, issue, pages)))
-            continue;
+
+        const DbEntry new_db_entry(year_as_string, volume, issue, pages);
+        if (not AlreadyPresentInDB(existing_entries, zeder_id, superior_control_number, new_db_entry)) {
+            const auto ppn_and_most_recent_entry(ppns_to_most_recent_entries_map->find(superior_control_number));
+            if (ppn_and_most_recent_entry == ppns_to_most_recent_entries_map->end()
+                or not ppn_and_most_recent_entry->second.isNewerThan(new_db_entry))
+                (*ppns_to_most_recent_entries_map)[superior_control_number] = new_db_entry;
+        }
+    }
+
+    LOG_INFO("Processed " + std::to_string(total_count) + " MARC records.");
+}
+
+
+void UpdateDatabase(const IniFile &ini_file, const std::string &system_type, const std::string &hostname,
+                    const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
+                    const std::unordered_map<std::string, DbEntry> &ppns_to_most_recent_entries_map)
+{
+    const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
+
+    DbConnection db_connection_insert(ini_file, "DatabaseInsert");
+    const unsigned SQL_INSERT_BATCH_SIZE(20);
+    const std::vector<std::string> COLUMN_NAMES{ "timestamp", "Quellrechner", "Systemtyp", "Zeder_ID", "PPN_Typ",
+                                                 "PPN", "Jahr", "Band", "Heft", "Seitenbereich" };
+    std::vector<std::vector<std::optional<std::string>>> column_values;
+
+    for (const auto &[ppn, db_entry] : ppns_to_most_recent_entries_map) {
+        const auto ppn_and_zeder_id_and_ppn_type(ppns_to_zeder_ids_and_types_map.find(ppn));
+        if (unlikely(ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend()))
+            LOG_ERROR("this should *never* happen!");
 
         const std::vector<std::optional<std::string>> new_column_values{
-            { /* timestamp */     JOB_START_TIME          },
-            { /* Quellrechner */  HOSTNAME                },
-            { /* Systemtyp */     system_type,            },
-            { /* Zeder_ID */      zeder_id                },
-            { /* PPN_Typ */       ppn_type                },
-            { /* PPN */           superior_control_number },
-            { /* Jahr */          year_as_string          },
-            { /* Band */          volume                  },
-            { /* Heft */          issue                   },
-            { /* Seitenbereich */ pages                   },
+            { /* timestamp */     JOB_START_TIME                                                  },
+            { /* Quellrechner */  hostname                                                        },
+            { /* Systemtyp */     system_type,                                                    },
+            { /* Zeder_ID */      std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_) },
+            { /* PPN_Typ */       std::string(1, ppn_and_zeder_id_and_ppn_type->second.type_)     },
+            { /* PPN */           ppn                                                             },
+            { /* Jahr */          db_entry.jahr_                                                  },
+            { /* Band */          db_entry.band_                                                  },
+            { /* Heft */          db_entry.heft_                                                  },
+            { /* Seitenbereich */ db_entry.seitenbereich_                                         },
         };
         column_values.emplace_back(new_column_values);
 
@@ -210,14 +248,11 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer, co
             db_connection_insert.insertIntoTableOrDie("zeder.erschliessung", COLUMN_NAMES, column_values);
             column_values.clear();
         }
-
-        ++inserted_count;
     }
     if (not column_values.empty())
             db_connection_insert.insertIntoTableOrDie("zeder.erschliessung", COLUMN_NAMES, column_values);
 
-    LOG_INFO("Processed " + std::to_string(total_count) + " records and inserted " + std::to_string(inserted_count)
-             + " into Ingo's database.");
+    LOG_INFO("Inserted " + std::to_string(ppns_to_most_recent_entries_map.size()) + " entries into Ingo's database.");
 }
 
 
@@ -239,9 +274,15 @@ int Main(int argc, char *argv[]) {
 
     const auto ppns_to_zeder_ids_and_types_map(GetPPNsToZederIdsAndTypesMap(system_type));
 
+    const IniFile ini_file;
+    const auto HOSTNAME(DnsUtil::GetHostname());
     const auto marc_reader(MARC::Reader::Factory(argv[2]));
     const auto marc_writer(MARC::Writer::Factory(argv[3]));
-    ProcessRecords(marc_reader.get(), marc_writer.get(), system_type, ppns_to_zeder_ids_and_types_map);
+    std::unordered_map<std::string, DbEntry> ppns_to_most_recent_entries_map;
+    CollectMostRecentEntries(ini_file, marc_reader.get(), marc_writer.get(), system_type, HOSTNAME,
+                             ppns_to_zeder_ids_and_types_map, &ppns_to_most_recent_entries_map);
+    UpdateDatabase(ini_file, system_type, HOSTNAME, ppns_to_zeder_ids_and_types_map,
+                   ppns_to_most_recent_entries_map);
 
     return EXIT_SUCCESS;
 }
