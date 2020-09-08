@@ -24,6 +24,7 @@ install: $(PROGS)
 	@echo "Installing CGI programs..."
 	mkdir --parents /var/www/cgi-bin
 	cp $(PROGS) /var/www/cgi-bin/
+	cp newsletter_uploader.py /var/www/cgi-bin/
 
 clean:
 	rm -f *.o *~ $(PROGS) .deps
