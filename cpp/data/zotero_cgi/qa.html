@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <link rel="stylesheet" href="https://getbootstrap.com/docs/4.0/dist/css/bootstrap.min.css"/>
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css"/>
+        <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+        <script type="text/javascript" src="https://code.jquery.com/ui/1.12.0/jquery-ui.min.js"></script>
+        <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.16/datatables.js"></script>
+
+        <!-- popper is required by bootstrap for tabs -->
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
+        <script type="text/javascript" src="https://getbootstrap.com/docs/4.0/dist/js/bootstrap.min.js"></script>
+    </head>
+    <body>
+        <h1>QA Settings</h1>
+        <p><b>{IF journal_name != ""}Journal: {journal_name}{ENDIF}</b></p>
+        <p>
+            <ul>
+                <li>always = MUST exist (an error will occur when trying to deliver without it)</li>
+                <li>sometimes = Already seen, may exist</li>
+                <li>ignore = No information about this tag yet</li>
+            </ul>
+        </p>
+        <table class="table table-bordered" style="width: 200px;">
+            <thead>
+                <tr>
+                    <th>Tag</th>
+                    <th>Global<br>(All&nbsp;journals)</th>
+                    <th>Local<br>(This&nbsp;journal)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {LOOP tags, global_settings, journal_settings}
+                    <tr>
+                        <td>{tags}</td>
+                        <td>{global_settings}</td>
+                        <td>{journal_settings}</td>
+                    </tr>
+                {ENDLOOP}
+            </tbody>
+        </table>
+    </body>
+</html>
