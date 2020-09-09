@@ -30,6 +30,7 @@
 #include "EmailSender.h"
 #include "IniFile.h"
 #include "MARC.h"
+#include "StringUtil.h"
 #include "UBTools.h"
 #include "util.h"
 
@@ -90,6 +91,8 @@ public:
     void addField(const std::string &field_name, const FieldPresence field_presence)
         { field_infos_.emplace_back(field_name, field_presence); }
 
+    void addField(const FieldInfo &field_info) { field_infos_.emplace_back(field_info); }
+
     const_iterator begin() const { return field_infos_.cbegin(); }
     const_iterator end() const { return field_infos_.cend(); }
     const_iterator find(const std::string &field_name) const {
@@ -101,6 +104,40 @@ public:
     iterator find(const std::string &field_name) {
         return std::find_if(field_infos_.begin(), field_infos_.end(),
                             [&field_name](const FieldInfo &field_info){ return field_name == field_info.name_; });
+    }
+
+    // Combine GeneralInfo with other General Info (e.g. JournalInfo).
+    // rhs will have priority to simulate data inheritance.
+    static GeneralInfo Combine(const GeneralInfo &lhs, const GeneralInfo &rhs) {
+        auto lhs_iter(lhs.begin());
+        auto rhs_iter(rhs.begin());
+
+        GeneralInfo combined_info;
+        while (lhs_iter != lhs.end() && rhs_iter != rhs.end()) {
+            if (lhs_iter == lhs.end()) {
+                combined_info.addField(*rhs_iter);
+                ++rhs_iter;
+            } else if (rhs_iter == rhs.end()) {
+                combined_info.addField(*lhs_iter);
+                ++lhs_iter;
+            } else {
+                int compare_result(StringUtil::AlphaWordCompare(lhs_iter->name_, rhs_iter->name_));
+                if (compare_result == 0) {
+                    // if present on both sides, rhs wins!
+                    combined_info.addField(*rhs_iter);
+                    ++lhs_iter;
+                    ++rhs_iter;
+                } else if (compare_result < 0) {
+                    combined_info.addField(*lhs_iter);
+                    ++lhs_iter;
+                } else if (compare_result > 0) {
+                    combined_info.addField(*rhs_iter);
+                    ++rhs_iter;
+                }
+            }
+        }
+
+        return combined_info;
     }
 };
 
@@ -217,30 +254,6 @@ void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record
 }
 
 
-bool ValidateRecordAgainstGeneralOrJournalInfo(const MARC::Record &record, const std::string &journal_name,
-                                               const GeneralInfo &general_or_journal_info, std::unordered_set<std::string> &seen_tags)
-{
-    bool is_valid(true);
-    for (const auto &field_info : general_or_journal_info) {
-        if (field_info.presence_ != ALWAYS)
-            continue;   // we only care about required fields that are missing
-
-        const auto equivalent_tag(EQUIVALENT_TAGS_MAP.find(field_info.name_));
-        if (seen_tags.find(field_info.name_) != seen_tags.end())
-            ;// required tag found
-        else if (equivalent_tag != EQUIVALENT_TAGS_MAP.end() and seen_tags.find(equivalent_tag->second) != seen_tags.end())
-            ;// equivalent tag found
-        else {
-            LOG_WARNING("Record w/ control number " + record.getControlNumber() + " in \"" + journal_name
-                     + "\" is missing the always expected " + field_info.name_ + " field.");
-            is_valid = false;
-        }
-    }
-
-    return is_valid;
-}
-
-
 bool RecordMeetsExpectations(const MARC::Record &record, const std::string &journal_name,
                              const GeneralInfo &general_info, const JournalInfo &journal_info)
 {
@@ -255,13 +268,22 @@ bool RecordMeetsExpectations(const MARC::Record &record, const std::string &jour
     }
 
     bool meets_expectations(true);
+    const GeneralInfo combined_info(GeneralInfo::Combine(general_info, journal_info));
+    for (const auto &field_info : combined_info) {
+        if (field_info.presence_ != ALWAYS)
+            continue;   // we only care about required fields that are missing
 
-    // Make sure helper is called for general and journal info.
-    // Even if the first one fails, we want to have the warnings of the second in our log.
-    if (ValidateRecordAgainstGeneralOrJournalInfo(record, journal_name, general_info, seen_tags))
-        meets_expectations = false;
-    if (ValidateRecordAgainstGeneralOrJournalInfo(record, journal_name, journal_info, seen_tags))
-        meets_expectations = false;
+        const auto equivalent_tag(EQUIVALENT_TAGS_MAP.find(field_info.name_));
+        if (seen_tags.find(field_info.name_) != seen_tags.end())
+            ;// required tag found
+        else if (equivalent_tag != EQUIVALENT_TAGS_MAP.end() and seen_tags.find(equivalent_tag->second) != seen_tags.end())
+            ;// equivalent tag found
+        else {
+            LOG_WARNING("Record w/ control number " + record.getControlNumber() + " in \"" + journal_name
+                     + "\" is missing the always expected " + field_info.name_ + " field.");
+            meets_expectations = false;
+        }
+    }
 
     return meets_expectations;
 }
