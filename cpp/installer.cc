@@ -449,14 +449,6 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
 }
 
 
-void CreateDirectoryIfNotExistsOrDie(const std::string &directory) {
-    if (FileUtil::IsDirectory(directory))
-        return;
-    if (not FileUtil::MakeDirectoryOrDie(directory))
-        Error("failed to create \"" + directory + "\"!");
-}
-
-
 static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType system_type, const std::string &service_name) {
     FileUtil::AutoTempDirectory temp_dir;
 
@@ -514,7 +506,7 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
 
     CreateUbToolsDatabase(os_system_type);
     GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
-    CreateDirectoryIfNotExistsOrDie("/usr/local/run");
+    FileUtil::MakeDirectoryOrDie("/usr/local/run");
 
     Echo("Installed ub_tools.");
 }
@@ -1006,7 +998,7 @@ int Main(int argc, char **argv) {
     MountDeptDriveAndInstallSSHKeysOrDie(vufind_system_type);
 
     if (not (ub_tools_only or fulltext_backend)) {
-        CreateDirectoryIfNotExistsOrDie("/mnt/zram");
+        FileUtil::MakeDirectoryOrDie("/mnt/zram");
         DownloadVuFind();
         #ifndef __clang__
         #   pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
