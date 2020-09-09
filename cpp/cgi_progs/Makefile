@@ -2,7 +2,7 @@ LIB := ../lib
 INC = $(LIB)/include
 include ../Makefile.inc
 PROGS = display_translate_stats full_text_cache_monitor full_text_lookup ini_validator translate_chainer translator translator_ajax zotero_cgi
-
+CGI_DIR = /var/www/cgi-bin
 
 .PHONY: all .deps install clean
 
@@ -22,9 +22,9 @@ $(PROGS): % : %.o ../lib/libubtue.a Makefile
 
 install: $(PROGS)
 	@echo "Installing CGI programs..."
-	mkdir --parents /var/www/cgi-bin
-	cp $(PROGS) /var/www/cgi-bin/
-	cp newsletter_uploader.py /var/www/cgi-bin/
+	mkdir --parents $(CGI_DIR)
+	cp $(PROGS) $(CGI_DIR)
+	cp newsletter_uploader.py $(CGI_DIR)
 
 clean:
 	rm -f *.o *~ $(PROGS) .deps
