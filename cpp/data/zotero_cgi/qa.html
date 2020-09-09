@@ -1,6 +1,11 @@
 <!DOCTYPE HTML>
 <html>
     <head>
+        {IF submitted == "true"}
+            <!-- Reset manipulated URL caused by GET/POST actions to avoid problems on page refreshing -->
+            <meta http-equiv="refresh" content="0; url=?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}">
+        {ENDIF}
+
         <link rel="stylesheet" href="https://getbootstrap.com/docs/4.0/dist/css/bootstrap.min.css"/>
         <link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css"/>
         <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
@@ -26,18 +31,37 @@
                 <tr>
                     <th>Tag</th>
                     <th>Global<br>(All&nbsp;journals)</th>
-                    <th>Local<br>(This&nbsp;journal)</th>
+                    <th>Journal<br>(This&nbsp;journal)</th>
                 </tr>
             </thead>
             <tbody>
                 {LOOP tags, global_settings, journal_settings}
                     <tr>
-                        <td>{tags}</td>
-                        <td>{global_settings}</td>
-                        <td>{journal_settings}</td>
+                        <td><a href="https://www.loc.gov/marc/bibliographic/bd{tags}.html" title="Link to external MARC21 documentation at loc.gov" target="_blank">{tags}</a></td>
+                        <td>{global_settings}{IF global_settings != ""}<a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}&delete_tag={tags}&delete_type=global" title="Delete this rule"><sup>x</sup></a>{ENDIF}</td>
+                        <td>{journal_settings}{IF journal_settings != ""}<a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}&delete_tag={tags}&delete_type=local" title="Delete this rule"><sup>x</sup></a>{ENDIF}</td>
                     </tr>
                 {ENDLOOP}
             </tbody>
         </table>
+
+        <form id="add_form" method="post" action="?" autocomplete="off">
+            <input type="hidden" name="action" value="show_qa">
+            <input type="hidden" name="zeder_id" value="{zeder_id}">
+            <input type="hidden" name="zeder_instance" value="{zeder_instance}">
+
+            <p>Add new setting:</p>
+            <!-- The quantifier inside the pattern needs to be written as "{{3}" due to Template.h escaping rules! -->
+            <input name="add_tag" placeholder="3-digit tag number" required="required" minlength="3" maxlength="3" pattern="[0-9]{{3}">
+            <select name="add_presence">
+                <option>always</option>
+                <option>sometimes</option>
+                <option>ignore</option>
+            </select>
+            <button type="submit" name="add_type" value="global">Add as global setting</button>
+            {IF journal_name != ""}
+                <button type="submit" name="add_type" value="local">Add as journal setting</button>
+            {ENDIF}
+        </form>
     </body>
 </html>
