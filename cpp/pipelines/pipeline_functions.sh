@@ -1,5 +1,5 @@
 # Helper functions for pipelines
-set -o errexit -o nounset
+set -o errexit -o nounset -o pipefail
 
 function ExitHandler {
     (setsid kill -- -$$) &
