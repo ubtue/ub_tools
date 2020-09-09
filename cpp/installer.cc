@@ -449,14 +449,6 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
 }
 
 
-void CreateDirectoryIfNotExistsOrDie(const std::string &directory) {
-    if (FileUtil::IsDirectory(directory))
-        return;
-    if (not FileUtil::MakeDirectoryOrDie(directory))
-        Error("failed to create \"" + directory + "\"!");
-}
-
-
 static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType system_type, const std::string &service_name) {
     FileUtil::AutoTempDirectory temp_dir;
 
