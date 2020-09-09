@@ -5,7 +5,7 @@ import datetime
 import os
 
 
-print("Content-Type: text/html\n")
+print("Content-Type: text/html\r\n")
 cgitb.enable(display=0, logdir="/usr/local/var/log/tuefind/")
 
 
@@ -16,7 +16,7 @@ if "file" not in form:
     message = """
         The uploaded file must be a plain-text file.  The first line will be used as the subject of the
         email message and the remainder as the message body.  The encoding of the file must be UTF-8 with
-        no leading BOM.
+        no leading BOM (byte order mark).
         <form enctype="multipart/form-data" method="post">
             <p>File: <input type="file" name="file"></p>
             <p><input type="submit" value="Upload"></p>
