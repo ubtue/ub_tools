@@ -157,7 +157,7 @@ std::string &NormaliseLocation(std::string * const location) {
 
 
 std::string ExtractGeoKeyword(const MARC::Record::Field &_689_field) {
-    if (_689_field.getFirstSubfieldWithCode('D') != "g")
+    if (_689_field.getFirstSubfieldWithCode('d') != "g" and _689_field.getFirstSubfieldWithCode('q') != "g")
         return "";
 
     std::string geo_keyword(_689_field.getFirstSubfieldWithCode('a'));
@@ -170,7 +170,7 @@ std::string ExtractGeoKeyword(const MARC::Record::Field &_689_field) {
 
 // Returns true if we added "new_689_contents" in a new 689 field, else false.
 bool Add689GeographicKeywordIfMissing(MARC::Record * const record, const std::string &new_689_contents) {
-    const MARC::Record::Field new_689_field(MARC::Tag("689"), new_689_contents);
+    const MARC::Record::Field new_689_field(MARC::Tag("689"), new_689_contents + "\x1F""dg");
     const std::string new_geo_keyword(ExtractGeoKeyword(new_689_field));
     for (const auto &_689_field : record->getTagRange("689")) {
         if (ExtractGeoKeyword(_689_field) == new_geo_keyword)
