@@ -149,7 +149,7 @@ std::string FieldPresenceToString(const FieldPresence field_presence) {
 
 GeneralInfo LoadGeneralInfo(DbConnection * const db_connection) {
     db_connection->queryOrDie("SELECT metadata_field_name,field_presence FROM metadata_presence_tracer "
-                              "WHERE zeder_journals.zeder_id IS NULL");
+                              "WHERE zeder_journals.zeder_id IS NULL ORDER BY metadata_field_name ASC");
 
     GeneralInfo general_info;
     DbResultSet result_set(db_connection->getLastResultSet());
@@ -166,7 +166,8 @@ void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, con
     db_connection->queryOrDie("SELECT metadata_field_name,field_presence FROM metadata_presence_tracer "
                               "LEFT JOIN zeder_journals ON zeder_journals.id = metadata_presence_tracer.zeder_journal_id "
                               "WHERE zeder_journals.zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) +
-                              " AND zeder_journals.zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance));
+                              " AND zeder_journals.zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance) +
+                              " ORDER BY metadata_presence_tracer.metadata_field_name ASC");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty()) {
         LOG_INFO(zeder_id + "(" + zeder_instance + ")" + " was not yet in the database.");
