@@ -1,9 +1,6 @@
 /** \brief A tool for installing IxTheo and KrimDok from scratch on Ubuntu and Centos systems.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \note Compile with   g++ -std=gnu++14 -O3 -o installer installer.cc
- *  \note or             clang++ -std=gnu++11 -Wno-vla-extension -Wno-c++1y-extensions -O3 -o installer installer.cc
- *
  *  \copyright 2016-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -383,9 +380,9 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, const OSSy
     if (vufind_system_type == IXTHEO) {
         IniFile translations_ini_file(UBTools::GetTuelibPath() + "translations.conf");
         const auto translations_ini_section(translations_ini_file.getSection("Database"));
-        std::string ixtheo_database(translations_ini_section->getString("sql_database"));
-        std::string ixtheo_username(translations_ini_section->getString("sql_username"));
-        std::string ixtheo_password(translations_ini_section->getString("sql_password"));
+        const std::string ixtheo_database(translations_ini_section->getString("sql_database"));
+        const std::string ixtheo_username(translations_ini_section->getString("sql_username"));
+        const std::string ixtheo_password(translations_ini_section->getString("sql_password"));
         if (not DbConnection::MySQLDatabaseExists(ixtheo_database, root_username, root_password)) {
             Echo("creating " + ixtheo_database + " database");
             DbConnection::MySQLCreateDatabase(ixtheo_database, root_username, root_password);
@@ -452,6 +449,14 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
 }
 
 
+void CreateDirectoryIfNotExistsOrDie(const std::string &directory) {
+    if (FileUtil::IsDirectory(directory))
+        return;
+    if (not FileUtil::MakeDirectoryOrDie(directory))
+        Error("failed to create \"" + directory + "\"!");
+}
+
+
 static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType system_type, const std::string &service_name) {
     FileUtil::AutoTempDirectory temp_dir;
 
@@ -474,19 +479,19 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     // ...then create /usr/local/var/lib/tuelib
     if (not FileUtil::Exists(UBTools::GetTuelibPath())) {
         Echo("creating " + UBTools::GetTuelibPath());
-        FileUtil::MakeDirectory(UBTools::GetTuelibPath());
+        FileUtil::MakeDirectoryOrDie(UBTools::GetTuelibPath());
     }
 
     // ..and /usr/local/var/log/tuefind
     if (not FileUtil::Exists(UBTools::GetTueFindLogPath())) {
         Echo("creating " + UBTools::GetTueFindLogPath());
-        FileUtil::MakeDirectory(UBTools::GetTueFindLogPath());
+        FileUtil::MakeDirectoryOrDie(UBTools::GetTueFindLogPath());
     }
 
     // ..and /usr/local/var/tmp
     if (not FileUtil::Exists(UBTools::GetTueLocalTmpPath())) {
         Echo("creating " + UBTools::GetTueLocalTmpPath());
-        FileUtil::MakeDirectory(UBTools::GetTueLocalTmpPath());
+        FileUtil::MakeDirectoryOrDie(UBTools::GetTueLocalTmpPath());
     }
 
     const std::string ZOTERO_ENHANCEMENT_MAPS_DIRECTORY(UBTools::GetTuelibPath() + "zotero-enhancement-maps");
@@ -829,14 +834,12 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     const std::string NEWSLETTER_DIRECTORY_PATH(UBTools::GetTuelibPath() + "newsletters");
     if (not FileUtil::Exists(NEWSLETTER_DIRECTORY_PATH)) {
         Echo("creating " + NEWSLETTER_DIRECTORY_PATH);
-        FileUtil::MakeDirectory(NEWSLETTER_DIRECTORY_PATH);
+        FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH);
         SELinuxUtil::FileContext::AddRecordIfMissing(NEWSLETTER_DIRECTORY_PATH, "httpd_sys_rw_content_t",
                                                      NEWSLETTER_DIRECTORY_PATH + "(/.*)?");
 
         Echo("creating " + NEWSLETTER_DIRECTORY_PATH + "/sent");
-        FileUtil::MakeDirectory(NEWSLETTER_DIRECTORY_PATH);
-        SELinuxUtil::FileContext::AddRecordIfMissing(NEWSLETTER_DIRECTORY_PATH + "/sent", "httpd_sys_rw_content_t",
-                                                     NEWSLETTER_DIRECTORY_PATH + "/sent(/.*)?");
+        FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH);
     }
 
     ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
