@@ -452,7 +452,7 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
 void CreateDirectoryIfNotExistsOrDie(const std::string &directory) {
     if (FileUtil::IsDirectory(directory))
         return;
-    if (not FileUtil::MakeDirectory(directory))
+    if (not FileUtil::MakeDirectoryOrDie(directory))
         Error("failed to create \"" + directory + "\"!");
 }
 
@@ -479,19 +479,19 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     // ...then create /usr/local/var/lib/tuelib
     if (not FileUtil::Exists(UBTools::GetTuelibPath())) {
         Echo("creating " + UBTools::GetTuelibPath());
-        FileUtil::MakeDirectory(UBTools::GetTuelibPath());
+        FileUtil::MakeDirectoryOrDie(UBTools::GetTuelibPath());
     }
 
     // ..and /usr/local/var/log/tuefind
     if (not FileUtil::Exists(UBTools::GetTueFindLogPath())) {
         Echo("creating " + UBTools::GetTueFindLogPath());
-        FileUtil::MakeDirectory(UBTools::GetTueFindLogPath());
+        FileUtil::MakeDirectoryOrDie(UBTools::GetTueFindLogPath());
     }
 
     // ..and /usr/local/var/tmp
     if (not FileUtil::Exists(UBTools::GetTueLocalTmpPath())) {
         Echo("creating " + UBTools::GetTueLocalTmpPath());
-        FileUtil::MakeDirectory(UBTools::GetTueLocalTmpPath());
+        FileUtil::MakeDirectoryOrDie(UBTools::GetTueLocalTmpPath());
     }
 
     const std::string ZOTERO_ENHANCEMENT_MAPS_DIRECTORY(UBTools::GetTuelibPath() + "zotero-enhancement-maps");
@@ -834,14 +834,12 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     const std::string NEWSLETTER_DIRECTORY_PATH(UBTools::GetTuelibPath() + "newsletters");
     if (not FileUtil::Exists(NEWSLETTER_DIRECTORY_PATH)) {
         Echo("creating " + NEWSLETTER_DIRECTORY_PATH);
-        FileUtil::MakeDirectory(NEWSLETTER_DIRECTORY_PATH);
+        FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH);
         SELinuxUtil::FileContext::AddRecordIfMissing(NEWSLETTER_DIRECTORY_PATH, "httpd_sys_rw_content_t",
                                                      NEWSLETTER_DIRECTORY_PATH + "(/.*)?");
 
         Echo("creating " + NEWSLETTER_DIRECTORY_PATH + "/sent");
-        FileUtil::MakeDirectory(NEWSLETTER_DIRECTORY_PATH);
-        SELinuxUtil::FileContext::AddRecordIfMissing(NEWSLETTER_DIRECTORY_PATH + "/sent", "httpd_sys_rw_content_t",
-                                                     NEWSLETTER_DIRECTORY_PATH + "/sent(/.*)?");
+        FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH);
     }
 
     ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
