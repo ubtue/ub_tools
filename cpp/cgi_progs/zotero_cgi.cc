@@ -26,6 +26,7 @@
 #include <vector>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include "DbConnection.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "HtmlUtil.h"
@@ -379,9 +380,11 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
     const std::string group(GetCGIParameterOrDefault(cgi_args, "group"));
     const Zeder::Flavour zeder_flavour(group == "IxTheo" or group == "RelBib" ? Zeder::Flavour::IXTHEO : Zeder::Flavour::KRIMDOK);
+    const std::string zeder_instance(group == "IxTheo" or group == "RelBib" ? "ixtheo" : "krimdok");
 
     Template::Map names_to_values_map;
     names_to_values_map.insertScalar("zeder_id", zeder_id);
+    names_to_values_map.insertScalar("zeder_instance", zeder_instance);
 
     std::vector<std::string> delivered_datetimes;
     std::vector<std::string> titles;
@@ -406,6 +409,115 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
 }
 
 
+bool ProcessShowQASubActionAdd(const std::multimap<std::string, std::string> &cgi_args, DbConnection * const db_connection,
+                               const std::string &zeder_journal_id)
+{
+    // sub-action "add"
+    const std::string add_type(GetCGIParameterOrDefault(cgi_args, "add_type"));
+    const std::string add_tag(GetCGIParameterOrDefault(cgi_args, "add_tag"));
+    const std::string add_presence(GetCGIParameterOrDefault(cgi_args, "add_presence"));
+    if (add_type.empty() or add_tag.empty() or add_presence.empty())
+        return false;
+
+    std::string journal_id_to_insert = db_connection->escapeAndQuoteString(zeder_journal_id);
+    if (add_type == "global")
+        journal_id_to_insert = "NULL";
+
+    db_connection->queryOrDie("INSERT INTO metadata_presence_tracer (zeder_journal_id, metadata_field_name, field_presence) "
+                              " VALUES (" + journal_id_to_insert + ", " + db_connection->escapeAndQuoteString(add_tag) + ", "
+                              " " + db_connection->escapeAndQuoteString(add_presence) + ")");
+    return true;
+}
+
+
+bool ProcessShowQASubActionDelete(const std::multimap<std::string, std::string> &cgi_args, DbConnection * const db_connection,
+                                  const std::string &zeder_journal_id)
+{
+    const std::string delete_type(GetCGIParameterOrDefault(cgi_args, "delete_type"));
+    const std::string delete_tag(GetCGIParameterOrDefault(cgi_args, "delete_tag"));
+    if (delete_type.empty() or delete_tag.empty())
+        return false;
+
+    std::string journal_id_to_delete(" = " + db_connection->escapeAndQuoteString(zeder_journal_id));
+    if (delete_type == "global")
+        journal_id_to_delete = "IS NULL";
+
+    db_connection->queryOrDie("DELETE FROM metadata_presence_tracer "
+                             "WHERE zeder_journal_id " + journal_id_to_delete + " "
+                             "AND metadata_field_name = " + db_connection->escapeAndQuoteString(delete_tag));
+
+    return true;
+}
+
+
+void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args) {
+    const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
+    const std::string zeder_instance(GetCGIParameterOrDefault(cgi_args, "zeder_instance"));
+    std::string zeder_journal_id;
+    std::string journal_name;
+    std::string submitted("false");
+
+    // try to get more details for given journal
+    DbConnection db_connection;
+    {
+        db_connection.queryOrDie("SELECT id,journal_name FROM zeder_journals WHERE zeder_id=" + db_connection.escapeAndQuoteString(zeder_id) +
+                                 " AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance));
+        auto result_set(db_connection.getLastResultSet());
+        while (const auto row = result_set.getNextRow()) {
+            zeder_journal_id = row["id"];
+            journal_name = row["journal_name"];
+        }
+    }
+
+    if (ProcessShowQASubActionDelete(cgi_args, &db_connection, zeder_journal_id)
+        or ProcessShowQASubActionAdd(cgi_args, &db_connection, zeder_journal_id))
+            submitted = "true";
+
+    // display current settings
+    db_connection.queryOrDie("SELECT * FROM metadata_presence_tracer WHERE zeder_journal_id IS NULL "
+                             "OR zeder_journal_id IN (SELECT id FROM zeder_journals WHERE zeder_id=" + db_connection.escapeAndQuoteString(zeder_id) +
+                             " AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance) + ")"
+                             " ORDER BY metadata_field_name ASC, zeder_journal_id ASC");
+
+    auto result_set(db_connection.getLastResultSet());
+    std::map<std::string, std::pair<std::string, std::string>> tag_to_settings_map;
+
+    while (const auto row = result_set.getNextRow()) {
+        const auto iter(tag_to_settings_map.find(row["metadata_field_name"]));
+        if (iter == tag_to_settings_map.end()) {
+            if (row["zeder_journal_id"].empty())
+                tag_to_settings_map[row["metadata_field_name"]] = { row["field_presence"], "" };
+            else
+                tag_to_settings_map[row["metadata_field_name"]] = { "", row["field_presence"] };
+        } else {
+            if (row["zeder_journal_id"].empty())
+                iter->second.first = row["field_presence"];
+            else
+                iter->second.second = row["field_presence"];
+        }
+    }
+
+    std::vector<std::string> tags;
+    std::vector<std::string> global_settings;
+    std::vector<std::string> journal_settings;
+    for (const auto &tag_and_settings : tag_to_settings_map) {
+        tags.emplace_back(tag_and_settings.first);
+        global_settings.emplace_back(tag_and_settings.second.first);
+        journal_settings.emplace_back(tag_and_settings.second.second);
+    }
+
+    Template::Map names_to_values_map;
+    names_to_values_map.insertScalar("submitted", submitted);
+    names_to_values_map.insertScalar("zeder_id", zeder_id);
+    names_to_values_map.insertScalar("zeder_instance", zeder_instance);
+    names_to_values_map.insertScalar("journal_name", journal_name);
+    names_to_values_map.insertArray("tags", tags);
+    names_to_values_map.insertArray("global_settings", global_settings);
+    names_to_values_map.insertArray("journal_settings", journal_settings);
+    RenderHtmlTemplate("qa.html", names_to_values_map);
+}
+
+
 } // unnamed namespace
 
 
@@ -422,6 +534,8 @@ int Main(int argc, char *argv[]) {
         ProcessDownloadAction(cgi_args);
     else if (action == "show_downloaded")
         ProcessShowDownloadedAction(cgi_args);
+    else if (action == "show_qa")
+        ProcessShowQAAction(cgi_args);
     else {
         Template::Map names_to_values_map;
         names_to_values_map.insertScalar("action", action);

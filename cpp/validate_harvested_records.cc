@@ -30,6 +30,7 @@
 #include "EmailSender.h"
 #include "IniFile.h"
 #include "MARC.h"
+#include "StringUtil.h"
 #include "UBTools.h"
 #include "util.h"
 
@@ -76,35 +77,92 @@ public:
 };
 
 
-class JournalInfo {
-    std::string zeder_id_;
-    std::string zeder_instance_;
-    bool not_in_database_yet_;
+/**
+ *  This struct contains non-journal-related field infos.
+ *  The journal-specific struct will inherit from it.
+ */
+struct GeneralInfo {
     std::vector<FieldInfo> field_infos_;
 public:
     using const_iterator = std::vector<FieldInfo>::const_iterator;
     using iterator = std::vector<FieldInfo>::iterator;
-public:
-    explicit JournalInfo(const std::string &zeder_id, const std::string &zeder_instance,
-                         const bool not_in_database_yet): zeder_id_(zeder_id), zeder_instance_(zeder_instance),
-                         not_in_database_yet_(not_in_database_yet) { }
-    JournalInfo() = default;
-    JournalInfo(const JournalInfo &rhs) = default;
+
+    GeneralInfo() = default;
+    GeneralInfo(const GeneralInfo &rhs) = default;
 
     size_t size() const { return field_infos_.size(); }
-    const std::string &getZederId() const { return zeder_id_; }
-    const std::string &getZederInstance() const { return zeder_instance_; }
-    bool isInDatabase() const { return not not_in_database_yet_; }
+
     void addField(const std::string &field_name, const FieldPresence field_presence)
         { field_infos_.emplace_back(field_name, field_presence); }
+
+    void addField(const FieldInfo &field_info) { field_infos_.emplace_back(field_info); }
+
     const_iterator begin() const { return field_infos_.cbegin(); }
     const_iterator end() const { return field_infos_.cend(); }
+    const_iterator find(const std::string &field_name) const {
+        return std::find_if(field_infos_.begin(), field_infos_.end(),
+                            [&field_name](const FieldInfo &field_info){ return field_name == field_info.name_; });
+    }
     iterator begin() { return field_infos_.begin(); }
     iterator end() { return field_infos_.end(); }
     iterator find(const std::string &field_name) {
         return std::find_if(field_infos_.begin(), field_infos_.end(),
                             [&field_name](const FieldInfo &field_info){ return field_name == field_info.name_; });
     }
+
+    // Combine GeneralInfo with other General Info (e.g. JournalInfo).
+    // rhs will have priority to simulate data inheritance.
+    static GeneralInfo Combine(const GeneralInfo &lhs, const GeneralInfo &rhs);
+};
+
+
+GeneralInfo GeneralInfo::Combine(const GeneralInfo &lhs, const GeneralInfo &rhs) {
+    auto lhs_iter(lhs.begin());
+    auto rhs_iter(rhs.begin());
+
+    GeneralInfo combined_info;
+    while (lhs_iter != lhs.end() or rhs_iter != rhs.end()) {
+        if (lhs_iter == lhs.end()) {
+            combined_info.addField(*rhs_iter);
+            ++rhs_iter;
+        } else if (rhs_iter == rhs.end()) {
+            combined_info.addField(*lhs_iter);
+            ++lhs_iter;
+        } else {
+            const int compare_result(StringUtil::AlphaWordCompare(lhs_iter->name_, rhs_iter->name_));
+            if (compare_result == 0) {
+                // if present on both sides, rhs wins!
+                combined_info.addField(*rhs_iter);
+                ++lhs_iter;
+                ++rhs_iter;
+            } else if (compare_result < 0) {
+                combined_info.addField(*lhs_iter);
+                ++lhs_iter;
+            } else if (compare_result > 0) {
+                combined_info.addField(*rhs_iter);
+                ++rhs_iter;
+            }
+        }
+    }
+
+    return combined_info;
+}
+
+
+class JournalInfo : public GeneralInfo {
+    std::string zeder_id_;
+    std::string zeder_instance_;
+    bool not_in_database_yet_;
+public:
+    JournalInfo(const std::string &zeder_id, const std::string &zeder_instance,
+                const bool not_in_database_yet): zeder_id_(zeder_id), zeder_instance_(zeder_instance),
+                not_in_database_yet_(not_in_database_yet) { }
+    JournalInfo() = default;
+    JournalInfo(const JournalInfo &rhs) = default;
+
+    const std::string &getZederId() const { return zeder_id_; }
+    const std::string &getZederInstance() const { return zeder_instance_; }
+    bool isInDatabase() const { return not not_in_database_yet_; }
 };
 
 
@@ -133,13 +191,27 @@ std::string FieldPresenceToString(const FieldPresence field_presence) {
 }
 
 
+GeneralInfo LoadGeneralInfo(DbConnection * const db_connection) {
+    db_connection->queryOrDie("SELECT metadata_field_name,field_presence FROM metadata_presence_tracer "
+                              "WHERE zeder_journals.zeder_id IS NULL ORDER BY metadata_field_name ASC");
+
+    GeneralInfo general_info;
+    DbResultSet result_set(db_connection->getLastResultSet());
+    while (const auto row = result_set.getNextRow())
+        general_info.addField(row["metadata_field_name"], StringToFieldPresence(row["field_presence"]));
+
+    return general_info;
+}
+
+
 void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, const std::string &zeder_id,
                                          const std::string &zeder_instance, JournalInfo * const journal_info)
 {
     db_connection->queryOrDie("SELECT metadata_field_name,field_presence FROM metadata_presence_tracer "
                               "LEFT JOIN zeder_journals ON zeder_journals.id = metadata_presence_tracer.zeder_journal_id "
                               "WHERE zeder_journals.zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) +
-                              " AND zeder_journals.zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance));
+                              " AND zeder_journals.zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance) +
+                              " ORDER BY metadata_presence_tracer.metadata_field_name ASC");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty()) {
         LOG_INFO(zeder_id + "(" + zeder_instance + ")" + " was not yet in the database.");
@@ -148,7 +220,7 @@ void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, con
     }
 
     *journal_info = JournalInfo(zeder_id, zeder_instance, /* not_in_database_yet = */false);
-    while (auto row = result_set.getNextRow())
+    while (const auto row = result_set.getNextRow())
         journal_info->addField(row["metadata_field_name"], StringToFieldPresence(row["field_presence"]));
 }
 
@@ -159,7 +231,9 @@ const std::map<std::string, std::string> EQUIVALENT_TAGS_MAP{
 };
 
 
-void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record, JournalInfo * const journal_info) {
+void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record,
+                             const GeneralInfo &general_info, JournalInfo * const journal_info)
+{
     std::unordered_set<std::string> seen_tags;
     MARC::Tag last_tag;
     for (const auto &field : record) {
@@ -168,6 +242,9 @@ void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record
             continue;
 
         seen_tags.emplace(current_tag.toString());
+
+        if (general_info.find(current_tag.toString()) != general_info.end())
+            continue;
 
         if (first_record)
             journal_info->addField(current_tag.toString(), ALWAYS);
@@ -184,7 +261,9 @@ void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record
 }
 
 
-bool RecordMeetsExpectations(const MARC::Record &record, const std::string &journal_name, const JournalInfo &journal_info) {
+bool RecordMeetsExpectations(const MARC::Record &record, const std::string &journal_name,
+                             const GeneralInfo &general_info, const JournalInfo &journal_info)
+{
     std::unordered_set<std::string> seen_tags;
     MARC::Tag last_tag;
     for (const auto &field : record) {
@@ -195,8 +274,9 @@ bool RecordMeetsExpectations(const MARC::Record &record, const std::string &jour
         last_tag = current_tag;
     }
 
-    bool missed_at_least_one_expectation(false);
-    for (const auto &field_info : journal_info) {
+    bool meets_expectations(true);
+    const GeneralInfo combined_info(GeneralInfo::Combine(general_info, journal_info));
+    for (const auto &field_info : combined_info) {
         if (field_info.presence_ != ALWAYS)
             continue;   // we only care about required fields that are missing
 
@@ -208,21 +288,23 @@ bool RecordMeetsExpectations(const MARC::Record &record, const std::string &jour
         else {
             LOG_WARNING("Record w/ control number " + record.getControlNumber() + " in \"" + journal_name
                      + "\" is missing the always expected " + field_info.name_ + " field.");
-            missed_at_least_one_expectation = true;
+            meets_expectations = false;
         }
     }
 
-    return not missed_at_least_one_expectation;
+    return meets_expectations;
 }
 
 
-void WriteToDatabase(DbConnection * const db_connection, const JournalInfo &journal_info) {
-    for (const auto &field_info : journal_info)
-        db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET zeder_journal_id=(SELECT id FROM zeder_journals "
-                                  "WHERE zeder_id=" + db_connection->escapeAndQuoteString(journal_info.getZederId()) + " "
-                                  "AND zeder_instance=" + db_connection->escapeAndQuoteString(journal_info.getZederInstance()) + ")"
-                                  ", metadata_field_name=" + db_connection->escapeAndQuoteString(field_info.name_) +
-                                  ", field_presence='" + FieldPresenceToString(field_info.presence_) + "'");
+void WriteToDatabase(DbConnection * const db_connection, const GeneralInfo &general_info, const JournalInfo &journal_info) {
+    for (const auto &field_info : journal_info) {
+        if (general_info.find(field_info.name_) == general_info.end())
+            db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET zeder_journal_id=(SELECT id FROM zeder_journals "
+                                      "WHERE zeder_id=" + db_connection->escapeAndQuoteString(journal_info.getZederId()) + " "
+                                      "AND zeder_instance=" + db_connection->escapeAndQuoteString(journal_info.getZederInstance()) + ")"
+                                      ", metadata_field_name=" + db_connection->escapeAndQuoteString(field_info.name_) +
+                                      ", field_presence='" + FieldPresenceToString(field_info.presence_) + "'");
+    }
 }
 
 
@@ -256,9 +338,9 @@ void UpdateDB(DbConnection * const db_connection, const std::string &zeder_id, c
 }
 
 
-bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &record,
+bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &record, const GeneralInfo &general_info,
                    std::map<std::string, JournalInfo> * const journal_name_to_info_map,
-                   unsigned * const new_record_count, unsigned * const missed_expectation_count)
+                   unsigned * const new_record_count)
 {
     const std::string zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
     const std::string zeder_instance(record.getFirstSubfieldValue("ZID", 'b'));
@@ -268,7 +350,6 @@ bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &recor
     const auto journal_name(record.getSuperiorTitle());
     if (journal_name.empty()) {
         LOG_WARNING("Record w/ control number \"" + record.getControlNumber() + "\" is missing a superior title!");
-        ++(*missed_expectation_count);
         return false;
     }
 
@@ -282,13 +363,10 @@ bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &recor
         journal_name_and_info = journal_name_to_info_map->find(journal_name);
     }
 
-    if (journal_name_and_info->second.isInDatabase()) {
-        if (not RecordMeetsExpectations(record, journal_name_and_info->first, journal_name_and_info->second)) {
-            ++(*missed_expectation_count);
-            return false;
-        }
-    } else {
-        AnalyseNewJournalRecord(record, first_record, &journal_name_and_info->second);
+    if (not RecordMeetsExpectations(record, journal_name_and_info->first, general_info, journal_name_and_info->second))
+        return false;
+    else if (not journal_name_and_info->second.isInDatabase()) {
+        AnalyseNewJournalRecord(record, first_record, general_info, &journal_name_and_info->second);
         ++(*new_record_count);
     }
 
@@ -320,20 +398,22 @@ int Main(int argc, char *argv[]) {
     auto delinquent_records_writer(MARC::Writer::Factory(argv[3]));
     std::map<std::string, JournalInfo> journal_name_to_info_map;
     const std::string email_address(argv[4]);
+    const auto general_info(LoadGeneralInfo(&db_connection));
 
     unsigned total_record_count(0), new_record_count(0), missed_expectation_count(0);
     while (const auto record = reader->read()) {
         ++total_record_count;
-        if (IsRecordValid(&db_connection, record, &journal_name_to_info_map,
-                          &new_record_count, &missed_expectation_count))
+        if (IsRecordValid(&db_connection, record, general_info, &journal_name_to_info_map, &new_record_count))
             valid_records_writer->write(record);
-        else
+        else {
+            ++missed_expectation_count;
             delinquent_records_writer->write(record);
+        }
     }
 
     for (const auto &journal_name_and_info : journal_name_to_info_map) {
         if (not journal_name_and_info.second.isInDatabase())
-            WriteToDatabase(&db_connection, journal_name_and_info.second);
+            WriteToDatabase(&db_connection, general_info, journal_name_and_info.second);
     }
 
     if (missed_expectation_count > 0) {
