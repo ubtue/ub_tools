@@ -340,7 +340,7 @@ void UpdateDB(DbConnection * const db_connection, const std::string &zeder_id, c
 
 bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &record, const GeneralInfo &general_info,
                    std::map<std::string, JournalInfo> * const journal_name_to_info_map,
-                   unsigned * const new_record_count, unsigned * const missed_expectation_count)
+                   unsigned * const new_record_count)
 {
     const std::string zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
     const std::string zeder_instance(record.getFirstSubfieldValue("ZID", 'b'));
@@ -350,7 +350,6 @@ bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &recor
     const auto journal_name(record.getSuperiorTitle());
     if (journal_name.empty()) {
         LOG_WARNING("Record w/ control number \"" + record.getControlNumber() + "\" is missing a superior title!");
-        ++(*missed_expectation_count);
         return false;
     }
 
@@ -364,10 +363,9 @@ bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &recor
         journal_name_and_info = journal_name_to_info_map->find(journal_name);
     }
 
-    if (not RecordMeetsExpectations(record, journal_name_and_info->first, general_info, journal_name_and_info->second)) {
-        ++(*missed_expectation_count);
+    if (not RecordMeetsExpectations(record, journal_name_and_info->first, general_info, journal_name_and_info->second))
         return false;
-    } else if (not journal_name_and_info->second.isInDatabase()) {
+    else if (not journal_name_and_info->second.isInDatabase()) {
         AnalyseNewJournalRecord(record, first_record, general_info, &journal_name_and_info->second);
         ++(*new_record_count);
     }
@@ -405,11 +403,12 @@ int Main(int argc, char *argv[]) {
     unsigned total_record_count(0), new_record_count(0), missed_expectation_count(0);
     while (const auto record = reader->read()) {
         ++total_record_count;
-        if (IsRecordValid(&db_connection, record, general_info, &journal_name_to_info_map,
-                          &new_record_count, &missed_expectation_count))
+        if (IsRecordValid(&db_connection, record, general_info, &journal_name_to_info_map, &new_record_count))
             valid_records_writer->write(record);
-        else
+        else {
+            ++missed_expectation_count;
             delinquent_records_writer->write(record);
+        }
     }
 
     for (const auto &journal_name_and_info : journal_name_to_info_map) {
