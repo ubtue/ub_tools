@@ -113,7 +113,7 @@ public:
         auto rhs_iter(rhs.begin());
 
         GeneralInfo combined_info;
-        while (lhs_iter != lhs.end() && rhs_iter != rhs.end()) {
+        while (lhs_iter != lhs.end() and rhs_iter != rhs.end()) {
             if (lhs_iter == lhs.end()) {
                 combined_info.addField(*rhs_iter);
                 ++rhs_iter;
@@ -121,7 +121,7 @@ public:
                 combined_info.addField(*lhs_iter);
                 ++lhs_iter;
             } else {
-                int compare_result(StringUtil::AlphaWordCompare(lhs_iter->name_, rhs_iter->name_));
+                const int compare_result(StringUtil::AlphaWordCompare(lhs_iter->name_, rhs_iter->name_));
                 if (compare_result == 0) {
                     // if present on both sides, rhs wins!
                     combined_info.addField(*rhs_iter);
@@ -190,7 +190,7 @@ GeneralInfo LoadGeneralInfo(DbConnection * const db_connection) {
 
     GeneralInfo general_info;
     DbResultSet result_set(db_connection->getLastResultSet());
-    while (auto row = result_set.getNextRow())
+    while (const auto row = result_set.getNextRow())
         general_info.addField(row["metadata_field_name"], StringToFieldPresence(row["field_presence"]));
 
     return general_info;
@@ -213,7 +213,7 @@ void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, con
     }
 
     *journal_info = JournalInfo(zeder_id, zeder_instance, /* not_in_database_yet = */false);
-    while (auto row = result_set.getNextRow())
+    while (const auto row = result_set.getNextRow())
         journal_info->addField(row["metadata_field_name"], StringToFieldPresence(row["field_presence"]));
 }
 

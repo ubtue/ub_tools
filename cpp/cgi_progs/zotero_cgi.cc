@@ -419,10 +419,10 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
     // try to get more details for given journal
     DbConnection db_connection;
     {
-        db_connection.query("SELECT id,journal_name FROM zeder_journals WHERE zeder_id=" + db_connection.escapeAndQuoteString(zeder_id) +
-                            " AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance));
+        db_connection.queryOrDie("SELECT id,journal_name FROM zeder_journals WHERE zeder_id=" + db_connection.escapeAndQuoteString(zeder_id) +
+                                 " AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance));
         auto result_set(db_connection.getLastResultSet());
-        while (auto row = result_set.getNextRow()) {
+        while (const auto row = result_set.getNextRow()) {
             zeder_journal_id = row["id"];
             journal_name = row["journal_name"];
         }
@@ -436,9 +436,9 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
         if (delete_type == "global")
             journal_id_to_delete = "IS NULL";
 
-        db_connection.query("DELETE FROM metadata_presence_tracer "
-                            "WHERE zeder_journal_id " + journal_id_to_delete + " "
-                            "AND metadata_field_name = " + db_connection.escapeAndQuoteString(delete_tag));
+        db_connection.queryOrDie("DELETE FROM metadata_presence_tracer "
+                                 "WHERE zeder_journal_id " + journal_id_to_delete + " "
+                                 "AND metadata_field_name = " + db_connection.escapeAndQuoteString(delete_tag));
 
         submitted = "true";
     }
@@ -453,22 +453,22 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
         if (add_type == "global")
             journal_id_to_insert = "NULL";
 
-        db_connection.query("INSERT INTO metadata_presence_tracer (zeder_journal_id, metadata_field_name, field_presence) "
-                            " VALUES (" + journal_id_to_insert + ", " + db_connection.escapeAndQuoteString(add_tag) + ", "
-                            " " + db_connection.escapeAndQuoteString(add_presence) + ")");
+        db_connection.queryOrDie("INSERT INTO metadata_presence_tracer (zeder_journal_id, metadata_field_name, field_presence) "
+                                 " VALUES (" + journal_id_to_insert + ", " + db_connection.escapeAndQuoteString(add_tag) + ", "
+                                 " " + db_connection.escapeAndQuoteString(add_presence) + ")");
         submitted = "true";
     }
 
     // display current settings
-    db_connection.query("SELECT * FROM metadata_presence_tracer WHERE zeder_journal_id IS NULL "
-                        "OR zeder_journal_id IN (SELECT id FROM zeder_journals WHERE zeder_id=" + db_connection.escapeAndQuoteString(zeder_id) +
-                        " AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance) + ")"
-                        " ORDER BY metadata_field_name ASC, zeder_journal_id ASC");
+    db_connection.queryOrDie("SELECT * FROM metadata_presence_tracer WHERE zeder_journal_id IS NULL "
+                             "OR zeder_journal_id IN (SELECT id FROM zeder_journals WHERE zeder_id=" + db_connection.escapeAndQuoteString(zeder_id) +
+                             " AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance) + ")"
+                             " ORDER BY metadata_field_name ASC, zeder_journal_id ASC");
 
-    auto result_set = db_connection.getLastResultSet();
+    auto result_set(db_connection.getLastResultSet());
     std::map<std::string, std::pair<std::string, std::string>> tag_to_settings_map;
 
-    while (auto row = result_set.getNextRow()) {
+    while (const auto row = result_set.getNextRow()) {
         const auto iter(tag_to_settings_map.find(row["metadata_field_name"]));
         if (iter == tag_to_settings_map.end()) {
             if (row["zeder_journal_id"].empty())
