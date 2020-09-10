@@ -77,6 +77,10 @@ public:
 };
 
 
+/**
+ *  This struct contains non-journal-related field infos.
+ *  The journal-specific struct will inherit from it.
+ */
 struct GeneralInfo {
     std::vector<FieldInfo> field_infos_;
 public:
