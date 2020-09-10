@@ -112,38 +112,41 @@ public:
 
     // Combine GeneralInfo with other General Info (e.g. JournalInfo).
     // rhs will have priority to simulate data inheritance.
-    static GeneralInfo Combine(const GeneralInfo &lhs, const GeneralInfo &rhs) {
-        auto lhs_iter(lhs.begin());
-        auto rhs_iter(rhs.begin());
+    static GeneralInfo Combine(const GeneralInfo &lhs, const GeneralInfo &rhs);
+};
 
-        GeneralInfo combined_info;
-        while (lhs_iter != lhs.end() and rhs_iter != rhs.end()) {
-            if (lhs_iter == lhs.end()) {
+
+GeneralInfo GeneralInfo::Combine(const GeneralInfo &lhs, const GeneralInfo &rhs) {
+    auto lhs_iter(lhs.begin());
+    auto rhs_iter(rhs.begin());
+
+    GeneralInfo combined_info;
+    while (lhs_iter != lhs.end() or rhs_iter != rhs.end()) {
+        if (lhs_iter == lhs.end()) {
+            combined_info.addField(*rhs_iter);
+            ++rhs_iter;
+        } else if (rhs_iter == rhs.end()) {
+            combined_info.addField(*lhs_iter);
+            ++lhs_iter;
+        } else {
+            const int compare_result(StringUtil::AlphaWordCompare(lhs_iter->name_, rhs_iter->name_));
+            if (compare_result == 0) {
+                // if present on both sides, rhs wins!
                 combined_info.addField(*rhs_iter);
+                ++lhs_iter;
                 ++rhs_iter;
-            } else if (rhs_iter == rhs.end()) {
+            } else if (compare_result < 0) {
                 combined_info.addField(*lhs_iter);
                 ++lhs_iter;
-            } else {
-                const int compare_result(StringUtil::AlphaWordCompare(lhs_iter->name_, rhs_iter->name_));
-                if (compare_result == 0) {
-                    // if present on both sides, rhs wins!
-                    combined_info.addField(*rhs_iter);
-                    ++lhs_iter;
-                    ++rhs_iter;
-                } else if (compare_result < 0) {
-                    combined_info.addField(*lhs_iter);
-                    ++lhs_iter;
-                } else if (compare_result > 0) {
-                    combined_info.addField(*rhs_iter);
-                    ++rhs_iter;
-                }
+            } else if (compare_result > 0) {
+                combined_info.addField(*rhs_iter);
+                ++rhs_iter;
             }
         }
-
-        return combined_info;
     }
-};
+
+    return combined_info;
+}
 
 
 class JournalInfo : public GeneralInfo {
@@ -151,9 +154,9 @@ class JournalInfo : public GeneralInfo {
     std::string zeder_instance_;
     bool not_in_database_yet_;
 public:
-    explicit JournalInfo(const std::string &zeder_id, const std::string &zeder_instance,
-                         const bool not_in_database_yet): zeder_id_(zeder_id), zeder_instance_(zeder_instance),
-                         not_in_database_yet_(not_in_database_yet) { }
+    JournalInfo(const std::string &zeder_id, const std::string &zeder_instance,
+                const bool not_in_database_yet): zeder_id_(zeder_id), zeder_instance_(zeder_instance),
+                not_in_database_yet_(not_in_database_yet) { }
     JournalInfo() = default;
     JournalInfo(const JournalInfo &rhs) = default;
 
