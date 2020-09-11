@@ -1,5 +1,6 @@
 /** \file    new_journal_alert.cc
  *  \brief   Detects new journal issues for subscribed users.
+ *  \note    Additional documentation can be found at https://github.com/ubtue/ub_tools/wiki/Abonnementservice-f%C3%BCr-Zeitschriftenartikel-in-IxTheo-und-RelBib
  *  \author  Dr. Johannes Ruscheinski
  */
 
