@@ -193,7 +193,7 @@ std::string FieldPresenceToString(const FieldPresence field_presence) {
 
 GeneralInfo LoadGeneralInfo(DbConnection * const db_connection) {
     db_connection->queryOrDie("SELECT metadata_field_name,field_presence FROM metadata_presence_tracer "
-                              "WHERE zeder_journals.zeder_id IS NULL ORDER BY metadata_field_name ASC");
+                              "WHERE zeder_journal_id IS NULL ORDER BY metadata_field_name ASC");
 
     GeneralInfo general_info;
     DbResultSet result_set(db_connection->getLastResultSet());
