@@ -1,10 +1,11 @@
 /** \file    new_journal_alert.cc
  *  \brief   Detects new journal issues for subscribed users.
+ *  \note    Additional documentation can be found at https://github.com/ubtue/ub_tools/wiki/Abonnementservice-f%C3%BCr-Zeitschriftenartikel-in-IxTheo-und-RelBib
  *  \author  Dr. Johannes Ruscheinski
  */
 
 /*
-    Copyright (C) 2016-2019 Library of the University of Tübingen
+    Copyright (C) 2016-2020 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -449,7 +450,7 @@ void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &
 }
 
 
-std::string SingleQuote(const std::string &to_quote) { return "'" + to_quote + "'"; };
+inline std::string SingleQuote(const std::string &to_quote) { return "'" + to_quote + "'"; }
 
 
 void LoadBundleMaxLastModificationTimes(DbConnection * const db_connection, const std::string &bundle_name,

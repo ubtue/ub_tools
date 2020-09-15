@@ -441,6 +441,8 @@ std::string ReferencedJSONDataStateToString(const ReferencedJSONDataState refere
     case INCONSISTENT_ARRAY_LENGTHS:
         return "INCONSISTENT_ARRAY_LENGTHS";
     }
+
+    __builtin_unreachable(); // Stupid g++!
 }
 
 
@@ -771,7 +773,7 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor,
         } else if (field_descriptor.required_)
             LOG_ERROR("missing JSON tag \"" + field_descriptor.json_tag_ + "\" for required field \"" + field_descriptor.name_ + "\"!");
     } else { // Data field
-        size_t array_length;
+        size_t array_length(0);
         const auto referenced_json_data_state(CategorizeJSONReferences(object, field_descriptor.subfield_codes_to_json_paths_, &array_length));
         LOG_DEBUG("\t" + ReferencedJSONDataStateToString(referenced_json_data_state));
         if (referenced_json_data_state == NO_DATA_FOUND)
@@ -910,7 +912,7 @@ int Main(int argc, char **argv) {
     if (argc != 5 and argc != 6)
         Usage();
 
-        if (std::strcmp(argv[1], "--create-unique-id-db") == 0) {
+    if (std::strcmp(argv[1], "--create-unique-id-db") == 0) {
         KeyValueDB::Create(UNIQUE_ID_TO_DATE_MAP_PATH);
         --argc, ++argv;
     }
