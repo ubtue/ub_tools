@@ -130,7 +130,8 @@ void ZoteroLogger::flushBufferAndPrintProgressImpl(const unsigned num_active_tas
 
 void ZoteroLogger::writeToBackingLog(const std::string &msg) {
     std::lock_guard<std::mutex> locker(mutex_);
-    ::write(fd_, msg.data(), msg.length());
+    if (::write(fd_, msg.data(), msg.length()) != static_cast<ssize_t>(msg.length()))
+        LOG_ERROR("write(2) failed!");
     ::fsync(fd_);
 }
 
