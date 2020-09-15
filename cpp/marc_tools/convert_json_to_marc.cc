@@ -773,7 +773,7 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor,
         } else if (field_descriptor.required_)
             LOG_ERROR("missing JSON tag \"" + field_descriptor.json_tag_ + "\" for required field \"" + field_descriptor.name_ + "\"!");
     } else { // Data field
-        size_t array_length;
+        size_t array_length(0);
         const auto referenced_json_data_state(CategorizeJSONReferences(object, field_descriptor.subfield_codes_to_json_paths_, &array_length));
         LOG_DEBUG("\t" + ReferencedJSONDataStateToString(referenced_json_data_state));
         if (referenced_json_data_state == NO_DATA_FOUND)
