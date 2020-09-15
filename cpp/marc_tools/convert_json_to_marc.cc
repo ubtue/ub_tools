@@ -441,6 +441,8 @@ std::string ReferencedJSONDataStateToString(const ReferencedJSONDataState refere
     case INCONSISTENT_ARRAY_LENGTHS:
         return "INCONSISTENT_ARRAY_LENGTHS";
     }
+
+    __builtin_unreachable(); // Stupid g++!
 }
 
 
@@ -910,7 +912,7 @@ int Main(int argc, char **argv) {
     if (argc != 5 and argc != 6)
         Usage();
 
-        if (std::strcmp(argv[1], "--create-unique-id-db") == 0) {
+    if (std::strcmp(argv[1], "--create-unique-id-db") == 0) {
         KeyValueDB::Create(UNIQUE_ID_TO_DATE_MAP_PATH);
         --argc, ++argv;
     }
