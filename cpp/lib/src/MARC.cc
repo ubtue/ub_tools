@@ -2842,7 +2842,6 @@ std::set<std::string> ExtractCrossReferencePPNs(const MARC::Record &record) {
         if (std::find(CROSS_LINK_FIELDS.cbegin(), CROSS_LINK_FIELDS.cend(), field.getTag()) == CROSS_LINK_FIELDS.cend())
             continue;
 
-LOG_DEBUG("In ExtractCrossReferencePPNs, found a cross link field");
         std::string partner_control_number;
         if (IsCrossLinkField(field, &partner_control_number))
             partner_ppns.emplace(partner_control_number);
