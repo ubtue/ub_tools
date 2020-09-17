@@ -2927,7 +2927,7 @@ std::set<std::string> ExtractPrintCrossLinkPPNs(const MARC::Record &record) {
         }
 
         const auto subfield_n_contents(_776_field.getFirstSubfieldWithCode('n'));
-        if (StringUtil::StartsWith(subfield_n_contents, "Druck-Ausgabe")) {
+        if (StringUtil::StartsWith(subfield_n_contents, "Druck")) {
             cross_reference_ppns.emplace(ppn);
             continue;
         }
