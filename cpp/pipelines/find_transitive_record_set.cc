@@ -73,7 +73,7 @@ std::set<RecordType> GetRecordTypes(const MARC::Record &record) {
 
 
 std::set<std::string> GetReferencedPPNs(const MARC::Record &record) {
-    std::set<std::string> referenced_ppns(MARC::ExtractPrintAndOnlineCrossLinkPPNs(record));
+    std::set<std::string> referenced_ppns(MARC::ExtractCrossLinkPPNs(record));
 
     const auto parent_ppn(MARC::GetParentPPN(record));
     if (not parent_ppn.empty())
