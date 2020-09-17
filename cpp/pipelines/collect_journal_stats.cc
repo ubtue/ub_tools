@@ -134,7 +134,8 @@ size_t GetExistingDbEntries(const IniFile &ini_file, const std::string &hostname
                             std::unordered_map<std::string, DbEntry> * const existing_entries)
 {
     DbConnection db_connection_select(ini_file, "DatabaseSelect");
-    db_connection_select.queryOrDie("SELECT Zeder_ID,PPN,Jahr,Band,Heft,Seitenbereich"
+
+    db_connection_select.queryOrDie("SELECT MAX(timestamp),Zeder_ID,PPN,Jahr,Band,Heft,Seitenbereich"
                                     " FROM zeder.erschliessung WHERE Quellrechner='" + hostname + "' AND Systemtyp='"
                                     + system_type + "' GROUP BY Zeder_ID,PPN,Jahr,Band,Heft,Seitenbereich");
     auto result_set(db_connection_select.getLastResultSet());
