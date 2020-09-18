@@ -97,7 +97,7 @@ std::set<std::string> GetCrossLinkPPNs(const MARC::Record &record,
                                        const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
                                        const std::unordered_multimap<std::string, std::string> &canonical_ppn_to_ppn_map)
 {
-    auto cross_link_ppns(MARC::ExtractPrintAndOnlineCrossLinkPPNs(record));
+    auto cross_link_ppns(MARC::ExtractCrossLinkPPNs(record));
     if (cross_link_ppns.empty())
         return { };
     cross_link_ppns.emplace(record.getControlNumber());
