@@ -2945,10 +2945,8 @@ std::set<std::string> ExtractOtherCrossLinkPPNs(const MARC::Record &record) {
             continue;
 
         const auto subfield_i_contents(_785_field.getFirstSubfieldWithCode('i'));
-        if (subfield_i_contents == "Forts." or subfield_i_contents == "Fortgesetzt durch") {
+        if (subfield_i_contents == "Forts." or subfield_i_contents == "Fortgesetzt durch")
             cross_reference_ppns.emplace(ppn);
-            continue;
-        }
     }
 
     for (const auto _780_field : record.getTagRange("780")) {
@@ -2957,10 +2955,8 @@ std::set<std::string> ExtractOtherCrossLinkPPNs(const MARC::Record &record) {
             continue;
 
         const auto subfield_i_contents(_780_field.getFirstSubfieldWithCode('i'));
-        if (subfield_i_contents == "Vorg.") {
+        if (subfield_i_contents == "Vorg.")
             cross_reference_ppns.emplace(ppn);
-            continue;
-        }
     }
 
     return cross_reference_ppns;
