@@ -179,21 +179,6 @@ void XmlWriter::writeTagsWithData(const std::string &tag_name, const std::string
 }
 
 
-void XmlWriter::writeTagsWithEscapedData(const std::string &tag_name, const Attributes &attribs, const std::string &characters,
-                                         const bool suppress_newline, const XmlWriter::TextConversionType text_conversion_type)
-{
-    openTag(tag_name, attribs, /* suppress_newline = */true);
-    write(XmlWriter::XmlEscape(characters, text_conversion_type));
-
-    const auto saved_indent_amount_(indent_amount_);
-    indent_amount_ = 0;
-
-    closeTag(tag_name, suppress_newline);
-
-    indent_amount_ = saved_indent_amount_;
-}
-
-
 void XmlWriter::indent() {
     if (output_file_ != nullptr)
         *output_file_ << std::string(indent_amount_ * nesting_level_, ' ');
