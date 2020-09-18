@@ -131,8 +131,11 @@ for d in */ ; do
     fi
 
     current_source_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/$HARVESTER_OUTPUT_FILENAME
-    valid_records_output_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/zotero_${d}_$(date +%y%m%d)_001.xml  # we only deliver files once a day
-    invalid_records_output_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/zotero_${d}_$(date +%y%m%d)_001_errors.xml
+
+    # Output filenames MUST start with 'ixtheo_' or 'krimdok_', else BSZ will ignore it.
+    # Also, since we deliver files only once a day, each file will be marked as "001".
+    valid_records_output_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001.xml
+    invalid_records_output_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_errors.xml
     LOGGER_FORMAT=no_decorations,strip_call_site \
     BACKTRACE=1 \
     UTIL_LOG_DEBUG=true \
