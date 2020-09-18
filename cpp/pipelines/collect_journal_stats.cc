@@ -107,30 +107,26 @@ public:
     DbEntry() = default;
     DbEntry(const DbEntry &other) = default;
 
-    bool operator==(const DbEntry &rhs) const;
-
     /** \return True if the current entry represents a more recent article than "other".  If the entry is in the same issue
         we use the page numbers as an arbitrary tie breaker. */
     bool isNewerThan(const DbEntry &other) const;
 };
 
 
-inline bool DbEntry::operator==(const DbEntry &rhs) const {
-    return jahr_ == rhs.jahr_ and band_ == rhs.band_ and heft_ == rhs.heft_ and seitenbereich_ == rhs.seitenbereich_;
-}
-
-
 inline bool DbEntry::isNewerThan(const DbEntry &other) const {
+    if (jahr_ < other.jahr_)
+        return false;
     if (jahr_ > other.jahr_)
         return true;
+    if (band_ < other.band_)
+        return false;
     if (band_ > other.band_)
         return true;
+    if (heft_ < other.heft_)
+        return false;
     if (heft_ > other.heft_)
         return true;
-    if (seitenbereich_ > other.seitenbereich_)
-        return true; // Somewhat nonsensical, but useful nonetheless.
-
-    return false;
+    return seitenbereich_ > other.seitenbereich_; // Somewhat nonsensical, but useful nonetheless.
 }
 
 
@@ -138,26 +134,32 @@ size_t GetExistingDbEntries(const IniFile &ini_file, const std::string &hostname
                             std::unordered_map<std::string, DbEntry> * const existing_entries)
 {
     DbConnection db_connection_select(ini_file, "DatabaseSelect");
+
     db_connection_select.queryOrDie("SELECT MAX(timestamp),Zeder_ID,PPN,Jahr,Band,Heft,Seitenbereich"
                                     " FROM zeder.erschliessung WHERE Quellrechner='" + hostname + "' AND Systemtyp='"
-                                    + system_type + "' GROUP BY Zeder_ID,PPN");
+                                    + system_type + "' GROUP BY Zeder_ID,PPN,Jahr,Band,Heft,Seitenbereich");
     auto result_set(db_connection_select.getLastResultSet());
-    while (const auto row = result_set.getNextRow())
-        (*existing_entries)[row["Zeder_ID"] + "+" + row["PPN"]] =
-            DbEntry(row["Jahr"], row["Band"], row["Heft"], row["Seitenbereich"]);
+    while (const auto row = result_set.getNextRow()) {
+        const DbEntry db_entry(row["Jahr"], row["Band"], row["Heft"], row["Seitenbereich"]);
+        const auto key(row["Zeder_ID"] + "+" + row["PPN"]);
+        auto key_and_entry(existing_entries->find(key));
+        if (key_and_entry == existing_entries->end() or db_entry.isNewerThan(key_and_entry->second))
+            (*existing_entries)[key] = db_entry;
+    }
 
     return existing_entries->size();
 }
 
 
-bool AlreadyPresentInDB(const std::unordered_map<std::string, DbEntry> &existing_entries,
-                        const std::string &zeder_id, const std::string &ppn, const DbEntry &test_entry)
+// \return True if "test_entry" either does not exist in the databse or is newer than the newest existing entry.
+bool NewerThanWhatExistsInDB(const std::unordered_map<std::string, DbEntry> &existing_entries,
+                                const std::string &zeder_id, const std::string &ppn, const DbEntry &test_entry)
 {
     const auto key_and_entry(existing_entries.find(zeder_id + "+" + ppn));
     if (key_and_entry == existing_entries.cend())
-        return false;
+        return true;
 
-    return key_and_entry->second == test_entry;
+    return test_entry.isNewerThan(key_and_entry->second);
 }
 
 
@@ -201,15 +203,12 @@ void CollectMostRecentEntries(const IniFile &ini_file, MARC::Reader * const read
         const std::string year_as_string(std::to_string(YearStringToShort(year)));
 
         const DbEntry new_db_entry(year_as_string, volume, issue, pages);
-        if (not AlreadyPresentInDB(existing_entries, zeder_id, superior_control_number, new_db_entry)) {
-            const auto ppn_and_most_recent_entry(ppns_to_most_recent_entries_map->find(superior_control_number));
-            if (ppn_and_most_recent_entry == ppns_to_most_recent_entries_map->end()
-                or not ppn_and_most_recent_entry->second.isNewerThan(new_db_entry))
-                (*ppns_to_most_recent_entries_map)[superior_control_number] = new_db_entry;
-        }
+        if (NewerThanWhatExistsInDB(existing_entries, zeder_id, superior_control_number, new_db_entry))
+            (*ppns_to_most_recent_entries_map)[superior_control_number] = new_db_entry;
     }
 
-    LOG_INFO("Processed " + std::to_string(total_count) + " MARC records.");
+    LOG_INFO("Processed " + std::to_string(total_count) + " MARC records and found "
+             + std::to_string(ppns_to_most_recent_entries_map->size()) + " new entries to insert .");
 }
 
 

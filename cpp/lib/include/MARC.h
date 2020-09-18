@@ -1135,7 +1135,7 @@ bool IsSubjectAccessTag(const Tag &tag);
 
 std::set<std::string> ExtractOnlineCrossLinkPPNs(const MARC::Record &record);
 std::set<std::string> ExtractPrintCrossLinkPPNs(const MARC::Record &record);
-std::set<std::string> ExtractPrintAndOnlineCrossLinkPPNs(const MARC::Record &record);
+std::set<std::string> ExtractCrossLinkPPNs(const MARC::Record &record);
 
 
 // \warning Only very few codes are currently supported!

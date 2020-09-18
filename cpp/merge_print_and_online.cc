@@ -925,7 +925,7 @@ void DeleteCrossLinkFields(MARC::Record * const record) {
     std::vector<size_t> field_indices_for_deletion;
     for (auto field(record->begin()); field != record->end(); ++field) {
         std::string unused;
-        if (MARC::IsCrossLinkField(*field, &unused))
+        if (field->getTag() != "775" and MARC::IsCrossLinkField(*field, &unused))
             field_indices_for_deletion.emplace_back(field - record->begin());
     }
     record->deleteFields(field_indices_for_deletion);

@@ -63,7 +63,7 @@ static bool ParseFrom(const std::string &from_line_candidate, time_t * const rec
         return false;
 
     const auto sender(from_line_candidate.substr(4 + 1, second_space_pos - 4 - 1));
-    if (sender != "MAILER-DAEMON" and sender.find('@') == std::string::npos)
+    if (sender != "MAILER-DAEMON" and sender != "nobody" and sender.find('@') == std::string::npos)
         return false;
 
     size_t asctime_start(second_space_pos + 1);
@@ -71,8 +71,10 @@ static bool ParseFrom(const std::string &from_line_candidate, time_t * const rec
         ++asctime_start;
 
     struct tm tm;
-    if (not TimeUtil::AscTimeToStructTm(from_line_candidate.substr(asctime_start), &tm))
+    if (not TimeUtil::AscTimeToStructTm(from_line_candidate.substr(asctime_start), &tm)) {
+        LOG_WARNING("bad asctime \"" + from_line_candidate.substr(asctime_start));
         return false;
+    }
 
     *reception_time = TimeUtil::TimeGm(tm);
     return *reception_time != TimeUtil::BAD_TIME_T;

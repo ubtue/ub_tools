@@ -115,17 +115,6 @@ public:
     void writeTagsWithData(const std::string &tag_name, const std::string &characters, const bool suppress_newline = false);
 
     /** Write character data between an opening and closing tag pair. */
-    void writeTagsWithEscapedData(const std::string &tag_name, const Attributes &attribs,
-                                  const std::string &characters, const bool suppress_newline = false,
-                                  const XmlWriter::TextConversionType text_conversion_type = NoConversion);
-
-    /** Write character data between an opening and closing tag pair. */
-    inline void writeTagsWithEscapedData(const std::string &tag_name, const std::string &characters,
-                                         const bool suppress_indent = false,
-                                         const XmlWriter::TextConversionType text_conversion_type = NoConversion)
-        { writeTagsWithEscapedData(tag_name, { }, characters, suppress_indent, text_conversion_type); }
-
-    /** Write character data between an opening and closing tag pair. */
     void writeTagsWithData(const std::string &tag_name, const Attributes &attribs, const std::string &characters,
                            const bool suppress_indent = false)
     {
