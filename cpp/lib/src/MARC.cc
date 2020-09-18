@@ -2968,13 +2968,13 @@ std::set<std::string> ExtractOtherCrossLinkPPNs(const MARC::Record &record) {
 
 
 std::set<std::string> ExtractCrossLinkPPNs(const MARC::Record &record) {
-    auto cross_reference_ppns(ExtractOnlineCrossLinkPPNs(record));
-    const auto print_cross_reference_ppns(ExtractPrintCrossLinkPPNs(record));
-    cross_reference_ppns.insert(print_cross_reference_ppns.cbegin(), print_cross_reference_ppns.cend());
-    const auto other_cross_reference_ppns(ExtractOtherCrossLinkPPNs(record));
-    cross_reference_ppns.insert(other_cross_reference_ppns.cbegin(), other_cross_reference_ppns.cend());
+    auto cross_link_ppns(ExtractOnlineCrossLinkPPNs(record));
+    const auto print_cross_link_ppns(ExtractPrintCrossLinkPPNs(record));
+    cross_link_ppns.insert(print_cross_link_ppns.cbegin(), print_cross_link_ppns.cend());
+    const auto other_cross_link_ppns(ExtractOtherCrossLinkPPNs(record));
+    cross_link_ppns.insert(other_cross_link_ppns.cbegin(), other_cross_link_ppns.cend());
 
-    return cross_reference_ppns;
+    return cross_link_ppns;
 }
 
 
