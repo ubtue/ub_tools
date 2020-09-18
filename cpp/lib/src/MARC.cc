@@ -2897,7 +2897,7 @@ std::set<std::string> ExtractOnlineCrossLinkPPNs(const MARC::Record &record) {
             continue;
 
         const auto subfield_i_contents(_776_field.getFirstSubfieldWithCode('i'));
-        if (StringUtil::StartsWith(subfield_i_contents, "Online")) {
+        if (StringUtil::StartsWith(subfield_i_contents, "Online") or subfield_i_contents == "Elektronische Reproduktion") {
             cross_reference_ppns.emplace(ppn);
             continue;
         }
@@ -2921,13 +2921,13 @@ std::set<std::string> ExtractPrintCrossLinkPPNs(const MARC::Record &record) {
             continue;
 
         const auto subfield_i_contents(_776_field.getFirstSubfieldWithCode('i'));
-        if (StringUtil::StartsWith(subfield_i_contents, "Druckausg")) {
+        if (StringUtil::StartsWith(subfield_i_contents, "Druckausg") or subfield_i_contents == "Elektronische Reproduktion von") {
             cross_reference_ppns.emplace(ppn);
             continue;
         }
 
         const auto subfield_n_contents(_776_field.getFirstSubfieldWithCode('n'));
-        if (StringUtil::StartsWith(subfield_n_contents, "Druck-Ausgabe")) {
+        if (StringUtil::StartsWith(subfield_n_contents, "Druck")) {
             cross_reference_ppns.emplace(ppn);
             continue;
         }
@@ -2937,12 +2937,40 @@ std::set<std::string> ExtractPrintCrossLinkPPNs(const MARC::Record &record) {
 }
 
 
-std::set<std::string> ExtractPrintAndOnlineCrossLinkPPNs(const MARC::Record &record) {
-    auto cross_reference_ppns(ExtractOnlineCrossLinkPPNs(record));
-    const auto print_cross_reference_ppns(ExtractPrintCrossLinkPPNs(record));
-    cross_reference_ppns.insert(print_cross_reference_ppns.cbegin(), print_cross_reference_ppns.cend());
+std::set<std::string> ExtractOtherCrossLinkPPNs(const MARC::Record &record) {
+    std::set<std::string> cross_reference_ppns;
+    for (const auto _785_field : record.getTagRange("785")) {
+        const auto ppn(BSZUtil::GetK10PlusPPNFromSubfield(_785_field, 'w'));
+        if (ppn.empty())
+            continue;
+
+        const auto subfield_i_contents(_785_field.getFirstSubfieldWithCode('i'));
+        if (subfield_i_contents == "Forts." or subfield_i_contents == "Fortgesetzt durch")
+            cross_reference_ppns.emplace(ppn);
+    }
+
+    for (const auto _780_field : record.getTagRange("780")) {
+        const auto ppn(BSZUtil::GetK10PlusPPNFromSubfield(_780_field, 'w'));
+        if (ppn.empty())
+            continue;
+
+        const auto subfield_i_contents(_780_field.getFirstSubfieldWithCode('i'));
+        if (subfield_i_contents == "Vorg.")
+            cross_reference_ppns.emplace(ppn);
+    }
 
     return cross_reference_ppns;
+}
+
+
+std::set<std::string> ExtractCrossLinkPPNs(const MARC::Record &record) {
+    auto cross_link_ppns(ExtractOnlineCrossLinkPPNs(record));
+    const auto print_cross_link_ppns(ExtractPrintCrossLinkPPNs(record));
+    cross_link_ppns.insert(print_cross_link_ppns.cbegin(), print_cross_link_ppns.cend());
+    const auto other_cross_link_ppns(ExtractOtherCrossLinkPPNs(record));
+    cross_link_ppns.insert(other_cross_link_ppns.cbegin(), other_cross_link_ppns.cend());
+
+    return cross_link_ppns;
 }
 
 

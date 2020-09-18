@@ -35,21 +35,40 @@ namespace {
 }
 
 
+bool AddLocalData(const LocalDataDB &local_data_db, MARC::Record * const record, const std::string &ppn) {
+    const auto local_fields(local_data_db.getLocalFields(ppn));
+    if (local_fields.empty())
+        return false;
+
+    for (const auto &local_field : local_fields)
+        record->insertFieldAtEnd("LOK", local_field);
+    return true;
+}
+
+
 // Appends local data for each record, for which local data will be found in our database.
 // The local data is store in a format where the contents of each field is preceeded by a 4-character
 // hex string indicating the length of the immediately following field contents.
 // Multiple local fields may occur per record.
-void AddLocalData(const LocalDataDB &local_data_db, MARC::Reader * const reader, MARC::Writer * const writer) {
+void ProcessRecords(const LocalDataDB &local_data_db, MARC::Reader * const reader, MARC::Writer * const writer) {
     unsigned total_record_count(0), added_count(0);
     while (auto record = reader->read()) {
         ++total_record_count;
 
-        const auto local_fields(local_data_db.getLocalFields(record.getControlNumber()));
-        if (not local_fields.empty()) {
-            for (const auto &local_field : local_fields)
-                record.insertFieldAtEnd("LOK", local_field);
-            ++added_count;
+        unsigned local_record_count(0);
+        if (AddLocalData(local_data_db, &record, record.getControlNumber()))
+            ++local_record_count;
+
+        std::vector<std::string> hybrid_ppns;
+        for (const auto &hybrid_field : record.getTagRange("ZWI"))
+            hybrid_ppns.emplace_back(hybrid_field.getFirstSubfieldWithCode('a'));
+        for (const auto &hybrid_ppn : hybrid_ppns) {
+            if (AddLocalData(local_data_db, &record, hybrid_ppn))
+                ++local_record_count;
         }
+
+        if (local_record_count > 0)
+            ++added_count;
 
         writer->write(record);
     }
@@ -69,7 +88,7 @@ int Main(int argc, char *argv[]) {
     auto marc_writer(MARC::Writer::Factory(argv[2]));
 
     LocalDataDB local_data_db(LocalDataDB::READ_ONLY);
-    AddLocalData(local_data_db, marc_reader.get(), marc_writer.get());
+    ProcessRecords(local_data_db, marc_reader.get(), marc_writer.get());
 
     return EXIT_SUCCESS;
 }

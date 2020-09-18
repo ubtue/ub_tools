@@ -68,29 +68,29 @@ struct HarvestedRSSItem {
 void WriteRSSFeedXMLOutput(const IniFile &ini_file, std::vector<HarvestedRSSItem> * const harvested_items, XmlWriter * const xml_writer) {
     xml_writer->openTag("rss", { { "version", "2.0" }, { "xmlns:tuefind", "https://github.com/ubtue/tuefind" } });
     xml_writer->openTag("channel");
-    xml_writer->writeTagsWithEscapedData("title", ini_file.getString("Channel", "title"));
-    xml_writer->writeTagsWithEscapedData("link", ini_file.getString("Channel", "link"));
-    xml_writer->writeTagsWithEscapedData("description", ini_file.getString("Channel", "description"));
+    xml_writer->writeTagsWithData("title", ini_file.getString("Channel", "title"));
+    xml_writer->writeTagsWithData("link", ini_file.getString("Channel", "link"));
+    xml_writer->writeTagsWithData("description", ini_file.getString("Channel", "description"));
 
     for (const auto &harvested_item : *harvested_items) {
         xml_writer->openTag("item");
 
         const auto title(harvested_item.item_.getTitle());
         if (not title.empty())
-            xml_writer->writeTagsWithEscapedData("title", harvested_item.item_.getTitle());
+            xml_writer->writeTagsWithData("title", harvested_item.item_.getTitle());
 
-        xml_writer->writeTagsWithEscapedData("link", harvested_item.item_.getLink());
+        xml_writer->writeTagsWithData("link", harvested_item.item_.getLink());
 
         const auto description(harvested_item.item_.getDescription());
         if (not description.empty())
-            xml_writer->writeTagsWithEscapedData("description", description);
+            xml_writer->writeTagsWithData("description", description);
 
-        xml_writer->writeTagsWithEscapedData("pubDate",
-                                             TimeUtil::TimeTToString(harvested_item.item_.getPubDate(), TimeUtil::RFC822_FORMAT,
+        xml_writer->writeTagsWithData("pubDate",
+                                      TimeUtil::TimeTToString(harvested_item.item_.getPubDate(), TimeUtil::RFC822_FORMAT,
                                                                      TimeUtil::UTC));
-        xml_writer->writeTagsWithEscapedData("guid", harvested_item.item_.getId());
-        xml_writer->writeTagsWithEscapedData("tuefind:rss_title", harvested_item.feed_title_);
-        xml_writer->writeTagsWithEscapedData("tuefind:rss_url", harvested_item.feed_url_);
+        xml_writer->writeTagsWithData("guid", harvested_item.item_.getId());
+        xml_writer->writeTagsWithData("tuefind:rss_title", harvested_item.feed_title_);
+        xml_writer->writeTagsWithData("tuefind:rss_url", harvested_item.feed_url_);
         xml_writer->closeTag("item", /* suppress_indent */ false);
     }
 
