@@ -59,11 +59,11 @@ void ProcessRecords(const LocalDataDB &local_data_db, MARC::Reader * const reade
         if (AddLocalData(local_data_db, &record, record.getControlNumber()))
             ++local_record_count;
 
-        std::vector<std::string> zwitter_ppns;
-        for (const auto &zwitter_field : record.getTagRange("ZWI"))
-            zwitter_ppns.emplace_back(zwitter_field.getFirstSubfieldWithCode('a'));
-        for (const auto &zwitter_ppn : zwitter_ppns) {
-            if (AddLocalData(local_data_db, &record, zwitter_ppn))
+        std::vector<std::string> hybrid_ppns;
+        for (const auto &hybrid_field : record.getTagRange("ZWI"))
+            hybrid_ppns.emplace_back(hybrid_field.getFirstSubfieldWithCode('a'));
+        for (const auto &hybrid_ppn : hybrid_ppns) {
+            if (AddLocalData(local_data_db, &record, hybrid_ppn))
                 ++local_record_count;
         }
 
