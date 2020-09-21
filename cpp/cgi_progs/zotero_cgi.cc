@@ -520,17 +520,19 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
 
 
 void ProcessShowLogsAction() {
-    std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
-    std::cout << "<html>";
-    std::cout << "<body>";
-    std::cout << "<h1>Zotero Translation Server Logs</h1>";
-    std::cout << "<pre>";
-    std::cout << std::flush;
+    std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n"
+              << "<html>"
+              << "<body>"
+              << "<h1>Zotero Translation Server Logs</h1>"
+              << "<p>This view contains all logs of the last 15 minutes,<br>"
+              << "even if they don't belong to your run!</p>"
+              << "<pre>"
+              << std::flush;
     // The httpd user must be in docker group for this to work
-    ExecUtil::ExecOrDie("/usr/local/ub_tools/docker/zts/logs.sh");
-    std::cout << "</pre>";
-    std::cout << "</body>";
-    std::cout << "</html>";
+    ExecUtil::ExecOrDie("/usr/local/ub_tools/docker/zts/logs.sh", { "15m" });
+    std::cout << "</pre>"
+              << "</body>"
+              << "</html>";
 }
 
 
