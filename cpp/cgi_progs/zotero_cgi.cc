@@ -342,7 +342,8 @@ void ExecuteHarvestAction(const std::string &title, const std::string &group_nam
         std::cout << "<tr><td>ERROR</td><td>Exitcode: " + std::to_string(exit_code) + "</td></tr>\r\n";
 
     // use <pre> instead of nl2br + htmlspecialchars
-    std::cout << "<tr><td>CLI output:</td><td><pre>" + output + "</td></tr>\r\n";
+    std::cout << "<tr><td>CLI output:</td><td><pre>" + output + "</pre></td></tr>\r\n";
+    std::cout << "<tr><td>Server logs:</td><td><a target=\"_blank\" href=\"?action=show_logs\">click here</a></td></tr>\r\n";
     std::cout << "</table>\r\n";
 }
 
@@ -518,6 +519,21 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
 }
 
 
+void ProcessShowLogsAction() {
+    std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
+    std::cout << "<html>";
+    std::cout << "<body>";
+    std::cout << "<h1>Zotero Translation Server Logs</h1>";
+    std::cout << "<pre>";
+    std::cout << std::flush;
+    // The httpd user must be in docker group for this to work
+    ExecUtil::ExecOrDie("/usr/local/ub_tools/docker/zts/logs.sh");
+    std::cout << "</pre>";
+    std::cout << "</body>";
+    std::cout << "</html>";
+}
+
+
 } // unnamed namespace
 
 
@@ -536,6 +552,8 @@ int Main(int argc, char *argv[]) {
         ProcessShowDownloadedAction(cgi_args);
     else if (action == "show_qa")
         ProcessShowQAAction(cgi_args);
+    else if (action == "show_logs")
+        ProcessShowLogsAction();
     else {
         Template::Map names_to_values_map;
         names_to_values_map.insertScalar("action", action);
