@@ -2816,7 +2816,7 @@ bool Record::isPossiblyReviewArticle() const {
 }
 
 
-const std::vector<Tag> CROSS_LINK_FIELDS{ Tag("775"), Tag("776"), Tag("780"), Tag("785") };
+const std::vector<Tag> CROSS_LINK_FIELDS{ Tag("775"), Tag("776"), Tag("780"), Tag("785"), Tag("787") };
 
 
 bool IsCrossLinkField (const MARC::Record::Field &field, std::string * const partner_control_number, const std::vector<MARC::Tag> &cross_link_fields) {
@@ -2937,29 +2937,46 @@ std::set<std::string> ExtractPrintCrossLinkPPNs(const MARC::Record &record) {
 }
 
 
+static void ExtractOtherCrossLinkPPNsHelper(const MARC::Record &record, const MARC::Tag &tag,
+                                            const std::vector<std::string> &relevant_subfield_i_contents,
+                                            std::set<std::string> * const cross_link_ppns)
+{
+    for (const auto cross_link_field : record.getTagRange(tag)) {
+        const auto cross_link_ppn(BSZUtil::GetK10PlusPPNFromSubfield(cross_link_field, 'w'));
+        if (cross_link_ppn.empty())
+            continue;
+
+        if (relevant_subfield_i_contents.empty()) {
+            cross_link_ppns->emplace(cross_link_ppn);
+            return;
+        }
+
+        const auto subfield_i_content(cross_link_field.getFirstSubfieldWithCode('i'));
+        for (const auto &relevant_subfield_i_content : relevant_subfield_i_contents) {
+            if (subfield_i_content == relevant_subfield_i_content) {
+                cross_link_ppns->emplace(cross_link_ppn);
+                return;
+            }
+        }
+    }
+}
+
+
+const std::vector<std::string> relevant_787i_contents{
+    "Vorg. u. Forts.",
+    "Erweitert durch",
+    "Überarbeitung von",
+};
+
+
 std::set<std::string> ExtractOtherCrossLinkPPNs(const MARC::Record &record) {
-    std::set<std::string> cross_reference_ppns;
-    for (const auto _785_field : record.getTagRange("785")) {
-        const auto ppn(BSZUtil::GetK10PlusPPNFromSubfield(_785_field, 'w'));
-        if (ppn.empty())
-            continue;
+    std::set<std::string> cross_link_ppns;
 
-        const auto subfield_i_contents(_785_field.getFirstSubfieldWithCode('i'));
-        if (subfield_i_contents == "Forts." or subfield_i_contents == "Fortgesetzt durch")
-            cross_reference_ppns.emplace(ppn);
-    }
+    ExtractOtherCrossLinkPPNsHelper(record, "780", {}, &cross_link_ppns);
+    ExtractOtherCrossLinkPPNsHelper(record, "785", {}, &cross_link_ppns);
+    ExtractOtherCrossLinkPPNsHelper(record, "787", {}, &cross_link_ppns);
 
-    for (const auto _780_field : record.getTagRange("780")) {
-        const auto ppn(BSZUtil::GetK10PlusPPNFromSubfield(_780_field, 'w'));
-        if (ppn.empty())
-            continue;
-
-        const auto subfield_i_contents(_780_field.getFirstSubfieldWithCode('i'));
-        if (subfield_i_contents == "Vorg.")
-            cross_reference_ppns.emplace(ppn);
-    }
-
-    return cross_reference_ppns;
+    return cross_link_ppns;
 }
 
 
