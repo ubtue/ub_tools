@@ -2937,29 +2937,26 @@ std::set<std::string> ExtractPrintCrossLinkPPNs(const MARC::Record &record) {
 }
 
 
+static void ExtractOtherCrossLinkPPNsHelper(const MARC::Record &record, const MARC::Tag &tag,
+                                            std::set<std::string> * const cross_link_ppns)
+{
+    for (const auto cross_link_field : record.getTagRange(tag)) {
+        const auto cross_link_ppn(BSZUtil::GetK10PlusPPNFromSubfield(cross_link_field, 'w'));
+        if (not cross_link_ppn.empty()) {
+            cross_link_ppns->emplace(cross_link_ppn);
+            return;
+        }
+    }
+}
+
+
 std::set<std::string> ExtractOtherCrossLinkPPNs(const MARC::Record &record) {
-    std::set<std::string> cross_reference_ppns;
-    for (const auto _785_field : record.getTagRange("785")) {
-        const auto ppn(BSZUtil::GetK10PlusPPNFromSubfield(_785_field, 'w'));
-        if (ppn.empty())
-            continue;
+    std::set<std::string> cross_link_ppns;
 
-        const auto subfield_i_contents(_785_field.getFirstSubfieldWithCode('i'));
-        if (subfield_i_contents == "Forts." or subfield_i_contents == "Fortgesetzt durch")
-            cross_reference_ppns.emplace(ppn);
-    }
+    ExtractOtherCrossLinkPPNsHelper(record, "780", &cross_link_ppns);
+    ExtractOtherCrossLinkPPNsHelper(record, "785", &cross_link_ppns);
 
-    for (const auto _780_field : record.getTagRange("780")) {
-        const auto ppn(BSZUtil::GetK10PlusPPNFromSubfield(_780_field, 'w'));
-        if (ppn.empty())
-            continue;
-
-        const auto subfield_i_contents(_780_field.getFirstSubfieldWithCode('i'));
-        if (subfield_i_contents == "Vorg.")
-            cross_reference_ppns.emplace(ppn);
-    }
-
-    return cross_reference_ppns;
+    return cross_link_ppns;
 }
 
 
