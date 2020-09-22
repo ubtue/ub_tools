@@ -524,14 +524,24 @@ void ProcessShowLogsAction() {
               << "<html>"
               << "<body>"
               << "<h1>Zotero Translation Server Logs</h1>"
-              << "<p>This view contains all logs of the last 15 minutes,<br>"
-              << "even if they don't belong to your run!</p>"
-              << "<pre>"
               << std::flush;
-    // The httpd user must be in docker group for this to work
-    ExecUtil::ExecOrDie("/usr/local/ub_tools/docker/zts/logs.sh", { "15m" });
-    std::cout << "</pre>"
-              << "</body>"
+    const std::string ZTS_LOG("/usr/local/var/log/tuefind/zts.log");
+    std::string tail_output,tail_error;
+    if (not FileUtil::IsReadable(ZTS_LOG))
+        std::cout << "<p>The log file does not exist!</p>";
+    else if (not ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::LocateOrDie("tail"), { "--lines=1000", ZTS_LOG },
+                                                                   &tail_output, &tail_error))
+        std::cout << "<p>The log file could not be parsed!</p>";
+    else if (tail_output.empty())
+        std::cout << "<p>The log file is empty!</p>" << ExecUtil::LocateOrDie("tail");
+    else {
+        std::cout << "<p>This view contains the last 1000 lines of the log,<br>"
+                  << "even if they don't belong to your run!</p>"
+                  << "<pre>"
+                  << tail_output
+                  << "</pre>";
+    }
+    std::cout << "</body>"
               << "</html>";
 }
 
