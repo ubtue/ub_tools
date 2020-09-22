@@ -507,7 +507,6 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
         SELinuxUtil::FileContext::AddRecordIfMissing(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY, "httpd_sys_content_t",
                                                      ZOTERO_ENHANCEMENT_MAPS_DIRECTORY + "(/.*)?");
         SELinuxUtil::FileContext::AddRecordIfMissing(ZTS_LOGFILE, "httpd_sys_content_t", ZTS_LOGFILE);
-
     }
 
     // ...and then install the rest of ub_tools:
