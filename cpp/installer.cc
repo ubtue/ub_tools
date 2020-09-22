@@ -492,10 +492,23 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "clone", git_url, ZOTERO_ENHANCEMENT_MAPS_DIRECTORY });
     }
 
+    // logfile for zts docker container
+    const std::string ZTS_LOGFILE(UBTools::GetTueFindLogPath() + "/zts.log");
+    if (not FileUtil::Exists(ZTS_LOGFILE))
+        FileUtil::WriteStringOrDie(ZTS_LOGFILE, "");
+    if (os_system_type == UBUNTU) {
+        // This is only necessary for UBUNTU since syslogd does not run with root privileges.
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chown"), { "syslog:adm", ZTS_LOGFILE });
+    }
+    FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/syslog.zts.conf", "/etc/rsyslog.d/30-zts.conf");
+
     // Add SELinux permissions for files we need to access via the Web.
-    if (SELinuxUtil::IsEnabled())
+    if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY, "httpd_sys_content_t",
                                                      ZOTERO_ENHANCEMENT_MAPS_DIRECTORY + "(/.*)?");
+        SELinuxUtil::FileContext::AddRecordIfMissing(ZTS_LOGFILE, "httpd_sys_content_t", ZTS_LOGFILE);
+
+    }
 
     // ...and then install the rest of ub_tools:
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
