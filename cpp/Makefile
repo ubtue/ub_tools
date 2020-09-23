@@ -46,8 +46,8 @@ regular_install: $(INSTALL_PROGS) Makefile
 data_install: Makefile data/*.conf data/*.map data/*.ttf data/IxTheo_Notation.csv data/stopwords.* \
               data/bibleRef/* data/crossref_downloader/* data/full_text_cache_monitor/* \
               data/translate_chainer/* data/zotero_cgi/* data/marc_check.rules data/language_models/*.lm \
-              data/mime.types data/DIN_ISO_3166_geographic_codes_in_German \
-              data/geographic_689_field_contents
+              data/mime.types data/geographic_689_field_contents \
+	      data/bib_ref_candidates_in_titles.exclusion_list
 	@echo "Installing data..."
 	cp data/*.conf /usr/local/var/lib/tuelib/
 	cp data/*.map /usr/local/var/lib/tuelib/
@@ -67,8 +67,8 @@ data_install: Makefile data/*.conf data/*.map data/*.ttf data/IxTheo_Notation.cs
 	if [ -d $(INCROND_DIR) ]; then \
 		cp data/pipeline_script_triggers $(INCROND_DIR); \
 	fi
-	cp data/DIN_ISO_3166_geographic_codes_in_German /usr/local/var/lib/tuelib/
 	cp data/geographic_689_field_contents /usr/local/var/lib/tuelib/
+	cp data/bib_ref_candidates_in_titles.exclusion_list /usr/local/var/lib/tuelib/
 
 local_clean:
 	rm -f *.o *~ $(PROGS) .deps data/*~
