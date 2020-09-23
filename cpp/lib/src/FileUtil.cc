@@ -524,9 +524,12 @@ void TouchFileOrDie(const std::string &path) {
 
 
 void ChangeOwnerOrDie(const std::string &path, const std::string &user, const std::string &group, const bool recursive) {
+    if (user.empty() and group.empty())
+        LOG_ERROR("Cannot change owner of path \"" + path + "\": Neither user nor group given!");
+
     std::vector<std::string> args;
     if (recursive)
-        args.emplace_back("-R");
+        args.emplace_back("--recursive");
 
     std::string user_and_group(user);
     if (not group.empty())
