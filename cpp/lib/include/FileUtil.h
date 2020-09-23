@@ -270,11 +270,11 @@ inline std::string MakeAbsolutePath(const char * const relative_path)
 bool MakeEmpty(const std::string &path);
 
 
-/** \brief Create an empty file or change last modified timestamp of an existing file. */
+/** \brief Create an empty file or change timestamps (access, modify, change) of an existing file. */
 void TouchFileOrDie(const std::string &path);
 
 
-void ChangeOwnerOrDie(const std::string &path, const std::string &user, const std::string &group="", bool recursive=true);
+void ChangeOwnerOrDie(const std::string &path, const std::string &user="", const std::string &group="", const bool recursive=true);
 
 
 /** \brief Attempts to get a filename (there may be multiple) from a file descriptor. */

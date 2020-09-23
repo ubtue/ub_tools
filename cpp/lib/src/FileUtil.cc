@@ -516,14 +516,14 @@ bool MakeEmpty(const std::string &path) {
 
 
 void TouchFileOrDie(const std::string &path) {
-    if (not Exists(path))
-        WriteStringOrDie(path, "");
-    else
+    if (Exists(path))
         OpenForAppendingOrDie(path);
+    else
+        WriteStringOrDie(path, "");
 }
 
 
-void ChangeOwnerOrDie(const std::string &path, const std::string &user, const std::string &group, bool recursive) {
+void ChangeOwnerOrDie(const std::string &path, const std::string &user, const std::string &group, const bool recursive) {
     std::vector<std::string> args;
     if (recursive)
         args.emplace_back("-R");
