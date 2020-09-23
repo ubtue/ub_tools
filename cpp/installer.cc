@@ -505,7 +505,11 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY, "httpd_sys_content_t",
                                                      ZOTERO_ENHANCEMENT_MAPS_DIRECTORY + "(/.*)?");
-        SELinuxUtil::FileContext::AddRecordIfMissing(ZTS_LOGFILE, "httpd_sys_content_t", ZTS_LOGFILE);
+
+        // This file needs to be written to from journald/syslog + read from apache user
+        // since we cannot give container_log_t and httpd_sys_content_t to the same file,
+        // we use httpd_tmp_t instead
+        SELinuxUtil::FileContext::AddRecordIfMissing(ZTS_LOGFILE, "httpd_tmp_t", ZTS_LOGFILE);
     }
 
     // ...and then install the rest of ub_tools:
