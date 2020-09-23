@@ -735,8 +735,8 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
     CreateUserIfNotExists(USER_AND_GROUP_NAME);
 
     Echo("Setting directory permissions for Solr user...");
-    FileUtil::ChangeOwnerOrDie(VUFIND_DIRECTORY + "/solr", USER_AND_GROUP_NAME, USER_AND_GROUP_NAME, true);
-    FileUtil::ChangeOwnerOrDie(VUFIND_DIRECTORY + "/import", USER_AND_GROUP_NAME, USER_AND_GROUP_NAME, true);
+    FileUtil::ChangeOwnerOrDie(VUFIND_DIRECTORY + "/solr", USER_AND_GROUP_NAME, USER_AND_GROUP_NAME, /*recursive=*/true);
+    FileUtil::ChangeOwnerOrDie(VUFIND_DIRECTORY + "/import", USER_AND_GROUP_NAME, USER_AND_GROUP_NAME, /*recursive=*/true);
 
     const std::string solr_security_settings("solr hard nofile 65535\n"
                                              "solr soft nofile 65535\n"
