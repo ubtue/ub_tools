@@ -33,6 +33,16 @@ MBox::Message &MBox::Message::swap(Message &other_message) {
 }
 
 
+std::string MBox::Message::toString() const {
+    return   "reception_time: " + TimeUtil::TimeTToString(reception_time_) + "\n"
+           + "original_host:  " + original_host_ + "\n"
+           + "sender:         " + sender_ + "\n"
+           + "subject:        " + subject_ + "\n\n"
+           + message_body_;
+
+}
+
+
 void MBox::const_iterator::operator++() {
     if (message_.empty())
         LOG_ERROR("attempted to read beyond the end of \"" + mbox_->getPath() + "\"!");

@@ -43,6 +43,9 @@ public:
         inline const std::string &getSender() const { return sender_; }
         inline const std::string &getSubject() const { return subject_; }
         inline const std::string &getMessageBody() const { return message_body_; }
+
+        /** \brief Returns a string representation of a Message */
+        std::string toString() const;
     private:
         Message() = default;
         Message(const Message &rhs) = default;
