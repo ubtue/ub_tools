@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2019, Library of the University of Tübingen
+    Copyright (C) 2019-2020, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -47,6 +47,22 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage("ix_theo_titles ix_theo_norm bib_ref_candidates_list");
+}
+
+
+std::unordered_set<std::string> LoadPPNExclusionSet() {
+    std::unordered_set<std::string> excluded_ppns;
+
+    const auto input(FileUtil::OpenInputFileOrDie(UBTools::GetTuelibPath() + "bib_ref_candidates_in_titles.exclusion_list"));
+    while (not input->eof()) {
+        const std::string line(input->getline());
+        if (line.empty())
+            continue;
+
+        excluded_ppns.emplace(StringUtil::TrimWhite(line));
+    }
+
+    return excluded_ppns;
 }
 
 
@@ -560,11 +576,16 @@ void FindBibRefCandidates(
     MARC::Reader * const marc_reader, File * const output, const std::vector<std::vector<std::string>> &pericopes,
     const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map)
 {
+    const auto excluded_ppns(LoadPPNExclusionSet());
+
     RangeUtil::BibleBookCanoniser bible_book_canoniser(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_canonical_form.map");
     RangeUtil::BibleBookToCodeMapper bible_book_to_code_mapper(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_code.map");
     unsigned total_count(0), addition_title_reference_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         ++total_count;
+
+        if (excluded_ppns.find(record.getControlNumber()) != excluded_ppns.cend())
+            continue;
 
         if (not HasGNDBibleRef(record, gnd_codes_to_bible_ref_codes_map)) {
             const auto candidates(ExtractBibleReferenceCandidates(TokenizeText(record.getCompleteTitle()),
