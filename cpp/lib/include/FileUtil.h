@@ -274,6 +274,9 @@ bool MakeEmpty(const std::string &path);
 void TouchFileOrDie(const std::string &path);
 
 
+void ChangeOwnerOrDie(const std::string &path, const std::string &user, const std::string &group="", bool recursive=true);
+
+
 /** \brief Attempts to get a filename (there may be multiple) from a file descriptor. */
 std::string GetFileName(const int fd);
 

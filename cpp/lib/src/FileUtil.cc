@@ -38,6 +38,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 #include "Compiler.h"
+#include "ExecUtil.h"
 #include "FileDescriptor.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
@@ -519,6 +520,21 @@ void TouchFileOrDie(const std::string &path) {
         WriteStringOrDie(path, "");
     else
         OpenForAppendingOrDie(path);
+}
+
+
+void ChangeOwnerOrDie(const std::string &path, const std::string &user, const std::string &group, bool recursive) {
+    std::vector<std::string> args;
+    if (recursive)
+        args.emplace_back("-R");
+
+    std::string user_and_group(user);
+    if (not group.empty())
+        user_and_group += ":" + group;
+    args.emplace_back(user_and_group);
+
+    args.emplace_back(path);
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chown"), args);
 }
 
 
