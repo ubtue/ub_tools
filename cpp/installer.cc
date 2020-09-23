@@ -684,8 +684,8 @@ void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_s
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
             { "-i", "s/listen.acl_users = apache,nginx/listen.acl_users = apache,nginx," + username + "/", php_config_filename });
 
-        FileUtil::ChangeOwnerOrDie("/var/log/httpd", username, username, true);
-        FileUtil::ChangeOwnerOrDie("/var/run/httpd", username, username, true);
+        FileUtil::ChangeOwnerOrDie("/var/log/httpd", username, username, /*recursive=*/true);
+        FileUtil::ChangeOwnerOrDie("/var/run/httpd", username, username, /*recursive=*/true);
         if (install_systemctl) {
             ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
                 { "-i", "s/apache/" + username + "/g", "/usr/lib/tmpfiles.d/httpd.conf" });
@@ -696,7 +696,7 @@ void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_s
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("find"),
                         { VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}",
                           "+" });
-    FileUtil::ChangeOwnerOrDie(UBTools::GetTueFindLogPath(), username, username, true);
+    FileUtil::ChangeOwnerOrDie(UBTools::GetTueFindLogPath(), username, username, /*recursive=*/true);
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/ixtheo/cache",
                                                      "httpd_sys_rw_content_t",
