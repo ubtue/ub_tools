@@ -2,7 +2,7 @@
  *  \brief  Utility functions etc. related to the sending of email messages.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -35,7 +35,7 @@ enum Format { PLAIN_TEXT, HTML };
  *        form "Name<email_address>".  Also "subject" and "message_body" are assumed to be in UTF-8.  Also, at least
  *        one of "sender" or "reply_to" have to be specified.
  *  \note The message body must be UTF-8!
- *  \return In order to understand the sigificance of the return codes, read https://www.ietf.org/rfc/rfc5321.txt especially starting
+ *  \return In order to understand the significance of the return codes, read https://www.ietf.org/rfc/rfc5321.txt especially starting
  *          at the section titled "Reply Code Severities and Theory" (4.2.1.).
  *  \note It is probably Ok to test for test for <= 299 as a successful return code.
  */
