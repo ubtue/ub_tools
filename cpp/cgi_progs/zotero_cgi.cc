@@ -525,8 +525,8 @@ void ProcessShowLogsAction() {
               << "<body>"
               << "<h1>Zotero Translation Server Logs</h1>"
               << std::flush;
-    const std::string ZTS_LOG("/usr/local/var/log/tuefind/zts.log");
-    std::string tail_output,tail_error;
+    const std::string ZTS_LOG(UBTools::GetTueFindLogPath() + "zts.log");
+    std::string tail_output, tail_error;
     if (not FileUtil::IsReadable(ZTS_LOG))
         std::cout << "<p>The log file does not exist!</p>";
     else if (not ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::LocateOrDie("tail"), { "--lines=1000", ZTS_LOG },
