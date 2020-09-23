@@ -270,6 +270,10 @@ inline std::string MakeAbsolutePath(const char * const relative_path)
 bool MakeEmpty(const std::string &path);
 
 
+/** \brief Create an empty file or change last modified timestamp of an existing file. */
+void TouchFileOrDie(const std::string &path);
+
+
 /** \brief Attempts to get a filename (there may be multiple) from a file descriptor. */
 std::string GetFileName(const int fd);
 

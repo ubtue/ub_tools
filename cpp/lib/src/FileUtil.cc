@@ -514,6 +514,14 @@ bool MakeEmpty(const std::string &path) {
 }
 
 
+void TouchFileOrDie(const std::string &path) {
+    if (not Exists(path))
+        WriteStringOrDie(path, "");
+    else
+        OpenForAppendingOrDie(path);
+}
+
+
 std::string GetFileName(const int fd) {
     char proc_path[25];
     std::sprintf(proc_path, "/proc/self/fd/%d", fd);
