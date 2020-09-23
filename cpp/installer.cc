@@ -492,10 +492,21 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "clone", git_url, ZOTERO_ENHANCEMENT_MAPS_DIRECTORY });
     }
 
+    // logfile for zts docker container
+    const std::string ZTS_LOGFILE(UBTools::GetTueFindLogPath() + "/zts.log");
+    FileUtil::TouchFileOrDie(ZTS_LOGFILE);
+    if (os_system_type == UBUNTU) {
+        // This is only necessary for UBUNTU since syslogd does not run with root privileges.
+        FileUtil::ChangeOwnerOrDie(ZTS_LOGFILE, "syslog", "adm");
+    }
+    FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/syslog.zts.conf", "/etc/rsyslog.d/30-zts.conf");
+
     // Add SELinux permissions for files we need to access via the Web.
-    if (SELinuxUtil::IsEnabled())
+    if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY, "httpd_sys_content_t",
                                                      ZOTERO_ENHANCEMENT_MAPS_DIRECTORY + "(/.*)?");
+        SELinuxUtil::FileContext::AddRecordIfMissing(ZTS_LOGFILE, "httpd_sys_content_t", ZTS_LOGFILE);
+    }
 
     // ...and then install the rest of ub_tools:
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY);
@@ -673,8 +684,8 @@ void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_s
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
             { "-i", "s/listen.acl_users = apache,nginx/listen.acl_users = apache,nginx," + username + "/", php_config_filename });
 
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chown"), { "-R", username + ":" + username, "/var/log/httpd" });
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chown"), { "-R", username + ":" + username, "/var/run/httpd" });
+        FileUtil::ChangeOwnerOrDie("/var/log/httpd", username, username, /*recursive=*/true);
+        FileUtil::ChangeOwnerOrDie("/var/run/httpd", username, username, /*recursive=*/true);
         if (install_systemctl) {
             ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
                 { "-i", "s/apache/" + username + "/g", "/usr/lib/tmpfiles.d/httpd.conf" });
@@ -685,7 +696,7 @@ void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_s
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("find"),
                         { VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}",
                           "+" });
-    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chown"), { "-R", username + ":" + username, UBTools::GetTueFindLogPath() });
+    FileUtil::ChangeOwnerOrDie(UBTools::GetTueFindLogPath(), username, username, /*recursive=*/true);
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/ixtheo/cache",
                                                      "httpd_sys_rw_content_t",
@@ -724,10 +735,8 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
     CreateUserIfNotExists(USER_AND_GROUP_NAME);
 
     Echo("Setting directory permissions for Solr user...");
-    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chown"),
-                        { "-R", USER_AND_GROUP_NAME + ":" + USER_AND_GROUP_NAME, VUFIND_DIRECTORY + "/solr" });
-    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chown"),
-                        { "-R", USER_AND_GROUP_NAME + ":" + USER_AND_GROUP_NAME, VUFIND_DIRECTORY + "/import" });
+    FileUtil::ChangeOwnerOrDie(VUFIND_DIRECTORY + "/solr", USER_AND_GROUP_NAME, USER_AND_GROUP_NAME, /*recursive=*/true);
+    FileUtil::ChangeOwnerOrDie(VUFIND_DIRECTORY + "/import", USER_AND_GROUP_NAME, USER_AND_GROUP_NAME, /*recursive=*/true);
 
     const std::string solr_security_settings("solr hard nofile 65535\n"
                                              "solr soft nofile 65535\n"
