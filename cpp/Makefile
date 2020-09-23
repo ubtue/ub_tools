@@ -47,7 +47,7 @@ data_install: Makefile data/*.conf data/*.map data/*.ttf data/IxTheo_Notation.cs
               data/bibleRef/* data/crossref_downloader/* data/full_text_cache_monitor/* \
               data/translate_chainer/* data/zotero_cgi/* data/marc_check.rules data/language_models/*.lm \
               data/mime.types data/geographic_689_field_contents \
-	      data/bib_ref_candidates_in_titles.exclusion_list
+              data/bib_ref_candidates_in_titles.exclusion_list
 	@echo "Installing data..."
 	cp data/*.conf /usr/local/var/lib/tuelib/
 	cp data/*.map /usr/local/var/lib/tuelib/
