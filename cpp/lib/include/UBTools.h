@@ -37,7 +37,7 @@ inline std::string GetTueFindLogPath() {
 
 // \return  A slash-terminated absolute path.
 inline std::string GetTueLocalTmpPath() {
-    return "/usr/local/var/tmp";
+    return "/usr/local/var/tmp/";
 }
 
 
