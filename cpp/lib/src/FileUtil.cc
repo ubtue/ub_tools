@@ -38,6 +38,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 #include "Compiler.h"
+#include "ExecUtil.h"
 #include "FileDescriptor.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
@@ -511,6 +512,32 @@ bool MakeEmpty(const std::string &path) {
 
     ::close(fd);
     return true;
+}
+
+
+void TouchFileOrDie(const std::string &path) {
+    if (Exists(path))
+        OpenForAppendingOrDie(path);
+    else
+        WriteStringOrDie(path, "");
+}
+
+
+void ChangeOwnerOrDie(const std::string &path, const std::string &user, const std::string &group, const bool recursive) {
+    if (user.empty() and group.empty())
+        LOG_ERROR("Cannot change owner of path \"" + path + "\": Neither user nor group given!");
+
+    std::vector<std::string> args;
+    if (recursive)
+        args.emplace_back("--recursive");
+
+    std::string user_and_group(user);
+    if (not group.empty())
+        user_and_group += ":" + group;
+    args.emplace_back(user_and_group);
+
+    args.emplace_back(path);
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("chown"), args);
 }
 
 
