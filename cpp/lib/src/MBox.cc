@@ -39,7 +39,6 @@ std::string MBox::Message::toString() const {
            + "sender:         " + sender_ + "\n"
            + "subject:        " + subject_ + "\n\n"
            + message_body_;
-
 }
 
 
