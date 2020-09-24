@@ -390,7 +390,7 @@ std::vector<std::string> TokenizeText(std::string text) {
     std::string current_token;
     for (const char ch : text) {
         if ((not current_token.empty() and StringUtil::IsDigit(current_token.back())
-             and (ch == 'a' or ch == 'b' or ch == 'c')) or ch == ' ')
+             and (ch == 'a' or ch == 'b' or ch == 'c' or ch == ',')) or (ch == ' ' or ch == '(' or ch == ')' or ch == ';'))
         {
             if (not current_token.empty())
                 tokens.emplace_back(current_token);
@@ -415,6 +415,8 @@ inline bool IsPossibleBookNumeral(const std::string &book_numeral_candidate) {
 inline bool IsValidBibleBook(const std::string &bible_book_candidate, const RangeUtil::BibleBookCanoniser &bible_book_canoniser,
                              const RangeUtil::BibleBookToCodeMapper &bible_book_to_code_mapper)
 {
+LOG_INFO("canonised candidate = " + bible_book_canoniser.canonise(bible_book_canoniser.canonise(TextUtil::UTF8ToLower(bible_book_candidate))));
+LOG_INFO("\tbible_book_candidate='" + bible_book_candidate + "' ("+(not bible_book_to_code_mapper.mapToCode(bible_book_canoniser.canonise(TextUtil::UTF8ToLower(bible_book_candidate))).empty() ? "true" : "false")+std::string(")"));
     return not bible_book_to_code_mapper.mapToCode(bible_book_canoniser.canonise(TextUtil::UTF8ToLower(bible_book_candidate))).empty();
 }
 
