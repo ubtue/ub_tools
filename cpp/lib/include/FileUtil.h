@@ -138,6 +138,10 @@ public:
         unsigned char getType() const;
         inline ino_t getInode() const { return inode_; }
         void getUidAndGid(uid_t * const uid, gid_t * const gid) const;
+
+        /** \note To get the file type part of the return value, and it with S_IFMT, to get the mode part
+         *        and it with with the binary complement of S_IFMT. */
+        mode_t getFileTypeAndMode() const;
     private:
         Entry(const std::string &dirname): dirname_(dirname), inode_(0), type_(0) { }
         Entry(const struct dirent &entry, const std::string &dirname);
