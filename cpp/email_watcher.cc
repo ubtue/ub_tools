@@ -42,8 +42,8 @@ namespace {
 
 struct EmailDescription {
     std::string from_host_;
-    RegexMatcher *subject_pattern_;
-    RegexMatcher *email_body_pattern_;
+    RegexMatcher *subject_matcher_;
+    RegexMatcher *email_body_matcher_;
     unsigned overdue_time_window_; // in hours
 public:
     EmailDescription() = default;
@@ -65,16 +65,16 @@ EmailDescription::EmailDescription(const IniFile::Section &ini_file_section) {
                   + "\" is missing a \"subject_pattern\" entry!");
     const auto subject_pattern_regex(ini_file_section.getString("subject_pattern"));
     std::string error_message;
-    subject_pattern_ = RegexMatcher::RegexMatcherFactory(subject_pattern_regex, &error_message);
-    if (subject_pattern_ == nullptr)
+    subject_matcher_ = RegexMatcher::RegexMatcherFactory(subject_pattern_regex, &error_message);
+    if (subject_matcher_ == nullptr)
         LOG_ERROR("bad regex \"" + subject_pattern_regex + "\" in \"" + ini_file_section.getSectionName() + "\"!");
 
     if (not ini_file_section.hasEntry("email_body_pattern"))
         LOG_ERROR("ini file section \"" + ini_file_section.getSectionName()
                   + "\" is missing an \"email_body_pattern\" entry!");
     const auto email_body_pattern_regex(ini_file_section.getString("email_body_pattern"));
-    email_body_pattern_ = RegexMatcher::RegexMatcherFactory(email_body_pattern_regex, &error_message);
-    if (email_body_pattern_ == nullptr)
+    email_body_matcher_ = RegexMatcher::RegexMatcherFactory(email_body_pattern_regex, &error_message);
+    if (email_body_matcher_ == nullptr)
         LOG_ERROR("bad regex \"" + email_body_pattern_regex + "\" in \"" + ini_file_section.getSectionName() + "\"!");
 
     if (not ini_file_section.hasEntry("overdue_time_window"))
@@ -85,9 +85,9 @@ EmailDescription::EmailDescription(const IniFile::Section &ini_file_section) {
 
 
 bool EmailDescription::subjectAndBodyMatched(const MBox::Message &email_message) const {
-    if (not subject_pattern_->matched(email_message.getSubject()))
+    if (not subject_matcher_->matched(email_message.getSubject()))
         return false;
-    if (not email_body_pattern_->matched(email_message.getMessageBody()))
+    if (not email_body_matcher_->matched(email_message.getMessageBody()))
         return false;
 
     return true;
