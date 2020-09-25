@@ -182,6 +182,7 @@ int Main(int argc, char *argv[]) {
         LOG_ERROR("we need at least one notification email address in the \"notify\" entry in \""
                   + ini_file.getFilename() + "\"!");
 
+    const long forward_priority(ini_file.getInteger("", "forward_priority"));
     const std::string backup_dir_path(ini_file.getString("", "backup_dir_path") + "/");
 
     const auto overdue_db(OpenOrCreateOverdueDatabase());
@@ -195,7 +196,7 @@ int Main(int argc, char *argv[]) {
     for (const auto &email_message : mbox) {
         ++email_message_count;
         for (const auto &[section_name, email_description] : email_descriptions) {
-            if (email_description.subjectAndBodyMatched(email_message))
+            if (email_message.getPriority() >= forward_priority or email_description.subjectAndBodyMatched(email_message))
                 matched_section_names.emplace(section_name);
             else
                 unmatched_emails.emplace_back(email_message.toString());
