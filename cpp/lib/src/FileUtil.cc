@@ -33,6 +33,7 @@
 #ifdef HAS_SELINUX_HEADERS
 #   include <selinux/selinux.h>
 #endif
+#include <sys/mman.h>
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -1473,6 +1474,26 @@ bool GetMostRecentlyModifiedFile(const std::string &directory_path, std::string 
     }
 
     return not filename->empty();
+}
+
+
+void RemoveLeadingBytes(const std::string &path, const loff_t no_of_bytes) {
+    const auto original_file_size(GetFileSize(path));
+    if (original_file_size <= no_of_bytes) {
+        if (::truncate(path.c_str(), 0) != 0)
+            LOG_ERROR("failed to truncate(2) \"" + path + "\" to 0!");
+        return;
+    }
+
+    const auto file(OpenOutputFileOrDie(path));
+    void *mmap(::mmap(nullptr, original_file_size, PROT_READ|PROT_WRITE, MAP_PRIVATE, file->getFileDescriptor(), 0));
+    if (mmap == MAP_FAILED or mmap == nullptr)
+        LOG_ERROR("Failed to mmap(2) \"" + path + "\"!");
+
+    ::memmove(mmap, static_cast<void *>(static_cast<char *>(mmap) + no_of_bytes), original_file_size - no_of_bytes);
+
+    if (::munmap(mmap, original_file_size) != 0)
+        LOG_ERROR("munmap(2) failed!");
 }
 
 

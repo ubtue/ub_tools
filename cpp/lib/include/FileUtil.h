@@ -574,4 +574,9 @@ void ChangeModeOrDie(const std::string &path, const mode_t mode);
 bool GetMostRecentlyModifiedFile(const std::string &directory_path, std::string * const filename, timespec * const last_modification_time);
 
 
+// Removes up to "no_of_bytes" bytes from the beginning of "path" in please, IOW,
+// w/o creating any other or temporary files.
+void RemoveLeadingBytes(const std::string &path, const loff_t no_of_bytes);
+
+
 } // namespace FileUtil
