@@ -106,6 +106,10 @@ int Main(int argc, char *argv[]) {
                 if (recreate) {
                     FileUtil::TouchFileOrDie(filename);
 
+                    const mode_t mode(entry.getFileTypeAndMode());
+                    if (::chmod(filename.c_str(), mode & (~S_IFMT)))
+                        LOG_ERROR("chmod(2) failed on \"" + filename + "\"!");
+
                     uid_t uid;
                     gid_t gid;
                     entry.getUidAndGid(&uid, &gid);
