@@ -164,7 +164,7 @@ MBox::Message MBox::getNextMessage() const {
     }
 
     std::string sender, original_host, subject;
-    int priority(-1);
+    unsigned priority(0);
     for (;;) {
         if (unlikely(input_->eof()))
             LOG_ERROR("unexpected EOF while looking for the end of the message headers in \""
