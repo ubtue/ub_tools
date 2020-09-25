@@ -585,4 +585,11 @@ void RemoveLeadingBytes(const std::string &path, const loff_t no_of_bytes);
 void OnlyKeepLastNLines(const std::string &path, const unsigned n);
 
 
+/** \warning The following two functions are *not* threadsafe!
+ *  \note They both return empty strings if the uid or gid can't be mapped.
+ */
+std::string UsernameFromUID(const uid_t uid);
+std::string GroupnameFromGID(const gid_t gid);
+
+
 } // namespace FileUtil
