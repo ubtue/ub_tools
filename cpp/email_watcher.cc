@@ -43,7 +43,7 @@ namespace {
 struct EmailDescription {
     std::string from_host_;
     RegexMatcher *subject_matcher_;
-    RegexMatcher *email_body_matcher_;
+    RegexMatcher *body_matcher_;
     unsigned overdue_time_window_; // in hours
 public:
     EmailDescription() = default;
@@ -73,8 +73,8 @@ EmailDescription::EmailDescription(const IniFile::Section &ini_file_section) {
         LOG_ERROR("ini file section \"" + ini_file_section.getSectionName()
                   + "\" is missing an \"email_body_pattern\" entry!");
     const auto email_body_pattern_regex(ini_file_section.getString("email_body_pattern"));
-    email_body_matcher_ = RegexMatcher::RegexMatcherFactory(email_body_pattern_regex, &error_message);
-    if (email_body_matcher_ == nullptr)
+    body_matcher_ = RegexMatcher::RegexMatcherFactory(email_body_pattern_regex, &error_message);
+    if (body_matcher_ == nullptr)
         LOG_ERROR("bad regex \"" + email_body_pattern_regex + "\" in \"" + ini_file_section.getSectionName() + "\"!");
 
     if (not ini_file_section.hasEntry("overdue_time_window"))
@@ -87,7 +87,7 @@ EmailDescription::EmailDescription(const IniFile::Section &ini_file_section) {
 bool EmailDescription::subjectAndBodyMatched(const MBox::Message &email_message) const {
     if (not subject_matcher_->matched(email_message.getSubject()))
         return false;
-    if (not email_body_matcher_->matched(email_message.getMessageBody()))
+    if (not body_matcher_->matched(email_message.getMessageBody()))
         return false;
 
     return true;
