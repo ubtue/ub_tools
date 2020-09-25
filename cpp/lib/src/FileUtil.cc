@@ -29,7 +29,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
+#include <grp.h>
 #include <linux/limits.h>
+#include <pwd.h>
 #ifdef HAS_SELINUX_HEADERS
 #   include <selinux/selinux.h>
 #endif
@@ -1551,6 +1553,18 @@ void OnlyKeepLastNLines(const std::string &path, const unsigned n) {
 
     const loff_t no_of_leading_bytes_to_remove(map_start - cp + 1);
     RemoveLeadingBytes(path, no_of_leading_bytes_to_remove);
+}
+
+
+std::string UsernameFromUID(const uid_t uid) {
+    struct passwd *pw(::getpwuid(uid));
+    return (pw == nullptr) ? "" : pw->pw_name;
+}
+
+
+std::string GroupnameFromGID(const gid_t gid) {
+    struct group *grp(::getgrgid(gid));
+    return (grp == nullptr) ? "" : grp->gr_name;
 }
 
 
