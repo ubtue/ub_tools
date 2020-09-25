@@ -70,31 +70,31 @@ EmailDescription::EmailDescription(const IniFile::Section &ini_file_section) {
     if (subject_matcher_ == nullptr)
         LOG_ERROR("bad regex \"" + subject_pattern_regex + "\" in \"" + ini_file_section.getSectionName() + "\"!");
 
-    if (not ini_file_section.hasEntry("email_body_pattern"))
+    if (not ini_file_section.hasEntry("body_pattern"))
         LOG_ERROR("ini file section \"" + ini_file_section.getSectionName()
-                  + "\" is missing an \"email_body_pattern\" entry!");
+                  + "\" is missing an \"body_pattern\" entry!");
 
-    const auto email_body_positive_pattern_regex(ini_file_section.getString("email_body_positive_pattern", ""));
-    if (email_body_positive_pattern_regex.empty())
+    const auto body_positive_pattern_regex(ini_file_section.getString("body_positive_pattern", ""));
+    if (body_positive_pattern_regex.empty())
         positive_body_matcher_ = nullptr;
     else {
-        positive_body_matcher_ = RegexMatcher::RegexMatcherFactory(email_body_positive_pattern_regex, &error_message);
+        positive_body_matcher_ = RegexMatcher::RegexMatcherFactory(body_positive_pattern_regex, &error_message);
         if (positive_body_matcher_ == nullptr)
-            LOG_ERROR("bad regex \"" + email_body_positive_pattern_regex + "\" in \"" + ini_file_section.getSectionName() + "\"!");
+            LOG_ERROR("bad regex \"" + body_positive_pattern_regex + "\" in \"" + ini_file_section.getSectionName() + "\"!");
     }
 
-    const auto email_body_negative_pattern_regex(ini_file_section.getString("email_body_negative_pattern", ""));
-    if (email_body_negative_pattern_regex.empty())
+    const auto body_negative_pattern_regex(ini_file_section.getString("body_negative_pattern", ""));
+    if (body_negative_pattern_regex.empty())
         negative_body_matcher_ = nullptr;
     else {
-        negative_body_matcher_ = RegexMatcher::RegexMatcherFactory(email_body_negative_pattern_regex, &error_message);
+        negative_body_matcher_ = RegexMatcher::RegexMatcherFactory(body_negative_pattern_regex, &error_message);
         if (negative_body_matcher_ == nullptr)
-            LOG_ERROR("bad regex \"" + email_body_negative_pattern_regex + "\" in \"" + ini_file_section.getSectionName() + "\"!");
+            LOG_ERROR("bad regex \"" + body_negative_pattern_regex + "\" in \"" + ini_file_section.getSectionName() + "\"!");
     }
 
     if (positive_body_matcher_ == nullptr and negative_body_matcher_ == nullptr)
         LOG_ERROR("section \"" + ini_file_section.getSectionName()
-                  + "\" is missing both email_body_positive_pattern abd email_body_negative_pattern!");
+                  + "\" is missing both body_positive_pattern and body_negative_pattern!");
 
     if (not ini_file_section.hasEntry("overdue_time_window"))
         LOG_ERROR("ini file section \"" + ini_file_section.getSectionName()
