@@ -128,21 +128,6 @@ std::unordered_map<std::string, EmailDescription> LoadEmailDescriptions(const In
 }
 
 
-std::unique_ptr<DbConnection> OpenOrCreateOverdueDatabase() {
-    const std::string DB_PATH(UBTools::GetTuelibPath() + "overdue.sq3");
-    if (FileUtil::Exists(DB_PATH))
-        return std::make_unique<DbConnection>(DB_PATH, DbConnection::READWRITE);
-
-    auto overdue_db(std::make_unique<DbConnection>(DB_PATH, DbConnection::CREATE));
-    overdue_db->queryOrDie("CREATE TABLE overdue ("
-                           "email_description TEXT NOT NULL PRIMARY KEY,"
-                           "last_match_time TEXT NULL,"
-                           "time_window INTEGER NOT NULL"
-                           ")");
-    return overdue_db;
-}
-
-
 unsigned short SendEmail(const std::vector<std::string> &recipients, const std::string &subject,
                          const std::string &message_body, const std::vector<std::string> &attachments = {})
 {
@@ -205,8 +190,6 @@ int Main(int argc, char *argv[]) {
 
     const long forward_priority(ini_file.getInteger("", "forward_priority"));
     const std::string backup_dir_path(ini_file.getString("", "backup_dir_path") + "/");
-
-    const auto overdue_db(OpenOrCreateOverdueDatabase());
     const auto email_descriptions(LoadEmailDescriptions(ini_file));
 
     const std::string mbox_filename(argv[2]);
