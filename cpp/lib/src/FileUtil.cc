@@ -164,6 +164,18 @@ unsigned char Directory::Entry::getType() const {
 }
 
 
+void Directory::Entry::getUidAndGid(uid_t * const uid, gid_t * const gid) const {
+    struct stat statbuf;
+    errno = 0;
+    if (::stat((dirname_ + "/" +  name_).c_str(), &statbuf) == -1)
+        throw std::runtime_error("in FileUtil::Directory::Entry::getUidAndGid: stat(2) on \""
+                                 + dirname_ + "/" + name_ + " \"failed! ("
+                                 + std::string(std::strerror(errno)) + ")");
+    *uid = statbuf.st_uid;
+    *gid = statbuf.st_gid;
+}
+
+
 Directory::const_iterator::const_iterator(const std::string &path, const std::string &regex, const bool end)
     : path_(path), regex_matcher_(nullptr), entry_(path_)
 {

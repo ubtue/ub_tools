@@ -137,6 +137,7 @@ public:
         //         DT_LNK(symlink), DT_REG(regular file), DT_SOCK(UNIX domain socket), or DT_UNKNOWN(unknown type).
         unsigned char getType() const;
         inline ino_t getInode() const { return inode_; }
+        void getUidAndGid(uid_t * const uid, gid_t * const gid) const;
     private:
         Entry(const std::string &dirname): dirname_(dirname), inode_(0), type_(0) { }
         Entry(const struct dirent &entry, const std::string &dirname);
