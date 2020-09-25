@@ -138,54 +138,19 @@ SELinuxFileContext::SELinuxFileContext(const std::string &path) {
 
 
 Directory::Entry::Entry(const struct dirent &entry, const std::string &dirname)
-    : dirname_(dirname), name_(entry.d_name), inode_(entry.d_ino), type_(entry.d_type)
+    : dirname_(dirname), name_(entry.d_name)
 {
+    errno = 0;
+    if (::stat((dirname_ + "/" + name_).c_str(), &statbuf_) != 0)
+        throw std::runtime_error("in FileUtil::Directory::Entry::Entry: stat(2) on \""
+                                 + dirname_ + "/" + name_ + " \"failed! ("
+                                 + std::string(std::strerror(errno)) + ")");
 }
 
 
 Directory::Entry::Entry(const Directory::Entry &other)
-    : dirname_(other.dirname_), name_(other.name_), inode_(other.inode_), type_(other.type_)
+    : dirname_(other.dirname_), name_(other.name_), statbuf_(other.statbuf_)
 {
-}
-
-
-unsigned char Directory::Entry::getType() const {
-    if (type_ != DT_UNKNOWN)
-        return type_;
-
-    // Not all filesystems return the type in the d_type field.  In those cases DT_UNKNOWN will be returned and we
-    // therefore need to fall back to using the stat(2) system call.
-    struct stat statbuf;
-    errno = 0;
-    if (::stat((dirname_ + "/" +  name_).c_str(), &statbuf) == -1)
-        throw std::runtime_error("in FileUtil::Directory::Entry::getType: stat(2) on \""
-                                 + dirname_ + "/" + name_ + " \"failed! ("
-                                 + std::string(std::strerror(errno)) + ")");
-
-    return IFTODT(statbuf.st_mode); // Convert from st_mode to d_type.
-}
-
-
-void Directory::Entry::getUidAndGid(uid_t * const uid, gid_t * const gid) const {
-    struct stat statbuf;
-    errno = 0;
-    if (::stat((dirname_ + "/" +  name_).c_str(), &statbuf) == -1)
-        throw std::runtime_error("in FileUtil::Directory::Entry::getUidAndGid: stat(2) on \""
-                                 + dirname_ + "/" + name_ + " \"failed! ("
-                                 + std::string(std::strerror(errno)) + ")");
-    *uid = statbuf.st_uid;
-    *gid = statbuf.st_gid;
-}
-
-
-mode_t Directory::Entry::getFileTypeAndMode() const {
-    struct stat statbuf;
-    errno = 0;
-    if (::stat((dirname_ + "/" +  name_).c_str(), &statbuf) == -1)
-        throw std::runtime_error("in FileUtil::Directory::Entry::getFileTypeAndMode: stat(2) on \""
-                                 + dirname_ + "/" + name_ + " \"failed! ("
-                                 + std::string(std::strerror(errno)) + ")");
-    return statbuf.st_mode;
 }
 
 
@@ -233,9 +198,11 @@ void Directory::const_iterator::advance() {
         }
 
         if (regex_matcher_->matched(entry_ptr->d_name)) {
-            entry_.name_  = std::string(entry_ptr->d_name);
-            entry_.inode_ = entry_ptr->d_ino;
-            entry_.type_  = entry_ptr->d_type;
+            entry_.name_ = std::string(entry_ptr->d_name);
+            if (::stat((entry_.dirname_ + "/" + entry_.name_).c_str(), &entry_.statbuf_) != 0)
+                throw std::runtime_error("in FileUtil::Directory::Entry::Entry: stat(2) on \""
+                                         + entry_.dirname_ + "/" + entry_.name_ + " \"failed! ("
+                                         + std::string(std::strerror(errno)) + ")");
             return;
         }
     }
