@@ -1489,12 +1489,9 @@ void RemoveLeadingBytes(const std::string &path, const loff_t no_of_bytes) {
     if (fd == -1)
         LOG_ERROR("failed to open(2) \"" + path + "\"!");
 
-    void *mmap(::mmap(nullptr, original_file_size, PROT_READ|PROT_WRITE, 0, fd, 0));
+    void *mmap(::mmap(nullptr, original_file_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0));
     if (mmap == MAP_FAILED or mmap == nullptr)
         LOG_ERROR("Failed to mmap(2) \"" + path + "\"!");
-
-    if (::close(fd) != 0)
-        LOG_ERROR("failed to close(2) a file descriptor!");
 
     ::memmove(mmap, static_cast<void *>(static_cast<char *>(mmap) + no_of_bytes), original_file_size - no_of_bytes);
 
@@ -1503,6 +1500,9 @@ void RemoveLeadingBytes(const std::string &path, const loff_t no_of_bytes) {
 
     if (::ftruncate(fd, original_file_size - no_of_bytes))
         LOG_ERROR("Failed to ftruncate(2) \"" + path + "\"!");
+
+    if (::close(fd) != 0)
+        LOG_ERROR("failed to close(2) a file descriptor!");
 }
 
 
