@@ -178,6 +178,17 @@ void Directory::Entry::getUidAndGid(uid_t * const uid, gid_t * const gid) const 
 }
 
 
+mode_t Directory::Entry::getFileTypeAndMode() const {
+    struct stat statbuf;
+    errno = 0;
+    if (::stat((dirname_ + "/" +  name_).c_str(), &statbuf) == -1)
+        throw std::runtime_error("in FileUtil::Directory::Entry::getFileTypeAndMode: stat(2) on \""
+                                 + dirname_ + "/" + name_ + " \"failed! ("
+                                 + std::string(std::strerror(errno)) + ")");
+    return statbuf.st_mode;
+}
+
+
 Directory::const_iterator::const_iterator(const std::string &path, const std::string &regex, const bool end)
     : path_(path), regex_matcher_(nullptr), entry_(path_)
 {
