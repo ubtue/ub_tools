@@ -579,4 +579,9 @@ bool GetMostRecentlyModifiedFile(const std::string &directory_path, std::string 
 void RemoveLeadingBytes(const std::string &path, const loff_t no_of_bytes);
 
 
+// Removes leading lines from "path" and only keeps the last "n".
+// If "n" is greater or equal to the lines in "path" the file will not be modified.
+void OnlyKeepLastNLines(const std::string &path, const unsigned n);
+
+
 } // namespace FileUtil
