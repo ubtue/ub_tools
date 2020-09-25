@@ -1478,6 +1478,12 @@ bool GetMostRecentlyModifiedFile(const std::string &directory_path, std::string 
 
 
 void RemoveLeadingBytes(const std::string &path, const loff_t no_of_bytes) {
+    if (no_of_bytes < 0)
+        LOG_ERROR("no_of_bytes must not be negative!");
+
+    if (no_of_bytes == 0)
+        return;
+
     const auto original_file_size(GetFileSize(path));
     if (original_file_size <= no_of_bytes) {
         if (::truncate(path.c_str(), 0) != 0)
@@ -1489,13 +1495,13 @@ void RemoveLeadingBytes(const std::string &path, const loff_t no_of_bytes) {
     if (fd == -1)
         LOG_ERROR("failed to open(2) \"" + path + "\"!");
 
-    void *mmap(::mmap(nullptr, original_file_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0));
-    if (mmap == MAP_FAILED or mmap == nullptr)
+    void * const map_start(::mmap(nullptr, original_file_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0));
+    if (map_start == MAP_FAILED or map_start == nullptr)
         LOG_ERROR("Failed to mmap(2) \"" + path + "\"!");
 
-    ::memmove(mmap, static_cast<void *>(static_cast<char *>(mmap) + no_of_bytes), original_file_size - no_of_bytes);
+    ::memmove(map_start, static_cast<void *>(static_cast<char *>(map_start) + no_of_bytes), original_file_size - no_of_bytes);
 
-    if (::munmap(mmap, original_file_size) != 0)
+    if (::munmap(map_start, original_file_size) != 0)
         LOG_ERROR("munmap(2) failed!");
 
     if (::ftruncate(fd, original_file_size - no_of_bytes))
@@ -1503,6 +1509,36 @@ void RemoveLeadingBytes(const std::string &path, const loff_t no_of_bytes) {
 
     if (::close(fd) != 0)
         LOG_ERROR("failed to close(2) a file descriptor!");
+}
+
+
+void OnlyKeepLastNLines(const std::string &path, const unsigned n) {
+    const auto file_size(GetFileSize(path));
+
+    const int fd(::open(path.c_str(), O_LARGEFILE|O_RDONLY));
+    if (fd == -1)
+        LOG_ERROR("failed to open(2) \"" + path + "\"!");
+
+    const char * const map_start(static_cast<char *>(::mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd, 0)));
+    if (map_start == MAP_FAILED or map_start == nullptr)
+        LOG_ERROR("Failed to mmap(2) \"" + path + "\"!");
+
+    if (::close(fd) != 0)
+        LOG_ERROR("failed to close(2) a file descriptor!");
+
+    const char *cp(static_cast<const char *>(map_start) + file_size);
+    unsigned trailing_line_count(0);
+    while (trailing_line_count < n and cp >= map_start) {
+        if (*cp == '\n')
+            ++trailing_line_count;
+        --cp;
+    }
+
+    if (::munmap((void * const)map_start, file_size) != 0)
+        LOG_ERROR("munmap(2) failed!");
+
+    const loff_t no_of_leading_bytes_to_remove(map_start - cp + 1);
+    RemoveLeadingBytes(path, no_of_leading_bytes_to_remove);
 }
 
 
