@@ -136,18 +136,19 @@ for d in */ ; do
     # Also, since we deliver files only once a day, each file will be marked as "001".
     valid_records_output_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001.xml
     invalid_records_output_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_errors.xml
+    invalid_records_log_filepath=${invalid_records_output_filepath}.log
     LOGGER_FORMAT=no_decorations,strip_call_site \
     BACKTRACE=1 \
     UTIL_LOG_DEBUG=true \
     validate_harvested_records $current_source_filepath $valid_records_output_filepath \
-                               $invalid_records_output_filepath $EMAIL_ADDRESS >> "${log}" 2>&1
+                               $invalid_records_output_filepath $EMAIL_ADDRESS 2>&1 | tee --append "${log}" "${invalid_records_log_filepath}"
 
     invalid_record_count=$(marc_size "$invalid_records_output_filepath")
     if [ "$invalid_record_count" != "0" ]; then
         if [ "$DELIVERY_MODE" = "TEST" ]; then
-            cp $invalid_records_output_filepath $DEST_DIR_LOCAL_TEST
+            cp $invalid_records_output_filepath $invalid_records_log_filepath $DEST_DIR_LOCAL_TEST
         elif [ "$DELIVERY_MODE" = "LIVE" ]; then
-            cp $invalid_records_output_filepath $DEST_DIR_LOCAL_LIVE
+            cp $invalid_records_output_filepath $invalid_records_log_filepath $DEST_DIR_LOCAL_LIVE
         fi
     fi
 
