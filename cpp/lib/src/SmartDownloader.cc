@@ -327,7 +327,7 @@ bool OJSSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit
                                         std::string * const document, std::string * const http_header_charset,
                                         std::string * const error_message)
 {
-     if (not RegexMatcher::Matched("/ojs/", url))
+     if (not RegexMatcher::Matched("/ojs/", url) and not RegexMatcher::Matched("/jcsw/", url))
          return false;
      // Try to extract the PDF URL from embedded metadata
      std::string html_page;
