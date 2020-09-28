@@ -136,7 +136,7 @@ for d in */ ; do
     # Also, since we deliver files only once a day, each file will be marked as "001".
     valid_records_output_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001.xml
     invalid_records_output_filepath=$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_errors.xml
-    invalid_records_log_filepath=$invalid_records_output_filepath.log
+    invalid_records_log_filepath=${invalid_records_output_filepath}.log
     LOGGER_FORMAT=no_decorations,strip_call_site \
     BACKTRACE=1 \
     UTIL_LOG_DEBUG=true \
