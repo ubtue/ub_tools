@@ -1546,4 +1546,26 @@ std::string GroupnameFromGID(const gid_t gid) {
 }
 
 
+bool ReadLink(const std::string &path, std::string * const link_target) {
+    constexpr size_t INITAL_BUFFER_SIZE(4096);
+    errno = 0;
+    static char *buffer(reinterpret_cast<char *>(std::malloc(INITAL_BUFFER_SIZE)));
+    static size_t buffer_size(INITAL_BUFFER_SIZE);
+    for (;;) {
+        const ssize_t retval(::readlink(path.c_str(), buffer, buffer_size));
+        if (retval == -1)
+            return false;
+        if (unlikely(retval == static_cast<ssize_t>(buffer_size))) {
+            buffer_size *= 2;
+            buffer = reinterpret_cast<char *>(std::realloc(buffer, buffer_size));
+            if (unlikely(buffer == nullptr))
+                LOG_ERROR("realloc(3) failed!");
+        } else {
+            link_target->assign(buffer);
+            return true;
+        }
+    }
+}
+
+
 } // namespace FileUtil
