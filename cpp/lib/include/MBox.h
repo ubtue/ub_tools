@@ -36,20 +36,25 @@ public:
         std::string original_host_;
         std::string sender_;
         std::string subject_;
+        int priority_;
         std::string message_body_;
     public:
         inline time_t getReceptionTime() const { return reception_time_; }
         inline const std::string &getOriginalHost() const { return original_host_; }
         inline const std::string &getSender() const { return sender_; }
         inline const std::string &getSubject() const { return subject_; }
+        inline int getPriority() const { return priority_; }
         inline const std::string &getMessageBody() const { return message_body_; }
+
+        /** \brief Returns a string representation of a Message */
+        std::string toString() const;
     private:
         Message() = default;
         Message(const Message &rhs) = default;
         Message(const time_t reception_time, const std::string &original_host, const std::string &sender,
-                const std::string &subject, const std::string &message_body)
+                const std::string &subject, const int priority, const std::string &message_body)
             : reception_time_(reception_time), original_host_(original_host), sender_(sender), subject_(subject),
-              message_body_(message_body) { }
+              priority_(priority), message_body_(message_body) { }
 
         Message &swap(Message &other_message);
         inline bool empty() const {

@@ -390,7 +390,7 @@ std::vector<std::string> TokenizeText(std::string text) {
     std::string current_token;
     for (const char ch : text) {
         if ((not current_token.empty() and StringUtil::IsDigit(current_token.back())
-             and (ch == 'a' or ch == 'b' or ch == 'c')) or ch == ' ')
+             and (ch == 'a' or ch == 'b' or ch == 'c' or ch == ',')) or (ch == ' ' or ch == '(' or ch == ')' or ch == ';'))
         {
             if (not current_token.empty())
                 tokens.emplace_back(current_token);

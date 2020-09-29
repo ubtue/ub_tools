@@ -123,8 +123,7 @@ public:
         friend class Directory::const_iterator;
         const std::string &dirname_;
         std::string name_;
-        ino_t inode_;
-        unsigned char type_;
+        struct stat statbuf_;
     public:
         Entry(const Entry &other);
 
@@ -135,10 +134,16 @@ public:
 
         // \return One of DT_BLK(block device), DT_CHR(character device), DT_DIR(directory), DT_FIFO(named pipe),
         //         DT_LNK(symlink), DT_REG(regular file), DT_SOCK(UNIX domain socket), or DT_UNKNOWN(unknown type).
-        unsigned char getType() const;
-        inline ino_t getInode() const { return inode_; }
+        unsigned char getType() const { return IFTODT(statbuf_.st_mode); /* Convert from st_mode to d_type. */ }
+
+        inline ino_t getInode() const { return statbuf_.st_ino; }
+        void getUidAndGid(uid_t * const uid, gid_t * const gid) const { *uid = statbuf_.st_uid, *gid = statbuf_.st_gid; }
+
+        /** \note To get the file type part of the return value, and it with S_IFMT, to get the mode part
+         *        and it with with the binary complement of S_IFMT. */
+        mode_t getFileTypeAndMode() const { return statbuf_.st_mode; }
     private:
-        Entry(const std::string &dirname): dirname_(dirname), inode_(0), type_(0) { }
+        Entry(const std::string &dirname): dirname_(dirname) { }
         Entry(const struct dirent &entry, const std::string &dirname);
     };
 public:
@@ -572,6 +577,23 @@ void ChangeModeOrDie(const std::string &path, const mode_t mode);
  *  \note   This function aborts if "directory_path" does not exist.
  */
 bool GetMostRecentlyModifiedFile(const std::string &directory_path, std::string * const filename, timespec * const last_modification_time);
+
+
+// Removes up to "no_of_bytes" bytes from the beginning of "path" in please, IOW,
+// w/o creating any other or temporary files.
+void RemoveLeadingBytes(const std::string &path, const loff_t no_of_bytes);
+
+
+// Removes leading lines from "path" and only keeps the last "n".
+// If "n" is greater or equal to the lines in "path" the file will not be modified.
+void OnlyKeepLastNLines(const std::string &path, const unsigned n);
+
+
+/** \warning The following two functions are *not* threadsafe!
+ *  \note They both return empty strings if the uid or gid can't be mapped.
+ */
+std::string UsernameFromUID(const uid_t uid);
+std::string GroupnameFromGID(const gid_t gid);
 
 
 } // namespace FileUtil

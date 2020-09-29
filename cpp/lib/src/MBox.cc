@@ -18,6 +18,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "MBox.h"
+#include <algorithm>
 #include "FileUtil.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
@@ -28,8 +29,19 @@ MBox::Message &MBox::Message::swap(Message &other_message) {
     other_message.original_host_.swap(original_host_);
     other_message.sender_.swap(sender_);
     other_message.subject_.swap(subject_);
+    std::swap(other_message.priority_, priority_);
     other_message.message_body_.swap(message_body_);
     return *this;
+}
+
+
+std::string MBox::Message::toString() const {
+    return   "reception_time: " + TimeUtil::TimeTToString(reception_time_) + "\n"
+           + "original_host:  " + original_host_ + "\n"
+           + "sender:         " + sender_ + "\n"
+           + "subject:        " + subject_ + "\n"
+           + "priority:       " + std::to_string(priority_) + "\n\n"
+           + message_body_;
 }
 
 
@@ -152,6 +164,7 @@ MBox::Message MBox::getNextMessage() const {
     }
 
     std::string sender, original_host, subject;
+    unsigned priority(0);
     for (;;) {
         if (unlikely(input_->eof()))
             LOG_ERROR("unexpected EOF while looking for the end of the message headers in \""
@@ -173,6 +186,9 @@ MBox::Message MBox::getNextMessage() const {
             std::string new_host;
             if (ParseReceivedBody(field_body, &new_host))
                 original_host = new_host;
+        } else if (field_name == "x-priority") {
+            if (not StringUtil::ToNumber(field_body, &priority))
+                LOG_WARNING("failed to parse the priority \"" + field_body + "\"!");
         }
     }
 
@@ -196,7 +212,7 @@ MBox::Message MBox::getNextMessage() const {
         message_body += '\n';
     }
 
-    return Message(reception_time, original_host, sender, subject, message_body);
+    return Message(reception_time, original_host, sender, subject, priority, message_body);
 }
 
 
