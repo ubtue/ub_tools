@@ -125,8 +125,8 @@ cd "$HARVESTER_OUTPUT_DIRECTORY"
 counter=0
 shopt -s nullglob
 for d in */ ; do
-    d=${d%/}
-    if [[ $d -ef "$HARVESTER_OUTPUT_DIRECTORY" ]]; then
+    d="${d%/}"
+    if [[ "$d" -ef "$HARVESTER_OUTPUT_DIRECTORY" ]]; then
         continue
     fi
 
