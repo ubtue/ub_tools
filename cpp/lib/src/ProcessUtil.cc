@@ -4,7 +4,7 @@
  */
 
 /*
- *  Copyright 2020 Universitätsbibliothek Tübingen
+ *  Copyright 2020 University Library of Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
