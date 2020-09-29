@@ -596,4 +596,12 @@ std::string UsernameFromUID(const uid_t uid);
 std::string GroupnameFromGID(const gid_t gid);
 
 
+/** \brief    A thin wrapper around the readlink(2) system call.
+ *  \note     If this function returned false and you want to know the reason for
+ *            the failure you can consult the value of errno.
+ *  \warning This function is not reentrant!
+ */
+bool ReadLink(const std::string &path, std::string * const link_target);
+
+
 } // namespace FileUtil
