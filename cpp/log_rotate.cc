@@ -19,10 +19,13 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <csignal>
 #include <cstdlib>
 #include <cstring>
+#include "FileLocker.h"
 #include "FileUtil.h"
 #include "MiscUtil.h"
+#include "ProcessUtil.h"
 #include "RegexMatcher.h"
 #include "SELinuxUtil.h"
 #include "StringUtil.h"
@@ -98,10 +101,17 @@ int Main(int argc, char *argv[]) {
         if (not HasNumericExtension(entry.getName())) {
             if (verbose)
                 std::cout << "About to rotate \"" << entry.getName() << "\".\n";
-            if (max_line_count > 0)
-                FileUtil::OnlyKeepLastNLines(directory_path + "/" + entry.getName(), max_line_count);
-            else {
-                const std::string filename(directory_path + "/" + entry.getName());
+
+            const std::string filename(directory_path + "/" + entry.getName());
+            if (max_line_count > 0) {
+                const int fd(::open(filename.c_str(), O_RDWR));
+                { // New scope to ensure that the FileLocker instance goes out of scope before we close fd!
+                    FileLocker file_locker(fd, FileLocker::WRITE_ONLY);
+                    FileUtil::OnlyKeepLastNLines(filename, max_line_count);
+                }
+                ::close(fd);
+            } else {
+                const auto pids(ProcessUtil::GetProcessIdsForPath(filename));
                 MiscUtil::LogRotate(filename, max_rotations);
                 if (recreate) {
                     FileUtil::TouchFileOrDie(filename);
@@ -117,6 +127,9 @@ int Main(int argc, char *argv[]) {
                                                FileUtil::GroupnameFromGID(gid));
                     if (SELinuxUtil::IsEnabled())
                         SELinuxUtil::FileContext::ApplyChanges(filename);
+
+                    for (const auto pid : pids)
+                        ::kill(pid, SIGHUP);
                 }
             }
         }

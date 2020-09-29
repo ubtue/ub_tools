@@ -29,6 +29,7 @@
 #include <execinfo.h>
 #include <signal.h>
 #include "Compiler.h"
+#include "FileLocker.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
@@ -42,7 +43,6 @@ char *progname; // Must be set in main() with "progname = argv[0];";
 
 
 const std::string Logger::FUNCTION_NAME_SEPARATOR(" --> ");
-
 
 
 Logger::Logger()
@@ -168,6 +168,7 @@ void Logger::writeString(const std::string &level, std::string msg, const bool f
     if (format_message)
         formatMessage(level, &msg);
 
+    FileLocker file_locker(fd_, FileLocker::WRITE_ONLY, 20 /* seconds */);
     if (unlikely(::write(fd_, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
         const std::string error_message("in Logger::writeString(util.cc): write to file descriptor " + std::to_string(fd_)
                                         + " failed! (errno = " + std::to_string(errno) + ")");
