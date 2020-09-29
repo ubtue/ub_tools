@@ -4,6 +4,7 @@
  */
 
 /*
+ *  Copyright 2020 University Library of Tübingen
  *  Copyright 2004-2005 Project iVia.
  *  Copyright 2004-2005 The Regents of The University of California.
  *
@@ -37,14 +38,16 @@
  */
 class FileLocker {
     int lock_fd_;                /**< File descriptor for the file we're locking. */
+    bool interrupted_;
 public:
     enum LockType { READ_ONLY, WRITE_ONLY };
 public:
     /** \brief  Construct a FileLocker.  Blocks until we gain access.
      *  \param  fd         The file descriptor that we want to lock.
      *  \param  lock_type  The type of lock that we request.
+     *  \param  timeout    If > 0 then the locking will be aborted after this many seconds.
      */
-    FileLocker(const int fd, const LockType lock_type);
+    FileLocker(const int fd, const LockType lock_type, const unsigned timeout = 0);
 
     /** Unlocks our file. */
     ~FileLocker();
