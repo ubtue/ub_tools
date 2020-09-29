@@ -30,7 +30,7 @@
 namespace ProcessUtil {
 
 
-/** \return  The list of PID's that have an open file descripto for "path".
+/** \return  The list of PID's that have an open file descriptor for "path".
  *  \note    Does currently not include memory-mapped files!
  *  \warning This is not an atomic operation!
  */
