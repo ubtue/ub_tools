@@ -1,7 +1,7 @@
 /** \file   log_rotate.cc
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,6 +24,7 @@
 #include "FileUtil.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
+#include "SELinuxUtil.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -34,51 +35,14 @@ namespace {
 const unsigned DEFAULT_MAX_ROTATIONS(5);
 
 
-void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " [--verbose] [--max-rotations=max_rotations|--no-of-lines-to-keep=max_line_count] directory file_regex\n"
-              << "       where the default for \"max_rotations\" is " << DEFAULT_MAX_ROTATIONS << '\n'
-              << "       and \"file_regex\" must be a PCRE.  (There is no default for \"max_line_count\".)\n"
-              << "       When using --no-of-lines-to-keep, the result will be either empty, if the original\n"
-              << "       was empty, or the file will end in a newline even if it originally didn't.\n\n";
-    std::exit(EXIT_FAILURE);
-}
-
-
-void SkipLines(File * const input, unsigned skip_count) {
-    while (skip_count > 0) {
-        std::string line;
-        input->getline(&line);
-        --skip_count;
-    }
-}
-
-
-void CopyLines(File * const input, File * const output) {
-    while (not input->eof()) {
-        std::string line;
-        input->getline(&line);
-        if (unlikely(not output->writeln(line)))
-            logger->error("in CopyLines: failed to write a line to \"" + output->getPath() + "\"!");
-    }
-}
-
-
-// Keeps the last \"max_line_count\" number of lines in \"filename\".
-void KeepLines(const std::string &filename, const unsigned &max_line_count) {
-    const size_t original_line_count(FileUtil::CountLines(filename));
-    if (original_line_count <= max_line_count)
-        return;
-
-    std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(filename));
-    SkipLines(input.get(), original_line_count - max_line_count);
-
-    FileUtil::AutoTempFile temp_file;
-    std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(temp_file.getFilePath()));
-    CopyLines(input.get(), output.get());
-    input->close(), output->close();
-    if (not FileUtil::RenameFile(temp_file.getFilePath(), filename, /* remove_target = */ true))
-        logger->error("in KeepLines: failed to rename \"" + temp_file.getFilePath() + "\" to \"" + filename + "\"!");
+[[noreturn]] void Usage() {
+    ::Usage("[--verbose] [--max-rotations=max_rotations|--no-of-lines-to-keep=max_line_count] [--recreate] directory file_regex\n"
+            "where the default for \"max_rotations\" is " + std::to_string(DEFAULT_MAX_ROTATIONS) + "\n"
+            "if \"--recreate\" has been specified the original filename will be recreated with same owner, group,\n"
+            "and, if appropriate, SELinux secucrity context.\n"
+            "\"file_regex\" must be a PCRE.  (There is no default for \"max_line_count\".)\n"
+            "When using --no-of-lines-to-keep, the result will be either empty, if the original\n"
+            "was empty, or the file will end in a newline even if it originally didn't.\n\n");
 }
 
 
@@ -91,9 +55,7 @@ inline bool HasNumericExtension(const std::string &filename) {
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     if (argc < 3)
         Usage();
 
@@ -103,44 +65,62 @@ int main(int argc, char *argv[]) {
         --argc, ++argv;
     }
 
-    if (argc != 3 and argc != 4)
-        Usage();
-
     unsigned max_rotations(DEFAULT_MAX_ROTATIONS), max_line_count(0);
-    std::string directory_path, file_regex;
-    if (argc == 3) {
-        directory_path = argv[1];
-        file_regex     = argv[2];
-    } else { // argc == 4.
-        if (StringUtil::StartsWith(argv[1], "--max-rotations=")) {
-            if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--max-rotations="), &max_rotations)
-                or max_rotations == 0)
-                logger->error("\"" + std::string(argv[1] + std::strlen("--max-rotations="))
-                              + "\" is not a valid maximum rotation count!");
-        } else if (StringUtil::StartsWith(argv[1], "--no-of-lines-to-keep=")) {
+    if (StringUtil::StartsWith(argv[1], "--max-rotations=")) {
+        if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--max-rotations="), &max_rotations)
+            or max_rotations == 0)
+            LOG_ERROR("\"" + std::string(argv[1] + std::strlen("--max-rotations="))
+                      + "\" is not a valid maximum rotation count!");
+        --argc, ++argv;
+    } else if (StringUtil::StartsWith(argv[1], "--no-of-lines-to-keep=")) {
+        if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--no-of-lines-to-keep="), &max_line_count)
+            or max_line_count == 0)
             if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--no-of-lines-to-keep="), &max_line_count)
                 or max_line_count == 0)
-                logger->error("\"" + std::string(argv[1] + std::strlen("--no-of-lines-to-keep="))
-                              + "\" is not a valid line count!");
-        } else
-            Usage();
-        directory_path = argv[2];
-        file_regex     = argv[3];
+                LOG_ERROR("\"" + std::string(argv[1] + std::strlen("--no-of-lines-to-keep="))
+                          + "\" is not a valid line count!");
+        --argc, ++argv;
     }
 
-    try {
-        FileUtil::Directory directory(directory_path, file_regex);
-        for (const auto &entry : directory) {
-            if (not HasNumericExtension(entry.getName())) {
-                if (verbose)
-                    std::cout << "About to rotate \"" << entry.getName() << "\".\n";
-                if (max_line_count > 0)
-                    KeepLines(directory_path + "/" + entry.getName(), max_line_count);
-                else
-                    MiscUtil::LogRotate(directory_path + "/" + entry.getName(), max_rotations);
+    if (argc < 3)
+        Usage();
+
+    const bool recreate(__builtin_strcmp(argv[1], "--recreate") == 0);
+    if (recreate)
+        --argc, ++argv;
+
+    if (argc != 3)
+        Usage();
+    const std::string directory_path(argv[1]), file_regex(argv[2]);
+
+    FileUtil::Directory directory(directory_path, file_regex);
+    for (const auto &entry : directory) {
+        if (not HasNumericExtension(entry.getName())) {
+            if (verbose)
+                std::cout << "About to rotate \"" << entry.getName() << "\".\n";
+            if (max_line_count > 0)
+                FileUtil::OnlyKeepLastNLines(directory_path + "/" + entry.getName(), max_line_count);
+            else {
+                const std::string filename(directory_path + "/" + entry.getName());
+                MiscUtil::LogRotate(filename, max_rotations);
+                if (recreate) {
+                    FileUtil::TouchFileOrDie(filename);
+
+                    const mode_t mode(entry.getFileTypeAndMode());
+                    if (::chmod(filename.c_str(), mode & (~S_IFMT)))
+                        LOG_ERROR("chmod(2) failed on \"" + filename + "\"!");
+
+                    uid_t uid;
+                    gid_t gid;
+                    entry.getUidAndGid(&uid, &gid);
+                    FileUtil::ChangeOwnerOrDie(filename, FileUtil::UsernameFromUID(uid),
+                                               FileUtil::GroupnameFromGID(gid));
+                    if (SELinuxUtil::IsEnabled())
+                        SELinuxUtil::FileContext::ApplyChanges(filename);
+                }
             }
         }
-    } catch (const std::exception &x) {
-        logger->error("caught exception: " + std::string(x.what()));
     }
+
+    return EXIT_SUCCESS;
 }

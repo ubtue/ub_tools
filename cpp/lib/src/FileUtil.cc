@@ -29,10 +29,13 @@
 #include <cstdlib>
 #include <cstring>
 #include <dirent.h>
+#include <grp.h>
 #include <linux/limits.h>
+#include <pwd.h>
 #ifdef HAS_SELINUX_HEADERS
 #   include <selinux/selinux.h>
 #endif
+#include <sys/mman.h>
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -135,31 +138,19 @@ SELinuxFileContext::SELinuxFileContext(const std::string &path) {
 
 
 Directory::Entry::Entry(const struct dirent &entry, const std::string &dirname)
-    : dirname_(dirname), name_(entry.d_name), inode_(entry.d_ino), type_(entry.d_type)
+    : dirname_(dirname), name_(entry.d_name)
 {
+    errno = 0;
+    if (::stat((dirname_ + "/" + name_).c_str(), &statbuf_) != 0)
+        throw std::runtime_error("in FileUtil::Directory::Entry::Entry: stat(2) on \""
+                                 + dirname_ + "/" + name_ + " \"failed! ("
+                                 + std::string(std::strerror(errno)) + ")");
 }
 
 
 Directory::Entry::Entry(const Directory::Entry &other)
-    : dirname_(other.dirname_), name_(other.name_), inode_(other.inode_), type_(other.type_)
+    : dirname_(other.dirname_), name_(other.name_), statbuf_(other.statbuf_)
 {
-}
-
-
-unsigned char Directory::Entry::getType() const {
-    if (type_ != DT_UNKNOWN)
-        return type_;
-
-    // Not all filesystems return the type in the d_type field.  In those cases DT_UNKNOWN will be returned and we
-    // therefore need to fall back to using the stat(2) system call.
-    struct stat statbuf;
-    errno = 0;
-    if (::stat((dirname_ + "/" +  name_).c_str(), &statbuf) == -1)
-        throw std::runtime_error("in FileUtil::Directory::Entry::getType: stat(2) on \""
-                                 + dirname_ + "/" + name_ + " \"failed! ("
-                                 + std::string(std::strerror(errno)) + ")");
-
-    return IFTODT(statbuf.st_mode); // Convert from st_mode to d_type.
 }
 
 
@@ -207,9 +198,11 @@ void Directory::const_iterator::advance() {
         }
 
         if (regex_matcher_->matched(entry_ptr->d_name)) {
-            entry_.name_  = std::string(entry_ptr->d_name);
-            entry_.inode_ = entry_ptr->d_ino;
-            entry_.type_  = entry_ptr->d_type;
+            entry_.name_ = std::string(entry_ptr->d_name);
+            if (::stat((entry_.dirname_ + "/" + entry_.name_).c_str(), &entry_.statbuf_) != 0)
+                throw std::runtime_error("in FileUtil::Directory::Entry::Entry: stat(2) on \""
+                                         + entry_.dirname_ + "/" + entry_.name_ + " \"failed! ("
+                                         + std::string(std::strerror(errno)) + ")");
             return;
         }
     }
@@ -1473,6 +1466,83 @@ bool GetMostRecentlyModifiedFile(const std::string &directory_path, std::string 
     }
 
     return not filename->empty();
+}
+
+
+void RemoveLeadingBytes(const std::string &path, const loff_t no_of_bytes) {
+    if (no_of_bytes < 0)
+        LOG_ERROR("no_of_bytes must not be negative!");
+
+    if (no_of_bytes == 0)
+        return;
+
+    const auto original_file_size(GetFileSize(path));
+    if (original_file_size <= no_of_bytes) {
+        if (::truncate(path.c_str(), 0) != 0)
+            LOG_ERROR("failed to truncate(2) \"" + path + "\" to 0!");
+        return;
+    }
+
+    const int fd(::open(path.c_str(), O_LARGEFILE|O_RDWR));
+    if (fd == -1)
+        LOG_ERROR("failed to open(2) \"" + path + "\"!");
+
+    void * const map_start(::mmap(nullptr, original_file_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0));
+    if (map_start == MAP_FAILED or map_start == nullptr)
+        LOG_ERROR("Failed to mmap(2) \"" + path + "\"!");
+
+    ::memmove(map_start, static_cast<void *>(static_cast<char *>(map_start) + no_of_bytes), original_file_size - no_of_bytes);
+
+    if (::munmap(map_start, original_file_size) != 0)
+        LOG_ERROR("munmap(2) failed!");
+
+    if (::ftruncate(fd, original_file_size - no_of_bytes))
+        LOG_ERROR("Failed to ftruncate(2) \"" + path + "\"!");
+
+    if (::close(fd) != 0)
+        LOG_ERROR("failed to close(2) a file descriptor!");
+}
+
+
+void OnlyKeepLastNLines(const std::string &path, const unsigned n) {
+    const auto file_size(GetFileSize(path));
+
+    const int fd(::open(path.c_str(), O_LARGEFILE|O_RDONLY));
+    if (fd == -1)
+        LOG_ERROR("failed to open(2) \"" + path + "\"!");
+
+    const char * const map_start(static_cast<char *>(::mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd, 0)));
+    if (map_start == MAP_FAILED or map_start == nullptr)
+        LOG_ERROR("Failed to mmap(2) \"" + path + "\"!");
+
+    if (::close(fd) != 0)
+        LOG_ERROR("failed to close(2) a file descriptor!");
+
+    const char *cp(static_cast<const char *>(map_start) + file_size);
+    unsigned trailing_line_count(0);
+    while (trailing_line_count < n and cp >= map_start) {
+        if (*cp == '\n')
+            ++trailing_line_count;
+        --cp;
+    }
+
+    if (::munmap((void * const)map_start, file_size) != 0)
+        LOG_ERROR("munmap(2) failed!");
+
+    const loff_t no_of_leading_bytes_to_remove(map_start - cp + 1);
+    RemoveLeadingBytes(path, no_of_leading_bytes_to_remove);
+}
+
+
+std::string UsernameFromUID(const uid_t uid) {
+    struct passwd *pw(::getpwuid(uid));
+    return (pw == nullptr) ? "" : pw->pw_name;
+}
+
+
+std::string GroupnameFromGID(const gid_t gid) {
+    struct group *grp(::getgrgid(gid));
+    return (grp == nullptr) ? "" : grp->gr_name;
 }
 
 
