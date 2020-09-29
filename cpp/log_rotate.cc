@@ -39,7 +39,7 @@ const unsigned DEFAULT_MAX_ROTATIONS(5);
     ::Usage("[--verbose] [--max-rotations=max_rotations|--no-of-lines-to-keep=max_line_count] [--recreate] directory file_regex\n"
             "where the default for \"max_rotations\" is " + std::to_string(DEFAULT_MAX_ROTATIONS) + "\n"
             "if \"--recreate\" has been specified the original filename will be recreated with same owner, group,\n"
-            "and, if appropriate, SELinux secucrity context.\n"
+            "and, if appropriate, SELinux security context.\n"
             "\"file_regex\" must be a PCRE.  (There is no default for \"max_line_count\".)\n"
             "When using --no-of-lines-to-keep, the result will be either empty, if the original\n"
             "was empty, or the file will end in a newline even if it originally didn't.\n\n");
