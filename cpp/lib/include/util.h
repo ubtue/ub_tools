@@ -50,7 +50,6 @@ protected:
     static const std::string FUNCTION_NAME_SEPARATOR;
 
     std::mutex mutex_;
-    int fd_;
     bool log_process_pids_, log_no_decorations_, log_strip_call_site_;
     LogLevel min_log_level_;
 
@@ -97,6 +96,7 @@ public:
     static std::string LogLevelToString(const LogLevel log_level);
 protected:
     virtual void writeString(const std::string &level, std::string msg, const bool format_message = true);
+    int getFileDescriptor() const;
 };
 extern Logger *logger;
 

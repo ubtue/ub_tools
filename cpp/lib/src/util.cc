@@ -67,11 +67,11 @@ const std::string Logger::FUNCTION_NAME_SEPARATOR(" --> ");
 
 
 Logger::Logger()
-    : fd_(STDERR_FILENO), log_process_pids_(false), log_no_decorations_(false), log_strip_call_site_(false),
+    : log_process_pids_(false), log_no_decorations_(false), log_strip_call_site_(false),
       min_log_level_(LL_INFO)
 {
-    log_fd = fd_;
-    log_path = FileUtil::GetPathFromFileDescriptor(fd_);
+    log_fd = STDERR_FILENO;
+    log_path = FileUtil::GetPathFromFileDescriptor(log_fd);
     SignalUtil::InstallHandler(SIGHUP, HUPHandler);
 
     const char * const min_log_level(::getenv("MIN_LOG_LEVEL"));
@@ -90,9 +90,8 @@ Logger::Logger()
 
 
 void Logger::redirectOutput(const int new_fd) {
-    fd_ = new_fd;
-    log_fd = fd_;
-    log_path = FileUtil::GetPathFromFileDescriptor(fd_);
+    log_fd = new_fd;
+    log_path = FileUtil::GetPathFromFileDescriptor(new_fd);
 }
 
 
@@ -200,16 +199,21 @@ void Logger::writeString(const std::string &level, std::string msg, const bool f
     if (format_message)
         formatMessage(level, &msg);
 
-    FileLocker file_locker(fd_, FileLocker::WRITE_ONLY, 20 /* seconds */);
+    FileLocker file_locker(log_fd, FileLocker::WRITE_ONLY, 20 /* seconds */);
     SignalUtil::SignalBlocker signal_blocker(SIGHUP);
-    if (unlikely(::write(fd_, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
-        const std::string error_message("in Logger::writeString(util.cc): write to file descriptor " + std::to_string(fd_)
+    if (unlikely(::write(log_fd, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
+        const std::string error_message("in Logger::writeString(util.cc): write to file descriptor " + std::to_string(log_fd)
                                         + " failed! (errno = " + std::to_string(errno) + ")");
         #pragma GCC diagnostic ignored "-Wunused-result"
         ::write(STDERR_FILENO, error_message.data(), error_message.size());
         #pragma GCC diagnostic warning "-Wunused-result"
         _exit(EXIT_FAILURE);
     }
+}
+
+
+int Logger::getFileDescriptor() const {
+    return log_fd;
 }
 
 
