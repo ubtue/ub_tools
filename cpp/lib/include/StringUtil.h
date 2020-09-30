@@ -502,6 +502,15 @@ unsigned ToUnsigned(const std::string &s, const unsigned base = 10);
 bool ToUnsigned(const std::string &s, unsigned * const n, const unsigned base = 10);
 
 
+/** \brief   Convert a string into an unsigned number.
+ *  \param   s     The string to convert.
+ *  \param   base  The base of the string representation.  A value of "0" has the special meaning that if the string
+ *                 starts with a "0" followed by one or more digits the base is assumed to be 8, if the string starts
+ *                 with "0x" the base is assumed to be 16, in all other cases the base is assumed to be 10.
+ */
+unsigned ToUnsignedOrDie(const std::string &s, const unsigned base = 10);
+
+
 /** \brief   Convert a string into a signed integer.
  *  \param   s     The string to convert.
  *  \param   base  The base of the string representation.  A value of "0" after an optional sign has the special meaning that if the string
