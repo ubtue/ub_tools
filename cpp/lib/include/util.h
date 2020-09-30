@@ -59,7 +59,7 @@ public:
     Logger();
     virtual ~Logger() = default;
 public:
-    void redirectOutput(const int new_fd) { fd_ = new_fd; }
+    void redirectOutput(const int new_fd);
 
     bool getLogNoDecorations() { return log_no_decorations_; }
     void setLogNoDecorations(const bool log_no_decorations) { log_no_decorations_ = log_no_decorations; }
