@@ -25,14 +25,35 @@
 #include <stdexcept>
 #include <cctype>
 #include <cerrno>
+#include <csignal>
 #include <cstdlib>
 #include <execinfo.h>
 #include <signal.h>
 #include "Compiler.h"
 #include "FileLocker.h"
+#include "FileUtil.h"
 #include "MiscUtil.h"
+#include "SignalUtil.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
+
+
+static std::string log_path;
+static int log_fd;
+
+
+void HUPHandler(int /* signal_number*/) {
+    ::close(log_fd);
+    const int new_fd(::open(log_path.c_str(), O_WRONLY|O_APPEND));
+    if (new_fd == -1) { // We're screwed!
+        const std::string error_message("in HUPHandler(util.cc): can't open(2) \"" + log_path + "\"!\n");
+        ::write(STDERR_FILENO, error_message.c_str(), error_message.size());
+        ::exit(EXIT_FAILURE);
+    }
+
+    // Make sure we're using the same file descriptor as before!
+    ::dup2(new_fd, log_fd);
+}
 
 
 // Macro to determine the number of entries in a one-dimensional array:
@@ -49,6 +70,10 @@ Logger::Logger()
     : fd_(STDERR_FILENO), log_process_pids_(false), log_no_decorations_(false), log_strip_call_site_(false),
       min_log_level_(LL_INFO)
 {
+    log_fd = fd_;
+    log_path = FileUtil::GetPathFromFileDescriptor(fd_);
+    SignalUtil::InstallHandler(SIGHUP, HUPHandler);
+
     const char * const min_log_level(::getenv("MIN_LOG_LEVEL"));
     if (min_log_level != nullptr)
         min_log_level_ = Logger::StringToLogLevel(min_log_level);
@@ -61,6 +86,13 @@ Logger::Logger()
         if (std::strstr(logger_format, "strip_call_site") != nullptr)
             log_strip_call_site_ = true;
     }
+}
+
+
+void Logger::redirectOutput(const int new_fd) {
+    fd_ = new_fd;
+    log_fd = fd_;
+    log_path = FileUtil::GetPathFromFileDescriptor(fd_);
 }
 
 
@@ -169,6 +201,7 @@ void Logger::writeString(const std::string &level, std::string msg, const bool f
         formatMessage(level, &msg);
 
     FileLocker file_locker(fd_, FileLocker::WRITE_ONLY, 20 /* seconds */);
+    SignalUtil::SignalBlocker signal_blocker(SIGHUP);
     if (unlikely(::write(fd_, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
         const std::string error_message("in Logger::writeString(util.cc): write to file descriptor " + std::to_string(fd_)
                                         + " failed! (errno = " + std::to_string(errno) + ")");
