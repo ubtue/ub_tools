@@ -46,3 +46,9 @@ if [[ $compare_against_installer_schema && -r /tmp/new_ub_tools.schema ]]; then
         echo "Verification successful! (The current DB schema was successfully compared to the installer's DB schema.)"
     fi
 fi
+
+
+SYSTEM_UPDATER=/usr/local/bin/system_updater
+if [ -e "$SYSTEM_UPDATER" ]; then
+    "$SYSTEM_UPDATER"
+fi
