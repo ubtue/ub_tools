@@ -65,11 +65,14 @@ inline bool ScriptLessThan(const std::string &script_name1, const std::string &s
 } // unnamed namespace
 
 
-int Main(int, char **) {
+int Main(int argc, char *argv[]) {
+    if (argc != 2)
+        ::Usage("path_to_update_scripts");
+
     const auto current_version(GetCurrentVersion());
 
     std::vector<std::string> script_names;
-    const std::string SYSTEM_UPDATES_DIR("/usr/local/ub_tools/cpp/data/system_updates");
+    const std::string SYSTEM_UPDATES_DIR(argv[1]);
     FileUtil::Directory system_updates_dir(SYSTEM_UPDATES_DIR, "^\\d+.sh$");
     for (const auto &entry : system_updates_dir) {
         if (GetVersionFromScriptName(entry.getName()) > current_version)
