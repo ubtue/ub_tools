@@ -23,7 +23,7 @@
 
 
 SysLog::SysLog(const std::string &message_prefix, const int option, const int facility) {
-    ::openlog(message_prefix.c_str(), option, facility);
+    ::openlog(message_prefix.empty() ? nullptr : message_prefix.c_str(), option, facility);
     ::setlogmask(LOG_EMERG | LOG_ALERT | LOG_CRIT | LOG_ERR | LOG_WARNING | LOG_NOTICE | LOG_INFO);
 }
 
