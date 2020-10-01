@@ -4,6 +4,7 @@ CHANGED_FILES="$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD)"
 MYSQL_SCHEMA_UPDATES_PATH=/usr/local/ub_tools/cpp/data/sql_updates
 MYSQL_SCHEMA_UPDATES_PATH_LOCAL=cpp/data/sql_updates
 MYSQL_DATABASE_PATCHER=/usr/local/bin/mysql_database_patcher
+SYSTEM_UPDATES_PATH=/usr/local/ub_tools/cpp/data/system_updates
 
 
 declare -i compare_against_installer_schema=$(if $(echo "$CHANGED_FILES" | grep --quiet cpp/data/installer/ub_tools.sql); then echo 1; else echo 0; fi)
@@ -50,5 +51,5 @@ fi
 
 SYSTEM_UPDATER=/usr/local/bin/system_updater
 if [ -e "$SYSTEM_UPDATER" ]; then
-    "$SYSTEM_UPDATER"
+    "$SYSTEM_UPDATER" "$SYSTEM_UPDATES_PATH"
 fi
