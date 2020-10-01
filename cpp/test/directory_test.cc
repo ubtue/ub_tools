@@ -22,7 +22,7 @@ void ScanDir(const bool recurse, const bool display_contexts, const std::string 
                   << '\n';
         if (recurse and entry.getType() == DT_DIR) {
             if (entry_name != "." and entry_name != "..")
-                ScanDir(recurse, display_contexts, directory_path + "/" + entry.getName(), regex);
+                ScanDir(recurse, display_contexts, entry.getFullName(), regex);
         }
     }
 }

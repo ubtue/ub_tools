@@ -102,7 +102,7 @@ int Main(int argc, char *argv[]) {
             if (verbose)
                 std::cout << "About to rotate \"" << entry.getName() << "\".\n";
 
-            const std::string filename(directory_path + "/" + entry.getName());
+            const std::string filename(entry.getFullName());
             if (max_line_count > 0) {
                 const int fd(::open(filename.c_str(), O_RDWR));
                 { // New scope to ensure that the FileLocker instance goes out of scope before we close fd!

@@ -2,7 +2,7 @@
  *  \brief  Implementation of functions relating to our full-text cache.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -275,7 +275,7 @@ void FullTextCache::extractAndImportHTMLPages(const std::string &id, const std::
    FileUtil::Directory html_pages(html_export_directory, ".*-\\d+\\.html");
    for (const auto &html_page : html_pages) {
        static const auto page_number_matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*-(\\d+)\\.html$"));
-       const std::string page_file_name(html_export_directory + '/' + html_page.getName());
+       const std::string page_file_name(html_page.getFullName());
        if (not page_number_matcher->matched(page_file_name))
            LOG_ERROR("Invalid naming scheme for file \"" + page_file_name + "\"");
        const std::string page_number((*page_number_matcher)[1]);
