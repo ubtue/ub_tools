@@ -50,14 +50,21 @@ FileLocker::FileLocker(const int fd, const LockType lock_type, const unsigned ti
     lock_struct.l_len    = 0;                                                                /* length, 0 = to EOF           */
     lock_struct.l_pid    = ::getpid();                                                       /* our PID                      */
 
-    if (::fcntl(lock_fd_, F_SETLKW, &lock_struct) == -1) {
+    while (::fcntl(lock_fd_, F_SETLKW, &lock_struct) == -1) {
         const int last_errno(errno);
-        ::alarm(0); // Cancel our alarm!
+        const unsigned remaining_time(::alarm(0)); // Cancel our alarm!
+        if (remaining_time > 0) {
+            ::alarm(remaining_time);
+            continue;
+        }
+
         if (last_errno != EINTR)
             throw std::runtime_error("fcntl(2) failed! (" + std::to_string(last_errno) + ")!");
         errno = 0;
         interrupted_ = true;
     }
+
+    ::alarm(0); // Cancel our alarm!
 }
 
 
