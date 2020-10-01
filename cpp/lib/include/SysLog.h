@@ -53,5 +53,5 @@ public:
     // \brief  Sets a new set of levels that will be logged unless "new_levels" is 0.
     // \param  new_levels An or'rd together set of the levels that wile be logged after the call.
     // \return An or'rd together set of the current log levels..
-    int setLogLevsls(const int new_levels) { return ::setlogmask(new_levels); }
+    int setLogLevels(const int new_levels) { return ::setlogmask(new_levels); }
 };
