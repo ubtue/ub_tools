@@ -128,8 +128,11 @@ int Main(int argc, char *argv[]) {
                     if (SELinuxUtil::IsEnabled())
                         SELinuxUtil::FileContext::ApplyChanges(filename);
 
-                    for (const auto pid : pids)
-                        ::kill(pid, SIGHUP);
+                    const pid_t our_pid(::getpid());
+                    for (const auto pid : pids) {
+                        if (pid != our_pid)
+                            ::kill(pid, SIGHUP);
+                    }
                 }
             }
         }
