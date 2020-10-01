@@ -127,7 +127,7 @@ public:
     public:
         Entry(const Entry &other);
 
-        /** \return the full name of the entry, i.e., including the directory path. */
+        /** \return the name of the entry w/o the directory path. */
         inline const std::string &getName() const { return name_; }
 
         inline SELinuxFileContext getSELinuxFileContext() const { return SELinuxFileContext(dirname_ + "/" + name_); }
