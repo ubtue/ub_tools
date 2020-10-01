@@ -1460,7 +1460,7 @@ bool GetMostRecentlyModifiedFile(const std::string &directory_path, std::string 
             LOG_ERROR("stat(2) on \"" + entry.getName() + "\" failed!");
 
         if (filename->empty() or statbuf.st_mtim > *last_modification_time) {
-            *filename = GetBasename(entry.getName());
+            *filename = entry.getName();
             *last_modification_time = statbuf.st_mtim;
         }
     }

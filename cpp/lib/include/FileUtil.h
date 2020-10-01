@@ -130,6 +130,9 @@ public:
         /** \return the name of the entry w/o the directory path. */
         inline const std::string &getName() const { return name_; }
 
+        /** \return the name of the entry w/ the directory path. */
+        inline const std::string getFullName() const { return dirname_ + "/" + name_; }
+
         inline SELinuxFileContext getSELinuxFileContext() const { return SELinuxFileContext(dirname_ + "/" + name_); }
 
         // \return One of DT_BLK(block device), DT_CHR(character device), DT_DIR(directory), DT_FIFO(named pipe),

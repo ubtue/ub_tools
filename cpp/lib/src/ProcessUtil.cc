@@ -32,11 +32,12 @@ std::unordered_set<pid_t> GetProcessIdsForPath(const std::string &path) {
 
     FileUtil::Directory proc("/proc", "\\d+"); // Only PID's
     for (const auto &pid_dir : proc) {
-        FileUtil::Directory fd_dir("/proc/" + pid_dir.getName() + "/fd");
+        const std::string FD_DIR_PATH(pid_dir.getFullName() + "/fd");
+        FileUtil::Directory fd_dir(FD_DIR_PATH);
         for (const auto &link : fd_dir) {
             std::string link_target;
-            if (FileUtil::ReadLink("/proc/" + pid_dir.getName() + "/fd/" + link.getName(), &link_target) and link_target == path) {
-                pids.emplace(StringUtil::ToNumber(FileUtil::GetBasename(pid_dir.getName())));
+            if (FileUtil::ReadLink(FD_DIR_PATH + "/" + link.getName(), &link_target) and link_target == path) {
+                pids.emplace(StringUtil::ToNumber(pid_dir.getName()));
                 break;
             }
         }
