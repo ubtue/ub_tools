@@ -52,7 +52,10 @@ void HUPHandler(int /* signal_number*/) {
     }
 
     // Make sure we're using the same file descriptor as before!
-    ::dup2(new_fd, log_fd);
+    if (new_fd != log_fd) {
+        ::dup2(new_fd, log_fd);
+        ::close(new_fd);
+    }
 }
 
 
