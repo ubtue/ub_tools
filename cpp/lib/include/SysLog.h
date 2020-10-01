@@ -33,15 +33,15 @@ public:
         LEVEL_WARNING = LOG_WARNING, LEVEL_NOTICE = LOG_NOTICE, LEVEL_INFO = LOG_INFO, LEVEL_DEBUG = LOG_DEBUG
     };
 public:
-    /** \param  option         An or'ed together set of values described in syslog(3). (Our default is usually fine but
+    /** \param  message_prefix A string that will be prepended to all logged messages.
+     *  \param  option         An or'ed together set of values described in syslog(3). (Our default is usually fine but
      *                         you may want to add LOG_PERROR (additional logging to stderr) in certain situtaions.
      *  \param  facility       One of LOG_AUTH, LOG_AUTHPRIV, LOG_CRON, LOG_DAEMON, LOG_FTP, LOG_LOCAL0 through LOG_LOCAL7
      *                         LOG_LPR, LOG_MAIL, LOG_NEWS, LOG_USER, LOG_UUCP, see syslog(3) for details.
      *                         LOG_USER or LOG_LOCAL0 through LOG_LOCAL7 are typically the only sensible values.
-     *  \param  message_prefix A string that will be prepended to all logged messages.
      *  \notice Initially all levels, exept for LEVEL_DEBUG will be logged.
      */
-    explicit SysLog(const int option = LOG_ODELAY, const int facility = LOG_USER, const std::string &message_prefix = "");
+    explicit SysLog(const std::string &message_prefix = "", const int option = LOG_ODELAY, const int facility = LOG_USER);
     ~SysLog();
 
     // \brief Write a log entry.
