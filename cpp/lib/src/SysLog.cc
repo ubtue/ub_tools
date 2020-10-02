@@ -1,5 +1,5 @@
 /** \file    SysLog.h
- *  \brief   Declaration of class SysLog.
+ *  \brief   Implementation of class SysLog.
  *  \author  Dr. Johannes Ruscheinski
  */
 

@@ -111,7 +111,7 @@ int Main(int argc, char *argv[]) {
                 }
                 ::close(fd);
             } else {
-                const auto pids(ProcessUtil::GetProcessIdsForPath(filename));
+                const auto pids(ProcessUtil::GetProcessIdsForPath(filename, /* exclude_self = */true));
                 MiscUtil::LogRotate(filename, max_rotations);
                 if (recreate) {
                     FileUtil::TouchFileOrDie(filename);
@@ -128,11 +128,8 @@ int Main(int argc, char *argv[]) {
                     if (SELinuxUtil::IsEnabled())
                         SELinuxUtil::FileContext::ApplyChanges(filename);
 
-                    const pid_t our_pid(::getpid());
-                    for (const auto pid : pids) {
-                        if (pid != our_pid)
-                            ::kill(pid, SIGHUP);
-                    }
+                    for (const auto pid : pids)
+                        ::kill(pid, SIGHUP);
                 }
             }
         }
