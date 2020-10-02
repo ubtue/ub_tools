@@ -74,9 +74,7 @@
 
 [[noreturn]] void Usage() {
     ::Usage("<system_type> <options>\n"
-            "\n"
             "    Examples:\n"
-            "\n"
             "        ub-tools-only\n"
             "        fulltext-backend (--test|--production) [--omit-cronjobs] [--omit-systemctl]\n"
             "        vufind (ixtheo|krimdok) (--test|--production) [--omit-cronjobs] [--omit-systemctl]\n");
