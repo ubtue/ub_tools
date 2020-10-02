@@ -27,7 +27,8 @@
 namespace ProcessUtil {
 
 
-std::unordered_set<pid_t> GetProcessIdsForPath(const std::string &path) {
+std::unordered_set<pid_t> GetProcessIdsForPath(const std::string &path, const bool exclude_self) {
+    const auto self(::getpid());
     std::unordered_set<pid_t> pids;
 
     FileUtil::Directory proc("/proc", "\\d+"); // Only PID's
@@ -37,7 +38,9 @@ std::unordered_set<pid_t> GetProcessIdsForPath(const std::string &path) {
         for (const auto &link : fd_dir) {
             std::string link_target;
             if (FileUtil::ReadLink(FD_DIR_PATH + "/" + link.getName(), &link_target) and link_target == path) {
-                pids.emplace(StringUtil::ToNumber(pid_dir.getName()));
+                const auto pid(StringUtil::ToNumber(pid_dir.getName()));
+                if (not exclude_self or pid != self)
+                    pids.emplace(pid);
                 break;
             }
         }

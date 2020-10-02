@@ -31,10 +31,11 @@ namespace ProcessUtil {
 
 
 /** \return  The list of PID's that have an open file descriptor for "path".
+ *  \param   If true, exclude the PID of the current process.
  *  \note    Does currently not include memory-mapped files!
  *  \warning This is not an atomic operation!
  */
-std::unordered_set<pid_t> GetProcessIdsForPath(const std::string &path);
+std::unordered_set<pid_t> GetProcessIdsForPath(const std::string &path, const bool exclude_self = false);
 
 
 } // namespace ProcessUtil
