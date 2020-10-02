@@ -198,7 +198,7 @@ void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_t
     mount_points.emplace_back(Mountpoint("/mnt/ZE020110/FID-Projekte", "/mnt/ZE020110/FID-Projekte/Default", "//sn00.zdv.uni-tuebingen.de/ZE020110/FID-Projekte"));
 
     for (const auto &mount_point : mount_points) {
-        FileUtil::MakeDirectoryOrDie(mount_point.path_);
+        FileUtil::MakeDirectoryOrDie(mount_point.path_, /*recursive = */ true);
         if (FileUtil::IsMountPoint(mount_point.path_) or FileUtil::IsDirectory(mount_point.test_path_))
             Echo("Mount point already mounted: " + mount_point.path_);
         else {
