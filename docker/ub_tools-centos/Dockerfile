@@ -12,7 +12,7 @@ ENV JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
 # (use curl because it's part of standard centos installation)
 RUN curl https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/scripts/install_ubtools.sh -o /tmp/install_ubtools.sh \
     && chmod 700 /tmp/install_ubtools.sh
-RUN /tmp/install_ubtools.sh --test --ub-tools-only
+RUN /tmp/install_ubtools.sh ub-tools-only
 
 # configure apache
 EXPOSE 80
