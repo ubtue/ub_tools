@@ -73,10 +73,13 @@
 
 
 [[noreturn]] void Usage() {
-    ::Usage("(--production|--test) --ub-tools-only|--fulltext-backend|(vufind_system_type [--omit-cronjobs] [--omit-systemctl])\n"
-            "       If there is a difference between a test environment and a production environment --production and --test\n"
-            "       lets you select between those two configuration types.  If there is no difference, you can select either one.\n"
-            "       \"vufind_system_type\" must be either \"krimdok\" or \"ixtheo\".\n\n");
+    ::Usage("<system_type> <options>\n"
+            "\n"
+            "    Examples:\n"
+            "\n"
+            "        ub-tools-only\n"
+            "        fulltext-backend (--test|--production) [--omit-cronjobs] [--omit-systemctl]\n"
+            "        vufind (ixtheo|krimdok) (--test|--production) [--omit-cronjobs] [--omit-systemctl]\n");
 }
 
 
@@ -86,6 +89,7 @@ void Echo(const std::string &log_message) {
 }
 
 
+enum InstallationType { UB_TOOLS_ONLY, FULLTEXT_BACKEND, VUFIND };
 enum VuFindSystemType { KRIMDOK, IXTHEO };
 
 
@@ -407,7 +411,7 @@ void SystemdEnableAndRunUnit(const std::string unit) {
 
 
 void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::string vufind_system_type_string,
-                                 const bool ub_tools_only, const bool fulltext_backend, const bool install_systemctl)
+                                 const InstallationType installation_type, const bool install_systemctl)
 {
     // install / update dependencies
     std::string script;
@@ -416,11 +420,11 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
     else
         script = INSTALLER_SCRIPTS_DIRECTORY + "/install_centos_packages.sh";
 
-    if (ub_tools_only)
+    if (installation_type == UB_TOOLS_ONLY)
         ExecUtil::ExecOrDie(script);
-    else if (fulltext_backend)
+    else if (installation_type == FULLTEXT_BACKEND)
         ExecUtil::ExecOrDie(script, { "fulltext_backend" });
-    else
+    else if (installation_type == VUFIND)
         ExecUtil::ExecOrDie(script, { vufind_system_type_string });
 
     // check systemd configuration
@@ -927,67 +931,63 @@ void ConfigureFullTextBackend(const bool production, const bool install_cronjobs
 
 
 int Main(int argc, char **argv) {
-    if (argc < 3 or argc > 5)
+    if (argc < 2)
         Usage();
 
+    InstallationType installation_type(UB_TOOLS_ONLY);
     std::string vufind_system_type_string;
     VuFindSystemType vufind_system_type(IXTHEO);
     bool omit_cronjobs(false);
     bool omit_systemctl(false);
+    bool production(false);
 
-    bool production;
-    if (std::strcmp("--production", argv[1]) == 0)
-        production = true;
-    else if (std::strcmp("--test", argv[1]) == 0)
-        production = false;
+    if (std::strcmp("ub-tools-only", argv[1]) == 0)
+        installation_type = UB_TOOLS_ONLY;
+    else if (std::strcmp("fulltext-backend", argv[1]) == 0)
+        installation_type = FULLTEXT_BACKEND;
+    else if (std::strcmp("vufind", argv[1]) == 0)
+        installation_type = VUFIND;
     else
-        LOG_ERROR("first flag must be --production or --test!");
+        Usage();
 
-    bool ub_tools_only(false);
-    bool fulltext_backend(false);
-    if (std::strcmp("--fulltext-backend", argv[2]) == 0) {
-        fulltext_backend = true;
-        if (FileUtil::Exists("/.dockerenv"))
-            omit_systemctl = true;
-        if (argc > 2)
+    if (installation_type == UB_TOOLS_ONLY) {
+        if (argc != 2)
             Usage();
-    }
-    if (std::strcmp("--ub-tools-only", argv[2]) == 0) {
-        ub_tools_only = true;
-        if (argc > 2)
+    } else if (installation_type == VUFIND or installation_type == FULLTEXT_BACKEND) {
+        int argv_additional_params_start(2);
+        if (argc < 3)
             Usage();
-    }
-    if (not (fulltext_backend or ub_tools_only)) {
-        vufind_system_type_string = argv[2];
-        if (::strcasecmp(vufind_system_type_string.c_str(), "auto") == 0) {
-            vufind_system_type_string = VuFind::GetTueFindFlavour();
-            if (not vufind_system_type_string.empty())
-                Echo("using auto-detected tuefind installation type \""
-                     + vufind_system_type_string + "\"");
+
+        if (installation_type == VUFIND) {
+            if (argc < 4)
+                Usage();
+            argv_additional_params_start = 3;
+            vufind_system_type_string = argv[2];
+            if (std::strcmp("ixtheo", vufind_system_type_string.c_str()) == 0)
+                vufind_system_type = IXTHEO;
+            else if (std::strcmp("krimdok", vufind_system_type_string.c_str()) == 0)
+                vufind_system_type = KRIMDOK;
             else
-                Error("could not auto-detect tuefind installation type");
+                LOG_ERROR("argument 2 must be ixtheo or krimdok!");
         }
 
-        if (::strcasecmp(vufind_system_type_string.c_str(), "krimdok") == 0)
-            vufind_system_type = KRIMDOK;
-        else if (::strcasecmp(vufind_system_type_string.c_str(), "ixtheo") == 0)
-            vufind_system_type = IXTHEO;
-        else {
+        if (argv_additional_params_start > argc-1)
             Usage();
-            __builtin_unreachable();
-        }
 
-        if (argc >= 4) {
-            for (int i(3); i <= 4; ++i) {
-                if (i < argc) {
-                    if (std::strcmp("--omit-cronjobs", argv[i]) == 0)
-                        omit_cronjobs = true;
-                    else if (std::strcmp("--omit-systemctl", argv[i]) == 0)
-                        omit_systemctl = true;
-                    else
-                        Usage();
-                }
-            }
+        if (std::strcmp("--production", argv[argv_additional_params_start]) == 0)
+            production = true;
+        else if (std::strcmp("--test", argv[argv_additional_params_start]) == 0)
+            production = false;
+        else
+            LOG_ERROR("argument " + std::to_string(argv_additional_params_start) +" must be --production or --test!");
+
+        for (int i(argv_additional_params_start+1);i<argc;++i) {
+            if (std::strcmp("--omit-cronjobs", argv[i]) == 0)
+                omit_cronjobs = true;
+            else if (std::strcmp("--omit-systemctl", argv[i]) == 0)
+                omit_systemctl = true;
+            else
+                LOG_ERROR("argument " + std::to_string(i) + " has an invalid value!");
         }
     }
 
@@ -1003,14 +1003,14 @@ int Main(int argc, char **argv) {
 
     // Install dependencies before vufind
     // correct PHP version for composer dependancies
-    InstallSoftwareDependencies(os_system_type, vufind_system_type_string, ub_tools_only, fulltext_backend, install_systemctl);
+    InstallSoftwareDependencies(os_system_type, vufind_system_type_string, installation_type, install_systemctl);
 
     // Where to find our own stuff:
     MiscUtil::AddToPATH("/usr/local/bin/", MiscUtil::PreferredPathLocation::LEADING);
 
     MountDeptDriveAndInstallSSHKeysOrDie(vufind_system_type);
 
-    if (not (ub_tools_only or fulltext_backend)) {
+    if (installation_type == VUFIND) {
         FileUtil::MakeDirectoryOrDie("/mnt/zram");
         DownloadVuFind();
         #ifndef __clang__
@@ -1022,9 +1022,9 @@ int Main(int argc, char **argv) {
         #endif
     }
     InstallUBTools(/* make_install = */ true, os_system_type);
-    if (fulltext_backend)
+    if (installation_type == FULLTEXT_BACKEND)
         ConfigureFullTextBackend(production, not omit_cronjobs);
-    if (not (ub_tools_only or fulltext_backend)) {
+    else if (installation_type == VUFIND) {
         CreateVuFindDatabases(vufind_system_type, os_system_type);
 
         if (SystemdUtil::IsAvailable()) {
