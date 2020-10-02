@@ -211,7 +211,7 @@ void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_t
             }
             if (not FileContainsLineStartingWith("/etc/fstab", mount_point.unc_path_)) {
                 FileUtil::AppendStringToFile("/etc/fstab",
-                                             mount_point.unc_path_ + " " + mount_point.path_ + " cifs "
+                                             "\n" + mount_point.unc_path_ + " " + mount_point.path_ + " cifs "
                                              "credentials=/root/.smbcredentials,workgroup=uni-tuebingen.de,uid=root,"
                                              "gid=root,vers=1.0,auto 0 0");
             }
