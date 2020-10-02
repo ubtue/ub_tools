@@ -495,7 +495,7 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     }
 
     // logfile for zts docker container
-    const std::string ZTS_LOGFILE(UBTools::GetTueFindLogPath() + "/zts.log");
+    const std::string ZTS_LOGFILE(UBTools::GetTueFindLogPath() + "zts.log");
     FileUtil::TouchFileOrDie(ZTS_LOGFILE);
     if (os_system_type == UBUNTU) {
         // This is only necessary for UBUNTU since syslogd does not run with root privileges.
