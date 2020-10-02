@@ -46,7 +46,7 @@ dnf --assumeyes install \
     mariadb-devel mariadb-server mariadb-server-utils mod_ssl mutt openssl-devel pcre-devel policycoreutils-python-utils \
     poppler poppler-utils python3 python3-pyflakes rpmdevtools sqlite sudo tidy unzip xerces-c-devel
 
-dnf --assumeyes --repo=download.opensuse.org_repositories_home_Alexander_Pozdnyakov_CentOS_8_ install \
+dnf --assumeyes install \
     tesseract tesseract-devel tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-eng tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe
 
 # PowerTools dependencies
