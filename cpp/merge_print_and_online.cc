@@ -239,7 +239,6 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
                 dropped_count += group_ppns.size() + 1;
                 while (canonical_ppn_to_ppn_map->find(canonical_ppn) != canonical_ppn_to_ppn_map->end())
                     canonical_ppn_and_ppn = canonical_ppn_to_ppn_map->erase(canonical_ppn_to_ppn_map->find(canonical_ppn));
-
             }
 
             group_ppns.clear();
@@ -711,7 +710,9 @@ bool MergeFieldPair245(const MARC::Record::Field &merge_field, const MARC::Recor
         if (FuzzyEqual(varying_title_field.getFirstSubfieldWithCode('a'), import_title))
             return true;
     }
-    merge_record->insertField("246", { { 'a', import_title },
+
+    const bool import_title_is_newer(import_record.getPublicationYear() > merge_record->getPublicationYear());
+    merge_record->insertField("246", { { 'a', import_title_is_newer ? import_title : merge_title },
                                        { 'g', import_record.isElectronicResource() ? "electronic" : "print" + std::string(" title") } },
                               /* indicator1 = */'2', /*indicator2 = */'3');
 
