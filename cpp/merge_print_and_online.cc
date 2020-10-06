@@ -213,7 +213,7 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
     auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map->begin());
     while (canonical_ppn_and_ppn != canonical_ppn_to_ppn_map->end()) {
         if (ppn_to_offset_map.find(canonical_ppn_and_ppn->second) != ppn_to_offset_map.end())
-            canonical_ppn_and_ppn = std::next(canonical_ppn_and_ppn, 1);
+            canonical_ppn_and_ppn = std::next(canonical_ppn_and_ppn);
         else {
             canonical_ppn_and_ppn = canonical_ppn_to_ppn_map->erase(canonical_ppn_and_ppn);
             ++dropped_count; // Dropped a non-canonical PPN.
