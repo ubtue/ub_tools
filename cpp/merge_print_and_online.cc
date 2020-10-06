@@ -239,7 +239,7 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
             old_canonical_ppn_and_new_canonical_ppn->second = non_canonical_ppn; // Found a smaller one!
     }
 
-    // 2b, do the actual replacement of old canonical PPN's w/ new canonical PPN's..
+    // 2b, do the actual replacement of old canonical PPN's w/ new canonical PPN's.
     for (const auto &[old_canonical_ppn, new_canonical_ppn] : old_canonical_ppn_to_new_canonical_ppn_map) {
         auto current_canonical_ppn_and_ppn(canonical_ppn_to_ppn_map->find(old_canonical_ppn));
         std::set<std::string> new_non_canonical_ppns;
