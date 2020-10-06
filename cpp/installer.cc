@@ -499,6 +499,10 @@ void SetupSysLog(const OSSystemType os_system_type) {
     FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/syslog.ub_tools.conf", "/etc/rsyslog.d/40-ub_tools.conf");
 }
 
+void SetupSudo() {
+    FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/sudo.zts-restart", "/etc/sudoers.d/99-zts_restart");
+}
+
 
 void InstallUBTools(const bool make_install, const OSSystemType os_system_type) {
     // First install iViaCore-mkdep...
@@ -530,6 +534,7 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     }
 
     SetupSysLog(os_system_type);
+    SetupSudo();
 
     // Add SELinux permissions for files we need to access via the Web.
     if (SELinuxUtil::IsEnabled()) {
