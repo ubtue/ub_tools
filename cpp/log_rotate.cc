@@ -106,7 +106,7 @@ int Main(int argc, char *argv[]) {
             if (max_line_count > 0) {
                 const int fd(::open(filename.c_str(), O_RDWR));
                 { // New scope to ensure that the FileLocker instance goes out of scope before we close fd!
-                    FileLocker file_locker(fd, FileLocker::WRITE_ONLY);
+                    FileLocker file_locker(fd, FileLocker::READ_WRITE);
                     FileUtil::OnlyKeepLastNLines(filename, max_line_count);
                 }
                 ::close(fd);
