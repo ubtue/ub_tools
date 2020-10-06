@@ -41,7 +41,7 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, std::set<std::string>> missing_ppns_to_referers_map;
     while (const auto record = marc_reader->read()) {
         for (const auto _787_field : record.getTagRange("787")) {
-            if (_787_field.getFirstSubfieldWithCode('i') != "Rezension von")
+            if (not StringUtil::StartsWith(_787_field.getFirstSubfieldWithCode('i'), "Rezension"))
                 continue;
 
             for (const auto &subfield : _787_field.getSubfields()) {
