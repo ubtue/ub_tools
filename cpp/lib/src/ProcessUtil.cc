@@ -37,7 +37,7 @@ std::unordered_set<pid_t> GetProcessIdsForPath(const std::string &path, const bo
         FileUtil::Directory fd_dir(FD_DIR_PATH);
         for (const auto &link : fd_dir) {
             std::string link_target;
-            if (FileUtil::ReadLink(FD_DIR_PATH + "/" + link.getName(), &link_target) and link_target == path) {
+            if (FileUtil::ReadLink(link.getFullName(), &link_target) and link_target == path) {
                 const auto pid(StringUtil::ToNumber(pid_dir.getName()));
                 if (not exclude_self or pid != self)
                     pids.emplace(pid);
