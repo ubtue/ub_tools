@@ -105,7 +105,7 @@ void ZoteroLogger::flushBufferAndPrintProgressImpl(const unsigned num_active_tas
     if (fatal_error_all_stop_.load())
         return;
 
-    if (::isatty(fd_) == 1) {
+    if (::isatty(getFileDescriptor()) == 1) {
         // reset the progress bar
         if (not progress_bar_buffer_.empty()) {
             const std::string empty_string(progress_bar_buffer_.size(), ' ');
@@ -119,7 +119,7 @@ void ZoteroLogger::flushBufferAndPrintProgressImpl(const unsigned num_active_tas
         log_buffer_.pop_front();
     }
 
-    if (::isatty(fd_) == 1) {
+    if (::isatty(getFileDescriptor()) == 1) {
         // update progress bar
         progress_bar_buffer_ = "TASKS: ACTIVE = " + std::to_string(num_active_tasks) + ", QUEUED = "
                                + std::to_string(num_queued_tasks) + "\r";
@@ -130,9 +130,9 @@ void ZoteroLogger::flushBufferAndPrintProgressImpl(const unsigned num_active_tas
 
 void ZoteroLogger::writeToBackingLog(const std::string &msg) {
     std::lock_guard<std::mutex> locker(mutex_);
-    if (::write(fd_, msg.data(), msg.length()) != static_cast<ssize_t>(msg.length()))
+    if (::write(getFileDescriptor(), msg.data(), msg.length()) != static_cast<ssize_t>(msg.length()))
         LOG_ERROR("write(2) failed!");
-    ::fsync(fd_);
+    ::fsync(getFileDescriptor());
 }
 
 
