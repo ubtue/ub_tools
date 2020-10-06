@@ -74,7 +74,7 @@
 
 [[noreturn]] void Usage() {
     ::Usage("<system_type> <options>\n"
-            "    Examples:\n"
+            "    invocation modes:\n"
             "        ub-tools-only\n"
             "        fulltext-backend (--test|--production) [--omit-cronjobs] [--omit-systemctl]\n"
             "        vufind (ixtheo|krimdok) (--test|--production) [--omit-cronjobs] [--omit-systemctl]\n");
@@ -182,6 +182,11 @@ bool FileContainsLineStartingWith(const std::string &path, const std::string &pr
 }
 
 
+bool FileEndsWith(const std::string &path, const std::string &suffix) {
+    return StringUtil::EndsWith(FileUtil::ReadStringOrDie(path), suffix);
+}
+
+
 struct Mountpoint {
     std::string path_;
     std::string test_path_;
@@ -210,10 +215,14 @@ void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_t
                     Error("failed to write " + credentials_file + "!");
             }
             if (not FileContainsLineStartingWith("/etc/fstab", mount_point.unc_path_)) {
-                FileUtil::AppendStringToFile("/etc/fstab",
-                                             "\n" + mount_point.unc_path_ + " " + mount_point.path_ + " cifs "
-                                             "credentials=/root/.smbcredentials,workgroup=uni-tuebingen.de,uid=root,"
-                                             "gid=root,vers=1.0,auto 0 0");
+                std::string appendix;
+                if (not FileEndsWith("/etc/fstab", "\n"))
+                    appendix = "\n";
+
+                appendix += mount_point.unc_path_ + " " + mount_point.path_ + " cifs "
+                            "credentials=/root/.smbcredentials,workgroup=uni-tuebingen.de,uid=root,"
+                            "gid=root,vers=1.0,auto 0 0";
+                FileUtil::AppendStringToFile("/etc/fstab", appendix);
             }
             ExecUtil::ExecOrDie("/bin/mount", { mount_point.path_ });
             Echo("Successfully mounted " + mount_point.path_);
