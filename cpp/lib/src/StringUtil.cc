@@ -605,6 +605,15 @@ bool ToUnsigned(const std::string &s, unsigned * const n, const unsigned base) {
 }
 
 
+unsigned ToUnsignedOrDie(const std::string &s, const unsigned base) {
+    unsigned n;
+    if (unlikely(not ToUnsigned(s, &n, base)))
+        LOG_ERROR("cannot convert \"" + s + "\" to an unsigned number!");
+
+    return n;
+}
+
+
 int ToInt(const std::string &s, const unsigned base) {
     int n;
     if (unlikely(not ToNumber(s, &n, base)))

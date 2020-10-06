@@ -25,13 +25,38 @@
 #include <stdexcept>
 #include <cctype>
 #include <cerrno>
+#include <csignal>
 #include <cstdlib>
 #include <execinfo.h>
 #include <signal.h>
 #include "Compiler.h"
+#include "FileLocker.h"
+#include "FileUtil.h"
 #include "MiscUtil.h"
+#include "SignalUtil.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
+
+
+static std::string log_path;
+static int log_fd;
+
+
+void HUPHandler(int /* signal_number*/) {
+    ::close(log_fd);
+    const int new_fd(::open(log_path.c_str(), O_WRONLY|O_APPEND));
+    if (new_fd == -1) { // We're screwed!
+        const std::string error_message("in HUPHandler(util.cc): can't open(2) \"" + log_path + "\"!\n");
+        ::write(STDERR_FILENO, error_message.c_str(), error_message.size());
+        ::exit(EXIT_FAILURE);
+    }
+
+    // Make sure we're using the same file descriptor as before!
+    if (new_fd != log_fd) {
+        ::dup2(new_fd, log_fd);
+        ::close(new_fd);
+    }
+}
 
 
 // Macro to determine the number of entries in a one-dimensional array:
@@ -44,11 +69,14 @@ char *progname; // Must be set in main() with "progname = argv[0];";
 const std::string Logger::FUNCTION_NAME_SEPARATOR(" --> ");
 
 
-
 Logger::Logger()
-    : fd_(STDERR_FILENO), log_process_pids_(false), log_no_decorations_(false), log_strip_call_site_(false),
+    : log_process_pids_(false), log_no_decorations_(false), log_strip_call_site_(false),
       min_log_level_(LL_INFO)
 {
+    log_fd = STDERR_FILENO;
+    log_path = FileUtil::GetPathFromFileDescriptor(log_fd);
+    SignalUtil::InstallHandler(SIGHUP, HUPHandler);
+
     const char * const min_log_level(::getenv("MIN_LOG_LEVEL"));
     if (min_log_level != nullptr)
         min_log_level_ = Logger::StringToLogLevel(min_log_level);
@@ -61,6 +89,12 @@ Logger::Logger()
         if (std::strstr(logger_format, "strip_call_site") != nullptr)
             log_strip_call_site_ = true;
     }
+}
+
+
+void Logger::redirectOutput(const int new_fd) {
+    log_fd = new_fd;
+    log_path = FileUtil::GetPathFromFileDescriptor(new_fd);
 }
 
 
@@ -168,14 +202,21 @@ void Logger::writeString(const std::string &level, std::string msg, const bool f
     if (format_message)
         formatMessage(level, &msg);
 
-    if (unlikely(::write(fd_, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
-        const std::string error_message("in Logger::writeString(util.cc): write to file descriptor " + std::to_string(fd_)
+    FileLocker file_locker(log_fd, FileLocker::READ_WRITE, 20 /* seconds */);
+    SignalUtil::SignalBlocker signal_blocker(SIGHUP);
+    if (unlikely(::write(log_fd, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
+        const std::string error_message("in Logger::writeString(util.cc): write to file descriptor " + std::to_string(log_fd)
                                         + " failed! (errno = " + std::to_string(errno) + ")");
         #pragma GCC diagnostic ignored "-Wunused-result"
         ::write(STDERR_FILENO, error_message.data(), error_message.size());
         #pragma GCC diagnostic warning "-Wunused-result"
         _exit(EXIT_FAILURE);
     }
+}
+
+
+int Logger::getFileDescriptor() const {
+    return log_fd;
 }
 
 
