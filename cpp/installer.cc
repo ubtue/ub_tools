@@ -1018,9 +1018,9 @@ int Main(int argc, char **argv) {
         else if (std::strcmp("--test", argv[argv_additional_params_start]) == 0)
             production = false;
         else
-            LOG_ERROR("argument " + std::to_string(argv_additional_params_start) +" must be --production or --test!");
+            LOG_ERROR("argument " + std::to_string(argv_additional_params_start) + " must be --production or --test!");
 
-        for (int i(argv_additional_params_start+1);i<argc;++i) {
+        for (int i(argv_additional_params_start+1); i < argc; ++i) {
             if (std::strcmp("--omit-cronjobs", argv[i]) == 0)
                 omit_cronjobs = true;
             else if (std::strcmp("--omit-systemctl", argv[i]) == 0)
