@@ -205,47 +205,55 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
                                                std::unordered_multimap<std::string, std::string> * const canonical_ppn_to_ppn_map)
 {
     unsigned dropped_count(0);
+
+    //
+    // 1. Remove inappropriate or missing non-canonical PPN's
+    //
+
     auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map->begin());
-    std::set<std::string> group_ppns;
     while (canonical_ppn_and_ppn != canonical_ppn_to_ppn_map->end()) {
-        const std::string canonical_ppn(canonical_ppn_and_ppn->first);
-        group_ppns.emplace(canonical_ppn_and_ppn->second);
-        const auto next_canonical_ppn_and_ppn(std::next(canonical_ppn_and_ppn, 1));
-        bool drop_group(false);
+        if (ppn_to_offset_map.find(canonical_ppn_and_ppn->second) != ppn_to_offset_map.end())
+            canonical_ppn_and_ppn = std::next(canonical_ppn_and_ppn, 1);
+        else {
+            canonical_ppn_and_ppn = canonical_ppn_to_ppn_map->erase(canonical_ppn_and_ppn);
+            ++dropped_count; // Dropped a non-canonical PPN.
+        }
+    }
 
-        if (next_canonical_ppn_and_ppn == canonical_ppn_to_ppn_map->end()
-            or next_canonical_ppn_and_ppn->first != canonical_ppn)
+    //
+    // 2. Remove and retag missing or inappropriate canonical PPN's
+    //
+
+    // 2a, determine what the new canical PPN's are in those cases where we have to
+    //     swap them out.
+    std::unordered_map<std::string, std::string> old_canonical_ppn_to_new_canonical_ppn_map;
+    for (const auto &[current_canonical_ppn, non_canonical_ppn] : *canonical_ppn_to_ppn_map) {
+        if (ppn_to_offset_map.find(current_canonical_ppn) != ppn_to_offset_map.cend())
+            continue; // The current canonical PPN is fine.
+
+        ++dropped_count; // Dropped a canonical PPN.
+        auto old_canonical_ppn_and_new_canonical_ppn(old_canonical_ppn_to_new_canonical_ppn_map.find(current_canonical_ppn));
+        if (old_canonical_ppn_and_new_canonical_ppn == old_canonical_ppn_to_new_canonical_ppn_map.end())
+            old_canonical_ppn_to_new_canonical_ppn_map[current_canonical_ppn] = non_canonical_ppn;
+        else if (non_canonical_ppn < old_canonical_ppn_and_new_canonical_ppn->second)
+            old_canonical_ppn_and_new_canonical_ppn->second = non_canonical_ppn; // Found a smaller one!
+    }
+
+    // 2b, do the actual replacement of old canonical PPN's w/ new canonical PPN's..
+    for (const auto &[old_canonical_ppn, new_canonical_ppn] : old_canonical_ppn_to_new_canonical_ppn_map) {
+        auto current_canonical_ppn_and_ppn(canonical_ppn_to_ppn_map->find(old_canonical_ppn));
+        std::set<std::string> new_non_canonical_ppns;
+        while (current_canonical_ppn_and_ppn != canonical_ppn_to_ppn_map->end()
+               and current_canonical_ppn_and_ppn->first == old_canonical_ppn)
         {
-            // Decide to drop group either if PPN for merging is not a superior PPN or doesn't exist...
-            drop_group = ppn_to_offset_map.find(canonical_ppn) == ppn_to_offset_map.end();
-
-            // ... or at least one of the PPN's doesn't exist
-            if (not drop_group) {
-                for (const auto &ppn : group_ppns) {
-                    if (ppn_to_offset_map.find(ppn) == ppn_to_offset_map.end()) {
-                        LOG_INFO("Don't merge group around PPN " + ppn + " because the PPN is missing in our data! All PPNs in group: "
-                                 + StringUtil::Join(group_ppns, ','));
-                        drop_group = true;
-                        break;
-                    }
-                }
-            }
-
-            // Do drop
-            if (drop_group) {
-                for (const auto &ppn : group_ppns)
-                    ppn_to_canonical_ppn_map->erase(ppn);
-
-                dropped_count += group_ppns.size() + 1;
-                while (canonical_ppn_to_ppn_map->find(canonical_ppn) != canonical_ppn_to_ppn_map->end())
-                    canonical_ppn_and_ppn = canonical_ppn_to_ppn_map->erase(canonical_ppn_to_ppn_map->find(canonical_ppn));
-            }
-
-            group_ppns.clear();
+            if (current_canonical_ppn_and_ppn->second != new_canonical_ppn)
+                new_non_canonical_ppns.emplace(current_canonical_ppn_and_ppn->second);
+            current_canonical_ppn_and_ppn = canonical_ppn_to_ppn_map->erase(current_canonical_ppn_and_ppn);
         }
 
-        if (not drop_group)
-            ++canonical_ppn_and_ppn;
+        // Re-insert w/ new key:
+        for (const auto &new_non_canonical_ppn : new_non_canonical_ppns)
+            canonical_ppn_to_ppn_map->emplace(new_canonical_ppn, new_non_canonical_ppn);
     }
 
     if (debug) {
