@@ -115,6 +115,8 @@
 /string_info
 /suggest_bib_refs
 /summarize_logs
+/syslog
+/system_updater
 /time_aspects_to_codes_tool
 /topo_sorter
 /translation_db_tool

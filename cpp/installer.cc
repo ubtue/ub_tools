@@ -451,6 +451,23 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
 }
 
 
+void RegisterSystemUpdateVersion() {
+    const std::string SYSTEM_UPDATES_DIRECTORY(UB_TOOLS_DIRECTORY + "/system_updates");
+    FileUtil::Directory directory(SYSTEM_UPDATES_DIRECTORY, "\\d+.sh");
+    unsigned max_version(0);
+    for (const auto &update_script : directory) {
+        const auto &script_name(update_script.getName());
+        const auto script_version(StringUtil::ToUnsignedOrDie(
+            script_name.substr(0, script_name.length() - 3 /* ".sh" */)));
+        if (script_version > max_version)
+            max_version = script_version;
+    }
+
+    const std::string VERSION_PATH(UBTools::GetTuelibPath() + "system_version");
+    FileUtil::WriteStringOrDie(VERSION_PATH, std::to_string(max_version));
+}
+
+
 static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType system_type, const std::string &service_name) {
     FileUtil::AutoTempDirectory temp_dir;
 
@@ -462,6 +479,26 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
     const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
     FileUtil::WriteStringOrDie(service_file_path, vufind_service);
     SystemdUtil::InstallUnit(service_file_path);
+}
+
+
+// logfile for zts docker container
+const std::string ZTS_LOGFILE(UBTools::GetTueFindLogPath() + "/zts.log");
+
+
+void SetupSysLog(const OSSystemType os_system_type) {
+    FileUtil::TouchFileOrDie(ZTS_LOGFILE);
+
+    // logfile for ub_tools programs using the SysLog class
+    const std::string UB_TOOLS_LOGFILE(UBTools::GetTueFindLogPath() + "/syslog.log");
+    FileUtil::TouchFileOrDie(UB_TOOLS_LOGFILE);
+    if (os_system_type == UBUNTU) {
+        // This is only necessary for UBUNTU since syslogd does not run with root privileges.
+        FileUtil::ChangeOwnerOrDie(ZTS_LOGFILE, "syslog", "adm");
+        FileUtil::ChangeOwnerOrDie(UB_TOOLS_LOGFILE, "syslog", "adm");
+    }
+    FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/syslog.zts.conf", "/etc/rsyslog.d/30-zts.conf");
+    FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/syslog.ub_tools.conf", "/etc/rsyslog.d/40-ub_tools.conf");
 }
 
 
@@ -494,6 +531,7 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "clone", git_url, ZOTERO_ENHANCEMENT_MAPS_DIRECTORY });
     }
 
+
     // logfile for zts docker container
     const std::string ZTS_LOGFILE(UBTools::GetTueFindLogPath() + "zts.log");
     FileUtil::TouchFileOrDie(ZTS_LOGFILE);
@@ -502,6 +540,9 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
         FileUtil::ChangeOwnerOrDie(ZTS_LOGFILE, "syslog", "adm");
     }
     FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/syslog.zts.conf", "/etc/rsyslog.d/30-zts.conf");
+
+    // syslog
+    SetupSysLog(os_system_type);
 
     // Add SELinux permissions for files we need to access via the Web.
     if (SELinuxUtil::IsEnabled()) {
@@ -618,6 +659,7 @@ void GitAssumeUnchanged(const std::string &filename) {
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "update-index", "--assume-unchanged", filename });
 }
 
+
 void GitCheckout(const std::string &filename) {
     std::string dirname, basename;
     FileUtil::DirnameAndBasename(filename, &dirname, &basename);
@@ -625,20 +667,20 @@ void GitCheckout(const std::string &filename) {
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "checkout", filename });
 }
 
+
 void UseCustomFileIfExists(std::string filename_custom, std::string filename_default) {
     if (FileUtil::Exists(filename_custom)) {
         FileUtil::CreateSymlink(filename_custom, filename_default);
         GitAssumeUnchanged(filename_default);
-    } else {
+    } else
         GitCheckout(filename_default);
-    }
 }
 
 
 void DownloadVuFind() {
-    if (FileUtil::IsDirectory(VUFIND_DIRECTORY)) {
+    if (FileUtil::IsDirectory(VUFIND_DIRECTORY))
         Echo("VuFind directory already exists, skipping download");
-    } else {
+    else {
         Echo("Downloading TueFind git repository");
         const std::string git_url("https://github.com/ubtue/tuefind.git");
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "clone", git_url, VUFIND_DIRECTORY });
@@ -1002,6 +1044,8 @@ int Main(int argc, char **argv) {
     // Install dependencies before vufind
     // correct PHP version for composer dependancies
     InstallSoftwareDependencies(os_system_type, vufind_system_type_string, installation_type, install_systemctl);
+
+    RegisterSystemUpdateVersion();
 
     // Where to find our own stuff:
     MiscUtil::AddToPATH("/usr/local/bin/", MiscUtil::PreferredPathLocation::LEADING);

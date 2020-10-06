@@ -127,8 +127,11 @@ public:
     public:
         Entry(const Entry &other);
 
-        /** \return the full name of the entry, i.e., including the directory path. */
+        /** \return the name of the entry w/o the directory path. */
         inline const std::string &getName() const { return name_; }
+
+        /** \return the name of the entry w/ the directory path. */
+        inline const std::string getFullName() const { return dirname_ + "/" + name_; }
 
         inline SELinuxFileContext getSELinuxFileContext() const { return SELinuxFileContext(dirname_ + "/" + name_); }
 
@@ -594,6 +597,14 @@ void OnlyKeepLastNLines(const std::string &path, const unsigned n);
  */
 std::string UsernameFromUID(const uid_t uid);
 std::string GroupnameFromGID(const gid_t gid);
+
+
+/** \brief    A thin wrapper around the readlink(2) system call.
+ *  \note     If this function returned false and you want to know the reason for
+ *            the failure you can consult the value of errno.
+ *  \warning This function is not reentrant!
+ */
+bool ReadLink(const std::string &path, std::string * const link_target);
 
 
 } // namespace FileUtil
