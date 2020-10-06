@@ -202,7 +202,7 @@ void Logger::writeString(const std::string &level, std::string msg, const bool f
     if (format_message)
         formatMessage(level, &msg);
 
-    FileLocker file_locker(log_fd, FileLocker::WRITE_ONLY, 20 /* seconds */);
+    FileLocker file_locker(log_fd, FileLocker::READ_WRITE, 20 /* seconds */);
     SignalUtil::SignalBlocker signal_blocker(SIGHUP);
     if (unlikely(::write(log_fd, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
         const std::string error_message("in Logger::writeString(util.cc): write to file descriptor " + std::to_string(log_fd)

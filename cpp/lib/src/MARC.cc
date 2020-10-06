@@ -2263,7 +2263,7 @@ void XmlWriter::write(const Record &record) {
 
 
 void FileLockedComposeAndWriteRecord(Writer * const marc_writer, const Record &record) {
-    FileLocker file_locker(marc_writer->getFile().getFileDescriptor(), FileLocker::WRITE_ONLY);
+    FileLocker file_locker(marc_writer->getFile().getFileDescriptor(), FileLocker::READ_WRITE);
     if (unlikely(not (marc_writer->getFile().seek(0, SEEK_END))))
         LOG_ERROR("failed to seek to the end of \"" + marc_writer->getFile().getPath() + "\"!");
     marc_writer->write(record);

@@ -40,7 +40,7 @@ class FileLocker {
     int lock_fd_;                /**< File descriptor for the file we're locking. */
     bool interrupted_;
 public:
-    enum LockType { READ_ONLY, WRITE_ONLY };
+    enum LockType { READ_ONLY, READ_WRITE };
 public:
     /** \brief  Construct a FileLocker.  Blocks until we gain access.
      *  \param  fd         The file descriptor that we want to lock.
