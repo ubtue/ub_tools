@@ -516,13 +516,13 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     // ..and /usr/local/var/log/tuefind
     if (not FileUtil::Exists(UBTools::GetTueFindLogPath())) {
         Echo("creating " + UBTools::GetTueFindLogPath());
-        FileUtil::MakeDirectoryOrDie(UBTools::GetTueFindLogPath(), /* recursive = */);
+        FileUtil::MakeDirectoryOrDie(UBTools::GetTueFindLogPath(), /* recursive = */true);
     }
 
     // ..and /usr/local/var/tmp
     if (not FileUtil::Exists(UBTools::GetTueLocalTmpPath())) {
         Echo("creating " + UBTools::GetTueLocalTmpPath());
-        FileUtil::MakeDirectoryOrDie(UBTools::GetTueLocalTmpPath(), /* recursive = */);
+        FileUtil::MakeDirectoryOrDie(UBTools::GetTueLocalTmpPath(), /* recursive = */true);
     }
 
     const std::string ZOTERO_ENHANCEMENT_MAPS_DIRECTORY(UBTools::GetTuelibPath() + "zotero-enhancement-maps");
