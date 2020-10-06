@@ -712,7 +712,7 @@ bool MergeFieldPair245(const MARC::Record::Field &merge_field, const MARC::Recor
     }
 
     const bool import_title_is_newer(import_record.getPublicationYear() > merge_record->getPublicationYear());
-    merge_record->insertField("246", { { 'a', import_title_is_newer? import_title : merge_title },
+    merge_record->insertField("246", { { 'a', import_title_is_newer ? import_title : merge_title },
                                        { 'g', import_record.isElectronicResource() ? "electronic" : "print" + std::string(" title") } },
                               /* indicator1 = */'2', /*indicator2 = */'3');
 
