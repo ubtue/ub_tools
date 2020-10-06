@@ -51,10 +51,10 @@ void DisplayRestartButton() {
 }
 
 
-bool RestartActionPresent(std::multimap<std::string, std::string> *cgi_args) {
+bool IsRestartActionPresent(std::multimap<std::string, std::string> *cgi_args) {
     WebUtil::GetAllCgiArgs(cgi_args);
     const auto key_and_value(cgi_args->find("action"));
-    return key_and_value == cgi_args->cend() or key_and_value->second != "Restart";
+    return key_and_value != cgi_args->cend() and key_and_value->second == "Restart";
 }
 
 
@@ -98,7 +98,7 @@ void RestartZTS() {
 
 int Main(int /*argc*/, char */*argv*/[]) {
     std::multimap<std::string, std::string> cgi_args;
-    if (RestartActionPresent(&cgi_args)) {
+    if (not IsRestartActionPresent(&cgi_args)) {
         DisplayRestartButton();
         return EXIT_SUCCESS;
     } 
