@@ -482,11 +482,9 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
 }
 
 
-// logfile for zts docker container
-const std::string ZTS_LOGFILE(UBTools::GetTueFindLogPath() + "/zts.log");
-
-
 void SetupSysLog(const OSSystemType os_system_type) {
+    // logfile for zts docker container
+    const std::string ZTS_LOGFILE(UBTools::GetTueFindLogPath() + "/zts.log");
     FileUtil::TouchFileOrDie(ZTS_LOGFILE);
 
     // logfile for ub_tools programs using the SysLog class
@@ -499,6 +497,13 @@ void SetupSysLog(const OSSystemType os_system_type) {
     }
     FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/syslog.zts.conf", "/etc/rsyslog.d/30-zts.conf");
     FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/syslog.ub_tools.conf", "/etc/rsyslog.d/40-ub_tools.conf");
+
+    if (SELinuxUtil::IsEnabled()) {
+        // This file needs to be written to from journald/syslog + read from apache user
+        // since we cannot give container_log_t and httpd_sys_content_t to the same file,
+        // we use httpd_tmp_t instead
+        SELinuxUtil::FileContext::AddRecordIfMissing(ZTS_LOGFILE, "httpd_tmp_t", ZTS_LOGFILE);
+    }
 }
 
 
@@ -531,16 +536,6 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "clone", git_url, ZOTERO_ENHANCEMENT_MAPS_DIRECTORY });
     }
 
-
-    // logfile for zts docker container
-    const std::string ZTS_LOGFILE(UBTools::GetTueFindLogPath() + "zts.log");
-    FileUtil::TouchFileOrDie(ZTS_LOGFILE);
-    if (os_system_type == UBUNTU) {
-        // This is only necessary for UBUNTU since syslogd does not run with root privileges.
-        FileUtil::ChangeOwnerOrDie(ZTS_LOGFILE, "syslog", "adm");
-    }
-    FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/syslog.zts.conf", "/etc/rsyslog.d/30-zts.conf");
-
     // syslog
     SetupSysLog(os_system_type);
 
@@ -548,11 +543,6 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY, "httpd_sys_content_t",
                                                      ZOTERO_ENHANCEMENT_MAPS_DIRECTORY + "(/.*)?");
-
-        // This file needs to be written to from journald/syslog + read from apache user
-        // since we cannot give container_log_t and httpd_sys_content_t to the same file,
-        // we use httpd_tmp_t instead
-        SELinuxUtil::FileContext::AddRecordIfMissing(ZTS_LOGFILE, "httpd_tmp_t", ZTS_LOGFILE);
     }
 
     // ...and then install the rest of ub_tools:
