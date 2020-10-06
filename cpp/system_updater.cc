@@ -85,8 +85,10 @@ int Main(int argc, char *argv[]) {
 
     std::sort(script_names.begin(), script_names.end(), ScriptLessThan);
 
-    for (const auto &script_name : script_names)
+    for (const auto &script_name : script_names) {
+        LOG_INFO("Running " + script_name);
         ExecUtil::ExecOrDie(SYSTEM_UPDATES_DIR + "/" + script_name);
+    }
 
     const auto highest_version_number(script_names.back().substr(0, script_names.back().size() - 3 /* ".sh" */));
     FileUtil::WriteStringOrDie(VERSION_PATH, highest_version_number);
