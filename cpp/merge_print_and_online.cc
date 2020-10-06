@@ -239,7 +239,6 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
                 dropped_count += group_ppns.size() + 1;
                 while (canonical_ppn_to_ppn_map->find(canonical_ppn) != canonical_ppn_to_ppn_map->end())
                     canonical_ppn_and_ppn = canonical_ppn_to_ppn_map->erase(canonical_ppn_to_ppn_map->find(canonical_ppn));
-
             }
 
             group_ppns.clear();
