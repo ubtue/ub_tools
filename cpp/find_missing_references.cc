@@ -87,7 +87,7 @@ int Main(int argc, char *argv[]) {
         }
     }
 
-    std::unordered_set<std::string> new_missing_ppns(0);
+    std::unordered_set<std::string> new_missing_ppns;
     std::string missing_references_text;
     for (const auto &[missing_ppn, referers] : missing_ppns_to_referers_map) {
         db_connection->queryOrDie("SELECT ppn FROM missing_references WHERE ppn='1'");// + missing_ppn + "'");
