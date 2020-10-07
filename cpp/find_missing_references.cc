@@ -20,6 +20,7 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
+#include "Archive.h"
 #include "DbConnection.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
@@ -37,7 +38,7 @@ DbConnection *OpenOrCreateDatabase() {
         return new DbConnection(DATABASE_PATH, DbConnection::READWRITE);
 
     DbConnection *db_connection(new DbConnection(DATABASE_PATH, DbConnection::CREATE));
-    db_connection->queryOrDie("CREATE TABLE missing_references (ppn PRIMARY TEXT KEY) WITHOUT ROWID");
+    db_connection->queryOrDie("CREATE TABLE missing_references (ppn TEXT PRIMARY KEY) WITHOUT ROWID");
     return db_connection;
 }
 
@@ -86,29 +87,36 @@ int Main(int argc, char *argv[]) {
         }
     }
 
-    std::string email_attachement;
     unsigned new_missing_count(0);
+    std::string missing_references_text;
     for (const auto &[missing_ppn, referers] : missing_ppns_to_referers_map) {
         db_connection->queryOrDie("SELECT ppn FROM missing_references WHERE ppn='" + missing_ppn + "'");
         const DbResultSet result_set(db_connection->getLastResultSet());
         if (result_set.empty()) {
             ++new_missing_count;
-            email_attachement +=  missing_ppn + " <- " + StringUtil::Join(referers, ", ") + "\n";
+            missing_references_text += missing_ppn + " <- " + StringUtil::Join(referers, ", ") + "\n";
             db_connection->queryOrDie("INSERT INTO missing_references (ppn) VALUES ('" + missing_ppn + "')");
         }
     }
 
     LOG_INFO("Found " + std::to_string(missing_ppns_to_referers_map.size()) + " new missing reference(s).");
 
-    if (not email_attachement.empty()) {
+    if (new_missing_count > 0) {
+        const std::string ZIP_FILENAME("/tmp/missing_ppns.zip");
+        ::unlink(ZIP_FILENAME.c_str());
+        Archive::Writer archive_writer(ZIP_FILENAME);
+        archive_writer.addEntry("missing_ppns", missing_references_text.size());
+        archive_writer.write(missing_references_text);
+        archive_writer.close();
+
         const auto status_code(EmailSender::SendEmail("nobody@nowhere.com", email_address, "Missing PPN's",
                                                       "Attached is the new list of " + std::to_string(new_missing_count) + " missing PPN('s).",
                                                       EmailSender::DO_NOT_SET_PRIORITY, EmailSender::PLAIN_TEXT, /* reply_to = */"",
-                                                      /* use_ssl = */true, /* use_authentication = */true, { email_attachement }));
+                                                      /* use_ssl = */true, /* use_authentication = */true, { ZIP_FILENAME }));
         if (status_code > 299)
             LOG_ERROR("Failed to send an email to \"" + email_address + "\"!  The server returned "
                       + std::to_string(status_code) + ".");
     }
 
-    return EXIT_FAILURE;
+    return EXIT_SUCCESS;
 }

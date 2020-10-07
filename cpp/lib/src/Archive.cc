@@ -127,7 +127,7 @@ bool Reader::extractEntry(const std::string &member_name, std::string output_fil
 
 
 Writer::Writer(const std::string &archive_file_name, const std::string &archive_write_options, const FileType file_type)
-    : archive_entry_(nullptr)
+    : archive_entry_(nullptr), closed_(false)
 {
     archive_handle_ = ::archive_write_new();
 
@@ -172,7 +172,7 @@ Writer::Writer(const std::string &archive_file_name, const std::string &archive_
 }
 
 
-Writer::~Writer() {
+void Writer::close() {
     if (archive_entry_ != nullptr)
         ::archive_entry_free(archive_entry_);
 
@@ -180,6 +180,8 @@ Writer::~Writer() {
         LOG_ERROR("archive_write_close(3) failed: " + std::string(::archive_error_string(archive_handle_)));
     if (unlikely(::archive_write_free(archive_handle_) != ARCHIVE_OK))
         LOG_ERROR("archive_write_free(3) failed: " + std::string(::archive_error_string(archive_handle_)));
+
+    closed_ = true;
 }
 
 
@@ -237,7 +239,7 @@ void Writer::addEntry(const std::string &filename, const int64_t size, const mod
 }
 
 
-void Writer::write(char * const buffer, const size_t size) {
+void Writer::write(const char * const buffer, const size_t size) {
     if (::archive_write_data(archive_handle_, buffer, size) < 0)
         LOG_ERROR("archive_write_data failed!");
 }
