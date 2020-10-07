@@ -2,7 +2,7 @@
  *  \brief  Utility functions etc. related to the sending of email messages.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2019 Universitätsbibliothek Tübingen.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -32,6 +32,7 @@
 #include "IniFile.h"
 #include "MediaTypeUtil.h"
 #include "MiscUtil.h"
+#include "RegexMatcher.h"
 #include "SocketUtil.h"
 #include "SslConnection.h"
 #include "StringUtil.h"
@@ -517,6 +518,15 @@ std::string NormaliseLineEnds(const std::string &text) {
     }
 
     return normalised_text;
+}
+
+
+bool IsValidEmailAddress(const std::string &email_address_candidate) {
+    // The following regex is not very accurate but probably good enough for most purposes.
+    // (If you can't help yourself, feel free to improve on it!)
+    static auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("^\\S+@\\S+\\.\\S+$"));
+
+    return matcher->matched(email_address_candidate);
 }
 
 
