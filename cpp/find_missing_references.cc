@@ -20,18 +20,44 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
+#include "DbConnection.h"
+#include "EmailSender.h"
 #include "FileUtil.h"
 #include "MARC.h"
+#include "UBTools.h"
 #include "util.h"
+
+
+namespace {
+
+
+DbConnection *OpenOrCreateDatabase() {
+    const std::string DATABASE_PATH(UBTools::GetTuelibPath() + "previously_reported_missing_ppns.sq3");
+    if (FileUtil::Exists(DATABASE_PATH))
+        return new DbConnection(DATABASE_PATH, DbConnection::READWRITE);
+
+    DbConnection *db_connection(new DbConnection(DATABASE_PATH, DbConnection::CREATE));
+    db_connection->queryOrDie("CREATE TABLE missing_references (ppn PRIMARY TEXT KEY) WITHOUT ROWID");
+    return db_connection;
+}
+
+
+} // unnamed namespace
 
 
 int Main(int argc, char *argv[]) {
     if (argc != 3)
-        ::Usage("marc_input missing_references");
+        ::Usage("marc_input email_address");
 
     const auto marc_reader(MARC::Reader::Factory(argv[1]));
     std::unique_ptr<MARC::Writer> marc_writer(nullptr);
     const auto missing_references_log(FileUtil::OpenOutputFileOrDie(argv[2]));
+
+    const std::string email_address(argv[2]);
+    if (not EmailSender::IsValidEmailAddress(email_address))
+        LOG_ERROR("\"" + email_address + "\" is not a valid email address!");
+
+    DbConnection *db_connection(OpenOrCreateDatabase());
 
     std::unordered_set<std::string> all_ppns;
     while (const auto record = marc_reader->read())
@@ -60,10 +86,29 @@ int Main(int argc, char *argv[]) {
         }
     }
 
-    for (const auto &[missing_ppn, referers] : missing_ppns_to_referers_map)
-        (*missing_references_log) << missing_ppn << " <- " << StringUtil::Join(referers, ", ") << '\n';
+    std::string email_attachement;
+    unsigned new_missing_count(0);
+    for (const auto &[missing_ppn, referers] : missing_ppns_to_referers_map) {
+        db_connection->queryOrDie("SELECT ppn FROM missing_references WHERE ppn='" + missing_ppn + "'");
+        const DbResultSet result_set(db_connection->getLastResultSet());
+        if (result_set.empty()) {
+            ++new_missing_count;
+            email_attachement +=  missing_ppn + " <- " + StringUtil::Join(referers, ", ") + "\n";
+            db_connection->queryOrDie("INSERT INTO missing_references (ppn) VALUES ('" + missing_ppn + "')");
+        }
+    }
 
-    LOG_INFO("Found " + std::to_string(missing_ppns_to_referers_map.size()) + " missing reference(s).");
+    LOG_INFO("Found " + std::to_string(missing_ppns_to_referers_map.size()) + " new missing reference(s).");
+
+    if (not email_attachement.empty()) {
+        const auto status_code(EmailSender::SendEmail("nobody@nowhere.com", email_address, "Missing PPN's",
+                                                      "Attached is the new list of " + std::to_string(new_missing_count) + " missing PPN('s).",
+                                                      EmailSender::DO_NOT_SET_PRIORITY, EmailSender::PLAIN_TEXT, /* reply_to = */"",
+                                                      /* use_ssl = */true, /* use_authentication = */true, { email_attachement }));
+        if (status_code > 299)
+            LOG_ERROR("Failed to send an email to \"" + email_address + "\"!  The server returned "
+                      + std::to_string(status_code) + ".");
+    }
 
     return EXIT_FAILURE;
 }
