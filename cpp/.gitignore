@@ -33,7 +33,7 @@
 /delete_unused_local_data
 /dsv_reader
 /edit_ini_file
-/email_validator
+/email_address_validator
 /email_watcher
 /embedded_metadata_pdf_processor
 /enrich_ddcs
