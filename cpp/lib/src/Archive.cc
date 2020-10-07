@@ -142,6 +142,10 @@ Writer::Writer(const std::string &archive_file_name, const std::string &archive_
             if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
                 LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"!");
             ::archive_write_set_format_pax_restricted(archive_handle_);
+        } else if (StringUtil::EndsWith(archive_file_name, ".zip")) {
+            ::archive_write_set_format_zip(archive_handle_);
+            if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
+                LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"!");
         } else
             LOG_ERROR("FileType::AUTO selected but," " can't guess the file type from the given filename \"" + archive_file_name + "\"!");
         break;
@@ -155,6 +159,11 @@ Writer::Writer(const std::string &archive_file_name, const std::string &archive_
         if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
             LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"! (2)");
         ::archive_write_set_format_pax_restricted(archive_handle_);
+        break;
+    case FileType::ZIP:
+        ::archive_write_set_format_zip(archive_handle_);
+        if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
+            LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"! (2)");
         break;
     }
 
