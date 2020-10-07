@@ -86,9 +86,9 @@ public:
 
     explicit Writer(const std::string &archive_file_name, const FileType file_type = FileType::AUTO)
         : Writer(archive_file_name, "", file_type) { }
-    ~Writer() { if (not closed_) close(); }
+    ~Writer() { close(); }
 
-    void close();
+    void close(); //\note idempotent!
 
     void add(const std::string &filename, std::string archive_name = "");
 

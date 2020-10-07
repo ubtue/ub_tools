@@ -173,6 +173,9 @@ Writer::Writer(const std::string &archive_file_name, const std::string &archive_
 
 
 void Writer::close() {
+    if (closed_)
+        return;
+
     if (archive_entry_ != nullptr)
         ::archive_entry_free(archive_entry_);
 
@@ -216,8 +219,7 @@ void Writer::add(const std::string &filename, std::string archive_name) {
     while ((count = input.read(buffer, DEFAULT_BLOCKSIZE)) > 0) {
         if (count < DEFAULT_BLOCKSIZE and input.anErrorOccurred())
             LOG_ERROR("error reading \"" + filename + "\" !");
-        if (unlikely(::archive_write_data(archive_handle_, buffer, count) != static_cast<ssize_t>(count)))
-            LOG_ERROR("archive_write_data(3) failed: " + std::string(::archive_error_string(archive_handle_)));
+        write(buffer, count);
     }
 }
 
@@ -240,8 +242,8 @@ void Writer::addEntry(const std::string &filename, const int64_t size, const mod
 
 
 void Writer::write(const char * const buffer, const size_t size) {
-    if (::archive_write_data(archive_handle_, buffer, size) < 0)
-        LOG_ERROR("archive_write_data failed!");
+    if (unlikely(::archive_write_data(archive_handle_, buffer, size) != static_cast<ssize_t>(size)))
+        LOG_ERROR("archive_write_data(3) failed: " + std::string(::archive_error_string(archive_handle_)));
 }
 
 
