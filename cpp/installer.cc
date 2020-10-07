@@ -515,6 +515,10 @@ void SetupSysLog(const OSSystemType os_system_type) {
     }
 }
 
+void SetupSudo() {
+    FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/sudo.zts-restart", "/etc/sudoers.d/99-zts_restart");
+}
+
 
 void InstallUBTools(const bool make_install, const OSSystemType os_system_type) {
     // First install iViaCore-mkdep...
@@ -547,6 +551,7 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
 
     // syslog
     SetupSysLog(os_system_type);
+    SetupSudo();
 
     // Add SELinux permissions for files we need to access via the Web.
     if (SELinuxUtil::IsEnabled()) {

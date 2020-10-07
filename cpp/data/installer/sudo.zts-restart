@@ -1,0 +1,6 @@
+# Allow apache to restart the zts service
+Cmnd_Alias ZTS_RESTART = /bin/systemctl restart zts
+Cmnd_Alias ZTS_STATUS = /bin/systemctl status zts
+vufind ALL = NOPASSWD: ZTS_RESTART, ZTS_STATUS
+apache ALL = NOPASSWD: ZTS_RESTART, ZTS_STATUS
+www-data ALL = NOPASSWD: ZTS_RESTART, ZTS_STATUS
