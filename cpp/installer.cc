@@ -1010,7 +1010,7 @@ int Main(int argc, char **argv) {
                 LOG_ERROR("argument 2 must be ixtheo or krimdok!");
         }
 
-        if (argv_additional_params_start > argc-1)
+        if (argv_additional_params_start > argc - 1)
             Usage();
 
         if (std::strcmp("--production", argv[argv_additional_params_start]) == 0)
