@@ -64,4 +64,7 @@ std::string SMTPResponseCodeToString(const unsigned short response_code);
 std::string NormaliseLineEnds(const std::string &text);
 
 
+bool IsValidEmailAddress(const std::string &email_address_candidate);
+
+
 } // namespace EmailSender
