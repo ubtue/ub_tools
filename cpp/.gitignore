@@ -33,6 +33,7 @@
 /delete_unused_local_data
 /dsv_reader
 /edit_ini_file
+/email_address_validator
 /email_watcher
 /embedded_metadata_pdf_processor
 /enrich_ddcs
@@ -48,6 +49,7 @@
 /find_bib_ref_candidates_in_titles
 /find_gnd_reference_fields
 /find_latest_journal_year
+/find_missing_references
 /find_new_cologne_articles
 /find_tue_dups
 /fix_article_biblio_levels
