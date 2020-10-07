@@ -136,14 +136,18 @@ Writer::Writer(const std::string &archive_file_name, const std::string &archive_
         if (StringUtil::EndsWith(archive_file_name, ".tar")) {
             if (unlikely(not archive_write_options.empty()))
                 LOG_ERROR("no write options are currently supported for the uncompressed tar format!");
-            ::archive_write_set_format_pax_restricted(archive_handle_);
+            if (::archive_write_set_format_pax_restricted(archive_handle_) != ARCHIVE_OK)
+                LOG_ERROR("failed to call archive_write_set_format_pax_restricted(3): " + std::string(::archive_error_string(archive_handle_)));
         } else if (StringUtil::EndsWith(archive_file_name, ".tar.gz")) {
-            ::archive_write_add_filter_gzip(archive_handle_);
+            if (::archive_write_add_filter_gzip(archive_handle_) != ARCHIVE_OK)
+                LOG_ERROR("failed to call archive_write_add_filter_gzip(3): " + std::string(::archive_error_string(archive_handle_)));
             if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
                 LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"!");
-            ::archive_write_set_format_pax_restricted(archive_handle_);
+            if (::archive_write_set_format_pax_restricted(archive_handle_) != ARCHIVE_OK)
+                LOG_ERROR("failed to call archive_write_set_format_pax_restricted(3): " + std::string(::archive_error_string(archive_handle_)));
         } else if (StringUtil::EndsWith(archive_file_name, ".zip")) {
-            ::archive_write_set_format_zip(archive_handle_);
+            if (::archive_write_set_format_zip(archive_handle_) != ARCHIVE_OK)
+                LOG_ERROR("failed to call archive_write_set_format_zip(3): " + std::string(::archive_error_string(archive_handle_)));
             if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
                 LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"!");
         } else
@@ -152,16 +156,20 @@ Writer::Writer(const std::string &archive_file_name, const std::string &archive_
     case FileType::TAR:
         if (unlikely(not archive_write_options.empty()))
             LOG_ERROR("no write options are currently supported for the uncompressed tar format! (2)");
-        ::archive_write_set_format_pax_restricted(archive_handle_);
+        if (::archive_write_set_format_pax_restricted(archive_handle_) != ARCHIVE_OK)
+            LOG_ERROR("failed to call archive_write_set_format_pax_restricted(3): " + std::string(::archive_error_string(archive_handle_)));
         break;
     case FileType::GZIPPED_TAR:
-        ::archive_write_add_filter_gzip(archive_handle_);
+        if (::archive_write_add_filter_gzip(archive_handle_) != ARCHIVE_OK)
+            LOG_ERROR("failed to call archive_write_add_filter_gzip(3): " + std::string(::archive_error_string(archive_handle_)));
         if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
             LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"! (2)");
-        ::archive_write_set_format_pax_restricted(archive_handle_);
+        if (::archive_write_set_format_pax_restricted(archive_handle_) != ARCHIVE_OK)
+            LOG_ERROR("failed to call archive_write_set_format_pax_restricted(3): " + std::string(::archive_error_string(archive_handle_)));
         break;
     case FileType::ZIP:
-        ::archive_write_set_format_zip(archive_handle_);
+        if (::archive_write_set_format_zip(archive_handle_) != ARCHIVE_OK)
+            LOG_ERROR("failed to call archive_write_set_format_zip(3): " + std::string(::archive_error_string(archive_handle_)));
         if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
             LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"! (3)");
         break;
