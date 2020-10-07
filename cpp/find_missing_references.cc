@@ -22,8 +22,6 @@
 #include <unordered_set>
 #include "Archive.h"
 #include "DbConnection.h"
-#include "DbResultSet.h"//XXX
-#include "DbRow.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
 #include "MARC.h"
