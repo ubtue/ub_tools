@@ -73,7 +73,7 @@
 
 
 [[noreturn]] void Usage() {
-    ::Usage("<system_type> <options>\n"
+    ::Usage("<system_type> [<options>]\n"
             "    invocation modes:\n"
             "        ub-tools-only\n"
             "        fulltext-backend (--test|--production) [--omit-cronjobs] [--omit-systemctl]\n"
