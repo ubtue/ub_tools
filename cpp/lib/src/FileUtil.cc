@@ -191,7 +191,7 @@ void Directory::const_iterator::advance() {
             if (::stat((entry_.dirname_ + "/" + entry_.name_).c_str(), &entry_.statbuf_) == 0)
                 return;
             else if (errno != ENOENT)
-                throw std::runtime_error("in FileUtil::Directory::Entry::Entry: stat(2) on \""
+                throw std::runtime_error("in FileUtil::Directory::const_iterator::advance: stat(2) on \""
                                          + entry_.dirname_ + "/" + entry_.name_ + " \"failed! ("
                                          + std::string(std::strerror(errno)) + ")");
         }
