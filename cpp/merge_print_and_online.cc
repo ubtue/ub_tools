@@ -215,6 +215,7 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
         if (ppn_to_offset_map.find(canonical_ppn_and_ppn->second) != ppn_to_offset_map.end())
             canonical_ppn_and_ppn = std::next(canonical_ppn_and_ppn);
         else {
+            ppn_to_canonical_ppn_map->erase(canonical_ppn_and_ppn->second);
             canonical_ppn_and_ppn = canonical_ppn_to_ppn_map->erase(canonical_ppn_and_ppn);
             ++dropped_count; // Dropped a non-canonical PPN.
         }
@@ -250,10 +251,14 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
                 new_non_canonical_ppns.emplace(current_canonical_ppn_and_ppn->second);
             current_canonical_ppn_and_ppn = canonical_ppn_to_ppn_map->erase(current_canonical_ppn_and_ppn);
         }
+        ppn_to_canonical_ppn_map->erase(new_canonical_ppn);
 
         // Re-insert w/ new key:
-        for (const auto &new_non_canonical_ppn : new_non_canonical_ppns)
+        for (const auto &new_non_canonical_ppn : new_non_canonical_ppns) {
             canonical_ppn_to_ppn_map->emplace(new_canonical_ppn, new_non_canonical_ppn);
+            auto non_canonical_ppn_and_canonical_ppn(ppn_to_canonical_ppn_map->find(new_non_canonical_ppn));
+            non_canonical_ppn_and_canonical_ppn->second = new_canonical_ppn;
+        }
     }
 
     if (debug) {

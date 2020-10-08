@@ -75,8 +75,9 @@ class Writer {
     archive *archive_handle_;
     archive_entry *archive_entry_;
     std::unordered_set<std::string> already_seen_archive_names_;
+    bool closed_;
 public:
-    enum class FileType { AUTO, TAR, GZIPPED_TAR };
+    enum class FileType { AUTO, TAR, GZIPPED_TAR, ZIP };
     enum class EntryType { REGULAR_FILE };
 public:
     // \param archive_write_options  Currently supported is only "compression-level" for gzipped archives!
@@ -85,7 +86,9 @@ public:
 
     explicit Writer(const std::string &archive_file_name, const FileType file_type = FileType::AUTO)
         : Writer(archive_file_name, "", file_type) { }
-    ~Writer();
+    ~Writer() { close(); }
+
+    void close(); //\note idempotent!
 
     void add(const std::string &filename, std::string archive_name = "");
 
@@ -95,7 +98,8 @@ public:
     //
     void addEntry(const std::string &filename, const int64_t size, const mode_t mode = 0644,
                   const EntryType entry_type = EntryType::REGULAR_FILE);
-    void write(char * const buffer, const size_t size);
+    void write(const char * const buffer, const size_t size);
+    inline void write(const std::string &buffer) { write(buffer.c_str(), buffer.size()); }
 };
 
 
