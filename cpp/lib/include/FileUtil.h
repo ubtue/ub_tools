@@ -147,7 +147,6 @@ public:
         mode_t getFileTypeAndMode() const { return statbuf_.st_mode; }
     private:
         Entry(const std::string &dirname): dirname_(dirname) { }
-        Entry(const struct dirent &entry, const std::string &dirname);
     };
 public:
     class const_iterator {

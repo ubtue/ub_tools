@@ -20,6 +20,7 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
+#include "Archive.h"
 #include "DbConnection.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
@@ -37,7 +38,7 @@ DbConnection *OpenOrCreateDatabase() {
         return new DbConnection(DATABASE_PATH, DbConnection::READWRITE);
 
     DbConnection *db_connection(new DbConnection(DATABASE_PATH, DbConnection::CREATE));
-    db_connection->queryOrDie("CREATE TABLE missing_references (ppn PRIMARY TEXT KEY) WITHOUT ROWID");
+    db_connection->queryOrDie("CREATE TABLE missing_references (ppn TEXT PRIMARY KEY) WITHOUT ROWID");
     return db_connection;
 }
 
@@ -86,29 +87,50 @@ int Main(int argc, char *argv[]) {
         }
     }
 
-    std::string email_attachement;
-    unsigned new_missing_count(0);
+    std::unordered_set<std::string> new_missing_ppns;
+    std::string missing_references_text;
     for (const auto &[missing_ppn, referers] : missing_ppns_to_referers_map) {
         db_connection->queryOrDie("SELECT ppn FROM missing_references WHERE ppn='" + missing_ppn + "'");
         const DbResultSet result_set(db_connection->getLastResultSet());
         if (result_set.empty()) {
-            ++new_missing_count;
-            email_attachement +=  missing_ppn + " <- " + StringUtil::Join(referers, ", ") + "\n";
-            db_connection->queryOrDie("INSERT INTO missing_references (ppn) VALUES ('" + missing_ppn + "')");
+            new_missing_ppns.emplace(missing_ppn);
+            missing_references_text += missing_ppn + " <- " + StringUtil::Join(referers, ", ") + "\n";
         }
     }
 
-    LOG_INFO("Found " + std::to_string(missing_ppns_to_referers_map.size()) + " new missing reference(s).");
+    LOG_INFO("Found " + std::to_string(new_missing_ppns.size()) + " new missing reference(s).");
 
-    if (not email_attachement.empty()) {
+    if (not new_missing_ppns.empty()) {
+        const std::string ZIP_FILENAME("/tmp/missing_ppns.zip");
+        ::unlink(ZIP_FILENAME.c_str());
+        Archive::Writer archive_writer(ZIP_FILENAME, Archive::Writer::FileType::ZIP);
+        archive_writer.addEntry("missing_ppns", missing_references_text.size());
+        archive_writer.write(missing_references_text);
+        archive_writer.close();
+
         const auto status_code(EmailSender::SendEmail("nobody@nowhere.com", email_address, "Missing PPN's",
-                                                      "Attached is the new list of " + std::to_string(new_missing_count) + " missing PPN('s).",
+                                                      "Attached is the new list of " + std::to_string(new_missing_ppns.size()) + " missing PPN('s).",
                                                       EmailSender::DO_NOT_SET_PRIORITY, EmailSender::PLAIN_TEXT, /* reply_to = */"",
-                                                      /* use_ssl = */true, /* use_authentication = */true, { email_attachement }));
+                                                      /* use_ssl = */true, /* use_authentication = */true, { ZIP_FILENAME }));
         if (status_code > 299)
             LOG_ERROR("Failed to send an email to \"" + email_address + "\"!  The server returned "
                       + std::to_string(status_code) + ".");
+
+        const unsigned BATCH_SIZE(20);
+        std::string values;
+        unsigned count(0);
+        for (const auto &new_missing_ppn : new_missing_ppns) {
+            values += "('" + new_missing_ppn + "'),";
+            ++count;
+            if (count == BATCH_SIZE) {
+                values.resize(values.size() - 1); // Strip off the last comma.
+                db_connection->queryOrDie("INSERT INTO missing_references (ppn) VALUES " + values);
+                count = 0, values.clear();
+            }
+        }
+        if (not values.empty())
+            db_connection->queryOrDie("INSERT INTO missing_references (ppn) VALUES " + values);
     }
 
-    return EXIT_FAILURE;
+    return EXIT_SUCCESS;
 }
