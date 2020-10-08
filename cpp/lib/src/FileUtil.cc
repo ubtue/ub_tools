@@ -137,17 +137,6 @@ SELinuxFileContext::SELinuxFileContext(const std::string &path) {
 }
 
 
-Directory::Entry::Entry(const struct dirent &entry, const std::string &dirname)
-    : dirname_(dirname), name_(entry.d_name)
-{
-    errno = 0;
-    if (::stat((dirname_ + "/" + name_).c_str(), &statbuf_) != 0)
-        throw std::runtime_error("in FileUtil::Directory::Entry::Entry: stat(2) on \""
-                                 + dirname_ + "/" + name_ + " \"failed! ("
-                                 + std::string(std::strerror(errno)) + ")");
-}
-
-
 Directory::Entry::Entry(const Directory::Entry &other)
     : dirname_(other.dirname_), name_(other.name_), statbuf_(other.statbuf_)
 {
@@ -197,13 +186,14 @@ void Directory::const_iterator::advance() {
             return;
         }
 
-        if (regex_matcher_->matched(entry_ptr->d_name)) {
-            entry_.name_ = std::string(entry_ptr->d_name);
-            if (::stat((entry_.dirname_ + "/" + entry_.name_).c_str(), &entry_.statbuf_) != 0)
+        entry_.name_ = std::string(entry_ptr->d_name);
+        if (regex_matcher_->matched(entry_.name_)) {
+            if (::stat((entry_.dirname_ + "/" + entry_.name_).c_str(), &entry_.statbuf_) == 0)
+                return;
+            else if (errno != ENOENT)
                 throw std::runtime_error("in FileUtil::Directory::Entry::Entry: stat(2) on \""
                                          + entry_.dirname_ + "/" + entry_.name_ + " \"failed! ("
                                          + std::string(std::strerror(errno)) + ")");
-            return;
         }
     }
 }
