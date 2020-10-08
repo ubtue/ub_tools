@@ -144,7 +144,7 @@ Writer::Writer(const std::string &archive_file_name, const std::string &archive_
             if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
                 LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"! (1)");
             if (::archive_write_set_format_pax_restricted(archive_handle_) != ARCHIVE_OK)
-                LOG_ERROR("failed to call archive_write_set_format_pax_restricted(3): " + std::string(::archive_error_string(archive_handle_)));
+                LOG_ERROR("failed to call archive_write_set_format_pax_restricted(3): " + std::string(::archive_error_string(archive_handle_)) + " (2)");
         } else if (StringUtil::EndsWith(archive_file_name, ".zip")) {
             if (::archive_write_set_format_zip(archive_handle_) != ARCHIVE_OK)
                 LOG_ERROR("failed to call archive_write_set_format_zip(3): " + std::string(::archive_error_string(archive_handle_)));
@@ -157,19 +157,19 @@ Writer::Writer(const std::string &archive_file_name, const std::string &archive_
         if (unlikely(not archive_write_options.empty()))
             LOG_ERROR("no write options are currently supported for the uncompressed tar format! (2)");
         if (::archive_write_set_format_pax_restricted(archive_handle_) != ARCHIVE_OK)
-            LOG_ERROR("failed to call archive_write_set_format_pax_restricted(3): " + std::string(::archive_error_string(archive_handle_)));
+            LOG_ERROR("failed to call archive_write_set_format_pax_restricted(3): " + std::string(::archive_error_string(archive_handle_)) + " (3)");
         break;
     case FileType::GZIPPED_TAR:
         if (::archive_write_add_filter_gzip(archive_handle_) != ARCHIVE_OK)
-            LOG_ERROR("failed to call archive_write_add_filter_gzip(3): " + std::string(::archive_error_string(archive_handle_)));
+            LOG_ERROR("failed to call archive_write_add_filter_gzip(3): " + std::string(::archive_error_string(archive_handle_)) + " (2)");
         if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
             LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"! (3)");
         if (::archive_write_set_format_pax_restricted(archive_handle_) != ARCHIVE_OK)
-            LOG_ERROR("failed to call archive_write_set_format_pax_restricted(3): " + std::string(::archive_error_string(archive_handle_)));
+            LOG_ERROR("failed to call archive_write_set_format_pax_restricted(3): " + std::string(::archive_error_string(archive_handle_)) + " (4)");
         break;
     case FileType::ZIP:
         if (::archive_write_set_format_zip(archive_handle_) != ARCHIVE_OK)
-            LOG_ERROR("failed to call archive_write_set_format_zip(3): " + std::string(::archive_error_string(archive_handle_)));
+            LOG_ERROR("failed to call archive_write_set_format_zip(3): " + std::string(::archive_error_string(archive_handle_)) + " (2)");
         if (unlikely(::archive_write_set_options(archive_handle_, archive_write_options.c_str()) != ARCHIVE_OK))
             LOG_ERROR("failed to call archive_write_set_options(3) w/ \"" + archive_write_options + "\"! (4)");
         break;
