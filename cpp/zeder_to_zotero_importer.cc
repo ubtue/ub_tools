@@ -269,6 +269,9 @@ bool GetValidValue(const Config::JournalParams::IniKey &key, std::string * const
     if (value->empty())
         return true;
 
+    if (*value == "-?-")
+        return false;
+
     if (key == Config::JournalParams::IniKey::ONLINE_ISSN or key == Config::JournalParams::IniKey::PRINT_ISSN) {
         std::vector<std::string> issns;
         StringUtil::SplitThenTrimWhite(*value, ';', &issns);
