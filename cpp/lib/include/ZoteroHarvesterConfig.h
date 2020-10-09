@@ -215,7 +215,7 @@ void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr
 
 /** \brief Checks if the given language is an allowed language.
  *  \note  Possible allowed languages:
- *         - 3-letter english languages code (see IsNormalizedLanguage)
+ *         - 3-letter english language code (see IsNormalizedLanguage)
  *         - 2-letter english language code (see TranslationUtil)
  *         - 3 or 4-letter german language code (see TranslationUtil)
  */
