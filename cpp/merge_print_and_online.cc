@@ -709,7 +709,7 @@ bool MergeFieldPair022(MARC::Record::Field * const merge_field, const MARC::Reco
 // Special handling for the title statements.
 bool MergeFieldPair245(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field,
                        MARC::Record * const merge_record, const MARC::Record &import_record,
-                       const bool import_title_is_newer)
+                       const bool import_record_is_newer)
 {
     if (merge_field->getTag() != "245" or import_field.getTag() != "245")
         return false;
@@ -724,7 +724,7 @@ bool MergeFieldPair245(MARC::Record::Field * const merge_field, const MARC::Reco
             return true;
     }
 
-    if (import_title_is_newer) {
+    if (import_record_is_newer) {
         *merge_field = import_field;
         merge_record->insertField("246", { { 'a', merge_title },
                                   { 'g', merge_record->isElectronicResource() ? "electronic" : "print" + std::string(" title") } },
