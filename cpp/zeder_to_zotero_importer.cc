@@ -283,6 +283,11 @@ bool GetValidValue(const Config::JournalParams::IniKey &key, std::string * const
         return false;
     }
 
+    if (key == Config::JournalParams::IniKey::EXPECTED_LANGUAGES) {
+        Config::LanguageParams language_params;
+        return Config::ParseExpectedLanguages(*value, &language_params);
+    }
+
     if ((key == Config::JournalParams::IniKey::ONLINE_PPN or key == Config::JournalParams::IniKey::PRINT_PPN)
         and not MiscUtil::IsValidPPN(*value))
             return false;
