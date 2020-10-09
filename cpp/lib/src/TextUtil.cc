@@ -1285,14 +1285,14 @@ static std::string DecodeUnicodeEscapeSequence(std::string::const_iterator &ch, 
 static char DecodeHexadecimalEscapeSequence(std::string::const_iterator &ch, const std::string::const_iterator &end) {
     ++ch;
     if (unlikely(ch == end))
-        std::runtime_error("in TextUtil::DecodeHexadecimalEscapeSequence: missing first hex nibble at end of string!");
+        throw std::runtime_error("in TextUtil::DecodeHexadecimalEscapeSequence: missing first hex nibble at end of string!");
     std::string hex_string(1, *ch++);
     if (unlikely(ch == end))
-        std::runtime_error("in TextUtil::DecodeHexadecimalEscapeSequence: missing second hex nibble at end of string!");
+        throw std::runtime_error("in TextUtil::DecodeHexadecimalEscapeSequence: missing second hex nibble at end of string!");
     hex_string += *ch;
     unsigned byte;
     if (unlikely(not StringUtil::ToNumber(hex_string, &byte, 16)))
-        std::runtime_error("in TextUtil::DecodeHexadecimalEscapeSequence: bad hex escape \"\\x" + hex_string + "\"!");
+        throw std::runtime_error("in TextUtil::DecodeHexadecimalEscapeSequence: bad hex escape \"\\x" + hex_string + "\"!");
 
     return static_cast<char>(byte);
 }
