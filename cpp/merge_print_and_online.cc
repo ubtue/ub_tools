@@ -707,15 +707,15 @@ bool MergeFieldPair022(MARC::Record::Field * const merge_field, const MARC::Reco
 
 
 // Special handling for the title statements.
-bool MergeFieldPair245(const MARC::Record::Field &merge_field, const MARC::Record::Field &import_field,
-                       MARC::Record * const merge_record, const MARC::Record &import_record)
+bool MergeFieldPair245(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field,
+                       MARC::Record * const merge_record, const MARC::Record &import_record,
+                       const bool import_title_is_newer)
 {
-    if (merge_field.getTag() != "245" or import_field.getTag() != "245")
+    if (merge_field->getTag() != "245" or import_field.getTag() != "245")
         return false;
 
-    const auto merge_title(merge_field.getFirstSubfieldWithCode('a'));
+    const auto merge_title(merge_field->getFirstSubfieldWithCode('a'));
     const auto import_title(import_field.getFirstSubfieldWithCode('a'));
-
     if (FuzzyEqual(merge_title, import_title))
         return true;
 
@@ -724,10 +724,16 @@ bool MergeFieldPair245(const MARC::Record::Field &merge_field, const MARC::Recor
             return true;
     }
 
-    const bool import_title_is_newer(import_record.getPublicationYear() > merge_record->getPublicationYear());
-    merge_record->insertField("246", { { 'a', import_title_is_newer ? import_title : merge_title },
-                                       { 'g', import_record.isElectronicResource() ? "electronic" : "print" + std::string(" title") } },
-                              /* indicator1 = */'2', /*indicator2 = */'3');
+    if (import_title_is_newer) {
+        *merge_field = import_field;
+        merge_record->insertField("246", { { 'a', merge_title },
+                                  { 'g', merge_record->isElectronicResource() ? "electronic" : "print" + std::string(" title") } },
+                                  /* indicator1 = */'2', /*indicator2 = */'3');
+    } else {
+        merge_record->insertField("246", { { 'a', import_title },
+                                  { 'g', import_record.isElectronicResource() ? "electronic" : "print" + std::string(" title") } },
+                                  /* indicator1 = */'2', /*indicator2 = */'3');
+    }
 
     return true;
 }
@@ -817,6 +823,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
     import_record->reTag("260", "264");
 
     bool clean_up_field_order_and_dedup_merged_record(false);
+    const bool import_record_is_newer(import_record->isProbablyNewerThan(*merge_record));
     for (const auto &import_field : *import_record) {
         const bool import_field_repeatable(import_field.isRepeatableField());
         bool compare_indicators(import_field_repeatable), compare_subfields(import_field_repeatable);
@@ -861,8 +868,10 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             continue;
         }
 
-        if (MergeFieldPair245(merge_field, import_field, merge_record, *import_record))
+        if (MergeFieldPair245(&merge_field, import_field, merge_record, *import_record, import_record_is_newer)) {
+            merge_field_pos->swap(merge_field);
             continue;
+        }
 
         if (MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)) {
             if (GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
