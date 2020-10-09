@@ -213,15 +213,31 @@ void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr
                              const IniFile::Section config_overrides = IniFile::Section());
 
 
+/** \brief Checks if the given language is an allowed language.
+ *  \note  Possible allowed languages:
+ *         - 3-letter english languages code (see IsNormalizedLanguage)
+ *         - 2-letter english language code (see TranslationUtil)
+ *         - 3 or 4-letter german language code (see TranslationUtil)
+ */
 bool IsAllowedLanguage(const std::string &language);
 
 
+/** \brief Checks if the given language is a normalized language.
+ *  \note  Normalized Language = 3-letter english languages code (see TranslationUtil)
+ */
 bool IsNormalizedLanguage(const std::string &language);
 
 
+/** \brief  Converts an allowed language to a normalized language.
+ *  \throws std::runtime_error if a non-allowed language is given.
+ */
 std::string GetNormalizedLanguage(const std::string &language);
 
 
+/** \brief Check if INI string for expected languages is valid & return struct if possible.
+ *  \note  Can be used e.g. when parsing the INI file or trying to import values from Zeder to INI.
+ *  \note  Empty string is allowed (returns defaults).
+ */
 bool ParseExpectedLanguages(const std::string &expected_languages_string, LanguageParams * const language_params);
 
 
