@@ -589,21 +589,15 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
     } else if (metadata_record->language_.empty()) {
         LOG_DEBUG(autodetect_message + "empty language");
         autodetect_language = true;
-    } else if (not TranslationUtil::IsValidInternational2LetterCode(metadata_record->language_)
-               and not TranslationUtil::IsValidGerman3Or4LetterCode(metadata_record->language_))
-    {
+    } else if (not Config::IsAllowedLanguage(metadata_record->language_)) {
         LOG_DEBUG(autodetect_message + "invalid language \"" + metadata_record->language_ + "\"");
         autodetect_language = true;
     }
 
     if (autodetect_language)
         IdentifyMissingLanguage(metadata_record, journal_params);
-    else {
-        if (TranslationUtil::IsValidInternational2LetterCode(metadata_record->language_))
-            metadata_record->language_ = TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(metadata_record->language_);
-        if (TranslationUtil::IsValidGerman3Or4LetterCode(metadata_record->language_))
-            metadata_record->language_ = TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(metadata_record->language_);
-    }
+    else
+        metadata_record->language_ = Config::GetNormalizedLanguage(metadata_record->language_);
 
     // fill-in license and SSG values
     if (journal_params.license_ == "LF")
