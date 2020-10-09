@@ -392,7 +392,7 @@ std::string IniFile::DefaultIniFileName() {
 
 
 void IniFile::processSectionHeader(const std::string &line) {
-    if (line[line.length()-1] != ']')
+    if (line[line.length() - 1] != ']')
         throw std::runtime_error("in IniFile::processSectionHeader: "
                                  "garbled section header on line " +
                                  std::to_string(getCurrentLineNo()) + " in file \""
@@ -507,7 +507,13 @@ void IniFile::processSectionEntry(const std::string &line, const std::string &co
                                          + getCurrentFile() + "!");
 
             value = value.substr(1, value.length() - 2);
-            TextUtil::CStyleUnescape(&value);
+            try {
+                TextUtil::CStyleUnescape(&value);
+            } catch (const std::runtime_error &x) {
+                throw std::runtime_error("in IniFile::processSectionEntry: bad escape on line "
+                                         + std::to_string(getCurrentLineNo()) + " in file \""
+                                         + getCurrentFile() + "! (" + std::string(x.what()) + ")");
+            }
         }
 
         sections_.back().insert(variable_name, value, comment);
