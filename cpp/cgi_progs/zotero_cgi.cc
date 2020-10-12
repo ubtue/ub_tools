@@ -537,6 +537,7 @@ void ProcessShowLogsAction() {
     else {
         std::cout << "<p>This view contains the last 1000 lines of the log,<br>"
                   << "even if they don't belong to your run!</p>"
+                  << "<p>Need help? <a href=\"//github.com/ubtue/zotero-translation-server/wiki/Logging\" target=\"_blank\">See Wiki</a></p>"
                   << "<pre>"
                   << tail_output
                   << "</pre>";
