@@ -367,6 +367,7 @@ std::string GetNormalizedLanguage(const std::string &language) {
 
 bool ParseExpectedLanguages(const std::string &expected_languages_string, LanguageParams * const language_params) {
     // Setting is optional, so empty value is allowed (use defaults)
+    language_params->reset();
     if (expected_languages_string.empty())
         return true;
 
