@@ -20,8 +20,9 @@
 #include "MapUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
-#include "ZoteroHarvesterConfig.h"
+#include "TranslationUtil.h"
 #include "UBTools.h"
+#include "ZoteroHarvesterConfig.h"
 #include "util.h"
 
 
@@ -185,18 +186,8 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     if (not review_regex.empty())
         review_regex_.reset(new ThreadSafeRegexMatcher(review_regex));
 
-    language_params_.force_automatic_language_detection_ = false;
-    auto expected_languages(journal_section.getString(GetIniKeyString(EXPECTED_LANGUAGES), ""));
-    if (not expected_languages.empty() and expected_languages[0] == '*') {
-        language_params_.force_automatic_language_detection_ = true;
-        expected_languages = expected_languages.substr(1);
-    }
-    const auto field_separator_pos(expected_languages.find(':'));
-    if (field_separator_pos != std::string::npos) {
-        language_params_.source_text_fields_ = expected_languages.substr(0, field_separator_pos);
-        expected_languages = expected_languages.substr(field_separator_pos + 1);
-    }
-    StringUtil::Split(expected_languages, ',', &language_params_.expected_languages_, /* suppress_empty_components = */true);
+    if (not ParseExpectedLanguages(journal_section.getString(GetIniKeyString(EXPECTED_LANGUAGES), ""), &language_params_))
+        LOG_ERROR("invalid setting for expected languages!");
 
     crawl_params_.max_crawl_depth_ = journal_section.getUnsigned(GetIniKeyString(CRAWL_MAX_DEPTH), 0);
     const auto extraction_regex(journal_section.getString(GetIniKeyString(CRAWL_EXTRACTION_REGEX), ""));
@@ -346,6 +337,77 @@ void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr
 
     if (config_file != nullptr)
         config_file->reset(ini.release());
+}
+
+
+bool IsAllowedLanguage(const std::string &language) {
+    return IsNormalizedLanguage(language) or
+           TranslationUtil::IsValidInternational2LetterCode(language) or
+           TranslationUtil::IsValidGerman3Or4LetterCode(language);
+}
+
+
+bool IsNormalizedLanguage(const std::string &language) {
+    return TranslationUtil::IsValidFake3Or4LetterEnglishLanguagesCode(language);
+}
+
+
+std::string GetNormalizedLanguage(const std::string &language) {
+    std::string normalized_language(language);
+    if (TranslationUtil::IsValidInternational2LetterCode(normalized_language))
+        normalized_language = TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(normalized_language);
+    // Here we do NOT use elseif, since we want to continue the conversion if the first mapping was successful
+    if (TranslationUtil::IsValidGerman3Or4LetterCode(normalized_language))
+        normalized_language = TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(normalized_language);
+    if (not IsNormalizedLanguage(normalized_language))
+        throw std::runtime_error("unable to normalize language: \"" + language + "\"");
+    return normalized_language;
+}
+
+
+bool ParseExpectedLanguages(const std::string &expected_languages_string, LanguageParams * const language_params) {
+    // Setting is optional, so empty value is allowed (use defaults)
+    language_params->reset();
+    if (expected_languages_string.empty())
+        return true;
+
+    std::string expected_languages(expected_languages_string);
+
+    // force?
+    if (not expected_languages_string.empty() and expected_languages[0] == '*') {
+        language_params->force_automatic_language_detection_ = true;
+        expected_languages = expected_languages.substr(1);
+    }
+
+    // source text fields
+    const auto field_separator_pos(expected_languages.find(':'));
+    if (field_separator_pos != std::string::npos) {
+        const std::string source_text_fields = expected_languages.substr(0, field_separator_pos);
+        if (source_text_fields != "title" and source_text_fields != "abstract" and source_text_fields != "title+abstract") {
+            LOG_WARNING("invalid value for source text fields: '" + source_text_fields + "'");
+            return false;
+        }
+
+        language_params->source_text_fields_ = source_text_fields;
+        expected_languages = expected_languages.substr(field_separator_pos + 1);
+    }
+
+    // language candidates
+    std::set<std::string> expected_languages_candidates;
+    StringUtil::Split(expected_languages, ',', &expected_languages_candidates, /* suppress_empty_components = */true);
+    if (expected_languages_candidates.size() == 0)
+        return false;
+    for (const auto &expected_language : expected_languages_candidates) {
+        if (not IsAllowedLanguage(expected_language)) {
+            LOG_WARNING("invalid language '" + expected_language + "'!");
+            return false;
+        }
+
+        expected_languages_candidates.emplace(GetNormalizedLanguage(expected_language));
+    }
+
+    language_params->expected_languages_ = expected_languages_candidates;
+    return true;
 }
 
 
