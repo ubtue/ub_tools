@@ -186,8 +186,9 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     if (not review_regex.empty())
         review_regex_.reset(new ThreadSafeRegexMatcher(review_regex));
 
-    if (not ParseExpectedLanguages(journal_section.getString(GetIniKeyString(EXPECTED_LANGUAGES), ""), &language_params_))
-        LOG_ERROR("invalid setting for expected languages!");
+    const std::string expected_languages(journal_section.getString(GetIniKeyString(EXPECTED_LANGUAGES), ""));
+    if (not ParseExpectedLanguages(expected_languages, &language_params_))
+        LOG_ERROR("invalid setting for expected languages: \"" + expected_languages + "\"");
 
     crawl_params_.max_crawl_depth_ = journal_section.getUnsigned(GetIniKeyString(CRAWL_MAX_DEPTH), 0);
     const auto extraction_regex(journal_section.getString(GetIniKeyString(CRAWL_EXTRACTION_REGEX), ""));
