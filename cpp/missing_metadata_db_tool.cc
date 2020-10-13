@@ -1,4 +1,4 @@
-/** \brief Utility for finding oerforming certain edits on the metadata_presence_tracer MySQL table in ub_tools.
+/** \brief Utility for finding performing certain edits on the metadata_presence_tracer MySQL table in ub_tools.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.

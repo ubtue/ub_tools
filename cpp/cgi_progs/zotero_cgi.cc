@@ -416,16 +416,20 @@ bool ProcessShowQASubActionAdd(const std::multimap<std::string, std::string> &cg
     // sub-action "add"
     const std::string add_type(GetCGIParameterOrDefault(cgi_args, "add_type"));
     const std::string add_tag(GetCGIParameterOrDefault(cgi_args, "add_tag"));
+    const std::string add_subfield_code(GetCGIParameterOrDefault(cgi_args, "add_subfield_code"));
     const std::string add_presence(GetCGIParameterOrDefault(cgi_args, "add_presence"));
-    if (add_type.empty() or add_tag.empty() or add_presence.empty())
+    const std::string add_record_type(GetCGIParameterOrDefault(cgi_args, "add_record_type"));
+    if (add_type.empty() or add_tag.empty() or add_subfield_code.empty() or add_presence.empty() or add_record_type.empty())
         return false;
 
     std::string journal_id_to_insert = db_connection->escapeAndQuoteString(zeder_journal_id);
     if (add_type == "global")
         journal_id_to_insert = "NULL";
 
-    db_connection->queryOrDie("INSERT INTO metadata_presence_tracer (zeder_journal_id, metadata_field_name, field_presence) "
+    db_connection->queryOrDie("INSERT INTO metadata_presence_tracer (zeder_journal_id, metadata_field_name, subfield_code, field_presence, record_type) "
                               " VALUES (" + journal_id_to_insert + ", " + db_connection->escapeAndQuoteString(add_tag) + ", "
+                              db_connection->escapeAndQuoteString(add_subfield_code) + ", "
+                              " " + db_connection->escapeAndQuoteString(add_record_type) + ", ";
                               " " + db_connection->escapeAndQuoteString(add_presence) + ")");
     return true;
 }
@@ -436,7 +440,9 @@ bool ProcessShowQASubActionDelete(const std::multimap<std::string, std::string> 
 {
     const std::string delete_type(GetCGIParameterOrDefault(cgi_args, "delete_type"));
     const std::string delete_tag(GetCGIParameterOrDefault(cgi_args, "delete_tag"));
-    if (delete_type.empty() or delete_tag.empty())
+    const std::string delete_subfield_code(GetCGIParameterOrDefault(cgi_args, "delete_subfield_code"));
+    const std::string delete_record_type(GetCGIParameterOrDefault(cgi_args, "delete_record_type"));
+    if (delete_type.empty() or delete_tag.empty() or delete_subfield_code.empty() or delete_record_type.empty())
         return false;
 
     std::string journal_id_to_delete(" = " + db_connection->escapeAndQuoteString(zeder_journal_id));
@@ -445,7 +451,9 @@ bool ProcessShowQASubActionDelete(const std::multimap<std::string, std::string> 
 
     db_connection->queryOrDie("DELETE FROM metadata_presence_tracer "
                              "WHERE zeder_journal_id " + journal_id_to_delete + " "
-                             "AND metadata_field_name = " + db_connection->escapeAndQuoteString(delete_tag));
+                             "AND metadata_field_name = " + db_connection->escapeAndQuoteString(delete_tag)
+                             "AND subfield_code = " + db_connection->escapeAndQuoteString(delete_subfield_code) + " "
+                             "AND delete_record_type = " + db_connection->escapeAndQuoteString(delete_record_type));
 
     return true;
 }
@@ -460,15 +468,14 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
 
     // try to get more details for given journal
     DbConnection db_connection;
-    {
-        db_connection.queryOrDie("SELECT id,journal_name FROM zeder_journals WHERE zeder_id=" + db_connection.escapeAndQuoteString(zeder_id) +
-                                 " AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance));
-        auto result_set(db_connection.getLastResultSet());
-        while (const auto row = result_set.getNextRow()) {
-            zeder_journal_id = row["id"];
-            journal_name = row["journal_name"];
-        }
+    db_connection.queryOrDie("SELECT id,journal_name FROM zeder_journals WHERE zeder_id=" + db_connection.escapeAndQuoteString(zeder_id) +
+                             " AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance));
+    auto result_set(db_connection.getLastResultSet());
+    while (const auto row = result_set.getNextRow()) {
+        zeder_journal_id = row["id"];
+        journal_name = row["journal_name"];
     }
+    result_set.close();
 
     if (ProcessShowQASubActionDelete(cgi_args, &db_connection, zeder_journal_id)
         or ProcessShowQASubActionAdd(cgi_args, &db_connection, zeder_journal_id))
@@ -480,10 +487,10 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
                              " AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance) + ")"
                              " ORDER BY metadata_field_name ASC, zeder_journal_id ASC");
 
-    auto result_set(db_connection.getLastResultSet());
+    auto result_set2(db_connection.getLastResultSet());
     std::map<std::string, std::pair<std::string, std::string>> tag_to_settings_map;
 
-    while (const auto row = result_set.getNextRow()) {
+    while (const auto row = result_set2.getNextRow()) {
         const auto iter(tag_to_settings_map.find(row["metadata_field_name"]));
         if (iter == tag_to_settings_map.end()) {
             if (row["zeder_journal_id"].empty())
