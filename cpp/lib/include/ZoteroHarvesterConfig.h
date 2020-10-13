@@ -122,6 +122,15 @@ private:
 };
 
 
+struct LanguageParams {
+    std::set<std::string> expected_languages_ = {"eng"};
+    std::string source_text_fields_ = "title";
+    bool force_automatic_language_detection_ = false;
+public:
+    void reset() { expected_languages_ = {"eng"}; source_text_fields_ = "title"; force_automatic_language_detection_ = false; }
+};
+
+
 // Parameters that pertain to a specific journal.
 struct JournalParams {
     enum IniKey : unsigned {
@@ -167,11 +176,7 @@ struct JournalParams {
     std::string ssgn_;
     std::string license_;
     std::unique_ptr<ThreadSafeRegexMatcher> review_regex_;
-    struct {
-        std::set<std::string> expected_languages_;
-        std::string source_text_fields_;
-        bool force_automatic_language_detection_;
-    } language_params_;
+    LanguageParams language_params_;
     struct {
         unsigned max_crawl_depth_;
         std::unique_ptr<ThreadSafeRegexMatcher> extraction_regex_;
@@ -208,6 +213,34 @@ void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr
                              std::vector<std::unique_ptr<JournalParams>> * const journal_params,
                              std::unique_ptr<IniFile> * const config_file = nullptr,
                              const IniFile::Section config_overrides = IniFile::Section());
+
+
+/** \brief Checks if the given language is an allowed language.
+ *  \note  Possible allowed languages:
+ *         - 3-letter english language code (see IsNormalizedLanguage)
+ *         - 2-letter english language code (see TranslationUtil)
+ *         - 3 or 4-letter german language code (see TranslationUtil)
+ */
+bool IsAllowedLanguage(const std::string &language);
+
+
+/** \brief Checks if the given language is a normalized language.
+ *  \note  Normalized Language = 3-letter english languages code (see TranslationUtil)
+ */
+bool IsNormalizedLanguage(const std::string &language);
+
+
+/** \brief  Converts an allowed language to a normalized language.
+ *  \throws std::runtime_error if a non-allowed language is given.
+ */
+std::string GetNormalizedLanguage(const std::string &language);
+
+
+/** \brief Check if INI string for expected languages is valid & return struct if possible.
+ *  \note  Can be used e.g. when parsing the INI file or trying to import values from Zeder to INI.
+ *  \note  Empty string is allowed (returns defaults).
+ */
+bool ParseExpectedLanguages(const std::string &expected_languages_string, LanguageParams * const language_params);
 
 
 } // end namespace Config
