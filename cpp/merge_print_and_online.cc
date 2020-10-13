@@ -868,10 +868,8 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             continue;
         }
 
-        if (MergeFieldPair245(&merge_field, import_field, merge_record, *import_record, import_record_is_newer)) {
-            merge_field_pos->swap(merge_field);
+        if (MergeFieldPair245(&merge_field, import_field, merge_record, *import_record, import_record_is_newer))
             continue;
-        }
 
         if (MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)) {
             if (GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
