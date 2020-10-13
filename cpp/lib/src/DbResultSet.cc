@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DbResultSet class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -57,11 +57,12 @@ DbResultSet::DbResultSet(DbResultSet &&other) {
 }
 
 
-DbResultSet::~DbResultSet() {
+DbResultSet::close() {
     if (result_set_ != nullptr)
         ::mysql_free_result(result_set_);
     else if (stmt_handle_ != nullptr and sqlite3_finalize(stmt_handle_) != SQLITE_OK)
         LOG_ERROR("failed to finalise an Sqlite3 statement!");
+    result_set_ = stmt_handle_ = nullptr;
 }
 
 
