@@ -69,11 +69,17 @@ bool StringToFieldPresence(const std::string &field_presence_str, FieldPresence 
 }
 
 
+enum RecordType { REGULAR_ARTICLE, REVIEW };
+
+
 struct FieldInfo {
     std::string name_;
+    char subfield_code_;
     FieldPresence presence_;
+    RecordType record_type_;
 public:
-    FieldInfo(const std::string &name, const FieldPresence presence): name_(name), presence_(presence) { }
+    FieldInfo(const std::string &name, const char subfield_code, const FieldPresence presence, const RecordType record_type)
+        : name_(name), subfield_code_(subfield_code), presence_(presence), record_type_(record_type) { }
 };
 
 
@@ -92,22 +98,25 @@ public:
 
     size_t size() const { return field_infos_.size(); }
 
-    void addField(const std::string &field_name, const FieldPresence field_presence)
-        { field_infos_.emplace_back(field_name, field_presence); }
+    void addField(const std::string &field_name, const char subfield_code, const FieldPresence field_presence,
+                  const RecordType record_type)
+        { field_infos_.emplace_back(field_name, subfield_code, field_presence, record_type); }
 
     void addField(const FieldInfo &field_info) { field_infos_.emplace_back(field_info); }
 
     const_iterator begin() const { return field_infos_.cbegin(); }
     const_iterator end() const { return field_infos_.cend(); }
-    const_iterator find(const std::string &field_name) const {
+    const_iterator find(const std::string &field_name, const char subfield_code) const {
         return std::find_if(field_infos_.begin(), field_infos_.end(),
-                            [&field_name](const FieldInfo &field_info){ return field_name == field_info.name_; });
+                            [&field_name, &subfield_code](const FieldInfo &field_info)
+                                { return field_name == field_info.name_ and subfield_code == field_info.subfield_code_; });
     }
     iterator begin() { return field_infos_.begin(); }
     iterator end() { return field_infos_.end(); }
-    iterator find(const std::string &field_name) {
+    iterator find(const std::string &field_name, const char subfield_code) {
         return std::find_if(field_infos_.begin(), field_infos_.end(),
-                            [&field_name](const FieldInfo &field_info){ return field_name == field_info.name_; });
+                            [&field_name, &subfield_code](const FieldInfo &field_info)
+                                { return field_name == field_info.name_ and subfield_code == field_info.subfield_code_; });
     }
 
     // Combine GeneralInfo with other General Info (e.g. JournalInfo).
@@ -129,7 +138,8 @@ GeneralInfo GeneralInfo::Combine(const GeneralInfo &lhs, const GeneralInfo &rhs)
             combined_info.addField(*lhs_iter);
             ++lhs_iter;
         } else {
-            const int compare_result(StringUtil::AlphaWordCompare(lhs_iter->name_, rhs_iter->name_));
+            const int compare_result(StringUtil::AlphaWordCompare(lhs_iter->name_ + std::string(1, lhs_iter->subfield_code_),
+                                                                  rhs_iter->name_ + std::string(1, rhs_iter->subfield_code_)));
             if (compare_result == 0) {
                 // if present on both sides, rhs wins!
                 combined_info.addField(*rhs_iter);
@@ -191,14 +201,34 @@ std::string FieldPresenceToString(const FieldPresence field_presence) {
 }
 
 
+RecordType StringToRecordType(const std::string &record_type_str) {
+    if (record_type_str == "regular_article")
+        return REGULAR_ARTICLE;
+    if (record_type_str == "review")
+        return REVIEW;
+    LOG_ERROR("unknown record type \"" + record_type_str + "\"!");
+}
+
+
+std::string RecordTypeToString(const RecordType record_type) {
+    switch (record_type) {
+    case REGULAR_ARTICLE:
+        return "regular_article";
+    case REVIEW:
+        return "review";
+    }
+}
+
+
 GeneralInfo LoadGeneralInfo(DbConnection * const db_connection) {
-    db_connection->queryOrDie("SELECT metadata_field_name,field_presence FROM metadata_presence_tracer "
+    db_connection->queryOrDie("SELECT metadata_field_name,field_presence,subfield_code,record_type FROM metadata_presence_tracer "
                               "WHERE zeder_journal_id IS NULL ORDER BY metadata_field_name ASC");
 
     GeneralInfo general_info;
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow())
-        general_info.addField(row["metadata_field_name"], StringToFieldPresence(row["field_presence"]));
+        general_info.addField(row["metadata_field_name"], row["subfield_code"][0], StringToFieldPresence(row["field_presence"]),
+                              StringToRecordType(row["record_type"]));
 
     return general_info;
 }
@@ -207,7 +237,7 @@ GeneralInfo LoadGeneralInfo(DbConnection * const db_connection) {
 void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, const std::string &zeder_id,
                                          const std::string &zeder_instance, JournalInfo * const journal_info)
 {
-    db_connection->queryOrDie("SELECT metadata_field_name,field_presence FROM metadata_presence_tracer "
+    db_connection->queryOrDie("SELECT metadata_field_name,subfield_code,field_presence,record_type FROM metadata_presence_tracer "
                               "LEFT JOIN zeder_journals ON zeder_journals.id = metadata_presence_tracer.zeder_journal_id "
                               "WHERE zeder_journals.zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) +
                               " AND zeder_journals.zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance) +
@@ -221,7 +251,8 @@ void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, con
 
     *journal_info = JournalInfo(zeder_id, zeder_instance, /* not_in_database_yet = */false);
     while (const auto row = result_set.getNextRow())
-        journal_info->addField(row["metadata_field_name"], StringToFieldPresence(row["field_presence"]));
+        journal_info->addField(row["metadata_field_name"], row["subfield_code"][0], StringToFieldPresence(row["field_presence"]),
+                               StringToRecordType(row["record_type"]));
 }
 
 
@@ -234,28 +265,31 @@ const std::map<std::string, std::string> EQUIVALENT_TAGS_MAP{
 void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record,
                              const GeneralInfo &general_info, JournalInfo * const journal_info)
 {
-    std::unordered_set<std::string> seen_tags;
+    std::unordered_set<std::string> seen_tags_and_subfield_codes;
     MARC::Tag last_tag;
     for (const auto &field : record) {
         auto current_tag(field.getTag());
         if (current_tag == last_tag)
             continue;
 
-        seen_tags.emplace(current_tag.toString());
+        const RecordType record_type(record.isReviewArticle() ? REVIEW : REGULAR_ARTICLE);
+        for (const auto &subfield : field.getSubfields()) {
+            if (general_info.find(current_tag.toString(), subfield.code_) != general_info.end())
+                continue;
 
-        if (general_info.find(current_tag.toString()) != general_info.end())
-            continue;
+            seen_tags_and_subfield_codes.emplace(current_tag.toString() + std::string(1, subfield.code_));
 
-        if (first_record)
-            journal_info->addField(current_tag.toString(), ALWAYS);
-        else if (journal_info->find(current_tag.toString()) == journal_info->end())
-            journal_info->addField(current_tag.toString(), SOMETIMES);
+            if (first_record)
+                journal_info->addField(current_tag.toString(), subfield.code_, ALWAYS, record_type);
+            else if (journal_info->find(current_tag.toString(), subfield.code_) == journal_info->end())
+                journal_info->addField(current_tag.toString(), subfield.code_, SOMETIMES, record_type);
+        }
 
         last_tag = current_tag;
     }
 
     for (auto &field_info : *journal_info) {
-        if (seen_tags.find(field_info.name_) == seen_tags.end())
+        if (seen_tags_and_subfield_codes.find(field_info.name_ + std::string(1, field_info.subfield_code_)) == seen_tags_and_subfield_codes.end())
             field_info.presence_ = SOMETIMES;
     }
 }
@@ -264,14 +298,11 @@ void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record
 bool RecordMeetsExpectations(const MARC::Record &record, const std::string &journal_name,
                              const GeneralInfo &general_info, const JournalInfo &journal_info)
 {
-    std::unordered_set<std::string> seen_tags;
-    MARC::Tag last_tag;
+    std::unordered_set<std::string> seen_tags_and_subfield_codes;
     for (const auto &field : record) {
-        const auto current_tag(field.getTag());
-        if (current_tag == last_tag)
-            continue;
-        seen_tags.emplace(current_tag.toString());
-        last_tag = current_tag;
+        const auto current_tag(field.getTag().toString());
+        for (const auto &subfield : field.getSubfields())
+            seen_tags_and_subfield_codes.emplace(current_tag + std::string(1, subfield.code_));
     }
 
     bool meets_expectations(true);
@@ -281,13 +312,15 @@ bool RecordMeetsExpectations(const MARC::Record &record, const std::string &jour
             continue;   // we only care about required fields that are missing
 
         const auto equivalent_tag(EQUIVALENT_TAGS_MAP.find(field_info.name_));
-        if (seen_tags.find(field_info.name_) != seen_tags.end())
+        if (seen_tags_and_subfield_codes.find(field_info.name_ + std::string(1, field_info.subfield_code_)) != seen_tags_and_subfield_codes.end())
             ;// required tag found
-        else if (equivalent_tag != EQUIVALENT_TAGS_MAP.end() and seen_tags.find(equivalent_tag->second) != seen_tags.end())
+        else if (equivalent_tag != EQUIVALENT_TAGS_MAP.end()
+                 and seen_tags_and_subfield_codes.find(equivalent_tag->second + std::string(1, field_info.subfield_code_))
+                     != seen_tags_and_subfield_codes.end())
             ;// equivalent tag found
         else {
             LOG_WARNING("Record w/ control number " + record.getControlNumber() + " in \"" + journal_name
-                     + "\" is missing the always expected " + field_info.name_ + " field.");
+                        + "\" is missing the always expected " + field_info.name_ + "$" + std::string(1, field_info.subfield_code_) + " subfield.");
             meets_expectations = false;
         }
     }
@@ -298,12 +331,14 @@ bool RecordMeetsExpectations(const MARC::Record &record, const std::string &jour
 
 void WriteToDatabase(DbConnection * const db_connection, const GeneralInfo &general_info, const JournalInfo &journal_info) {
     for (const auto &field_info : journal_info) {
-        if (general_info.find(field_info.name_) == general_info.end())
+        if (general_info.find(field_info.name_, field_info.subfield_code_) == general_info.end())
             db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET zeder_journal_id=(SELECT id FROM zeder_journals "
                                       "WHERE zeder_id=" + db_connection->escapeAndQuoteString(journal_info.getZederId()) + " "
                                       "AND zeder_instance=" + db_connection->escapeAndQuoteString(journal_info.getZederInstance()) + ")"
                                       ", metadata_field_name=" + db_connection->escapeAndQuoteString(field_info.name_) +
-                                      ", field_presence='" + FieldPresenceToString(field_info.presence_) + "'");
+                                      ", subfield_code='" + std::string(1, field_info.subfield_code_) + "'"
+                                      ", field_presence='" + FieldPresenceToString(field_info.presence_) + "'"
+                                      ", record_type='" + RecordTypeToString(field_info.record_type_) + "'");
     }
 }
 
