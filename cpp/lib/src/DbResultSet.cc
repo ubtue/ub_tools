@@ -57,12 +57,13 @@ DbResultSet::DbResultSet(DbResultSet &&other) {
 }
 
 
-DbResultSet::close() {
+void DbResultSet::close() {
     if (result_set_ != nullptr)
         ::mysql_free_result(result_set_);
     else if (stmt_handle_ != nullptr and sqlite3_finalize(stmt_handle_) != SQLITE_OK)
         LOG_ERROR("failed to finalise an Sqlite3 statement!");
-    result_set_ = stmt_handle_ = nullptr;
+    result_set_ = nullptr;
+    stmt_handle_ = nullptr;
 }
 
 
