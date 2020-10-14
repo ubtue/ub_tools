@@ -26,7 +26,7 @@ apt-add-repository --yes --update 'deb https://artifacts.elastic.co/packages/7.x
 
 # main installation
 apt-get --quiet --yes --allow-unauthenticated install \
-        ant apache2 ca-certificates cifs-utils clang cron curl gcc git imagemagick incron jq libarchive-dev \
+        ant apache2 ca-certificates cifs-utils clang cron curl fetchmail gcc git imagemagick incron jq libarchive-dev \
         libcurl4-gnutls-dev libdb-dev liblept5 libleptonica-dev liblz4-tool libmagic-dev libmysqlclient-dev \
         libpcre3-dev libpoppler73 libsqlite3-dev libssl-dev libstemmer-dev libtesseract-dev libwebp6 libxerces-c-dev \
         libxml2-dev libxml2-utils locales-all make mawk mutt mysql-utilities openjdk-8-jdk poppler-utils pyflakes sqlite3 \

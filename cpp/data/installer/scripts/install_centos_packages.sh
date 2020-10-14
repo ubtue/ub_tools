@@ -41,7 +41,7 @@ dnf --assumeyes update
 # basic dependencies
 InstallIfMissing "ca-certificates"
 dnf --assumeyes install \
-    ant bc cifs-utils clang crontabs ftp gawk gcc-c++ git glibc-all-langpacks ImageMagick incron java-1.8.0-openjdk-devel \
+    ant bc cifs-utils clang crontabs fetchmail ftp gawk gcc-c++ git glibc-all-langpacks ImageMagick incron java-1.8.0-openjdk-devel \
     jq libcurl-devel libdb-devel libsq3-devel libstemmer-devel libuuid-devel libwebp libxml2-devel libxml2 libxslt lsof lz4 make mariadb \
     mariadb-devel mariadb-server mariadb-server-utils mod_ssl mutt openssl-devel pcre-devel policycoreutils-python-utils \
     poppler poppler-utils python3 python3-pyflakes rpmdevtools sqlite sudo tidy unzip xerces-c-devel
