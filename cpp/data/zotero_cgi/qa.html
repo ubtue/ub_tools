@@ -29,11 +29,11 @@
                 </tr>
             </thead>
             <tbody>
-                {LOOP tags, global_settings, journal_settings}
+                {LOOP tags, subfield_codes, record_types, global_settings, journal_settings}
                     <tr>
-                        <td><a href="https://www.loc.gov/marc/bibliographic/bd{tags}.html" title="Link to external MARC 21 documentation at loc.gov" target="_blank">{tags}</a></td>
+                        <td><a href="https://www.loc.gov/marc/bibliographic/bd{tags}.html" title="Link to external MARC 21 documentation at loc.gov" target="_blank">{tags}${subfield_codes}&nbsp;{record_types}</a></td>
                         <td>{global_settings}</td>
-                        {IF journal_name != ""}<td>{journal_settings}{IF journal_settings != ""}<a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}&delete_tag={tags}&delete_type=local" title="Delete this rule" onclick="return confirm('Are you sure?')"><sup>x</sup></a>{ENDIF}</td>{ENDIF}
+                        {IF journal_name != ""}<td>{journal_settings}{IF journal_settings != ""}<a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}&delete_tag={tags}&delete_subfield_code={subfield_codes}&delete_record_type={record_types}&delete_type=local" title="Delete this rule" onclick="return confirm('Are you sure?')"><sup>x</sup></a>{ENDIF}</td>{ENDIF}
                     </tr>
                 {ENDLOOP}
             </tbody>
@@ -48,10 +48,15 @@
                 <p>Add new journal setting:</p>
                 <!-- The quantifier inside the pattern needs to be written as "{{3}" due to Template.h escaping rules! -->
                 <input name="add_tag" placeholder="3-digit tag number" required="required" minlength="3" maxlength="3" pattern="[0-9]{{3}">
+                <input name="add_subfield_code" placeholder="single character or digit subfield code" required="required" minlength="1" maxlength="1"p>
                 <select name="add_presence">
                     <option>always</option>
                     <option>sometimes</option>
                     <option>ignore</option>
+                </select>
+                <select name="add_record_type">
+                    <option selected="selected">regular_article</option>
+                    <option>review</option>
                 </select>
                 <button type="submit" name="add_type" value="local">Add as journal setting</button>
             {ENDIF}
