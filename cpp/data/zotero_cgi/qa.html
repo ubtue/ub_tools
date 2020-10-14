@@ -31,7 +31,7 @@
             <tbody>
                 {LOOP tags, subfield_codes, record_types, global_settings, journal_settings}
                     <tr>
-                        <td><a href="https://www.loc.gov/marc/bibliographic/bd{tags}.html" title="Link to external MARC 21 documentation at loc.gov" target="_blank">{tags}${subfield_codes}&nbsp;{record_types}</a></td>
+                        <td><a href="https://www.loc.gov/marc/bibliographic/bd{tags}.html" title="Link to external MARC 21 documentation at loc.gov" target="_blank">{tags}{IF subfield_codes != ""}${subfield_codes}{ELSE}&nbsp;&nbsp;{ENDIF}&nbsp;{record_types}</a></td>
                         <td>{global_settings}</td>
                         {IF journal_name != ""}<td>{journal_settings}{IF journal_settings != ""}<a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}&delete_tag={tags}&delete_subfield_code={subfield_codes}&delete_record_type={record_types}&delete_type=local" title="Delete this rule" onclick="return confirm('Are you sure?')"><sup>x</sup></a>{ENDIF}</td>{ENDIF}
                     </tr>
@@ -48,7 +48,7 @@
                 <p>Add new journal setting:</p>
                 <!-- The quantifier inside the pattern needs to be written as "{{3}" due to Template.h escaping rules! -->
                 <input name="add_tag" placeholder="3-digit tag number" required="required" minlength="3" maxlength="3" pattern="[0-9]{{3}">
-                <input name="add_subfield_code" placeholder="single character or digit subfield code" required="required" minlength="1" maxlength="1"p>
+                <input name="add_subfield_code" placeholder="single character or digit subfield code (If not present, the rule applies to the entire field.)" minlength="1" maxlength="1"p>
                 <select name="add_presence">
                     <option>always</option>
                     <option>sometimes</option>
