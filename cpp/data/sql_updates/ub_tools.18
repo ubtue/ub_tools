@@ -1,4 +1,4 @@
-ALTER TABLE metadata_presence_tracer ALTER COLUMN metadata_field_name CHAR(3);
+ALTER TABLE metadata_presence_tracer MODIFY COLUMN metadata_field_name CHAR(3);
 ALTER TABLE metadata_field_name ADD COLUMN record_type ENUM('regular_article', 'review') DEFAULT 'regular_article';
 ALTER TABLE metadata_field_name ADD COLUMN subfield_code CHAR(1) DEFAULT NULL;
 
