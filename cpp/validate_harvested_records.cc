@@ -80,7 +80,33 @@ struct FieldInfo {
 public:
     FieldInfo(const std::string &name, const char subfield_code, const FieldPresence presence, const RecordType record_type)
         : name_(name), subfield_code_(subfield_code), presence_(presence), record_type_(record_type) { }
+    bool operator<(const FieldInfo &rhs) const;
+    inline bool operator>(const FieldInfo &rhs) const { return rhs < *this; }
 };
+
+
+bool FieldInfo::operator<(const FieldInfo &rhs) const {
+    const auto retcode(::strcasecmp(name_.c_str(), rhs.name_.c_str()));
+    if (retcode < 0)
+        return true;
+    if (retcode > 0)
+        return false;
+
+    if (subfield_code_ < rhs.subfield_code_)
+        return true;
+    if (subfield_code_ > rhs.subfield_code_)
+        return false;
+
+    if (presence_ < rhs.presence_)
+        return true;
+    if (presence_ > rhs.presence_)
+        return false;
+
+    if (record_type_ < rhs.record_type_)
+        return true;
+
+    return false;
+}
 
 
 /**
@@ -106,17 +132,17 @@ public:
 
     const_iterator begin() const { return field_infos_.cbegin(); }
     const_iterator end() const { return field_infos_.cend(); }
-    const_iterator find(const std::string &field_name, const char subfield_code) const {
+    const_iterator find(const std::string &field_name, const char subfield_code, const RecordType record_type) const {
         return std::find_if(field_infos_.begin(), field_infos_.end(),
-                            [&field_name, &subfield_code](const FieldInfo &field_info)
-                                { return field_name == field_info.name_ and subfield_code == field_info.subfield_code_; });
+                            [&field_name, &subfield_code, &record_type](const FieldInfo &field_info)
+                                { return field_name == field_info.name_ and subfield_code == field_info.subfield_code_ and record_type == field_info.record_type_; });
     }
     iterator begin() { return field_infos_.begin(); }
     iterator end() { return field_infos_.end(); }
-    iterator find(const std::string &field_name, const char subfield_code) {
+    iterator find(const std::string &field_name, const char subfield_code, const RecordType record_type) {
         return std::find_if(field_infos_.begin(), field_infos_.end(),
-                            [&field_name, &subfield_code](const FieldInfo &field_info)
-                                { return field_name == field_info.name_ and subfield_code == field_info.subfield_code_; });
+                            [&field_name, &subfield_code, &record_type](const FieldInfo &field_info)
+                                { return field_name == field_info.name_ and subfield_code == field_info.subfield_code_ and record_type == field_info.record_type_; });
     }
 
     // Combine GeneralInfo with other General Info (e.g. JournalInfo).
@@ -137,21 +163,17 @@ GeneralInfo GeneralInfo::Combine(const GeneralInfo &lhs, const GeneralInfo &rhs)
         } else if (rhs_iter == rhs.end()) {
             combined_info.addField(*lhs_iter);
             ++lhs_iter;
+        } else if (*lhs_iter < *rhs_iter) {
+            combined_info.addField(*lhs_iter);
+            ++lhs_iter;
+        } else if (*lhs_iter > *rhs_iter) {
+            combined_info.addField(*rhs_iter);
+            ++rhs_iter;
         } else {
-            const int compare_result(StringUtil::AlphaWordCompare(lhs_iter->name_ + std::string(1, lhs_iter->subfield_code_),
-                                                                  rhs_iter->name_ + std::string(1, rhs_iter->subfield_code_)));
-            if (compare_result == 0) {
-                // if present on both sides, rhs wins!
-                combined_info.addField(*rhs_iter);
-                ++lhs_iter;
-                ++rhs_iter;
-            } else if (compare_result < 0) {
-                combined_info.addField(*lhs_iter);
-                ++lhs_iter;
-            } else if (compare_result > 0) {
-                combined_info.addField(*rhs_iter);
-                ++rhs_iter;
-            }
+            // if present on both sides, rhs wins!
+            combined_info.addField(*rhs_iter);
+            ++lhs_iter;
+            ++rhs_iter;
         }
     }
 
@@ -274,14 +296,14 @@ void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record
 
         const RecordType record_type(record.isReviewArticle() ? REVIEW : REGULAR_ARTICLE);
         for (const auto &subfield : field.getSubfields()) {
-            if (general_info.find(current_tag.toString(), subfield.code_) != general_info.end())
+            if (general_info.find(current_tag.toString(), subfield.code_, record_type) != general_info.end())
                 continue;
 
             seen_tags_and_subfield_codes.emplace(current_tag.toString() + std::string(1, subfield.code_));
 
             if (first_record)
                 journal_info->addField(current_tag.toString(), subfield.code_, ALWAYS, record_type);
-            else if (journal_info->find(current_tag.toString(), subfield.code_) == journal_info->end())
+            else if (journal_info->find(current_tag.toString(), subfield.code_, record_type) == journal_info->end())
                 journal_info->addField(current_tag.toString(), subfield.code_, SOMETIMES, record_type);
         }
 
@@ -331,7 +353,7 @@ bool RecordMeetsExpectations(const MARC::Record &record, const std::string &jour
 
 void WriteToDatabase(DbConnection * const db_connection, const GeneralInfo &general_info, const JournalInfo &journal_info) {
     for (const auto &field_info : journal_info) {
-        if (general_info.find(field_info.name_, field_info.subfield_code_) == general_info.end())
+        if (general_info.find(field_info.name_, field_info.subfield_code_, field_info.record_type_) == general_info.end())
             db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET zeder_journal_id=(SELECT id FROM zeder_journals "
                                       "WHERE zeder_id=" + db_connection->escapeAndQuoteString(journal_info.getZederId()) + " "
                                       "AND zeder_instance=" + db_connection->escapeAndQuoteString(journal_info.getZederInstance()) + ")"
