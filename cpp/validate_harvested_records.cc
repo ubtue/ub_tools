@@ -328,9 +328,10 @@ bool RecordMeetsExpectations(const MARC::Record &record, const std::string &jour
     }
 
     bool meets_expectations(true);
+    const RecordType record_type(record.isReviewArticle() ? REVIEW : REGULAR_ARTICLE);
     const GeneralInfo combined_info(GeneralInfo::Combine(general_info, journal_info));
     for (const auto &field_info : combined_info) {
-        if (field_info.presence_ != ALWAYS)
+        if (field_info.presence_ != ALWAYS or field_info.record_type_ != record_type)
             continue;   // we only care about required fields that are missing
 
         const auto equivalent_tag(EQUIVALENT_TAGS_MAP.find(field_info.name_));
