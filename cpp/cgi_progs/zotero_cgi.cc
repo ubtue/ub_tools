@@ -452,8 +452,8 @@ bool ProcessShowQASubActionDelete(const std::multimap<std::string, std::string> 
     db_connection->queryOrDie("DELETE FROM metadata_presence_tracer "
                              "WHERE zeder_journal_id = " + journal_id_to_delete +
                              " AND metadata_field_name = " + db_connection->escapeAndQuoteString(delete_tag) +
-                              " AND subfield_code = " +
-                              (delete_subfield_code.empty() ? std::string("NULL") : db_connection->escapeAndQuoteString(delete_subfield_code)) +
+                             " AND subfield_code " +
+                              (delete_subfield_code.empty() ? std::string("IS NULL") : "= " + db_connection->escapeAndQuoteString(delete_subfield_code)) +
                              " AND delete_record_type = " + db_connection->escapeAndQuoteString(delete_record_type));
 
     return true;
