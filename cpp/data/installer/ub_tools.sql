@@ -41,7 +41,7 @@ CREATE TABLE zeder_journals (
 CREATE TABLE metadata_presence_tracer (
     zeder_journal_id INT(11) UNSIGNED,
     metadata_field_name CHAR(3) NOT NULL,
-    record_type ENUM('regular_article', 'review') DEFAULT 'regular_article',
+    record_type ENUM('regular_article', 'review') DEFAULT 'regular_article' NOT NULL,
     subfield_code CHAR(1) DEFAULT NULL,
     field_presence ENUM('always', 'sometimes', 'ignore') NOT NULL,
     CONSTRAINT metadata_presence_tracer_zeder_journal_id FOREIGN KEY (zeder_journal_id) REFERENCES zeder_journals (id) ON DELETE CASCADE ON UPDATE CASCADE,
