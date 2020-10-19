@@ -48,10 +48,7 @@ namespace {
 }
 
 
-const std::set<MARC::Tag> UPLINK_TAGS{ "800", "810", "830", "773", "776" };
-
-
-std::string ExtractUplinkPPN(const MARC::Record::Field &field) {
+std::string ExtractLinkPPN(const MARC::Record::Field &field) {
     const MARC::Subfields subfields(field.getSubfields());
     auto subfield_w(std::find_if(subfields.begin(), subfields.end(),
                                  [](const MARC::Subfield &subfield) -> bool { return subfield.code_ == 'w'; }));
@@ -215,6 +212,7 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
         if (ppn_to_offset_map.find(canonical_ppn_and_ppn->second) != ppn_to_offset_map.end())
             canonical_ppn_and_ppn = std::next(canonical_ppn_and_ppn);
         else {
+            ppn_to_canonical_ppn_map->erase(canonical_ppn_and_ppn->second);
             canonical_ppn_and_ppn = canonical_ppn_to_ppn_map->erase(canonical_ppn_and_ppn);
             ++dropped_count; // Dropped a non-canonical PPN.
         }
@@ -250,10 +248,14 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
                 new_non_canonical_ppns.emplace(current_canonical_ppn_and_ppn->second);
             current_canonical_ppn_and_ppn = canonical_ppn_to_ppn_map->erase(current_canonical_ppn_and_ppn);
         }
+        ppn_to_canonical_ppn_map->erase(new_canonical_ppn);
 
         // Re-insert w/ new key:
-        for (const auto &new_non_canonical_ppn : new_non_canonical_ppns)
+        for (const auto &new_non_canonical_ppn : new_non_canonical_ppns) {
             canonical_ppn_to_ppn_map->emplace(new_canonical_ppn, new_non_canonical_ppn);
+            auto non_canonical_ppn_and_canonical_ppn(ppn_to_canonical_ppn_map->find(new_non_canonical_ppn));
+            non_canonical_ppn_and_canonical_ppn->second = new_canonical_ppn;
+        }
     }
 
     if (debug) {
@@ -270,39 +272,42 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
 }
 
 
+const std::set<MARC::Tag> LINK_TAGS{ "800", "810", "830", "773", "775", "776" };
+
+
 // Make inferior works point to the new merged superior parent found in "ppn_to_canonical_ppn_map".  Links referencing a key in
 // "ppn_to_canonical_ppn_map" will be patched with the corresponding value.
-// only 1 uplink of the same tag type will be kept.
-unsigned PatchUplinks(MARC::Record * const record, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
-    unsigned patched_uplinks(0);
+// only 1 uplink of the same tag type will be kept.  Also some cross links will be patched.
+unsigned PatchUpAndCrossLinks(MARC::Record * const record, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
+    unsigned patched_link_count(0);
 
-    std::vector<size_t> uplink_indices_for_deletion;
-    std::set<std::string> uplink_tags_done;
+    std::vector<size_t> link_indices_for_deletion;
+    std::set<std::string> link_tags_done;
     for (auto field(record->begin()); field != record->end(); ++field) {
         const std::string field_tag(field->getTag().toString());
-        if (UPLINK_TAGS.find(field_tag) != UPLINK_TAGS.cend()) {
-            const std::string uplink_ppn(ExtractUplinkPPN(*field));
-            if (uplink_ppn.empty())
+        if (LINK_TAGS.find(field_tag) != LINK_TAGS.cend()) {
+            const std::string link_ppn(ExtractLinkPPN(*field));
+            if (link_ppn.empty())
                 continue;
 
-            if (uplink_tags_done.find(field_tag) != uplink_tags_done.end()) {
-                uplink_indices_for_deletion.emplace_back(field - record->begin());
+            if (link_tags_done.find(field_tag) != link_tags_done.end()) {
+                link_indices_for_deletion.emplace_back(field - record->begin());
                 continue;
             }
 
-            const auto ppn_and_ppn(ppn_to_canonical_ppn_map.find(uplink_ppn));
+            const auto ppn_and_ppn(ppn_to_canonical_ppn_map.find(link_ppn));
             if (ppn_and_ppn == ppn_to_canonical_ppn_map.end())
                 continue;
 
-            // If we made it here, we need to replace the uplink PPN:
+            // If we made it here, we need to replace the link PPN:
             field->insertOrReplaceSubfield('w', "(DE-627)" + ppn_and_ppn->second);
-            uplink_tags_done.emplace(field_tag);
-            ++patched_uplinks;
+            link_tags_done.emplace(field_tag);
+            ++patched_link_count;
         }
     }
 
-    record->deleteFields(uplink_indices_for_deletion);
-    return patched_uplinks;
+    record->deleteFields(link_indices_for_deletion);
+    return patched_link_count;
 }
 
 
@@ -702,15 +707,15 @@ bool MergeFieldPair022(MARC::Record::Field * const merge_field, const MARC::Reco
 
 
 // Special handling for the title statements.
-bool MergeFieldPair245(const MARC::Record::Field &merge_field, const MARC::Record::Field &import_field,
-                       MARC::Record * const merge_record, const MARC::Record &import_record)
+bool MergeFieldPair245(MARC::Record::Field * const merge_field, const MARC::Record::Field &import_field,
+                       MARC::Record * const merge_record, const MARC::Record &import_record,
+                       const bool import_record_is_newer)
 {
-    if (merge_field.getTag() != "245" or import_field.getTag() != "245")
+    if (merge_field->getTag() != "245" or import_field.getTag() != "245")
         return false;
 
-    const auto merge_title(merge_field.getFirstSubfieldWithCode('a'));
+    const auto merge_title(merge_field->getFirstSubfieldWithCode('a'));
     const auto import_title(import_field.getFirstSubfieldWithCode('a'));
-
     if (FuzzyEqual(merge_title, import_title))
         return true;
 
@@ -719,10 +724,16 @@ bool MergeFieldPair245(const MARC::Record::Field &merge_field, const MARC::Recor
             return true;
     }
 
-    const bool import_title_is_newer(import_record.getPublicationYear() > merge_record->getPublicationYear());
-    merge_record->insertField("246", { { 'a', import_title_is_newer ? import_title : merge_title },
-                                       { 'g', import_record.isElectronicResource() ? "electronic" : "print" + std::string(" title") } },
-                              /* indicator1 = */'2', /*indicator2 = */'3');
+    if (import_record_is_newer) {
+        *merge_field = import_field;
+        merge_record->insertField("246", { { 'a', merge_title },
+                                  { 'g', merge_record->isElectronicResource() ? "electronic" : "print" + std::string(" title") } },
+                                  /* indicator1 = */'2', /*indicator2 = */'3');
+    } else {
+        merge_record->insertField("246", { { 'a', import_title },
+                                  { 'g', import_record.isElectronicResource() ? "electronic" : "print" + std::string(" title") } },
+                                  /* indicator1 = */'2', /*indicator2 = */'3');
+    }
 
     return true;
 }
@@ -812,6 +823,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
     import_record->reTag("260", "264");
 
     bool clean_up_field_order_and_dedup_merged_record(false);
+    const bool import_record_is_newer(import_record->isProbablyNewerThan(*merge_record));
     for (const auto &import_field : *import_record) {
         const bool import_field_repeatable(import_field.isRepeatableField());
         bool compare_indicators(import_field_repeatable), compare_subfields(import_field_repeatable);
@@ -856,7 +868,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             continue;
         }
 
-        if (MergeFieldPair245(merge_field, import_field, merge_record, *import_record))
+        if (MergeFieldPair245(&merge_field, import_field, merge_record, *import_record, import_record_is_newer))
             continue;
 
         if (MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)) {
@@ -944,16 +956,16 @@ void DeleteCrossLinkFields(MARC::Record * const record) {
 // Merges the records in ppn_to_canonical_ppn_map in such a way that for each entry, "second" will be merged into "first".
 // "second" will then be collected in "skip_ppns" for a future copy phase where it will be dropped.  Uplinks that referenced
 // "second" will be replaced with "first".
-void MergeRecordsAndPatchUplinks(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                                 const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
-                                 const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
-                                 const std::unordered_multimap<std::string, std::string> &canonical_ppn_to_ppn_map)
+void MergeRecordsAndPatchUpAndCrossLinks(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                                         const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
+                                         const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
+                                         const std::unordered_multimap<std::string, std::string> &canonical_ppn_to_ppn_map)
 {
     std::unordered_set<std::string> unprocessed_ppns;
     for (const auto &ppn_and_ppn : canonical_ppn_to_ppn_map)
         unprocessed_ppns.emplace(ppn_and_ppn.second);
 
-    unsigned merged_count(0), patched_uplink_count(0);
+    unsigned merged_count(0), patched_link_count(0);
     while (MARC::Record record = marc_reader->read()) {
         if (ppn_to_canonical_ppn_map.find(record.getControlNumber()) != ppn_to_canonical_ppn_map.cend())
             continue; // This record will be merged into the one w/ the canonical PPN.
@@ -982,7 +994,7 @@ void MergeRecordsAndPatchUplinks(MARC::Reader * const marc_reader, MARC::Writer 
             UpdateMergedPPNs(&record, merged_ppns);
         }
 
-        patched_uplink_count += PatchUplinks(&record, ppn_to_canonical_ppn_map);
+        patched_link_count += PatchUpAndCrossLinks(&record, ppn_to_canonical_ppn_map);
 
         marc_writer->write(record);
     }
@@ -992,7 +1004,7 @@ void MergeRecordsAndPatchUplinks(MARC::Reader * const marc_reader, MARC::Writer 
                   + std::to_string(canonical_ppn_to_ppn_map.size()) + ". Missing PPNs: " + StringUtil::Join(unprocessed_ppns, ", "));
     }
 
-    LOG_INFO("Patched uplinks of " + std::to_string(patched_uplink_count) + " MARC record(s).");
+    LOG_INFO("Patched links of " + std::to_string(patched_link_count) + " MARC record(s).");
 }
 
 
@@ -1099,7 +1111,8 @@ int Main(int argc, char *argv[]) {
     EliminateDanglingOrUnreferencedCrossLinks(debug, ppn_to_offset_map, &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
 
     marc_reader->rewind();
-    MergeRecordsAndPatchUplinks(marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map, canonical_ppn_to_ppn_map);
+    MergeRecordsAndPatchUpAndCrossLinks(marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
+                                        canonical_ppn_to_ppn_map);
 
     if (not (debug or skip_db_updates)) {
         std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());

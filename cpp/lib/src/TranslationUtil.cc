@@ -55,14 +55,20 @@ std::string GetId(DbConnection * const connection, const std::string &german_tex
 
 const std::map<std::string, std::string> international_2letter_code_to_german_3or4letter_code{
     { "af", "afr" },
+    { "ar", "ara" },
+    { "da", "dan" },
     { "de", "deu" },
     { "el", "gre" },
     { "en", "eng" },
     { "es", "spa" },
     { "fr", "fra" },
     { "it", "ita" },
+    { "ms", "may" },
+    { "nl", "nld" },
     { "pt", "por" },
+    { "ro", "rum" },
     { "ru", "rus" },
+    { "sr", "srp" },
     { "tr", "tur" },
 };
 
@@ -148,14 +154,20 @@ void ReadIniFile(
 
 static std::map<std::string, std::string> german_to_3or4letter_english_codes {
     { "afr", "afr" },
+    { "ara", "ara" },
+    { "dan", "dan" },
     { "deu", "ger" },
     { "eng", "eng" },
     { "fra", "fre" },
     { "gre", "gre" },
     { "ita", "ita" },
+    { "may", "msa" },
+    { "nld", "dut" },
     { "por", "por" },
+    { "rum", "ron" },
     { "rus", "rus" },
     { "spa", "spa" },
+    { "srp", "srp" },
     { "tur", "tur" },
     { "hans", "hans" },
     { "hant", "hant" }

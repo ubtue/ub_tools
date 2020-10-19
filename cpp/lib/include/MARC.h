@@ -504,6 +504,8 @@ public:
     std::string toString(const RecordFormat record_format, const unsigned indent_amount = 0,
                          const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion) const;
 
+    bool isProbablyNewerThan(const Record &other) const;
+
     /** \brief Adds fields of "other" to this.
      *  \note  If non-repeatable fields of "other" already exist in this they will be silently ignored.
      */
