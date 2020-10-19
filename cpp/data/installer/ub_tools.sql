@@ -17,7 +17,7 @@ CREATE TABLE rss_aggregator (
     item_id VARCHAR(768) NOT NULL,
     item_url VARCHAR(1000) NOT NULL,
     item_title VARCHAR(1000) NOT NULL,
-    item_description TEXT NOT NULL,
+    item_description MEDIUMTEXT NOT NULL,
     serial_name VARCHAR(1000) NOT NULL,
     feed_url VARCHAR(1000) NOT NULL,
     pub_date DATETIME NOT NULL,
