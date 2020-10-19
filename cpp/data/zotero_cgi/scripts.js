@@ -67,12 +67,17 @@ function RenderDataTable() {
     });
 }
 
-function TryRss(rss_journal_title) {
+function TryRss(journal_title) {
     $('#home-rss').tab('show');
-    $('#rss_journal_title').val(rss_journal_title).change();
+    $('#rss_journal_title').val(journal_title).change();
 }
 
-function TryCrawling(crawling_journal_title) {
+function TryCrawling(journal_title) {
     $('#home-crawling').tab('show');
-    $('#crawling_journal_title').val(crawling_journal_title).change();
+    $('#crawling_journal_title').val(journal_title).change();
+}
+
+function TryUrl(journal_title) {
+    $('#home-url').tab('show');
+    $('#url_journal_title').val(journal_title).change();
 }

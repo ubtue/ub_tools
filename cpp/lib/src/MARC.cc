@@ -595,6 +595,15 @@ std::string Record::toString(const RecordFormat record_format, const unsigned in
 }
 
 
+bool Record::isProbablyNewerThan(const Record &other) const {
+    const auto this_publication_year(getPublicationYear());
+    const auto other_publication_year(other.getPublicationYear());
+    if (this_publication_year.empty() or other_publication_year.empty())
+        return getControlNumber() > other.getControlNumber();
+    return this_publication_year > other_publication_year;
+}
+
+
 void Record::merge(const Record &other) {
     for (const auto &other_field : other)
         insertField(other_field);
@@ -988,9 +997,18 @@ std::string Record::getPublicationYear(const std::string &fallback) const {
     const auto _008_field(findTag("008"));
     if (likely(_008_field != end())) {
         const auto &field_contents(_008_field->getContents());
+        if (likely(field_contents.length() >= 16)) {
+            const std::string year_candidate(field_contents.substr(11, 4));
+            if (ConsistsOfDigitsOnly(year_candidate)) {
+                if (year_candidate == "9999")
+                    return TimeUtil::GetCurrentYear();
+                else
+                    return year_candidate;
+            }
+        }
         if (likely(field_contents.length() >= 12)) {
             const std::string year_candidate(field_contents.substr(7, 4));
-            if (ConsistsOfDigitsOnly(year_candidate) and year_candidate != "9999")
+            if (ConsistsOfDigitsOnly(year_candidate))
                 return year_candidate;
         }
     }
