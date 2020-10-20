@@ -55,7 +55,7 @@
                 <p>Add new journal setting:</p>
                 <!-- The quantifier inside the pattern needs to be written as "{{3}" due to Template.h escaping rules! -->
                 <input name="add_tag" placeholder="3-digit tag number" required="required" minlength="3" maxlength="3" pattern="[0-9]{{3}">
-                <input name="add_subfield_code" placeholder="single character or digit subfield code (If not present, the rule applies to the entire field.)" minlength="1" maxlength="1" pattern="[0-9a-z]?">
+                <input name="add_subfield_code" placeholder="single character or digit subfield code (If not present, the rule applies to the entire field.)" maxlength="1" pattern="[0-9a-z]?">
                 <select name="add_presence">
                     <option>always</option>
                     <option>sometimes</option>
