@@ -83,7 +83,6 @@
 /library_finder
 /log_rotate
 /merge_print_and_online
-/missing_metadata_db_tool
 /mpi_stats
 /mysql_database_patcher
 /mysql_diff_schemas
@@ -127,6 +126,7 @@
 /update_full_text_db
 /urlencode
 /update_sent_records
+/validate_harvested_records
 /zeder_count_imported
 /zeder_entry_downloader
 /zeder_ppn_to_title_importer
