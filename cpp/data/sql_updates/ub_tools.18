@@ -1,0 +1,1 @@
+ALTER TABLE rss_aggregator MODIFY COLUMN item_description MEDIUMTEXT NOT NULL;
