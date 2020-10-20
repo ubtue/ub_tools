@@ -580,7 +580,7 @@ bool URLIdenticalButDifferentScheme(const std::string &url1, const std::string &
     std::string scheme2, username_password2, authority2, port2, path2, params2, query2, fragment2, relative_url2;
     ParseUrl(url2, &scheme2, &username_password2, &authority2, &port2,
              &path2, &params2, &query2, &fragment2, &relative_url2);
-    return (scheme1 != scheme2) && (UrlCompare(url1, url2) == 0);
+    return (scheme1 != scheme2) and (UrlCompare(url1, url2) == 0);
 }
 
 
