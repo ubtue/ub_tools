@@ -1,4 +1,1 @@
-ALTER TABLE metadata_presence_tracer MODIFY COLUMN metadata_field_name CHAR(3) NOT NULL;
-ALTER TABLE metadata_presence_tracer ADD COLUMN record_type ENUM('regular_article', 'review') DEFAULT 'regular_article' NOT NULL;
-ALTER TABLE metadata_presence_tracer ADD COLUMN subfield_code CHAR(1) DEFAULT NULL;
-
+ALTER TABLE rss_aggregator MODIFY COLUMN item_description MEDIUMTEXT NOT NULL;
