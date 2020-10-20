@@ -274,7 +274,7 @@ bool GetValidValue(const Config::JournalParams::IniKey &key, std::string * const
         return false;
 
     if (key == Config::JournalParams::ENTRY_POINT_URL)
-       return UrlUtil::IsValidWebUrl(*value);
+        return UrlUtil::IsValidWebUrl(*value);
 
     if (key == Config::JournalParams::IniKey::ONLINE_ISSN or key == Config::JournalParams::IniKey::PRINT_ISSN) {
         std::vector<std::string> issns;
