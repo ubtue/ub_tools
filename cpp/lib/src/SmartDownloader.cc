@@ -83,7 +83,9 @@ bool SmartDownloader::downloadDoc(const std::string &url, const TimeLimit &time_
 
 
 bool DSpaceDownloader::canHandleThis(const std::string &url) const {
-    return url.find("dspace") != std::string::npos;
+    return url.find("dspace") != std::string::npos or
+           url.find("xmlui") != std::string::npos or
+           url.find("jspui");
 }
 
 
@@ -328,8 +330,6 @@ bool OJSSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit
                                         std::string * const document, std::string * const http_header_charset,
                                         std::string * const error_message)
 {
-     if (not RegexMatcher::Matched("/ojs/", url) and not RegexMatcher::Matched("/jcsw/", url))
-         return false;
      // Try to extract the PDF URL from embedded metadata
      std::string html_page;
      if (not DownloadHelper(url, time_limit, &html_page, http_header_charset, error_message))

@@ -190,6 +190,9 @@ public:
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                  std::string * const http_header_charset, std::string * const error_message);
+    virtual bool canHandleThis(const std::string &url) const {
+         return RegexMatcher::Matched("/ojs/", url) or RegexMatcher::Matched("/jcsw/", url);
+    }
 };
 
 
