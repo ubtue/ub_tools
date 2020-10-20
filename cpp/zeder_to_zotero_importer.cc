@@ -34,6 +34,7 @@
 #include "IniFile.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
+#include "UrlUtil.h"
 #include "util.h"
 #include "ZoteroHarvesterConfig.h"
 #include "ZoteroHarvesterUtil.h"
@@ -271,6 +272,9 @@ bool GetValidValue(const Config::JournalParams::IniKey &key, std::string * const
 
     if (*value == "-?-")
         return false;
+
+    if (key == Config::JournalParams::ENTRY_POINT_URL)
+       return UrlUtil::IsValidWebUrl(*value);
 
     if (key == Config::JournalParams::IniKey::ONLINE_ISSN or key == Config::JournalParams::IniKey::PRINT_ISSN) {
         std::vector<std::string> issns;
