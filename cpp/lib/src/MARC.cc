@@ -220,6 +220,45 @@ Tag Record::Field::getLocalTag() const {
 }
 
 
+bool Record::Field::filterSubfields(const std::string &codes_to_keep) {
+    std::string new_contents;
+    new_contents.reserve(contents_.size());
+
+    if (unlikely(contents_.length() < 2))
+        return false;
+
+    auto ch(contents_.begin());
+    new_contents += *ch++; // 1st indicator
+    new_contents += *ch++; // 2nd indicator
+
+    while (ch != contents_.end()) {
+        // The subfield code follows the subfield separtor.
+        if (unlikely(*ch != '\x1F'))
+            LOG_ERROR("missing subfield separator!");
+        ++ch;
+
+        if (unlikely(ch == contents_.end()))
+            LOG_ERROR("premature end of field!");
+
+        if (codes_to_keep.find(*ch) == std::string::npos) {
+            // Skip subfield:
+            while (ch != contents_.end() and *ch != '\x1F')
+                ++ch;
+        } else {
+            new_contents += '\x1F';
+            while (ch != contents_.end() and *ch != '\x1F')
+                new_contents += *ch++;
+        }
+    }
+
+    if (new_contents.size() == contents_.size())
+        return false;
+
+    contents_.swap(new_contents);
+    return true;
+}
+
+
 std::string Record::Field::getFirstSubfieldWithCode(const char subfield_code) const {
     if (unlikely(contents_.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
         return "";
