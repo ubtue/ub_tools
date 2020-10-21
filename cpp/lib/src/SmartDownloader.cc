@@ -85,7 +85,7 @@ bool SmartDownloader::downloadDoc(const std::string &url, const TimeLimit &time_
 bool DSpaceDownloader::canHandleThis(const std::string &url) const {
     return url.find("dspace") != std::string::npos or
            url.find("xmlui") != std::string::npos or
-           url.find("jspui");
+           url.find("jspui") != std::string::npos;
 }
 
 
