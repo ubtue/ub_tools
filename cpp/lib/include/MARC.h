@@ -341,6 +341,8 @@ public:
         inline bool isRepeatableField() const { return MARC::IsRepeatableField(tag_); };
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
+        inline void setIndicator1(const char new_indicator1) { if (likely(not contents_.empty())) contents_[0] = new_indicator1; }
+        inline void setIndicator2(const char new_indicator2) { if (likely(not contents_.empty())) contents_[1] = new_indicator2; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
         inline void setSubfields(const Subfields &subfields) {
             setContents(subfields, getIndicator1(), getIndicator2());
