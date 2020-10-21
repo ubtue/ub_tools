@@ -356,6 +356,11 @@ public:
             return contents_[2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/] + 1;
         }
 
+        /** \brief  Filter out all subfields that do not have subfield codes found in "codes_to_keep".
+         *  \return True if at least one subfield has been removed, o/w false.
+         */
+        bool filterSubfields(const std::string &codes_to_keep);
+
         /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
         std::string getFirstSubfieldWithCode(const char subfield_code) const;
 

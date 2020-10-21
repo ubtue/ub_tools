@@ -725,6 +725,7 @@ bool MergeFieldPair245(MARC::Record::Field * const merge_field, const MARC::Reco
     }
 
     MARC::Record::Field insert_field(import_record_is_newer ? *merge_field : import_field);
+    insert_field.filterSubfields("abhnp68"); // See https://www.loc.gov/marc/bibliographic/bd245.html and https://www.loc.gov/marc/bibliographic/bd246.html
     insert_field.setTag("246");
     insert_field.setIndicator1('2');
     insert_field.setIndicator2('3');
