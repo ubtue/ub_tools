@@ -724,16 +724,17 @@ bool MergeFieldPair245(MARC::Record::Field * const merge_field, const MARC::Reco
             return true;
     }
 
+    MARC::Record::Field insert_field(import_record_is_newer ? *merge_field : import_field);
+    insert_field.filterSubfields("abhnp68"); // See https://www.loc.gov/marc/bibliographic/bd245.html and https://www.loc.gov/marc/bibliographic/bd246.html
+    insert_field.setTag("246");
+    insert_field.setIndicator1('2');
+    insert_field.setIndicator2('3');
     if (import_record_is_newer) {
         *merge_field = import_field;
-        merge_record->insertField("246", { { 'a', merge_title },
-                                  { 'g', merge_record->isElectronicResource() ? "electronic" : "print" + std::string(" title") } },
-                                  /* indicator1 = */'2', /*indicator2 = */'3');
-    } else {
-        merge_record->insertField("246", { { 'a', import_title },
-                                  { 'g', import_record.isElectronicResource() ? "electronic" : "print" + std::string(" title") } },
-                                  /* indicator1 = */'2', /*indicator2 = */'3');
-    }
+        insert_field.appendSubfield('g', merge_record->isElectronicResource() ? "electronic" : "print" + std::string(" title"));
+    } else
+        insert_field.appendSubfield('g', import_record.isElectronicResource() ? "electronic" : "print" + std::string(" title"));
+    merge_record->insertField(insert_field);
 
     return true;
 }
@@ -868,7 +869,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             continue;
         }
 
-        if (MergeFieldPair245(&merge_field, import_field, merge_record, *import_record, import_record_is_newer))
+        if (MergeFieldPair245(&*merge_field_pos, import_field, merge_record, *import_record, import_record_is_newer))
             continue;
 
         if (MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)) {
