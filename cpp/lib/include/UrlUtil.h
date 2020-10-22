@@ -275,5 +275,8 @@ inline bool IsValidWebUrl(const std::string &url) { return Url(url).isValidWebUr
 
 bool URLContainsOnlyValidChars(const std::string &url);
 
+/* Check whether Url is identical apart from the used scheme */
+bool URLIdenticalButDifferentScheme(const std::string &url1, const std::string &url2);
+
 
 } // namespace UrlUtil
