@@ -23,6 +23,7 @@
 #include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "UrlUtil.h"
 #include "util.h"
 
 
@@ -82,7 +83,9 @@ bool SmartDownloader::downloadDoc(const std::string &url, const TimeLimit &time_
 
 
 bool DSpaceDownloader::canHandleThis(const std::string &url) const {
-    return url.find("dspace") != std::string::npos;
+    return url.find("dspace") != std::string::npos or
+           url.find("xmlui") != std::string::npos or
+           url.find("jspui") != std::string::npos;
 }
 
 
@@ -327,8 +330,6 @@ bool OJSSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit
                                         std::string * const document, std::string * const http_header_charset,
                                         std::string * const error_message)
 {
-     if (not RegexMatcher::Matched("/ojs/", url) and not RegexMatcher::Matched("/jcsw/", url))
-         return false;
      // Try to extract the PDF URL from embedded metadata
      std::string html_page;
      if (not DownloadHelper(url, time_limit, &html_page, http_header_charset, error_message))
@@ -398,13 +399,17 @@ bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::str
     return false;
 }
 
-
 bool SmartDownloadResolveFirstRedirectHop(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                    std::string * const http_header_charset, std::string * const error_message,
                    const bool trace)
 {
     std::string redirected_url(url);
     if (not GetRedirectedUrl(url, time_limit, &redirected_url))
-        redirected_url = url; // Make absolutely redirected_url was not changed internally
+        redirected_url = url; // Make sure redirected_url was not changed internally
+    // If the redirection was just from http to https make another try (occurs e.g. with doi.dx requests)
+    if (UrlUtil::URLIdenticalButDifferentScheme(url, redirected_url)) {
+        if (not GetRedirectedUrl(redirected_url, time_limit, &redirected_url))
+           LOG_ERROR("Could not resolve redirection for " + redirected_url);
+    }
     return SmartDownload(redirected_url, time_limit, document, http_header_charset, error_message, trace);
 }
