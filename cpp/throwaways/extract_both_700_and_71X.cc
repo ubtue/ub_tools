@@ -1,4 +1,4 @@
-/** \brief Extracts list of PPN that contain both 700 and 710 and 711 fields\n
+/** \brief Extracts list of PPNs that contain both 700 and 710 and 711 fields\n
  *  \author Johannes Riedl (johannes.riedl@uni-tuebingen.de)
  *
  *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
