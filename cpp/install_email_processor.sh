@@ -16,9 +16,12 @@ if [ ! $(which fetchmail) ]; then
     exit 2
 fi
 
-adduser email_processor email_processor
-install --group=email_processor --owner=email_processor --mode=0600 /mnt/ZE020150/FID-Entwicklung/ub_tools/email_processor/.fetchmailrc /home/email_processor/
-install --group=email_processor --owner=email_processor --mode=0600 /mnt/ZE020150/FID-Entwicklung/ub_tools/email_processor/.forward /home/email_processor/
+id email_processor > /dev/null 2>&1
+if [[ $? == 1 ]]; then
+    adduser email_processor email_processor
+    install --group=email_processor --owner=email_processor --mode=0600 /mnt/ZE020150/FID-Entwicklung/ub_tools/email_processor/.fetchmailrc /home/email_processor/
+    install --group=email_processor --owner=email_processor --mode=0600 /mnt/ZE020150/FID-Entwicklung/ub_tools/email_processor/.forward /home/email_processor/
+fi
 
 # If on Ubuntu, make fetchmail a demon.  On CentOS that is the default via systemd.
 DEFAULT_CONFIG=/etc/default/fetchmail
