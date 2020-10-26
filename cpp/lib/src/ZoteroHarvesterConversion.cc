@@ -347,7 +347,7 @@ ThreadSafeRegexMatcher InitializeBlacklistedAuthorTokenMatcher() {
     }
     match_pattern += ")\\b";
 
-   return ThreadSafeRegexMatcher(match_pattern, ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP);
+   return ThreadSafeRegexMatcher(match_pattern, ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE);
 }
 
 
