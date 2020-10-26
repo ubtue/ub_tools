@@ -1007,6 +1007,24 @@ std::string CalculateMarcRecordHash(const MARC::Record &marc_record) {
 }
 
 
+const std::vector<std::string> UNDESIRED_ITEM_TYPES {
+    "webpage"
+};
+
+
+bool ExcludeUnsesiredItemTypes(const MetadataRecord &metadata_record) {
+    if (std::find(UNDESIRED_ITEM_TYPES.begin(),
+                  UNDESIRED_ITEM_TYPES.end(),
+                  metadata_record.item_type_) != UNDESIRED_ITEM_TYPES.end())
+    {
+        LOG_DEBUG("Skipping: undesired item type \"" + metadata_record.item_type_ + "\"");
+        return true;
+    }
+
+    return false;
+}
+
+
 const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST {
     "journalArticle", "magazineArticle", "review"
 };
@@ -1089,7 +1107,9 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
             if (new_metadata_record.url_.empty())
                 throw std::runtime_error("no URL set");
 
-            if (ExcludeOnlineFirstRecord(new_metadata_record, parameters)) {
+            if (ExcludeUnsesiredItemTypes(new_metadata_record)) {
+                ++result->num_skipped_since_undesired_item_type_;
+            } else if (ExcludeOnlineFirstRecord(new_metadata_record, parameters)) {
                 ++result->num_skipped_since_online_first_;
                 continue;
             } else if (ExcludeEarlyViewRecord(new_metadata_record, parameters)) {
