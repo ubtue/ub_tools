@@ -52,6 +52,9 @@ Zeder::Flavour GetZederInstanceForGroup(const Config::GroupParams &group_params)
 Zeder::Flavour GetZederInstanceFromMarcRecord(const MARC::Record &record);
 
 
+std::string ResolveUploadOperation(const Zeder::Entry &zeder_entry, const Zeder::Flavour /*unused*/);
+
+
 } // end namespace ZederInterop
 
 
