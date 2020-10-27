@@ -190,7 +190,9 @@ void Directory::const_iterator::advance() {
         if (regex_matcher_->matched(entry_.name_)) {
             if (::stat((entry_.dirname_ + "/" + entry_.name_).c_str(), &entry_.statbuf_) == 0)
                 return;
-            else if (errno != ENOENT)
+            else if (errno == ENOENT)
+                errno = 0;
+            else
                 throw std::runtime_error("in FileUtil::Directory::const_iterator::advance: stat(2) on \""
                                          + entry_.dirname_ + "/" + entry_.name_ + " \"failed! ("
                                          + std::string(std::strerror(errno)) + ")");
