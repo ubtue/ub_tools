@@ -18,7 +18,7 @@ fi
 
 id email_processor > /dev/null 2>&1
 if [[ $? == 1 ]]; then
-    adduser email_processor email_processor
+    useradd --gid email_processor email_processor
     install --group=email_processor --owner=email_processor --mode=0600 /mnt/ZE020150/FID-Entwicklung/ub_tools/email_processor/.fetchmailrc /home/email_processor/
     install --group=email_processor --owner=email_processor --mode=0600 /mnt/ZE020150/FID-Entwicklung/ub_tools/email_processor/.forward /home/email_processor/
 fi
