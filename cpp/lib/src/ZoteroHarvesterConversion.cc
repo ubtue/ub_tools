@@ -129,11 +129,11 @@ MetadataRecord::SSGType MetadataRecord::GetSSGTypeFromString(const std::string &
 }
 
 
-void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                          const Util::HarvestableItem &download_item)
+bool SuppressJsonMetadataHelper(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                                const Config::ZoteroMetadataParams &zotero_metadata_params)
 {
-    const auto suppression_regex(download_item.journal_.zotero_metadata_params_.fields_to_suppress_.find(node_name));
-    if (suppression_regex != download_item.journal_.zotero_metadata_params_.fields_to_suppress_.end()) {
+    const auto suppression_regex(zotero_metadata_params.fields_to_suppress_.find(node_name));
+    if (suppression_regex != zotero_metadata_params.fields_to_suppress_.end()) {
         if (node->getType() != JSON::JSONNode::STRING_NODE)
             LOG_ERROR("metadata suppression filter has invalid node type '" + node_name + "'");
 
@@ -142,18 +142,29 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
             LOG_DEBUG("suppression regex '" + suppression_regex->second->getPattern() +
                       "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
             string_node->setValue("");
+            return true;
         }
     }
+    return false;
 }
 
 
-void OverrideJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                          const Util::HarvestableItem &download_item)
+void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                          const Util::HarvestableItem &download_item,
+                          const Config::GlobalParams &global_params)
+{
+    if (not SuppressJsonMetadataHelper(node_name, node, global_params.zotero_metadata_params_))
+        SuppressJsonMetadataHelper(node_name, node, download_item.journal_.zotero_metadata_params_);
+}
+
+
+bool OverrideJsonMetadataHelper(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                                const Config::ZoteroMetadataParams &zotero_metadata_params)
 {
     const std::string ORIGINAL_VALUE_SPECIFIER("%org%");
-    const auto override_pattern(download_item.journal_.zotero_metadata_params_.fields_to_override_.find(node_name));
+    const auto override_pattern(zotero_metadata_params.fields_to_override_.find(node_name));
 
-    if (override_pattern != download_item.journal_.zotero_metadata_params_.fields_to_override_.end()) {
+    if (override_pattern != zotero_metadata_params.fields_to_override_.end()) {
         if (node->getType() != JSON::JSONNode::STRING_NODE)
             LOG_ERROR("metadata override has invalid node type '" + node_name + "'");
 
@@ -163,12 +174,25 @@ void OverrideJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
 
         LOG_DEBUG("metadata field '" + node_name + "' value changed from '" + string_value + "' to '" + override_string + "'");
         string_node->setValue(override_string);
+        return true;
     }
+
+    return false;
+}
+
+
+void OverrideJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                          const Util::HarvestableItem &download_item,
+                          const Config::GlobalParams &global_params)
+{
+    if (not OverrideJsonMetadataHelper(node_name, node, global_params.zotero_metadata_params_))
+        OverrideJsonMetadataHelper(node_name, node, download_item.journal_.zotero_metadata_params_);
 }
 
 
 void PostprocessTranslationServerResponse(const Util::HarvestableItem &download_item,
-                                          std::shared_ptr<JSON::ArrayNode> * const response_json_array)
+                                          std::shared_ptr<JSON::ArrayNode> * const response_json_array,
+                                          const Config::GlobalParams &global_params)
 {
     // 'response_json_array' is a JSON array of metadata objects pertaining to individual URLs
 
@@ -204,26 +228,27 @@ void PostprocessTranslationServerResponse(const Util::HarvestableItem &download_
     // next, we modify the metadata objects to suppress and/or override individual fields
     for (auto entry : **response_json_array) {
         const auto json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
-        JSON::VisitLeafNodes("root", json_object, SuppressJsonMetadata, std::ref(download_item));
-        JSON::VisitLeafNodes("root", json_object, OverrideJsonMetadata, std::ref(download_item));
+        JSON::VisitLeafNodes("root", json_object, SuppressJsonMetadata, std::ref(download_item), std::ref(global_params));
+        JSON::VisitLeafNodes("root", json_object, OverrideJsonMetadata, std::ref(download_item), std::ref(global_params));
     }
 }
 
 
-bool ZoteroItemMatchesExclusionFilters(const Util::HarvestableItem &download_item,
-                                       const std::shared_ptr<JSON::ObjectNode> &zotero_item)
+bool ZoteroItemMatchesExclusionFiltersHelper(const Util::HarvestableItem &download_item,
+                                             const std::shared_ptr<JSON::ObjectNode> &zotero_item,
+                                             const Config::ZoteroMetadataParams &zotero_metadata_params)
 {
-    if (download_item.journal_.zotero_metadata_params_.exclusion_filters_.empty())
+    if (zotero_metadata_params.exclusion_filters_.empty())
         return false;
 
     bool found_match(false);
     std::string exclusion_string;
     auto metadata_exclusion_predicate = [&found_match, &exclusion_string]
                                         (const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                                         const Config::JournalParams &journal_params) -> void
+                                         const Config::ZoteroMetadataParams &zotero_metadata_params) -> void
     {
-        const auto filter_regex(journal_params.zotero_metadata_params_.exclusion_filters_.find(node_name));
-        if (filter_regex != journal_params.zotero_metadata_params_.exclusion_filters_.end()) {
+        const auto filter_regex(zotero_metadata_params.exclusion_filters_.find(node_name));
+        if (filter_regex != zotero_metadata_params.exclusion_filters_.end()) {
             if (node->getType() != JSON::JSONNode::STRING_NODE)
                 LOG_ERROR("metadata exclusion filter has invalid node type '" + node_name + "'");
 
@@ -235,11 +260,20 @@ bool ZoteroItemMatchesExclusionFilters(const Util::HarvestableItem &download_ite
         }
     };
 
-    JSON::VisitLeafNodes("root", zotero_item, metadata_exclusion_predicate, std::ref(download_item.journal_));
+    JSON::VisitLeafNodes("root", zotero_item, metadata_exclusion_predicate, std::ref(zotero_metadata_params));
     if (found_match)
         LOG_INFO("zotero metadata for '" + download_item.url_.toString() + " matched exclusion filter (" + exclusion_string + ")");
 
     return found_match;
+}
+
+
+bool ZoteroItemMatchesExclusionFilters(const Util::HarvestableItem &download_item,
+                                       const std::shared_ptr<JSON::ObjectNode> &zotero_item,
+                                       const Config::GlobalParams &global_params)
+{
+    return (ZoteroItemMatchesExclusionFiltersHelper(download_item, zotero_item, global_params.zotero_metadata_params_)
+            or ZoteroItemMatchesExclusionFiltersHelper(download_item, zotero_item, download_item.journal_.zotero_metadata_params_));
 }
 
 
@@ -1039,7 +1073,7 @@ bool ExcludeOnlineFirstRecord(const MetadataRecord &metadata_record, const Conve
     }
 
     if (metadata_record.issue_.empty() and metadata_record.volume_.empty()) {
-        if (parameters.skip_online_first_articles_unconditonally_) {
+        if (parameters.global_params_.skip_online_first_articles_unconditonally_) {
             LOG_DEBUG("Skipping: online-first article unconditionally");
             return true;
         } else if (metadata_record.doi_.empty()) {
@@ -1082,7 +1116,7 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
 
     const auto &download_item(parameters.download_item_);
     auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
-    PostprocessTranslationServerResponse(parameters.download_item_, &array_node);
+    PostprocessTranslationServerResponse(parameters.download_item_, &array_node, parameters.global_params_);
 
     if (array_node->size() == 0) {
         LOG_WARNING("no items found in translation server response");
@@ -1094,7 +1128,7 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
         const auto json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
 
         try {
-            if (ZoteroItemMatchesExclusionFilters(download_item, json_object)) {
+            if (ZoteroItemMatchesExclusionFilters(download_item, json_object, parameters.global_params_)) {
                 ++result->num_skipped_since_exclusion_filters_;
                 continue;
             }
@@ -1193,7 +1227,7 @@ void ConversionManager::cleanupCompletedTasklets() {
 }
 
 
-ConversionManager::ConversionManager(const GlobalParams &global_params)
+ConversionManager::ConversionManager(Config::GlobalParams &global_params)
  : global_params_(global_params), stop_background_thread_(false)
 {
     if (::pthread_create(&background_thread_, nullptr, BackgroundThreadRoutine, this) != 0)
@@ -1217,7 +1251,7 @@ std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> ConversionMana
                                                                                              const Config::GroupParams &group_params)
 {
     std::unique_ptr<ConversionParams> parameters(new ConversionParams(source, json_metadata,
-                                                 global_params_.skip_online_first_articles_unconditonally_, group_params));
+                                                 global_params_, group_params));
     std::shared_ptr<ConversionTasklet> new_tasklet(new ConversionTasklet(&conversion_tasklet_execution_counter_,
                                                    std::move(parameters)));
 
