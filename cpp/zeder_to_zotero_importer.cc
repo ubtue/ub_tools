@@ -62,7 +62,7 @@ using namespace ZoteroHarvester;
             "\tfields_to_update                Comma-separated list of the following fields to update: \n"
             "\t                                \tONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSGN, LICENSE.\n"
             "\t                                Ignored when importing entries (all importable fields will be imported).\n"
-            "\t                                If mode is IMPORT and zeder_ids is '*', new journals will only be added if \"prodf\" is \"zota\" or \"zotat\".\n\n");
+            "\t                                If mode is IMPORT and zeder_ids is '*', new journals will only be added if UPLOAD_OPERATION would not be NONE.\n\n");
 }
 
 
@@ -316,6 +316,7 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
         const auto zeder_id(zeder_entry.getId());
         const auto title(ZederInterop::GetJournalParamsIniValueFromZederEntry(zeder_entry, zeder_flavour,
                          Config::JournalParams::IniKey::NAME));
+        const std::string upload_operation(ZederInterop::ResolveUploadOperation(zeder_entry, zeder_flavour));
 
         if (title.empty()) {
             LOG_DEBUG("Skipping Zeder entry " + std::to_string(zeder_id) + ": title is empty");
@@ -334,9 +335,9 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
             LOG_WARNING("couldn't import Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists with different zeder id " + existing_title_section->getString("zeder_id"));
             continue;
         } else if (existing_journal_section == nullptr and autodetect_new_datasets) {
-            const std::string prodf(zeder_entry.getAttribute("prodf", ""));
-            if (prodf != "zota" && prodf != "zotat") {
-                LOG_DEBUG("Skipping Zeder entry " + std::to_string(zeder_id) + " (" + title + "): prodf is neither \"zota\" nor \"zotat\"");
+            if (upload_operation == Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::NONE)) {
+                LOG_DEBUG("Skipping Zeder entry " + std::to_string(zeder_id) + " (" + title + "): UploadOperation would be "
+                          + Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::NONE));
                 continue;
             }
         }
@@ -352,7 +353,6 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
             Config::JournalParams::GROUP,
             Config::JournalParams::ENTRY_POINT_URL,
             Config::JournalParams::HARVESTER_OPERATION,
-            Config::JournalParams::UPLOAD_OPERATION,
             Config::JournalParams::ONLINE_PPN,
             Config::JournalParams::PRINT_PPN,
             Config::JournalParams::ONLINE_ISSN,
@@ -363,7 +363,7 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
             Config::JournalParams::LICENSE,
         };
 
-        // special-case the Zeder ID and modified timestamp fields
+        // special-cases: Zeder ID, modified timestamp, UPLOAD_OPERATION
         WriteIniEntry(existing_journal_section, Config::JournalParams::GetIniKeyString(Config::JournalParams::ZEDER_ID),
                       std::to_string(zeder_entry.getId()));
         char time_buffer[100]{};
@@ -371,6 +371,8 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                       &zeder_entry.getLastModifiedTimestamp());
         WriteIniEntry(existing_journal_section, Config::JournalParams::GetIniKeyString(Config::JournalParams::ZEDER_MODIFIED_TIME),
                       time_buffer);
+        WriteIniEntry(existing_journal_section, Config::JournalParams::GetIniKeyString(Config::JournalParams::UPLOAD_OPERATION),
+                      upload_operation);
 
         // write out the rest
         LOG_INFO("importing Zeder entry " + std::to_string(zeder_id) + " (" + title + ")...");
