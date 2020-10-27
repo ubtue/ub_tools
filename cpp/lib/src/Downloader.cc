@@ -315,7 +315,7 @@ const std::string &Downloader::getLastErrorMessage() const {
 
 unsigned Downloader::getResponseCode() {
     std::string err_msg;
-    const std::string regex_pattern("HTTP(?:/\\d(?:\\.\\d)?)?\\s+(\\d{3})");
+    const std::string regex_pattern("HTTP(?:/\\d(?:\\.(?:\\d)?)?)?\\s+(\\d{3})");
     std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
     if (matcher == nullptr)
         LOG_ERROR("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
