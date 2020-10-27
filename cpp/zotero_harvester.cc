@@ -252,6 +252,7 @@ struct Metrics {
     unsigned num_downloads_skipped_since_already_delivered_;
     unsigned num_marc_conversions_successful_;
     unsigned num_marc_conversions_unsuccessful_;
+    unsigned num_marc_conversions_skipped_since_undesired_item_type_;
     unsigned num_marc_conversions_skipped_since_online_first_;
     unsigned num_marc_conversions_skipped_since_early_view_;
     unsigned num_marc_conversions_skipped_since_exclusion_filters_;
@@ -271,8 +272,9 @@ Metrics::Metrics()
       num_downloads_crawled_cache_hits_(0), num_downloads_harvested_successful_(0), num_downloads_harvested_unsuccessful_(0),
       num_downloads_harvested_cache_hits_(0), num_downloads_skipped_since_already_harvested_(0),
       num_downloads_skipped_since_already_delivered_(0), num_marc_conversions_successful_(0), num_marc_conversions_unsuccessful_(0),
-      num_marc_conversions_skipped_since_online_first_(0), num_marc_conversions_skipped_since_early_view_(0),
-      num_marc_conversions_skipped_since_exclusion_filters_(0), num_marc_conversions_skipped_since_already_delivered_(0) {}
+      num_marc_conversions_skipped_since_undesired_item_type_(0), num_marc_conversions_skipped_since_online_first_(0),
+      num_marc_conversions_skipped_since_early_view_(0), num_marc_conversions_skipped_since_exclusion_filters_(0),
+      num_marc_conversions_skipped_since_already_delivered_(0) {}
 
 
 std::string Metrics::toString() const {
@@ -306,6 +308,7 @@ std::string Metrics::toString() const {
                                           + num_marc_conversions_skipped_since_already_delivered_) + "\n";
     out += "\t\tSuccessful: " + std::to_string(num_marc_conversions_successful_) + "\n";
     out += "\t\tUnsuccessful: " + std::to_string(num_marc_conversions_unsuccessful_) + "\n";
+    out += "\t\tSkipped (undesired item type): " + std::to_string(num_marc_conversions_skipped_since_undesired_item_type_) + "\n";
     out += "\t\tSkipped (online-first): " + std::to_string(num_marc_conversions_skipped_since_online_first_) + "\n";
     out += "\t\tSkipped (early-view): " + std::to_string(num_marc_conversions_skipped_since_early_view_) + "\n";
     out += "\t\tSkipped (exclusion filter): " + std::to_string(num_marc_conversions_skipped_since_exclusion_filters_) + "\n";
