@@ -884,19 +884,23 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
                                                      UBTools::GetTueFindLogPath() + "(.*)");
     }
 
+    ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
+    ConfigureApacheUser(os_system_type, install_systemctl);
+
     const std::string NEWSLETTER_DIRECTORY_PATH(UBTools::GetTuelibPath() + "newsletters");
     if (not FileUtil::Exists(NEWSLETTER_DIRECTORY_PATH)) {
         Echo("creating " + NEWSLETTER_DIRECTORY_PATH);
         FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH);
-        SELinuxUtil::FileContext::AddRecordIfMissing(NEWSLETTER_DIRECTORY_PATH, "httpd_sys_rw_content_t",
-                                                     NEWSLETTER_DIRECTORY_PATH + "(/.*)?");
+        if (SELinuxUtil::IsEnabled()) {
+            SELinuxUtil::FileContext::AddRecordIfMissing(NEWSLETTER_DIRECTORY_PATH, "httpd_sys_rw_content_t",
+                                                         NEWSLETTER_DIRECTORY_PATH + "(/.*)?");
+        }
 
         Echo("creating " + NEWSLETTER_DIRECTORY_PATH + "/sent");
-        FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH);
-    }
+        FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH + "/sent");
 
-    ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
-    ConfigureApacheUser(os_system_type, install_systemctl);
+        FileUtil::ChangeOwnerOrDie(NEWSLETTER_DIRECTORY_PATH, "vufind", "vufind", /*recursive=*/true);
+    }
 
     Echo(vufind_system_type_string + " configuration completed!");
 }
