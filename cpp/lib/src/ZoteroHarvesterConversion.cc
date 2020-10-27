@@ -997,7 +997,7 @@ bool MarcRecordMatchesExclusionFilters(const Util::HarvestableItem &download_ite
 }
 
 
-const std::set<MARC::Tag> EXCLUDED_FIELDS_DURING_CHECKSUM_CALC {
+const std::set<MARC::Tag> EXCLUDED_FIELDS_DURING_CHECKSUM_CALC{
     "001", "URL", "ZID", "JOU",
 };
 
@@ -1007,12 +1007,12 @@ std::string CalculateMarcRecordHash(const MARC::Record &marc_record) {
 }
 
 
-const std::vector<std::string> UNDESIRED_ITEM_TYPES {
+const std::vector<std::string> UNDESIRED_ITEM_TYPES{
     "webpage"
 };
 
 
-bool ExcludeUnsesiredItemTypes(const MetadataRecord &metadata_record) {
+static bool ExcludeUndesiredItemTypes(const MetadataRecord &metadata_record) {
     if (std::find(UNDESIRED_ITEM_TYPES.begin(),
                   UNDESIRED_ITEM_TYPES.end(),
                   metadata_record.item_type_) != UNDESIRED_ITEM_TYPES.end())
@@ -1025,7 +1025,7 @@ bool ExcludeUnsesiredItemTypes(const MetadataRecord &metadata_record) {
 }
 
 
-const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST {
+const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST{
     "journalArticle", "magazineArticle", "review"
 };
 
@@ -1107,8 +1107,9 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
             if (new_metadata_record.url_.empty())
                 throw std::runtime_error("no URL set");
 
-            if (ExcludeUnsesiredItemTypes(new_metadata_record)) {
+            if (ExcludeUndesiredItemTypes(new_metadata_record)) {
                 ++result->num_skipped_since_undesired_item_type_;
+                continue;
             } else if (ExcludeOnlineFirstRecord(new_metadata_record, parameters)) {
                 ++result->num_skipped_since_online_first_;
                 continue;
