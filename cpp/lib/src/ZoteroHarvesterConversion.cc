@@ -1251,7 +1251,7 @@ void ConversionManager::cleanupCompletedTasklets() {
 }
 
 
-ConversionManager::ConversionManager(Config::GlobalParams &global_params)
+ConversionManager::ConversionManager(const Config::GlobalParams &global_params)
  : global_params_(global_params), stop_background_thread_(false)
 {
     if (::pthread_create(&background_thread_, nullptr, BackgroundThreadRoutine, this) != 0)
