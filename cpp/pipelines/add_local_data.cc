@@ -47,7 +47,7 @@ bool AddLocalData(const LocalDataDB &local_data_db, MARC::Record * const record,
 
 
 // Appends local data for each record, for which local data will be found in our database.
-// The local data is store in a format where the contents of each field is preceeded by a 4-character
+// The local data is stored in a format where the contents of each field is preceeded by a 4-character
 // hex string indicating the length of the immediately following field contents.
 // Multiple local fields may occur per record.
 void ProcessRecords(const LocalDataDB &local_data_db, MARC::Reader * const reader, MARC::Writer * const writer) {
@@ -55,19 +55,21 @@ void ProcessRecords(const LocalDataDB &local_data_db, MARC::Reader * const reade
     while (auto record = reader->read()) {
         ++total_record_count;
 
-        unsigned local_record_count(0);
-        if (AddLocalData(local_data_db, &record, record.getControlNumber()))
-            ++local_record_count;
+        std::set<std::string> local_data_ppns{ record.getControlNumber() };
 
-        std::vector<std::string> hybrid_ppns;
-        for (const auto &hybrid_field : record.getTagRange("ZWI"))
-            hybrid_ppns.emplace_back(hybrid_field.getFirstSubfieldWithCode('a'));
-        for (const auto &hybrid_ppn : hybrid_ppns) {
-            if (AddLocalData(local_data_db, &record, hybrid_ppn))
-                ++local_record_count;
+        for (const auto &zwi_field : record.getTagRange("ZWI")) {
+            for (const auto &sub_field_code_and_value : zwi_field.getSubfields()) {
+                if (sub_field_code_and_value.code_ == 'b')
+                    local_data_ppns.emplace(sub_field_code_and_value.value_);
+            }
         }
 
-        if (local_record_count > 0)
+        bool added_at_least_one_local_data_block(false);
+        for (const auto &local_data_ppn : local_data_ppns) {
+            if (AddLocalData(local_data_db, &record, local_data_ppn))
+                added_at_least_one_local_data_block = true;
+        }
+        if (added_at_least_one_local_data_block)
             ++added_count;
 
         writer->write(record);
