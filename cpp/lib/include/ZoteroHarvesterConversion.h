@@ -136,12 +136,14 @@ public:
 
 struct ConversionResult {
     std::vector<std::unique_ptr<MARC::Record>> marc_records_;
+    unsigned num_skipped_since_undesired_item_type_;
     unsigned num_skipped_since_online_first_;
     unsigned num_skipped_since_early_view_;
     unsigned num_skipped_since_exclusion_filters_;
 public:
     explicit ConversionResult()
-     : num_skipped_since_online_first_(0), num_skipped_since_early_view_(0), num_skipped_since_exclusion_filters_(0) {}
+     : num_skipped_since_undesired_item_type_(0), num_skipped_since_online_first_(0), num_skipped_since_early_view_(0),
+       num_skipped_since_exclusion_filters_(0) {}
      ConversionResult(const ConversionResult &rhs) = delete;
 };
 
