@@ -417,11 +417,59 @@ bool IsAuthorNameTokenAffix(std::string token) {
 }
 
 
+void JoinAuthorTokens(const std::vector<std::string> &tokens_first, std::string * const first_name,
+                      const std::vector<std::string> &tokens_last, std::string * const last_name) {
+        StringUtil::Join(tokens_first, ' ', first_name);
+        StringUtil::Join(tokens_last, ' ', last_name);
+}
+
+
+void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::string * const last_name, const std::string &language) {
+    // In Spanish we have two last name components, so move over if appropriate
+    if (language == "spa") {
+        std::vector<std::string> first_name_tokens;
+        std::vector<std::string> last_name_tokens;
+        StringUtil::Split(*first_name, ' ', &first_name_tokens, /* suppress_empty_components = */ true);
+        if (first_name_tokens.size() <= 1)
+            return;
+        StringUtil::Split(*last_name, ' ', &last_name_tokens, /* suppress_empty_components = */ true);
+        if (last_name_tokens.size() >= 2) // Probably fixed elsewhere...
+            return;
+        // Special handling for "de" and "y"
+        const auto de_iterator(std::find(first_name_tokens.begin(), first_name_tokens.end(), "de"));
+        if (de_iterator != first_name_tokens.end()) {
+            last_name_tokens.insert(last_name_tokens.begin(), std::make_move_iterator(de_iterator),
+                                                              std::make_move_iterator(first_name_tokens.end()));
+            first_name_tokens.erase(de_iterator, first_name_tokens.end());
+            JoinAuthorTokens(first_name_tokens, first_name, last_name_tokens, last_name);
+            return;
+        }
+
+        const auto y_iterator(std::find(first_name_tokens.begin(), first_name_tokens.end(), "y"));
+        if (y_iterator != first_name_tokens.end()) {
+            const auto offset(std::distance(first_name_tokens.begin(), y_iterator));
+            if (offset >=1) {
+                last_name_tokens.insert(last_name_tokens.begin(), std::make_move_iterator(last_name_tokens.begin() + (offset - 1)),
+                                                                  std::make_move_iterator(last_name_tokens.end()));
+                first_name_tokens.erase(first_name_tokens.begin() + (offset - 1));
+                JoinAuthorTokens(first_name_tokens, first_name, last_name_tokens, last_name);
+                return;
+            }
+        }
+        last_name_tokens.insert(last_name_tokens.begin(), first_name_tokens.back());
+        first_name_tokens.pop_back();
+        JoinAuthorTokens(first_name_tokens, first_name, last_name_tokens, last_name);
+    }
+}
+
+
 void PostProcessAuthorName(std::string * const first_name, std::string * const last_name, std::string * const title,
-                           std::string * const affix)
+                           std::string * const affix, const std::string &language)
 {
     std::string first_name_buffer, title_buffer;
     std::vector<std::string> tokens;
+
+    AdjustFirstAndLastNameByLanguage(first_name, last_name, language);
 
     StringUtil::Split(*first_name, ' ', &tokens, /* suppress_empty_components = */true);
     for (const auto &token : tokens) {
@@ -621,27 +669,6 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
                                  + ", PPN online: \"" + ppn.online_ + "\", PPN print: \"" + ppn.print_ + "\"");
     }
 
-    // fetch creator GNDs and postprocess names
-    for (auto &creator : metadata_record->creators_) {
-        PostProcessAuthorName(&creator.first_name_, &creator.last_name_, &creator.title_, &creator.affix_);
-
-        if (not creator.last_name_.empty()) {
-            std::string combined_name(creator.last_name_);
-            if (not creator.first_name_.empty())
-                combined_name += ", " + creator.first_name_;
-
-            creator.gnd_number_ = HtmlUtil::StripHtmlTags(BSZUtil::GetAuthorGNDNumber(combined_name, group_params.author_swb_lookup_url_));
-            if (not creator.gnd_number_.empty())
-                LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + " (SWB lookup)");
-            else {
-                creator.gnd_number_ = HtmlUtil::StripHtmlTags(LobidUtil::GetAuthorGNDNumber(
-                                                              combined_name, group_params.author_lobid_lookup_query_params_));
-                if (not creator.gnd_number_.empty())
-                    LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + "(Lobid lookup)");
-            }
-        }
-    }
-
     // autodetect or map language
     bool autodetect_language(false);
     const std::string autodetect_message("forcing automatic language detection, reason: ");
@@ -660,6 +687,30 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
         IdentifyMissingLanguage(metadata_record, journal_params);
     else
         metadata_record->language_ = Config::GetNormalizedLanguage(metadata_record->language_);
+
+
+    // fetch creator GNDs and postprocess names
+    for (auto &creator : metadata_record->creators_) {
+        PostProcessAuthorName(&creator.first_name_, &creator.last_name_, &creator.title_, &creator.affix_,
+                              metadata_record->language_);
+
+        if (not creator.last_name_.empty()) {
+            std::string combined_name(creator.last_name_);
+            if (not creator.first_name_.empty())
+                combined_name += ", " + creator.first_name_;
+
+            creator.gnd_number_ = HtmlUtil::StripHtmlTags(BSZUtil::GetAuthorGNDNumber(combined_name, group_params.author_swb_lookup_url_));
+            if (not creator.gnd_number_.empty())
+                LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + " (SWB lookup)");
+            else {
+                creator.gnd_number_ = HtmlUtil::StripHtmlTags(LobidUtil::GetAuthorGNDNumber(
+                                                              combined_name, group_params.author_lobid_lookup_query_params_));
+                if (not creator.gnd_number_.empty())
+                    LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + "(Lobid lookup)");
+            }
+        }
+    }
+
 
     // fill-in license and SSG values
     if (journal_params.license_ == "LF")
