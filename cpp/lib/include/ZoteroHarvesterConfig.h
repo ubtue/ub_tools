@@ -93,7 +93,7 @@ struct GlobalParams {
         unsigned harvest_interval_;
         bool force_process_feeds_with_no_pub_dates_;
     } rss_harvester_operation_params_;
-    std::unique_ptr<ThreadSafeRegexMatcher> review_regex_;
+    std::shared_ptr<ThreadSafeRegexMatcher> review_regex_;
     ZoteroMetadataParams zotero_metadata_params_;
     MarcMetadataParams marc_metadata_params_;
 public:
@@ -201,7 +201,7 @@ struct JournalParams {
     unsigned update_window_;
     std::string ssgn_;
     std::string license_;
-    std::unique_ptr<ThreadSafeRegexMatcher> review_regex_;
+    std::shared_ptr<ThreadSafeRegexMatcher> review_regex_;
     LanguageParams language_params_;
     struct {
         unsigned max_crawl_depth_;
