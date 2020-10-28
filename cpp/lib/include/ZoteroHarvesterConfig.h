@@ -71,6 +71,7 @@ struct GlobalParams {
         SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY,
         DOWNLOAD_DELAY_DEFAULT,
         DOWNLOAD_DELAY_MAX,
+        REVIEW_REGEX,
         RSS_HARVEST_INTERVAL,
         RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES,
         TIMEOUT_CRAWL_OPERATION,
@@ -92,6 +93,7 @@ struct GlobalParams {
         unsigned harvest_interval_;
         bool force_process_feeds_with_no_pub_dates_;
     } rss_harvester_operation_params_;
+    std::unique_ptr<ThreadSafeRegexMatcher> review_regex_;
     ZoteroMetadataParams zotero_metadata_params_;
     MarcMetadataParams marc_metadata_params_;
 public:

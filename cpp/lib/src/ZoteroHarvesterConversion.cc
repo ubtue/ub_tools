@@ -506,14 +506,51 @@ void IdentifyMissingLanguage(MetadataRecord * const metadata_record, const Confi
 }
 
 
+bool DetectReviewsWithMatcher(MetadataRecord * const metadata_record, ThreadSafeRegexMatcher * const review_matcher) {
+    bool review_detected(false);
+
+    if (review_matcher->match(metadata_record->title_)) {
+        LOG_DEBUG("title matched review pattern");
+        review_detected = true;
+    } else if (review_matcher->match(metadata_record->short_title_)) {
+        LOG_DEBUG("short title matched review pattern");
+        review_detected = true;
+    } else {
+        for (const auto &keyword : metadata_record->keywords_) {
+            if (review_matcher->match(keyword)) {
+                LOG_DEBUG("keyword matched review pattern");
+                review_detected = true;
+            }
+        }
+    }
+
+    if (review_detected)
+        metadata_record->item_type_ = "review";
+    return review_detected;
+}
+
+
+void DetectReviews(MetadataRecord * const metadata_record, const ConversionParams &parameters) {
+    const auto &global_review_matcher(parameters.global_params_.review_regex_.get());
+    if (global_review_matcher != nullptr and DetectReviewsWithMatcher(metadata_record, global_review_matcher))
+        return;
+
+    const auto &journal_review_matcher(parameters.download_item_.journal_.review_regex_.get());
+    if (journal_review_matcher != nullptr)
+        DetectReviewsWithMatcher(metadata_record, journal_review_matcher);
+}
+
+
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
 const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
 
 
-void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params,
-                           const Config::GroupParams &group_params)
+void AugmentMetadataRecord(MetadataRecord * const metadata_record, const ConversionParams &parameters)
 {
+    const auto &journal_params(parameters.download_item_.journal_);
+    const auto &group_params(parameters.group_params_);
+
     // normalise date
     if (not metadata_record->date_.empty()) {
         struct tm tm(TimeUtil::StringToStructTm(metadata_record->date_, journal_params.strptime_format_string_));
@@ -629,24 +666,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
         metadata_record->license_ = journal_params.license_;
     metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(journal_params.ssgn_);
 
-    // tag reviews
-    const auto &review_matcher(journal_params.review_regex_);
-    if (review_matcher != nullptr) {
-        if (review_matcher->match(metadata_record->title_)) {
-            LOG_DEBUG("title matched review pattern");
-            metadata_record->item_type_ = "review";
-        } else if (review_matcher->match(metadata_record->short_title_)) {
-            LOG_DEBUG("short title matched review pattern");
-            metadata_record->item_type_ = "review";
-        } else {
-            for (const auto &keyword : metadata_record->keywords_) {
-                if (review_matcher->match(keyword)) {
-                    LOG_DEBUG("keyword matched review pattern");
-                    metadata_record->item_type_ = "review";
-                }
-            }
-        }
-    }
+    DetectReviews(metadata_record, parameters);
 }
 
 
@@ -1154,7 +1174,7 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
 
             MetadataRecord new_metadata_record;
             ConvertZoteroItemToMetadataRecord(json_object, &new_metadata_record);
-            AugmentMetadataRecord(&new_metadata_record, download_item.journal_, parameters.group_params_);
+            AugmentMetadataRecord(&new_metadata_record, parameters);
 
             LOG_DEBUG("Augmented metadata record: " + new_metadata_record.toString());
             if (new_metadata_record.url_.empty())

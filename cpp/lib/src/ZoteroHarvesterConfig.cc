@@ -132,6 +132,10 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
     rss_harvester_operation_params_.harvest_interval_ = config_section.getUnsigned(GetIniKeyString(RSS_HARVEST_INTERVAL));
     rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_ = config_section.getBool(GetIniKeyString(RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES));
 
+    const auto review_regex(config_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
+    if (not review_regex.empty())
+        review_regex_.reset(new ThreadSafeRegexMatcher(review_regex));
+
     zotero_metadata_params_ = ZoteroMetadataParams(config_section);
     marc_metadata_params_ = MarcMetadataParams(config_section);
 
@@ -149,6 +153,7 @@ const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MA
     { SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY, "skip_online_first_articles_unconditionally" },
     { DOWNLOAD_DELAY_DEFAULT,                     "default_download_delay_time" },
     { DOWNLOAD_DELAY_MAX,                         "max_download_delay_time" },
+    { REVIEW_REGEX,                               "zotero_review_regex" },
     { RSS_HARVEST_INTERVAL,                       "journal_rss_harvest_interval" },
     { RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES,  "force_process_feeds_with_no_pub_dates" },
     { TIMEOUT_CRAWL_OPERATION,                    "timeout_crawl_operation" },
