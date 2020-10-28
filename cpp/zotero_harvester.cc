@@ -607,10 +607,7 @@ int Main(int argc, char *argv[]) {
     download_manager_params.ignore_robots_txt_ = commandline_args.ignore_robots_dot_txt_;
     Download::DownloadManager download_manager(download_manager_params);
 
-    Conversion::ConversionManager::GlobalParams conversion_manager_params(
-        harvester_config.global_params_->skip_online_first_articles_unconditonally_
-    );
-    Conversion::ConversionManager conversion_manager(conversion_manager_params);
+    Conversion::ConversionManager conversion_manager(*harvester_config.global_params_);
     OutputFileCache output_file_cache(commandline_args, harvester_config);
     Util::UploadTracker upload_tracker;
     Metrics harvester_metrics;

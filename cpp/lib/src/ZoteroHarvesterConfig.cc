@@ -62,6 +62,55 @@ std::string GetHostTranslationServerUrl() {
 }
 
 
+ZoteroMetadataParams::ZoteroMetadataParams(const IniFile::Section &config_section) {
+    static const auto PREFIX_OVERRIDE_JSON_FIELD("override_json_field_");
+    static const auto PREFIX_SUPPRESS_JSON_FIELD("suppress_json_field_");
+    static const auto PREFIX_EXCLUDE_JSON_FIELD("exclude_if_json_field_");
+
+    for (const auto &entry : config_section) {
+        if (StringUtil::StartsWith(entry.name_, PREFIX_OVERRIDE_JSON_FIELD)) {
+            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_OVERRIDE_JSON_FIELD)));
+            fields_to_override_.insert(std::make_pair(field_name, entry.value_));
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_SUPPRESS_JSON_FIELD)) {
+            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_SUPPRESS_JSON_FIELD)));
+            fields_to_suppress_.insert(std::make_pair(field_name,
+                                       std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_JSON_FIELD)) {
+            const auto metadata_name(entry.name_.substr(__builtin_strlen(PREFIX_EXCLUDE_JSON_FIELD)));
+            exclusion_filters_.insert(std::make_pair(metadata_name,
+                                      std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
+        }
+    }
+}
+
+
+MarcMetadataParams::MarcMetadataParams(const IniFile::Section &config_section) {
+    static const auto PREFIX_ADD_MARC_FIELD("add_marc_field_");
+    static const auto PREFIX_REMOVE_MARC_FIELD("remove_marc_field_");
+    static const auto PREFIX_EXCLUDE_MARC_FIELD("exclude_if_marc_field_");
+
+    for (const auto &entry : config_section) {
+        if (StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD))
+            fields_to_add_.emplace_back(entry.value_);
+        else if (StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_MARC_FIELD)) {
+            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_EXCLUDE_MARC_FIELD)));
+            if (field_name.length() != MARC::Record::TAG_LENGTH and field_name.length() != MARC::Record::TAG_LENGTH + 1)
+                LOG_ERROR("invalid exclusion field name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
+
+            exclusion_filters_.insert(std::make_pair(field_name,
+                                      std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_FIELD)) {
+            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_REMOVE_MARC_FIELD)));
+            if (field_name.length() != MARC::Record::TAG_LENGTH + 1)
+                LOG_ERROR("invalid removal filter name '" + field_name + "'! expected format: <tag><subfield_code>");
+
+            fields_to_remove_.insert(std::make_pair(field_name,
+                                     std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
+        }
+    }
+}
+
+
 GlobalParams::GlobalParams(const IniFile::Section &config_section) {
     skip_online_first_articles_unconditonally_ = false;
     download_delay_params_.default_delay_ = 0;
@@ -83,6 +132,13 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
     rss_harvester_operation_params_.harvest_interval_ = config_section.getUnsigned(GetIniKeyString(RSS_HARVEST_INTERVAL));
     rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_ = config_section.getBool(GetIniKeyString(RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES));
 
+    const auto review_regex(config_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
+    if (not review_regex.empty())
+        review_regex_.reset(new ThreadSafeRegexMatcher(review_regex));
+
+    zotero_metadata_params_ = ZoteroMetadataParams(config_section);
+    marc_metadata_params_ = MarcMetadataParams(config_section);
+
     if (not strptime_format_string_.empty()) {
         if (strptime_format_string_[0] == '(')
             LOG_ERROR("Cannot specify locale in global strptime_format");
@@ -97,6 +153,7 @@ const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MA
     { SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY, "skip_online_first_articles_unconditionally" },
     { DOWNLOAD_DELAY_DEFAULT,                     "default_download_delay_time" },
     { DOWNLOAD_DELAY_MAX,                         "max_download_delay_time" },
+    { REVIEW_REGEX,                               "zotero_review_regex" },
     { RSS_HARVEST_INTERVAL,                       "journal_rss_harvest_interval" },
     { RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES,  "force_process_feeds_with_no_pub_dates" },
     { TIMEOUT_CRAWL_OPERATION,                    "timeout_crawl_operation" },
@@ -200,43 +257,8 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
         crawl_params_.crawl_url_regex_.reset(new ThreadSafeRegexMatcher(crawl_regex));
 
     // repeatable fields
-    static const auto PREFIX_OVERRIDE_JSON_FIELD("override_json_field_");
-    static const auto PREFIX_SUPPRESS_JSON_FIELD("suppress_json_field_");
-    static const auto PREFIX_EXCLUDE_JSON_FIELD("exclude_if_json_field_");
-    static const auto PREFIX_ADD_MARC_FIELD("add_marc_field_");
-    static const auto PREFIX_REMOVE_MARC_FIELD("remove_marc_field_");
-    static const auto PREFIX_EXCLUDE_MARC_FIELD("exclude_if_marc_field_");
-
-    for (const auto &entry : journal_section) {
-        if (StringUtil::StartsWith(entry.name_, PREFIX_OVERRIDE_JSON_FIELD)) {
-            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_OVERRIDE_JSON_FIELD)));
-            zotero_metadata_params_.fields_to_override_.insert(std::make_pair(field_name, entry.value_));
-        } else if (StringUtil::StartsWith(entry.name_, PREFIX_SUPPRESS_JSON_FIELD)) {
-            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_SUPPRESS_JSON_FIELD)));
-            zotero_metadata_params_.fields_to_suppress_.insert(std::make_pair(field_name,
-                                                               std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
-        } else if (StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD))
-            marc_metadata_params_.fields_to_add_.emplace_back(entry.value_);
-        else if (StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_MARC_FIELD)) {
-            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_EXCLUDE_MARC_FIELD)));
-            if (field_name.length() != MARC::Record::TAG_LENGTH and field_name.length() != MARC::Record::TAG_LENGTH + 1)
-                LOG_ERROR("invalid exclusion field name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
-
-            marc_metadata_params_.exclusion_filters_.insert(std::make_pair(field_name,
-                                                            std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
-        } else if (StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_JSON_FIELD)) {
-            const auto metadata_name(entry.name_.substr(__builtin_strlen(PREFIX_EXCLUDE_JSON_FIELD)));
-            zotero_metadata_params_.exclusion_filters_.insert(std::make_pair(metadata_name,
-                                                              std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
-        } else if (StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_FIELD)) {
-            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_REMOVE_MARC_FIELD)));
-            if (field_name.length() != MARC::Record::TAG_LENGTH + 1)
-                LOG_ERROR("invalid removal filter name '" + field_name + "'! expected format: <tag><subfield_code>");
-
-            marc_metadata_params_.fields_to_remove_.insert(std::make_pair(field_name,
-                                                           std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
-        }
-    }
+    zotero_metadata_params_ = ZoteroMetadataParams(journal_section);
+    marc_metadata_params_ = MarcMetadataParams(journal_section);
 }
 
 
