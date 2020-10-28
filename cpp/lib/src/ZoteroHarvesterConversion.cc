@@ -129,8 +129,8 @@ MetadataRecord::SSGType MetadataRecord::GetSSGTypeFromString(const std::string &
 }
 
 
-bool SuppressJsonMetadataHelper(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                                const Config::ZoteroMetadataParams &zotero_metadata_params)
+void SuppressJsonMetadataForParams(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                                   const Config::ZoteroMetadataParams &zotero_metadata_params)
 {
     const auto suppression_regex(zotero_metadata_params.fields_to_suppress_.find(node_name));
     if (suppression_regex != zotero_metadata_params.fields_to_suppress_.end()) {
@@ -142,10 +142,8 @@ bool SuppressJsonMetadataHelper(const std::string &node_name, const std::shared_
             LOG_DEBUG("suppression regex '" + suppression_regex->second->getPattern() +
                       "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
             string_node->setValue("");
-            return true;
         }
     }
-    return false;
 }
 
 
@@ -153,12 +151,12 @@ void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
                           const Util::HarvestableItem &download_item,
                           const Config::GlobalParams &global_params)
 {
-    if (not SuppressJsonMetadataHelper(node_name, node, global_params.zotero_metadata_params_))
-        SuppressJsonMetadataHelper(node_name, node, download_item.journal_.zotero_metadata_params_);
+    SuppressJsonMetadataForParams(node_name, node, global_params.zotero_metadata_params_);
+    SuppressJsonMetadataForParams(node_name, node, download_item.journal_.zotero_metadata_params_);
 }
 
 
-bool OverrideJsonMetadataHelper(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+void OverrideJsonMetadataForParams(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
                                 const Config::ZoteroMetadataParams &zotero_metadata_params)
 {
     const std::string ORIGINAL_VALUE_SPECIFIER("%org%");
@@ -174,10 +172,7 @@ bool OverrideJsonMetadataHelper(const std::string &node_name, const std::shared_
 
         LOG_DEBUG("metadata field '" + node_name + "' value changed from '" + string_value + "' to '" + override_string + "'");
         string_node->setValue(override_string);
-        return true;
     }
-
-    return false;
 }
 
 
@@ -185,8 +180,8 @@ void OverrideJsonMetadata(const std::string &node_name, const std::shared_ptr<JS
                           const Util::HarvestableItem &download_item,
                           const Config::GlobalParams &global_params)
 {
-    if (not OverrideJsonMetadataHelper(node_name, node, global_params.zotero_metadata_params_))
-        OverrideJsonMetadataHelper(node_name, node, download_item.journal_.zotero_metadata_params_);
+    OverrideJsonMetadataForParams(node_name, node, global_params.zotero_metadata_params_);
+    OverrideJsonMetadataForParams(node_name, node, download_item.journal_.zotero_metadata_params_);
 }
 
 
@@ -662,10 +657,10 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config:
 const ThreadSafeRegexMatcher CUSTOM_MARC_FIELD_PLACEHOLDER_MATCHER("%(.+)%");
 
 
-void InsertCustomMarcFields(const MetadataRecord &metadata_record, const Config::JournalParams &journal_params,
-                            MARC::Record * const marc_record)
+void InsertCustomMarcFieldsForParams(const MetadataRecord &metadata_record, MARC::Record * const marc_record,
+                                     const Config::MarcMetadataParams &marc_metadata_params)
 {
-    for (auto custom_field : journal_params.marc_metadata_params_.fields_to_add_) {
+    for (auto custom_field : marc_metadata_params.fields_to_add_) {
         const auto placeholder_match(CUSTOM_MARC_FIELD_PLACEHOLDER_MATCHER.match(custom_field));
         const auto custom_field_copy(custom_field);
 
@@ -708,6 +703,14 @@ void InsertCustomMarcFields(const MetadataRecord &metadata_record, const Config:
 }
 
 
+void InsertCustomMarcFields(const MetadataRecord &metadata_record, const Config::GlobalParams &global_params, const Config::JournalParams &journal_params,
+                            MARC::Record * const marc_record)
+{
+    InsertCustomMarcFieldsForParams(metadata_record, marc_record, global_params.marc_metadata_params_);
+    InsertCustomMarcFieldsForParams(metadata_record, marc_record, journal_params.marc_metadata_params_);
+}
+
+
 bool GetMatchedMARCFields(MARC::Record * marc_record, const std::string &field_or_field_and_subfield_code,
                           const ThreadSafeRegexMatcher &matcher, std::vector<MARC::Record::iterator> * const matched_fields)
 {
@@ -734,6 +737,26 @@ bool GetMatchedMARCFields(MARC::Record * marc_record, const std::string &field_o
     }
 
     return not matched_fields->empty();
+}
+
+
+void RemoveCustomMarcFieldsForParams(MARC::Record * const marc_record, const Config::MarcMetadataParams &marc_metadata_params) {
+    std::vector<MARC::Record::iterator> matched_fields;
+    for (const auto &filter : marc_metadata_params.fields_to_remove_) {
+        const auto &tag_and_subfield_code(filter.first);
+        GetMatchedMARCFields(marc_record, filter.first, *filter.second.get(), &matched_fields);
+
+        for (const auto &matched_field : matched_fields) {
+            marc_record->erase(matched_field);
+            LOG_DEBUG("erased field '" + tag_and_subfield_code + "' due to removal filter '" + filter.second->getPattern() + "'");
+        }
+    }
+}
+
+
+void RemoveCustomMarcFields(MARC::Record * const marc_record, const Config::GlobalParams &global_params, const Config::JournalParams &journal_params) {
+    RemoveCustomMarcFieldsForParams(marc_record, global_params.marc_metadata_params_);
+    RemoveCustomMarcFieldsForParams(marc_record, journal_params.marc_metadata_params_);
 }
 
 
@@ -771,8 +794,8 @@ const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP {
 
 
 void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_item, const MetadataRecord &metadata_record,
-                                          const Config::GroupParams &group_params, MARC::Record * const marc_record,
-                                          std::string * const marc_record_hash)
+                                          const Config::GlobalParams &global_params, const Config::GroupParams &group_params,
+                                          MARC::Record * const marc_record, std::string * const marc_record_hash)
 {
     *marc_record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
                                 MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART);
@@ -991,19 +1014,10 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
     marc_record->insertField("JOU", { { 'a', download_item.journal_.name_ } });
 
     // Add custom fields
-    InsertCustomMarcFields(metadata_record, download_item.journal_, marc_record);
+    InsertCustomMarcFields(metadata_record, global_params, download_item.journal_, marc_record);
 
     // Remove fields
-    std::vector<MARC::Record::iterator> matched_fields;
-    for (const auto &filter : download_item.journal_.marc_metadata_params_.fields_to_remove_) {
-        const auto &tag_and_subfield_code(filter.first);
-        GetMatchedMARCFields(marc_record, filter.first, *filter.second.get(), &matched_fields);
-
-        for (const auto &matched_field : matched_fields) {
-            marc_record->erase(matched_field);
-            LOG_DEBUG("erased field '" + tag_and_subfield_code + "' due to removal filter '" + filter.second->getPattern() + "'");
-        }
-    }
+    RemoveCustomMarcFields(marc_record, global_params, download_item.journal_);
 
     // Has to be generated in the very end as it contains the hash of the record
     *marc_record_hash = CalculateMarcRecordHash(*marc_record);
@@ -1012,12 +1026,14 @@ void GenerateMarcRecordFromMetadataRecord(const Util::HarvestableItem &download_
 }
 
 
-bool MarcRecordMatchesExclusionFilters(const Util::HarvestableItem &download_item, MARC::Record * const marc_record) {
+bool MarcRecordMatchesExclusionFiltersForParams(MARC::Record * const marc_record, const Util::HarvestableItem &download_item,
+                                                const Config::MarcMetadataParams &marc_metadata_params)
+{
     bool found_match(false);
     std::string exclusion_string;
 
     std::vector<MARC::Record::iterator> matched_fields;
-    for (const auto &filter : download_item.journal_.marc_metadata_params_.exclusion_filters_) {
+    for (const auto &filter : marc_metadata_params.exclusion_filters_) {
         if (GetMatchedMARCFields(marc_record, filter.first, *filter.second.get(), &matched_fields)) {
             exclusion_string = filter.first + "/" + filter.second->getPattern() + "/";
             found_match = true;
@@ -1028,6 +1044,14 @@ bool MarcRecordMatchesExclusionFilters(const Util::HarvestableItem &download_ite
     if (found_match)
         LOG_INFO("MARC field for '" + download_item.url_.toString() + " matched exclusion filter (" + exclusion_string + ")");
     return found_match;
+}
+
+
+bool MarcRecordMatchesExclusionFilters(const Util::HarvestableItem &download_item, const Config::GlobalParams &global_params,
+                                       MARC::Record * const marc_record)
+{
+    return (MarcRecordMatchesExclusionFiltersForParams(marc_record, download_item, global_params.marc_metadata_params_) or
+            MarcRecordMatchesExclusionFiltersForParams(marc_record, download_item, download_item.journal_.marc_metadata_params_));
 }
 
 
@@ -1155,10 +1179,10 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
             // a dummy record that will be replaced subsequently
             std::unique_ptr<MARC::Record> new_marc_record(new MARC::Record(std::string(MARC::Record::LEADER_LENGTH, ' ')));
             std::string new_marc_record_hash;
-            GenerateMarcRecordFromMetadataRecord(download_item, new_metadata_record, parameters.group_params_,
+            GenerateMarcRecordFromMetadataRecord(download_item, new_metadata_record, parameters.global_params_, parameters.group_params_,
                                                  new_marc_record.get(), &new_marc_record_hash);
 
-            if (MarcRecordMatchesExclusionFilters(download_item, new_marc_record.get())) {
+            if (MarcRecordMatchesExclusionFilters(download_item, parameters.global_params_, new_marc_record.get())) {
                 ++result->num_skipped_since_exclusion_filters_;
                 continue;
             }
