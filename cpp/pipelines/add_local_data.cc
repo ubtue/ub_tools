@@ -47,7 +47,7 @@ bool AddLocalData(const LocalDataDB &local_data_db, MARC::Record * const record,
 
 
 // Appends local data for each record, for which local data will be found in our database.
-// The local data is store in a format where the contents of each field is preceeded by a 4-character
+// The local data is stored in a format where the contents of each field is preceeded by a 4-character
 // hex string indicating the length of the immediately following field contents.
 // Multiple local fields may occur per record.
 void ProcessRecords(const LocalDataDB &local_data_db, MARC::Reader * const reader, MARC::Writer * const writer) {
