@@ -164,7 +164,7 @@ class ConversionManager {
 private:
     static constexpr unsigned MAX_CONVERSION_TASKLETS = 15;
 
-    Config::GlobalParams &global_params_;
+    const Config::GlobalParams &global_params_;
     pthread_t background_thread_;
     std::atomic_bool stop_background_thread_;
     ThreadUtil::ThreadSafeCounter<unsigned> conversion_tasklet_execution_counter_;
@@ -177,7 +177,7 @@ private:
     void processQueue();
     void cleanupCompletedTasklets();
 public:
-    ConversionManager(Config::GlobalParams &global_params);
+    ConversionManager(const Config::GlobalParams &global_params);
     ~ConversionManager();
 public:
     std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> convert(const Util::HarvestableItem &source,
