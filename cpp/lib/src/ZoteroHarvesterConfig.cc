@@ -195,7 +195,7 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
         }
 
         if (not valid and not ZoteroMetadataParams::IsValidIniEntry(entry) and not MarcMetadataParams::IsValidIniEntry(entry))
-            LOG_WARNING("Invalid ini entry in global section: " + entry.name_);
+            LOG_WARNING("Invalid ini entry \"" + entry.name_ + "\" in global section");
     }
 }
 
@@ -219,6 +219,9 @@ GroupParams::GroupParams(const IniFile::Section &group_section) {
 
     // Warnings for unknown entries
     for (const auto &entry : group_section) {
+        if (entry.name_.empty())
+            continue;
+
         bool valid(false);
         for (const auto &allowed_value : GroupParams::KEY_TO_STRING_MAP) {
             if (entry.name_ == allowed_value.second) {
@@ -228,7 +231,7 @@ GroupParams::GroupParams(const IniFile::Section &group_section) {
         }
 
         if (not valid)
-            LOG_WARNING("Invalid ini entry in group section: " + entry.name_);
+            LOG_WARNING("Invalid ini entry \"" + entry.name_ + "\" in group section: " + group_section.getSectionName());
     }
 }
 
@@ -256,54 +259,6 @@ JournalParams::JournalParams(const GlobalParams &global_params) {
     language_params_.force_automatic_language_detection_ = false;
     language_params_.expected_languages_.emplace("eng");
     crawl_params_.max_crawl_depth_ = 1;
-}
-
-
-JournalParams::JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params) {
-    zeder_id_ = journal_section.getUnsigned(GetIniKeyString(ZEDER_ID));
-    zeder_newly_synced_entry_ = journal_section.getBool(GetIniKeyString(ZEDER_NEWLY_SYNCED_ENTRY), false);
-    name_ = journal_section.getSectionName();
-    group_ = journal_section.getString(GetIniKeyString(GROUP));
-    entry_point_url_ = journal_section.getString(GetIniKeyString(ENTRY_POINT_URL));
-    harvester_operation_ = static_cast<HarvesterOperation>(journal_section.getEnum(GetIniKeyString(HARVESTER_OPERATION),
-                                                           STRING_TO_HARVEST_OPERATION_MAP));
-    upload_operation_ = static_cast<UploadOperation>(journal_section.getEnum(GetIniKeyString(UPLOAD_OPERATION),
-                                                     STRING_TO_UPLOAD_OPERATION_MAP, UploadOperation::NONE));
-    ppn_.online_ = journal_section.getString(GetIniKeyString(ONLINE_PPN), "");
-    ppn_.print_ = journal_section.getString(GetIniKeyString(PRINT_PPN), "");
-    issn_.online_ = journal_section.getString(GetIniKeyString(ONLINE_ISSN), "");
-    issn_.print_ = journal_section.getString(GetIniKeyString(PRINT_ISSN), "");
-    strptime_format_string_ = journal_section.getString(GetIniKeyString(STRPTIME_FORMAT_STRING), "");
-    if (not global_params.strptime_format_string_.empty()) {
-        if (not strptime_format_string_.empty())
-            strptime_format_string_ += '|';
-
-        strptime_format_string_ += global_params.strptime_format_string_;
-    }
-    update_window_ = journal_section.getUnsigned(GetIniKeyString(UPDATE_WINDOW), 0);
-    ssgn_ = journal_section.getString(GetIniKeyString(SSGN), "");
-    license_ = journal_section.getString(GetIniKeyString(LICENSE), "");
-
-    const auto review_regex(journal_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
-    if (not review_regex.empty())
-        review_regex_.reset(new ThreadSafeRegexMatcher(review_regex));
-
-    const std::string expected_languages(journal_section.getString(GetIniKeyString(EXPECTED_LANGUAGES), ""));
-    if (not ParseExpectedLanguages(expected_languages, &language_params_))
-        LOG_ERROR("invalid setting for expected languages: \"" + expected_languages + "\"");
-
-    crawl_params_.max_crawl_depth_ = journal_section.getUnsigned(GetIniKeyString(CRAWL_MAX_DEPTH), 0);
-    const auto extraction_regex(journal_section.getString(GetIniKeyString(CRAWL_EXTRACTION_REGEX), ""));
-    if (not extraction_regex.empty())
-        crawl_params_.extraction_regex_.reset(new ThreadSafeRegexMatcher(extraction_regex));
-
-    const auto crawl_regex(journal_section.getString(GetIniKeyString(CRAWL_URL_REGEX), ""));
-    if (not crawl_regex.empty())
-        crawl_params_.crawl_url_regex_.reset(new ThreadSafeRegexMatcher(crawl_regex));
-
-    // repeatable fields
-    zotero_metadata_params_ = ZoteroMetadataParams(journal_section);
-    marc_metadata_params_ = MarcMetadataParams(journal_section);
 }
 
 
@@ -352,6 +307,71 @@ const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_
     { "zotero_extraction_regex",   CRAWL_EXTRACTION_REGEX   },
     { "zotero_crawl_url_regex",    CRAWL_URL_REGEX          },
 };
+
+
+JournalParams::JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params) {
+    zeder_id_ = journal_section.getUnsigned(GetIniKeyString(ZEDER_ID));
+    zeder_newly_synced_entry_ = journal_section.getBool(GetIniKeyString(ZEDER_NEWLY_SYNCED_ENTRY), false);
+    name_ = journal_section.getSectionName();
+    group_ = journal_section.getString(GetIniKeyString(GROUP));
+    entry_point_url_ = journal_section.getString(GetIniKeyString(ENTRY_POINT_URL));
+    harvester_operation_ = static_cast<HarvesterOperation>(journal_section.getEnum(GetIniKeyString(HARVESTER_OPERATION),
+                                                           STRING_TO_HARVEST_OPERATION_MAP));
+    upload_operation_ = static_cast<UploadOperation>(journal_section.getEnum(GetIniKeyString(UPLOAD_OPERATION),
+                                                     STRING_TO_UPLOAD_OPERATION_MAP, UploadOperation::NONE));
+    ppn_.online_ = journal_section.getString(GetIniKeyString(ONLINE_PPN), "");
+    ppn_.print_ = journal_section.getString(GetIniKeyString(PRINT_PPN), "");
+    issn_.online_ = journal_section.getString(GetIniKeyString(ONLINE_ISSN), "");
+    issn_.print_ = journal_section.getString(GetIniKeyString(PRINT_ISSN), "");
+    strptime_format_string_ = journal_section.getString(GetIniKeyString(STRPTIME_FORMAT_STRING), "");
+    if (not global_params.strptime_format_string_.empty()) {
+        if (not strptime_format_string_.empty())
+            strptime_format_string_ += '|';
+
+        strptime_format_string_ += global_params.strptime_format_string_;
+    }
+    update_window_ = journal_section.getUnsigned(GetIniKeyString(UPDATE_WINDOW), 0);
+    ssgn_ = journal_section.getString(GetIniKeyString(SSGN), "");
+    license_ = journal_section.getString(GetIniKeyString(LICENSE), "");
+
+    const auto review_regex(journal_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
+    if (not review_regex.empty())
+        review_regex_.reset(new ThreadSafeRegexMatcher(review_regex));
+
+    const std::string expected_languages(journal_section.getString(GetIniKeyString(EXPECTED_LANGUAGES), ""));
+    if (not ParseExpectedLanguages(expected_languages, &language_params_))
+        LOG_ERROR("invalid setting for expected languages: \"" + expected_languages + "\"");
+
+    crawl_params_.max_crawl_depth_ = journal_section.getUnsigned(GetIniKeyString(CRAWL_MAX_DEPTH), 0);
+    const auto extraction_regex(journal_section.getString(GetIniKeyString(CRAWL_EXTRACTION_REGEX), ""));
+    if (not extraction_regex.empty())
+        crawl_params_.extraction_regex_.reset(new ThreadSafeRegexMatcher(extraction_regex));
+
+    const auto crawl_regex(journal_section.getString(GetIniKeyString(CRAWL_URL_REGEX), ""));
+    if (not crawl_regex.empty())
+        crawl_params_.crawl_url_regex_.reset(new ThreadSafeRegexMatcher(crawl_regex));
+
+    // repeatable fields
+    zotero_metadata_params_ = ZoteroMetadataParams(journal_section);
+    marc_metadata_params_ = MarcMetadataParams(journal_section);
+
+    // Warnings for unknown entries
+    for (const auto &entry : journal_section) {
+        if (entry.name_.empty())
+            continue;
+
+        bool valid(false);
+        for (const auto &allowed_value : JournalParams::KEY_TO_STRING_MAP) {
+            if (entry.name_ == allowed_value.second) {
+                valid = true;
+                break;
+            }
+        }
+
+        if (not valid and not ZoteroMetadataParams::IsValidIniEntry(entry) and not MarcMetadataParams::IsValidIniEntry(entry))
+            LOG_WARNING("Invalid ini entry \"" + entry.name_ + "\" in journal section: \"" + journal_section.getSectionName() + "\"");
+    }
+}
 
 
 std::string JournalParams::GetIniKeyString(const IniKey ini_key) {
