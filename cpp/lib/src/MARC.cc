@@ -1056,6 +1056,17 @@ std::string Record::getPublicationYear(const std::string &fallback) const {
 }
 
 
+std::vector<std::string> Record::getDatesOfProductionEtc() const {
+    std::vector<std::string> dates;
+    for (const auto &field : getTagRange("264")) {
+        const auto date_candidate(field.getFirstSubfieldWithCode('c'));
+        if (not date_candidate.empty())
+            dates.emplace_back(date_candidate);
+    }
+    return dates;
+}
+
+
 std::map<std::string, std::string> Record::getAllAuthorsAndPPNs() const {
     static const std::vector<std::string> AUTHOR_TAGS { "100", "109", "700" };
 

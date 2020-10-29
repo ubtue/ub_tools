@@ -847,7 +847,6 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         // Handle Control Fields
         //
 
-
         merge_field_pos = merge_record->findTag(import_field.getTag());
         if (unlikely(merge_field_pos == merge_record->end()))
             LOG_ERROR("This should *never* happen!");
