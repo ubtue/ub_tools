@@ -48,6 +48,7 @@ struct ZoteroMetadataParams {
 public:
     ZoteroMetadataParams() = default;
     ZoteroMetadataParams(const IniFile::Section &config_section);
+    static bool IsValidIniEntry(const IniFile::Entry &entry);
 };
 
 
@@ -59,6 +60,7 @@ struct MarcMetadataParams {
 public:
     MarcMetadataParams() = default;
     MarcMetadataParams(const IniFile::Section &config_section);
+    static bool IsValidIniEntry(const IniFile::Entry &entry);
 };
 
 
