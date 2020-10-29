@@ -466,10 +466,10 @@ std::string CanoniseText(const std::string &s) {
 bool SubfieldPrefixIsIdentical(const MARC::Record::Field &field1, const MARC::Record::Field &field2, const std::vector<char> &subfield_codes)
 {
     const MARC::Subfields subfields1(field1.getSubfields());
-    const auto subfield1(subfields1.begin());
+    auto subfield1(subfields1.begin());
 
     const MARC::Subfields subfields2(field2.getSubfields());
-    const auto subfield2(subfields2.begin());
+    auto subfield2(subfields2.begin());
 
     for (const char subfield_code : subfield_codes) {
         if (subfield1 == subfields1.end() or subfield2 == subfields2.end())
@@ -478,6 +478,7 @@ bool SubfieldPrefixIsIdentical(const MARC::Record::Field &field1, const MARC::Re
             return false;
         if (CanoniseText(subfield1->value_) != CanoniseText(subfield2->value_))
             return false;
+        ++subfield1, ++subfield2;
     }
 
     return true;
@@ -689,11 +690,16 @@ bool MergeFieldPair022(MARC::Record::Field * const merge_field, const MARC::Reco
     if (merge_field->getTag() != "022" or import_field.getTag() != "022")
         return false;
 
-    if (merge_record->isElectronicResource())
-        merge_field->insertOrReplaceSubfield('2', "electronic");
-    else
-        merge_field->insertOrReplaceSubfield('2', "print");
-    merge_field->insertOrReplaceSubfield('9', merge_record->getMainTitle());
+    if (not merge_record->hasFieldWithTag("ZWI")) {
+        const std::string dates(StringUtil::Join(merge_record->getDatesOfProductionEtc(), ','));
+        if (not dates.empty())
+            merge_field->insertOrReplaceSubfield('3', dates);
+        if (merge_record->isElectronicResource())
+            merge_field->insertOrReplaceSubfield('2', "electronic");
+        else
+            merge_field->insertOrReplaceSubfield('2', "print");
+        merge_field->insertOrReplaceSubfield('9', merge_record->getMainTitle());
+    }
 
     *augmented_import_field = import_field;
     if (import_record.isElectronicResource())
@@ -701,6 +707,9 @@ bool MergeFieldPair022(MARC::Record::Field * const merge_field, const MARC::Reco
     else
         augmented_import_field->insertOrReplaceSubfield('2', "print");
     augmented_import_field->insertOrReplaceSubfield('9', import_record.getMainTitle());
+    const std::string dates(StringUtil::Join(import_record.getDatesOfProductionEtc(), ','));
+    if (not dates.empty())
+        augmented_import_field->insertOrReplaceSubfield('3', dates);
 
     return true;
 }
@@ -829,10 +838,13 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         const bool import_field_repeatable(import_field.isRepeatableField());
         bool compare_indicators(import_field_repeatable), compare_subfields(import_field_repeatable);
 
-        // Non-existing fields in the merge_record can be inserted unconditionally unless special treatment is needed at a later stage
+        // Skip fields that we already have.
         MARC::Record::iterator merge_field_pos;
-        if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)
-            or IsFieldWithTagForSpecialTreatment(import_field)) {
+        if (GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
+            continue;
+
+        // Non-existing fields in the merge_record can be inserted unconditionally unless special treatment is needed at a later stage
+        if (not IsFieldWithTagForSpecialTreatment(import_field)) {
             merge_record->insertFieldAtEnd(import_field);
             continue;
         }
@@ -843,6 +855,9 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         // Handle Control Fields
         //
 
+        merge_field_pos = merge_record->findTag(import_field.getTag());
+        if (unlikely(merge_field_pos == merge_record->end()))
+            LOG_ERROR("This should *never* happen!");
         MARC::Record::Field merge_field(*merge_field_pos);
 
         if (MergeFieldPair008(&merge_field, import_field)) {
@@ -873,7 +888,7 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             continue;
 
         if (MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)) {
-            if (GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
+            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
                 merge_field_pos->swap(merge_field);
             continue;
         }

@@ -40,6 +40,28 @@ namespace Config {
 static constexpr unsigned DEFAULT_ZEDER_ID(0);
 
 
+// Metadata parameters related to Zotero that will be re-used in global as well as journal params later
+struct ZoteroMetadataParams {
+    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> fields_to_suppress_;
+    std::map<std::string, std::string> fields_to_override_;
+    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
+public:
+    ZoteroMetadataParams() = default;
+    ZoteroMetadataParams(const IniFile::Section &config_section);
+};
+
+
+// Metadata parameters related to MARC that will be re-used in global as well as journal params later
+struct MarcMetadataParams {
+    std::vector<std::string> fields_to_add_;
+    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> fields_to_remove_;
+    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
+public:
+    MarcMetadataParams() = default;
+    MarcMetadataParams(const IniFile::Section &config_section);
+};
+
+
 // Parameters that pertain to all harvestable journals/groups.
 struct GlobalParams {
     enum IniKey : unsigned {
@@ -49,6 +71,7 @@ struct GlobalParams {
         SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY,
         DOWNLOAD_DELAY_DEFAULT,
         DOWNLOAD_DELAY_MAX,
+        REVIEW_REGEX,
         RSS_HARVEST_INTERVAL,
         RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES,
         TIMEOUT_CRAWL_OPERATION,
@@ -70,6 +93,9 @@ struct GlobalParams {
         unsigned harvest_interval_;
         bool force_process_feeds_with_no_pub_dates_;
     } rss_harvester_operation_params_;
+    std::shared_ptr<ThreadSafeRegexMatcher> review_regex_;
+    ZoteroMetadataParams zotero_metadata_params_;
+    MarcMetadataParams marc_metadata_params_;
 public:
     GlobalParams(const IniFile::Section &config_section);
     GlobalParams(const GlobalParams &rhs) = default;
@@ -175,24 +201,15 @@ struct JournalParams {
     unsigned update_window_;
     std::string ssgn_;
     std::string license_;
-    std::unique_ptr<ThreadSafeRegexMatcher> review_regex_;
+    std::shared_ptr<ThreadSafeRegexMatcher> review_regex_;
     LanguageParams language_params_;
     struct {
         unsigned max_crawl_depth_;
         std::unique_ptr<ThreadSafeRegexMatcher> extraction_regex_;
         std::unique_ptr<ThreadSafeRegexMatcher> crawl_url_regex_;
     } crawl_params_;
-
-    struct {
-        std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> fields_to_suppress_;
-        std::map<std::string, std::string> fields_to_override_;
-        std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
-    } zotero_metadata_params_;
-    struct {
-        std::vector<std::string> fields_to_add_;
-        std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> fields_to_remove_;
-        std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
-    } marc_metadata_params_;
+    ZoteroMetadataParams zotero_metadata_params_;
+    MarcMetadataParams marc_metadata_params_;
     bool zeder_newly_synced_entry_;
 public:
     JournalParams(const GlobalParams &global_params);
