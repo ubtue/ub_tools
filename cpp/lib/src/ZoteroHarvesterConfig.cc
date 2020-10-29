@@ -200,16 +200,6 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
 }
 
 
-GroupParams::GroupParams(const IniFile::Section &group_section) {
-    name_ = group_section.getSectionName();
-    user_agent_ = group_section.getString(GetIniKeyString(USER_AGENT));
-    isil_ = group_section.getString(GetIniKeyString(ISIL));
-    output_folder_ = group_section.getString(GetIniKeyString(OUTPUT_FOLDER));
-    author_swb_lookup_url_ = group_section.getString(GetIniKeyString(AUTHOR_SWB_LOOKUP_URL));
-    author_lobid_lookup_query_params_ = group_section.getString(GetIniKeyString(AUTHOR_LOBID_LOOKUP_QUERY_PARAMS), "");
-}
-
-
 const std::map<GroupParams::IniKey, std::string> GroupParams::KEY_TO_STRING_MAP {
     { USER_AGENT,                       "user_agent" },
     { ISIL,                             "isil" },
@@ -217,6 +207,30 @@ const std::map<GroupParams::IniKey, std::string> GroupParams::KEY_TO_STRING_MAP 
     { AUTHOR_SWB_LOOKUP_URL,            "author_swb_lookup_url" },
     { AUTHOR_LOBID_LOOKUP_QUERY_PARAMS, "author_lobid_lookup_query_params" },
 };
+
+
+GroupParams::GroupParams(const IniFile::Section &group_section) {
+    name_ = group_section.getSectionName();
+    user_agent_ = group_section.getString(GetIniKeyString(USER_AGENT));
+    isil_ = group_section.getString(GetIniKeyString(ISIL));
+    output_folder_ = group_section.getString(GetIniKeyString(OUTPUT_FOLDER));
+    author_swb_lookup_url_ = group_section.getString(GetIniKeyString(AUTHOR_SWB_LOOKUP_URL));
+    author_lobid_lookup_query_params_ = group_section.getString(GetIniKeyString(AUTHOR_LOBID_LOOKUP_QUERY_PARAMS), "");
+
+    // Warnings for unknown entries
+    for (const auto &entry : group_section) {
+        bool valid(false);
+        for (const auto &allowed_value : GroupParams::KEY_TO_STRING_MAP) {
+            if (entry.name_ == allowed_value.second) {
+                valid = true;
+                break;
+            }
+        }
+
+        if (not valid)
+            LOG_WARNING("Invalid ini entry in group section: " + entry.name_);
+    }
+}
 
 
 std::string GroupParams::GetIniKeyString(const IniKey ini_key) {
