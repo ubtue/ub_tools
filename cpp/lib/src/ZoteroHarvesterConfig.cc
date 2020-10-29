@@ -62,11 +62,37 @@ std::string GetHostTranslationServerUrl() {
 }
 
 
-ZoteroMetadataParams::ZoteroMetadataParams(const IniFile::Section &config_section) {
-    static const auto PREFIX_OVERRIDE_JSON_FIELD("override_json_field_");
-    static const auto PREFIX_SUPPRESS_JSON_FIELD("suppress_json_field_");
-    static const auto PREFIX_EXCLUDE_JSON_FIELD("exclude_if_json_field_");
+const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MAP {
+    { ENHANCEMENT_MAPS_DIRECTORY,                 "enhancement_maps_directory" },
+    { GROUP_NAMES,                                "groups" },
+    { STRPTIME_FORMAT_STRING,                     "common_strptime_format" },
+    { SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY, "skip_online_first_articles_unconditionally" },
+    { DOWNLOAD_DELAY_DEFAULT,                     "default_download_delay_time" },
+    { DOWNLOAD_DELAY_MAX,                         "max_download_delay_time" },
+    { REVIEW_REGEX,                               "zotero_review_regex" },
+    { RSS_HARVEST_INTERVAL,                       "journal_rss_harvest_interval" },
+    { RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES,  "force_process_feeds_with_no_pub_dates" },
+    { TIMEOUT_CRAWL_OPERATION,                    "timeout_crawl_operation" },
+    { TIMEOUT_DOWNLOAD_REQUEST,                   "timeout_download_request" },
+};
 
+
+static const auto PREFIX_OVERRIDE_JSON_FIELD("override_json_field_");
+static const auto PREFIX_SUPPRESS_JSON_FIELD("suppress_json_field_");
+static const auto PREFIX_EXCLUDE_JSON_FIELD("exclude_if_json_field_");
+static const auto PREFIX_ADD_MARC_FIELD("add_marc_field_");
+static const auto PREFIX_REMOVE_MARC_FIELD("remove_marc_field_");
+static const auto PREFIX_EXCLUDE_MARC_FIELD("exclude_if_marc_field_");
+
+
+bool ZoteroMetadataParams::IsValidIniEntry(const IniFile::Entry &entry) {
+    return (StringUtil::StartsWith(entry.name_, PREFIX_OVERRIDE_JSON_FIELD)
+            or StringUtil::StartsWith(entry.name_, PREFIX_SUPPRESS_JSON_FIELD)
+            or StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_JSON_FIELD));
+}
+
+
+ZoteroMetadataParams::ZoteroMetadataParams(const IniFile::Section &config_section) {
     for (const auto &entry : config_section) {
         if (StringUtil::StartsWith(entry.name_, PREFIX_OVERRIDE_JSON_FIELD)) {
             const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_OVERRIDE_JSON_FIELD)));
@@ -84,11 +110,14 @@ ZoteroMetadataParams::ZoteroMetadataParams(const IniFile::Section &config_sectio
 }
 
 
-MarcMetadataParams::MarcMetadataParams(const IniFile::Section &config_section) {
-    static const auto PREFIX_ADD_MARC_FIELD("add_marc_field_");
-    static const auto PREFIX_REMOVE_MARC_FIELD("remove_marc_field_");
-    static const auto PREFIX_EXCLUDE_MARC_FIELD("exclude_if_marc_field_");
+bool MarcMetadataParams::IsValidIniEntry(const IniFile::Entry &entry) {
+    return (StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD)
+            or StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_FIELD)
+            or StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_MARC_FIELD));
+}
 
+
+MarcMetadataParams::MarcMetadataParams(const IniFile::Section &config_section) {
     for (const auto &entry : config_section) {
         if (StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD))
             fields_to_add_.emplace_back(entry.value_);
@@ -108,6 +137,14 @@ MarcMetadataParams::MarcMetadataParams(const IniFile::Section &config_section) {
                                      std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
         }
     }
+}
+
+
+std::string GlobalParams::GetIniKeyString(const IniKey ini_key) {
+    const auto key_and_string(KEY_TO_STRING_MAP.find(ini_key));
+    if (key_and_string == KEY_TO_STRING_MAP.end())
+        LOG_ERROR("invalid GlobalParams INI key '" + std::to_string(ini_key) + "'");
+    return key_and_string->second;
 }
 
 
@@ -143,29 +180,23 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
         if (strptime_format_string_[0] == '(')
             LOG_ERROR("Cannot specify locale in global strptime_format");
     }
-}
 
+    // Warnings for unknown entries
+    for (const auto &entry : config_section) {
+        if (entry.name_.empty())
+            continue;
 
-const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MAP {
-    { ENHANCEMENT_MAPS_DIRECTORY,                 "enhancement_maps_directory" },
-    { GROUP_NAMES,                                "groups" },
-    { STRPTIME_FORMAT_STRING,                     "common_strptime_format" },
-    { SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY, "skip_online_first_articles_unconditionally" },
-    { DOWNLOAD_DELAY_DEFAULT,                     "default_download_delay_time" },
-    { DOWNLOAD_DELAY_MAX,                         "max_download_delay_time" },
-    { REVIEW_REGEX,                               "zotero_review_regex" },
-    { RSS_HARVEST_INTERVAL,                       "journal_rss_harvest_interval" },
-    { RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES,  "force_process_feeds_with_no_pub_dates" },
-    { TIMEOUT_CRAWL_OPERATION,                    "timeout_crawl_operation" },
-    { TIMEOUT_DOWNLOAD_REQUEST,                   "timeout_download_request" },
-};
+        bool valid(false);
+        for (const auto &allowed_value : GlobalParams::KEY_TO_STRING_MAP) {
+            if (entry.name_ == allowed_value.second) {
+                valid = true;
+                break;
+            }
+        }
 
-
-std::string GlobalParams::GetIniKeyString(const IniKey ini_key) {
-    const auto key_and_string(KEY_TO_STRING_MAP.find(ini_key));
-    if (key_and_string == KEY_TO_STRING_MAP.end())
-        LOG_ERROR("invalid GlobalParams INI key '" + std::to_string(ini_key) + "'");
-    return key_and_string->second;
+        if (not valid and not ZoteroMetadataParams::IsValidIniEntry(entry) and not MarcMetadataParams::IsValidIniEntry(entry))
+            LOG_WARNING("Invalid ini entry in global section: " + entry.name_);
+    }
 }
 
 
