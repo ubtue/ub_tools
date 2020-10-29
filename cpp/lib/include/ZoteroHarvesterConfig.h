@@ -63,6 +63,41 @@ public:
     static bool IsValidIniEntry(const IniFile::Entry &entry);
 };
 
+typedef bool (*ValidationCallback)(const IniFile::Entry &entry);
+template <typename EnumType>
+void CheckIniSection(const IniFile::Section &section, const std::map<EnumType, std::string> &allowed_values,
+                     const std::vector<ValidationCallback> &callbacks={})
+{
+    for (const auto &entry : section) {
+        if (entry.name_.empty())
+            continue;
+
+        bool valid(false);
+        for (const auto &allowed_value : allowed_values) {
+            if (entry.name_ == allowed_value.second) {
+                valid = true;
+                break;
+            }
+        }
+
+        if (not valid) {
+            for (unsigned i(0); i<callbacks.size(); ++i) {
+                if ((callbacks[i])(entry)) {
+                    valid = true;
+                    break;
+                }
+            }
+
+            if (not valid) {
+                std::string message("Invalid ini entry \"" + entry.name_ + "\"");
+                if (not section.getSectionName().empty())
+                    message += " in section \"" + section.getSectionName() + "\"";
+                LOG_WARNING(message);
+            }
+        }
+    }
+}
+
 
 // Parameters that pertain to all harvestable journals/groups.
 struct GlobalParams {

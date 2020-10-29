@@ -181,22 +181,8 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
             LOG_ERROR("Cannot specify locale in global strptime_format");
     }
 
-    // Warnings for unknown entries
-    for (const auto &entry : config_section) {
-        if (entry.name_.empty())
-            continue;
-
-        bool valid(false);
-        for (const auto &allowed_value : GlobalParams::KEY_TO_STRING_MAP) {
-            if (entry.name_ == allowed_value.second) {
-                valid = true;
-                break;
-            }
-        }
-
-        if (not valid and not ZoteroMetadataParams::IsValidIniEntry(entry) and not MarcMetadataParams::IsValidIniEntry(entry))
-            LOG_WARNING("Invalid ini entry \"" + entry.name_ + "\" in global section");
-    }
+    CheckIniSection(config_section, GlobalParams::KEY_TO_STRING_MAP,
+                    { ZoteroMetadataParams::IsValidIniEntry, MarcMetadataParams::IsValidIniEntry });
 }
 
 
@@ -217,22 +203,8 @@ GroupParams::GroupParams(const IniFile::Section &group_section) {
     author_swb_lookup_url_ = group_section.getString(GetIniKeyString(AUTHOR_SWB_LOOKUP_URL));
     author_lobid_lookup_query_params_ = group_section.getString(GetIniKeyString(AUTHOR_LOBID_LOOKUP_QUERY_PARAMS), "");
 
-    // Warnings for unknown entries
-    for (const auto &entry : group_section) {
-        if (entry.name_.empty())
-            continue;
 
-        bool valid(false);
-        for (const auto &allowed_value : GroupParams::KEY_TO_STRING_MAP) {
-            if (entry.name_ == allowed_value.second) {
-                valid = true;
-                break;
-            }
-        }
-
-        if (not valid)
-            LOG_WARNING("Invalid ini entry \"" + entry.name_ + "\" in group section: " + group_section.getSectionName());
-    }
+    CheckIniSection(group_section, GroupParams::KEY_TO_STRING_MAP);
 }
 
 
@@ -355,22 +327,8 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     zotero_metadata_params_ = ZoteroMetadataParams(journal_section);
     marc_metadata_params_ = MarcMetadataParams(journal_section);
 
-    // Warnings for unknown entries
-    for (const auto &entry : journal_section) {
-        if (entry.name_.empty())
-            continue;
-
-        bool valid(false);
-        for (const auto &allowed_value : JournalParams::KEY_TO_STRING_MAP) {
-            if (entry.name_ == allowed_value.second) {
-                valid = true;
-                break;
-            }
-        }
-
-        if (not valid and not ZoteroMetadataParams::IsValidIniEntry(entry) and not MarcMetadataParams::IsValidIniEntry(entry))
-            LOG_WARNING("Invalid ini entry \"" + entry.name_ + "\" in journal section: \"" + journal_section.getSectionName() + "\"");
-    }
+    CheckIniSection(journal_section, JournalParams::KEY_TO_STRING_MAP,
+                    { ZoteroMetadataParams::IsValidIniEntry, MarcMetadataParams::IsValidIniEntry });
 }
 
 
