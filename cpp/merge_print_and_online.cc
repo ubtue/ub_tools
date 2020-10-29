@@ -690,11 +690,16 @@ bool MergeFieldPair022(MARC::Record::Field * const merge_field, const MARC::Reco
     if (merge_field->getTag() != "022" or import_field.getTag() != "022")
         return false;
 
-    if (merge_record->isElectronicResource())
-        merge_field->insertOrReplaceSubfield('2', "electronic");
-    else
-        merge_field->insertOrReplaceSubfield('2', "print");
-    merge_field->insertOrReplaceSubfield('9', merge_record->getMainTitle());
+    if (not merge_record->hasFieldWithTag("ZWI")) {
+        const std::string dates(StringUtil::Join(merge_record->getDatesOfProductionEtc(), ','));
+        if (not dates.empty())
+            merge_field->insertOrReplaceSubfield('3', dates);
+        if (merge_record->isElectronicResource())
+            merge_field->insertOrReplaceSubfield('2', "electronic");
+        else
+            merge_field->insertOrReplaceSubfield('2', "print");
+        merge_field->insertOrReplaceSubfield('9', merge_record->getMainTitle());
+    }
 
     *augmented_import_field = import_field;
     if (import_record.isElectronicResource())
@@ -702,6 +707,9 @@ bool MergeFieldPair022(MARC::Record::Field * const merge_field, const MARC::Reco
     else
         augmented_import_field->insertOrReplaceSubfield('2', "print");
     augmented_import_field->insertOrReplaceSubfield('9', import_record.getMainTitle());
+    const std::string dates(StringUtil::Join(import_record.getDatesOfProductionEtc(), ','));
+    if (not dates.empty())
+        augmented_import_field->insertOrReplaceSubfield('3', dates);
 
     return true;
 }

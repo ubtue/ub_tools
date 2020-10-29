@@ -1063,7 +1063,20 @@ std::vector<std::string> Record::getDatesOfProductionEtc() const {
         if (not date_candidate.empty())
             dates.emplace_back(date_candidate);
     }
-    return dates;
+
+    std::sort(dates.begin(), dates.end());
+    std::vector<std::string> filtered_dates;
+    std::string last_start_year;
+    for (const auto &date : dates) {
+        const auto start_year(date.substr(0, 4));
+        if (start_year > last_start_year) {
+            filtered_dates.emplace_back(date);
+            last_start_year = start_year;
+        } else
+            filtered_dates.back() = date;
+    }
+
+    return filtered_dates;
 }
 
 
