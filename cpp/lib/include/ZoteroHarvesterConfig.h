@@ -48,6 +48,7 @@ struct ZoteroMetadataParams {
 public:
     ZoteroMetadataParams() = default;
     ZoteroMetadataParams(const IniFile::Section &config_section);
+
     static bool IsValidIniEntry(const IniFile::Entry &entry);
 };
 
@@ -60,6 +61,7 @@ struct MarcMetadataParams {
 public:
     MarcMetadataParams() = default;
     MarcMetadataParams(const IniFile::Section &config_section);
+
     static bool IsValidIniEntry(const IniFile::Entry &entry);
 };
 
@@ -81,8 +83,8 @@ void CheckIniSection(const IniFile::Section &section, const std::map<EnumType, s
         }
 
         if (not valid) {
-            for (unsigned i(0); i<callbacks.size(); ++i) {
-                if ((callbacks[i])(entry)) {
+            for (const auto &callback : callbacks) {
+                if (callback(entry)) {
                     valid = true;
                     break;
                 }
