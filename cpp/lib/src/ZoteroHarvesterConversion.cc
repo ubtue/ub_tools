@@ -1174,16 +1174,19 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
 
             MetadataRecord new_metadata_record;
             ConvertZoteroItemToMetadataRecord(json_object, &new_metadata_record);
+
+            if (ExcludeUndesiredItemTypes(new_metadata_record)) {
+                ++result->num_skipped_since_undesired_item_type_;
+                continue;
+            }
+
             AugmentMetadataRecord(&new_metadata_record, parameters);
 
             LOG_DEBUG("Augmented metadata record: " + new_metadata_record.toString());
             if (new_metadata_record.url_.empty())
                 throw std::runtime_error("no URL set");
 
-            if (ExcludeUndesiredItemTypes(new_metadata_record)) {
-                ++result->num_skipped_since_undesired_item_type_;
-                continue;
-            } else if (ExcludeOnlineFirstRecord(new_metadata_record, parameters)) {
+            if (ExcludeOnlineFirstRecord(new_metadata_record, parameters)) {
                 ++result->num_skipped_since_online_first_;
                 continue;
             } else if (ExcludeEarlyViewRecord(new_metadata_record, parameters)) {
