@@ -809,12 +809,6 @@ bool GetFuzzyIdenticalField(MARC::Record &record, const MARC::Record::Field &fie
 }
 
 
-bool IsFieldWithTagForSpecialTreatment(const MARC::Record::Field &field) {
-    static const std::unordered_set<std::string> tags_with_special_handling = { "005", "022", "264", "936" };
-    return tags_with_special_handling.find(field.getTag().toString()) != tags_with_special_handling.cend();
-}
-
-
 /**
  * Merge import_record into merge_record
  *
@@ -843,8 +837,8 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         if (GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
             continue;
 
-        // Non-existing fields in the merge_record can be inserted unconditionally unless special treatment is needed at a later stage
-        if (not IsFieldWithTagForSpecialTreatment(import_field)) {
+        // Non-existing fields in the merge_record can be inserted unconditionally
+        if (merge_record->findTag(import_field.getTag()) == merge_record->end()) {
             merge_record->insertFieldAtEnd(import_field);
             continue;
         }
