@@ -840,7 +840,9 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         // Non-existing or 936rv fields in the merge_record can be inserted unconditionally.
         // (936rv are keyword fields.)
         const auto &import_tag(import_field.getTag());
-        if ((import_tag.toString() == "936" and import_field.getIndicator1() == 'r' and import_field.getIndicator2() == 'v')
+        if ((import_tag.toString() == "936"
+             and ((import_field.getIndicator1() == 'r' and import_field.getIndicator2() == 'v')
+                  or (import_field.getIndicator1() == 'b' and import_field.getIndicator2() == 'k')))
             or merge_record->findTag(import_tag) == merge_record->end())
         {
             merge_record->insertFieldAtEnd(import_field);
