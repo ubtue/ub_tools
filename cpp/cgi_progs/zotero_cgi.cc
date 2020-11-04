@@ -187,7 +187,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             const auto zeder_journal_id(GetZederJournalId(zeder_id, zeder_instance, db_connection));
             const auto max_delivered_datetime(GetJournalMaxDeliveredDatetime(zeder_journal_id, db_connection));
             std::string harvest_status("NONE");
-            if (update_window != 0 and max_delivered_datetime != TimeUtil::BAD_TIME_T) {
+            if (delivery_mode != ZoteroHarvester::Config::NONE and update_window != 0 and max_delivered_datetime != TimeUtil::BAD_TIME_T) {
                 if (max_delivered_datetime < ::time(nullptr) - update_window * 86400)
                     harvest_status = "ERROR";
                 else
