@@ -16,3 +16,10 @@ textarea {
 a.disabled {
     color: #555555;
 }
+
+span.dot {
+    height: 15px;
+    width: 15px;
+    border-radius: 50%;
+    display: inline-block;
+}
