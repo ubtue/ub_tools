@@ -65,6 +65,7 @@ public:
     static bool IsValidIniEntry(const IniFile::Entry &entry);
 };
 
+
 typedef bool (*ValidationCallback)(const IniFile::Entry &entry);
 template <typename EnumType>
 void CheckIniSection(const IniFile::Section &section, const std::map<EnumType, std::string> &allowed_values,
