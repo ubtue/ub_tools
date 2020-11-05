@@ -528,7 +528,7 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
         return subfield1 == subfields1.end() and subfield2 == subfields2.end();
     }
 
-    return true;
+    return FuzzyEqual(field1.getContents(), field2.getContents());
 }
 
 
@@ -799,7 +799,7 @@ bool MergeFieldPair936(MARC::Record::Field * const merge_field, const MARC::Reco
 bool GetFuzzyIdenticalField(MARC::Record &record, const MARC::Record::Field &field, MARC::Record::iterator * merge_field_pos,
                             const bool compare_indicators = true, const bool compare_subfields = true)
 {
-    for (MARC::Record::iterator record_field = record.begin(); record_field != record.end(); ++record_field) {
+    for (MARC::Record::iterator record_field(record.begin()); record_field != record.end(); ++record_field) {
         if (FuzzyEqual(field, *record_field, compare_indicators, compare_subfields)) {
             *merge_field_pos = record_field;
             return true;
@@ -840,7 +840,9 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         // Non-existing or 936rv fields in the merge_record can be inserted unconditionally.
         // (936rv are keyword fields.)
         const auto &import_tag(import_field.getTag());
-        if ((import_tag.toString() == "936" and import_field.getIndicator1() == 'r' and import_field.getIndicator2() == 'v')
+        if ((import_tag.toString() == "936"
+             and ((import_field.getIndicator1() == 'r' and import_field.getIndicator2() == 'v')
+                  or (import_field.getIndicator1() == 'b' and import_field.getIndicator2() == 'k')))
             or merge_record->findTag(import_tag) == merge_record->end())
         {
             merge_record->insertFieldAtEnd(import_field);
