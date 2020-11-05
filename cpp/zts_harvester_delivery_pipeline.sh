@@ -140,7 +140,7 @@ for d in */ ; do
     LOGGER_FORMAT=no_decorations,strip_call_site \
     BACKTRACE=1 \
     UTIL_LOG_DEBUG=true \
-    validate_harvested_records "$current_source_filepath" "$valid_records_output_filepath" \
+    validate_harvested_records "--update-groups" "$current_source_filepath" "$valid_records_output_filepath" \
                                "$invalid_records_output_filepath" "$EMAIL_ADDRESS" 2>&1 | tee --append "$LOG" "$invalid_records_log_filepath"
 
     invalid_record_count=$(marc_size "$invalid_records_output_filepath")
