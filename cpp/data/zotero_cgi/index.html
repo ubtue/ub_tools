@@ -124,7 +124,11 @@
                                         <a target="_blank" href="{all_journal_zeder_urls}">{all_journal_zeder_ids}</a>
                                     {ENDIF}
                                 </td>
-                                <td align="center" style="vertical-align: middle;">
+                                <td align="center" style="vertical-align: middle;"
+                                    {IF all_journal_harvest_statuses == "ERROR"}data-sort="0"{ENDIF}
+                                    {IF all_journal_harvest_statuses == "SUCCESS"}data-sort="2"{ENDIF}
+                                    {IF all_journal_harvest_statuses == "NONE"}data-sort="9"{ENDIF}
+                                    >
                                     {IF all_journal_harvest_statuses == "ERROR"}<span class="dot" style="background-color: red;" title="There have been no new records within the specified time window!"></span>{ENDIF}
                                     {IF all_journal_harvest_statuses == "SUCCESS"}<span class="dot" style="background-color: green;" title="New records have been added during the specified time window."></span>{ENDIF}
                                     {IF all_journal_harvest_statuses == "NONE"}<span class="dot" style="background-color: grey;" title="No items delivered or no time window specified yet."></span>{ENDIF}
