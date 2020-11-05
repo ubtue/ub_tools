@@ -33,6 +33,7 @@ CREATE TABLE zeder_journals (
     zeder_id INT(11) UNSIGNED NOT NULL,
     zeder_instance ENUM('ixtheo', 'krimdok') NOT NULL,
     journal_name VARCHAR(1000) NOT NULL,
+    errors_detected TINYINT(1) DEFAULT 0,
     PRIMARY KEY (id),
     CONSTRAINT zeder_journal_zeder_id_and_zeder_instance UNIQUE (zeder_id, zeder_instance)
 ) DEFAULT CHARSET=utf8mb4;
