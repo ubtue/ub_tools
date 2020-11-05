@@ -109,6 +109,24 @@ time_t GetJournalMaxDeliveredDatetime(const unsigned zeder_journal_id, DbConnect
 }
 
 
+std::unordered_map<unsigned, bool> GetJournalErrorsDetectedMap(DbConnection * const db_connection) {
+    std::unordered_map<unsigned, bool> map;
+
+    db_connection->queryOrDie("SELECT id, errors_detected FROM zeder_journals");
+    auto result_set(db_connection->getLastResultSet());
+    while (const auto row = result_set.getNextRow())
+        map[StringUtil::ToUnsigned(row["id"])] = StringUtil::ToBool(row["errors_detected"]);
+
+    return map;
+}
+
+
+bool GetJournalErrorsDetected(const unsigned zeder_journal_id, DbConnection * const db_connection) {
+    static const auto map(GetJournalErrorsDetectedMap(db_connection));
+    return map.at(zeder_journal_id);
+}
+
+
 void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Template::Map * const names_to_values_map,
                      std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> * const group_name_to_params_map,
                      std::unordered_map<std::string, std::string> * const journal_name_to_group_name_map,
@@ -185,14 +203,22 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
 
         try {
             const auto zeder_journal_id(GetZederJournalId(zeder_id, zeder_instance, db_connection));
-            const auto max_delivered_datetime(GetJournalMaxDeliveredDatetime(zeder_journal_id, db_connection));
             std::string harvest_status("NONE");
-            if (delivery_mode != ZoteroHarvester::Config::NONE and update_window != 0 and max_delivered_datetime != TimeUtil::BAD_TIME_T) {
-                if (max_delivered_datetime < ::time(nullptr) - update_window * 86400)
-                    harvest_status = "ERROR";
-                else
-                    harvest_status = "SUCCESS";
+            if (delivery_mode != ZoteroHarvester::Config::NONE) {
+                if (GetJournalErrorsDetected(zeder_journal_id, db_connection))
+                    harvest_status = "WARNING";
+                else {
+                    const auto max_delivered_datetime(GetJournalMaxDeliveredDatetime(zeder_journal_id, db_connection));
+                    if (update_window != 0 and max_delivered_datetime != TimeUtil::BAD_TIME_T) {
+                        if (max_delivered_datetime < ::time(nullptr) - update_window * 86400)
+                            harvest_status = "ERROR";
+                        else
+                            harvest_status = "SUCCESS";
+                    }
+                }
             }
+            if (zeder_journal_id == 299)
+                LOG_INFO(harvest_status);
             all_journal_harvest_statuses.emplace_back(harvest_status);
         } catch (const std::exception &e) {
             LOG_WARNING("Skipping missing journal " + std::to_string(zeder_id) + "#" + zeder_instance + ": " + title);
