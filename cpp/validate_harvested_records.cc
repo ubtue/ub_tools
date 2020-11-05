@@ -39,10 +39,11 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-   ::Usage("(marc_input marc_output missed_expectations_file email_address)|(update_db zeder_id zeder_instance field_name field_presence)\n"
+   ::Usage("([--update-db-errors] marc_input marc_output missed_expectations_file email_address)|(update_db zeder_id zeder_instance field_name field_presence)\n"
            "\tThis tool has two operating modes 1) checking MARC data for missed expectations and 2) altering these expectations.\n"
            "\tin the \"update_db\" mode, \"field_name\" must be a 3-character MARC tag and \"field_presence\" must be one of\n"
-           "\tALWAYS, SOMETIMES, IGNORE.  Please note that only existing entries can be changed!");
+           "\tALWAYS, SOMETIMES, IGNORE.  Please note that only existing entries can be changed!"
+           "\tIf --update-db-errors is set, the errors_detected field will be reset for all journals of the found groups, and set only for the journals with at least 1 detected error.");
 }
 
 
@@ -374,6 +375,28 @@ bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &recor
 }
 
 
+void UpdateJournalErrors(DbConnection * const db_connection, const std::set<std::pair<unsigned,std::string>> &journals_with_errors)
+{
+    if (journals_with_errors.empty())
+        return;
+
+    std::string journals_subquery;
+    std::set<std::string> quoted_instances;
+    for (const auto &journal_with_errors : journals_with_errors) {
+        const std::string quoted_instance(db_connection->escapeAndQuoteString(journal_with_errors.second));
+        quoted_instances.emplace(quoted_instance);
+
+        if (not journals_subquery.empty())
+            journals_subquery += " OR ";
+        journals_subquery += "(zeder_id=" + db_connection->escapeAndQuoteString(std::to_string(journal_with_errors.first)) +
+                             " AND zeder_instance=" + quoted_instance + ")";
+    }
+
+    db_connection->queryOrDie("UPDATE zeder_journals SET errors_detected=0 WHERE zeder_instance IN (" + StringUtil::Join(quoted_instances, ",") + ")");
+    db_connection->queryOrDie("UPDATE zeder_journals SET errors_detected=1 WHERE " + journals_subquery);
+}
+
+
 } // unnamed namespace
 
 
@@ -390,6 +413,14 @@ int Main(int argc, char *argv[]) {
         return EXIT_SUCCESS;
     }
 
+    bool update_db_errors(false);
+    if (argc == 6) {
+        if (::strcmp(argv[1], "--update-db-errors") != 0)
+            Usage();
+        update_db_errors = true;
+        --argc;++argv;
+    }
+
     if (argc != 5)
         Usage();
 
@@ -399,6 +430,7 @@ int Main(int argc, char *argv[]) {
     std::map<std::string, JournalInfo> journal_name_to_info_map;
     const std::string email_address(argv[4]);
     const auto general_info(LoadGeneralInfo(&db_connection));
+    std::set<std::pair<unsigned,std::string>> journals_with_errors;
 
     unsigned total_record_count(0), new_record_count(0), missed_expectation_count(0);
     while (const auto record = reader->read()) {
@@ -407,6 +439,7 @@ int Main(int argc, char *argv[]) {
             valid_records_writer->write(record);
         else {
             ++missed_expectation_count;
+            journals_with_errors.insert({ StringUtil::ToUnsigned(record.getFirstSubfieldValue("ZID", 'a')), record.getFirstSubfieldValue("ZID", 'b') });
             delinquent_records_writer->write(record);
         }
     }
@@ -415,6 +448,9 @@ int Main(int argc, char *argv[]) {
         if (not journal_name_and_info.second.isInDatabase())
             WriteToDatabase(&db_connection, general_info, journal_name_and_info.second);
     }
+
+    if (update_db_errors)
+        UpdateJournalErrors(&db_connection, journals_with_errors);
 
     if (missed_expectation_count > 0) {
         // send notification to the email address

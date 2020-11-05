@@ -70,9 +70,67 @@ std::string GetMinElementOrDefault(const std::vector<std::string> &elements, con
 }
 
 
+std::unordered_map<std::string, unsigned> GetZederIdAndInstanceToZederJournalIdMap(DbConnection * const db_connection) {
+    std::unordered_map<std::string, unsigned> zeder_id_and_instance_to_zeder_journal_id_map;
+
+    db_connection->queryOrDie("SELECT id, zeder_id, zeder_instance FROM zeder_journals");
+    auto result_set(db_connection->getLastResultSet());
+    while (const auto row = result_set.getNextRow())
+        zeder_id_and_instance_to_zeder_journal_id_map[row["zeder_id"] + "#" + row["zeder_instance"]] = StringUtil::ToUnsigned(row["id"]);
+
+    return zeder_id_and_instance_to_zeder_journal_id_map;
+}
+
+
+unsigned GetZederJournalId(const unsigned zeder_id, const std::string &zeder_instance, DbConnection * const db_connection) {
+    static const auto zeder_id_and_instance_to_zeder_journal_id_map(GetZederIdAndInstanceToZederJournalIdMap(db_connection));
+    return zeder_id_and_instance_to_zeder_journal_id_map.at(std::to_string(zeder_id) + "#" + zeder_instance);
+}
+
+
+std::unordered_map<unsigned, time_t> GetMaxDeliveredDatetimePerJournal(DbConnection * const db_connection) {
+    std::unordered_map<unsigned, time_t> journal_id_to_delivered_datetime_map;
+
+    db_connection->queryOrDie("SELECT zeder_journal_id, MAX(delivered_at) AS max_delivered_at FROM delivered_marc_records GROUP BY zeder_journal_id");
+    auto result_set(db_connection->getLastResultSet());
+    while (const auto row = result_set.getNextRow())
+        journal_id_to_delivered_datetime_map[StringUtil::ToUnsigned(row["zeder_journal_id"])] = SqlUtil::DatetimeToTimeT(row["max_delivered_at"]);
+
+    return journal_id_to_delivered_datetime_map;
+}
+
+
+time_t GetJournalMaxDeliveredDatetime(const unsigned zeder_journal_id, DbConnection * const db_connection) {
+    static const auto journal_id_to_delivered_datetime_map(GetMaxDeliveredDatetimePerJournal(db_connection));
+    const auto match(journal_id_to_delivered_datetime_map.find(zeder_journal_id));
+    if (match == journal_id_to_delivered_datetime_map.end())
+        return TimeUtil::BAD_TIME_T;
+    return match->second;
+}
+
+
+std::unordered_map<unsigned, bool> GetJournalErrorsDetectedMap(DbConnection * const db_connection) {
+    std::unordered_map<unsigned, bool> zeder_journal_id_to_errors_detected_map;
+
+    db_connection->queryOrDie("SELECT id, errors_detected FROM zeder_journals");
+    auto result_set(db_connection->getLastResultSet());
+    while (const auto row = result_set.getNextRow())
+        zeder_journal_id_to_errors_detected_map[StringUtil::ToUnsigned(row["id"])] = StringUtil::ToBool(row["errors_detected"]);
+
+    return zeder_journal_id_to_errors_detected_map;
+}
+
+
+bool GetJournalErrorsDetected(const unsigned zeder_journal_id, DbConnection * const db_connection) {
+    static const auto zeder_journal_id_to_errors_detected_map(GetJournalErrorsDetectedMap(db_connection));
+    return zeder_journal_id_to_errors_detected_map.at(zeder_journal_id);
+}
+
+
 void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Template::Map * const names_to_values_map,
                      std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> * const group_name_to_params_map,
-                     std::unordered_map<std::string, std::string> * const journal_name_to_group_name_map)
+                     std::unordered_map<std::string, std::string> * const journal_name_to_group_name_map,
+                     DbConnection * const db_connection)
 {
     std::unique_ptr<ZoteroHarvester::Config::GlobalParams> global_params;
     std::vector<std::unique_ptr<ZoteroHarvester::Config::GroupParams>> group_params;
@@ -90,6 +148,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     std::vector<std::string> all_journal_delivery_modes;
     std::vector<std::string> all_journal_zeder_ids;
     std::vector<std::string> all_journal_zeder_urls;
+    std::vector<std::string> all_journal_harvest_statuses;
     std::vector<std::string> all_urls;
 
     std::vector<std::string> rss_journal_titles;
@@ -129,12 +188,44 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
         const auto &url(journal_param->entry_point_url_);
         const auto &strptime_format(journal_param->strptime_format_string_);
         const auto &zeder_id(journal_param->zeder_id_);
+        const auto &update_window(journal_param->update_window_);
 
-        std::string zeder_url;
-        if (group == "IxTheo" or group == "RelBib")
-            zeder_url = "http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=ixtheo#suche=Z%3D" + std::to_string(zeder_id);
-        else if (group == "KrimDok")
-            zeder_url = "http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=krim#suche=Z%3D" + std::to_string(zeder_id);
+        std::string zeder_instance;
+        std::string zeder_instance_for_url;
+        if (group == "IxTheo" or group == "RelBib") {
+            zeder_instance = "ixtheo";
+            zeder_instance_for_url = "ixtheo";
+        } else if (group == "KrimDok") {
+            zeder_instance = "krimdok";
+            zeder_instance_for_url = "krim";
+        }
+        const std::string zeder_url("http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=" + zeder_instance_for_url + "#suche=Z%3D" + std::to_string(zeder_id));
+
+        try {
+            const auto zeder_journal_id(GetZederJournalId(zeder_id, zeder_instance, db_connection));
+            std::string harvest_status("NONE");
+            if (delivery_mode != ZoteroHarvester::Config::NONE) {
+                if (GetJournalErrorsDetected(zeder_journal_id, db_connection))
+                    harvest_status = "WARNING";
+                else {
+                    const auto max_delivered_datetime(GetJournalMaxDeliveredDatetime(zeder_journal_id, db_connection));
+                    if (update_window != 0 and max_delivered_datetime != TimeUtil::BAD_TIME_T) {
+                        if (max_delivered_datetime < ::time(nullptr) - update_window * 86400)
+                            harvest_status = "ERROR";
+                        else
+                            harvest_status = "SUCCESS";
+                    }
+                }
+            }
+            if (zeder_journal_id == 299)
+                LOG_INFO(harvest_status);
+            all_journal_harvest_statuses.emplace_back(harvest_status);
+        } catch (const std::exception &e) {
+            LOG_WARNING("Skipping missing journal " + std::to_string(zeder_id) + "#" + zeder_instance + ": " + title);
+            continue;
+        }
+
+        journal_name_to_group_name_map->insert(std::make_pair(title, group));
 
         all_journal_titles.emplace_back(title);
         all_journal_print_issns.emplace_back(issn_print);
@@ -145,9 +236,6 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
         all_journal_methods.emplace_back(harvest_type_raw);
         all_journal_zeder_ids.emplace_back(std::to_string(zeder_id));
         all_journal_zeder_urls.emplace_back(zeder_url);
-
-        journal_name_to_group_name_map->insert(std::make_pair(title, group));
-
         all_journal_delivery_modes.emplace_back(ZoteroHarvester::Config::UPLOAD_OPERATION_TO_STRING_MAP.at(delivery_mode));
         all_urls.emplace_back(url);
 
@@ -187,6 +275,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
     names_to_values_map->insertArray("all_journal_delivery_modes", all_journal_delivery_modes);
     names_to_values_map->insertArray("all_journal_zeder_ids", all_journal_zeder_ids);
     names_to_values_map->insertArray("all_journal_zeder_urls", all_journal_zeder_urls);
+    names_to_values_map->insertArray("all_journal_harvest_statuses", all_journal_harvest_statuses);
     names_to_values_map->insertArray("all_urls", all_urls);
 
     names_to_values_map->insertArray("rss_journal_titles", rss_journal_titles);
@@ -451,7 +540,7 @@ bool ProcessShowQASubActionDelete(const std::multimap<std::string, std::string> 
 }
 
 
-void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args) {
+void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args, DbConnection * const db_connection) {
     const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
     const std::string zeder_instance(GetCGIParameterOrDefault(cgi_args, "zeder_instance"));
     std::string zeder_journal_id;
@@ -459,28 +548,27 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
     std::string submitted("false");
 
     // try to get more details for given journal
-    DbConnection db_connection;
     {
-        db_connection.queryOrDie("SELECT id,journal_name FROM zeder_journals WHERE zeder_id=" + db_connection.escapeAndQuoteString(zeder_id) +
-                                 " AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance));
-        auto result_set(db_connection.getLastResultSet());
+        db_connection->queryOrDie("SELECT id,journal_name FROM zeder_journals WHERE zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) +
+                                 " AND zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance));
+        auto result_set(db_connection->getLastResultSet());
         while (const auto row = result_set.getNextRow()) {
             zeder_journal_id = row["id"];
             journal_name = row["journal_name"];
         }
     }
 
-    if (ProcessShowQASubActionDelete(cgi_args, &db_connection, zeder_journal_id)
-        or ProcessShowQASubActionAdd(cgi_args, &db_connection, zeder_journal_id))
+    if (ProcessShowQASubActionDelete(cgi_args, db_connection, zeder_journal_id)
+        or ProcessShowQASubActionAdd(cgi_args, db_connection, zeder_journal_id))
             submitted = "true";
 
     // display current settings
-    db_connection.queryOrDie("SELECT * FROM metadata_presence_tracer WHERE zeder_journal_id IS NULL "
-                             "OR zeder_journal_id IN (SELECT id FROM zeder_journals WHERE zeder_id=" + db_connection.escapeAndQuoteString(zeder_id) +
-                             " AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance) + ")"
+    db_connection->queryOrDie("SELECT * FROM metadata_presence_tracer WHERE zeder_journal_id IS NULL "
+                             "OR zeder_journal_id IN (SELECT id FROM zeder_journals WHERE zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) +
+                             " AND zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance) + ")"
                              " ORDER BY metadata_field_name ASC, zeder_journal_id ASC");
 
-    auto result_set(db_connection.getLastResultSet());
+    auto result_set(db_connection->getLastResultSet());
     std::map<std::string, std::pair<std::string, std::string>> tag_to_settings_map;
 
     while (const auto row = result_set.getNextRow()) {
@@ -554,6 +642,7 @@ int Main(int argc, char *argv[]) {
     std::multimap<std::string, std::string> cgi_args;
     WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
 
+    DbConnection db_connection;
     const std::string default_action("list");
     const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));
     const std::string config_overrides(GetCGIParameterOrDefault(cgi_args, "config_overrides"));
@@ -564,7 +653,7 @@ int Main(int argc, char *argv[]) {
     else if (action == "show_downloaded")
         ProcessShowDownloadedAction(cgi_args);
     else if (action == "show_qa")
-        ProcessShowQAAction(cgi_args);
+        ProcessShowQAAction(cgi_args, &db_connection);
     else if (action == "show_logs")
         ProcessShowLogsAction();
     else {
@@ -588,7 +677,7 @@ int Main(int argc, char *argv[]) {
 
         std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> group_name_to_params_map;
         std::unordered_map<std::string, std::string>journal_name_to_group_name_map;
-        ParseConfigFile(cgi_args, &names_to_values_map, &group_name_to_params_map, &journal_name_to_group_name_map);
+        ParseConfigFile(cgi_args, &names_to_values_map, &group_name_to_params_map, &journal_name_to_group_name_map, &db_connection);
         RenderHtmlTemplate("index.html", names_to_values_map);
 
         std::string title, group_name;
