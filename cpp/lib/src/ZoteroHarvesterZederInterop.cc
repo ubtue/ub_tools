@@ -93,11 +93,12 @@ static std::string ResolveHarvesterOperation(const Zeder::Entry &zeder_entry, co
 
 
 std::string ResolveUploadOperation(const Zeder::Entry &zeder_entry, const Zeder::Flavour /*unused*/) {
-    if (zeder_entry.getAttribute("prode", "") == "zotat")
-        return Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::TEST);
-
     if (zeder_entry.getAttribute("prodf", "") == "zota")
         return Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::LIVE);
+
+    const std::string prode(zeder_entry.getAttribute("prode", ""));
+    if (prode == "zotat" or prode == "zota")
+        return Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::TEST);
 
     return Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::NONE);
 }
