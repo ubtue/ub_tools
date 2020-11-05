@@ -1,0 +1,1 @@
+ALTER TABLE zeder_journals ADD COLUMN errors_detected TINYINT(1) DEFAULT 0;
