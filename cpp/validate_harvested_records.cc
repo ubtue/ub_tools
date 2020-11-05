@@ -39,11 +39,11 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-   ::Usage("([--update-groups] marc_input marc_output missed_expectations_file email_address)|(update_db zeder_id zeder_instance field_name field_presence)\n"
+   ::Usage("([--update-db-errors] marc_input marc_output missed_expectations_file email_address)|(update_db zeder_id zeder_instance field_name field_presence)\n"
            "\tThis tool has two operating modes 1) checking MARC data for missed expectations and 2) altering these expectations.\n"
            "\tin the \"update_db\" mode, \"field_name\" must be a 3-character MARC tag and \"field_presence\" must be one of\n"
            "\tALWAYS, SOMETIMES, IGNORE.  Please note that only existing entries can be changed!"
-           "\tIf --update-groups is set, the errors_detected field will be reset for all journals of the found groups, and set only for the journals with at least 1 detected error.");
+           "\tIf --update-db-errors is set, the errors_detected field will be reset for all journals of the found groups, and set only for the journals with at least 1 detected error.");
 }
 
 
@@ -413,11 +413,11 @@ int Main(int argc, char *argv[]) {
         return EXIT_SUCCESS;
     }
 
-    bool update_errors(false);
+    bool update_db_errors(false);
     if (argc == 6) {
-        if (::strcmp(argv[1], "--update-groups") != 0)
+        if (::strcmp(argv[1], "--update-db-errors") != 0)
             Usage();
-        update_errors = true;
+        update_db_errors = true;
         --argc;++argv;
     }
 
@@ -449,7 +449,7 @@ int Main(int argc, char *argv[]) {
             WriteToDatabase(&db_connection, general_info, journal_name_and_info.second);
     }
 
-    if (update_errors)
+    if (update_db_errors)
         UpdateJournalErrors(&db_connection, journals_with_errors);
 
     if (missed_expectation_count > 0) {
