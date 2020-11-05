@@ -70,60 +70,60 @@ std::string GetMinElementOrDefault(const std::vector<std::string> &elements, con
 }
 
 
-std::unordered_map<std::string,unsigned> GetZederIdAndInstanceToZederJournalIdMap(DbConnection * const db_connection) {
-    std::unordered_map<std::string,unsigned> map;
+std::unordered_map<std::string, unsigned> GetZederIdAndInstanceToZederJournalIdMap(DbConnection * const db_connection) {
+    std::unordered_map<std::string, unsigned> zeder_id_and_instance_to_zeder_journal_id_map;
 
     db_connection->queryOrDie("SELECT id, zeder_id, zeder_instance FROM zeder_journals");
     auto result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow())
-        map[row["zeder_id"] + "#" + row["zeder_instance"]] = StringUtil::ToUnsigned(row["id"]);
+        zeder_id_and_instance_to_zeder_journal_id_map[row["zeder_id"] + "#" + row["zeder_instance"]] = StringUtil::ToUnsigned(row["id"]);
 
-    return map;
+    return zeder_id_and_instance_to_zeder_journal_id_map;
 }
 
 
 unsigned GetZederJournalId(const unsigned zeder_id, const std::string &zeder_instance, DbConnection * const db_connection) {
-    static const auto map(GetZederIdAndInstanceToZederJournalIdMap(db_connection));
-    return map.at(std::to_string(zeder_id) + "#" + zeder_instance);
+    static const auto zeder_id_and_instance_to_zeder_journal_id_map(GetZederIdAndInstanceToZederJournalIdMap(db_connection));
+    return zeder_id_and_instance_to_zeder_journal_id_map.at(std::to_string(zeder_id) + "#" + zeder_instance);
 }
 
 
 std::unordered_map<unsigned, time_t> GetMaxDeliveredDatetimePerJournal(DbConnection * const db_connection) {
-    std::unordered_map<unsigned, time_t> map;
+    std::unordered_map<unsigned, time_t> journal_id_to_delivered_datetime_map;
 
     db_connection->queryOrDie("SELECT zeder_journal_id, MAX(delivered_at) AS max_delivered_at FROM delivered_marc_records GROUP BY zeder_journal_id");
     auto result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow())
-        map[StringUtil::ToUnsigned(row["zeder_journal_id"])] = SqlUtil::DatetimeToTimeT(row["max_delivered_at"]);
+        journal_id_to_delivered_datetime_map[StringUtil::ToUnsigned(row["zeder_journal_id"])] = SqlUtil::DatetimeToTimeT(row["max_delivered_at"]);
 
-    return map;
+    return journal_id_to_delivered_datetime_map;
 }
 
 
 time_t GetJournalMaxDeliveredDatetime(const unsigned zeder_journal_id, DbConnection * const db_connection) {
-    static const auto map(GetMaxDeliveredDatetimePerJournal(db_connection));
-    const auto match(map.find(zeder_journal_id));
-    if (match == map.end())
+    static const auto journal_id_to_delivered_datetime_map(GetMaxDeliveredDatetimePerJournal(db_connection));
+    const auto match(journal_id_to_delivered_datetime_map.find(zeder_journal_id));
+    if (match == journal_id_to_delivered_datetime_map.end())
         return TimeUtil::BAD_TIME_T;
     return match->second;
 }
 
 
 std::unordered_map<unsigned, bool> GetJournalErrorsDetectedMap(DbConnection * const db_connection) {
-    std::unordered_map<unsigned, bool> map;
+    std::unordered_map<unsigned, bool> zeder_journal_id_to_errors_detected_map;
 
     db_connection->queryOrDie("SELECT id, errors_detected FROM zeder_journals");
     auto result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow())
-        map[StringUtil::ToUnsigned(row["id"])] = StringUtil::ToBool(row["errors_detected"]);
+        zeder_journal_id_to_errors_detected_map[StringUtil::ToUnsigned(row["id"])] = StringUtil::ToBool(row["errors_detected"]);
 
-    return map;
+    return zeder_journal_id_to_errors_detected_map;
 }
 
 
 bool GetJournalErrorsDetected(const unsigned zeder_journal_id, DbConnection * const db_connection) {
-    static const auto map(GetJournalErrorsDetectedMap(db_connection));
-    return map.at(zeder_journal_id);
+    static const auto zeder_journal_id_to_errors_detected_map(GetJournalErrorsDetectedMap(db_connection));
+    return zeder_journal_id_to_errors_detected_map.at(zeder_journal_id);
 }
 
 
