@@ -153,7 +153,7 @@ def Main():
         bnb_numbers = RetryGetNewBNBNumbers(list_no)
         if bnb_numbers is None:
             break
-        util.Info("Retrieved " + str(len(bnb_numbers)) + " BNB numbers for list #" + str(list))
+        util.Info("Retrieved " + str(len(bnb_numbers)) + " BNB numbers for list #" + str(list_no))
         ranges = CoalesceNumbers(bnb_numbers)
         util.Info("The BNB numbers were coalesced into " + str(len(ranges)) + " ranges.")
         
