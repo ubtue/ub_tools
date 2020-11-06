@@ -19,13 +19,13 @@ import zipfile
 
 
 def GetNewBNBNumbers(list_no):
-    zipped_rdf_filename = "bnbrdf_N" + str(list_no) + ".zip"
-    retcode = util.RetrieveFileByURL("https://www.bl.uk/bibliographic/bnbrdf/bnbrdf_N%d.zip" % list_no, 200,
-                                     [ "application/zip" ])
-    if retcode == util.RetrieveFileByURLReturnCode.URL_NOT_FOUND:
+    zipped_rdf_filename = "bnbrdf_n" + str(list_no) + ".zip"
+    download_url = \
+        "https://www.bl.uk/britishlibrary/~/media/bl/global/services/collection%20metadata/pdfs/bnb%20records%20rdf/" \
+        + zipped_rdf_filename
+    if not util.WgetFetch(download_url):
+        util.Warning("Failed to retrieve " + download_url + " not found!")
         return []
-    if retcode != util.RetrieveFileByURLReturnCode.SUCCESS:
-        util.Error("util.RetrieveFileByURL() failed w/ return code " + str(retcode))
     print("Downloaded " + zipped_rdf_filename)
     with zipfile.ZipFile(zipped_rdf_filename, "r") as zip_file:
         zip_file.extractall()
@@ -44,6 +44,7 @@ def GetNewBNBNumbers(list_no):
 
 #  Attempts to group sequential numbers from 0 to 9 with a ? wildcard.
 def CoalesceNumbers(individual_numbers):
+    individual_numbers.sort()
     compressed_list = []
     subsequence = []
     prefix = ""
@@ -110,9 +111,13 @@ def ConnectToYAZServer():
 
 
 # @return The number of downloaded records.
-def DownloadRecordsRange(yaz_client, ranges):
+def DownloadRecordsRanges(yaz_client, ranges):
     download_count = 0
+    total_number_of_ranges = len(ranges)
+    current_range = 0
     for range in ranges:
+        current_range += 1
+        util.Info("Processing range #" + str(current_range) + " of " + str(total_number_of_ranges) + " ranges.")
         yaz_client.sendline("find @and @attr 1=48 " + '"' + range + '"'
                             + " @attr 1=13 @or @or @or @or @or @or @or @or @or 20* 21* 22* 23* 24* 25* 26* 27* 28* 29*")
         yaz_client.expect("Number of hits: (\\d+), setno", timeout=1000)
@@ -127,6 +132,7 @@ def DownloadRecordsRange(yaz_client, ranges):
 
 
 def Main():
+    util.default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
     OUTPUT_FILENAME = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + ".mrc"
     try:
         os.remove(OUTPUT_FILENAME)
@@ -140,12 +146,18 @@ def Main():
     yaz_client.expect("\r\n")
 
     list_no = LoadStartListNumber()
+    util.Info("About to process list #" + str(list_no))
+    
     total_count = 0
     while True:
-        ranges = RetryGetNewBNBNumbers(list_no)
-        if ranges is None:
+        bnb_numbers = RetryGetNewBNBNumbers(list_no)
+        if bnb_numbers is None:
             break
-        count = DownloadRecordsRange(yaz_client, CoalesceNumbers(ranges))
+        util.Info("Retrieved " + str(len(bnb_numbers)) + " BNB numbers for list #" + str(list))
+        ranges = CoalesceNumbers(bnb_numbers)
+        util.Info("The BNB numbers were coalesced into " + str(len(ranges)) + " ranges.")
+        
+        count = DownloadRecordsRanges(yaz_client, ranges)
         util.Info("Dowloaded " + str(count) + " records for list #" + str(list_no) + ".")
         total_count += count
         list_no += 1
