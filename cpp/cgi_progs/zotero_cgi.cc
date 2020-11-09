@@ -82,6 +82,15 @@ std::unordered_map<std::string, unsigned> GetZederIdAndInstanceToZederJournalIdM
 }
 
 
+std::string GetZederInstanceForGroup(const std::string &group) {
+    if (group == "IxTheo" or group == "RelBib")
+        return "ixtheo";
+    else if (group == "KrimDok")
+        return "krimdok";
+    LOG_ERROR("could not determine zeder instance for group: " + group);
+}
+
+
 unsigned GetZederJournalId(const unsigned zeder_id, const std::string &zeder_instance, DbConnection * const db_connection) {
     static const auto zeder_id_and_instance_to_zeder_journal_id_map(GetZederIdAndInstanceToZederJournalIdMap(db_connection));
     return zeder_id_and_instance_to_zeder_journal_id_map.at(std::to_string(zeder_id) + "#" + zeder_instance);
@@ -127,16 +136,29 @@ bool GetJournalErrorsDetected(const unsigned zeder_journal_id, DbConnection * co
 }
 
 
+void RegisterMissingJournals(const std::vector<std::unique_ptr<ZoteroHarvester::Config::JournalParams>> &journal_params,
+                             DbConnection * const db_connection, ZoteroHarvester::Util::UploadTracker * const upload_tracker)
+{
+    const auto zeder_id_and_instance_to_zeder_journal_id_map(GetZederIdAndInstanceToZederJournalIdMap(db_connection));
+    for (const auto &journal : journal_params) {
+        if (zeder_id_and_instance_to_zeder_journal_id_map.find(std::to_string(journal->zeder_id_) + "#" + GetZederInstanceForGroup(journal->group_))
+            == zeder_id_and_instance_to_zeder_journal_id_map.end())
+            upload_tracker->registerZederJournal(journal->zeder_id_, StringUtil::ASCIIToLower(journal->group_), journal->name_);
+    }
+}
+
+
 void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Template::Map * const names_to_values_map,
                      std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> * const group_name_to_params_map,
                      std::unordered_map<std::string, std::string> * const journal_name_to_group_name_map,
-                     DbConnection * const db_connection)
+                     DbConnection * const db_connection, ZoteroHarvester::Util::UploadTracker * const upload_tracker)
 {
     std::unique_ptr<ZoteroHarvester::Config::GlobalParams> global_params;
     std::vector<std::unique_ptr<ZoteroHarvester::Config::GroupParams>> group_params;
     std::vector<std::unique_ptr<ZoteroHarvester::Config::JournalParams>> journal_params;
 
     ZoteroHarvester::Config::LoadHarvesterConfigFile(ZTS_HARVESTER_CONF_FILE, &global_params, &group_params, &journal_params);
+    RegisterMissingJournals(journal_params, db_connection, upload_tracker);
 
     std::vector<std::string> all_journal_titles;
     std::vector<std::string> all_journal_print_issns;
@@ -466,7 +488,9 @@ void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_ar
 }
 
 
-void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &cgi_args) {
+void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &cgi_args,
+                                 ZoteroHarvester::Util::UploadTracker * const upload_tracker)
+{
     const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
     const std::string group(GetCGIParameterOrDefault(cgi_args, "group"));
     const Zeder::Flavour zeder_flavour(group == "IxTheo" or group == "RelBib" ? Zeder::Flavour::IXTHEO : Zeder::Flavour::KRIMDOK);
@@ -481,8 +505,7 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     std::vector<std::string> hashes;
     std::vector<std::string> urls;
 
-    ZoteroHarvester::Util::UploadTracker upload_tracker;
-    const auto entries(upload_tracker.getEntriesByZederIdAndFlavour(StringUtil::ToUnsigned(zeder_id), zeder_flavour));
+    const auto entries(upload_tracker->getEntriesByZederIdAndFlavour(StringUtil::ToUnsigned(zeder_id), zeder_flavour));
     for (const auto &entry : entries) {
         delivered_datetimes.emplace_back(HtmlUtil::HtmlEscape(entry.delivered_at_str_));
         titles.emplace_back(HtmlUtil::HtmlEscape(entry.main_title_));
@@ -643,6 +666,7 @@ int Main(int argc, char *argv[]) {
     WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
 
     DbConnection db_connection;
+    ZoteroHarvester::Util::UploadTracker upload_tracker;
     const std::string default_action("list");
     const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));
     const std::string config_overrides(GetCGIParameterOrDefault(cgi_args, "config_overrides"));
@@ -651,7 +675,7 @@ int Main(int argc, char *argv[]) {
     if (action == "download")
         ProcessDownloadAction(cgi_args);
     else if (action == "show_downloaded")
-        ProcessShowDownloadedAction(cgi_args);
+        ProcessShowDownloadedAction(cgi_args, &upload_tracker);
     else if (action == "show_qa")
         ProcessShowQAAction(cgi_args, &db_connection);
     else if (action == "show_logs")
@@ -677,7 +701,7 @@ int Main(int argc, char *argv[]) {
 
         std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> group_name_to_params_map;
         std::unordered_map<std::string, std::string>journal_name_to_group_name_map;
-        ParseConfigFile(cgi_args, &names_to_values_map, &group_name_to_params_map, &journal_name_to_group_name_map, &db_connection);
+        ParseConfigFile(cgi_args, &names_to_values_map, &group_name_to_params_map, &journal_name_to_group_name_map, &db_connection, &upload_tracker);
         RenderHtmlTemplate("index.html", names_to_values_map);
 
         std::string title, group_name;
