@@ -991,7 +991,7 @@ void MergeRecordsAndPatchUpUplinksAndCrossLinks(MARC::Reader * const marc_reader
         auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map.find(record.getControlNumber()));
         if (canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend()) {
             std::set<std::string> merged_ppns{ record.getControlNumber() };
-            std::string max_publication_year(record.getPublicationYear());
+            std::string max_publication_year(record.getMostRecentPublicationYear());
             for (/* Intentionally empty! */;
                  canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend() and canonical_ppn_and_ppn->first == record.getControlNumber();
                  ++canonical_ppn_and_ppn)
@@ -1000,7 +1000,7 @@ void MergeRecordsAndPatchUpUplinksAndCrossLinks(MARC::Reader * const marc_reader
                 if (unlikely(record2_ppn_and_offset == ppn_to_offset_map.cend()))
                     LOG_ERROR("this should *never* happen! missing PPN in ppn_to_offset_map: " + canonical_ppn_and_ppn->second);
                 MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, record2_ppn_and_offset->second));
-                const auto record2_publication_year(record2.getPublicationYear());
+                const auto record2_publication_year(record2.getMostRecentPublicationYear());
                 if (record2_publication_year > max_publication_year)
                     max_publication_year = record2_publication_year;
                 merged_ppns.emplace(record2.getControlNumber());
