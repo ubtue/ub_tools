@@ -539,11 +539,17 @@ template <typename Parameter, typename Result> Result &Future<Parameter, Result>
 class UploadTracker {
     static constexpr unsigned CONNECTION_POOL_SIZE = 50;
 public:
+    enum DeliveryState : unsigned { AUTOMATIC, MANUAL, ERROR };
+    static const std::map<DeliveryState, std::string> DELIVERY_STATE_TO_STRING_MAP;
+    static const std::map<std::string, DeliveryState> STRING_TO_DELIVERY_STATE_MAP;
+
     struct Entry {
+        unsigned id_;
         std::string url_;
         std::string main_title_;
         unsigned zeder_id_;
         std::string zeder_instance_;
+        DeliveryState delivery_state_;
         time_t delivered_at_;
         std::string delivered_at_str_;
         std::string hash_;
@@ -555,9 +561,12 @@ private:
 public:
     explicit UploadTracker(): connection_pool_semaphore_(CONNECTION_POOL_SIZE) {}
 
-    bool urlAlreadyDelivered(const std::string &url, Entry * const entry = nullptr) const;
-    bool hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries = nullptr) const;
-    bool recordAlreadyDelivered(const MARC::Record &record) const;
+    bool urlAlreadyDelivered(const std::string &url, const std::vector<DeliveryState> &delivery_states_to_ignore = {},
+                             Entry * const entry = nullptr) const;
+    bool hashAlreadyDelivered(const std::string &hash, const std::vector<DeliveryState> &delivery_states_to_ignore = {},
+                              std::vector<Entry> * const entries = nullptr) const;
+    bool recordAlreadyDelivered(const MARC::Record &record, const std::vector<DeliveryState> &delivery_states_to_ignore = {},
+                                std::vector<Entry> * const entries = nullptr) const;
 
     std::vector<Entry> getEntriesByZederIdAndFlavour(const unsigned zeder_id, const Zeder::Flavour zeder_flavour);
 
@@ -569,14 +578,16 @@ public:
 
     // Saves the record blob and its associated metadata in the host's database.
     // Returns true on success, false otherwise.
-    bool archiveRecord(const MARC::Record &record);
+    bool archiveRecord(const MARC::Record &record, const DeliveryState delivery_state);
 
     static std::string GetZederInstanceString(const Zeder::Flavour zeder_flavour);
 private:
-    bool urlAlreadyDelivered(const std::string &url, Entry * const entry, DbConnection * const db_connection) const;
-    bool hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries,
-                              DbConnection * const db_connection) const;
+    bool urlAlreadyDelivered(const std::string &url, const std::vector<DeliveryState> &delivery_states_to_ignore, Entry * const entry,
+                             DbConnection * const db_connection) const;
+    bool hashAlreadyDelivered(const std::string &hash, const std::vector<DeliveryState> &delivery_states_to_ignore,
+                              std::vector<Entry> * const entries, DbConnection * const db_connection) const;
     bool recordAlreadyDelivered(const std::string &record_hash, const std::set<std::string> &record_urls,
+                                const std::vector<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
                                 DbConnection * const db_connection) const;
 };
 

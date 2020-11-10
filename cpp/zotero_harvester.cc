@@ -552,7 +552,7 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
                 // by comparing its hash and URLs with the ones stored in our database.
                 const auto record_urls(Util::GetMarcRecordUrls(*record));
 
-                if (not force_downloads and upload_tracker.recordAlreadyDelivered(*record)) {
+                if (not force_downloads and upload_tracker.recordAlreadyDelivered(*record, /* delivery_states_to_ignore = */{ Util::UploadTracker::DeliveryState::ERROR })) {
                     ++metrics->num_marc_conversions_skipped_since_already_delivered_;
                     LOG_INFO("Item " + current_download_item.toString() + " already delivered");
                     continue;
