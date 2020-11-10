@@ -398,7 +398,7 @@ std::string GetDeliveryStatesSubquery(const std::vector<UploadTracker::DeliveryS
 bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::vector<DeliveryState> &delivery_states_to_ignore,
                                         Entry * const entry, DbConnection * const db_connection) const
 {
-    std::string query("SELECT dmru.url, dmr.delivered_at, dmr.id as entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
+    std::string query("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.id as entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
                       "FROM delivered_marc_records_urls AS dmru "
                       "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
                       "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
@@ -423,7 +423,7 @@ bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::vecto
 bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::vector<DeliveryState> &delivery_states_to_ignore,
                                          std::vector<Entry> * const entries, DbConnection * const db_connection) const
 {
-    std::string query ("SELECT dmru.url, dmr.delivered_at, dmr.id as entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
+    std::string query ("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.id as entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
                        "FROM delivered_marc_records_urls AS dmru "
                        "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
                        "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
@@ -585,11 +585,11 @@ bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryStat
     // Try to find an existing record & update it if possible
     std::vector<Entry> entries;
     if (recordAlreadyDelivered(hash, urls, /*delivery_states_to_ignore = */ {}, &entries, &db_connection)) {
-        Entry * error_entry(nullptr);
+        const Entry * error_entry(nullptr);
         for (const auto &entry : entries) {
             if (entry.delivery_state_ != ERROR)
                 return false;
-            *error_entry = entry;
+            error_entry = &entry;
             break;
         }
 
