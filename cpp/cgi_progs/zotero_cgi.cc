@@ -49,6 +49,9 @@ std::string zts_client_maps_directory;
 const std::string ZTS_HARVESTER_CONF_FILE(UBTools::GetTuelibPath() + "zotero-enhancement-maps/zotero_harvester.conf");
 
 
+static Template::Map names_to_values_map;
+
+
 std::string GetCGIParameterOrDefault(const std::multimap<std::string, std::string> &cgi_args,
                                      const std::string &parameter_name,
                                      const std::string &default_value = "")
@@ -118,21 +121,24 @@ time_t GetJournalMaxDeliveredDatetime(const unsigned zeder_journal_id, DbConnect
 }
 
 
-std::unordered_map<unsigned, bool> GetJournalErrorsDetectedMap(DbConnection * const db_connection) {
-    std::unordered_map<unsigned, bool> zeder_journal_id_to_errors_detected_map;
+std::unordered_set<unsigned> GetJournalIdsWithErrors(DbConnection * const db_connection) {
+    std::unordered_set<unsigned> zeder_journal_ids_with_errors;
 
-    db_connection->queryOrDie("SELECT id, errors_detected FROM zeder_journals");
+    db_connection->queryOrDie("SELECT DISTINCT zeder_journals.id FROM zeder_journals "
+                              "RIGHT JOIN delivered_marc_records ON zeder_journals.id=delivered_marc_records.zeder_journal_id "
+                              "WHERE delivered_marc_records.delivery_state="
+                              + db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(ZoteroHarvester::Util::UploadTracker::ERROR)));
     auto result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow())
-        zeder_journal_id_to_errors_detected_map[StringUtil::ToUnsigned(row["id"])] = StringUtil::ToBool(row["errors_detected"]);
+        zeder_journal_ids_with_errors.emplace(StringUtil::ToUnsigned(row["id"]));
 
-    return zeder_journal_id_to_errors_detected_map;
+    return zeder_journal_ids_with_errors;
 }
 
 
 bool GetJournalErrorsDetected(const unsigned zeder_journal_id, DbConnection * const db_connection) {
-    static const auto zeder_journal_id_to_errors_detected_map(GetJournalErrorsDetectedMap(db_connection));
-    return zeder_journal_id_to_errors_detected_map.at(zeder_journal_id);
+    static const auto zeder_journal_ids_with_errors(GetJournalIdsWithErrors(db_connection));
+    return zeder_journal_ids_with_errors.find(zeder_journal_id) != zeder_journal_ids_with_errors.end();
 }
 
 
@@ -148,7 +154,26 @@ void RegisterMissingJournals(const std::vector<std::unique_ptr<ZoteroHarvester::
 }
 
 
-void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Template::Map * const names_to_values_map,
+std::string GetJournalHarvestStatus(const unsigned zeder_journal_id, const ZoteroHarvester::Config::JournalParams &journal_params,
+                                    DbConnection * const db_connection)
+{
+    std::string harvest_status("NONE");
+    if (journal_params.upload_operation_ != ZoteroHarvester::Config::NONE) {
+        const auto max_delivered_datetime(GetJournalMaxDeliveredDatetime(zeder_journal_id, db_connection));
+        if (max_delivered_datetime != TimeUtil::BAD_TIME_T) {
+            if (journal_params.update_window_ != 0 and max_delivered_datetime < ::time(nullptr) - journal_params.update_window_ * 86400)
+                harvest_status = "ERROR";
+            else if (GetJournalErrorsDetected(zeder_journal_id, db_connection))
+                harvest_status = "WARNING";
+            else
+                harvest_status = "SUCCESS";
+        }
+    }
+    return harvest_status;
+}
+
+
+void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
                      std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> * const group_name_to_params_map,
                      std::unordered_map<std::string, std::string> * const journal_name_to_group_name_map,
                      DbConnection * const db_connection, ZoteroHarvester::Util::UploadTracker * const upload_tracker)
@@ -210,7 +235,6 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
         const auto &url(journal_param->entry_point_url_);
         const auto &strptime_format(journal_param->strptime_format_string_);
         const auto &zeder_id(journal_param->zeder_id_);
-        const auto &update_window(journal_param->update_window_);
 
         std::string zeder_instance;
         std::string zeder_instance_for_url;
@@ -222,30 +246,8 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             zeder_instance_for_url = "krim";
         }
         const std::string zeder_url("http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=" + zeder_instance_for_url + "#suche=Z%3D" + std::to_string(zeder_id));
-
-        try {
-            const auto zeder_journal_id(GetZederJournalId(zeder_id, zeder_instance, db_connection));
-            std::string harvest_status("NONE");
-            if (delivery_mode != ZoteroHarvester::Config::NONE) {
-                if (GetJournalErrorsDetected(zeder_journal_id, db_connection))
-                    harvest_status = "WARNING";
-                else {
-                    const auto max_delivered_datetime(GetJournalMaxDeliveredDatetime(zeder_journal_id, db_connection));
-                    if (update_window != 0 and max_delivered_datetime != TimeUtil::BAD_TIME_T) {
-                        if (max_delivered_datetime < ::time(nullptr) - update_window * 86400)
-                            harvest_status = "ERROR";
-                        else
-                            harvest_status = "SUCCESS";
-                    }
-                }
-            }
-            if (zeder_journal_id == 299)
-                LOG_INFO(harvest_status);
-            all_journal_harvest_statuses.emplace_back(harvest_status);
-        } catch (const std::exception &e) {
-            LOG_WARNING("Skipping missing journal " + std::to_string(zeder_id) + "#" + zeder_instance + ": " + title);
-            continue;
-        }
+        const auto zeder_journal_id(GetZederJournalId(zeder_id, zeder_instance, db_connection));
+        all_journal_harvest_statuses.emplace_back(GetJournalHarvestStatus(zeder_journal_id, *journal_param, db_connection));
 
         journal_name_to_group_name_map->insert(std::make_pair(title, group));
 
@@ -285,48 +287,48 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
         }
     }
 
-    names_to_values_map->insertScalar("zotero_translation_server_url", global_params->translation_server_url_);
+    names_to_values_map.insertScalar("zotero_translation_server_url", global_params->translation_server_url_);
 
-    names_to_values_map->insertArray("all_journal_titles", all_journal_titles);
-    names_to_values_map->insertArray("all_journal_print_issns", all_journal_print_issns);
-    names_to_values_map->insertArray("all_journal_online_issns", all_journal_online_issns);
-    names_to_values_map->insertArray("all_journal_print_ppns", all_journal_print_ppns);
-    names_to_values_map->insertArray("all_journal_online_ppns", all_journal_online_ppns);
-    names_to_values_map->insertArray("all_journal_methods", all_journal_methods);
-    names_to_values_map->insertArray("all_journal_groups", all_journal_groups);
-    names_to_values_map->insertArray("all_journal_delivery_modes", all_journal_delivery_modes);
-    names_to_values_map->insertArray("all_journal_zeder_ids", all_journal_zeder_ids);
-    names_to_values_map->insertArray("all_journal_zeder_urls", all_journal_zeder_urls);
-    names_to_values_map->insertArray("all_journal_harvest_statuses", all_journal_harvest_statuses);
-    names_to_values_map->insertArray("all_urls", all_urls);
+    names_to_values_map.insertArray("all_journal_titles", all_journal_titles);
+    names_to_values_map.insertArray("all_journal_print_issns", all_journal_print_issns);
+    names_to_values_map.insertArray("all_journal_online_issns", all_journal_online_issns);
+    names_to_values_map.insertArray("all_journal_print_ppns", all_journal_print_ppns);
+    names_to_values_map.insertArray("all_journal_online_ppns", all_journal_online_ppns);
+    names_to_values_map.insertArray("all_journal_methods", all_journal_methods);
+    names_to_values_map.insertArray("all_journal_groups", all_journal_groups);
+    names_to_values_map.insertArray("all_journal_delivery_modes", all_journal_delivery_modes);
+    names_to_values_map.insertArray("all_journal_zeder_ids", all_journal_zeder_ids);
+    names_to_values_map.insertArray("all_journal_zeder_urls", all_journal_zeder_urls);
+    names_to_values_map.insertArray("all_journal_harvest_statuses", all_journal_harvest_statuses);
+    names_to_values_map.insertArray("all_urls", all_urls);
 
-    names_to_values_map->insertArray("rss_journal_titles", rss_journal_titles);
-    names_to_values_map->insertArray("rss_journal_print_issns", rss_journal_print_issns);
-    names_to_values_map->insertArray("rss_journal_online_issns", rss_journal_online_issns);
-    names_to_values_map->insertArray("rss_journal_print_ppns", rss_journal_print_ppns);
-    names_to_values_map->insertArray("rss_journal_online_ppns", rss_journal_online_ppns);
-    names_to_values_map->insertArray("rss_feed_urls", rss_feed_urls);
-    names_to_values_map->insertArray("rss_strptime_formats", rss_strptime_formats);
+    names_to_values_map.insertArray("rss_journal_titles", rss_journal_titles);
+    names_to_values_map.insertArray("rss_journal_print_issns", rss_journal_print_issns);
+    names_to_values_map.insertArray("rss_journal_online_issns", rss_journal_online_issns);
+    names_to_values_map.insertArray("rss_journal_print_ppns", rss_journal_print_ppns);
+    names_to_values_map.insertArray("rss_journal_online_ppns", rss_journal_online_ppns);
+    names_to_values_map.insertArray("rss_feed_urls", rss_feed_urls);
+    names_to_values_map.insertArray("rss_strptime_formats", rss_strptime_formats);
 
-    names_to_values_map->insertArray("crawling_journal_titles", crawling_journal_titles);
-    names_to_values_map->insertArray("crawling_journal_print_issns", crawling_journal_print_issns);
-    names_to_values_map->insertArray("crawling_journal_online_issns", crawling_journal_online_issns);
-    names_to_values_map->insertArray("crawling_journal_print_ppns", crawling_journal_print_ppns);
-    names_to_values_map->insertArray("crawling_journal_online_ppns", crawling_journal_online_ppns);
-    names_to_values_map->insertArray("crawling_base_urls", crawling_base_urls);
-    names_to_values_map->insertArray("crawling_extraction_regexes", crawling_extraction_regexes);
-    names_to_values_map->insertArray("crawling_depths", crawling_depths);
-    names_to_values_map->insertArray("crawling_strptime_formats", crawling_strptime_formats);
+    names_to_values_map.insertArray("crawling_journal_titles", crawling_journal_titles);
+    names_to_values_map.insertArray("crawling_journal_print_issns", crawling_journal_print_issns);
+    names_to_values_map.insertArray("crawling_journal_online_issns", crawling_journal_online_issns);
+    names_to_values_map.insertArray("crawling_journal_print_ppns", crawling_journal_print_ppns);
+    names_to_values_map.insertArray("crawling_journal_online_ppns", crawling_journal_online_ppns);
+    names_to_values_map.insertArray("crawling_base_urls", crawling_base_urls);
+    names_to_values_map.insertArray("crawling_extraction_regexes", crawling_extraction_regexes);
+    names_to_values_map.insertArray("crawling_depths", crawling_depths);
+    names_to_values_map.insertArray("crawling_strptime_formats", crawling_strptime_formats);
 
     const std::string first_crawling_journal_title(GetMinElementOrDefault(crawling_journal_titles));
-    names_to_values_map->insertScalar("selected_crawling_journal_title", GetCGIParameterOrDefault(cgi_args, "crawling_journal_title",
+    names_to_values_map.insertScalar("selected_crawling_journal_title", GetCGIParameterOrDefault(cgi_args, "crawling_journal_title",
                                                                                                   first_crawling_journal_title));
 
     const std::string first_rss_journal_title(GetMinElementOrDefault(rss_journal_titles));
-    names_to_values_map->insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault(cgi_args, "rss_journal_title",
+    names_to_values_map.insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault(cgi_args, "rss_journal_title",
                                                                                              first_rss_journal_title));
 
-    names_to_values_map->insertScalar("selected_url_journal_title", GetCGIParameterOrDefault(cgi_args, "url_journal_title"));
+    names_to_values_map.insertScalar("selected_url_journal_title", GetCGIParameterOrDefault(cgi_args, "url_journal_title"));
 }
 
 
@@ -459,11 +461,11 @@ void ExecuteHarvestAction(const std::string &title, const std::string &group_nam
 }
 
 
-const std::string TEMPLATE_DIRECTORY(UBTools::GetTuelibPath() + "zotero_cgi/");
+const std::string TEMPLATE_DIRECTORY(UBTools::GetTuelibPath() + "zotero_cgi");
 
 
-void RenderHtmlTemplate(const std::string &template_filename, const Template::Map &names_to_values_map) {
-    const std::string template_path(TEMPLATE_DIRECTORY + template_filename);
+void RenderHtmlTemplate(const std::string &template_filename) {
+    const std::string template_path(TEMPLATE_DIRECTORY + "/" + template_filename);
     std::string error_message;
     if (not FileUtil::IsReadable(template_path, &error_message))
         LOG_ERROR(error_message);
@@ -473,6 +475,13 @@ void RenderHtmlTemplate(const std::string &template_filename, const Template::Ma
     std::ifstream template_html(template_path);
     Template::ExpandTemplate(template_html, std::cout, names_to_values_map);
     std::cout << std::flush;
+}
+
+
+void AddStyleCSS(Template::Map * const template_map) {
+    std::string style_css;
+    FileUtil::ReadString(TEMPLATE_DIRECTORY + "/" + "style.css", &style_css);
+    template_map->insertScalar("style_css", style_css);
 }
 
 
@@ -489,36 +498,50 @@ void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_ar
 
 
 void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &cgi_args,
-                                 ZoteroHarvester::Util::UploadTracker * const upload_tracker)
+                                 ZoteroHarvester::Util::UploadTracker * const upload_tracker,
+                                 DbConnection * const db_connection)
 {
+    const std::string id_to_deliver_manually(GetCGIParameterOrDefault(cgi_args, "set_manually_delivered"));
+    if (not id_to_deliver_manually.empty()) {
+        db_connection->queryOrDie("UPDATE delivered_marc_records SET delivery_state=" +
+                                  db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(ZoteroHarvester::Util::UploadTracker::DeliveryState::MANUAL)) +
+                                  ",delivered_at=NOW() WHERE id=" + db_connection->escapeAndQuoteString(id_to_deliver_manually));
+    }
+
     const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
     const std::string group(GetCGIParameterOrDefault(cgi_args, "group"));
     const Zeder::Flavour zeder_flavour(group == "IxTheo" or group == "RelBib" ? Zeder::Flavour::IXTHEO : Zeder::Flavour::KRIMDOK);
-    const std::string zeder_instance(group == "IxTheo" or group == "RelBib" ? "ixtheo" : "krimdok");
+    const std::string zeder_instance(GetZederInstanceForGroup(group));
 
-    Template::Map names_to_values_map;
     names_to_values_map.insertScalar("zeder_id", zeder_id);
     names_to_values_map.insertScalar("zeder_instance", zeder_instance);
+    names_to_values_map.insertScalar("group", group);
 
+    std::vector<std::string> ids;
     std::vector<std::string> delivered_datetimes;
     std::vector<std::string> titles;
     std::vector<std::string> hashes;
     std::vector<std::string> urls;
+    std::vector<std::string> delivery_states;
 
     const auto entries(upload_tracker->getEntriesByZederIdAndFlavour(StringUtil::ToUnsigned(zeder_id), zeder_flavour));
     for (const auto &entry : entries) {
+        ids.emplace_back(HtmlUtil::HtmlEscape(std::to_string(entry.id_)));
         delivered_datetimes.emplace_back(HtmlUtil::HtmlEscape(entry.delivered_at_str_));
         titles.emplace_back(HtmlUtil::HtmlEscape(entry.main_title_));
         hashes.emplace_back(HtmlUtil::HtmlEscape(entry.hash_));
         urls.emplace_back(entry.url_);
+        delivery_states.emplace_back(HtmlUtil::HtmlEscape(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(entry.delivery_state_)));
     }
 
+    names_to_values_map.insertArray("ids", ids);
     names_to_values_map.insertArray("delivered_datetimes", delivered_datetimes);
     names_to_values_map.insertArray("titles", titles);
     names_to_values_map.insertArray("hashes", hashes);
     names_to_values_map.insertArray("urls", urls);
+    names_to_values_map.insertArray("delivery_states", delivery_states);
 
-    RenderHtmlTemplate("delivered.html", names_to_values_map);
+    RenderHtmlTemplate("delivered.html");
 }
 
 
@@ -618,7 +641,6 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
         journal_settings.emplace_back(tag_and_settings.second.second);
     }
 
-    Template::Map names_to_values_map;
     names_to_values_map.insertScalar("submitted", submitted);
     names_to_values_map.insertScalar("zeder_id", zeder_id);
     names_to_values_map.insertScalar("zeder_instance", zeder_instance);
@@ -626,7 +648,7 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
     names_to_values_map.insertArray("tags", tags);
     names_to_values_map.insertArray("global_settings", global_settings);
     names_to_values_map.insertArray("journal_settings", journal_settings);
-    RenderHtmlTemplate("qa.html", names_to_values_map);
+    RenderHtmlTemplate("qa.html");
 }
 
 
@@ -664,6 +686,7 @@ void ProcessShowLogsAction() {
 int Main(int argc, char *argv[]) {
     std::multimap<std::string, std::string> cgi_args;
     WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
+    AddStyleCSS(&names_to_values_map);
 
     DbConnection db_connection;
     ZoteroHarvester::Util::UploadTracker upload_tracker;
@@ -675,21 +698,16 @@ int Main(int argc, char *argv[]) {
     if (action == "download")
         ProcessDownloadAction(cgi_args);
     else if (action == "show_downloaded")
-        ProcessShowDownloadedAction(cgi_args, &upload_tracker);
+        ProcessShowDownloadedAction(cgi_args, &upload_tracker, &db_connection);
     else if (action == "show_qa")
         ProcessShowQAAction(cgi_args, &db_connection);
     else if (action == "show_logs")
         ProcessShowLogsAction();
     else {
-        Template::Map names_to_values_map;
         names_to_values_map.insertScalar("action", action);
 
-        std::string style_css;
-        FileUtil::ReadString(TEMPLATE_DIRECTORY + "style.css", &style_css);
-        names_to_values_map.insertScalar("style_css", style_css);
-
         std::string scripts_js;
-        FileUtil::ReadString(TEMPLATE_DIRECTORY + "scripts.js", &scripts_js);
+        FileUtil::ReadString(TEMPLATE_DIRECTORY + "/" + "scripts.js", &scripts_js);
         names_to_values_map.insertScalar("scripts_js", scripts_js);
 
         const std::string depth(GetCGIParameterOrDefault(cgi_args, "depth", "1"));
@@ -701,8 +719,8 @@ int Main(int argc, char *argv[]) {
 
         std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> group_name_to_params_map;
         std::unordered_map<std::string, std::string>journal_name_to_group_name_map;
-        ParseConfigFile(cgi_args, &names_to_values_map, &group_name_to_params_map, &journal_name_to_group_name_map, &db_connection, &upload_tracker);
-        RenderHtmlTemplate("index.html", names_to_values_map);
+        ParseConfigFile(cgi_args, &group_name_to_params_map, &journal_name_to_group_name_map, &db_connection, &upload_tracker);
+        RenderHtmlTemplate("index.html");
 
         std::string title, group_name;
 
