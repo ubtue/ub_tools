@@ -33,7 +33,6 @@ CREATE TABLE zeder_journals (
     zeder_id INT(11) UNSIGNED NOT NULL,
     zeder_instance ENUM('ixtheo', 'krimdok') NOT NULL,
     journal_name VARCHAR(1000) NOT NULL,
-    errors_detected TINYINT(1) DEFAULT 0,
     PRIMARY KEY (id),
     CONSTRAINT zeder_journal_zeder_id_and_zeder_instance UNIQUE (zeder_id, zeder_instance)
 ) DEFAULT CHARSET=utf8mb4;
@@ -52,11 +51,13 @@ CREATE TABLE delivered_marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hash VARCHAR(40) NOT NULL,
     zeder_journal_id INT(11) UNSIGNED NOT NULL,
+    delivery_state ENUM('automatic', 'manual', 'error') DEFAULT 'automatic',
     delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
     main_title VARCHAR(1000) NOT NULL,
     record BLOB NOT NULL,
     CONSTRAINT delivered_marc_records_zeder_journal_id FOREIGN KEY (zeder_journal_id) REFERENCES zeder_journals (id) ON DELETE CASCADE ON UPDATE CASCADE,
     INDEX delivered_marc_records_hash_index(hash),
+    INDEX delivered_marc_records_delivery_state_index(delivery_state),
     INDEX delivered_marc_records_delivered_at_index(delivered_at),
     INDEX delivered_marc_records_main_title_index(main_title(768))
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;

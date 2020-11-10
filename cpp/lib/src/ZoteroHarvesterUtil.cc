@@ -342,9 +342,25 @@ public:
 };
 
 
+const std::map<UploadTracker::DeliveryState, std::string> UploadTracker::DELIVERY_STATE_TO_STRING_MAP {
+    { AUTOMATIC, "automatic" },
+    { MANUAL,    "manual" },
+    { ERROR,     "error" },
+};
+
+
+const std::map<std::string, UploadTracker::DeliveryState> UploadTracker::STRING_TO_DELIVERY_STATE_MAP {
+    { "automatic", AUTOMATIC },
+    { "manual",    MANUAL },
+    { "error",     ERROR },
+};
+
+
 std::string UploadTracker::Entry::toString() const {
     std::string out("delivered_marc_records entry:\n");
+    out += "\tid: " + std::to_string(id_) + "\n";
     out += "\turl: " + url_ + "\n";
+    out += "\tdelivery_state: " + DELIVERY_STATE_TO_STRING_MAP.at(delivery_state_);
     out += "\tdelivered_at: " + delivered_at_str_ + "\n";
     out += "\tzeder id: " + std::to_string(zeder_id_) + "\n";
     out += "\tzeder instance: "  + zeder_instance_ + "\n";
@@ -358,7 +374,9 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
     if (row.empty())
         LOG_ERROR("Couldn't extract DeliveryTracker entry from empty DbRow");
 
+    entry->id_ = StringUtil::ToUnsigned(row["entry_id"]);
     entry->url_ = row["url"];
+    entry->delivery_state_ = UploadTracker::STRING_TO_DELIVERY_STATE_MAP.at(row["delivery_state"]);
     entry->delivered_at_str_ = row["delivered_at"];
     entry->delivered_at_ = SqlUtil::DatetimeToTimeT(entry->delivered_at_str_);
     entry->zeder_id_ = StringUtil::ToUnsigned(row["zeder_id"]);
@@ -368,15 +386,29 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
 }
 
 
-bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const entry,
-                                        DbConnection * const db_connection) const
+std::string GetDeliveryStatesSubquery(const std::vector<UploadTracker::DeliveryState> &delivery_states, DbConnection * const db_connection) {
+    std::vector<std::string> delivery_states_as_string;
+    for (const auto delivery_state : delivery_states)
+        delivery_states_as_string.emplace_back(UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(delivery_state));
+
+    return db_connection->joinAndEscapeAndQuoteStrings(delivery_states_as_string);
+}
+
+
+bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::vector<DeliveryState> &delivery_states_to_ignore,
+                                        Entry * const entry, DbConnection * const db_connection) const
 {
-    db_connection->queryOrDie("SELECT dmru.url, dmr.delivered_at, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
-                              "FROM delivered_marc_records_urls AS dmru "
-                              "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
-                              "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
-                              "WHERE dmru.url='"
-                              + db_connection->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'");
+    std::string query("SELECT dmru.url, dmr.delivered_at, dmr.id as entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
+                      "FROM delivered_marc_records_urls AS dmru "
+                      "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
+                      "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
+                      "WHERE dmru.url = '"
+                      + db_connection->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'");
+
+    if (not delivery_states_to_ignore.empty())
+        query += " AND dmr.delivery_state NOT IN (" + GetDeliveryStatesSubquery(delivery_states_to_ignore, db_connection) + ")";
+
+    db_connection->queryOrDie(query);
     auto result_set(db_connection->getLastResultSet());
     if (result_set.empty())
         return false;
@@ -388,15 +420,19 @@ bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const en
 }
 
 
-bool UploadTracker::hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries,
-                                         DbConnection * const db_connection) const
+bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::vector<DeliveryState> &delivery_states_to_ignore,
+                                         std::vector<Entry> * const entries, DbConnection * const db_connection) const
 {
-    db_connection->queryOrDie("SELECT dmru.url, dmr.delivered_at, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
-                              "FROM delivered_marc_records_urls AS dmru "
-                              "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
-                              "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
-                              "WHERE dmr.hash='"
-                              + db_connection->escapeString(hash) + "'");
+    std::string query ("SELECT dmru.url, dmr.delivered_at, dmr.id as entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
+                       "FROM delivered_marc_records_urls AS dmru "
+                       "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
+                       "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
+                       "WHERE dmr.hash =" + db_connection->escapeAndQuoteString(hash));
+
+    if (not delivery_states_to_ignore.empty())
+        query += " AND dmr.delivery_state NOT IN (" + GetDeliveryStatesSubquery(delivery_states_to_ignore, db_connection) + ")";
+
+    db_connection->queryOrDie(query);
     auto result_set(db_connection->getLastResultSet());
     if (result_set.empty())
         return false;
@@ -415,13 +451,13 @@ bool UploadTracker::hashAlreadyDelivered(const std::string &hash, std::vector<En
 
 
 bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const std::set<std::string> &record_urls,
+                                           const std::vector<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
                                            DbConnection * const db_connection) const
 {
-    std::vector<Entry> hash_bucket;
     Entry buffer;
     bool already_delivered(false);
     for (const auto &url : record_urls) {
-        if (urlAlreadyDelivered(url, &buffer, db_connection)) {
+        if (urlAlreadyDelivered(url, delivery_states_to_ignore, &buffer, db_connection)) {
             if (buffer.hash_ != record_hash) {
                 LOG_WARNING("record with URL '" + url + "' already delivered but with a different hash!");
                 LOG_DEBUG("\tcurrent hash: " + record_hash);
@@ -430,12 +466,15 @@ bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const
                 LOG_WARNING("record with URL '" + url + "' already delivered with the same hash (" + record_hash + ")");
 
             already_delivered = true;
+            if (entries != nullptr)
+                entries->emplace_back(buffer);
             break;
         }
     }
 
     if (not already_delivered) {
-        if (hashAlreadyDelivered(record_hash, &hash_bucket, db_connection)) {
+        std::vector<Entry> hash_bucket;
+        if (hashAlreadyDelivered(record_hash, delivery_states_to_ignore, &hash_bucket, db_connection)) {
             if (hash_bucket.size() > 1) {
                 LOG_WARNING("multiple records were delivered with the same hash (" + record_hash + ")!");
                 for (const auto &entry : hash_bucket)
@@ -444,6 +483,8 @@ bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const
                 LOG_WARNING("record with URL '" + hash_bucket[0].url_ + "' already delivered with the same hash (" + record_hash + ")");
 
             already_delivered = true;
+            if (entries != nullptr)
+                *entries = hash_bucket;
         }
     }
 
@@ -451,30 +492,36 @@ bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const
 }
 
 
-bool UploadTracker::urlAlreadyDelivered(const std::string &url, Entry * const entry) const {
+bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::vector<DeliveryState> &delivery_states_to_ignore,
+                                        Entry * const entry) const
+{
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
 
-    return urlAlreadyDelivered(url, entry, &db_connection);
+    return urlAlreadyDelivered(url, delivery_states_to_ignore, entry, &db_connection);
 }
 
 
-bool UploadTracker::hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries) const {
+bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::vector<DeliveryState> &delivery_states_to_ignore,
+                                         std::vector<Entry> * const entries) const
+{
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
 
-    return hashAlreadyDelivered(hash, entries, &db_connection);
+    return hashAlreadyDelivered(hash, delivery_states_to_ignore, entries, &db_connection);
 }
 
 
-bool UploadTracker::recordAlreadyDelivered(const MARC::Record &record) const {
+bool UploadTracker::recordAlreadyDelivered(const MARC::Record &record, const std::vector<DeliveryState> &delivery_states_to_ignore,
+                                           std::vector<Entry> * const entries) const
+{
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
 
     const auto hash(Conversion::CalculateMarcRecordHash(record));
     const auto urls(GetMarcRecordUrls(record));
 
-    return recordAlreadyDelivered(hash, urls, &db_connection);
+    return recordAlreadyDelivered(hash, urls, delivery_states_to_ignore, entries, &db_connection);
 }
 
 
@@ -499,21 +546,10 @@ time_t UploadTracker::getLastUploadTime(const unsigned zeder_id, const Zeder::Fl
 }
 
 
-std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) {
-    WaitOnSemaphore lock(&connection_pool_semaphore_);
-    DbConnection db_connection;
-
-    const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
-    db_connection.queryOrDie("SELECT dmru.url, dmr.delivered_at, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
-                             "FROM delivered_marc_records_urls AS dmru "
-                             "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
-                             "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
-                             "WHERE zj.zeder_id=" + db_connection.escapeString(std::to_string(zeder_id)) + " "
-                             "AND zj.zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance));
-
-    auto result_set(db_connection.getLastResultSet());
-    std::vector<Entry> entries;
-    Entry entry;
+std::vector<UploadTracker::Entry> GetEntriesFromLastResultSet(DbConnection * const db_connection) {
+    auto result_set(db_connection->getLastResultSet());
+    std::vector<UploadTracker::Entry> entries;
+    UploadTracker::Entry entry;
     while (const DbRow row = result_set.getNextRow()) {
         UpdateUploadTrackerEntryFromDbRow(row, &entry);
         entries.emplace_back(entry);
@@ -522,27 +558,73 @@ std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(c
 }
 
 
-bool UploadTracker::archiveRecord(const MARC::Record &record) {
+std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) {
+    WaitOnSemaphore lock(&connection_pool_semaphore_);
+    DbConnection db_connection;
+
+    const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
+    db_connection.queryOrDie("SELECT dmru.url, dmr.delivered_at, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash, dmr.delivery_state, dmr.id as entry_id "
+                             "FROM delivered_marc_records_urls AS dmru "
+                             "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
+                             "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
+                             "WHERE zj.zeder_id=" + db_connection.escapeString(std::to_string(zeder_id)) + " "
+                             "AND zj.zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance));
+
+    return GetEntriesFromLastResultSet(&db_connection);
+}
+
+
+bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryState delivery_state) {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
 
     const auto hash(Conversion::CalculateMarcRecordHash(record));
+    const auto main_title(record.getMainTitle());
     const auto urls(GetMarcRecordUrls(record));
 
-    if (recordAlreadyDelivered(hash, urls, &db_connection))
-        return false;
+    // Try to find an existing record & update it if possible
+    std::vector<Entry> entries;
+    if (recordAlreadyDelivered(hash, urls, /*delivery_states_to_ignore = */ {}, &entries, &db_connection)) {
+        Entry * non_error_entry(nullptr);
+        for (const auto &entry : entries) {
+            if (entry.delivery_state_ != ERROR)
+                return false;
+            *non_error_entry = entry;
+            break;
+        }
+
+        if (non_error_entry != nullptr) {
+            db_connection.queryOrDie("UPDATE delivered_marc_records "
+                                     "SET hash=" + db_connection.escapeAndQuoteString(hash) +
+                                     ",delivery_state=" + db_connection.escapeAndQuoteString(DELIVERY_STATE_TO_STRING_MAP.at(delivery_state)) +
+                                     ",delivered_at=NOW()"
+                                     ",main_title=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(main_title)) +
+                                     ",record=" + db_connection.escapeAndQuoteString(GzStream::CompressString(record.toBinaryString(), GzStream::GZIP)) +
+                                     " WHERE id=" + db_connection.escapeAndQuoteString(std::to_string(non_error_entry->id_)));
+
+            db_connection.queryOrDie("DELETE FROM delivered_marc_records_urls "
+                                     "WHERE record_id=" + db_connection.escapeAndQuoteString(std::to_string(non_error_entry->id_)) + " "
+                                     "AND url NOT IN (" + db_connection.joinAndEscapeAndQuoteStrings(urls) + ")");
+
+            for (const auto &url : urls) {
+                db_connection.queryOrDie("INSERT IGNORE INTO delivered_marc_records_urls (record_id, url) VALUES (" +
+                                         db_connection.escapeAndQuoteString(db_connection.escapeAndQuoteString(std::to_string(non_error_entry->id_))) + "," +
+                                         db_connection.escapeAndQuoteString(url) + ")");
+            }
+            return true;
+        }
+    }
 
     const auto zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
     const auto zeder_instance(GetZederInstanceString(ZederInterop::GetZederInstanceFromMarcRecord(record)));
-    const auto main_title(record.getMainTitle());
     db_connection.queryOrDie("INSERT INTO delivered_marc_records "
                              "SET zeder_journal_id=(SELECT id FROM zeder_journals WHERE "
                              "zeder_id=" + db_connection.escapeAndQuoteString(zeder_id) + " "
                              "AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance) + ")"
                              ",hash=" + db_connection.escapeAndQuoteString(hash) +
+                             ",delivery_state=" + db_connection.escapeAndQuoteString(DELIVERY_STATE_TO_STRING_MAP.at(delivery_state)) +
                              ",main_title=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(main_title)) +
-                             ",record=" +
-                             db_connection.escapeAndQuoteString(GzStream::CompressString(record.toBinaryString(), GzStream::GZIP)));
+                             ",record=" + db_connection.escapeAndQuoteString(GzStream::CompressString(record.toBinaryString(), GzStream::GZIP)));
 
     // Fetch the last inserted row's ID to add the URLs
     db_connection.queryOrDie("SELECT LAST_INSERT_ID() id");

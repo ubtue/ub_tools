@@ -1,0 +1,5 @@
+ALTER TABLE delivered_marc_records ADD COLUMN delivery_state ENUM('automatic', 'manual', 'error') DEFAULT 'automatic' AFTER zeder_journal_id;
+CREATE INDEX delivered_marc_records_delivery_state_index ON delivered_marc_records (delivery_state);
+
+ALTER TABLE zeder_journals DROP COLUMN errors_detected;
+

@@ -1,5 +1,10 @@
 <!DOCTYPE HTML>
 <html>
+    <head>
+        <style>
+            {style_css}
+        </style>
+    </head>
     <body>
         <h1>Zotero Harvesting</h1>
         <h2>Delivered records for Zeder ID {zeder_id}</h2>
@@ -10,13 +15,19 @@
                 <th>main title</th>
                 <th>hash</th>
                 <th>url</th>
+                <th>state</th>
             </tr>
-            {LOOP delivered_datetimes,titles,hashes,urls}
+            {LOOP delivered_datetimes,titles,hashes,urls,states}
                 <tr>
                     <td>{delivered_datetimes}</td>
                     <td>{titles}</td>
                     <td>{hashes}</td>
                     <td><a href="{urls}" target="_blank">{urls}</a></td>
+                    <td align="center" style="vertical-align: middle;">
+                        {IF states == "automatic"}<span class="dot" style="background-color: green;" title="This record has been delivered automatically."></span>{ENDIF}
+                        {IF states == "manual"}<span class="dot" style="background-color: turquoise;" title="This record has been delivered manually and will no longer be harvested automatically."></span>{ENDIF}
+                        {IF states == "error"}<span class="dot" style="background-color: yellow;" title="An error has occurred when trying to deliver this record."></span>{ENDIF}
+                    </td>
                 </tr>
             {ENDLOOP}
         </table>
