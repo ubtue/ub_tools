@@ -488,8 +488,16 @@ void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_ar
 
 
 void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &cgi_args,
-                                 ZoteroHarvester::Util::UploadTracker * const upload_tracker)
+                                 ZoteroHarvester::Util::UploadTracker * const upload_tracker,
+                                 DbConnection * const db_connection)
 {
+    const std::string id_to_deliver_manually(GetCGIParameterOrDefault(cgi_args, "set_manually_delivered"));
+    if (not id_to_deliver_manually.empty()) {
+        db_connection->queryOrDie("UPDATE delivered_marc_records SET delivery_state=" +
+                                  db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(ZoteroHarvester::Util::UploadTracker::DeliveryState::MANUAL)) +
+                                  ",delivered_at=NOW() WHERE id=" + db_connection->escapeAndQuoteString(id_to_deliver_manually));
+    }
+
     const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
     const std::string group(GetCGIParameterOrDefault(cgi_args, "group"));
     const Zeder::Flavour zeder_flavour(group == "IxTheo" or group == "RelBib" ? Zeder::Flavour::IXTHEO : Zeder::Flavour::KRIMDOK);
@@ -502,7 +510,9 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     names_to_values_map.insertScalar("style_css", style_css);
     names_to_values_map.insertScalar("zeder_id", zeder_id);
     names_to_values_map.insertScalar("zeder_instance", zeder_instance);
+    names_to_values_map.insertScalar("group", group);
 
+    std::vector<std::string> ids;
     std::vector<std::string> delivered_datetimes;
     std::vector<std::string> titles;
     std::vector<std::string> hashes;
@@ -511,6 +521,7 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
 
     const auto entries(upload_tracker->getEntriesByZederIdAndFlavour(StringUtil::ToUnsigned(zeder_id), zeder_flavour));
     for (const auto &entry : entries) {
+        ids.emplace_back(HtmlUtil::HtmlEscape(std::to_string(entry.id_)));
         delivered_datetimes.emplace_back(HtmlUtil::HtmlEscape(entry.delivered_at_str_));
         titles.emplace_back(HtmlUtil::HtmlEscape(entry.main_title_));
         hashes.emplace_back(HtmlUtil::HtmlEscape(entry.hash_));
@@ -518,6 +529,7 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
         delivery_states.emplace_back(HtmlUtil::HtmlEscape(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(entry.delivery_state_)));
     }
 
+    names_to_values_map.insertArray("ids", ids);
     names_to_values_map.insertArray("delivered_datetimes", delivered_datetimes);
     names_to_values_map.insertArray("titles", titles);
     names_to_values_map.insertArray("hashes", hashes);
@@ -681,7 +693,7 @@ int Main(int argc, char *argv[]) {
     if (action == "download")
         ProcessDownloadAction(cgi_args);
     else if (action == "show_downloaded")
-        ProcessShowDownloadedAction(cgi_args, &upload_tracker);
+        ProcessShowDownloadedAction(cgi_args, &upload_tracker, &db_connection);
     else if (action == "show_qa")
         ProcessShowQAAction(cgi_args, &db_connection);
     else if (action == "show_logs")
