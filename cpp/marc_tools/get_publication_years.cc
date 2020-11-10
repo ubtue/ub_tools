@@ -28,7 +28,7 @@ namespace {
 
 void ProcessRecords(MARC::Reader * const marc_reader) {
     while (const MARC::Record record = marc_reader->read()) {
-        const auto publication_year(record.getPublicationYear());
+        const auto publication_year(record.getMostRecentPublicationYear());
         std::cout << (publication_year.empty() ? "????" : publication_year) << ": "
                   << record.getMainTitle() << '\n';
     }
