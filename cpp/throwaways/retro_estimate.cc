@@ -115,7 +115,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::st
         if (parent_ppn_and_journal == ppns_to_journals_map->end())
             continue;
 
-        const auto publication_year_str(record.getPublicationYear());
+        const auto publication_year_str(record.getMostRecentPublicationYear());
         if (not StartsWithAPlausibleYear(publication_year_str))
             continue;
 
