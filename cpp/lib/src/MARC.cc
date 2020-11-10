@@ -635,8 +635,8 @@ std::string Record::toString(const RecordFormat record_format, const unsigned in
 
 
 bool Record::isProbablyNewerThan(const Record &other) const {
-    const auto this_publication_year(getPublicationYear());
-    const auto other_publication_year(other.getPublicationYear());
+    const auto this_publication_year(getMostRecentPublicationYear());
+    const auto other_publication_year(other.getMostRecentPublicationYear());
     if (this_publication_year.empty() or other_publication_year.empty())
         return getControlNumber() > other.getControlNumber();
     return this_publication_year > other_publication_year;
@@ -1002,7 +1002,7 @@ static inline bool ConsistsOfDigitsOnly(const std::string &s) {
 }
 
 
-std::string Record::getPublicationYear(const std::string &fallback) const {
+std::string Record::getMostRecentPublicationYear(const std::string &fallback) const {
     const auto zwi_field(findTag("ZWI"));
     if (zwi_field != end()) {
         const auto publication_year(zwi_field->getFirstSubfieldWithCode('y'));
