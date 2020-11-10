@@ -357,7 +357,7 @@ const std::map<std::string, UploadTracker::DeliveryState> UploadTracker::STRING_
 
 
 std::string UploadTracker::Entry::toString() const {
-    std::string out("delivered_marc_records entry:\n");
+    std::string out;
     out += "\tid: " + std::to_string(id_) + "\n";
     out += "\turl: " + url_ + "\n";
     out += "\tdelivery_state: " + DELIVERY_STATE_TO_STRING_MAP.at(delivery_state_);
@@ -387,18 +387,18 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
 
 
 std::string GetDeliveryStatesSubquery(const std::vector<UploadTracker::DeliveryState> &delivery_states, DbConnection * const db_connection) {
-    std::vector<std::string> delivery_states_as_string;
+    std::vector<std::string> delivery_states_as_strings;
     for (const auto delivery_state : delivery_states)
-        delivery_states_as_string.emplace_back(UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(delivery_state));
+        delivery_states_as_strings.emplace_back(UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(delivery_state));
 
-    return db_connection->joinAndEscapeAndQuoteStrings(delivery_states_as_string);
+    return db_connection->joinAndEscapeAndQuoteStrings(delivery_states_as_strings);
 }
 
 
 bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::vector<DeliveryState> &delivery_states_to_ignore,
                                         Entry * const entry, DbConnection * const db_connection) const
 {
-    std::string query("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.id as entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
+    std::string query("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.id AS entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
                       "FROM delivered_marc_records_urls AS dmru "
                       "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
                       "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
@@ -423,11 +423,11 @@ bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::vecto
 bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::vector<DeliveryState> &delivery_states_to_ignore,
                                          std::vector<Entry> * const entries, DbConnection * const db_connection) const
 {
-    std::string query ("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.id as entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
-                       "FROM delivered_marc_records_urls AS dmru "
-                       "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
-                       "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
-                       "WHERE dmr.hash =" + db_connection->escapeAndQuoteString(hash));
+    std::string query("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.id AS entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
+                      "FROM delivered_marc_records_urls AS dmru "
+                      "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
+                      "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
+                      "WHERE dmr.hash =" + db_connection->escapeAndQuoteString(hash));
 
     if (not delivery_states_to_ignore.empty())
         query += " AND dmr.delivery_state NOT IN (" + GetDeliveryStatesSubquery(delivery_states_to_ignore, db_connection) + ")";
@@ -563,7 +563,7 @@ std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(c
     DbConnection db_connection;
 
     const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
-    db_connection.queryOrDie("SELECT dmru.url, dmr.delivered_at, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash, dmr.delivery_state, dmr.id as entry_id "
+    db_connection.queryOrDie("SELECT dmru.url, dmr.delivered_at, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash, dmr.delivery_state, dmr.id AS entry_id "
                              "FROM delivered_marc_records_urls AS dmru "
                              "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
                              "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
@@ -582,7 +582,7 @@ bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryStat
     const auto main_title(record.getMainTitle());
     const auto urls(GetMarcRecordUrls(record));
 
-    // Try to find an existing record & update it if possible
+    // Try to find an existing record & update it, if possible
     std::vector<Entry> entries;
     if (recordAlreadyDelivered(hash, urls, /*delivery_states_to_ignore = */ {}, &entries, &db_connection)) {
         for (const auto &entry : entries) {
