@@ -230,20 +230,16 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             const auto zeder_journal_id(GetZederJournalId(zeder_id, zeder_instance, db_connection));
             std::string harvest_status("NONE");
             if (delivery_mode != ZoteroHarvester::Config::NONE) {
-                if (GetJournalErrorsDetected(zeder_journal_id, db_connection))
-                    harvest_status = "WARNING";
-                else {
-                    const auto max_delivered_datetime(GetJournalMaxDeliveredDatetime(zeder_journal_id, db_connection));
-                    if (update_window != 0 and max_delivered_datetime != TimeUtil::BAD_TIME_T) {
-                        if (max_delivered_datetime < ::time(nullptr) - update_window * 86400)
-                            harvest_status = "ERROR";
-                        else
-                            harvest_status = "SUCCESS";
-                    }
+                const auto max_delivered_datetime(GetJournalMaxDeliveredDatetime(zeder_journal_id, db_connection));
+                if (max_delivered_datetime != TimeUtil::BAD_TIME_T) {
+                    if (update_window != 0 and max_delivered_datetime < ::time(nullptr) - update_window * 86400)
+                        harvest_status = "ERROR";
+                    else if (GetJournalErrorsDetected(zeder_journal_id, db_connection))
+                        harvest_status = "WARNING";
+                    else
+                        harvest_status = "SUCCESS";
                 }
             }
-            if (zeder_journal_id == 299)
-                LOG_INFO(harvest_status);
             all_journal_harvest_statuses.emplace_back(harvest_status);
         } catch (const std::exception &e) {
             LOG_WARNING("Skipping missing journal " + std::to_string(zeder_id) + "#" + zeder_instance + ": " + title);
