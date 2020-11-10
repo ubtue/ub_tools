@@ -98,7 +98,7 @@ void GenerateStats(MARC::Reader * const marc_reader) {
 
         const auto local_block_starts(record.findStartOfAllLocalDataBlocks());
         if (IsMPIRecord(record, local_block_starts) and not IsUBOrIFKRecord(record, local_block_starts)) {
-            const std::string publication_year(record.getPublicationYear());
+            const std::string publication_year(record.getMostRecentPublicationYear());
             if (publication_year >= "2014") {
                 ++recent_mpi_only_count;
                 std::vector<std::string> non_mpi_institutions;
