@@ -278,7 +278,7 @@ const std::set<MARC::Tag> LINK_TAGS{ "800", "810", "830", "773", "775", "776" };
 // Make inferior works point to the new merged superior parent found in "ppn_to_canonical_ppn_map".  Links referencing a key in
 // "ppn_to_canonical_ppn_map" will be patched with the corresponding value.
 // only 1 uplink of the same tag type will be kept.  Also some cross links will be patched.
-unsigned PatchUpAndCrossLinks(MARC::Record * const record, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
+unsigned PatchUpUplinksAndCrossLinks(MARC::Record * const record, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
     unsigned patched_link_count(0);
 
     std::vector<size_t> link_indices_for_deletion;
@@ -485,11 +485,13 @@ bool SubfieldPrefixIsIdentical(const MARC::Record::Field &field1, const MARC::Re
 }
 
 
-void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &merged_ppns) {
+void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &merged_ppns, const std::string &max_publication_year) {
     MARC::Subfields zwi_subfields;
     zwi_subfields.addSubfield('a', "1");
     for (const auto &merged_ppn : merged_ppns)
         zwi_subfields.addSubfield('b', merged_ppn);
+    if (not max_publication_year.empty())
+        zwi_subfields.addSubfield('y', max_publication_year);
 
     record->replaceField("ZWI", zwi_subfields);
 }
@@ -972,7 +974,7 @@ void DeleteCrossLinkFields(MARC::Record * const record) {
 // Merges the records in ppn_to_canonical_ppn_map in such a way that for each entry, "second" will be merged into "first".
 // "second" will then be collected in "skip_ppns" for a future copy phase where it will be dropped.  Uplinks that referenced
 // "second" will be replaced with "first".
-void MergeRecordsAndPatchUpAndCrossLinks(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+void MergeRecordsAndPatchUpUplinksAndCrossLinks(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                                          const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
                                          const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
                                          const std::unordered_multimap<std::string, std::string> &canonical_ppn_to_ppn_map)
@@ -989,6 +991,7 @@ void MergeRecordsAndPatchUpAndCrossLinks(MARC::Reader * const marc_reader, MARC:
         auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map.find(record.getControlNumber()));
         if (canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend()) {
             std::set<std::string> merged_ppns{ record.getControlNumber() };
+            std::string max_publication_year(record.getMostRecentPublicationYear());
             for (/* Intentionally empty! */;
                  canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend() and canonical_ppn_and_ppn->first == record.getControlNumber();
                  ++canonical_ppn_and_ppn)
@@ -997,6 +1000,9 @@ void MergeRecordsAndPatchUpAndCrossLinks(MARC::Reader * const marc_reader, MARC:
                 if (unlikely(record2_ppn_and_offset == ppn_to_offset_map.cend()))
                     LOG_ERROR("this should *never* happen! missing PPN in ppn_to_offset_map: " + canonical_ppn_and_ppn->second);
                 MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, record2_ppn_and_offset->second));
+                const auto record2_publication_year(record2.getMostRecentPublicationYear());
+                if (record2_publication_year > max_publication_year)
+                    max_publication_year = record2_publication_year;
                 merged_ppns.emplace(record2.getControlNumber());
                 Patch246i(&record); Patch246i(&record2);
                 MergeRecordPair(&record, &record2);
@@ -1007,10 +1013,10 @@ void MergeRecordsAndPatchUpAndCrossLinks(MARC::Reader * const marc_reader, MARC:
 
             // Mark the record as being both "print" as well as "electronic" and store the PPN's of the dropped records:
             merged_ppns.erase(*merged_ppns.rbegin()); // Remove max element
-            UpdateMergedPPNs(&record, merged_ppns);
+            UpdateMergedPPNs(&record, merged_ppns, max_publication_year);
         }
 
-        patched_link_count += PatchUpAndCrossLinks(&record, ppn_to_canonical_ppn_map);
+        patched_link_count += PatchUpUplinksAndCrossLinks(&record, ppn_to_canonical_ppn_map);
 
         marc_writer->write(record);
     }
@@ -1127,8 +1133,8 @@ int Main(int argc, char *argv[]) {
     EliminateDanglingOrUnreferencedCrossLinks(debug, ppn_to_offset_map, &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
 
     marc_reader->rewind();
-    MergeRecordsAndPatchUpAndCrossLinks(marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
-                                        canonical_ppn_to_ppn_map);
+    MergeRecordsAndPatchUpUplinksAndCrossLinks(marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
+                                               canonical_ppn_to_ppn_map);
 
     if (not (debug or skip_db_updates)) {
         std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
