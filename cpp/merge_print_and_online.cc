@@ -932,6 +932,11 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
 
     if (clean_up_field_order_and_dedup_merged_record)
         DedupMappedRepeatableFields(merge_record);
+
+    const auto pub_year1(merge_record->getMostRecentPublicationYear()), pub_year2(import_record->getMostRecentPublicationYear());
+    const std::string max_pub_year(pub_year1 > pub_year2 ? pub_year1 : pub_year2);
+    if (not max_pub_year.empty())
+        merge_record->insertFieldAtEnd("ZWI", { { 'y', max_pub_year } });
 }
 
 
@@ -1013,6 +1018,7 @@ void MergeRecordsAndPatchUpUplinksAndCrossLinks(MARC::Reader * const marc_reader
 
             // Mark the record as being both "print" as well as "electronic" and store the PPN's of the dropped records:
             merged_ppns.erase(*merged_ppns.rbegin()); // Remove max element
+
             UpdateMergedPPNs(&record, merged_ppns, max_publication_year);
         }
 
