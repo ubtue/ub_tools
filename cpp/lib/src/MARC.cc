@@ -1003,6 +1003,13 @@ static inline bool ConsistsOfDigitsOnly(const std::string &s) {
 
 
 std::string Record::getPublicationYear(const std::string &fallback) const {
+    const auto zwi_field(findTag("ZWI"));
+    if (zwi_field != end()) {
+        const auto publication_year(zwi_field->getFirstSubfieldWithCode('y'));
+        if (not publication_year.empty())
+            return publication_year;
+    }
+
     if (isReproduction()) {
         const auto _534_field(findTag("534"));
         if (unlikely(_534_field == end()))
