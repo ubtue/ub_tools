@@ -559,7 +559,7 @@ public:
     std::string getSummary() const;
 
     /** \return A guess at the publication year or the fallback value if we could not find one. */
-    std::string getPublicationYear(const std::string &fallback = "") const;
+    std::string getMostRecentPublicationYear(const std::string &fallback = "") const;
 
     /** \return Date of production, publication, distribution, manufacture, or copyright notice.
      *          For merged records this is typically a list.

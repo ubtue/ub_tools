@@ -2,7 +2,7 @@
  *  \brief A tool for generating some stats.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -98,7 +98,7 @@ void GenerateStats(MARC::Reader * const marc_reader) {
 
         const auto local_block_starts(record.findStartOfAllLocalDataBlocks());
         if (IsMPIRecord(record, local_block_starts) and not IsUBOrIFKRecord(record, local_block_starts)) {
-            const std::string publication_year(record.getPublicationYear());
+            const std::string publication_year(record.getMostRecentPublicationYear());
             if (publication_year >= "2014") {
                 ++recent_mpi_only_count;
                 std::vector<std::string> non_mpi_institutions;
