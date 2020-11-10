@@ -585,30 +585,25 @@ bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryStat
     // Try to find an existing record & update it if possible
     std::vector<Entry> entries;
     if (recordAlreadyDelivered(hash, urls, /*delivery_states_to_ignore = */ {}, &entries, &db_connection)) {
-        const Entry * error_entry(nullptr);
         for (const auto &entry : entries) {
             if (entry.delivery_state_ != ERROR)
                 return false;
-            error_entry = &entry;
-            break;
-        }
 
-        if (error_entry != nullptr) {
             db_connection.queryOrDie("UPDATE delivered_marc_records "
                                      "SET hash=" + db_connection.escapeAndQuoteString(hash) +
                                      ",delivery_state=" + db_connection.escapeAndQuoteString(DELIVERY_STATE_TO_STRING_MAP.at(delivery_state)) +
                                      ",delivered_at=NOW()"
                                      ",main_title=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(main_title)) +
                                      ",record=" + db_connection.escapeAndQuoteString(GzStream::CompressString(record.toBinaryString(), GzStream::GZIP)) +
-                                     " WHERE id=" + db_connection.escapeAndQuoteString(std::to_string(error_entry->id_)));
+                                     " WHERE id=" + db_connection.escapeAndQuoteString(std::to_string(entry.id_)));
 
             db_connection.queryOrDie("DELETE FROM delivered_marc_records_urls "
-                                     "WHERE record_id=" + db_connection.escapeAndQuoteString(std::to_string(error_entry->id_)) + " "
+                                     "WHERE record_id=" + db_connection.escapeAndQuoteString(std::to_string(entry.id_)) + " "
                                      "AND url NOT IN (" + db_connection.joinAndEscapeAndQuoteStrings(urls) + ")");
 
             for (const auto &url : urls) {
                 db_connection.queryOrDie("INSERT IGNORE INTO delivered_marc_records_urls (record_id, url) VALUES (" +
-                                         db_connection.escapeAndQuoteString(db_connection.escapeAndQuoteString(std::to_string(error_entry->id_))) + "," +
+                                         db_connection.escapeAndQuoteString(db_connection.escapeAndQuoteString(std::to_string(entry.id_))) + "," +
                                          db_connection.escapeAndQuoteString(url) + ")");
             }
             return true;
