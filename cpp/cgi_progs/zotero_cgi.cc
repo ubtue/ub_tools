@@ -118,21 +118,24 @@ time_t GetJournalMaxDeliveredDatetime(const unsigned zeder_journal_id, DbConnect
 }
 
 
-std::unordered_map<unsigned, bool> GetJournalErrorsDetectedMap(DbConnection * const db_connection) {
-    std::unordered_map<unsigned, bool> zeder_journal_id_to_errors_detected_map;
+std::unordered_set<unsigned> GetJournalIdsWithErrors(DbConnection * const db_connection) {
+    std::unordered_set<unsigned> zeder_journal_ids_with_errors;
 
-    db_connection->queryOrDie("SELECT id, errors_detected FROM zeder_journals");
+    db_connection->queryOrDie("SELECT DISTINCT zeder_journals.id FROM zeder_journals "
+                              "RIGHT JOIN delivered_marc_records ON zeder_journals.id=delivered_marc_records.zeder_journal_id "
+                              "WHERE delivered_marc_records.delivery_state="
+                              + db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(ZoteroHarvester::Util::UploadTracker::ERROR)));
     auto result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow())
-        zeder_journal_id_to_errors_detected_map[StringUtil::ToUnsigned(row["id"])] = StringUtil::ToBool(row["errors_detected"]);
+        zeder_journal_ids_with_errors.emplace(StringUtil::ToUnsigned(row["id"]));
 
-    return zeder_journal_id_to_errors_detected_map;
+    return zeder_journal_ids_with_errors;
 }
 
 
 bool GetJournalErrorsDetected(const unsigned zeder_journal_id, DbConnection * const db_connection) {
-    static const auto zeder_journal_id_to_errors_detected_map(GetJournalErrorsDetectedMap(db_connection));
-    return zeder_journal_id_to_errors_detected_map.at(zeder_journal_id);
+    static const auto zeder_journal_ids_with_errors(GetJournalIdsWithErrors(db_connection));
+    return zeder_journal_ids_with_errors.find(zeder_journal_id) != zeder_journal_ids_with_errors.end();
 }
 
 
@@ -494,9 +497,13 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
     const std::string group(GetCGIParameterOrDefault(cgi_args, "group"));
     const Zeder::Flavour zeder_flavour(group == "IxTheo" or group == "RelBib" ? Zeder::Flavour::IXTHEO : Zeder::Flavour::KRIMDOK);
-    const std::string zeder_instance(group == "IxTheo" or group == "RelBib" ? "ixtheo" : "krimdok");
+    const std::string zeder_instance(GetZederInstanceForGroup(group));
 
     Template::Map names_to_values_map;
+
+    std::string style_css;
+    FileUtil::ReadString(TEMPLATE_DIRECTORY + "style.css", &style_css);
+    names_to_values_map.insertScalar("style_css", style_css);
     names_to_values_map.insertScalar("zeder_id", zeder_id);
     names_to_values_map.insertScalar("zeder_instance", zeder_instance);
 
@@ -504,6 +511,7 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     std::vector<std::string> titles;
     std::vector<std::string> hashes;
     std::vector<std::string> urls;
+    std::vector<std::string> states;
 
     const auto entries(upload_tracker->getEntriesByZederIdAndFlavour(StringUtil::ToUnsigned(zeder_id), zeder_flavour));
     for (const auto &entry : entries) {
@@ -511,12 +519,14 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
         titles.emplace_back(HtmlUtil::HtmlEscape(entry.main_title_));
         hashes.emplace_back(HtmlUtil::HtmlEscape(entry.hash_));
         urls.emplace_back(entry.url_);
+        states.emplace_back(HtmlUtil::HtmlEscape(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(entry.delivery_state_)));
     }
 
     names_to_values_map.insertArray("delivered_datetimes", delivered_datetimes);
     names_to_values_map.insertArray("titles", titles);
     names_to_values_map.insertArray("hashes", hashes);
     names_to_values_map.insertArray("urls", urls);
+    names_to_values_map.insertArray("states", states);
 
     RenderHtmlTemplate("delivered.html", names_to_values_map);
 }

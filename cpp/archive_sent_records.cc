@@ -45,7 +45,7 @@ int Main(int argc, char *argv[]) {
     ZoteroHarvester::Util::UploadTracker upload_tracker;
 
     while (const auto record = marc_reader->read()) {
-        if (upload_tracker.archiveRecord(record))
+        if (upload_tracker.archiveRecord(record, ZoteroHarvester::Util::UploadTracker::DeliveryState::AUTOMATIC))
             ++stored_record_count;
         else
             ++skipped_record_count;
