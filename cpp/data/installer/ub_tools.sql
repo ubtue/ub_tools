@@ -51,7 +51,7 @@ CREATE TABLE delivered_marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hash VARCHAR(40) NOT NULL,
     zeder_journal_id INT(11) UNSIGNED NOT NULL,
-    delivery_state ENUM('automatic', 'manual', 'error') DEFAULT 'automatic',
+    delivery_state ENUM('automatic', 'manual', 'error') DEFAULT 'automatic' NOT NULL,
     delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
     main_title VARCHAR(1000) NOT NULL,
     record BLOB NOT NULL,
