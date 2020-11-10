@@ -151,6 +151,25 @@ void RegisterMissingJournals(const std::vector<std::unique_ptr<ZoteroHarvester::
 }
 
 
+std::string GetJournalHarvestStatus(const unsigned zeder_journal_id, const ZoteroHarvester::Config::JournalParams &journal_params,
+                                    DbConnection * const db_connection)
+{
+    std::string harvest_status("NONE");
+    if (journal_params.upload_operation_ != ZoteroHarvester::Config::NONE) {
+        const auto max_delivered_datetime(GetJournalMaxDeliveredDatetime(zeder_journal_id, db_connection));
+        if (max_delivered_datetime != TimeUtil::BAD_TIME_T) {
+            if (journal_params.update_window_ != 0 and max_delivered_datetime < ::time(nullptr) - journal_params.update_window_ * 86400)
+                harvest_status = "ERROR";
+            else if (GetJournalErrorsDetected(zeder_journal_id, db_connection))
+                harvest_status = "WARNING";
+            else
+                harvest_status = "SUCCESS";
+        }
+    }
+    return harvest_status;
+}
+
+
 void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Template::Map * const names_to_values_map,
                      std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> * const group_name_to_params_map,
                      std::unordered_map<std::string, std::string> * const journal_name_to_group_name_map,
@@ -213,7 +232,6 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
         const auto &url(journal_param->entry_point_url_);
         const auto &strptime_format(journal_param->strptime_format_string_);
         const auto &zeder_id(journal_param->zeder_id_);
-        const auto &update_window(journal_param->update_window_);
 
         std::string zeder_instance;
         std::string zeder_instance_for_url;
@@ -225,26 +243,8 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args, Te
             zeder_instance_for_url = "krim";
         }
         const std::string zeder_url("http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=" + zeder_instance_for_url + "#suche=Z%3D" + std::to_string(zeder_id));
-
-        try {
-            const auto zeder_journal_id(GetZederJournalId(zeder_id, zeder_instance, db_connection));
-            std::string harvest_status("NONE");
-            if (delivery_mode != ZoteroHarvester::Config::NONE) {
-                const auto max_delivered_datetime(GetJournalMaxDeliveredDatetime(zeder_journal_id, db_connection));
-                if (max_delivered_datetime != TimeUtil::BAD_TIME_T) {
-                    if (update_window != 0 and max_delivered_datetime < ::time(nullptr) - update_window * 86400)
-                        harvest_status = "ERROR";
-                    else if (GetJournalErrorsDetected(zeder_journal_id, db_connection))
-                        harvest_status = "WARNING";
-                    else
-                        harvest_status = "SUCCESS";
-                }
-            }
-            all_journal_harvest_statuses.emplace_back(harvest_status);
-        } catch (const std::exception &e) {
-            LOG_WARNING("Skipping missing journal " + std::to_string(zeder_id) + "#" + zeder_instance + ": " + title);
-            continue;
-        }
+        const auto zeder_journal_id(GetZederJournalId(zeder_id, zeder_instance, db_connection));
+        all_journal_harvest_statuses.emplace_back(GetJournalHarvestStatus(zeder_journal_id, *journal_param, db_connection));
 
         journal_name_to_group_name_map->insert(std::make_pair(title, group));
 
