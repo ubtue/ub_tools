@@ -461,11 +461,11 @@ void ExecuteHarvestAction(const std::string &title, const std::string &group_nam
 }
 
 
-const std::string TEMPLATE_DIRECTORY(UBTools::GetTuelibPath() + "zotero_cgi/");
+const std::string TEMPLATE_DIRECTORY(UBTools::GetTuelibPath() + "zotero_cgi");
 
 
 void RenderHtmlTemplate(const std::string &template_filename) {
-    const std::string template_path(TEMPLATE_DIRECTORY + template_filename);
+    const std::string template_path(TEMPLATE_DIRECTORY + "/" + template_filename);
     std::string error_message;
     if (not FileUtil::IsReadable(template_path, &error_message))
         LOG_ERROR(error_message);
@@ -480,7 +480,7 @@ void RenderHtmlTemplate(const std::string &template_filename) {
 
 void AddStyleCSS(Template::Map * const template_map) {
     std::string style_css;
-    FileUtil::ReadString(TEMPLATE_DIRECTORY + "style.css", &style_css);
+    FileUtil::ReadString(TEMPLATE_DIRECTORY + "/" + "style.css", &style_css);
     template_map->insertScalar("style_css", style_css);
 }
 
@@ -707,7 +707,7 @@ int Main(int argc, char *argv[]) {
         names_to_values_map.insertScalar("action", action);
 
         std::string scripts_js;
-        FileUtil::ReadString(TEMPLATE_DIRECTORY + "scripts.js", &scripts_js);
+        FileUtil::ReadString(TEMPLATE_DIRECTORY + "/" + "scripts.js", &scripts_js);
         names_to_values_map.insertScalar("scripts_js", scripts_js);
 
         const std::string depth(GetCGIParameterOrDefault(cgi_args, "depth", "1"));
