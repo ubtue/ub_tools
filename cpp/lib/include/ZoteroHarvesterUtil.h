@@ -550,6 +550,7 @@ public:
         unsigned zeder_id_;
         std::string zeder_instance_;
         DeliveryState delivery_state_;
+        std::string error_message_;
         time_t delivered_at_;
         std::string delivered_at_str_;
         std::string hash_;
