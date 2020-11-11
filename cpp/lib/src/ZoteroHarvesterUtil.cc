@@ -575,7 +575,7 @@ std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(c
 }
 
 
-bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryState delivery_state) {
+bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryState delivery_state, const std::string &error_message) {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
 
@@ -593,6 +593,7 @@ bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryStat
             db_connection.queryOrDie("UPDATE delivered_marc_records "
                                      "SET hash=" + db_connection.escapeAndQuoteString(hash) +
                                      ",delivery_state=" + db_connection.escapeAndQuoteString(DELIVERY_STATE_TO_STRING_MAP.at(delivery_state)) +
+                                     ",error_message=" + db_connection.escapeAndQuoteStringOrNull(error_message) +
                                      ",delivered_at=NOW()"
                                      ",main_title=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(main_title)) +
                                      ",record=" + db_connection.escapeAndQuoteString(GzStream::CompressString(record.toBinaryString(), GzStream::GZIP)) +
@@ -619,6 +620,7 @@ bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryStat
                              "AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance) + ")"
                              ",hash=" + db_connection.escapeAndQuoteString(hash) +
                              ",delivery_state=" + db_connection.escapeAndQuoteString(DELIVERY_STATE_TO_STRING_MAP.at(delivery_state)) +
+                             ",error_message=" + db_connection.escapeAndQuoteStringOrNull(error_message) +
                              ",main_title=" + db_connection.escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(main_title)) +
                              ",record=" + db_connection.escapeAndQuoteString(GzStream::CompressString(record.toBinaryString(), GzStream::GZIP)));
 

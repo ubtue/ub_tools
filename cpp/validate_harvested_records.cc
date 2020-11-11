@@ -264,7 +264,8 @@ void AnalyseNewJournalRecord(const MARC::Record &record, const bool first_record
 
 
 bool RecordMeetsExpectations(const MARC::Record &record, const std::string &journal_name,
-                             const GeneralInfo &general_info, const JournalInfo &journal_info)
+                             const GeneralInfo &general_info, const JournalInfo &journal_info,
+                             std::string * const error_message)
 {
     std::unordered_set<std::string> seen_tags;
     MARC::Tag last_tag;
@@ -288,8 +289,8 @@ bool RecordMeetsExpectations(const MARC::Record &record, const std::string &jour
         else if (equivalent_tag != EQUIVALENT_TAGS_MAP.end() and seen_tags.find(equivalent_tag->second) != seen_tags.end())
             ;// equivalent tag found
         else {
-            LOG_WARNING("Record w/ control number " + record.getControlNumber() + " in \"" + journal_name
-                     + "\" is missing the always expected " + field_info.name_ + " field.");
+            *error_message = "Record w/ control number " + record.getControlNumber() + " in \"" + journal_name
+                             + "\" is missing the always expected " + field_info.name_ + " field.";
             meets_expectations = false;
         }
     }
@@ -342,7 +343,7 @@ void UpdateDB(DbConnection * const db_connection, const std::string &zeder_id, c
 
 bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &record, const GeneralInfo &general_info,
                    std::map<std::string, JournalInfo> * const journal_name_to_info_map,
-                   unsigned * const new_record_count)
+                   unsigned * const new_record_count, std::string * const error_message)
 {
     const std::string zeder_id(record.getFirstSubfieldValue("ZID", 'a'));
     const std::string zeder_instance(record.getFirstSubfieldValue("ZID", 'b'));
@@ -351,7 +352,7 @@ bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &recor
 
     const auto journal_name(record.getSuperiorTitle());
     if (journal_name.empty()) {
-        LOG_WARNING("Record w/ control number \"" + record.getControlNumber() + "\" is missing a superior title!");
+        *error_message = "Record w/ control number \"" + record.getControlNumber() + "\" is missing a superior title!";
         return false;
     }
 
@@ -365,7 +366,7 @@ bool IsRecordValid(DbConnection * const db_connection, const MARC::Record &recor
         journal_name_and_info = journal_name_to_info_map->find(journal_name);
     }
 
-    if (not RecordMeetsExpectations(record, journal_name_and_info->first, general_info, journal_name_and_info->second))
+    if (not RecordMeetsExpectations(record, journal_name_and_info->first, general_info, journal_name_and_info->second, error_message))
         return false;
     else if (not journal_name_and_info->second.isInDatabase()) {
         AnalyseNewJournalRecord(record, first_record, general_info, &journal_name_and_info->second);
@@ -414,12 +415,14 @@ int Main(int argc, char *argv[]) {
     unsigned total_record_count(0), new_record_count(0), missed_expectation_count(0);
     while (const auto record = reader->read()) {
         ++total_record_count;
-        if (IsRecordValid(&db_connection, record, general_info, &journal_name_to_info_map, &new_record_count))
+        std::string error_message;
+        if (IsRecordValid(&db_connection, record, general_info, &journal_name_to_info_map, &new_record_count, &error_message))
             valid_records_writer->write(record);
         else {
+            LOG_WARNING(error_message);
             ++missed_expectation_count;
             if (update_db_errors)
-                upload_tracker.archiveRecord(record, ZoteroHarvester::Util::UploadTracker::DeliveryState::ERROR);
+                upload_tracker.archiveRecord(record, ZoteroHarvester::Util::UploadTracker::DeliveryState::ERROR, error_message);
             delinquent_records_writer->write(record);
         }
     }
