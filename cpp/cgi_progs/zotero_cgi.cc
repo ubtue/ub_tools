@@ -523,6 +523,7 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     std::vector<std::string> hashes;
     std::vector<std::string> urls;
     std::vector<std::string> delivery_states;
+    std::vector<std::string> error_messages;
 
     const auto entries(upload_tracker->getEntriesByZederIdAndFlavour(StringUtil::ToUnsigned(zeder_id), zeder_flavour));
     for (const auto &entry : entries) {
@@ -532,6 +533,7 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
         hashes.emplace_back(HtmlUtil::HtmlEscape(entry.hash_));
         urls.emplace_back(entry.url_);
         delivery_states.emplace_back(HtmlUtil::HtmlEscape(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(entry.delivery_state_)));
+        error_messages.emplace_back(HtmlUtil::HtmlEscape(entry.error_message_));
     }
 
     names_to_values_map.insertArray("ids", ids);
@@ -540,6 +542,7 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     names_to_values_map.insertArray("hashes", hashes);
     names_to_values_map.insertArray("urls", urls);
     names_to_values_map.insertArray("delivery_states", delivery_states);
+    names_to_values_map.insertArray("error_messages", error_messages);
 
     RenderHtmlTemplate("delivered.html");
 }
