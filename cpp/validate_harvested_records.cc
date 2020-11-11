@@ -33,16 +33,18 @@
 #include "StringUtil.h"
 #include "UBTools.h"
 #include "util.h"
+#include "ZoteroHarvesterUtil.h"
 
 
 namespace {
 
 
 [[noreturn]] void Usage() {
-   ::Usage("(marc_input marc_output missed_expectations_file email_address)|(update_db zeder_id zeder_instance field_name field_presence)\n"
+   ::Usage("([--update-db-errors] marc_input marc_output missed_expectations_file email_address)|(update_db zeder_id zeder_instance field_name field_presence)\n"
            "\tThis tool has two operating modes 1) checking MARC data for missed expectations and 2) altering these expectations.\n"
            "\tin the \"update_db\" mode, \"field_name\" must be a 3-character MARC tag and \"field_presence\" must be one of\n"
-           "\tALWAYS, SOMETIMES, IGNORE.  Please note that only existing entries can be changed!");
+           "\tALWAYS, SOMETIMES, IGNORE.  Please note that only existing entries can be changed!"
+           "\tIf --update-db-errors is set, the errors_detected field will be reset for all journals of the found groups, and set only for the journals with at least 1 detected error.");
 }
 
 
@@ -448,6 +450,14 @@ int Main(int argc, char *argv[]) {
         return EXIT_SUCCESS;
     }
 
+    bool update_db_errors(false);
+    if (argc == 6) {
+        if (::strcmp(argv[1], "--update-db-errors") != 0)
+            Usage();
+        update_db_errors = true;
+        --argc;++argv;
+    }
+
     if (argc != 5)
         Usage();
 
@@ -457,6 +467,7 @@ int Main(int argc, char *argv[]) {
     std::map<std::string, JournalInfo> journal_name_to_info_map;
     const std::string email_address(argv[4]);
     const auto general_info(LoadGeneralInfo(&db_connection));
+    ZoteroHarvester::Util::UploadTracker upload_tracker;
 
     unsigned total_record_count(0), new_record_count(0), missed_expectation_count(0);
     while (const auto record = reader->read()) {
@@ -465,6 +476,8 @@ int Main(int argc, char *argv[]) {
             valid_records_writer->write(record);
         else {
             ++missed_expectation_count;
+            if (update_db_errors)
+                upload_tracker.archiveRecord(record, ZoteroHarvester::Util::UploadTracker::DeliveryState::ERROR);
             delinquent_records_writer->write(record);
         }
     }

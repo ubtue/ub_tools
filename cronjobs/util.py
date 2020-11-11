@@ -25,6 +25,10 @@ import time
 import urllib.request
 
 
+def WgetFetch(url: str) -> bool:
+    return True if process_util.Exec("/usr/bin/wget", [ "--quiet", url ]) == 0 else False
+    
+
 def HTTPDateToSecondsRelativetoUnixEpoch(http_date: str) -> int:
     return email.utils.mktime_tz(email.utils.parsedate_tz(http_date))
 
@@ -53,6 +57,7 @@ def RetrieveFileByURL(url: str, timeout: int, accepted_content_types: List[str] 
                 for accepted_content_type in accepted_content_types:
                     if accepted_content_type.lower() == content_type:
                         return RetrieveFileByURLReturnCode.SUCCESS
+                Warning("in RetrieveFileByURL: Content-type was \"" + content_type + "\"!")
                 return RetrieveFileByURLReturnCode.BAD_CONTENT_TYPE
             return RetrieveFileByURLReturnCode.SUCCESS
         except urllib.error.URLError:

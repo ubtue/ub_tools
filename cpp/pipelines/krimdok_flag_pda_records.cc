@@ -3,7 +3,7 @@
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \author Johannes Riedl (johannes.riedl@uni-tuebingen.de)
  *
- *  \copyright 2016-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -102,7 +102,7 @@ void AddPDAFieldToRecords(const std::string &cutoff_year, MARC::Reader * const m
 
         auto local_block_starts(record.findStartOfAllLocalDataBlocks());
         if (IsMPIRecord(record, local_block_starts) and not IsUBOrIFKRecord(record, local_block_starts)) {
-            const std::string publication_year(record.getPublicationYear());
+            const std::string publication_year(record.getMostRecentPublicationYear());
             if (publication_year >= cutoff_year) {
                 std::vector<std::string> non_mpi_institutions;
                 FindNonMPIInstitutions(record, local_block_starts, &non_mpi_institutions);

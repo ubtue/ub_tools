@@ -158,6 +158,22 @@ public:
         return escapeString(unescaped_string, /* add_quotes = */true);
     }
 
+    /** \brief  Join a "list" of words to form a single string,
+     *          typically used for SQL statements using the IN keyword.
+     *  \note   Adds "," as delimiter.
+     *  \param  source     The container of strings that are to be joined.
+     */
+    template<typename StringContainer> std::string joinAndEscapeAndQuoteStrings(const StringContainer &container)
+    {
+        std::string subquery;
+        for (const auto &string : container) {
+            if (not subquery.empty())
+                subquery += ",";
+            subquery += escapeAndQuoteString(string);
+        }
+        return subquery;
+    }
+
     // Returns a string of the form x'A554E59F' etc.
     std::string sqliteEscapeBlobData(const std::string &blob_data);
 

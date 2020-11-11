@@ -795,14 +795,14 @@ float ToFloat(const std::string &s) {
 
 bool ToBool(const std::string &value, bool * const b) {
     if (::strcasecmp(value.c_str(), "true") == 0 or ::strcasecmp(value.c_str(), "yes") == 0
-        or ::strcasecmp(value.c_str(), "on") == 0)
+        or ::strcasecmp(value.c_str(), "on") == 0 or ::strcasecmp(value.c_str(), "1") == 0)
     {
         *b = true;
         return true;
     }
 
     if (::strcasecmp(value.c_str(), "false") == 0 or ::strcasecmp(value.c_str(), "off") == 0
-        or ::strcasecmp(value.c_str(), "no") == 0)
+        or ::strcasecmp(value.c_str(), "no") == 0 or ::strcasecmp(value.c_str(), "0") == 0)
     {
         *b = false;
         return true;

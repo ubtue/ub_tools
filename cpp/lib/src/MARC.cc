@@ -635,8 +635,8 @@ std::string Record::toString(const RecordFormat record_format, const unsigned in
 
 
 bool Record::isProbablyNewerThan(const Record &other) const {
-    const auto this_publication_year(getPublicationYear());
-    const auto other_publication_year(other.getPublicationYear());
+    const auto this_publication_year(getMostRecentPublicationYear());
+    const auto other_publication_year(other.getMostRecentPublicationYear());
     if (this_publication_year.empty() or other_publication_year.empty())
         return getControlNumber() > other.getControlNumber();
     return this_publication_year > other_publication_year;
@@ -1002,7 +1002,35 @@ static inline bool ConsistsOfDigitsOnly(const std::string &s) {
 }
 
 
-std::string Record::getPublicationYear(const std::string &fallback) const {
+std::string Record::getMostRecentPublicationYear(const std::string &fallback) const {
+    const auto zwi_field(findTag("ZWI"));
+    if (zwi_field != end()) {
+        const auto publication_year(zwi_field->getFirstSubfieldWithCode('y'));
+        if (not publication_year.empty())
+            return publication_year;
+    }
+
+    if (isSerial()) {
+        // 363$i w/ indicators 01 is the publication start year and 363$i with indicators 10 the publication end year.
+        std::string start_year, end_year;
+        for (const auto _363_field : getTagRange("363")) {
+            const auto subfield_i(_363_field.getFirstSubfieldWithCode('i'));
+            if (subfield_i.empty())
+                continue;
+            const char indicator1(_363_field.getIndicator1()), indicator2(_363_field.getIndicator2());
+            if (indicator1 == '0' and indicator2 == '1') // start year
+                start_year = subfield_i;
+            else if (indicator1 == '1' and indicator2 == '0') // end year
+                end_year = subfield_i;
+        }
+        if (not end_year.empty())
+            return end_year;
+        if (not start_year.empty()) {
+            const auto current_year(TimeUtil::GetCurrentYear());
+            return current_year > start_year ? current_year : start_year;
+        }
+    }
+
     if (isReproduction()) {
         const auto _534_field(findTag("534"));
         if (unlikely(_534_field == end()))
