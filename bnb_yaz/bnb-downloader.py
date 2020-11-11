@@ -29,7 +29,7 @@ def ExtractRelevantIds(rdf_xml_document):
         for subject in child.iter('{http://purl.org/dc/terms/}subject'):
             for subject_child in subject.iter("{http://www.w3.org/2004/02/skos/core#}notation"):
                 ddc = subject_child.text
-        if ddc and ddc[0] != '3': # Theology
+        if ddc and ddc[0] != '2': # Theology
             continue
         number = ""
         for identifier in child.iter('{http://purl.org/dc/terms/}identifier'):
@@ -37,8 +37,6 @@ def ExtractRelevantIds(rdf_xml_document):
                 number = identifier.text
         if number:
             numbers.append(number)
-    print("Found " + str(len(numbers)) + " relevent numbers out of a total of " + str(total_numbers) + ".")
-    sys.exit(0);
     return numbers
 
     
