@@ -935,6 +935,8 @@ std::string HtmlEscape(const std::string &unescaped_text) {
             escaped_text += "&lt;";
         else if (ch == '>')
             escaped_text += "&gt;";
+        else if (ch == '"')
+            escaped_text += "&quot;";
         else
             escaped_text += ch;
     }
