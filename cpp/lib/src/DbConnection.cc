@@ -485,7 +485,7 @@ void DbConnection::insertIntoTableOrDie(const std::string &table_name, const std
             else
                 first = false;
 
-            insert_stmt += escapeAndQuoteStringOrNull(*column_value);
+            insert_stmt += escapeAndQuoteNonEmptyStringOrReturnNull(*column_value);
         }
         insert_stmt += ')';
 
