@@ -186,4 +186,3 @@ try:
 except Exception as e:
     util.SendEmail("BNB Downloader", "An unexpected error occurred: "
                    + str(e) + "\n\n" + traceback.format_exc(20), priority=1)
-Main()
