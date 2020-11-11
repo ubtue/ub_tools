@@ -579,7 +579,7 @@ public:
 
     // Saves the record blob and its associated metadata in the host's database.
     // Returns true on success, false otherwise.
-    bool archiveRecord(const MARC::Record &record, const DeliveryState delivery_state, const std::string &error_message="");
+    bool archiveRecord(const MARC::Record &record, const DeliveryState delivery_state, const std::string &error_message = "");
 
     static std::string GetZederInstanceString(const Zeder::Flavour zeder_flavour);
 private:
