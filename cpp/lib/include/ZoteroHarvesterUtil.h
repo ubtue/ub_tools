@@ -550,6 +550,7 @@ public:
         unsigned zeder_id_;
         std::string zeder_instance_;
         DeliveryState delivery_state_;
+        std::string error_message_;
         time_t delivered_at_;
         std::string delivered_at_str_;
         std::string hash_;
@@ -578,7 +579,7 @@ public:
 
     // Saves the record blob and its associated metadata in the host's database.
     // Returns true on success, false otherwise.
-    bool archiveRecord(const MARC::Record &record, const DeliveryState delivery_state);
+    bool archiveRecord(const MARC::Record &record, const DeliveryState delivery_state, const std::string &error_message = "");
 
     static std::string GetZederInstanceString(const Zeder::Flavour zeder_flavour);
 private:

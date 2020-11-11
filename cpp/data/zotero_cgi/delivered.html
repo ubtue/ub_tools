@@ -18,7 +18,7 @@
                 <th>delivery state</th>
                 <th>actions</th>
             </tr>
-            {LOOP ids,delivered_datetimes,titles,hashes,urls,delivery_states}
+            {LOOP ids,delivered_datetimes,titles,hashes,urls,delivery_states,error_messages}
                 <tr>
                     <td>{delivered_datetimes}</td>
                     <td>{titles}</td>
@@ -27,7 +27,7 @@
                     <td align="center" style="vertical-align: middle;">
                         {IF delivery_states == "automatic"}<span class="dot" style="background-color: green;" title="This record has been delivered automatically."></span>{ENDIF}
                         {IF delivery_states == "manual"}<span class="dot" style="background-color: turquoise;" title="This record has been delivered manually and will no longer be harvested automatically."></span>{ENDIF}
-                        {IF delivery_states == "error"}<span class="dot" style="background-color: yellow;" title="An error has occurred when trying to deliver this record."></span>{ENDIF}
+                        {IF delivery_states == "error"}<span class="dot" style="background-color: yellow;" title="An error has occurred while trying to deliver this record:&#013;{error_messages}"></span>{ENDIF}
                     </td>
                     <td>
                         {IF delivery_states == "error"}

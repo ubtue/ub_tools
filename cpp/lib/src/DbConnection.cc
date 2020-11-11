@@ -485,10 +485,7 @@ void DbConnection::insertIntoTableOrDie(const std::string &table_name, const std
             else
                 first = false;
 
-            if (column_value)
-                insert_stmt += escapeAndQuoteString(*column_value);
-            else
-                insert_stmt += "NULL";
+            insert_stmt += escapeAndQuoteNonEmptyStringOrReturnNull(*column_value);
         }
         insert_stmt += ')';
 
@@ -518,7 +515,10 @@ DbResultSet DbConnection::getLastResultSet() {
 }
 
 
-std::string DbConnection::escapeString(const std::string &unescaped_string, const bool add_quotes) {
+std::string DbConnection::escapeString(const std::string &unescaped_string, const bool add_quotes, const bool return_null_on_empty_string) {
+    if (unescaped_string.empty() and return_null_on_empty_string)
+        return "NULL";
+
     char * const buffer(reinterpret_cast<char *>(std::malloc(unescaped_string.size() * 2 + 1)));
     size_t escaped_length;
 
