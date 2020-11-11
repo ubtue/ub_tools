@@ -18,6 +18,28 @@ import xml.etree.ElementTree as ElementTree
 import zipfile
 
 
+def ExtractRelevantIds(rdf_xml_document):
+    numbers = []
+    tree = ElementTree.parse(rdf_xml_document)
+    root = tree.getroot()
+    total_numbers = 0
+    for child in root:
+        total_numbers += 1
+        ddc = ""
+        for subject in child.iter('{http://purl.org/dc/terms/}subject'):
+            for subject_child in subject.iter("{http://www.w3.org/2004/02/skos/core#}notation"):
+                ddc = subject_child.text
+        if ddc and ddc[0] != '2': # Theology
+            continue
+        number = ""
+        for identifier in child.iter('{http://purl.org/dc/terms/}identifier'):
+            if identifier.text[0:2] == "GB":
+                number = identifier.text
+        if number:
+            numbers.append(number)
+    return numbers
+
+    
 def GetNewBNBNumbers(list_no):
     zipped_rdf_filename = "bnbrdf_n" + str(list_no) + ".zip"
     download_url = \
@@ -31,13 +53,7 @@ def GetNewBNBNumbers(list_no):
         zip_file.extractall()
     util.Remove(zipped_rdf_filename)
     rdf_filename = "bnbrdf_N" + str(list_no) + ".rdf"
-
-    numbers = []
-    print("About to parse " + rdf_filename)
-    tree = ElementTree.parse(rdf_filename)
-    for child in tree.iter('{http://purl.org/dc/terms/}identifier'):
-        if child.text[0:2] == "GB":
-            numbers.append(child.text)
+    numbers = ExtractRelevantIds(rdf_filename)
     util.Remove(rdf_filename)
     return numbers
 
