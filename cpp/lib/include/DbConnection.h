@@ -153,9 +153,12 @@ public:
     /** \note Converts the binary contents of "unescaped_string" into a form that can used as a string.
      *  \note This probably breaks for Sqlite if the string contains binary characters.
      */
-    std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false);
+    std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false, const bool return_null_on_empty_string=false);
     inline std::string escapeAndQuoteString(const std::string &unescaped_string) {
         return escapeString(unescaped_string, /* add_quotes = */true);
+    }
+    inline std::string escapeAndQuoteStringOrNull(const std::string &unescaped_string) {
+        return escapeString(unescaped_string, /* add_quotes = */true, /* return_null_on_empty_string = */true);
     }
 
     /** \brief  Join a "list" of words to form a single string,
