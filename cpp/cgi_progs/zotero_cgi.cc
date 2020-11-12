@@ -559,7 +559,7 @@ bool ProcessShowQASubActionAdd(const std::multimap<std::string, std::string> &cg
     if (add_type == "global")
         journal_id_to_insert = "NULL";
 
-    db_connection->queryOrDie("INSERT INTO metadata_presence_tracer (zeder_journal_id, metadata_field_name, field_presence) "
+    db_connection->queryOrDie("INSERT INTO metadata_presence_tracer (zeder_journal_id, marc_field_tag, field_presence) "
                               " VALUES (" + journal_id_to_insert + ", " + db_connection->escapeAndQuoteString(add_tag) + ", "
                               " " + db_connection->escapeAndQuoteString(add_presence) + ")");
     return true;
@@ -580,7 +580,7 @@ bool ProcessShowQASubActionDelete(const std::multimap<std::string, std::string> 
 
     db_connection->queryOrDie("DELETE FROM metadata_presence_tracer "
                              "WHERE zeder_journal_id " + journal_id_to_delete + " "
-                             "AND metadata_field_name = " + db_connection->escapeAndQuoteString(delete_tag));
+                             "AND marc_field_tag = " + db_connection->escapeAndQuoteString(delete_tag));
 
     return true;
 }
@@ -612,18 +612,18 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
     db_connection->queryOrDie("SELECT * FROM metadata_presence_tracer WHERE zeder_journal_id IS NULL "
                              "OR zeder_journal_id IN (SELECT id FROM zeder_journals WHERE zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) +
                              " AND zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance) + ")"
-                             " ORDER BY metadata_field_name ASC, zeder_journal_id ASC");
+                             " ORDER BY marc_field_tag ASC, zeder_journal_id ASC");
 
     auto result_set(db_connection->getLastResultSet());
     std::map<std::string, std::pair<std::string, std::string>> tag_to_settings_map;
 
     while (const auto row = result_set.getNextRow()) {
-        const auto iter(tag_to_settings_map.find(row["metadata_field_name"]));
+        const auto iter(tag_to_settings_map.find(row["marc_field_tag"]));
         if (iter == tag_to_settings_map.end()) {
             if (row["zeder_journal_id"].empty())
-                tag_to_settings_map[row["metadata_field_name"]] = { row["field_presence"], "" };
+                tag_to_settings_map[row["marc_field_tag"]] = { row["field_presence"], "" };
             else
-                tag_to_settings_map[row["metadata_field_name"]] = { "", row["field_presence"] };
+                tag_to_settings_map[row["marc_field_tag"]] = { "", row["field_presence"] };
         } else {
             if (row["zeder_journal_id"].empty())
                 iter->second.first = row["field_presence"];

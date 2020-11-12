@@ -245,13 +245,13 @@ std::string RecordTypeToString(const RecordType record_type) {
 
 
 GeneralInfo LoadGeneralInfo(DbConnection * const db_connection) {
-    db_connection->queryOrDie("SELECT metadata_field_name,field_presence,subfield_code,record_type FROM metadata_presence_tracer "
-                              "WHERE zeder_journal_id IS NULL ORDER BY metadata_field_name ASC");
+    db_connection->queryOrDie("SELECT marc_field_tag,field_presence,subfield_code,record_type FROM metadata_presence_tracer "
+                              "WHERE zeder_journal_id IS NULL ORDER BY marc_field_tag ASC");
 
     GeneralInfo general_info;
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow())
-        general_info.addField(row["metadata_field_name"], row["subfield_code"][0], StringToFieldPresence(row["field_presence"]),
+        general_info.addField(row["marc_field_tag"], row["subfield_code"][0], StringToFieldPresence(row["field_presence"]),
                               StringToRecordType(row["record_type"]));
 
     return general_info;
@@ -261,11 +261,11 @@ GeneralInfo LoadGeneralInfo(DbConnection * const db_connection) {
 void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, const std::string &zeder_id,
                                          const std::string &zeder_instance, JournalInfo * const journal_info)
 {
-    db_connection->queryOrDie("SELECT metadata_field_name,subfield_code,field_presence,record_type FROM metadata_presence_tracer "
+    db_connection->queryOrDie("SELECT marc_field_tag,subfield_code,field_presence,record_type FROM metadata_presence_tracer "
                               "LEFT JOIN zeder_journals ON zeder_journals.id = metadata_presence_tracer.zeder_journal_id "
                               "WHERE zeder_journals.zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) +
                               " AND zeder_journals.zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance) +
-                              " ORDER BY metadata_presence_tracer.metadata_field_name ASC");
+                              " ORDER BY metadata_presence_tracer.marc_field_tag ASC");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty()) {
         LOG_INFO(zeder_id + "(" + zeder_instance + ")" + " was not yet in the database.");
@@ -275,7 +275,7 @@ void LoadFromDatabaseOrCreateFromScratch(DbConnection * const db_connection, con
 
     *journal_info = JournalInfo(zeder_id, zeder_instance, /* not_in_database_yet = */false);
     while (const auto row = result_set.getNextRow())
-        journal_info->addField(row["metadata_field_name"], row["subfield_code"][0], StringToFieldPresence(row["field_presence"]),
+        journal_info->addField(row["marc_field_tag"], row["subfield_code"][0], StringToFieldPresence(row["field_presence"]),
                                StringToRecordType(row["record_type"]));
 }
 
@@ -360,7 +360,7 @@ void WriteToDatabase(DbConnection * const db_connection, const GeneralInfo &gene
             db_connection->queryOrDie("INSERT INTO metadata_presence_tracer SET zeder_journal_id=(SELECT id FROM zeder_journals "
                                       "WHERE zeder_id=" + db_connection->escapeAndQuoteString(journal_info.getZederId()) + " "
                                       "AND zeder_instance=" + db_connection->escapeAndQuoteString(journal_info.getZederInstance()) + ")"
-                                      ", metadata_field_name=" + db_connection->escapeAndQuoteString(field_info.name_) +
+                                      ", marc_field_tag=" + db_connection->escapeAndQuoteString(field_info.name_) +
                                       ", subfield_code='" + std::string(1, field_info.subfield_code_) + "'"
                                       ", field_presence='" + FieldPresenceToString(field_info.presence_) + "'"
                                       ", record_type='" + RecordTypeToString(field_info.record_type_) + "'");

@@ -1,0 +1,1 @@
+ALTER TABLE metadata_presence_tracer RENAME COLUMN metadata_field_name TO marc_field_tag
