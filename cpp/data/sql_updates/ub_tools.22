@@ -1,3 +1,3 @@
-ALTER TABLE metadata_presence_tracer RENAME COLUMN metadata_field_name TO marc_field_tag
-ALTER TABLE metadata_presence_tracer MODIFY marc_field_tag CHAR(3)
-ALTER TABLE metadata_presence_tracer ADD COLUMN record_type ENUM('regular_article', 'review') DEFAULT 'regular_article'
+ALTER TABLE metadata_presence_tracer RENAME COLUMN metadata_field_name TO marc_field_tag;
+ALTER TABLE metadata_presence_tracer MODIFY marc_field_tag CHAR(3);
+ALTER TABLE metadata_presence_tracer ADD COLUMN record_type ENUM('regular_article', 'review') DEFAULT 'regular_article';
