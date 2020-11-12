@@ -78,11 +78,11 @@ inline std::string ReplaceEntitiesUTF8(const std::string &s, const UnknownEntity
 }
 
 
-/** \brief Replaces ampersands, less-than and greater than symbols with HTML entities. */
+/** \brief Replaces ampersands, less-than, greater than and double quote symbols with HTML entities. */
 std::string HtmlEscape(const std::string &unescaped_text);
 
 
-/** \brief Replaces ampersands, less-than and greater than symbols with HTML entities. */
+/** \brief Replaces ampersands, less-than, greater than and double quote symbols with HTML entities. */
 inline std::string HtmlEscape(std::string * const unescaped_text) {
     return *unescaped_text = HtmlEscape(*unescaped_text);
 }
