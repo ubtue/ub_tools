@@ -40,10 +40,10 @@ CREATE TABLE zeder_journals (
 -- Table to be used w/ our validate_harvested_records tool:
 CREATE TABLE metadata_presence_tracer (
     zeder_journal_id INT(11) UNSIGNED,
-    metadata_field_name CHAR(4) NOT NULL,
+    marc_field_tag CHAR(4) NOT NULL,
     field_presence ENUM('always', 'sometimes', 'ignore') NOT NULL,
     CONSTRAINT metadata_presence_tracer_zeder_journal_id FOREIGN KEY (zeder_journal_id) REFERENCES zeder_journals (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT metadata_presence_tracer_journal_id_and_field_name UNIQUE (zeder_journal_id, metadata_field_name)
+    CONSTRAINT metadata_presence_tracer_journal_id_and_field_name UNIQUE (zeder_journal_id, marc_field_tag)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 
