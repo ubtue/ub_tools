@@ -1,7 +1,7 @@
 /** \brief  Generates a list of religious studies essay collections.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -100,7 +100,7 @@ void MarkArticleCollections(MARC::Reader * const reader, File * const output,
             const auto ssgns(record.getSSGNs());
             if (ssgns.find("0") != ssgns.cend()) {
                 ++count;
-                const auto publication_year(record.getPublicationYear(/* fallback */ "????"));
+                const auto publication_year(record.getMostRecentPublicationYear(/* fallback */ "????"));
                 *output << TextUtil::CSVEscape(record.getControlNumber()) << '\t'
                         << TextUtil::CSVEscape(ShortenTitle(record.getMainTitle(), 60)) << '\t'
                         << TextUtil::CSVEscape((HasTOC(record) ? "Ja" : "Nein")) << '\t'

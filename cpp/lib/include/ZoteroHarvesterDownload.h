@@ -266,9 +266,9 @@ public:
 
 
 // Orchestrates all downloads and manages the relevant state. Consumers of this class can
-// queue downloads as it they were synchronous operations and await their results at a later
+// queue downloads as if they were synchronous operations and await their results at a later
 // point in time. RSS and Crawl operations are decomposed into individual DirectDownload operations
-// wherever possible. DirectDownload operations are categorised based on their URLs domain name.
+// wherever possible. DirectDownload operations are categorised based on their URLs' domain name.
 // Each domain has its own queue for each type of operation and its corresponding rate-limiting
 // parameters. The rate-limiter ensures that there is no more than one download executing per
 // domain at a given point in time (unless overriden globally). Successful DirectDownload operations
