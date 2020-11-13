@@ -1,3 +1,8 @@
-ALTER TABLE metadata_presence_tracer CHANGE COLUMN metadata_field_name marc_field_tag;
-ALTER TABLE metadata_presence_tracer MODIFY COLUMN marc_field_tag CHAR(3);
+ALTER TABLE metadata_presence_tracer CHANGE COLUMN metadata_field_name marc_field_tag CHAR(3) NOT NULL;
 ALTER TABLE metadata_presence_tracer ADD COLUMN record_type ENUM('regular_article', 'review') DEFAULT 'regular_article' NOT NULL AFTER marc_field_tag;
+
+ALTER TABLE metadata_presence_tracer DROP FOREIGN KEY metadata_presence_tracer_zeder_journal_id;
+ALTER TABLE metadata_presence_tracer DROP KEY metadata_presence_tracer_journal_id_and_field_name;
+
+ALTER TABLE metadata_presence_tracer ADD CONSTRAINT metadata_presence_tracer_journal_id_and_marc_field_tag UNIQUE (zeder_journal_id, marc_field_tag);
+ALTER TABLE metadata_presence_tracer ADD CONSTRAINT metadata_presence_tracer_zeder_journal_id FOREIGN KEY (zeder_journal_id) REFERENCES zeder_journals (id) ON DELETE CASCADE ON UPDATE CASCADE;
