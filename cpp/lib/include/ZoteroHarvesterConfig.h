@@ -189,11 +189,10 @@ private:
 
 
 struct LanguageParams {
-    std::set<std::string> expected_languages_ = {"eng"};
+    std::set<std::string> expected_languages_ = {};
     std::string source_text_fields_ = "title";
-    bool force_automatic_language_detection_ = false;
 public:
-    void reset() { expected_languages_ = {"eng"}; source_text_fields_ = "title"; force_automatic_language_detection_ = false; }
+    void reset() { expected_languages_ = {}; source_text_fields_ = "title"; }
 };
 
 
