@@ -34,10 +34,6 @@ namespace Download {
 namespace DirectDownload {
 
 
-// Set to 20 empirically. Larger numbers increase the incidence of the
-// translation server bug that returns an empty/broken response.
-constexpr unsigned MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS = 4; // Temporarily reduced in order to see if this results in fewer response codes
-                                                                   // with value 0
 ThreadUtil::Semaphore translation_server_request_semaphore(MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS);
 
 
