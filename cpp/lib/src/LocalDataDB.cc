@@ -213,7 +213,7 @@ bool LocalDataDB::removeLocalDataSet(const std::string &local_ppn) {
     db_connection_->queryOrDie("DELETE FROM local_ppns_to_title_ppns_map WHERE local_ppn="
                                + db_connection_->escapeAndQuoteString(local_ppn));
     if (filtered_local_fields.empty())
-        db_connection_->queryOrDie("DELETE FROM local_fields WHERE title_ppn="
+        db_connection_->queryOrDie("DELETE FROM local_data WHERE title_ppn="
                                    + db_connection_->escapeAndQuoteString(title_ppn));
     else
         db_connection_->queryOrDie("REPLACE INTO local_data (title_ppn, local_fields) VALUES("
