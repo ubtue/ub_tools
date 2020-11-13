@@ -47,6 +47,15 @@ namespace ZoteroHarvester {
 namespace Download {
 
 
+// Temporarily reduced in order to see if this results in fewer errors
+static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 5;
+static constexpr unsigned MAX_CRAWLING_TASKLETS        = 5;
+static constexpr unsigned MAX_RSS_TASKLETS             = 5;
+// Set to 20 empirically. Larger numbers increase the incidence of the
+// translation server bug that returns an empty/broken response.
+static constexpr unsigned MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS = 15;
+
+
 class DownloadManager;
 
 
@@ -55,12 +64,6 @@ class DownloadManager;
 // and successfully retrieved metadata are cached locally to reduce the number of outbound requests.
 // Returns the remote server's response with additional extra data.
 namespace DirectDownload {
-
-
-// Set to 20 empirically. Larger numbers increase the incidence of the
-// translation server bug that returns an empty/broken response.
-static constexpr unsigned MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS = 4; // Temporarily reduced in order to see if this results in fewer response codes
-                                                                          // with value 0
 
 
 enum class Operation { USE_TRANSLATION_SERVER, DIRECT_QUERY };
@@ -350,11 +353,6 @@ private:
         DirectDownload::Operation operation_;
         std::string response_body_;
     };
-
-
-    static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 50;
-    static constexpr unsigned MAX_CRAWLING_TASKLETS        = 50;
-    static constexpr unsigned MAX_RSS_TASKLETS             = 50;
 
 
     GlobalParams global_params_;
