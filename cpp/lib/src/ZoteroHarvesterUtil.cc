@@ -571,7 +571,7 @@ std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(c
                              "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
                              "WHERE zj.zeder_id=" + db_connection.escapeString(std::to_string(zeder_id)) + " "
                              "AND zj.zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance) + " "
-                             "ORDER BY dmr.delivered_at ASC");
+                             "ORDER BY dmr.delivered_at, dmr.id ASC");
 
     return GetEntriesFromLastResultSet(&db_connection);
 }
