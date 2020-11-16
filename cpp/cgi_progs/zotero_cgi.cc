@@ -521,26 +521,32 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     std::vector<std::string> delivered_datetimes;
     std::vector<std::string> titles;
     std::vector<std::string> hashes;
-    std::vector<std::string> urls;
+    std::vector<std::string> links;
     std::vector<std::string> delivery_states;
     std::vector<std::string> error_messages;
 
     const auto entries(upload_tracker->getEntriesByZederIdAndFlavour(StringUtil::ToUnsigned(zeder_id), zeder_flavour));
     for (const auto &entry : entries) {
-        ids.emplace_back(HtmlUtil::HtmlEscape(std::to_string(entry.id_)));
-        delivered_datetimes.emplace_back(HtmlUtil::HtmlEscape(entry.delivered_at_str_));
-        titles.emplace_back(HtmlUtil::HtmlEscape(entry.main_title_));
-        hashes.emplace_back(HtmlUtil::HtmlEscape(entry.hash_));
-        urls.emplace_back(entry.url_);
-        delivery_states.emplace_back(HtmlUtil::HtmlEscape(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(entry.delivery_state_)));
-        error_messages.emplace_back(HtmlUtil::HtmlEscape(entry.error_message_));
+        const std::string escaped_id(HtmlUtil::HtmlEscape(std::to_string(entry.id_)));
+        const std::string link("<a href=\"" + entry.url_ + "\" target=\"_blank\">" + entry.url_  + "</a>");
+        if (not ids.empty() and ids.back() == escaped_id) {
+            links.back() += "<br>" + link;
+        } else {
+            ids.emplace_back(escaped_id);
+            delivered_datetimes.emplace_back(HtmlUtil::HtmlEscape(entry.delivered_at_str_));
+            titles.emplace_back(HtmlUtil::HtmlEscape(entry.main_title_));
+            hashes.emplace_back(HtmlUtil::HtmlEscape(entry.hash_));
+            links.emplace_back(link);
+            delivery_states.emplace_back(HtmlUtil::HtmlEscape(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(entry.delivery_state_)));
+            error_messages.emplace_back(HtmlUtil::HtmlEscape(entry.error_message_));
+        }
     }
 
     names_to_values_map.insertArray("ids", ids);
     names_to_values_map.insertArray("delivered_datetimes", delivered_datetimes);
     names_to_values_map.insertArray("titles", titles);
     names_to_values_map.insertArray("hashes", hashes);
-    names_to_values_map.insertArray("urls", urls);
+    names_to_values_map.insertArray("links", links);
     names_to_values_map.insertArray("delivery_states", delivery_states);
     names_to_values_map.insertArray("error_messages", error_messages);
 
