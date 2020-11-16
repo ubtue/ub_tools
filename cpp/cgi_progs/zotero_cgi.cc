@@ -529,9 +529,9 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     for (const auto &entry : entries) {
         const std::string escaped_id(HtmlUtil::HtmlEscape(std::to_string(entry.id_)));
         const std::string link("<a href=\"" + entry.url_ + "\" target=\"_blank\">" + entry.url_  + "</a>");
-        if (not ids.empty() and ids.back() == escaped_id) {
+        if (not ids.empty() and ids.back() == escaped_id)
             links.back() += "<br>" + link;
-        } else {
+        else {
             ids.emplace_back(escaped_id);
             delivered_datetimes.emplace_back(HtmlUtil::HtmlEscape(entry.delivered_at_str_));
             titles.emplace_back(HtmlUtil::HtmlEscape(entry.main_title_));
