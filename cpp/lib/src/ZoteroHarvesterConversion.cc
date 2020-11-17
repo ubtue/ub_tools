@@ -514,43 +514,56 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
 }
 
 
-void IdentifyMissingLanguage(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params) {
-    const unsigned minimum_token_count(5);
-
-    if (journal_params.language_params_.expected_languages_.empty())
-        return;
-
-    if (journal_params.language_params_.expected_languages_.size() == 1) {
-        metadata_record->language_ = *journal_params.language_params_.expected_languages_.begin();
-        LOG_DEBUG("language set to default language '" + metadata_record->language_ + "'");
-        return;
+void DetectLanguage(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params) {
+    // Normalize given language
+    if (not Config::IsAllowedLanguage(metadata_record->language_)) {
+        LOG_WARNING("Removing invalid language: " + metadata_record->language_);
+        metadata_record->language_.clear();
+    } else if (not Config::IsNormalizedLanguage(metadata_record->language_)) {
+        const std::string normalized_language(Config::GetNormalizedLanguage(metadata_record->language_));
+        LOG_DEBUG("Normalized language: " + metadata_record->language_ + " => " + normalized_language);
+        metadata_record->language_ = normalized_language;
     }
 
     // attempt to automatically detect the language
-    std::vector<std::string> top_languages;
-    std::string record_text;
+    if (journal_params.language_params_.expected_languages_.empty())
+        return;
 
-    if (journal_params.language_params_.source_text_fields_.empty()
-        or journal_params.language_params_.source_text_fields_ == "title")
-    {
-        record_text = metadata_record->title_;
-        // use naive tokenization to count tokens in the title
-        // additionally use abstract if we have too few tokens in the title
-        if (StringUtil::CharCount(record_text, ' ') < minimum_token_count) {
-            record_text += " " + metadata_record->abstract_note_;
-            LOG_DEBUG("too few tokens in title. applying heuristic on the abstract as well");
+    std::string detected_language;
+    if (journal_params.language_params_.expected_languages_.size() == 1)
+        detected_language = *journal_params.language_params_.expected_languages_.begin();
+    else {
+        std::vector<std::string> top_languages;
+        std::string record_text;
+        if (journal_params.language_params_.source_text_fields_.empty()
+            or journal_params.language_params_.source_text_fields_ == "title")
+        {
+            record_text = metadata_record->title_;
+        } else if (journal_params.language_params_.source_text_fields_ == "abstract")
+            record_text = metadata_record->abstract_note_;
+        else if (journal_params.language_params_.source_text_fields_ == "title+abstract")
+            record_text = metadata_record->title_ + " " + metadata_record->abstract_note_;
+        else
+            LOG_ERROR("unknown text field '" + journal_params.language_params_.source_text_fields_ + "' for language detection");
+
+        NGram::ClassifyLanguage(record_text, &top_languages, journal_params.language_params_.expected_languages_,
+                                NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
+        detected_language = top_languages.front();
+    }
+
+    // compare given language to detected language
+    if (not detected_language.empty()) {
+        if (metadata_record->language_.empty()) {
+            LOG_INFO("Using detected language: " + detected_language);
+            metadata_record->language_ = detected_language;
+        } else if (detected_language == metadata_record->language_)
+            LOG_INFO("The given language is equal to the detected language: " + detected_language);
+        else {
+            LOG_INFO("The given language " + metadata_record->language_ +  " and the detected language " + detected_language + " are different. "
+                     "No language will be set.");
+            metadata_record->language_.clear();
         }
-    } else if (journal_params.language_params_.source_text_fields_ == "abstract")
-        record_text = metadata_record->abstract_note_;
-    else if (journal_params.language_params_.source_text_fields_ == "title+abstract")
-        record_text = metadata_record->title_ + " " + metadata_record->abstract_note_;
-    else
-        LOG_ERROR("unknown text field '" + journal_params.language_params_.source_text_fields_ + "' for language detection");
-
-    NGram::ClassifyLanguage(record_text, &top_languages, journal_params.language_params_.expected_languages_,
-                            NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
-    metadata_record->language_ = top_languages.front();
-    LOG_INFO("automatically detected language to be '" + metadata_record->language_ + "'");
+    }
 }
 
 
@@ -670,24 +683,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
     }
 
     // autodetect or map language
-    bool autodetect_language(false);
-    const std::string autodetect_message("forcing automatic language detection, reason: ");
-    if (journal_params.language_params_.force_automatic_language_detection_) {
-        LOG_DEBUG(autodetect_message + "conf setting");
-        autodetect_language = true;
-    } else if (metadata_record->language_.empty()) {
-        LOG_DEBUG(autodetect_message + "empty language");
-        autodetect_language = true;
-    } else if (not Config::IsAllowedLanguage(metadata_record->language_)) {
-        LOG_DEBUG(autodetect_message + "invalid language \"" + metadata_record->language_ + "\"");
-        autodetect_language = true;
-    }
-
-    if (autodetect_language)
-        IdentifyMissingLanguage(metadata_record, journal_params);
-    else
-        metadata_record->language_ = Config::GetNormalizedLanguage(metadata_record->language_);
-
+    DetectLanguage(metadata_record, journal_params);
 
     // fetch creator GNDs and postprocess names
     for (auto &creator : metadata_record->creators_) {
@@ -710,7 +706,6 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
             }
         }
     }
-
 
     // fill-in license and SSG values
     if (journal_params.license_ == "LF")
