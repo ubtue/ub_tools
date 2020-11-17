@@ -391,7 +391,7 @@ void Downloader::init() {
     if (not params_.authentication_username_.empty() or not params_.authentication_password_.empty()) {
         curlEasySetopt(CURLOPT_HTTPAUTH, CURLAUTH_ANY, "Downloader::init:CURLOPT_HTTPAUTH");
         curlEasySetopt(CURLOPT_USERNAME, params_.authentication_username_.c_str(), "Downloader::init:CURLOPT_USERNAME");
-        curlEasySetopt(CURLOPT_USERNAME, params_.authentication_password_.c_str(), "Downloader::init:CURLOPT_PASSWORD");
+        curlEasySetopt(CURLOPT_PASSWORD, params_.authentication_password_.c_str(), "Downloader::init:CURLOPT_PASSWORD");
     }
 
 }
