@@ -868,6 +868,11 @@ public:
     /** \return The set of all tags in the record. */
     std::unordered_set<std::string> getTagSet() const;
 
+    /** \brief Delete all fields w/ tag "field_tag"
+     *  \return The number of deleted fields.
+     */
+    size_t deleteFields(const Tag &field_tag);
+
     void deleteFields(std::vector<size_t> field_indices);
     bool isValid(std::string * const error_message) const;
 
