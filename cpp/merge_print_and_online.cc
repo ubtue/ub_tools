@@ -493,7 +493,8 @@ void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &
     if (not max_publication_year.empty())
         zwi_subfields.addSubfield('y', max_publication_year);
 
-    record->replaceField("ZWI", zwi_subfields);
+    record->deleteFields("ZWI");
+    record->appendField("ZWI", zwi_subfields);
 }
 
 
