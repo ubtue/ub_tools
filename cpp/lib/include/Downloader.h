@@ -215,6 +215,10 @@ private:
     bool getHttpEquivRedirect(std::string * const redirect_url) const;
     long getRemainingNoOfRedirects() const
         { return params_.max_redirect_count_ - static_cast<long>(redirect_urls_.size()); }
+    template<typename optionType> void curlEasySetopt(const CURLoption option, optionType value, const std::string &caller_info) {
+        if ((curl_error_code_ = ::curl_easy_setopt(easy_handle_, option, value)) != CURLE_OK)
+            throw std::runtime_error("curl_easy_setopt(" + caller_info + ") failed!");
+    }
 };
 
 
