@@ -1653,7 +1653,7 @@ size_t Record::deleteFields(const Tag &field_tag) {
     if (field_indices.empty())
         return 0;
 
-    deleteFields(field_indices);
+    fields_.erase(fields_.begin() + field_indices.front(), fields_.begin() + field_indices.back());
     return field_indices.size();
 }
 
