@@ -539,13 +539,6 @@ void DetectLanguage(MetadataRecord * const metadata_record, const Config::Journa
             or journal_params.language_params_.source_text_fields_ == "title")
         {
             record_text = metadata_record->title_;
-            // use naive tokenization to count tokens in the title
-            // additionally use abstract if we have too few tokens in the title
-            static const unsigned minimum_token_count(5);
-            if (StringUtil::CharCount(record_text, ' ') < minimum_token_count) {
-                record_text += " " + metadata_record->abstract_note_;
-                LOG_DEBUG("too few tokens in title. applying heuristic on the abstract as well");
-            }
         } else if (journal_params.language_params_.source_text_fields_ == "abstract")
             record_text = metadata_record->abstract_note_;
         else if (journal_params.language_params_.source_text_fields_ == "title+abstract")
