@@ -34,10 +34,6 @@ namespace Download {
 namespace DirectDownload {
 
 
-// Set to 20 empirically. Larger numbers increase the incidence of the
-// translation server bug that returns an empty/broken response.
-constexpr unsigned MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS = 4; // Temporarily reduced in order to see if this results in fewer response codes
-                                                                   // with value 0
 ThreadUtil::Semaphore translation_server_request_semaphore(MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS);
 
 
@@ -64,16 +60,17 @@ void PostToTranslationServer(const Url &translation_server_url, const unsigned t
     downloader_params.post_data_ = request_body;
 
     try {
+        LOG_DEBUG("Sending request to translation server: " + request_body);
         const Url endpoint_url(translation_server_url.toString() + "/web");
         Downloader downloader(endpoint_url, downloader_params, time_limit);
         if (downloader.anErrorOccurred()) {
             *response_code = downloader.getLastErrorCode();
             *error_message = downloader.getLastErrorMessage();
-
             LOG_WARNING("failed to fetch response from the translation server! error: " + *error_message);
         } else {
             *response_body = downloader.getMessageBody();
             *response_code = downloader.getResponseCode();
+            LOG_DEBUG("Successful response from translation server for request: " + request_body + ", response code: " + std::to_string(downloader.getResponseCode()));
         }
     } catch (std::runtime_error &err) {
         LOG_WARNING("failed to fetch response from the translation server! runtime error: " + std::string(err.what()));
@@ -89,10 +86,10 @@ void QueryRemoteUrl(const std::string &url, const unsigned time_limit, const boo
                     const std::string &user_agent, std::string * const response_header, std::string * const response_body,
                     unsigned * response_code, std::string * const error_message)
 {
+    LOG_DEBUG("Querying remote URL: " + url);
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = user_agent;
     downloader_params.honour_robots_dot_txt_ = not ignore_robots_dot_txt;
-
     Downloader downloader(url, downloader_params, time_limit);
     if (downloader.anErrorOccurred()) {
         *response_code = 0;
@@ -102,6 +99,7 @@ void QueryRemoteUrl(const std::string &url, const unsigned time_limit, const boo
         return;
     }
 
+    LOG_DEBUG("Query for remote URL successful: " + url);
     *response_body = downloader.getMessageBody();
     *response_header = downloader.getMessageHeader();
     *response_code = downloader.getResponseCode();
