@@ -518,7 +518,7 @@ void DetectLanguage(MetadataRecord * const metadata_record, const Config::Journa
     // Normalize given language
     if (not Config::IsAllowedLanguage(metadata_record->language_)) {
         LOG_WARNING("Removing invalid language: " + metadata_record->language_);
-        metadata_record->language_ = "";
+        metadata_record->language_.clear();
     } else if (not Config::IsNormalizedLanguage(metadata_record->language_)) {
         const std::string normalized_language(Config::GetNormalizedLanguage(metadata_record->language_));
         LOG_DEBUG("Normalized language: " + metadata_record->language_ + " => " + normalized_language);
@@ -557,11 +557,11 @@ void DetectLanguage(MetadataRecord * const metadata_record, const Config::Journa
             LOG_INFO("Using detected language: " + detected_language);
             metadata_record->language_ = detected_language;
         } else if (detected_language == metadata_record->language_)
-            LOG_INFO("The given language has been is equal to the detected language: " + detected_language);
+            LOG_INFO("The given language is equal to the detected language: " + detected_language);
         else {
             LOG_INFO("The given language " + metadata_record->language_ +  " and the detected language " + detected_language + " are different. "
                      "No language will be set.");
-            metadata_record->language_ = "";
+            metadata_record->language_.clear();
         }
     }
 }

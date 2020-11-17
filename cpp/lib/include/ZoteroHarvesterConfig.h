@@ -189,10 +189,10 @@ private:
 
 
 struct LanguageParams {
-    std::set<std::string> expected_languages_ = {};
+    std::set<std::string> expected_languages_;
     std::string source_text_fields_ = "title";
 public:
-    void reset() { expected_languages_ = {}; source_text_fields_ = "title"; }
+    void reset() { expected_languages_.clear(); source_text_fields_ = "title"; }
 };
 
 

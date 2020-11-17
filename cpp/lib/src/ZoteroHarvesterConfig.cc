@@ -227,7 +227,6 @@ JournalParams::JournalParams(const GlobalParams &global_params) {
     issn_.online_ = "Default ISSN";
     strptime_format_string_ = global_params.strptime_format_string_;
     update_window_ = 0;
-    language_params_.expected_languages_ = {};
     crawl_params_.max_crawl_depth_ = 1;
 }
 
