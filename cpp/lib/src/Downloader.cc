@@ -32,7 +32,6 @@
 #include "MediaTypeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
-#include "util.h"
 #include "WebUtil.h"
 
 
@@ -358,7 +357,7 @@ void Downloader::init() {
     // Enabling the following option seems to greatly slow down the downloading of Web pages!
     //curlEasySetopt(CURLOPT_IGNORE_CONTENT_LENGTH, 1L, "Downloader::init:CURLOPT_IGNORE_CONTENT_LENGTH");
 
-    const long should_follow = params_.follow_redirects_ ? 1L : 0L;
+    const long should_follow(params_.follow_redirects_ ? 1L : 0L);
     curlEasySetopt(CURLOPT_FOLLOWLOCATION, should_follow, "Downloader::init:CURLOPT_FOLLOWLOCATION");
     curlEasySetopt(CURLOPT_DNS_CACHE_TIMEOUT, params_.dns_cache_timeout_, "Downloader::init:CURLOPT_DNS_CACHE_TIMEOUT");
     curlEasySetopt(CURLOPT_HEADERFUNCTION, HeaderFunction, "Downloader::init:CURLOPT_HEADERFUNCTION");
