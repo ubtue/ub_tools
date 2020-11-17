@@ -353,7 +353,7 @@ void Downloader::init() {
     curlEasySetopt(CURLOPT_HEADER, 0L, "Downloader::init:CURLOPT_HEADER");
     curlEasySetopt(CURLOPT_NOPROGRESS, 1L, "Downloader::init:CURLOPT_NOPROGRESS");
     curlEasySetopt(CURLOPT_NOSIGNAL, 1L, "Downloader::init:CURLOPT_NOSIGNAL");
-    curlEasySetopt(CURLOPT_NOSIGNAL, WriteFunction, "Downloader::init:CURLOPT_WRITEFUNCTION");
+    curlEasySetopt(CURLOPT_WRITEFUNCTION, WriteFunction, "Downloader::init:CURLOPT_WRITEFUNCTION");
 
     // Enabling the following option seems to greatly slow down the downloading of Web pages!
     //curlEasySetopt(CURLOPT_IGNORE_CONTENT_LENGTH, 1L, "Downloader::init:CURLOPT_IGNORE_CONTENT_LENGTH");
