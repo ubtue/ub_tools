@@ -1643,6 +1643,21 @@ std::unordered_set<std::string> Record::getTagSet() const {
 }
 
 
+size_t Record::deleteFields(const Tag &field_tag) {
+    std::vector<size_t> field_indices;
+    for (auto field(fields_.cbegin()); field != fields_.cend(); ++field) {
+        if (field->getTag() == field_tag)
+            field_indices.emplace_back(field - fields_.cbegin());
+    }
+
+    if (field_indices.empty())
+        return 0;
+
+    deleteFields(field_indices);
+    return field_indices.size();
+}
+
+
 void Record::deleteFields(std::vector<size_t> field_indices) {
     std::sort(field_indices.begin(), field_indices.end(), std::greater<size_t>());
     for (const auto field_index : field_indices)
