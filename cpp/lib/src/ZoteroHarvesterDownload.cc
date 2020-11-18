@@ -457,6 +457,12 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
     unsigned num_items_queued(0);
     for (const auto &item : *syndication_format) {
+        if (not force_downloads_ and upload_tracker_.urlAlreadyDelivered(item.getLink(), /* delivery_states_to_ignore = */{ Util::UploadTracker::DeliveryState::ERROR })) {
+            LOG_INFO("Skipping already delivered URL: " + item.getLink());
+            ++result->items_skipped_since_already_delivered_;
+            continue;
+        }
+
         const auto new_download_item(parameters.harvestable_manager_->newHarvestableItem(item.getLink(), parameters.download_item_.journal_));
         result->downloaded_items_.emplace_back(download_manager_->directDownload(new_download_item, parameters.user_agent_,
                                                                                  DirectDownload::Operation::USE_TRANSLATION_SERVER));
