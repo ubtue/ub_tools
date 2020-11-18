@@ -3,10 +3,10 @@
 #
 # A tool for the automation of MARC downloads from the BNB.
 
+import bsz_util
 import datetime
 import os
 import pexpect
-import pipes
 import process_util
 import re
 import sys
@@ -147,8 +147,27 @@ def DownloadRecordsRanges(yaz_client, ranges):
     return download_count
 
 
+def SetupWorkDirectory():
+    work_directory: str = "/tmp/bnb-downloader.work"
+    try:
+        os.mkdir(work_directory, mode=0o744)
+    except:
+        pass
+    os.chdir(work_directory)
+
+    
+def UploadToBSZFTPServer(marc_filename: str):
+    remote_file_name_tmp: str = marc_filename + ".tmp"
+
+    ftp = bsz_util.GetFTPConnection()
+    ftp.changeDirectory(remote_folder_path)
+    ftp.uploadFile(marc_filename, remote_file_name_tmp)
+    ftp.renameFile(remote_file_name_tmp, marc_filename)
+
+
 def Main():
     util.default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
+    SetupWorkDirectory()
     OUTPUT_FILENAME = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + ".mrc"
     try:
         os.remove(OUTPUT_FILENAME)
@@ -179,6 +198,11 @@ def Main():
         list_no += 1
     StoreStartListNumber(list_no)
     util.Info("Downloaded a total of " + str(total_count) + " new record(s).")
+    if total_count > 0:
+        UploadToBSZFTPServer(OUTPUT_FILENAME)
+        util.SendEmail("BNB Downloader", "Uploaded " + str(total_count) + " records to the BSZ FTP-server.")
+    else:
+        util.SendEmail("BNB Downloader", "No new records found.")
 
 
 try:

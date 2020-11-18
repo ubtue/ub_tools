@@ -14,6 +14,7 @@ install: install_configs Makefile
 	$(MAKE) -C cpp/lib/mkdep install;
 	$(MAKE) -C cpp install;
 	$(MAKE) -C cronjobs install;
+	$(MAKE) -C bnb_yaz install;
 	if [ $(TUEFIND_FLAVOUR) != "unknown" ]; then\
 	    $(MAKE) -C java install;\
 	fi
