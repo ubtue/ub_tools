@@ -224,6 +224,11 @@ void Tasklet::run(const Params &parameters, Result * const result) {
                            or parameters.download_item_.journal_.crawl_params_.crawl_url_regex_->match(outgoing_url.first));
 
             if (harvest_url) {
+                if (not force_downloads_ and upload_tracker_.urlAlreadyDelivered(outgoing_url.first, /* delivery_states_to_ignore = */{ Util::UploadTracker::DeliveryState::ERROR })) {
+                    LOG_INFO("Skipping already delivered URL: " + outgoing_url.first);
+                    ++result->num_skipped_since_already_delivered_;
+                    continue;
+                }
                 const auto new_item(parameters.harvestable_manager_->newHarvestableItem(outgoing_url.first,
                                                                                         parameters.download_item_.journal_));
                 result->downloaded_items_.emplace_back(download_manager_->directDownload(new_item, parameters.user_agent_,
@@ -249,12 +254,12 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
 
 Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
-                 std::unique_ptr<Params> parameters)
+                 const Util::UploadTracker &upload_tracker, std::unique_ptr<Params> parameters, const bool force_downloads)
  : Util::Tasklet<Params, Result>(instance_counter, parameters->download_item_,
                                  "Crawling: " + parameters->download_item_.url_.toString(),
                                  std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
                                  std::unique_ptr<Result>(new Result()), std::move(parameters), ResultPolicy::YIELD),
-   download_manager_(download_manager) {}
+   download_manager_(download_manager), upload_tracker_(upload_tracker), force_downloads_(force_downloads) {}
 
 
 bool Crawler::continueCrawling() {
@@ -788,8 +793,9 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
     // check if we have already delivered this URL
     if (not global_params_.force_downloads_
         and operation == DirectDownload::Operation::USE_TRANSLATION_SERVER
-        and upload_tracker_.urlAlreadyDelivered(source.url_.toString()))
+        and upload_tracker_.urlAlreadyDelivered(source.url_.toString(), /* delivery_states_to_ignore = */{ Util::UploadTracker::DeliveryState::ERROR }))
     {
+        LOG_INFO("Skipping already delivered URL: " + source.url_.toString());
         std::unique_ptr<DirectDownload::Result> result(new DirectDownload::Result(source, operation));
         result->flags_ |= DirectDownload::Result::Flags::ITEM_ALREADY_DELIVERED;
 
@@ -841,7 +847,7 @@ std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> DownloadManage
                                                                       global_params_.ignore_robots_txt_,
                                                                       global_params_.harvestable_manager_));
     std::shared_ptr<Crawling::Tasklet> new_tasklet(
-        new Crawling::Tasklet(&tasklet_counters_.crawling_tasklet_execution_counter_, this, std::move(parameters)));
+        new Crawling::Tasklet(&tasklet_counters_.crawling_tasklet_execution_counter_, this, upload_tracker_, std::move(parameters), global_params_.force_downloads_));
 
     {
         std::lock_guard<std::recursive_mutex> queue_buffer_lock(crawling_queue_buffer_mutex_);
