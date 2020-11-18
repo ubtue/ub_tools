@@ -33,6 +33,7 @@
 #include "ThreadUtil.h"
 #include "TimeLimit.h"
 #include "Url.h"
+#include "util.h"
 
 
 /** \class  Downloader
@@ -215,6 +216,10 @@ private:
     bool getHttpEquivRedirect(std::string * const redirect_url) const;
     long getRemainingNoOfRedirects() const
         { return params_.max_redirect_count_ - static_cast<long>(redirect_urls_.size()); }
+    template<typename OptionType> void curlEasySetopt(const CURLoption option, OptionType value, const std::string &caller_info) {
+        if ((curl_error_code_ = ::curl_easy_setopt(easy_handle_, option, value)) != CURLE_OK)
+            LOG_ERROR("curl_easy_setopt(" + caller_info + ") failed!");
+    }
 };
 
 
