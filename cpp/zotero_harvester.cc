@@ -368,12 +368,14 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
     if (journal_datastore->current_crawl_ != nullptr) {
         if (journal_datastore->current_crawl_->isComplete()) {
             if (journal_datastore->current_crawl_->hasResult()) {
-                for (auto &result : journal_datastore->current_crawl_->getResult().downloaded_items_)
-                    journal_datastore->queued_downloads_.emplace_back(result.release());
+                auto &result(journal_datastore->current_crawl_->getResult());
+                for (auto &result_item : result.downloaded_items_)
+                    journal_datastore->queued_downloads_.emplace_back(result_item.release());
 
-                metrics->num_downloads_crawled_successful_ += journal_datastore->current_crawl_->getResult().num_crawled_successful_;
-                metrics->num_downloads_crawled_unsuccessful_ += journal_datastore->current_crawl_->getResult().num_crawled_unsuccessful_;
-                metrics->num_downloads_crawled_cache_hits_ += journal_datastore->current_crawl_->getResult().num_crawled_cache_hits_;
+                metrics->num_downloads_crawled_successful_ += result.num_crawled_successful_;
+                metrics->num_downloads_crawled_unsuccessful_ += result.num_crawled_unsuccessful_;
+                metrics->num_downloads_crawled_cache_hits_ += result.num_crawled_cache_hits_;
+                metrics->num_downloads_skipped_since_already_delivered_ += result.num_skipped_since_already_delivered_;
             }
 
             journal_datastore->current_crawl_.reset();
