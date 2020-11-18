@@ -387,6 +387,7 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
                 const auto &result(journal_datastore->current_rss_feed_->getResult());
                 if (result.feed_skipped_since_recently_harvested_)
                     ++metrics->num_journals_with_harvest_operation_rss_skipped_;
+                metrics->num_downloads_skipped_since_already_delivered_ += result.items_skipped_since_already_delivered_;
 
                 for (auto &downloaded_item : journal_datastore->current_rss_feed_->getResult().downloaded_items_)
                     journal_datastore->queued_downloads_.emplace_back(downloaded_item.release());
