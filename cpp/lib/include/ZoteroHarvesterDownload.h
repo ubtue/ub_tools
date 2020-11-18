@@ -153,22 +153,26 @@ struct Result {
     unsigned num_crawled_unsuccessful_;
     unsigned num_crawled_cache_hits_;
     unsigned num_queued_for_harvest_;
+    unsigned num_skipped_since_already_delivered_;
     std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
 public:
     explicit Result()
         : num_crawled_successful_(0), num_crawled_unsuccessful_(0), num_crawled_cache_hits_(0),
-          num_queued_for_harvest_(0) {}
+          num_queued_for_harvest_(0), num_skipped_since_already_delivered_(0) {}
     Result(const Result &rhs) = delete;
 };
 
 
 class Tasklet : public Util::Tasklet<Params, Result> {
     DownloadManager * const download_manager_;
+    const Util::UploadTracker &upload_tracker_;
+    bool force_downloads_;
 
     void run(const Params &parameters, Result * const result);
 public:
     Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
-            DownloadManager * const download_manager, std::unique_ptr<Params> parameters);
+            DownloadManager * const download_manager, const Util::UploadTracker &upload_tracker,
+            std::unique_ptr<Params> parameters, const bool force_downloads);
     virtual ~Tasklet() override = default;
 };
 
