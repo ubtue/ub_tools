@@ -224,7 +224,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
                            or parameters.download_item_.journal_.crawl_params_.crawl_url_regex_->match(outgoing_url.first));
 
             if (harvest_url) {
-                if (not force_downloads_ and upload_tracker_.urlAlreadyDelivered(outgoing_url.first, /* delivery_states_to_ignore = */{ Util::UploadTracker::DeliveryState::ERROR })) {
+                if (not force_downloads_ and upload_tracker_.urlAlreadyDelivered(outgoing_url.first, Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
                     LOG_INFO("Skipping already delivered URL: " + outgoing_url.first);
                     ++result->num_skipped_since_already_delivered_;
                     continue;
@@ -462,7 +462,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
     unsigned num_items_queued(0);
     for (const auto &item : *syndication_format) {
-        if (not force_downloads_ and upload_tracker_.urlAlreadyDelivered(item.getLink(), /* delivery_states_to_ignore = */{ Util::UploadTracker::DeliveryState::ERROR })) {
+        if (not force_downloads_ and upload_tracker_.urlAlreadyDelivered(item.getLink(), Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
             LOG_INFO("Skipping already delivered URL: " + item.getLink());
             ++result->items_skipped_since_already_delivered_;
             continue;
@@ -793,7 +793,7 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
     // check if we have already delivered this URL
     if (not global_params_.force_downloads_
         and operation == DirectDownload::Operation::USE_TRANSLATION_SERVER
-        and upload_tracker_.urlAlreadyDelivered(source.url_.toString(), /* delivery_states_to_ignore = */{ Util::UploadTracker::DeliveryState::ERROR }))
+        and upload_tracker_.urlAlreadyDelivered(source.url_.toString(), Util::UploadTracker::DELIVERY_STATES_TO_RETRY))
     {
         LOG_INFO("Skipping already delivered URL: " + source.url_.toString());
         std::unique_ptr<DirectDownload::Result> result(new DirectDownload::Result(source, operation));
