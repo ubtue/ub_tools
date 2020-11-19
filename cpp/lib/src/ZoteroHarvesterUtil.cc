@@ -356,6 +356,11 @@ const std::map<std::string, UploadTracker::DeliveryState> UploadTracker::STRING_
 };
 
 
+const std::set<UploadTracker::DeliveryState> UploadTracker::DELIVERY_STATES_TO_RETRY {
+    ERROR
+};
+
+
 std::string UploadTracker::Entry::toString() const {
     std::string out;
     out += "\tid: " + std::to_string(id_) + "\n";
@@ -388,7 +393,7 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
 }
 
 
-std::string GetDeliveryStatesSubquery(const std::vector<UploadTracker::DeliveryState> &delivery_states, DbConnection * const db_connection) {
+std::string GetDeliveryStatesSubquery(const std::set<UploadTracker::DeliveryState> &delivery_states, DbConnection * const db_connection) {
     std::vector<std::string> delivery_states_as_strings;
     for (const auto delivery_state : delivery_states)
         delivery_states_as_strings.emplace_back(UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(delivery_state));
@@ -397,7 +402,7 @@ std::string GetDeliveryStatesSubquery(const std::vector<UploadTracker::DeliveryS
 }
 
 
-bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::vector<DeliveryState> &delivery_states_to_ignore,
+bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore,
                                         Entry * const entry, DbConnection * const db_connection) const
 {
     std::string query("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.error_message, dmr.id AS entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
@@ -422,7 +427,7 @@ bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::vecto
 }
 
 
-bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::vector<DeliveryState> &delivery_states_to_ignore,
+bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore,
                                          std::vector<Entry> * const entries, DbConnection * const db_connection) const
 {
     std::string query("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.error_message, dmr.id AS entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
@@ -453,7 +458,7 @@ bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::vec
 
 
 bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const std::set<std::string> &record_urls,
-                                           const std::vector<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
+                                           const std::set<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
                                            DbConnection * const db_connection) const
 {
     Entry buffer;
@@ -494,7 +499,7 @@ bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const
 }
 
 
-bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::vector<DeliveryState> &delivery_states_to_ignore,
+bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore,
                                         Entry * const entry) const
 {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
@@ -504,7 +509,7 @@ bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::vecto
 }
 
 
-bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::vector<DeliveryState> &delivery_states_to_ignore,
+bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore,
                                          std::vector<Entry> * const entries) const
 {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
@@ -514,7 +519,7 @@ bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::vec
 }
 
 
-bool UploadTracker::recordAlreadyDelivered(const MARC::Record &record, const std::vector<DeliveryState> &delivery_states_to_ignore,
+bool UploadTracker::recordAlreadyDelivered(const MARC::Record &record, const std::set<DeliveryState> &delivery_states_to_ignore,
                                            std::vector<Entry> * const entries) const
 {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
@@ -589,7 +594,7 @@ bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryStat
     std::vector<Entry> entries;
     if (recordAlreadyDelivered(hash, urls, /*delivery_states_to_ignore = */ {}, &entries, &db_connection)) {
         for (const auto &entry : entries) {
-            if (entry.delivery_state_ != ERROR)
+            if (DELIVERY_STATES_TO_RETRY.find(entry.delivery_state_) == DELIVERY_STATES_TO_RETRY.end())
                 return false;
 
             db_connection.queryOrDie("UPDATE delivered_marc_records "
