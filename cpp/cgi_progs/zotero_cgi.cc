@@ -497,16 +497,26 @@ void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_ar
 }
 
 
+void UpdateRecordDeliveryStateAndTimestamp(const std::string &id, const ZoteroHarvester::Util::UploadTracker::DeliveryState &delivery_state,
+                               DbConnection * const db_connection)
+{
+    db_connection->queryOrDie("UPDATE delivered_marc_records SET delivery_state=" +
+                               db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(delivery_state)) +
+                               ",delivered_at=NOW() WHERE id=" + db_connection->escapeAndQuoteString(id));
+}
+
+
 void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &cgi_args,
                                  ZoteroHarvester::Util::UploadTracker * const upload_tracker,
                                  DbConnection * const db_connection)
 {
     const std::string id_to_deliver_manually(GetCGIParameterOrDefault(cgi_args, "set_manually_delivered"));
-    if (not id_to_deliver_manually.empty()) {
-        db_connection->queryOrDie("UPDATE delivered_marc_records SET delivery_state=" +
-                                  db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(ZoteroHarvester::Util::UploadTracker::DeliveryState::MANUAL)) +
-                                  ",delivered_at=NOW() WHERE id=" + db_connection->escapeAndQuoteString(id_to_deliver_manually));
-    }
+    if (not id_to_deliver_manually.empty())
+        UpdateRecordDeliveryStateAndTimestamp(id_to_deliver_manually, ZoteroHarvester::Util::UploadTracker::DeliveryState::MANUAL, db_connection);
+
+    const std::string id_to_reset(GetCGIParameterOrDefault(cgi_args, "reset"));
+    if (not id_to_reset.empty())
+        UpdateRecordDeliveryStateAndTimestamp(id_to_reset, ZoteroHarvester::Util::UploadTracker::DeliveryState::RESET, db_connection);
 
     const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
     const std::string group(GetCGIParameterOrDefault(cgi_args, "group"));
