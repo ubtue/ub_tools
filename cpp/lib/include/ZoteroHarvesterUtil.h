@@ -542,7 +542,7 @@ public:
     enum DeliveryState : unsigned { AUTOMATIC, MANUAL, ERROR };
     static const std::map<DeliveryState, std::string> DELIVERY_STATE_TO_STRING_MAP;
     static const std::map<std::string, DeliveryState> STRING_TO_DELIVERY_STATE_MAP;
-    static const std::unordered_set<DeliveryState> DELIVERY_STATES_TO_RETRY;
+    static const std::set<DeliveryState> DELIVERY_STATES_TO_RETRY;
 
     struct Entry {
         unsigned id_;
@@ -563,11 +563,11 @@ private:
 public:
     explicit UploadTracker(): connection_pool_semaphore_(CONNECTION_POOL_SIZE) {}
 
-    bool urlAlreadyDelivered(const std::string &url, const std::unordered_set<DeliveryState> &delivery_states_to_ignore = {},
+    bool urlAlreadyDelivered(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore = {},
                              Entry * const entry = nullptr) const;
-    bool hashAlreadyDelivered(const std::string &hash, const std::unordered_set<DeliveryState> &delivery_states_to_ignore = {},
+    bool hashAlreadyDelivered(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore = {},
                               std::vector<Entry> * const entries = nullptr) const;
-    bool recordAlreadyDelivered(const MARC::Record &record, const std::unordered_set<DeliveryState> &delivery_states_to_ignore = {},
+    bool recordAlreadyDelivered(const MARC::Record &record, const std::set<DeliveryState> &delivery_states_to_ignore = {},
                                 std::vector<Entry> * const entries = nullptr) const;
 
     std::vector<Entry> getEntriesByZederIdAndFlavour(const unsigned zeder_id, const Zeder::Flavour zeder_flavour);
@@ -584,12 +584,12 @@ public:
 
     static std::string GetZederInstanceString(const Zeder::Flavour zeder_flavour);
 private:
-    bool urlAlreadyDelivered(const std::string &url, const std::unordered_set<DeliveryState> &delivery_states_to_ignore, Entry * const entry,
+    bool urlAlreadyDelivered(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore, Entry * const entry,
                              DbConnection * const db_connection) const;
-    bool hashAlreadyDelivered(const std::string &hash, const std::unordered_set<DeliveryState> &delivery_states_to_ignore,
+    bool hashAlreadyDelivered(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore,
                               std::vector<Entry> * const entries, DbConnection * const db_connection) const;
     bool recordAlreadyDelivered(const std::string &record_hash, const std::set<std::string> &record_urls,
-                                const std::unordered_set<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
+                                const std::set<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
                                 DbConnection * const db_connection) const;
 };
 
