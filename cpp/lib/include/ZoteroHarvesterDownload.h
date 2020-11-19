@@ -47,6 +47,15 @@ namespace ZoteroHarvester {
 namespace Download {
 
 
+// Temporarily reduced in order to see if this results in fewer errors
+static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 5;
+static constexpr unsigned MAX_CRAWLING_TASKLETS        = 5;
+static constexpr unsigned MAX_RSS_TASKLETS             = 5;
+// Set to 20 empirically. Larger numbers increase the incidence of the
+// translation server bug that returns an empty/broken response.
+static constexpr unsigned MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS = 15;
+
+
 class DownloadManager;
 
 
@@ -144,22 +153,26 @@ struct Result {
     unsigned num_crawled_unsuccessful_;
     unsigned num_crawled_cache_hits_;
     unsigned num_queued_for_harvest_;
+    unsigned num_skipped_since_already_delivered_;
     std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
 public:
     explicit Result()
         : num_crawled_successful_(0), num_crawled_unsuccessful_(0), num_crawled_cache_hits_(0),
-          num_queued_for_harvest_(0) {}
+          num_queued_for_harvest_(0), num_skipped_since_already_delivered_(0) {}
     Result(const Result &rhs) = delete;
 };
 
 
 class Tasklet : public Util::Tasklet<Params, Result> {
     DownloadManager * const download_manager_;
+    const Util::UploadTracker &upload_tracker_;
+    bool force_downloads_;
 
     void run(const Params &parameters, Result * const result);
 public:
     Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
-            DownloadManager * const download_manager, std::unique_ptr<Params> parameters);
+            DownloadManager * const download_manager, const Util::UploadTracker &upload_tracker,
+            std::unique_ptr<Params> parameters, const bool force_downloads);
     virtual ~Tasklet() override = default;
 };
 
@@ -237,9 +250,10 @@ public:
 
 struct Result {
     bool feed_skipped_since_recently_harvested_;
+    unsigned items_skipped_since_already_delivered_;
     std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
 public:
-    explicit Result(): feed_skipped_since_recently_harvested_(false) {}
+    explicit Result(): feed_skipped_since_recently_harvested_(false), items_skipped_since_already_delivered_(0) {}
     Result(const Result &rhs) = delete;
 };
 
@@ -344,11 +358,6 @@ private:
         DirectDownload::Operation operation_;
         std::string response_body_;
     };
-
-
-    static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 50;
-    static constexpr unsigned MAX_CRAWLING_TASKLETS        = 50;
-    static constexpr unsigned MAX_RSS_TASKLETS             = 50;
 
 
     GlobalParams global_params_;
