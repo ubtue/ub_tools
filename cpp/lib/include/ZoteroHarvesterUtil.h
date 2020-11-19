@@ -539,7 +539,7 @@ template <typename Parameter, typename Result> Result &Future<Parameter, Result>
 class UploadTracker {
     static constexpr unsigned CONNECTION_POOL_SIZE = 50;
 public:
-    enum DeliveryState : unsigned { AUTOMATIC, MANUAL, ERROR };
+    enum DeliveryState : unsigned { AUTOMATIC, MANUAL, ERROR, IGNORE, RESET };
     static const std::map<DeliveryState, std::string> DELIVERY_STATE_TO_STRING_MAP;
     static const std::map<std::string, DeliveryState> STRING_TO_DELIVERY_STATE_MAP;
     static const std::set<DeliveryState> DELIVERY_STATES_TO_RETRY;

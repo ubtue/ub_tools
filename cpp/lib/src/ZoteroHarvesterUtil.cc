@@ -346,6 +346,8 @@ const std::map<UploadTracker::DeliveryState, std::string> UploadTracker::DELIVER
     { AUTOMATIC, "automatic" },
     { MANUAL,    "manual" },
     { ERROR,     "error" },
+    { IGNORE,    "ignore" },
+    { RESET,     "reset" },
 };
 
 
@@ -353,11 +355,13 @@ const std::map<std::string, UploadTracker::DeliveryState> UploadTracker::STRING_
     { "automatic", AUTOMATIC },
     { "manual",    MANUAL },
     { "error",     ERROR },
+    { "ignore",    IGNORE },
+    { "reset",     RESET },
 };
 
 
 const std::set<UploadTracker::DeliveryState> UploadTracker::DELIVERY_STATES_TO_RETRY {
-    ERROR
+    ERROR, RESET
 };
 
 
