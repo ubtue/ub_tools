@@ -356,7 +356,7 @@ const std::map<std::string, UploadTracker::DeliveryState> UploadTracker::STRING_
 };
 
 
-const std::unordered_set<UploadTracker::DeliveryState> UploadTracker::DELIVERY_STATES_TO_RETRY {
+const std::set<UploadTracker::DeliveryState> UploadTracker::DELIVERY_STATES_TO_RETRY {
     ERROR
 };
 
@@ -393,7 +393,7 @@ static void UpdateUploadTrackerEntryFromDbRow(const DbRow &row, UploadTracker::E
 }
 
 
-std::string GetDeliveryStatesSubquery(const std::unordered_set<UploadTracker::DeliveryState> &delivery_states, DbConnection * const db_connection) {
+std::string GetDeliveryStatesSubquery(const std::set<UploadTracker::DeliveryState> &delivery_states, DbConnection * const db_connection) {
     std::vector<std::string> delivery_states_as_strings;
     for (const auto delivery_state : delivery_states)
         delivery_states_as_strings.emplace_back(UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(delivery_state));
@@ -402,7 +402,7 @@ std::string GetDeliveryStatesSubquery(const std::unordered_set<UploadTracker::De
 }
 
 
-bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::unordered_set<DeliveryState> &delivery_states_to_ignore,
+bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore,
                                         Entry * const entry, DbConnection * const db_connection) const
 {
     std::string query("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.error_message, dmr.id AS entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
@@ -427,7 +427,7 @@ bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::unord
 }
 
 
-bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::unordered_set<DeliveryState> &delivery_states_to_ignore,
+bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore,
                                          std::vector<Entry> * const entries, DbConnection * const db_connection) const
 {
     std::string query("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.error_message, dmr.id AS entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
@@ -458,7 +458,7 @@ bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::uno
 
 
 bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const std::set<std::string> &record_urls,
-                                           const std::unordered_set<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
+                                           const std::set<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
                                            DbConnection * const db_connection) const
 {
     Entry buffer;
@@ -499,7 +499,7 @@ bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const
 }
 
 
-bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::unordered_set<DeliveryState> &delivery_states_to_ignore,
+bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore,
                                         Entry * const entry) const
 {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
@@ -509,7 +509,7 @@ bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::unord
 }
 
 
-bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::unordered_set<DeliveryState> &delivery_states_to_ignore,
+bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore,
                                          std::vector<Entry> * const entries) const
 {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
@@ -519,7 +519,7 @@ bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::uno
 }
 
 
-bool UploadTracker::recordAlreadyDelivered(const MARC::Record &record, const std::unordered_set<DeliveryState> &delivery_states_to_ignore,
+bool UploadTracker::recordAlreadyDelivered(const MARC::Record &record, const std::set<DeliveryState> &delivery_states_to_ignore,
                                            std::vector<Entry> * const entries) const
 {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
