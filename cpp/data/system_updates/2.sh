@@ -3,4 +3,6 @@ if [ -f /etc/redhat-release ]; then
     rpm --import https://build.opensuse.org/projects/home:Alexander_Pozdnyakov/public_key
     rpm --import https://rpms.remirepo.net/RPM-GPG-KEY-remi2018
     dnf --assumeyes install python3-pexpect yaz
+else # Hopefully we're on Ubuntu!
+    apt-get --quiet --yes --allow-unauthenticated install python3-pexpect yaz
 fi
