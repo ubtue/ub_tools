@@ -1,0 +1,1 @@
+ALTER TABLE metadata_presence_tracer ADD COLUMN marc_subfield_code CHAR(1) AFTER marc_field_tag;
