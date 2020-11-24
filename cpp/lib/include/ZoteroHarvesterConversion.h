@@ -20,6 +20,7 @@
 
 
 #include <atomic>
+#include <map>
 #include <memory>
 #include <set>
 #include <unordered_map>
@@ -83,7 +84,7 @@ struct MetadataRecord {
     SuperiorType superior_type_;
     SSGType ssg_;
     std::vector<std::string> keywords_;
-    std::map<std::string, std::string> custom_metadata_;
+    std::multimap<std::string, std::string> custom_metadata_;
 public:
     explicit MetadataRecord() : superior_type_(SuperiorType::INVALID), ssg_(SSGType::INVALID) {}
 public:
