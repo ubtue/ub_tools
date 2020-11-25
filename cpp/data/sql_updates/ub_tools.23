@@ -1,1 +1,2 @@
 ALTER TABLE metadata_presence_tracer ADD COLUMN marc_subfield_code CHAR(1) NOT NULL AFTER marc_field_tag;
+ALTER TABLE metadata_presence_tracer CHANGE COLUMN zeder_journal_id journal_id INT(11) UNSIGNED;
