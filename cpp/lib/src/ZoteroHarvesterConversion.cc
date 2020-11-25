@@ -324,7 +324,7 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
                     continue;   // could be a valid note added by the translator
                 }
 
-                metadata_record->custom_metadata_[note.substr(0, first_colon_pos)] = note.substr(first_colon_pos + 1);
+                metadata_record->custom_metadata_.emplace(note.substr(0, first_colon_pos), note.substr(first_colon_pos + 1));
             }
         }
     }
@@ -716,51 +716,53 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
 }
 
 
-const ThreadSafeRegexMatcher CUSTOM_MARC_FIELD_PLACEHOLDER_MATCHER("%(.+)%");
+const ThreadSafeRegexMatcher CUSTOM_MARC_FIELD_PLACEHOLDER_MATCHER("%([^%]+)%");
 
 
 void InsertCustomMarcFieldsForParams(const MetadataRecord &metadata_record, MARC::Record * const marc_record,
                                      const Config::MarcMetadataParams &marc_metadata_params)
 {
-    for (auto custom_field : marc_metadata_params.fields_to_add_) {
+    for (const auto &custom_field : marc_metadata_params.fields_to_add_) {
+        if (unlikely(custom_field.length() < MARC::Record::TAG_LENGTH))
+            LOG_ERROR("custom field's tag is too short: '" + custom_field + "'");
+
+        // Determine which fields to add, depending on placeholders
+        std::vector<std::string> fields_to_add;
         const auto placeholder_match(CUSTOM_MARC_FIELD_PLACEHOLDER_MATCHER.match(custom_field));
-        const auto custom_field_copy(custom_field);
+        if (not placeholder_match)
+            fields_to_add.emplace_back(custom_field);
+        else {
+            if (placeholder_match.size() > 2)
+                LOG_ERROR("only 1 placeholder allowed: " + custom_field);
 
-        if (placeholder_match) {
-            std::string first_missing_placeholder;
-            for (unsigned i(1); i < placeholder_match.size(); ++i) {
-                const auto placeholder(placeholder_match[i]);
-                const auto substitution(metadata_record.custom_metadata_.find(placeholder));
-                if (substitution == metadata_record.custom_metadata_.end()) {
-                    first_missing_placeholder = placeholder;
-                    break;
-                }
-
-                custom_field = StringUtil::ReplaceString(placeholder_match[0], substitution->second, custom_field);
-            }
-
-            if (not first_missing_placeholder.empty()) {
-                LOG_DEBUG("custom field '" + custom_field_copy + "' has missing placeholder(s) '"
-                          + first_missing_placeholder + "'");
+            const std::string placeholder_full(placeholder_match[0]);
+            const std::string placeholder_id(placeholder_match[1]);
+            const auto substitutions(metadata_record.custom_metadata_.equal_range(placeholder_id));
+            if (substitutions.first == metadata_record.custom_metadata_.end()) {
+                LOG_DEBUG("custom field '" + custom_field + "' has missing values for placeholder '"
+                          + placeholder_full + "'");
                 continue;
             }
+
+            for (auto iter(substitutions.first); iter != substitutions.second; ++iter)
+                fields_to_add.emplace_back(StringUtil::ReplaceString(placeholder_full, iter->second, custom_field));
         }
 
-        if (unlikely(custom_field.length() < MARC::Record::TAG_LENGTH))
-            LOG_ERROR("custom field '" + custom_field_copy + "' is too short");
-
+        // Add fields
         const size_t MIN_CONTROl_FIELD_LENGTH(1);
         const size_t MIN_DATA_FIELD_LENGTH(2 /*indicators*/ + 1 /*subfield separator*/ + 1 /*subfield code*/ + 1 /*subfield value*/);
 
-        const MARC::Tag tag(custom_field.substr(0, MARC::Record::TAG_LENGTH));
-        if ((tag.isTagOfControlField() and custom_field.length() < MARC::Record::TAG_LENGTH + MIN_CONTROl_FIELD_LENGTH)
-            or (not tag.isTagOfControlField() and custom_field.length() < MARC::Record::TAG_LENGTH + MIN_DATA_FIELD_LENGTH))
-        {
-            LOG_ERROR("custom field '" + custom_field_copy + "' is too short");
-        }
+        for (const auto &field_to_add : fields_to_add) {
+            const MARC::Tag tag(custom_field.substr(0, MARC::Record::TAG_LENGTH));
+            if ((tag.isTagOfControlField() and custom_field.length() < MARC::Record::TAG_LENGTH + MIN_CONTROl_FIELD_LENGTH)
+               or (not tag.isTagOfControlField() and custom_field.length() < MARC::Record::TAG_LENGTH + MIN_DATA_FIELD_LENGTH))
+            {
+                LOG_ERROR("custom field '" + field_to_add + "' is too short");
+            }
 
-        marc_record->insertField(tag, custom_field.substr(MARC::Record::TAG_LENGTH));
-        LOG_DEBUG("inserted custom field '" + custom_field + "'");
+            marc_record->insertField(tag, custom_field.substr(MARC::Record::TAG_LENGTH));
+            LOG_DEBUG("inserted custom field '" + custom_field + "'");
+        }
     }
 }
 

@@ -31,10 +31,15 @@
                             {IF delivery_states == "automatic"}<span class="dot" style="background-color: green;" title="This record has been delivered automatically."></span>{ENDIF}
                             {IF delivery_states == "manual"}<span class="dot" style="background-color: turquoise;" title="This record has been delivered manually and will no longer be harvested automatically."></span>{ENDIF}
                             {IF delivery_states == "error"}<span class="dot" style="background-color: yellow;" title="An error has occurred while trying to deliver this record:&#013;{error_messages}"></span>{ENDIF}
+                            {IF delivery_states == "ignore"}<span class="dot" style="background-color: grey;" title="This record has been skipped ({error_messages})&#013;and will be ignored in the future."></span>{ENDIF}
+                            {IF delivery_states == "reset"}<span class="dot" style="background-color: blue;" title="This record has been manually reset&#013;and will be harvested again."></span>{ENDIF}
                         </td>
                         <td>
                             {IF delivery_states == "error"}
                                 <a href="?action=show_downloaded&zeder_id={zeder_id}&group={group}&set_manually_delivered={ids}" onclick="return confirm('Are you sure? This record and all its URLs will no longer be processed automatically.')">Deliver manually</a>
+                            {ENDIF}
+                            {IF delivery_states == "ignore"}
+                                <a href="?action=show_downloaded&zeder_id={zeder_id}&group={group}&reset={ids}" onclick="return confirm('Are you sure? The harvester will try to deliver this record again.')">Reset &amp; try again</a>
                             {ENDIF}
                         </td>
                     </tr>
