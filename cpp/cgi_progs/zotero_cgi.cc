@@ -497,12 +497,12 @@ void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_ar
 }
 
 
-void UpdateRecordDeliveryStateAndTimestamp(const std::string &id, const ZoteroHarvester::Util::UploadTracker::DeliveryState &delivery_state,
-                               DbConnection * const db_connection)
+void UpdateRecordDeliveryStateAndTimestamp(const std::string &record_id, const ZoteroHarvester::Util::UploadTracker::DeliveryState &delivery_state,
+                                           DbConnection * const db_connection)
 {
     db_connection->queryOrDie("UPDATE delivered_marc_records SET delivery_state=" +
                                db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(delivery_state)) +
-                               ",delivered_at=NOW() WHERE id=" + db_connection->escapeAndQuoteString(id));
+                               ",delivered_at=NOW() WHERE id=" + db_connection->escapeAndQuoteString(record_id));
 }
 
 
