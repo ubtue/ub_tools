@@ -71,7 +71,7 @@ void ClearJournals(DbConnection * const db_connection, const std::string &escape
     UnescapeList(escaped_journal_names, &journal_names);
 
     for (const auto &journal_name : journal_names)
-        db_connection->queryOrDie("DELETE FROM metadata_presence_tracer WHERE zeder_journal_id='"
+        db_connection->queryOrDie("DELETE FROM metadata_presence_tracer WHERE journal_id='"
                                   "(SELECT id FROM zeder_journals WHERE journal_name="
                                   + db_connection->escapeAndQuoteString(journal_name) + ")");
 }
@@ -84,7 +84,7 @@ void SetFieldsToIgnore(DbConnection * const db_connection, const std::string &jo
     UnescapeList(escaped_field_list, &field_names);
 
     for (const auto &field_name : field_names) {
-        db_connection->queryOrDie("UPDATE metadata_presence_tracer SET field_presence='" + field_presence + "' WHERE zeder_journal_id="
+        db_connection->queryOrDie("UPDATE metadata_presence_tracer SET field_presence='" + field_presence + "' WHERE journal_id="
                                   "(SELECT id FROM zeder_journals WHERE journal_name=" + db_connection->escapeAndQuoteString(journal_name) + ") "
                                   "AND marc_field_tag=" + db_connection->escapeAndQuoteString(field_name));
         if (db_connection->getNoOfAffectedRows() != 1)
