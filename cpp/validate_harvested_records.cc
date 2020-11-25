@@ -40,6 +40,11 @@
 namespace {
 
 
+[[noreturn]] void Usage() {
+    ::Usage("[--update-db-errors] marc_input marc_output missed_expectations_file email_address");
+}
+
+
 enum FieldPresence { ALWAYS, SOMETIMES, IGNORE };
 
 
@@ -316,8 +321,16 @@ bool RecordIsValid(const MARC::Record &record, const std::vector<const FieldVali
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 5)
-        ::Usage("marc_input marc_output missed_expectations_file email_address");
+    if (argc != 5 and argc != 6)
+        Usage();
+
+    bool update_db_errors(false);
+    if (argc == 6) {
+        if (__builtin_strcmp(argv[1], "--update-db-errors") != 0)
+            Usage();
+        --argc, ++argv;
+        update_db_errors = true;
+    }
 
     DbConnection db_connection;
 
@@ -346,9 +359,10 @@ int Main(int argc, char *argv[]) {
         if (RecordIsValid(record, regular_article_field_validators, review_article_field_validators, &reasons_for_being_invalid))
             valid_records_writer->write(record);
         else {
-            upload_tracker.archiveRecord(record, ZoteroHarvester::Util::UploadTracker::DeliveryState::ERROR,
-                                         reasons_for_being_invalid);
             ++missed_expectation_count;
+            if (update_db_errors)
+                upload_tracker.archiveRecord(record, ZoteroHarvester::Util::UploadTracker::DeliveryState::ERROR,
+                                             reasons_for_being_invalid);
             delinquent_records_writer->write(record);
         }
     }
