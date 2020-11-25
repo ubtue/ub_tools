@@ -722,7 +722,7 @@ const ThreadSafeRegexMatcher CUSTOM_MARC_FIELD_PLACEHOLDER_MATCHER("%([^%]+)%");
 void InsertCustomMarcFieldsForParams(const MetadataRecord &metadata_record, MARC::Record * const marc_record,
                                      const Config::MarcMetadataParams &marc_metadata_params)
 {
-    for (const auto custom_field : marc_metadata_params.fields_to_add_) {
+    for (const auto &custom_field : marc_metadata_params.fields_to_add_) {
         if (unlikely(custom_field.length() < MARC::Record::TAG_LENGTH))
             LOG_ERROR("custom field's tag is too short: '" + custom_field + "'");
 
