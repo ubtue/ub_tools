@@ -213,19 +213,19 @@ void LoadRules(DbConnection * const db_connection, GeneralValidator * const gene
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
         if (row["record_type"] == "regular_article") {
-            if (row.isNull("zeder_journal_id"))
+            if (row.isNull("journal_id"))
                 general_regular_article_validator->addRule(row["marc_field_tag"], row["marc_subfield_code"][0],
                                                            StringToFieldPresence(row["field_presence"]));
             else
-                journal_specific_regular_article_validator->addRule(row["zeder_journal_id"], row["marc_field_tag"],
+                journal_specific_regular_article_validator->addRule(row["journal_id"], row["marc_field_tag"],
                                                                     row["marc_subfield_code"][0],
                                                                     StringToFieldPresence(row["field_presence"]));
         } else { // Assume that record_type == review.
-            if (row.isNull("zeder_journal_id"))
+            if (row.isNull("journal_id"))
                 general_review_article_validator->addRule(row["marc_field_tag"], row["marc_subfield_code"][0],
                                                           StringToFieldPresence(row["field_presence"]));
             else
-                journal_specific_review_article_validator->addRule(row["zeder_journal_id"], row["marc_field_tag"],
+                journal_specific_review_article_validator->addRule(row["journal_id"], row["marc_field_tag"],
                                                                    row["marc_subfield_code"][0],
                                                                    StringToFieldPresence(row["field_presence"]));
         }
@@ -247,9 +247,10 @@ void SendEmail(const std::string &email_address, const std::string &message_subj
 void CheckGenericRequirements(const MARC::Record &record, std::string * const reasons_for_being_invalid) {
     if (not record.hasTag("001"))
         reasons_for_being_invalid->append("control field 001 is missing\n");
-
-    if (not record.hasTag("008"))
-        reasons_for_being_invalid->append("control field 008 is missing\n");
+    if (not record.hasTag("003"))
+        reasons_for_being_invalid->append("control field 003 is missing\n");
+    if (not record.hasTag("007"))
+        reasons_for_being_invalid->append("control field 007 is missing\n");
 
     const auto _245_field(record.findTag("245"));
     if (_245_field == record.end())
