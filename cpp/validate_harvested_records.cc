@@ -215,7 +215,8 @@ void LoadRules(DbConnection * const db_connection, GeneralFieldValidator * const
                JournalSpecificFieldValidator * const journal_specific_review_article_validator)
 {
     db_connection->queryOrDie(
-        "SELECT marc_field_tag,marc_subfield_code,field_presence,record_type FROM metadata_presence_tracer");
+        "SELECT marc_field_tag,marc_subfield_code,field_presence,record_type FROM metadata_presence_tracer"
+        " ORDER BY marc_field_tag,marc_subfield_code ASC");
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
         if (row["record_type"] == "regular_article") {
