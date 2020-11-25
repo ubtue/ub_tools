@@ -93,9 +93,9 @@ void FieldRule::findRuleViolations(const MARC::Subfields &subfields, std::string
 }
 
 
-class Validator {
+class FieldValidator {
 public:
-    ~Validator() {}
+    ~FieldValidator() {}
 
     /** \return True if we found rules for all subfields in "field" o/w false.
      *  \note   If a rule violation was found, "reason_for_being_invalid" w/ be non-empty after the call and
@@ -109,7 +109,7 @@ public:
 };
 
 
-class GeneralValidator final : public Validator {
+class GeneralFieldValidator final : public FieldValidator {
     std::unordered_map<std::string, FieldRule> tags_to_rules_map_;
 public:
     void addRule(const std::string &tag, const char subfield_code, const FieldPresence field_presence);
@@ -120,8 +120,8 @@ public:
 };
 
 
-void GeneralValidator::addRule(const std::string &tag, const char subfield_code,
-                               const FieldPresence field_presence)
+void GeneralFieldValidator::addRule(const std::string &tag, const char subfield_code,
+                                    const FieldPresence field_presence)
 {
     auto tag_and_rule(tags_to_rules_map_.find(tag));
     if (tag_and_rule == tags_to_rules_map_.end())
@@ -131,8 +131,8 @@ void GeneralValidator::addRule(const std::string &tag, const char subfield_code,
 }
 
 
-bool GeneralValidator::foundRuleMatch(const std::string &/*journal_id*/, const MARC::Record::Field &field,
-                                      std::string * const reason_for_being_invalid) const
+bool GeneralFieldValidator::foundRuleMatch(const std::string &/*journal_id*/, const MARC::Record::Field &field,
+                                           std::string * const reason_for_being_invalid) const
 {
     const std::string tag(field.getTag().toString());
     const auto tags_and_rules(tags_to_rules_map_.find(tag));
@@ -148,8 +148,8 @@ bool GeneralValidator::foundRuleMatch(const std::string &/*journal_id*/, const M
 }
 
 
-void GeneralValidator::findMissingTags(const std::string &/*journal_id*/, const std::set<std::string> &present_tags,
-                                       std::set<std::string> * const missing_tags) const
+void GeneralFieldValidator::findMissingTags(const std::string &/*journal_id*/, const std::set<std::string> &present_tags,
+                                            std::set<std::string> * const missing_tags) const
 {
     for (const auto &[required_tag, rule] : tags_to_rules_map_) {
         if (present_tags.find(required_tag) == present_tags.cend())
@@ -158,8 +158,8 @@ void GeneralValidator::findMissingTags(const std::string &/*journal_id*/, const 
 }
 
 
-class JournalSpecificValidator final : public Validator {
-    std::unordered_map<std::string, GeneralValidator> journal_ids_to_validators_map_;
+class JournalSpecificFieldValidator final : public FieldValidator {
+    std::unordered_map<std::string, GeneralFieldValidator> journal_ids_to_field_validators_map_;
 public:
     void addRule(const std::string &journal_id, const std::string &tag, const char subfield_code,
                  const FieldPresence field_presence);
@@ -170,43 +170,44 @@ public:
 };
 
 
-void JournalSpecificValidator::addRule(const std::string &journal_id, const std::string &tag, const char subfield_code,
+void JournalSpecificFieldValidator::addRule(const std::string &journal_id, const std::string &tag, const char subfield_code,
                                        const FieldPresence field_presence)
 {
-    auto journal_id_and_validators(journal_ids_to_validators_map_.find(journal_id));
-    if (journal_id_and_validators == journal_ids_to_validators_map_.end()) {
-        GeneralValidator new_general_validator;
-        new_general_validator.addRule(tag, subfield_code, field_presence);
-        journal_ids_to_validators_map_.emplace(journal_id, new_general_validator);
+    auto journal_id_and_field_validators(journal_ids_to_field_validators_map_.find(journal_id));
+    if (journal_id_and_field_validators == journal_ids_to_field_validators_map_.end()) {
+        GeneralFieldValidator new_general_field_validator;
+        new_general_field_validator.addRule(tag, subfield_code, field_presence);
+        journal_ids_to_field_validators_map_.emplace(journal_id, new_general_field_validator);
     } else
-        journal_id_and_validators->second.addRule(tag, subfield_code, field_presence);
+        journal_id_and_field_validators->second.addRule(tag, subfield_code, field_presence);
 }
 
 
-bool JournalSpecificValidator::foundRuleMatch(const std::string &journal_id, const MARC::Record::Field &field,
-                                              std::string * const reason_for_being_invalid) const
+bool JournalSpecificFieldValidator::foundRuleMatch(const std::string &journal_id, const MARC::Record::Field &field,
+                                                   std::string * const reason_for_being_invalid) const
 {
-    const auto journal_id_and_validators(journal_ids_to_validators_map_.find(journal_id));
-    if (journal_id_and_validators == journal_ids_to_validators_map_.cend())
+    const auto journal_id_and_field_validators(journal_ids_to_field_validators_map_.find(journal_id));
+    if (journal_id_and_field_validators == journal_ids_to_field_validators_map_.cend())
         return false;
-    return journal_id_and_validators->second.foundRuleMatch(journal_id, field, reason_for_being_invalid);
+    return journal_id_and_field_validators->second.foundRuleMatch(journal_id, field, reason_for_being_invalid);
 }
 
 
-void JournalSpecificValidator::findMissingTags(const std::string &journal_id, const std::set<std::string> &present_tags,
-                                               std::set<std::string> * const missing_tags) const
+void JournalSpecificFieldValidator::findMissingTags(const std::string &journal_id,
+                                                    const std::set<std::string> &present_tags,
+                                                    std::set<std::string> * const missing_tags) const
 {
-    const auto journal_id_and_validators(journal_ids_to_validators_map_.find(journal_id));
-    if (journal_id_and_validators == journal_ids_to_validators_map_.cend())
+    const auto journal_id_and_field_validators(journal_ids_to_field_validators_map_.find(journal_id));
+    if (journal_id_and_field_validators == journal_ids_to_field_validators_map_.cend())
         return;
-    journal_id_and_validators->second.findMissingTags(journal_id, present_tags, missing_tags);
+    journal_id_and_field_validators->second.findMissingTags(journal_id, present_tags, missing_tags);
 }
 
 
-void LoadRules(DbConnection * const db_connection, GeneralValidator * const general_regular_article_validator,
-               JournalSpecificValidator * const journal_specific_regular_article_validator,
-               GeneralValidator * const general_review_article_validator,
-               JournalSpecificValidator * const journal_specific_review_article_validator)
+void LoadRules(DbConnection * const db_connection, GeneralFieldValidator * const general_regular_article_validator,
+               JournalSpecificFieldValidator * const journal_specific_regular_article_validator,
+               GeneralFieldValidator * const general_review_article_validator,
+               JournalSpecificFieldValidator * const journal_specific_review_article_validator)
 {
     db_connection->queryOrDie(
         "SELECT marc_field_tag,marc_subfield_code,field_presence,record_type FROM metadata_presence_tracer");
@@ -263,8 +264,8 @@ void CheckGenericRequirements(const MARC::Record &record, std::string * const re
 }
 
 
-bool RecordIsValid(const MARC::Record &record, const std::vector<const Validator *> &regular_article_validators,
-                   const std::vector<const Validator *> &review_article_validators,
+bool RecordIsValid(const MARC::Record &record, const std::vector<const FieldValidator *> &regular_article_field_validators,
+                   const std::vector<const FieldValidator *> &review_article_field_validators,
                    std::string * const reasons_for_being_invalid)
 {
     reasons_for_being_invalid->clear();
@@ -281,7 +282,7 @@ bool RecordIsValid(const MARC::Record &record, const std::vector<const Validator
 
     // 1. Check that present fields meet all the requirements:
     MARC::Tag last_tag("   ");
-    const auto &validators(record.isReviewArticle() ? review_article_validators : regular_article_validators);
+    const auto &field_validators(record.isReviewArticle() ? review_article_field_validators : regular_article_field_validators);
     std::set<std::string> present_tags;
     for (const auto &field : record) {
         const auto current_tag(field.getTag());
@@ -290,9 +291,9 @@ bool RecordIsValid(const MARC::Record &record, const std::vector<const Validator
         last_tag = current_tag;
         present_tags.emplace(current_tag.toString());
 
-        for (const auto validator : validators) {
+        for (const auto field_validator : field_validators) {
             std::string reason_for_being_invalid;
-            if (validator->foundRuleMatch(ZID, field, &reason_for_being_invalid)) {
+            if (field_validator->foundRuleMatch(ZID, field, &reason_for_being_invalid)) {
                 if (not reason_for_being_invalid.empty())
                     reasons_for_being_invalid->append(reason_for_being_invalid + "\n");
                 break;
@@ -302,8 +303,8 @@ bool RecordIsValid(const MARC::Record &record, const std::vector<const Validator
 
     // 2. Check for missing required fields:
     std::set<std::string> missing_tags;
-    for (const auto validator : validators)
-        validator->findMissingTags(ZID, present_tags, &missing_tags);
+    for (const auto field_validator : field_validators)
+        field_validator->findMissingTags(ZID, present_tags, &missing_tags);
     for (const auto &missing_tag : missing_tags)
         reasons_for_being_invalid->append("required " + missing_tag + "-field is missing\n");
 
@@ -326,23 +327,23 @@ int Main(int argc, char *argv[]) {
     const std::string email_address(argv[4]);
     ZoteroHarvester::Util::UploadTracker upload_tracker;
 
-    GeneralValidator general_regular_article_validator, general_review_article_validator;
-    JournalSpecificValidator journal_specific_regular_article_validator, journal_specific_review_article_validator;
+    GeneralFieldValidator general_regular_article_validator, general_review_article_validator;
+    JournalSpecificFieldValidator journal_specific_regular_article_validator, journal_specific_review_article_validator;
     LoadRules(&db_connection, &general_regular_article_validator, &journal_specific_regular_article_validator,
               &general_review_article_validator, &journal_specific_review_article_validator);
-    std::vector<const Validator *> regular_article_validators{ &journal_specific_regular_article_validator,
-                                                               &general_regular_article_validator },
-                                   review_article_validators{ &journal_specific_review_article_validator,
-                                                              &journal_specific_regular_article_validator,
-                                                              &general_review_article_validator,
-                                                              &general_regular_article_validator };
+    std::vector<const FieldValidator *> regular_article_field_validators{ &journal_specific_regular_article_validator,
+                                                                          &general_regular_article_validator },
+                                        review_article_field_validators{ &journal_specific_review_article_validator,
+                                                                         &journal_specific_regular_article_validator,
+                                                                         &general_review_article_validator,
+                                                                         &general_regular_article_validator };
 
     unsigned total_record_count(0), missed_expectation_count(0);
     while (const auto record = marc_reader->read()) {
         ++total_record_count;
 
         std::string reasons_for_being_invalid;
-        if (RecordIsValid(record, regular_article_validators, review_article_validators, &reasons_for_being_invalid))
+        if (RecordIsValid(record, regular_article_field_validators, review_article_field_validators, &reasons_for_being_invalid))
             valid_records_writer->write(record);
         else {
             upload_tracker.archiveRecord(record, ZoteroHarvester::Util::UploadTracker::DeliveryState::ERROR,
