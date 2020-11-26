@@ -279,9 +279,9 @@ bool RecordIsValid(const MARC::Record &record, const std::vector<const FieldVali
     const auto zid_field(record.findTag("ZID"));
     if (unlikely(zid_field == record.end()))
         LOG_ERROR("record is missing a ZID field!");
-    else if (zid_field->getFirstSubfieldWithCode('a').empty())
-        LOG_ERROR("record is missing an a-subfield in the existing ZID field!");
     const auto ZID(zid_field->getFirstSubfieldWithCode('a'));
+    if (unlikely(ZID.empty()))
+        LOG_ERROR("record is missing an a-subfield in the existing ZID field!");
 
     // 0. Check that requirements for all records, independent of type or journal are met:
     CheckGenericRequirements(record, reasons_for_being_invalid);
