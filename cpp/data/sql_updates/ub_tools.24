@@ -1,4 +1,4 @@
-DELETE * FROM metadata_presence_tracer WHERE 1;
+TRUNCATE TABLE metadata_presence_tracer;
 ALTER TABLE metadata_presence_tracer DROP CONSTRAINT metadata_presence_tracer_zeder_journal_id;
 ALTER TABLE metadata_presence_tracer DROP CONSTRAINT metadata_presence_tracer_journal_id_and_marc_field_tag;
 ALTER TABLE metadata_presence_tracer ADD COLUMN marc_subfield_code CHAR(1) NOT NULL AFTER marc_field_tag;
