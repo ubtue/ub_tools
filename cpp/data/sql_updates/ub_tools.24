@@ -1,3 +1,6 @@
+-- We rename metadata_presence_tracer.zeder_journal_id to journal_id
+-- and add the new column metadata_presence_tracer.marc_subfield_code.
+-- Constraints affected by the rename are also being updated.
 TRUNCATE TABLE metadata_presence_tracer;
 ALTER TABLE metadata_presence_tracer DROP CONSTRAINT metadata_presence_tracer_zeder_journal_id;
 ALTER TABLE metadata_presence_tracer DROP CONSTRAINT metadata_presence_tracer_journal_id_and_marc_field_tag;
