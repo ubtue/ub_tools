@@ -1057,9 +1057,16 @@ void ExtractURLs(const std::string &document_source, std::string default_base_ur
 
         urls_and_anchor_texts->clear();
 
+        // Some pages are evil and include null bytes in strange places...
+        // Make sure this does not garble our URL extraction results
+        std::string document_source_normalized(document_source);
+        document_source_normalized.erase(std::remove_if(document_source_normalized.begin(), document_source_normalized.end(),
+                                         [](char c) { return c == '\0'; }), document_source_normalized.end());
+
+
         // Extract the raw URLs:
         std::list<UrlExtractorParser::UrlAndAnchorText> raw_urls;
-        UrlExtractorParser url_extractor_parser(document_source, true /* accept links in FRAME tags */,
+        UrlExtractorParser url_extractor_parser(document_source_normalized, true /* accept links in FRAME tags */,
                                                 ((flags & IGNORE_LINKS_IN_IMG_TAGS) != 0),
                                                 ((flags & CLEAN_UP_ANCHOR_TEXT) != 0), &raw_urls, &default_base_url);
         url_extractor_parser.parse();
@@ -1104,7 +1111,7 @@ void ExtractURLs(const std::string &document_source, std::string default_base_ur
 
         if ((flags & ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS) == ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS) {
             std::vector<std::string> extracted_urls;
-            ExtractSomeJavaScriptLinks(document_source, &extracted_urls);
+            ExtractSomeJavaScriptLinks(document_source_normalized, &extracted_urls);
             for (const auto &extracted_url : extracted_urls)
                 urls_and_anchor_texts->push_back(UrlAndAnchorTexts(extracted_url, ""));
         }
