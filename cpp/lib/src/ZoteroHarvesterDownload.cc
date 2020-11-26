@@ -345,14 +345,7 @@ bool Crawler::getNextPage(CrawlResult * const crawl_result) {
                                            | WebUtil::ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS);
 
     std::vector<WebUtil::UrlAndAnchorTexts> urls_and_anchor_texts;
-
-    // Some pages are evil and include null bytes in strange places...
-    // Make sure this does not garble our URL extraction results below
-    std::string response_body(download_result.response_body_);
-    response_body.erase(std::remove_if(response_body.begin(), response_body.end(),
-                                       [](char c) { return c == '\0'; }), response_body.end());
-
-    WebUtil::ExtractURLs(response_body, next_url, WebUtil::ABSOLUTE_URLS, &urls_and_anchor_texts, EXTRACT_URL_FLAGS);
+    WebUtil::ExtractURLs(download_result.response_body_, next_url, WebUtil::ABSOLUTE_URLS, &urls_and_anchor_texts, EXTRACT_URL_FLAGS);
 
     crawl_result->current_url_ = next_url;
     crawl_result->outgoing_urls_.clear();
