@@ -570,6 +570,7 @@ bool ProcessShowQASubActionAdd(const std::multimap<std::string, std::string> &cg
     // sub-action "add"
     const std::string add_type(GetCGIParameterOrDefault(cgi_args, "add_type"));
     const std::string add_tag(GetCGIParameterOrDefault(cgi_args, "add_tag"));
+    const std::string add_subfield_code(GetCGIParameterOrDefault(cgi_args, "add_subfield_code"));
     const std::string add_presence(GetCGIParameterOrDefault(cgi_args, "add_presence"));
     if (add_type.empty() or add_tag.empty() or add_presence.empty())
         return false;
@@ -578,9 +579,9 @@ bool ProcessShowQASubActionAdd(const std::multimap<std::string, std::string> &cg
     if (add_type == "global")
         journal_id_to_insert = "NULL";
 
-    db_connection->queryOrDie("INSERT INTO metadata_presence_tracer (journal_id, marc_field_tag, field_presence) "
-                              " VALUES (" + journal_id_to_insert + ", " + db_connection->escapeAndQuoteString(add_tag) + ", "
-                              " " + db_connection->escapeAndQuoteString(add_presence) + ")");
+    db_connection->queryOrDie("INSERT INTO metadata_presence_tracer (journal_id, marc_field_tag, marc_subfield_code, field_presence) "
+                              " VALUES (" + journal_id_to_insert + ", " + db_connection->escapeAndQuoteString(add_tag) + ", '"
+                              + add_subfield_code + "', " + db_connection->escapeAndQuoteString(add_presence) + ")");
     return true;
 }
 
@@ -590,6 +591,7 @@ bool ProcessShowQASubActionDelete(const std::multimap<std::string, std::string> 
 {
     const std::string delete_type(GetCGIParameterOrDefault(cgi_args, "delete_type"));
     const std::string delete_tag(GetCGIParameterOrDefault(cgi_args, "delete_tag"));
+    const std::string delete_subfield_code(GetCGIParameterOrDefault(cgi_args, "delete_subfield_code"));
     if (delete_type.empty() or delete_tag.empty())
         return false;
 
@@ -597,9 +599,10 @@ bool ProcessShowQASubActionDelete(const std::multimap<std::string, std::string> 
     if (delete_type == "global")
         journal_id_to_delete = "IS NULL";
 
-    db_connection->queryOrDie("DELETE FROM metadata_presence_tracer "
-                             "WHERE journal_id " + journal_id_to_delete + " "
-                             "AND marc_field_tag = " + db_connection->escapeAndQuoteString(delete_tag));
+    db_connection->queryOrDie("DELETE FROM metadata_presence_tracer"
+                              " WHERE journal_id " + journal_id_to_delete +
+                              " AND marc_field_tag = " + db_connection->escapeAndQuoteString(delete_tag) +
+                              " AND subfield_code = " + db_connection->escapeAndQuoteString(delete_subfield_code));
 
     return true;
 }
@@ -634,15 +637,16 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
                              " ORDER BY marc_field_tag ASC, journal_id ASC");
 
     auto result_set(db_connection->getLastResultSet());
-    std::map<std::string, std::pair<std::string, std::string>> tag_to_settings_map;
+    std::map<std::string, std::pair<std::string, std::string>> tags_and_subfield_codes_to_settings_map;
 
     while (const auto row = result_set.getNextRow()) {
-        const auto iter(tag_to_settings_map.find(row["marc_field_tag"]));
-        if (iter == tag_to_settings_map.end()) {
+        const auto iter(tags_and_subfield_codes_to_settings_map.find(row["marc_field_tag"]));
+        if (iter == tags_and_subfield_codes_to_settings_map.end()) {
+            const std::string tag_and_subfield_code(row["marc_field_tag"] + row["marc_subfield_code"].substr(0, 1));
             if (row["journal_id"].empty())
-                tag_to_settings_map[row["marc_field_tag"]] = { row["field_presence"], "" };
+                tags_and_subfield_codes_to_settings_map[tag_and_subfield_code] = { row["field_presence"], "" };
             else
-                tag_to_settings_map[row["marc_field_tag"]] = { "", row["field_presence"] };
+                tags_and_subfield_codes_to_settings_map[tag_and_subfield_code] = { "", row["field_presence"] };
         } else {
             if (row["journal_id"].empty())
                 iter->second.first = row["field_presence"];
@@ -651,11 +655,12 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
         }
     }
 
-    std::vector<std::string> tags;
+    std::vector<std::string> tags, subfield_codes;
     std::vector<std::string> global_settings;
     std::vector<std::string> journal_settings;
-    for (const auto &tag_and_settings : tag_to_settings_map) {
-        tags.emplace_back(tag_and_settings.first);
+    for (const auto &tag_and_settings : tags_and_subfield_codes_to_settings_map) {
+        tags.emplace_back(tag_and_settings.first.substr(0, MARC::Record::TAG_LENGTH));
+        subfield_codes.emplace_back(tag_and_settings.first.substr(MARC::Record::TAG_LENGTH));
         global_settings.emplace_back(tag_and_settings.second.first);
         journal_settings.emplace_back(tag_and_settings.second.second);
     }
@@ -665,6 +670,7 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
     names_to_values_map.insertScalar("zeder_instance", zeder_instance);
     names_to_values_map.insertScalar("journal_name", journal_name);
     names_to_values_map.insertArray("tags", tags);
+    names_to_values_map.insertArray("subfield_codes", subfield_codes);
     names_to_values_map.insertArray("global_settings", global_settings);
     names_to_values_map.insertArray("journal_settings", journal_settings);
     RenderHtmlTemplate("qa.html");
