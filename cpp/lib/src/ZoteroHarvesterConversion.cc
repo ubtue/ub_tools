@@ -753,15 +753,15 @@ void InsertCustomMarcFieldsForParams(const MetadataRecord &metadata_record, MARC
         const size_t MIN_DATA_FIELD_LENGTH(2 /*indicators*/ + 1 /*subfield separator*/ + 1 /*subfield code*/ + 1 /*subfield value*/);
 
         for (const auto &field_to_add : fields_to_add) {
-            const MARC::Tag tag(custom_field.substr(0, MARC::Record::TAG_LENGTH));
-            if ((tag.isTagOfControlField() and custom_field.length() < MARC::Record::TAG_LENGTH + MIN_CONTROl_FIELD_LENGTH)
-               or (not tag.isTagOfControlField() and custom_field.length() < MARC::Record::TAG_LENGTH + MIN_DATA_FIELD_LENGTH))
+            const MARC::Tag tag(field_to_add.substr(0, MARC::Record::TAG_LENGTH));
+            if ((tag.isTagOfControlField() and field_to_add.length() < MARC::Record::TAG_LENGTH + MIN_CONTROl_FIELD_LENGTH)
+               or (not tag.isTagOfControlField() and field_to_add.length() < MARC::Record::TAG_LENGTH + MIN_DATA_FIELD_LENGTH))
             {
                 LOG_ERROR("custom field '" + field_to_add + "' is too short");
             }
 
-            marc_record->insertField(tag, custom_field.substr(MARC::Record::TAG_LENGTH));
-            LOG_DEBUG("inserted custom field '" + custom_field + "'");
+            marc_record->insertField(tag, field_to_add.substr(MARC::Record::TAG_LENGTH));
+            LOG_DEBUG("inserted custom field '" + field_to_add + "'");
         }
     }
 }
