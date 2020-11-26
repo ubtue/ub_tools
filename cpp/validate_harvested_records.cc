@@ -60,28 +60,28 @@ FieldPresence StringToFieldPresence(const std::string &field_presence_str) {
 }
 
 
-class FieldRule {
+class FieldRules {
     std::map<char, FieldPresence> subfield_code_to_field_presence_map_;
 public:
-    FieldRule(const char subfield_code, const FieldPresence field_presence);
+    FieldRules(const char subfield_code, const FieldPresence field_presence);
     void addRule(const char subfield_code, const FieldPresence field_presence);
     void findRuleViolations(const MARC::Subfields &subfields, std::string * const reason_for_being_invalid) const;
 };
 
 
-FieldRule::FieldRule(const char subfield_code, const FieldPresence field_presence) {
+FieldRules::FieldRules(const char subfield_code, const FieldPresence field_presence) {
     subfield_code_to_field_presence_map_[subfield_code] = field_presence;
 }
 
 
-void FieldRule::addRule(const char subfield_code, const FieldPresence field_presence) {
+void FieldRules::addRule(const char subfield_code, const FieldPresence field_presence) {
     if (unlikely(subfield_code_to_field_presence_map_.find(subfield_code) != subfield_code_to_field_presence_map_.end()))
         LOG_ERROR("Attempt to insert a second rule for subfield code '" + std::string(1, subfield_code) + "'!");
     subfield_code_to_field_presence_map_[subfield_code] = field_presence;
 }
 
 
-void FieldRule::findRuleViolations(const MARC::Subfields &subfields, std::string * const reason_for_being_invalid) const {
+void FieldRules::findRuleViolations(const MARC::Subfields &subfields, std::string * const reason_for_being_invalid) const {
     std::set<char> found_subfield_codes;
     for (const auto &subfield : subfields)
         found_subfield_codes.emplace(subfield.code_);
@@ -115,7 +115,7 @@ public:
 
 
 class GeneralFieldValidator final : public FieldValidator {
-    std::unordered_map<std::string, FieldRule> tags_to_rules_map_;
+    std::unordered_map<std::string, FieldRules> tags_to_rules_map_;
 public:
     void addRule(const std::string &tag, const char subfield_code, const FieldPresence field_presence);
     virtual bool foundRuleMatch(const std::string &journal_id, const MARC::Record::Field &field,
@@ -130,7 +130,7 @@ void GeneralFieldValidator::addRule(const std::string &tag, const char subfield_
 {
     auto tag_and_rule(tags_to_rules_map_.find(tag));
     if (tag_and_rule == tags_to_rules_map_.end())
-        tags_to_rules_map_.emplace(tag, FieldRule(subfield_code, field_presence));
+        tags_to_rules_map_.emplace(tag, FieldRules(subfield_code, field_presence));
     else
         tag_and_rule->second.addRule(subfield_code, field_presence);
 }
