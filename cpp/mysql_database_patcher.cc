@@ -92,7 +92,7 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
     SplitIntoDatabaseAndVersion(update_filename, &database, &update_version);
 
     if (not db_connection->mySQLDatabaseExists(database)) {
-        LOG_WARNING("database \"" + database + "\" does not exist, skipping file " + update_filename);
+        LOG_INFO("database \"" + database + "\" does not exist, skipping file " + update_filename);
         return;
     }
 
