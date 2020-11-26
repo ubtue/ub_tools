@@ -70,10 +70,6 @@ EmailDescription::EmailDescription(const IniFile::Section &ini_file_section) {
     if (subject_matcher_ == nullptr)
         LOG_ERROR("bad regex \"" + subject_pattern_regex + "\" in \"" + ini_file_section.getSectionName() + "\"!");
 
-    if (not ini_file_section.hasEntry("body_pattern"))
-        LOG_ERROR("ini file section \"" + ini_file_section.getSectionName()
-                  + "\" is missing an \"body_pattern\" entry!");
-
     const auto body_positive_pattern_regex(ini_file_section.getString("body_positive_pattern", ""));
     if (body_positive_pattern_regex.empty())
         positive_body_matcher_ = nullptr;
@@ -256,7 +252,7 @@ int Main(int argc, char *argv[]) {
     }
     SaveSectionNamesToLastSeenTimeWindowsMap(section_names_to_last_seen_time_map);
 
-    FileUtil::RenameFileOrDie(mbox_filename, backup_dir_path + mbox_filename + "-"
+    FileUtil::RenameFileOrDie(mbox_filename, backup_dir_path + FileUtil::GetBasename(mbox_filename) + "-"
                               + TimeUtil::GetCurrentDateAndTime());
 
     return EXIT_SUCCESS;
