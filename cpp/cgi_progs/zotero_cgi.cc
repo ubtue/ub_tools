@@ -602,7 +602,7 @@ bool ProcessShowQASubActionDelete(const std::multimap<std::string, std::string> 
     db_connection->queryOrDie("DELETE FROM metadata_presence_tracer"
                               " WHERE journal_id " + journal_id_to_delete +
                               " AND marc_field_tag = " + db_connection->escapeAndQuoteString(delete_tag) +
-                              " AND subfield_code = " + db_connection->escapeAndQuoteString(delete_subfield_code));
+                              " AND marc_subfield_code = " + db_connection->escapeAndQuoteString(delete_subfield_code));
 
     return true;
 }
@@ -634,7 +634,7 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
     db_connection->queryOrDie("SELECT * FROM metadata_presence_tracer WHERE journal_id IS NULL "
                              "OR journal_id IN (SELECT id FROM zeder_journals WHERE zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) +
                              " AND zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance) + ")"
-                             " ORDER BY marc_field_tag ASC, journal_id ASC");
+                             " ORDER BY marc_field_tag ASC, marc_subfield_code ASC, journal_id ASC");
 
     auto result_set(db_connection->getLastResultSet());
     std::map<std::string, std::pair<std::string, std::string>> tags_and_subfield_codes_to_settings_map;
