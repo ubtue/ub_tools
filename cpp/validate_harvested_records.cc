@@ -252,17 +252,14 @@ void SendEmail(const std::string &email_address, const std::string &message_subj
 
 
 void CheckGenericRequirements(const MARC::Record &record, std::string * const reasons_for_being_invalid) {
-    if (not record.hasTag("001"))
-        reasons_for_being_invalid->append("control field 001 is missing\n");
-    if (not record.hasTag("003"))
-        reasons_for_being_invalid->append("control field 003 is missing\n");
-    if (not record.hasTag("007"))
-        reasons_for_being_invalid->append("control field 007 is missing\n");
+    const std::vector<std::string> REQUIRED_FIELD_TAGS{ "001", "003", "007", "245" };
+    for (const auto &required_field_tag : REQUIRED_FIELD_TAGS) {
+        if (not record.hasTag(required_field_tag))
+        reasons_for_being_invalid->append("required field " + required_field_tag + " is missing\n");
+    }
 
     const auto _245_field(record.findTag("245"));
-    if (_245_field == record.end())
-        reasons_for_being_invalid->append("field 245 is missing\n");
-    else if (_245_field->getFirstSubfieldWithCode('a').empty())
+    if (_245_field != record.end() and _245_field->getFirstSubfieldWithCode('a').empty())
         reasons_for_being_invalid->append("subfield 245$a is missing\n");
 
     if (not record.hasTag("100") and not record.hasTag("700"))
