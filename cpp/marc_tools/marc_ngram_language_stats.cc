@@ -79,15 +79,15 @@ void ProcessRecords(const bool verbose, const unsigned limit_count, const unsign
         }
 
         const std::string text(record.getCompleteTitle() + " " + record.getSummary());
-        std::vector<std::string> top_languages;
+        std::vector<NGram::DetectedLanguage> top_languages;
         NGram::ClassifyLanguage(text, &top_languages, considered_languages);
         if (top_languages.empty())
             continue;
 
-        if (top_languages.front() == language_code)
+        if (top_languages.front().language_ == language_code)
             ++agreed_count;
         else {
-            const std::string key(language_code + ":" + top_languages.front());
+            const std::string key(language_code + ":" + top_languages.front().language_);
             if (verbose)
                 std::cout << key << "  " << text << '\n';
             const auto mismatched_assignment_and_count(mismatched_assignments_to_counts_map->find(key));
