@@ -34,9 +34,6 @@ namespace Download {
 namespace DirectDownload {
 
 
-// Set to 20 empirically. Larger numbers increase the incidence of the
-// translation server bug that returns an empty/broken response.
-constexpr unsigned MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS = 20;
 ThreadUtil::Semaphore translation_server_request_semaphore(MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS);
 
 
@@ -63,16 +60,17 @@ void PostToTranslationServer(const Url &translation_server_url, const unsigned t
     downloader_params.post_data_ = request_body;
 
     try {
+        LOG_DEBUG("Sending request to translation server: " + request_body);
         const Url endpoint_url(translation_server_url.toString() + "/web");
         Downloader downloader(endpoint_url, downloader_params, time_limit);
         if (downloader.anErrorOccurred()) {
             *response_code = downloader.getLastErrorCode();
             *error_message = downloader.getLastErrorMessage();
-
             LOG_WARNING("failed to fetch response from the translation server! error: " + *error_message);
         } else {
             *response_body = downloader.getMessageBody();
             *response_code = downloader.getResponseCode();
+            LOG_DEBUG("Successful response from translation server for request: " + request_body + ", response code: " + std::to_string(downloader.getResponseCode()));
         }
     } catch (std::runtime_error &err) {
         LOG_WARNING("failed to fetch response from the translation server! runtime error: " + std::string(err.what()));
@@ -88,10 +86,10 @@ void QueryRemoteUrl(const std::string &url, const unsigned time_limit, const boo
                     const std::string &user_agent, std::string * const response_header, std::string * const response_body,
                     unsigned * response_code, std::string * const error_message)
 {
+    LOG_DEBUG("Querying remote URL: " + url);
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = user_agent;
     downloader_params.honour_robots_dot_txt_ = not ignore_robots_dot_txt;
-
     Downloader downloader(url, downloader_params, time_limit);
     if (downloader.anErrorOccurred()) {
         *response_code = 0;
@@ -101,6 +99,7 @@ void QueryRemoteUrl(const std::string &url, const unsigned time_limit, const boo
         return;
     }
 
+    LOG_DEBUG("Query for remote URL successful: " + url);
     *response_body = downloader.getMessageBody();
     *response_header = downloader.getMessageHeader();
     *response_code = downloader.getResponseCode();
@@ -225,6 +224,11 @@ void Tasklet::run(const Params &parameters, Result * const result) {
                            or parameters.download_item_.journal_.crawl_params_.crawl_url_regex_->match(outgoing_url.first));
 
             if (harvest_url) {
+                if (not force_downloads_ and upload_tracker_.urlAlreadyDelivered(outgoing_url.first, Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
+                    LOG_INFO("Skipping already delivered URL: " + outgoing_url.first);
+                    ++result->num_skipped_since_already_delivered_;
+                    continue;
+                }
                 const auto new_item(parameters.harvestable_manager_->newHarvestableItem(outgoing_url.first,
                                                                                         parameters.download_item_.journal_));
                 result->downloaded_items_.emplace_back(download_manager_->directDownload(new_item, parameters.user_agent_,
@@ -250,12 +254,12 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
 
 Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
-                 std::unique_ptr<Params> parameters)
+                 const Util::UploadTracker &upload_tracker, std::unique_ptr<Params> parameters, const bool force_downloads)
  : Util::Tasklet<Params, Result>(instance_counter, parameters->download_item_,
                                  "Crawling: " + parameters->download_item_.url_.toString(),
                                  std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
                                  std::unique_ptr<Result>(new Result()), std::move(parameters), ResultPolicy::YIELD),
-   download_manager_(download_manager) {}
+   download_manager_(download_manager), upload_tracker_(upload_tracker), force_downloads_(force_downloads) {}
 
 
 bool Crawler::continueCrawling() {
@@ -458,6 +462,12 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
     unsigned num_items_queued(0);
     for (const auto &item : *syndication_format) {
+        if (not force_downloads_ and upload_tracker_.urlAlreadyDelivered(item.getLink(), Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
+            LOG_INFO("Skipping already delivered URL: " + item.getLink());
+            ++result->items_skipped_since_already_delivered_;
+            continue;
+        }
+
         const auto new_download_item(parameters.harvestable_manager_->newHarvestableItem(item.getLink(), parameters.download_item_.journal_));
         result->downloaded_items_.emplace_back(download_manager_->directDownload(new_download_item, parameters.user_agent_,
                                                                                  DirectDownload::Operation::USE_TRANSLATION_SERVER));
@@ -757,7 +767,7 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
 DownloadManager::DownloadManager(const GlobalParams &global_params)
  : global_params_(global_params), stop_background_thread_(false)
 {
-    if (::pthread_create(&background_thread_, nullptr, BackgroundThreadRoutine, this) != 0)
+    if (::pthread_create(&background_thread_, /* attr = */nullptr, BackgroundThreadRoutine, this) != 0)
         LOG_ERROR("background download manager thread creation failed!");
 }
 
@@ -783,8 +793,9 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
     // check if we have already delivered this URL
     if (not global_params_.force_downloads_
         and operation == DirectDownload::Operation::USE_TRANSLATION_SERVER
-        and upload_tracker_.urlAlreadyDelivered(source.url_.toString()))
+        and upload_tracker_.urlAlreadyDelivered(source.url_.toString(), Util::UploadTracker::DELIVERY_STATES_TO_RETRY))
     {
+        LOG_INFO("Skipping already delivered URL: " + source.url_.toString());
         std::unique_ptr<DirectDownload::Result> result(new DirectDownload::Result(source, operation));
         result->flags_ |= DirectDownload::Result::Flags::ITEM_ALREADY_DELIVERED;
 
@@ -836,7 +847,7 @@ std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> DownloadManage
                                                                       global_params_.ignore_robots_txt_,
                                                                       global_params_.harvestable_manager_));
     std::shared_ptr<Crawling::Tasklet> new_tasklet(
-        new Crawling::Tasklet(&tasklet_counters_.crawling_tasklet_execution_counter_, this, std::move(parameters)));
+        new Crawling::Tasklet(&tasklet_counters_.crawling_tasklet_execution_counter_, this, upload_tracker_, std::move(parameters), global_params_.force_downloads_));
 
     {
         std::lock_guard<std::recursive_mutex> queue_buffer_lock(crawling_queue_buffer_mutex_);

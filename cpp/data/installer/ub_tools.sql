@@ -42,10 +42,9 @@ CREATE TABLE metadata_presence_tracer (
     zeder_journal_id INT(11) UNSIGNED,
     marc_field_tag CHAR(3) NOT NULL,
     record_type ENUM('regular_article', 'review') DEFAULT 'regular_article' NOT NULL,
-    subfield_code CHAR(1) DEFAULT NULL,
     field_presence ENUM('always', 'sometimes', 'ignore') NOT NULL,
     CONSTRAINT metadata_presence_tracer_zeder_journal_id FOREIGN KEY (zeder_journal_id) REFERENCES zeder_journals (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT metadata_presence_tracer_journal_id_and_field_name UNIQUE (zeder_journal_id, marc_field_tag)
+    CONSTRAINT metadata_presence_tracer_journal_id_and_marc_field_tag UNIQUE (zeder_journal_id, marc_field_tag)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 
@@ -53,7 +52,8 @@ CREATE TABLE delivered_marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hash VARCHAR(40) NOT NULL,
     zeder_journal_id INT(11) UNSIGNED NOT NULL,
-    delivery_state ENUM('automatic', 'manual', 'error') DEFAULT 'automatic' NOT NULL,
+    delivery_state ENUM('automatic', 'manual', 'error', 'ignore', 'reset') DEFAULT 'automatic' NOT NULL,
+    error_message VARCHAR(1000) DEFAULT NULL,
     delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
     main_title VARCHAR(1000) NOT NULL,
     record BLOB NOT NULL,

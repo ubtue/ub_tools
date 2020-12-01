@@ -324,7 +324,7 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
                     continue;   // could be a valid note added by the translator
                 }
 
-                metadata_record->custom_metadata_[note.substr(0, first_colon_pos)] = note.substr(first_colon_pos + 1);
+                metadata_record->custom_metadata_.emplace(note.substr(0, first_colon_pos), note.substr(first_colon_pos + 1));
             }
         }
     }
@@ -514,43 +514,56 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
 }
 
 
-void IdentifyMissingLanguage(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params) {
-    const unsigned minimum_token_count(5);
-
-    if (journal_params.language_params_.expected_languages_.empty())
-        return;
-
-    if (journal_params.language_params_.expected_languages_.size() == 1) {
-        metadata_record->language_ = *journal_params.language_params_.expected_languages_.begin();
-        LOG_DEBUG("language set to default language '" + metadata_record->language_ + "'");
-        return;
+void DetectLanguage(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params) {
+    // Normalize given language
+    if (not Config::IsAllowedLanguage(metadata_record->language_)) {
+        LOG_WARNING("Removing invalid language: " + metadata_record->language_);
+        metadata_record->language_.clear();
+    } else if (not Config::IsNormalizedLanguage(metadata_record->language_)) {
+        const std::string normalized_language(Config::GetNormalizedLanguage(metadata_record->language_));
+        LOG_DEBUG("Normalized language: " + metadata_record->language_ + " => " + normalized_language);
+        metadata_record->language_ = normalized_language;
     }
 
     // attempt to automatically detect the language
-    std::vector<std::string> top_languages;
-    std::string record_text;
+    if (journal_params.language_params_.expected_languages_.empty())
+        return;
 
-    if (journal_params.language_params_.source_text_fields_.empty()
-        or journal_params.language_params_.source_text_fields_ == "title")
-    {
-        record_text = metadata_record->title_;
-        // use naive tokenization to count tokens in the title
-        // additionally use abstract if we have too few tokens in the title
-        if (StringUtil::CharCount(record_text, ' ') < minimum_token_count) {
-            record_text += " " + metadata_record->abstract_note_;
-            LOG_DEBUG("too few tokens in title. applying heuristic on the abstract as well");
+    std::string detected_language;
+    if (journal_params.language_params_.expected_languages_.size() == 1)
+        detected_language = *journal_params.language_params_.expected_languages_.begin();
+    else {
+        std::vector<std::string> top_languages;
+        std::string record_text;
+        if (journal_params.language_params_.source_text_fields_.empty()
+            or journal_params.language_params_.source_text_fields_ == "title")
+        {
+            record_text = metadata_record->title_;
+        } else if (journal_params.language_params_.source_text_fields_ == "abstract")
+            record_text = metadata_record->abstract_note_;
+        else if (journal_params.language_params_.source_text_fields_ == "title+abstract")
+            record_text = metadata_record->title_ + " " + metadata_record->abstract_note_;
+        else
+            LOG_ERROR("unknown text field '" + journal_params.language_params_.source_text_fields_ + "' for language detection");
+
+        NGram::ClassifyLanguage(record_text, &top_languages, journal_params.language_params_.expected_languages_,
+                                NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
+        detected_language = top_languages.front();
+    }
+
+    // compare given language to detected language
+    if (not detected_language.empty()) {
+        if (metadata_record->language_.empty()) {
+            LOG_INFO("Using detected language: " + detected_language);
+            metadata_record->language_ = detected_language;
+        } else if (detected_language == metadata_record->language_)
+            LOG_INFO("The given language is equal to the detected language: " + detected_language);
+        else {
+            LOG_INFO("The given language " + metadata_record->language_ +  " and the detected language " + detected_language + " are different. "
+                     "No language will be set.");
+            metadata_record->language_.clear();
         }
-    } else if (journal_params.language_params_.source_text_fields_ == "abstract")
-        record_text = metadata_record->abstract_note_;
-    else if (journal_params.language_params_.source_text_fields_ == "title+abstract")
-        record_text = metadata_record->title_ + " " + metadata_record->abstract_note_;
-    else
-        LOG_ERROR("unknown text field '" + journal_params.language_params_.source_text_fields_ + "' for language detection");
-
-    NGram::ClassifyLanguage(record_text, &top_languages, journal_params.language_params_.expected_languages_,
-                            NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
-    metadata_record->language_ = top_languages.front();
-    LOG_INFO("automatically detected language to be '" + metadata_record->language_ + "'");
+    }
 }
 
 
@@ -670,24 +683,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
     }
 
     // autodetect or map language
-    bool autodetect_language(false);
-    const std::string autodetect_message("forcing automatic language detection, reason: ");
-    if (journal_params.language_params_.force_automatic_language_detection_) {
-        LOG_DEBUG(autodetect_message + "conf setting");
-        autodetect_language = true;
-    } else if (metadata_record->language_.empty()) {
-        LOG_DEBUG(autodetect_message + "empty language");
-        autodetect_language = true;
-    } else if (not Config::IsAllowedLanguage(metadata_record->language_)) {
-        LOG_DEBUG(autodetect_message + "invalid language \"" + metadata_record->language_ + "\"");
-        autodetect_language = true;
-    }
-
-    if (autodetect_language)
-        IdentifyMissingLanguage(metadata_record, journal_params);
-    else
-        metadata_record->language_ = Config::GetNormalizedLanguage(metadata_record->language_);
-
+    DetectLanguage(metadata_record, journal_params);
 
     // fetch creator GNDs and postprocess names
     for (auto &creator : metadata_record->creators_) {
@@ -711,7 +707,6 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
         }
     }
 
-
     // fill-in license and SSG values
     if (journal_params.license_ == "LF")
         metadata_record->license_ = journal_params.license_;
@@ -721,51 +716,61 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
 }
 
 
-const ThreadSafeRegexMatcher CUSTOM_MARC_FIELD_PLACEHOLDER_MATCHER("%(.+)%");
+const ThreadSafeRegexMatcher CUSTOM_MARC_FIELD_PLACEHOLDER_MATCHER("%([^%]+)%");
 
 
 void InsertCustomMarcFieldsForParams(const MetadataRecord &metadata_record, MARC::Record * const marc_record,
                                      const Config::MarcMetadataParams &marc_metadata_params)
 {
-    for (auto custom_field : marc_metadata_params.fields_to_add_) {
+    for (const auto &custom_field : marc_metadata_params.fields_to_add_) {
+        if (unlikely(custom_field.length() < MARC::Record::TAG_LENGTH))
+            LOG_ERROR("custom field's tag is too short: '" + custom_field + "'");
+
+        // Determine which fields to add, depending on placeholders
+        std::vector<std::string> fields_to_add;
         const auto placeholder_match(CUSTOM_MARC_FIELD_PLACEHOLDER_MATCHER.match(custom_field));
-        const auto custom_field_copy(custom_field);
+        if (not placeholder_match)
+            fields_to_add.emplace_back(custom_field);
+        else {
+            if (placeholder_match.size() > 2)
+                LOG_ERROR("only 1 placeholder allowed: " + custom_field);
 
-        if (placeholder_match) {
-            std::string first_missing_placeholder;
-            for (unsigned i(1); i < placeholder_match.size(); ++i) {
-                const auto placeholder(placeholder_match[i]);
-                const auto substitution(metadata_record.custom_metadata_.find(placeholder));
-                if (substitution == metadata_record.custom_metadata_.end()) {
-                    first_missing_placeholder = placeholder;
-                    break;
-                }
-
-                custom_field = StringUtil::ReplaceString(placeholder_match[0], substitution->second, custom_field);
-            }
-
-            if (not first_missing_placeholder.empty()) {
-                LOG_DEBUG("custom field '" + custom_field_copy + "' has missing placeholder(s) '"
-                          + first_missing_placeholder + "'");
+            const std::string placeholder_full(placeholder_match[0]);
+            const std::string placeholder_id(placeholder_match[1]);
+            const auto substitutions(metadata_record.custom_metadata_.equal_range(placeholder_id));
+            if (substitutions.first == metadata_record.custom_metadata_.end()) {
+                LOG_DEBUG("custom field '" + custom_field + "' has missing values for placeholder '"
+                          + placeholder_full + "'");
                 continue;
             }
+
+            for (auto iter(substitutions.first); iter != substitutions.second; ++iter) {
+                // Make sure we fit into MARC binary field
+                const unsigned max_content_length(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH -
+                                         (custom_field.length() - (placeholder_id.length() + 2 /* for 2*'%' */)));
+                if (iter->second.length() > max_content_length) {
+                    std::string content_truncated(iter->second);
+                    StringUtil::Truncate(max_content_length,  &content_truncated);
+                    fields_to_add.emplace_back(StringUtil::ReplaceString(placeholder_full, content_truncated, custom_field));
+                } else
+                    fields_to_add.emplace_back(StringUtil::ReplaceString(placeholder_full, iter->second, custom_field));
+            }
         }
 
-        if (unlikely(custom_field.length() < MARC::Record::TAG_LENGTH))
-            LOG_ERROR("custom field '" + custom_field_copy + "' is too short");
-
-        const size_t MIN_CONTROl_FIELD_LENGTH(1);
+        // Add fields
+        const size_t MIN_CONTROL_FIELD_LENGTH(1);
         const size_t MIN_DATA_FIELD_LENGTH(2 /*indicators*/ + 1 /*subfield separator*/ + 1 /*subfield code*/ + 1 /*subfield value*/);
 
-        const MARC::Tag tag(custom_field.substr(0, MARC::Record::TAG_LENGTH));
-        if ((tag.isTagOfControlField() and custom_field.length() < MARC::Record::TAG_LENGTH + MIN_CONTROl_FIELD_LENGTH)
-            or (not tag.isTagOfControlField() and custom_field.length() < MARC::Record::TAG_LENGTH + MIN_DATA_FIELD_LENGTH))
-        {
-            LOG_ERROR("custom field '" + custom_field_copy + "' is too short");
+        for (const auto &field_to_add : fields_to_add) {
+            const MARC::Tag tag(field_to_add.substr(0, MARC::Record::TAG_LENGTH));
+            if ((tag.isTagOfControlField() and field_to_add.length() < MARC::Record::TAG_LENGTH + MIN_CONTROL_FIELD_LENGTH)
+               or (not tag.isTagOfControlField() and field_to_add.length() < MARC::Record::TAG_LENGTH + MIN_DATA_FIELD_LENGTH))
+            {
+                LOG_ERROR("custom field '" + field_to_add + "' is too short");
+            }
+            marc_record->insertField(tag, field_to_add.substr(MARC::Record::TAG_LENGTH));
+            LOG_DEBUG("inserted custom field '" + field_to_add + "'");
         }
-
-        marc_record->insertField(tag, custom_field.substr(MARC::Record::TAG_LENGTH));
-        LOG_DEBUG("inserted custom field '" + custom_field + "'");
     }
 }
 
@@ -859,6 +864,12 @@ const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP {
     { "wordsBy",            "wam" },
 };
 
+std::string TruncateAbstractField(const std::string &abstract_field) {
+   return abstract_field.length() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH ?
+          StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - 3, abstract_field) + "..." :
+          abstract_field;
+}
+
 
 void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record, const ConversionParams &parameters,
                                           MARC::Record * const marc_record, std::string * const marc_record_hash)
@@ -930,7 +941,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
 
     // Abstract Note
     if (not metadata_record.abstract_note_.empty())
-        marc_record->insertField("520", { { 'a', metadata_record.abstract_note_ } });
+        marc_record->insertField("520", { { 'a', TruncateAbstractField(metadata_record.abstract_note_) } });
 
     // Date & Year
     const auto &date(metadata_record.date_);

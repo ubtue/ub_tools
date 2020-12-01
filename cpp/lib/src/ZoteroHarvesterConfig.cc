@@ -227,8 +227,6 @@ JournalParams::JournalParams(const GlobalParams &global_params) {
     issn_.online_ = "Default ISSN";
     strptime_format_string_ = global_params.strptime_format_string_;
     update_window_ = 0;
-    language_params_.force_automatic_language_detection_ = false;
-    language_params_.expected_languages_.emplace("eng");
     crawl_params_.max_crawl_depth_ = 1;
 }
 
@@ -416,13 +414,10 @@ bool ParseExpectedLanguages(const std::string &expected_languages_string, Langua
     if (expected_languages_string.empty())
         return true;
 
+    // force? (deprecated, treat as invalid)
     std::string expected_languages(expected_languages_string);
-
-    // force?
-    if (not expected_languages_string.empty() and expected_languages[0] == '*') {
-        language_params->force_automatic_language_detection_ = true;
-        expected_languages = expected_languages.substr(1);
-    }
+    if (expected_languages[0] == '*')
+        return false;
 
     // source text fields
     const auto field_separator_pos(expected_languages.find(':'));
