@@ -19,7 +19,6 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include <map>
 #include <memory>
 #include <set>
@@ -38,6 +37,11 @@
 
 
 namespace {
+
+
+[[noreturn]] void Usage() {
+    ::Usage("ini_file_path mbox_path");
+}
 
 
 struct EmailDescription {
@@ -124,6 +128,25 @@ std::unordered_map<std::string, EmailDescription> LoadEmailDescriptions(const In
 }
 
 
+void ProcessMBox(const std::string &mbox_filename, const long forward_priority,
+                 const std::unordered_map<std::string, EmailDescription> &email_descriptions,
+                 std::vector<std::string> * const unmatched_emails, std::set<std::string> * const matched_section_names)
+{
+    const MBox mbox(mbox_filename);
+    unsigned email_message_count(0);
+    for (const auto &email_message : mbox) {
+        ++email_message_count;
+        for (const auto &[section_name, email_description] : email_descriptions) {
+            if (email_message.getPriority() >= forward_priority or email_description.subjectAndBodyMatched(email_message))
+                matched_section_names->emplace(section_name);
+            else
+                unmatched_emails->emplace_back(email_message.toString());
+        }
+    }
+    LOG_INFO("Processed " + std::to_string(email_message_count) + " email message(s).");
+}
+
+
 unsigned short SendEmail(const std::vector<std::string> &recipients, const std::string &subject,
                          const std::string &message_body, const std::vector<std::string> &attachments = {})
 {
@@ -175,7 +198,7 @@ void SaveSectionNamesToLastSeenTimeWindowsMap(const std::map<std::string, time_t
 
 int Main(int argc, char *argv[]) {
     if (argc != 3)
-        ::Usage("ini_file_path mbox_path");
+        Usage();
 
     const IniFile ini_file(argv[1]);
 
@@ -188,21 +211,12 @@ int Main(int argc, char *argv[]) {
     const std::string backup_dir_path(ini_file.getString("", "backup_dir_path") + "/");
     const auto email_descriptions(LoadEmailDescriptions(ini_file));
 
-    const std::string mbox_filename(argv[2]);
-    const MBox mbox(mbox_filename);
-    unsigned email_message_count(0);
+    const std::string MBOX_FILENAME(argv[2]);
     std::vector<std::string> unmatched_emails;
     std::set<std::string> matched_section_names;
-    for (const auto &email_message : mbox) {
-        ++email_message_count;
-        for (const auto &[section_name, email_description] : email_descriptions) {
-            if (email_message.getPriority() >= forward_priority or email_description.subjectAndBodyMatched(email_message))
-                matched_section_names.emplace(section_name);
-            else
-                unmatched_emails.emplace_back(email_message.toString());
-        }
-    }
-    LOG_INFO("Processed " + std::to_string(email_message_count) + " email message(s).");
+    const bool mbox_exists(FileUtil::Exists(MBOX_FILENAME));
+    if (mbox_exists)
+        ProcessMBox(MBOX_FILENAME, forward_priority, email_descriptions, &unmatched_emails, &matched_section_names);
 
     if (not unmatched_emails.empty()) {
         LOG_WARNING("Found " + std::to_string(unmatched_emails.size()) + " unmatched email(s)!");
@@ -223,14 +237,20 @@ int Main(int argc, char *argv[]) {
         if (section_name.empty()) // Global section
             continue;
 
-        if (matched_section_names.find(section_name) != matched_section_names.end())
+        LOG_DEBUG("Processing section " + section_name + ".");
+
+        if (matched_section_names.find(section_name) != matched_section_names.end()) {
+            LOG_DEBUG("\tWe have new mail for " + section_name + " and therefore can't be overdue!");
             continue; // We're definitely *not* overdue!
+        }
 
         const auto section_name_and_last_seen_time(section_names_to_last_seen_time_map.find(section_name));
         if (section_name_and_last_seen_time == section_names_to_last_seen_time_map.end()) {
+            LOG_DEBUG("\tSection " + section_name + " not found in section_names_to_last_seen_time_map!");
             matched_section_names.emplace(section_name);
             continue;
         }
+        LOG_DEBUG("\tLast seen " + TimeUtil::TimeTToString(section_name_and_last_seen_time->second) + ".");
 
         const unsigned overdue_time_window(section.getUnsigned("overdue_time_window")); // in hours
         if ((NOW - section_name_and_last_seen_time->second) > overdue_time_window * 3600u) {
@@ -253,8 +273,9 @@ int Main(int argc, char *argv[]) {
     }
     SaveSectionNamesToLastSeenTimeWindowsMap(section_names_to_last_seen_time_map);
 
-    FileUtil::RenameFileOrDie(mbox_filename, backup_dir_path + FileUtil::GetBasename(mbox_filename) + "-"
-                              + TimeUtil::GetCurrentDateAndTime());
+    if (mbox_exists)
+        FileUtil::RenameFileOrDie(MBOX_FILENAME, backup_dir_path + FileUtil::GetBasename(MBOX_FILENAME) + "-"
+                                  + TimeUtil::GetCurrentDateAndTime());
 
     return EXIT_SUCCESS;
 }
