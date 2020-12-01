@@ -744,22 +744,30 @@ void InsertCustomMarcFieldsForParams(const MetadataRecord &metadata_record, MARC
                 continue;
             }
 
-            for (auto iter(substitutions.first); iter != substitutions.second; ++iter)
-                fields_to_add.emplace_back(StringUtil::ReplaceString(placeholder_full, iter->second, custom_field));
+            for (auto iter(substitutions.first); iter != substitutions.second; ++iter) {
+                // Make sure we fit into MARC binary field
+                const unsigned max_content_length(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH -
+                                         (custom_field.length() - (placeholder_id.length() + 2 /* for 2*'%' */)));
+                if (iter->second.length() > max_content_length) {
+                    std::string content_truncated(iter->second);
+                    StringUtil::Truncate(max_content_length,  &content_truncated);
+                    fields_to_add.emplace_back(StringUtil::ReplaceString(placeholder_full, content_truncated, custom_field));
+                } else
+                    fields_to_add.emplace_back(StringUtil::ReplaceString(placeholder_full, iter->second, custom_field));
+            }
         }
 
         // Add fields
-        const size_t MIN_CONTROl_FIELD_LENGTH(1);
+        const size_t MIN_CONTROL_FIELD_LENGTH(1);
         const size_t MIN_DATA_FIELD_LENGTH(2 /*indicators*/ + 1 /*subfield separator*/ + 1 /*subfield code*/ + 1 /*subfield value*/);
 
         for (const auto &field_to_add : fields_to_add) {
             const MARC::Tag tag(field_to_add.substr(0, MARC::Record::TAG_LENGTH));
-            if ((tag.isTagOfControlField() and field_to_add.length() < MARC::Record::TAG_LENGTH + MIN_CONTROl_FIELD_LENGTH)
+            if ((tag.isTagOfControlField() and field_to_add.length() < MARC::Record::TAG_LENGTH + MIN_CONTROL_FIELD_LENGTH)
                or (not tag.isTagOfControlField() and field_to_add.length() < MARC::Record::TAG_LENGTH + MIN_DATA_FIELD_LENGTH))
             {
                 LOG_ERROR("custom field '" + field_to_add + "' is too short");
             }
-
             marc_record->insertField(tag, field_to_add.substr(MARC::Record::TAG_LENGTH));
             LOG_DEBUG("inserted custom field '" + field_to_add + "'");
         }
@@ -856,6 +864,12 @@ const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP {
     { "wordsBy",            "wam" },
 };
 
+std::string TruncateAbstractField(const std::string &abstract_field) {
+   return abstract_field.length() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH ?
+          StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - 3, abstract_field) + "..." :
+          abstract_field;
+}
+
 
 void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record, const ConversionParams &parameters,
                                           MARC::Record * const marc_record, std::string * const marc_record_hash)
@@ -927,7 +941,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
 
     // Abstract Note
     if (not metadata_record.abstract_note_.empty())
-        marc_record->insertField("520", { { 'a', metadata_record.abstract_note_ } });
+        marc_record->insertField("520", { { 'a', TruncateAbstractField(metadata_record.abstract_note_) } });
 
     // Date & Year
     const auto &date(metadata_record.date_);
