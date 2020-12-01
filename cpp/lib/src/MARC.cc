@@ -556,7 +556,8 @@ std::string Record::toBinaryString() const {
         for (Record::const_iterator entry(start); entry != end; ++entry) {
             const size_t contents_length(entry->getContents().length());
             if (unlikely(contents_length > Record::MAX_VARIABLE_FIELD_DATA_LENGTH))
-                LOG_ERROR("can't generate a directory entry w/ a field w/ data length " + std::to_string(contents_length) + "!");
+                LOG_ERROR("can't generate a directory entry w/ a field w/ data length " + std::to_string(contents_length) +
+                          " for PPN \"" + getControlNumber() + "\"!");
             raw_record += entry->getTag().toString();
             AppendToStringWithLeadingZeros(raw_record, entry->getContents().length() + 1 /* field terminator */, 4);
             AppendToStringWithLeadingZeros(raw_record, field_start_offset, /* width = */ 5);
