@@ -16,11 +16,11 @@ chcon unconfined_u:object_r:usr_t:s0 /usr/local/vufind/public/docs/"${output}".7
 send_email --sender=ixtheo@ub.uni-tuebingen.de \
            --recipients=johannes.ruscheinski@uni-tuebingen.de,martin.fassnacht@uni-tuebingen.de,waldvogel@globethics.net,support@novalogix.ch \
            --subject="Neue IxTheo-Daten verfügbar" \
-           --message-body="URL: http://ixtheo.de/docs/"${output}".7z\nSincerely,
-Das IxTheo Team
---
-Falls es irgendwelche Fragen oder Probleme mit dieser Datenlieferung gab,
-bitte kontaktieren Sie
-ixtheo@ub.uni-tuebingen.de  <mailto:ixtheo@ub.uni-tuebingen.de>
-oder antworten Sie einfach auf diese Email.
+           --message-body="URL: http://ixtheo.de/docs/"${output}".7z\\n
+Das IxTheo Team\n
+--\\n
+Falls es irgendwelche Fragen oder Probleme mit dieser Datenlieferung gab,\\n
+bitte kontaktieren Sie\\n
+ixtheo@ub.uni-tuebingen.de  <mailto:ixtheo@ub.uni-tuebingen.de>\\n
+oder antworten Sie einfach auf diese Email.\\n
 "
