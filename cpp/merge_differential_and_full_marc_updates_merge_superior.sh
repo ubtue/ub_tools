@@ -115,6 +115,7 @@ input_directory=$extraction_directory
 
 declare -i counter=0
 last_temp_directory=
+temp_directory=
 for update in $(generate_merge_order | tail --lines=+2); do
     ((++counter))
     temp_directory=temp_directory.$BASHPID.$counter
