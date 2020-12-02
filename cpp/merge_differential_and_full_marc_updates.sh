@@ -94,6 +94,7 @@ input_directory=$extraction_directory
 
 declare -i counter=0
 last_temp_directory=
+temp_directory=
 > entire_record_deletion.log
 for update in $(generate_merge_order | tail --lines=+2); do
     ((++counter))
