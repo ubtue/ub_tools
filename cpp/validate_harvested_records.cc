@@ -31,6 +31,7 @@
 #include "EmailSender.h"
 #include "IniFile.h"
 #include "MARC.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -60,35 +61,77 @@ FieldPresence StringToFieldPresence(const std::string &field_presence_str) {
 }
 
 
-class FieldRules {
-    std::map<char, FieldPresence> subfield_code_to_field_presence_map_;
+// Note that we are aware of the fact that this class is leaking memory.
+// In the context of this program that is not a problem as the constructed instances are long lived
+// and can safely exist until the termination of the program.
+class FieldPresenceAndRegex {
+    FieldPresence field_presence_;
+    RegexMatcher * regex_matcher_;
 public:
-    FieldRules(const char subfield_code, const FieldPresence field_presence);
-    void addRule(const char subfield_code, const FieldPresence field_presence);
+    FieldPresenceAndRegex() = default;
+    FieldPresenceAndRegex(const FieldPresenceAndRegex &other) = default;
+    FieldPresenceAndRegex(const FieldPresence field_presence, RegexMatcher * const regex_matcher)
+        : field_presence_(field_presence), regex_matcher_(regex_matcher) { }
+
+    FieldPresenceAndRegex &operator=(const FieldPresenceAndRegex &rhs) = default;
+
+    bool matched(const std::string &subfield_contents) const {
+        if (regex_matcher_ == nullptr)
+            return true;
+        return regex_matcher_->matched(subfield_contents);
+    }
+
+    FieldPresence getFieldPresence() const { return field_presence_; }
+    std::string getRegex() const { return regex_matcher_ == nullptr ? "" : regex_matcher_->getPattern(); }
+};
+
+
+class FieldRules {
+    std::map<char, FieldPresenceAndRegex> subfield_code_to_field_presence_and_regex_map_;
+public:
+    FieldRules(const char subfield_code, const FieldPresence field_presence,
+               RegexMatcher * const regex_matcher);
+    void addRule(const char subfield_code, const FieldPresence field_presence,
+                 RegexMatcher * const regex_matcher);
     void findRuleViolations(const MARC::Subfields &subfields, std::string * const reason_for_being_invalid) const;
 };
 
 
-FieldRules::FieldRules(const char subfield_code, const FieldPresence field_presence) {
-    subfield_code_to_field_presence_map_[subfield_code] = field_presence;
+FieldRules::FieldRules(const char subfield_code, const FieldPresence field_presence,
+                       RegexMatcher * const regex_matcher)
+{
+    subfield_code_to_field_presence_and_regex_map_[subfield_code] =
+        FieldPresenceAndRegex(field_presence, regex_matcher);
 }
 
 
-void FieldRules::addRule(const char subfield_code, const FieldPresence field_presence) {
-    if (unlikely(subfield_code_to_field_presence_map_.find(subfield_code) != subfield_code_to_field_presence_map_.end()))
+void FieldRules::addRule(const char subfield_code, const FieldPresence field_presence,
+                         RegexMatcher * const regex_matcher)
+{
+    if (unlikely(subfield_code_to_field_presence_and_regex_map_.find(subfield_code)
+                 != subfield_code_to_field_presence_and_regex_map_.end()))
         LOG_ERROR("Attempt to insert a second rule for subfield code '" + std::string(1, subfield_code) + "'!");
-    subfield_code_to_field_presence_map_[subfield_code] = field_presence;
+    subfield_code_to_field_presence_and_regex_map_[subfield_code] =
+        FieldPresenceAndRegex(field_presence, regex_matcher);
 }
 
 
 void FieldRules::findRuleViolations(const MARC::Subfields &subfields, std::string * const reason_for_being_invalid) const {
     std::set<char> found_subfield_codes;
-    for (const auto &subfield : subfields)
+    for (const auto &subfield : subfields) {
         found_subfield_codes.emplace(subfield.code_);
+        const auto subfield_code_field_presence_and_regex(subfield_code_to_field_presence_and_regex_map_.find(subfield.code_));
+        if (subfield_code_field_presence_and_regex == subfield_code_to_field_presence_and_regex_map_.cend())
+            reason_for_being_invalid->append("found unexpected subfield $" + std::string(1, subfield.code_));
+        else if (not subfield_code_field_presence_and_regex->second.matched(subfield.value_))
+            reason_for_being_invalid->append("contents of subfield $" + std::string(1, subfield.code_) + "("
+                                             + subfield.value_ + ") did not match regex \""
+                                             + subfield_code_field_presence_and_regex->second.getRegex() + "\"");
+    }
 
-    for (const auto &subfield_code_and_field_presence : subfield_code_to_field_presence_map_) {
+    for (const auto &subfield_code_and_field_presence : subfield_code_to_field_presence_and_regex_map_) {
         const auto iter(found_subfield_codes.find(subfield_code_and_field_presence.first));
-        if (iter == found_subfield_codes.end() and subfield_code_and_field_presence.second == ALWAYS) {
+        if (iter == found_subfield_codes.end() and subfield_code_and_field_presence.second.getFieldPresence() == ALWAYS) {
             if (not reason_for_being_invalid->empty())
                 reason_for_being_invalid->append("; ");
             reason_for_being_invalid->append("required subfield " + std::string(1, subfield_code_and_field_presence.first)
@@ -117,7 +160,8 @@ public:
 class GeneralFieldValidator final : public FieldValidator {
     std::unordered_map<std::string, FieldRules> tags_to_rules_map_;
 public:
-    void addRule(const std::string &tag, const char subfield_code, const FieldPresence field_presence);
+    void addRule(const std::string &tag, const char subfield_code, const FieldPresence field_presence,
+                 RegexMatcher * const regex_matcher);
     virtual bool foundRuleMatch(const std::string &journal_id, const MARC::Record::Field &field,
                                 std::string * const reason_for_being_invalid) const;
     virtual void findMissingTags(const std::string &journal_id, const std::set<std::string> &present_tags,
@@ -126,13 +170,13 @@ public:
 
 
 void GeneralFieldValidator::addRule(const std::string &tag, const char subfield_code,
-                                    const FieldPresence field_presence)
+                                    const FieldPresence field_presence, RegexMatcher * const regex_matcher)
 {
     auto tag_and_rule(tags_to_rules_map_.find(tag));
     if (tag_and_rule == tags_to_rules_map_.end())
-        tags_to_rules_map_.emplace(tag, FieldRules(subfield_code, field_presence));
+        tags_to_rules_map_.emplace(tag, FieldRules(subfield_code, field_presence, regex_matcher));
     else
-        tag_and_rule->second.addRule(subfield_code, field_presence);
+        tag_and_rule->second.addRule(subfield_code, field_presence, regex_matcher);
 }
 
 
@@ -167,7 +211,7 @@ class JournalSpecificFieldValidator final : public FieldValidator {
     std::unordered_map<std::string, GeneralFieldValidator> journal_ids_to_field_validators_map_;
 public:
     void addRule(const std::string &journal_id, const std::string &tag, const char subfield_code,
-                 const FieldPresence field_presence);
+                 const FieldPresence field_presence, RegexMatcher * const regex_matcher);
     virtual bool foundRuleMatch(const std::string &journal_id, const MARC::Record::Field &field,
                                 std::string * const reason_for_being_invalid) const;
     virtual void findMissingTags(const std::string &journal_id, const std::set<std::string> &present_tags,
@@ -176,15 +220,15 @@ public:
 
 
 void JournalSpecificFieldValidator::addRule(const std::string &journal_id, const std::string &tag, const char subfield_code,
-                                       const FieldPresence field_presence)
+                                            const FieldPresence field_presence, RegexMatcher * const regex_matcher)
 {
     auto journal_id_and_field_validators(journal_ids_to_field_validators_map_.find(journal_id));
     if (journal_id_and_field_validators == journal_ids_to_field_validators_map_.end()) {
         GeneralFieldValidator new_general_field_validator;
-        new_general_field_validator.addRule(tag, subfield_code, field_presence);
+        new_general_field_validator.addRule(tag, subfield_code, field_presence, regex_matcher);
         journal_ids_to_field_validators_map_.emplace(journal_id, new_general_field_validator);
     } else
-        journal_id_and_field_validators->second.addRule(tag, subfield_code, field_presence);
+        journal_id_and_field_validators->second.addRule(tag, subfield_code, field_presence, regex_matcher);
 }
 
 
@@ -219,22 +263,32 @@ void LoadRules(DbConnection * const db_connection, GeneralFieldValidator * const
         " ORDER BY marc_field_tag,marc_subfield_code ASC");
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
+        std::string error_message;
+        RegexMatcher *new_regex_matcher(row.isNull("optional_regex") ? nullptr
+                                        : RegexMatcher::RegexMatcherFactory(row["optional_regex"], &error_message));
+        if (unlikely(not error_message.empty()))
+            LOG_ERROR("could not compile \"" + row["optional_regex"] + "\" as a PCRE!");
+
         if (row["record_type"] == "regular_article") {
             if (row.isNull("journal_id"))
                 general_regular_article_validator->addRule(row["marc_field_tag"], row["marc_subfield_code"][0],
-                                                           StringToFieldPresence(row["field_presence"]));
+                                                           StringToFieldPresence(row["field_presence"]),
+                                                           new_regex_matcher);
             else
                 journal_specific_regular_article_validator->addRule(row["journal_id"], row["marc_field_tag"],
                                                                     row["marc_subfield_code"][0],
-                                                                    StringToFieldPresence(row["field_presence"]));
+                                                                    StringToFieldPresence(row["field_presence"]),
+                                                                    new_regex_matcher);
         } else { // Assume that record_type == review.
             if (row.isNull("journal_id"))
                 general_review_article_validator->addRule(row["marc_field_tag"], row["marc_subfield_code"][0],
-                                                          StringToFieldPresence(row["field_presence"]));
+                                                          StringToFieldPresence(row["field_presence"]),
+                                                          new_regex_matcher);
             else
                 journal_specific_review_article_validator->addRule(row["journal_id"], row["marc_field_tag"],
                                                                    row["marc_subfield_code"][0],
-                                                                   StringToFieldPresence(row["field_presence"]));
+                                                                   StringToFieldPresence(row["field_presence"]),
+                                                                   new_regex_matcher);
         }
     }
 }
@@ -286,7 +340,7 @@ bool RecordIsValid(const MARC::Record &record, const std::vector<const FieldVali
     // 1. Check that present fields meet all the requirements:
     MARC::Tag last_tag("   ");
     const auto &field_validators(record.isReviewArticle() ? review_article_field_validators : regular_article_field_validators);
-    std::set<std::string> present_tags;
+    std::set<std::string> present_tags, tags_for_which_rules_were_found;
     for (const auto &field : record) {
         const auto current_tag(field.getTag());
         if (current_tag == last_tag and not field.isRepeatableField())
@@ -297,6 +351,7 @@ bool RecordIsValid(const MARC::Record &record, const std::vector<const FieldVali
         for (const auto field_validator : field_validators) {
             std::string reason_for_being_invalid;
             if (field_validator->foundRuleMatch(ZID, field, &reason_for_being_invalid)) {
+                tags_for_which_rules_were_found.emplace(current_tag.toString());
                 if (not reason_for_being_invalid.empty())
                     reasons_for_being_invalid->append(reason_for_being_invalid + "\n");
                 break;
@@ -310,6 +365,12 @@ bool RecordIsValid(const MARC::Record &record, const std::vector<const FieldVali
         field_validator->findMissingTags(ZID, present_tags, &missing_tags);
     for (const auto &missing_tag : missing_tags)
         reasons_for_being_invalid->append("required " + missing_tag + "-field is missing\n");
+
+    // 3. Complain about unknown fields:
+    for (const auto &present_tag : present_tags) {
+        if (tags_for_which_rules_were_found.find(present_tag) == tags_for_which_rules_were_found.end())
+            reasons_for_being_invalid->append("no rule for present field " + present_tag + " was found\n");
+    }
 
     return reasons_for_being_invalid->empty();
 }
@@ -345,8 +406,8 @@ int Main(int argc, char *argv[]) {
     std::vector<const FieldValidator *> regular_article_field_validators{ &journal_specific_regular_article_validator,
                                                                           &general_regular_article_validator },
                                         review_article_field_validators{ &journal_specific_review_article_validator,
-                                                                         &journal_specific_regular_article_validator,
                                                                          &general_review_article_validator,
+                                                                         &journal_specific_regular_article_validator,
                                                                          &general_regular_article_validator };
 
     unsigned total_record_count(0), missed_expectation_count(0);
