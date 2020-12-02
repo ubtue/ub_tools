@@ -83,7 +83,6 @@
 /library_finder
 /log_rotate
 /merge_print_and_online
-/missing_metadata_db_tool
 /mpi_stats
 /mysql_database_patcher
 /mysql_diff_schemas

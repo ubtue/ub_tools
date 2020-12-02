@@ -39,7 +39,9 @@ private:
     explicit DbResultSet(sqlite3_stmt * const stmt_handle);
 public:
     DbResultSet(DbResultSet &&other);
-    ~DbResultSet();
+    ~DbResultSet() { close(); }
+
+    void close(); // Clean up a DbResultSet.
 
     /** \return The number of rows in the result set. */
     inline size_t size() const { return no_of_rows_; }
