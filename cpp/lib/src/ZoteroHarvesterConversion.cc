@@ -552,7 +552,8 @@ void DetectLanguage(MetadataRecord * const metadata_record, const Config::Journa
         detected_language = top_language.language_;
         if (detected_languages.size() > 1) {
             const auto second_language(detected_languages[1]);
-            if (top_language.score_ - second_language.score_ < 0.01) {
+            constexpr double MIN_SIGNIFICANT_SCORE_DIFFERENCE(0.01);
+            if (top_language.score_ - second_language.score_ < MIN_SIGNIFICANT_SCORE_DIFFERENCE) {
                 detected_language.clear();
                 metadata_record->language_.clear();
                 LOG_WARNING("The top language's score is very close to the second language's score, "
