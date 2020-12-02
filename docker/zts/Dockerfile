@@ -8,6 +8,8 @@ RUN npm install
 # copy the code
 # (after dependencies installation)
 COPY . /app
+# Make sure our customized certificates are available
+ENV NODE_EXTRA_CA_CERTS=/app/extra_certs/extra_certs.pem
 
 # Cloning zotero translators repository
 RUN rm -Rf /app/modules/translators/
