@@ -276,9 +276,10 @@ static std::vector<LanguageModel> LoadDefaultLanguageModels() {
 static const std::vector<LanguageModel> DEFAULT_LANGUAGE_MODELS(LoadDefaultLanguageModels());
 
 
-void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_languages, const std::set<std::string> &considered_languages,
+void ClassifyLanguage(std::istream &input, std::vector<DetectedLanguage> * const top_languages, const std::set<std::string> &considered_languages,
                       const double alternative_cutoff_factor, const std::string &override_language_models_directory)
 {
+    top_languages->clear();
     LanguageModel unknown_language_model;
     CreateLanguageModel(input, &unknown_language_model);
 
@@ -316,9 +317,9 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
 
     // Select the top scoring language and anything that's close (as defined by alternative_cutoff_factor):
     const double high_score(languages_and_scores[0].second);
-    top_languages->push_back(languages_and_scores[0].first);
-    for (unsigned i(1); i < languages_and_scores.size() and (languages_and_scores[i].second < alternative_cutoff_factor * high_score); ++i)
-        top_languages->push_back(languages_and_scores[i].first);
+    top_languages->emplace_back(languages_and_scores[0].first, languages_and_scores[0].second);
+    for (unsigned i(1); i < languages_and_scores.size() and (languages_and_scores[i].second >= alternative_cutoff_factor * high_score); ++i)
+        top_languages->emplace_back(languages_and_scores[i].first, languages_and_scores[i].second);
 }
 
 
