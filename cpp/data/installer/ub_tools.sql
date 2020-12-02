@@ -45,7 +45,7 @@ CREATE TABLE metadata_presence_tracer (
     record_type ENUM('regular_article', 'review') DEFAULT 'regular_article' NOT NULL,
     field_presence ENUM('always', 'sometimes', 'ignore') NOT NULL,
     CONSTRAINT metadata_presence_tracer_journal_id FOREIGN KEY (journal_id) REFERENCES zeder_journals (id) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT metadata_presence_tracer_journal_id_and_marc_field_tag UNIQUE (journal_id, marc_field_tag, marc_subfield_code)
+    CONSTRAINT mpt_journal_id_marc_field_tag_and_subfield_code UNIQUE (journal_id, marc_field_tag, marc_subfield_code)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 
