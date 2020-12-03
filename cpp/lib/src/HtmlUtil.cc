@@ -1019,12 +1019,12 @@ std::string StripHtmlTags(const std::string &text_with_optional_tags, const bool
 }
 
 
-std::string ShortenText(const std::string &html_text, const unsigned max_length) {
+std::string ShortenText(const std::string &html_text, const size_t max_length) {
     std::string shortened_text;
     shortened_text.reserve(html_text.size());
 
     bool in_tag(false);
-    unsigned length(0);
+    size_t length(0);
 
     static const std::string placeholder("...");
     unsigned max_length_without_placeholder(max_length - placeholder.length());

@@ -108,7 +108,7 @@ std::string StripHtmlTags(const std::string &text_with_optional_tags, const bool
 
 
 /** \brief Shorten a text but keep HTML structure. */
-std::string ShortenText(const std::string &html_document, const unsigned max_length);
+std::string ShortenText(const std::string &html_document, const size_t max_length);
 
 
 } // namespace HtmlUtil
