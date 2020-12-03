@@ -17,7 +17,7 @@ send_email --sender=ixtheo@ub.uni-tuebingen.de \
            --recipients=johannes.ruscheinski@uni-tuebingen.de,martin.fassnacht@uni-tuebingen.de,waldvogel@globethics.net,support@novalogix.ch \
            --subject="Neue IxTheo-Daten verfügbar" \
            --message-body="URL: http://ixtheo.de/docs/"${output}".7z\\n
-Das IxTheo Team\n
+Das IxTheo Team\\n
 --\\n
 Falls es irgendwelche Fragen oder Probleme mit dieser Datenlieferung gab,\\n
 bitte kontaktieren Sie\\n
