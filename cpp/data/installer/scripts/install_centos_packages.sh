@@ -61,6 +61,10 @@ dnf --assumeyes install llvm-toolset
 # Make Johannes happy :-)
 dnf --assumeyes install tmux emacs
 
+# Integrate custom certificates
+cp /usr/local/ub_tools/docker/zts/extra_certs/extra_certs.pem /etc/pki/ca-trust/source/anchors/eguzkilore.crt
+update-ca-trust extract
+
 # Elasticsearch for fulltext
 if [[ $1 == "krimdok" || $1 == "fulltext_backend" ]]; then
     ColorEcho "Installing Elasticsearch"

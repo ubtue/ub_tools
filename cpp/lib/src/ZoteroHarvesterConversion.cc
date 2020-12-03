@@ -533,7 +533,6 @@ void DetectLanguage(MetadataRecord * const metadata_record, const Config::Journa
     if (journal_params.language_params_.expected_languages_.size() == 1)
         detected_language = *journal_params.language_params_.expected_languages_.begin();
     else {
-        std::vector<std::string> top_languages;
         std::string record_text;
         if (journal_params.language_params_.source_text_fields_.empty()
             or journal_params.language_params_.source_text_fields_ == "title")
@@ -546,9 +545,22 @@ void DetectLanguage(MetadataRecord * const metadata_record, const Config::Journa
         else
             LOG_ERROR("unknown text field '" + journal_params.language_params_.source_text_fields_ + "' for language detection");
 
-        NGram::ClassifyLanguage(record_text, &top_languages, journal_params.language_params_.expected_languages_,
-                                NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
-        detected_language = top_languages.front();
+        std::vector<NGram::DetectedLanguage> detected_languages;
+        NGram::ClassifyLanguage(record_text, &detected_languages, journal_params.language_params_.expected_languages_,
+                                /*alternative_cutoff_factor = */ 0);
+        const auto top_language(detected_languages.front());
+        detected_language = top_language.language_;
+        if (detected_languages.size() > 1) {
+            const auto second_language(detected_languages[1]);
+            constexpr double MIN_SIGNIFICANT_SCORE_DIFFERENCE(0.01);
+            if (top_language.score_ - second_language.score_ < MIN_SIGNIFICANT_SCORE_DIFFERENCE) {
+                detected_language.clear();
+                metadata_record->language_.clear();
+                LOG_WARNING("The top language's score is very close to the second language's score, "
+                            "so the language code will be left empty! (" + top_language.language_ + ": " + std::to_string(top_language.score_) + ", " +
+                            second_language.language_ + ": " + std::to_string(second_language.score_) + ")");
+            }
+        }
     }
 
     // compare given language to detected language
