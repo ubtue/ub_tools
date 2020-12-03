@@ -272,7 +272,7 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
 }
 
 
-const std::set<MARC::Tag> LINK_TAGS{ "800", "810", "830", "773", "830" };
+const std::set<MARC::Tag> LINK_TAGS{ "773", "775", "776", "800", "810", "830" };
 
 
 // Make inferior works point to the new merged superior parent found in "ppn_to_canonical_ppn_map".  Links referencing a key in
