@@ -571,17 +571,21 @@ bool ProcessShowQASubActionAdd(const std::multimap<std::string, std::string> &cg
     const std::string add_type(GetCGIParameterOrDefault(cgi_args, "add_type"));
     const std::string add_tag(GetCGIParameterOrDefault(cgi_args, "add_tag"));
     const std::string add_subfield_code(GetCGIParameterOrDefault(cgi_args, "add_subfield_code"));
+    const std::string add_regex(GetCGIParameterOrDefault(cgi_args, "add_regex"));
     const std::string add_presence(GetCGIParameterOrDefault(cgi_args, "add_presence"));
     if (add_type.empty() or add_tag.empty() or add_presence.empty())
         return false;
 
-    std::string journal_id_to_insert = db_connection->escapeAndQuoteString(zeder_journal_id);
-    if (add_type == "global")
-        journal_id_to_insert = "NULL";
+    const std::string regex_to_insert(add_regex.empty() ? "NULL"
+                                                        : db_connection->escapeAndQuoteString(add_regex));
+    const std::string journal_id_to_insert(add_type == "global" ? "NULL"
+                                                                : db_connection->escapeAndQuoteString(zeder_journal_id));
 
-    db_connection->queryOrDie("INSERT INTO metadata_presence_tracer (journal_id, marc_field_tag, marc_subfield_code, field_presence) "
-                              " VALUES (" + journal_id_to_insert + ", " + db_connection->escapeAndQuoteString(add_tag) + ", '"
-                              + add_subfield_code + "', " + db_connection->escapeAndQuoteString(add_presence) + ")");
+    db_connection->queryOrDie("INSERT INTO metadata_presence_tracer (journal_id, marc_field_tag, marc_subfield_code,"
+                              " optional_regex, field_presence) VALUES ("
+                              + journal_id_to_insert + ", " + db_connection->escapeAndQuoteString(add_tag) + ", '"
+                              + add_subfield_code + "', " + regex_to_insert + ", "
+                              + db_connection->escapeAndQuoteString(add_presence) + ")");
     return true;
 }
 
@@ -637,32 +641,21 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
                              " ORDER BY marc_field_tag ASC, marc_subfield_code ASC, journal_id ASC");
 
     auto result_set(db_connection->getLastResultSet());
-    std::map<std::string, std::pair<std::string, std::string>> tags_and_subfield_codes_to_settings_map;
 
-    while (const auto row = result_set.getNextRow()) {
-        const auto iter(tags_and_subfield_codes_to_settings_map.find(row["marc_field_tag"]));
-        if (iter == tags_and_subfield_codes_to_settings_map.end()) {
-            const std::string tag_and_subfield_code(row["marc_field_tag"] + row["marc_subfield_code"].substr(0, 1));
-            if (row["journal_id"].empty())
-                tags_and_subfield_codes_to_settings_map[tag_and_subfield_code] = { row["field_presence"], "" };
-            else
-                tags_and_subfield_codes_to_settings_map[tag_and_subfield_code] = { "", row["field_presence"] };
-        } else {
-            if (row["journal_id"].empty())
-                iter->second.first = row["field_presence"];
-            else
-                iter->second.second = row["field_presence"];
-        }
-    }
-
-    std::vector<std::string> tags, subfield_codes;
+    std::vector<std::string> tags, subfield_codes, regexes;
     std::vector<std::string> global_settings;
     std::vector<std::string> journal_settings;
-    for (const auto &tag_and_settings : tags_and_subfield_codes_to_settings_map) {
-        tags.emplace_back(tag_and_settings.first.substr(0, MARC::Record::TAG_LENGTH));
-        subfield_codes.emplace_back(tag_and_settings.first.substr(MARC::Record::TAG_LENGTH));
-        global_settings.emplace_back(tag_and_settings.second.first);
-        journal_settings.emplace_back(tag_and_settings.second.second);
+    while (const auto row = result_set.getNextRow()) {
+        tags.emplace_back(row["marc_field_tag"]);
+        subfield_codes.emplace_back(row["marc_subfield_code"]);
+        regexes.emplace_back(row.isNull("optional_regex") ? "" : row["optional_regex"]);
+        if (row["journal_id"].empty()) {
+            global_settings.emplace_back(row["field_presence"]);
+            journal_settings.emplace_back("");
+        } else {
+            global_settings.emplace_back("");
+            journal_settings.emplace_back(row["field_presence"]);
+        }
     }
 
     names_to_values_map.insertScalar("submitted", submitted);
@@ -671,6 +664,7 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
     names_to_values_map.insertScalar("journal_name", journal_name);
     names_to_values_map.insertArray("tags", tags);
     names_to_values_map.insertArray("subfield_codes", subfield_codes);
+    names_to_values_map.insertArray("regexes", regexes);
     names_to_values_map.insertArray("global_settings", global_settings);
     names_to_values_map.insertArray("journal_settings", journal_settings);
     RenderHtmlTemplate("qa.html");
