@@ -68,8 +68,17 @@ std::string GetMysqlURLOrDie(const std::string &vufind_config_file_path) {
 }
 
 
-const std::string GetTueFindFlavour() {
+std::string GetTueFindFlavour() {
     return MiscUtil::SafeGetEnv("TUEFIND_FLAVOUR");
+}
+
+
+std::string GetTueFindFlavourOrDie() {
+    try {
+        return MiscUtil::GetEnv("TUEFIND_FLAVOUR");
+    } catch(...) {
+        LOG_ERROR("TUEFIND_FLAVOUR has not been set!");
+    }
 }
 
 
