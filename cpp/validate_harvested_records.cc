@@ -318,6 +318,24 @@ void CheckGenericRequirements(const MARC::Record &record, std::string * const re
 
     if (not record.hasTag("100") and not record.hasTag("700"))
         reasons_for_being_invalid->append("neither a field 100 nor 700 are present\n");
+
+    // Check the structure of the 655 field wich is used to flag a record as a review:
+    if (record.hasTag("655")) {
+        const MARC::Subfields subfields(record.getFirstField("655")->getSubfields());
+        static const std::vector<char> EXPECTED_SUBFIELD_CODES{ 'a', '0', '0', '2' };
+        if (subfields.size() != EXPECTED_SUBFIELD_CODES.size()) {
+            reasons_for_being_invalid->append("655 field has an invalid subfield structure");
+            return;
+        }
+        auto expected_subfield_code(EXPECTED_SUBFIELD_CODES.cbegin());
+        for (const auto subfield : subfields) {
+            if (subfield.code_ != *expected_subfield_code) {
+                reasons_for_being_invalid->append("655 field has an invalid subfield structure");
+                return;
+            }
+            ++expected_subfield_code;
+        }
+    }
 }
 
 
