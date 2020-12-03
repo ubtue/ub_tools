@@ -1019,4 +1019,32 @@ std::string StripHtmlTags(const std::string &text_with_optional_tags, const bool
 }
 
 
+std::string ShortenText(const std::string &html_text, const unsigned max_length) {
+    std::string shortened_text;
+    shortened_text.reserve(html_text.size());
+
+    bool in_tag(false);
+    unsigned length(0);
+
+    static const std::string placeholder("...");
+    unsigned max_length_without_placeholder(max_length - placeholder.length());
+    for (auto ch(html_text.cbegin()); ch != html_text.cend(); ++ch) {
+        if (*ch == '<')
+            in_tag = true;
+        else if (*ch == '>')
+            in_tag = false;
+        else if (not in_tag and *ch != '\r' and *ch != '\n' and *ch != '\t') {
+            ++length;
+            if (length >= max_length_without_placeholder) {
+                if (length == max_length_without_placeholder)
+                    shortened_text += placeholder;
+                continue;
+            }
+        }
+        shortened_text += *ch;
+    }
+    return shortened_text;
+}
+
+
 } // namespace HtmlUtil
