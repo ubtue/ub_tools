@@ -1028,12 +1028,12 @@ std::string ShortenText(const std::string &html_text, const size_t max_length) {
 
     static const std::string placeholder("...");
     unsigned max_length_without_placeholder(max_length - placeholder.length());
-    for (auto ch(html_text.cbegin()); ch != html_text.cend(); ++ch) {
-        if (*ch == '<')
+    for (const auto ch : html_text) {
+        if (ch == '<')
             in_tag = true;
-        else if (*ch == '>')
+        else if (ch == '>')
             in_tag = false;
-        else if (not in_tag and *ch != '\r' and *ch != '\n' and *ch != '\t') {
+        else if (not in_tag and ch != '\r' and ch != '\n' and ch != '\t') {
             ++length;
             if (length >= max_length_without_placeholder) {
                 if (length == max_length_without_placeholder)
@@ -1041,7 +1041,7 @@ std::string ShortenText(const std::string &html_text, const size_t max_length) {
                 continue;
             }
         }
-        shortened_text += *ch;
+        shortened_text += ch;
     }
     return shortened_text;
 }
