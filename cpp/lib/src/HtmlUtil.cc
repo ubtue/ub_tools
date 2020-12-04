@@ -1034,7 +1034,9 @@ std::string ShortenText(const std::string &html_text, const size_t max_length) {
         else if (ch == '>')
             in_tag = false;
         else if (not in_tag and ch != '\r' and ch != '\n' and ch != '\t') {
-            ++length;
+            if (not TextUtil::IsUFT8ContinuationByte(ch))
+                ++length;
+
             if (length >= max_length_without_placeholder) {
                 if (length == max_length_without_placeholder)
                     shortened_text += placeholder;
