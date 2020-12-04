@@ -156,7 +156,7 @@ def SetupWorkDirectory():
     os.chdir(work_directory)
 
     
-def UploadToBSZFTPServer(marc_filename: str):
+def UploadToBSZFTPServer(remote_folder_path: str, marc_filename: str):
     remote_file_name_tmp: str = marc_filename + ".tmp"
 
     ftp = bsz_util.GetFTPConnection()
@@ -199,7 +199,8 @@ def Main():
     StoreStartListNumber(list_no)
     util.Info("Downloaded a total of " + str(total_count) + " new record(s).")
     if total_count > 0:
-        UploadToBSZFTPServer(OUTPUT_FILENAME)
+        FTP_UPLOAD_DIRECTORY: str = "pub/UBTuebingen_BNB_Test"
+        UploadToBSZFTPServer(FTP_UPLOAD_DIRECTORY, OUTPUT_FILENAME)
         util.SendEmail("BNB Downloader", "Uploaded " + str(total_count) + " records to the BSZ FTP-server.")
     else:
         util.SendEmail("BNB Downloader", "No new records found.")

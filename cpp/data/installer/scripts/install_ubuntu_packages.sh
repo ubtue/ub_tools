@@ -42,6 +42,14 @@ if [[ $DISTRIB_RELEASE > "17.10" ]]; then
     update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java
 fi
 
+#Install custom certificates
+mkdir --parents /usr/share/ca-certificates/custom
+cp /usr/local/ub_tools/docker/zts/extra_certs/extra_certs.pem /usr/share/ca-certificates/custom/eguzkilore.crt
+grep --quiet --extended-regexp --line-regexp  '[!]?custom[/]eguzkilore.crt' /etc/ca-certificates.conf \
+        || echo 'custom/eguzkilore.crt' >> /etc/ca-certificates.conf
+dpkg-reconfigure --frontend=noninteractive ca-certificates
+
+
 #mysql installation
 ## (use "quiet" and set frontend to noninteractive so mysql doesnt ask for a root password, geographic area and timezone)
 DEBIAN_FRONTEND_OLD=($DEBIAN_FRONTEND)

@@ -1145,8 +1145,12 @@ int Main(int argc, char *argv[]) {
 
     if (not (debug or skip_db_updates)) {
         std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
-        PatchSerialSubscriptions(db_connection.get(), ppn_to_canonical_ppn_map);
-        PatchPDASubscriptions(db_connection.get(), ppn_to_canonical_ppn_map);
+
+        const auto tue_find_flavour(VuFind::GetTueFindFlavour());
+        if (tue_find_flavour == "ixtheo") {
+            PatchSerialSubscriptions(db_connection.get(), ppn_to_canonical_ppn_map);
+            PatchPDASubscriptions(db_connection.get(), ppn_to_canonical_ppn_map);
+        }
         PatchResourceTable(db_connection.get(), ppn_to_canonical_ppn_map);
     }
 
