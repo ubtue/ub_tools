@@ -96,7 +96,7 @@ std::string MetadataRecord::toString() const {
         std::string keywords("keywords: [ ");
         for (const auto &keyword : keywords_)
             keywords += keyword + ", ";
-        TextUtil::UnicodeTruncate(&keywords, keywords.size() - 2);
+        TextUtil::UTF8Truncate(&keywords, keywords.size() - 2);
         keywords += " ]";
         out += "\t" + keywords + ",\n";
     }
