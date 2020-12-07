@@ -1,15 +1,25 @@
 <!DOCTYPE HTML>
 <html>
     <head>
+        <link rel="stylesheet" href="https://getbootstrap.com/docs/4.0/dist/css/bootstrap.min.css"/>
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css"/>
+        <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+        <script type="text/javascript" src="https://code.jquery.com/ui/1.12.0/jquery-ui.min.js"></script>
+        <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.16/datatables.js"></script>
+
+        <!-- popper is required by bootstrap for tabs -->
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
+        <script type="text/javascript" src="https://getbootstrap.com/docs/4.0/dist/js/bootstrap.min.js"></script>
+
         <style>
             {style_css}
         </style>
     </head>
     <body>
         <h1>Zotero Harvesting</h1>
-        <h2>Delivered records for Zeder ID {zeder_id}</h2>
+        <h2>Delivered records for Zeder ID {zeder_id} ({zeder_instance})</h2>
         <p><a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}">Show QA settings</a></p>
-        <table style="border-collapse: collapse;" cellpadding="5">
+        <table id="table_delivered">
             <thead>
                 <tr>
                     <th>delivered at</th>
@@ -46,5 +56,13 @@
                 {ENDLOOP}
             </tbody>
         </table>
+
+        <script type="text/javascript">
+            $("#table_delivered").DataTable({{
+                "order": [[0, "desc"]],
+                "paging": false,
+                "bFilter": false
+            });
+        </script>
     </body>
 </html>
