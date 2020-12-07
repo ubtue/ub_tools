@@ -510,13 +510,18 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
                                  ZoteroHarvester::Util::UploadTracker * const upload_tracker,
                                  DbConnection * const db_connection)
 {
+    std::string at_least_one_action_done("false");
     const std::string id_to_deliver_manually(GetCGIParameterOrDefault(cgi_args, "set_manually_delivered"));
-    if (not id_to_deliver_manually.empty())
+    if (not id_to_deliver_manually.empty()) {
         UpdateRecordDeliveryStateAndTimestamp(id_to_deliver_manually, ZoteroHarvester::Util::UploadTracker::DeliveryState::MANUAL, db_connection);
+        at_least_one_action_done = "true";
+    }
 
     const std::string id_to_reset(GetCGIParameterOrDefault(cgi_args, "reset"));
-    if (not id_to_reset.empty())
+    if (not id_to_reset.empty()) {
         UpdateRecordDeliveryStateAndTimestamp(id_to_reset, ZoteroHarvester::Util::UploadTracker::DeliveryState::RESET, db_connection);
+        at_least_one_action_done = "true";
+    }
 
     const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
     const std::string group(GetCGIParameterOrDefault(cgi_args, "group"));
@@ -526,6 +531,7 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     names_to_values_map.insertScalar("zeder_id", zeder_id);
     names_to_values_map.insertScalar("zeder_instance", zeder_instance);
     names_to_values_map.insertScalar("group", group);
+    names_to_values_map.insertScalar("at_least_one_action_done", at_least_one_action_done);
 
     std::vector<std::string> ids;
     std::vector<std::string> delivered_datetimes;

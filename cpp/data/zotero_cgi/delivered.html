@@ -1,6 +1,13 @@
 <!DOCTYPE HTML>
 <html>
     <head>
+        {IF at_least_one_action_done == "true"}
+            <!-- Get rid of additional GET parameters after performing an action -->
+            <script>
+                window.location.replace(window.location.href.replace(/\?.*$/, "?action=show_downloaded&zeder_id={zeder_id}&group={group}"));
+            </script>
+        {ENDIF}
+
         <link rel="stylesheet" href="https://getbootstrap.com/docs/4.0/dist/css/bootstrap.min.css"/>
         <link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css"/>
         <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
