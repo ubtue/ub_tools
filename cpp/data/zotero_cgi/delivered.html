@@ -25,7 +25,10 @@
     <body>
         <h1>Zotero Harvesting</h1>
         <h2>Delivered records for Zeder ID {zeder_id} ({zeder_instance})</h2>
-        <p><a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}">Show QA settings</a></p>
+        <p>
+            <a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}">Show QA settings</a> |
+            <a href="?action=show_downloaded&zeder_id={zeder_id}&group={group}&reset=all" onclick="return confirm('Are you sure? The harvester will download all automatically delivered records again.')">Reset all automatically delivered records</a>
+        </p>
         <table id="table_delivered">
             <thead>
                 <tr>
@@ -52,6 +55,12 @@
                             {IF delivery_states == "reset"}<span class="dot" style="background-color: blue;" title="This record has been manually reset&#013;and will be harvested again."></span>{ENDIF}
                         </td>
                         <td>
+                            {IF delivery_states == "automatic"}
+                                <a href="?action=show_downloaded&zeder_id={zeder_id}&group={group}&reset={ids}" onclick="return confirm('Are you sure? The harvester will try to deliver this record again.')">Reset &amp; try again</a>
+                            {ENDIF}
+                            {IF delivery_states == "manual"}
+                                <a href="?action=show_downloaded&zeder_id={zeder_id}&group={group}&reset={ids}" onclick="return confirm('Are you sure? The harvester will try to deliver this record again.')">Reset &amp; try again</a>
+                            {ENDIF}
                             {IF delivery_states == "error"}
                                 <a href="?action=show_downloaded&zeder_id={zeder_id}&group={group}&set_manually_delivered={ids}" onclick="return confirm('Are you sure? This record and all its URLs will no longer be processed automatically.')">Deliver manually</a>
                             {ENDIF}
