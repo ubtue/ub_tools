@@ -62,7 +62,7 @@ bool IsCollection(const MARC::Record &record) {
 std::string GetShortenedTitle(const MARC::Record &record, const size_t max_length) {
     auto complete_title(record.getCompleteTitle());
     if (TextUtil::CodePointCount(complete_title) > max_length) {
-        TextUtil::UnicodeTruncate(&complete_title, max_length);
+        TextUtil::UTF8Truncate(&complete_title, max_length);
         return complete_title + "...";
     }
 
