@@ -653,7 +653,7 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
     while (const auto row = result_set.getNextRow()) {
         tags.emplace_back(row["marc_field_tag"]);
         subfield_codes.emplace_back(row["marc_subfield_code"]);
-        record_types.emplace_back(row["record_types"]);
+        record_types.emplace_back(row["record_type"]);
         regexes.emplace_back(row.isNull("regex") ? "" : row["regex"]);
         if (row["journal_id"].empty()) {
             global_settings.emplace_back(row["field_presence"]);
