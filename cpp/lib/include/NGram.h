@@ -110,6 +110,15 @@ inline void CreateLanguageModel(const std::string &input_text, LanguageModel * c
 }
 
 
+struct DetectedLanguage {
+    std::string language_;
+    double score_;
+public:
+    DetectedLanguage() = default;
+    DetectedLanguage(const std::string &language, const double score): language_(language), score_(score) {};
+};
+
+
 /** \brief  Tell which language(s) "input" might contain.
  *  \param  input                      Where to read the to be classified text from.
  *  \param  top_languages              The list of most likely languages with the most likely language first.
@@ -122,7 +131,7 @@ inline void CreateLanguageModel(const std::string &input_text, LanguageModel * c
  *
  *  \note    By default, the language models are located in the libiViCore share/language_models directory.
  */
-void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_languages,
+void ClassifyLanguage(std::istream &input, std::vector<DetectedLanguage> * const top_languages,
                       const std::set<std::string> &considered_languages = { },
                       const double alternative_cutoff_factor = DEFAULT_ALTERNATIVE_CUTOFF_FACTOR,
                       const std::string &override_language_models_directory = "");
@@ -140,7 +149,7 @@ void ClassifyLanguage(std::istream &input, std::vector<std::string> * const top_
  *
  *  \note   By default, the language models are located in the libiViaCore share/language_models directory.
  */
-inline void ClassifyLanguage(const std::string &input_text, std::vector<std::string> * const top_languages,
+inline void ClassifyLanguage(const std::string &input_text, std::vector<DetectedLanguage> * const top_languages,
                              const std::set<std::string> &considered_languages = { },
                              const double alternative_cutoff_factor = DEFAULT_ALTERNATIVE_CUTOFF_FACTOR,
                              const std::string &override_language_models_directory = "")

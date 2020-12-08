@@ -215,6 +215,15 @@ inline bool IsValidSingleUTF16Char(const uint16_t u) {
 }
 
 
+inline bool IsStartOfUTF8CodePoint(const char ch) {
+    // Test whether we have an ASCII character or a character whose uppermost two bits are both 1.
+    return (static_cast<unsigned char>(ch) & 128u) == 0 or (static_cast<unsigned char>(ch) & 192u) == 192u;
+}
+
+
+inline bool IsUFT8ContinuationByte(const char ch) { return not IsStartOfUTF8CodePoint(ch); }
+
+
 bool IsValidUTF8(const std::string &utf8_candidate);
 
 
@@ -474,10 +483,8 @@ std::string ToTitleCase(const std::string &text);
 std::string CanonizeCharset(std::string charset);
 
 
-/** \brief Truncates "utf8_string" to a maximum length of "max_length" codepoints.
- *  \return False if conversion errors occurred, else true.
- */
-bool UnicodeTruncate(std::string * const utf8_string, const size_t max_length);
+/** \brief Truncates "utf8_string" to a maximum length of "max_length" codepoints.  */
+void UTF8Truncate(std::string * const utf8_string, const size_t max_length);
 
 
 inline bool IsGeneralPunctuationCharacter(const wchar_t ch) { return ch >= 0x2000 and ch <= 0x206F; }
@@ -516,9 +523,11 @@ std::string ExpandLigatures(const std::string &utf8_string);
 std::wstring RemoveDiacritics(const std::wstring &string);
 std::string RemoveDiacritics(const std::string &utf8_string);
 
+
 // Normalises different quotation marks to standard double quotes
 std::wstring NormaliseQuotationMarks(const std::wstring &string);
 std::string NormaliseQuotationMarks(const std::string &utf8_string);
+
 
 bool ConvertToUTF8(const std::string &encoding, const std::string &text, std::string * const utf8_text);
 
@@ -589,6 +598,23 @@ inline std::string &PadTrailing(std::string * const utf8_string, const std::stri
     if (length < min_length)
         utf8_string->append(min_length - length, pad_char);
     return *utf8_string;
+}
+
+
+/** \brief Skips to the end (= one past) of a UTF-8 code point sequence.
+ *  \param cp   Typically this should point to the beginning of a UTF-8 character.
+ *  \param end  If cp is an iterator into a std::string then this must be whatever cend() for
+ *              this std::string returns.
+ */
+inline std::string::const_iterator GetEndOfCurrentUTF8CodePoint(std::string::const_iterator cp,
+                                                                const std::string::const_iterator end)
+{
+    if (unlikely(cp == end))
+        return cp;
+    ++cp;
+    while (cp != end and IsUFT8ContinuationByte(*cp))
+        ++cp;
+    return cp;
 }
 
 

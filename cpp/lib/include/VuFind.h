@@ -51,7 +51,11 @@ std::shared_ptr<DbConnection> GetDbConnection();
 
 
 /** \brief Get TueFind Flavour from ENV variable or empty string if not set. */
-const std::string GetTueFindFlavour();
+std::string GetTueFindFlavour();
+
+
+/** \brief Returns the TueFind Flavour from ENV TUEFIND_FLAVOUR variable or aborts if it has not been set. */
+std::string GetTueFindFlavourOrDie();
 
 
 } // namespace VuFind
