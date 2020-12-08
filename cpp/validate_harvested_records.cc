@@ -264,10 +264,10 @@ void LoadRules(DbConnection * const db_connection, GeneralFieldValidator * const
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
         std::string error_message;
-        RegexMatcher *new_regex_matcher(row.isNull("optional_regex") ? nullptr
-                                        : RegexMatcher::RegexMatcherFactory(row["optional_regex"], &error_message));
+        RegexMatcher *new_regex_matcher(row.isNull("regex") ? nullptr
+                                        : RegexMatcher::RegexMatcherFactory(row["regex"], &error_message));
         if (unlikely(not error_message.empty()))
-            LOG_ERROR("could not compile \"" + row["optional_regex"] + "\" as a PCRE!");
+            LOG_ERROR("could not compile \"" + row["regex"] + "\" as a PCRE!");
 
         if (row["record_type"] == "regular_article") {
             if (row.isNull("journal_id"))

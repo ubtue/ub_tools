@@ -583,7 +583,7 @@ bool ProcessShowQASubActionAdd(const std::multimap<std::string, std::string> &cg
                                                                 : db_connection->escapeAndQuoteString(journal_id));
 
     db_connection->queryOrDie("INSERT INTO metadata_presence_tracer (journal_id, marc_field_tag, marc_subfield_code,"
-                              " record_type, optional_regex, field_presence) VALUES ("
+                              " record_type, regex, field_presence) VALUES ("
                               + journal_id_to_insert + ", " + db_connection->escapeAndQuoteString(add_tag) + ", '"
                               + add_subfield_code + "', " + add_record_type + "', " + regex_to_insert + ", "
                               + db_connection->escapeAndQuoteString(add_presence) + ")");
@@ -654,7 +654,7 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
         tags.emplace_back(row["marc_field_tag"]);
         subfield_codes.emplace_back(row["marc_subfield_code"]);
         record_types.emplace_back(row["record_types"]);
-        regexes.emplace_back(row.isNull("optional_regex") ? "" : row["optional_regex"]);
+        regexes.emplace_back(row.isNull("regex") ? "" : row["regex"]);
         if (row["journal_id"].empty()) {
             global_settings.emplace_back(row["field_presence"]);
             journal_settings.emplace_back("");
