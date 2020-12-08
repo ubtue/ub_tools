@@ -107,4 +107,8 @@ size_t ExtractAllLinks(const std::string &html_document, std::vector<std::string
 std::string StripHtmlTags(const std::string &text_with_optional_tags, const bool replace_entities = true);
 
 
+/** \brief Shorten a text but keep HTML structure. */
+std::string ShortenText(const std::string &html_document, const size_t max_length);
+
+
 } // namespace HtmlUtil
