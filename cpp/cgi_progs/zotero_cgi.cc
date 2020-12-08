@@ -595,12 +595,12 @@ bool ProcessShowQASubActionDelete(const std::multimap<std::string, std::string> 
                                   const std::string &journal_id)
 {
     const std::string delete_tag(GetCGIParameterOrDefault(cgi_args, "delete_tag"));
-    const std::string delete_subfield_code(GetCGIParameterOrDefault(cgi_args, "delete_subfield_code"));
+    const std::string delete_type(GetCGIParameterOrDefault(cgi_args, "delete_type"));
     if (delete_type.empty() or delete_tag.empty())
         return false;
 
+    const std::string delete_subfield_code(GetCGIParameterOrDefault(cgi_args, "delete_subfield_code"));
     const std::string delete_record_type(GetCGIParameterOrDefault(cgi_args, "delete_record_type"));
-    const std::string delete_type(GetCGIParameterOrDefault(cgi_args, "delete_type"));
 
     std::string journal_id_to_delete(" = " + db_connection->escapeAndQuoteString(journal_id));
     if (delete_type == "global")
@@ -609,7 +609,7 @@ bool ProcessShowQASubActionDelete(const std::multimap<std::string, std::string> 
     db_connection->queryOrDie("DELETE FROM metadata_presence_tracer"
                               " WHERE journal_id " + journal_id_to_delete +
                               " AND marc_field_tag = " + db_connection->escapeAndQuoteString(delete_tag) +
-                              " AND marc_subfield_code = " + db_connection->escapeAndQuoteString(delete_subfield_code)
+                              " AND marc_subfield_code = " + db_connection->escapeAndQuoteString(delete_subfield_code) +
                               " AND record_type = " + db_connection->escapeAndQuoteString(delete_record_type));
 
     return true;
