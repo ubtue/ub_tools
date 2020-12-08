@@ -484,7 +484,7 @@ std::string CanonizeCharset(std::string charset);
 
 
 /** \brief Truncates "utf8_string" to a maximum length of "max_length" codepoints.  */
-void UnicodeTruncate(std::string * const utf8_string, const size_t max_length);
+void UTF8Truncate(std::string * const utf8_string, const size_t max_length);
 
 
 inline bool IsGeneralPunctuationCharacter(const wchar_t ch) { return ch >= 0x2000 and ch <= 0x206F; }

@@ -44,7 +44,7 @@ bool HarvestableItem::operator==(const HarvestableItem &rhs) const {
 std::string HarvestableItem::toString() const {
     std::string as_string(std::to_string(id_));
     std::string journal_name(TextUtil::CollapseAndTrimWhitespace(journal_.name_));
-    TextUtil::UnicodeTruncate(&journal_name, 20);
+    TextUtil::UTF8Truncate(&journal_name, 20);
 
     as_string += " [" + journal_name + "...] | " + url_.toString() + " {"
                  + std::to_string(std::hash<HarvestableItem>()(*this)) + "}";
