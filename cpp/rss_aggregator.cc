@@ -29,6 +29,7 @@
 #include "Downloader.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
+#include "HtmlUtil.h"
 #include "IniFile.h"
 #include "RegexMatcher.h"
 #include "SqlUtil.h"
@@ -81,7 +82,7 @@ void WriteRSSFeedXMLOutput(const IniFile &ini_file, std::vector<HarvestedRSSItem
 
         xml_writer->writeTagsWithData("link", harvested_item.item_.getLink());
 
-        const auto description(harvested_item.item_.getDescription());
+        const auto description(HtmlUtil::ShortenText(harvested_item.item_.getDescription(), /*max_length = */500));
         if (not description.empty())
             xml_writer->writeTagsWithData("description", description);
 

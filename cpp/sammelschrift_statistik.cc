@@ -61,9 +61,8 @@ bool IsCollection(const MARC::Record &record) {
 
 std::string GetShortenedTitle(const MARC::Record &record, const size_t max_length) {
     auto complete_title(record.getCompleteTitle());
-    if (complete_title.length() > max_length) {
-        if (unlikely(not TextUtil::UnicodeTruncate(&complete_title, max_length)))
-            LOG_ERROR("bad Unicode in title of record with PPN " + record.getControlNumber() + "!");
+    if (TextUtil::CodePointCount(complete_title) > max_length) {
+        TextUtil::UTF8Truncate(&complete_title, max_length);
         return complete_title + "...";
     }
 
