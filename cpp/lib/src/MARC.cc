@@ -1904,12 +1904,15 @@ Record BinaryReader::actualRead() {
             return Record();
 
         if (unlikely(offset_ + Record::RECORD_LENGTH_FIELD_LENGTH >= input_file_size_))
-            LOG_ERROR("not enough remaining room for a record length in the memory mapping! (input_file_size_ = "
-                      + std::to_string(input_file_size_) + ", offset_ = " + std::to_string(offset_) + ")");
+            LOG_ERROR("not enough remaining room in \"" + input_->getPath()
+                      + "\" for a record length in the memory mapping! (input_file_size_ = "
+                      + std::to_string(input_file_size_) + ", offset_ = " + std::to_string(offset_)
+                      + "), file may be truncated!");
         const unsigned record_length(ToUnsigned(mmap_ + offset_, Record::RECORD_LENGTH_FIELD_LENGTH));
 
         if (unlikely(offset_ + record_length > input_file_size_))
-            LOG_ERROR("not enough remaining room for the rest of the record in the memory mapping!");
+            LOG_ERROR("not enough remaining room in \"" + input_->getPath()
+                      + "\" for the rest of the record in the memory mapping, file may be truncated!");
         offset_ += record_length;
 
         return Record(record_length, mmap_ + offset_ - record_length);
