@@ -243,4 +243,23 @@ enum class PreferredPathLocation { LEADING, TRAILING };
 bool AddToPATH(const std::string &new_directory_path, const PreferredPathLocation preferred_path_location);
 
 
+/** Search for key in container and return its value, or default value if not found. */
+template<typename ContainerType, typename KeyType, typename ValueType> ValueType GetContainerValueOrDefault(const ContainerType &container,
+                                                                                                            const KeyType &key,
+                                                                                                            const ValueType &default_value,
+                                                                                                            bool * const default_returned = nullptr)
+{
+    const auto iterator(container.find(key));
+    if (iterator != container.cend()) {
+        if (default_returned != nullptr)
+            *default_returned = false;
+        return iterator->second;
+    } else {
+        if (default_returned != nullptr)
+            *default_returned = true;
+        return default_value;
+    }
+}
+
+
 } // namespace MiscUtil

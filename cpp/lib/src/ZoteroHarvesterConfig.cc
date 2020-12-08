@@ -76,13 +76,37 @@ const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MA
     { TIMEOUT_DOWNLOAD_REQUEST,                   "timeout_download_request" },
 };
 
-
+static const auto PREFIX_DEFAULT_DOWNLOAD_DELAY_TIME("default_download_delay_time_");
+static const auto PREFIX_MAX_DOWNLOAD_DELAY_TIME("max_download_delay_time_");
 static const auto PREFIX_OVERRIDE_JSON_FIELD("override_json_field_");
 static const auto PREFIX_SUPPRESS_JSON_FIELD("suppress_json_field_");
 static const auto PREFIX_EXCLUDE_JSON_FIELD("exclude_if_json_field_");
 static const auto PREFIX_ADD_MARC_FIELD("add_marc_field_");
 static const auto PREFIX_REMOVE_MARC_FIELD("remove_marc_field_");
 static const auto PREFIX_EXCLUDE_MARC_FIELD("exclude_if_marc_field_");
+
+
+bool DownloadDelayParams::IsValidIniEntry(const IniFile::Entry &entry) {
+    return (StringUtil::StartsWith(entry.name_, PREFIX_DEFAULT_DOWNLOAD_DELAY_TIME)
+            or StringUtil::StartsWith(entry.name_, PREFIX_MAX_DOWNLOAD_DELAY_TIME));
+}
+
+
+DownloadDelayParams::DownloadDelayParams(const IniFile::Section &config_section) {
+    for (const auto &entry : config_section) {
+        if (entry.name_ == GlobalParams::GetIniKeyString(GlobalParams::DOWNLOAD_DELAY_DEFAULT))
+            default_delay_ = StringUtil::ToUnsigned(entry.value_);
+        else if (entry.name_ == GlobalParams::GetIniKeyString(GlobalParams::DOWNLOAD_DELAY_MAX))
+            max_delay_ = StringUtil::ToUnsigned(entry.value_);
+        else if (StringUtil::StartsWith(entry.name_, PREFIX_DEFAULT_DOWNLOAD_DELAY_TIME)) {
+            const auto domain_name(entry.name_.substr(__builtin_strlen(PREFIX_DEFAULT_DOWNLOAD_DELAY_TIME)));
+            domain_to_default_delay_map_[domain_name] = StringUtil::ToUnsigned(entry.value_);
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_MAX_DOWNLOAD_DELAY_TIME)) {
+            const auto domain_name(entry.name_.substr(__builtin_strlen(PREFIX_MAX_DOWNLOAD_DELAY_TIME)));
+            domain_to_default_delay_map_[domain_name] = StringUtil::ToUnsigned(entry.value_);
+        }
+    }
+}
 
 
 bool ZoteroMetadataParams::IsValidIniEntry(const IniFile::Entry &entry) {
@@ -150,8 +174,6 @@ std::string GlobalParams::GetIniKeyString(const IniKey ini_key) {
 
 GlobalParams::GlobalParams(const IniFile::Section &config_section) {
     skip_online_first_articles_unconditonally_ = false;
-    download_delay_params_.default_delay_ = 0;
-    download_delay_params_.max_delay_ = 0;
     rss_harvester_operation_params_.harvest_interval_ = 0;
     rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_ = false;
 
@@ -162,8 +184,6 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
     group_names_ = config_section.getString(GetIniKeyString(GROUP_NAMES));
     strptime_format_string_ = config_section.getString(GetIniKeyString(STRPTIME_FORMAT_STRING));
     skip_online_first_articles_unconditonally_ = config_section.getBool(GetIniKeyString(SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY));
-    download_delay_params_.default_delay_ = config_section.getUnsigned(GetIniKeyString(DOWNLOAD_DELAY_DEFAULT));
-    download_delay_params_.max_delay_ = config_section.getUnsigned(GetIniKeyString(DOWNLOAD_DELAY_MAX));
     timeout_crawl_operation_ = config_section.getUnsigned(GetIniKeyString(TIMEOUT_CRAWL_OPERATION)) * 1000;
     timeout_download_request_ = config_section.getUnsigned(GetIniKeyString(TIMEOUT_DOWNLOAD_REQUEST)) * 1000;
     rss_harvester_operation_params_.harvest_interval_ = config_section.getUnsigned(GetIniKeyString(RSS_HARVEST_INTERVAL));
@@ -181,8 +201,12 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
             LOG_ERROR("Cannot specify locale in global strptime_format");
     }
 
+    download_delay_params_ = DownloadDelayParams(config_section);
+
     CheckIniSection(config_section, GlobalParams::KEY_TO_STRING_MAP,
-                    { ZoteroMetadataParams::IsValidIniEntry, MarcMetadataParams::IsValidIniEntry });
+                    { DownloadDelayParams::IsValidIniEntry,
+                      ZoteroMetadataParams::IsValidIniEntry,
+                      MarcMetadataParams::IsValidIniEntry });
 }
 
 

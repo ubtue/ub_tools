@@ -495,8 +495,7 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 DownloadManager::GlobalParams::GlobalParams(const Config::GlobalParams &config_global_params,
                                             Util::HarvestableItemManager * const harvestable_manager)
  : translation_server_url_(config_global_params.translation_server_url_),
-   default_download_delay_time_(config_global_params.download_delay_params_.default_delay_),
-   max_download_delay_time_(config_global_params.download_delay_params_.max_delay_),
+   download_delay_params_(config_global_params.download_delay_params_),
    timeout_download_request_(config_global_params.timeout_download_request_),
    timeout_crawl_operation_(config_global_params.timeout_crawl_operation_),
    rss_feed_harvest_interval_(config_global_params.rss_harvester_operation_params_.harvest_interval_),
@@ -555,14 +554,24 @@ void *DownloadManager::BackgroundThreadRoutine(void * parameter) {
 
 DownloadManager::DelayParams DownloadManager::generateDelayParams(const Url &url) {
     const auto hostname(url.getAuthority());
+    bool default_delay_is_domain_specific;
+    bool max_delay_is_domain_specific;
+    const auto default_delay(global_params_.download_delay_params_.getDefaultDelayForDomainOrDefault(hostname, &default_delay_is_domain_specific));
+    const auto max_delay(global_params_.download_delay_params_.getMaxDelayForDomainOrDefault(hostname, &max_delay_is_domain_specific));
+
+    if (default_delay_is_domain_specific or max_delay_is_domain_specific) {
+        LOG_DEBUG("use configured domain-specific delay settings for domain '" + hostname + '"');
+        return DelayParams(TimeLimit(default_delay), default_delay, max_delay);
+    }
+
     Downloader robots_txt_downloader(url.getRobotsDotTxtUrl());
     if (robots_txt_downloader.anErrorOccurred()) {
         LOG_DEBUG("couldn't retrieve robots.txt for domain '" + hostname + "'");
-        return DelayParams(TimeLimit(0), global_params_.default_download_delay_time_, global_params_.max_download_delay_time_);
+        return DelayParams(TimeLimit(0), default_delay, max_delay);
     }
 
-    DelayParams new_delay_params(robots_txt_downloader.getMessageBody(), global_params_.default_download_delay_time_,
-                                 global_params_.max_download_delay_time_);
+    DelayParams new_delay_params(robots_txt_downloader.getMessageBody(), default_delay,
+                                 max_delay);
 
     LOG_DEBUG("set download-delay for domain '" + hostname + "' to " +
               std::to_string(new_delay_params.time_limit_.getLimit()) + " ms");
