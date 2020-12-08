@@ -34,7 +34,7 @@
         </script>
         <h1>QA Settings</h1>
         <p><b>{IF journal_name != ""}Journal: {journal_name}{ENDIF}</b></p>
-        <p>QA documentation: <a href="//github.com/ubtue/ub_tools/wiki/Zotero-Harvester-Architecture#user-content-validation" target="_blank">see Wiki</a></p>
+        <p>QA documentation: <a href="https://github.com/ubtue/ub_tools/wiki/Zotero-Harvester-Architecture#user-content-validation" target="_blank">see Wiki</a></p>
         <table class="table table-bordered" style="width: 200px;">
             <thead>
                 <tr>
@@ -44,11 +44,11 @@
                 </tr>
             </thead>
             <tbody>
-                {LOOP tags, subfield_codes, regexes, global_settings, journal_settings}
+                {LOOP tags, subfield_codes, regexes, record_types, global_settings, journal_settings}
                     <tr>
-                        <td><a href="https://www.loc.gov/marc/bibliographic/bd{tags}.html" title="Link to external MARC 21 documentation at loc.gov" target="_blank">{tags}</a>${subfield_codes}&nbsp;{regexes}</td>
+                        <td><a href="https://www.loc.gov/marc/bibliographic/bd{tags}.html" title="Link to external MARC 21 documentation at loc.gov" target="_blank">{tags}</a>${subfield_codes}&nbsp;{record_types}&nbsp;{regexes}</td>
                         <td>{global_settings}</td>
-                        {IF journal_name != ""}<td>{journal_settings}{IF journal_settings != ""}<a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}&delete_tag={tags}&delete_subfield_code={subfield_codes}&delete_type=local" title="Delete this rule" onclick="return confirm('Are you sure?')"><sup>x</sup></a>{ENDIF}</td>{ENDIF}
+                        {IF journal_name != ""}<td>{journal_settings}{IF journal_settings != ""}<a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}&delete_tag={tags}&delete_subfield_code={subfield_codes}&delete_record_type={record_types}&delete_type=local" title="Delete this rule" onclick="return confirm('Are you sure?')"><sup>x</sup></a>{ENDIF}</td>{ENDIF}
                     </tr>
                 {ENDLOOP}
             </tbody>
@@ -64,6 +64,10 @@
                 <!-- The quantifier inside the pattern needs to be written as "{{3}" due to Template.h escaping rules! -->
                 <input name="add_tag" placeholder="3-digit tag number" required="required" minlength="3" maxlength="3" pattern="[0-9]{{3}">
                 <input name="add_subfield_code" placeholder="1-character subfield code" required="required" minlength="1" maxlength="1" pattern="[0-9a-z]{{1}">
+                <select name="add_record_type">
+                    <option>regular_article</option>
+                    <option>review</option>
+                </select>
                 <input id="regex" name="add_regex" placeholder="optional regex">
                 <select name="add_presence">
                     <option>always</option>
