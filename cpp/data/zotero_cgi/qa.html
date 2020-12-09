@@ -21,16 +21,18 @@
         </style>
     </head>
     <body>
-        <script>
+        <script type="text/javascript">
             function ValidateForm() {{
+                const regex = document.getElementById("regex").value;
                 try {{
-                    const regex = RegExp(document.getElementById("regex").value);
-                    regex.test("");
+                    const regexObj = RegExp(regex);
+                    regexObj.test("");
                 } catch (err) {{
-                    alert("Invalid regex!");
+                    alert("Invalid regex: " + regex);
                     return false;
                 }
                 return confirm('Are you sure?');
+            }
         </script>
         <h1>QA Settings</h1>
         <p><b>{IF journal_name != ""}Journal: {journal_name}{ENDIF}</b></p>
