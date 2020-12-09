@@ -1,0 +1,4 @@
+ALTER TABLE metadata_presence_tracer DROP FOREIGN KEY metadata_presence_tracer_journal_id;
+ALTER TABLE metadata_presence_tracer DROP KEY mpt_journal_id_marc_field_tag_and_subfield_code;
+ALTER TABLE metadata_presence_tracer ADD CONSTRAINT mpt_journal_id_marc_field_tag_and_subfield_code_and_record_type UNIQUE (journal_id, marc_field_tag, marc_subfield_code, record_type);
+ALTER TABLE metadata_presence_tracer ADD CONSTRAINT metadata_presence_tracer_journal_id FOREIGN KEY (journal_id) REFERENCES zeder_journals (id) ON DELETE CASCADE ON UPDATE CASCADE;
