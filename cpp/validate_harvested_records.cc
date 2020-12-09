@@ -50,11 +50,11 @@ enum FieldPresence { ALWAYS, SOMETIMES, IGNORE };
 
 
 FieldPresence StringToFieldPresence(const std::string &field_presence_str) {
-    if (strcasecmp(field_presence_str.c_str(), "ALWAYS") == 0)
+    if (::strcasecmp(field_presence_str.c_str(), "ALWAYS") == 0)
         return ALWAYS;
-    if (strcasecmp(field_presence_str.c_str(), "SOMETIMES") == 0)
+    if (::strcasecmp(field_presence_str.c_str(), "SOMETIMES") == 0)
         return SOMETIMES;
-    if (strcasecmp(field_presence_str.c_str(), "IGNORE") == 0)
+    if (::strcasecmp(field_presence_str.c_str(), "IGNORE") == 0)
         return IGNORE;
 
     LOG_ERROR("unknown field presence \"" + field_presence_str + "\"!");
