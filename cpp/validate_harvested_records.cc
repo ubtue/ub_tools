@@ -94,6 +94,7 @@ public:
     void addRule(const char subfield_code, const FieldPresence field_presence,
                  RegexMatcher * const regex_matcher);
     void findRuleViolations(const MARC::Subfields &subfields, std::string * const reason_for_being_invalid) const;
+    bool isMandatoryField() const;
 };
 
 
@@ -111,6 +112,7 @@ void FieldRules::addRule(const char subfield_code, const FieldPresence field_pre
     if (unlikely(subfield_code_to_field_presence_and_regex_map_.find(subfield_code)
                  != subfield_code_to_field_presence_and_regex_map_.end()))
         LOG_ERROR("Attempt to insert a second rule for subfield code '" + std::string(1, subfield_code) + "'!");
+
     subfield_code_to_field_presence_and_regex_map_[subfield_code] =
         FieldPresenceAndRegex(field_presence, regex_matcher);
 }
@@ -138,6 +140,15 @@ void FieldRules::findRuleViolations(const MARC::Subfields &subfields, std::strin
                                              + " is missing");
         }
     }
+}
+
+
+bool FieldRules::isMandatoryField() const {
+    for (const auto &subfield_code_and_field_presence : subfield_code_to_field_presence_and_regex_map_) {
+        if (subfield_code_and_field_presence.second.getFieldPresence() == ALWAYS)
+            return true;
+    }
+    return false;
 }
 
 
@@ -201,7 +212,7 @@ void GeneralFieldValidator::findMissingTags(const std::string &/*journal_id*/, c
                                             std::set<std::string> * const missing_tags) const
 {
     for (const auto &[required_tag, rule] : tags_to_rules_map_) {
-        if (present_tags.find(required_tag) == present_tags.cend())
+        if (rule.isMandatoryField() and present_tags.find(required_tag) == present_tags.cend())
             missing_tags->emplace(required_tag);
     }
 }
