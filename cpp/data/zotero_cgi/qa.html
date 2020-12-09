@@ -22,11 +22,11 @@
     </head>
     <body>
         <script>
-            function ValidateForm() {
-                try {
+            function ValidateForm() {{
+                try {{
                     const regex = RegExp(document.getElementById("regex").value);
                     regex.test("");
-                } catch (err) {
+                } catch (err) {{
                     alert("Invalid regex!");
                     return false;
                 }
@@ -41,7 +41,7 @@
                     <th>Subfield</th>
                     <th>Global<br>(All&nbsp;journals)</th>
                     {IF journal_name != ""}<th>Journal<br>(This&nbsp;journal)</th>{ENDIF}
-                    <th>Recorde type</th>
+                    <th>Record type</th>
                     <th>Optional regex</th>
                 </tr>
             </thead>
@@ -51,8 +51,8 @@
                         <td><a href="https://www.loc.gov/marc/bibliographic/bd{tags}.html" title="Link to external MARC 21 documentation at loc.gov" target="_blank">{tags}</a>${subfield_codes}</td>
                         <td>{global_settings}</td>
                         {IF journal_name != ""}<td>{journal_settings}{IF journal_settings != ""}<a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}&delete_tag={tags}&delete_subfield_code={subfield_codes}&delete_record_type={record_types}&delete_type=local" title="Delete this rule" onclick="return confirm('Are you sure?')"><sup>x</sup></a>{ENDIF}</td>{ENDIF}
-                        <td>{record_types}</td>                      
-                        <td>{regexes}</td>                      
+                        <td>{record_types}</td>
+                        <td nowrap>{regexes}</td>
                     </tr>
                 {ENDLOOP}
             </tbody>
