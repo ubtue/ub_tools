@@ -2208,7 +2208,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         return Boolean.toString(sprField.getSubfield('a') != null);
     }
 
-    public Set getSubsystemsForSuperiorWork(final Record record) {
+    public Set<String> getSubsystemsForSuperiorWork(final Record record) {
         final DataField sprField = (DataField) record.getVariableField("SPR");
         if (sprField == null)
             return null;
