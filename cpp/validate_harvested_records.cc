@@ -337,7 +337,7 @@ void CheckGenericRequirements(const MARC::Record &record, std::string * const re
     // Check the structure of the 655 field wich is used to flag a record as a review:
     if (record.hasTag("655") and
         record.getFirstField("655")->getContents() !=
-            "  7""\x1F""aRezension""\x1F""0(DE-588)4049712-4""\x1F""0(DE-627)106186019""\x1F""2gnd-content")
+            " 7""\x1F""aRezension""\x1F""0(DE-588)4049712-4""\x1F""0(DE-627)106186019""\x1F""2gnd-content")
     {
         reasons_for_being_invalid->append("655 field has unexpected contents");
         return;
