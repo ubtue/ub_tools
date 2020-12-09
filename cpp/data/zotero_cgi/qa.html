@@ -21,16 +21,18 @@
         </style>
     </head>
     <body>
-        <script>
+        <script type="text/javascript">
             function ValidateForm() {{
+                const regex = document.getElementById("regex").value;
                 try {{
-                    const regex = RegExp(document.getElementById("regex").value);
-                    regex.test("");
+                    const regexObj = RegExp(regex);
+                    regexObj.test("");
                 } catch (err) {{
-                    alert("Invalid regex!");
+                    alert("Invalid regex: " + regex);
                     return false;
                 }
                 return confirm('Are you sure?');
+            }
         </script>
         <h1>QA Settings</h1>
         <p><b>{IF journal_name != ""}Journal: {journal_name}{ENDIF}</b></p>
@@ -38,21 +40,25 @@
         <table class="table table-bordered" style="width: 200px;">
             <thead>
                 <tr>
-                    <th>Subfield</th>
-                    <th>Global<br>(All&nbsp;journals)</th>
-                    {IF journal_name != ""}<th>Journal<br>(This&nbsp;journal)</th>{ENDIF}
-                    <th>Record type</th>
-                    <th>Optional regex</th>
+                    <th>Field tag</th>
+                    <th>Regular articles<br>(All&nbsp;journals)</th>
+                    <th>Review articles<br>(All&nbsp;journals)</th>
+                    {IF journal_name != ""}
+                        <th>Regular articles<br>(This&nbsp;journal)</th>
+                        <th>Review articles<br>(This&nbsp;journal)</th>
+                    {ENDIF}
                 </tr>
             </thead>
             <tbody>
-                {LOOP tags, subfield_codes, record_types, regexes, global_settings, journal_settings}
+                {LOOP tags, global_regular_articles, global_review_articles, journal_regular_articles, journal_review_articles}
                     <tr>
-                        <td><a href="https://www.loc.gov/marc/bibliographic/bd{tags}.html" title="Link to external MARC 21 documentation at loc.gov" target="_blank">{tags}</a>${subfield_codes}</td>
-                        <td>{global_settings}</td>
-                        {IF journal_name != ""}<td>{journal_settings}{IF journal_settings != ""}<a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}&delete_tag={tags}&delete_subfield_code={subfield_codes}&delete_record_type={record_types}&delete_type=local" title="Delete this rule" onclick="return confirm('Are you sure?')"><sup>x</sup></a>{ENDIF}</td>{ENDIF}
-                        <td>{record_types}</td>
-                        <td nowrap>{regexes}</td>
+                        <td nowrap><a href="https://www.loc.gov/marc/bibliographic/bd{tags}.html" title="Link to external MARC 21 documentation at loc.gov" target="_blank">{tags}</a></td>
+                        <td nowrap>{global_regular_articles}</td>
+                        <td nowrap>{global_review_articles}</td>
+                        {IF journal_name != ""}
+                            <td nowrap>{journal_regular_articles}</td>
+                            <td nowrap>{journal_review_articles}</td>
+                        {ENDIF}
                     </tr>
                 {ENDLOOP}
             </tbody>
