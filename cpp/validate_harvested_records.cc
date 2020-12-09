@@ -50,11 +50,11 @@ enum FieldPresence { ALWAYS, SOMETIMES, IGNORE };
 
 
 FieldPresence StringToFieldPresence(const std::string &field_presence_str) {
-    if (field_presence_str == "ALWAYS")
+    if (strcasecmp(field_presence_str.c_str(), "ALWAYS") == 0)
         return ALWAYS;
-    if (field_presence_str == "SOMETIMES")
+    if (strcasecmp(field_presence_str.c_str(), "SOMETIMES") == 0)
         return SOMETIMES;
-    if (field_presence_str == "IGNORE")
+    if (strcasecmp(field_presence_str.c_str(), "IGNORE") == 0)
         return IGNORE;
 
     LOG_ERROR("unknown field presence \"" + field_presence_str + "\"!");
@@ -259,7 +259,7 @@ void LoadRules(DbConnection * const db_connection, GeneralFieldValidator * const
                JournalSpecificFieldValidator * const journal_specific_review_article_validator)
 {
     db_connection->queryOrDie(
-        "SELECT journal_id,marc_field_tag,marc_subfield_code,field_presence,record_type FROM metadata_presence_tracer"
+        "SELECT journal_id,marc_field_tag,marc_subfield_code,field_presence,record_type,regex FROM metadata_presence_tracer"
         " ORDER BY marc_field_tag,marc_subfield_code ASC");
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
@@ -305,11 +305,15 @@ void SendEmail(const std::string &email_address, const std::string &message_subj
 }
 
 
+static const std::set<std::string> REQUIRED_EXISTING_FIELD_TAGS{ "001", "003", "007" };
+static const std::set<std::string> REQUIRED_SPECIAL_CASE_FIELD_TAGS{ "100", "245", "655", "700" };
+
+
 void CheckGenericRequirements(const MARC::Record &record, std::string * const reasons_for_being_invalid) {
-    const std::vector<std::string> REQUIRED_FIELD_TAGS{ "001", "003", "007", "245" };
-    for (const auto &required_field_tag : REQUIRED_FIELD_TAGS) {
+
+    for (const auto &required_field_tag : REQUIRED_EXISTING_FIELD_TAGS) {
         if (not record.hasTag(required_field_tag))
-        reasons_for_being_invalid->append("required field " + required_field_tag + " is missing\n");
+            reasons_for_being_invalid->append("required field " + required_field_tag + " is missing\n");
     }
 
     const auto _245_field(record.findTag("245"));
@@ -377,6 +381,11 @@ bool RecordIsValid(const MARC::Record &record, const std::vector<const FieldVali
 
     // 3. Complain about unknown fields:
     for (const auto &present_tag : present_tags) {
+        // skip required fields with hardcoded testing
+        if (REQUIRED_EXISTING_FIELD_TAGS.find(present_tag) != REQUIRED_EXISTING_FIELD_TAGS.end() or
+            REQUIRED_SPECIAL_CASE_FIELD_TAGS.find(present_tag) != REQUIRED_SPECIAL_CASE_FIELD_TAGS.end())
+            continue;
+
         if (tags_for_which_rules_were_found.find(present_tag) == tags_for_which_rules_were_found.end())
             reasons_for_being_invalid->append("no rule for present field " + present_tag + " was found\n");
     }
@@ -427,6 +436,7 @@ int Main(int argc, char *argv[]) {
         if (RecordIsValid(record, regular_article_field_validators, review_article_field_validators, &reasons_for_being_invalid))
             valid_records_writer->write(record);
         else {
+            LOG_WARNING("Record " + record.getControlNumber() + " is invalid:\n" + reasons_for_being_invalid);
             ++missed_expectation_count;
             if (update_db_errors)
                 upload_tracker.archiveRecord(record, ZoteroHarvester::Util::UploadTracker::DeliveryState::ERROR,
