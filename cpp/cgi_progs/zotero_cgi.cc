@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <map>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -33,6 +34,7 @@
 #include "SqlUtil.h"
 #include "StringUtil.h"
 #include "Template.h"
+#include "UrlUtil.h"
 #include "WallClockTimer.h"
 #include "WebUtil.h"
 #include "UBTools.h"
@@ -585,7 +587,7 @@ bool ProcessShowQASubActionAdd(const std::multimap<std::string, std::string> &cg
     db_connection->queryOrDie("INSERT INTO metadata_presence_tracer (journal_id, marc_field_tag, marc_subfield_code,"
                               " record_type, regex, field_presence) VALUES ("
                               + journal_id_to_insert + ", " + db_connection->escapeAndQuoteString(add_tag) + ", '"
-                              + add_subfield_code + "', " + add_record_type + "', " + regex_to_insert + ", "
+                              + add_subfield_code + "', '" + add_record_type + "', " + regex_to_insert + ", "
                               + db_connection->escapeAndQuoteString(add_presence) + ")");
     return true;
 }
@@ -616,11 +618,90 @@ bool ProcessShowQASubActionDelete(const std::multimap<std::string, std::string> 
 }
 
 
+struct QASubfieldProperties {
+    std::string field_presence_;
+    std::string regex_;
+
+    QASubfieldProperties() = default;
+    QASubfieldProperties(const std::string &field_presence, const std::string &regex): field_presence_(field_presence), regex_(regex) {}
+};
+
+
+struct QAFieldProperties {
+    std::string tag_;
+    std::map<char,QASubfieldProperties> global_regular_articles_;
+    std::map<char,QASubfieldProperties> global_review_articles_;
+    std::map<char,QASubfieldProperties> journal_regular_articles_;
+    std::map<char,QASubfieldProperties> journal_review_articles_;
+
+    QAFieldProperties() = default;
+    QAFieldProperties(const std::string &tag): tag_(tag) {};
+
+    std::string generateHtmlForMap(const std::map<char,QASubfieldProperties> &map,
+                                          const std::string &record_type,
+                                          const std::string &delete_type="",
+                                          const std::string &base_url="") const;
+};
+
+
+std::string QAFieldProperties::generateHtmlForMap(const std::map<char,QASubfieldProperties> &map,
+                                                  const std::string &record_type,
+                                                  const std::string &delete_type,
+                                                  const std::string &base_url) const
+{
+    std::string html;
+    for (const auto &subfield_and_properties : map) {
+        const auto subfield_code(std::string(1, subfield_and_properties.first));
+        html += subfield_code + ": " + subfield_and_properties.second.field_presence_;
+        if (not delete_type.empty()) {
+            const std::string deletion_url = base_url + "&delete_tag=" + tag_ + "&delete_subfield_code=" + subfield_code +
+                                             "&delete_record_type=" + record_type + "&delete_type=" + delete_type;
+            html += "<a href=" + deletion_url + " title=\"Delete this rule\" onclick=\"return confirm('Do you really want to delete this rule?')\"><sup>x</sup></a>";
+        }
+        if (not subfield_and_properties.second.regex_.empty()) {
+            html += ", pattern: <a href=\"https://regex101.com/?regex=" + UrlUtil::UrlEncode(subfield_and_properties.second.regex_) + "\" target=\"_blank\">" +
+                    HtmlUtil::HtmlEscape(subfield_and_properties.second.regex_) + "</a>";
+        }
+        html += "<br>";
+    }
+    return html;
+}
+
+
+std::map<std::string,QAFieldProperties> GetQASettings(const std::string &journal_id, DbConnection * const db_connection) {
+    db_connection->queryOrDie("SELECT * FROM metadata_presence_tracer WHERE journal_id IS NULL"
+                              " OR journal_id = " + db_connection->escapeAndQuoteString(journal_id) +
+                              " ORDER BY marc_field_tag ASC, marc_subfield_code ASC, journal_id ASC");
+
+    auto result_set(db_connection->getLastResultSet());
+    std::map<std::string,QAFieldProperties> tags_to_settings_map;
+    while (const auto row = result_set.getNextRow()) {
+        const auto tag(row["marc_field_tag"]);
+        const char subfield(row["marc_subfield_code"].at(0));
+        const QASubfieldProperties subfield_properties(row["field_presence"], row["regex"]);
+        if (tags_to_settings_map.find(tag) == tags_to_settings_map.end())
+            tags_to_settings_map[tag] = QAFieldProperties(tag);
+
+        if (row["journal_id"].empty()) {
+            if (row["record_type"] == "regular_article")
+                tags_to_settings_map[tag].global_regular_articles_[subfield] = subfield_properties;
+            else
+                tags_to_settings_map[tag].global_review_articles_[subfield] = subfield_properties;
+        } else {
+            if (row["record_type"] == "regular_article")
+                tags_to_settings_map[tag].journal_regular_articles_[subfield] = subfield_properties;
+            else
+                tags_to_settings_map[tag].journal_review_articles_[subfield] = subfield_properties;
+        }
+    }
+    return tags_to_settings_map;
+}
+
+
 void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args, DbConnection * const db_connection) {
     const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
     const std::string zeder_instance(GetCGIParameterOrDefault(cgi_args, "zeder_instance"));
-    std::string zeder_journal_id;
-    std::string journal_name;
+    std::string journal_id, journal_name;
     std::string submitted("false");
 
     // try to get more details for given journal
@@ -629,39 +710,24 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
                                  " AND zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance));
         auto result_set(db_connection->getLastResultSet());
         while (const auto row = result_set.getNextRow()) {
-            zeder_journal_id = row["id"];
+            journal_id = row["id"];
             journal_name = row["journal_name"];
         }
     }
 
-    if (ProcessShowQASubActionDelete(cgi_args, db_connection, zeder_journal_id)
-        or ProcessShowQASubActionAdd(cgi_args, db_connection, zeder_journal_id))
+    if (ProcessShowQASubActionDelete(cgi_args, db_connection, journal_id)
+        or ProcessShowQASubActionAdd(cgi_args, db_connection, journal_id))
             submitted = "true";
 
-    // display current settings
-    db_connection->queryOrDie("SELECT * FROM metadata_presence_tracer WHERE journal_id IS NULL "
-                             "OR journal_id IN (SELECT id FROM zeder_journals WHERE zeder_id="
-                              + db_connection->escapeAndQuoteString(zeder_id) +
-                             " AND zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance) + ")"
-                             " ORDER BY marc_field_tag ASC, marc_subfield_code ASC, journal_id ASC");
-
-    auto result_set(db_connection->getLastResultSet());
-
-    std::vector<std::string> tags, subfield_codes, regexes, record_types;
-    std::vector<std::string> global_settings;
-    std::vector<std::string> journal_settings;
-    while (const auto row = result_set.getNextRow()) {
-        tags.emplace_back(row["marc_field_tag"]);
-        subfield_codes.emplace_back(row["marc_subfield_code"]);
-        record_types.emplace_back(row["record_type"]);
-        regexes.emplace_back(row.isNull("regex") ? "" : row["regex"]);
-        if (row["journal_id"].empty()) {
-            global_settings.emplace_back(row["field_presence"]);
-            journal_settings.emplace_back("");
-        } else {
-            global_settings.emplace_back("");
-            journal_settings.emplace_back(row["field_presence"]);
-        }
+    const auto tags_to_settings_map(GetQASettings(journal_id, db_connection));
+    std::vector<std::string> tags, global_regular_articles, global_review_articles, journal_regular_articles, journal_review_articles;
+    const std::string base_url("?action=show_qa&zeder_id=" + zeder_id + "&zeder_instance=" + zeder_instance);
+    for (const auto &tag_and_settings : tags_to_settings_map) {
+        tags.emplace_back(tag_and_settings.first);
+        global_regular_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.global_regular_articles_, "regular_article"));
+        global_review_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.global_review_articles_, "review"));
+        journal_regular_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.journal_regular_articles_, "regular_article", "local", base_url));
+        journal_review_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.journal_review_articles_, "review", "local", base_url));
     }
 
     names_to_values_map.insertScalar("submitted", submitted);
@@ -669,11 +735,10 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
     names_to_values_map.insertScalar("zeder_instance", zeder_instance);
     names_to_values_map.insertScalar("journal_name", journal_name);
     names_to_values_map.insertArray("tags", tags);
-    names_to_values_map.insertArray("subfield_codes", subfield_codes);
-    names_to_values_map.insertArray("record_types", record_types);
-    names_to_values_map.insertArray("regexes", regexes);
-    names_to_values_map.insertArray("global_settings", global_settings);
-    names_to_values_map.insertArray("journal_settings", journal_settings);
+    names_to_values_map.insertArray("global_regular_articles", global_regular_articles);
+    names_to_values_map.insertArray("global_review_articles", global_review_articles);
+    names_to_values_map.insertArray("journal_regular_articles", journal_regular_articles);
+    names_to_values_map.insertArray("journal_review_articles", journal_review_articles);
     RenderHtmlTemplate("qa.html");
 }
 
