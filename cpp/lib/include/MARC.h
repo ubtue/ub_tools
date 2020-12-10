@@ -74,6 +74,7 @@ public:
     /** Copy constructor. */
     Tag(const Tag &other_tag): tag_(other_tag.tag_) { }
 
+    Tag &operator=(const Tag &rhs) { tag_ = rhs.tag_; return *this; }
     bool operator==(const Tag &rhs) const { return to_int() == rhs.to_int(); }
     bool operator!=(const Tag &rhs) const { return to_int() != rhs.to_int(); }
     bool operator>(const Tag &rhs) const  { return to_int() >  rhs.to_int(); }
