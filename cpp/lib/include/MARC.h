@@ -942,7 +942,7 @@ public:
 };
 
 
-class BinaryReader: public Reader {
+class BinaryReader final : public Reader {
     friend class Reader;
     Record last_record_;
     off_t next_record_start_;
@@ -1031,7 +1031,7 @@ public:
 };
 
 
-class BinaryWriter: public Writer {
+class BinaryWriter final : public Writer {
     friend class Writer;
 private:
     BinaryWriter(File * const output): Writer(output) { }
@@ -1042,7 +1042,7 @@ public:
 };
 
 
-class XmlWriter: public Writer {
+class XmlWriter final : public Writer {
     friend class Writer;
     MarcXmlWriter xml_writer_;
 private:
