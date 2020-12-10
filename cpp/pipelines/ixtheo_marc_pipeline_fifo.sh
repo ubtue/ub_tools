@@ -354,6 +354,13 @@ wait
 
 StartPhase "Cross-link Type Tagging"
 (add_cross_link_type GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
+StartPhase "Tags Which Subsystems have Inferior Records in Superior Works Records"
+(add_is_superior_work_for_subsystems GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
