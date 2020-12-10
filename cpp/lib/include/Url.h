@@ -112,6 +112,16 @@ private:
 
     static std::string default_user_agent_;
 public:
+    /**
+     * CreationFlags:
+     * - AUTO_MAKE_VALID: Attempting to automatically make an invalid URL valid.
+     * - AUTO_CLEAN_UP: Automatically performing a safe, fast cleanup on the URL.
+     * - AUTO_CANONIZE: Automatically converting a URL to canonical form.
+     * - AUTO_MAKE_ABSOLUTE: Automatically making a relative URL absolute when required.
+     * - THROW_EXCEPTIONS: Disabling exception throwing.
+     * - FORCE_ABSOLUTE_HTTP_URL: Force interpreting a URL as absolute, an attempt is made to turn the URL into an absolute HTTP URL.
+     * - REMOVE_FRAGMENT: Remove the fragment part of a URL if present.
+     */
     enum CreationFlags { NO_AUTO_OPERATIONS = 0, AUTO_MAKE_VALID = 1, AUTO_CLEAN_UP = 2, AUTO_CANONIZE = 4, AUTO_MAKE_ABSOLUTE = 8,
                          THROW_EXCEPTIONS = 16, FORCE_ABSOLUTE_HTTP_URL = 32, REMOVE_FRAGMENT = 64 };
 public:
