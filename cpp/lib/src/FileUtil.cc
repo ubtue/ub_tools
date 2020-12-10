@@ -55,7 +55,7 @@
 namespace FileUtil {
 
 
-bool ReadLines::const_iterator::operator==(const const_iterator &rhs) {
+bool ReadLines::const_iterator::operator==(const const_iterator &rhs) const {
     if (file_ == rhs.file_)
         return true;
 
@@ -214,7 +214,7 @@ void Directory::const_iterator::operator++() {
 }
 
 
-bool Directory::const_iterator::operator==(const const_iterator &rhs) {
+bool Directory::const_iterator::operator==(const const_iterator &rhs) const {
     if (rhs.dir_handle_ == nullptr and dir_handle_ == nullptr)
         return true;
     if ((rhs.dir_handle_ == nullptr and dir_handle_ != nullptr)

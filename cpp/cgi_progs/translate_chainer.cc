@@ -153,7 +153,7 @@ void ParseTranslationsDbToolOutputAndGenerateNewDisplay(
         std::cout << done_html.rdbuf();
     } else {
         std::string existing_translation("");
-        for (const Translation translation : translations) {
+        for (const Translation &translation : translations) {
             if (translation.language_code_ == language_code)
                 existing_translation = translation.text_;
         }
