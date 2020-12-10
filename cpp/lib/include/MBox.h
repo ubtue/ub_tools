@@ -69,8 +69,8 @@ public:
     public:
         inline const Message &operator*() { return message_; }
         void operator++();
-        inline bool operator==(const const_iterator &rhs) { return message_.empty() and rhs.message_.empty(); }
-        inline bool operator!=(const const_iterator &rhs) { return not operator==(rhs); }
+        inline bool operator==(const const_iterator &rhs) const { return message_.empty() and rhs.message_.empty(); }
+        inline bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
     private:
         const_iterator(const const_iterator &rhs) = default;
         const_iterator(Message * const message, const MBox * const mbox): mbox_(mbox) { message->swap(message_); }
