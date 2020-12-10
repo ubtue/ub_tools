@@ -56,7 +56,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
             ++total_record_count;
 
             bool patched_record(false);
-            for (const auto tag_and_subfield_code : tags_and_subfield_codes) {
+            for (const auto &tag_and_subfield_code : tags_and_subfield_codes) {
                 for (auto field : record.getTagRange(tag_and_subfield_code.substr(0, MARC::Record::TAG_LENGTH))) {
                     const char SUBFIELD_CODE(tag_and_subfield_code[MARC::Record::TAG_LENGTH]);
                     MARC::Subfields subfields(field.getSubfields());

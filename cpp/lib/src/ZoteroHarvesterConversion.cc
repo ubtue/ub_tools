@@ -363,7 +363,7 @@ ThreadSafeRegexMatcher InitializeBlacklistedAuthorTokenMatcher() {
 
     std::string match_pattern("\\b(");
     bool is_first_token(true);
-    for (const auto blacklisted_token : filtered_blacklisted_tokens) {
+    for (const auto &blacklisted_token : filtered_blacklisted_tokens) {
         if (not is_first_token)
             match_pattern += "|";
         else

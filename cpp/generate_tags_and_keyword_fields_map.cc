@@ -68,7 +68,7 @@ int Main(int argc, char *argv[]) {
     LOG_INFO("found " + std::to_string(fields_to_tags_map.size()) + " unique (tag, subject term) pairs.");
 
     const auto output(FileUtil::OpenOutputFileOrDie(argv[argc - 1]));
-    for (const auto subject_term_and_tag : fields_to_tags_map)
+    for (const auto &subject_term_and_tag : fields_to_tags_map)
         (*output) << subject_term_and_tag.second << StringUtil::CStyleEscape(subject_term_and_tag.first) << '\n';
 
     return EXIT_SUCCESS;
