@@ -451,7 +451,7 @@ bool CreateAndWriteMarcRecord(MARC::Writer * const marc_writer, KeyValueDB * con
             LOG_ERROR("unexpected field type!");
         }
 
-        for (const auto field_value : field_values)
+        for (const auto &field_value : field_values)
             map_descriptor->insertMarcData(field_value, &record);
     }
     AddIssueInfo(message_tree, &record);

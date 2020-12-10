@@ -293,7 +293,7 @@ MARC::Record::BibliographicLevel JSONNodeToBibliographicLevelMapper::getBibliogr
                   + JSON::JSONNode::TypeToString(node_type) + "!");
 
     const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("string_or_array_node", string_or_array_node));
-    for (const auto element_node : *array_node) {
+    for (const auto &element_node : *array_node) {
         const auto bibliographic_level(getBibliographicLevel(JSON::JSONNode::CastToStringNodeOrDie("element_node", element_node)->getValue()));
         if (bibliographic_level != default_)
             return bibliographic_level;
@@ -347,7 +347,7 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
             std::vector<std::pair<char, std::string>> subfield_codes_to_json_paths, subfield_codes_to_prefixes, subfield_codes_to_fixed_subfields;
             std::map<char, std::shared_ptr<RegexMatcher>> subfield_codes_to_extraction_regexes_map;
             std::vector<DependentSubfield> dependent_subfields;
-            for (const auto section_entry : section) {
+            for (const auto &section_entry : section) {
                 if (StringUtil::StartsWith(section_entry.name_, "add_fixed_subfield_")) {
                     if (section_entry.name_.length() != __builtin_strlen("add_fixed_subfield_?")) // Note: ? used as a placeholder for a subfield code
                         LOG_ERROR("invalid section entry in section \"" + section_name + "\": \"" + section_entry.name_ + "\"!");
