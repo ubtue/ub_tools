@@ -239,7 +239,7 @@ void GetUrlsAndTextTypes(const MARC::Record &record, std::set<UrlAndTextType> * 
                          const bool use_only_open_access_links, const bool include_all_tocs, const bool only_pdf_fulltexts,
                          const bool skip_reviews)
 {
-   for (const auto _856_field : record.getTagRange("856")) {
+   for (const auto &_856_field : record.getTagRange("856")) {
        const MARC::Subfields _856_subfields(_856_field.getSubfields());
 
        if (_856_field.getIndicator1() == '7' or not _856_subfields.hasSubfield('u'))
