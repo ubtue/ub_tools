@@ -74,6 +74,7 @@ void PatchSPRFields(MARC::Reader * const marc_reader, MARC::Writer * const marc_
                     const std::unordered_map<std::string, std::set<std::string>> &superior_ppns_to_subsystem_types)
 {
     unsigned augmented_count(0);
+    std::map<std::string, unsigned> subsystems_to_counts_map;
     while (MARC::Record record = marc_reader->read()) {
         auto spr_field(record.findTag("SPR"));
         if (spr_field != record.end()) {
@@ -82,8 +83,15 @@ void PatchSPRFields(MARC::Reader * const marc_reader, MARC::Writer * const marc_
             if (unlikely(superior_ppn_and_subsystem_types == superior_ppns_to_subsystem_types.cend()))
                 LOG_WARNING("can't find \"" + ppn + "\" in our map!");
             else {
-                for (const auto &subsystem_type : superior_ppn_and_subsystem_types->second)
+                for (const auto &subsystem_type : superior_ppn_and_subsystem_types->second) {
+                    auto subsystem_and_count(subsystems_to_counts_map.find(subsystem_type));
+                    if (unlikely(subsystem_and_count == subsystems_to_counts_map.end()))
+                        subsystems_to_counts_map.emplace(subsystem_type, 1);
+                    else
+                        ++(subsystem_and_count->second);
+
                     spr_field->appendSubfield('t', subsystem_type);
+                }
                 ++augmented_count;
             }
         }
@@ -91,7 +99,15 @@ void PatchSPRFields(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         marc_writer->write(record);
     }
 
-    LOG_INFO("Augmented " + std::to_string(augmented_count) + " record(s) w/ SPR-fields w/ subsystem information.");
+    std::string subsystem_stats;
+    for (const auto &[subsystem, count] : subsystems_to_counts_map) {
+        if (not subsystem_stats.empty())
+            subsystem_stats += ", ";
+        subsystem_stats += subsystem + ":" + std::to_string(count);
+    }
+
+    LOG_INFO("Augmented " + std::to_string(augmented_count) + " record(s) w/ SPR-fields w/ subsystem information. ("
+             + subsystem_stats + ")");
 }
 
 
