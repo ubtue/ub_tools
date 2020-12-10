@@ -128,7 +128,17 @@ std::unordered_map<std::string, EmailDescription> LoadEmailDescriptions(const In
 }
 
 
+unsigned short SendEmail(const std::vector<std::string> &recipients, const std::string &subject,
+                         const std::string &message_body, const std::vector<std::string> &attachments = {})
+{
+    return EmailSender::SendEmail("email_watcher", recipients, /* cc_recipients = */{}, /* bcc_recipients = */{},
+                                  subject, message_body, /* priority = */EmailSender::VERY_HIGH, EmailSender::PLAIN_TEXT,
+                                  /* reply_to = */"", /* use_authentication = */true, /* use_ssl = */true, attachments);
+}
+
+
 void ProcessMBox(const std::string &mbox_filename, const long forward_priority,
+                 const std::vector<std::string> &notification_email_addresses,
                  const std::unordered_map<std::string, EmailDescription> &email_descriptions,
                  std::vector<std::string> * const unmatched_emails, std::set<std::string> * const matched_section_names)
 {
@@ -136,23 +146,27 @@ void ProcessMBox(const std::string &mbox_filename, const long forward_priority,
     unsigned email_message_count(0);
     for (const auto &email_message : mbox) {
         ++email_message_count;
-        for (const auto &[section_name, email_description] : email_descriptions) {
-            if (email_message.getPriority() >= forward_priority or email_description.subjectAndBodyMatched(email_message))
-                matched_section_names->emplace(section_name);
-            else
-                unmatched_emails->emplace_back(email_message.toString());
+        if (email_message.getPriority() >= forward_priority) {
+            SendEmail(notification_email_addresses, email_message.getSubject(),
+                      "High priority (" + std::to_string(email_message.getPriority())
+                      + ") email from original host " + email_message.getOriginalHost()
+                      + " and sender " + email_message.getSender() + ".\n\n"
+                      + email_message.getMessageBody());
+            continue;
         }
+
+        bool matched_a_section(false);
+        for (const auto &[section_name, email_description] : email_descriptions) {
+            if (email_description.subjectAndBodyMatched(email_message)) {
+                matched_section_names->emplace(section_name);
+                matched_a_section = true;
+            }
+        }
+
+        if (not matched_a_section)
+            unmatched_emails->emplace_back(email_message.toString());
     }
     LOG_INFO("Processed " + std::to_string(email_message_count) + " email message(s).");
-}
-
-
-unsigned short SendEmail(const std::vector<std::string> &recipients, const std::string &subject,
-                         const std::string &message_body, const std::vector<std::string> &attachments = {})
-{
-    return EmailSender::SendEmail("email_watcher", recipients, /* cc_recipients = */{}, /* bcc_recipients = */{},
-                                  subject, message_body, /* priority = */EmailSender::VERY_HIGH, EmailSender::PLAIN_TEXT,
-                                  /* reply_to = */"", /* use_authentication = */true, /* use_ssl = */true, attachments);
 }
 
 
@@ -216,7 +230,8 @@ int Main(int argc, char *argv[]) {
     std::set<std::string> matched_section_names;
     const bool mbox_exists(FileUtil::Exists(MBOX_FILENAME));
     if (mbox_exists)
-        ProcessMBox(MBOX_FILENAME, forward_priority, email_descriptions, &unmatched_emails, &matched_section_names);
+        ProcessMBox(MBOX_FILENAME, forward_priority, notification_email_addresses,
+                    email_descriptions, &unmatched_emails, &matched_section_names);
 
     if (not unmatched_emails.empty()) {
         LOG_WARNING("Found " + std::to_string(unmatched_emails.size()) + " unmatched email(s)!");
