@@ -136,7 +136,7 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::extractResultsHel
 
     std::vector<std::map<std::string, std::string>> search_results;
     search_results.reserve(hits_array_node->size());
-    for (const auto entry_node : *hits_array_node) {
+    for (const auto &entry_node : *hits_array_node) {
         std::map<std::string, std::string> new_map;
         const auto entry_object_node(JSON::JSONNode::CastToObjectNodeOrDie("entry_object_node", entry_node));
         for (const auto &entry : *entry_object_node) {
