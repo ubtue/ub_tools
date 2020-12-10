@@ -136,7 +136,7 @@ void GenerateCSVReport(File * const output, const std::unordered_map<std::string
 
     Locale locale("de_DE.utf8", LC_NUMERIC);
     std::unordered_set<Journal *> already_processed;
-    for (const auto [ppn, journal] : ppns_to_journals_map) {
+    for (const auto &[ppn, journal] : ppns_to_journals_map) {
         if (already_processed.find(journal) != already_processed.end())
             continue;
 

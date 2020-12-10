@@ -344,7 +344,7 @@ public:
 };
 
 
-class AnythingToUTF32Decoder : public ToUTF32Decoder {
+class AnythingToUTF32Decoder final: public ToUTF32Decoder {
     iconv_t converter_handle_;
     const std::string input_encoding_;
     uint32_t utf32_char_;

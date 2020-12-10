@@ -275,13 +275,13 @@ int Main(int argc, char **argv) {
     if (report_only) {
         if (not deletion_ppns.empty()) {
             LOG_INFO("Deletions:");
-            for (const auto ppn : deletion_ppns)
+            for (const auto &ppn : deletion_ppns)
                 LOG_INFO(ppn);
         }
 
         if (not old_ppns_sigils_and_new_ppns.empty()) {
             LOG_INFO("Old PPN to New PPN Mapping:");
-            for (const auto old_ppn_sigil_and_new_ppn : old_ppns_sigils_and_new_ppns)
+            for (const auto &old_ppn_sigil_and_new_ppn : old_ppns_sigils_and_new_ppns)
                 LOG_INFO(old_ppn_sigil_and_new_ppn.old_ppn_ + " -> " + old_ppn_sigil_and_new_ppn.new_ppn_);
         }
 

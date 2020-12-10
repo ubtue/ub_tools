@@ -79,7 +79,7 @@ void ExtractSynonyms(MARC::Reader * const marc_reader,
         for (const auto &tag_and_subfield_codes : tags_and_subfield_codes) {
             const std::string tag(tag_and_subfield_codes.substr(0, MARC::Record::TAG_LENGTH));
             const std::string secondary_field_subfield_codes(tag_and_subfield_codes.substr(MARC::Record::TAG_LENGTH));
-            for (const auto secondary_name_field : record.getTagRange(tag)) {
+            for (const auto &secondary_name_field : record.getTagRange(tag)) {
                 const std::string secondary_name(ExtractNameFromSubfields(secondary_name_field,
                                                                           secondary_field_subfield_codes));
                 if (not secondary_name.empty())

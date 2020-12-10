@@ -396,7 +396,7 @@ void FindActivePrograms(const std::string &program_name, std::unordered_set<unsi
     std::unordered_set<std::string> pids_strings;
     StringUtil::Split(stdout, '\n', &pids_strings, /* suppress_empty_components = */true);
 
-    for (const auto pid : pids_strings)
+    for (const auto &pid : pids_strings)
         pids->emplace(StringUtil::ToUnsigned(pid));
 }
 

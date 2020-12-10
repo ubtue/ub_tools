@@ -60,7 +60,7 @@ std::string ShortenTitle(const std::string &full_title, const size_t max_length)
 
 bool HasTOC(const MARC::Record &record) {
     for (const auto &_856_field : record.getTagRange("856")) {
-        for (const auto subfield : _856_field.getSubfields()) {
+        for (const auto &subfield : _856_field.getSubfields()) {
             if (subfield.code_ == '3' and ::strcasecmp(subfield.value_.c_str(), "Inhaltsverzeichnis") == 0)
                 return true;
         }

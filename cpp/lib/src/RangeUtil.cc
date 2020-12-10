@@ -41,7 +41,7 @@ bool NewReferenceIsCompatibleWithExistingReferences(
         const std::pair<std::string, std::string> &new_ref,
         const std::set<std::pair<std::string, std::string>> &existing_refs)
 {
-    for (const auto existing_ref : existing_refs) {
+    for (const auto &existing_ref : existing_refs) {
         if (new_ref.first <= existing_ref.second)
             return false;
     }
