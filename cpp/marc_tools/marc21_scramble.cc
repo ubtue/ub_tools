@@ -73,7 +73,7 @@ int Main(int argc, char *argv[]) {
 
     std::vector<std::string> control_numbers;
     control_numbers.reserve(control_number_to_offset_map.size());
-    for (const auto control_number_and_offset : control_number_to_offset_map)
+    for (const auto &control_number_and_offset : control_number_to_offset_map)
         control_numbers.emplace_back(control_number_and_offset.first);
 
     std::random_shuffle(control_numbers.begin(), control_numbers.end());
