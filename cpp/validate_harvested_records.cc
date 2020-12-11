@@ -317,7 +317,7 @@ void SendEmail(const std::string &email_address, const std::string &message_subj
 
 
 static const std::set<std::string> REQUIRED_EXISTING_FIELD_TAGS{ "001", "003", "007" };
-static const std::set<std::string> REQUIRED_SPECIAL_CASE_FIELD_TAGS{ "100", "245", "655", "700" };
+static const std::set<std::string> REQUIRED_SPECIAL_CASE_FIELD_TAGS{ "245", "655" };
 
 
 void CheckGenericRequirements(const MARC::Record &record, std::string * const reasons_for_being_invalid) {
@@ -330,9 +330,6 @@ void CheckGenericRequirements(const MARC::Record &record, std::string * const re
     const auto _245_field(record.findTag("245"));
     if (_245_field != record.end() and _245_field->getFirstSubfieldWithCode('a').empty())
         reasons_for_being_invalid->append("subfield 245$a is missing\n");
-
-    if (not record.hasTag("100") and not record.hasTag("700"))
-        reasons_for_being_invalid->append("neither a field 100 nor 700 are present\n");
 
     // Check the structure of the 655 field wich is used to flag a record as a review:
     if (record.hasTag("655") and
