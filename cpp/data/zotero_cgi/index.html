@@ -63,6 +63,13 @@
         <p data-toggle="tooltip" title="If this is &gt; 0, somebody else is doing tests. Might be slow.">
             Number of running processes: {running_processes_count}
         </p>
+        <p>
+            Delivery States for Journals:
+            <span class="dot dot-journal-none" title="No items delivered or no time window specified yet."></span> None
+            <span class="dot dot-journal-success" title="New records have been added during the specified time window."></span> Success
+            <span class="dot dot-journal-warning" title="There has been at least 1 error in recently harvested records!"></span> Warning
+            <span class="dot dot-journal-error" title="There have been no new records within the specified time window!"></span> Error
+        </p>
 
         <!-- tab navigation -->
         <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -131,10 +138,10 @@
                                     {IF all_journal_harvest_statuses == "NONE"}data-sort="9"{ENDIF}
                                     >
                                     <a href="?action=show_downloaded&zeder_id={all_journal_zeder_ids}&group={all_journal_groups}" target="_blank">
-                                        {IF all_journal_harvest_statuses == "ERROR"}<span class="dot" style="background-color: red;" title="There have been no new records within the specified time window!"></span>{ENDIF}
-                                        {IF all_journal_harvest_statuses == "WARNING"}<span class="dot" style="background-color: yellow;" title="There has been at least 1 error in recently harvested records!"></span>{ENDIF}
-                                        {IF all_journal_harvest_statuses == "SUCCESS"}<span class="dot" style="background-color: green;" title="New records have been added during the specified time window."></span>{ENDIF}
-                                        {IF all_journal_harvest_statuses == "NONE"}<span class="dot" style="background-color: grey;" title="No items delivered or no time window specified yet."></span>{ENDIF}
+                                        {IF all_journal_harvest_statuses == "ERROR"}<span class="dot dot-journal-error" title="There have been no new records within the specified time window!"></span>{ENDIF}
+                                        {IF all_journal_harvest_statuses == "WARNING"}<span class="dot dot-journal-warning" title="There has been at least 1 error in recently harvested records!"></span>{ENDIF}
+                                        {IF all_journal_harvest_statuses == "SUCCESS"}<span class="dot dot-journal-success" title="New records have been added during the specified time window."></span>{ENDIF}
+                                        {IF all_journal_harvest_statuses == "NONE"}<span class="dot dot-journal-none" title="No items delivered or no time window specified yet."></span>{ENDIF}
                                     </a>
                                 </td>
                             </tr>

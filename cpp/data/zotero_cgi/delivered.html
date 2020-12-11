@@ -19,6 +19,14 @@
         <h1>Zotero Harvesting</h1>
         <h2>Delivered records for Zeder ID {zeder_id} ({zeder_instance})</h2>
         <p><a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}">Show QA settings</a></p>
+        <p>
+            Delivery States for Records:
+            <span class="dot dot-record-automatic" title="This record has been delivered automatically."></span> Automatic
+            <span class="dot dot-record-error" title="An error has occurred while trying to deliver this record."></span> Error
+            <span class="dot dot-record-manual" title="This record has been delivered manually and will no longer be harvested automatically."></span> Manual
+            <span class="dot dot-record-ignore" title="This record has been skipped and will be ignored in the future."></span> Ignore
+            <span class="dot dot-record-reset" title="This record has been manually reset&#013;and will be harvested again."></span> Reset
+        </p>
         <table id="table_delivered">
             <thead>
                 <tr>
@@ -38,11 +46,11 @@
                         <td>{hashes}</td>
                         <td>{links}</td>
                         <td align="center" style="vertical-align: middle;">
-                            {IF delivery_states == "automatic"}<span class="dot" style="background-color: green;" title="This record has been delivered automatically."></span>{ENDIF}
-                            {IF delivery_states == "manual"}<span class="dot" style="background-color: turquoise;" title="This record has been delivered manually and will no longer be harvested automatically."></span>{ENDIF}
-                            {IF delivery_states == "error"}<span class="dot" style="background-color: yellow;" title="An error has occurred while trying to deliver this record:&#013;{error_messages}"></span>{ENDIF}
-                            {IF delivery_states == "ignore"}<span class="dot" style="background-color: grey;" title="This record has been skipped ({error_messages})&#013;and will be ignored in the future."></span>{ENDIF}
-                            {IF delivery_states == "reset"}<span class="dot" style="background-color: blue;" title="This record has been manually reset&#013;and will be harvested again."></span>{ENDIF}
+                            {IF delivery_states == "automatic"}<span class="dot dot-record-automatic" title="This record has been delivered automatically."></span>{ENDIF}
+                            {IF delivery_states == "error"}<span class="dot dot-record-error" title="An error has occurred while trying to deliver this record:&#013;{error_messages}"></span>{ENDIF}
+                            {IF delivery_states == "manual"}<span class="dot dot-record-manual" title="This record has been delivered manually and will no longer be harvested automatically."></span>{ENDIF}
+                            {IF delivery_states == "ignore"}<span class="dot dot-record-ignore" title="This record has been skipped ({error_messages})&#013;and will be ignored in the future."></span>{ENDIF}
+                            {IF delivery_states == "reset"}<span class="dot dot-record-reset" title="This record has been manually reset&#013;and will be harvested again."></span>{ENDIF}
                         </td>
                         <td>
                             {IF delivery_states == "error"}
