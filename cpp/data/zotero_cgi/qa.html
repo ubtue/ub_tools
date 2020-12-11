@@ -42,9 +42,11 @@
                 <tr>
                     <th>Field tag</th>
                     <th>Regular articles<br>(All&nbsp;journals)</th>
-                    <th>Review articles<br>(All&nbsp;journals)</th>
                     {IF journal_name != ""}
                         <th>Regular articles<br>(This&nbsp;journal)</th>
+                    {ENDIF}
+                    <th>Review articles<br>(All&nbsp;journals)</th>
+                    {IF journal_name != ""}
                         <th>Review articles<br>(This&nbsp;journal)</th>
                     {ENDIF}
                 </tr>
@@ -54,9 +56,11 @@
                     <tr>
                         <td nowrap><a href="https://www.loc.gov/marc/bibliographic/bd{tags}.html" title="Link to external MARC 21 documentation at loc.gov" target="_blank">{tags}</a></td>
                         <td nowrap>{global_regular_articles}</td>
-                        <td nowrap>{global_review_articles}</td>
                         {IF journal_name != ""}
                             <td nowrap>{journal_regular_articles}</td>
+                        {ENDIF}
+                        <td nowrap>{global_review_articles}</td>
+                        {IF journal_name != ""}
                             <td nowrap>{journal_review_articles}</td>
                         {ENDIF}
                     </tr>
