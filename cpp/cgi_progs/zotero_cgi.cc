@@ -639,6 +639,7 @@ struct QAFieldProperties {
 
     std::string generateHtmlForMap(const std::map<char,QASubfieldProperties> &map,
                                           const std::string &record_type,
+                                          const bool overridden=false,
                                           const std::string &delete_type="",
                                           const std::string &base_url="") const;
 };
@@ -646,10 +647,13 @@ struct QAFieldProperties {
 
 std::string QAFieldProperties::generateHtmlForMap(const std::map<char,QASubfieldProperties> &map,
                                                   const std::string &record_type,
+                                                  const bool overridden,
                                                   const std::string &delete_type,
                                                   const std::string &base_url) const
 {
     std::string html;
+    if (overridden)
+        html += "<div class=\"qa_rule_overridden\">Overridden (journal-specific):<br>";
     for (const auto &subfield_and_properties : map) {
         const auto subfield_code(std::string(1, subfield_and_properties.first));
         html += subfield_code + ": " + subfield_and_properties.second.field_presence_;
@@ -664,6 +668,8 @@ std::string QAFieldProperties::generateHtmlForMap(const std::map<char,QASubfield
         }
         html += "<br>";
     }
+    if (overridden)
+        html += "</div>";
     return html;
 }
 
@@ -724,10 +730,13 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
     const std::string base_url("?action=show_qa&zeder_id=" + zeder_id + "&zeder_instance=" + zeder_instance);
     for (const auto &tag_and_settings : tags_to_settings_map) {
         tags.emplace_back(tag_and_settings.first);
-        global_regular_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.global_regular_articles_, "regular_article"));
-        global_review_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.global_review_articles_, "review"));
-        journal_regular_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.journal_regular_articles_, "regular_article", "local", base_url));
-        journal_review_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.journal_review_articles_, "review", "local", base_url));
+
+        const bool global_regular_articles_overridden(not tag_and_settings.second.journal_regular_articles_.empty());
+        const bool global_review_articles_overridden(not tag_and_settings.second.journal_review_articles_.empty());
+        global_regular_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.global_regular_articles_, "regular_article", global_regular_articles_overridden));
+        global_review_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.global_review_articles_, "review", global_review_articles_overridden));
+        journal_regular_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.journal_regular_articles_, "regular_article", /* overridden = */false, "local", base_url));
+        journal_review_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.journal_review_articles_, "review", /* overridden = */false, "local", base_url));
     }
 
     names_to_values_map.insertScalar("submitted", submitted);
