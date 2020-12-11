@@ -28,3 +28,7 @@ span.dot {
     border-radius: 50%;
     display: inline-block;
 }
+
+div.qa_rule_overridden {
+    color: grey;
+}
