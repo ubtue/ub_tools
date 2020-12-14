@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "DbConnection.h"
+#include "DnsUtil.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "HtmlUtil.h"
@@ -156,11 +157,18 @@ void RegisterMissingJournals(const std::vector<std::unique_ptr<ZoteroHarvester::
 }
 
 
+bool isTestEnvironment() {
+    return (DnsUtil::GetHostname() != "ub28.uni-tuebingen.de");
+}
+
+
 std::string GetJournalHarvestStatus(const unsigned zeder_journal_id, const ZoteroHarvester::Config::JournalParams &journal_params,
                                     DbConnection * const db_connection)
 {
     std::string harvest_status("NONE");
-    if (journal_params.upload_operation_ != ZoteroHarvester::Config::NONE) {
+    if ((journal_params.upload_operation_ == ZoteroHarvester::Config::TEST and isTestEnvironment()) or
+        (journal_params.upload_operation_ == ZoteroHarvester::Config::LIVE and not isTestEnvironment()))
+    {
         const auto max_delivered_datetime(GetJournalMaxDeliveredDatetime(zeder_journal_id, db_connection));
         if (max_delivered_datetime != TimeUtil::BAD_TIME_T) {
             if (journal_params.update_window_ != 0 and max_delivered_datetime < ::time(nullptr) - journal_params.update_window_ * 86400)
