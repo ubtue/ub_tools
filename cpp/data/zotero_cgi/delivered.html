@@ -26,8 +26,10 @@
         <h1>Zotero Harvesting</h1>
         <h2>Delivered records for Zeder ID {zeder_id} ({zeder_instance})</h2>
         <p>
-            <a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}">Show QA settings</a> |
-            <a href="?action=show_downloaded&zeder_id={zeder_id}&group={group}&reset=all" onclick="return confirm('Are you sure? The harvester will download all automatically delivered records again.')">Reset all automatically delivered records</a>
+            <a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}">Show QA settings</a>
+            {IF test == "true"}
+                | <a href="?action=show_downloaded&zeder_id={zeder_id}&group={group}&reset=all" onclick="return confirm('Are you sure? The harvester will download all automatically delivered records again.')">Reset all automatically delivered records</a>
+            {ENDIF}
         </p>
         <p>
             Delivery States for Records:

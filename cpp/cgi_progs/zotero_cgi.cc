@@ -813,6 +813,10 @@ int Main(int argc, char *argv[]) {
     std::multimap<std::string, std::string> cgi_args;
     WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
     AddStyleCSS(&names_to_values_map);
+    if (isTestEnvironment())
+        names_to_values_map.insertScalar("test", "true");
+    else
+        names_to_values_map.insertScalar("test", "false");
 
     DbConnection db_connection;
     ZoteroHarvester::Util::UploadTracker upload_tracker;
