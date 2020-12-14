@@ -96,7 +96,7 @@ std::string MetadataRecord::toString() const {
         std::string keywords("keywords: [ ");
         for (const auto &keyword : keywords_)
             keywords += keyword + ", ";
-        TextUtil::UnicodeTruncate(&keywords, keywords.size() - 2);
+        TextUtil::UTF8Truncate(&keywords, keywords.size() - 2);
         keywords += " ]";
         out += "\t" + keywords + ",\n";
     }
@@ -363,7 +363,7 @@ ThreadSafeRegexMatcher InitializeBlacklistedAuthorTokenMatcher() {
 
     std::string match_pattern("\\b(");
     bool is_first_token(true);
-    for (const auto blacklisted_token : filtered_blacklisted_tokens) {
+    for (const auto &blacklisted_token : filtered_blacklisted_tokens) {
         if (not is_first_token)
             match_pattern += "|";
         else

@@ -31,7 +31,7 @@
 
 
 // Macros to create strings describing where and why an error occurred. Must be macros to access __FILE__ and __LINE__.
-// This gobble-dee-goop is necessary to turn __LINE__ into a string. See doctor dobs: http://www.ddj.com/dept/cpp/184403864
+// This gobble-dee-goop is necessary to turn __LINE__ into a string. See https://gcc.gnu.org/onlinedocs/cpp/Stringizing.html
 //
 #define Stringize(S) ReallyStringize(S)
 #define ReallyStringize(S) #S

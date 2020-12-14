@@ -1524,7 +1524,7 @@ std::string CanonizeCharset(std::string charset) {
 }
 
 
-void UnicodeTruncate(std::string * const utf8_string, const size_t max_length) {
+void UTF8Truncate(std::string * const utf8_string, const size_t max_length) {
     size_t count(0);
     auto cp(utf8_string->cbegin());
     while (count < max_length and cp != utf8_string->cend()) {

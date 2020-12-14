@@ -272,13 +272,12 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
 }
 
 
-const std::set<MARC::Tag> LINK_TAGS{ "800", "810", "830", "773", "775", "776" };
+const std::set<MARC::Tag> LINK_TAGS{ "773", "775", "776", "800", "810", "830" };
 
 
 // Make inferior works point to the new merged superior parent found in "ppn_to_canonical_ppn_map".  Links referencing a key in
 // "ppn_to_canonical_ppn_map" will be patched with the corresponding value.
-// only 1 uplink of the same tag type will be kept.  Also some cross links will be patched.
-unsigned PatchUpUplinksAndCrossLinks(MARC::Record * const record, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
+unsigned PatchLinks(MARC::Record * const record, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
     unsigned patched_link_count(0);
 
     std::vector<size_t> link_indices_for_deletion;
@@ -980,10 +979,10 @@ void DeleteCrossLinkFields(MARC::Record * const record) {
 // Merges the records in ppn_to_canonical_ppn_map in such a way that for each entry, "second" will be merged into "first".
 // "second" will then be collected in "skip_ppns" for a future copy phase where it will be dropped.  Uplinks that referenced
 // "second" will be replaced with "first".
-void MergeRecordsAndPatchUpUplinksAndCrossLinks(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                                         const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
-                                         const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
-                                         const std::unordered_multimap<std::string, std::string> &canonical_ppn_to_ppn_map)
+void MergeRecordsAndPatchLinks(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                               const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
+                               const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
+                               const std::unordered_multimap<std::string, std::string> &canonical_ppn_to_ppn_map)
 {
     std::unordered_set<std::string> unprocessed_ppns;
     for (const auto &ppn_and_ppn : canonical_ppn_to_ppn_map)
@@ -1023,7 +1022,7 @@ void MergeRecordsAndPatchUpUplinksAndCrossLinks(MARC::Reader * const marc_reader
             UpdateMergedPPNs(&record, merged_ppns, max_publication_year);
         }
 
-        patched_link_count += PatchUpUplinksAndCrossLinks(&record, ppn_to_canonical_ppn_map);
+        patched_link_count += PatchLinks(&record, ppn_to_canonical_ppn_map);
 
         marc_writer->write(record);
     }
@@ -1140,8 +1139,8 @@ int Main(int argc, char *argv[]) {
     EliminateDanglingOrUnreferencedCrossLinks(debug, ppn_to_offset_map, &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
 
     marc_reader->rewind();
-    MergeRecordsAndPatchUpUplinksAndCrossLinks(marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
-                                               canonical_ppn_to_ppn_map);
+    MergeRecordsAndPatchLinks(marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
+                              canonical_ppn_to_ppn_map);
 
     if (not (debug or skip_db_updates)) {
         std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());

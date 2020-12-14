@@ -71,7 +71,7 @@ void ProcessLibrary(const std::vector<std::string> &library_path, const std::str
 
     const std::string library("lib" + library_option.substr(2 /* Strip off "-l". */) + ".a");
 
-    for (const auto directory : library_path) {
+    for (const auto &directory : library_path) {
         if (unlikely(directory.empty()))
             LOG_ERROR("illegal empty library directory name!");
         const auto resolved_name(FindLibrary(directory, library));

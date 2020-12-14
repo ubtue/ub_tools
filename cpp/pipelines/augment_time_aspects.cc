@@ -106,7 +106,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
 
             std::vector<std::string> authority_ppns;
             CollectAuthorityPPNs(record, tag, &authority_ppns);
-            for (const auto authority_ppn : authority_ppns) {
+            for (const auto &authority_ppn : authority_ppns) {
                 const auto authority_ppn_and_time_code(authority_ppns_to_time_codes_map.find(authority_ppn));
                 if (authority_ppn_and_time_code != authority_ppns_to_time_codes_map.cend()) {
                     range = authority_ppn_and_time_code->second;
