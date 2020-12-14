@@ -652,7 +652,7 @@ void Record::merge(const Record &other) {
 
 bool Record::isMonograph() const {
     for (const auto &_935_field : getTagRange("935")) {
-        for (const auto subfield : _935_field.getSubfields()) {
+        for (const auto &subfield : _935_field.getSubfields()) {
             if (subfield.code_ == 'c' and subfield.value_ == "so")
                 return false;
         }
@@ -665,7 +665,7 @@ bool Record::isMonograph() const {
 bool Record::isArticle() const {
     if (leader_[7] == 'm') {
         for (const auto &_935_field : getTagRange("935")) {
-            for (const auto subfield : _935_field.getSubfields()) {
+            for (const auto &subfield : _935_field.getSubfields()) {
                 if (subfield.code_ == 'c' and subfield.value_ == "so")
                     return true;
             }
@@ -695,7 +695,7 @@ bool Record::isWebsite() const {
 
 bool Record::isElectronicResource() const {
     if (leader_.length() > 6 and (leader_[6] == 'a' or leader_[6] == 'm')) {
-        for (const auto _007_field : getTagRange("007")) {
+        for (const auto &_007_field : getTagRange("007")) {
             if (*_007_field.getContents().c_str() == 'c')
                 return true;
         }
@@ -750,13 +750,13 @@ bool Record::isElectronicResource() const {
 
 bool Record::isPrintResource() const {
     if (leader_.length() > 6 and leader_[6] == 'a') {
-        for (const auto _007_field : getTagRange("007")) {
+        for (const auto &_007_field : getTagRange("007")) {
             if (*_007_field.getContents().c_str() == 't')
                 return true;
         }
     }
 
-    for (const auto _935_field : getTagRange("935")) {
+    for (const auto &_935_field : getTagRange("935")) {
         for (const auto &subfield : _935_field.getSubfields()) {
             if (subfield.code_ == 'b' and subfield.value_ == "druck")
                 return true;
@@ -1014,7 +1014,7 @@ std::string Record::getMostRecentPublicationYear(const std::string &fallback) co
     if (isSerial()) {
         // 363$i w/ indicators 01 is the publication start year and 363$i with indicators 10 the publication end year.
         std::string start_year, end_year;
-        for (const auto _363_field : getTagRange("363")) {
+        for (const auto &_363_field : getTagRange("363")) {
             const auto subfield_i(_363_field.getFirstSubfieldWithCode('i'));
             if (subfield_i.empty())
                 continue;
@@ -1114,7 +1114,7 @@ std::map<std::string, std::string> Record::getAllAuthorsAndPPNs() const {
 
     std::map<std::string, std::string> author_names_to_authority_ppns_map;
     std::set<std::string> already_seen_author_names;
-    for (const auto tag : AUTHOR_TAGS) {
+    for (const auto &tag : AUTHOR_TAGS) {
         for (const auto &field : getTagRange(tag)) {
             for (const auto &subfield : field.getSubfields()) {
                 if (subfield.code_ == 'a' and already_seen_author_names.find(subfield.value_) == already_seen_author_names.end()) {
@@ -1262,7 +1262,7 @@ bool Record::getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_and_synony
             continue;
 
         std::vector<std::string> synonyms;
-        for (const auto synonym_field : getTagRange(canonical_keyword_field.getTag() == "150" ? "450" : "451")) {
+        for (const auto &synonym_field : getTagRange(canonical_keyword_field.getTag() == "150" ? "450" : "451")) {
             const std::string synonym(synonym_field.getFirstSubfieldWithCode('a'));
             if (likely(not synonym.empty()))
                 synonyms.emplace_back(synonym);
@@ -1904,12 +1904,15 @@ Record BinaryReader::actualRead() {
             return Record();
 
         if (unlikely(offset_ + Record::RECORD_LENGTH_FIELD_LENGTH >= input_file_size_))
-            LOG_ERROR("not enough remaining room for a record length in the memory mapping! (input_file_size_ = "
-                      + std::to_string(input_file_size_) + ", offset_ = " + std::to_string(offset_) + ")");
+            LOG_ERROR("not enough remaining room in \"" + input_->getPath()
+                      + "\" for a record length in the memory mapping! (input_file_size_ = "
+                      + std::to_string(input_file_size_) + ", offset_ = " + std::to_string(offset_)
+                      + "), file may be truncated!");
         const unsigned record_length(ToUnsigned(mmap_ + offset_, Record::RECORD_LENGTH_FIELD_LENGTH));
 
         if (unlikely(offset_ + record_length > input_file_size_))
-            LOG_ERROR("not enough remaining room for the rest of the record in the memory mapping!");
+            LOG_ERROR("not enough remaining room in \"" + input_->getPath()
+                      + "\" for the rest of the record in the memory mapping, file may be truncated!");
         offset_ += record_length;
 
         return Record(record_length, mmap_ + offset_ - record_length);
@@ -2830,7 +2833,7 @@ bool UBTueIsElectronicResource(const Record &marc_record) {
     }
 
     for (const auto &_245_field : marc_record.getTagRange("245")) {
-        for (const auto subfield : _245_field.getSubfields()) {
+        for (const auto &subfield : _245_field.getSubfields()) {
             if (subfield.code_ == 'h' and subfield.value_.find("[Elektronische Ressource]") != std::string::npos)
                 return true;
         }
@@ -2917,12 +2920,12 @@ FileType GetOptionalWriterType(int * const argc, char *** const argv, const int 
 
 
 bool Record::isReviewArticle() const {
-    for (const auto _655_field : getTagRange("655")) {
+    for (const auto &_655_field : getTagRange("655")) {
         if (StringUtil::FindCaseInsensitive(_655_field.getFirstSubfieldWithCode('a'), "rezension") != std::string::npos)
             return true;
     }
 
-    for (const auto _935_field : getTagRange("935")) {
+    for (const auto &_935_field : getTagRange("935")) {
         if (_935_field.getFirstSubfieldWithCode('c') == "uwre")
             return true;
     }
@@ -3015,7 +3018,7 @@ bool IsSubjectAccessTag(const Tag &tag) {
 
 std::set<std::string> ExtractOnlineCrossLinkPPNs(const MARC::Record &record) {
     std::set<std::string> cross_reference_ppns;
-    for (const auto _776_field : record.getTagRange("776")) {
+    for (const auto &_776_field : record.getTagRange("776")) {
         const auto ppn(BSZUtil::GetK10PlusPPNFromSubfield(_776_field, 'w'));
         if (ppn.empty())
             continue;
@@ -3039,7 +3042,7 @@ std::set<std::string> ExtractOnlineCrossLinkPPNs(const MARC::Record &record) {
 
 std::set<std::string> ExtractPrintCrossLinkPPNs(const MARC::Record &record) {
     std::set<std::string> cross_reference_ppns;
-    for (const auto _776_field : record.getTagRange("776")) {
+    for (const auto &_776_field : record.getTagRange("776")) {
         const auto ppn(BSZUtil::GetK10PlusPPNFromSubfield(_776_field, 'w'));
         if (ppn.empty())
             continue;
@@ -3064,7 +3067,7 @@ std::set<std::string> ExtractPrintCrossLinkPPNs(const MARC::Record &record) {
 static void ExtractOtherCrossLinkPPNsHelper(const MARC::Record &record, const MARC::Tag &tag,
                                             std::set<std::string> * const cross_link_ppns)
 {
-    for (const auto cross_link_field : record.getTagRange(tag)) {
+    for (const auto &cross_link_field : record.getTagRange(tag)) {
         const auto cross_link_ppn(BSZUtil::GetK10PlusPPNFromSubfield(cross_link_field, 'w'));
         if (not cross_link_ppn.empty()) {
             cross_link_ppns->emplace(cross_link_ppn);

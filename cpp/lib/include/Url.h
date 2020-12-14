@@ -112,29 +112,18 @@ private:
 
     static std::string default_user_agent_;
 public:
-    /** Constructor flag for performing no automatic operations. */
-    enum { NO_AUTO_OPERATIONS     = 1u << 0u };
-
-    /** Constructor flag for attempting to automatically make an invalid URL valid. */
-    enum { AUTO_MAKE_VALID        = 1u << 1u };
-
-    /** Constructor flag for automatically performing a safe, fast cleanup on the URL. */
-    enum { AUTO_CLEAN_UP          = 1u << 2u };
-
-    /** Constructor flag for automatically converting a URL to canonical form. */
-    enum { AUTO_CANONIZE          = 1u << 3u };
-
-    /** Constructor flag for automatically making a relative URL absolute when required. */
-    enum { AUTO_MAKE_ABSOLUTE     = 1u << 4u };
-
-    /** Constructor flag for disabling exception throwing. */
-    enum { THROW_EXCEPTIONS       = 1u << 5u };
-
-    /** Constructor flag to force interpreting a URL as absolute, an attempt is made to turn the URL into an absolute HTTP URL. */
-    enum { FORCE_ABSOLUTE_HTTP_URL = 1u << 6u };
-
-    /** Constructor flag to remove the fragment part of a URL if present. */
-    enum { REMOVE_FRAGMENT         = 1u << 7u };
+    /**
+     * CreationFlags:
+     * - AUTO_MAKE_VALID: Attempting to automatically make an invalid URL valid.
+     * - AUTO_CLEAN_UP: Automatically performing a safe, fast cleanup on the URL.
+     * - AUTO_CANONIZE: Automatically converting a URL to canonical form.
+     * - AUTO_MAKE_ABSOLUTE: Automatically making a relative URL absolute when required.
+     * - THROW_EXCEPTIONS: Disabling exception throwing.
+     * - FORCE_ABSOLUTE_HTTP_URL: Force interpreting a URL as absolute, an attempt is made to turn the URL into an absolute HTTP URL.
+     * - REMOVE_FRAGMENT: Remove the fragment part of a URL if present.
+     */
+    enum CreationFlags { NO_AUTO_OPERATIONS = 0, AUTO_MAKE_VALID = 1, AUTO_CLEAN_UP = 2, AUTO_CANONIZE = 4, AUTO_MAKE_ABSOLUTE = 8,
+                         THROW_EXCEPTIONS = 16, FORCE_ABSOLUTE_HTTP_URL = 32, REMOVE_FRAGMENT = 64 };
 public:
     /** \brief  Construct am empty Url object. */
     Url();

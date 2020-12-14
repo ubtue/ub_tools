@@ -2208,6 +2208,20 @@ public class TuelibMixin extends SolrIndexerMixin {
         return Boolean.toString(sprField.getSubfield('a') != null);
     }
 
+    public Set<String> getSubsystemsForSuperiorWork(final Record record) {
+        final DataField sprField = (DataField) record.getVariableField("SPR");
+        if (sprField == null)
+            return null;
+
+        final Set<String> subsystems = new TreeSet<String>();
+        for (final Subfield subfield : sprField.getSubfields()) {
+            if (subfield.getCode() == 't')
+                subsystems.add(subfield.getData());
+        }
+
+        return subsystems;
+    }
+
     public String isSubscribable(final Record record) {
         final DataField sprField = (DataField) record.getVariableField("SPR");
         if (sprField == null)
@@ -3065,7 +3079,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     public String getSuperiorPPN(final Record record) {
         // The order of the subfields matters, since 8XX can contain information about the series in which
         // an article in a volume is published but we do not want this as an immediate superior work
-        Vector<String> superiorDescriptors = new Vector<String>(Arrays.asList("773w:800w:810w:830w".split(":")));
+        Vector<String> superiorDescriptors = new Vector<String>(Arrays.asList("800w:810w:830w:773w".split(":")));
         for (String superiorDescriptor : superiorDescriptors) {
             final List<VariableField> superiorFields = record.getVariableFields(superiorDescriptor.substring(0, 3));
             for (final VariableField superiorField : superiorFields) {
