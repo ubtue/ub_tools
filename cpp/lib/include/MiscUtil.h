@@ -249,11 +249,11 @@ template<typename ContainerType, typename KeyType, typename ValueType> ValueType
                                                                                                             const ValueType &default_value,
                                                                                                             bool * const default_returned = nullptr)
 {
-    const auto iterator(container.find(key));
-    if (iterator != container.cend()) {
+    const auto key_and_value(container.find(key));
+    if (key_and_value != container.cend()) {
         if (default_returned != nullptr)
             *default_returned = false;
-        return iterator->second;
+        return key_and_value->second;
     } else {
         if (default_returned != nullptr)
             *default_returned = true;
