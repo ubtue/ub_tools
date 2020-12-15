@@ -42,7 +42,6 @@ namespace Config {
 static constexpr unsigned DEFAULT_ZEDER_ID(0);
 
 
-
 struct DownloadDelayParams {
     unsigned default_delay_in_ms_;
     unsigned max_delay_in_ms_;
