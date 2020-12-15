@@ -103,28 +103,16 @@ next_record:
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
 
-        auto next_start_tag(record.begin());
-        auto query(queries.cbegin());
-        while (query != queries.cend()) {
-            const auto field(record.findTag(query->getTag(), next_start_tag));
-            if (field == record.end())
-                goto next_record;
-            next_start_tag = field;
-
-            const auto subfields(field->getSubfields());
-            while (query != queries.cend() and query->getTag() == field->getTag()) {
-                bool matched_at_least_one(false);
-                for (const auto &subfield : subfields) {
-                    if (subfield.code_ == query->getSubfieldCode() and query->matched(subfield.value_)) {
-                        matched_at_least_one = true;
-                        break;
-                    }
+        for (const auto &query : queries) {
+            for (const auto &field : record.getTagRange(query.getTag())) {
+                for (const auto &subfield : field.getSubfields()) {
+                    if (subfield.code_ == query.getSubfieldCode() and query.matched(subfield.value_))
+                        goto next_query;
                 }
-                if (not matched_at_least_one)
-                    goto next_record;
-
-                ++query;
             }
+            goto next_record; // We found no match for the current query!
+next_query:
+            /* Intentionally empty! */;
         }
 
         GenerateReport(output, record);
