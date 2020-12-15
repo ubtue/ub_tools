@@ -44,19 +44,19 @@ static constexpr unsigned DEFAULT_ZEDER_ID(0);
 
 
 struct DownloadDelayParams {
-    unsigned default_delay_;
-    unsigned max_delay_;
-    std::map<std::string,unsigned> domain_to_default_delay_map_;
-    std::map<std::string,unsigned> domain_to_max_delay_map_;
+    unsigned default_delay_in_ms_;
+    unsigned max_delay_in_ms_;
+    std::unordered_map<std::string, unsigned> domain_to_default_delay_map_;
+    std::unordered_map<std::string, unsigned> domain_to_max_delay_map_;
 public:
-    DownloadDelayParams() = default;
+    DownloadDelayParams(): default_delay_in_ms_(0), max_delay_in_ms_(0) { }
     DownloadDelayParams(const IniFile::Section &config_section);
 
     unsigned getDefaultDelayForDomainOrDefault(const std::string &domain, bool * const default_returned) {
-        return MiscUtil::GetContainerValueOrDefault(domain_to_default_delay_map_, domain, default_delay_, default_returned);
+        return MiscUtil::GetContainerValueOrDefault(domain_to_default_delay_map_, domain, default_delay_in_ms_, default_returned);
     }
     unsigned getMaxDelayForDomainOrDefault(const std::string &domain, bool * const default_returned) {
-        return MiscUtil::GetContainerValueOrDefault(domain_to_max_delay_map_, domain, max_delay_, default_returned);
+        return MiscUtil::GetContainerValueOrDefault(domain_to_max_delay_map_, domain, max_delay_in_ms_, default_returned);
     }
 
     static bool IsValidIniEntry(const IniFile::Entry &entry);

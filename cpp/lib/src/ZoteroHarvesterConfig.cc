@@ -93,11 +93,13 @@ bool DownloadDelayParams::IsValidIniEntry(const IniFile::Entry &entry) {
 
 
 DownloadDelayParams::DownloadDelayParams(const IniFile::Section &config_section) {
+    default_delay_in_ms_ = 0;
+    max_delay_in_ms_ = 0;
     for (const auto &entry : config_section) {
         if (entry.name_ == GlobalParams::GetIniKeyString(GlobalParams::DOWNLOAD_DELAY_DEFAULT))
-            default_delay_ = StringUtil::ToUnsigned(entry.value_);
+            default_delay_in_ms_ = StringUtil::ToUnsigned(entry.value_);
         else if (entry.name_ == GlobalParams::GetIniKeyString(GlobalParams::DOWNLOAD_DELAY_MAX))
-            max_delay_ = StringUtil::ToUnsigned(entry.value_);
+            max_delay_in_ms_ = StringUtil::ToUnsigned(entry.value_);
         else if (StringUtil::StartsWith(entry.name_, PREFIX_DEFAULT_DOWNLOAD_DELAY_TIME)) {
             const auto domain_name(entry.name_.substr(__builtin_strlen(PREFIX_DEFAULT_DOWNLOAD_DELAY_TIME)));
             domain_to_default_delay_map_[domain_name] = StringUtil::ToUnsigned(entry.value_);
