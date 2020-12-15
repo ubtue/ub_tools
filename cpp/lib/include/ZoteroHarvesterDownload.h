@@ -297,8 +297,7 @@ class DownloadManager {
 public:
     struct GlobalParams {
         Url translation_server_url_;
-        unsigned default_download_delay_time_;
-        unsigned max_download_delay_time_;
+        Config::DownloadDelayParams download_delay_params_;
         unsigned timeout_download_request_;
         unsigned timeout_crawl_operation_;
         unsigned rss_feed_harvest_interval_;
