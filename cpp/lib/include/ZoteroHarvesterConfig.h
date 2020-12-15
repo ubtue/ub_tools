@@ -19,10 +19,12 @@
 #pragma once
 
 
+#include <map>
 #include <memory>
 #include <set>
 #include <unordered_map>
 #include "IniFile.h"
+#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "Zeder.h"
 
@@ -38,6 +40,26 @@ namespace Config {
 
 
 static constexpr unsigned DEFAULT_ZEDER_ID(0);
+
+
+struct DownloadDelayParams {
+    unsigned default_delay_in_ms_;
+    unsigned max_delay_in_ms_;
+    std::unordered_map<std::string, unsigned> domain_to_default_delay_map_;
+    std::unordered_map<std::string, unsigned> domain_to_max_delay_map_;
+public:
+    DownloadDelayParams(): default_delay_in_ms_(0), max_delay_in_ms_(0) { }
+    DownloadDelayParams(const IniFile::Section &config_section);
+
+    unsigned getDefaultDelayForDomainOrDefault(const std::string &domain, bool * const default_returned) {
+        return MiscUtil::GetContainerValueOrDefault(domain_to_default_delay_map_, domain, default_delay_in_ms_, default_returned);
+    }
+    unsigned getMaxDelayForDomainOrDefault(const std::string &domain, bool * const default_returned) {
+        return MiscUtil::GetContainerValueOrDefault(domain_to_max_delay_map_, domain, max_delay_in_ms_, default_returned);
+    }
+
+    static bool IsValidIniEntry(const IniFile::Entry &entry);
+};
 
 
 // Metadata parameters related to Zotero that will be re-used in global as well as journal params later
@@ -123,10 +145,7 @@ struct GlobalParams {
     std::string group_names_;
     std::string strptime_format_string_;
     bool skip_online_first_articles_unconditonally_;
-    struct {
-        unsigned default_delay_;
-        unsigned max_delay_;
-    } download_delay_params_;
+    DownloadDelayParams download_delay_params_;
     unsigned timeout_crawl_operation_;
     unsigned timeout_download_request_;
     struct {
