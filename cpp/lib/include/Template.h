@@ -111,6 +111,18 @@ public:
 public:
     inline void insertScalar(const std::string &name, const std::string &value)
         { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, value))); }
+    inline void insertScalar(const std::string &name, const char &value)
+        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::string(1, value)))); }
+    inline void insertScalar(const std::string &name, const bool &value)
+        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, value ? "true" : "false"))); }
+    inline void insertScalar(const std::string &name, const unsigned &value)
+        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::to_string(value)))); }
+    inline void insertScalar(const std::string &name, const int &value)
+        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::to_string(value)))); }
+    inline void insertScalar(const std::string &name, const float &value)
+        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::to_string(value)))); }
+    inline void insertScalar(const std::string &name, const double &value)
+        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::to_string(value)))); }
     inline void insertArray(const std::string &name, const std::vector<std::string> &values)
         { map_.emplace(name, std::shared_ptr<Value>(new ArrayValue(name, values))); }
     inline void insertArray(const std::string &name, const std::vector<std::shared_ptr<Value>> &values)
