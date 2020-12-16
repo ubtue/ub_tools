@@ -783,14 +783,24 @@ public:
     Range getTagRange(const Tag &tag);
 
     /** \return An iterator that references the first fields w/ tag "tag" or end() if no such fields exist. */
+    inline iterator findTag(const Tag &tag, iterator start_iterator) {
+        return std::find_if(start_iterator, fields_.end(), [&tag](const Field &field) -> bool { return field.getTag() == tag; });
+    }
+
+    /** \return An iterator that references the first fields w/ tag "tag" or end() if no such fields exist. */
     inline iterator findTag(const Tag &tag) {
-        return std::find_if(fields_.begin(), fields_.end(), [&tag](const Field &field) -> bool { return field.getTag() == tag; });
+        return findTag(tag, begin());
+    }
+
+    /** \return An iterator that references the first fields w/ tag "tag" or end() if no such fields exist. */
+    const_iterator findTag(const Tag &tag, const_iterator start_iterator) const {
+        return std::find_if(start_iterator, fields_.cend(),
+                            [&tag](const Field &field) -> bool { return field.getTag() == tag; });
     }
 
     /** \return An iterator that references the first fields w/ tag "tag" or end() if no such fields exist. */
     const_iterator findTag(const Tag &tag) const {
-        return std::find_if(fields_.cbegin(), fields_.cend(),
-                            [&tag](const Field &field) -> bool { return field.getTag() == tag; });
+        return findTag(tag, begin());
     }
 
     /** \brief  Changes all from-tags to to-tags.

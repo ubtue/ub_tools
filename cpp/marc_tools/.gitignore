@@ -19,6 +19,7 @@ marc_filter
 marc_grep
 marc_grep_ng
 marc_info
+marc_mgrep
 marc_ngram_language_stats
 marc_ppn_patcher
 marc_range_filter
