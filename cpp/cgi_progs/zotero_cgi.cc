@@ -511,8 +511,16 @@ void UpdateRecordDeliveryStateAndTimestamp(const std::string &record_id, const Z
                                            DbConnection * const db_connection)
 {
     db_connection->queryOrDie("UPDATE delivered_marc_records SET delivery_state=" +
-                               db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(delivery_state)) +
-                               ",delivered_at=NOW() WHERE id=" + db_connection->escapeAndQuoteString(record_id));
+                              db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(delivery_state)) +
+                              ",delivered_at=NOW() WHERE id=" + db_connection->escapeAndQuoteString(record_id));
+}
+
+
+void ResetDeliveredRecordsForJournal(const unsigned journal_id, DbConnection * const db_connection) {
+    db_connection->queryOrDie("UPDATE delivered_marc_records SET delivery_state=" +
+                              db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(ZoteroHarvester::Util::UploadTracker::RESET)) +
+                              " WHERE zeder_journal_id=" + db_connection->escapeAndQuoteString(std::to_string(journal_id)) +
+                              " AND delivery_state=" + db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(ZoteroHarvester::Util::UploadTracker::AUTOMATIC)));
 }
 
 
@@ -520,22 +528,32 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
                                  ZoteroHarvester::Util::UploadTracker * const upload_tracker,
                                  DbConnection * const db_connection)
 {
-    const std::string id_to_deliver_manually(GetCGIParameterOrDefault(cgi_args, "set_manually_delivered"));
-    if (not id_to_deliver_manually.empty())
-        UpdateRecordDeliveryStateAndTimestamp(id_to_deliver_manually, ZoteroHarvester::Util::UploadTracker::DeliveryState::MANUAL, db_connection);
-
-    const std::string id_to_reset(GetCGIParameterOrDefault(cgi_args, "reset"));
-    if (not id_to_reset.empty())
-        UpdateRecordDeliveryStateAndTimestamp(id_to_reset, ZoteroHarvester::Util::UploadTracker::DeliveryState::RESET, db_connection);
-
     const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
     const std::string group(GetCGIParameterOrDefault(cgi_args, "group"));
     const Zeder::Flavour zeder_flavour(group == "IxTheo" or group == "RelBib" ? Zeder::Flavour::IXTHEO : Zeder::Flavour::KRIMDOK);
     const std::string zeder_instance(GetZederInstanceForGroup(group));
+    const unsigned journal_id(GetZederJournalId(StringUtil::ToUnsigned(zeder_id), zeder_instance, db_connection));
+    std::string at_least_one_action_done("false");
+
+    const std::string id_to_deliver_manually(GetCGIParameterOrDefault(cgi_args, "set_manually_delivered"));
+    if (not id_to_deliver_manually.empty()) {
+        UpdateRecordDeliveryStateAndTimestamp(id_to_deliver_manually, ZoteroHarvester::Util::UploadTracker::DeliveryState::MANUAL, db_connection);
+        at_least_one_action_done = "true";
+    }
+
+    const std::string id_to_reset(GetCGIParameterOrDefault(cgi_args, "reset"));
+    if (not id_to_reset.empty()) {
+        if (id_to_reset == "all")
+            ResetDeliveredRecordsForJournal(journal_id, db_connection);
+        else
+            UpdateRecordDeliveryStateAndTimestamp(id_to_reset, ZoteroHarvester::Util::UploadTracker::DeliveryState::RESET, db_connection);
+        at_least_one_action_done = "true";
+    }
 
     names_to_values_map.insertScalar("zeder_id", zeder_id);
     names_to_values_map.insertScalar("zeder_instance", zeder_instance);
     names_to_values_map.insertScalar("group", group);
+    names_to_values_map.insertScalar("at_least_one_action_done", at_least_one_action_done);
 
     std::vector<std::string> ids;
     std::vector<std::string> delivered_datetimes;
@@ -795,6 +813,10 @@ int Main(int argc, char *argv[]) {
     std::multimap<std::string, std::string> cgi_args;
     WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
     AddStyleCSS(&names_to_values_map);
+    if (isTestEnvironment())
+        names_to_values_map.insertScalar("test", "true");
+    else
+        names_to_values_map.insertScalar("test", "false");
 
     DbConnection db_connection;
     ZoteroHarvester::Util::UploadTracker upload_tracker;
