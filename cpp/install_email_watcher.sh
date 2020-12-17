@@ -21,3 +21,5 @@ install --owner=email_watcher --group=email_watcher --mode=0600 \
 echo '*/10 * * * * /usr/local/bin/email_watcher.sh' > /tmp/email_watcher.crontab
 crontab -u email_watcher /tmp/email_watcher.crontab
 rm /tmp/email_watcher.crontab
+
+echo "Completed set up of email_watcher, including fetchmail and crontab."
