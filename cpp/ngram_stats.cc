@@ -52,7 +52,7 @@ void ProcessRecords(const std::set<std::string> &test_languages, MARC::Reader * 
             continue;
 
         std::vector<NGram::DetectedLanguage> top_languages;
-        NGram::ClassifyLanguage(record.getMainTitle(), &top_languages, test_languages);
+        NGram::ClassifyLanguage(record.getCompleteTitle(), &top_languages, test_languages);
         if (top_languages.front().language_ == actual_language)
             ++correct_count;
         else
