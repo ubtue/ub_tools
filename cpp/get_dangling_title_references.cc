@@ -56,16 +56,18 @@ void FindDanglingCrossReferences(MARC::Reader * const reader, const bool conside
 {
      unsigned unreferenced_ppns(0);
      while (const auto record = reader->read()) {
-        for (const auto &field : record) {
-            std::string referenced_ppn;
-            if ((not consider_only_reviews or record.isReviewArticle())
-                and MARC::IsCrossLinkField(field, &referenced_ppn, REFERENCE_FIELDS)
-                and not IsPartOfTitleData(all_ppns, referenced_ppn))
-            {
-                *dangling_log << record.getControlNumber() << "," << referenced_ppn << '\n';
-                ++unreferenced_ppns;
-            }
-        }
+         if (consider_only_reviews and not record.isReviewArticle())
+             continue;
+
+         for (const auto &field : record) {
+             std::string referenced_ppn;
+             if (MARC::IsCrossLinkField(field, &referenced_ppn, REFERENCE_FIELDS)
+                 and not IsPartOfTitleData(all_ppns, referenced_ppn))
+             {
+                 *dangling_log << record.getControlNumber() << "," << referenced_ppn << '\n';
+                 ++unreferenced_ppns;
+             }
+         }
      }
      LOG_INFO("Detected " + std::to_string(unreferenced_ppns) + " unreferenced ppns");
 }
