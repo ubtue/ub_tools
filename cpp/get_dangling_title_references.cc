@@ -1,7 +1,7 @@
 /** \brief Detect missing references in title data records
  *  \author Johannes Riedl
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -45,7 +45,7 @@ void CollectAllPPNs(MARC::Reader * const reader, std::unordered_set<std::string>
       all_ppns->emplace(record.getControlNumber());
 }
 
-bool IsPartOfTitleData(const std::unordered_set<std::string> &all_ppns, const std::string &referenced_ppn) {
+inline bool IsPartOfTitleData(const std::unordered_set<std::string> &all_ppns, const std::string &referenced_ppn) {
     return all_ppns.find(referenced_ppn) != all_ppns.cend();
 }
 
