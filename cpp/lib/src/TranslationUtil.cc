@@ -161,7 +161,7 @@ static std::map<std::string, std::string> german_to_3or4letter_english_codes {
     { "fra", "fre" },
     { "gre", "gre" },
     { "ita", "ita" },
-    { "may", "msa" },
+    { "msa", "may" },
     { "nld", "dut" },
     { "por", "por" },
     { "rum", "ron" },
