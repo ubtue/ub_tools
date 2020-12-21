@@ -63,7 +63,7 @@ const std::map<std::string, std::string> international_2letter_code_to_german_3o
     { "es", "spa" },
     { "fr", "fra" },
     { "it", "ita" },
-    { "ms", "may" },
+    { "ms", "msa" },
     { "nl", "nld" },
     { "pt", "por" },
     { "ro", "rum" },
