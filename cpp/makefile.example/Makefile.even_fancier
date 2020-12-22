@@ -1,0 +1,8 @@
+x: x.o y.o
+	g++ $^ -o $@
+
+%.o: %.cc
+	g++ -c $<
+
+clean:
+	rm -f *.o x *~

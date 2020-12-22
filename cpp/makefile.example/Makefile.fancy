@@ -1,0 +1,11 @@
+x: x.o y.o
+	g++ $^ -o $@
+
+x.o: x.cc
+	g++ -c $<
+
+y.o: y.cc
+	g++ -c $<
+
+clean:
+	rm -f *.o x *~
