@@ -39,10 +39,10 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
             if (field->isControlField())
                 continue; // We will *not* modify or delete any control fields!
 
-            MARC::Subfields subfields(field->getSubfields());
+            const MARC::Subfields subfields(field->getSubfields());
             bool need_to_modify_or_delete_at_least_one_subfield(false);
             for (const auto &subfield : subfields) {
-                if (unlikely(subfield.value_.empty() or subfield.value_[0] == ' ' or subfield.value_.back() == ' ')) {
+                if (unlikely(subfield.value_.empty() or subfield.value_.front() == ' ' or subfield.value_.back() == ' ')) {
                     need_to_modify_or_delete_at_least_one_subfield = true;
                     break;
                 }
