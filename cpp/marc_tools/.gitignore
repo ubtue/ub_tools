@@ -28,5 +28,6 @@ marc_size
 marc_split
 marc_tag_grep
 replace_marc_records
+sanitize_marc
 subfield_code_replacer
 debs/
