@@ -155,7 +155,8 @@ public:
     inline iterator begin() { return subfields_.begin(); }
     inline iterator end() { return subfields_.end(); }
     inline bool empty() const { return subfields_.empty(); }
-    size_t size() const { return subfields_.size(); }
+    inline size_t size() const { return subfields_.size(); }
+    inline void reserve(const size_t size) { subfields_.reserve(size); }
     void clear() { return subfields_.clear(); }
 
     inline bool hasSubfield(const char subfield_code) const {
@@ -325,6 +326,9 @@ public:
             : Field(tag, std::string(1, indicator1) + std::string(1, indicator2)) { }
         Field(const Tag &tag, const Subfields &subfields, const char indicator1 = ' ', const char indicator2 = ' ')
             : Field(tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString()) { }
+
+        inline bool empty() const
+            { return isControlField() ? contents_.empty() : contents_.size() == 2 /* indicators */; }
         Field &operator=(const Field &rhs) = default;
         inline bool operator==(const Field &rhs) const { return tag_ == rhs.tag_ and contents_ == rhs.contents_; }
         inline bool operator!=(const Field &rhs) const { return not operator==(rhs); }
