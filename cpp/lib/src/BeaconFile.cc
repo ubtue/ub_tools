@@ -2,7 +2,7 @@
  *  \brief  Implementation for the BeaconFile class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -35,8 +35,9 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
     ++line_no;
 
     line = input->getLineAny();
-    if (line != "#PREFIX: http://d-nb.info/gnd/")
-        LOG_ERROR("expected \"#PREFIX: http://d-nb.info/gnd/\" as the second line in \"" + filename + "\"!");
+    if (line != "#PREFIX: http://d-nb.info/gnd/" and line != "#PREFIX: https://d-nb.info/gnd/")
+        LOG_ERROR("expected \"#PREFIX: http://d-nb.info/gnd/\" or "
+                  "line != #PREFIX: https://d-nb.info/gnd/ as the second line in \"" + filename + "\"!");
     ++line_no;
 
     do {
