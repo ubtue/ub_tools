@@ -51,15 +51,15 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
             if (need_to_modify_or_delete_at_least_one_subfield) {
                 MARC::Subfields new_subfields;
                 new_subfields.reserve(subfields.size());
-                for (auto subfield(subfields.begin()); subfield != subfields.end(); ++subfield) {
-                    if (subfield->value_.empty())
-                        ++subfield;
-                    else if (subfield->value_[0] == ' ') {
-                        StringUtil::Trim(&(subfield->value_));
-                        if (likely(not subfield->value_.empty()))
-                            new_subfields.appendSubfield(subfield->code_, subfield->value_);
+                for (auto subfield : subfields) {
+                    if (subfield.value_.empty())
+                        continue;
+                    else if (subfield.value_[0] == ' ') {
+                        StringUtil::Trim(&(subfield.value_));
+                        if (likely(not subfield.value_.empty()))
+                            new_subfields.appendSubfield(subfield.code_, subfield.value_);
                     } else
-                        new_subfields.appendSubfield(subfield->code_, subfield->value_);
+                        new_subfields.appendSubfield(subfield.code_, subfield.value_);
                 }
                 field->setContents(new_subfields, field->getIndicator1(), field->getIndicator2());
                 modified_or_deleted_at_least_one_field = true;
