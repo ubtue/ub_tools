@@ -14,6 +14,7 @@ all: .deps $(PROGS)
 	$(MAKE) -C test
 	$(MAKE) -C tests
 	$(MAKE) -C throwaways
+	$(MAKE) -C zotaut
 
 %.o: %.cc Makefile
 	@echo "Compiling $< $(OPTIMISATIONS_STATE)..."
@@ -38,6 +39,7 @@ install: regular_install data_install
 	$(MAKE) -C cgi_progs install
 	$(MAKE) -C marc_tools install
 	$(MAKE) -C pipelines install
+	$(MAKE) -C zotaut install
 
 regular_install: $(INSTALL_PROGS) Makefile
 	@echo "Installing programs..."
@@ -82,3 +84,4 @@ clean: local_clean Makefile
 	$(MAKE) -C test clean
 	$(MAKE) -C tests clean
 	$(MAKE) -C throwaways clean
+	$(MAKE) -C zotaut clean
