@@ -369,7 +369,7 @@ std::string UploadTracker::Entry::toString() const {
     std::string out;
     out += "\tid: " + std::to_string(id_) + "\n";
     out += "\turl: " + url_ + "\n";
-    out += "\tdelivery_state: " + DELIVERY_STATE_TO_STRING_MAP.at(delivery_state_);
+    out += "\tdelivery_state: " + DELIVERY_STATE_TO_STRING_MAP.at(delivery_state_) + "\n";
     out += "\terror_message: " + error_message_ + "\n";
     out += "\tdelivered_at: " + delivered_at_str_ + "\n";
     out += "\tzeder id: " + std::to_string(zeder_id_) + "\n";
