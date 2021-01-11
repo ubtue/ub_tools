@@ -470,7 +470,7 @@ bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const
     for (const auto &url : record_urls) {
         if (urlAlreadyDelivered(url, delivery_states_to_ignore, &buffer, db_connection)) {
             if (buffer.hash_ != record_hash) {
-                LOG_INFO("record with URL '" + url + "' already delivered but with a different hash!");
+                LOG_INFO("record with URL '" + url + "' already delivered but with a different hash");
                 LOG_DEBUG("\tcurrent hash: " + record_hash);
                 LOG_DEBUG("\t" + buffer.toString());
             } else
