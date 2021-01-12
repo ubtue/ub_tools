@@ -503,6 +503,29 @@ bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const
 }
 
 
+bool UploadTracker::journalHasRecordToRetry(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) const {
+    WaitOnSemaphore lock(&connection_pool_semaphore_);
+    DbConnection db_connection;
+
+    const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
+    std::string delivery_states_subquery("(");
+    for (const auto delivery_state : DELIVERY_STATES_TO_RETRY) {
+        if (delivery_states_subquery != "(")
+            delivery_states_subquery += ",";
+        delivery_states_subquery += db_connection.escapeAndQuoteString(DELIVERY_STATE_TO_STRING_MAP.at(delivery_state));
+    }
+    delivery_states_subquery += ")";
+
+    db_connection.queryOrDie("SELECT count(*) AS counted_records FROM delivered_marc_records "
+                             "LEFT JOIN zeder_journals ON zeder_journals.id=delivered_marc_records.zeder_journal_id "
+                             "WHERE zeder_journals.zeder_id=" + db_connection.escapeAndQuoteString(std::to_string(zeder_id)) + " "
+                             "AND zeder_journals.zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance) + " "
+                             "AND delivery_state IN " + delivery_states_subquery);
+
+    return *db_connection.getLastResultSet().getColumnSet("counted_records").begin() != "0";
+}
+
+
 bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore,
                                         Entry * const entry) const
 {
@@ -661,6 +684,15 @@ std::string UploadTracker::GetZederInstanceString(const Zeder::Flavour zeder_fla
     default:
         LOG_ERROR("unknown zeder flavour '" + std::to_string(zeder_flavour) + "'");
     }
+}
+
+
+std::string UploadTracker::GetZederInstanceString(const std::string &group) {
+    if (group == "IxTheo" or group == "RelBib")
+        return "ixtheo";
+    else if (group == "KrimDok")
+        return "krimdok";
+    LOG_ERROR("could not determine zeder instance for group: " + group);
 }
 
 

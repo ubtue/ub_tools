@@ -88,7 +88,7 @@ Journal GetJournalById(const unsigned id, DbConnection * const db_connection) {
     db_connection->queryOrDie("SELECT id, zeder_id, zeder_instance, journal_name FROM zeder_journals WHERE id="
                               + db_connection->escapeAndQuoteString(std::to_string(id)));
     auto result_set(db_connection->getLastResultSet());
-    while (const auto &row = result_set.getNextRow()) {
+    while (const auto row = result_set.getNextRow()) {
         Journal journal;
         journal.id_ = id;
         journal.zeder_id_ = StringUtil::ToUnsigned(row["zeder_id"]);
@@ -110,15 +110,6 @@ std::unordered_map<std::string, unsigned> GetZederIdAndInstanceToZederJournalIdM
         zeder_id_and_instance_to_zeder_journal_id_map[row["zeder_id"] + "#" + row["zeder_instance"]] = StringUtil::ToUnsigned(row["id"]);
 
     return zeder_id_and_instance_to_zeder_journal_id_map;
-}
-
-
-std::string GetZederInstanceForGroup(const std::string &group) {
-    if (group == "IxTheo" or group == "RelBib")
-        return "ixtheo";
-    else if (group == "KrimDok")
-        return "krimdok";
-    LOG_ERROR("could not determine zeder instance for group: " + group);
 }
 
 
@@ -175,8 +166,8 @@ void RegisterMissingJournals(const std::vector<std::unique_ptr<ZoteroHarvester::
 {
     const auto zeder_id_and_instance_to_zeder_journal_id_map(GetZederIdAndInstanceToZederJournalIdMap(db_connection));
     for (const auto &journal : journal_params) {
-        if (zeder_id_and_instance_to_zeder_journal_id_map.find(std::to_string(journal->zeder_id_) + "#" + GetZederInstanceForGroup(journal->group_))
-            == zeder_id_and_instance_to_zeder_journal_id_map.end())
+        const std::string key(std::to_string(journal->zeder_id_) + "#" + upload_tracker->GetZederInstanceString(journal->group_));
+        if (zeder_id_and_instance_to_zeder_journal_id_map.find(key) == zeder_id_and_instance_to_zeder_journal_id_map.end())
             upload_tracker->registerZederJournal(journal->zeder_id_, StringUtil::ASCIIToLower(journal->group_), journal->name_);
     }
 }
