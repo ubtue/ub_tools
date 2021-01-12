@@ -566,8 +566,8 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
         at_least_one_action_done = "true";
     }
 
-    names_to_values_map.insertScalar("id", std::to_string(journal.id_));
-    names_to_values_map.insertScalar("zeder_id", std::to_string(journal.zeder_id_));
+    names_to_values_map.insertScalar("id", journal.id_);
+    names_to_values_map.insertScalar("zeder_id", journal.zeder_id_);
     names_to_values_map.insertScalar("zeder_instance", Zeder::FLAVOUR_TO_STRING_MAP.at(journal.zeder_flavour_));
     names_to_values_map.insertScalar("journal_name", journal.name_);
     names_to_values_map.insertScalar("at_least_one_action_done", at_least_one_action_done);
