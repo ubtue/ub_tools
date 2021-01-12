@@ -4,7 +4,7 @@
         {IF at_least_one_action_done == "true"}
             <!-- Get rid of additional GET parameters after performing an action -->
             <script>
-                window.location.replace(window.location.href.replace(/\?.*$/, "?action=show_downloaded&zeder_id={zeder_id}&group={group}"));
+                window.location.replace(window.location.href.replace(/\?.*$/, "?action=show_downloaded&id={id}"));
             </script>
         {ENDIF}
 
@@ -24,11 +24,11 @@
     </head>
     <body>
         <h1>Zotero Harvesting</h1>
-        <h2>Delivered records for Zeder ID {zeder_id} ({zeder_instance})</h2>
+        <h2>Delivered records for &quot;{journal_name}&quot;</h2>
         <p>
-            <a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}">Show QA settings</a>
+            <a href="?action=show_qa&id={id}">Show QA settings</a>
             {IF test == "true"}
-                | <a href="?action=show_downloaded&zeder_id={zeder_id}&group={group}&reset=all" onclick="return confirm('Are you sure? The harvester will download all automatically delivered records again.')">Reset all automatically delivered records</a>
+                | <a href="?action=show_downloaded&id={id}&reset=all" onclick="return confirm('Are you sure? The harvester will download all automatically delivered records again.')">Reset all automatically delivered records</a>
             {ENDIF}
         </p>
         <p>
@@ -66,16 +66,16 @@
                         </td>
                         <td>
                             {IF delivery_states == "automatic"}
-                                <a href="?action=show_downloaded&zeder_id={zeder_id}&group={group}&reset={ids}" onclick="return confirm('Are you sure? The harvester will try to deliver this record again.')">Reset &amp; try again</a>
+                                <a href="?action=show_downloaded&id={id}&reset={ids}" onclick="return confirm('Are you sure? The harvester will try to deliver this record again.')">Reset &amp; try again</a>
                             {ENDIF}
                             {IF delivery_states == "manual"}
-                                <a href="?action=show_downloaded&zeder_id={zeder_id}&group={group}&reset={ids}" onclick="return confirm('Are you sure? The harvester will try to deliver this record again.')">Reset &amp; try again</a>
+                                <a href="?action=show_downloaded&id={id}&reset={ids}" onclick="return confirm('Are you sure? The harvester will try to deliver this record again.')">Reset &amp; try again</a>
                             {ENDIF}
                             {IF delivery_states == "error"}
-                                <a href="?action=show_downloaded&zeder_id={zeder_id}&group={group}&set_manually_delivered={ids}" onclick="return confirm('Are you sure? This record and all its URLs will no longer be processed automatically.')">Deliver manually</a>
+                                <a href="?action=show_downloaded&id={id}&set_manually_delivered={ids}" onclick="return confirm('Are you sure? This record and all its URLs will no longer be processed automatically.')">Deliver manually</a>
                             {ENDIF}
                             {IF delivery_states == "ignore"}
-                                <a href="?action=show_downloaded&zeder_id={zeder_id}&group={group}&reset={ids}" onclick="return confirm('Are you sure? The harvester will try to deliver this record again.')">Reset &amp; try again</a>
+                                <a href="?action=show_downloaded&id={id}&reset={ids}" onclick="return confirm('Are you sure? The harvester will try to deliver this record again.')">Reset &amp; try again</a>
                             {ENDIF}
                         </td>
                     </tr>
