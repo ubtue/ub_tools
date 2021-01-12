@@ -166,7 +166,7 @@ def UploadToBSZFTPServer(remote_folder_path: str, marc_filename: str):
 
 
 def Main():
-    util.default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
+    util.default_email_recipient = sys.argv[1]
     SetupWorkDirectory()
     OUTPUT_FILENAME = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + ".mrc"
     try:
