@@ -97,7 +97,7 @@ Journal GetJournalById(const unsigned id, DbConnection * const db_connection) {
         return journal;
     }
 
-    LOG_ERROR("Journal with id \"" + std::to_string(id) + "\" does not exist in database!");
+    LOG_ERROR("Journal with ID \"" + std::to_string(id) + "\" does not exist in database!");
 }
 
 
