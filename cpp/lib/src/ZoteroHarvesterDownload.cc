@@ -372,33 +372,39 @@ namespace RSS {
 bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Config::JournalParams &journal_params,
                                      const SyndicationFormat::AugmentParams &syndication_format_site_params) const
 {
+    // Part 1: If force_downloads_ is set, we do not need to check any other conditions
     if (force_downloads_) {
         LOG_DEBUG("forcing downloads - feed will be harvested unconditionally");
         return true;
     }
 
+    // Part 2: Check if the journal has existing records to retry
+    const std::string zeder_instance(upload_tracker_.GetZederInstanceString(journal_params.group_));
+    if (upload_tracker_.journalHasRecordToRetry(journal_params.zeder_id_, Zeder::GetFlavourByString(zeder_instance))) {
+        LOG_INFO("feed needs to be harvested because there are records to retry");
+        return true;
+    }
+
+    // Part 3: Check if harvesting is necessary due to last harvest date
     const auto last_harvest_timestamp(upload_tracker_.getLastUploadTime(journal_params.zeder_id_,
                                       ZederInterop::GetZederInstanceForJournal(journal_params)));
     if (last_harvest_timestamp == TimeUtil::BAD_TIME_T) {
         LOG_INFO("feed will be harvested for the first time");
         return true;
-    } else {
-        const auto diff((time(nullptr) - last_harvest_timestamp) / 86400);
-        if (unlikely(diff < 0))
-            LOG_ERROR("unexpected negative time difference '" + std::to_string(diff) + "'");
-
-        const auto harvest_threshold(journal_params.update_window_ > 0 ? journal_params.update_window_ : feed_harvest_interval_);
-        LOG_INFO("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
-        LOG_INFO("feed harvest threshold: " + std::to_string(harvest_threshold) + " days | diff: " + std::to_string(diff) + " days");
-
-        if (diff >= harvest_threshold) {
-            LOG_INFO("feed older than " + std::to_string(harvest_threshold) +
-                      " days. flagging for mandatory harvesting");
-            return true;
-        }
+    }
+    const auto diff((time(nullptr) - last_harvest_timestamp) / 86400);
+    if (unlikely(diff < 0))
+        LOG_ERROR("unexpected negative time difference '" + std::to_string(diff) + "'");
+    const auto harvest_threshold(journal_params.update_window_ > 0 ? journal_params.update_window_ : feed_harvest_interval_);
+    LOG_INFO("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
+    LOG_INFO("feed harvest threshold: " + std::to_string(harvest_threshold) + " days | diff: " + std::to_string(diff) + " days");
+    if (diff >= harvest_threshold) {
+        LOG_INFO("feed older than " + std::to_string(harvest_threshold) +
+                  " days. flagging for mandatory harvesting");
+        return true;
     }
 
-    // needs to be parsed again as iterating over a SyndicationFormat instance will consume its items
+    // Part 4: Check if harvesting is necessary due to new items
     std::string err_msg;
     const auto syndication_format(SyndicationFormat::Factory(feed_contents, syndication_format_site_params, &err_msg));
     if (syndication_format == nullptr) {
@@ -406,7 +412,6 @@ bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Con
                     + err_msg);
         return false;
     }
-
     for (const auto &item : *syndication_format) {
         const auto pub_date(item.getPubDate());
         if (force_process_feeds_with_no_pub_dates_ and pub_date == TimeUtil::BAD_TIME_T) {
@@ -418,6 +423,7 @@ bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Con
         }
     }
 
+    // Default: Do not harvest
     LOG_INFO("no new, harvestable entries in feed. skipping...");
     return false;
 }

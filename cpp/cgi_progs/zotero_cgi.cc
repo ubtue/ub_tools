@@ -76,6 +76,31 @@ std::string GetMinElementOrDefault(const std::vector<std::string> &elements, con
 }
 
 
+struct Journal {
+    unsigned id_;
+    unsigned zeder_id_;
+    Zeder::Flavour zeder_flavour_;
+    std::string name_;
+};
+
+
+Journal GetJournalById(const unsigned id, DbConnection * const db_connection) {
+    db_connection->queryOrDie("SELECT id, zeder_id, zeder_instance, journal_name FROM zeder_journals WHERE id="
+                              + db_connection->escapeAndQuoteString(std::to_string(id)));
+    auto result_set(db_connection->getLastResultSet());
+    while (const auto row = result_set.getNextRow()) {
+        Journal journal;
+        journal.id_ = id;
+        journal.zeder_id_ = StringUtil::ToUnsigned(row["zeder_id"]);
+        journal.zeder_flavour_ = Zeder::GetFlavourByString(row["zeder_instance"]);
+        journal.name_ = row["journal_name"];
+        return journal;
+    }
+
+    LOG_ERROR("Journal with ID \"" + std::to_string(id) + "\" does not exist in database!");
+}
+
+
 std::unordered_map<std::string, unsigned> GetZederIdAndInstanceToZederJournalIdMap(DbConnection * const db_connection) {
     std::unordered_map<std::string, unsigned> zeder_id_and_instance_to_zeder_journal_id_map;
 
@@ -85,15 +110,6 @@ std::unordered_map<std::string, unsigned> GetZederIdAndInstanceToZederJournalIdM
         zeder_id_and_instance_to_zeder_journal_id_map[row["zeder_id"] + "#" + row["zeder_instance"]] = StringUtil::ToUnsigned(row["id"]);
 
     return zeder_id_and_instance_to_zeder_journal_id_map;
-}
-
-
-std::string GetZederInstanceForGroup(const std::string &group) {
-    if (group == "IxTheo" or group == "RelBib")
-        return "ixtheo";
-    else if (group == "KrimDok")
-        return "krimdok";
-    LOG_ERROR("could not determine zeder instance for group: " + group);
 }
 
 
@@ -150,8 +166,8 @@ void RegisterMissingJournals(const std::vector<std::unique_ptr<ZoteroHarvester::
 {
     const auto zeder_id_and_instance_to_zeder_journal_id_map(GetZederIdAndInstanceToZederJournalIdMap(db_connection));
     for (const auto &journal : journal_params) {
-        if (zeder_id_and_instance_to_zeder_journal_id_map.find(std::to_string(journal->zeder_id_) + "#" + GetZederInstanceForGroup(journal->group_))
-            == zeder_id_and_instance_to_zeder_journal_id_map.end())
+        const std::string key(std::to_string(journal->zeder_id_) + "#" + upload_tracker->GetZederInstanceString(journal->group_));
+        if (zeder_id_and_instance_to_zeder_journal_id_map.find(key) == zeder_id_and_instance_to_zeder_journal_id_map.end())
             upload_tracker->registerZederJournal(journal->zeder_id_, StringUtil::ASCIIToLower(journal->group_), journal->name_);
     }
 }
@@ -203,6 +219,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
     std::vector<std::string> all_journal_methods;
     std::vector<std::string> all_journal_groups;
     std::vector<std::string> all_journal_delivery_modes;
+    std::vector<std::string> all_journal_ids;
     std::vector<std::string> all_journal_zeder_ids;
     std::vector<std::string> all_journal_zeder_urls;
     std::vector<std::string> all_journal_harvest_statuses;
@@ -268,6 +285,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
         all_journal_online_ppns.emplace_back(ppn_online);
         all_journal_groups.emplace_back(group);
         all_journal_methods.emplace_back(harvest_type_raw);
+        all_journal_ids.emplace_back(std::to_string(zeder_journal_id));
         all_journal_zeder_ids.emplace_back(std::to_string(zeder_id));
         all_journal_zeder_urls.emplace_back(zeder_url);
         all_journal_delivery_modes.emplace_back(ZoteroHarvester::Config::UPLOAD_OPERATION_TO_STRING_MAP.at(delivery_mode));
@@ -307,6 +325,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
     names_to_values_map.insertArray("all_journal_methods", all_journal_methods);
     names_to_values_map.insertArray("all_journal_groups", all_journal_groups);
     names_to_values_map.insertArray("all_journal_delivery_modes", all_journal_delivery_modes);
+    names_to_values_map.insertArray("all_journal_ids", all_journal_ids);
     names_to_values_map.insertArray("all_journal_zeder_ids", all_journal_zeder_ids);
     names_to_values_map.insertArray("all_journal_zeder_urls", all_journal_zeder_urls);
     names_to_values_map.insertArray("all_journal_harvest_statuses", all_journal_harvest_statuses);
@@ -528,11 +547,8 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
                                  ZoteroHarvester::Util::UploadTracker * const upload_tracker,
                                  DbConnection * const db_connection)
 {
-    const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
-    const std::string group(GetCGIParameterOrDefault(cgi_args, "group"));
-    const Zeder::Flavour zeder_flavour(group == "IxTheo" or group == "RelBib" ? Zeder::Flavour::IXTHEO : Zeder::Flavour::KRIMDOK);
-    const std::string zeder_instance(GetZederInstanceForGroup(group));
-    const unsigned journal_id(GetZederJournalId(StringUtil::ToUnsigned(zeder_id), zeder_instance, db_connection));
+    const std::string journal_id(GetCGIParameterOrDefault(cgi_args, "id"));
+    const Journal journal(GetJournalById(StringUtil::ToUnsigned(journal_id), db_connection));
     std::string at_least_one_action_done("false");
 
     const std::string id_to_deliver_manually(GetCGIParameterOrDefault(cgi_args, "set_manually_delivered"));
@@ -544,15 +560,16 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     const std::string id_to_reset(GetCGIParameterOrDefault(cgi_args, "reset"));
     if (not id_to_reset.empty()) {
         if (id_to_reset == "all")
-            ResetDeliveredRecordsForJournal(journal_id, db_connection);
+            ResetDeliveredRecordsForJournal(journal.id_, db_connection);
         else
             UpdateRecordDeliveryStateAndTimestamp(id_to_reset, ZoteroHarvester::Util::UploadTracker::DeliveryState::RESET, db_connection);
         at_least_one_action_done = "true";
     }
 
-    names_to_values_map.insertScalar("zeder_id", zeder_id);
-    names_to_values_map.insertScalar("zeder_instance", zeder_instance);
-    names_to_values_map.insertScalar("group", group);
+    names_to_values_map.insertScalar("id", journal.id_);
+    names_to_values_map.insertScalar("zeder_id", journal.zeder_id_);
+    names_to_values_map.insertScalar("zeder_instance", Zeder::FLAVOUR_TO_STRING_MAP.at(journal.zeder_flavour_));
+    names_to_values_map.insertScalar("journal_name", journal.name_);
     names_to_values_map.insertScalar("at_least_one_action_done", at_least_one_action_done);
 
     std::vector<std::string> ids;
@@ -563,7 +580,7 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     std::vector<std::string> delivery_states;
     std::vector<std::string> error_messages;
 
-    const auto entries(upload_tracker->getEntriesByZederIdAndFlavour(StringUtil::ToUnsigned(zeder_id), zeder_flavour));
+    const auto entries(upload_tracker->getEntriesByZederIdAndFlavour(journal.zeder_id_, journal.zeder_flavour_));
     for (const auto &entry : entries) {
         const std::string escaped_id(HtmlUtil::HtmlEscape(std::to_string(entry.id_)));
         const std::string link("<a href=\"" + entry.url_ + "\" target=\"_blank\">" + entry.url_  + "</a>");
@@ -731,21 +748,9 @@ std::map<std::string,QAFieldProperties> GetQASettings(const std::string &journal
 
 
 void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args, DbConnection * const db_connection) {
-    const std::string zeder_id(GetCGIParameterOrDefault(cgi_args, "zeder_id"));
-    const std::string zeder_instance(GetCGIParameterOrDefault(cgi_args, "zeder_instance"));
-    std::string journal_id, journal_name;
+    const std::string journal_id(GetCGIParameterOrDefault(cgi_args, "id"));
+    const Journal journal(GetJournalById(StringUtil::ToUnsigned(journal_id), db_connection));
     std::string submitted("false");
-
-    // try to get more details for given journal
-    {
-        db_connection->queryOrDie("SELECT id,journal_name FROM zeder_journals WHERE zeder_id=" + db_connection->escapeAndQuoteString(zeder_id) +
-                                 " AND zeder_instance=" + db_connection->escapeAndQuoteString(zeder_instance));
-        auto result_set(db_connection->getLastResultSet());
-        while (const auto row = result_set.getNextRow()) {
-            journal_id = row["id"];
-            journal_name = row["journal_name"];
-        }
-    }
 
     if (ProcessShowQASubActionDelete(cgi_args, db_connection, journal_id)
         or ProcessShowQASubActionAdd(cgi_args, db_connection, journal_id))
@@ -753,7 +758,7 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
 
     const auto tags_to_settings_map(GetQASettings(journal_id, db_connection));
     std::vector<std::string> tags, global_regular_articles, global_review_articles, journal_regular_articles, journal_review_articles;
-    const std::string base_url("?action=show_qa&zeder_id=" + zeder_id + "&zeder_instance=" + zeder_instance);
+    const std::string base_url("?action=show_qa&id=" + journal_id);
     for (const auto &tag_and_settings : tags_to_settings_map) {
         tags.emplace_back(tag_and_settings.first);
 
@@ -766,9 +771,8 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
     }
 
     names_to_values_map.insertScalar("submitted", submitted);
-    names_to_values_map.insertScalar("zeder_id", zeder_id);
-    names_to_values_map.insertScalar("zeder_instance", zeder_instance);
-    names_to_values_map.insertScalar("journal_name", journal_name);
+    names_to_values_map.insertScalar("id", journal_id);
+    names_to_values_map.insertScalar("journal_name", journal.name_);
     names_to_values_map.insertArray("tags", tags);
     names_to_values_map.insertArray("global_regular_articles", global_regular_articles);
     names_to_values_map.insertArray("global_review_articles", global_review_articles);
