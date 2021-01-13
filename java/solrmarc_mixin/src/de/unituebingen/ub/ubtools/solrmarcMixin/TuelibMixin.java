@@ -1456,8 +1456,8 @@ public class TuelibMixin extends SolrIndexerMixin {
                                 honouree.append(subfield.getData());
                             }
                         }
-                       values.add(honouree.toString());
-                       break;
+                        values.add(honouree.toString());
+                        break;
                     }
                 }
             }
