@@ -27,6 +27,16 @@
 namespace Zeder {
 
 
+Flavour GetFlavourByString(const std::string &flavour) {
+    for (const auto &flavour_and_string : FLAVOUR_TO_STRING_MAP) {
+        if (::strcasecmp(flavour_and_string.second.c_str(), flavour.c_str()) == 0)
+            return flavour_and_string.first;
+    }
+
+    LOG_ERROR("Unknown Zeder Flavour: " + flavour);
+}
+
+
 const std::string &Entry::getAttribute(const std::string &name) const {
     const auto match(attributes_.find(name));
     if (match == attributes_.end())

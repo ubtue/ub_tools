@@ -64,6 +64,9 @@ const std::unordered_map<Flavour, std::string> FLAVOUR_TO_STRING_MAP{
 };
 
 
+Flavour GetFlavourByString(const std::string &flavour);
+
+
 static constexpr auto MODIFIED_TIMESTAMP_FORMAT_STRING = "%Y-%m-%d %H:%M:%S";
 
 // Characters that need to be stripped from attribute( value)s imported from Zeder before they are (de)serialised

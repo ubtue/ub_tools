@@ -570,6 +570,8 @@ public:
     bool recordAlreadyDelivered(const MARC::Record &record, const std::set<DeliveryState> &delivery_states_to_ignore = {},
                                 std::vector<Entry> * const entries = nullptr) const;
 
+    bool journalHasRecordToRetry(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) const;
+
     std::vector<Entry> getEntriesByZederIdAndFlavour(const unsigned zeder_id, const Zeder::Flavour zeder_flavour);
 
     // Returns when the last URL of the given journal was delivered to the BSZ. If found,
@@ -583,6 +585,7 @@ public:
     bool archiveRecord(const MARC::Record &record, const DeliveryState delivery_state, const std::string &error_message = "");
 
     static std::string GetZederInstanceString(const Zeder::Flavour zeder_flavour);
+    static std::string GetZederInstanceString(const std::string &group);
 private:
     bool urlAlreadyDelivered(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore, Entry * const entry,
                              DbConnection * const db_connection) const;
