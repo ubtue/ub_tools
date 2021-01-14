@@ -837,7 +837,8 @@ std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPriv
     DbResultSet result_set(getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
         static RegexMatcher * const mysql_privileges_matcher(
-            RegexMatcher::RegexMatcherFactory("GRANT (.+) ON `" + database_name + "`.* TO '" + user + "'@'" + host + "'"));
+            RegexMatcher::RegexMatcherFactory("GRANT (.+) ON [`']?" + database_name + "[`']?.* TO ['`]?" + user
+                                              + "['`]?@['`]?" + host + "['`]?"));
 
         if (mysql_privileges_matcher->matched(row[0])) {
             const std::string matched_privileges((*mysql_privileges_matcher)[1]);
