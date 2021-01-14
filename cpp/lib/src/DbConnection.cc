@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -707,6 +707,49 @@ void DbConnection::MySQLImportFile(const std::string &sql_file, const std::strin
 {
     DbConnection db_connection(database_name, user, passwd, host, port, charset);
     db_connection.queryFileOrDie(sql_file);
+}
+
+
+std::string DbConnection::PrivilegeToString(const DbConnection::MYSQL_PRIVILEGE mysql_privilege) {
+    switch (mysql_privilege) {
+    case P_SELECT:
+        return "SELECT";
+    case P_INSERT:
+        return "INSERT";
+    case P_UPDATE:
+        return "UPDATE";
+    case P_DELETE:
+        return "DELETE";
+    case P_CREATE:
+        return "CREATE";
+    case P_DROP:
+        return "DROP";
+    case P_REFERENCES:
+        return "REFERENCES";
+    case P_INDEX:
+        return "INDEX";
+    case P_ALTER:
+        return "ALTER";
+    case P_CREATE_TEMPORARY_TABLES:
+        return "CREATE_TEMPORARY_TABLES";
+    case P_LOCK_TABLES:
+        return "LOCK_TABLES";
+    case P_EXECUTE:
+        return "EXECUTE";
+    case P_CREATE_VIEW:
+        return "CREATE_VIEW";
+    case P_SHOW_VIEW:
+        return "SHOW_VIEW";
+    case P_CREATE_ROUTINE:
+        return "CREATE_ROUTINE";
+    case P_ALTER_ROUTINE:
+        return "ALTER_ROUTINE";
+    case P_EVENT:
+        return "EVENT";
+    case P_TRIGGER:
+        return "TRIGGER";
+    }
+
 }
 
 

@@ -2,7 +2,7 @@
  *  \brief  Interface for the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -48,7 +48,7 @@ public:
     enum MYSQL_PRIVILEGE { P_SELECT, P_INSERT, P_UPDATE, P_DELETE, P_CREATE, P_DROP, P_REFERENCES,
                            P_INDEX, P_ALTER, P_CREATE_TEMPORARY_TABLES, P_LOCK_TABLES, P_EXECUTE,
                            P_CREATE_VIEW, P_SHOW_VIEW, P_CREATE_ROUTINE, P_ALTER_ROUTINE,
-                           P_EVENT, P_TRIGGER};
+                           P_EVENT, P_TRIGGER };
     static const std::unordered_set<MYSQL_PRIVILEGE> MYSQL_ALL_PRIVILEGES;
     static const std::string DEFAULT_CONFIG_FILE_PATH;
 private:
@@ -307,6 +307,8 @@ public:
     static void MySQLImportFile(const std::string &sql_file, const std::string &database_name, const std::string &admin_user,
                                 const std::string &admin_passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
                                 const Charset charset = UTF8MB4);
+
+    std::string PrivilegeToString(const MYSQL_PRIVILEGE mysql_privilege);
 };
 
 
