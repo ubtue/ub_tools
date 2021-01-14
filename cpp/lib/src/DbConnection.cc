@@ -749,7 +749,6 @@ std::string DbConnection::PrivilegeToString(const DbConnection::MYSQL_PRIVILEGE 
     case P_TRIGGER:
         return "TRIGGER";
     }
-
 }
 
 
