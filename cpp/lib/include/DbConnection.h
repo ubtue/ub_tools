@@ -308,7 +308,7 @@ public:
                                 const std::string &admin_passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
                                 const Charset charset = UTF8MB4);
 
-    std::string PrivilegeToString(const MYSQL_PRIVILEGE mysql_privilege);
+    std::string MySQLPrivilegeToString(const MYSQL_PRIVILEGE mysql_privilege);
 };
 
 

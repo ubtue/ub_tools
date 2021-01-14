@@ -710,7 +710,7 @@ void DbConnection::MySQLImportFile(const std::string &sql_file, const std::strin
 }
 
 
-std::string DbConnection::PrivilegeToString(const DbConnection::MYSQL_PRIVILEGE mysql_privilege) {
+std::string DbConnection::MySQLPrivilegeToString(const DbConnection::MYSQL_PRIVILEGE mysql_privilege) {
     switch (mysql_privilege) {
     case P_SELECT:
         return "SELECT";
