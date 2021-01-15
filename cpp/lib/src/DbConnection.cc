@@ -840,7 +840,9 @@ std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPriv
             RegexMatcher::RegexMatcherFactory("GRANT (.+) ON [`']?" + database_name + "[`']?.* TO ['`]?" + user
                                               + "['`]?@['`]?" + host + "['`]?"));
 
-        if (mysql_privileges_matcher->matched(row[0])) {
+        if (not mysql_privileges_matcher->matched(row[0]))
+            LOG_WARNING("unexpectedly, no privileges were extracted from " + row[0]);
+        else {
             const std::string matched_privileges((*mysql_privileges_matcher)[1]);
             if (matched_privileges == "ALL PRIVILEGES")
                 return MYSQL_ALL_PRIVILEGES;
