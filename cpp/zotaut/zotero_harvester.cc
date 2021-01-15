@@ -240,7 +240,6 @@ public:
 struct Metrics {
     unsigned num_journals_with_harvest_operation_direct_;
     unsigned num_journals_with_harvest_operation_rss_;
-    unsigned num_journals_with_harvest_operation_rss_skipped_;
     unsigned num_journals_with_harvest_operation_crawl_;
     unsigned num_downloads_crawled_successful_;
     unsigned num_downloads_crawled_unsuccessful_;
@@ -267,7 +266,7 @@ public:
 
 Metrics::Metrics()
     : num_journals_with_harvest_operation_direct_(0), num_journals_with_harvest_operation_rss_(0),
-      num_journals_with_harvest_operation_rss_skipped_(0), num_journals_with_harvest_operation_crawl_(0),
+      num_journals_with_harvest_operation_crawl_(0),
       num_downloads_crawled_successful_(0), num_downloads_crawled_unsuccessful_(0),
       num_downloads_crawled_cache_hits_(0), num_downloads_harvested_successful_(0), num_downloads_harvested_unsuccessful_(0),
       num_downloads_harvested_cache_hits_(0), num_downloads_skipped_since_already_harvested_(0),
@@ -285,7 +284,6 @@ std::string Metrics::toString() const {
                                            + num_journals_with_harvest_operation_crawl_) + "\n";
     out += "\t\tDirect: " + std::to_string(num_journals_with_harvest_operation_direct_) + "\n";
     out += "\t\tRSS: " + std::to_string(num_journals_with_harvest_operation_rss_) + "\n";
-    out += "\t\t\tSkipped: " + std::to_string(num_journals_with_harvest_operation_rss_skipped_) + "\n";
     out += "\t\tCrawl: " + std::to_string(num_journals_with_harvest_operation_crawl_) + "\n";
 
     out += "\tCrawls: " + std::to_string(num_downloads_crawled_successful_ + num_downloads_crawled_unsuccessful_) + "\n";
@@ -387,8 +385,6 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
         if (journal_datastore->current_rss_feed_->isComplete()) {
             if (journal_datastore->current_rss_feed_->hasResult()) {
                 const auto &result(journal_datastore->current_rss_feed_->getResult());
-                if (result.feed_skipped_since_recently_harvested_)
-                    ++metrics->num_journals_with_harvest_operation_rss_skipped_;
                 metrics->num_downloads_skipped_since_already_delivered_ += result.items_skipped_since_already_delivered_;
 
                 for (auto &downloaded_item : journal_datastore->current_rss_feed_->getResult().downloaded_items_)
