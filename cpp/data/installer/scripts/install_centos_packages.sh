@@ -93,7 +93,7 @@ if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     else
         ColorEcho "installing composer"
         wget --output-document=/tmp/composer-setup.php https://getcomposer.org/installer
-        php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+        php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --version=1.10.19
     fi
 fi
 
