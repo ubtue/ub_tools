@@ -1,7 +1,7 @@
 /** \brief Utility classes related to the Zotero Harvester
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -563,12 +563,12 @@ private:
 public:
     explicit UploadTracker(): connection_pool_semaphore_(CONNECTION_POOL_SIZE) {}
 
-    bool urlAlreadyDelivered(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore = {},
-                             Entry * const entry = nullptr) const;
-    bool hashAlreadyDelivered(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore = {},
-                              std::vector<Entry> * const entries = nullptr) const;
-    bool recordAlreadyDelivered(const MARC::Record &record, const std::set<DeliveryState> &delivery_states_to_ignore = {},
-                                std::vector<Entry> * const entries = nullptr) const;
+    bool urlAlreadyInDatabase(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore = {},
+                              Entry * const entry = nullptr) const;
+    bool hashAlreadyInDatabase(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore = {},
+                               std::vector<Entry> * const entries = nullptr) const;
+    bool recordAlreadyInDatabase(const MARC::Record &record, const std::set<DeliveryState> &delivery_states_to_ignore = {},
+                                 std::vector<Entry> * const entries = nullptr) const;
 
     bool journalHasRecordToRetry(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) const;
 
@@ -587,13 +587,13 @@ public:
     static std::string GetZederInstanceString(const Zeder::Flavour zeder_flavour);
     static std::string GetZederInstanceString(const std::string &group);
 private:
-    bool urlAlreadyDelivered(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore, Entry * const entry,
-                             DbConnection * const db_connection) const;
-    bool hashAlreadyDelivered(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore,
-                              std::vector<Entry> * const entries, DbConnection * const db_connection) const;
-    bool recordAlreadyDelivered(const std::string &record_hash, const std::set<std::string> &record_urls,
-                                const std::set<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
-                                DbConnection * const db_connection) const;
+    bool urlAlreadyInDatabase(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore, Entry * const entry,
+                              DbConnection * const db_connection) const;
+    bool hashAlreadyInDatabase(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore,
+                               std::vector<Entry> * const entries, DbConnection * const db_connection) const;
+    bool recordAlreadyInDatabase(const std::string &record_hash, const std::set<std::string> &record_urls,
+                                 const std::set<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
+                                 DbConnection * const db_connection) const;
 };
 
 
