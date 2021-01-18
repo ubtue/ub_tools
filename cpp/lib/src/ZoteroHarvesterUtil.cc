@@ -1,7 +1,7 @@
 /** \brief Utility classes related to the Zotero Harvester
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -406,8 +406,8 @@ std::string GetDeliveryStatesSubquery(const std::set<UploadTracker::DeliveryStat
 }
 
 
-bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore,
-                                        Entry * const entry, DbConnection * const db_connection) const
+bool UploadTracker::urlAlreadyInDatabase(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore,
+                                         Entry * const entry, DbConnection * const db_connection) const
 {
     std::string query("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.error_message, dmr.id AS entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
                       "FROM delivered_marc_records_urls AS dmru "
@@ -431,7 +431,7 @@ bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::set<D
 }
 
 
-bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore,
+bool UploadTracker::hashAlreadyInDatabase(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore,
                                          std::vector<Entry> * const entries, DbConnection * const db_connection) const
 {
     std::string query("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.error_message, dmr.id AS entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
@@ -461,31 +461,31 @@ bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::set
 }
 
 
-bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const std::set<std::string> &record_urls,
-                                           const std::set<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
-                                           DbConnection * const db_connection) const
+bool UploadTracker::recordAlreadyInDatabase(const std::string &record_hash, const std::set<std::string> &record_urls,
+                                            const std::set<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
+                                            DbConnection * const db_connection) const
 {
     Entry buffer;
-    bool already_delivered(false);
+    bool already_in_database(false);
     for (const auto &url : record_urls) {
-        if (urlAlreadyDelivered(url, delivery_states_to_ignore, &buffer, db_connection)) {
+        if (urlAlreadyInDatabase(url, delivery_states_to_ignore, &buffer, db_connection)) {
             if (buffer.hash_ != record_hash) {
-                LOG_INFO("record with URL '" + url + "' already delivered but with a different hash");
+                LOG_INFO("record with URL '" + url + "' already in database but with a different hash");
                 LOG_DEBUG("\tcurrent hash: " + record_hash);
                 LOG_DEBUG("\t" + buffer.toString());
             } else
-                LOG_INFO("record with URL '" + url + "' already delivered with the same hash (" + record_hash + ")");
+                LOG_INFO("record with URL '" + url + "' already in database with the same hash (" + record_hash + ")");
 
-            already_delivered = true;
+            already_in_database = true;
             if (entries != nullptr)
                 entries->emplace_back(buffer);
             break;
         }
     }
 
-    if (not already_delivered) {
+    if (not already_in_database) {
         std::vector<Entry> hash_bucket;
-        if (hashAlreadyDelivered(record_hash, delivery_states_to_ignore, &hash_bucket, db_connection)) {
+        if (hashAlreadyInDatabase(record_hash, delivery_states_to_ignore, &hash_bucket, db_connection)) {
             if (hash_bucket.size() > 1) {
                 LOG_WARNING("multiple records were delivered with the same hash (" + record_hash + ")!");
                 for (const auto &entry : hash_bucket)
@@ -493,13 +493,13 @@ bool UploadTracker::recordAlreadyDelivered(const std::string &record_hash, const
             } else
                 LOG_INFO("record with URL '" + hash_bucket[0].url_ + "' already delivered with the same hash (" + record_hash + ")");
 
-            already_delivered = true;
+            already_in_database = true;
             if (entries != nullptr)
                 *entries = hash_bucket;
         }
     }
 
-    return already_delivered;
+    return already_in_database;
 }
 
 
@@ -526,28 +526,28 @@ bool UploadTracker::journalHasRecordToRetry(const unsigned zeder_id, const Zeder
 }
 
 
-bool UploadTracker::urlAlreadyDelivered(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore,
-                                        Entry * const entry) const
+bool UploadTracker::urlAlreadyInDatabase(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore,
+                                         Entry * const entry) const
 {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
 
-    return urlAlreadyDelivered(url, delivery_states_to_ignore, entry, &db_connection);
+    return urlAlreadyInDatabase(url, delivery_states_to_ignore, entry, &db_connection);
 }
 
 
-bool UploadTracker::hashAlreadyDelivered(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore,
-                                         std::vector<Entry> * const entries) const
+bool UploadTracker::hashAlreadyInDatabase(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore,
+                                          std::vector<Entry> * const entries) const
 {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
 
-    return hashAlreadyDelivered(hash, delivery_states_to_ignore, entries, &db_connection);
+    return hashAlreadyInDatabase(hash, delivery_states_to_ignore, entries, &db_connection);
 }
 
 
-bool UploadTracker::recordAlreadyDelivered(const MARC::Record &record, const std::set<DeliveryState> &delivery_states_to_ignore,
-                                           std::vector<Entry> * const entries) const
+bool UploadTracker::recordAlreadyInDatabase(const MARC::Record &record, const std::set<DeliveryState> &delivery_states_to_ignore,
+                                            std::vector<Entry> * const entries) const
 {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
@@ -555,7 +555,7 @@ bool UploadTracker::recordAlreadyDelivered(const MARC::Record &record, const std
     const auto hash(Conversion::CalculateMarcRecordHash(record));
     const auto urls(GetMarcRecordUrls(record));
 
-    return recordAlreadyDelivered(hash, urls, delivery_states_to_ignore, entries, &db_connection);
+    return recordAlreadyInDatabase(hash, urls, delivery_states_to_ignore, entries, &db_connection);
 }
 
 
@@ -619,7 +619,7 @@ bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryStat
 
     // Try to find an existing record & update it, if possible
     std::vector<Entry> entries;
-    if (recordAlreadyDelivered(hash, urls, /*delivery_states_to_ignore = */ {}, &entries, &db_connection)) {
+    if (recordAlreadyInDatabase(hash, urls, /*delivery_states_to_ignore = */ {}, &entries, &db_connection)) {
         for (const auto &entry : entries) {
             if (DELIVERY_STATES_TO_RETRY.find(entry.delivery_state_) == DELIVERY_STATES_TO_RETRY.end())
                 return false;
