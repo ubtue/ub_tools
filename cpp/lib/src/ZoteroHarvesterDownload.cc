@@ -560,12 +560,12 @@ void *DownloadManager::BackgroundThreadRoutine(void * parameter) {
 
 DownloadManager::DelayParams DownloadManager::generateDelayParams(const Url &url) {
     const auto hostname(url.getAuthority());
-    bool default_delay_is_domain_specific;
-    bool max_delay_is_domain_specific;
-    const auto default_delay(global_params_.download_delay_params_.getDefaultDelayForDomainOrDefault(hostname, &default_delay_is_domain_specific));
-    const auto max_delay(global_params_.download_delay_params_.getMaxDelayForDomainOrDefault(hostname, &max_delay_is_domain_specific));
+    bool delay_is_default;
+    bool max_delay_is_default;
+    const auto default_delay(global_params_.download_delay_params_.getDefaultDelayForDomainOrDefault(hostname, &delay_is_default));
+    const auto max_delay(global_params_.download_delay_params_.getMaxDelayForDomainOrDefault(hostname, &max_delay_is_default));
 
-    if (default_delay_is_domain_specific or max_delay_is_domain_specific) {
+    if (not delay_is_default or not max_delay_is_default) {
         LOG_DEBUG("use configured domain-specific delay settings for domain '" + hostname + '"');
         return DelayParams(TimeLimit(default_delay), default_delay, max_delay);
     }
