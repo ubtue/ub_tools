@@ -1,7 +1,7 @@
 /** \brief Tool to automatically download metadata from online sources by leveraging Zotero
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019,2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -555,7 +555,7 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
                 // by comparing its hash and URLs with the ones stored in our database.
                 const auto record_urls(Util::GetMarcRecordUrls(*record));
 
-                if (not force_downloads and upload_tracker.recordAlreadyDelivered(*record, Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
+                if (not force_downloads and upload_tracker.recordAlreadyInDatabase(*record, /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
                     ++metrics->num_marc_conversions_skipped_since_already_delivered_;
                     LOG_INFO("Item " + current_download_item.toString() + " already delivered");
                     continue;
