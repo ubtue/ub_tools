@@ -833,6 +833,30 @@ void RemoveCustomMarcFields(MARC::Record * const marc_record, const ConversionPa
 }
 
 
+
+void RemoveCustomMarcSubfieldsForParams(MARC::Record * const marc_record, const Config::MarcMetadataParams &marc_metadata_params) {
+    std::vector<MARC::Record::iterator> matched_fields;
+    for (const auto &filter : marc_metadata_params.subfields_to_remove_) {
+        const auto &tag_and_subfield_code(filter.first);
+        auto &matcher(*filter.second.get());
+        GetMatchedMARCFields(marc_record, filter.first, matcher, &matched_fields);
+
+        for (const auto &matched_field : matched_fields) {
+            matched_field->removeSubfieldWithPattern(tag_and_subfield_code[3], matcher);
+            LOG_DEBUG("erased subfield '" + tag_and_subfield_code + "' due to removal filter '" + filter.second->getPattern() + "'");
+        }
+    }
+}
+
+
+void RemoveCustomMarcSubfields(MARC::Record * const marc_record, const ConversionParams &parameters) {
+    RemoveCustomMarcSubfieldsForParams(marc_record, parameters.global_params_.marc_metadata_params_);
+    RemoveCustomMarcSubfieldsForParams(marc_record, parameters.download_item_.journal_.marc_metadata_params_);
+}
+
+
+
+
 // Zotero values see https://raw.githubusercontent.com/zotero/zotero/master/test/tests/data/allTypesAndFields.js
 // MARC21 values see https://www.loc.gov/marc/relators/relaterm.html
 const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP {
@@ -1099,6 +1123,9 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
 
     // Remove fields
     RemoveCustomMarcFields(marc_record, parameters);
+
+    // Remove subfields from specific field
+    RemoveCustomMarcSubfields(marc_record, parameters);
 
     // Has to be generated in the very end as it contains the hash of the record
     *marc_record_hash = CalculateMarcRecordHash(*marc_record);
