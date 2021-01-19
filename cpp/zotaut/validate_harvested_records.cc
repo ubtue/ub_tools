@@ -1,7 +1,7 @@
 /** \brief Utility for validating and fixing up records harvested by zts_harvester
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -320,23 +320,23 @@ static const std::set<std::string> REQUIRED_EXISTING_FIELD_TAGS{ "001", "003", "
 static const std::set<std::string> REQUIRED_SPECIAL_CASE_FIELD_TAGS{ "245", "655" };
 
 
-void CheckGenericRequirements(const MARC::Record &record, std::string * const reasons_for_being_invalid) {
+void CheckGenericRequirements(const MARC::Record &record, std::vector<std::string> * const reasons_for_being_invalid) {
 
     for (const auto &required_field_tag : REQUIRED_EXISTING_FIELD_TAGS) {
         if (not record.hasTag(required_field_tag))
-            reasons_for_being_invalid->append("required field " + required_field_tag + " is missing\n");
+            reasons_for_being_invalid->emplace_back("required field " + required_field_tag + " is missing");
     }
 
     const auto _245_field(record.findTag("245"));
     if (_245_field != record.end() and _245_field->getFirstSubfieldWithCode('a').empty())
-        reasons_for_being_invalid->append("subfield 245$a is missing\n");
+        reasons_for_being_invalid->emplace_back("subfield 245$a is missing");
 
     // Check the structure of the 655 field wich is used to flag a record as a review:
     if (record.hasTag("655") and
         record.getFirstField("655")->getContents() !=
             " 7""\x1F""aRezension""\x1F""0(DE-588)4049712-4""\x1F""0(DE-627)106186019""\x1F""2gnd-content")
     {
-        reasons_for_being_invalid->append("655 field has unexpected contents");
+        reasons_for_being_invalid->emplace_back("655 field has unexpected contents");
         return;
     }
 }
@@ -361,7 +361,7 @@ unsigned GetJournalId(const unsigned zeder_id, const std::string &zeder_instance
 
 
 bool RecordIsValid(DbConnection * const db_connection, const MARC::Record &record, const std::vector<const FieldValidator *> &regular_article_field_validators,
-                   const std::vector<const FieldValidator *> &review_article_field_validators, std::string * const reasons_for_being_invalid)
+                   const std::vector<const FieldValidator *> &review_article_field_validators, std::vector<std::string> * const reasons_for_being_invalid)
 {
     reasons_for_being_invalid->clear();
 
@@ -386,7 +386,7 @@ bool RecordIsValid(DbConnection * const db_connection, const MARC::Record &recor
     for (const auto &field : record) {
         const auto current_tag(field.getTag());
         if (current_tag == last_tag and not field.isRepeatableField())
-            reasons_for_being_invalid->append(current_tag.toString() + " is not a repeatable field\n");
+            reasons_for_being_invalid->emplace_back(current_tag.toString() + " is not a repeatable field");
         last_tag = current_tag;
         present_tags.emplace(current_tag.toString());
 
@@ -395,7 +395,7 @@ bool RecordIsValid(DbConnection * const db_connection, const MARC::Record &recor
             if (field_validator->foundRuleMatch(journal_id, field, &reason_for_being_invalid)) {
                 tags_for_which_rules_were_found.emplace(current_tag.toString());
                 if (not reason_for_being_invalid.empty())
-                    reasons_for_being_invalid->append(reason_for_being_invalid + "\n");
+                    reasons_for_being_invalid->emplace_back(reason_for_being_invalid);
                 break;
             }
         }
@@ -406,7 +406,7 @@ bool RecordIsValid(DbConnection * const db_connection, const MARC::Record &recor
     for (const auto field_validator : field_validators)
         field_validator->findMissingTags(journal_id, present_tags, &missing_tags);
     for (const auto &missing_tag : missing_tags)
-        reasons_for_being_invalid->append("required " + missing_tag + "-field is missing\n");
+        reasons_for_being_invalid->emplace_back("required " + missing_tag + "-field is missing");
 
     // 3. Complain about unknown fields:
     for (const auto &present_tag : present_tags) {
@@ -416,7 +416,7 @@ bool RecordIsValid(DbConnection * const db_connection, const MARC::Record &recor
             continue;
 
         if (tags_for_which_rules_were_found.find(present_tag) == tags_for_which_rules_were_found.end())
-            reasons_for_being_invalid->append("no rule for present field " + present_tag + " was found\n");
+            reasons_for_being_invalid->emplace_back("no rule for present field " + present_tag + " was found");
     }
 
     return reasons_for_being_invalid->empty();
@@ -460,16 +460,20 @@ int Main(int argc, char *argv[]) {
     unsigned total_record_count(0), missed_expectation_count(0);
     while (const auto record = marc_reader->read()) {
         ++total_record_count;
+        LOG_INFO(""); // intentionally empty newline !
+        LOG_INFO("Validating record " + record.getControlNumber() + "...");
 
-        std::string reasons_for_being_invalid;
-        if (RecordIsValid(&db_connection, record, regular_article_field_validators, review_article_field_validators, &reasons_for_being_invalid))
+        std::vector<std::string> reasons_for_being_invalid;
+        if (RecordIsValid(&db_connection, record, regular_article_field_validators, review_article_field_validators, &reasons_for_being_invalid)) {
+            LOG_INFO("Record " + record.getControlNumber() + " is valid.");
             valid_records_writer->write(record);
-        else {
-            LOG_WARNING("Record " + record.getControlNumber() + " is invalid:\n" + reasons_for_being_invalid);
+        } else {
+            const std::string error_messages(StringUtil::Join(reasons_for_being_invalid, "\n"));
+            LOG_WARNING("Record " + record.getControlNumber() + " is invalid:\n" + error_messages);
             ++missed_expectation_count;
             if (update_db_errors)
                 upload_tracker.archiveRecord(record, ZoteroHarvester::Util::UploadTracker::DeliveryState::ERROR,
-                                             reasons_for_being_invalid);
+                                             error_messages);
             delinquent_records_writer->write(record);
         }
     }

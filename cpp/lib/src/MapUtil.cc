@@ -2,7 +2,7 @@
  *  \brief  Map-Util-related utility functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -86,9 +86,10 @@ void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::s
         if (key.empty() or value.empty())
             LOG_ERROR("Bad input in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
         if (revert_keys_and_values)
-            (*map)[value] = key;
-        else
-            (*map)[key] = value;
+            key.swap(value);
+        if (unlikely(map->find(key) != map->end()))
+            LOG_ERROR("Duplicate key in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
+        (*map)[key] = value;
     }
 }
 

@@ -1,7 +1,7 @@
 /** \brief Classes related to the Zotero Harvester's JSON-to-MARC conversion API
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -1086,7 +1086,10 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     marc_record->insertField("852", { { 'a', parameters.group_params_.isil_ } });
 
     // Book-keeping fields
-    marc_record->insertField("URL", { { 'a', parameters.download_item_.url_.toString() } });
+    if (not metadata_record.url_.empty())
+        marc_record->insertField("URL", { { 'a', metadata_record.url_ } });
+    else
+        marc_record->insertField("URL", { { 'a', parameters.download_item_.url_.toString() } });
     marc_record->insertField("ZID", { { 'a', std::to_string(parameters.download_item_.journal_.zeder_id_) },
                                       { 'b', StringUtil::ASCIIToLower(Zeder::FLAVOUR_TO_STRING_MAP.at(zeder_instance)) } });
     marc_record->insertField("JOU", { { 'a', parameters.download_item_.journal_.name_ } });

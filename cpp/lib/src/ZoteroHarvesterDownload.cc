@@ -1,7 +1,7 @@
 /** \brief Classes related to the Zotero Harvester's download API
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -224,7 +224,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
                            or parameters.download_item_.journal_.crawl_params_.crawl_url_regex_->match(outgoing_url.first));
 
             if (harvest_url) {
-                if (not force_downloads_ and upload_tracker_.urlAlreadyDelivered(outgoing_url.first, Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
+                if (not force_downloads_ and upload_tracker_.urlAlreadyInDatabase(outgoing_url.first, /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
                     LOG_INFO("Skipping already delivered URL: " + outgoing_url.first);
                     ++result->num_skipped_since_already_delivered_;
                     continue;
@@ -403,7 +403,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
     unsigned num_items_queued(0);
     for (const auto &item : *syndication_format) {
-        if (not force_downloads_ and upload_tracker_.urlAlreadyDelivered(item.getLink(), Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
+        if (not force_downloads_ and upload_tracker_.urlAlreadyInDatabase(item.getLink(), /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
             LOG_INFO("Skipping already delivered URL: " + item.getLink());
             ++result->items_skipped_since_already_delivered_;
             continue;
@@ -491,12 +491,12 @@ void *DownloadManager::BackgroundThreadRoutine(void * parameter) {
 
 DownloadManager::DelayParams DownloadManager::generateDelayParams(const Url &url) {
     const auto hostname(url.getAuthority());
-    bool default_delay_is_domain_specific;
-    bool max_delay_is_domain_specific;
-    const auto default_delay(global_params_.download_delay_params_.getDefaultDelayForDomainOrDefault(hostname, &default_delay_is_domain_specific));
-    const auto max_delay(global_params_.download_delay_params_.getMaxDelayForDomainOrDefault(hostname, &max_delay_is_domain_specific));
+    bool delay_is_default;
+    bool max_delay_is_default;
+    const auto default_delay(global_params_.download_delay_params_.getDefaultDelayForDomainOrDefault(hostname, &delay_is_default));
+    const auto max_delay(global_params_.download_delay_params_.getMaxDelayForDomainOrDefault(hostname, &max_delay_is_default));
 
-    if (default_delay_is_domain_specific or max_delay_is_domain_specific) {
+    if (not delay_is_default or not max_delay_is_default) {
         LOG_DEBUG("use configured domain-specific delay settings for domain '" + hostname + '"');
         return DelayParams(TimeLimit(default_delay), default_delay, max_delay);
     }
@@ -739,7 +739,7 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
     // check if we have already delivered this URL
     if (not global_params_.force_downloads_
         and operation == DirectDownload::Operation::USE_TRANSLATION_SERVER
-        and upload_tracker_.urlAlreadyDelivered(source.url_.toString(), Util::UploadTracker::DELIVERY_STATES_TO_RETRY))
+        and upload_tracker_.urlAlreadyInDatabase(source.url_.toString(), /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY))
     {
         LOG_INFO("Skipping already delivered URL: " + source.url_.toString());
         std::unique_ptr<DirectDownload::Result> result(new DirectDownload::Result(source, operation));
