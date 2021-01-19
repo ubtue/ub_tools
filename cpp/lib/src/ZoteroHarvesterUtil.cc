@@ -487,11 +487,11 @@ bool UploadTracker::recordAlreadyInDatabase(const std::string &record_hash, cons
         std::vector<Entry> hash_bucket;
         if (hashAlreadyInDatabase(record_hash, delivery_states_to_ignore, &hash_bucket, db_connection)) {
             if (hash_bucket.size() > 1) {
-                LOG_WARNING("multiple records were delivered with the same hash (" + record_hash + ")!");
+                LOG_WARNING("multiple records were already in database with the same hash (" + record_hash + ")!");
                 for (const auto &entry : hash_bucket)
                     LOG_DEBUG(entry.toString());
             } else
-                LOG_INFO("record with URL '" + hash_bucket[0].url_ + "' already delivered with the same hash (" + record_hash + ")");
+                LOG_INFO("record with URL '" + hash_bucket[0].url_ + "' already in database with the same hash (" + record_hash + ")");
 
             already_in_database = true;
             if (entries != nullptr)
