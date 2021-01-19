@@ -249,11 +249,10 @@ public:
 
 
 struct Result {
-    bool feed_skipped_since_recently_harvested_;
     unsigned items_skipped_since_already_delivered_;
     std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
 public:
-    explicit Result(): feed_skipped_since_recently_harvested_(false), items_skipped_since_already_delivered_(0) {}
+    explicit Result(): items_skipped_since_already_delivered_(0) {}
     Result(const Result &rhs) = delete;
 };
 
@@ -262,16 +261,11 @@ class Tasklet : public Util::Tasklet<Params, Result> {
     DownloadManager * const download_manager_;
     const Util::UploadTracker &upload_tracker_;
     bool force_downloads_;
-    unsigned feed_harvest_interval_;
-    bool force_process_feeds_with_no_pub_dates_;
 
     void run(const Params &parameters, Result * const result);
-    bool feedNeedsToBeHarvested(const std::string &feed_contents, const Config::JournalParams &journal_params,
-                                const SyndicationFormat::AugmentParams &syndication_format_site_params) const;
 public:
     Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
-            std::unique_ptr<Params> parameters, const Util::UploadTracker &upload_tracker, const bool force_downloads,
-            const unsigned feed_harvest_interval, const bool force_process_feeds_with_no_pub_dates);
+            std::unique_ptr<Params> parameters, const Util::UploadTracker &upload_tracker, const bool force_downloads);
     virtual ~Tasklet() override = default;
 };
 
@@ -300,8 +294,6 @@ public:
         Config::DownloadDelayParams download_delay_params_;
         unsigned timeout_download_request_;
         unsigned timeout_crawl_operation_;
-        unsigned rss_feed_harvest_interval_;
-        bool force_process_rss_feeds_with_no_pub_dates_;
         bool ignore_robots_txt_;
         bool force_downloads_;
         Util::HarvestableItemManager * const harvestable_manager_;
