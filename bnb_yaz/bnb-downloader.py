@@ -166,7 +166,13 @@ def UploadToBSZFTPServer(remote_folder_path: str, marc_filename: str):
 
 
 def Main():
-    util.default_email_recipient = "johannes.ruscheinski@uni-tuebingen.de"
+    if len(sys.argv) != 2:
+         print("usage: " + sys.argv[0] + " <default email recipient>")
+         util.SendEmail("BNB Downloader Invocation Failure",
+                        "This script needs to be called with one argument, the email address!\n", priority=1)
+         sys.exit(-1)
+
+    util.default_email_recipient = sys.argv[1]
     SetupWorkDirectory()
     OUTPUT_FILENAME = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + ".mrc"
     try:
