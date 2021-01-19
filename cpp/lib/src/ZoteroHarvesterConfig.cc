@@ -70,8 +70,6 @@ const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MA
     { DOWNLOAD_DELAY_DEFAULT,                     "default_download_delay_time" },
     { DOWNLOAD_DELAY_MAX,                         "max_download_delay_time" },
     { REVIEW_REGEX,                               "zotero_review_regex" },
-    { RSS_HARVEST_INTERVAL,                       "journal_rss_harvest_interval" },
-    { RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES,  "force_process_feeds_with_no_pub_dates" },
     { TIMEOUT_CRAWL_OPERATION,                    "timeout_crawl_operation" },
     { TIMEOUT_DOWNLOAD_REQUEST,                   "timeout_download_request" },
 };
@@ -177,8 +175,6 @@ std::string GlobalParams::GetIniKeyString(const IniKey ini_key) {
 
 GlobalParams::GlobalParams(const IniFile::Section &config_section) {
     skip_online_first_articles_unconditonally_ = false;
-    rss_harvester_operation_params_.harvest_interval_ = 0;
-    rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_ = false;
 
     // Translation server URL is special-cased
     translation_server_url_ = GetHostTranslationServerUrl();
@@ -189,8 +185,6 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
     skip_online_first_articles_unconditonally_ = config_section.getBool(GetIniKeyString(SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY));
     timeout_crawl_operation_ = config_section.getUnsigned(GetIniKeyString(TIMEOUT_CRAWL_OPERATION)) * 1000;
     timeout_download_request_ = config_section.getUnsigned(GetIniKeyString(TIMEOUT_DOWNLOAD_REQUEST)) * 1000;
-    rss_harvester_operation_params_.harvest_interval_ = config_section.getUnsigned(GetIniKeyString(RSS_HARVEST_INTERVAL));
-    rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_ = config_section.getBool(GetIniKeyString(RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES));
 
     const auto review_regex(config_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
     if (not review_regex.empty())

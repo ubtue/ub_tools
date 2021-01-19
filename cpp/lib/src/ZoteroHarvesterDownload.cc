@@ -369,66 +369,6 @@ bool Crawler::getNextPage(CrawlResult * const crawl_result) {
 namespace RSS {
 
 
-bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Config::JournalParams &journal_params,
-                                     const SyndicationFormat::AugmentParams &syndication_format_site_params) const
-{
-    // Part 1: If force_downloads_ is set, we do not need to check any other conditions
-    if (force_downloads_) {
-        LOG_DEBUG("forcing downloads - feed will be harvested unconditionally");
-        return true;
-    }
-
-    // Part 2: Check if the journal has existing records to retry
-    const std::string zeder_instance(upload_tracker_.GetZederInstanceString(journal_params.group_));
-    if (upload_tracker_.journalHasRecordToRetry(journal_params.zeder_id_, Zeder::GetFlavourByString(zeder_instance))) {
-        LOG_INFO("feed needs to be harvested because there are records to retry");
-        return true;
-    }
-
-    // Part 3: Check if harvesting is necessary due to last harvest date
-    const auto last_harvest_timestamp(upload_tracker_.getLastUploadTime(journal_params.zeder_id_,
-                                      ZederInterop::GetZederInstanceForJournal(journal_params)));
-    if (last_harvest_timestamp == TimeUtil::BAD_TIME_T) {
-        LOG_INFO("feed will be harvested for the first time");
-        return true;
-    }
-    const auto diff((time(nullptr) - last_harvest_timestamp) / 86400);
-    if (unlikely(diff < 0))
-        LOG_ERROR("unexpected negative time difference '" + std::to_string(diff) + "'");
-    const auto harvest_threshold(journal_params.update_window_ > 0 ? journal_params.update_window_ : feed_harvest_interval_);
-    LOG_INFO("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
-    LOG_INFO("feed harvest threshold: " + std::to_string(harvest_threshold) + " days | diff: " + std::to_string(diff) + " days");
-    if (diff >= harvest_threshold) {
-        LOG_INFO("feed older than " + std::to_string(harvest_threshold) +
-                  " days. flagging for mandatory harvesting");
-        return true;
-    }
-
-    // Part 4: Check if harvesting is necessary due to new items
-    std::string err_msg;
-    const auto syndication_format(SyndicationFormat::Factory(feed_contents, syndication_format_site_params, &err_msg));
-    if (syndication_format == nullptr) {
-        LOG_WARNING("problem parsing XML document for RSS feed '" + getParameter().download_item_.url_.toString() + "': "
-                    + err_msg);
-        return false;
-    }
-    for (const auto &item : *syndication_format) {
-        const auto pub_date(item.getPubDate());
-        if (force_process_feeds_with_no_pub_dates_ and pub_date == TimeUtil::BAD_TIME_T) {
-            LOG_INFO("URL '" + item.getLink() + "' has no publication timestamp. flagging for harvesting");
-            return true;
-        } else if (pub_date != TimeUtil::BAD_TIME_T and std::difftime(item.getPubDate(), last_harvest_timestamp) > 0) {
-            LOG_INFO("URL '" + item.getLink() + "' was added/updated since the last harvest of this RSS feed. flagging for harvesting");
-            return true;
-        }
-    }
-
-    // Default: Do not harvest
-    LOG_INFO("no new, harvestable entries in feed. skipping...");
-    return false;
-}
-
-
 void Tasklet::run(const Params &parameters, Result * const result) {
     LOG_INFO("Harvesting feed " + parameters.download_item_.toString());
 
@@ -450,11 +390,6 @@ void Tasklet::run(const Params &parameters, Result * const result) {
         }
 
         feed_contents = downloader.getMessageBody();
-    }
-
-    if (not feedNeedsToBeHarvested(feed_contents, parameters.download_item_.journal_, syndication_format_augment_parameters)) {
-        result->feed_skipped_since_recently_harvested_ = true;
-        return;
     }
 
     syndication_format.reset(SyndicationFormat::Factory(feed_contents, syndication_format_augment_parameters,
@@ -485,14 +420,12 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
 
 Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
-                 std::unique_ptr<Params> parameters, const Util::UploadTracker &upload_tracker, const bool force_downloads,
-                 const unsigned feed_harvest_interval, const bool force_process_feeds_with_no_pub_dates)
+                 std::unique_ptr<Params> parameters, const Util::UploadTracker &upload_tracker, const bool force_downloads)
  : Util::Tasklet<Params, Result>(instance_counter, parameters->download_item_,
                                  "RSS: " + parameters->download_item_.url_.toString(),
                                  std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
                                  std::unique_ptr<Result>(new Result()), std::move(parameters), ResultPolicy::YIELD),
-   download_manager_(download_manager), upload_tracker_(upload_tracker), force_downloads_(force_downloads),
-   feed_harvest_interval_(feed_harvest_interval), force_process_feeds_with_no_pub_dates_(force_process_feeds_with_no_pub_dates) {}
+   download_manager_(download_manager), upload_tracker_(upload_tracker), force_downloads_(force_downloads) {}
 
 
 } // end namespace RSS
@@ -504,8 +437,6 @@ DownloadManager::GlobalParams::GlobalParams(const Config::GlobalParams &config_g
    download_delay_params_(config_global_params.download_delay_params_),
    timeout_download_request_(config_global_params.timeout_download_request_),
    timeout_crawl_operation_(config_global_params.timeout_crawl_operation_),
-   rss_feed_harvest_interval_(config_global_params.rss_harvester_operation_params_.harvest_interval_),
-   force_process_rss_feeds_with_no_pub_dates_(config_global_params.rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_),
    ignore_robots_txt_(false), force_downloads_(false), harvestable_manager_(harvestable_manager) {}
 
 
@@ -882,8 +813,7 @@ std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> DownloadManager::rss(con
     std::unique_ptr<RSS::Params> parameters(new RSS::Params(source, user_agent, feed_contents, global_params_.harvestable_manager_));
     std::shared_ptr<RSS::Tasklet> new_tasklet(
         new RSS::Tasklet(&tasklet_counters_.rss_tasklet_execution_counter_, this, std::move(parameters),
-        upload_tracker_, global_params_.force_downloads_, global_params_.rss_feed_harvest_interval_,
-        global_params_.force_process_rss_feeds_with_no_pub_dates_));
+        upload_tracker_, global_params_.force_downloads_));
 
     {
         std::lock_guard<std::recursive_mutex> queue_buffer_lock(rss_queue_buffer_mutex_);
