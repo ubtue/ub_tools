@@ -335,6 +335,14 @@ bool Record::Field::extractSubfieldWithPattern(const char subfield_code, RegexMa
 }
 
 
+bool Record::Field::removeSubfieldWithPattern(const char subfield_code, const ThreadSafeRegexMatcher &regex) {
+    auto subfields((Subfields(contents_)));
+    subfields.deleteAllSubfieldsWithCodeMatching(subfield_code, regex);
+    setContents(subfields, getIndicator1(), getIndicator2());
+    return true;
+}
+
+
 void Record::Field::insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents) {
     Subfields subfields(contents_);
     if (not subfields.replaceFirstSubfield(subfield_code, subfield_contents))

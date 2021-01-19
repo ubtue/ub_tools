@@ -79,6 +79,7 @@ public:
 struct MarcMetadataParams {
     std::vector<std::string> fields_to_add_;
     std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> fields_to_remove_;
+    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> subfields_to_remove_;
     std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
 public:
     MarcMetadataParams() = default;
