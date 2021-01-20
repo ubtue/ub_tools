@@ -199,7 +199,7 @@ def Main():
         util.Info("The BNB numbers were coalesced into " + str(len(ranges)) + " ranges.")
         
         count = DownloadRecordsRanges(yaz_client, ranges)
-        util.Info("Dowloaded " + str(count) + " records for list #" + str(list_no) + ".")
+        util.Info("Downloaded " + str(count) + " records for list #" + str(list_no) + ".")
         total_count += count
         list_no += 1
     StoreStartListNumber(list_no)
