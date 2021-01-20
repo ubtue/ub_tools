@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015-2019, Library of the University of Tübingen
+    Copyright (C) 2015-2021, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -22,7 +22,6 @@
 
 #include <algorithm>
 #include <fstream>
-#include <iostream>
 #include <map>
 #include <memory>
 #include <set>
@@ -44,30 +43,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " ix_theo_titles ix_theo_norm augmented_ix_theo_titles\n";
-    std::exit(EXIT_FAILURE);
-}
-
-
-void LoadBibleOrderMap(File * const input, std::unordered_map<std::string, std::string> * const books_of_the_bible_to_code_map) {
-    LOG_INFO("Started loading of the bible-order map.");
-
-    unsigned line_no(0);
-    while (not input->eof()) {
-        const std::string line(input->getline());
-        if (line.empty())
-            continue;
-        ++line_no;
-
-        const size_t equal_pos(line.find('='));
-        if (equal_pos == std::string::npos)
-            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in the bible-order map file!");
-        (*books_of_the_bible_to_code_map)[TextUtil::UTF8ToLower(line.substr(0, equal_pos))] =
-            line.substr(equal_pos + 1);
-    }
-
-    LOG_INFO("Loaded " + std::to_string(line_no) + " entries from the bible-order map file.");
+    ::Usage("ix_theo_titles ix_theo_norm augmented_ix_theo_titles");
 }
 
 
@@ -347,7 +323,7 @@ void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book
     LOG_INFO("About to write \"pericopes_to_codes.map\".");
     MapUtil::SerialiseMap("pericopes_to_codes.map", pericopes_to_ranges_map);
 
-    LOG_INFO("Read " + std::to_string(count) + " norm data records.");
+    LOG_INFO("Read " + std::to_string(count) + " norm data record(s).");
     LOG_INFO("Found " + std::to_string(unknown_book_count) + " records w/ unknown bible books.");
     LOG_INFO("Found a total of " + std::to_string(bible_ref_count) + " bible reference records.");
     LOG_INFO("Found " + std::to_string(pericope_count) + " records w/ pericopes.");
@@ -425,7 +401,7 @@ void AugmentBibleRefs(MARC::Reader * const marc_reader, MARC::Writer * const mar
 
 
 int Main(int argc, char **argv) {
-    if (argc < 3)
+    if (argc < 4)
         Usage();
 
     const std::string title_input_filename(argv[1]);
@@ -441,12 +417,8 @@ int Main(int argc, char **argv) {
     auto title_writer(MARC::Writer::Factory(title_output_filename));
 
     const std::string books_of_the_bible_to_code_map_filename(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_code.map");
-    File books_of_the_bible_to_code_map_file(books_of_the_bible_to_code_map_filename, "r");
-    if (not books_of_the_bible_to_code_map_file)
-        LOG_ERROR("can't open \"" + books_of_the_bible_to_code_map_filename + "\" for reading!");
-
     std::unordered_map<std::string, std::string> books_of_the_bible_to_code_map;
-    LoadBibleOrderMap(&books_of_the_bible_to_code_map_file, &books_of_the_bible_to_code_map);
+    MapUtil::DeserialiseMap(books_of_the_bible_to_code_map_filename, &books_of_the_bible_to_code_map);
 
     std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> gnd_codes_to_bible_ref_codes_map;
     LoadNormData(books_of_the_bible_to_code_map, authority_reader.get(),
