@@ -854,8 +854,6 @@ void RemoveCustomMarcSubfields(MARC::Record * const marc_record, const Conversio
 }
 
 
-
-
 // Zotero values see https://raw.githubusercontent.com/zotero/zotero/master/test/tests/data/allTypesAndFields.js
 // MARC21 values see https://www.loc.gov/marc/relators/relaterm.html
 const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP {
