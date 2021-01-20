@@ -32,6 +32,7 @@
 #include "Compiler.h"
 #include "File.h"
 #include "MarcXmlWriter.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "XMLSubsetParser.h"
 
@@ -253,6 +254,13 @@ public:
                          { return subfield.code_ == subfield_code; }), subfields_.end());
     }
 
+
+    inline void deleteAllSubfieldsWithCodeMatching(const char subfield_code, const ThreadSafeRegexMatcher &regex) {
+        subfields_.erase(std::remove_if(subfields_.begin(), subfields_.end(),
+                         [subfield_code, regex](const Subfield subfield) -> bool
+                         { return (subfield.code_ == subfield_code) and regex.match(subfield.value_); }), subfields_.end());
+    }
+
     inline bool replaceSubfieldCode(const char old_code, const char new_code) {
         bool replaced_at_least_one_code(false);
         for (auto &subfield : *this) {
@@ -376,6 +384,8 @@ public:
          *  \return True, if a subfield with subfield code "subfield_code" matching "regex" exists, else false.
          */
         bool extractSubfieldWithPattern(const char subfield_code, RegexMatcher &regex, std::string * const value) const;
+
+        bool removeSubfieldWithPattern(const char subfield_code, const ThreadSafeRegexMatcher &regex);
 
         inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
             { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
