@@ -2,7 +2,7 @@
  *  \brief  Map-Util-related utility functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -65,7 +65,9 @@ template<typename MapType> void SerialiseMap(const std::string &output_filename,
 void SerialiseMap(const std::string &output_filename, const std::unordered_map<std::string, std::string> &map);
 
 
-/** \brief Reads "map: from "input_filename".  Aborts on input errors and emits an error message on stderr. */
+/** \brief Reads "map: from "input_filename".  Aborts on input errors and emits an error message on stderr.
+ *  \note  Optional hash signs start comments that extend to the end of a line.
+ */
 void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::string, std::string> * const map,
                     const bool revert_keys_and_values = false);
 
