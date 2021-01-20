@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2015-2019, Library of the University of Tübingen
+    Copyright (C) 2015-2021, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -22,7 +22,6 @@
 
 #include <algorithm>
 #include <fstream>
-#include <iostream>
 #include <map>
 #include <memory>
 #include <set>
@@ -44,9 +43,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " ix_theo_titles ix_theo_norm augmented_ix_theo_titles\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("ix_theo_titles ix_theo_norm augmented_ix_theo_titles");
 }
 
 
@@ -347,7 +344,7 @@ void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book
     LOG_INFO("About to write \"pericopes_to_codes.map\".");
     MapUtil::SerialiseMap("pericopes_to_codes.map", pericopes_to_ranges_map);
 
-    LOG_INFO("Read " + std::to_string(count) + " norm data records.");
+    LOG_INFO("Read " + std::to_string(count) + " norm data record(s).");
     LOG_INFO("Found " + std::to_string(unknown_book_count) + " records w/ unknown bible books.");
     LOG_INFO("Found a total of " + std::to_string(bible_ref_count) + " bible reference records.");
     LOG_INFO("Found " + std::to_string(pericope_count) + " records w/ pericopes.");
@@ -425,7 +422,7 @@ void AugmentBibleRefs(MARC::Reader * const marc_reader, MARC::Writer * const mar
 
 
 int Main(int argc, char **argv) {
-    if (argc < 3)
+    if (argc < 4)
         Usage();
 
     const std::string title_input_filename(argv[1]);
