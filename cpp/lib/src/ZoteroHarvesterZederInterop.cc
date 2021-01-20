@@ -1,7 +1,7 @@
 /** \brief Classes related to the Zotero Harvester's interoperation with the Zeder database
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2020-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -115,12 +115,21 @@ static std::string ResolveUpdateWindow(const Zeder::Entry &zeder_entry, const Ze
 }
 
 
+static std::string ResolveSelectiveEvaluation(const Zeder::Entry &zeder_entry, const Zeder::Flavour /*unused*/) {
+    if (zeder_entry.getAttribute("ausw", "") == "selek")
+        return "true";
+    else
+        return "false";
+}
+
+
 const std::map<Config::JournalParams::IniKey, std::function<std::string(const Zeder::Entry &, const Zeder::Flavour)>> INI_KEY_TO_ZEDER_RESOLVER_MAP {
     { Config::JournalParams::IniKey::GROUP, ResolveGroup },
     { Config::JournalParams::IniKey::ENTRY_POINT_URL, ResolveEntryPointURL },
     { Config::JournalParams::IniKey::HARVESTER_OPERATION, ResolveHarvesterOperation },
     { Config::JournalParams::IniKey::UPLOAD_OPERATION, ResolveUploadOperation },
-    { Config::JournalParams::IniKey::UPDATE_WINDOW, ResolveUpdateWindow }
+    { Config::JournalParams::IniKey::UPDATE_WINDOW, ResolveUpdateWindow },
+    { Config::JournalParams::IniKey::SELECTIVE_EVALUATION, ResolveSelectiveEvaluation },
 };
 
 

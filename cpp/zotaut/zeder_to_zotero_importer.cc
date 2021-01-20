@@ -1,7 +1,7 @@
 /** \brief Utility to automatically update the Zotero Harvester configuration from Zeder.
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2020-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -60,7 +60,7 @@ using namespace ZoteroHarvester;
             "\tzeder_ids                       Comma-separated list of Zeder entry IDs to import/update.\n"
             "\t                                Special-case for updating: Use '*' to update all entries found in the config that belong to the Zeder flavour\n"
             "\tfields_to_update                Comma-separated list of the following fields to update: \n"
-            "\t                                \tONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSGN, LICENSE.\n"
+            "\t                                \tONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSGN, LICENSE, SELECTIVE_EVALUATION.\n"
             "\t                                Ignored when importing entries (all importable fields will be imported).\n"
             "\t                                If mode is IMPORT and zeder_ids is '*', new journals will only be added if UPLOAD_OPERATION is not NONE.\n\n");
 }
@@ -124,16 +124,17 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
         return;
 
     static const std::map<std::string, Config::JournalParams::IniKey> ALLOWED_INI_KEYS {
-        { "ENTRY_POINT_URL",    Config::JournalParams::ENTRY_POINT_URL    },
-        { "UPLOAD_OPERATION",   Config::JournalParams::UPLOAD_OPERATION   },
-        { "ONLINE_PPN",         Config::JournalParams::ONLINE_PPN         },
-        { "PRINT_PPN",          Config::JournalParams::PRINT_PPN          },
-        { "ONLINE_ISSN",        Config::JournalParams::ONLINE_ISSN        },
-        { "PRINT_ISSN",         Config::JournalParams::PRINT_ISSN         },
-        { "UPDATE_WINDOW",      Config::JournalParams::UPDATE_WINDOW      },
-        { "SSGN",               Config::JournalParams::SSGN               },
-        { "LICENSE",            Config::JournalParams::LICENSE            },
-        { "EXPECTED_LANGUAGES", Config::JournalParams::EXPECTED_LANGUAGES },
+        { "ENTRY_POINT_URL",       Config::JournalParams::ENTRY_POINT_URL      },
+        { "UPLOAD_OPERATION",      Config::JournalParams::UPLOAD_OPERATION     },
+        { "ONLINE_PPN",            Config::JournalParams::ONLINE_PPN           },
+        { "PRINT_PPN",             Config::JournalParams::PRINT_PPN            },
+        { "ONLINE_ISSN",           Config::JournalParams::ONLINE_ISSN          },
+        { "PRINT_ISSN",            Config::JournalParams::PRINT_ISSN           },
+        { "UPDATE_WINDOW",         Config::JournalParams::UPDATE_WINDOW        },
+        { "SSGN",                  Config::JournalParams::SSGN                 },
+        { "LICENSE",               Config::JournalParams::LICENSE              },
+        { "SELECTIVE_EVALUATION",  Config::JournalParams::SELECTIVE_EVALUATION },
+        { "EXPECTED_LANGUAGES",    Config::JournalParams::EXPECTED_LANGUAGES   },
     };
 
     const std::string update_fields_list((*argv)[1]);
@@ -362,6 +363,7 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
             Config::JournalParams::EXPECTED_LANGUAGES,
             Config::JournalParams::SSGN,
             Config::JournalParams::LICENSE,
+            Config::JournalParams::SELECTIVE_EVALUATION,
         };
 
         // special-case multiple fields (Zeder ID, modified timestamp, UPLOAD_OPERATION)

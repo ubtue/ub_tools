@@ -1,7 +1,7 @@
 /** \brief Classes related to the Zotero Harvester's configuration data
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -231,6 +231,7 @@ struct JournalParams {
         EXPECTED_LANGUAGES,
         SSGN,
         LICENSE,
+        SELECTIVE_EVALUATION,
         CRAWL_MAX_DEPTH,
         CRAWL_EXTRACTION_REGEX,
         CRAWL_URL_REGEX,
@@ -264,6 +265,7 @@ struct JournalParams {
     ZoteroMetadataParams zotero_metadata_params_;
     MarcMetadataParams marc_metadata_params_;
     bool zeder_newly_synced_entry_;
+    bool selective_evaluation_;
 public:
     JournalParams(const GlobalParams &global_params);
     JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);

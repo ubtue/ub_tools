@@ -1,7 +1,7 @@
 /** \brief Classes related to the Zotero Harvester's configuration data
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -258,6 +258,7 @@ JournalParams::JournalParams(const GlobalParams &global_params) {
     strptime_format_string_ = global_params.strptime_format_string_;
     update_window_ = 0;
     crawl_params_.max_crawl_depth_ = 1;
+    selective_evaluation_ = false;
 }
 
 
@@ -275,6 +276,7 @@ const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_
     { PRINT_ISSN,               "print_issn"                },
     { SSGN,                     "ssgn"                      },
     { LICENSE,                  "license"                   },
+    { SELECTIVE_EVALUATION,     "selective_evaluation"      },
     { STRPTIME_FORMAT_STRING,   "zotero_strptime_format"    },
     { UPDATE_WINDOW,            "zotero_update_window"      },
     { REVIEW_REGEX,             "zotero_review_regex"       },
@@ -298,6 +300,7 @@ const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_
     { "print_issn",                PRINT_ISSN               },
     { "ssgn",                      SSGN                     },
     { "license",                   LICENSE                  },
+    { "selective_evaluation",      SELECTIVE_EVALUATION     },
     { "zotero_strptime_format",    STRPTIME_FORMAT_STRING   },
     { "zotero_update_window",      UPDATE_WINDOW            },
     { "zotero_review_regex",       REVIEW_REGEX             },
@@ -332,6 +335,7 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     update_window_ = journal_section.getUnsigned(GetIniKeyString(UPDATE_WINDOW), 0);
     ssgn_ = journal_section.getString(GetIniKeyString(SSGN), "");
     license_ = journal_section.getString(GetIniKeyString(LICENSE), "");
+    selective_evaluation_ = journal_section.getBool(GetIniKeyString(SELECTIVE_EVALUATION), false);
 
     const auto review_regex(journal_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
     if (not review_regex.empty())
