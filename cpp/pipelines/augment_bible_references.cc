@@ -47,27 +47,6 @@ namespace {
 }
 
 
-void LoadBibleOrderMap(File * const input, std::unordered_map<std::string, std::string> * const books_of_the_bible_to_code_map) {
-    LOG_INFO("Started loading of the bible-order map.");
-
-    unsigned line_no(0);
-    while (not input->eof()) {
-        const std::string line(input->getline());
-        if (line.empty())
-            continue;
-        ++line_no;
-
-        const size_t equal_pos(line.find('='));
-        if (equal_pos == std::string::npos)
-            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in the bible-order map file!");
-        (*books_of_the_bible_to_code_map)[TextUtil::UTF8ToLower(line.substr(0, equal_pos))] =
-            line.substr(equal_pos + 1);
-    }
-
-    LOG_INFO("Loaded " + std::to_string(line_no) + " entries from the bible-order map file.");
-}
-
-
 /* Pericopes are found in 130$a if there are also bible references in the 430 field. You should therefore
    only call this after acertaining that one or more 430 fields contain a bible reference. */
 bool FindPericopes(const MARC::Record &record, const std::set<std::pair<std::string, std::string>> &ranges,
@@ -438,12 +417,8 @@ int Main(int argc, char **argv) {
     auto title_writer(MARC::Writer::Factory(title_output_filename));
 
     const std::string books_of_the_bible_to_code_map_filename(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_code.map");
-    File books_of_the_bible_to_code_map_file(books_of_the_bible_to_code_map_filename, "r");
-    if (not books_of_the_bible_to_code_map_file)
-        LOG_ERROR("can't open \"" + books_of_the_bible_to_code_map_filename + "\" for reading!");
-
     std::unordered_map<std::string, std::string> books_of_the_bible_to_code_map;
-    LoadBibleOrderMap(&books_of_the_bible_to_code_map_file, &books_of_the_bible_to_code_map);
+    MapUtil::DeserialiseMap(books_of_the_bible_to_code_map_filename, &books_of_the_bible_to_code_map);
 
     std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> gnd_codes_to_bible_ref_codes_map;
     LoadNormData(books_of_the_bible_to_code_map, authority_reader.get(),
