@@ -255,7 +255,7 @@ public:
     }
 
 
-    inline void deleteAllSubfieldsWithCodeMatching(const char subfield_code, ThreadSafeRegexMatcher &regex) {
+    inline void deleteAllSubfieldsWithCodeMatching(const char subfield_code, const ThreadSafeRegexMatcher &regex) {
         subfields_.erase(std::remove_if(subfields_.begin(), subfields_.end(),
                          [subfield_code, regex](const Subfield subfield) -> bool
                          { return (subfield.code_ == subfield_code) and regex.match(subfield.value_); }), subfields_.end());
@@ -385,7 +385,7 @@ public:
          */
         bool extractSubfieldWithPattern(const char subfield_code, RegexMatcher &regex, std::string * const value) const;
 
-        bool removeSubfieldWithPattern(const char subfield_code, ThreadSafeRegexMatcher &regex);
+        bool removeSubfieldWithPattern(const char subfield_code, const ThreadSafeRegexMatcher &regex);
 
         inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
             { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
