@@ -833,7 +833,6 @@ void RemoveCustomMarcFields(MARC::Record * const marc_record, const ConversionPa
 }
 
 
-
 void RemoveCustomMarcSubfieldsForParams(MARC::Record * const marc_record, const Config::MarcMetadataParams &marc_metadata_params) {
     std::vector<MARC::Record::iterator> matched_fields;
     for (const auto &filter : marc_metadata_params.subfields_to_remove_) {
