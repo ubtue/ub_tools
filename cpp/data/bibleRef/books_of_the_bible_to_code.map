@@ -1,3 +1,5 @@
+# WARNING: The names here must match the names in the authority records for the bible books
+#          or else non-matching books cannot be found using our bible searches!
 matthäusevangelium=01
 markusevangelium=02
 lukasevangelium=03
