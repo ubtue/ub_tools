@@ -170,7 +170,6 @@ MarcMetadataParams::MarcMetadataParams(const IniFile::Section &config_section) {
             subfields_to_remove_.insert(std::make_pair(field_name,
                                      std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
         }
-
     }
 }
 
