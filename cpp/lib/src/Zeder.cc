@@ -1,7 +1,7 @@
 /** \brief API to interact with the Zeder collaboration tool
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -668,8 +668,7 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
 }
 
 
-SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter)
-{
+SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter) {
     const auto endpoint_url(GetFullDumpEndpointPath(flavour));
     const std::unordered_map<std::string, std::string> filter_regexps {}; // intentionally empty
     const std::unordered_set<unsigned> entries_to_download; // empty means all entries
