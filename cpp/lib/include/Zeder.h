@@ -1,7 +1,7 @@
 /** \brief API to interact with the Zeder collaboration tool
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -43,13 +43,13 @@ enum Flavour { IXTHEO, KRIMDOK };
 namespace std {
 
 
-    template <>
-    struct hash<Zeder::Flavour> {
-        size_t operator()(const Zeder::Flavour &flavour) const {
-            // hash method here.
-            return hash<int>()(flavour);
-        }
-    };
+template <>
+struct hash<Zeder::Flavour> {
+    size_t operator()(const Zeder::Flavour &flavour) const {
+        // hash method here.
+        return hash<int>()(flavour);
+    }
+};
 
 
 } // end namespace std
@@ -458,9 +458,9 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive = fal
 class SimpleZeder {
     typedef EntryCollection::const_iterator const_iterator;
 private:
-    EntryCollection  entries_;
+    EntryCollection entries_;
 public:
-    // \param "column_filter" If not empty, only the specified short column names will be accesible via the
+    // \param "column_filter" If not empty, only the specified short column names will be accessible via the
     //        lookup member function of class Journal.  This is a performance and memory optimisation only.
     explicit SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter = {});
 
