@@ -104,10 +104,8 @@ ThreadSafeRegexMatcher::ThreadSafeRegexMatcher(const std::string &pattern, const
  : pattern_(pattern), options_(options), pcre_data_(new PcreData)
 {
     std::string err_msg;
-    if (not CompileRegex(pattern_, options_, &pcre_data_->pcre_, &pcre_data_->pcre_extra_, &err_msg)) {
-        if (err_msg.empty())
-            LOG_ERROR("failed to compile pattern: \"" + pattern + "\": " + err_msg);
-    }
+    if (not CompileRegex(pattern_, options_, &pcre_data_->pcre_, &pcre_data_->pcre_extra_, &err_msg))
+        LOG_ERROR("failed to compile pattern: \"" + pattern + "\": " + err_msg);
 }
 
 
