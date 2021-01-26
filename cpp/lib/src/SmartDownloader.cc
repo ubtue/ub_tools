@@ -409,7 +409,7 @@ bool SmartDownloadResolveFirstRedirectHop(const std::string &url, const TimeLimi
     // If the redirection was just from http to https make another try (occurs e.g. with doi.dx requests)
     if (UrlUtil::URLIdenticalButDifferentScheme(url, redirected_url)) {
         if (not GetRedirectedUrl(redirected_url, time_limit, &redirected_url))
-           LOG_ERROR("Could not resolve redirection for " + redirected_url);
+           LOG_WARNING("Could not resolve redirection for " + redirected_url);
     }
     return SmartDownload(redirected_url, time_limit, document, http_header_charset, error_message, trace);
 }
