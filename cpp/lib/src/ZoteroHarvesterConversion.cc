@@ -435,16 +435,7 @@ void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::strin
         StringUtil::Split(*last_name, ' ', &last_name_tokens, /* suppress_empty_components = */ true);
         if (last_name_tokens.size() >= 2) // Probably fixed elsewhere...
             return;
-        // Special handling for "de" and "y"
-        const auto de_iterator(std::find(first_name_tokens.begin(), first_name_tokens.end(), "de"));
-        if (de_iterator != first_name_tokens.end()) {
-            last_name_tokens.insert(last_name_tokens.begin(), std::make_move_iterator(de_iterator),
-                                                              std::make_move_iterator(first_name_tokens.end()));
-            first_name_tokens.erase(de_iterator, first_name_tokens.end());
-            JoinAuthorTokens(first_name_tokens, first_name, last_name_tokens, last_name);
-            return;
-        }
-
+        // Special handling for "y"
         const auto y_iterator(std::find(first_name_tokens.begin(), first_name_tokens.end(), "y"));
         if (y_iterator != first_name_tokens.end()) {
             const auto offset(std::distance(first_name_tokens.begin(), y_iterator));
