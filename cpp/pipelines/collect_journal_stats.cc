@@ -153,7 +153,7 @@ size_t GetExistingDbEntries(const IniFile &ini_file, const std::string &hostname
 
 // \return True if "test_entry" either does not exist in the databse or is newer than the newest existing entry.
 bool NewerThanWhatExistsInDB(const std::unordered_map<std::string, DbEntry> &existing_entries,
-                                const std::string &zeder_id, const std::string &ppn, const DbEntry &test_entry)
+                             const std::string &zeder_id, const std::string &ppn, const DbEntry &test_entry)
 {
     const auto key_and_entry(existing_entries.find(zeder_id + "+" + ppn));
     if (key_and_entry == existing_entries.cend())
@@ -203,8 +203,12 @@ void CollectMostRecentEntries(const IniFile &ini_file, MARC::Reader * const read
         const std::string year_as_string(std::to_string(YearStringToShort(year)));
 
         const DbEntry new_db_entry(year_as_string, volume, issue, pages);
-        if (NewerThanWhatExistsInDB(existing_entries, zeder_id, superior_control_number, new_db_entry))
+        if (NewerThanWhatExistsInDB(existing_entries, zeder_id, superior_control_number, new_db_entry)) {
             (*ppns_to_most_recent_entries_map)[superior_control_number] = new_db_entry;
+            const auto superior_control_number_and_entry(ppns_to_most_recent_entries_map->find(superior_control_number));
+            if (superior_control_number_and_entry == ppns_to_most_recent_entries_map->end() or new_db_entry.isNewerThan(superior_control_number_and_entry->second))
+                (*ppns_to_most_recent_entries_map)[superior_control_number] = new_db_entry;
+        }
     }
 
     LOG_INFO("Processed " + std::to_string(total_count) + " MARC records and found "
