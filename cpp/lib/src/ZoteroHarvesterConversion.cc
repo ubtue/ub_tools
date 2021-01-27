@@ -447,8 +447,6 @@ void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::strin
                 return;
             }
         }
-        last_name_tokens.insert(last_name_tokens.begin(), first_name_tokens.back());
-        first_name_tokens.pop_back();
         JoinAuthorTokens(first_name_tokens, first_name, last_name_tokens, last_name);
     }
 }
