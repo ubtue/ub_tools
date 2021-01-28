@@ -202,12 +202,14 @@ void CollectMostRecentEntries(const IniFile &ini_file, MARC::Reader * const read
         const std::string ppn_type(1, ppn_and_zeder_id_and_ppn_type->second.type_);
         const std::string year_as_string(std::to_string(YearStringToShort(year)));
 
+        // data is truncated to length 8
+        issue = issue.substr(0,7);
         const DbEntry new_db_entry(year_as_string, volume, issue, pages);
         if (NewerThanWhatExistsInDB(existing_entries, zeder_id, superior_control_number, new_db_entry)) {
-            (*ppns_to_most_recent_entries_map)[superior_control_number] = new_db_entry;
             const auto superior_control_number_and_entry(ppns_to_most_recent_entries_map->find(superior_control_number));
             if (superior_control_number_and_entry == ppns_to_most_recent_entries_map->end() or new_db_entry.isNewerThan(superior_control_number_and_entry->second))
                 (*ppns_to_most_recent_entries_map)[superior_control_number] = new_db_entry;
+
         }
     }
 
