@@ -80,7 +80,7 @@ def CoalesceNumbers(individual_numbers):
 # @return Either a list of BNB numbers or None
 # @note A return code of None indicates w/ a high probablity that a document for "list_no" does not exist on the BNB web server
 def RetryGetNewBNBNumbers(list_no):
-    util.Info("Downloading BBN numbers for list #" + str(list_no))
+    util.Info("Downloading BNB numbers for list #" + str(list_no))
     MAX_NO_OF_ATTEMPTS = 4
     sleep_interval = 10 # initial sleep interval after a failed attempt in seconds
     for attempt in range(1, MAX_NO_OF_ATTEMPTS):
