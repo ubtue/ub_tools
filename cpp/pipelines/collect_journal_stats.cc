@@ -163,6 +163,9 @@ bool NewerThanWhatExistsInDB(const std::unordered_map<std::string, DbEntry> &exi
 }
 
 
+const size_t MAX_ISSUE_DATABASE_LENGTH = 8; // maximum length of the issue field in the mySQL datafield
+
+
 void CollectMostRecentEntries(const IniFile &ini_file, MARC::Reader * const reader, MARC::Writer * const writer,
                               const std::string &system_type, const std::string &hostname,
                               const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
@@ -202,14 +205,13 @@ void CollectMostRecentEntries(const IniFile &ini_file, MARC::Reader * const read
         const std::string ppn_type(1, ppn_and_zeder_id_and_ppn_type->second.type_);
         const std::string year_as_string(std::to_string(YearStringToShort(year)));
 
-        // data is truncated to length 8
-        issue = issue.substr(0,7);
+        // truncate in order to ensure that comparison with the database works
+        issue = issue.substr(0, MAX_ISSUE_DATABASE_LENGTH);
         const DbEntry new_db_entry(year_as_string, volume, issue, pages);
         if (NewerThanWhatExistsInDB(existing_entries, zeder_id, superior_control_number, new_db_entry)) {
             const auto superior_control_number_and_entry(ppns_to_most_recent_entries_map->find(superior_control_number));
             if (superior_control_number_and_entry == ppns_to_most_recent_entries_map->end() or new_db_entry.isNewerThan(superior_control_number_and_entry->second))
                 (*ppns_to_most_recent_entries_map)[superior_control_number] = new_db_entry;
-
         }
     }
 
