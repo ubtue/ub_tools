@@ -46,9 +46,8 @@ def GetNewBNBNumbers(list_no):
         "https://www.bl.uk/britishlibrary/~/media/bl/global/services/collection%20metadata/pdfs/bnb%20records%20rdf/" \
         + zipped_rdf_filename
     if not util.WgetFetch(download_url):
-        util.Warning("Failed to retrieve " + download_url + " not found!")
+        util.Info("Failed to retrieve '" + download_url + "'!")
         return []
-    print("Downloaded " + zipped_rdf_filename)
     with zipfile.ZipFile(zipped_rdf_filename, "r") as zip_file:
         zip_file.extractall()
     util.Remove(zipped_rdf_filename)
@@ -81,7 +80,7 @@ def CoalesceNumbers(individual_numbers):
 # @return Either a list of BNB numbers or None
 # @note A return code of None indicates w/ a high probablity that a document for "list_no" does not exist on the BNB web server
 def RetryGetNewBNBNumbers(list_no):
-    util.Info("Downloading BBN numbers for list #" + str(list_no))
+    util.Info("Downloading BNB numbers for list #" + str(list_no))
     MAX_NO_OF_ATTEMPTS = 4
     sleep_interval = 10 # initial sleep interval after a failed attempt in seconds
     for attempt in range(1, MAX_NO_OF_ATTEMPTS):
@@ -174,39 +173,47 @@ def Main():
 
     util.default_email_recipient = sys.argv[1]
     SetupWorkDirectory()
-    OUTPUT_FILENAME = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + ".mrc"
-    try:
-        os.remove(OUTPUT_FILENAME)
-    except:
-        pass
+    OUTPUT_FILENAME_PREFIX: str = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + "-"
+    FTP_UPLOAD_DIRECTORY: str = "pub/UBTuebingen_BNB_Test"
 
     yaz_client = ConnectToYAZServer()
     yaz_client.sendline("format marc21")
     yaz_client.expect("\r\n")
-    yaz_client.sendline("set_marcdump " + OUTPUT_FILENAME)
-    yaz_client.expect("\r\n")
 
     list_no = LoadStartListNumber()
-    util.Info("About to process list #" + str(list_no))
     
     total_count = 0
+    OUTPUT_FILENAME: str = None
     while True:
+        util.Info("About to process list #" + str(list_no))
         bnb_numbers = RetryGetNewBNBNumbers(list_no)
         if bnb_numbers is None:
             break
         util.Info("Retrieved " + str(len(bnb_numbers)) + " BNB numbers for list #" + str(list_no))
+        if len(bnb_numbers) == 0:
+            continue
+
+        # Open new MARC dump file for the current list:
+        OUTPUT_FILENAME = OUTPUT_FILENAME_PREFIX + str(list_no) + ".mrc"
+        util.Remove(OUTPUT_FILENAME)
+        yaz_client.sendline("set_marcdump " + OUTPUT_FILENAME)
+        yaz_client.expect("\r\n")
+        
         ranges = CoalesceNumbers(bnb_numbers)
         util.Info("The BNB numbers were coalesced into " + str(len(ranges)) + " ranges.")
-        
-        count = DownloadRecordsRanges(yaz_client, ranges)
+
+        count: int = DownloadRecordsRanges(yaz_client, ranges)
         util.Info("Downloaded " + str(count) + " records for list #" + str(list_no) + ".")
+        if count > 0:
+            UploadToBSZFTPServer(FTP_UPLOAD_DIRECTORY, OUTPUT_FILENAME)
+        StoreStartListNumber(list_no)
+        
         total_count += count
         list_no += 1
-    StoreStartListNumber(list_no)
+    if OUTPUT_FILENAME is not None:
+        util.Remove(OUTPUT_FILENAME)
     util.Info("Downloaded a total of " + str(total_count) + " new record(s).")
     if total_count > 0:
-        FTP_UPLOAD_DIRECTORY: str = "pub/UBTuebingen_BNB_Test"
-        UploadToBSZFTPServer(FTP_UPLOAD_DIRECTORY, OUTPUT_FILENAME)
         util.SendEmail("BNB Downloader", "Uploaded " + str(total_count) + " records to the BSZ FTP-server.")
     else:
         util.SendEmail("BNB Downloader", "No new records found.")
