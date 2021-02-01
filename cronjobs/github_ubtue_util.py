@@ -4,7 +4,9 @@
 UNTESTED_LABEL = "Untested"
 NO_OPEN_ISSUE_LABEL = "No Open Issues"
 HAS_ISSUE_LABEL = "Has Issue"
-ZOTAUT = "ZOTAUT"
+ZOTAUT_LABEL = "ZOTAUT"
+READY_FOR_PRODUCTION_LABEL = "Ready for Production"
+BSZ_LABEL = "BSZ"
 
 
 def AdjustZoteroStatusLabels(issue, labels_to_add, labels_to_remove):

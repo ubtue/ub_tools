@@ -35,10 +35,10 @@ def GetZederZotAutStatusForISSN(issn, zeder_instances):
         if zota_number_code == "Unknown":
             raise Exception("Could not determine Id for Zeder zota")
         for item in zeder_instance['daten']:
-             if 'essn' in item and item['essn'] == issn:
+             if 'essn' in item and item['essn'].strip() == issn:
                  if HasZotAut(item, zota_number_code):
                      return True
-             elif 'issn' in item and item['issn'] == issn:
+             elif 'issn' in item and item['issn'].strip() == issn:
                  if  HasZotAut(item, zota_number_code):
                      return True
     return False
@@ -58,7 +58,8 @@ def TagZoteroJournalStatusZotAutFromZeder():
                 if zotaut_status:
                     break
         if zotaut_status:
-            new_labels = github_ubtue_util.AdjustZoteroStatusLabels(issue, [ github_ubtue_util.ZOTAUT ], [])
+            new_labels = github_ubtue_util.AdjustZoteroStatusLabels(issue, [ github_ubtue_util.ZOTAUT_LABEL],
+                             [ github_ubtue_util.READY_FOR_PRODUCTION_LABEL, github_ubtue_util.BZS_LABEL ])
             if not github_ubtue_util.LabelsAreIdentical(issue, new_labels):
                 issue_number = str(issue['number'])
                 data = { "labels" : new_labels }
