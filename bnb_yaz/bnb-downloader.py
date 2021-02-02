@@ -191,6 +191,8 @@ def Main():
             break
         util.Info("Retrieved " + str(len(bnb_numbers)) + " BNB numbers for list #" + str(list_no))
         if len(bnb_numbers) == 0:
+            list_no += 1
+            StoreStartListNumber(list_no)
             continue
 
         # Open new MARC dump file for the current list:
@@ -206,10 +208,10 @@ def Main():
         util.Info("Downloaded " + str(count) + " records for list #" + str(list_no) + ".")
         if count > 0:
             UploadToBSZFTPServer(FTP_UPLOAD_DIRECTORY, OUTPUT_FILENAME)
+        list_no += 1
         StoreStartListNumber(list_no)
         
         total_count += count
-        list_no += 1
     if OUTPUT_FILENAME is not None:
         util.Remove(OUTPUT_FILENAME)
     util.Info("Downloaded a total of " + str(total_count) + " new record(s).")
