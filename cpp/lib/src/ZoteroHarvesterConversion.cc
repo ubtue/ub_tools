@@ -427,6 +427,12 @@ void JoinAuthorTokens(const std::vector<std::string> &tokens_first, std::string 
 void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::string * const last_name, const std::string &language) {
     // In Spanish we have two last name components, so move over if appropriate
     if (language == "spa") {
+        // Skip transformation if the first name/last name association already seems reasonable
+        static const auto first_name_end_preposition(ThreadSafeRegexMatcher("(des?\\s+las?|del)$",
+             ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE));
+        if (first_name_end_preposition.match(*first_name))
+            return;
+
         std::vector<std::string> first_name_tokens;
         std::vector<std::string> last_name_tokens;
         StringUtil::Split(*first_name, ' ', &first_name_tokens, /* suppress_empty_components = */ true);
@@ -447,6 +453,8 @@ void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::strin
                 return;
             }
         }
+        last_name_tokens.insert(last_name_tokens.begin(), first_name_tokens.back());
+        first_name_tokens.pop_back();
         JoinAuthorTokens(first_name_tokens, first_name, last_name_tokens, last_name);
     }
 }
