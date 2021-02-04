@@ -890,11 +890,6 @@ std::string TruncateAbstractField(const std::string &abstract_field) {
 }
 
 
-std::string GetArticleNumIndicator() {
-   return "article";
-}
-
-
 void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record, const ConversionParams &parameters,
                                           MARC::Record * const marc_record, std::string * const marc_record_hash)
 {
@@ -1022,8 +1017,9 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         _936_subfields.appendSubfield('d', issue);
 
     const std::string pages(metadata_record.pages_);
+    const std::string ARTICLE_NUM_INDICATOR("article");
     if (not pages.empty()) {
-        if (StringUtil::StartsWith(pages, GetArticleNumIndicator()))
+        if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR))
             _936_subfields.appendSubfield('y', ((not volume.empty()) ? std::string("Bd. ") + volume + ", " : "") +
                                                ((not issue.empty()) ? std::string("Heft ") + issue + ", " : "") + pages);
         else
@@ -1056,8 +1052,8 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
             g_content += ", " + issue;
 
         if (not pages.empty()) {
-            if (StringUtil::StartsWith(pages, GetArticleNumIndicator()))
-                g_content += ", " + StringUtil::ReplaceString(GetArticleNumIndicator(), "Artikel", pages);
+            if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR))
+                g_content += ", " + StringUtil::ReplaceString(ARTICLE_NUM_INDICATOR, "Artikel", pages);
             else
                 g_content += ", Seite " + pages;
         }
