@@ -2,7 +2,7 @@
  *  \brief  Utility functions etc. related to the sending of email messages.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -43,15 +43,35 @@ unsigned short SendEmail(const std::string &sender, const std::vector<std::strin
                          const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
                          const std::string &subject, const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
                          const Format format = PLAIN_TEXT, const std::string &reply_to = "", const bool use_ssl = true,
-                         const bool use_authentication = true, const std::vector<std::string> &attachments = {});
+                         const bool use_authentication = true, const std::vector<std::string> &attachment_filenames = {});
 
 inline unsigned short SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
                                 const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
                                 const Format format = PLAIN_TEXT, const std::string &reply_to = "", const bool use_ssl = true,
-                                const bool use_authentication = true, const std::vector<std::string> &attachments = {})
+                                const bool use_authentication = true, const std::vector<std::string> &attachment_filenames = {})
 {
     return SendEmail(sender, { recipient }, /* cc_recipients = */ { }, /* bcc_recipients = */ { }, subject, message_body,
-                     priority, format, reply_to, use_ssl, use_authentication, attachments);
+                     priority, format, reply_to, use_ssl, use_authentication, attachment_filenames);
+}
+
+
+/** \note The following two functions take the actual attachment contents as parameters instead of filenames
+          containing the attachments. */
+unsigned short SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
+                         const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
+                         const std::string &subject, const std::string &message_body,
+                         const Priority priority = DO_NOT_SET_PRIORITY, const Format format = PLAIN_TEXT,
+                         const std::string &reply_to = "", const std::vector<std::string> &attachments = {},
+                         const bool use_ssl = true, const bool use_authentication = true);
+
+inline unsigned short SendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
+                                const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
+                                const Format format = PLAIN_TEXT, const std::string &reply_to = "",
+                                const std::vector<std::string> &attachments = {}, const bool use_ssl = true,
+                                const bool use_authentication = true)
+{
+    return SendEmail(sender, { recipient }, /* cc_recipients = */ { }, /* bcc_recipients = */ { }, subject, message_body,
+                     priority, format, reply_to, attachments, use_ssl, use_authentication);
 }
 
 
