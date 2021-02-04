@@ -1017,7 +1017,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         _936_subfields.appendSubfield('d', issue);
 
     const std::string pages(metadata_record.pages_);
-    const std::string ARTICLE_NUM_INDICATOR("article");
+    static const std::string ARTICLE_NUM_INDICATOR("article");
     if (not pages.empty()) {
         if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR))
             _936_subfields.appendSubfield('y', ((not volume.empty()) ? std::string("Bd. ") + volume + ", " : "") +
