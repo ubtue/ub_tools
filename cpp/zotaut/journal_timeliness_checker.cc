@@ -1,7 +1,7 @@
 /** \brief Checks the BSZ delivery database to find journals for which we have no reasonably new articles delivered.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -105,8 +105,8 @@ int Main(int argc, char *argv[]) {
     }
 
     if (not tardy_list.empty()) {
-        if (EmailSender::SendEmail(sender_email_address, notification_email_address, "Überfällige Zeitschriften",
-                                   "Letzte Lieferung ans BSZ\n" + tardy_list) > 299)
+        if (EmailSender::SimpleSendEmail(sender_email_address, { notification_email_address }, "Überfällige Zeitschriften",
+                                         "Letzte Lieferung ans BSZ\n" + tardy_list) > 299)
             LOG_ERROR("failed to send email notification!");
     }
 

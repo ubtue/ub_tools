@@ -1,7 +1,7 @@
 /** \brief  Utility for finding referenced PPN's that we should have, but that are missing.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2020-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -108,10 +108,10 @@ int Main(int argc, char *argv[]) {
         archive_writer.write(missing_references_text);
         archive_writer.close();
 
-        const auto status_code(EmailSender::SendEmail("nobody@nowhere.com", email_address, "Missing PPN's",
-                                                      "Attached is the new list of " + std::to_string(new_missing_ppns.size()) + " missing PPN('s).",
-                                                      EmailSender::DO_NOT_SET_PRIORITY, EmailSender::PLAIN_TEXT, /* reply_to = */"",
-                                                      /* use_ssl = */true, /* use_authentication = */true, { ZIP_FILENAME }));
+        const auto status_code(EmailSender::SimpleSendEmailWithFileAttachments(
+            "nobody@nowhere.com", { email_address }, "Missing PPN's",
+            "Attached is the new list of " + std::to_string(new_missing_ppns.size()) + " missing PPN('s).",
+            { ZIP_FILENAME }));
         if (status_code > 299)
             LOG_ERROR("Failed to send an email to \"" + email_address + "\"!  The server returned "
                       + std::to_string(status_code) + ".");

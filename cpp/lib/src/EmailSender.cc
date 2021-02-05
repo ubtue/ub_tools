@@ -364,15 +364,76 @@ bool ProcessRecipients(const int socket_fd, const TimeLimit &time_limit, const s
 }
 
 
-unsigned short ActualSendEmail(const std::string &sender, const std::vector<std::string> &recipients,
-                               const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
-                               const std::string &subject, const std::string &message_body, const EmailSender::Priority priority,
-                               const EmailSender::Format format, const std::string &reply_to,
-                               const std::vector<std::pair<std::string, std::string>> &content_dispositions_and_contents,
-                               const bool use_ssl, const bool use_authentication)
+void InitContentdispositions(const std::vector<std::string> &attachments, const EmailSender::AttachmentType attachment_type,
+                             std::vector<std::pair<std::string, std::string>> * const content_dispositions_and_contents)
+{
+    if (attachment_type == EmailSender::AT_INVALID) {
+        if (unlikely(not attachments.empty()))
+            LOG_ERROR("you must specify a corresponding attachment type (AT_FILENAMES or AT_DATA) when providing email "
+                      "attachments!");
+    }
+
+    content_dispositions_and_contents->reserve(attachments.size());
+    for (const auto attachment : attachments) {
+        if (attachment_type == EmailSender::AT_DATA)
+            content_dispositions_and_contents->emplace_back(std::make_pair("inline", attachment));
+        else { // we assume that attachment_type == EmailSender::AT_FILENAMES
+            std::string data;
+            if (unlikely(not FileUtil::ReadString(attachment, &data)))
+                LOG_ERROR("failed to read content of attachment from \"" + attachment + "\"!");
+            content_dispositions_and_contents->emplace_back(
+                std::make_pair("attachment; filename=\"" + FileUtil::GetBasename(attachment) + "\"", data));
+        }
+    }
+}
+
+
+} // unnamed namespace
+
+
+namespace EmailSender {
+
+
+unsigned short SimpleSendEmail(const std::string &sender, const std::vector<std::string> &recipients,
+                               const std::string &subject, const std::string &message_body, const Priority priority,
+                               const Format format)
+{
+    return SendEmail(sender, recipients, /* cc_recipients = */{}, /* bcc_recipients = */{}, subject, message_body,
+                     priority, format);
+}
+
+
+unsigned short SimpleSendEmailWithFileAttachments(const std::string &sender, const std::vector<std::string> &recipients,
+                                                  const std::string &subject, const std::string &message_body,
+                                                  const std::vector<std::string> &attachment_filenames,
+                                                  const Priority priority, const Format format)
+{
+    return SendEmail(sender, recipients, /* cc_recipients = */{}, /* bcc_recipients = */{}, subject, message_body,
+                     priority, format, /* reply_to = */"", attachment_filenames, AT_FILENAMES);
+}
+
+
+unsigned short SimpleSendEmailWithInlineAttachments(const std::string &sender, const std::vector<std::string> &recipients,
+                                                    const std::string &subject, const std::string &message_body,
+                                                    const std::vector<std::string> &attachments, const Priority priority,
+                                                    const Format format)
+{
+    return SendEmail(sender, recipients, /* cc_recipients = */{}, /* bcc_recipients = */{}, subject, message_body,
+                     priority, format, /* reply_to = */"", attachments, AT_DATA);
+}
+
+
+unsigned short SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
+                         const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
+                         const std::string &subject, const std::string &message_body, const Priority priority,
+                         const Format format, const std::string &reply_to, const std::vector<std::string> &attachments,
+                         const AttachmentType attachment_type, const bool use_ssl, const bool use_authentication)
 {
     if (unlikely(sender.empty() and reply_to.empty()))
         LOG_ERROR("both \"sender\" and \"reply_to\" can't be empty!");
+
+    std::vector<std::pair<std::string, std::string>> content_dispositions_and_contents;
+    InitContentdispositions(attachments, attachment_type, &content_dispositions_and_contents);
 
     const TimeLimit time_limit(20000 /* ms */);
 
@@ -440,49 +501,6 @@ unsigned short ActualSendEmail(const std::string &sender, const std::vector<std:
     }
 
     return 200;
-}
-
-
-} // unnamed namespace
-
-
-namespace EmailSender {
-
-
-unsigned short SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
-                         const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
-                         const std::string &subject, const std::string &message_body, const Priority priority,
-                         const Format format, const std::string &reply_to, const bool use_ssl, const bool use_authentication,
-                         const std::vector<std::string> &attachment_filenames)
-{
-    std::vector<std::pair<std::string, std::string>> content_dispositions_and_contents;
-    content_dispositions_and_contents.reserve(attachment_filenames.size());
-    for (const auto attachment_filename : attachment_filenames) {
-        std::string data;
-        if (unlikely(not FileUtil::ReadString(attachment_filename, &data)))
-            LOG_ERROR("failed to read content of attachment from \"" + attachment_filename + "\"!");
-        content_dispositions_and_contents.emplace_back(
-            std::make_pair("attachment; filename=\"" + FileUtil::GetBasename(attachment_filename) + "\"", data));
-    }
-
-    return ActualSendEmail(sender, recipients, cc_recipients, bcc_recipients, subject, message_body, priority, format,
-                           reply_to, content_dispositions_and_contents, use_ssl, use_authentication);
-}
-
-
-unsigned short SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
-                         const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
-                         const std::string &subject, const std::string &message_body, const Priority priority,
-                         const Format format, const std::string &reply_to, const std::vector<std::string> &attachments,
-                         const bool use_ssl, const bool use_authentication)
-{
-    std::vector<std::pair<std::string, std::string>> content_dispositions_and_contents;
-    content_dispositions_and_contents.reserve(attachments.size());
-    for (const auto &attachment : attachments)
-        content_dispositions_and_contents.emplace_back(std::make_pair("inline", attachment));
-
-    return ActualSendEmail(sender, recipients, cc_recipients, bcc_recipients, subject, message_body, priority, format,
-                           reply_to, content_dispositions_and_contents, use_ssl, use_authentication);
 }
 
 
