@@ -112,7 +112,7 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
 
     const std::string item_url(item.getLink());
     if (item_url.empty()) {
-        LOG_WARNING("got an item w/o a URL, ID is \"" + item.getId());
+        LOG_WARNING("got an item w/o a URL, ID is \"" + item.getId() + "\"");
         return false;
     }
 

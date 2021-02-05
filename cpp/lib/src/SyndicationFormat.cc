@@ -172,6 +172,8 @@ RSS20::RSS20(const std::string &xml_document, const AugmentParams &augment_param
             title_ = ExtractText(xml_parser_, "title", " (RSS20::RSS20)");
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link")
             link_ = ExtractText(xml_parser_, "link", " (RSS20::RSS20)");
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "enclosure" and part.attributes_.find("url") != part.attributes_.end() and link_.empty())
+            link_ = part.attributes_["url"];
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
             description_ = ExtractText(xml_parser_, "description", " (RSS20::RSS20)");
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "lastBuildDate") {
@@ -206,6 +208,9 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
             link = ExtractText(xml_parser_, "link", " (RSS20::getNextItem)");
             if (link.empty() and part.attributes_.find("href") != part.attributes_.end())
                 link = part.attributes_["href"];
+        } else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "enclosure") {
+            if (link.empty() and part.attributes_.find("url") != part.attributes_.end())
+                link = part.attributes_["url"];
         } else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "guid")
             id = ExtractText(xml_parser_, "guid", " (RSS20::getNextItem)");
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "pubDate") {
