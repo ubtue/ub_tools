@@ -225,8 +225,8 @@ void SendNotificationsForOverdueEmails(const IniFile &ini_file, std::set<std::st
 
         const unsigned overdue_time_window(section.getUnsigned("overdue_time_window")); // in hours
         if ((NOW - section_name_and_last_seen_time->second) > overdue_time_window * 3600u) {
-            overdue_list += "No email from " + section.getString("from_host") + " with subject pattern "
-                            + section.getString("subject_pattern") + " within the last "
+            overdue_list += "No email from " + section.getString("from_host") + " with subject pattern \""
+                            + section.getString("subject_pattern") + "\" within the last "
                             + section.getString("overdue_time_window")
                             + "hours!\n";
             matched_section_names->emplace(section_name); // So we don't gripe again too soon!
