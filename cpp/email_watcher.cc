@@ -123,15 +123,6 @@ std::unordered_map<std::string, EmailDescription> LoadEmailDescriptions(const In
 }
 
 
-unsigned short SendEmail(const std::vector<std::string> &recipients, const std::string &subject,
-                         const std::string &message_body, const std::vector<std::string> &attachments = {})
-{
-    return EmailSender::SendEmail("email_watcher", recipients, /* cc_recipients = */{}, /* bcc_recipients = */{},
-                                  subject, message_body, /* priority = */EmailSender::VERY_HIGH, EmailSender::PLAIN_TEXT,
-                                  /* reply_to = */"", /* use_ssl = */true, /* use_authentication = */true, attachments);
-}
-
-
 void ProcessMBox(const std::string &mbox_filename, const long forward_priority,
                  const std::vector<std::string> &notification_email_addresses,
                  const std::unordered_map<std::string, EmailDescription> &email_descriptions,
@@ -144,11 +135,11 @@ void ProcessMBox(const std::string &mbox_filename, const long forward_priority,
         if (email_message.getPriority() >= forward_priority) {
             LOG_DEBUG("Forwarding email w/ subject \"" + email_message.getSubject() + "\" from host \""
                       + email_message.getOriginalHost() + "\" and sender \"" + email_message.getSender() + "\".");
-            SendEmail(notification_email_addresses, email_message.getSubject(),
-                      "High priority (" + std::to_string(email_message.getPriority())
-                      + ") email from original host " + email_message.getOriginalHost()
-                      + " and sender " + email_message.getSender() + ".\n\n"
-                      + email_message.getMessageBody());
+            EmailSender::SimpleSendEmail("no-reply@ub.uni-tuebingen.de", notification_email_addresses, email_message.getSubject(),
+                                         "High priority (" + std::to_string(email_message.getPriority())
+                                         + ") email from original host " + email_message.getOriginalHost()
+                                         + " and sender " + email_message.getSender() + ".\n\n"
+                                         + email_message.getMessageBody());
         }
 
         bool matched_a_section(false);
@@ -241,7 +232,9 @@ void SendNotificationsForOverdueEmails(const IniFile &ini_file, std::set<std::st
             matched_section_names->emplace(section_name); // So we don't gripe again too soon!
         }
     }
-    if (not overdue_list.empty() and SendEmail(notification_email_addresses, "Overdue Report", overdue_list) > 299)
+    if (not overdue_list.empty()
+        and EmailSender::SimpleSendEmail("no-reply@ub.uni-tuebingen.de", notification_email_addresses, "Overdue Report",
+                                         overdue_list, EmailSender::VERY_HIGH) > 299)
         LOG_ERROR("Failed to send the \"Overdue Report\" email!");
 }
 
@@ -275,11 +268,14 @@ int Main(int argc, char *argv[]) {
 
     if (not unmatched_emails.empty()) {
         LOG_WARNING("Found " + std::to_string(unmatched_emails.size()) + " unmatched email(s)!");
-        if (SendEmail(notification_email_addresses, "Unmatched Email(s)!",
-                      "The emails in the attachments did not match any of our patterns!\n"
-                      "Please either fix the problems that led to the generation of the\n"
-                      "original emails or add new patterns so that the currently unmatched\n"
-                      "emails will be matched in the future!", unmatched_emails) > 299)
+        if (EmailSender::SimpleSendEmailWithInlineAttachments(
+            "no-reply@ub.uni-tuebingen.de", notification_email_addresses,
+            "Unmatched Email(s)!",
+            "The emails in the attachments did not match any of our patterns!\n"
+            "Please either fix the problems that led to the generation of the\n"
+            "original emails or add new patterns so that the currently unmatched\n"
+            "emails will be matched in the future!", unmatched_emails,
+            EmailSender::VERY_HIGH) > 299)
             LOG_ERROR("Failed to send the \"Unmatched Email(s)!\" email!");
     }
 

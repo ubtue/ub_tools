@@ -4,7 +4,7 @@
  *  \author  Johannes Riedl
  */
 /*
-    Copyright (C) 2016-2020, Library of the University of Tübingen
+    Copyright (C) 2016-2021, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -720,8 +720,8 @@ void MailMyTranslations(DbConnection &db_connection, const IniFile &ini_file, co
     if (recipient.empty())
         return;
 
-    if (unlikely(not SendEmail("no-reply@ub.uni-tuebingen.de", recipient, "Your IxTheo Translations",
-                               mail_content.str(), EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
+    if (unlikely(not EmailSender::SimpleSendEmail("no-reply@ub.uni-tuebingen.de", { recipient }, "Your IxTheo Translations",
+                                                  mail_content.str(), EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML)))
         LOG_ERROR("Could not send mail");
 }
 

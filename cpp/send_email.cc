@@ -1,7 +1,7 @@
 /** \brief Command-line utility to send email messages.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -33,15 +33,16 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--sender=sender] [-reply-to=reply_to] --recipients=recipients\n"
+    std::cerr << "Usage: " << " [--sender=sender] [-reply-to=reply_to] --recipients=recipients\n"
               << "  [--cc-recipients=cc_recipients] [--bcc-recipients=bcc_recipients] [--expand-newline-escapes]\n"
               << "  --subject=subject (--message-body=message_body | --message-body-file=path) [--priority=priority] [--format=format]\n"
-              << "  [--attachment=file1 --attachment=file2 .. --attachment=fileN]\n\n"
+              << "  [--attachment=file1 --attachment=file2 .. --inline-attachment=fileN|--inline-attachment=file1 --inline-attachment=file2 .. --inline-attachment=fileN]\n\n"
               << "       \"priority\" has to be one of \"very_low\", \"low\", \"medium\", \"high\", or\n"
               << "       \"very_high\".  \"format\" has to be one of \"plain_text\" or \"html\"  At least one\n"
               << "       of \"sender\" or \"reply-to\" has to be specified. If \"--expand-newline-escapes\" has\n"
               << "       been specified, all occurrences of \\n in the message body will be replaced by a line feed\n"
-              << "       and a double backslash by a single backslash.  The message body is assumed to be UTF-8!\n\n";
+              << "       and a double backslash by a single backslash.  The message body is assumed to be UTF-8!\n"
+              << "       Please note that you can either specify one or more file attachments or inline attachments but not both!\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -83,18 +84,29 @@ bool ExtractArg(const char * const argument, const std::string &arg_name, std::s
 }
 
 
+enum AttachmentType { NONE, FILE_ATTACHMENT, INLINE_ATTACHMENT };
+
+
 void ParseCommandLine(char **argv, std::string * const sender, std::string * const reply_to, std::string * const recipients,
                       std::string * const cc_recipients, std::string * const bcc_recipients, std::string * const subject,
                       std::string * const message_body, std::string * const priority, std::string * const format,
-                      bool * const expand_newline_escapes, std::vector<std::string> * const attachments)
+                      bool * const expand_newline_escapes, AttachmentType * const attachment_type,
+                      std::vector<std::string> * const attachments)
 {
+    *attachment_type = NONE;
     *expand_newline_escapes = false;
     std::string attachment, message_body_path;
     while (*argv != nullptr) {
         if (std::strcmp(*argv, "--expand-newline-escapes") == 0) {
             *expand_newline_escapes = true;
             ++argv;
-        } else if (ExtractArg(*argv, "attachment", &attachment)) {
+        } else if (ExtractArg(*argv, "attachment", &attachment) or ExtractArg(*argv, "inline-attachment", &attachment)) {
+            const AttachmentType current_attachment_type(StringUtil::StartsWith(*argv, "--attachment=")
+                                                         ? FILE_ATTACHMENT : INLINE_ATTACHMENT);
+            if (*attachment_type == NONE)
+                *attachment_type = current_attachment_type;
+            else if (current_attachment_type != *attachment_type)
+                LOG_ERROR("file and inline attachment parameters cannot be mixed!");
             attachment = FileUtil::ExpandTildePath(attachment);
             if (not FileUtil::IsReadable(attachment))
                 LOG_ERROR("attachment \"" + attachment + "\" does not exist or isn't readable!");
@@ -178,9 +190,10 @@ int Main(int argc, char *argv[]) {
     std::string sender, reply_to, recipients, cc_recipients, bcc_recipients, subject, message_body, priority_as_string,
         format_as_string;
     bool expand_newline_escapes;
+    AttachmentType attachment_type;
     std::vector<std::string> attachments;
     ParseCommandLine(++argv, &sender, &reply_to, &recipients, &cc_recipients, &bcc_recipients, &subject, &message_body,
-                     &priority_as_string, &format_as_string, &expand_newline_escapes, &attachments);
+                     &priority_as_string, &format_as_string, &expand_newline_escapes, &attachment_type, &attachments);
 
     if (sender.empty() and reply_to.empty()) {
         IniFile ini_file(UBTools::GetTuelibPath() + "cronjobs/smtp_server.conf");
@@ -195,9 +208,11 @@ int Main(int argc, char *argv[]) {
     if (expand_newline_escapes)
         message_body = ExpandNewlineEscapes(message_body);
 
-    const unsigned short response_code(EmailSender::SendEmail(sender, SplitRecipients(recipients), SplitRecipients(cc_recipients),
-                                                              SplitRecipients(bcc_recipients), subject, message_body, priority, format,
-                                                              reply_to, /* use_ssl = */true, /* use_authentication = */true, attachments));
+    const auto response_code(EmailSender::SendEmail(sender, SplitRecipients(recipients), SplitRecipients(cc_recipients),
+                                                    SplitRecipients(bcc_recipients), subject, message_body, priority, format,
+                                                    reply_to, attachments,
+                                                    (attachments.empty() or attachment_type == FILE_ATTACHMENT)
+                                                        ? EmailSender::AT_FILENAMES : EmailSender::AT_DATA));
     if (response_code >= 300) {
         if (not MiscUtil::EnvironmentVariableExists("ENABLE_SMPT_CLIENT_PERFORM_LOGGING"))
             LOG_ERROR("failed to send your email, the response code was: " + std::to_string(response_code)
