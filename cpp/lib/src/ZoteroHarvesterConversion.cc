@@ -1019,10 +1019,12 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     const std::string pages(metadata_record.pages_);
     static const std::string ARTICLE_NUM_INDICATOR("article");
     if (not pages.empty()) {
-        if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR))
-            _936_subfields.appendSubfield('y', ((not volume.empty()) ? std::string("Bd. ") + volume + ", " : "") +
-                                               ((not issue.empty()) ? std::string("Heft ") + issue + ", " : "") + pages);
-        else
+        if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR)) {
+            const std::string potential_year_and_separator((not year.empty()) ? " (" + year + "), " : "");
+            _936_subfields.appendSubfield('y', StringUtil::Trim(((not volume.empty()) ? std::string("Bd. ") + volume + " " : "")
+                                               + potential_year_and_separator +
+                                               ((not issue.empty()) ? issue + ", " : " ") + pages));
+        } else
            _936_subfields.appendSubfield('h', pages);
     }
 
