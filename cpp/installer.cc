@@ -902,6 +902,11 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
         FileUtil::ChangeOwnerOrDie(NEWSLETTER_DIRECTORY_PATH, "vufind", "vufind", /*recursive=*/true);
     }
 
+    Echo("generating HMAC hash");
+    const std::string HMAC_FILE_PATH(VUFIND_DIRECTORY + "/local/tuefind/local_overrides/hmac.conf");
+    if (not FileUtil::Exists(HMAC_FILE_PATH))
+        FileUtil::WriteStringOrDie(HMAC_FILE_PATH, StringUtil::GenerateRandom(/*length=*/32, /*alphabet=*/"abcdefghijklmnopqrstuvwxyz0123456789"));
+
     Echo(vufind_system_type_string + " configuration completed!");
 }
 
