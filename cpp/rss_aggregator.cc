@@ -44,8 +44,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--config-file=config_file_path] [--process-name=new_process_name] email_address xml_output_path\n"
-            "       The default config file path is \"" + UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf\".");
+    ::Usage("[--process-name=new_process_name] config_file_path email_address xml_output_path");
 }
 
 
@@ -231,24 +230,15 @@ int ProcessFeeds(const std::string &xml_output_filename, IniFile * const ini_fil
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 3)
+    if (argc != 4)
         Usage();
 
-    std::string config_file_path(UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf");
-    if (StringUtil::StartsWith(argv[1], "--config-file=")) {
-        config_file_path = argv[1] + __builtin_strlen("--config-file=");
-        --argc, ++argv;
-    }
+    const std::string config_file_path(argv[1]);
+    const std::string email_address(argv[2]);
+    const std::string xml_output_filename(argv[3]);
 
-    if (argc != 3)
-        Usage();
-
-    const std::string email_address(argv[1]);
-
-    IniFile ini_file;
-    DbConnection db_connection(ini_file);
-
-    const std::string xml_output_filename(argv[2]);
+    DbConnection db_connection;
+    IniFile ini_file(config_file_path);
 
     Downloader::Params params;
     const std::string PROXY(ini_file.getString("", "proxy", ""));
