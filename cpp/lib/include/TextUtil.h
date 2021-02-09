@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2015-2020 Universitätsbibliothek Tübingen.
+ *  Copyright 2015-2021 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -483,8 +483,17 @@ std::string ToTitleCase(const std::string &text);
 std::string CanonizeCharset(std::string charset);
 
 
-/** \brief Truncates "utf8_string" to a maximum length of "max_length" codepoints.  */
-void UTF8Truncate(std::string * const utf8_string, const size_t max_length);
+/** \brief Truncates "utf8_string" to a maximum length of "max_length" codepoints.
+ *  \return A reference to the truncated "utf8_string".
+ */
+std::string &UTF8Truncate(std::string * const utf8_string, const size_t max_length);
+
+
+/** \brief Truncates "utf8_string" to a maximum length of "max_length" bytes.
+ *  \return A reference to the truncated "utf8_string".
+ *  \note  This function will not return a string that has a partial UTF8 sequence at the end!
+ */
+std::string &UTF8ByteTruncate(std::string * const utf8_string, const size_t max_length);
 
 
 inline bool IsGeneralPunctuationCharacter(const wchar_t ch) { return ch >= 0x2000 and ch <= 0x206F; }
