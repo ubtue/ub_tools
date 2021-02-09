@@ -296,8 +296,8 @@ void LoadRules(DbConnection * const db_connection, GeneralFieldValidator * const
                                                           StringToFieldPresence(row["field_presence"]),
                                                           new_regex_matcher);
             else
-                journal_specific_review_article_validator->addRule(StringUtil::ToUnsigned(row["journal_id"]), row["marc_field_tag"],
-                                                                   row["marc_subfield_code"][0],
+                journal_specific_review_article_validator->addRule(StringUtil::ToUnsigned(row["journal_id"]),
+                                                                   row["marc_field_tag"], row["marc_subfield_code"][0],
                                                                    StringToFieldPresence(row["field_presence"]),
                                                                    new_regex_matcher);
         }
@@ -306,11 +306,9 @@ void LoadRules(DbConnection * const db_connection, GeneralFieldValidator * const
 
 
 void SendEmail(const std::string &email_address, const std::string &message_subject, const std::string &message_body) {
-    const auto reply_code(EmailSender::SendEmail("zts_harvester_delivery_pipeline@uni-tuebingen.de",
-                          email_address, message_subject, message_body,
-                          EmailSender::MEDIUM, EmailSender::PLAIN_TEXT, /* reply_to = */ "",
-                          /* use_ssl = */ true, /* use_authentication = */ true));
-
+    const auto reply_code(EmailSender::SimplerSendEmail("zts_harvester_delivery_pipeline@uni-tuebingen.de",
+                                                        { email_address }, message_subject, message_body,
+                                                        EmailSender::MEDIUM));
     if (reply_code >= 300)
         LOG_WARNING("failed to send email, the response code was: " + std::to_string(reply_code));
 }

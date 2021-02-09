@@ -2,7 +2,7 @@
  *  \brief  Downloads and aggregates RSS feeds.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -264,7 +264,8 @@ int Main(int argc, char *argv[]) {
         const auto program_basename(FileUtil::GetBasename(::progname));
         const auto subject(program_basename + " failed on " + DnsUtil::GetHostname());
         const auto message_body("caught exception: " + std::string(x.what()));
-        if (EmailSender::SendEmail("no_reply@ub.uni-tuebingen.de", email_address, subject, message_body, EmailSender::VERY_HIGH) < 299)
+        if (EmailSender::SimplerSendEmail("no_reply@ub.uni-tuebingen.de", { email_address }, subject, message_body,
+                                          EmailSender::VERY_HIGH) < 299)
             return EXIT_FAILURE;
         else
             LOG_ERROR("failed to send an email error report!");
