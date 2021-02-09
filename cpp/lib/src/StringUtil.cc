@@ -11,7 +11,7 @@
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
  *  Copyright 2002-2005 Dr. Johannes Ruscheinski.
- *  Copyright 2017-2020 Universitätsbibliothek Tübingen
+ *  Copyright 2017-2021 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -32,7 +32,9 @@
 
 #include "StringUtil.h"
 #include <algorithm>
+#include <functional>
 #include <map>
+#include <random>
 #include <set>
 #include <sstream>
 #include <cctype>
@@ -2827,6 +2829,18 @@ unsigned RomanNumeralToDecimal(const std::string &s) {
     }
 
     return decimal;
+}
+
+
+std::string GenerateRandom(const size_t length, const std::string &alphabet) {
+    std::default_random_engine random_engine(std::random_device{}());
+    std::uniform_int_distribution<> distribution(0, alphabet.size() - 1);
+    const auto get_random_character = [ alphabet, &distribution, &random_engine ](){
+        return alphabet[distribution(random_engine)];
+    };
+    std::string generated_string(length, '\0');
+    std::generate_n(generated_string.begin(), length, get_random_character);
+    return generated_string;
 }
 
 
