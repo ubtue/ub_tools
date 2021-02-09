@@ -1524,13 +1524,33 @@ std::string CanonizeCharset(std::string charset) {
 }
 
 
-void UTF8Truncate(std::string * const utf8_string, const size_t max_length) {
-    size_t count(0);
+std::string &UTF8Truncate(std::string * const utf8_string, const size_t max_length) {
+    size_t codepoint_count(0);
     auto cp(utf8_string->cbegin());
-    while (count < max_length and cp != utf8_string->cend()) {
-        ++count;
+    while (codepoint_count < max_length and cp != utf8_string->cend()) {
+        ++codepoint_count;
         cp = GetEndOfCurrentUTF8CodePoint(cp, utf8_string->cend());
     }
+    utf8_string->resize(cp - utf8_string->cbegin());
+
+    return *utf8_string;
+}
+
+
+std::string &UTF8ByteTruncate(std::string * const utf8_string, const size_t max_length) {
+    size_t byte_count(0);
+    auto cp(utf8_string->cbegin());
+    while (cp != utf8_string->cend()) {
+        auto cp2(GetEndOfCurrentUTF8CodePoint(cp, utf8_string->cend()));
+        const size_t codepoint_length(cp2 - cp);
+        if (byte_count + codepoint_length > max_length)
+            break;
+        byte_count += codepoint_length;
+        cp = cp2;
+    }
+    utf8_string->resize(cp - utf8_string->cbegin());
+
+    return *utf8_string;
 }
 
 
