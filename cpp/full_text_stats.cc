@@ -1,7 +1,7 @@
 /** \brief Utility for monitoring our full-text database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -135,9 +135,10 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
     report_text = "Overall " + std::to_string(added_count) + " new items were added and " + std::to_string(disappeared_count)
                   + " old items disappeared.\n\n" + report_text;
 
-    const unsigned short response_code(EmailSender::SendEmail("no-reply@ub.uni-tuebingen.de", email_address,
-                                                              "Full Text Stats (" + DnsUtil::GetHostname() + ")", report_text,
-                                                              found_one_or_more_problems ? EmailSender::VERY_HIGH : EmailSender::VERY_LOW));
+    const unsigned short response_code(EmailSender::SimplerSendEmail(
+        "no-reply@ub.uni-tuebingen.de", { email_address },
+        "Full Text Stats (" + DnsUtil::GetHostname() + ")", report_text,
+        found_one_or_more_problems ? EmailSender::VERY_HIGH : EmailSender::VERY_LOW));
     if (response_code > 299)
         LOG_ERROR("failed to send email! (response code was " + std::to_string(response_code) + ")");
 }
