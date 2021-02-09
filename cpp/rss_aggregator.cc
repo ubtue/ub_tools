@@ -264,8 +264,8 @@ int Main(int argc, char *argv[]) {
         const auto program_basename(FileUtil::GetBasename(::progname));
         const auto subject(program_basename + " failed on " + DnsUtil::GetHostname());
         const auto message_body("caught exception: " + std::string(x.what()));
-        if (EmailSender::SimpleSendEmail("no_reply@ub.uni-tuebingen.de", { email_address }, subject, message_body,
-                                         EmailSender::VERY_HIGH) < 299)
+        if (EmailSender::SimplerSendEmail("no_reply@ub.uni-tuebingen.de", { email_address }, subject, message_body,
+                                          EmailSender::VERY_HIGH) < 299)
             return EXIT_FAILURE;
         else
             LOG_ERROR("failed to send an email error report!");

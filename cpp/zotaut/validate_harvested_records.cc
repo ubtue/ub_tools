@@ -306,9 +306,9 @@ void LoadRules(DbConnection * const db_connection, GeneralFieldValidator * const
 
 
 void SendEmail(const std::string &email_address, const std::string &message_subject, const std::string &message_body) {
-    const auto reply_code(EmailSender::SimpleSendEmail("zts_harvester_delivery_pipeline@uni-tuebingen.de",
-                                                       { email_address }, message_subject, message_body,
-                                                       EmailSender::MEDIUM));
+    const auto reply_code(EmailSender::SimplerSendEmail("zts_harvester_delivery_pipeline@uni-tuebingen.de",
+                                                        { email_address }, message_subject, message_body,
+                                                        EmailSender::MEDIUM));
     if (reply_code >= 300)
         LOG_WARNING("failed to send email, the response code was: " + std::to_string(reply_code));
 }

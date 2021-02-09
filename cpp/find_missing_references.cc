@@ -108,7 +108,7 @@ int Main(int argc, char *argv[]) {
         archive_writer.write(missing_references_text);
         archive_writer.close();
 
-        const auto status_code(EmailSender::SimpleSendEmailWithFileAttachments(
+        const auto status_code(EmailSender::SendEmailWithFileAttachments(
             "nobody@nowhere.com", { email_address }, "Missing PPN's",
             "Attached is the new list of " + std::to_string(new_missing_ppns.size()) + " missing PPN('s).",
             { ZIP_FILENAME }));

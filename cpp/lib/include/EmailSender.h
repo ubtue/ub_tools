@@ -35,19 +35,19 @@ enum Format { PLAIN_TEXT, HTML };
  * Unless you actually need the horrendously complex general SendEmail function you should use
  * one of the following convenience wrapper functions!
  */
-unsigned short SimpleSendEmail(const std::string &sender, const std::vector<std::string> &recipients,
-                               const std::string &subject, const std::string &message_body,
-                               const Priority priority = DO_NOT_SET_PRIORITY, const Format format = PLAIN_TEXT);
-unsigned short SimpleSendEmailWithFileAttachments(const std::string &sender, const std::vector<std::string> &recipients,
-                                                  const std::string &subject, const std::string &message_body,
-                                                  const std::vector<std::string> &attachment_filenames,
-                                                  const Priority priority = DO_NOT_SET_PRIORITY,
-                                                  const Format format = PLAIN_TEXT);
-unsigned short SimpleSendEmailWithInlineAttachments(const std::string &sender, const std::vector<std::string> &recipients,
-                                                    const std::string &subject, const std::string &message_body,
-                                                    const std::vector<std::string> &attachments,
-                                                    const Priority priority = DO_NOT_SET_PRIORITY,
-                                                    const Format format = PLAIN_TEXT);
+unsigned short SimplerSendEmail(const std::string &sender, const std::vector<std::string> &recipients,
+                                const std::string &subject, const std::string &message_body,
+                                const Priority priority = DO_NOT_SET_PRIORITY, const Format format = PLAIN_TEXT);
+unsigned short SendEmailWithFileAttachments(const std::string &sender, const std::vector<std::string> &recipients,
+                                            const std::string &subject, const std::string &message_body,
+                                            const std::vector<std::string> &attachment_filenames,
+                                            const Priority priority = DO_NOT_SET_PRIORITY,
+                                            const Format format = PLAIN_TEXT);
+unsigned short SendEmailWithInlineAttachments(const std::string &sender, const std::vector<std::string> &recipients,
+                                              const std::string &subject, const std::string &message_body,
+                                              const std::vector<std::string> &attachments,
+                                              const Priority priority = DO_NOT_SET_PRIORITY,
+                                              const Format format = PLAIN_TEXT);
 
 
 enum AttachmentType {
