@@ -135,11 +135,12 @@ void ProcessMBox(const std::string &mbox_filename, const long forward_priority,
         if (email_message.getPriority() >= forward_priority) {
             LOG_DEBUG("Forwarding email w/ subject \"" + email_message.getSubject() + "\" from host \""
                       + email_message.getOriginalHost() + "\" and sender \"" + email_message.getSender() + "\".");
-            EmailSender::SimpleSendEmail("no-reply@ub.uni-tuebingen.de", notification_email_addresses, email_message.getSubject(),
-                                         "High priority (" + std::to_string(email_message.getPriority())
-                                         + ") email from original host " + email_message.getOriginalHost()
-                                         + " and sender " + email_message.getSender() + ".\n\n"
-                                         + email_message.getMessageBody());
+            EmailSender::SimplerSendEmail("no-reply@ub.uni-tuebingen.de", notification_email_addresses,
+                                          email_message.getSubject(),
+                                          "High priority (" + std::to_string(email_message.getPriority())
+                                          + ") email from original host " + email_message.getOriginalHost()
+                                          + " and sender " + email_message.getSender() + ".\n\n"
+                                          + email_message.getMessageBody());
         }
 
         bool matched_a_section(false);
@@ -233,8 +234,8 @@ void SendNotificationsForOverdueEmails(const IniFile &ini_file, std::set<std::st
         }
     }
     if (not overdue_list.empty()
-        and EmailSender::SimpleSendEmail("no-reply@ub.uni-tuebingen.de", notification_email_addresses, "Overdue Report",
-                                         overdue_list, EmailSender::VERY_HIGH) > 299)
+        and EmailSender::SimplerSendEmail("no-reply@ub.uni-tuebingen.de", notification_email_addresses, "Overdue Report",
+                                          overdue_list, EmailSender::VERY_HIGH) > 299)
         LOG_ERROR("Failed to send the \"Overdue Report\" email!");
 }
 
@@ -268,7 +269,7 @@ int Main(int argc, char *argv[]) {
 
     if (not unmatched_emails.empty()) {
         LOG_WARNING("Found " + std::to_string(unmatched_emails.size()) + " unmatched email(s)!");
-        if (EmailSender::SimpleSendEmailWithInlineAttachments(
+        if (EmailSender::SendEmailWithInlineAttachments(
             "no-reply@ub.uni-tuebingen.de", notification_email_addresses,
             "Unmatched Email(s)!",
             "The emails in the attachments did not match any of our patterns!\n"

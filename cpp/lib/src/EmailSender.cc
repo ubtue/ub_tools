@@ -394,29 +394,29 @@ void InitContentdispositions(const std::vector<std::string> &attachments, const 
 namespace EmailSender {
 
 
-unsigned short SimpleSendEmail(const std::string &sender, const std::vector<std::string> &recipients,
-                               const std::string &subject, const std::string &message_body, const Priority priority,
-                               const Format format)
+unsigned short SimplerSendEmail(const std::string &sender, const std::vector<std::string> &recipients,
+                                const std::string &subject, const std::string &message_body, const Priority priority,
+                                const Format format)
 {
     return SendEmail(sender, recipients, /* cc_recipients = */{}, /* bcc_recipients = */{}, subject, message_body,
                      priority, format);
 }
 
 
-unsigned short SimpleSendEmailWithFileAttachments(const std::string &sender, const std::vector<std::string> &recipients,
-                                                  const std::string &subject, const std::string &message_body,
-                                                  const std::vector<std::string> &attachment_filenames,
-                                                  const Priority priority, const Format format)
+unsigned short SendEmailWithFileAttachments(const std::string &sender, const std::vector<std::string> &recipients,
+                                            const std::string &subject, const std::string &message_body,
+                                            const std::vector<std::string> &attachment_filenames,
+                                            const Priority priority, const Format format)
 {
     return SendEmail(sender, recipients, /* cc_recipients = */{}, /* bcc_recipients = */{}, subject, message_body,
                      priority, format, /* reply_to = */"", attachment_filenames, AT_FILENAMES);
 }
 
 
-unsigned short SimpleSendEmailWithInlineAttachments(const std::string &sender, const std::vector<std::string> &recipients,
-                                                    const std::string &subject, const std::string &message_body,
-                                                    const std::vector<std::string> &attachments, const Priority priority,
-                                                    const Format format)
+unsigned short SendEmailWithInlineAttachments(const std::string &sender, const std::vector<std::string> &recipients,
+                                              const std::string &subject, const std::string &message_body,
+                                              const std::vector<std::string> &attachments, const Priority priority,
+                                              const Format format)
 {
     return SendEmail(sender, recipients, /* cc_recipients = */{}, /* bcc_recipients = */{}, subject, message_body,
                      priority, format, /* reply_to = */"", attachments, AT_DATA);

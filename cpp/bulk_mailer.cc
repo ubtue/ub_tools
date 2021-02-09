@@ -79,7 +79,7 @@ void SendAllEmails(const std::string &message_file, const std::string &sender_an
     unsigned success_count(0), failure_count(0);
     for (const auto &recipient : recipients) {
         unsigned short response_code;
-        if (response_code = EmailSender::SimpleSendEmail(sender_and_reply_to_address, { recipient }, subject, message) <= 299)
+        if (response_code = EmailSender::SimplerSendEmail(sender_and_reply_to_address, { recipient }, subject, message) <= 299)
             ++success_count;
         else {
             LOG_WARNING("Failed to send to \"" + recipient + "\"! (" + EmailSender::SMTPResponseCodeToString(response_code) + ")");

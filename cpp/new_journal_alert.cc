@@ -426,8 +426,8 @@ void SendNotificationEmail(const bool debug, const std::string &name_of_user, co
     if (debug)
         LOG_DEBUG("Debug mode, email address is " + sender_email + ", template expanded to: \"" + email_contents + "\"");
     else {
-        const auto response_code(EmailSender::SimpleSendEmail(sender_email, { recipient_email }, email_subject, email_contents,
-                                                              EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
+        const auto response_code(EmailSender::SimplerSendEmail(sender_email, { recipient_email }, email_subject, email_contents,
+                                                               EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
 
         if (response_code >= 300) {
             if (response_code == 550)

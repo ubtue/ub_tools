@@ -105,8 +105,8 @@ int Main(int argc, char *argv[]) {
     }
 
     if (not tardy_list.empty()) {
-        if (EmailSender::SimpleSendEmail(sender_email_address, { notification_email_address }, "Überfällige Zeitschriften",
-                                         "Letzte Lieferung ans BSZ\n" + tardy_list) > 299)
+        if (EmailSender::SimplerSendEmail(sender_email_address, { notification_email_address }, "Überfällige Zeitschriften",
+                                          "Letzte Lieferung ans BSZ\n" + tardy_list) > 299)
             LOG_ERROR("failed to send email notification!");
     }
 
