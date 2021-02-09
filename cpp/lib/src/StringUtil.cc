@@ -2834,11 +2834,11 @@ unsigned RomanNumeralToDecimal(const std::string &s) {
 
 std::string GenerateRandom(const size_t length, const std::string &alphabet) {
     std::default_random_engine random_engine(std::random_device{}());
-    std::uniform_int_distribution<> distribution(0, alphabet.size()-1);
-    auto get_random_character = [ alphabet, &distribution, &random_engine ](){
-        return alphabet[ distribution(random_engine) ];
+    std::uniform_int_distribution<> distribution(0, alphabet.size() - 1);
+    const auto get_random_character = [ alphabet, &distribution, &random_engine ](){
+        return alphabet[distribution(random_engine)];
     };
-    std::string generated_string(length, 0);
+    std::string generated_string(length, '\0');
     std::generate_n(generated_string.begin(), length, get_random_character);
     return generated_string;
 }
