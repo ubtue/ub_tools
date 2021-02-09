@@ -11,7 +11,7 @@
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
  *  Copyright 2002-2004 Dr. Johannes Ruscheinski.
- *  Copyright 2015-2020 Universitätsbibliothek Tübingen
+ *  Copyright 2015-2021 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -2511,6 +2511,10 @@ template<typename Type> std::string AnyToString(const Type value) {
     else
         return std::to_string(value);
 }
+
+
+/** \brief Generate a random string with the given length and alphabet. */
+std::string GenerateRandom(const size_t length, const std::string &alphabet);
 
 
 } // Namespace StringUtil
