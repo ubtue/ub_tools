@@ -113,7 +113,7 @@ static bool ParseRFC822Header(const std::string &line, std::string * const field
 
 
 // See section 6 of RFC 822 in order to understand the following.
-bool ParseFromBody(const std::string &field_body, std::string * const sender) {
+static bool ParseFromBody(const std::string &field_body, std::string * const sender) {
     std::vector<std::string> parts;
     if (StringUtil::SplitThenTrimWhite(field_body, ' ', &parts) == 0)
         return false;
@@ -134,7 +134,7 @@ bool ParseFromBody(const std::string &field_body, std::string * const sender) {
 }
 
 
-bool ParseReceivedBody(const std::string &field_body, std::string * const host) {
+static bool ParseReceivedBody(const std::string &field_body, std::string * const host) {
     std::vector<std::string> parts;
     if (StringUtil::SplitThenTrimWhite(field_body, ' ', &parts) < 2)
         return false;
@@ -198,8 +198,7 @@ MBox::Message MBox::getNextMessage() const {
             break;
 
         input_->getline(&line);
-        if (ParseFrom(line, &reception_time)) {
-            last_reception_time_ = reception_time;
+        if (ParseFrom(line, &last_reception_time_)) {
             if (message_body.size() >= 2 and message_body.back() == '\n')
                 message_body.resize(message_body.size() - 1); // Strip off the blank line at the end.
             break;

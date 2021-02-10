@@ -32,7 +32,7 @@ public:
     class Message {
         friend class MBox;
         friend class MBox::const_iterator;
-        time_t reception_time_;
+        time_t reception_time_; // local time
         std::string original_host_;
         std::string sender_;
         std::string subject_;
@@ -78,7 +78,7 @@ public:
 
 private:
     mutable File *input_;
-    mutable time_t last_reception_time_;
+    mutable time_t last_reception_time_; // local time
 public:
     explicit MBox(const std::string &filename);
     ~MBox(){ delete input_; }
