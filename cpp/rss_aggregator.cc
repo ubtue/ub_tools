@@ -44,8 +44,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--config-file=config_file_path] [--process-name=new_process_name] email_address xml_output_path\n"
-            "       The default config file path is \"" + UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf\".");
+    ::Usage("[--process-name=new_process_name] config_file_path email_address xml_output_path");
 }
 
 
@@ -101,8 +100,8 @@ void WriteRSSFeedXMLOutput(const IniFile &ini_file, std::vector<HarvestedRSSItem
 
 
 // \return true if the item was new, else false.
-bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &section_name, const std::string &feed_url,
-                    DbConnection * const db_connection)
+bool ProcessRSSItem(const std::string &flavour, const SyndicationFormat::Item &item, const std::string &section_name,
+                    const std::string &feed_url, DbConnection * const db_connection)
 {
     const std::string item_id(item.getId());
     db_connection->queryOrDie("SELECT insertion_time FROM rss_aggregator WHERE item_id='" + db_connection->escapeString(item_id) + "'");
@@ -124,7 +123,8 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
                                             { "item_description", item.getDescription()                                        },
                                             { "serial_name",      StringUtil::Truncate(MAX_SERIAL_NAME_LENGTH, section_name)   },
                                             { "feed_url",         StringUtil::Truncate(MAX_ITEM_URL_LENGTH, feed_url)          },
-                                            { "pub_date",         SqlUtil::TimeTToDatetime(item.getPubDate())                  }
+                                            { "pub_date",         SqlUtil::TimeTToDatetime(item.getPubDate())                  },
+                                            { "flavour",          flavour                                                      }
                                         },
                                         DbConnection::DuplicateKeyBehaviour::DKB_REPLACE);
 
@@ -133,8 +133,8 @@ bool ProcessRSSItem(const SyndicationFormat::Item &item, const std::string &sect
 
 
 // \return the number of new items.
-unsigned ProcessSection(const IniFile::Section &section, Downloader * const downloader, DbConnection * const db_connection,
-                        const unsigned default_downloader_time_limit)
+unsigned ProcessSection(const std::string &flavour, const IniFile::Section &section, Downloader * const downloader,
+                        DbConnection * const db_connection, const unsigned default_downloader_time_limit)
 {
     SyndicationFormat::AugmentParams augment_params;
 
@@ -163,7 +163,7 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
                     continue; // Skip suppressed item.
                 }
 
-                if (ProcessRSSItem(item, section_name, feed_url, db_connection))
+                if (ProcessRSSItem(flavour, item, section_name, feed_url, db_connection))
                     ++new_item_count;
             }
         }
@@ -176,10 +176,14 @@ unsigned ProcessSection(const IniFile::Section &section, Downloader * const down
 const unsigned HARVEST_TIME_WINDOW(60); // days
 
 
-size_t SelectItems(DbConnection * const db_connection, std::vector<HarvestedRSSItem> * const harvested_items) {
+size_t SelectItems(const std::string &flavour, DbConnection * const db_connection,
+                   std::vector<HarvestedRSSItem> * const harvested_items)
+{
     const auto now(std::time(nullptr));
-    db_connection->queryOrDie("SELECT * FROM rss_aggregator WHERE pub_date >= '"
-                              + SqlUtil::TimeTToDatetime(now - HARVEST_TIME_WINDOW * 86400) + "' ORDER BY pub_date DESC");
+    db_connection->queryOrDie("SELECT * FROM rss_aggregator "
+                              "WHERE pub_date >= '" + SqlUtil::TimeTToDatetime(now - HARVEST_TIME_WINDOW * 86400) + "' "
+                              "AND flavour=" + db_connection->escapeAndQuoteString(flavour) + " "
+                              "ORDER BY pub_date DESC");
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const DbRow row = result_set.getNextRow())
         harvested_items->emplace_back(SyndicationFormat::Item(row["item_title"], row["item_description"], row["item_url"], row["item_id"],
@@ -192,7 +196,7 @@ size_t SelectItems(DbConnection * const db_connection, std::vector<HarvestedRSSI
 const unsigned DEFAULT_XML_INDENT_AMOUNT(2);
 
 
-int ProcessFeeds(const std::string &xml_output_filename, IniFile * const ini_file,
+int ProcessFeeds(const std::string &flavour, const std::string &xml_output_filename, IniFile * const ini_file,
                  DbConnection * const db_connection, Downloader * const downloader)
 {
     const unsigned DEFAULT_DOWNLOADER_TIME_LIMIT(ini_file->getUnsigned("", "default_downloader_time_limit"));
@@ -200,19 +204,19 @@ int ProcessFeeds(const std::string &xml_output_filename, IniFile * const ini_fil
     std::unordered_set<std::string> already_seen_sections;
     for (const auto &section : *ini_file) {
         const std::string &section_name(section.getSectionName());
-        if (not section_name.empty() and section_name != "CGI Params" and section_name != "Database" and section_name != "Channel") {
+        if (not section_name.empty() and section_name != "Channel") {
             if (unlikely(already_seen_sections.find(section_name) != already_seen_sections.end()))
                 LOG_ERROR("duplicate section: \"" + section_name + "\"!");
             already_seen_sections.emplace(section_name);
 
             LOG_INFO("Processing section \"" + section_name + "\".");
-            const unsigned new_item_count(ProcessSection(section, downloader, db_connection, DEFAULT_DOWNLOADER_TIME_LIMIT));
+            const unsigned new_item_count(ProcessSection(flavour, section, downloader, db_connection, DEFAULT_DOWNLOADER_TIME_LIMIT));
             LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
         }
     }
 
     std::vector<HarvestedRSSItem> harvested_items;
-    const auto feed_item_count(SelectItems(db_connection, &harvested_items));
+    const auto feed_item_count(SelectItems(flavour, db_connection, &harvested_items));
 
     // scoped here so that we flush and close the output file right away
     {
@@ -231,24 +235,15 @@ int ProcessFeeds(const std::string &xml_output_filename, IniFile * const ini_fil
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 3)
+    if (argc != 4)
         Usage();
 
-    std::string config_file_path(UBTools::GetTuelibPath() + FileUtil::GetBasename(::progname) + ".conf");
-    if (StringUtil::StartsWith(argv[1], "--config-file=")) {
-        config_file_path = argv[1] + __builtin_strlen("--config-file=");
-        --argc, ++argv;
-    }
+    const std::string config_file_path(argv[1]);
+    const std::string email_address(argv[2]);
+    const std::string xml_output_filename(argv[3]);
 
-    if (argc != 3)
-        Usage();
-
-    const std::string email_address(argv[1]);
-
-    IniFile ini_file;
-    DbConnection db_connection(ini_file);
-
-    const std::string xml_output_filename(argv[2]);
+    DbConnection db_connection;
+    IniFile ini_file(config_file_path);
 
     Downloader::Params params;
     const std::string PROXY(ini_file.getString("", "proxy", ""));
@@ -258,11 +253,16 @@ int Main(int argc, char *argv[]) {
     }
     Downloader downloader(params);
 
+    std::string flavour;
+
     try {
-        return ProcessFeeds(xml_output_filename, &ini_file, &db_connection, &downloader);
+        flavour = ini_file.getString("", "flavour");
+        return ProcessFeeds(flavour, xml_output_filename, &ini_file, &db_connection, &downloader);
     } catch (const std::runtime_error &x) {
         const auto program_basename(FileUtil::GetBasename(::progname));
-        const auto subject(program_basename + " failed on " + DnsUtil::GetHostname());
+        auto subject(program_basename + " failed on " + DnsUtil::GetHostname());
+        if (not flavour.empty())
+            subject += " (flavour: " + flavour + ")";
         const auto message_body("caught exception: " + std::string(x.what()));
         if (EmailSender::SimplerSendEmail("no_reply@ub.uni-tuebingen.de", { email_address }, subject, message_body,
                                           EmailSender::VERY_HIGH) < 299)
