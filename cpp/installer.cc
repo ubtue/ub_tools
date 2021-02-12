@@ -1,7 +1,7 @@
 /** \brief A tool for installing IxTheo and KrimDok from scratch on Ubuntu and Centos systems.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -795,6 +795,9 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
                                              "solr hard nproc 65535\n"
                                              "solr soft nproc 65535\n");
     FileUtil::WriteString("/etc/security/limits.d/20-solr.conf", solr_security_settings);
+
+    if (SELinuxUtil::IsEnabled())
+        SELinuxUtil::Port::AddRecordIfMissing("http_port_t", "tcp", 8983);
 
     // systemctl: we do enable as well as daemon-reload and restart
     // to achieve an idempotent installation

@@ -51,7 +51,7 @@ namespace {
 [[noreturn]] void Usage() {
     ::Usage("[--debug] [solr_host_and_port] user_type hostname sender_email email_subject\n"
             "  Sends out notification emails for journal subscribers.\n"
-            "  Should \"solr_host_and_port\" be missing \"localhost:8080\" will be used.\n"
+            "  Should \"solr_host_and_port\" be missing \"" + Solr::DEFAULT_HOST_AND_PORT + "\" will be used.\n"
             "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm."
             "  \"hostname\" should be the symbolic hostname which will be used in constructing\n"
             "  URL's that a user might see.\n"
@@ -690,7 +690,7 @@ int Main(int argc, char **argv) {
 
     std::string solr_host_and_port;
     if (argc == 5)
-        solr_host_and_port = "localhost:8080";
+        solr_host_and_port = Solr::DEFAULT_HOST_AND_PORT;
     else if (argc == 6) {
         solr_host_and_port = argv[1];
         --argc, ++argv;

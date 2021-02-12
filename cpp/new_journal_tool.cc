@@ -197,7 +197,7 @@ int Main(int argc, char **argv) {
 
     std::string solr_host_and_port;
     if (std::strchr(argv[1], ':') == nullptr)
-        solr_host_and_port = "localhost:8080";
+        solr_host_and_port = Solr::DEFAULT_HOST_AND_PORT;
     else {
         solr_host_and_port = argv[1];
         --argc, ++argv;

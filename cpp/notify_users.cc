@@ -38,6 +38,7 @@ database = "vufind"
 #include "GzStream.h"
 #include "IniFile.h"
 #include "RegexMatcher.h"
+#include "Solr.h"
 #include "StringUtil.h"
 #include "UrlUtil.h"
 #include "XMLParser.h"
@@ -187,7 +188,7 @@ void GetQueryParams(const std::string &serialised_minSO,
 
 
 std::string GenerateSolrQuery(const std::map<std::string, std::string> &params_to_values_map) {
-    std::string url("http://localhost:8080/solr/biblio/select?");
+    std::string url("http://" + Solr::DEFAULT_HOST_AND_PORT + "/solr/biblio/select?");
     for (const auto &key_and_value : params_to_values_map) {
         if (url[url.length() - 1] != '?')
             url += '&';

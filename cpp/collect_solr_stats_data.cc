@@ -51,7 +51,7 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
     static const std::string HOSTNAME(DnsUtil::GetHostname());
 
     std::string json_result, err_msg;
-    if (not Solr::Query(query, /* fields = */"", &json_result, &err_msg, "localhost:8080",
+    if (not Solr::Query(query, /* fields = */"", &json_result, &err_msg, Solr::DEFAULT_HOST_AND_PORT,
                         /* timeout in seconds = */Solr::DEFAULT_TIMEOUT, Solr::JSON, /* max_no_of_rows = */0))
         LOG_ERROR("Solr query \"" + query + "\" failed! (" + err_msg + ")");
 
