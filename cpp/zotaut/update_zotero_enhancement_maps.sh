@@ -59,14 +59,14 @@ function SendEmail {
 
     if [ "$no_problems_found" = true ]; then
         if [[ "$MODE" = "LIVE" ]]; then
-            send_email --priority=low --sender="update_zotero_enhancement_maps@uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
+            send_email --priority=low --sender="no-reply@ub.uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
                        --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
         fi
         Echo "*** ZOTERO ENHANCEMENT MAPS UPDATE DONE ***"
         exit 0
     else
         if [[ "$MODE" = "LIVE" ]]; then
-            send_email --priority=high --sender="update_zotero_enhancement_maps@uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
+            send_email --priority=high --sender="no-reply@ub.uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
                        --subject="$0 failed on $(hostname)" \
                        --message-body="Check the log file at $LOG for details."
         fi
