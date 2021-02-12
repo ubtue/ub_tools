@@ -71,6 +71,7 @@
 /generate_year_correction_list
 /get_dangling_title_references
 /get_essay_collection_pdfs
+/import_rss_aggregator_conf
 /inifile_lookup
 /insert_translation_gaps
 /installer
