@@ -28,7 +28,7 @@ namespace Solr {
 
 constexpr unsigned DEFAULT_TIMEOUT(10); // in s
 constexpr unsigned JAVA_INT_MAX(2147483647);
-const std::string DEFAULT_HOST_AND_PORT("localhost:8080");
+const std::string DEFAULT_HOST_AND_PORT("localhost:8983");
 
 
 enum QueryResultFormat { XML, JSON };
