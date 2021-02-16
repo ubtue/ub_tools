@@ -461,7 +461,7 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
 
 
 void RegisterSystemUpdateVersion() {
-    const std::string SYSTEM_UPDATES_DIRECTORY(UB_TOOLS_DIRECTORY + "/system_updates");
+    const std::string SYSTEM_UPDATES_DIRECTORY(UB_TOOLS_DIRECTORY + "/cpp/data/system_updates");
     FileUtil::Directory directory(SYSTEM_UPDATES_DIRECTORY, "\\d+.sh");
     unsigned max_version(0);
     for (const auto &update_script : directory) {
