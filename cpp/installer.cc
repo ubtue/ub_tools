@@ -1,7 +1,7 @@
 /** \brief A tool for installing IxTheo and KrimDok from scratch on Ubuntu and Centos systems.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -569,6 +569,7 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     CreateUbToolsDatabase(os_system_type);
     GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
     FileUtil::MakeDirectoryOrDie("/usr/local/run");
+    RegisterSystemUpdateVersion();
 
     Echo("Installed ub_tools.");
 }
@@ -1057,8 +1058,6 @@ int Main(int argc, char **argv) {
     // Install dependencies before vufind
     // correct PHP version for composer dependancies
     InstallSoftwareDependencies(os_system_type, vufind_system_type_string, installation_type, install_systemctl);
-
-    RegisterSystemUpdateVersion();
 
     // Where to find our own stuff:
     MiscUtil::AddToPATH("/usr/local/bin/", MiscUtil::PreferredPathLocation::LEADING);
