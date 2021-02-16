@@ -48,24 +48,32 @@ public:
 };
 
 
-const FeedInfo &GetRSSFeedsID(DbConnection * vufind_connection, const std::string &url) {
+bool GetRSSFeedsID(DbConnection * vufind_connection, const std::string &feed_url, FeedInfo * const feed_info) {
     static std::unordered_map<std::string, FeedInfo> urls_to_feed_infos_map;
-    const auto url_and_feed_info(urls_to_feed_infos_map.find(url));
-    if (url_and_feed_info != urls_to_feed_infos_map.end())
-        return url_and_feed_info->second;
+    const auto url_and_feed_info(urls_to_feed_infos_map.find(feed_url));
+    if (url_and_feed_info != urls_to_feed_infos_map.end()) {
+        *feed_info = url_and_feed_info->second;
+        return true;
+    }
 
     vufind_connection->queryOrDie("SELECT id,subsystem_types FROM tuefind_rss_feeds WHERE feed_url="
-                                  + vufind_connection->escapeAndQuoteString(url));
+                                  + vufind_connection->escapeAndQuoteString(feed_url));
     auto result_set(vufind_connection->getLastResultSet());
-    if (result_set.empty())
-        LOG_ERROR("found no tuefind_rss_feeds.id for \"" + url + "\"!");
+    if (result_set.empty()) {
+        static std::unordered_set<std::string> known_missing;
+        if (known_missing.find(feed_url) == known_missing.end()) {
+            LOG_WARNING("found no tuefind_rss_feeds.id for \"" + feed_url + "\"!");
+            known_missing.emplace(feed_url);
+        }
+        return false;
+    }
 
     const auto row(result_set.getNextRow());
     std::vector<std::string> subsystem_types;
     StringUtil::Split(row["subsystem_types"], ',', &subsystem_types);
-    const FeedInfo new_feed_info(row["id"], StlHelpers::VectorToSet(subsystem_types));
-    urls_to_feed_infos_map[url] = new_feed_info;
-    return urls_to_feed_infos_map.find(url)->second;
+    *feed_info = FeedInfo(row["id"], StlHelpers::VectorToSet(subsystem_types));
+    urls_to_feed_infos_map[feed_url] = *feed_info;
+    return true;
 }
 
 
@@ -91,7 +99,9 @@ int Main(int /*argc*/, char */*argv*/[]) {
     db_reader.queryOrDie("SELECT * FROM rss_aggregator");
     auto result_set(db_reader.getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
-        const auto &feed_info(GetRSSFeedsID(db_writer.get(), row["feed_url"]));
+        FeedInfo feed_info;
+        if (not GetRSSFeedsID(db_writer.get(), row["feed_url"], &feed_info))
+            continue;
         if (unlikely(not feed_info.isCompatibleWith(row["flavour"])))
             LOG_ERROR("Item w/ item_id \"" + row["item_id"] + " has a flavour \"" + row["flavour"] +
                       "\" which is incompatible with the subsystem_types \""
