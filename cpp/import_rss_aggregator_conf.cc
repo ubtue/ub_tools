@@ -79,6 +79,9 @@ int Main(int argc, char *argv[]) {
 
     unsigned default_downloader_time_limit(30), updated_or_inserted(0), feed_section_count(0);
     for (const auto &section : ini_file) {
+        if (section.getSectionName() == "")
+            continue; // Skip global section.
+
         if (section.getSectionName() == "Channel") {
             default_downloader_time_limit = section.getUnsigned("default_downloader_time_limit", 30);
             continue;
