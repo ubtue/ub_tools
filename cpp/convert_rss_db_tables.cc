@@ -54,7 +54,7 @@ const FeedInfo &GetRSSFeedsID(DbConnection * vufind_connection, const std::strin
     if (url_and_feed_info != urls_to_feed_infos_map.end())
         return url_and_feed_info->second;
 
-    vufind_connection->queryOrDie("SELECT id,subsystem_types FROM tuefind_rss_feeds WHERE url="
+    vufind_connection->queryOrDie("SELECT id,subsystem_types FROM tuefind_rss_feeds WHERE feed_url="
                                   + vufind_connection->escapeAndQuoteString(url));
     auto result_set(vufind_connection->getLastResultSet());
     if (result_set.empty())
@@ -73,8 +73,8 @@ void CopyItem(DbConnection * const db_writer, const std::string &feed_id, const 
               const std::string &item_url, const std::string &item_title, const std::string &item_description,
               const std::string &pub_date, const std::string &insertion_time)
 {
-    db_writer->queryOrDie("INSERT INTO tuefind_rss_items SET rss_feeds_id=" + feed_id + ",item_id=" + item_id
-                          + ",item_url=" + db_writer->escapeAndQuoteString(item_url) + ",item_title="
+    db_writer->queryOrDie("INSERT INTO tuefind_rss_items SET rss_feeds_id=" + feed_id + ",item_id='" + item_id
+                          + "',item_url=" + db_writer->escapeAndQuoteString(item_url) + ",item_title="
                           + db_writer->escapeAndQuoteString(item_title) + ",item_description="
                           + db_writer->escapeAndQuoteString(item_description) + ",pub_date='"
                           + pub_date + "',insertion_time='" + insertion_time + "'");
