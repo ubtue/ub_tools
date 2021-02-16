@@ -529,7 +529,7 @@ void FixArticleLeader(MARC::Record * const record,  bool * const modified_record
      // For chapters in books it is correctly done: leader[7]=a
      // So rewrite to b if we have a component part that is not part of a book
      // The criterion is that we do not have both "In:" and "(Hg.)"
-     for (const auto _500_a_subfield : record->getSubfieldValues("500", 'a')) {
+     for (const auto &_500_a_subfield : record->getSubfieldValues("500", 'a')) {
           static const std::string is_book_component_regex("^(.+)\\(Hg.\\)(.+)");
           static RegexMatcher * const is_book_component_matcher(RegexMatcher::RegexMatcherFactoryOrDie(is_book_component_regex));
           // Skip fields that are definitely not relevant

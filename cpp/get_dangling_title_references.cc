@@ -1,7 +1,7 @@
 /** \brief Detect missing references in title data records
  *  \author Johannes Riedl
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -27,17 +27,13 @@
 #include "MARC.h"
 #include "util.h"
 
+
 namespace {
 
-static  const std::vector<MARC::Tag> REFERENCE_FIELDS{ MARC::Tag("775"), MARC::Tag("776"), MARC::Tag("780"),
-                                                       MARC::Tag("785"), MARC::Tag("787") };
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--patch-to-k10plus] marc_input dangling_log k10plus_concordance\n\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage("[--consider-only-reviews] marc_input dangling_log");
 }
-
-} // unnamed namespace
 
 
 void CollectAllPPNs(MARC::Reader * const reader, std::unordered_set<std::string> * const all_ppns) {
@@ -45,88 +41,61 @@ void CollectAllPPNs(MARC::Reader * const reader, std::unordered_set<std::string>
       all_ppns->emplace(record.getControlNumber());
 }
 
-bool IsPartOfTitleData(const std::unordered_set<std::string> &all_ppns, const std::string &referenced_ppn) {
+
+inline bool IsPartOfTitleData(const std::unordered_set<std::string> &all_ppns, const std::string &referenced_ppn) {
     return all_ppns.find(referenced_ppn) != all_ppns.cend();
 }
 
 
-void CheckCrossReferences(MARC::Reader * const reader, const std::unordered_set<std::string> &all_ppns,
-                          std::unique_ptr<File> &dangling_log, bool patch_to_k10plus, std::unordered_map<std::string, std::string> &concordance_map) {
-     int unreferenced_ppns(0);
-     while (const auto record = reader->read()) {
-        for (auto &field : record) {
-            std::string referenced_ppn;
-            if (MARC::IsCrossLinkField(field, &referenced_ppn, REFERENCE_FIELDS)) {
-                if (not IsPartOfTitleData(all_ppns, referenced_ppn)) {
-                    std::string ppn = record.getControlNumber();
-                    if (patch_to_k10plus) {
-                        auto new_ppn = concordance_map.find(ppn);
-                        if (new_ppn == concordance_map.end())
-                            LOG_ERROR("Could not find K10plus-PPN for PPN " + ppn);
-                        auto new_referenced_ppn = concordance_map.find(referenced_ppn);
-                        if (new_referenced_ppn == concordance_map.end()) {
-                            LOG_WARNING("Could not find K10plus-PPN for referenced PPN " + referenced_ppn + " [PPN: " + ppn + "]");
-                            *dangling_log << new_ppn->second << ", K10+ PPN DOES NOT EXIST FOR \"" << referenced_ppn + "\"\n";
-                        }
-                        *dangling_log << new_ppn->second << "," << new_referenced_ppn->second << '\n';
-                    } else
-                        *dangling_log << ppn << "," << referenced_ppn << '\n';
+const std::vector<MARC::Tag> REFERENCE_FIELDS{ MARC::Tag("775"), MARC::Tag("776"), MARC::Tag("780"),
+                                               MARC::Tag("785"), MARC::Tag("787") };
 
-                    ++unreferenced_ppns;
-                }
-            }
-        }
+
+void FindDanglingCrossReferences(MARC::Reader * const reader, const bool consider_only_reviews,
+                                 const std::unordered_set<std::string> &all_ppns, File * const dangling_log)
+{
+     unsigned unreferenced_ppns(0);
+     while (const auto record = reader->read()) {
+         if (consider_only_reviews and not record.isReviewArticle())
+             continue;
+
+         for (const auto &field : record) {
+             std::string referenced_ppn;
+             if (MARC::IsCrossLinkField(field, &referenced_ppn, REFERENCE_FIELDS)
+                 and not IsPartOfTitleData(all_ppns, referenced_ppn))
+             {
+                 *dangling_log << record.getControlNumber() << "," << referenced_ppn << '\n';
+                 ++unreferenced_ppns;
+             }
+         }
      }
      LOG_INFO("Detected " + std::to_string(unreferenced_ppns) + " unreferenced ppns");
 }
 
 
-void PopulateConcordanceMap(std::unique_ptr<File> &concordance_file, std::unordered_map<std::string, std::string> * const concordance_map) {
-     unsigned int line_no(0);
-     while (not concordance_file->eof()) {
-         ++line_no;
-         std::string line, old_val, new_val;
-         concordance_file->getline(&line);
-         if (not StringUtil::SplitOnString(line, " " , &old_val, &new_val))
-             LOG_ERROR("Could not properly split line \"" + line + "\"");
-         if (old_val.length() > 9 or new_val.length() > 10)
-             LOG_ERROR("Invalid line " + std::to_string(line_no) + " in \"" + concordance_file->getPath() + "\"");
-         (*concordance_map)[old_val] = new_val;
-     }
-     LOG_INFO("We read " + std::to_string(line_no) + " mappings from " + concordance_file->getPath());
-}
+} // unnamed namespace
 
 
 int Main(int argc, char *argv[]) {
-    bool patch_to_k10plus(false);
-
-    if (argc != 3 and argc !=5)
+    if (argc != 3 and argc != 4)
         Usage();
 
-    if (argc == 5) {
-        if (std::strcmp(argv[1], "--patch-to-k10plus") != 0)
-            Usage();
-        patch_to_k10plus = true;
-        ++argv;
-        --argc;
+    bool consider_only_reviews(false);
+    if (__builtin_strcmp(argv[1], "--consider-only-reviews") == 0) {
+        consider_only_reviews = true;
+        --argc, ++argv;
     }
+    if (argc != 3)
+        Usage();
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
-
-    std::unique_ptr<File> dangling_log;
-    dangling_log = FileUtil::OpenOutputFileOrDie(argv[2]);
-
-    std::unordered_map<std::string, std::string> swb_to_k10plus_map;
-    if (patch_to_k10plus) {
-        std::unique_ptr<File> swb_to_k10plus_file;
-        swb_to_k10plus_file = FileUtil::OpenInputFileOrDie(argv[3]);
-        PopulateConcordanceMap(swb_to_k10plus_file, &swb_to_k10plus_map);
-    }
+    const auto dangling_log(FileUtil::OpenOutputFileOrDie(argv[2]));
 
     std::unordered_set<std::string> all_ppns;
     CollectAllPPNs(marc_reader.get(), &all_ppns);
+
     marc_reader->rewind();
-    CheckCrossReferences(marc_reader.get(), all_ppns, dangling_log, patch_to_k10plus, swb_to_k10plus_map);
+    FindDanglingCrossReferences(marc_reader.get(), consider_only_reviews, all_ppns, dangling_log.get());
 
     return EXIT_SUCCESS;
 }

@@ -49,7 +49,7 @@ void ExtractLocalKeywords(MARC::Reader * const marc_reader, std::set<std::string
 
 
 void WriteLocalKeywordsToFile(std::unique_ptr<File> &output, std::set<std::string> all_local_keywords) {
-    for (const auto topic : all_local_keywords)
+    for (const auto &topic : all_local_keywords)
         *output << topic << '\n';
 }
 

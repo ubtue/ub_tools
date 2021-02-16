@@ -78,11 +78,11 @@ inline std::string ReplaceEntitiesUTF8(const std::string &s, const UnknownEntity
 }
 
 
-/** \brief Replaces ampersands, less-than and greater than symbols with HTML entities. */
+/** \brief Replaces ampersands, less-than, greater than and double quote symbols with HTML entities. */
 std::string HtmlEscape(const std::string &unescaped_text);
 
 
-/** \brief Replaces ampersands, less-than and greater than symbols with HTML entities. */
+/** \brief Replaces ampersands, less-than, greater than and double quote symbols with HTML entities. */
 inline std::string HtmlEscape(std::string * const unescaped_text) {
     return *unescaped_text = HtmlEscape(*unescaped_text);
 }
@@ -105,6 +105,10 @@ size_t ExtractAllLinks(const std::string &html_document, std::vector<std::string
 
 // \warning Assumes that "text_with_optional_tags" is UTF8 encoded!
 std::string StripHtmlTags(const std::string &text_with_optional_tags, const bool replace_entities = true);
+
+
+/** \brief Shorten a text but keep HTML structure. */
+std::string ShortenText(const std::string &html_document, const size_t max_length);
 
 
 } // namespace HtmlUtil

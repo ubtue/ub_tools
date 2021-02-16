@@ -5,6 +5,7 @@ control_number_filter
 convert_json_to_marc
 delete_ids
 enumerate_non_standard_tags
+get_most_recent_publication_years
 lcsh_filter
 make_marc_xml
 marc21_scramble
@@ -18,6 +19,7 @@ marc_filter
 marc_grep
 marc_grep_ng
 marc_info
+marc_mgrep
 marc_ngram_language_stats
 marc_ppn_patcher
 marc_range_filter
@@ -26,5 +28,6 @@ marc_size
 marc_split
 marc_tag_grep
 replace_marc_records
+sanitize_marc
 subfield_code_replacer
 debs/

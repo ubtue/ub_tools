@@ -1,7 +1,7 @@
 /** \brief Classes related to the Zotero Harvester's configuration data
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -19,10 +19,12 @@
 #pragma once
 
 
+#include <map>
 #include <memory>
 #include <set>
 #include <unordered_map>
 #include "IniFile.h"
+#include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "Zeder.h"
 
@@ -40,6 +42,89 @@ namespace Config {
 static constexpr unsigned DEFAULT_ZEDER_ID(0);
 
 
+struct DownloadDelayParams {
+    unsigned default_delay_in_ms_;
+    unsigned max_delay_in_ms_;
+    std::unordered_map<std::string, unsigned> domain_to_default_delay_map_;
+    std::unordered_map<std::string, unsigned> domain_to_max_delay_map_;
+public:
+    DownloadDelayParams(): default_delay_in_ms_(0), max_delay_in_ms_(0) { }
+    DownloadDelayParams(const IniFile::Section &config_section);
+
+    unsigned getDefaultDelayForDomainOrDefault(const std::string &domain, bool * const default_returned) {
+        return MiscUtil::GetContainerValueOrDefault(domain_to_default_delay_map_, domain, default_delay_in_ms_, default_returned);
+    }
+    unsigned getMaxDelayForDomainOrDefault(const std::string &domain, bool * const default_returned) {
+        return MiscUtil::GetContainerValueOrDefault(domain_to_max_delay_map_, domain, max_delay_in_ms_, default_returned);
+    }
+
+    static bool IsValidIniEntry(const IniFile::Entry &entry);
+};
+
+
+// Metadata parameters related to Zotero that will be re-used in global as well as journal params later
+struct ZoteroMetadataParams {
+    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> fields_to_suppress_;
+    std::map<std::string, std::string> fields_to_override_;
+    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
+public:
+    ZoteroMetadataParams() = default;
+    ZoteroMetadataParams(const IniFile::Section &config_section);
+
+    static bool IsValidIniEntry(const IniFile::Entry &entry);
+};
+
+
+// Metadata parameters related to MARC that will be re-used in global as well as journal params later
+struct MarcMetadataParams {
+    std::vector<std::string> fields_to_add_;
+    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> fields_to_remove_;
+    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> subfields_to_remove_;
+    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
+public:
+    MarcMetadataParams() = default;
+    MarcMetadataParams(const IniFile::Section &config_section);
+
+    static bool IsValidIniEntry(const IniFile::Entry &entry);
+};
+
+
+typedef bool (*ValidationCallback)(const IniFile::Entry &entry);
+template <typename EnumType>
+void CheckIniSection(const IniFile::Section &section, const std::map<EnumType, std::string> &allowed_values,
+                     const std::vector<ValidationCallback> &callbacks={})
+{
+    for (const auto &entry : section) {
+        if (entry.name_.empty())
+            continue;
+
+        bool valid(false);
+        for (const auto &allowed_value : allowed_values) {
+            if (entry.name_ == allowed_value.second) {
+                valid = true;
+                break;
+            }
+        }
+
+        if (not valid) {
+            for (const auto &callback : callbacks) {
+                if (callback(entry)) {
+                    valid = true;
+                    break;
+                }
+            }
+
+            if (not valid) {
+                std::string message("Invalid ini entry \"" + entry.name_ + "\"");
+                if (not section.getSectionName().empty())
+                    message += " in section \"" + section.getSectionName() + "\"";
+                LOG_WARNING(message);
+            }
+        }
+    }
+}
+
+
 // Parameters that pertain to all harvestable journals/groups.
 struct GlobalParams {
     enum IniKey : unsigned {
@@ -49,8 +134,7 @@ struct GlobalParams {
         SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY,
         DOWNLOAD_DELAY_DEFAULT,
         DOWNLOAD_DELAY_MAX,
-        RSS_HARVEST_INTERVAL,
-        RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES,
+        REVIEW_REGEX,
         TIMEOUT_CRAWL_OPERATION,
         TIMEOUT_DOWNLOAD_REQUEST
     };
@@ -60,16 +144,12 @@ struct GlobalParams {
     std::string group_names_;
     std::string strptime_format_string_;
     bool skip_online_first_articles_unconditonally_;
-    struct {
-        unsigned default_delay_;
-        unsigned max_delay_;
-    } download_delay_params_;
+    DownloadDelayParams download_delay_params_;
     unsigned timeout_crawl_operation_;
     unsigned timeout_download_request_;
-    struct {
-        unsigned harvest_interval_;
-        bool force_process_feeds_with_no_pub_dates_;
-    } rss_harvester_operation_params_;
+    std::shared_ptr<ThreadSafeRegexMatcher> review_regex_;
+    ZoteroMetadataParams zotero_metadata_params_;
+    MarcMetadataParams marc_metadata_params_;
 public:
     GlobalParams(const IniFile::Section &config_section);
     GlobalParams(const GlobalParams &rhs) = default;
@@ -123,11 +203,10 @@ private:
 
 
 struct LanguageParams {
-    std::set<std::string> expected_languages_ = {"eng"};
+    std::set<std::string> expected_languages_;
     std::string source_text_fields_ = "title";
-    bool force_automatic_language_detection_ = false;
 public:
-    void reset() { expected_languages_ = {"eng"}; source_text_fields_ = "title"; force_automatic_language_detection_ = false; }
+    void reset() { expected_languages_.clear(); source_text_fields_ = "title"; }
 };
 
 
@@ -152,6 +231,8 @@ struct JournalParams {
         EXPECTED_LANGUAGES,
         SSGN,
         LICENSE,
+        SELECTIVE_EVALUATION,
+        FORCE_LANGUAGE_DETECTION,
         CRAWL_MAX_DEPTH,
         CRAWL_EXTRACTION_REGEX,
         CRAWL_URL_REGEX,
@@ -175,25 +256,18 @@ struct JournalParams {
     unsigned update_window_;
     std::string ssgn_;
     std::string license_;
-    std::unique_ptr<ThreadSafeRegexMatcher> review_regex_;
+    std::shared_ptr<ThreadSafeRegexMatcher> review_regex_;
     LanguageParams language_params_;
     struct {
         unsigned max_crawl_depth_;
         std::unique_ptr<ThreadSafeRegexMatcher> extraction_regex_;
         std::unique_ptr<ThreadSafeRegexMatcher> crawl_url_regex_;
     } crawl_params_;
-
-    struct {
-        std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> fields_to_suppress_;
-        std::map<std::string, std::string> fields_to_override_;
-        std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
-    } zotero_metadata_params_;
-    struct {
-        std::vector<std::string> fields_to_add_;
-        std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> fields_to_remove_;
-        std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
-    } marc_metadata_params_;
+    ZoteroMetadataParams zotero_metadata_params_;
+    MarcMetadataParams marc_metadata_params_;
     bool zeder_newly_synced_entry_;
+    bool selective_evaluation_;
+    bool force_language_detection_;
 public:
     JournalParams(const GlobalParams &global_params);
     JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);

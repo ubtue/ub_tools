@@ -1,7 +1,7 @@
 /** \brief Classes related to the Zotero Harvester's interoperation with the Zeder database
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2020-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -92,14 +92,15 @@ static std::string ResolveHarvesterOperation(const Zeder::Entry &zeder_entry, co
 }
 
 
-static std::string ResolveUploadOperation(const Zeder::Entry &zeder_entry, const Zeder::Flavour /*unused*/) {
-    const auto &prodf(zeder_entry.getAttribute("prodf", ""));
-    if (prodf == "zotat")
-        return Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::TEST);
-    else if (prodf == "zota")
+std::string ResolveUploadOperation(const Zeder::Entry &zeder_entry, const Zeder::Flavour /*unused*/) {
+    if (zeder_entry.getAttribute("prodf", "") == "zota")
         return Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::LIVE);
-    else
-        return Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::NONE);
+
+    const std::string prode(zeder_entry.getAttribute("prode", ""));
+    if (prode == "zotat" or prode == "zota")
+        return Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::TEST);
+
+    return Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::NONE);
 }
 
 
@@ -114,12 +115,21 @@ static std::string ResolveUpdateWindow(const Zeder::Entry &zeder_entry, const Ze
 }
 
 
+static std::string ResolveSelectiveEvaluation(const Zeder::Entry &zeder_entry, const Zeder::Flavour /*unused*/) {
+    if (zeder_entry.getAttribute("ausw", "") == "selek")
+        return "true";
+    else
+        return "false";
+}
+
+
 const std::map<Config::JournalParams::IniKey, std::function<std::string(const Zeder::Entry &, const Zeder::Flavour)>> INI_KEY_TO_ZEDER_RESOLVER_MAP {
     { Config::JournalParams::IniKey::GROUP, ResolveGroup },
     { Config::JournalParams::IniKey::ENTRY_POINT_URL, ResolveEntryPointURL },
     { Config::JournalParams::IniKey::HARVESTER_OPERATION, ResolveHarvesterOperation },
     { Config::JournalParams::IniKey::UPLOAD_OPERATION, ResolveUploadOperation },
-    { Config::JournalParams::IniKey::UPDATE_WINDOW, ResolveUpdateWindow }
+    { Config::JournalParams::IniKey::UPDATE_WINDOW, ResolveUpdateWindow },
+    { Config::JournalParams::IniKey::SELECTIVE_EVALUATION, ResolveSelectiveEvaluation },
 };
 
 

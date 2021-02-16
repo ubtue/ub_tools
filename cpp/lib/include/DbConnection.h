@@ -2,7 +2,7 @@
  *  \brief  Interface for the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -48,7 +48,7 @@ public:
     enum MYSQL_PRIVILEGE { P_SELECT, P_INSERT, P_UPDATE, P_DELETE, P_CREATE, P_DROP, P_REFERENCES,
                            P_INDEX, P_ALTER, P_CREATE_TEMPORARY_TABLES, P_LOCK_TABLES, P_EXECUTE,
                            P_CREATE_VIEW, P_SHOW_VIEW, P_CREATE_ROUTINE, P_ALTER_ROUTINE,
-                           P_EVENT, P_TRIGGER};
+                           P_EVENT, P_TRIGGER };
     static const std::unordered_set<MYSQL_PRIVILEGE> MYSQL_ALL_PRIVILEGES;
     static const std::string DEFAULT_CONFIG_FILE_PATH;
 private:
@@ -153,9 +153,29 @@ public:
     /** \note Converts the binary contents of "unescaped_string" into a form that can used as a string.
      *  \note This probably breaks for Sqlite if the string contains binary characters.
      */
-    std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false);
+    std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false, const bool return_null_on_empty_string = false);
     inline std::string escapeAndQuoteString(const std::string &unescaped_string) {
         return escapeString(unescaped_string, /* add_quotes = */true);
+    }
+
+    inline std::string escapeAndQuoteNonEmptyStringOrReturnNull(const std::string &unescaped_string) {
+        return escapeString(unescaped_string, /* add_quotes = */true, /* return_null_on_empty_string = */true);
+    }
+
+    /** \brief  Join a "list" of words to form a single string,
+     *          typically used for SQL statements using the IN keyword.
+     *  \note   Adds "," as delimiter.
+     *  \param  source     The container of strings that are to be joined.
+     */
+    template<typename StringContainer> std::string joinAndEscapeAndQuoteStrings(const StringContainer &container)
+    {
+        std::string subquery;
+        for (const auto &string : container) {
+            if (not subquery.empty())
+                subquery += ",";
+            subquery += escapeAndQuoteString(string);
+        }
+        return subquery;
     }
 
     // Returns a string of the form x'A554E59F' etc.
@@ -287,6 +307,8 @@ public:
     static void MySQLImportFile(const std::string &sql_file, const std::string &database_name, const std::string &admin_user,
                                 const std::string &admin_passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
                                 const Charset charset = UTF8MB4);
+
+    std::string MySQLPrivilegeToString(const MYSQL_PRIVILEGE mysql_privilege);
 };
 
 

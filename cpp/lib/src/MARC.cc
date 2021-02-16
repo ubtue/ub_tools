@@ -220,6 +220,45 @@ Tag Record::Field::getLocalTag() const {
 }
 
 
+bool Record::Field::filterSubfields(const std::string &codes_to_keep) {
+    std::string new_contents;
+    new_contents.reserve(contents_.size());
+
+    if (unlikely(contents_.length() < 2))
+        return false;
+
+    auto ch(contents_.begin());
+    new_contents += *ch++; // 1st indicator
+    new_contents += *ch++; // 2nd indicator
+
+    while (ch != contents_.end()) {
+        // The subfield code follows the subfield separtor.
+        if (unlikely(*ch != '\x1F'))
+            LOG_ERROR("missing subfield separator!");
+        ++ch;
+
+        if (unlikely(ch == contents_.end()))
+            LOG_ERROR("premature end of field!");
+
+        if (codes_to_keep.find(*ch) == std::string::npos) {
+            // Skip subfield:
+            while (ch != contents_.end() and *ch != '\x1F')
+                ++ch;
+        } else {
+            new_contents += '\x1F';
+            while (ch != contents_.end() and *ch != '\x1F')
+                new_contents += *ch++;
+        }
+    }
+
+    if (new_contents.size() == contents_.size())
+        return false;
+
+    contents_.swap(new_contents);
+    return true;
+}
+
+
 std::string Record::Field::getFirstSubfieldWithCode(const char subfield_code) const {
     if (unlikely(contents_.length() < 5)) // We need more than: 2 indicators + delimiter + subfield code
         return "";
@@ -293,6 +332,14 @@ bool Record::Field::extractSubfieldWithPattern(const char subfield_code, RegexMa
     if (value->empty())
         return false;
     return regex.matched(*value);
+}
+
+
+bool Record::Field::removeSubfieldWithPattern(const char subfield_code, const ThreadSafeRegexMatcher &regex) {
+    auto subfields((Subfields(contents_)));
+    subfields.deleteAllSubfieldsWithCodeMatching(subfield_code, regex);
+    setContents(subfields, getIndicator1(), getIndicator2());
+    return true;
 }
 
 
@@ -517,7 +564,8 @@ std::string Record::toBinaryString() const {
         for (Record::const_iterator entry(start); entry != end; ++entry) {
             const size_t contents_length(entry->getContents().length());
             if (unlikely(contents_length > Record::MAX_VARIABLE_FIELD_DATA_LENGTH))
-                LOG_ERROR("can't generate a directory entry w/ a field w/ data length " + std::to_string(contents_length) + "!");
+                LOG_ERROR("can't generate a directory entry w/ a field w/ data length " + std::to_string(contents_length) +
+                          " for PPN \"" + getControlNumber() + "\"!");
             raw_record += entry->getTag().toString();
             AppendToStringWithLeadingZeros(raw_record, entry->getContents().length() + 1 /* field terminator */, 4);
             AppendToStringWithLeadingZeros(raw_record, field_start_offset, /* width = */ 5);
@@ -596,8 +644,8 @@ std::string Record::toString(const RecordFormat record_format, const unsigned in
 
 
 bool Record::isProbablyNewerThan(const Record &other) const {
-    const auto this_publication_year(getPublicationYear());
-    const auto other_publication_year(other.getPublicationYear());
+    const auto this_publication_year(getMostRecentPublicationYear());
+    const auto other_publication_year(other.getMostRecentPublicationYear());
     if (this_publication_year.empty() or other_publication_year.empty())
         return getControlNumber() > other.getControlNumber();
     return this_publication_year > other_publication_year;
@@ -612,7 +660,7 @@ void Record::merge(const Record &other) {
 
 bool Record::isMonograph() const {
     for (const auto &_935_field : getTagRange("935")) {
-        for (const auto subfield : _935_field.getSubfields()) {
+        for (const auto &subfield : _935_field.getSubfields()) {
             if (subfield.code_ == 'c' and subfield.value_ == "so")
                 return false;
         }
@@ -625,7 +673,7 @@ bool Record::isMonograph() const {
 bool Record::isArticle() const {
     if (leader_[7] == 'm') {
         for (const auto &_935_field : getTagRange("935")) {
-            for (const auto subfield : _935_field.getSubfields()) {
+            for (const auto &subfield : _935_field.getSubfields()) {
                 if (subfield.code_ == 'c' and subfield.value_ == "so")
                     return true;
             }
@@ -655,7 +703,7 @@ bool Record::isWebsite() const {
 
 bool Record::isElectronicResource() const {
     if (leader_.length() > 6 and (leader_[6] == 'a' or leader_[6] == 'm')) {
-        for (const auto _007_field : getTagRange("007")) {
+        for (const auto &_007_field : getTagRange("007")) {
             if (*_007_field.getContents().c_str() == 'c')
                 return true;
         }
@@ -710,13 +758,13 @@ bool Record::isElectronicResource() const {
 
 bool Record::isPrintResource() const {
     if (leader_.length() > 6 and leader_[6] == 'a') {
-        for (const auto _007_field : getTagRange("007")) {
+        for (const auto &_007_field : getTagRange("007")) {
             if (*_007_field.getContents().c_str() == 't')
                 return true;
         }
     }
 
-    for (const auto _935_field : getTagRange("935")) {
+    for (const auto &_935_field : getTagRange("935")) {
         for (const auto &subfield : _935_field.getSubfields()) {
             if (subfield.code_ == 'b' and subfield.value_ == "druck")
                 return true;
@@ -963,7 +1011,35 @@ static inline bool ConsistsOfDigitsOnly(const std::string &s) {
 }
 
 
-std::string Record::getPublicationYear(const std::string &fallback) const {
+std::string Record::getMostRecentPublicationYear(const std::string &fallback) const {
+    const auto zwi_field(findTag("ZWI"));
+    if (zwi_field != end()) {
+        const auto publication_year(zwi_field->getFirstSubfieldWithCode('y'));
+        if (not publication_year.empty())
+            return publication_year;
+    }
+
+    if (isSerial()) {
+        // 363$i w/ indicators 01 is the publication start year and 363$i with indicators 10 the publication end year.
+        std::string start_year, end_year;
+        for (const auto &_363_field : getTagRange("363")) {
+            const auto subfield_i(_363_field.getFirstSubfieldWithCode('i'));
+            if (subfield_i.empty())
+                continue;
+            const char indicator1(_363_field.getIndicator1()), indicator2(_363_field.getIndicator2());
+            if (indicator1 == '0' and indicator2 == '1') // start year
+                start_year = subfield_i;
+            else if (indicator1 == '1' and indicator2 == '0') // end year
+                end_year = subfield_i;
+        }
+        if (not end_year.empty())
+            return end_year;
+        if (not start_year.empty()) {
+            const auto current_year(TimeUtil::GetCurrentYear());
+            return current_year > start_year ? current_year : start_year;
+        }
+    }
+
     if (isReproduction()) {
         const auto _534_field(findTag("534"));
         if (unlikely(_534_field == end()))
@@ -1017,12 +1093,36 @@ std::string Record::getPublicationYear(const std::string &fallback) const {
 }
 
 
+std::vector<std::string> Record::getDatesOfProductionEtc() const {
+    std::vector<std::string> dates;
+    for (const auto &field : getTagRange("264")) {
+        const auto date_candidate(field.getFirstSubfieldWithCode('c'));
+        if (not date_candidate.empty())
+            dates.emplace_back(date_candidate);
+    }
+
+    std::sort(dates.begin(), dates.end());
+    std::vector<std::string> filtered_dates;
+    std::string last_start_year;
+    for (const auto &date : dates) {
+        const auto start_year(date.substr(0, 4));
+        if (start_year > last_start_year) {
+            filtered_dates.emplace_back(date);
+            last_start_year = start_year;
+        } else
+            filtered_dates.back() = date;
+    }
+
+    return filtered_dates;
+}
+
+
 std::map<std::string, std::string> Record::getAllAuthorsAndPPNs() const {
     static const std::vector<std::string> AUTHOR_TAGS { "100", "109", "700" };
 
     std::map<std::string, std::string> author_names_to_authority_ppns_map;
     std::set<std::string> already_seen_author_names;
-    for (const auto tag : AUTHOR_TAGS) {
+    for (const auto &tag : AUTHOR_TAGS) {
         for (const auto &field : getTagRange(tag)) {
             for (const auto &subfield : field.getSubfields()) {
                 if (subfield.code_ == 'a' and already_seen_author_names.find(subfield.value_) == already_seen_author_names.end()) {
@@ -1170,7 +1270,7 @@ bool Record::getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_and_synony
             continue;
 
         std::vector<std::string> synonyms;
-        for (const auto synonym_field : getTagRange(canonical_keyword_field.getTag() == "150" ? "450" : "451")) {
+        for (const auto &synonym_field : getTagRange(canonical_keyword_field.getTag() == "150" ? "450" : "451")) {
             const std::string synonym(synonym_field.getFirstSubfieldWithCode('a'));
             if (likely(not synonym.empty()))
                 synonyms.emplace_back(synonym);
@@ -1552,6 +1652,20 @@ std::unordered_set<std::string> Record::getTagSet() const {
 }
 
 
+size_t Record::deleteFields(const Tag &field_tag) {
+    const auto start_iter(findTag(field_tag));
+    if (start_iter == fields_.cend())
+        return 0;
+
+    auto end_iter(start_iter + 1);
+    while (end_iter != fields_.cend() and end_iter->getTag() == field_tag)
+        ++end_iter;
+
+    fields_.erase(start_iter, end_iter);
+    return end_iter - start_iter;
+}
+
+
 void Record::deleteFields(std::vector<size_t> field_indices) {
     std::sort(field_indices.begin(), field_indices.end(), std::greater<size_t>());
     for (const auto field_index : field_indices)
@@ -1798,12 +1912,15 @@ Record BinaryReader::actualRead() {
             return Record();
 
         if (unlikely(offset_ + Record::RECORD_LENGTH_FIELD_LENGTH >= input_file_size_))
-            LOG_ERROR("not enough remaining room for a record length in the memory mapping! (input_file_size_ = "
-                      + std::to_string(input_file_size_) + ", offset_ = " + std::to_string(offset_) + ")");
+            LOG_ERROR("not enough remaining room in \"" + input_->getPath()
+                      + "\" for a record length in the memory mapping! (input_file_size_ = "
+                      + std::to_string(input_file_size_) + ", offset_ = " + std::to_string(offset_)
+                      + "), file may be truncated!");
         const unsigned record_length(ToUnsigned(mmap_ + offset_, Record::RECORD_LENGTH_FIELD_LENGTH));
 
         if (unlikely(offset_ + record_length > input_file_size_))
-            LOG_ERROR("not enough remaining room for the rest of the record in the memory mapping!");
+            LOG_ERROR("not enough remaining room in \"" + input_->getPath()
+                      + "\" for the rest of the record in the memory mapping, file may be truncated!");
         offset_ += record_length;
 
         return Record(record_length, mmap_ + offset_ - record_length);
@@ -2724,7 +2841,7 @@ bool UBTueIsElectronicResource(const Record &marc_record) {
     }
 
     for (const auto &_245_field : marc_record.getTagRange("245")) {
-        for (const auto subfield : _245_field.getSubfields()) {
+        for (const auto &subfield : _245_field.getSubfields()) {
             if (subfield.code_ == 'h' and subfield.value_.find("[Elektronische Ressource]") != std::string::npos)
                 return true;
         }
@@ -2811,12 +2928,12 @@ FileType GetOptionalWriterType(int * const argc, char *** const argv, const int 
 
 
 bool Record::isReviewArticle() const {
-    for (const auto _655_field : getTagRange("655")) {
+    for (const auto &_655_field : getTagRange("655")) {
         if (StringUtil::FindCaseInsensitive(_655_field.getFirstSubfieldWithCode('a'), "rezension") != std::string::npos)
             return true;
     }
 
-    for (const auto _935_field : getTagRange("935")) {
+    for (const auto &_935_field : getTagRange("935")) {
         if (_935_field.getFirstSubfieldWithCode('c') == "uwre")
             return true;
     }
@@ -2909,7 +3026,7 @@ bool IsSubjectAccessTag(const Tag &tag) {
 
 std::set<std::string> ExtractOnlineCrossLinkPPNs(const MARC::Record &record) {
     std::set<std::string> cross_reference_ppns;
-    for (const auto _776_field : record.getTagRange("776")) {
+    for (const auto &_776_field : record.getTagRange("776")) {
         const auto ppn(BSZUtil::GetK10PlusPPNFromSubfield(_776_field, 'w'));
         if (ppn.empty())
             continue;
@@ -2933,7 +3050,7 @@ std::set<std::string> ExtractOnlineCrossLinkPPNs(const MARC::Record &record) {
 
 std::set<std::string> ExtractPrintCrossLinkPPNs(const MARC::Record &record) {
     std::set<std::string> cross_reference_ppns;
-    for (const auto _776_field : record.getTagRange("776")) {
+    for (const auto &_776_field : record.getTagRange("776")) {
         const auto ppn(BSZUtil::GetK10PlusPPNFromSubfield(_776_field, 'w'));
         if (ppn.empty())
             continue;
@@ -2958,7 +3075,7 @@ std::set<std::string> ExtractPrintCrossLinkPPNs(const MARC::Record &record) {
 static void ExtractOtherCrossLinkPPNsHelper(const MARC::Record &record, const MARC::Tag &tag,
                                             std::set<std::string> * const cross_link_ppns)
 {
-    for (const auto cross_link_field : record.getTagRange(tag)) {
+    for (const auto &cross_link_field : record.getTagRange(tag)) {
         const auto cross_link_ppn(BSZUtil::GetK10PlusPPNFromSubfield(cross_link_field, 'w'));
         if (not cross_link_ppn.empty()) {
             cross_link_ppns->emplace(cross_link_ppn);

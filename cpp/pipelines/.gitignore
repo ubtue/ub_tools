@@ -3,6 +3,7 @@ add_article_cross_links
 add_author_synonyms
 add_authority_beacon_information
 add_cross_link_type
+add_is_superior_work_for_subsystems
 add_isbns_or_issns_to_articles
 add_local_data
 add_missing_cross_links

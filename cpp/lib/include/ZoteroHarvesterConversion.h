@@ -20,6 +20,7 @@
 
 
 #include <atomic>
+#include <map>
 #include <memory>
 #include <set>
 #include <unordered_map>
@@ -83,7 +84,7 @@ struct MetadataRecord {
     SuperiorType superior_type_;
     SSGType ssg_;
     std::vector<std::string> keywords_;
-    std::map<std::string, std::string> custom_metadata_;
+    std::multimap<std::string, std::string> custom_metadata_;
 public:
     explicit MetadataRecord() : superior_type_(SuperiorType::INVALID), ssg_(SSGType::INVALID) {}
 public:
@@ -123,25 +124,27 @@ std::string CalculateMarcRecordHash(const MARC::Record &marc_record);
 struct ConversionParams {
     Util::HarvestableItem download_item_;
     std::string json_metadata_;
-    bool skip_online_first_articles_unconditonally_;
+    const Config::GlobalParams &global_params_;
     const Config::GroupParams &group_params_;
 public:
     ConversionParams(const Util::HarvestableItem &download_item, const std::string &json_metadata,
-                     const bool skip_online_first_articles_unconditonally, const Config::GroupParams &group_params)
+                     const Config::GlobalParams &global_params, const Config::GroupParams &group_params)
      : download_item_(download_item), json_metadata_(json_metadata),
-       skip_online_first_articles_unconditonally_(skip_online_first_articles_unconditonally),
+       global_params_(global_params),
        group_params_(group_params) {}
 };
 
 
 struct ConversionResult {
     std::vector<std::unique_ptr<MARC::Record>> marc_records_;
+    unsigned num_skipped_since_undesired_item_type_;
     unsigned num_skipped_since_online_first_;
     unsigned num_skipped_since_early_view_;
     unsigned num_skipped_since_exclusion_filters_;
 public:
     explicit ConversionResult()
-     : num_skipped_since_online_first_(0), num_skipped_since_early_view_(0), num_skipped_since_exclusion_filters_(0) {}
+     : num_skipped_since_undesired_item_type_(0), num_skipped_since_online_first_(0), num_skipped_since_early_view_(0),
+       num_skipped_since_exclusion_filters_(0) {}
      ConversionResult(const ConversionResult &rhs) = delete;
 };
 
@@ -159,18 +162,10 @@ public:
 // DownloadManage. The public interface offers a non-blocking function to
 // queue conversion tasks.
 class ConversionManager {
-public:
-    struct GlobalParams {
-        bool skip_online_first_articles_unconditonally_;
-    public:
-        GlobalParams(const bool skip_online_first_articles_unconditonally)
-            : skip_online_first_articles_unconditonally_(skip_online_first_articles_unconditonally) {}
-        GlobalParams(const GlobalParams &rhs) = default;
-    };
 private:
     static constexpr unsigned MAX_CONVERSION_TASKLETS = 15;
 
-    GlobalParams global_params_;
+    const Config::GlobalParams &global_params_;
     pthread_t background_thread_;
     std::atomic_bool stop_background_thread_;
     ThreadUtil::ThreadSafeCounter<unsigned> conversion_tasklet_execution_counter_;
@@ -183,7 +178,7 @@ private:
     void processQueue();
     void cleanupCompletedTasklets();
 public:
-    ConversionManager(const GlobalParams &global_params);
+    ConversionManager(const Config::GlobalParams &global_params);
     ~ConversionManager();
 public:
     std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> convert(const Util::HarvestableItem &source,

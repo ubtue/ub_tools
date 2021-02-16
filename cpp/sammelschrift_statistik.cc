@@ -1,7 +1,7 @@
 /** \brief Utility for displaying various bits of info about a collection of MARC records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -61,9 +61,8 @@ bool IsCollection(const MARC::Record &record) {
 
 std::string GetShortenedTitle(const MARC::Record &record, const size_t max_length) {
     auto complete_title(record.getCompleteTitle());
-    if (complete_title.length() > max_length) {
-        if (unlikely(not TextUtil::UnicodeTruncate(&complete_title, max_length)))
-            LOG_ERROR("bad Unicode in title of record with PPN " + record.getControlNumber() + "!");
+    if (TextUtil::CodePointCount(complete_title) > max_length) {
+        TextUtil::UTF8Truncate(&complete_title, max_length);
         return complete_title + "...";
     }
 
@@ -97,7 +96,8 @@ void ProcessRecords(const bool use_religious_studies_only, MARC::Reader * const 
 
 
         ppn_to_collection_info_map->emplace(record.getControlNumber(),
-                                            CollectionInfo(GetShortenedTitle(record, 80), record.getPublicationYear(), IsTOC(record)));
+                                            CollectionInfo(GetShortenedTitle(record, 80),
+                                                           record.getMostRecentPublicationYear(), IsTOC(record)));
 
         ++record_count;
     }

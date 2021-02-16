@@ -1,7 +1,7 @@
 /** \brief Classes related to the Zotero Harvester's configuration data
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -62,34 +62,6 @@ std::string GetHostTranslationServerUrl() {
 }
 
 
-GlobalParams::GlobalParams(const IniFile::Section &config_section) {
-    skip_online_first_articles_unconditonally_ = false;
-    download_delay_params_.default_delay_ = 0;
-    download_delay_params_.max_delay_ = 0;
-    rss_harvester_operation_params_.harvest_interval_ = 0;
-    rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_ = false;
-
-    // Translation server URL is special-cased
-    translation_server_url_ = GetHostTranslationServerUrl();
-
-    enhancement_maps_directory_ = config_section.getString(GetIniKeyString(ENHANCEMENT_MAPS_DIRECTORY));
-    group_names_ = config_section.getString(GetIniKeyString(GROUP_NAMES));
-    strptime_format_string_ = config_section.getString(GetIniKeyString(STRPTIME_FORMAT_STRING));
-    skip_online_first_articles_unconditonally_ = config_section.getBool(GetIniKeyString(SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY));
-    download_delay_params_.default_delay_ = config_section.getUnsigned(GetIniKeyString(DOWNLOAD_DELAY_DEFAULT));
-    download_delay_params_.max_delay_ = config_section.getUnsigned(GetIniKeyString(DOWNLOAD_DELAY_MAX));
-    timeout_crawl_operation_ = config_section.getUnsigned(GetIniKeyString(TIMEOUT_CRAWL_OPERATION)) * 1000;
-    timeout_download_request_ = config_section.getUnsigned(GetIniKeyString(TIMEOUT_DOWNLOAD_REQUEST)) * 1000;
-    rss_harvester_operation_params_.harvest_interval_ = config_section.getUnsigned(GetIniKeyString(RSS_HARVEST_INTERVAL));
-    rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_ = config_section.getBool(GetIniKeyString(RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES));
-
-    if (not strptime_format_string_.empty()) {
-        if (strptime_format_string_[0] == '(')
-            LOG_ERROR("Cannot specify locale in global strptime_format");
-    }
-}
-
-
 const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MAP {
     { ENHANCEMENT_MAPS_DIRECTORY,                 "enhancement_maps_directory" },
     { GROUP_NAMES,                                "groups" },
@@ -97,11 +69,109 @@ const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MA
     { SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY, "skip_online_first_articles_unconditionally" },
     { DOWNLOAD_DELAY_DEFAULT,                     "default_download_delay_time" },
     { DOWNLOAD_DELAY_MAX,                         "max_download_delay_time" },
-    { RSS_HARVEST_INTERVAL,                       "journal_rss_harvest_interval" },
-    { RSS_FORCE_PROCESS_FEEDS_WITH_NO_PUB_DATES,  "force_process_feeds_with_no_pub_dates" },
+    { REVIEW_REGEX,                               "zotero_review_regex" },
     { TIMEOUT_CRAWL_OPERATION,                    "timeout_crawl_operation" },
     { TIMEOUT_DOWNLOAD_REQUEST,                   "timeout_download_request" },
 };
+
+
+static const auto PREFIX_DEFAULT_DOWNLOAD_DELAY_TIME("default_download_delay_time_");
+static const auto PREFIX_MAX_DOWNLOAD_DELAY_TIME("max_download_delay_time_");
+static const auto PREFIX_OVERRIDE_JSON_FIELD("override_json_field_");
+static const auto PREFIX_SUPPRESS_JSON_FIELD("suppress_json_field_");
+static const auto PREFIX_EXCLUDE_JSON_FIELD("exclude_if_json_field_");
+static const auto PREFIX_ADD_MARC_FIELD("add_marc_field_");
+static const auto PREFIX_REMOVE_MARC_FIELD("remove_marc_field_");
+static const auto PREFIX_REMOVE_MARC_SUBFIELD("remove_marc_subfield_");
+static const auto PREFIX_EXCLUDE_MARC_FIELD("exclude_if_marc_field_");
+
+
+bool DownloadDelayParams::IsValidIniEntry(const IniFile::Entry &entry) {
+    return (StringUtil::StartsWith(entry.name_, PREFIX_DEFAULT_DOWNLOAD_DELAY_TIME)
+            or StringUtil::StartsWith(entry.name_, PREFIX_MAX_DOWNLOAD_DELAY_TIME));
+}
+
+
+DownloadDelayParams::DownloadDelayParams(const IniFile::Section &config_section) {
+    default_delay_in_ms_ = 0;
+    max_delay_in_ms_ = 0;
+    for (const auto &entry : config_section) {
+        if (entry.name_ == GlobalParams::GetIniKeyString(GlobalParams::DOWNLOAD_DELAY_DEFAULT))
+            default_delay_in_ms_ = StringUtil::ToUnsigned(entry.value_);
+        else if (entry.name_ == GlobalParams::GetIniKeyString(GlobalParams::DOWNLOAD_DELAY_MAX))
+            max_delay_in_ms_ = StringUtil::ToUnsigned(entry.value_);
+        else if (StringUtil::StartsWith(entry.name_, PREFIX_DEFAULT_DOWNLOAD_DELAY_TIME)) {
+            const auto domain_name(entry.name_.substr(__builtin_strlen(PREFIX_DEFAULT_DOWNLOAD_DELAY_TIME)));
+            domain_to_default_delay_map_[domain_name] = StringUtil::ToUnsigned(entry.value_);
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_MAX_DOWNLOAD_DELAY_TIME)) {
+            const auto domain_name(entry.name_.substr(__builtin_strlen(PREFIX_MAX_DOWNLOAD_DELAY_TIME)));
+            domain_to_default_delay_map_[domain_name] = StringUtil::ToUnsigned(entry.value_);
+        }
+    }
+}
+
+
+bool ZoteroMetadataParams::IsValidIniEntry(const IniFile::Entry &entry) {
+    return (StringUtil::StartsWith(entry.name_, PREFIX_OVERRIDE_JSON_FIELD)
+            or StringUtil::StartsWith(entry.name_, PREFIX_SUPPRESS_JSON_FIELD)
+            or StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_JSON_FIELD));
+}
+
+
+ZoteroMetadataParams::ZoteroMetadataParams(const IniFile::Section &config_section) {
+    for (const auto &entry : config_section) {
+        if (StringUtil::StartsWith(entry.name_, PREFIX_OVERRIDE_JSON_FIELD)) {
+            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_OVERRIDE_JSON_FIELD)));
+            fields_to_override_.insert(std::make_pair(field_name, entry.value_));
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_SUPPRESS_JSON_FIELD)) {
+            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_SUPPRESS_JSON_FIELD)));
+            fields_to_suppress_.insert(std::make_pair(field_name,
+                                       std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_JSON_FIELD)) {
+            const auto metadata_name(entry.name_.substr(__builtin_strlen(PREFIX_EXCLUDE_JSON_FIELD)));
+            exclusion_filters_.insert(std::make_pair(metadata_name,
+                                      std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
+        }
+    }
+}
+
+
+bool MarcMetadataParams::IsValidIniEntry(const IniFile::Entry &entry) {
+    return (StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD)
+            or StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_FIELD)
+            or StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_SUBFIELD)
+            or StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_MARC_FIELD));
+}
+
+
+MarcMetadataParams::MarcMetadataParams(const IniFile::Section &config_section) {
+    for (const auto &entry : config_section) {
+        if (StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD))
+            fields_to_add_.emplace_back(entry.value_);
+        else if (StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_MARC_FIELD)) {
+            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_EXCLUDE_MARC_FIELD)));
+            if (field_name.length() != MARC::Record::TAG_LENGTH and field_name.length() != MARC::Record::TAG_LENGTH + 1)
+                LOG_ERROR("invalid exclusion field name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
+
+            exclusion_filters_.insert(std::make_pair(field_name,
+                                      std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_FIELD)) {
+            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_REMOVE_MARC_FIELD)));
+            if (field_name.length() != MARC::Record::TAG_LENGTH + 1)
+                LOG_ERROR("invalid removal filter name '" + field_name + "'! expected format: <tag><subfield_code>");
+
+            fields_to_remove_.insert(std::make_pair(field_name,
+                                     std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_SUBFIELD)) {
+            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_REMOVE_MARC_SUBFIELD)));
+            if (field_name.length() != MARC::Record::TAG_LENGTH + 1)
+                LOG_ERROR("invalid subfield removal filter name '" + field_name + "'! expected format: <tag><subfield_code>");
+
+            subfields_to_remove_.insert(std::make_pair(field_name,
+                                     std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
+        }
+    }
+}
 
 
 std::string GlobalParams::GetIniKeyString(const IniKey ini_key) {
@@ -112,13 +182,37 @@ std::string GlobalParams::GetIniKeyString(const IniKey ini_key) {
 }
 
 
-GroupParams::GroupParams(const IniFile::Section &group_section) {
-    name_ = group_section.getSectionName();
-    user_agent_ = group_section.getString(GetIniKeyString(USER_AGENT));
-    isil_ = group_section.getString(GetIniKeyString(ISIL));
-    output_folder_ = group_section.getString(GetIniKeyString(OUTPUT_FOLDER));
-    author_swb_lookup_url_ = group_section.getString(GetIniKeyString(AUTHOR_SWB_LOOKUP_URL));
-    author_lobid_lookup_query_params_ = group_section.getString(GetIniKeyString(AUTHOR_LOBID_LOOKUP_QUERY_PARAMS), "");
+GlobalParams::GlobalParams(const IniFile::Section &config_section) {
+    skip_online_first_articles_unconditonally_ = false;
+
+    // Translation server URL is special-cased
+    translation_server_url_ = GetHostTranslationServerUrl();
+
+    enhancement_maps_directory_ = config_section.getString(GetIniKeyString(ENHANCEMENT_MAPS_DIRECTORY));
+    group_names_ = config_section.getString(GetIniKeyString(GROUP_NAMES));
+    strptime_format_string_ = config_section.getString(GetIniKeyString(STRPTIME_FORMAT_STRING));
+    skip_online_first_articles_unconditonally_ = config_section.getBool(GetIniKeyString(SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY));
+    timeout_crawl_operation_ = config_section.getUnsigned(GetIniKeyString(TIMEOUT_CRAWL_OPERATION)) * 1000;
+    timeout_download_request_ = config_section.getUnsigned(GetIniKeyString(TIMEOUT_DOWNLOAD_REQUEST)) * 1000;
+
+    const auto review_regex(config_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
+    if (not review_regex.empty())
+        review_regex_.reset(new ThreadSafeRegexMatcher(review_regex));
+
+    zotero_metadata_params_ = ZoteroMetadataParams(config_section);
+    marc_metadata_params_ = MarcMetadataParams(config_section);
+
+    if (not strptime_format_string_.empty()) {
+        if (strptime_format_string_[0] == '(')
+            LOG_ERROR("Cannot specify locale in global strptime_format");
+    }
+
+    download_delay_params_ = DownloadDelayParams(config_section);
+
+    CheckIniSection(config_section, GlobalParams::KEY_TO_STRING_MAP,
+                    { DownloadDelayParams::IsValidIniEntry,
+                      ZoteroMetadataParams::IsValidIniEntry,
+                      MarcMetadataParams::IsValidIniEntry });
 }
 
 
@@ -129,6 +223,18 @@ const std::map<GroupParams::IniKey, std::string> GroupParams::KEY_TO_STRING_MAP 
     { AUTHOR_SWB_LOOKUP_URL,            "author_swb_lookup_url" },
     { AUTHOR_LOBID_LOOKUP_QUERY_PARAMS, "author_lobid_lookup_query_params" },
 };
+
+
+GroupParams::GroupParams(const IniFile::Section &group_section) {
+    name_ = group_section.getSectionName();
+    user_agent_ = group_section.getString(GetIniKeyString(USER_AGENT));
+    isil_ = group_section.getString(GetIniKeyString(ISIL));
+    output_folder_ = group_section.getString(GetIniKeyString(OUTPUT_FOLDER));
+    author_swb_lookup_url_ = group_section.getString(GetIniKeyString(AUTHOR_SWB_LOOKUP_URL));
+    author_lobid_lookup_query_params_ = group_section.getString(GetIniKeyString(AUTHOR_LOBID_LOOKUP_QUERY_PARAMS), "");
+
+    CheckIniSection(group_section, GroupParams::KEY_TO_STRING_MAP);
+}
 
 
 std::string GroupParams::GetIniKeyString(const IniKey ini_key) {
@@ -151,10 +257,61 @@ JournalParams::JournalParams(const GlobalParams &global_params) {
     issn_.online_ = "Default ISSN";
     strptime_format_string_ = global_params.strptime_format_string_;
     update_window_ = 0;
-    language_params_.force_automatic_language_detection_ = false;
-    language_params_.expected_languages_.emplace("eng");
     crawl_params_.max_crawl_depth_ = 1;
+    selective_evaluation_ = false;
+    force_language_detection_ = false;
 }
+
+
+const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_MAP {
+    { ZEDER_ID,                 "zeder_id"                  },
+    { ZEDER_MODIFIED_TIME,      "zeder_modified_time"       },
+    { ZEDER_NEWLY_SYNCED_ENTRY, "zeder_newly_synced_entry"  },
+    { GROUP,                    "zotero_group"              },
+    { ENTRY_POINT_URL,          "zotero_url"                },
+    { HARVESTER_OPERATION,      "zotero_type"               },
+    { UPLOAD_OPERATION,         "zotero_delivery_mode"      },
+    { ONLINE_PPN,               "online_ppn"                },
+    { PRINT_PPN,                "print_ppn"                 },
+    { ONLINE_ISSN,              "online_issn"               },
+    { PRINT_ISSN,               "print_issn"                },
+    { SSGN,                     "ssgn"                      },
+    { LICENSE,                  "license"                   },
+    { SELECTIVE_EVALUATION,     "selective_evaluation"      },
+    { FORCE_LANGUAGE_DETECTION, "force_language_detection"  },
+    { STRPTIME_FORMAT_STRING,   "zotero_strptime_format"    },
+    { UPDATE_WINDOW,            "zotero_update_window"      },
+    { REVIEW_REGEX,             "zotero_review_regex"       },
+    { EXPECTED_LANGUAGES,       "zotero_expected_languages" },
+    { CRAWL_MAX_DEPTH,          "zotero_max_crawl_depth"    },
+    { CRAWL_EXTRACTION_REGEX,   "zotero_extraction_regex"   },
+    { CRAWL_URL_REGEX,          "zotero_crawl_url_regex"    },
+};
+
+const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_MAP {
+    { "zeder_id",                  ZEDER_ID                 },
+    { "zeder_modified_time",       ZEDER_MODIFIED_TIME      },
+    { "zeder_newly_synced_entry",  ZEDER_NEWLY_SYNCED_ENTRY },
+    { "zotero_group",              GROUP                    },
+    { "zotero_url",                ENTRY_POINT_URL          },
+    { "zotero_type",               HARVESTER_OPERATION      },
+    { "zotero_delivery_mode",      UPLOAD_OPERATION         },
+    { "online_ppn",                ONLINE_PPN               },
+    { "print_ppn",                 PRINT_PPN                },
+    { "online_issn",               ONLINE_ISSN              },
+    { "print_issn",                PRINT_ISSN               },
+    { "ssgn",                      SSGN                     },
+    { "license",                   LICENSE                  },
+    { "selective_evaluation",      SELECTIVE_EVALUATION     },
+    { "force_language_detection",  FORCE_LANGUAGE_DETECTION },
+    { "zotero_strptime_format",    STRPTIME_FORMAT_STRING   },
+    { "zotero_update_window",      UPDATE_WINDOW            },
+    { "zotero_review_regex",       REVIEW_REGEX             },
+    { "zotero_expected_languages", EXPECTED_LANGUAGES       },
+    { "zotero_max_crawl_depth",    CRAWL_MAX_DEPTH          },
+    { "zotero_extraction_regex",   CRAWL_EXTRACTION_REGEX   },
+    { "zotero_crawl_url_regex",    CRAWL_URL_REGEX          },
+};
 
 
 JournalParams::JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params) {
@@ -181,6 +338,8 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     update_window_ = journal_section.getUnsigned(GetIniKeyString(UPDATE_WINDOW), 0);
     ssgn_ = journal_section.getString(GetIniKeyString(SSGN), "");
     license_ = journal_section.getString(GetIniKeyString(LICENSE), "");
+    selective_evaluation_ = journal_section.getBool(GetIniKeyString(SELECTIVE_EVALUATION), false);
+    force_language_detection_ = journal_section.getBool(GetIniKeyString(FORCE_LANGUAGE_DETECTION), false);
 
     const auto review_regex(journal_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
     if (not review_regex.empty())
@@ -200,91 +359,12 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
         crawl_params_.crawl_url_regex_.reset(new ThreadSafeRegexMatcher(crawl_regex));
 
     // repeatable fields
-    static const auto PREFIX_OVERRIDE_JSON_FIELD("override_json_field_");
-    static const auto PREFIX_SUPPRESS_JSON_FIELD("suppress_json_field_");
-    static const auto PREFIX_EXCLUDE_JSON_FIELD("exclude_if_json_field_");
-    static const auto PREFIX_ADD_MARC_FIELD("add_marc_field_");
-    static const auto PREFIX_REMOVE_MARC_FIELD("remove_marc_field_");
-    static const auto PREFIX_EXCLUDE_MARC_FIELD("exclude_if_marc_field_");
+    zotero_metadata_params_ = ZoteroMetadataParams(journal_section);
+    marc_metadata_params_ = MarcMetadataParams(journal_section);
 
-    for (const auto &entry : journal_section) {
-        if (StringUtil::StartsWith(entry.name_, PREFIX_OVERRIDE_JSON_FIELD)) {
-            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_OVERRIDE_JSON_FIELD)));
-            zotero_metadata_params_.fields_to_override_.insert(std::make_pair(field_name, entry.value_));
-        } else if (StringUtil::StartsWith(entry.name_, PREFIX_SUPPRESS_JSON_FIELD)) {
-            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_SUPPRESS_JSON_FIELD)));
-            zotero_metadata_params_.fields_to_suppress_.insert(std::make_pair(field_name,
-                                                               std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
-        } else if (StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD))
-            marc_metadata_params_.fields_to_add_.emplace_back(entry.value_);
-        else if (StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_MARC_FIELD)) {
-            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_EXCLUDE_MARC_FIELD)));
-            if (field_name.length() != MARC::Record::TAG_LENGTH and field_name.length() != MARC::Record::TAG_LENGTH + 1)
-                LOG_ERROR("invalid exclusion field name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
-
-            marc_metadata_params_.exclusion_filters_.insert(std::make_pair(field_name,
-                                                            std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
-        } else if (StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_JSON_FIELD)) {
-            const auto metadata_name(entry.name_.substr(__builtin_strlen(PREFIX_EXCLUDE_JSON_FIELD)));
-            zotero_metadata_params_.exclusion_filters_.insert(std::make_pair(metadata_name,
-                                                              std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
-        } else if (StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_FIELD)) {
-            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_REMOVE_MARC_FIELD)));
-            if (field_name.length() != MARC::Record::TAG_LENGTH + 1)
-                LOG_ERROR("invalid removal filter name '" + field_name + "'! expected format: <tag><subfield_code>");
-
-            marc_metadata_params_.fields_to_remove_.insert(std::make_pair(field_name,
-                                                           std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
-        }
-    }
+    CheckIniSection(journal_section, JournalParams::KEY_TO_STRING_MAP,
+                    { ZoteroMetadataParams::IsValidIniEntry, MarcMetadataParams::IsValidIniEntry });
 }
-
-
-const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_MAP {
-    { ZEDER_ID,                 "zeder_id"                  },
-    { ZEDER_MODIFIED_TIME,      "zeder_modified_time"       },
-    { ZEDER_NEWLY_SYNCED_ENTRY, "zeder_newly_synced_entry"  },
-    { GROUP,                    "zotero_group"              },
-    { ENTRY_POINT_URL,          "zotero_url"                },
-    { HARVESTER_OPERATION,      "zotero_type"               },
-    { UPLOAD_OPERATION,         "zotero_delivery_mode"      },
-    { ONLINE_PPN,               "online_ppn"                },
-    { PRINT_PPN,                "print_ppn"                 },
-    { ONLINE_ISSN,              "online_issn"               },
-    { PRINT_ISSN,               "print_issn"                },
-    { SSGN,                     "ssgn"                      },
-    { LICENSE,                  "license"                   },
-    { STRPTIME_FORMAT_STRING,   "zotero_strptime_format"    },
-    { UPDATE_WINDOW,            "zotero_update_window"      },
-    { REVIEW_REGEX,             "zotero_review_regex"       },
-    { EXPECTED_LANGUAGES,       "zotero_expected_languages" },
-    { CRAWL_MAX_DEPTH,          "zotero_max_crawl_depth"    },
-    { CRAWL_EXTRACTION_REGEX,   "zotero_extraction_regex"   },
-    { CRAWL_URL_REGEX,          "zotero_crawl_url_regex"    },
-};
-
-const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_MAP {
-    { "zeder_id",                  ZEDER_ID                 },
-    { "zeder_modified_time",       ZEDER_MODIFIED_TIME      },
-    { "zeder_newly_synced_entry",  ZEDER_NEWLY_SYNCED_ENTRY },
-    { "zotero_group",              GROUP                    },
-    { "zotero_url",                ENTRY_POINT_URL          },
-    { "zotero_type",               HARVESTER_OPERATION      },
-    { "zotero_delivery_mode",      UPLOAD_OPERATION         },
-    { "online_ppn",                ONLINE_PPN               },
-    { "print_ppn",                 PRINT_PPN                },
-    { "online_issn",               ONLINE_ISSN              },
-    { "print_issn",                PRINT_ISSN               },
-    { "ssgn",                      SSGN                     },
-    { "license",                   LICENSE                  },
-    { "zotero_strptime_format",    STRPTIME_FORMAT_STRING   },
-    { "zotero_update_window",      UPDATE_WINDOW            },
-    { "zotero_review_regex",       REVIEW_REGEX             },
-    { "zotero_expected_languages", EXPECTED_LANGUAGES       },
-    { "zotero_max_crawl_depth",    CRAWL_MAX_DEPTH          },
-    { "zotero_extraction_regex",   CRAWL_EXTRACTION_REGEX   },
-    { "zotero_crawl_url_regex",    CRAWL_URL_REGEX          },
-};
 
 
 std::string JournalParams::GetIniKeyString(const IniKey ini_key) {
@@ -372,13 +452,10 @@ bool ParseExpectedLanguages(const std::string &expected_languages_string, Langua
     if (expected_languages_string.empty())
         return true;
 
+    // force? (deprecated, treat as invalid)
     std::string expected_languages(expected_languages_string);
-
-    // force?
-    if (not expected_languages_string.empty() and expected_languages[0] == '*') {
-        language_params->force_automatic_language_detection_ = true;
-        expected_languages = expected_languages.substr(1);
-    }
+    if (expected_languages[0] == '*')
+        return false;
 
     // source text fields
     const auto field_separator_pos(expected_languages.find(':'));

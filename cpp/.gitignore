@@ -76,7 +76,6 @@
 /installer
 /jop_grep
 /journal_publishing_processor
-/journal_timeliness_checker
 /json_grep
 /krimdok_marc_pipeline.sh_no_fulltext
 /lcsh_stats
@@ -90,6 +89,7 @@
 /mysql_list_tables
 /new_journal_alert
 /new_journal_tool
+/ngram_stats
 /normalise_and_deduplicate_language
 /normalise_author_name
 /normalise_marc_contents
@@ -125,15 +125,6 @@
 /translation_keyword_stats
 /update_full_text_db
 /urlencode
-/update_sent_records
-/validate_harvested_records
-/zeder_count_imported
-/zeder_entry_downloader
-/zeder_ppn_to_title_importer
-/zeder_to_zotero_importer
-/zotero_cgi
-/zotero_enhancement_maps_generator
-/zotero_harvester
 
 # other excludes
 iViaCore-mkdep

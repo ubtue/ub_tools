@@ -1,7 +1,7 @@
 /** \brief Utility classes related to the Zotero Harvester
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -539,11 +539,19 @@ template <typename Parameter, typename Result> Result &Future<Parameter, Result>
 class UploadTracker {
     static constexpr unsigned CONNECTION_POOL_SIZE = 50;
 public:
+    enum DeliveryState : unsigned { AUTOMATIC, MANUAL, ERROR, IGNORE, RESET };
+    static const std::map<DeliveryState, std::string> DELIVERY_STATE_TO_STRING_MAP;
+    static const std::map<std::string, DeliveryState> STRING_TO_DELIVERY_STATE_MAP;
+    static const std::set<DeliveryState> DELIVERY_STATES_TO_RETRY;
+
     struct Entry {
+        unsigned id_;
         std::string url_;
         std::string main_title_;
         unsigned zeder_id_;
         std::string zeder_instance_;
+        DeliveryState delivery_state_;
+        std::string error_message_;
         time_t delivered_at_;
         std::string delivered_at_str_;
         std::string hash_;
@@ -555,9 +563,14 @@ private:
 public:
     explicit UploadTracker(): connection_pool_semaphore_(CONNECTION_POOL_SIZE) {}
 
-    bool urlAlreadyDelivered(const std::string &url, Entry * const entry = nullptr) const;
-    bool hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries = nullptr) const;
-    bool recordAlreadyDelivered(const MARC::Record &record) const;
+    bool urlAlreadyInDatabase(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore = {},
+                              Entry * const entry = nullptr) const;
+    bool hashAlreadyInDatabase(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore = {},
+                               std::vector<Entry> * const entries = nullptr) const;
+    bool recordAlreadyInDatabase(const MARC::Record &record, const std::set<DeliveryState> &delivery_states_to_ignore = {},
+                                 std::vector<Entry> * const entries = nullptr) const;
+
+    bool journalHasRecordToRetry(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) const;
 
     std::vector<Entry> getEntriesByZederIdAndFlavour(const unsigned zeder_id, const Zeder::Flavour zeder_flavour);
 
@@ -569,15 +582,18 @@ public:
 
     // Saves the record blob and its associated metadata in the host's database.
     // Returns true on success, false otherwise.
-    bool archiveRecord(const MARC::Record &record);
+    bool archiveRecord(const MARC::Record &record, const DeliveryState delivery_state, const std::string &error_message = "");
 
     static std::string GetZederInstanceString(const Zeder::Flavour zeder_flavour);
+    static std::string GetZederInstanceString(const std::string &group);
 private:
-    bool urlAlreadyDelivered(const std::string &url, Entry * const entry, DbConnection * const db_connection) const;
-    bool hashAlreadyDelivered(const std::string &hash, std::vector<Entry> * const entries,
+    bool urlAlreadyInDatabase(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore, Entry * const entry,
                               DbConnection * const db_connection) const;
-    bool recordAlreadyDelivered(const std::string &record_hash, const std::set<std::string> &record_urls,
-                                DbConnection * const db_connection) const;
+    bool hashAlreadyInDatabase(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore,
+                               std::vector<Entry> * const entries, DbConnection * const db_connection) const;
+    bool recordAlreadyInDatabase(const std::string &record_hash, const std::set<std::string> &record_urls,
+                                 const std::set<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
+                                 DbConnection * const db_connection) const;
 };
 
 

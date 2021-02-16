@@ -9,9 +9,9 @@ function SendEmail {
         exit 0
     else
         send_email --priority=high --recipients="$email_address" --subject="$0 failed on $(hostname)"  \
-                   --message-body="$(printf '%q' "$(echo -e "Check /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log for details.\n\n"" \
+                   --message-body="$(printf '%q' "$(echo -e "Check /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log for details.\n\n" \
                                      "$(tail -20 /usr/local/var/log/tuefind/merge_differential_and_full_marc_updates.log)" \
-                                     "'\n')")"
+                                        "'\n'")")"
         exit 1
     fi
 }
@@ -94,6 +94,7 @@ input_directory=$extraction_directory
 
 declare -i counter=0
 last_temp_directory=
+temp_directory=
 > entire_record_deletion.log
 for update in $(generate_merge_order | tail --lines=+2); do
     ((++counter))

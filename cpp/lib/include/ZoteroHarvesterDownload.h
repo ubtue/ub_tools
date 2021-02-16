@@ -47,6 +47,15 @@ namespace ZoteroHarvester {
 namespace Download {
 
 
+// Temporarily reduced in order to see if this results in fewer errors
+static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 5;
+static constexpr unsigned MAX_CRAWLING_TASKLETS        = 5;
+static constexpr unsigned MAX_RSS_TASKLETS             = 5;
+// Set to 20 empirically. Larger numbers increase the incidence of the
+// translation server bug that returns an empty/broken response.
+static constexpr unsigned MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS = 15;
+
+
 class DownloadManager;
 
 
@@ -144,22 +153,26 @@ struct Result {
     unsigned num_crawled_unsuccessful_;
     unsigned num_crawled_cache_hits_;
     unsigned num_queued_for_harvest_;
+    unsigned num_skipped_since_already_delivered_;
     std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
 public:
     explicit Result()
         : num_crawled_successful_(0), num_crawled_unsuccessful_(0), num_crawled_cache_hits_(0),
-          num_queued_for_harvest_(0) {}
+          num_queued_for_harvest_(0), num_skipped_since_already_delivered_(0) {}
     Result(const Result &rhs) = delete;
 };
 
 
 class Tasklet : public Util::Tasklet<Params, Result> {
     DownloadManager * const download_manager_;
+    const Util::UploadTracker &upload_tracker_;
+    bool force_downloads_;
 
     void run(const Params &parameters, Result * const result);
 public:
     Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
-            DownloadManager * const download_manager, std::unique_ptr<Params> parameters);
+            DownloadManager * const download_manager, const Util::UploadTracker &upload_tracker,
+            std::unique_ptr<Params> parameters, const bool force_downloads);
     virtual ~Tasklet() override = default;
 };
 
@@ -236,10 +249,10 @@ public:
 
 
 struct Result {
-    bool feed_skipped_since_recently_harvested_;
+    unsigned items_skipped_since_already_delivered_;
     std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
 public:
-    explicit Result(): feed_skipped_since_recently_harvested_(false) {}
+    explicit Result(): items_skipped_since_already_delivered_(0) {}
     Result(const Result &rhs) = delete;
 };
 
@@ -248,16 +261,11 @@ class Tasklet : public Util::Tasklet<Params, Result> {
     DownloadManager * const download_manager_;
     const Util::UploadTracker &upload_tracker_;
     bool force_downloads_;
-    unsigned feed_harvest_interval_;
-    bool force_process_feeds_with_no_pub_dates_;
 
     void run(const Params &parameters, Result * const result);
-    bool feedNeedsToBeHarvested(const std::string &feed_contents, const Config::JournalParams &journal_params,
-                                const SyndicationFormat::AugmentParams &syndication_format_site_params) const;
 public:
     Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
-            std::unique_ptr<Params> parameters, const Util::UploadTracker &upload_tracker, const bool force_downloads,
-            const unsigned feed_harvest_interval, const bool force_process_feeds_with_no_pub_dates);
+            std::unique_ptr<Params> parameters, const Util::UploadTracker &upload_tracker, const bool force_downloads);
     virtual ~Tasklet() override = default;
 };
 
@@ -266,9 +274,9 @@ public:
 
 
 // Orchestrates all downloads and manages the relevant state. Consumers of this class can
-// queue downloads as it they were synchronous operations and await their results at a later
+// queue downloads as if they were synchronous operations and await their results at a later
 // point in time. RSS and Crawl operations are decomposed into individual DirectDownload operations
-// wherever possible. DirectDownload operations are categorised based on their URLs domain name.
+// wherever possible. DirectDownload operations are categorised based on their URLs' domain name.
 // Each domain has its own queue for each type of operation and its corresponding rate-limiting
 // parameters. The rate-limiter ensures that there is no more than one download executing per
 // domain at a given point in time (unless overriden globally). Successful DirectDownload operations
@@ -283,12 +291,9 @@ class DownloadManager {
 public:
     struct GlobalParams {
         Url translation_server_url_;
-        unsigned default_download_delay_time_;
-        unsigned max_download_delay_time_;
+        Config::DownloadDelayParams download_delay_params_;
         unsigned timeout_download_request_;
         unsigned timeout_crawl_operation_;
-        unsigned rss_feed_harvest_interval_;
-        bool force_process_rss_feeds_with_no_pub_dates_;
         bool ignore_robots_txt_;
         bool force_downloads_;
         Util::HarvestableItemManager * const harvestable_manager_;
@@ -344,11 +349,6 @@ private:
         DirectDownload::Operation operation_;
         std::string response_body_;
     };
-
-
-    static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 50;
-    static constexpr unsigned MAX_CRAWLING_TASKLETS        = 50;
-    static constexpr unsigned MAX_RSS_TASKLETS             = 50;
 
 
     GlobalParams global_params_;

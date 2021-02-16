@@ -55,7 +55,7 @@
 namespace FileUtil {
 
 
-bool ReadLines::const_iterator::operator==(const const_iterator &rhs) {
+bool ReadLines::const_iterator::operator==(const const_iterator &rhs) const {
     if (file_ == rhs.file_)
         return true;
 
@@ -190,7 +190,9 @@ void Directory::const_iterator::advance() {
         if (regex_matcher_->matched(entry_.name_)) {
             if (::stat((entry_.dirname_ + "/" + entry_.name_).c_str(), &entry_.statbuf_) == 0)
                 return;
-            else if (errno != ENOENT)
+            else if (errno == ENOENT)
+                errno = 0;
+            else
                 throw std::runtime_error("in FileUtil::Directory::const_iterator::advance: stat(2) on \""
                                          + entry_.dirname_ + "/" + entry_.name_ + " \"failed! ("
                                          + std::string(std::strerror(errno)) + ")");
@@ -212,7 +214,7 @@ void Directory::const_iterator::operator++() {
 }
 
 
-bool Directory::const_iterator::operator==(const const_iterator &rhs) {
+bool Directory::const_iterator::operator==(const const_iterator &rhs) const {
     if (rhs.dir_handle_ == nullptr and dir_handle_ == nullptr)
         return true;
     if ((rhs.dir_handle_ == nullptr and dir_handle_ != nullptr)
