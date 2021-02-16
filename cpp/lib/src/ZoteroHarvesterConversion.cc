@@ -518,7 +518,7 @@ std::string TikaDetectLanguage(const std::string &record_text) {
         LOG_ERROR("Could not send data to Tika server");
     const std::string tika_detected_language(downloader.getMessageBody());
     if (tika_detected_language.empty())
-        return "Unknown language";
+        return "";
     return Config::GetNormalizedLanguage(tika_detected_language);
 }
 
@@ -554,6 +554,14 @@ void DetectLanguage(MetadataRecord * const metadata_record, const Config::Journa
         else
             LOG_ERROR("unknown text field '" + journal_params.language_params_.source_text_fields_ + "' for language detection");
         detected_language = TikaDetectLanguage(record_text);
+        // Fallback to custom NGram
+        if (detected_language.empty()) {
+            std::vector<NGram::DetectedLanguage> detected_languages;
+            NGram::ClassifyLanguage(record_text, &detected_languages, journal_params.language_params_.expected_languages_,
+                                 /*alternative_cutoff_factor = */ 0);
+            const auto top_language(detected_languages.front());
+            detected_language = top_language.language_;
+        }
     }
 
     // compare given language to detected language
