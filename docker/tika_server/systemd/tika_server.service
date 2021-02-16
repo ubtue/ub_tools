@@ -1,0 +1,12 @@
+[Unit]
+Description=Tika Server
+Documentation=https://github.com/apache/tika/tree/master/tika-server
+
+[Service]
+Type=forking
+ExecStart=/usr/local/ub_tools/docker/tika_server/systemd/start.sh
+ExecStop=/usr/local/ub_tools/docker/tika_server/systemd/stop.sh
+PIDFile=/var/run/apache_tika.pid
+
+[Install]
+WantedBy=multi-user.target
