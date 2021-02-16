@@ -511,6 +511,18 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
 }
 
 
+const std::string TIKA_SERVER_DETECT_STRING_LANGUAGE_URL("http://localhost:9998/language/string");
+std::string TikaDetectLanguage(const std::string &record_text) {
+    Downloader downloader;
+    if (not downloader.putData(TIKA_SERVER_DETECT_STRING_LANGUAGE_URL, record_text))
+        LOG_ERROR("Could not send data to Tika server");
+    const std::string tika_detected_language(downloader.getMessageBody());
+    if (tika_detected_language.empty())
+        return "";
+    return Config::GetNormalizedLanguage(tika_detected_language);
+}
+
+
 void DetectLanguage(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params) {
     // Normalize given language
     if (not Config::IsAllowedLanguage(metadata_record->language_)) {
@@ -541,12 +553,15 @@ void DetectLanguage(MetadataRecord * const metadata_record, const Config::Journa
             record_text = metadata_record->title_ + " " + metadata_record->abstract_note_;
         else
             LOG_ERROR("unknown text field '" + journal_params.language_params_.source_text_fields_ + "' for language detection");
-
-        std::vector<NGram::DetectedLanguage> detected_languages;
-        NGram::ClassifyLanguage(record_text, &detected_languages, journal_params.language_params_.expected_languages_,
-                                /*alternative_cutoff_factor = */ 0);
-        const auto top_language(detected_languages.front());
-        detected_language = top_language.language_;
+        detected_language = TikaDetectLanguage(record_text);
+        // Fallback to custom NGram
+        if (detected_language.empty()) {
+            std::vector<NGram::DetectedLanguage> detected_languages;
+            NGram::ClassifyLanguage(record_text, &detected_languages, journal_params.language_params_.expected_languages_,
+                                 /*alternative_cutoff_factor = */ 0);
+            const auto top_language(detected_languages.front());
+            detected_language = top_language.language_;
+        }
     }
 
     // compare given language to detected language
@@ -556,7 +571,10 @@ void DetectLanguage(MetadataRecord * const metadata_record, const Config::Journa
             metadata_record->language_ = detected_language;
         } else if (detected_language == metadata_record->language_)
             LOG_INFO("The given language is equal to the detected language: " + detected_language);
-        else {
+        else if (journal_params.force_language_detection_) {
+            LOG_INFO ("Force language detection active - using detected language: " + detected_language);
+            metadata_record->language_ = detected_language;
+        } else {
             LOG_INFO("The given language " + metadata_record->language_ +  " and the detected language " + detected_language + " are different. "
                      "No language will be set.");
             metadata_record->language_.clear();
