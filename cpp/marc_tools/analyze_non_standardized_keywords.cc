@@ -68,7 +68,7 @@ void ProcessField(const MARC::Record::Field &field, const std::unordered_set<std
                   unsigned * const matched_count, unsigned * const not_matched_count)
 {
     const auto subfields(field.getSubfields());
-    for (const auto subfield_and_code : subfields) {
+    for (const auto &subfield_and_code : subfields) {
         if (subfield_and_code.code_ != 'a')
             continue;
 
@@ -115,7 +115,7 @@ void ListUnmatchedKeywords(File * const output,
     std::sort(unmatched_keywords_and_counts.begin(), unmatched_keywords_and_counts.end(),
               [](const auto &a, const auto &b){ return a.second > b.second; });// Sort in descending order of counts.
 
-    for (const auto [keyword, count] : unmatched_keywords_and_counts)
+    for (const auto &[keyword, count] : unmatched_keywords_and_counts)
         (*output) << keyword << " -> " << count << '\n';
 }
 

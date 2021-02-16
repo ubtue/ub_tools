@@ -1524,14 +1524,33 @@ std::string CanonizeCharset(std::string charset) {
 }
 
 
-bool UnicodeTruncate(std::string * const utf8_string, const size_t max_length) {
-    std::wstring wchar_string;
-    if (not UTF8ToWCharString(*utf8_string, &wchar_string))
-        return false;
+std::string &UTF8Truncate(std::string * const utf8_string, const size_t max_length) {
+    size_t codepoint_count(0);
+    auto cp(utf8_string->cbegin());
+    while (codepoint_count < max_length and cp != utf8_string->cend()) {
+        ++codepoint_count;
+        cp = GetEndOfCurrentUTF8CodePoint(cp, utf8_string->cend());
+    }
+    utf8_string->resize(cp - utf8_string->cbegin());
 
-    wchar_string.resize(max_length);
+    return *utf8_string;
+}
 
-    return WCharToUTF8String(wchar_string, utf8_string);
+
+std::string &UTF8ByteTruncate(std::string * const utf8_string, const size_t max_length) {
+    size_t byte_count(0);
+    auto cp(utf8_string->cbegin());
+    while (cp != utf8_string->cend()) {
+        auto cp2(GetEndOfCurrentUTF8CodePoint(cp, utf8_string->cend()));
+        const size_t codepoint_length(cp2 - cp);
+        if (byte_count + codepoint_length > max_length)
+            break;
+        byte_count += codepoint_length;
+        cp = cp2;
+    }
+    utf8_string->resize(cp - utf8_string->cbegin());
+
+    return *utf8_string;
 }
 
 
@@ -1795,12 +1814,6 @@ bool ConsistsEntirelyOfLetters(const std::string &utf8_string) {
     }
 
     return true;
-}
-
-
-static inline bool IsStartOfUTF8CodePoint(const char ch) {
-    // Test whether we have an ASCII character or a character whose uppermost two bits are both 1.
-    return (static_cast<unsigned char>(ch) & 128u) == 0 or (static_cast<unsigned char>(ch) & 192u) == 192u;
 }
 
 

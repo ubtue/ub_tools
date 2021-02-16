@@ -3,6 +3,11 @@ body {
     color: #333;
 }
 
+th {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+
 td {
     border: 1px solid black;
     border-collapse: collapse;
@@ -15,4 +20,77 @@ textarea {
 
 a.disabled {
     color: #555555;
+}
+
+
+/* dots for multiple views (journal state, record state, etc.) */
+span.dot {
+    height: 15px;
+    width: 15px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* journal states */
+span.dot-journal-none {
+    background-color: grey;
+}
+
+span.dot-journal-success {
+    background-color: green;
+}
+
+span.dot-journal-warning {
+    background-color: yellow;
+}
+
+span.dot-journal-error {
+    background-color: red;
+}
+
+/* record states */
+span.dot-record-automatic {
+    background-color: green;
+}
+
+span.dot-record-manual {
+    background-color: turquoise;
+}
+
+span.dot-record-error {
+    background-color: yellow;
+}
+
+span.dot-record-ignore {
+    background-color: grey;
+}
+
+span.dot-record-reset {
+    background-color: blue;
+}
+
+
+/* QA template specific */
+div.qa_rule_overridden {
+    color: grey;
+}
+
+.col-tag {
+
+}
+
+.col-global-regular {
+    background-color: #ccffcc;
+}
+
+.col-global-review {
+    background-color: #ffffcc;
+}
+
+.col-local-regular {
+    background-color: #99ff99;
+}
+
+.col-local-review {
+    background-color: #ffff99;
 }

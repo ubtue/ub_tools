@@ -1,7 +1,7 @@
 /** \brief Classes related to the Zotero Harvester's download API
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -34,9 +34,6 @@ namespace Download {
 namespace DirectDownload {
 
 
-// Set to 20 empirically. Larger numbers increase the incidence of the
-// translation server bug that returns an empty/broken response.
-constexpr unsigned MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS = 20;
 ThreadUtil::Semaphore translation_server_request_semaphore(MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS);
 
 
@@ -63,16 +60,17 @@ void PostToTranslationServer(const Url &translation_server_url, const unsigned t
     downloader_params.post_data_ = request_body;
 
     try {
+        LOG_DEBUG("Sending request to translation server: " + request_body);
         const Url endpoint_url(translation_server_url.toString() + "/web");
         Downloader downloader(endpoint_url, downloader_params, time_limit);
         if (downloader.anErrorOccurred()) {
             *response_code = downloader.getLastErrorCode();
             *error_message = downloader.getLastErrorMessage();
-
             LOG_WARNING("failed to fetch response from the translation server! error: " + *error_message);
         } else {
             *response_body = downloader.getMessageBody();
             *response_code = downloader.getResponseCode();
+            LOG_DEBUG("Successful response from translation server for request: " + request_body + ", response code: " + std::to_string(downloader.getResponseCode()));
         }
     } catch (std::runtime_error &err) {
         LOG_WARNING("failed to fetch response from the translation server! runtime error: " + std::string(err.what()));
@@ -88,10 +86,10 @@ void QueryRemoteUrl(const std::string &url, const unsigned time_limit, const boo
                     const std::string &user_agent, std::string * const response_header, std::string * const response_body,
                     unsigned * response_code, std::string * const error_message)
 {
+    LOG_DEBUG("Querying remote URL: " + url);
     Downloader::Params downloader_params;
     downloader_params.user_agent_ = user_agent;
     downloader_params.honour_robots_dot_txt_ = not ignore_robots_dot_txt;
-
     Downloader downloader(url, downloader_params, time_limit);
     if (downloader.anErrorOccurred()) {
         *response_code = 0;
@@ -101,6 +99,7 @@ void QueryRemoteUrl(const std::string &url, const unsigned time_limit, const boo
         return;
     }
 
+    LOG_DEBUG("Query for remote URL successful: " + url);
     *response_body = downloader.getMessageBody();
     *response_header = downloader.getMessageHeader();
     *response_code = downloader.getResponseCode();
@@ -225,6 +224,11 @@ void Tasklet::run(const Params &parameters, Result * const result) {
                            or parameters.download_item_.journal_.crawl_params_.crawl_url_regex_->match(outgoing_url.first));
 
             if (harvest_url) {
+                if (not force_downloads_ and upload_tracker_.urlAlreadyInDatabase(outgoing_url.first, /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
+                    LOG_INFO("Skipping already delivered URL: " + outgoing_url.first);
+                    ++result->num_skipped_since_already_delivered_;
+                    continue;
+                }
                 const auto new_item(parameters.harvestable_manager_->newHarvestableItem(outgoing_url.first,
                                                                                         parameters.download_item_.journal_));
                 result->downloaded_items_.emplace_back(download_manager_->directDownload(new_item, parameters.user_agent_,
@@ -250,12 +254,12 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
 
 Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
-                 std::unique_ptr<Params> parameters)
+                 const Util::UploadTracker &upload_tracker, std::unique_ptr<Params> parameters, const bool force_downloads)
  : Util::Tasklet<Params, Result>(instance_counter, parameters->download_item_,
                                  "Crawling: " + parameters->download_item_.url_.toString(),
                                  std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
                                  std::unique_ptr<Result>(new Result()), std::move(parameters), ResultPolicy::YIELD),
-   download_manager_(download_manager) {}
+   download_manager_(download_manager), upload_tracker_(upload_tracker), force_downloads_(force_downloads) {}
 
 
 bool Crawler::continueCrawling() {
@@ -365,60 +369,6 @@ bool Crawler::getNextPage(CrawlResult * const crawl_result) {
 namespace RSS {
 
 
-bool Tasklet::feedNeedsToBeHarvested(const std::string &feed_contents, const Config::JournalParams &journal_params,
-                                     const SyndicationFormat::AugmentParams &syndication_format_site_params) const
-{
-    if (force_downloads_) {
-        LOG_DEBUG("forcing downloads - feed will be harvested unconditionally");
-        return true;
-    }
-
-    const auto last_harvest_timestamp(upload_tracker_.getLastUploadTime(journal_params.zeder_id_,
-                                      ZederInterop::GetZederInstanceForJournal(journal_params)));
-    if (last_harvest_timestamp == TimeUtil::BAD_TIME_T) {
-        LOG_INFO("feed will be harvested for the first time");
-        return true;
-    } else {
-        const auto diff((time(nullptr) - last_harvest_timestamp) / 86400);
-        if (unlikely(diff < 0))
-            LOG_ERROR("unexpected negative time difference '" + std::to_string(diff) + "'");
-
-        const auto harvest_threshold(journal_params.update_window_ > 0 ? journal_params.update_window_ : feed_harvest_interval_);
-        LOG_INFO("feed last harvest timestamp: " + TimeUtil::TimeTToString(last_harvest_timestamp));
-        LOG_INFO("feed harvest threshold: " + std::to_string(harvest_threshold) + " days | diff: " + std::to_string(diff) + " days");
-
-        if (diff >= harvest_threshold) {
-            LOG_INFO("feed older than " + std::to_string(harvest_threshold) +
-                      " days. flagging for mandatory harvesting");
-            return true;
-        }
-    }
-
-    // needs to be parsed again as iterating over a SyndicationFormat instance will consume its items
-    std::string err_msg;
-    const auto syndication_format(SyndicationFormat::Factory(feed_contents, syndication_format_site_params, &err_msg));
-    if (syndication_format == nullptr) {
-        LOG_WARNING("problem parsing XML document for RSS feed '" + getParameter().download_item_.url_.toString() + "': "
-                    + err_msg);
-        return false;
-    }
-
-    for (const auto &item : *syndication_format) {
-        const auto pub_date(item.getPubDate());
-        if (force_process_feeds_with_no_pub_dates_ and pub_date == TimeUtil::BAD_TIME_T) {
-            LOG_INFO("URL '" + item.getLink() + "' has no publication timestamp. flagging for harvesting");
-            return true;
-        } else if (pub_date != TimeUtil::BAD_TIME_T and std::difftime(item.getPubDate(), last_harvest_timestamp) > 0) {
-            LOG_INFO("URL '" + item.getLink() + "' was added/updated since the last harvest of this RSS feed. flagging for harvesting");
-            return true;
-        }
-    }
-
-    LOG_INFO("no new, harvestable entries in feed. skipping...");
-    return false;
-}
-
-
 void Tasklet::run(const Params &parameters, Result * const result) {
     LOG_INFO("Harvesting feed " + parameters.download_item_.toString());
 
@@ -442,11 +392,6 @@ void Tasklet::run(const Params &parameters, Result * const result) {
         feed_contents = downloader.getMessageBody();
     }
 
-    if (not feedNeedsToBeHarvested(feed_contents, parameters.download_item_.journal_, syndication_format_augment_parameters)) {
-        result->feed_skipped_since_recently_harvested_ = true;
-        return;
-    }
-
     syndication_format.reset(SyndicationFormat::Factory(feed_contents, syndication_format_augment_parameters,
                              &syndication_format_parse_err_msg).release());
 
@@ -458,6 +403,12 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
     unsigned num_items_queued(0);
     for (const auto &item : *syndication_format) {
+        if (not force_downloads_ and upload_tracker_.urlAlreadyInDatabase(item.getLink(), /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
+            LOG_INFO("Skipping already delivered URL: " + item.getLink());
+            ++result->items_skipped_since_already_delivered_;
+            continue;
+        }
+
         const auto new_download_item(parameters.harvestable_manager_->newHarvestableItem(item.getLink(), parameters.download_item_.journal_));
         result->downloaded_items_.emplace_back(download_manager_->directDownload(new_download_item, parameters.user_agent_,
                                                                                  DirectDownload::Operation::USE_TRANSLATION_SERVER));
@@ -469,14 +420,12 @@ void Tasklet::run(const Params &parameters, Result * const result) {
 
 
 Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
-                 std::unique_ptr<Params> parameters, const Util::UploadTracker &upload_tracker, const bool force_downloads,
-                 const unsigned feed_harvest_interval, const bool force_process_feeds_with_no_pub_dates)
+                 std::unique_ptr<Params> parameters, const Util::UploadTracker &upload_tracker, const bool force_downloads)
  : Util::Tasklet<Params, Result>(instance_counter, parameters->download_item_,
                                  "RSS: " + parameters->download_item_.url_.toString(),
                                  std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
                                  std::unique_ptr<Result>(new Result()), std::move(parameters), ResultPolicy::YIELD),
-   download_manager_(download_manager), upload_tracker_(upload_tracker), force_downloads_(force_downloads),
-   feed_harvest_interval_(feed_harvest_interval), force_process_feeds_with_no_pub_dates_(force_process_feeds_with_no_pub_dates) {}
+   download_manager_(download_manager), upload_tracker_(upload_tracker), force_downloads_(force_downloads) {}
 
 
 } // end namespace RSS
@@ -485,12 +434,9 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 DownloadManager::GlobalParams::GlobalParams(const Config::GlobalParams &config_global_params,
                                             Util::HarvestableItemManager * const harvestable_manager)
  : translation_server_url_(config_global_params.translation_server_url_),
-   default_download_delay_time_(config_global_params.download_delay_params_.default_delay_),
-   max_download_delay_time_(config_global_params.download_delay_params_.max_delay_),
+   download_delay_params_(config_global_params.download_delay_params_),
    timeout_download_request_(config_global_params.timeout_download_request_),
    timeout_crawl_operation_(config_global_params.timeout_crawl_operation_),
-   rss_feed_harvest_interval_(config_global_params.rss_harvester_operation_params_.harvest_interval_),
-   force_process_rss_feeds_with_no_pub_dates_(config_global_params.rss_harvester_operation_params_.force_process_feeds_with_no_pub_dates_),
    ignore_robots_txt_(false), force_downloads_(false), harvestable_manager_(harvestable_manager) {}
 
 
@@ -545,14 +491,24 @@ void *DownloadManager::BackgroundThreadRoutine(void * parameter) {
 
 DownloadManager::DelayParams DownloadManager::generateDelayParams(const Url &url) {
     const auto hostname(url.getAuthority());
+    bool delay_is_default;
+    bool max_delay_is_default;
+    const auto default_delay(global_params_.download_delay_params_.getDefaultDelayForDomainOrDefault(hostname, &delay_is_default));
+    const auto max_delay(global_params_.download_delay_params_.getMaxDelayForDomainOrDefault(hostname, &max_delay_is_default));
+
+    if (not delay_is_default or not max_delay_is_default) {
+        LOG_DEBUG("use configured domain-specific delay settings for domain '" + hostname + '"');
+        return DelayParams(TimeLimit(default_delay), default_delay, max_delay);
+    }
+
     Downloader robots_txt_downloader(url.getRobotsDotTxtUrl());
     if (robots_txt_downloader.anErrorOccurred()) {
         LOG_DEBUG("couldn't retrieve robots.txt for domain '" + hostname + "'");
-        return DelayParams(TimeLimit(0), global_params_.default_download_delay_time_, global_params_.max_download_delay_time_);
+        return DelayParams(TimeLimit(0), default_delay, max_delay);
     }
 
-    DelayParams new_delay_params(robots_txt_downloader.getMessageBody(), global_params_.default_download_delay_time_,
-                                 global_params_.max_download_delay_time_);
+    DelayParams new_delay_params(robots_txt_downloader.getMessageBody(), default_delay,
+                                 max_delay);
 
     LOG_DEBUG("set download-delay for domain '" + hostname + "' to " +
               std::to_string(new_delay_params.time_limit_.getLimit()) + " ms");
@@ -757,7 +713,7 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
 DownloadManager::DownloadManager(const GlobalParams &global_params)
  : global_params_(global_params), stop_background_thread_(false)
 {
-    if (::pthread_create(&background_thread_, nullptr, BackgroundThreadRoutine, this) != 0)
+    if (::pthread_create(&background_thread_, /* attr = */nullptr, BackgroundThreadRoutine, this) != 0)
         LOG_ERROR("background download manager thread creation failed!");
 }
 
@@ -783,8 +739,9 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
     // check if we have already delivered this URL
     if (not global_params_.force_downloads_
         and operation == DirectDownload::Operation::USE_TRANSLATION_SERVER
-        and upload_tracker_.urlAlreadyDelivered(source.url_.toString()))
+        and upload_tracker_.urlAlreadyInDatabase(source.url_.toString(), /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY))
     {
+        LOG_INFO("Skipping already delivered URL: " + source.url_.toString());
         std::unique_ptr<DirectDownload::Result> result(new DirectDownload::Result(source, operation));
         result->flags_ |= DirectDownload::Result::Flags::ITEM_ALREADY_DELIVERED;
 
@@ -836,7 +793,7 @@ std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> DownloadManage
                                                                       global_params_.ignore_robots_txt_,
                                                                       global_params_.harvestable_manager_));
     std::shared_ptr<Crawling::Tasklet> new_tasklet(
-        new Crawling::Tasklet(&tasklet_counters_.crawling_tasklet_execution_counter_, this, std::move(parameters)));
+        new Crawling::Tasklet(&tasklet_counters_.crawling_tasklet_execution_counter_, this, upload_tracker_, std::move(parameters), global_params_.force_downloads_));
 
     {
         std::lock_guard<std::recursive_mutex> queue_buffer_lock(crawling_queue_buffer_mutex_);
@@ -856,8 +813,7 @@ std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> DownloadManager::rss(con
     std::unique_ptr<RSS::Params> parameters(new RSS::Params(source, user_agent, feed_contents, global_params_.harvestable_manager_));
     std::shared_ptr<RSS::Tasklet> new_tasklet(
         new RSS::Tasklet(&tasklet_counters_.rss_tasklet_execution_counter_, this, std::move(parameters),
-        upload_tracker_, global_params_.force_downloads_, global_params_.rss_feed_harvest_interval_,
-        global_params_.force_process_rss_feeds_with_no_pub_dates_));
+        upload_tracker_, global_params_.force_downloads_));
 
     {
         std::lock_guard<std::recursive_mutex> queue_buffer_lock(rss_queue_buffer_mutex_);

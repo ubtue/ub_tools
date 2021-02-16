@@ -1,7 +1,7 @@
 /** \brief Tool to automatically download metadata from online sources by leveraging Zotero
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2019,2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -240,7 +240,6 @@ public:
 struct Metrics {
     unsigned num_journals_with_harvest_operation_direct_;
     unsigned num_journals_with_harvest_operation_rss_;
-    unsigned num_journals_with_harvest_operation_rss_skipped_;
     unsigned num_journals_with_harvest_operation_crawl_;
     unsigned num_downloads_crawled_successful_;
     unsigned num_downloads_crawled_unsuccessful_;
@@ -252,6 +251,7 @@ struct Metrics {
     unsigned num_downloads_skipped_since_already_delivered_;
     unsigned num_marc_conversions_successful_;
     unsigned num_marc_conversions_unsuccessful_;
+    unsigned num_marc_conversions_skipped_since_undesired_item_type_;
     unsigned num_marc_conversions_skipped_since_online_first_;
     unsigned num_marc_conversions_skipped_since_early_view_;
     unsigned num_marc_conversions_skipped_since_exclusion_filters_;
@@ -266,13 +266,14 @@ public:
 
 Metrics::Metrics()
     : num_journals_with_harvest_operation_direct_(0), num_journals_with_harvest_operation_rss_(0),
-      num_journals_with_harvest_operation_rss_skipped_(0), num_journals_with_harvest_operation_crawl_(0),
+      num_journals_with_harvest_operation_crawl_(0),
       num_downloads_crawled_successful_(0), num_downloads_crawled_unsuccessful_(0),
       num_downloads_crawled_cache_hits_(0), num_downloads_harvested_successful_(0), num_downloads_harvested_unsuccessful_(0),
       num_downloads_harvested_cache_hits_(0), num_downloads_skipped_since_already_harvested_(0),
       num_downloads_skipped_since_already_delivered_(0), num_marc_conversions_successful_(0), num_marc_conversions_unsuccessful_(0),
-      num_marc_conversions_skipped_since_online_first_(0), num_marc_conversions_skipped_since_early_view_(0),
-      num_marc_conversions_skipped_since_exclusion_filters_(0), num_marc_conversions_skipped_since_already_delivered_(0) {}
+      num_marc_conversions_skipped_since_undesired_item_type_(0), num_marc_conversions_skipped_since_online_first_(0),
+      num_marc_conversions_skipped_since_early_view_(0), num_marc_conversions_skipped_since_exclusion_filters_(0),
+      num_marc_conversions_skipped_since_already_delivered_(0) {}
 
 
 std::string Metrics::toString() const {
@@ -283,7 +284,6 @@ std::string Metrics::toString() const {
                                            + num_journals_with_harvest_operation_crawl_) + "\n";
     out += "\t\tDirect: " + std::to_string(num_journals_with_harvest_operation_direct_) + "\n";
     out += "\t\tRSS: " + std::to_string(num_journals_with_harvest_operation_rss_) + "\n";
-    out += "\t\t\tSkipped: " + std::to_string(num_journals_with_harvest_operation_rss_skipped_) + "\n";
     out += "\t\tCrawl: " + std::to_string(num_journals_with_harvest_operation_crawl_) + "\n";
 
     out += "\tCrawls: " + std::to_string(num_downloads_crawled_successful_ + num_downloads_crawled_unsuccessful_) + "\n";
@@ -306,6 +306,7 @@ std::string Metrics::toString() const {
                                           + num_marc_conversions_skipped_since_already_delivered_) + "\n";
     out += "\t\tSuccessful: " + std::to_string(num_marc_conversions_successful_) + "\n";
     out += "\t\tUnsuccessful: " + std::to_string(num_marc_conversions_unsuccessful_) + "\n";
+    out += "\t\tSkipped (undesired item type): " + std::to_string(num_marc_conversions_skipped_since_undesired_item_type_) + "\n";
     out += "\t\tSkipped (online-first): " + std::to_string(num_marc_conversions_skipped_since_online_first_) + "\n";
     out += "\t\tSkipped (early-view): " + std::to_string(num_marc_conversions_skipped_since_early_view_) + "\n";
     out += "\t\tSkipped (exclusion filter): " + std::to_string(num_marc_conversions_skipped_since_exclusion_filters_) + "\n";
@@ -365,12 +366,14 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
     if (journal_datastore->current_crawl_ != nullptr) {
         if (journal_datastore->current_crawl_->isComplete()) {
             if (journal_datastore->current_crawl_->hasResult()) {
-                for (auto &result : journal_datastore->current_crawl_->getResult().downloaded_items_)
-                    journal_datastore->queued_downloads_.emplace_back(result.release());
+                auto &result(journal_datastore->current_crawl_->getResult());
+                for (auto &result_item : result.downloaded_items_)
+                    journal_datastore->queued_downloads_.emplace_back(result_item.release());
 
-                metrics->num_downloads_crawled_successful_ += journal_datastore->current_crawl_->getResult().num_crawled_successful_;
-                metrics->num_downloads_crawled_unsuccessful_ += journal_datastore->current_crawl_->getResult().num_crawled_unsuccessful_;
-                metrics->num_downloads_crawled_cache_hits_ += journal_datastore->current_crawl_->getResult().num_crawled_cache_hits_;
+                metrics->num_downloads_crawled_successful_ += result.num_crawled_successful_;
+                metrics->num_downloads_crawled_unsuccessful_ += result.num_crawled_unsuccessful_;
+                metrics->num_downloads_crawled_cache_hits_ += result.num_crawled_cache_hits_;
+                metrics->num_downloads_skipped_since_already_delivered_ += result.num_skipped_since_already_delivered_;
             }
 
             journal_datastore->current_crawl_.reset();
@@ -382,8 +385,7 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
         if (journal_datastore->current_rss_feed_->isComplete()) {
             if (journal_datastore->current_rss_feed_->hasResult()) {
                 const auto &result(journal_datastore->current_rss_feed_->getResult());
-                if (result.feed_skipped_since_recently_harvested_)
-                    ++metrics->num_journals_with_harvest_operation_rss_skipped_;
+                metrics->num_downloads_skipped_since_already_delivered_ += result.items_skipped_since_already_delivered_;
 
                 for (auto &downloaded_item : journal_datastore->current_rss_feed_->getResult().downloaded_items_)
                     journal_datastore->queued_downloads_.emplace_back(downloaded_item.release());
@@ -549,7 +551,7 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
                 // by comparing its hash and URLs with the ones stored in our database.
                 const auto record_urls(Util::GetMarcRecordUrls(*record));
 
-                if (not force_downloads and upload_tracker.recordAlreadyDelivered(*record)) {
+                if (not force_downloads and upload_tracker.recordAlreadyInDatabase(*record, /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
                     ++metrics->num_marc_conversions_skipped_since_already_delivered_;
                     LOG_INFO("Item " + current_download_item.toString() + " already delivered");
                     continue;
@@ -604,10 +606,7 @@ int Main(int argc, char *argv[]) {
     download_manager_params.ignore_robots_txt_ = commandline_args.ignore_robots_dot_txt_;
     Download::DownloadManager download_manager(download_manager_params);
 
-    Conversion::ConversionManager::GlobalParams conversion_manager_params(
-        harvester_config.global_params_->skip_online_first_articles_unconditonally_
-    );
-    Conversion::ConversionManager conversion_manager(conversion_manager_params);
+    Conversion::ConversionManager conversion_manager(*harvester_config.global_params_);
     OutputFileCache output_file_cache(commandline_args, harvester_config);
     Util::UploadTracker upload_tracker;
     Metrics harvester_metrics;

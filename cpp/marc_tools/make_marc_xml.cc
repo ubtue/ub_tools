@@ -111,7 +111,7 @@ std::string XMLComponent::toString() const {
     std::string converted_text;
 
     // 1. Process opening tags:
-    for (const auto original_and_replacement : from_to) {
+    for (const auto &original_and_replacement : from_to) {
         if (StringUtil::StartsWith(text_, original_and_replacement.first)) {
             converted_text = original_and_replacement.second + text_.substr(original_and_replacement.first.length());
             break;
@@ -121,7 +121,7 @@ std::string XMLComponent::toString() const {
         converted_text = text_;
 
     // 2. Process closing tags:
-    for (const auto original_and_replacement : from_to) {
+    for (const auto &original_and_replacement : from_to) {
         if (StringUtil::EndsWith(converted_text, original_and_replacement.first)) {
             converted_text = converted_text.substr(0, converted_text.length()
                                                    - original_and_replacement.first.length())

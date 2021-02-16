@@ -32,7 +32,7 @@ public:
     class Message {
         friend class MBox;
         friend class MBox::const_iterator;
-        time_t reception_time_;
+        time_t reception_time_; // local time
         std::string original_host_;
         std::string sender_;
         std::string subject_;
@@ -69,8 +69,8 @@ public:
     public:
         inline const Message &operator*() { return message_; }
         void operator++();
-        inline bool operator==(const const_iterator &rhs) { return message_.empty() and rhs.message_.empty(); }
-        inline bool operator!=(const const_iterator &rhs) { return not operator==(rhs); }
+        inline bool operator==(const const_iterator &rhs) const { return message_.empty() and rhs.message_.empty(); }
+        inline bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
     private:
         const_iterator(const const_iterator &rhs) = default;
         const_iterator(Message * const message, const MBox * const mbox): mbox_(mbox) { message->swap(message_); }
@@ -78,7 +78,7 @@ public:
 
 private:
     mutable File *input_;
-    mutable time_t last_reception_time_;
+    mutable time_t last_reception_time_; // local time
 public:
     explicit MBox(const std::string &filename);
     ~MBox(){ delete input_; }

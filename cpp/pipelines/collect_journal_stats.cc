@@ -153,7 +153,7 @@ size_t GetExistingDbEntries(const IniFile &ini_file, const std::string &hostname
 
 // \return True if "test_entry" either does not exist in the databse or is newer than the newest existing entry.
 bool NewerThanWhatExistsInDB(const std::unordered_map<std::string, DbEntry> &existing_entries,
-                                const std::string &zeder_id, const std::string &ppn, const DbEntry &test_entry)
+                             const std::string &zeder_id, const std::string &ppn, const DbEntry &test_entry)
 {
     const auto key_and_entry(existing_entries.find(zeder_id + "+" + ppn));
     if (key_and_entry == existing_entries.cend())
@@ -161,6 +161,9 @@ bool NewerThanWhatExistsInDB(const std::unordered_map<std::string, DbEntry> &exi
 
     return test_entry.isNewerThan(key_and_entry->second);
 }
+
+
+const size_t MAX_ISSUE_DATABASE_LENGTH = 8; // maximum length of the issue field in the mySQL datafield
 
 
 void CollectMostRecentEntries(const IniFile &ini_file, MARC::Reader * const reader, MARC::Writer * const writer,
@@ -202,9 +205,14 @@ void CollectMostRecentEntries(const IniFile &ini_file, MARC::Reader * const read
         const std::string ppn_type(1, ppn_and_zeder_id_and_ppn_type->second.type_);
         const std::string year_as_string(std::to_string(YearStringToShort(year)));
 
+        // truncate in order to ensure that comparison with the database works
+        issue = issue.substr(0, MAX_ISSUE_DATABASE_LENGTH);
         const DbEntry new_db_entry(year_as_string, volume, issue, pages);
-        if (NewerThanWhatExistsInDB(existing_entries, zeder_id, superior_control_number, new_db_entry))
-            (*ppns_to_most_recent_entries_map)[superior_control_number] = new_db_entry;
+        if (NewerThanWhatExistsInDB(existing_entries, zeder_id, superior_control_number, new_db_entry)) {
+            const auto superior_control_number_and_entry(ppns_to_most_recent_entries_map->find(superior_control_number));
+            if (superior_control_number_and_entry == ppns_to_most_recent_entries_map->end() or new_db_entry.isNewerThan(superior_control_number_and_entry->second))
+                (*ppns_to_most_recent_entries_map)[superior_control_number] = new_db_entry;
+        }
     }
 
     LOG_INFO("Processed " + std::to_string(total_count) + " MARC records and found "

@@ -40,11 +40,11 @@ int Main(int argc, char *argv[]) {
     if (argc == 3)
         StringUtil::Split(std::string(argv[2]), ',', &language_codes_list, /* suppress_empty_components = */true);
 
-    std::vector<std::string> top_languages;
+    std::vector<NGram::DetectedLanguage> top_languages;
     NGram::ClassifyLanguage(text, &top_languages, language_codes_list, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);
 
     for (const auto &language : top_languages)
-        std::cout << language << '\n';
+        std::cout << language.language_ << " (" << language.score_ << ")" << '\n';
 
     return EXIT_SUCCESS;
 }

@@ -63,6 +63,13 @@
         <p data-toggle="tooltip" title="If this is &gt; 0, somebody else is doing tests. Might be slow.">
             Number of running processes: {running_processes_count}
         </p>
+        <p>
+            Delivery States for Journals:
+            <span class="dot dot-journal-none" title="No items delivered or no time window specified yet."></span> None
+            <span class="dot dot-journal-success" title="New records have been added during the specified time window."></span> Success
+            <span class="dot dot-journal-warning" title="There has been at least 1 error in recently harvested records!"></span> Warning
+            <span class="dot dot-journal-error" title="There have been no new records within the specified time window!"></span> Error
+        </p>
 
         <!-- tab navigation -->
         <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -89,10 +96,11 @@
                             <th>Action&nbsp;1</th>
                             <th>Action&nbsp;2</th>
                             <th>Zeder ID</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {LOOP all_journal_titles, all_journal_groups, all_journal_print_issns, all_journal_online_issns, all_journal_print_ppns, all_journal_online_ppns, all_journal_methods, all_journal_delivery_modes, all_journal_zeder_ids, all_journal_zeder_urls, all_urls}
+                        {LOOP all_journal_titles, all_journal_groups, all_journal_print_issns, all_journal_online_issns, all_journal_print_ppns, all_journal_online_ppns, all_journal_methods, all_journal_delivery_modes, all_journal_ids, all_journal_zeder_ids, all_journal_zeder_urls, all_journal_harvest_statuses, all_urls}
                             <tr>
                                 <td>{all_journal_groups}</td>
                                 <td><a target="_blank" href="{all_urls}">{all_journal_titles}</a></td>
@@ -105,7 +113,7 @@
                                     {IF all_journal_delivery_modes == "NONE"}
                                         {all_journal_delivery_modes}
                                     {ELSE}
-                                        <a href="?action=show_downloaded&zeder_id={all_journal_zeder_ids}&group={all_journal_groups}"
+                                        <a href="?action=show_downloaded&id={all_journal_ids}"
                                          target="_blank">{all_journal_delivery_modes}</a>
                                     {ENDIF}
                                 </td>
@@ -122,6 +130,19 @@
                                     {ELSE}
                                         <a target="_blank" href="{all_journal_zeder_urls}">{all_journal_zeder_ids}</a>
                                     {ENDIF}
+                                </td>
+                                <td align="center" style="vertical-align: middle;"
+                                    {IF all_journal_harvest_statuses == "ERROR"}data-sort="0"{ENDIF}
+                                    {IF all_journal_harvest_statuses == "WARNING"}data-sort="1"{ENDIF}
+                                    {IF all_journal_harvest_statuses == "SUCCESS"}data-sort="2"{ENDIF}
+                                    {IF all_journal_harvest_statuses == "NONE"}data-sort="9"{ENDIF}
+                                    >
+                                    <a href="?action=show_downloaded&id={all_journal_ids}" target="_blank">
+                                        {IF all_journal_harvest_statuses == "ERROR"}<span class="dot dot-journal-error" title="There have been no new records within the specified time window!"></span>{ENDIF}
+                                        {IF all_journal_harvest_statuses == "WARNING"}<span class="dot dot-journal-warning" title="There has been at least 1 error in recently harvested records!"></span>{ENDIF}
+                                        {IF all_journal_harvest_statuses == "SUCCESS"}<span class="dot dot-journal-success" title="New records have been added during the specified time window."></span>{ENDIF}
+                                        {IF all_journal_harvest_statuses == "NONE"}<span class="dot dot-journal-none" title="No items delivered or no time window specified yet."></span>{ENDIF}
+                                    </a>
                                 </td>
                             </tr>
                         {ENDLOOP}

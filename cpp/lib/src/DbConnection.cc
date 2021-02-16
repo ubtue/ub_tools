@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DbConnection class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -485,10 +485,7 @@ void DbConnection::insertIntoTableOrDie(const std::string &table_name, const std
             else
                 first = false;
 
-            if (column_value)
-                insert_stmt += escapeAndQuoteString(*column_value);
-            else
-                insert_stmt += "NULL";
+            insert_stmt += escapeAndQuoteNonEmptyStringOrReturnNull(*column_value);
         }
         insert_stmt += ')';
 
@@ -518,7 +515,10 @@ DbResultSet DbConnection::getLastResultSet() {
 }
 
 
-std::string DbConnection::escapeString(const std::string &unescaped_string, const bool add_quotes) {
+std::string DbConnection::escapeString(const std::string &unescaped_string, const bool add_quotes, const bool return_null_on_empty_string) {
+    if (unescaped_string.empty() and return_null_on_empty_string)
+        return "NULL";
+
     char * const buffer(reinterpret_cast<char *>(std::malloc(unescaped_string.size() * 2 + 1)));
     size_t escaped_length;
 
@@ -710,6 +710,48 @@ void DbConnection::MySQLImportFile(const std::string &sql_file, const std::strin
 }
 
 
+std::string DbConnection::MySQLPrivilegeToString(const DbConnection::MYSQL_PRIVILEGE mysql_privilege) {
+    switch (mysql_privilege) {
+    case P_SELECT:
+        return "SELECT";
+    case P_INSERT:
+        return "INSERT";
+    case P_UPDATE:
+        return "UPDATE";
+    case P_DELETE:
+        return "DELETE";
+    case P_CREATE:
+        return "CREATE";
+    case P_DROP:
+        return "DROP";
+    case P_REFERENCES:
+        return "REFERENCES";
+    case P_INDEX:
+        return "INDEX";
+    case P_ALTER:
+        return "ALTER";
+    case P_CREATE_TEMPORARY_TABLES:
+        return "CREATE_TEMPORARY_TABLES";
+    case P_LOCK_TABLES:
+        return "LOCK_TABLES";
+    case P_EXECUTE:
+        return "EXECUTE";
+    case P_CREATE_VIEW:
+        return "CREATE_VIEW";
+    case P_SHOW_VIEW:
+        return "SHOW_VIEW";
+    case P_CREATE_ROUTINE:
+        return "CREATE_ROUTINE";
+    case P_ALTER_ROUTINE:
+        return "ALTER_ROUTINE";
+    case P_EVENT:
+        return "EVENT";
+    case P_TRIGGER:
+        return "TRIGGER";
+    }
+}
+
+
 bool DbConnection::mySQLUserExists(const std::string &user, const std::string &host) {
     queryOrDie("SELECT COUNT(*) as user_count FROM mysql.user WHERE User='" + user + "' AND Host='" + host + "';");
     DbResultSet result_set(getLastResultSet());
@@ -795,9 +837,12 @@ std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPriv
     DbResultSet result_set(getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
         static RegexMatcher * const mysql_privileges_matcher(
-            RegexMatcher::RegexMatcherFactory("GRANT (.+) ON `" + database_name + "`.* TO '" + user + "'@'" + host + "'"));
+            RegexMatcher::RegexMatcherFactory("GRANT (.+) ON [`']?" + database_name + "[`']?.* TO ['`]?" + user
+                                              + "['`]?@['`]?" + host + "['`]?"));
 
-        if (mysql_privileges_matcher->matched(row[0])) {
+        if (not mysql_privileges_matcher->matched(row[0]))
+            LOG_WARNING("unexpectedly, no privileges were extracted from " + row[0]);
+        else {
             const std::string matched_privileges((*mysql_privileges_matcher)[1]);
             if (matched_privileges == "ALL PRIVILEGES")
                 return MYSQL_ALL_PRIVILEGES;

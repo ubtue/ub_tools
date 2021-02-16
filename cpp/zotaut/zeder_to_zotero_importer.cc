@@ -1,7 +1,7 @@
 /** \brief Utility to automatically update the Zotero Harvester configuration from Zeder.
  *  \author Madeeswaran Kannan
  *
- *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2020-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -34,6 +34,7 @@
 #include "IniFile.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
+#include "UrlUtil.h"
 #include "util.h"
 #include "ZoteroHarvesterConfig.h"
 #include "ZoteroHarvesterUtil.h"
@@ -59,9 +60,9 @@ using namespace ZoteroHarvester;
             "\tzeder_ids                       Comma-separated list of Zeder entry IDs to import/update.\n"
             "\t                                Special-case for updating: Use '*' to update all entries found in the config that belong to the Zeder flavour\n"
             "\tfields_to_update                Comma-separated list of the following fields to update: \n"
-            "\t                                \tONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSGN, LICENSE.\n"
+            "\t                                \tONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSGN, LICENSE, SELECTIVE_EVALUATION.\n"
             "\t                                Ignored when importing entries (all importable fields will be imported).\n"
-            "\t                                If mode is IMPORT and zeder_ids is '*', new journals will only be added if \"prodf\" is \"zota\" or \"zotat\".\n\n");
+            "\t                                If mode is IMPORT and zeder_ids is '*', new journals will only be added if UPLOAD_OPERATION is not NONE.\n\n");
 }
 
 
@@ -123,16 +124,17 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
         return;
 
     static const std::map<std::string, Config::JournalParams::IniKey> ALLOWED_INI_KEYS {
-        { "ENTRY_POINT_URL",    Config::JournalParams::ENTRY_POINT_URL    },
-        { "UPLOAD_OPERATION",   Config::JournalParams::UPLOAD_OPERATION   },
-        { "ONLINE_PPN",         Config::JournalParams::ONLINE_PPN         },
-        { "PRINT_PPN",          Config::JournalParams::PRINT_PPN          },
-        { "ONLINE_ISSN",        Config::JournalParams::ONLINE_ISSN        },
-        { "PRINT_ISSN",         Config::JournalParams::PRINT_ISSN         },
-        { "UPDATE_WINDOW",      Config::JournalParams::UPDATE_WINDOW      },
-        { "SSGN",               Config::JournalParams::SSGN               },
-        { "LICENSE",            Config::JournalParams::LICENSE            },
-        { "EXPECTED_LANGUAGES", Config::JournalParams::EXPECTED_LANGUAGES },
+        { "ENTRY_POINT_URL",       Config::JournalParams::ENTRY_POINT_URL      },
+        { "UPLOAD_OPERATION",      Config::JournalParams::UPLOAD_OPERATION     },
+        { "ONLINE_PPN",            Config::JournalParams::ONLINE_PPN           },
+        { "PRINT_PPN",             Config::JournalParams::PRINT_PPN            },
+        { "ONLINE_ISSN",           Config::JournalParams::ONLINE_ISSN          },
+        { "PRINT_ISSN",            Config::JournalParams::PRINT_ISSN           },
+        { "UPDATE_WINDOW",         Config::JournalParams::UPDATE_WINDOW        },
+        { "SSGN",                  Config::JournalParams::SSGN                 },
+        { "LICENSE",               Config::JournalParams::LICENSE              },
+        { "SELECTIVE_EVALUATION",  Config::JournalParams::SELECTIVE_EVALUATION },
+        { "EXPECTED_LANGUAGES",    Config::JournalParams::EXPECTED_LANGUAGES   },
     };
 
     const std::string update_fields_list((*argv)[1]);
@@ -272,6 +274,9 @@ bool GetValidValue(const Config::JournalParams::IniKey &key, std::string * const
     if (*value == "-?-")
         return false;
 
+    if (key == Config::JournalParams::ENTRY_POINT_URL)
+        return UrlUtil::IsValidWebUrl(*value);
+
     if (key == Config::JournalParams::IniKey::ONLINE_ISSN or key == Config::JournalParams::IniKey::PRINT_ISSN) {
         std::vector<std::string> issns;
         StringUtil::SplitThenTrimWhite(*value, ';', &issns);
@@ -312,6 +317,7 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
         const auto zeder_id(zeder_entry.getId());
         const auto title(ZederInterop::GetJournalParamsIniValueFromZederEntry(zeder_entry, zeder_flavour,
                          Config::JournalParams::IniKey::NAME));
+        const std::string upload_operation(ZederInterop::ResolveUploadOperation(zeder_entry, zeder_flavour));
 
         if (title.empty()) {
             LOG_DEBUG("Skipping Zeder entry " + std::to_string(zeder_id) + ": title is empty");
@@ -329,12 +335,13 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
             const auto existing_title_section(harvester_config->config_file_->getSection(title));
             LOG_WARNING("couldn't import Zeder entry " + std::to_string(zeder_id) + " (" + title + "): already exists with different zeder id " + existing_title_section->getString("zeder_id"));
             continue;
-        } else if (existing_journal_section == nullptr and autodetect_new_datasets) {
-            const std::string prodf(zeder_entry.getAttribute("prodf", ""));
-            if (prodf != "zota" && prodf != "zotat") {
-                LOG_DEBUG("Skipping Zeder entry " + std::to_string(zeder_id) + " (" + title + "): prodf is neither \"zota\" nor \"zotat\"");
-                continue;
-            }
+        } else if (existing_journal_section == nullptr and autodetect_new_datasets
+                   and upload_operation == Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::NONE))
+        {
+            LOG_DEBUG("Skipping Zeder entry " + std::to_string(zeder_id) + " (" + title + "): UploadOperation would be "
+                      + Config::UPLOAD_OPERATION_TO_STRING_MAP.at(Config::UploadOperation::NONE));
+            continue;
+
         }
 
         bool new_section(false);
@@ -348,7 +355,6 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
             Config::JournalParams::GROUP,
             Config::JournalParams::ENTRY_POINT_URL,
             Config::JournalParams::HARVESTER_OPERATION,
-            Config::JournalParams::UPLOAD_OPERATION,
             Config::JournalParams::ONLINE_PPN,
             Config::JournalParams::PRINT_PPN,
             Config::JournalParams::ONLINE_ISSN,
@@ -357,9 +363,10 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
             Config::JournalParams::EXPECTED_LANGUAGES,
             Config::JournalParams::SSGN,
             Config::JournalParams::LICENSE,
+            Config::JournalParams::SELECTIVE_EVALUATION,
         };
 
-        // special-case the Zeder ID and modified timestamp fields
+        // special-case multiple fields (Zeder ID, modified timestamp, UPLOAD_OPERATION)
         WriteIniEntry(existing_journal_section, Config::JournalParams::GetIniKeyString(Config::JournalParams::ZEDER_ID),
                       std::to_string(zeder_entry.getId()));
         char time_buffer[100]{};
@@ -367,6 +374,8 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                       &zeder_entry.getLastModifiedTimestamp());
         WriteIniEntry(existing_journal_section, Config::JournalParams::GetIniKeyString(Config::JournalParams::ZEDER_MODIFIED_TIME),
                       time_buffer);
+        WriteIniEntry(existing_journal_section, Config::JournalParams::GetIniKeyString(Config::JournalParams::UPLOAD_OPERATION),
+                      upload_operation);
 
         // write out the rest
         LOG_INFO("importing Zeder entry " + std::to_string(zeder_id) + " (" + title + ")...");

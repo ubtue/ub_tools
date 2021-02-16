@@ -884,19 +884,28 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
                                                      UBTools::GetTueFindLogPath() + "(.*)");
     }
 
+    ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
+    ConfigureApacheUser(os_system_type, install_systemctl);
+
     const std::string NEWSLETTER_DIRECTORY_PATH(UBTools::GetTuelibPath() + "newsletters");
     if (not FileUtil::Exists(NEWSLETTER_DIRECTORY_PATH)) {
         Echo("creating " + NEWSLETTER_DIRECTORY_PATH);
         FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH);
-        SELinuxUtil::FileContext::AddRecordIfMissing(NEWSLETTER_DIRECTORY_PATH, "httpd_sys_rw_content_t",
-                                                     NEWSLETTER_DIRECTORY_PATH + "(/.*)?");
+        if (SELinuxUtil::IsEnabled()) {
+            SELinuxUtil::FileContext::AddRecordIfMissing(NEWSLETTER_DIRECTORY_PATH, "httpd_sys_rw_content_t",
+                                                         NEWSLETTER_DIRECTORY_PATH + "(/.*)?");
+        }
 
         Echo("creating " + NEWSLETTER_DIRECTORY_PATH + "/sent");
-        FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH);
+        FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH + "/sent");
+
+        FileUtil::ChangeOwnerOrDie(NEWSLETTER_DIRECTORY_PATH, "vufind", "vufind", /*recursive=*/true);
     }
 
-    ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
-    ConfigureApacheUser(os_system_type, install_systemctl);
+    Echo("generating HMAC hash");
+    const std::string HMAC_FILE_PATH(VUFIND_DIRECTORY + "/local/tuefind/local_overrides/hmac.conf");
+    if (not FileUtil::Exists(HMAC_FILE_PATH))
+        FileUtil::WriteStringOrDie(HMAC_FILE_PATH, StringUtil::GenerateRandom(/*length=*/32, /*alphabet=*/"abcdefghijklmnopqrstuvwxyz0123456789"));
 
     Echo(vufind_system_type_string + " configuration completed!");
 }

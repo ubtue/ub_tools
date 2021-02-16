@@ -66,8 +66,8 @@ public:
     public:
         std::string operator*();
         void operator++();
-        bool operator==(const const_iterator &rhs);
-        inline bool operator!=(const const_iterator &rhs) { return not operator==(rhs); }
+        bool operator==(const const_iterator &rhs) const;
+        inline bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
     private:
         const_iterator(File * const file, const TrimMode trim_mode): file_(file), trim_mode_(trim_mode) { }
     };
@@ -160,8 +160,8 @@ public:
 
         Entry operator*();
         void operator++();
-        bool operator==(const const_iterator &rhs);
-        bool operator!=(const const_iterator &rhs) { return not operator==(rhs); }
+        bool operator==(const const_iterator &rhs) const;
+        bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
     private:
         explicit const_iterator(const std::string &path, const std::string &regex, const bool end = false);
         void advance();

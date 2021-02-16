@@ -35,7 +35,9 @@ dnf --assumeyes install curl epel-release wget
 dnf config-manager --set-enabled PowerTools
 dnf config-manager --add-repo https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/elasticsearch.repo
 dnf config-manager --add-repo https://download.opensuse.org/repositories/home:/Alexander_Pozdnyakov/CentOS_8/
+dnf config-manager --add-repo http://rpms.remirepo.net/enterprise/8/remi/x86_64/
 rpm --import https://build.opensuse.org/projects/home:Alexander_Pozdnyakov/public_key
+rpm --import https://rpms.remirepo.net/RPM-GPG-KEY-remi2018
 dnf --assumeyes update
 
 # basic dependencies
@@ -44,7 +46,7 @@ dnf --assumeyes install \
     ant bc cifs-utils clang crontabs ftp gawk gcc-c++ git glibc-all-langpacks ImageMagick incron java-1.8.0-openjdk-devel \
     jq libcurl-devel libdb-devel libsq3-devel libstemmer-devel libuuid-devel libwebp libxml2-devel libxml2 libxslt lsof lz4 make mariadb \
     mariadb-devel mariadb-server mariadb-server-utils mod_ssl mutt openssl-devel pcre-devel policycoreutils-python-utils \
-    poppler poppler-utils python3 python3-pyflakes rpmdevtools sqlite sudo tidy unzip xerces-c-devel
+    poppler poppler-utils python3 python3-pexpect python3-pyflakes rpmdevtools sqlite sudo tidy unzip xerces-c-devel yaz
 
 dnf --assumeyes install \
     tesseract tesseract-devel tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-eng tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe
@@ -58,6 +60,10 @@ dnf --assumeyes install llvm-toolset
 
 # Make Johannes happy :-)
 dnf --assumeyes install tmux emacs
+
+# Integrate custom certificates
+cp /usr/local/ub_tools/docker/zts/extra_certs/extra_certs.pem /etc/pki/ca-trust/source/anchors/eguzkilore.crt
+update-ca-trust extract
 
 # Elasticsearch for fulltext
 if [[ $1 == "krimdok" || $1 == "fulltext_backend" ]]; then
@@ -87,7 +93,7 @@ if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     else
         ColorEcho "installing composer"
         wget --output-document=/tmp/composer-setup.php https://getcomposer.org/installer
-        php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+        php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --version=1.10.19
     fi
 fi
 

@@ -98,17 +98,19 @@ bool IsHexDigit(const char ch) {
 }
 
 
-char GeneratePPNChecksumDigit(const std::string &ppn_without_checksum_digit) {
-    if (unlikely(ppn_without_checksum_digit.length() != 8 and ppn_without_checksum_digit.length() != 9))
+char GeneratePPNChecksumDigit(const std::string &ppn_without_checksum) {
+    const unsigned ppn_without_checksum_length(ppn_without_checksum.length());
+    if (unlikely(ppn_without_checksum_length != 8 and ppn_without_checksum_length != 9))
         throw std::runtime_error("in MiscUtil::GeneratePPNChecksumDigit: argument's length is neither 8 nor 9!");
 
     unsigned checksum(0);
-    for (unsigned i(0); i < ppn_without_checksum_digit.length(); ++i)
-        checksum += (9 - i) * (ppn_without_checksum_digit[i] - '0');
+    // c.f. https://wiki.dnb.de/pages/viewpage.action?pageId=48139522
+    for (unsigned i(0); i < ppn_without_checksum_length; ++i)
+        checksum += (ppn_without_checksum_length + 1 - i) * (ppn_without_checksum[i] - '0');
     checksum = (11 - (checksum % 11)) % 11;
-
     return checksum == 10 ? 'X' : '0' + checksum;
 }
+
 
 
 bool IsValidPPN(const std::string &ppn_candidate) {

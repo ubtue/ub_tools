@@ -32,6 +32,7 @@
 #include "Compiler.h"
 #include "File.h"
 #include "MarcXmlWriter.h"
+#include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "XMLSubsetParser.h"
 
@@ -74,6 +75,7 @@ public:
     /** Copy constructor. */
     Tag(const Tag &other_tag): tag_(other_tag.tag_) { }
 
+    Tag &operator=(const Tag &rhs) { tag_ = rhs.tag_; return *this; }
     bool operator==(const Tag &rhs) const { return to_int() == rhs.to_int(); }
     bool operator!=(const Tag &rhs) const { return to_int() != rhs.to_int(); }
     bool operator>(const Tag &rhs) const  { return to_int() >  rhs.to_int(); }
@@ -154,7 +156,8 @@ public:
     inline iterator begin() { return subfields_.begin(); }
     inline iterator end() { return subfields_.end(); }
     inline bool empty() const { return subfields_.empty(); }
-    size_t size() const { return subfields_.size(); }
+    inline size_t size() const { return subfields_.size(); }
+    inline void reserve(const size_t size) { subfields_.reserve(size); }
     void clear() { return subfields_.clear(); }
 
     inline bool hasSubfield(const char subfield_code) const {
@@ -251,6 +254,13 @@ public:
                          { return subfield.code_ == subfield_code; }), subfields_.end());
     }
 
+
+    inline void deleteAllSubfieldsWithCodeMatching(const char subfield_code, const ThreadSafeRegexMatcher &regex) {
+        subfields_.erase(std::remove_if(subfields_.begin(), subfields_.end(),
+                         [subfield_code, regex](const Subfield subfield) -> bool
+                         { return (subfield.code_ == subfield_code) and regex.match(subfield.value_); }), subfields_.end());
+    }
+
     inline bool replaceSubfieldCode(const char old_code, const char new_code) {
         bool replaced_at_least_one_code(false);
         for (auto &subfield : *this) {
@@ -324,6 +334,9 @@ public:
             : Field(tag, std::string(1, indicator1) + std::string(1, indicator2)) { }
         Field(const Tag &tag, const Subfields &subfields, const char indicator1 = ' ', const char indicator2 = ' ')
             : Field(tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString()) { }
+
+        inline bool empty() const
+            { return isControlField() ? contents_.empty() : contents_.size() == 2 /* indicators */; }
         Field &operator=(const Field &rhs) = default;
         inline bool operator==(const Field &rhs) const { return tag_ == rhs.tag_ and contents_ == rhs.contents_; }
         inline bool operator!=(const Field &rhs) const { return not operator==(rhs); }
@@ -341,6 +354,8 @@ public:
         inline bool isRepeatableField() const { return MARC::IsRepeatableField(tag_); };
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
+        inline void setIndicator1(const char new_indicator1) { if (likely(not contents_.empty())) contents_[0] = new_indicator1; }
+        inline void setIndicator2(const char new_indicator2) { if (likely(not contents_.empty())) contents_[1] = new_indicator2; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
         inline void setSubfields(const Subfields &subfields) {
             setContents(subfields, getIndicator1(), getIndicator2());
@@ -354,6 +369,11 @@ public:
             return contents_[2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/] + 1;
         }
 
+        /** \brief  Filter out all subfields that do not have subfield codes found in "codes_to_keep".
+         *  \return True if at least one subfield has been removed, o/w false.
+         */
+        bool filterSubfields(const std::string &codes_to_keep);
+
         /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
         std::string getFirstSubfieldWithCode(const char subfield_code) const;
 
@@ -364,6 +384,8 @@ public:
          *  \return True, if a subfield with subfield code "subfield_code" matching "regex" exists, else false.
          */
         bool extractSubfieldWithPattern(const char subfield_code, RegexMatcher &regex, std::string * const value) const;
+
+        bool removeSubfieldWithPattern(const char subfield_code, const ThreadSafeRegexMatcher &regex);
 
         inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
             { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
@@ -552,7 +574,12 @@ public:
     std::string getSummary() const;
 
     /** \return A guess at the publication year or the fallback value if we could not find one. */
-    std::string getPublicationYear(const std::string &fallback = "") const;
+    std::string getMostRecentPublicationYear(const std::string &fallback = "") const;
+
+    /** \return Date of production, publication, distribution, manufacture, or copyright notice.
+     *          For merged records this is typically a list.
+     */
+    std::vector<std::string> getDatesOfProductionEtc() const;
 
     /** \return All author names in fields 100$a and 700$a and theitr associated authority record PPN's. */
     std::map<std::string, std::string> getAllAuthorsAndPPNs() const;
@@ -770,14 +797,24 @@ public:
     Range getTagRange(const Tag &tag);
 
     /** \return An iterator that references the first fields w/ tag "tag" or end() if no such fields exist. */
+    inline iterator findTag(const Tag &tag, iterator start_iterator) {
+        return std::find_if(start_iterator, fields_.end(), [&tag](const Field &field) -> bool { return field.getTag() == tag; });
+    }
+
+    /** \return An iterator that references the first fields w/ tag "tag" or end() if no such fields exist. */
     inline iterator findTag(const Tag &tag) {
-        return std::find_if(fields_.begin(), fields_.end(), [&tag](const Field &field) -> bool { return field.getTag() == tag; });
+        return findTag(tag, begin());
+    }
+
+    /** \return An iterator that references the first fields w/ tag "tag" or end() if no such fields exist. */
+    const_iterator findTag(const Tag &tag, const_iterator start_iterator) const {
+        return std::find_if(start_iterator, fields_.cend(),
+                            [&tag](const Field &field) -> bool { return field.getTag() == tag; });
     }
 
     /** \return An iterator that references the first fields w/ tag "tag" or end() if no such fields exist. */
     const_iterator findTag(const Tag &tag) const {
-        return std::find_if(fields_.cbegin(), fields_.cend(),
-                            [&tag](const Field &field) -> bool { return field.getTag() == tag; });
+        return findTag(tag, begin());
     }
 
     /** \brief  Changes all from-tags to to-tags.
@@ -856,6 +893,11 @@ public:
     /** \return The set of all tags in the record. */
     std::unordered_set<std::string> getTagSet() const;
 
+    /** \brief Delete all fields w/ tag "field_tag"
+     *  \return The number of deleted fields.
+     */
+    size_t deleteFields(const Tag &field_tag);
+
     void deleteFields(std::vector<size_t> field_indices);
     bool isValid(std::string * const error_message) const;
 
@@ -925,7 +967,7 @@ public:
 };
 
 
-class BinaryReader: public Reader {
+class BinaryReader final : public Reader {
     friend class Reader;
     Record last_record_;
     off_t next_record_start_;
@@ -1014,7 +1056,7 @@ public:
 };
 
 
-class BinaryWriter: public Writer {
+class BinaryWriter final : public Writer {
     friend class Writer;
 private:
     BinaryWriter(File * const output): Writer(output) { }
@@ -1025,7 +1067,7 @@ public:
 };
 
 
-class XmlWriter: public Writer {
+class XmlWriter final : public Writer {
     friend class Writer;
     MarcXmlWriter xml_writer_;
 private:

@@ -3,7 +3,7 @@
     <head>
         {IF submitted == "true"}
             <!-- Reset manipulated URL caused by GET/POST actions to avoid problems on page refreshing -->
-            <meta http-equiv="refresh" content="0; url=?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}">
+            <meta http-equiv="refresh" content="0; url=?action=show_qa&id={id}">
         {ENDIF}
 
         <link rel="stylesheet" href="https://getbootstrap.com/docs/4.0/dist/css/bootstrap.min.css"/>
@@ -15,39 +15,73 @@
         <!-- popper is required by bootstrap for tabs -->
         <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"></script>
         <script type="text/javascript" src="https://getbootstrap.com/docs/4.0/dist/js/bootstrap.min.js"></script>
+
+        <style>
+            {style_css}
+        </style>
     </head>
     <body>
+        <script type="text/javascript">
+            function ValidateForm() {{
+                const regex = document.getElementById("regex").value;
+                try {{
+                    const regexObj = RegExp(regex);
+                    regexObj.test("");
+                } catch (err) {{
+                    alert("Invalid regex: " + regex);
+                    return false;
+                }
+                return confirm('Are you sure?');
+            }
+        </script>
         <h1>QA Settings</h1>
         <p><b>{IF journal_name != ""}Journal: {journal_name}{ENDIF}</b></p>
-        <p>QA documentation: <a href="//github.com/ubtue/ub_tools/wiki/Zotero-Harvester-Architecture#user-content-validation" target="_blank">see Wiki</a></p>
+        <p>QA documentation: <a href="https://github.com/ubtue/ub_tools/wiki/Zotero-Harvester-Architecture#user-content-validation" target="_blank">see Wiki</a></p>
         <table class="table table-bordered" style="width: 200px;">
             <thead>
                 <tr>
-                    <th>Tag</th>
-                    <th>Global<br>(All&nbsp;journals)</th>
-                    {IF journal_name != ""}<th>Journal<br>(This&nbsp;journal)</th>{ENDIF}
+                    <th class="col-tag">Field tag</th>
+                    <th class="col-global-regular">Regular articles<br>(All&nbsp;journals)</th>
+                    {IF journal_name != ""}
+                        <th class="col-local-regular">Regular articles<br>(This&nbsp;journal)</th>
+                    {ENDIF}
+                    <th class="col-global-review">Review articles<br>(All&nbsp;journals)</th>
+                    {IF journal_name != ""}
+                        <th class="col-local-review">Review articles<br>(This&nbsp;journal)</th>
+                    {ENDIF}
                 </tr>
             </thead>
             <tbody>
-                {LOOP tags, global_settings, journal_settings}
+                {LOOP tags, global_regular_articles, global_review_articles, journal_regular_articles, journal_review_articles}
                     <tr>
-                        <td><a href="https://www.loc.gov/marc/bibliographic/bd{tags}.html" title="Link to external MARC 21 documentation at loc.gov" target="_blank">{tags}</a></td>
-                        <td>{global_settings}</td>
-                        {IF journal_name != ""}<td>{journal_settings}{IF journal_settings != ""}<a href="?action=show_qa&zeder_id={zeder_id}&zeder_instance={zeder_instance}&delete_tag={tags}&delete_type=local" title="Delete this rule" onclick="return confirm('Are you sure?')"><sup>x</sup></a>{ENDIF}</td>{ENDIF}
+                        <td class="col-tag" nowrap><a href="https://www.loc.gov/marc/bibliographic/bd{tags}.html" title="Link to external MARC 21 documentation at loc.gov" target="_blank">{tags}</a></td>
+                        <td class="col-global-regular" nowrap>{global_regular_articles}</td>
+                        {IF journal_name != ""}
+                            <td class="col-local-regular" nowrap>{journal_regular_articles}</td>
+                        {ENDIF}
+                        <td class="col-global-review" nowrap>{global_review_articles}</td>
+                        {IF journal_name != ""}
+                            <td class="col-local-review" nowrap>{journal_review_articles}</td>
+                        {ENDIF}
                     </tr>
                 {ENDLOOP}
             </tbody>
         </table>
 
-        <form id="add_form" method="post" action="?" autocomplete="off" onsubmit="return confirm('Are you sure?')">
+        <form id="add_form" method="post" action="?" autocomplete="off" onsubmit="return ValidateForm()">
             <input type="hidden" name="action" value="show_qa">
-            <input type="hidden" name="zeder_id" value="{zeder_id}">
-            <input type="hidden" name="zeder_instance" value="{zeder_instance}">
+            <input type="hidden" name="id" value="{id}">
 
             {IF journal_name != ""}
                 <p>Add new journal setting:</p>
                 <!-- The quantifier inside the pattern needs to be written as "{{3}" due to Template.h escaping rules! -->
                 <input name="add_tag" placeholder="3-digit tag number" required="required" minlength="3" maxlength="3" pattern="[0-9]{{3}">
+                <input name="add_subfield_code" placeholder="1-character subfield code" required="required" minlength="1" maxlength="1" pattern="[0-9a-z]{{1}">
+                <select name="add_record_type">
+                    <option>regular_article</option>
+                    <option>review</option>
+                </select>
+                <input id="regex" name="add_regex" placeholder="optional regex">
                 <select name="add_presence">
                     <option>always</option>
                     <option>sometimes</option>

@@ -935,6 +935,8 @@ std::string HtmlEscape(const std::string &unescaped_text) {
             escaped_text += "&lt;";
         else if (ch == '>')
             escaped_text += "&gt;";
+        else if (ch == '"')
+            escaped_text += "&quot;";
         else
             escaped_text += ch;
     }
@@ -1014,6 +1016,36 @@ std::string StripHtmlTags(const std::string &text_with_optional_tags, const bool
         ReplaceEntitiesUTF8(&stripped_text);
 
     return TextUtil::CollapseAndTrimWhitespace(&stripped_text);
+}
+
+
+std::string ShortenText(const std::string &html_text, const size_t max_length) {
+    std::string shortened_text;
+    shortened_text.reserve(html_text.size());
+
+    bool in_tag(false);
+    size_t length(0);
+
+    static const std::string placeholder("...");
+    unsigned max_length_without_placeholder(max_length - placeholder.length());
+    for (const auto ch : html_text) {
+        if (ch == '<')
+            in_tag = true;
+        else if (ch == '>')
+            in_tag = false;
+        else if (not in_tag and ch != '\r' and ch != '\n' and ch != '\t') {
+            if (not TextUtil::IsUFT8ContinuationByte(ch))
+                ++length;
+
+            if (length >= max_length_without_placeholder) {
+                if (length == max_length_without_placeholder)
+                    shortened_text += placeholder;
+                continue;
+            }
+        }
+        shortened_text += ch;
+    }
+    return shortened_text;
 }
 
 

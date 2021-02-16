@@ -136,6 +136,13 @@ EndPhase || Abort) &
 wait
 
 
+StartPhase "Tags Which Subsystems have Inferior Records in Superior Works Records"
+(add_is_superior_work_for_subsystems GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
 StartPhase "Check Record Integity at the End of the Pipeline"
 (marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
             --write-data=GesamtTiteldaten-post-pipeline-"${date}".mrc GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \

@@ -2,7 +2,7 @@
  *  \brief  Utility functions etc. related to the sending of email messages.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2020 Universitätsbibliothek Tübingen.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -22,6 +22,7 @@
 #include <memory>
 #include <list>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 #include <cstdlib>
 #include <openssl/bio.h>
@@ -262,8 +263,10 @@ std::string &CreateSinglePartEmail(const EmailSender::Priority priority, const E
 }
 
 
-std::string &CreateMultiPartEmail(const EmailSender::Priority priority, const EmailSender::Format format, const std::string &message_body,
-                                  const std::vector<std::string> &attachments, std::string * const message)
+std::string &CreateMultiPartEmail(const EmailSender::Priority priority, const EmailSender::Format format,
+                                  const std::string &message_body,
+                                  const std::vector<std::pair<std::string, std::string>> &content_dispositions_and_contents,
+                                  std::string * const message)
 {
     if (priority != EmailSender::DO_NOT_SET_PRIORITY)
         message->append("X-Priority: " + std::to_string(priority) + "\r\n");
@@ -280,17 +283,14 @@ std::string &CreateMultiPartEmail(const EmailSender::Priority priority, const Em
     message->append(GetDotStuffedMessage(message_body));
 
     static const unsigned MAX_ENCODED_LINE_LENGTH(76); // See RFC 2045
-    for (const auto &attachment : attachments) {
+    for (const auto &content_disposition_and_content : content_dispositions_and_contents) {
         message->append("\r\n--" + BOUNDARY + "\r\n");
-        std::string data;
-        if (unlikely(not FileUtil::ReadString(attachment, &data)))
-            LOG_ERROR("failed to read content of attachment from \"" + attachment + "\"!");
-        message->append("Content-Type: " + MediaTypeUtil::GetMediaType(data) + "\r\n");
-        message->append("Content-Disposition: attachment; filename=\"" + FileUtil::GetBasename(attachment) + "\"\r\n");
+        message->append("Content-Type: " + MediaTypeUtil::GetMediaType(content_disposition_and_content.second) + "\r\n");
+        message->append("Content-Disposition: " + content_disposition_and_content.first + "\r\n");
         message->append("Content-Transfer-Encoding: base64\r\n");
         message->append("\r\n");
         unsigned line_length(0);
-        for (const char ch : Base64Encode(data)) {
+        for (const char ch : Base64Encode(content_disposition_and_content.second)) {
             *message += ch;
             ++line_length;
             if (line_length == MAX_ENCODED_LINE_LENGTH) {
@@ -312,7 +312,8 @@ std::string &CreateMultiPartEmail(const EmailSender::Priority priority, const Em
 std::string CreateEmailMessage(const EmailSender::Priority priority, const EmailSender::Format format, const std::string &sender,
                                const std::vector<std::string> &recipients, const std::vector<std::string> &cc_recipients,
                                const std::vector<std::string> &bcc_recipients, const std::string &subject,
-                               const std::string &message_body, const std::vector<std::string> &attachments)
+                               const std::string &message_body,
+                               const std::vector<std::pair<std::string, std::string>> &content_dispositions_and_contents)
 {
     std::string message;
     message  = "Date: " + GetDateInRFC822Format() + "\r\n";
@@ -325,10 +326,10 @@ std::string CreateEmailMessage(const EmailSender::Priority priority, const Email
     // See RFC 1342
     message += "Subject: =?utf-8?B?" + Base64Encode(subject) + "?=\r\n";
 
-    if (attachments.empty())
+    if (content_dispositions_and_contents.empty())
         return CreateSinglePartEmail(priority, format, message_body, &message);
     else
-        return CreateMultiPartEmail(priority, format, message_body, attachments, &message);
+        return CreateMultiPartEmail(priority, format, message_body, content_dispositions_and_contents, &message);
 }
 
 
@@ -363,20 +364,76 @@ bool ProcessRecipients(const int socket_fd, const TimeLimit &time_limit, const s
 }
 
 
+void InitContentdispositions(const std::vector<std::string> &attachments, const EmailSender::AttachmentType attachment_type,
+                             std::vector<std::pair<std::string, std::string>> * const content_dispositions_and_contents)
+{
+    if (attachment_type == EmailSender::AT_INVALID) {
+        if (unlikely(not attachments.empty()))
+            LOG_ERROR("you must specify a corresponding attachment type (AT_FILENAMES or AT_DATA) when providing email "
+                      "attachments!");
+    }
+
+    content_dispositions_and_contents->reserve(attachments.size());
+    for (const auto &attachment : attachments) {
+        if (attachment_type == EmailSender::AT_DATA)
+            content_dispositions_and_contents->emplace_back(std::make_pair("inline", attachment));
+        else { // we assume that attachment_type == EmailSender::AT_FILENAMES
+            std::string data;
+            if (unlikely(not FileUtil::ReadString(attachment, &data)))
+                LOG_ERROR("failed to read content of attachment from \"" + attachment + "\"!");
+            content_dispositions_and_contents->emplace_back(
+                std::make_pair("attachment; filename=\"" + FileUtil::GetBasename(attachment) + "\"", data));
+        }
+    }
+}
+
+
 } // unnamed namespace
 
 
 namespace EmailSender {
 
 
+unsigned short SimplerSendEmail(const std::string &sender, const std::vector<std::string> &recipients,
+                                const std::string &subject, const std::string &message_body, const Priority priority,
+                                const Format format)
+{
+    return SendEmail(sender, recipients, /* cc_recipients = */{}, /* bcc_recipients = */{}, subject, message_body,
+                     priority, format);
+}
+
+
+unsigned short SendEmailWithFileAttachments(const std::string &sender, const std::vector<std::string> &recipients,
+                                            const std::string &subject, const std::string &message_body,
+                                            const std::vector<std::string> &attachment_filenames,
+                                            const Priority priority, const Format format)
+{
+    return SendEmail(sender, recipients, /* cc_recipients = */{}, /* bcc_recipients = */{}, subject, message_body,
+                     priority, format, /* reply_to = */"", attachment_filenames, AT_FILENAMES);
+}
+
+
+unsigned short SendEmailWithInlineAttachments(const std::string &sender, const std::vector<std::string> &recipients,
+                                              const std::string &subject, const std::string &message_body,
+                                              const std::vector<std::string> &attachments, const Priority priority,
+                                              const Format format)
+{
+    return SendEmail(sender, recipients, /* cc_recipients = */{}, /* bcc_recipients = */{}, subject, message_body,
+                     priority, format, /* reply_to = */"", attachments, AT_DATA);
+}
+
+
 unsigned short SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
                          const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
-                         const std::string &subject, const std::string &message_body, const Priority priority, const Format format,
-                         const std::string &reply_to, const bool use_ssl, const bool use_authentication,
-                         const std::vector<std::string> &attachments)
+                         const std::string &subject, const std::string &message_body, const Priority priority,
+                         const Format format, const std::string &reply_to, const std::vector<std::string> &attachments,
+                         const AttachmentType attachment_type, const bool use_ssl, const bool use_authentication)
 {
     if (unlikely(sender.empty() and reply_to.empty()))
         LOG_ERROR("both \"sender\" and \"reply_to\" can't be empty!");
+
+    std::vector<std::pair<std::string, std::string>> content_dispositions_and_contents;
+    InitContentdispositions(attachments, attachment_type, &content_dispositions_and_contents);
 
     const TimeLimit time_limit(20000 /* ms */);
 
@@ -388,7 +445,8 @@ unsigned short SendEmail(const std::string &sender, const std::vector<std::strin
     const FileDescriptor socket_fd(
         SocketUtil::TcpConnect(GetSmtpServer(), PORT, time_limit, &error_message, SocketUtil::DISABLE_NAGLE));
     if (socket_fd == -1) {
-        LOG_WARNING("can't connect to SMTP server \"" + GetSmtpServer() + ":" + std::to_string(PORT) + " (" + error_message + ")!");
+        LOG_WARNING("can't connect to SMTP server \"" + GetSmtpServer() + ":" + std::to_string(PORT) + " ("
+                    + error_message + ")!");
         return 521;
     }
 
@@ -433,7 +491,7 @@ unsigned short SendEmail(const std::string &sender, const std::vector<std::strin
         PerformExchange(socket_fd, time_limit, "DATA", "3[0-9][0-9]*", ssl_connection.get());
         PerformExchange(socket_fd, time_limit,
                         CreateEmailMessage(priority, format, sender, recipients, cc_recipients, bcc_recipients, subject,
-                                           message_body, attachments),
+                                           message_body, content_dispositions_and_contents),
                         "2[0-9][0-9]*", ssl_connection.get());
         PerformExchange(socket_fd, time_limit, "QUIT", "2[0-9][0-9]*", ssl_connection.get());
     } catch (const SMTPException &smtp_exception) {

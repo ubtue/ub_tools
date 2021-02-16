@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2016-2020 Library of the University of Tübingen
+    Copyright (C) 2016-2021 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -424,10 +424,10 @@ void SendNotificationEmail(const bool debug, const std::string &name_of_user, co
 {
     const std::string email_contents(GenerateEmailContents(user_type, name_of_user, vufind_host, new_issue_infos));
     if (debug)
-        std::cerr << "Debug mode, email address is " << sender_email << ", template expanded to:\n" << email_contents << '\n';
+        LOG_DEBUG("Debug mode, email address is " + sender_email + ", template expanded to: \"" + email_contents + "\"");
     else {
-        const unsigned short response_code(EmailSender::SendEmail(sender_email, recipient_email, email_subject, email_contents,
-                                                                  EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
+        const auto response_code(EmailSender::SimplerSendEmail(sender_email, { recipient_email }, email_subject, email_contents,
+                                                               EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
 
         if (response_code >= 300) {
             if (response_code == 550)

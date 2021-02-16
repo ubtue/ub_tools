@@ -1,7 +1,7 @@
 /** \brief  Generates a list of religious studies essay collections.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -60,7 +60,7 @@ std::string ShortenTitle(const std::string &full_title, const size_t max_length)
 
 bool HasTOC(const MARC::Record &record) {
     for (const auto &_856_field : record.getTagRange("856")) {
-        for (const auto subfield : _856_field.getSubfields()) {
+        for (const auto &subfield : _856_field.getSubfields()) {
             if (subfield.code_ == '3' and ::strcasecmp(subfield.value_.c_str(), "Inhaltsverzeichnis") == 0)
                 return true;
         }
@@ -100,7 +100,7 @@ void MarkArticleCollections(MARC::Reader * const reader, File * const output,
             const auto ssgns(record.getSSGNs());
             if (ssgns.find("0") != ssgns.cend()) {
                 ++count;
-                const auto publication_year(record.getPublicationYear(/* fallback */ "????"));
+                const auto publication_year(record.getMostRecentPublicationYear(/* fallback */ "????"));
                 *output << TextUtil::CSVEscape(record.getControlNumber()) << '\t'
                         << TextUtil::CSVEscape(ShortenTitle(record.getMainTitle(), 60)) << '\t'
                         << TextUtil::CSVEscape((HasTOC(record) ? "Ja" : "Nein")) << '\t'

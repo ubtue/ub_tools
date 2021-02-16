@@ -272,13 +272,12 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
 }
 
 
-const std::set<MARC::Tag> LINK_TAGS{ "800", "810", "830", "773", "775", "776" };
+const std::set<MARC::Tag> LINK_TAGS{ "773", "775", "776", "800", "810", "830" };
 
 
 // Make inferior works point to the new merged superior parent found in "ppn_to_canonical_ppn_map".  Links referencing a key in
 // "ppn_to_canonical_ppn_map" will be patched with the corresponding value.
-// only 1 uplink of the same tag type will be kept.  Also some cross links will be patched.
-unsigned PatchUpAndCrossLinks(MARC::Record * const record, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
+unsigned PatchLinks(MARC::Record * const record, const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map) {
     unsigned patched_link_count(0);
 
     std::vector<size_t> link_indices_for_deletion;
@@ -466,10 +465,10 @@ std::string CanoniseText(const std::string &s) {
 bool SubfieldPrefixIsIdentical(const MARC::Record::Field &field1, const MARC::Record::Field &field2, const std::vector<char> &subfield_codes)
 {
     const MARC::Subfields subfields1(field1.getSubfields());
-    const auto subfield1(subfields1.begin());
+    auto subfield1(subfields1.begin());
 
     const MARC::Subfields subfields2(field2.getSubfields());
-    const auto subfield2(subfields2.begin());
+    auto subfield2(subfields2.begin());
 
     for (const char subfield_code : subfield_codes) {
         if (subfield1 == subfields1.end() or subfield2 == subfields2.end())
@@ -478,19 +477,23 @@ bool SubfieldPrefixIsIdentical(const MARC::Record::Field &field1, const MARC::Re
             return false;
         if (CanoniseText(subfield1->value_) != CanoniseText(subfield2->value_))
             return false;
+        ++subfield1, ++subfield2;
     }
 
     return true;
 }
 
 
-void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &merged_ppns) {
+void UpdateMergedPPNs(MARC::Record * const record, const std::set<std::string> &merged_ppns, const std::string &max_publication_year) {
     MARC::Subfields zwi_subfields;
     zwi_subfields.addSubfield('a', "1");
     for (const auto &merged_ppn : merged_ppns)
         zwi_subfields.addSubfield('b', merged_ppn);
+    if (not max_publication_year.empty())
+        zwi_subfields.addSubfield('y', max_publication_year);
 
-    record->replaceField("ZWI", zwi_subfields);
+    record->deleteFields("ZWI");
+    record->appendField("ZWI", zwi_subfields);
 }
 
 
@@ -527,7 +530,7 @@ bool FuzzyEqual(const MARC::Record::Field &field1, const MARC::Record::Field &fi
         return subfield1 == subfields1.end() and subfield2 == subfields2.end();
     }
 
-    return true;
+    return FuzzyEqual(field1.getContents(), field2.getContents());
 }
 
 
@@ -689,11 +692,16 @@ bool MergeFieldPair022(MARC::Record::Field * const merge_field, const MARC::Reco
     if (merge_field->getTag() != "022" or import_field.getTag() != "022")
         return false;
 
-    if (merge_record->isElectronicResource())
-        merge_field->insertOrReplaceSubfield('2', "electronic");
-    else
-        merge_field->insertOrReplaceSubfield('2', "print");
-    merge_field->insertOrReplaceSubfield('9', merge_record->getMainTitle());
+    if (not merge_record->hasFieldWithTag("ZWI")) {
+        const std::string dates(StringUtil::Join(merge_record->getDatesOfProductionEtc(), ','));
+        if (not dates.empty())
+            merge_field->insertOrReplaceSubfield('3', dates);
+        if (merge_record->isElectronicResource())
+            merge_field->insertOrReplaceSubfield('2', "electronic");
+        else
+            merge_field->insertOrReplaceSubfield('2', "print");
+        merge_field->insertOrReplaceSubfield('9', merge_record->getMainTitle());
+    }
 
     *augmented_import_field = import_field;
     if (import_record.isElectronicResource())
@@ -701,6 +709,9 @@ bool MergeFieldPair022(MARC::Record::Field * const merge_field, const MARC::Reco
     else
         augmented_import_field->insertOrReplaceSubfield('2', "print");
     augmented_import_field->insertOrReplaceSubfield('9', import_record.getMainTitle());
+    const std::string dates(StringUtil::Join(import_record.getDatesOfProductionEtc(), ','));
+    if (not dates.empty())
+        augmented_import_field->insertOrReplaceSubfield('3', dates);
 
     return true;
 }
@@ -724,16 +735,17 @@ bool MergeFieldPair245(MARC::Record::Field * const merge_field, const MARC::Reco
             return true;
     }
 
+    MARC::Record::Field insert_field(import_record_is_newer ? *merge_field : import_field);
+    insert_field.filterSubfields("abhnp68"); // See https://www.loc.gov/marc/bibliographic/bd245.html and https://www.loc.gov/marc/bibliographic/bd246.html
+    insert_field.setTag("246");
+    insert_field.setIndicator1('2');
+    insert_field.setIndicator2('3');
     if (import_record_is_newer) {
         *merge_field = import_field;
-        merge_record->insertField("246", { { 'a', merge_title },
-                                  { 'g', merge_record->isElectronicResource() ? "electronic" : "print" + std::string(" title") } },
-                                  /* indicator1 = */'2', /*indicator2 = */'3');
-    } else {
-        merge_record->insertField("246", { { 'a', import_title },
-                                  { 'g', import_record.isElectronicResource() ? "electronic" : "print" + std::string(" title") } },
-                                  /* indicator1 = */'2', /*indicator2 = */'3');
-    }
+        insert_field.appendSubfield('g', merge_record->isElectronicResource() ? "electronic" : "print" + std::string(" title"));
+    } else
+        insert_field.appendSubfield('g', import_record.isElectronicResource() ? "electronic" : "print" + std::string(" title"));
+    merge_record->insertField(insert_field);
 
     return true;
 }
@@ -789,19 +801,13 @@ bool MergeFieldPair936(MARC::Record::Field * const merge_field, const MARC::Reco
 bool GetFuzzyIdenticalField(MARC::Record &record, const MARC::Record::Field &field, MARC::Record::iterator * merge_field_pos,
                             const bool compare_indicators = true, const bool compare_subfields = true)
 {
-    for (MARC::Record::iterator record_field = record.begin(); record_field != record.end(); ++record_field) {
+    for (MARC::Record::iterator record_field(record.begin()); record_field != record.end(); ++record_field) {
         if (FuzzyEqual(field, *record_field, compare_indicators, compare_subfields)) {
             *merge_field_pos = record_field;
             return true;
         }
     }
     return false;
-}
-
-
-bool IsFieldWithTagForSpecialTreatment(const MARC::Record::Field &field) {
-    static const std::unordered_set<std::string> tags_with_special_handling = { "005", "022", "264", "936" };
-    return tags_with_special_handling.find(field.getTag().toString()) != tags_with_special_handling.cend();
 }
 
 
@@ -828,10 +834,19 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         const bool import_field_repeatable(import_field.isRepeatableField());
         bool compare_indicators(import_field_repeatable), compare_subfields(import_field_repeatable);
 
-        // Non-existing fields in the merge_record can be inserted unconditionally unless special treatment is needed at a later stage
+        // Skip fields that we already have.
         MARC::Record::iterator merge_field_pos;
-        if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields)
-            or IsFieldWithTagForSpecialTreatment(import_field)) {
+        if (GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
+            continue;
+
+        // Non-existing or 936rv fields in the merge_record can be inserted unconditionally.
+        // (936rv are keyword fields.)
+        const auto &import_tag(import_field.getTag());
+        if ((import_tag.toString() == "936"
+             and ((import_field.getIndicator1() == 'r' and import_field.getIndicator2() == 'v')
+                  or (import_field.getIndicator1() == 'b' and import_field.getIndicator2() == 'k')))
+            or merge_record->findTag(import_tag) == merge_record->end())
+        {
             merge_record->insertFieldAtEnd(import_field);
             continue;
         }
@@ -842,6 +857,9 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
         // Handle Control Fields
         //
 
+        merge_field_pos = merge_record->findTag(import_field.getTag());
+        if (unlikely(merge_field_pos == merge_record->end()))
+            LOG_ERROR("This should *never* happen!");
         MARC::Record::Field merge_field(*merge_field_pos);
 
         if (MergeFieldPair008(&merge_field, import_field)) {
@@ -868,11 +886,11 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
             continue;
         }
 
-        if (MergeFieldPair245(&merge_field, import_field, merge_record, *import_record, import_record_is_newer))
+        if (MergeFieldPair245(&*merge_field_pos, import_field, merge_record, *import_record, import_record_is_newer))
             continue;
 
         if (MergeFieldPair264(&merge_field, import_field, merge_record, *import_record)) {
-            if (GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
+            if (not GetFuzzyIdenticalField(*merge_record, import_field, &merge_field_pos, compare_indicators, compare_subfields))
                 merge_field_pos->swap(merge_field);
             continue;
         }
@@ -914,6 +932,11 @@ void MergeRecordPair(MARC::Record * const merge_record, MARC::Record * const imp
 
     if (clean_up_field_order_and_dedup_merged_record)
         DedupMappedRepeatableFields(merge_record);
+
+    const auto pub_year1(merge_record->getMostRecentPublicationYear()), pub_year2(import_record->getMostRecentPublicationYear());
+    const std::string max_pub_year(pub_year1 > pub_year2 ? pub_year1 : pub_year2);
+    if (not max_pub_year.empty())
+        merge_record->insertFieldAtEnd("ZWI", { { 'y', max_pub_year } });
 }
 
 
@@ -956,10 +979,10 @@ void DeleteCrossLinkFields(MARC::Record * const record) {
 // Merges the records in ppn_to_canonical_ppn_map in such a way that for each entry, "second" will be merged into "first".
 // "second" will then be collected in "skip_ppns" for a future copy phase where it will be dropped.  Uplinks that referenced
 // "second" will be replaced with "first".
-void MergeRecordsAndPatchUpAndCrossLinks(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                                         const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
-                                         const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
-                                         const std::unordered_multimap<std::string, std::string> &canonical_ppn_to_ppn_map)
+void MergeRecordsAndPatchLinks(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                               const std::unordered_map<std::string, off_t> &ppn_to_offset_map,
+                               const std::unordered_map<std::string, std::string> &ppn_to_canonical_ppn_map,
+                               const std::unordered_multimap<std::string, std::string> &canonical_ppn_to_ppn_map)
 {
     std::unordered_set<std::string> unprocessed_ppns;
     for (const auto &ppn_and_ppn : canonical_ppn_to_ppn_map)
@@ -973,6 +996,7 @@ void MergeRecordsAndPatchUpAndCrossLinks(MARC::Reader * const marc_reader, MARC:
         auto canonical_ppn_and_ppn(canonical_ppn_to_ppn_map.find(record.getControlNumber()));
         if (canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend()) {
             std::set<std::string> merged_ppns{ record.getControlNumber() };
+            std::string max_publication_year(record.getMostRecentPublicationYear());
             for (/* Intentionally empty! */;
                  canonical_ppn_and_ppn != canonical_ppn_to_ppn_map.cend() and canonical_ppn_and_ppn->first == record.getControlNumber();
                  ++canonical_ppn_and_ppn)
@@ -981,6 +1005,9 @@ void MergeRecordsAndPatchUpAndCrossLinks(MARC::Reader * const marc_reader, MARC:
                 if (unlikely(record2_ppn_and_offset == ppn_to_offset_map.cend()))
                     LOG_ERROR("this should *never* happen! missing PPN in ppn_to_offset_map: " + canonical_ppn_and_ppn->second);
                 MARC::Record record2(ReadRecordFromOffsetOrDie(marc_reader, record2_ppn_and_offset->second));
+                const auto record2_publication_year(record2.getMostRecentPublicationYear());
+                if (record2_publication_year > max_publication_year)
+                    max_publication_year = record2_publication_year;
                 merged_ppns.emplace(record2.getControlNumber());
                 Patch246i(&record); Patch246i(&record2);
                 MergeRecordPair(&record, &record2);
@@ -991,10 +1018,11 @@ void MergeRecordsAndPatchUpAndCrossLinks(MARC::Reader * const marc_reader, MARC:
 
             // Mark the record as being both "print" as well as "electronic" and store the PPN's of the dropped records:
             merged_ppns.erase(*merged_ppns.rbegin()); // Remove max element
-            UpdateMergedPPNs(&record, merged_ppns);
+
+            UpdateMergedPPNs(&record, merged_ppns, max_publication_year);
         }
 
-        patched_link_count += PatchUpAndCrossLinks(&record, ppn_to_canonical_ppn_map);
+        patched_link_count += PatchLinks(&record, ppn_to_canonical_ppn_map);
 
         marc_writer->write(record);
     }
@@ -1111,13 +1139,17 @@ int Main(int argc, char *argv[]) {
     EliminateDanglingOrUnreferencedCrossLinks(debug, ppn_to_offset_map, &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
 
     marc_reader->rewind();
-    MergeRecordsAndPatchUpAndCrossLinks(marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
-                                        canonical_ppn_to_ppn_map);
+    MergeRecordsAndPatchLinks(marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
+                              canonical_ppn_to_ppn_map);
 
     if (not (debug or skip_db_updates)) {
         std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
-        PatchSerialSubscriptions(db_connection.get(), ppn_to_canonical_ppn_map);
-        PatchPDASubscriptions(db_connection.get(), ppn_to_canonical_ppn_map);
+
+        const auto tue_find_flavour(VuFind::GetTueFindFlavour());
+        if (tue_find_flavour == "ixtheo") {
+            PatchSerialSubscriptions(db_connection.get(), ppn_to_canonical_ppn_map);
+            PatchPDASubscriptions(db_connection.get(), ppn_to_canonical_ppn_map);
+        }
         PatchResourceTable(db_connection.get(), ppn_to_canonical_ppn_map);
     }
 

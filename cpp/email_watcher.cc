@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2020 Library of the University of Tübingen
+    Copyright (C) 2020-2021 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,7 +19,6 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #include <map>
 #include <memory>
 #include <set>
@@ -69,10 +68,6 @@ EmailDescription::EmailDescription(const IniFile::Section &ini_file_section) {
     subject_matcher_ = RegexMatcher::RegexMatcherFactory(subject_pattern_regex, &error_message);
     if (subject_matcher_ == nullptr)
         LOG_ERROR("bad regex \"" + subject_pattern_regex + "\" in \"" + ini_file_section.getSectionName() + "\"!");
-
-    if (not ini_file_section.hasEntry("body_pattern"))
-        LOG_ERROR("ini file section \"" + ini_file_section.getSectionName()
-                  + "\" is missing an \"body_pattern\" entry!");
 
     const auto body_positive_pattern_regex(ini_file_section.getString("body_positive_pattern", ""));
     if (body_positive_pattern_regex.empty())
@@ -128,12 +123,42 @@ std::unordered_map<std::string, EmailDescription> LoadEmailDescriptions(const In
 }
 
 
-unsigned short SendEmail(const std::vector<std::string> &recipients, const std::string &subject,
-                         const std::string &message_body, const std::vector<std::string> &attachments = {})
+void ProcessMBox(const std::string &mbox_filename, const long forward_priority,
+                 const std::vector<std::string> &notification_email_addresses,
+                 const std::unordered_map<std::string, EmailDescription> &email_descriptions,
+                 std::vector<std::string> * const unmatched_emails, std::set<std::string> * const matched_section_names)
 {
-    return EmailSender::SendEmail("email_watcher", recipients, /* cc_recipients = */{}, /* bcc_recipients = */{},
-                                  subject, message_body, /* priority = */EmailSender::VERY_HIGH, EmailSender::PLAIN_TEXT,
-                                  /* reply_to = */"", /* use_authentication = */true, /* use_ssl = */true, attachments);
+    const MBox mbox(mbox_filename);
+    unsigned email_message_count(0);
+    for (const auto &email_message : mbox) {
+        ++email_message_count;
+        if (email_message.getPriority() >= forward_priority) {
+            LOG_DEBUG("Forwarding email w/ subject \"" + email_message.getSubject() + "\" from host \""
+                      + email_message.getOriginalHost() + "\" and sender \"" + email_message.getSender() + "\".");
+            EmailSender::SimplerSendEmail("no-reply@ub.uni-tuebingen.de", notification_email_addresses,
+                                          email_message.getSubject(),
+                                          "High priority (" + std::to_string(email_message.getPriority())
+                                          + ") email from original host " + email_message.getOriginalHost()
+                                          + " and sender " + email_message.getSender() + ".\n\n"
+                                          + email_message.getMessageBody());
+        }
+
+        bool matched_a_section(false);
+        for (const auto &[section_name, email_description] : email_descriptions) {
+            if (email_description.subjectAndBodyMatched(email_message)) {
+                LOG_DEBUG("Email w/ subject \"" + email_message.getSubject() + "\" from host \""
+                          + email_message.getOriginalHost() + "\" and sender \"" + email_message.getSender()
+                          + "\" matched section \"" + section_name + "\".");
+                matched_section_names->emplace(section_name);
+                matched_a_section = true;
+            }
+        }
+
+        if (not matched_a_section)
+            unmatched_emails->emplace_back(email_message.toString());
+    }
+    LOG_INFO("Processed " + std::to_string(email_message_count) + " email message(s) and found "
+             + std::to_string(unmatched_emails->size()) + " unmatched message(s).");
 }
 
 
@@ -165,12 +190,53 @@ std::map<std::string, time_t> LoadSectionNamesToLastSeenTimeWindowsMap() {
     return section_names_to_last_seen_time_map;
 }
 
-
+#if 0
 void SaveSectionNamesToLastSeenTimeWindowsMap(const std::map<std::string, time_t> &section_names_to_last_seen_time_map) {
     const auto output(FileUtil::OpenOutputFileOrDie(MAPFILE_PATH));
     for (const auto &[section_name, last_seen_time] : section_names_to_last_seen_time_map)
         (*output) << section_name << '=' << last_seen_time << '\n';
     LOG_INFO("Wrote " + std::to_string(section_names_to_last_seen_time_map.size()) + " entries/entry to " + MAPFILE_PATH + ".");
+}
+#endif
+
+void SendNotificationsForOverdueEmails(const IniFile &ini_file, std::set<std::string> * const matched_section_names,
+                                       const std::vector<std::string> &notification_email_addresses, const time_t NOW,
+                                       const std::map<std::string, time_t> &section_names_to_last_seen_time_map)
+{
+    std::string overdue_list;
+    for (const auto &section : ini_file) {
+        const auto &section_name(section.getSectionName());
+        if (section_name.empty()) // Global section
+            continue;
+
+        LOG_DEBUG("Processing section " + section_name + ".");
+
+        if (matched_section_names->find(section_name) != matched_section_names->end()) {
+            LOG_DEBUG("\tWe have new mail for " + section_name + " and therefore can't be overdue!");
+            continue; // We're definitely *not* overdue!
+        }
+
+        const auto section_name_and_last_seen_time(section_names_to_last_seen_time_map.find(section_name));
+        if (section_name_and_last_seen_time == section_names_to_last_seen_time_map.end()) {
+            LOG_DEBUG("\tSection " + section_name + " not found in section_names_to_last_seen_time_map!");
+            matched_section_names->emplace(section_name);
+            continue;
+        }
+        LOG_DEBUG("\tLast seen " + TimeUtil::TimeTToString(section_name_and_last_seen_time->second) + ".");
+
+        const unsigned overdue_time_window(section.getUnsigned("overdue_time_window")); // in hours
+        if ((NOW - section_name_and_last_seen_time->second) > overdue_time_window * 3600u) {
+            overdue_list += "No email from " + section.getString("from_host") + " with subject pattern \""
+                            + section.getString("subject_pattern") + "\" within the last "
+                            + section.getString("overdue_time_window")
+                            + "hours!\n";
+            matched_section_names->emplace(section_name); // So we don't gripe again too soon!
+        }
+    }
+    if (not overdue_list.empty()
+        and EmailSender::SimplerSendEmail("no-reply@ub.uni-tuebingen.de", notification_email_addresses, "Overdue Report",
+                                          overdue_list, EmailSender::VERY_HIGH) > 299)
+        LOG_ERROR("Failed to send the \"Overdue Report\" email!");
 }
 
 
@@ -192,60 +258,32 @@ int Main(int argc, char *argv[]) {
     const std::string backup_dir_path(ini_file.getString("", "backup_dir_path") + "/");
     const auto email_descriptions(LoadEmailDescriptions(ini_file));
 
-    const std::string mbox_filename(argv[2]);
-    const MBox mbox(mbox_filename);
-    unsigned email_message_count(0);
+    const std::string MBOX_FILENAME(argv[2]);
+    if (not FileUtil::Exists(MBOX_FILENAME))
+        return EXIT_SUCCESS; // Nothing to be done!
+
     std::vector<std::string> unmatched_emails;
     std::set<std::string> matched_section_names;
-    for (const auto &email_message : mbox) {
-        ++email_message_count;
-        for (const auto &[section_name, email_description] : email_descriptions) {
-            if (email_message.getPriority() >= forward_priority or email_description.subjectAndBodyMatched(email_message))
-                matched_section_names.emplace(section_name);
-            else
-                unmatched_emails.emplace_back(email_message.toString());
-        }
-    }
-    LOG_INFO("Processed " + std::to_string(email_message_count) + " email message(s).");
+    ProcessMBox(MBOX_FILENAME, forward_priority, notification_email_addresses,
+                email_descriptions, &unmatched_emails, &matched_section_names);
 
     if (not unmatched_emails.empty()) {
         LOG_WARNING("Found " + std::to_string(unmatched_emails.size()) + " unmatched email(s)!");
-        if (SendEmail(notification_email_addresses, "Unmatched Email(s)!",
-                      "The emails in the attachments did not match any of our patterns!\n"
-                      "Please either fix the problems that led to the generation of the\n"
-                      "original emails or add new patterns so that the currently unmatched\n"
-                      "emails will be matched in the future!", unmatched_emails) > 299)
+        if (EmailSender::SendEmailWithInlineAttachments(
+            "no-reply@ub.uni-tuebingen.de", notification_email_addresses,
+            "Unmatched Email(s)!",
+            "The emails in the attachments did not match any of our patterns!\n"
+            "Please either fix the problems that led to the generation of the\n"
+            "original emails or add new patterns so that the currently unmatched\n"
+            "emails will be matched in the future!", unmatched_emails,
+            EmailSender::VERY_HIGH) > 299)
             LOG_ERROR("Failed to send the \"Unmatched Email(s)!\" email!");
     }
 
-    // Send notifications for overdue emails:
     std::map<std::string, time_t> section_names_to_last_seen_time_map(LoadSectionNamesToLastSeenTimeWindowsMap());
     const time_t NOW(::time(nullptr));
-    std::string overdue_list;
-    for (const auto &section : ini_file) {
-        const auto &section_name(section.getSectionName());
-        if (section_name.empty()) // Global section
-            continue;
-
-        if (matched_section_names.find(section_name) != matched_section_names.end())
-            continue; // We're definitely *not* overdue!
-
-        const auto section_name_and_last_seen_time(section_names_to_last_seen_time_map.find(section_name));
-        if (section_name_and_last_seen_time == section_names_to_last_seen_time_map.end()) {
-            matched_section_names.emplace(section_name);
-            continue;
-        }
-
-        const unsigned overdue_time_window(section.getUnsigned("overdue_time_window")); // in hours
-        if ((NOW - section_name_and_last_seen_time->second) > overdue_time_window * 3600u) {
-            overdue_list += "No email from " + section.getString("from_host") + " with subject pattern "
-                            + section.getString("subject_pattern") + " within the last " + section.getString("overdue_time_window")
-                            + "hours!\n";
-            matched_section_names.emplace(section_name); // So we don't gripe again too soon!
-        }
-    }
-    if (SendEmail(notification_email_addresses, "Overdue Report", overdue_list) > 299)
-        LOG_ERROR("Failed to send the \"Overdue Report\" email!");
+    SendNotificationsForOverdueEmails(ini_file, &matched_section_names, notification_email_addresses,
+                                      NOW, section_names_to_last_seen_time_map);
 
     for (const auto &matched_section_name : matched_section_names) {
         auto section_name_and_last_seen_time(section_names_to_last_seen_time_map.find(matched_section_name));
@@ -254,10 +292,11 @@ int Main(int argc, char *argv[]) {
         else
             section_name_and_last_seen_time->second = NOW;
     }
+#if 0
     SaveSectionNamesToLastSeenTimeWindowsMap(section_names_to_last_seen_time_map);
 
-    FileUtil::RenameFileOrDie(mbox_filename, backup_dir_path + mbox_filename + "-"
+    FileUtil::RenameFileOrDie(MBOX_FILENAME, backup_dir_path + FileUtil::GetBasename(MBOX_FILENAME) + "-"
                               + TimeUtil::GetCurrentDateAndTime());
-
+#endif
     return EXIT_SUCCESS;
 }

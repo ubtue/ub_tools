@@ -11,7 +11,7 @@
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
  *  Copyright 2002-2004 Dr. Johannes Ruscheinski.
- *  Copyright 2015-2020 Universitätsbibliothek Tübingen
+ *  Copyright 2015-2021 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -674,7 +674,7 @@ float ToFloat(const std::string &s);
 
 
 /** \brief  Converts a string to a boolean value.
- *  \param  value  Must be one of "true", "false", "yes", "no", "on" or "off".
+ *  \param  value  Must be one of "true", "false", "yes", "no", "on", "off", "0" or "1".
  *  \param  b      Where the value of "value" is being returned.
  *  \return True if "value" equals one of the recognized strings, otherwise false.
  *  \note   The capitalisation of the recognised strings does not matter.
@@ -683,7 +683,7 @@ bool ToBool(const std::string &value, bool * const b);
 
 
 /** \brief  Converts a string to a boolean value.
- *  \param  value  Must be one of "true", "false", "yes", "no", "on" or "off".
+ *  \param  value  Must be one of "true", "false", "yes", "no", "on", "off", "0" or "1".
  *  \return The converted value.
  *  \note   The capitalisation of the recognised strings does not matter.  If the conversion fails this function throws
  *          an exception.
@@ -2511,6 +2511,10 @@ template<typename Type> std::string AnyToString(const Type value) {
     else
         return std::to_string(value);
 }
+
+
+/** \brief Generate a random string with the given length and alphabet. */
+std::string GenerateRandom(const size_t length, const std::string &alphabet);
 
 
 } // Namespace StringUtil
