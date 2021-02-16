@@ -259,6 +259,7 @@ JournalParams::JournalParams(const GlobalParams &global_params) {
     update_window_ = 0;
     crawl_params_.max_crawl_depth_ = 1;
     selective_evaluation_ = false;
+    force_language_detection_ = false;
 }
 
 
@@ -277,6 +278,7 @@ const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_
     { SSGN,                     "ssgn"                      },
     { LICENSE,                  "license"                   },
     { SELECTIVE_EVALUATION,     "selective_evaluation"      },
+    { FORCE_LANGUAGE_DETECTION, "force_language_detection"  },
     { STRPTIME_FORMAT_STRING,   "zotero_strptime_format"    },
     { UPDATE_WINDOW,            "zotero_update_window"      },
     { REVIEW_REGEX,             "zotero_review_regex"       },
@@ -301,6 +303,7 @@ const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_
     { "ssgn",                      SSGN                     },
     { "license",                   LICENSE                  },
     { "selective_evaluation",      SELECTIVE_EVALUATION     },
+    { "force_language_detection",  FORCE_LANGUAGE_DETECTION },
     { "zotero_strptime_format",    STRPTIME_FORMAT_STRING   },
     { "zotero_update_window",      UPDATE_WINDOW            },
     { "zotero_review_regex",       REVIEW_REGEX             },
@@ -336,6 +339,7 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     ssgn_ = journal_section.getString(GetIniKeyString(SSGN), "");
     license_ = journal_section.getString(GetIniKeyString(LICENSE), "");
     selective_evaluation_ = journal_section.getBool(GetIniKeyString(SELECTIVE_EVALUATION), false);
+    force_language_detection_ = journal_section.getBool(GetIniKeyString(FORCE_LANGUAGE_DETECTION), false);
 
     const auto review_regex(journal_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
     if (not review_regex.empty())
