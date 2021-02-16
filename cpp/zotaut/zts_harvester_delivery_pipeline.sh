@@ -6,11 +6,11 @@ set -o errexit -o nounset -o pipefail
 no_problems_found=1
 function SendEmail {
     if [[ $no_problems_found -eq 0 ]]; then
-        send_email --priority=low --sender="no-reply@ub.uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
+        send_email --priority=low --recipients="$EMAIL_ADDRESS" \
                    --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
         exit 0
     else
-        send_email --priority=high --sender="no-reply@ub.uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
+        send_email --priority=high --recipients="$EMAIL_ADDRESS" \
                    --subject="$0 failed on $(hostname)" \
                    --message-body="Check the log file at /usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log for details."
         echo "*** ZTS_HARVESTER DELIVERY PIPELINE FAILED ***" | tee --append "$LOG"
