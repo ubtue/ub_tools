@@ -8,7 +8,7 @@
 /*
  *  Copyright 2006-2009 Project iVia.
  *  Copyright 2006-2009 The Regents of The University of California.
- *  Copyright 2017,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  Copyright 2017-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -36,6 +36,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 #include <cstring>
 #include <AutoConvert.h>
 #include <PerlCompatRegExp.h>
@@ -966,6 +967,16 @@ template<typename T> std::unordered_set<T> SetUnion(const std::unordered_set<T> 
     for (const auto &element : *smaller_set)
         set_union.emplace(element);
     return set_union;
+}
+
+
+template<typename T> std::set<T> VectorToSet(const std::vector<T> &v) {
+    return std::set<T>(v.cbegin(), v.cend());
+}
+
+
+template<typename T> std::unordered_set<T> VectorToUnorderedSet(const std::vector<T> &v) {
+    return std::unordered_set<T>(v.cbegin(), v.cend());
 }
 
 
