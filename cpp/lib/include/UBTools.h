@@ -25,7 +25,7 @@
 namespace UBTools {
 
 
-inline GetUBWebProxyURL() {
+inline std::string GetUBWebProxyURL() {
     return "http://wwwproxy.uni-tuebingen.de:3128";
 }
 
