@@ -44,12 +44,18 @@ bool ProcessSection(const std::string &subsystem_type, const unsigned default_do
     if (result_set.empty()) {
         const auto feed_url(section.getString("feed_url"));
         const auto blog_url(section.getString("blog_url"));
+        const auto title_suppression_regex(section.getString("title_suppression_regex"), "");
+        const auto strptime_format(section.getString("strptime_format"), "");
         const auto downloader_time_limit(section.getUnsigned("downloader_time_limit", default_downloader_time_limit));
-        db_connection->queryOrDie("INSERT INTO vufind.tuefind_rss_feeds SET feed_name='" + section.getSectionName()
-                                  + "',subsystem_types='" + subsystem_type
-                                  + "',feed_url='" + db_connection->escapeString(feed_url)
-                                  + "',website_url='" + db_connection->escapeString(blog_url)
-                                  + "',downloader_time_limit=" + StringUtil::ToString(downloader_time_limit));
+        std::string QUERY("INSERT INTO vufind.tuefind_rss_feeds SET feed_name='" + section.getSectionName()
+                          + "',subsystem_types='" + subsystem_type
+                          + "',feed_url='" + db_connection->escapeString(feed_url)
+                          + "',website_url='" + db_connection->escapeString(blog_url)
+                          + "',downloader_time_limit=" + StringUtil::ToString(downloader_time_limit));
+        if (not title_suppression_regex.empty())
+            QUERY += ",title_suppression_regex='" + db_connection->escapeString(title_suppression_regex) + "'";
+        if (not strptime_format.empty())
+            QUERY += ",strptime_format='" + db_connection->escapeString(strptime_format) + "'";
     } else {
         auto subsystem_types(result_set.getNextRow()["subsystem_types"]);
         if (subsystem_types.find(subsystem_type) != std::string::npos)
