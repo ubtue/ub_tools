@@ -44,8 +44,8 @@ bool ProcessSection(const std::string &subsystem_type, const unsigned default_do
     if (result_set.empty()) {
         const auto feed_url(section.getString("feed_url"));
         const auto blog_url(section.getString("blog_url"));
-        const auto title_suppression_regex(section.getString("title_suppression_regex"), "");
-        const auto strptime_format(section.getString("strptime_format"), "");
+        const auto title_suppression_regex(section.getString("title_suppression_regex", ""));
+        const auto strptime_format(section.getString("strptime_format", ""));
         const auto downloader_time_limit(section.getUnsigned("downloader_time_limit", default_downloader_time_limit));
         std::string QUERY("INSERT INTO vufind.tuefind_rss_feeds SET feed_name='" + section.getSectionName()
                           + "',subsystem_types='" + subsystem_type
