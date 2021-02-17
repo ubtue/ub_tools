@@ -96,7 +96,7 @@ std::string GetChannelDescEntry(const std::string &subsystem_type, const std::st
 }
 
 
-void WriteRSSFeedXMLOutput(const std::string &subsystem_type, std::vector<HarvestedRSSItem> * const harvested_items,
+void WriteRSSFeedXMLOutput(const std::string &subsystem_type, const std::vector<HarvestedRSSItem> &harvested_items,
                            XmlWriter * const xml_writer)
 {
     xml_writer->openTag("rss", { { "version", "2.0" }, { "xmlns:tuefind", "https://github.com/ubtue/tuefind" } });
@@ -105,7 +105,7 @@ void WriteRSSFeedXMLOutput(const std::string &subsystem_type, std::vector<Harves
     xml_writer->writeTagsWithData("link", GetChannelDescEntry(subsystem_type, "link"));
     xml_writer->writeTagsWithData("description", "RSS Aggregator");
 
-    for (const auto &harvested_item : *harvested_items) {
+    for (const auto &harvested_item : harvested_items) {
         xml_writer->openTag("item");
 
         const auto title(harvested_item.item_.getTitle());
@@ -243,7 +243,7 @@ int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_outpu
     {
         XmlWriter xml_writer(FileUtil::OpenOutputFileOrDie(xml_output_filename).release(),
                              XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
-        WriteRSSFeedXMLOutput(subsystem_type, &harvested_items, &xml_writer);
+        WriteRSSFeedXMLOutput(subsystem_type, harvested_items, &xml_writer);
     }
     LOG_INFO("Created our feed with " + std::to_string(feed_item_count) + " items from the last "
              + std::to_string(HARVEST_TIME_WINDOW) + " days.");
