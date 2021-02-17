@@ -13,23 +13,6 @@ CREATE TABLE database_versions (
     CONSTRAINT database_versions_database_name UNIQUE (database_name)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
-CREATE TABLE rss_aggregator (
-    item_id VARCHAR(768) NOT NULL,
-    item_url VARCHAR(1000) NOT NULL,
-    item_title VARCHAR(1000) NOT NULL,
-    item_description MEDIUMTEXT NOT NULL,
-    serial_name VARCHAR(1000) NOT NULL,
-    feed_url VARCHAR(1000) NOT NULL,
-    pub_date DATETIME NOT NULL,
-    insertion_time TIMESTAMP DEFAULT NOW() NOT NULL,
-    flavour ENUM('ixtheo', 'relbib') NOT NULL,
-    CONSTRAINT rss_aggregator_item_id UNIQUE (item_id),
-    INDEX rss_aggregator_item_id_index(item_id(768)),
-    INDEX rss_aggregator_item_url_index(item_url(768)),
-    INDEX rss_aggregator_insertion_time_index(insertion_time),
-    INDEX rss_aggregator_flavour_index(flavour)
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-
 CREATE TABLE zeder_journals (
     id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
     zeder_id INT(11) UNSIGNED NOT NULL,
