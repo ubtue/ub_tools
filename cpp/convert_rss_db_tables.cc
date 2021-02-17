@@ -110,6 +110,7 @@ int Main(int /*argc*/, char */*argv*/[]) {
         CopyItem(db_writer.get(), feed_info.id_, row["item_id"], row["item_url"], row["item_title"],
                  row["item_description"], row["pub_date"], row["insertion_time"]);
     }
+    db_reader.queryOrDie("DROP TABLE IF EXISTS vufind.rss_aggregator");
 
     return EXIT_SUCCESS;
 }
