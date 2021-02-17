@@ -27,7 +27,7 @@ import urllib.request
 
 def WgetFetch(url: str) -> bool:
     return True if process_util.Exec("/usr/bin/wget", [ "--quiet", url ]) == 0 else False
-    
+
 
 def HTTPDateToSecondsRelativetoUnixEpoch(http_date: str) -> int:
     return email.utils.mktime_tz(email.utils.parsedate_tz(http_date))
@@ -106,7 +106,7 @@ def SendEmail(subject: str, msg: str, sender: str = None, recipient: str = None,
         server_address  = config.get("SMTPServer", "server_address")
         server_user     = config.get("SMTPServer", "server_user")
         if sender is None:
-            sender = server_user + "@uni-tuebingen.de"
+            sender = "no-reply@ub.uni-tuebingen.de"
         server_password = config.get("SMTPServer", "server_password")
     except Exception as e:
         Info("failed to read config file! (" + str(e) + ")", file=sys.stderr)
