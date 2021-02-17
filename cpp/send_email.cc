@@ -195,10 +195,8 @@ int Main(int argc, char *argv[]) {
     ParseCommandLine(++argv, &sender, &reply_to, &recipients, &cc_recipients, &bcc_recipients, &subject, &message_body,
                      &priority_as_string, &format_as_string, &expand_newline_escapes, &attachment_type, &attachments);
 
-    if (sender.empty() and reply_to.empty()) {
-        IniFile ini_file(UBTools::GetTuelibPath() + "cronjobs/smtp_server.conf");
-        sender = ini_file.getString("SMTPServer", "server_user") + "@uni-tuebingen.de";
-    }
+    if (sender.empty() and reply_to.empty())
+        sender = "no-reply@ub.uni-tuebingen.de";
 
     if (not priority_as_string.empty())
         priority = StringToPriority(priority_as_string);
