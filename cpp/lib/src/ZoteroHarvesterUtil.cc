@@ -343,20 +343,22 @@ public:
 
 
 const std::map<UploadTracker::DeliveryState, std::string> UploadTracker::DELIVERY_STATE_TO_STRING_MAP {
-    { AUTOMATIC, "automatic" },
-    { MANUAL,    "manual" },
-    { ERROR,     "error" },
-    { IGNORE,    "ignore" },
-    { RESET,     "reset" },
+    { AUTOMATIC,    "automatic" },
+    { MANUAL,       "manual" },
+    { ERROR,        "error" },
+    { IGNORE,       "ignore" },
+    { RESET,        "reset" },
+    { ONLINE_FIRST, "online_first" },
 };
 
 
 const std::map<std::string, UploadTracker::DeliveryState> UploadTracker::STRING_TO_DELIVERY_STATE_MAP {
-    { "automatic", AUTOMATIC },
-    { "manual",    MANUAL },
-    { "error",     ERROR },
-    { "ignore",    IGNORE },
-    { "reset",     RESET },
+    { "automatic",    AUTOMATIC },
+    { "manual",       MANUAL },
+    { "error",        ERROR },
+    { "ignore",       IGNORE },
+    { "reset",        RESET },
+    { "online_first", ONLINE_FIRST },
 };
 
 
