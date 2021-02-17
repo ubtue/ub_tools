@@ -205,17 +205,23 @@ const unsigned HARVEST_TIME_WINDOW(60); // days
 size_t SelectItems(const std::string &subsystem_type, DbConnection * const db_connection,
                    std::vector<HarvestedRSSItem> * const harvested_items)
 {
-    const auto now(std::time(nullptr));
-    db_connection->queryOrDie("SELECT * FROM rss_aggregator "
-                              "WHERE pub_date >= '" + SqlUtil::TimeTToDatetime(now - HARVEST_TIME_WINDOW * 86400) + "' "
-                              "AND subsystem_type=" + db_connection->escapeAndQuoteString(subsystem_type) + " "
-                              "ORDER BY pub_date DESC");
-    DbResultSet result_set(db_connection->getLastResultSet());
-    while (const DbRow row = result_set.getNextRow())
-        harvested_items->emplace_back(SyndicationFormat::Item(row["item_title"], row["item_description"], row["item_url"], row["item_id"],
-                                                              SqlUtil::DatetimeToTimeT(row["pub_date"])),
-                                                              row["serial_name"], row["feed_url"]);
-    return result_set.size();
+    db_connection->queryOrDie("SELECT id,feed_name FROM tuefind_rss_feeds WHERE subsystem_types LIKE '%"
+                              + subsystem_type + "%'");
+    DbResultSet feeds_result_set(db_connection->getLastResultSet());
+
+    const std::string NOW_AS_SQL_DATETIME(SqlUtil::TimeTToDatetime(std::time(nullptr) - HARVEST_TIME_WINDOW * 86400));
+    while (const auto feed_row = feeds_result_set.getNextRow()) {
+        db_connection->queryOrDie("SELECT item_title,item_description,item_url,item_id,pub_date FROM rss_aggregator "
+                                  "WHERE pub_date >= '" + NOW_AS_SQL_DATETIME + "' AND rss_feeds_id = "
+                                  + feed_row["id"] + " ORDER BY pub_date DESC");
+        DbResultSet result_set(db_connection->getLastResultSet());
+        while (const DbRow row = result_set.getNextRow())
+            harvested_items->emplace_back(SyndicationFormat::Item(row["item_title"], row["item_description"], row["item_url"],
+                                                                  row["item_id"], SqlUtil::DatetimeToTimeT(row["pub_date"])),
+                                                                  feed_row["feed_name"], row["feed_url"]);
+    }
+
+    return harvested_items->size();
 }
 
 
