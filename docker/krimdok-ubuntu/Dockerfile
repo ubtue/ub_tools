@@ -1,9 +1,10 @@
-FROM ubuntu:bionic
+FROM ubuntu:focal
 MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 
 # add needed configuration files
 # (+simulate mounted /mnt/ZE020150)
 ADD mnt/ZE020150 /mnt/ZE020150
+ADD .smbcredentials /root/.smbcredentials
 
 # Set non-interactive mode for UBUNTU to avoid interruptions
 ENV DEBIAN_FRONTEND=noninteractive
