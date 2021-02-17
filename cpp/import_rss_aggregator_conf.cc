@@ -56,6 +56,7 @@ bool ProcessSection(const std::string &subsystem_type, const unsigned default_do
             QUERY += ",title_suppression_regex='" + db_connection->escapeString(title_suppression_regex) + "'";
         if (not strptime_format.empty())
             QUERY += ",strptime_format='" + db_connection->escapeString(strptime_format) + "'";
+        db_connection->queryOrDie(QUERY);
     } else {
         auto subsystem_types(result_set.getNextRow()["subsystem_types"]);
         if (subsystem_types.find(subsystem_type) != std::string::npos)
