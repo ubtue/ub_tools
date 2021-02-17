@@ -113,7 +113,6 @@ def WriteImportFinishedFile():
 
 
 def Main():
-    util.default_email_sender = "initiate_marc_pipeline@ub.uni-tuebingen.de"
     if len(sys.argv) != 3:
          print("invalid arguments! usage: initiate_marc_pipeline.py <default email recipient> <MARC21 pipeline script name>")
          util.SendEmail("MARC-21 Pipeline Kick-Off (Failure)",

@@ -151,7 +151,6 @@ def DumpMongoDB(config, log_file_name="/dev/stderr"):
 
 
 def Main():
-    util.default_email_sender = "update_oadoi_data@ub.uni-tuebingen.de"
     util.default_email_recipient = "johannes.riedl@uni-tuebingen.de"
     if len(sys.argv) != 2:
          util.SendEmail("Create Refterm File (Kickoff Failure)",
