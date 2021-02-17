@@ -13,7 +13,6 @@ def RunPipeline(pipeline_script_name, marc_title, conf):
 
 
 def Main():
-    util.default_email_sender = "initiate_fulltext_pipeline@ub.uni-tuebingen.de"
     if len(sys.argv) != 3:
          print("invalid arguments! usage: initiate_marc_pipeline.py <default email recipient> <MARC21 pipeline script name>")
          util.SendEmail("Fulltext Pipeline Kick-Off (Failure)",
