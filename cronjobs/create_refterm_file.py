@@ -137,7 +137,6 @@ def CleanStaleMutex():
 
 
 def Main():
-    util.default_email_sender = "create_refterm_file@ub.uni-tuebingen.de"
     util.default_email_recipient = "johannes.riedl@uni-tuebingen.de"
     if len(sys.argv) != 2:
          util.SendEmail("Create Refterm File (Kickoff Failure)",

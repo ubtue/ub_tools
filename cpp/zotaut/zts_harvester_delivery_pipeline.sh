@@ -6,11 +6,11 @@ set -o errexit -o nounset -o pipefail
 no_problems_found=1
 function SendEmail {
     if [[ $no_problems_found -eq 0 ]]; then
-        send_email --priority=low --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
+        send_email --priority=low --recipients="$EMAIL_ADDRESS" \
                    --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
         exit 0
     else
-        send_email --priority=high --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
+        send_email --priority=high --recipients="$EMAIL_ADDRESS" \
                    --subject="$0 failed on $(hostname)" \
                    --message-body="Check the log file at /usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log for details."
         echo "*** ZTS_HARVESTER DELIVERY PIPELINE FAILED ***" | tee --append "$LOG"
@@ -204,7 +204,7 @@ StartPhase "Check for Overdue Articles"
 LOGGER_FORMAT=no_decorations,strip_call_site \
 BACKTRACE=1 \
 UTIL_LOG_DEBUG=true \
-journal_timeliness_checker "$HARVESTER_CONFIG_FILE" "journal_timeliness_checker@$(hostname)" "$EMAIL_ADDRESS" >> "$LOG" 2>&1
+journal_timeliness_checker "$HARVESTER_CONFIG_FILE" "no-reply@ub.uni-tuebingen.de" "$EMAIL_ADDRESS" >> "$LOG" 2>&1
 EndPhase
 
 
