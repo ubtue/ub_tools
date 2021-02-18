@@ -407,7 +407,7 @@ def RemoveLinkTargetAndLink(link_name, fail_on_dangling=False):
         link_target = os.readlink(link_name)
         ctypes.set_errno(0)
         os.unlink(link_target)
-    except Exception as e:
+    except Exception:
         if not fail_on_dangling or ctypes.get_errno() != errno.ENOENT:
             Error("in util.RemoveLinkTargetAndLink: can't delete link target of \"" + link_name + "\"!")
     os.unlink(link_name)
