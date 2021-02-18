@@ -81,5 +81,5 @@ def Main():
 
 try:
     Main()
-except Exception as e:
+except Exception:
     print(traceback.format_exc())
