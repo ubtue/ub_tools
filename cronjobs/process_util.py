@@ -72,7 +72,7 @@ def Exec(cmd_path: str, args: List[str] = None, timeout: int = 0, env: Dict[str,
                 try:
                     while True:
                         (_, exit_code, _) = os.wait4(-child_pid, 0)
-                except OSError as e:
+                except OSError:
                     pass
                 return -1
 
