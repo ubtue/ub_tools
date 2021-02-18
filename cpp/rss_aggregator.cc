@@ -38,6 +38,7 @@
 #include "SyndicationFormat.h"
 #include "UBTools.h"
 #include "util.h"
+#include "VuFind.h"
 #include "XmlWriter.h"
 
 
@@ -135,7 +136,7 @@ void WriteRSSFeedXMLOutput(const std::string &subsystem_type, const std::vector<
 // \return true if the item was new, else false.
 bool ProcessRSSItem(const std::string &feed_id, const SyndicationFormat::Item &item, DbConnection * const db_connection) {
     const std::string item_id(item.getId());
-    db_connection->queryOrDie("SELECT insertion_time FROM rss_aggregator WHERE item_id='"
+    db_connection->queryOrDie("SELECT insertion_time FROM tuefind_rss_items WHERE item_id='"
                               + db_connection->escapeString(item_id) + "'");
     const DbResultSet result_set(db_connection->getLastResultSet());
     if (not result_set.empty())
@@ -147,7 +148,7 @@ bool ProcessRSSItem(const std::string &feed_id, const SyndicationFormat::Item &i
         return false;
     }
 
-    db_connection->insertIntoTableOrDie("rss_aggregator",
+    db_connection->insertIntoTableOrDie("tuefind_rss_items",
                                         {
                                             { "rss_feeds_id",     StringUtil::Truncate(MAX_SERIAL_NAME_LENGTH, feed_id)        },
                                             { "item_id",          StringUtil::Truncate(MAX_ITEM_ID_LENGTH, item_id)            },
@@ -202,23 +203,37 @@ unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, c
 const unsigned HARVEST_TIME_WINDOW(60); // days
 
 
+struct FeedNameAndURL {
+    std::string name_;
+    std::string url_;
+public:
+    FeedNameAndURL() = default;
+    FeedNameAndURL(const FeedNameAndURL &other) = default;
+    FeedNameAndURL(const std::string &name, const std::string &url)
+        : name_(name), url_(url) { }
+};
+
+
 size_t SelectItems(const std::string &subsystem_type, DbConnection * const db_connection,
                    std::vector<HarvestedRSSItem> * const harvested_items)
 {
-    db_connection->queryOrDie("SELECT id,feed_name FROM tuefind_rss_feeds WHERE subsystem_types LIKE '%"
+    db_connection->queryOrDie("SELECT id,feed_name,feed_url FROM tuefind_rss_feeds WHERE subsystem_types LIKE '%"
                               + subsystem_type + "%'");
     DbResultSet feeds_result_set(db_connection->getLastResultSet());
+    std::unordered_map<std::string, FeedNameAndURL> feed_ids_to_names_and_urls_map;
+    while (const auto row = feeds_result_set.getNextRow())
+        feed_ids_to_names_and_urls_map[row["id"]] = FeedNameAndURL(row["feed_name"], row["feed_url"]);
 
     const std::string NOW_AS_SQL_DATETIME(SqlUtil::TimeTToDatetime(std::time(nullptr) - HARVEST_TIME_WINDOW * 86400));
-    while (const auto feed_row = feeds_result_set.getNextRow()) {
-        db_connection->queryOrDie("SELECT item_title,item_description,item_url,item_id,pub_date FROM rss_aggregator "
+    for (const auto &[feed_id, feed_name_and_url] : feed_ids_to_names_and_urls_map) {
+        db_connection->queryOrDie("SELECT item_title,item_description,item_url,item_id,pub_date FROM tuefind_rss_items "
                                   "WHERE pub_date >= '" + NOW_AS_SQL_DATETIME + "' AND rss_feeds_id = "
-                                  + feed_row["id"] + " ORDER BY pub_date DESC");
+                                  + feed_id + " ORDER BY pub_date DESC");
         DbResultSet result_set(db_connection->getLastResultSet());
         while (const DbRow row = result_set.getNextRow())
             harvested_items->emplace_back(SyndicationFormat::Item(row["item_title"], row["item_description"], row["item_url"],
                                                                   row["item_id"], SqlUtil::DatetimeToTimeT(row["pub_date"])),
-                                                                  feed_row["feed_name"], row["feed_url"]);
+                                                                  feed_name_and_url.name_, feed_name_and_url.url_);
     }
 
     return harvested_items->size();
@@ -231,7 +246,7 @@ const unsigned DEFAULT_XML_INDENT_AMOUNT(2);
 int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_output_filename,
                  DbConnection * const db_connection, Downloader * const downloader)
 {
-    db_connection->queryOrDie("SELECT * FROM tuefind_rss_feeds WHERE subsystem_type LIKE '%" + subsystem_type + "%'");
+    db_connection->queryOrDie("SELECT * FROM tuefind_rss_feeds WHERE subsystem_types LIKE '%" + subsystem_type + "%'");
     auto result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
         LOG_INFO("Processing feed \"" + row["feed_name"] + "\".");
@@ -281,10 +296,10 @@ int Main(int argc, char *argv[]) {
     const std::string email_address(argv[2]);
     const std::string xml_output_filename(argv[3]);
 
-    DbConnection db_connection;
+    const auto db_connection(VuFind::GetDbConnection());
 
     try {
-        return ProcessFeeds(subsystem_type, xml_output_filename, &db_connection, &downloader);
+        return ProcessFeeds(subsystem_type, xml_output_filename, db_connection.get(), &downloader);
     } catch (const std::runtime_error &x) {
         const auto program_basename(FileUtil::GetBasename(::progname));
         const auto subject(program_basename + " failed on " + DnsUtil::GetHostname()
