@@ -109,6 +109,7 @@
 /rewrite_ssoar
 /rss_aggregator
 /rss_feed_generator
+/rss_subset_aggregator
 /sammelschrift_statistik
 /send_email
 /set_tad_access_flag
