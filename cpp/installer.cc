@@ -892,7 +892,7 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     const std::string NEWSLETTER_DIRECTORY_PATH(UBTools::GetTuelibPath() + "newsletters");
     if (not FileUtil::Exists(NEWSLETTER_DIRECTORY_PATH)) {
         Echo("creating " + NEWSLETTER_DIRECTORY_PATH);
-        FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH);
+        FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH, /*recursive=*/true);
         if (SELinuxUtil::IsEnabled()) {
             SELinuxUtil::FileContext::AddRecordIfMissing(NEWSLETTER_DIRECTORY_PATH, "httpd_sys_rw_content_t",
                                                          NEWSLETTER_DIRECTORY_PATH + "(/.*)?");
