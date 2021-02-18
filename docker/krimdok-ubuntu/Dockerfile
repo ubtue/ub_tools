@@ -2,7 +2,8 @@ FROM ubuntu:focal
 MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 
 # add needed configuration files
-# (+simulate mounted /mnt/ZE020150)
+# (+simulate mounts)
+RUN mkdir --parents /mnt/ZE020110/FID-Projekte/Default
 ADD mnt/ZE020150 /mnt/ZE020150
 ADD .smbcredentials /root/.smbcredentials
 
