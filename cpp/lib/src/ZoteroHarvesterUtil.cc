@@ -414,9 +414,15 @@ bool UploadTracker::urlAlreadyInDatabase(const std::string &url, const std::set<
     std::string query("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.error_message, dmr.id AS entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
                       "FROM delivered_marc_records_urls AS dmru "
                       "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
-                      "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
-                      "WHERE dmru.url = '"
-                      + db_connection->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'");
+                      "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id ");
+
+    // We use the content of 856 for tracking which is not necessarily the same url that has been used for downloading
+    // Thus if detect a DOI scheme in the URL we relax the precise match to a DOI match
+    if (MiscUtil::ContainsDOI(url))
+        query += "WHERE dmru.url LIKE '%" + MiscUtil::extractDOI(url) + "%'";
+    else
+        query += "WHERE dmru.url = '"
+                 + db_connection->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'";
 
     if (not delivery_states_to_ignore.empty())
         query += " AND dmr.delivery_state NOT IN (" + GetDeliveryStatesSubquery(delivery_states_to_ignore, db_connection) + ")";
