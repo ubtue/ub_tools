@@ -59,6 +59,10 @@ DEBIAN_FRONTEND_OLD=($DEBIAN_FRONTEND)
 export DEBIAN_FRONTEND="noninteractive"
 apt-get --quiet --yes --allow-unauthenticated install mysql-server
 export DEBIAN_FRONTEND=(DEBIAN_FRONTEND_OLD)
+## create /var/run/mysqld and change user (mysql installation right now has a bug not doing that itself)
+## (chown needs to be done after installation = after the user has been created)
+mkdir --parents /var/run/mysqld
+chown --recursive mysql:mysql /var/run/mysqld
 
 #----------------------------------ELASTICSEARCH-----------------------------#
 if [[ $1 == "krimdok" || $1 == "fulltext_backend" ]]; then
