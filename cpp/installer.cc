@@ -705,13 +705,13 @@ void DownloadVuFind() {
 void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_systemctl) {
     const std::string username("vufind");
     CreateUserIfNotExists(username);
-    AddUserToGroup(username, "apache");
 
     // systemd will start apache as root
     // but apache will start children as configured in /etc
     std::string config_filename;
     switch (os_system_type) {
     case UBUNTU:
+        AddUserToGroup(username, "www-data");
         config_filename = "/etc/apache2/envvars";
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
             { "-i", "s/export APACHE_RUN_USER=www-data/export APACHE_RUN_USER=" + username + "/",
@@ -722,6 +722,7 @@ void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_s
               config_filename });
         break;
     case CENTOS:
+        AddUserToGroup(username, "apache");
         config_filename = "/etc/httpd/conf/httpd.conf";
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
             { "-i", "s/User apache/User " + username + "/", config_filename });
