@@ -276,22 +276,34 @@ std::string GetUserName() {
 }
 
 
-static RegexMatcher * const DOI_MATCHER(RegexMatcher::RegexMatcherFactoryOrDie("^(?:http[s]?://[^/]+/|doi:)?(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\"&\\'<>])\\S)+)$"));
+const ThreadSafeRegexMatcher DOI_MATCHER("^(?:http[s]?://[^/]+/|doi:)?(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\"&\\'<>])\\S)+)$");
 
 
 bool IsDOI(const std::string &doi_candidate) {
-    return DOI_MATCHER->matched(doi_candidate);
+    return DOI_MATCHER.match(doi_candidate);
 }
 
 
 bool NormaliseDOI(const std::string &doi_candidate, std::string * const normalised_doi) {
-    if (not DOI_MATCHER->matched(doi_candidate))
+    if (not DOI_MATCHER.match(doi_candidate))
         return false;
 
-    *normalised_doi = StringUtil::ASCIIToLower((*DOI_MATCHER)[1]);
+    *normalised_doi = StringUtil::ASCIIToLower(DOI_MATCHER.match(doi_candidate)[1]);
     return true;
 }
 
+
+const ThreadSafeRegexMatcher CONTAINS_DOI_MATCHER("(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![\"&\\'<>])\\S)+)");
+
+
+bool ContainsDOI(const std::string &contains_doi_candidate) {
+    return CONTAINS_DOI_MATCHER.match(contains_doi_candidate);
+}
+
+std::string extractDOI(const std::string &extract_doi_candidate) {
+     const auto match(CONTAINS_DOI_MATCHER.match(extract_doi_candidate));
+     return match ? match[1] : "";
+}
 
 bool IsPossibleISSN(std::string issn_candidate) {
     if (issn_candidate.length() != 8 and issn_candidate.length() != 9)
