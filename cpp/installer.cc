@@ -492,6 +492,10 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
 
 
 void SetupSysLog(const OSSystemType os_system_type) {
+    // Skip this if we are in docker environment
+    if (IsDockerEnvironment())
+        return;
+
     // logfile for zts docker container
     const std::string ZTS_LOGFILE(UBTools::GetTueFindLogPath() + "/zts.log");
     FileUtil::TouchFileOrDie(ZTS_LOGFILE);
