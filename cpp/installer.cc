@@ -250,8 +250,10 @@ void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_t
 
 void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
     std::unordered_set<unsigned> running_pids;
+    std::string mysql_sock_path;
     switch(os_system_type) {
     case UBUNTU:
+        mysql_sock_path = "/var/run/mysqld/mysqld.sock";
         if (SystemdUtil::IsAvailable())
             SystemdUtil::StartUnit("mysql");
         else {
@@ -261,6 +263,7 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
         }
         break;
     case CENTOS:
+        mysql_sock_path = "/var/lib/mysql/mysql.sock";
         if (SystemdUtil::IsAvailable()) {
             SystemdUtil::EnableUnit("mariadb");
             SystemdUtil::StartUnit("mariadb");
@@ -284,8 +287,8 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
     }
 
     const unsigned TIMEOUT(30); // seconds
-    if (not FileUtil::WaitForFile("/var/lib/mysql/mysql.sock", TIMEOUT, 5 /*seconds*/))
-        Error("can't find /var/lib/mysql/mysql.sock after " + std::to_string(TIMEOUT) + " seconds of looking!");
+    if (not FileUtil::WaitForFile(mysql_sock_path, TIMEOUT, 5 /*seconds*/))
+        Error("can't find " + mysql_sock_path + " after " + std::to_string(TIMEOUT) + " seconds of looking!");
 }
 
 
