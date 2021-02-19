@@ -392,7 +392,7 @@ void StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::s
 
 
 bool Is655Keyword(const std::string &keyword) {
-    static const auto keyword_list(FileUtil::ReadLines::ReadOrDie(UBTools::GetTuelibPath() + "zotero-enhancement-maps/keywords_as_655.txt"));
+    static const auto keyword_list(FileUtil::ReadLines::ReadOrDie(UBTools::GetTuelibPath() + "zotero-enhancement-maps/marc655_keywords.txt"));
     return std::find(keyword_list.begin(), keyword_list.end(), keyword) != keyword_list.end();
 }
 
