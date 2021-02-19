@@ -93,14 +93,12 @@ ReadLines::ReadLines(const std::string &path, const TrimMode trim_mode): trim_mo
 
 
 std::vector<std::string> ReadLines::ReadOrDie(const std::string &path, const ReadLines::TrimMode trim_mode) {
-    std::vector<std::string> lines;
-
     ReadLines readlines(path, trim_mode);
+    std::vector<std::string> lines;
     for (const auto line : readlines) {
         if (not line.empty())
             lines.emplace_back(line);
     }
-
     return lines;
 }
 
