@@ -26,7 +26,6 @@
 namespace AppArmorUtil {
 
 
-
 PROFILE_MODE ParseProfileMode(const std::string &profile_mode) {
     if (profile_mode == "audit")
         return AUDIT;
