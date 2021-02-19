@@ -246,7 +246,8 @@ const unsigned DEFAULT_XML_INDENT_AMOUNT(2);
 int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_output_filename,
                  DbConnection * const db_connection, Downloader * const downloader)
 {
-    db_connection->queryOrDie("SELECT * FROM tuefind_rss_feeds WHERE subsystem_types LIKE '%" + subsystem_type + "%'");
+    db_connection->queryOrDie("SELECT * FROM tuefind_rss_feeds WHERE FIND_IN_SET('" + subsystem_type
+                              + "', subsystem_types) > 0");
     auto result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
         LOG_INFO("Processing feed \"" + row["feed_name"] + "\".");
