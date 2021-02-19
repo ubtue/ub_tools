@@ -80,6 +80,8 @@ public:
 
     const_iterator begin() { return const_iterator(file_, trim_mode_); }
     const_iterator end() { return const_iterator(nullptr, trim_mode_); }
+
+    static std::vector<std::string> ReadOrDie(const std::string &path, const ReadLines::TrimMode trim_mode = TRIM_LEFT_AND_RIGHT);
 };
 
 
