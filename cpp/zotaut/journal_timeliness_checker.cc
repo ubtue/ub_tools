@@ -36,8 +36,14 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--min-log-level=log_level] [--default-update-window=no_of_days] config_file_path sender_email_address "
-            "notification_email_address");
+    ::Usage("[--min-log-level=log_level] [--default-update-window=no_of_days] sender_email_address notification_email_address");
+}
+
+
+bool MaxDeliveredAtSmallerThanUpdateWindow(const time_t max_delivered_at, const unsigned update_window) {
+     if (max_delivered_at == TimeUtil::BAD_TIME_T)
+         return false;
+     return max_delivered_at < ::time(nullptr) - update_window * 86400;
 }
 
 
@@ -45,13 +51,18 @@ void ProcessJournal(ZoteroHarvester::Util::UploadTracker * const upload_tracker,
                     const std::string &zeder_id, const std::string &zeder_instance, const unsigned update_window,
                     std::string * tardy_list)
 {
-    const time_t max_delivered_at(upload_tracker->getLastUploadTime(StringUtil::ToUnsigned(zeder_id),
+    const time_t all_max_delivered_at(upload_tracker->getLastUploadTime(StringUtil::ToUnsigned(zeder_id),
                                   Zeder::ParseFlavour(zeder_instance)));
-    if (max_delivered_at == TimeUtil::BAD_TIME_T)
-        return;
 
-    if (max_delivered_at < ::time(nullptr) - update_window * 86400)
-        *tardy_list += journal_name + ": " + TimeUtil::TimeTToString(max_delivered_at) + "\n";
+    if (MaxDeliveredAtSmallerThanUpdateWindow(all_max_delivered_at, update_window)) {
+        // Make sure articles stored as online first are retried in the next run after this period of time
+        upload_tracker->deleteAllDeliveredOnlineFirstEntries(StringUtil::ToUnsigned(zeder_id), zeder_instance);
+        // Make sure we check the remaining entries
+        const time_t max_delivered_at(upload_tracker->getLastUploadTime(StringUtil::ToUnsigned(zeder_id),
+                                      Zeder::ParseFlavour(zeder_instance)));
+        if (MaxDeliveredAtSmallerThanUpdateWindow(max_delivered_at, update_window))
+            *tardy_list += journal_name + ": " + TimeUtil::TimeTToString(max_delivered_at) + "\n";
+    }
 }
 
 
@@ -95,11 +106,12 @@ int Main(int argc, char *argv[]) {
         const std::string zeder_instance(TextUtil::UTF8ToLower(section.getString("zotero_group")));
 
         unsigned update_window;
-        if (section.find("zeder_update_window") == section.end()) {
+        if (section.find("zotero_update_window") == section.end()) {
             LOG_WARNING("no update window found for \"" + journal_name + "\", using " + std::to_string(default_update_window) + "!");
             update_window = default_update_window;
         } else
-            update_window = section.getUnsigned("update_window");
+            update_window = section.getUnsigned("zotero_update_window");
+        LOG_WARNING("USING ZOTERO_UPDATE_WINDOW: " + std::to_string(update_window));
 
         ProcessJournal(&upload_tracker, journal_name, zeder_id, zeder_instance, update_window, &tardy_list);
     }

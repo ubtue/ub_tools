@@ -718,6 +718,21 @@ void UploadTracker::registerZederJournal(const unsigned zeder_id, const std::str
 }
 
 
+void UploadTracker::deleteAllDeliveredOnlineFirstEntries(const unsigned zeder_id, const std::string &zeder_instance) {
+    WaitOnSemaphore lock(&connection_pool_semaphore_);
+    DbConnection db_connection;
+    db_connection.queryOrDie(std::string("DELETE FROM delivered_marc_records WHERE zeder_journal_id=")
+                             + "(SELECT id FROM zeder_journals WHERE zeder_id="
+                                 + db_connection.escapeAndQuoteString(std::to_string(zeder_id))
+                                 + " AND zeder_instance="
+                                 + db_connection.escapeAndQuoteString(zeder_instance)
+                             + ')'
+                             + " AND delivery_state="
+                             + db_connection.escapeAndQuoteString("online_first"));
+
+}
+
+
 std::set<std::string> GetMarcRecordUrls(const MARC::Record &record) {
     std::set<std::string> urls;
 
