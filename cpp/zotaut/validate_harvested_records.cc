@@ -42,7 +42,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--update-db-errors] marc_input marc_output online_first_files missed_expectations_file email_address");
+    ::Usage("[--update-db-errors] marc_input marc_output online_first_file missed_expectations_file email_address");
 }
 
 
