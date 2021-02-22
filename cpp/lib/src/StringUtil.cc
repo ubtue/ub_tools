@@ -140,6 +140,23 @@ std::string ASCIIToLower(const std::string &s) {
 }
 
 
+std::string ToLower(std::string * const s) {
+    for (std::string::iterator ch(s->begin()); ch != s->end(); ++ch)
+        *ch = tolower(*ch);
+
+    return *s;
+}
+
+
+std::string ToLower(const std::string &s) {
+    std::string result(s);
+    for (std::string::iterator ch(result.begin()); ch != result.end(); ++ch)
+        *ch = tolower(*ch);
+
+    return result;
+}
+
+
 std::string ToUpper(std::string * const s) {
     for (std::string::iterator ch(s->begin()); ch != s->end(); ++ch)
         *ch = toupper(*ch);
