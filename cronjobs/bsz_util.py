@@ -12,7 +12,7 @@ def FoundNewBSZDataFile(link_filename):
     try:
         statinfo = os.stat(link_filename)
         file_creation_time = statinfo.st_ctime
-    except OSError as e:
+    except OSError:
         util.Error("Symlink \"" + link_filename + "\" is missing or dangling!")
     old_timestamp = util.ReadTimestamp()
     return old_timestamp < file_creation_time
