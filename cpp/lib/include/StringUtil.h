@@ -126,6 +126,14 @@ inline char *strlower(char *s) {
 }
 
 
+/** \brief  Convert a string to lowercase (modifies its argument). */
+std::string ToLower(std::string * const s);
+
+
+/** \brief  Convert a string to lowercase (does not modify its argument). */
+std::string ToLower(const std::string &s);
+
+
 /** \brief  Convert a string to uppercase (modifies its argument). */
 std::string ToUpper(std::string * const s);
 
