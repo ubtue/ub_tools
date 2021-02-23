@@ -28,20 +28,20 @@
 namespace AppArmorUtil {
 
 
-enum PROFILE_MODE { AUDIT, COMPLAIN, ENFORCE };
+enum ProfileMode { AUDIT, COMPLAIN, ENFORCE };
 
 
 /** \brief  Check if AppArmor is available (installed) on the current system. */
 bool IsAvailable();
 
 /** \brief  Return a list of all profile ids and their mode. */
-std::vector<std::pair<std::string,PROFILE_MODE>> GetProfiles();
+std::vector<std::pair<std::string, ProfileMode>> GetProfiles();
 
 /** \brief  Return the mode for the given profile. */
-PROFILE_MODE GetProfileMode(const std::string &profile_id);
+ProfileMode GetProfileMode(const std::string &profile_id);
 
 /** \brief  Set the mode for the given profile. */
-void SetProfileMode(const std::string &profile_id, const PROFILE_MODE profile_mode);
+void SetProfileMode(const std::string &profile_id, const ProfileMode profile_mode);
 
 
-}
+} // namespace AppArmorUtil
