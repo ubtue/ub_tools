@@ -700,6 +700,8 @@ bool ProcessSubfield(const MARC::Tag &marc_tag, const std::shared_ptr<const JSON
             ++matched_issn_count;
     }
 
+    std::string* ptr_to_extracted_value = &extracted_value;
+    TextUtil::UTF8ByteTruncate(ptr_to_extracted_value, 999);
     new_field->appendSubfield(subfield_code, subfield_prefix + extracted_value);
     return true;
 }
