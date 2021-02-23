@@ -41,9 +41,9 @@ namespace OaiPmh {
 // StringToHarvestMode --  Convert a string into a HarvestMode value.
 //
 HarvestMode StringToHarvestMode(const std::string &harvest_mode_str) {
-    if (StringUtil::ToUpper(harvest_mode_str) == "FULL")
+    if (StringUtil::ASCIIToUpper(harvest_mode_str) == "FULL")
         return FULL;
-    else if (StringUtil::ToUpper(harvest_mode_str) == "INCREMENTAL")
+    else if (StringUtil::ASCIIToUpper(harvest_mode_str) == "INCREMENTAL")
         return INCREMENTAL;
 
     // Error:
