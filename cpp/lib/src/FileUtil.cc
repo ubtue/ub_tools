@@ -76,9 +76,9 @@ std::string ReadLines::const_iterator::operator*() {
         StringUtil::Trim(&line);
 
     if (case_mode_ == TO_UPPER)
-        StringUtil::ToUpper(&line);
+        TextUtil::UTF8ToUpper(&line);
     else if (case_mode_ == TO_LOWER)
-        StringUtil::ToLower(&line);
+        TextUtil::UTF8ToLower(&line);
 
     return line;
 }
