@@ -96,4 +96,4 @@ void SetProfileMode(const std::string &profile_id, const ProfileMode profile_mod
 }
 
 
-}
+} // namespace AppArmorUtil
