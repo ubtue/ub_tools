@@ -31,7 +31,7 @@ apt-add-repository --yes --update 'deb https://artifacts.elastic.co/packages/7.x
 apt-get --quiet --yes --allow-unauthenticated install \
         ant apache2 ca-certificates cifs-utils clang cron curl gcc git imagemagick incron jq libarchive-dev \
         libcurl4-gnutls-dev libdb-dev liblept5 libleptonica-dev liblz4-tool libmagic-dev libmysqlclient-dev \
-        libpcre3-dev libpoppler97 libsqlite3-dev libssl-dev libstemmer-dev libtesseract-dev libwebp6 libxerces-c-dev \
+        libpcre3-dev libsqlite3-dev libssl-dev libstemmer-dev libtesseract-dev libwebp6 libxerces-c-dev \
         libxml2-dev libxml2-utils locales-all make mawk mutt openjdk-8-jdk poppler-utils pyflakes sqlite3 \
         tcl-expect-dev tesseract-ocr tesseract-ocr-bul tesseract-ocr-ces tesseract-ocr-dan tesseract-ocr-deu \
         tesseract-ocr-eng tesseract-ocr-fin tesseract-ocr-fra tesseract-ocr-heb tesseract-ocr-hun tesseract-ocr-ita tesseract-ocr-lat \
@@ -79,7 +79,7 @@ if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
     apt-get --quiet --yes install \
         composer \
-        php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-soap php-xsl php-pear \
+        php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-pear php-soap php-xml \
         libapache2-mod-php
 
     a2enmod rewrite

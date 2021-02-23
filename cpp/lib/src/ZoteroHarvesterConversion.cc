@@ -391,6 +391,12 @@ void StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::s
 }
 
 
+bool Is655Keyword(const std::string &keyword) {
+    static const auto keyword_list(FileUtil::ReadLines::ReadOrDie(UBTools::GetTuelibPath() + "zotero-enhancement-maps/marc655_keywords.txt"));
+    return std::find(keyword_list.begin(), keyword_list.end(), keyword) != keyword_list.end();
+}
+
+
 static const std::set<std::string> VALID_TITLES {
     "jr", "sr", "sj", "s.j", "s.j.", "fr", "hr", "dr", "prof", "em"
 };
@@ -1088,8 +1094,13 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         marc_record->insertField("773", _773_subfields);
 
     // Keywords
-    for (const auto &keyword : metadata_record.keywords_)
-        marc_record->insertField(MARC::GetIndexField(TextUtil::CollapseAndTrimWhitespace(keyword)));
+    for (const auto &keyword : metadata_record.keywords_) {
+        const std::string normalized_keyword(TextUtil::CollapseAndTrimWhitespace(keyword));
+        if (Is655Keyword(normalized_keyword))
+            marc_record->insertField("655", 'a', normalized_keyword);
+        else
+            marc_record->insertField(MARC::GetIndexField(normalized_keyword));
+    }
 
     // SSG numbers
     if (metadata_record.ssg_ != MetadataRecord::SSGType::INVALID) {
