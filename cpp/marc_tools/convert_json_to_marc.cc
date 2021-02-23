@@ -640,7 +640,7 @@ std::string MapJSONValue(const std::string &value, const std::string &map_name, 
 
 static unsigned matched_issn_count, not_matched_issn_count;
 
-static const expr size_t MAX_SUBFIELD_DATA_LENGTH = 1000;
+static constexpr size_t MAX_SUBFIELD_DATA_LENGTH = 1000;
 
 // Returns true if at least one subfield was inserted into "new_field", o/w returns false.
 bool ProcessSubfield(const MARC::Tag &marc_tag, const std::shared_ptr<const JSON::ObjectNode> &object,
