@@ -1,4 +1,4 @@
-Unit]
+[Unit]
 Description=Waity Service
 After=systend-user-sessions.service
 
