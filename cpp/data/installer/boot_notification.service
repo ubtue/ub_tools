@@ -1,0 +1,7 @@
+Unit]
+Description=Waity Service
+After=systend-user-sessions.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/boot_notification.sh
