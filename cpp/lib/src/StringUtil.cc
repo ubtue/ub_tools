@@ -124,12 +124,23 @@ char ToHexChar(const unsigned u) {
 namespace StringUtil {
 
 
-std::string &ASCIIToLower(std::string * const s) {
-    for (auto &ch : *s) {
-        if (ch >= 65 and ch <= 92)
-            ch += 32;
-    }
+inline char ASCIIToLower(const char * ch) {
+    if (IsUppercaseAsciiLetter(*ch))
+        return *ch + 32;
+    return *ch;
+}
 
+
+inline char ASCIIToUpper(const char * ch) {
+    if (IsLowercaseAsciiLetter(*ch))
+        return *ch - 32;
+    return *ch;
+}
+
+
+std::string &ASCIIToLower(std::string * const s) {
+    for (auto &ch : *s)
+        ch = ASCIIToLower(&ch);
     return *s;
 }
 
@@ -140,46 +151,25 @@ std::string ASCIIToLower(const std::string &s) {
 }
 
 
-std::string ToLower(std::string * const s) {
-    for (std::string::iterator ch(s->begin()); ch != s->end(); ++ch)
-        *ch = tolower(*ch);
-
+std::string &ASCIIToUpper(std::string * const s) {
+    for (auto &ch : *s)
+        ch = ASCIIToUpper(&ch);
     return *s;
 }
 
 
-std::string ToLower(const std::string &s) {
+std::string ASCIIToUpper(const std::string &s) {
     std::string result(s);
-    for (std::string::iterator ch(result.begin()); ch != result.end(); ++ch)
-        *ch = tolower(*ch);
-
-    return result;
+    return ASCIIToUpper(&result);
 }
 
 
-std::string ToUpper(std::string * const s) {
-    for (std::string::iterator ch(s->begin()); ch != s->end(); ++ch)
-        *ch = toupper(*ch);
-
-    return *s;
-}
-
-
-std::string ToUpper(const std::string &s) {
-    std::string result(s);
-    for (std::string::iterator ch(result.begin()); ch != result.end(); ++ch)
-        *ch = toupper(*ch);
-
-    return result;
-}
-
-
-bool IsAllUppercase(const std::string &s) {
+bool IsAllASCIIUppercase(const std::string &s) {
     if (s.empty())
         return false;
 
     for (std::string::const_iterator ch(s.begin()); ch != s.end(); ++ch) {
-        if (not isupper(*ch))
+        if (not IsUppercaseAsciiLetter(*ch))
             return false;
     }
 
@@ -187,12 +177,12 @@ bool IsAllUppercase(const std::string &s) {
 }
 
 
-bool IsAllLowercase(const std::string &s) {
+bool IsAllASCIILowercase(const std::string &s) {
     if (s.empty())
         return false;
 
     for (std::string::const_iterator ch(s.begin()); ch != s.end(); ++ch) {
-        if (not islower(*ch))
+        if (not IsLowercaseAsciiLetter(*ch))
             return false;
     }
 
@@ -206,11 +196,11 @@ bool IsInitialCapsString(const std::string &s)
                 return false;
 
         std::string::const_iterator ch(s.begin());
-        if (not isupper(*ch))
+        if (not IsUppercaseAsciiLetter(*ch))
                 return false;
 
         for (++ch; ch != s.end(); ++ch) {
-                if (not islower(*ch))
+                if (not IsLowercaseAsciiLetter(*ch))
                         return false;
         }
 
@@ -456,7 +446,7 @@ std::string ToHexString(const uint8_t u8) {
 // FromHex -- returns a binary nibble corresponding to "ch".
 //
 unsigned char FromHex(const char ch) {
-    switch (toupper(ch)) {
+    switch (ASCIIToUpper(&ch)) {
     case '0':
         return 0;
     case '1':
@@ -2229,7 +2219,7 @@ std::string GetPunctuationChars() {
 std::string &CapitalizeWord(std::string * const word) {
     std::string::iterator ch(word->begin());
     if (likely(ch != word->end())) {
-        *ch = toupper(*ch);
+        *ch = ASCIIToUpper(&(*ch));
         for (++ch; ch != word->end(); ++ch)
             *ch = tolower(*ch);
     }
@@ -2717,7 +2707,7 @@ bool ConsistsOf(const std::string &s, const std::set<char> &set) {
 
 bool ContainsAtLeastOneLowercaseLetter(const std::string &s) {
     for (std::string::const_iterator ch(s.begin()); ch != s.end(); ++ch) {
-        if (islower(*ch))
+        if (IsLowercaseAsciiLetter(*ch))
             return true;
     }
 
