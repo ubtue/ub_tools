@@ -26,7 +26,7 @@
 namespace AppArmorUtil {
 
 
-PROFILE_MODE ParseProfileMode(const std::string &profile_mode) {
+ProfileMode ParseProfileMode(const std::string &profile_mode) {
     if (profile_mode == "audit")
         return AUDIT;
     if (profile_mode == "complain")
@@ -39,7 +39,7 @@ PROFILE_MODE ParseProfileMode(const std::string &profile_mode) {
 
 
 std::shared_ptr<JSON::ObjectNode> GetStatusAsJSON() {
-    std::string json,stderr;
+    std::string json, stderr;
     if (not ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::Which("aa-status"), { "--json" }, &json, &stderr))
         LOG_ERROR("unable to execute \"aa-status --json\"");
 
@@ -52,19 +52,19 @@ std::shared_ptr<JSON::ObjectNode> GetStatusAsJSON() {
 }
 
 
-std::vector<std::pair<std::string,PROFILE_MODE>> GetProfiles() {
+std::vector<std::pair<std::string, ProfileMode>> GetProfiles() {
     const auto json_root(GetStatusAsJSON());
     const auto json_profiles(json_root->getObjectNode("profiles"));
-    std::vector<std::pair<std::string,PROFILE_MODE>> profiles;
+    std::vector<std::pair<std::string, ProfileMode>> profiles;
     for (auto &profile_and_mode : *json_profiles) {
-        std::shared_ptr<JSON::StringNode> profile_mode_node(JSON::JSONNode::CastToStringNodeOrDie("profile", profile_and_mode.second));
+        const std::shared_ptr<const JSON::StringNode> profile_mode_node(JSON::JSONNode::CastToStringNodeOrDie("profile", profile_and_mode.second));
         profiles.emplace_back(std::make_pair(profile_and_mode.first, ParseProfileMode(profile_mode_node->getValue())));
     }
     return profiles;
 }
 
 
-PROFILE_MODE GetProfileMode(const std::string &profile_id) {
+ProfileMode GetProfileMode(const std::string &profile_id) {
     const auto profiles(GetProfiles());
     for (const auto &profile : profiles) {
         if (profile_id == profile.first)
@@ -75,11 +75,11 @@ PROFILE_MODE GetProfileMode(const std::string &profile_id) {
 
 
 bool IsAvailable() {
-    return (ExecUtil::Which("aa-status") != "");
+    return (not ExecUtil::Which("aa-status").empty());
 }
 
 
-void SetProfileMode(const std::string &profile_id, const PROFILE_MODE profile_mode) {
+void SetProfileMode(const std::string &profile_id, const ProfileMode profile_mode) {
     std::string executable;
     switch (profile_mode) {
     case AUDIT:
