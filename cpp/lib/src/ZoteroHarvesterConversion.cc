@@ -1099,7 +1099,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     for (const auto &keyword : metadata_record.keywords_) {
         const std::string normalized_keyword(TextUtil::CollapseAndTrimWhitespace(keyword));
         if (Is655Keyword(normalized_keyword))
-            marc_record->insertField("655", 'a', normalized_keyword);
+            marc_record->insertField("655", 'a', normalized_keyword, ' ', '4');
         else
             marc_record->insertField(MARC::GetIndexField(normalized_keyword));
     }
