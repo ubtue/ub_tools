@@ -6,4 +6,4 @@ mkdir --parents $(SYSTEMD_SERVICE_DIR)
 install --owner=root --group=root --mode=644 \
         /usr/local/ub_tools/cpp/data/installer/boot_notification.service \
         $(SYSTEMD_SERVICE_DIR)
-/usr/bin/systemctl daemon-reload
+/usr/bin/systemctl start boot_notification.service
