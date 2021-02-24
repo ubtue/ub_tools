@@ -19,6 +19,9 @@ ColorEcho "installing/updating ub_tools dependencies..."
 
 apt-get --yes update
 
+# install additional libraries for docker environment
+apt-get --yes install sudo wget
+
 # install software-properties-common for apt-add-repository
 apt-get --yes install software-properties-common
 wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
@@ -26,14 +29,14 @@ apt-add-repository --yes --update 'deb https://artifacts.elastic.co/packages/7.x
 
 # main installation
 apt-get --quiet --yes --allow-unauthenticated install \
-        ant apache2 ca-certificates cifs-utils clang cron curl gcc git imagemagick incron jq libarchive-dev \
+        ant apache2 apparmor-utils ca-certificates cifs-utils clang cron curl gcc git imagemagick incron jq libarchive-dev \
         libcurl4-gnutls-dev libdb-dev liblept5 libleptonica-dev liblz4-tool libmagic-dev libmysqlclient-dev \
-        libpcre3-dev libpoppler73 libsqlite3-dev libssl-dev libstemmer-dev libtesseract-dev libwebp6 libxerces-c-dev \
-        libxml2-dev libxml2-utils locales-all make mawk mutt mysql-utilities openjdk-8-jdk poppler-utils pyflakes python3-pexpect sqlite3 \
-        sudo tcl-expect-dev tesseract-ocr tesseract-ocr-bul tesseract-ocr-ces tesseract-ocr-dan tesseract-ocr-deu \
+        libpcre3-dev libsqlite3-dev libssl-dev libstemmer-dev libtesseract-dev libwebp6 libxerces-c-dev \
+        libxml2-dev libxml2-utils locales-all make mawk mutt openjdk-8-jdk poppler-utils pyflakes sqlite3 \
+        tcl-expect-dev tesseract-ocr tesseract-ocr-bul tesseract-ocr-ces tesseract-ocr-dan tesseract-ocr-deu \
         tesseract-ocr-eng tesseract-ocr-fin tesseract-ocr-fra tesseract-ocr-heb tesseract-ocr-hun tesseract-ocr-ita tesseract-ocr-lat \
         tesseract-ocr-nld tesseract-ocr-nor tesseract-ocr-pol tesseract-ocr-por tesseract-ocr-rus tesseract-ocr-script-grek tesseract-ocr-slv \
-        tesseract-ocr-spa tesseract-ocr-swe tidy unzip uuid-dev wget xsltproc yaz
+        tesseract-ocr-spa tesseract-ocr-swe tidy unzip uuid-dev xsltproc
 
 # From 18.04 on, Java 8 needs to be enabled as well for Solr + mixins (18.04 ships with 10)
 # (unfortunately, >= string comparison is impossible in Bash, so we compare > 17.10)
@@ -76,7 +79,7 @@ if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
     apt-get --quiet --yes install \
         composer \
-        php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-soap php-xsl php-pear \
+        php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-pear php-soap php-xml \
         libapache2-mod-php
 
     a2enmod rewrite
