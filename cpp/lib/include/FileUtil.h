@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  Copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -57,11 +57,13 @@ namespace FileUtil {
 class ReadLines {
 public:
     enum TrimMode { DO_NOT_TRIM, TRIM_RIGHT, TRIM_LEFT_AND_RIGHT };
+    enum CaseMode { DO_NOT_CHANGE, TO_UPPER, TO_LOWER };
 
     class const_iterator {
         friend class ReadLines;
         File * const file_;
         TrimMode trim_mode_;
+        CaseMode case_mode_;
         std::string current_line_;
     public:
         std::string operator*();
@@ -69,19 +71,22 @@ public:
         bool operator==(const const_iterator &rhs) const;
         inline bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
     private:
-        const_iterator(File * const file, const TrimMode trim_mode): file_(file), trim_mode_(trim_mode) { }
+        const_iterator(File * const file, const TrimMode trim_mode, const CaseMode case_mode): file_(file), trim_mode_(trim_mode), case_mode_(case_mode) { }
     };
 private:
     File *file_;
     TrimMode trim_mode_;
+    CaseMode case_mode_;
 public:
-    explicit ReadLines(const std::string &path, const TrimMode trim_mode = TRIM_LEFT_AND_RIGHT);
+    explicit ReadLines(const std::string &path, const TrimMode trim_mode = TRIM_LEFT_AND_RIGHT,
+                       const ReadLines::CaseMode case_mode = DO_NOT_CHANGE);
     ~ReadLines() { delete file_; }
 
-    const_iterator begin() { return const_iterator(file_, trim_mode_); }
-    const_iterator end() { return const_iterator(nullptr, trim_mode_); }
+    const_iterator begin() { return const_iterator(file_, trim_mode_, case_mode_); }
+    const_iterator end() { return const_iterator(nullptr, trim_mode_, case_mode_); }
 
-    static std::vector<std::string> ReadOrDie(const std::string &path, const ReadLines::TrimMode trim_mode = TRIM_LEFT_AND_RIGHT);
+    static std::vector<std::string> ReadOrDie(const std::string &path, const ReadLines::TrimMode trim_mode = TRIM_LEFT_AND_RIGHT,
+                                              const ReadLines::CaseMode case_mode = DO_NOT_CHANGE);
 };
 
 
