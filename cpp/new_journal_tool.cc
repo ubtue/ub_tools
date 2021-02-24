@@ -98,10 +98,10 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
 }
 
 
-std::string GetTitle(const std::string &ppn, const std::string &solr_host_and_port) {
+std::string GetTitle(const std::string &ppn, const std::string &solr_host, const unsigned solr_port) {
     const std::string SOLR_QUERY("superior_ppn:" + ppn);
     std::string json_document, err_msg;
-    if (unlikely(not Solr::Query(SOLR_QUERY, "title", &json_document, &err_msg, solr_host_and_port, /* timeout = */ 5,
+    if (unlikely(not Solr::Query(SOLR_QUERY, "title", &json_document, &err_msg, solr_host, solr_port, /* timeout = */ 5,
                                  Solr::JSON, /* max_no_of_rows = */1)))
         LOG_ERROR("Solr query failed or timed-out: \"" + SOLR_QUERY + "\". (" + err_msg + ")");
 
@@ -124,7 +124,7 @@ std::string GetTitle(const std::string &ppn, const std::string &solr_host_and_po
 
 
 void ListSubs(DbConnection * const db_connection, const std::string &user_type, const std::string &username,
-              const std::string &host_and_port)
+              const std::string &host, const unsigned port)
 {
     std::string query("SELECT username,ixtheo_user.id AS id FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id "
                       "WHERE ixtheo_user.user_type='" + user_type + "'");
@@ -146,7 +146,7 @@ void ListSubs(DbConnection * const db_connection, const std::string &user_type, 
             const std::string journal_control_number_or_bundle_name(row2["journal_control_number_or_bundle_name"]);
             std::cout << '\t' << StringUtil::PadTrailing(journal_control_number_or_bundle_name, BSZUtil::PPN_LENGTH_NEW)
                       << " -> " << row2["max_last_modification_time"] << ' '
-                      << GetTitle(journal_control_number_or_bundle_name, host_and_port) << '\n';
+                      << GetTitle(journal_control_number_or_bundle_name, host, port) << '\n';
         }
     }
 }
@@ -195,11 +195,15 @@ int Main(int argc, char **argv) {
     if (argc < 3)
         Usage();
 
-    std::string solr_host_and_port;
-    if (std::strchr(argv[1], ':') == nullptr)
-        solr_host_and_port = Solr::DEFAULT_HOST_AND_PORT;
-    else {
-        solr_host_and_port = argv[1];
+    std::string solr_host;
+    unsigned solr_port;
+    if (std::strchr(argv[1], ':') == nullptr) {
+        solr_host = Solr::DEFAULT_HOST;
+        solr_port = Solr::DEFAULT_PORT;
+    } else {
+        std::string solr_port_as_string;
+        StringUtil::SplitOnString(std::string(argv[1]), ":", &solr_host, &solr_port_as_string);
+        solr_port = StringUtil::ToUnsigned(solr_port_as_string);
         --argc, ++argv;
     }
     if (argc < 3)
@@ -224,7 +228,7 @@ int Main(int argc, char **argv) {
         if (argc != 4)
             Usage();
         const std::string username(argv[3]);
-        ListSubs(db_connection.get(), user_type, username, solr_host_and_port);
+        ListSubs(db_connection.get(), user_type, username, solr_host, solr_port);
     } else if (command == "clear") {
         if (argc < 4 or argc > 5)
             Usage();

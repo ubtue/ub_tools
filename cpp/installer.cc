@@ -53,6 +53,7 @@
 #include "VuFind.h"
 #include "UBTools.h"
 #include "util.h"
+#include "Solr.h"
 
 
 /* Somewhere in the middle of the GCC 2.96 development cycle, a mechanism was implemented by which the user can tag likely branch directions and
@@ -797,7 +798,7 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
     FileUtil::WriteString("/etc/security/limits.d/20-solr.conf", solr_security_settings);
 
     if (SELinuxUtil::IsEnabled())
-        SELinuxUtil::Port::AddRecordIfMissing("http_port_t", "tcp", 8983);
+        SELinuxUtil::Port::AddRecordIfMissing("http_port_t", "tcp", Solr::DEFAULT_PORT);
 
     // systemctl: we do enable as well as daemon-reload and restart
     // to achieve an idempotent installation

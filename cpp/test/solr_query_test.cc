@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2020, Library of the University of Tübingen
+    Copyright (C) 2016-2021, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -30,7 +30,7 @@
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "usage: " << ::progname << " query fields host_and_port timeout query_result_format [max_no_of_rows]\n";
+    std::cerr << "usage: " << ::progname << " query fields host port timeout query_result_format [max_no_of_rows]\n";
     std::cerr << "       Where \"query_result_format\" must be either \"XML\" or \"JSON\".\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -39,18 +39,19 @@
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 6 and argc != 7)
+    if (argc != 7 and argc != 8)
         Usage();
 
     const std::string query(argv[1]);
     const std::string fields(argv[2]);
-    const std::string host_and_port(argv[3]);
+    const std::string host(argv[3]);
+    const unsigned port(StringUtil::ToUnsigned(argv[4]));
 
     unsigned timeout;
-    if (not StringUtil::ToUnsigned(argv[4], &timeout) or timeout < 1)
-        logger->error("can't convert \"" + std::string(argv[4]) + " \" to a postive integer!");
+    if (not StringUtil::ToUnsigned(argv[5], &timeout) or timeout < 1)
+        logger->error("can't convert \"" + std::string(argv[5]) + " \" to a postive integer!");
 
-    const std::string result_format_candidate(argv[5]);
+    const std::string result_format_candidate(argv[6]);
     Solr::QueryResultFormat result_format;
     if (result_format_candidate == "XML")
         result_format = Solr::QueryResultFormat::XML;
@@ -61,13 +62,13 @@ int main(int argc, char *argv[]) {
 
     unsigned max_no_of_rows(Solr::JAVA_INT_MAX);
     if (argc == 7) {
-        if (not StringUtil::ToUnsigned(argv[6], &max_no_of_rows))
-            LOG_ERROR("can't convert \"" + std::string(argv[6]) + "\" to an unsigned integer!");
+        if (not StringUtil::ToUnsigned(argv[7], &max_no_of_rows))
+            LOG_ERROR("can't convert \"" + std::string(argv[7]) + "\" to an unsigned integer!");
     }
 
     try {
         std::string xml_or_json_result, err_msg;
-        if (not Solr::Query(query, fields, &xml_or_json_result, &err_msg, host_and_port, timeout, result_format, max_no_of_rows))
+        if (not Solr::Query(query, fields, &xml_or_json_result, &err_msg, host, port, timeout, result_format, max_no_of_rows))
         {
             std::cerr << xml_or_json_result << '\n';
             LOG_ERROR("Query failed! (" + err_msg + ")");
