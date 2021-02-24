@@ -196,11 +196,8 @@ uint64_t Url::getHash(const HashBehaviour hash_behaviour) const {
         canonised_url.clear();
         canonised_url.append(url_, 0, url_.size() - 1);
     }
-    #pragma GCC diagnostic ignored "-Wvla"
-    char lowercase_url[canonised_url.length() + 1];
-    #pragma GCC diagnostic warning "-Wvla"
-    std::strcpy(lowercase_url, canonised_url.c_str());
-    const char * const c_string(StringUtil::strlower(lowercase_url));
+    const std::string lowercase_url(StringUtil::ASCIIToLower(canonised_url));
+    const char * const c_string(lowercase_url.c_str());
 
     // Hash the protocol ignoring slashes
     const char *start_pos = std::strchr(c_string, ':');

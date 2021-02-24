@@ -55,7 +55,7 @@ Mode GetMode() {
 
 
 bool IsAvailable() {
-    return (ExecUtil::Which("getenforce") != "");
+    return (not ExecUtil::Which("getenforce").empty());
 }
 
 
