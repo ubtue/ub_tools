@@ -124,23 +124,23 @@ char ToHexChar(const unsigned u) {
 namespace StringUtil {
 
 
-inline char ASCIIToLower(const char * ch) {
-    if (IsUppercaseAsciiLetter(*ch))
-        return *ch + 32;
-    return *ch;
+inline char ASCIIToLower(const char ch) {
+    if (IsUppercaseAsciiLetter(ch))
+        return ch + 32;
+    return ch;
 }
 
 
-inline char ASCIIToUpper(const char * ch) {
-    if (IsLowercaseAsciiLetter(*ch))
-        return *ch - 32;
-    return *ch;
+inline char ASCIIToUpper(const char ch) {
+    if (IsLowercaseAsciiLetter(ch))
+        return ch - 32;
+    return ch;
 }
 
 
 std::string &ASCIIToLower(std::string * const s) {
     for (auto &ch : *s)
-        ch = ASCIIToLower(&ch);
+        ch = ASCIIToLower(ch);
     return *s;
 }
 
@@ -153,7 +153,7 @@ std::string ASCIIToLower(const std::string &s) {
 
 std::string &ASCIIToUpper(std::string * const s) {
     for (auto &ch : *s)
-        ch = ASCIIToUpper(&ch);
+        ch = ASCIIToUpper(ch);
     return *s;
 }
 
@@ -446,7 +446,7 @@ std::string ToHexString(const uint8_t u8) {
 // FromHex -- returns a binary nibble corresponding to "ch".
 //
 unsigned char FromHex(const char ch) {
-    switch (ASCIIToUpper(&ch)) {
+    switch (ASCIIToUpper(ch)) {
     case '0':
         return 0;
     case '1':
@@ -2219,7 +2219,7 @@ std::string GetPunctuationChars() {
 std::string &CapitalizeWord(std::string * const word) {
     std::string::iterator ch(word->begin());
     if (likely(ch != word->end())) {
-        *ch = ASCIIToUpper(&(*ch));
+        *ch = ASCIIToUpper(*ch);
         for (++ch; ch != word->end(); ++ch)
             *ch = tolower(*ch);
     }

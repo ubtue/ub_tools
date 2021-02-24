@@ -109,11 +109,11 @@ inline std::string AppendSubstring(std::string &target, const std::string &sourc
 }
 
 /** \brief Converts an ASCII character to lowercase. */
-inline char ASCIIToLower(const char * ch);
+inline char ASCIIToLower(const char ch);
 
 
 /** \brief Converts an ASCII character to uppercase. */
-inline char ASCIIToUpper(const char * ch);
+inline char ASCIIToUpper(const char ch);
 
 
 /** \brief Converts the ASCII letters in "s" to lowercase. */
