@@ -108,30 +108,22 @@ inline std::string AppendSubstring(std::string &target, const std::string &sourc
     return target;
 }
 
+/** \brief Converts an ASCII character to lowercase. */
+inline char ASCIIToLower(const char ch);
+
+
+/** \brief Converts an ASCII character to uppercase. */
+inline char ASCIIToUpper(const char ch);
+
 
 /** \brief Converts the ASCII letters in "s" to lowercase. */
 std::string &ASCIIToLower(std::string * const s);
 std::string ASCIIToLower(const std::string &s);
 
 
-/** \brief  Convert a C-style string to lowercase. */
-inline char *strlower(char *s) {
-    char *ch = s;
-    while (*ch != '\0') {
-        *ch = static_cast<char>(tolower(*ch));
-        ++ch;
-    }
-
-    return s;
-}
-
-
-/** \brief  Convert a string to uppercase (modifies its argument). */
-std::string ToUpper(std::string * const s);
-
-
-/** \brief  Convert a string to uppercase (does not modify its argument). */
-std::string ToUpper(const std::string &s);
+/** \brief Converts the ASCII letters in "s" to uppercase. */
+std::string &ASCIIToUpper(std::string * const s);
+std::string ASCIIToUpper(const std::string &s);
 
 
 /** \brief   Determines if a string consists of all uppercase letters or not.
@@ -139,7 +131,7 @@ std::string ToUpper(const std::string &s);
  *  \return  True if "s" is non-empty and consists only of uppercase letters, false otherwise.
  *  \warning Please note that the behaviour of this function is locale depedent.
  */
-bool IsAllUppercase(const std::string &s);
+bool IsAllASCIIUppercase(const std::string &s);
 
 
 /** \brief   Determines if a string consists of all lowercase letters or not.
@@ -147,7 +139,7 @@ bool IsAllUppercase(const std::string &s);
  *  \return  True if "s" is non-empty and consists only of lowercase letters, false otherwise.
  *  \warning Please note that the behaviour of this function is locale depedent.
  */
-bool IsAllLowercase(const std::string &s);
+bool IsAllASCIILowercase(const std::string &s);
 
 
 /** \brief   Determines if a string starts with an uppercase letter followed by one or more all lowercase letters or not.
@@ -1895,7 +1887,7 @@ inline size_t NonWhitespaceLength(const std::string &text)
  *  \param  ch  The character to test.
  *  \return True if "ch" is a lowercase ASCII letter, else returns false.
  */
-inline bool IsLowercaseLetter(const char ch)
+inline bool IsLowercaseAsciiLetter(const char ch)
 {
         // Caution: the following code assumes a character set where a-z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
         return ch >= 'a' and ch <= 'z';
@@ -1906,7 +1898,7 @@ inline bool IsLowercaseLetter(const char ch)
  *  \param  ch  The character to test.
  *  \return True if "ch" is a lowercase ASCII letter, else returns false.
  */
-inline bool IsLowercaseLetter(const int ch)
+inline bool IsLowercaseAsciiLetter(const int ch)
 {
     // Caution: the following code assumes a character set where a-z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
     return ch >= 'a' and ch <= 'z';
