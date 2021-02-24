@@ -85,7 +85,7 @@ int Main(int argc, char *argv[]) {
     const std::string sender_email_address(argv[2]), notification_email_address(argv[3]);
     ZoteroHarvester::Util::UploadTracker upload_tracker;
 
-    IniFile ini_file(UBTools::GetTuelibPath() + "zotero-enhancement-maps/zotero_harvester.conf_210217");
+    IniFile ini_file(UBTools::GetTuelibPath() + "zotero-enhancement-maps/zotero_harvester.conf");
     std::string tardy_list;
     for (const auto &section : ini_file) {
         if (section.find("user_agent") != section.end())
