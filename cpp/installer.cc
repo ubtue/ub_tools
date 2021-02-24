@@ -579,7 +579,8 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     RegisterSystemUpdateVersion();
 
     // Install boot notification service:
-    SystemdUtil::InstallUnit(UB_TOOLS_DIRECTORY + "/cpp/data/installer/boot_notification.service");
+    if (SystemdUtil::IsAvailable())
+        SystemdUtil::InstallUnit(UB_TOOLS_DIRECTORY + "/cpp/data/installer/boot_notification.service");
 
     Echo("Installed ub_tools.");
 }
