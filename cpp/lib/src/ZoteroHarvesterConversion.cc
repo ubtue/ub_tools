@@ -1146,6 +1146,10 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     }
     marc_record->insertField("852", { { 'a', parameters.group_params_.isil_ } });
 
+    // Selective evaluation
+    if (parameters.download_item_.journal_.selective_evaluation_)
+        marc_record->insertField("935", { { 'a', "NABZ" }, { '2', "LOK" } });
+
     // Book-keeping fields
     if (not metadata_record.url_.empty())
         marc_record->insertField("URL", { { 'a', metadata_record.url_ } });
