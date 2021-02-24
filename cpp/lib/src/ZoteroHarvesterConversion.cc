@@ -392,8 +392,10 @@ void StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::s
 
 
 bool Is655Keyword(const std::string &keyword) {
-    static const auto keyword_list(FileUtil::ReadLines::ReadOrDie(UBTools::GetTuelibPath() + "zotero-enhancement-maps/marc655_keywords.txt"));
-    return std::find(keyword_list.begin(), keyword_list.end(), keyword) != keyword_list.end();
+    static const auto keyword_list(FileUtil::ReadLines::ReadOrDie(UBTools::GetTuelibPath() + "zotero-enhancement-maps/marc655_keywords.txt",
+                                                                  FileUtil::ReadLines::TRIM_LEFT_AND_RIGHT, FileUtil::ReadLines::TO_LOWER));
+    const std::string keyword_lower(TextUtil::UTF8ToLower(keyword));
+    return std::find(keyword_list.begin(), keyword_list.end(), keyword_lower) != keyword_list.end();
 }
 
 
@@ -650,7 +652,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
     // normalise pages
     const auto pages(metadata_record->pages_);
     // force uppercase for roman numeral detection
-    auto page_match(PAGE_RANGE_MATCHER.match(StringUtil::ToUpper(pages)));
+    auto page_match(PAGE_RANGE_MATCHER.match(StringUtil::ASCIIToUpper(pages)));
     if (page_match) {
         std::string converted_pages;
         if (PAGE_ROMAN_NUMERAL_MATCHER.match(page_match[1]))
@@ -1097,7 +1099,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     for (const auto &keyword : metadata_record.keywords_) {
         const std::string normalized_keyword(TextUtil::CollapseAndTrimWhitespace(keyword));
         if (Is655Keyword(normalized_keyword))
-            marc_record->insertField("655", 'a', normalized_keyword);
+            marc_record->insertField("655", 'a', normalized_keyword, ' ', '4');
         else
             marc_record->insertField(MARC::GetIndexField(normalized_keyword));
     }
