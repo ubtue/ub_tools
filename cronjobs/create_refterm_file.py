@@ -29,7 +29,7 @@ def FoundNewBSZDataFile(link_filename):
     try:
         statinfo = os.stat(link_filename)
         file_creation_time = statinfo.st_ctime
-    except OSError as e:
+    except OSError:
         util.Error("in FoundNewBSZDataFile: Symlink \"" + link_filename + "\" is missing or dangling!")
     old_timestamp = util.ReadTimestamp("initiate_marc_pipeline")
     return old_timestamp < file_creation_time
@@ -137,7 +137,6 @@ def CleanStaleMutex():
 
 
 def Main():
-    util.default_email_sender = "create_refterm_file@ub.uni-tuebingen.de"
     util.default_email_recipient = "johannes.riedl@uni-tuebingen.de"
     if len(sys.argv) != 2:
          util.SendEmail("Create Refterm File (Kickoff Failure)",

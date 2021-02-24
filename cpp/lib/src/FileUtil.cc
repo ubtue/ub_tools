@@ -2,7 +2,7 @@
  *  \brief  Implementation of file related utility classes and functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -70,16 +70,17 @@ std::string ReadLines::const_iterator::operator*() {
     std::string line;
     file_->getline(&line);
 
-    switch (trim_mode_) {
-    case DO_NOT_TRIM:
-        return line;
-    case TRIM_RIGHT:
-        return StringUtil::RightTrim(&line);
-    case TRIM_LEFT_AND_RIGHT:
-        return StringUtil::Trim(&line);
-    }
+    if (trim_mode_ == TRIM_RIGHT)
+        StringUtil::RightTrim(&line);
+    else if (trim_mode_ == TRIM_LEFT_AND_RIGHT)
+        StringUtil::Trim(&line);
 
-    __builtin_unreachable();
+    if (case_mode_ == TO_UPPER)
+        TextUtil::UTF8ToUpper(&line);
+    else if (case_mode_ == TO_LOWER)
+        TextUtil::UTF8ToLower(&line);
+
+    return line;
 }
 
 
@@ -87,8 +88,21 @@ void ReadLines::const_iterator::operator++() {
 }
 
 
-ReadLines::ReadLines(const std::string &path, const TrimMode trim_mode): trim_mode_(trim_mode) {
+ReadLines::ReadLines(const std::string &path, const TrimMode trim_mode, const CaseMode case_mode): trim_mode_(trim_mode), case_mode_(case_mode) {
     file_ = OpenInputFileOrDie(path).release();
+}
+
+
+std::vector<std::string> ReadLines::ReadOrDie(const std::string &path, const ReadLines::TrimMode trim_mode,
+                                              const ReadLines::CaseMode case_mode)
+{
+    ReadLines readlines(path, trim_mode, case_mode);
+    std::vector<std::string> lines;
+    for (const auto line : readlines) {
+        if (not line.empty())
+            lines.emplace_back(line);
+    }
+    return lines;
 }
 
 

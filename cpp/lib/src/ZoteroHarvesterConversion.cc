@@ -391,6 +391,14 @@ void StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::s
 }
 
 
+bool Is655Keyword(const std::string &keyword) {
+    static const auto keyword_list(FileUtil::ReadLines::ReadOrDie(UBTools::GetTuelibPath() + "zotero-enhancement-maps/marc655_keywords.txt",
+                                                                  FileUtil::ReadLines::TRIM_LEFT_AND_RIGHT, FileUtil::ReadLines::TO_LOWER));
+    const std::string keyword_lower(TextUtil::UTF8ToLower(keyword));
+    return std::find(keyword_list.begin(), keyword_list.end(), keyword_lower) != keyword_list.end();
+}
+
+
 static const std::set<std::string> VALID_TITLES {
     "jr", "sr", "sj", "s.j", "s.j.", "fr", "hr", "dr", "prof", "em"
 };
@@ -511,6 +519,18 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
 }
 
 
+const std::string TIKA_SERVER_DETECT_STRING_LANGUAGE_URL("http://localhost:9998/language/string");
+std::string TikaDetectLanguage(const std::string &record_text) {
+    Downloader downloader;
+    if (not downloader.putData(TIKA_SERVER_DETECT_STRING_LANGUAGE_URL, record_text))
+        LOG_ERROR("Could not send data to Tika server");
+    const std::string tika_detected_language(downloader.getMessageBody());
+    if (tika_detected_language.empty())
+        return "";
+    return Config::GetNormalizedLanguage(tika_detected_language);
+}
+
+
 void DetectLanguage(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params) {
     // Normalize given language
     if (not Config::IsAllowedLanguage(metadata_record->language_)) {
@@ -541,12 +561,15 @@ void DetectLanguage(MetadataRecord * const metadata_record, const Config::Journa
             record_text = metadata_record->title_ + " " + metadata_record->abstract_note_;
         else
             LOG_ERROR("unknown text field '" + journal_params.language_params_.source_text_fields_ + "' for language detection");
-
-        std::vector<NGram::DetectedLanguage> detected_languages;
-        NGram::ClassifyLanguage(record_text, &detected_languages, journal_params.language_params_.expected_languages_,
-                                /*alternative_cutoff_factor = */ 0);
-        const auto top_language(detected_languages.front());
-        detected_language = top_language.language_;
+        detected_language = TikaDetectLanguage(record_text);
+        // Fallback to custom NGram
+        if (detected_language.empty()) {
+            std::vector<NGram::DetectedLanguage> detected_languages;
+            NGram::ClassifyLanguage(record_text, &detected_languages, journal_params.language_params_.expected_languages_,
+                                 /*alternative_cutoff_factor = */ 0);
+            const auto top_language(detected_languages.front());
+            detected_language = top_language.language_;
+        }
     }
 
     // compare given language to detected language
@@ -556,7 +579,10 @@ void DetectLanguage(MetadataRecord * const metadata_record, const Config::Journa
             metadata_record->language_ = detected_language;
         } else if (detected_language == metadata_record->language_)
             LOG_INFO("The given language is equal to the detected language: " + detected_language);
-        else {
+        else if (journal_params.force_language_detection_) {
+            LOG_INFO ("Force language detection active - using detected language: " + detected_language);
+            metadata_record->language_ = detected_language;
+        } else {
             LOG_INFO("The given language " + metadata_record->language_ +  " and the detected language " + detected_language + " are different. "
                      "No language will be set.");
             metadata_record->language_.clear();
@@ -626,7 +652,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
     // normalise pages
     const auto pages(metadata_record->pages_);
     // force uppercase for roman numeral detection
-    auto page_match(PAGE_RANGE_MATCHER.match(StringUtil::ToUpper(pages)));
+    auto page_match(PAGE_RANGE_MATCHER.match(StringUtil::ASCIIToUpper(pages)));
     if (page_match) {
         std::string converted_pages;
         if (PAGE_ROMAN_NUMERAL_MATCHER.match(page_match[1]))
@@ -1070,8 +1096,13 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         marc_record->insertField("773", _773_subfields);
 
     // Keywords
-    for (const auto &keyword : metadata_record.keywords_)
-        marc_record->insertField(MARC::GetIndexField(TextUtil::CollapseAndTrimWhitespace(keyword)));
+    for (const auto &keyword : metadata_record.keywords_) {
+        const std::string normalized_keyword(TextUtil::CollapseAndTrimWhitespace(keyword));
+        if (Is655Keyword(normalized_keyword))
+            marc_record->insertField("655", 'a', normalized_keyword, ' ', '4');
+        else
+            marc_record->insertField(MARC::GetIndexField(normalized_keyword));
+    }
 
     // SSG numbers
     if (metadata_record.ssg_ != MetadataRecord::SSGType::INVALID) {
@@ -1114,6 +1145,10 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         break;
     }
     marc_record->insertField("852", { { 'a', parameters.group_params_.isil_ } });
+
+    // Selective evaluation
+    if (parameters.download_item_.journal_.selective_evaluation_)
+        marc_record->insertField("935", { { 'a', "NABZ" }, { '2', "LOK" } });
 
     // Book-keeping fields
     if (not metadata_record.url_.empty())
