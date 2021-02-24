@@ -718,7 +718,9 @@ void UploadTracker::registerZederJournal(const unsigned zeder_id, const std::str
 }
 
 
-void UploadTracker::deleteAllDeliveredOnlineFirstEntries(const unsigned zeder_id, const std::string &zeder_instance) {
+void UploadTracker::deleteOnlineFirstEntriesOlderThan(const unsigned zeder_id, const std::string &zeder_instance,
+                                                      const unsigned &update_window)
+{
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection;
     db_connection.queryOrDie(std::string("DELETE FROM delivered_marc_records WHERE zeder_journal_id=")
@@ -728,8 +730,11 @@ void UploadTracker::deleteAllDeliveredOnlineFirstEntries(const unsigned zeder_id
                                  + db_connection.escapeAndQuoteString(zeder_instance)
                              + ')'
                              + " AND delivery_state="
-                             + db_connection.escapeAndQuoteString("online_first"));
-
+                                 + db_connection.escapeAndQuoteString("online_first")
+                             + " AND delivered_at < (SUBDATE(NOW(), "
+                                 + std::to_string(update_window)
+                             + "))"
+                            );
 }
 
 
