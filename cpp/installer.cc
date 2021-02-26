@@ -491,6 +491,8 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
     const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
     FileUtil::WriteStringOrDie(service_file_path, vufind_service);
     SystemdUtil::InstallUnit(service_file_path);
+    SystemdUtil::EnableUnit(service_name);
+    SystemdUtil::StartUnit(service_name);
 }
 
 
