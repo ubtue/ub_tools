@@ -492,7 +492,6 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
     FileUtil::WriteStringOrDie(service_file_path, vufind_service);
     SystemdUtil::InstallUnit(service_file_path);
     SystemdUtil::EnableUnit(service_name);
-    SystemdUtil::StartUnit(service_name);
 }
 
 
@@ -584,7 +583,6 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     if (SystemdUtil::IsAvailable()) {
         SystemdUtil::InstallUnit(UB_TOOLS_DIRECTORY + "/cpp/data/installer/boot_notification.service");
         SystemdUtil::EnableUnit("boot_notification");
-        SystemdUtil::StartUnit("boot_notification");
     }
 
     Echo("Installed ub_tools.");
