@@ -181,8 +181,10 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
             statement += *ch;
             ++ch;
             comment_flavour = END_OF_LINE_COMMENT;
-        } else if (*ch == '\n' and StringUtil::StartsWith(statement, "DELIMITER ", /* ignore_case= */true)) {
-            delimiter = StringUtil::Trim(delimiter.substr(__builtin_strlen("DELIMITER ")));
+        } else if (*ch == '\n'
+                   and StringUtil::StartsWith(StringUtil::LeftTrimWhite(statement), "DELIMITER ", /* ignore_case= */true))
+        {
+            delimiter = StringUtil::RightTrimWhite(StringUtil::LeftTrimWhite(statement).substr(__builtin_strlen("DELIMITER ")));
             statement.clear();
         } else {
             if (*ch == '\'' or *ch == '"')
