@@ -1208,7 +1208,7 @@ void HtmlParser::parse() {
                         }
 
                         std::string uppercase_doctype(doctype);
-                        if (StringUtil::ToUpper(&uppercase_doctype) != "DOCTYPE") {
+                        if (StringUtil::ASCIIToUpper(&uppercase_doctype) != "DOCTYPE") {
                             ungetChar(); // unget the '>'
                             skipToEndOfMalformedTag("!" + doctype, start_lineno);
                             continue;
