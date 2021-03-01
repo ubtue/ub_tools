@@ -813,6 +813,9 @@ void ProcessShowLogsAction() {
 } // unnamed namespace
 
 
+const std::string SKIP_ONLINE_FIRST_TRUE_DIRECTIVE("\rskip_online_first_articles_unconditionally=true");
+
+
 int Main(int argc, char *argv[]) {
     std::multimap<std::string, std::string> cgi_args;
     WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
@@ -826,7 +829,10 @@ int Main(int argc, char *argv[]) {
     ZoteroHarvester::Util::UploadTracker upload_tracker;
     const std::string default_action("list");
     const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));
-    const std::string config_overrides(GetCGIParameterOrDefault(cgi_args, "config_overrides"));
+    const std::string include_online_first(GetCGIParameterOrDefault(cgi_args, "include_online_first", ""));
+    std::string config_overrides(GetCGIParameterOrDefault(cgi_args, "config_overrides"));
+    if (include_online_first.empty())
+         config_overrides.append(SKIP_ONLINE_FIRST_TRUE_DIRECTIVE);
     const std::string url(GetCGIParameterOrDefault(cgi_args, "url"));
 
     if (action == "download")
@@ -848,8 +854,14 @@ int Main(int argc, char *argv[]) {
         names_to_values_map.insertScalar("depth", depth);
 
         names_to_values_map.insertScalar("running_processes_count", std::to_string(ExecUtil::FindActivePrograms("zotero_harvester").size()));
-        names_to_values_map.insertScalar("config_overrides", config_overrides);
         names_to_values_map.insertScalar("url", url);
+        names_to_values_map.insertScalar("include_online_first", include_online_first);
+        names_to_values_map.insertScalar("config_overrides",
+                                         include_online_first.empty() ?
+                                             StringUtil::ReplaceString(
+                                                 SKIP_ONLINE_FIRST_TRUE_DIRECTIVE,
+                                                 "", config_overrides) :
+                                             config_overrides);
 
         std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> group_name_to_params_map;
         std::unordered_map<std::string, std::string>journal_name_to_group_name_map;
