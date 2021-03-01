@@ -23,7 +23,7 @@ ADD local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
 RUN php /usr/local/vufind/util/cssBuilder.php
 
 # expose solr & import example marc data
-EXPOSE 8080
+EXPOSE 8983
 ADD data.mrc /usr/local/ub_tools/bsz_daten/data.mrc
 RUN source /etc/profile.d/vufind.sh \
     && sudo -u solr /usr/local/vufind/solr.sh start \
