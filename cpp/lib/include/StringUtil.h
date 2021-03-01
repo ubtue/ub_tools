@@ -295,6 +295,28 @@ inline std::string TrimWhite(const std::string &s) {
 inline std::string TrimWhite(const char * const s) { return TrimWhite(std::string(s)); }
 
 
+inline std::string LeftTrimWhite(std::string * const s) {
+    return LeftTrim(WHITE_SPACE, s);
+}
+
+
+inline std::string LeftTrimWhite(const std::string &s) {
+    std::string temp_s(s);
+    return LeftTrimWhite(&temp_s);
+}
+
+
+inline std::string RightTrimWhite(std::string * const s) {
+    return RightTrim(WHITE_SPACE, s);
+}
+
+
+inline std::string RightTrimWhite(const std::string &s) {
+    std::string temp_s(s);
+    return RightTrimWhite(&temp_s);
+}
+
+
 /** \brief  Convert a number to a string.
  *  \param  n              The number to convert.
  *  \param  radix          The base to use for the resulting string representation.
