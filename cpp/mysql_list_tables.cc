@@ -2,7 +2,7 @@
  *  \brief A tool for listing the schemas of all tables in a MySQL database.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2020-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -32,6 +32,24 @@
 }
 
 
+void ProcessTablesOrViews(DbConnection * const db_connection, const bool process_tables) {
+    db_connection->queryOrDie("SHOW FULL TABLES WHERE Table_Type = '"
+                              + std::string(process_tables ? "BASE TABLE" : "VIEW") + "'");
+    std::vector<std::string> table_names;
+
+    DbResultSet result_set1(db_connection->getLastResultSet());
+    DbRow row1;
+    while (row1 = result_set1.getNextRow()) {
+        db_connection->queryOrDie("SHOW CREATE " + std::string(process_tables ? "TABLE" : "VIEW")
+                                  + " " + db_connection->getDbName() + "." + row1[0]);
+        DbResultSet result_set2(db_connection->getLastResultSet());
+        DbRow row2;
+        while (row2 = result_set2.getNextRow())
+            std::cout << row2[1] << '\n';
+    }
+}
+
+
 int Main(int argc, char *argv[]) {
     if (argc != 1 and argc != 3 and argc != 4 and argc != 5 and argc != 6)
         Usage();
@@ -55,18 +73,8 @@ int Main(int argc, char *argv[]) {
         break;
     }
 
-    db_connection->queryOrDie("SHOW TABLES");
-    std::vector<std::string> table_names;
-
-    DbResultSet result_set1(db_connection->getLastResultSet());
-    DbRow row1;
-    while (row1 = result_set1.getNextRow()) {
-        db_connection->queryOrDie("SHOW CREATE TABLE " + db_connection->getDbName() + "." + row1[0]);
-        DbResultSet result_set2(db_connection->getLastResultSet());
-        DbRow row2;
-        while (row2 = result_set2.getNextRow())
-            std::cout << row2[1] << '\n';
-    }
+    ProcessTablesOrViews(db_connection.get(), /* process_tables = */true);
+    ProcessTablesOrViews(db_connection.get(), /* process_tables = */false);
 
     return EXIT_SUCCESS;
 }
