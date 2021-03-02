@@ -838,7 +838,7 @@ bool ParseRFC1123DateTime(const std::string &date_time_candidate, time_t * const
 
 bool ParseRFC3339DateTime(const std::string &date_time_candidate, time_t * const date_time) {
     // Convert possible lowercase t and z to uppercase:
-    const std::string normalised_date_time_candidate(StringUtil::ToUpper(date_time_candidate));
+    const std::string normalised_date_time_candidate(StringUtil::ASCIIToUpper(date_time_candidate));
 
     struct tm tm;
     std::memset(&tm, '\0', sizeof tm);

@@ -53,6 +53,7 @@
 #include "VuFind.h"
 #include "UBTools.h"
 #include "util.h"
+#include "Solr.h"
 
 
 /* Somewhere in the middle of the GCC 2.96 development cycle, a mechanism was implemented by which the user can tag likely branch directions and
@@ -485,12 +486,13 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
 
     Template::Map names_to_values_map;
     names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "8G");
-    const std::string vufind_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
-                                                                                        + "/" + service_name + ".service.template"),
-                                                             names_to_values_map));
+    const std::string vufind_service(
+        Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
+                                                           + "/" + service_name + ".service.template"), names_to_values_map));
     const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
     FileUtil::WriteStringOrDie(service_file_path, vufind_service);
     SystemdUtil::InstallUnit(service_file_path);
+    SystemdUtil::EnableUnit(service_name);
 }
 
 
@@ -583,6 +585,12 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
     FileUtil::MakeDirectoryOrDie("/usr/local/run");
     RegisterSystemUpdateVersion();
+
+    // Install boot notification service:
+    if (SystemdUtil::IsAvailable()) {
+        SystemdUtil::InstallUnit(UB_TOOLS_DIRECTORY + "/cpp/data/installer/boot_notification.service");
+        SystemdUtil::EnableUnit("boot_notification");
+    }
 
     Echo("Installed ub_tools.");
 }
@@ -810,6 +818,9 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
                                              "solr hard nproc 65535\n"
                                              "solr soft nproc 65535\n");
     FileUtil::WriteString("/etc/security/limits.d/20-solr.conf", solr_security_settings);
+
+    if (SELinuxUtil::IsEnabled())
+        SELinuxUtil::Port::AddRecordIfMissing("http_port_t", "tcp", Solr::DEFAULT_PORT);
 
     // systemctl: we do enable as well as daemon-reload and restart
     // to achieve an idempotent installation
