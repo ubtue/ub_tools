@@ -143,7 +143,7 @@ struct GlobalParams {
     std::string enhancement_maps_directory_;
     std::string group_names_;
     std::string strptime_format_string_;
-    bool skip_online_first_articles_unconditonally_;
+    bool skip_online_first_articles_unconditionally_;
     DownloadDelayParams download_delay_params_;
     unsigned timeout_crawl_operation_;
     unsigned timeout_download_request_;
@@ -232,6 +232,7 @@ struct JournalParams {
         SSGN,
         LICENSE,
         SELECTIVE_EVALUATION,
+        FORCE_LANGUAGE_DETECTION,
         CRAWL_MAX_DEPTH,
         CRAWL_EXTRACTION_REGEX,
         CRAWL_URL_REGEX,
@@ -266,6 +267,7 @@ struct JournalParams {
     MarcMetadataParams marc_metadata_params_;
     bool zeder_newly_synced_entry_;
     bool selective_evaluation_;
+    bool force_language_detection_;
 public:
     JournalParams(const GlobalParams &global_params);
     JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);

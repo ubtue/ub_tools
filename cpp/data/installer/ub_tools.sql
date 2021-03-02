@@ -22,10 +22,12 @@ CREATE TABLE rss_aggregator (
     feed_url VARCHAR(1000) NOT NULL,
     pub_date DATETIME NOT NULL,
     insertion_time TIMESTAMP DEFAULT NOW() NOT NULL,
+    flavour ENUM('ixtheo', 'relbib') NOT NULL,
     CONSTRAINT rss_aggregator_item_id UNIQUE (item_id),
     INDEX rss_aggregator_item_id_index(item_id(768)),
     INDEX rss_aggregator_item_url_index(item_url(768)),
-    INDEX rss_aggregator_insertion_time_index(insertion_time)
+    INDEX rss_aggregator_insertion_time_index(insertion_time),
+    INDEX rss_aggregator_flavour_index(flavour)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 CREATE TABLE zeder_journals (
@@ -54,7 +56,7 @@ CREATE TABLE delivered_marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hash VARCHAR(40) NOT NULL,
     zeder_journal_id INT(11) UNSIGNED NOT NULL,
-    delivery_state ENUM('automatic', 'manual', 'error', 'ignore', 'reset') DEFAULT 'automatic' NOT NULL,
+    delivery_state ENUM('automatic', 'manual', 'error', 'ignore', 'reset', 'online_first') DEFAULT 'automatic' NOT NULL,
     error_message VARCHAR(1000) DEFAULT NULL,
     delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
     main_title VARCHAR(1000) NOT NULL,

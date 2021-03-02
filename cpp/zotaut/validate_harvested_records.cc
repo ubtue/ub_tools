@@ -42,7 +42,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--update-db-errors] marc_input marc_output missed_expectations_file email_address");
+    ::Usage("[--update-db-errors] marc_input marc_output online_first_file missed_expectations_file email_address");
 }
 
 
@@ -358,10 +358,23 @@ unsigned GetJournalId(const unsigned zeder_id, const std::string &zeder_instance
 }
 
 
+bool RecordIsOnlineFirstOrEarlyView(const MARC::Record &record) {
+    // Skip if volume and issue are missing or invalid
+    const auto volume_and_issue(record.getSubfieldValues("936", "ed"));
+    return volume_and_issue.empty() or (std::find(volume_and_issue.begin(), volume_and_issue.end(), "n/a") != volume_and_issue.end());
+}
+
+const std::string ONLINE_FIRST_OR_EARLY_VIEW_MESSAGE("Online-first or Early-View");
 bool RecordIsValid(DbConnection * const db_connection, const MARC::Record &record, const std::vector<const FieldValidator *> &regular_article_field_validators,
                    const std::vector<const FieldValidator *> &review_article_field_validators, std::vector<std::string> * const reasons_for_being_invalid)
 {
     reasons_for_being_invalid->clear();
+
+    // Filter Online-First or Early Views unconditionally
+    if (RecordIsOnlineFirstOrEarlyView(record)) {
+        reasons_for_being_invalid->emplace_back(ONLINE_FIRST_OR_EARLY_VIEW_MESSAGE);
+        return false;
+    }
 
     const auto zid_field(record.findTag("ZID"));
     if (unlikely(zid_field == record.end()))
@@ -373,6 +386,7 @@ bool RecordIsValid(DbConnection * const db_connection, const MARC::Record &recor
     if (unlikely(zeder_instance.empty()))
         LOG_ERROR("record is missing a b-subfield in the existing ZID field!");
     const auto journal_id(GetJournalId(StringUtil::ToUnsigned(zeder_id), zeder_instance, db_connection));
+
 
     // 0. Check that requirements for all records, independent of type or journal are met:
     CheckGenericRequirements(record, reasons_for_being_invalid);
@@ -425,11 +439,11 @@ bool RecordIsValid(DbConnection * const db_connection, const MARC::Record &recor
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 5 and argc != 6)
+    if (argc != 6 and argc != 7)
         Usage();
 
     bool update_db_errors(false);
-    if (argc == 6) {
+    if (argc == 7) {
         if (__builtin_strcmp(argv[1], "--update-db-errors") != 0)
             Usage();
         --argc, ++argv;
@@ -440,8 +454,9 @@ int Main(int argc, char *argv[]) {
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
     auto valid_records_writer(MARC::Writer::Factory(argv[2]));
-    auto delinquent_records_writer(MARC::Writer::Factory(argv[3]));
-    const std::string email_address(argv[4]);
+    auto online_first_records_writer(MARC::Writer::Factory(argv[3]));
+    auto delinquent_records_writer(MARC::Writer::Factory(argv[4]));
+    const std::string email_address(argv[5]);
     ZoteroHarvester::Util::UploadTracker upload_tracker;
 
     GeneralFieldValidator general_regular_article_validator, general_review_article_validator;
@@ -455,7 +470,7 @@ int Main(int argc, char *argv[]) {
                                                                          &journal_specific_regular_article_validator,
                                                                          &general_regular_article_validator };
 
-    unsigned total_record_count(0), missed_expectation_count(0);
+    unsigned total_record_count(0), online_first_record_count(0), missed_expectation_count(0);
     while (const auto record = marc_reader->read()) {
         ++total_record_count;
         LOG_INFO(""); // intentionally empty newline !
@@ -466,13 +481,22 @@ int Main(int argc, char *argv[]) {
             LOG_INFO("Record " + record.getControlNumber() + " is valid.");
             valid_records_writer->write(record);
         } else {
-            const std::string error_messages(StringUtil::Join(reasons_for_being_invalid, "\n"));
-            LOG_WARNING("Record " + record.getControlNumber() + " is invalid:\n" + error_messages);
-            ++missed_expectation_count;
-            if (update_db_errors)
-                upload_tracker.archiveRecord(record, ZoteroHarvester::Util::UploadTracker::DeliveryState::ERROR,
-                                             error_messages);
-            delinquent_records_writer->write(record);
+            if (std::find(reasons_for_being_invalid.begin(), reasons_for_being_invalid.begin(), ONLINE_FIRST_OR_EARLY_VIEW_MESSAGE)
+                          != reasons_for_being_invalid.end())
+            {
+                online_first_records_writer->write(record);
+                ++online_first_record_count;
+                upload_tracker.archiveRecord(record, ZoteroHarvester::Util::UploadTracker::DeliveryState::ONLINE_FIRST,
+                                             StringUtil::Join(reasons_for_being_invalid, "\n"));
+            } else {
+                const std::string error_messages(StringUtil::Join(reasons_for_being_invalid, "\n"));
+                LOG_WARNING("Record " + record.getControlNumber() + " is invalid:\n" + error_messages);
+                ++missed_expectation_count;
+                if (update_db_errors)
+                    upload_tracker.archiveRecord(record, ZoteroHarvester::Util::UploadTracker::DeliveryState::ERROR,
+                                                 error_messages);
+                delinquent_records_writer->write(record);
+            }
         }
     }
 

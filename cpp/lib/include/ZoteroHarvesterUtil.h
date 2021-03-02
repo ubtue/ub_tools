@@ -539,7 +539,7 @@ template <typename Parameter, typename Result> Result &Future<Parameter, Result>
 class UploadTracker {
     static constexpr unsigned CONNECTION_POOL_SIZE = 50;
 public:
-    enum DeliveryState : unsigned { AUTOMATIC, MANUAL, ERROR, IGNORE, RESET };
+    enum DeliveryState : unsigned { AUTOMATIC, MANUAL, ERROR, IGNORE, RESET, ONLINE_FIRST };
     static const std::map<DeliveryState, std::string> DELIVERY_STATE_TO_STRING_MAP;
     static const std::map<std::string, DeliveryState> STRING_TO_DELIVERY_STATE_MAP;
     static const std::set<DeliveryState> DELIVERY_STATES_TO_RETRY;
@@ -579,6 +579,7 @@ public:
     time_t getLastUploadTime(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) const;
 
     void registerZederJournal(const unsigned zeder_id, const std::string &zeder_instance, const std::string &journal_name);
+    void deleteOnlineFirstEntriesOlderThan(const unsigned zeder_id, const std::string &zeder_instance, const unsigned &update_window);
 
     // Saves the record blob and its associated metadata in the host's database.
     // Returns true on success, false otherwise.

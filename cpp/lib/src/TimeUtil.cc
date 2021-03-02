@@ -8,7 +8,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2018-2020 Universitätsbibliothek Tübingen
+ *  Copyright 2018-2021 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -817,7 +817,7 @@ bool ParseRFC1123DateTime(const std::string &date_time_candidate, time_t * const
 
 bool ParseRFC3339DateTime(const std::string &date_time_candidate, time_t * const date_time) {
     // Convert possible lowercase t and z to uppercase:
-    const std::string normalised_date_time_candidate(StringUtil::ToUpper(date_time_candidate));
+    const std::string normalised_date_time_candidate(StringUtil::ASCIIToUpper(date_time_candidate));
 
     struct tm tm;
     std::memset(&tm, '\0', sizeof tm);
@@ -877,7 +877,7 @@ struct tm StringToStructTm(std::string date_str, std::string optional_strptime_f
     if (likely(StringToStructTmHelper(date_str, optional_strptime_format, &tm)))
         return tm;
 
-    throw std::runtime_error("TimeUtil::StringToStructTm: gmtime(3) failed to convert a time_t! (" + date_str + ")");
+    throw std::runtime_error("TimeUtil::StringToStructTm: gmtime(3) failed to convert a struct tm! (" + date_str + ")");
 }
 
 

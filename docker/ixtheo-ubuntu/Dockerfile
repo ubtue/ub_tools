@@ -1,9 +1,11 @@
-FROM ubuntu:bionic
+FROM ubuntu:focal
 MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 
 # add needed configuration files
-# (+simulate mounted /mnt/ZE020150)
+# (+simulate mounts)
+RUN mkdir --parents /mnt/ZE020110/FID-Projekte/Default
 ADD mnt/ZE020150 /mnt/ZE020150
+ADD .smbcredentials /root/.smbcredentials
 
 # Set non-interactive mode for UBUNTU to avoid interruptions
 ENV DEBIAN_FRONTEND=noninteractive
@@ -27,7 +29,7 @@ ADD local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
 RUN php /usr/local/vufind/util/cssBuilder.php
 
 # expose solr & import example marc data
-EXPOSE 8080
+EXPOSE 8983
 ADD data.mrc /usr/local/ub_tools/bsz_daten/data.mrc
 RUN . /etc/profile.d/vufind.sh \
     && sudo -u solr /usr/local/vufind/solr.sh start \

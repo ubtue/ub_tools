@@ -6,11 +6,11 @@ set -o errexit -o nounset -o pipefail
 no_problems_found=1
 function SendEmail {
     if [[ $no_problems_found -eq 0 ]]; then
-        send_email --priority=low --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
+        send_email --priority=low --recipients="$EMAIL_ADDRESS" \
                    --subject="$0 passed on $(hostname)" --message-body="No problems were encountered."
         exit 0
     else
-        send_email --priority=high --sender="zts_harvester_delivery_pipeline@uni-tuebingen.de" --recipients="$EMAIL_ADDRESS" \
+        send_email --priority=high --recipients="$EMAIL_ADDRESS" \
                    --subject="$0 failed on $(hostname)" \
                    --message-body="Check the log file at /usr/local/var/log/tuefind/zts_harvester_delivery_pipeline.log for details."
         echo "*** ZTS_HARVESTER DELIVERY PIPELINE FAILED ***" | tee --append "$LOG"
@@ -134,13 +134,15 @@ for d in */ ; do
 
     # Output filenames MUST start with 'ixtheo_' or 'krimdok_', else BSZ will ignore it.
     # Also, since we deliver files only once a day, each file will be marked as "001".
-    valid_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001.xml"
+    valid_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_online_first.xml"
+    online_first_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001.xml"
     invalid_records_output_filepath="$HARVESTER_OUTPUT_DIRECTORY/$d/${d}_zotero_$(date +%y%m%d)_001_errors.xml"
     invalid_records_log_filepath="${invalid_records_output_filepath}.log"
     LOGGER_FORMAT=no_decorations,strip_call_site \
     BACKTRACE=1 \
     UTIL_LOG_DEBUG=true \
     validate_harvested_records "--update-db-errors" "$current_source_filepath" "$valid_records_output_filepath" \
+                               "$online_first_records_output_filepath" \
                                "$invalid_records_output_filepath" "$EMAIL_ADDRESS" 2>&1 | tee --append "$LOG" "$invalid_records_log_filepath"
 
     invalid_record_count=$(marc_size "$invalid_records_output_filepath")
@@ -149,6 +151,15 @@ for d in */ ; do
             cp "$invalid_records_output_filepath" "$invalid_records_log_filepath" "$DEST_DIR_LOCAL_TEST"
         elif [ "$DELIVERY_MODE" = "LIVE" ]; then
             cp "$invalid_records_output_filepath" "$invalid_records_log_filepath" "$DEST_DIR_LOCAL_LIVE"
+        fi
+    fi
+
+    online_first_record_count=$(marc_size "$online_first_records_output_filepath")
+    if [ "$online_first_record_count" != "0" ]; then
+        if [ "$DELIVERY_MODE" = "TEST" ]; then
+            cp "$online_first_records_output_filepath" "$DEST_DIR_LOCAL_TEST"
+        elif [ "$DELIVERY_MODE" = "LIVE" ]; then
+            cp "$online_first_records_output_filepath" "$DEST_DIR_LOCAL_LIVE"
         fi
     fi
 
@@ -204,7 +215,7 @@ StartPhase "Check for Overdue Articles"
 LOGGER_FORMAT=no_decorations,strip_call_site \
 BACKTRACE=1 \
 UTIL_LOG_DEBUG=true \
-journal_timeliness_checker "$HARVESTER_CONFIG_FILE" "journal_timeliness_checker@$(hostname)" "$EMAIL_ADDRESS" >> "$LOG" 2>&1
+journal_timeliness_checker "$HARVESTER_CONFIG_FILE" "no-reply@ub.uni-tuebingen.de" "$EMAIL_ADDRESS" >> "$LOG" 2>&1
 EndPhase
 
 

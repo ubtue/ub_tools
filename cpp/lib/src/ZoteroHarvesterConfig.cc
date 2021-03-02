@@ -183,7 +183,7 @@ std::string GlobalParams::GetIniKeyString(const IniKey ini_key) {
 
 
 GlobalParams::GlobalParams(const IniFile::Section &config_section) {
-    skip_online_first_articles_unconditonally_ = false;
+    skip_online_first_articles_unconditionally_ = false;
 
     // Translation server URL is special-cased
     translation_server_url_ = GetHostTranslationServerUrl();
@@ -191,7 +191,7 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
     enhancement_maps_directory_ = config_section.getString(GetIniKeyString(ENHANCEMENT_MAPS_DIRECTORY));
     group_names_ = config_section.getString(GetIniKeyString(GROUP_NAMES));
     strptime_format_string_ = config_section.getString(GetIniKeyString(STRPTIME_FORMAT_STRING));
-    skip_online_first_articles_unconditonally_ = config_section.getBool(GetIniKeyString(SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY));
+    skip_online_first_articles_unconditionally_ = config_section.getBool(GetIniKeyString(SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY));
     timeout_crawl_operation_ = config_section.getUnsigned(GetIniKeyString(TIMEOUT_CRAWL_OPERATION)) * 1000;
     timeout_download_request_ = config_section.getUnsigned(GetIniKeyString(TIMEOUT_DOWNLOAD_REQUEST)) * 1000;
 
@@ -259,6 +259,7 @@ JournalParams::JournalParams(const GlobalParams &global_params) {
     update_window_ = 0;
     crawl_params_.max_crawl_depth_ = 1;
     selective_evaluation_ = false;
+    force_language_detection_ = false;
 }
 
 
@@ -277,6 +278,7 @@ const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_
     { SSGN,                     "ssgn"                      },
     { LICENSE,                  "license"                   },
     { SELECTIVE_EVALUATION,     "selective_evaluation"      },
+    { FORCE_LANGUAGE_DETECTION, "force_language_detection"  },
     { STRPTIME_FORMAT_STRING,   "zotero_strptime_format"    },
     { UPDATE_WINDOW,            "zotero_update_window"      },
     { REVIEW_REGEX,             "zotero_review_regex"       },
@@ -301,6 +303,7 @@ const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_
     { "ssgn",                      SSGN                     },
     { "license",                   LICENSE                  },
     { "selective_evaluation",      SELECTIVE_EVALUATION     },
+    { "force_language_detection",  FORCE_LANGUAGE_DETECTION },
     { "zotero_strptime_format",    STRPTIME_FORMAT_STRING   },
     { "zotero_update_window",      UPDATE_WINDOW            },
     { "zotero_review_regex",       REVIEW_REGEX             },
@@ -336,6 +339,7 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     ssgn_ = journal_section.getString(GetIniKeyString(SSGN), "");
     license_ = journal_section.getString(GetIniKeyString(LICENSE), "");
     selective_evaluation_ = journal_section.getBool(GetIniKeyString(SELECTIVE_EVALUATION), false);
+    force_language_detection_ = journal_section.getBool(GetIniKeyString(FORCE_LANGUAGE_DETECTION), false);
 
     const auto review_regex(journal_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
     if (not review_regex.empty())
@@ -383,11 +387,22 @@ void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
                              std::vector<std::unique_ptr<JournalParams>> * const journal_params,
                              std::unique_ptr<IniFile> * const config_file,
-                             const IniFile::Section config_overrides)
+                             const IniFile::Section config_overrides_passed)
 {
     std::unique_ptr<IniFile> ini(new IniFile(config_filepath));
+    IniFile::Section config_overrides(config_overrides_passed);
 
-    global_params->reset(new Config::GlobalParams(*ini->getSection("")));
+    auto &global_section(*ini->getSection(""));
+    for (const auto &override_entry : config_overrides) {
+         if (global_section.hasEntry(override_entry.name_)) {
+             if (override_entry.name_ != Config::GlobalParams::GetIniKeyString(Config::GlobalParams::REVIEW_REGEX)) {
+                 global_section.insert(override_entry.name_, override_entry.value_, override_entry.comment_,
+                                       IniFile::Section::DupeInsertionBehaviour::OVERWRITE_EXISTING_VALUE);
+                 config_overrides.deleteEntry(override_entry.name_);
+             }
+         }
+    }
+    global_params->reset(new Config::GlobalParams(global_section));
 
     std::set<std::string> group_names;
     StringUtil::Split((*global_params)->group_names_, ',', &group_names, /* suppress_empty_components = */ true);

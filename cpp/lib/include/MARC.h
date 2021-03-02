@@ -170,7 +170,7 @@ public:
         return std::find_if(subfields_.cbegin(), subfields_.cend(),
                             [subfield_code, value, case_insensitive](const Subfield subfield) -> bool
                                 { return subfield.code_ == subfield_code and
-                                  (case_insensitive ? StringUtil::ToUpper(subfield.value_) == StringUtil::ToUpper(value) :
+                                  (case_insensitive ? StringUtil::ASCIIToUpper(subfield.value_) == StringUtil::ASCIIToUpper(value) :
                                                       subfield.value_ == value);
                                 }) != subfields_.cend();
     }
