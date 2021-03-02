@@ -67,9 +67,9 @@ public:
 
 
 const std::map<std::string, ChannelDesc> subsystem_type_to_channel_desc_map = {
-    { "relbib",  ChannelDesc("RelBib Aggregator",  "https://relbib.de/")                },
-    { "ixtheo",  ChannelDesc("IxTheo Aggregator",  "https://itheo.de/")                 },
-    { "krimdok", ChannelDesc("KrimDok Aggregator", "https://krimdok.uni-tuebingen.de/") },
+    { "relbib",  ChannelDesc("RelBib RSS Aggregator",  "https://relbib.de/")                },
+    { "ixtheo",  ChannelDesc("IxTheo RSS Aggregator",  "https://itheo.de/")                 },
+    { "krimdok", ChannelDesc("KrimDok RSS Aggregator", "https://krimdok.uni-tuebingen.de/") },
 };
 
 
@@ -134,8 +134,9 @@ public:
 
 
 // \return True if a notification email was sent successfully, o/w false.
-bool SendEmail(const std::string &email_sender, const std::string &user_email, const std::string &user_address,
-               const std::string &language, const std::vector<HarvestedRSSItem> &harvested_items)
+bool SendEmail(const std::string &subsystem_type, const std::string &email_sender, const std::string &user_email,
+               const std::string &user_address, const std::string &language,
+               const std::vector<HarvestedRSSItem> &harvested_items)
 {
     const auto template_filename_prefix(UBTools::GetTuelibPath() + "rss_email.template");
     std::string template_filename(template_filename_prefix + "." + language);
@@ -158,7 +159,7 @@ bool SendEmail(const std::string &email_sender, const std::string &user_email, c
     names_to_values_map.insertArray("descriptions", descriptions);
 
     const auto email_body(Template::ExpandTemplate(email_template, names_to_values_map));
-    const auto retcode(EmailSender::SimplerSendEmail(email_sender, { user_email }, "RSS Feeds Update",
+    const auto retcode(EmailSender::SimplerSendEmail(email_sender, { user_email }, GetChannelDescEntry(subsystem_type, "title"),
                                                      email_body, EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
     if (retcode <= 299)
         return true;
@@ -183,9 +184,9 @@ void GenerateFeed(const std::string &user_id, const std::string &subsystem_type,
 }
 
 
-void ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_notification, const std::string &email_sender,
+bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_notification, const std::string &email_sender,
                   const std::string &user_email, const std::string &user_address, const std::string &language,
-                  const std::string &rss_feed_notification_type, const std::string &subsystem_type,
+                  const bool send_email, const std::string &subsystem_type,
                   DbConnection * const db_connection)
 {
     db_connection->queryOrDie("SELECT rss_feeds_id FROM tuefind_rss_subscriptions WHERE user_id=" + user_id);
@@ -194,7 +195,7 @@ void ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
     while (const auto row = rss_subscriptions_result_set.getNextRow())\
         feed_ids.emplace_back(row["rss_feeds_id"]);
     if (feed_ids.empty())
-        return;
+        return false;
 
     std::vector<HarvestedRSSItem> harvested_items;
     std::string max_insertion_time;
@@ -220,15 +221,17 @@ void ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
                 max_insertion_time = insertion_time;
         }
     }
+    if (harvested_items.empty())
+        return false;
 
-    if (rss_feed_notification_type == "email") {
-        if (not SendEmail(email_sender, user_email, user_address, language, harvested_items))
-            return;
-    } else
-        GenerateFeed(user_id, subsystem_type, harvested_items);
-
-    db_connection->queryOrDie("INSERT INTO user SET tuefind_rss_feed_last_notification='" + max_insertion_time
-                              + "' WHERE id=" + user_id);
+    GenerateFeed(user_id, subsystem_type, harvested_items);
+    if (send_email) {
+        if (not SendEmail(subsystem_type, email_sender, user_email, user_address, language, harvested_items))
+            return true;
+        db_connection->queryOrDie("INSERT INTO user SET tuefind_rss_feed_last_notification='" + max_insertion_time
+                                  + "' WHERE id=" + user_id);
+    }
+    return true;
 }
 
 
@@ -253,16 +256,16 @@ struct UserInfo {
     std::string first_name_;
     std::string last_name_;
     std::string email_;
-    std::string rss_feed_notification_type_;
+    bool rss_feed_send_emails_;
     std::string rss_feed_last_notification_;
 public:
     UserInfo() = default;
     UserInfo(const UserInfo &other) = default;
     UserInfo(const std::string &user_id, const std::string &first_name, const std::string &last_name,
-             const std::string &email, const std::string &rss_feed_notification_type,
+             const std::string &email, const bool &rss_feed_send_emails,
              const std::string &rss_feed_last_notification)
         : user_id_(user_id), first_name_(first_name), last_name_(last_name), email_(email),
-          rss_feed_notification_type_(rss_feed_notification_type), rss_feed_last_notification_(rss_feed_last_notification) { }
+          rss_feed_send_emails_(rss_feed_send_emails), rss_feed_last_notification_(rss_feed_last_notification) { }
 };
 
 
@@ -273,7 +276,7 @@ int Main(int argc, char *argv[]) {
     const std::string email_address(argv[1]);
     const auto db_connection(VuFind::GetDbConnection());
 
-    db_connection->queryOrDie("SELECT id,firstname,lastname,email,tuefind_rss_feed_notification_type"
+    db_connection->queryOrDie("SELECT id,firstname,lastname,email,tuefind_rss_feed_send_emails"
                               ",tuefind_rss_feed_last_notification FROM user "
                               "WHERE tuefind_rss_feed_notification_type IS NOT NULL");
     auto user_result_set(db_connection->getLastResultSet());
@@ -281,12 +284,12 @@ int Main(int argc, char *argv[]) {
     while (const auto user_row = user_result_set.getNextRow())
         ids_to_user_infos_map[user_row["id"]] =
             UserInfo(user_row["id"], user_row["firstname"], user_row["lastname"], user_row["email"],
-                     user_row["tuefind_rss_feed_notification_type"],
+                     StringUtil::ToBool(user_row["tuefind_rss_feed_send_emails"]),
                      user_row["tuefind_rss_feed_last_notification"]);
 
     unsigned feed_generation_count(0), email_sent_count(0);
     for (const auto &[user_id, user_info] : ids_to_user_infos_map) {
-        if (user_info.rss_feed_notification_type_ == "email" and not EmailSender::IsValidEmailAddress(user_info.email_)) {
+        if (user_info.rss_feed_send_emails_ and not EmailSender::IsValidEmailAddress(user_info.email_)) {
             LOG_WARNING("no valid email address for vfind.user.id " + user_id + "!");
             continue;
         }
@@ -296,10 +299,14 @@ int Main(int argc, char *argv[]) {
         const auto appellation(ixtheo_user_row.getValue("appellation"));
         const auto language(ixtheo_user_row.getValue("language", "en"));
         const auto subsystem_type(ixtheo_user_row["user_type"]);
-        ProcessFeeds(user_id, user_info.rss_feed_last_notification_, email_address, user_info.email_,
-                     GenerateUserAddress(appellation, user_info.first_name_, user_info.last_name_),
-                     language, user_info.rss_feed_notification_type_, subsystem_type, db_connection.get());
-        user_info.rss_feed_notification_type_ == "email" ? ++email_sent_count : ++feed_generation_count;
+        if (ProcessFeeds(user_id, user_info.rss_feed_last_notification_, email_address, user_info.email_,
+                         GenerateUserAddress(appellation, user_info.first_name_, user_info.last_name_),
+                         language, user_info.rss_feed_send_emails_, subsystem_type, db_connection.get()))
+        {
+            if (user_info.rss_feed_send_emails_)
+                ++email_sent_count;
+            ++feed_generation_count;
+        }
     }
     LOG_INFO("Generated " + std::to_string(feed_generation_count) + " RSS feed(s) and sent "
              + std::to_string(email_sent_count) + " email(s).");
