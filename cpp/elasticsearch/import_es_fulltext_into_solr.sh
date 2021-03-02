@@ -6,7 +6,7 @@ ES_HOST="localhost"
 ES_PORT="9200"
 ES_INDEX="full_text_cache"
 SOLR_HOST="localhost"
-SOLR_PORT="8080"
+SOLR_PORT="8983"
 SOLR_INDEX="biblio"
 
 

@@ -1,6 +1,8 @@
 #!/bin/bash
-set -o errexit
-cd /usr/local/ub_tools/cpp
-make convert_rss_db_tables
-./convert_rss_db_tables
-mkdir --mode=755 /var/www/custom_rss_feeds
+set -o errexit -o nounset
+
+readonly SYSTEMD_SERVICE_DIR=/etc/systemd/system/
+install --owner=root --group=root --mode=644 \
+        /usr/local/ub_tools/cpp/data/installer/boot_notification.service \
+        $(SYSTEMD_SERVICE_DIR)
+/usr/bin/systemctl start boot_notification.service

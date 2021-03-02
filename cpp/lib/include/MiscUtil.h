@@ -122,6 +122,19 @@ bool IsDOI(const std::string &doi_candidate);
  */
 bool NormaliseDOI(const std::string &doi_candidate, std::string * const normalised_doi);
 
+/** \brief Check if a string contains a DOI pattern
+ *  \return True if the input contains a valid DOI.
+ */
+
+bool ContainsDOI(const std::string &contains_doi_candidate);
+
+
+/** \brief Extract DOI pattern from string
+ *  \return The DOI pattern
+ */
+
+std::string extractDOI(const std::string &extract_doi_candidate);
+
 
 bool IsPossibleISSN(std::string issn_candidate);
 
