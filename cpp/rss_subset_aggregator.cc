@@ -133,7 +133,8 @@ public:
 };
 
 
-void SendEmail(const std::string &email_sender, const std::string &user_email, const std::string &user_address,
+// \return True if a notification email was sent successfully, o/w false.
+bool SendEmail(const std::string &email_sender, const std::string &user_email, const std::string &user_address,
                const std::string &language, const std::vector<HarvestedRSSItem> &harvested_items)
 {
     const auto template_filename_prefix(UBTools::GetTuelibPath() + "rss_email.template");
@@ -159,9 +160,12 @@ void SendEmail(const std::string &email_sender, const std::string &user_email, c
     const auto email_body(Template::ExpandTemplate(email_template, names_to_values_map));
     const auto retcode(EmailSender::SimplerSendEmail(email_sender, { user_email }, "RSS Feeds Update",
                                                      email_body, EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
-    if (retcode > 299)
-        LOG_WARNING("EmailSender::SimplerSendEmail returned " + std::to_string(retcode) + " while trying to send to \""
-                    + user_email + "\"!");
+    if (retcode <= 299)
+        return true;
+
+    LOG_WARNING("EmailSender::SimplerSendEmail returned " + std::to_string(retcode) + " while trying to send to \""
+                + user_email + "\"!");
+    return false;
 }
 
 
@@ -217,9 +221,10 @@ void ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
         }
     }
 
-    if (rss_feed_notification_type == "email")
-        SendEmail(email_sender, user_email, user_address, language, harvested_items);
-    else
+    if (rss_feed_notification_type == "email") {
+        if (not SendEmail(email_sender, user_email, user_address, language, harvested_items))
+            return;
+    } else
         GenerateFeed(user_id, subsystem_type, harvested_items);
 
     db_connection->queryOrDie("INSERT INTO user SET tuefind_rss_feed_last_notification='" + max_insertion_time
@@ -227,7 +232,7 @@ void ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
 }
 
 
-// Yes, this function has a confusing name but I could not think of a better one.
+// Yes, this function has a confusing name but I could not think of a better one. :-(
 // What is meant is how to address a user!
 std::string GenerateUserAddress(const std::string &appellation, const std::string &first_name, const std::string &last_name) {
     if (last_name.empty())
