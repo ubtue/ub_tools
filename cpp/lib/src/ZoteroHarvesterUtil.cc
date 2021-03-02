@@ -343,20 +343,22 @@ public:
 
 
 const std::map<UploadTracker::DeliveryState, std::string> UploadTracker::DELIVERY_STATE_TO_STRING_MAP {
-    { AUTOMATIC, "automatic" },
-    { MANUAL,    "manual" },
-    { ERROR,     "error" },
-    { IGNORE,    "ignore" },
-    { RESET,     "reset" },
+    { AUTOMATIC,    "automatic" },
+    { MANUAL,       "manual" },
+    { ERROR,        "error" },
+    { IGNORE,       "ignore" },
+    { RESET,        "reset" },
+    { ONLINE_FIRST, "online_first" },
 };
 
 
 const std::map<std::string, UploadTracker::DeliveryState> UploadTracker::STRING_TO_DELIVERY_STATE_MAP {
-    { "automatic", AUTOMATIC },
-    { "manual",    MANUAL },
-    { "error",     ERROR },
-    { "ignore",    IGNORE },
-    { "reset",     RESET },
+    { "automatic",    AUTOMATIC },
+    { "manual",       MANUAL },
+    { "error",        ERROR },
+    { "ignore",       IGNORE },
+    { "reset",        RESET },
+    { "online_first", ONLINE_FIRST },
 };
 
 
@@ -412,9 +414,15 @@ bool UploadTracker::urlAlreadyInDatabase(const std::string &url, const std::set<
     std::string query("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.error_message, dmr.id AS entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
                       "FROM delivered_marc_records_urls AS dmru "
                       "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
-                      "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
-                      "WHERE dmru.url = '"
-                      + db_connection->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'");
+                      "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id ");
+
+    // We use the content of 856 for tracking which is not necessarily the same url that has been used for downloading
+    // Thus if detect a DOI scheme in the URL we relax the precise match to a DOI match
+    if (MiscUtil::ContainsDOI(url))
+        query += "WHERE dmru.url LIKE '%" + MiscUtil::extractDOI(url) + "%'";
+    else
+        query += "WHERE dmru.url = '"
+                 + db_connection->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'";
 
     if (not delivery_states_to_ignore.empty())
         query += " AND dmr.delivery_state NOT IN (" + GetDeliveryStatesSubquery(delivery_states_to_ignore, db_connection) + ")";
@@ -707,6 +715,26 @@ void UploadTracker::registerZederJournal(const unsigned zeder_id, const std::str
                              + db_connection.escapeAndQuoteString(zeder_instance) + ", "
                              + db_connection.escapeAndQuoteString(journal_name) + ") "
                              + "ON DUPLICATE KEY UPDATE journal_name=" + db_connection.escapeAndQuoteString(journal_name));
+}
+
+
+void UploadTracker::deleteOnlineFirstEntriesOlderThan(const unsigned zeder_id, const std::string &zeder_instance,
+                                                      const unsigned &update_window)
+{
+    WaitOnSemaphore lock(&connection_pool_semaphore_);
+    DbConnection db_connection;
+    db_connection.queryOrDie(std::string("DELETE FROM delivered_marc_records WHERE zeder_journal_id=")
+                             + "(SELECT id FROM zeder_journals WHERE zeder_id="
+                                 + db_connection.escapeAndQuoteString(std::to_string(zeder_id))
+                                 + " AND zeder_instance="
+                                 + db_connection.escapeAndQuoteString(zeder_instance)
+                             + ')'
+                             + " AND delivery_state="
+                                 + db_connection.escapeAndQuoteString("online_first")
+                             + " AND delivered_at < (SUBDATE(NOW(), "
+                                 + std::to_string(update_window)
+                             + "))"
+                            );
 }
 
 

@@ -14,7 +14,7 @@ import util
 # Since no commit is executed here we avoid the empty index problem
 def ClearSolrIndex(index):
     try:
-        url = "http://localhost:8080/solr/" + index + "/update"
+        url = "http://localhost:8983/solr/" + index + "/update"
         values = "<delete><query>*:*</query></delete>"
         data = values.encode('utf-8')
         headers = {"Content-Type": "application/xml"}
@@ -28,7 +28,7 @@ def ClearSolrIndex(index):
 def OptimizeSolrIndex(index):
     try:
         request = urllib.request.Request(
-            "http://localhost:8080/solr/" + index + "/update?optimize=true")
+            "http://localhost:8983/solr/" + index + "/update?optimize=true")
         urllib.request.urlopen(request, timeout=1800)
     except:
         util.SendEmail("MARC-21 Pipeline", "Failed to optimize the SOLR index \"" + index + "\"!", priority=1)
@@ -89,7 +89,7 @@ def FoundNewBSZDataFile(link_filename):
     try:
         statinfo = os.stat(link_filename)
         file_creation_time = statinfo.st_ctime
-    except OSError as e:
+    except OSError:
         util.Error("in FoundNewBSZDataFile: Symlink \"" + link_filename + "\" is missing or dangling!")
     old_timestamp = util.ReadTimestamp()
     return old_timestamp < file_creation_time
@@ -113,7 +113,6 @@ def WriteImportFinishedFile():
 
 
 def Main():
-    util.default_email_sender = "initiate_marc_pipeline@ub.uni-tuebingen.de"
     if len(sys.argv) != 3:
          print("invalid arguments! usage: initiate_marc_pipeline.py <default email recipient> <MARC21 pipeline script name>")
          util.SendEmail("MARC-21 Pipeline Kick-Off (Failure)",

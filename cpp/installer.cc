@@ -1,7 +1,7 @@
 /** \brief A tool for installing IxTheo and KrimDok from scratch on Ubuntu and Centos systems.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -53,6 +53,7 @@
 #include "VuFind.h"
 #include "UBTools.h"
 #include "util.h"
+#include "Solr.h"
 
 
 /* Somewhere in the middle of the GCC 2.96 development cycle, a mechanism was implemented by which the user can tag likely branch directions and
@@ -250,8 +251,10 @@ void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_t
 
 void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
     std::unordered_set<unsigned> running_pids;
+    std::string mysql_sock_path;
     switch(os_system_type) {
     case UBUNTU:
+        mysql_sock_path = "/var/run/mysqld/mysqld.sock";
         if (SystemdUtil::IsAvailable())
             SystemdUtil::StartUnit("mysql");
         else {
@@ -261,6 +264,7 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
         }
         break;
     case CENTOS:
+        mysql_sock_path = "/var/lib/mysql/mysql.sock";
         if (SystemdUtil::IsAvailable()) {
             SystemdUtil::EnableUnit("mariadb");
             SystemdUtil::StartUnit("mariadb");
@@ -284,8 +288,8 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
     }
 
     const unsigned TIMEOUT(30); // seconds
-    if (not FileUtil::WaitForFile("/var/lib/mysql/mysql.sock", TIMEOUT, 5 /*seconds*/))
-        Error("can't find /var/lib/mysql/mysql.sock after " + std::to_string(TIMEOUT) + " seconds of looking!");
+    if (not FileUtil::WaitForFile(mysql_sock_path, TIMEOUT, 5 /*seconds*/))
+        Error("can't find " + mysql_sock_path + " after " + std::to_string(TIMEOUT) + " seconds of looking!");
 }
 
 
@@ -461,7 +465,7 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
 
 
 void RegisterSystemUpdateVersion() {
-    const std::string SYSTEM_UPDATES_DIRECTORY(UB_TOOLS_DIRECTORY + "/system_updates");
+    const std::string SYSTEM_UPDATES_DIRECTORY(UB_TOOLS_DIRECTORY + "/cpp/data/system_updates");
     FileUtil::Directory directory(SYSTEM_UPDATES_DIRECTORY, "\\d+.sh");
     unsigned max_version(0);
     for (const auto &update_script : directory) {
@@ -482,16 +486,21 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
 
     Template::Map names_to_values_map;
     names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "8G");
-    const std::string vufind_service(Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
-                                                                                        + "/" + service_name + ".service.template"),
-                                                             names_to_values_map));
+    const std::string vufind_service(
+        Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
+                                                           + "/" + service_name + ".service.template"), names_to_values_map));
     const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
     FileUtil::WriteStringOrDie(service_file_path, vufind_service);
     SystemdUtil::InstallUnit(service_file_path);
+    SystemdUtil::EnableUnit(service_name);
 }
 
 
 void SetupSysLog(const OSSystemType os_system_type) {
+    // Skip this if we are in docker environment
+    if (IsDockerEnvironment())
+        return;
+
     // logfile for zts docker container
     const std::string ZTS_LOGFILE(UBTools::GetTueFindLogPath() + "/zts.log");
     FileUtil::TouchFileOrDie(ZTS_LOGFILE);
@@ -569,6 +578,13 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     CreateUbToolsDatabase(os_system_type);
     GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
     FileUtil::MakeDirectoryOrDie("/usr/local/run");
+    RegisterSystemUpdateVersion();
+
+    // Install boot notification service:
+    if (SystemdUtil::IsAvailable()) {
+        SystemdUtil::InstallUnit(UB_TOOLS_DIRECTORY + "/cpp/data/installer/boot_notification.service");
+        SystemdUtil::EnableUnit("boot_notification");
+    }
 
     Echo("Installed ub_tools.");
 }
@@ -704,13 +720,13 @@ void DownloadVuFind() {
 void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_systemctl) {
     const std::string username("vufind");
     CreateUserIfNotExists(username);
-    AddUserToGroup(username, "apache");
 
     // systemd will start apache as root
     // but apache will start children as configured in /etc
     std::string config_filename;
     switch (os_system_type) {
     case UBUNTU:
+        AddUserToGroup(username, "www-data");
         config_filename = "/etc/apache2/envvars";
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
             { "-i", "s/export APACHE_RUN_USER=www-data/export APACHE_RUN_USER=" + username + "/",
@@ -721,6 +737,7 @@ void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_s
               config_filename });
         break;
     case CENTOS:
+        AddUserToGroup(username, "apache");
         config_filename = "/etc/httpd/conf/httpd.conf";
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
             { "-i", "s/User apache/User " + username + "/", config_filename });
@@ -795,6 +812,9 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
                                              "solr hard nproc 65535\n"
                                              "solr soft nproc 65535\n");
     FileUtil::WriteString("/etc/security/limits.d/20-solr.conf", solr_security_settings);
+
+    if (SELinuxUtil::IsEnabled())
+        SELinuxUtil::Port::AddRecordIfMissing("http_port_t", "tcp", Solr::DEFAULT_PORT);
 
     // systemctl: we do enable as well as daemon-reload and restart
     // to achieve an idempotent installation
@@ -890,7 +910,7 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     const std::string NEWSLETTER_DIRECTORY_PATH(UBTools::GetTuelibPath() + "newsletters");
     if (not FileUtil::Exists(NEWSLETTER_DIRECTORY_PATH)) {
         Echo("creating " + NEWSLETTER_DIRECTORY_PATH);
-        FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH);
+        FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH, /*recursive=*/true);
         if (SELinuxUtil::IsEnabled()) {
             SELinuxUtil::FileContext::AddRecordIfMissing(NEWSLETTER_DIRECTORY_PATH, "httpd_sys_rw_content_t",
                                                          NEWSLETTER_DIRECTORY_PATH + "(/.*)?");
@@ -901,6 +921,11 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
 
         FileUtil::ChangeOwnerOrDie(NEWSLETTER_DIRECTORY_PATH, "vufind", "vufind", /*recursive=*/true);
     }
+
+    Echo("generating HMAC hash");
+    const std::string HMAC_FILE_PATH(VUFIND_DIRECTORY + "/local/tuefind/local_overrides/hmac.conf");
+    if (not FileUtil::Exists(HMAC_FILE_PATH))
+        FileUtil::WriteStringOrDie(HMAC_FILE_PATH, StringUtil::GenerateRandom(/*length=*/32, /*alphabet=*/"abcdefghijklmnopqrstuvwxyz0123456789"));
 
     Echo(vufind_system_type_string + " configuration completed!");
 }
@@ -1052,8 +1077,6 @@ int Main(int argc, char **argv) {
     // Install dependencies before vufind
     // correct PHP version for composer dependancies
     InstallSoftwareDependencies(os_system_type, vufind_system_type_string, installation_type, install_systemctl);
-
-    RegisterSystemUpdateVersion();
 
     // Where to find our own stuff:
     MiscUtil::AddToPATH("/usr/local/bin/", MiscUtil::PreferredPathLocation::LEADING);

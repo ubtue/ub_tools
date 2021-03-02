@@ -374,7 +374,7 @@ void InitContentdispositions(const std::vector<std::string> &attachments, const 
     }
 
     content_dispositions_and_contents->reserve(attachments.size());
-    for (const auto attachment : attachments) {
+    for (const auto &attachment : attachments) {
         if (attachment_type == EmailSender::AT_DATA)
             content_dispositions_and_contents->emplace_back(std::make_pair("inline", attachment));
         else { // we assume that attachment_type == EmailSender::AT_FILENAMES

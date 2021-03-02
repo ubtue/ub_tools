@@ -299,7 +299,7 @@ bool Record::Field::hasSubfieldWithValue(const char subfield_code, const std::st
     for (auto ch(contents_.cbegin()); ch != contents_.cend(); ++ch) {
         if (subfield_delimiter_seen) {
             if (*ch == subfield_code and (case_insensitive ?
-                                          StringUtil::ToUpper(contents_.substr(ch - contents_.cbegin() + 1, value.length())) == StringUtil::ToUpper(value) :
+                                          StringUtil::ASCIIToUpper(contents_.substr(ch - contents_.cbegin() + 1, value.length())) == StringUtil::ASCIIToUpper(value) :
                                           contents_.substr(ch - contents_.cbegin() + 1, value.length()) == value)
                )
                 return true;

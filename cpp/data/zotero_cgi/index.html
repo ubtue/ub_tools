@@ -186,6 +186,11 @@
                             <td>Additional config</td>
                             <td><textarea name="config_overrides" placeholder="Overwrite zotero_harvester.conf settings for testing here...">{config_overrides}</textarea></td>
                         </tr>
+                        <tr>
+                            <td>Include Online-First</td>
+                            <td><input type="checkbox" name="include_online_first" value="checked" {include_online_first}></td>
+                        </tr>
+
                         <tr><td colspan="3">Please note: This process can run for multiple minutes!</td></tr>
                         <tr><td colspan="3"><input id="rss_submit" type="submit"></input></td></tr>
                     </table>
@@ -235,6 +240,10 @@
                         <tr>
                             <td>Additional config</td>
                             <td><textarea name="config_overrides" placeholder="Overwrite zotero_harvester.conf settings for testing here...">{config_overrides}</textarea></td>
+                        </tr>
+                        <tr>
+                            <td>Include Online-First</td>
+                            <td><input type="checkbox" name="include_online_first"></td>
                         </tr>
                         <tr><td colspan="3">Please note: This process can run for multiple minutes!</td></tr>
                         <tr><td colspan="3"><input id="crawling_submit" type="submit"></input></td></tr>
