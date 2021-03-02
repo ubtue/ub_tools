@@ -179,9 +179,10 @@ void GenerateFeed(const std::string &user_id, const std::string &subsystem_type,
 }
 
 
-void ProcessFeeds(const std::string &user_id, const std::string &email_sender, const std::string &user_email,
-                  const std::string &user_address, const std::string &language, const std::string &rss_feed_notification_type,
-                  const std::string &subsystem_type, DbConnection * const db_connection)
+void ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_notification, const std::string &email_sender,
+                  const std::string &user_email, const std::string &user_address, const std::string &language,
+                  const std::string &rss_feed_notification_type, const std::string &subsystem_type,
+                  DbConnection * const db_connection)
 {
     db_connection->queryOrDie("SELECT rss_feeds_id FROM tuefind_rss_subscriptions WHERE user_id=" + user_id);
     auto rss_subscriptions_result_set(db_connection->getLastResultSet());
@@ -192,6 +193,7 @@ void ProcessFeeds(const std::string &user_id, const std::string &email_sender, c
         return;
 
     std::vector<HarvestedRSSItem> harvested_items;
+    std::string max_insertion_time;
     for (const auto &feed_id : feed_ids) {
         db_connection->queryOrDie("SELECT feed_name,feed_url FROM tuefind_rss_feeds WHERE id=" + feed_id);
         auto feed_result_set(db_connection->getLastResultSet());
@@ -200,20 +202,28 @@ void ProcessFeeds(const std::string &user_id, const std::string &email_sender, c
         const auto feed_url(feed_row["feed_url"]);
         feed_result_set.~DbResultSet();
 
-        db_connection->queryOrDie("SELECT item_title,item_description,item_url,item_id,pub_date FROM "
-                                  "tuefind_rss_items WHERE rss_feeds_id=" + feed_id);
+        db_connection->queryOrDie("SELECT item_title,item_description,item_url,item_id,pub_date,insertion_time FROM "
+                                  "tuefind_rss_items WHERE rss_feeds_id=" + feed_id + " AND insertion_time > '"
+                                  + rss_feed_last_notification + "'");
         auto items_result_set(db_connection->getLastResultSet());
-        while (const auto item_row = items_result_set.getNextRow())
+        while (const auto item_row = items_result_set.getNextRow()) {
             harvested_items.emplace_back(SyndicationFormat::Item(item_row["item_title"], item_row["item_description"],
                                                                  item_row["item_url"], item_row["item_id"],
                                                                  SqlUtil::DatetimeToTimeT(item_row["pub_date"])),
                                          feed_name, feed_url);
+            const auto insertion_time(item_row["insertion_time"]);
+            if (insertion_time > max_insertion_time)
+                max_insertion_time = insertion_time;
+        }
     }
 
     if (rss_feed_notification_type == "email")
         SendEmail(email_sender, user_email, user_address, language, harvested_items);
     else
         GenerateFeed(user_id, subsystem_type, harvested_items);
+
+    db_connection->queryOrDie("INSERT INTO user SET tuefind_rss_feed_last_notification='" + max_insertion_time
+                              + "' WHERE id=" + user_id);
 }
 
 
@@ -239,13 +249,13 @@ struct UserInfo {
     std::string last_name_;
     std::string email_;
     std::string rss_feed_notification_type_;
-    time_t rss_feed_last_notification_;
+    std::string rss_feed_last_notification_;
 public:
     UserInfo() = default;
     UserInfo(const UserInfo &other) = default;
     UserInfo(const std::string &user_id, const std::string &first_name, const std::string &last_name,
              const std::string &email, const std::string &rss_feed_notification_type,
-             const time_t rss_feed_last_notification)
+             const std::string &rss_feed_last_notification)
         : user_id_(user_id), first_name_(first_name), last_name_(last_name), email_(email),
           rss_feed_notification_type_(rss_feed_notification_type), rss_feed_last_notification_(rss_feed_last_notification) { }
 };
@@ -267,7 +277,7 @@ int Main(int argc, char *argv[]) {
         ids_to_user_infos_map[user_row["id"]] =
             UserInfo(user_row["id"], user_row["firstname"], user_row["lastname"], user_row["email"],
                      user_row["tuefind_rss_feed_notification_type"],
-                     TimeUtil::StringToTimeT(user_row["tuefind_rss_feed_last_notification"]));
+                     user_row["tuefind_rss_feed_last_notification"]);
 
     unsigned feed_generation_count(0), email_sent_count(0);
     for (const auto &[user_id, user_info] : ids_to_user_infos_map) {
@@ -281,7 +291,7 @@ int Main(int argc, char *argv[]) {
         const auto appellation(ixtheo_user_row.getValue("appellation"));
         const auto language(ixtheo_user_row.getValue("language", "en"));
         const auto subsystem_type(ixtheo_user_row["user_type"]);
-        ProcessFeeds(user_id, email_address, user_info.email_,
+        ProcessFeeds(user_id, user_info.rss_feed_last_notification_, email_address, user_info.email_,
                      GenerateUserAddress(appellation, user_info.first_name_, user_info.last_name_),
                      language, user_info.rss_feed_notification_type_, subsystem_type, db_connection.get());
         user_info.rss_feed_notification_type_ == "email" ? ++email_sent_count : ++feed_generation_count;
