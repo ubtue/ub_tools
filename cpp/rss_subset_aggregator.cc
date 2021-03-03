@@ -176,9 +176,7 @@ const unsigned DEFAULT_XML_INDENT_AMOUNT(2);
 void GenerateFeed(const std::string &user_id, const std::string &subsystem_type,
                   const std::vector<HarvestedRSSItem> &harvested_items)
 {
-    static const std::string PATH_PREFIX("/var/www/custom_rss_feeds/");
-    const std::string xml_output_filename(PATH_PREFIX + subsystem_type + "_" + user_id + "_rss.xml");
-    XmlWriter xml_writer(FileUtil::OpenOutputFileOrDie(xml_output_filename).release(),
+    XmlWriter xml_writer(FileUtil::OpenOutputFileOrDie("/dev/stdout").release(),
                          XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
     WriteRSSFeedXMLOutput(subsystem_type, harvested_items, &xml_writer);
 }
