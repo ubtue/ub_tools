@@ -173,9 +173,7 @@ bool SendEmail(const std::string &subsystem_type, const std::string &email_sende
 const unsigned DEFAULT_XML_INDENT_AMOUNT(2);
 
 
-void GenerateFeed(const std::string &user_id, const std::string &subsystem_type,
-                  const std::vector<HarvestedRSSItem> &harvested_items)
-{
+void GenerateFeed(const std::string &subsystem_type, const std::vector<HarvestedRSSItem> &harvested_items) {
     XmlWriter xml_writer(FileUtil::OpenOutputFileOrDie("/dev/stdout").release(),
                          XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
     WriteRSSFeedXMLOutput(subsystem_type, harvested_items, &xml_writer);
@@ -222,7 +220,7 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
     if (harvested_items.empty())
         return false;
 
-    GenerateFeed(user_id, subsystem_type, harvested_items);
+    GenerateFeed(subsystem_type, harvested_items);
     if (send_email) {
         if (not SendEmail(subsystem_type, email_sender, user_email, user_address, language, harvested_items))
             return true;
