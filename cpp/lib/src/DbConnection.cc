@@ -214,7 +214,7 @@ bool DbConnection::query(const std::string &query_statement) {
         const auto statements(SplitMySQLStatements(query_statement));
         for (const auto &statement : statements) {
             if (::mysql_query(&mysql_, statement.c_str()) != 0) {
-                LOG_WARNING("Could not successfully execute statement \"" + query_statement + "\": SQL error code:"
+                LOG_WARNING("Could not successfully execute statement \"" + statement + "\": SQL error code:"
                             + std::to_string(::mysql_errno(&mysql_)));
                 return false;
             }
@@ -348,9 +348,17 @@ bool DbConnection::queryFile(const std::string &filename) {
     if (not FileUtil::ReadString(filename, &statements))
         return false;
 
-    if (type_ == T_MYSQL)
-        return query(StringUtil::TrimWhite(&statements));
-    else {
+    if (type_ == T_MYSQL) {
+        const auto individual_statements(SplitMySQLStatements(statements));
+        for (const auto &statement : individual_statements) {
+            if (::mysql_query(&mysql_, statement.c_str()) != 0) {
+                LOG_WARNING("Could not successfully execute statement \"" + statement + "\": SQL error code:"
+                            + std::to_string(::mysql_errno(&mysql_)));
+                return false;
+            }
+        }
+	return true;
+    } else {
         std::vector<std::string> individual_statements;
         SplitSqliteStatements(statements, &individual_statements);
         for (const auto &statement : individual_statements) {
