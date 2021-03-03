@@ -133,10 +133,13 @@ std::string TimeTToString(const time_t &the_time, const std::string &format = DE
                           const std::string &time_locale = UB_DEFAULT_LOCALE);
 
 
+/** \brief Converts a UNIX timestamp (in seconds) to a time_t. */
 bool StringToTimeT(const std::string &time_str, time_t * const unix_time);
 
 
-/** \note This function will abort if "time_str" cannot be converted to a valid time_t! */
+/** \brief Converts a UNIX timestamp (in seconds) to a time_t.
+ *  \note This function will abort if "time_str" cannot be converted to a valid time_t!
+ */
 time_t StringToTimeT(const std::string &time_str);
 
 
