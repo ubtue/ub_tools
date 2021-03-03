@@ -96,7 +96,8 @@ std::vector<std::string> FindLinesStartingWithPrefix(const std::vector<std::stri
 
 
 // Reports differences for lines that start w/ "prefix" for tables w/ the identical names.
-void CompareTables(const std::string &prefix, const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map1,
+void CompareTables(const std::string &prefix,
+                   const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map1,
                    const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map2)
 {
     for (const auto &table_name1_and_schema1 : table_or_view_name_to_schema_map1) {
@@ -114,7 +115,8 @@ void CompareTables(const std::string &prefix, const std::map<std::string, std::v
         }
         for (const auto &line_in_table2 : schema2) {
             if (StringUtil::StartsWith(line_in_table2, prefix)
-                and std::find(matching_lines_in_table1.cbegin(), matching_lines_in_table1.cend(), line_in_table2) == matching_lines_in_table1.cend())
+                and std::find(matching_lines_in_table1.cbegin(), matching_lines_in_table1.cend(), line_in_table2)
+                    == matching_lines_in_table1.cend())
                 std::cout << line_in_table2 << " is missing in 1st schema for table " << table_name1 << '\n';
         }
     }
@@ -165,7 +167,9 @@ void CompareTableOptions(const std::map<std::string, std::vector<std::string>> &
 }
 
 
-void ReportUnknownLines(const std::string &schema, const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map) {
+void ReportUnknownLines(const std::string &schema,
+                        const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map)
+{
     static const std::vector<std::string> KNOWN_LINE_PREFIXES{ "KEY", "PRIMARY KEY", "UNIQUE KEY", "CONSTRAINT", ") ", "`" };
 
     for (const auto &table_name_and_schema : table_or_view_name_to_schema_map) {
