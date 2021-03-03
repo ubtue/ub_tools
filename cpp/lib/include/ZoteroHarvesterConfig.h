@@ -205,8 +205,9 @@ private:
 struct LanguageParams {
     std::set<std::string> expected_languages_;
     std::string source_text_fields_ = "title";
+    bool force_detection_ = false;
 public:
-    void reset() { expected_languages_.clear(); source_text_fields_ = "title"; }
+    void reset() { expected_languages_.clear(); source_text_fields_ = "title"; force_detection_ = false; }
 };
 
 
@@ -267,7 +268,6 @@ struct JournalParams {
     MarcMetadataParams marc_metadata_params_;
     bool zeder_newly_synced_entry_;
     bool selective_evaluation_;
-    bool force_language_detection_;
 public:
     JournalParams(const GlobalParams &global_params);
     JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);

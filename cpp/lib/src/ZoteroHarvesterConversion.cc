@@ -579,7 +579,7 @@ void DetectLanguage(MetadataRecord * const metadata_record, const Config::Journa
             metadata_record->language_ = detected_language;
         } else if (detected_language == metadata_record->language_)
             LOG_INFO("The given language is equal to the detected language: " + detected_language);
-        else if (journal_params.force_language_detection_) {
+        else if (journal_params.language_params_.force_detection_) {
             LOG_INFO ("Force language detection active - using detected language: " + detected_language);
             metadata_record->language_ = detected_language;
         } else {
