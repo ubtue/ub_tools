@@ -43,7 +43,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("email_address");
+    ::Usage("email_address [user_id]\n"
+            "If a user ID has been specified, an RSS feed only for that ID will be generated,o/w aggregate processing takes place.");
 }
 
 
@@ -264,21 +265,26 @@ public:
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 2)
+    if (argc != 2 and argc != 3)
         Usage();
 
     const std::string email_address(argv[1]);
+    std::string single_user;
+    if (argc == 3)
+        single_user = argv[2];
+
     const auto db_connection(VuFind::GetDbConnection());
 
     db_connection->queryOrDie("SELECT id,firstname,lastname,email,tuefind_rss_feed_send_emails"
-                              ",tuefind_rss_feed_last_notification FROM user "
-                              "WHERE tuefind_rss_feed_notification_type IS NOT NULL");
+                              ",tuefind_rss_feed_last_notification FROM user"
+                              + std::string(single_user.empty() ? "" : " WHERE id="
+                                            + db_connection->escapeAndQuoteString(single_user)));
     auto user_result_set(db_connection->getLastResultSet());
     std::unordered_map<std::string, UserInfo> ids_to_user_infos_map;
     while (const auto user_row = user_result_set.getNextRow())
         ids_to_user_infos_map[user_row["id"]] =
             UserInfo(user_row["id"], user_row["firstname"], user_row["lastname"], user_row["email"],
-                     StringUtil::ToBool(user_row["tuefind_rss_feed_send_emails"]),
+                     (single_user.empty() ? StringUtil::ToBool(user_row["tuefind_rss_feed_send_emails"]) : false),
                      user_row["tuefind_rss_feed_last_notification"]);
 
     unsigned feed_generation_count(0), email_sent_count(0);
