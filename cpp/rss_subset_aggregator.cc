@@ -43,8 +43,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("email_address [user_id]\n"
-            "If a user ID has been specified, an RSS feed only for that ID will be generated,o/w aggregate processing takes place.");
+    ::Usage("--mode=(email|rss_xml) (user_id|error_email_address)]\n"
+            "If the mode is \"email\" a VuFind user_id needs to be specified, o/w an error email address should be provided.");
 }
 
 
@@ -219,13 +219,13 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
     if (harvested_items.empty())
         return false;
 
-    GenerateFeed(subsystem_type, harvested_items);
     if (send_email) {
         if (not SendEmail(subsystem_type, email_sender, user_email, user_address, language, harvested_items))
             return true;
         db_connection->queryOrDie("INSERT INTO user SET tuefind_rss_feed_last_notification='" + max_insertion_time
                                   + "' WHERE id=" + user_id);
-    }
+    } else
+        GenerateFeed(subsystem_type, harvested_items);
     return true;
 }
 
@@ -251,45 +251,49 @@ struct UserInfo {
     std::string first_name_;
     std::string last_name_;
     std::string email_;
-    bool rss_feed_send_emails_;
     std::string rss_feed_last_notification_;
 public:
     UserInfo() = default;
     UserInfo(const UserInfo &other) = default;
     UserInfo(const std::string &user_id, const std::string &first_name, const std::string &last_name,
-             const std::string &email, const bool &rss_feed_send_emails,
-             const std::string &rss_feed_last_notification)
+             const std::string &email, const std::string &rss_feed_last_notification)
         : user_id_(user_id), first_name_(first_name), last_name_(last_name), email_(email),
-          rss_feed_send_emails_(rss_feed_send_emails), rss_feed_last_notification_(rss_feed_last_notification) { }
+          rss_feed_last_notification_(rss_feed_last_notification) { }
 };
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 2 and argc != 3)
+    if (argc != 3)
         Usage();
 
-    const std::string email_address(argv[1]);
-    std::string single_user;
-    if (argc == 3)
-        single_user = argv[2];
+    std::string error_email_address, vufind_user_id;
+    if (std::strcmp(argv[1], "--mode=email") == 0)
+        vufind_user_id = argv[1];
+    else if (std::strcmp(argv[1], "--mode=rss_xml") == 0)
+        vufind_user_id = argv[1];
+    else
+        Usage();
 
     const auto db_connection(VuFind::GetDbConnection());
 
-    db_connection->queryOrDie("SELECT id,firstname,lastname,email,tuefind_rss_feed_send_emails"
-                              ",tuefind_rss_feed_last_notification FROM user"
-                              + std::string(single_user.empty() ? "" : " WHERE id="
-                                            + db_connection->escapeAndQuoteString(single_user)));
+    std::string sql_query("SELECT id,firstname,lastname,email,tuefind_rss_feed_send_emails"
+                          ",tuefind_rss_feed_last_notification FROM user");
+    if (vufind_user_id.empty())
+        sql_query += " WHERE tuefind_rss_feed_send_emails IS TRUE";
+    else
+        sql_query += " WHERE id=" + db_connection->escapeAndQuoteString(vufind_user_id);
+    db_connection->queryOrDie(sql_query);
+
     auto user_result_set(db_connection->getLastResultSet());
     std::unordered_map<std::string, UserInfo> ids_to_user_infos_map;
     while (const auto user_row = user_result_set.getNextRow())
         ids_to_user_infos_map[user_row["id"]] =
             UserInfo(user_row["id"], user_row["firstname"], user_row["lastname"], user_row["email"],
-                     (single_user.empty() ? StringUtil::ToBool(user_row["tuefind_rss_feed_send_emails"]) : false),
                      user_row["tuefind_rss_feed_last_notification"]);
 
     unsigned feed_generation_count(0), email_sent_count(0);
     for (const auto &[user_id, user_info] : ids_to_user_infos_map) {
-        if (user_info.rss_feed_send_emails_ and not EmailSender::IsValidEmailAddress(user_info.email_)) {
+        if (vufind_user_id.empty() and not EmailSender::IsValidEmailAddress(user_info.email_)) {
             LOG_WARNING("no valid email address for vfind.user.id " + user_id + "!");
             continue;
         }
@@ -299,11 +303,11 @@ int Main(int argc, char *argv[]) {
         const auto appellation(ixtheo_user_row.getValue("appellation"));
         const auto language(ixtheo_user_row.getValue("language", "en"));
         const auto subsystem_type(ixtheo_user_row["user_type"]);
-        if (ProcessFeeds(user_id, user_info.rss_feed_last_notification_, email_address, user_info.email_,
+        if (ProcessFeeds(user_id, user_info.rss_feed_last_notification_, error_email_address, user_info.email_,
                          GenerateUserAddress(appellation, user_info.first_name_, user_info.last_name_),
-                         language, user_info.rss_feed_send_emails_, subsystem_type, db_connection.get()))
+                         language, vufind_user_id.empty(), subsystem_type, db_connection.get()))
         {
-            if (user_info.rss_feed_send_emails_)
+            if (vufind_user_id.empty())
                 ++email_sent_count;
             ++feed_generation_count;
         }
