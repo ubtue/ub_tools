@@ -294,7 +294,7 @@ int Main(int argc, char *argv[]) {
     unsigned feed_generation_count(0), email_sent_count(0);
     for (const auto &[user_id, user_info] : ids_to_user_infos_map) {
         if (vufind_user_id.empty() and not EmailSender::IsValidEmailAddress(user_info.email_)) {
-            LOG_WARNING("no valid email address for vfind.user.id " + user_id + "!");
+            LOG_WARNING("no valid email address for vufind.user.id " + user_id + "!");
             continue;
         }
 
