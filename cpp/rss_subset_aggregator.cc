@@ -44,7 +44,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage("--mode=(email|rss_xml) (user_id|error_email_address)]\n"
-            "If the mode is \"email\" a VuFind user_id needs to be specified, o/w an error email address should be provided.");
+            "If the mode is \"rss_xml\" a VuFind user_id needs to be specified, o/w an error email address should be provided.");
 }
 
 
