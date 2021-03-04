@@ -89,7 +89,7 @@ std::string GetChannelDescEntry(const std::string &subsystem_type, const std::st
 void WriteRSSFeedXMLOutput(const std::string &subsystem_type, const std::vector<HarvestedRSSItem> &harvested_items,
                            XmlWriter * const xml_writer)
 {
-    xml_writer->openTag("rss", { { "version", "2.0" }, { "xmlns:tuefind", "https://github.com/ubtue/tuefind" } });
+    xml_writer->openTag("rss", { { "version", "2.0" } });
     xml_writer->openTag("channel");
     xml_writer->writeTagsWithData("title", GetChannelDescEntry(subsystem_type, "title"));
     xml_writer->writeTagsWithData("link", GetChannelDescEntry(subsystem_type, "link"));
@@ -112,8 +112,6 @@ void WriteRSSFeedXMLOutput(const std::string &subsystem_type, const std::vector<
                                       TimeUtil::TimeTToString(harvested_item.item_.getPubDate(), TimeUtil::RFC822_FORMAT,
                                                                      TimeUtil::UTC));
         xml_writer->writeTagsWithData("guid", harvested_item.item_.getId());
-        xml_writer->writeTagsWithData("tuefind:rss_title", harvested_item.feed_title_);
-        xml_writer->writeTagsWithData("tuefind:rss_url", harvested_item.feed_url_);
         xml_writer->closeTag("item", /* suppress_indent */ false);
     }
 
