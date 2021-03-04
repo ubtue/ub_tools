@@ -43,7 +43,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("--mode=(email|rss_xml) (user_id|error_email_address)]\n"
+    ::Usage("--mode=(email|rss_xml) (user_id|error_email_address) subsystem_type]\n"
             "If the mode is \"rss_xml\" a VuFind user_id needs to be specified, o/w an error email address should be provided.");
 }
 
@@ -232,14 +232,11 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
 
 // Yes, this function has a confusing name but I could not think of a better one. :-(
 // What is meant is how to address a user!
-std::string GenerateUserAddress(const std::string &appellation, const std::string &first_name, const std::string &last_name) {
+std::string GenerateUserAddress(const std::string &first_name, const std::string &last_name) {
     if (last_name.empty())
         return first_name;
 
-    if (appellation.empty())
-        return first_name + " " + last_name;
-
-    return appellation + " " + last_name;
+    return first_name + " " + last_name;
 }
 
 
@@ -263,16 +260,19 @@ public:
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
+    if (argc != 4)
         Usage();
 
     std::string error_email_address, vufind_user_id;
     if (std::strcmp(argv[1], "--mode=email") == 0)
-        vufind_user_id = argv[1];
+        vufind_user_id = argv[2];
     else if (std::strcmp(argv[1], "--mode=rss_xml") == 0)
-        vufind_user_id = argv[1];
+        vufind_user_id = argv[2];
     else
         Usage();
+    const std::string subsystem_type(argv[3]);
+    if (subsystem_type != "ixtheo" and subsystem_type != "relbib" and subsystem_type != "krimdok")
+        LOG_ERROR("subsystem_type must be one of {ixtheo,relbib,krimdok}!");
 
     const auto db_connection(VuFind::GetDbConnection());
 
@@ -298,13 +298,9 @@ int Main(int argc, char *argv[]) {
             continue;
         }
 
-        db_connection->queryOrDie("SELECT appellation,language,user_type FROM ixtheo_user");
-        auto ixtheo_user_row(db_connection->getLastResultSet().getNextRow());
-        const auto appellation(ixtheo_user_row.getValue("appellation"));
-        const auto language(ixtheo_user_row.getValue("language", "en"));
-        const auto subsystem_type(ixtheo_user_row["user_type"]);
+        const std::string language("en");
         if (ProcessFeeds(user_id, user_info.rss_feed_last_notification_, error_email_address, user_info.email_,
-                         GenerateUserAddress(appellation, user_info.first_name_, user_info.last_name_),
+                         GenerateUserAddress(user_info.first_name_, user_info.last_name_),
                          language, vufind_user_id.empty(), subsystem_type, db_connection.get()))
         {
             if (vufind_user_id.empty())
