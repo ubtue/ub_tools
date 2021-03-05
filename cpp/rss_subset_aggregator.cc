@@ -69,7 +69,7 @@ public:
 
 const std::map<std::string, ChannelDesc> subsystem_type_to_channel_desc_map = {
     { "relbib",  ChannelDesc("RelBib RSS Aggregator",  "https://relbib.de/")                },
-    { "ixtheo",  ChannelDesc("IxTheo RSS Aggregator",  "https://itheo.de/")                 },
+    { "ixtheo",  ChannelDesc("IxTheo RSS Aggregator",  "https://ixtheo.de/")                },
     { "krimdok", ChannelDesc("KrimDok RSS Aggregator", "https://krimdok.uni-tuebingen.de/") },
 };
 
