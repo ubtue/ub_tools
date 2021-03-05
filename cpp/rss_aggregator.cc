@@ -51,7 +51,7 @@ namespace {
 }
 
 
-// These must be in sync with the sizes in the vufind.rss_aggregator table!
+// These must be in sync with the sizes in the vufind.rss_items table!
 const size_t MAX_ITEM_ID_LENGTH(768);
 const size_t MAX_ITEM_URL_LENGTH(1000);
 const size_t MAX_ITEM_TITLE_LENGTH(1000);
@@ -224,10 +224,10 @@ size_t SelectItems(const std::string &subsystem_type, DbConnection * const db_co
     while (const auto row = feeds_result_set.getNextRow())
         feed_ids_to_names_and_urls_map[row["id"]] = FeedNameAndURL(row["feed_name"], row["feed_url"]);
 
-    const std::string NOW_AS_SQL_DATETIME(SqlUtil::TimeTToDatetime(std::time(nullptr) - HARVEST_TIME_WINDOW * 86400));
+    const std::string CUTOFF_DATETIME(SqlUtil::TimeTToDatetime(std::time(nullptr) - HARVEST_TIME_WINDOW * 86400));
     for (const auto &[feed_id, feed_name_and_url] : feed_ids_to_names_and_urls_map) {
         db_connection->queryOrDie("SELECT item_title,item_description,item_url,item_id,pub_date FROM tuefind_rss_items "
-                                  "WHERE pub_date >= '" + NOW_AS_SQL_DATETIME + "' AND rss_feeds_id = "
+                                  "WHERE pub_date >= '" + CUTOFF_DATETIME + "' AND rss_feeds_id = "
                                   + feed_id + " ORDER BY pub_date DESC");
         DbResultSet result_set(db_connection->getLastResultSet());
         while (const DbRow row = result_set.getNextRow())
