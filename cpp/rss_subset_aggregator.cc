@@ -222,7 +222,7 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
     if (send_email) {
         if (not SendEmail(subsystem_type, email_sender, user_email, user_address, language, harvested_items))
             return true;
-        db_connection->queryOrDie("INSERT INTO user SET tuefind_rss_feed_last_notification='" + max_insertion_time
+        db_connection->queryOrDie("UPDATE user SET tuefind_rss_feed_last_notification='" + max_insertion_time
                                   + "' WHERE id=" + user_id);
     } else
         GenerateFeed(subsystem_type, harvested_items);
