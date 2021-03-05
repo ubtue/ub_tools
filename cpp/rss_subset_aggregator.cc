@@ -202,9 +202,12 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
         const auto feed_url(feed_row["feed_url"]);
         feed_result_set.~DbResultSet();
 
-        db_connection->queryOrDie("SELECT item_title,item_description,item_url,item_id,pub_date,insertion_time FROM "
-                                  "tuefind_rss_items WHERE rss_feeds_id=" + feed_id + " AND insertion_time > '"
-                                  + rss_feed_last_notification + "'");
+        std::string query("SELECT item_title,item_description,item_url,item_id,pub_date,insertion_time FROM "
+                          "tuefind_rss_items WHERE rss_feeds_id=" + feed_id);
+        if (not user_email.empty())
+            query +=  " AND insertion_time > '" + rss_feed_last_notification + "'");
+        db_connection->queryOrDie(query);
+
         auto items_result_set(db_connection->getLastResultSet());
         while (const auto item_row = items_result_set.getNextRow()) {
             harvested_items.emplace_back(SyndicationFormat::Item(item_row["item_title"], item_row["item_description"],
