@@ -259,6 +259,7 @@ JournalParams::JournalParams(const GlobalParams &global_params) {
     update_window_ = 0;
     crawl_params_.max_crawl_depth_ = 1;
     selective_evaluation_ = false;
+    force_language_detection_ = false;
 }
 
 
@@ -338,6 +339,7 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     ssgn_ = journal_section.getString(GetIniKeyString(SSGN), "");
     license_ = journal_section.getString(GetIniKeyString(LICENSE), "");
     selective_evaluation_ = journal_section.getBool(GetIniKeyString(SELECTIVE_EVALUATION), false);
+    force_language_detection_ = journal_section.getBool(GetIniKeyString(FORCE_LANGUAGE_DETECTION), false);
 
     const auto review_regex(journal_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
     if (not review_regex.empty())
@@ -461,12 +463,10 @@ bool ParseExpectedLanguages(const std::string &expected_languages_string, Langua
     if (expected_languages_string.empty())
         return true;
 
-    // force
+    // force? (deprecated, treat as invalid)
     std::string expected_languages(expected_languages_string);
-    if (expected_languages[0] == '*') {
-        language_params->force_detection_ = true;
-        expected_languages = expected_languages.substr(1);
-    }
+    if (expected_languages[0] == '*')
+        return false;
 
     // source text fields
     const auto field_separator_pos(expected_languages.find(':'));
