@@ -59,6 +59,7 @@ DbResultSet::DbResultSet(DbResultSet &&other) {
 
 DbResultSet::~DbResultSet() {
     if (result_set_ != nullptr) {
+        field_name_to_index_map_.clear();
         ::mysql_free_result(result_set_);
         result_set_ = nullptr;
     } else {
