@@ -2,7 +2,7 @@
  *  \brief  Implementation of the LocalDataDB class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2020-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -47,10 +47,9 @@ static void CreateTables(DbConnection * const db_connection) {
 LocalDataDB::LocalDataDB(const OpenMode open_mode): single_transaction_(open_mode == READ_WRITE) {
     db_connection_ = new DbConnection(UBTools::GetTuelibPath() + "local_data.sq3" /* must be the same path as in fetch_marc_updates.py */,
                                       (open_mode == READ_WRITE) ? DbConnection::CREATE : DbConnection::READONLY);
+    CreateTables(db_connection_);
     if (open_mode == READ_ONLY)
         return;
-
-    CreateTables(db_connection_);
 
     if (single_transaction_)
         db_connection_->queryOrDie("BEGIN TRANSACTION"); // This can lead to a 3 orders of magnitude speedup for INSERTs and UPDATEs!
