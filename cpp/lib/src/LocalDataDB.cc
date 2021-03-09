@@ -24,30 +24,33 @@
 #include "UBTools.h"
 
 
-static void CreateTables(DbConnection * const db_connection) {
-    db_connection->queryOrDie("CREATE TABLE IF NOT EXISTS local_data ("
-                              "    title_ppn TEXT PRIMARY KEY,"
-                              "    local_fields BLOB NOT NULL"
-                              ") WITHOUT ROWID");
-    db_connection->queryOrDie("CREATE UNIQUE INDEX IF NOT EXISTS local_data_index ON local_data (title_ppn)");
+static void CreateTables() {
+    DbConnection db_connection(
+        UBTools::GetTuelibPath() + "local_data.sq3" /* must be the same path as in fetch_marc_updates.py */,
+        DbConnection::CREATE);
+    db_connection.queryOrDie("CREATE TABLE IF NOT EXISTS local_data ("
+                             "    title_ppn TEXT PRIMARY KEY,"
+                             "    local_fields BLOB NOT NULL"
+                             ") WITHOUT ROWID");
+    db_connection.queryOrDie("CREATE UNIQUE INDEX IF NOT EXISTS local_data_index ON local_data (title_ppn)");
 
-    db_connection->queryOrDie("CREATE TABLE IF NOT EXISTS local_ppns_to_title_ppns_map ("
-                              "    local_ppn TEXT PRIMARY KEY,"
-                              "    title_ppn TEXT NOT NULL,"
-                              "    CONSTRAINT foreign_key_column"
-                              "        FOREIGN KEY(title_ppn)"
-                              "        REFERENCES local_data(title_ppn)"
-                              "        ON DELETE CASCADE"
-                              ") WITHOUT ROWID");
-    db_connection->queryOrDie("CREATE INDEX IF NOT EXISTS local_ppns_to_title_ppns_map_index "
-                              "ON local_ppns_to_title_ppns_map (title_ppn)");
+    db_connection.queryOrDie("CREATE TABLE IF NOT EXISTS local_ppns_to_title_ppns_map ("
+                             "    local_ppn TEXT PRIMARY KEY,"
+                             "    title_ppn TEXT NOT NULL,"
+                             "    CONSTRAINT foreign_key_column"
+                             "        FOREIGN KEY(title_ppn)"
+                             "        REFERENCES local_data(title_ppn)"
+                             "        ON DELETE CASCADE"
+                             ") WITHOUT ROWID");
+    db_connection.queryOrDie("CREATE INDEX IF NOT EXISTS local_ppns_to_title_ppns_map_index "
+                             "ON local_ppns_to_title_ppns_map (title_ppn)");
 }
 
 
 LocalDataDB::LocalDataDB(const OpenMode open_mode): single_transaction_(open_mode == READ_WRITE) {
+    CreateTables();
     db_connection_ = new DbConnection(UBTools::GetTuelibPath() + "local_data.sq3" /* must be the same path as in fetch_marc_updates.py */,
                                       (open_mode == READ_WRITE) ? DbConnection::CREATE : DbConnection::READONLY);
-    CreateTables(db_connection_);
     if (open_mode == READ_ONLY)
         return;
 
@@ -67,7 +70,7 @@ void LocalDataDB::clear() {
     db_connection_->queryOrDie("DROP TABLE IF EXISTS local_ppns_to_title_ppns_map");
     db_connection_->queryOrDie("DROP TABLE IF EXISTS local_data");
 
-    CreateTables(db_connection_);
+    CreateTables();
 }
 
 
