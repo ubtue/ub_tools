@@ -546,10 +546,12 @@ void DetectLanguage(MetadataRecord * const metadata_record, const Config::Journa
     if (journal_params.language_params_.expected_languages_.empty())
         return;
 
-    std::string detected_language;
-    if (journal_params.language_params_.expected_languages_.size() == 1)
-        detected_language = *journal_params.language_params_.expected_languages_.begin();
-    else {
+    std::string configured_or_detected_language, configured_or_detected_info;
+    if (journal_params.language_params_.expected_languages_.size() == 1) {
+        configured_or_detected_language = *journal_params.language_params_.expected_languages_.begin();
+        configured_or_detected_info = "configured";
+    } else {
+        configured_or_detected_info = "detected";
         std::string record_text;
         if (journal_params.language_params_.source_text_fields_.empty()
             or journal_params.language_params_.source_text_fields_ == "title")
@@ -561,29 +563,32 @@ void DetectLanguage(MetadataRecord * const metadata_record, const Config::Journa
             record_text = metadata_record->title_ + " " + metadata_record->abstract_note_;
         else
             LOG_ERROR("unknown text field '" + journal_params.language_params_.source_text_fields_ + "' for language detection");
-        detected_language = TikaDetectLanguage(record_text);
+        configured_or_detected_language = TikaDetectLanguage(record_text);
         // Fallback to custom NGram
-        if (detected_language.empty()) {
+        if (configured_or_detected_language.empty()) {
             std::vector<NGram::DetectedLanguage> detected_languages;
             NGram::ClassifyLanguage(record_text, &detected_languages, journal_params.language_params_.expected_languages_,
                                  /*alternative_cutoff_factor = */ 0);
             const auto top_language(detected_languages.front());
-            detected_language = top_language.language_;
+            configured_or_detected_language = top_language.language_;
         }
     }
 
-    // compare given language to detected language
-    if (not detected_language.empty()) {
-        if (metadata_record->language_.empty()) {
-            LOG_INFO("Using detected language: " + detected_language);
-            metadata_record->language_ = detected_language;
-        } else if (detected_language == metadata_record->language_)
-            LOG_INFO("The given language is equal to the detected language: " + detected_language);
+    // compare language from zotero to detected language
+    if (not configured_or_detected_language.empty()) {
+        if (journal_params.force_language_detection_) {
+            LOG_INFO ("Force language detection active - using " + configured_or_detected_info + " language: " + configured_or_detected_language);
+            metadata_record->language_ = configured_or_detected_language;
+        } else if (metadata_record->language_.empty()) {
+            LOG_INFO("Using " + configured_or_detected_info + " language: " + configured_or_detected_language);
+            metadata_record->language_ = configured_or_detected_language;
+        } else if (configured_or_detected_language == metadata_record->language_)
+            LOG_INFO("The given language is equal to the " + configured_or_detected_info + " language: " + configured_or_detected_language);
         else if (journal_params.force_language_detection_) {
-            LOG_INFO ("Force language detection active - using detected language: " + detected_language);
-            metadata_record->language_ = detected_language;
+            LOG_INFO ("Force language detection active - using " + configured_or_detected_info + " language: " + configured_or_detected_language);
+            metadata_record->language_ = configured_or_detected_language;
         } else {
-            LOG_INFO("The given language " + metadata_record->language_ +  " and the detected language " + detected_language + " are different. "
+            LOG_INFO("The given language " + metadata_record->language_ +  " and the " + configured_or_detected_info + " language " + configured_or_detected_language + " are different. "
                      "No language will be set.");
             metadata_record->language_.clear();
         }
