@@ -6,7 +6,6 @@
 /append_marc_xml
 /apply_differential_update
 /archive_delete_ids
-/archive_sent_records
 /base_tar_unpacker
 /base62_coder
 /bib_ref_to_codes_tool
