@@ -1246,7 +1246,7 @@ bool ExcludeOnlineFirstRecord(const MetadataRecord &metadata_record, const Conve
     }
 
     if (metadata_record.issue_.empty() and metadata_record.volume_.empty()) {
-        if (parameters.global_params_.skip_online_first_articles_unconditonally_) {
+        if (parameters.global_params_.skip_online_first_articles_unconditionally_) {
             LOG_DEBUG("Skipping: online-first article unconditionally");
             return true;
         } else if (metadata_record.doi_.empty()) {

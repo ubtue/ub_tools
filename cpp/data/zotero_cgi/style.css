@@ -69,6 +69,9 @@ span.dot-record-reset {
     background-color: blue;
 }
 
+span.dot-record-online-first {
+    background-color: black;
+}
 
 /* QA template specific */
 div.qa_rule_overridden {

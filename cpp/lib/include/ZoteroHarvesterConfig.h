@@ -143,7 +143,7 @@ struct GlobalParams {
     std::string enhancement_maps_directory_;
     std::string group_names_;
     std::string strptime_format_string_;
-    bool skip_online_first_articles_unconditonally_;
+    bool skip_online_first_articles_unconditionally_;
     DownloadDelayParams download_delay_params_;
     unsigned timeout_crawl_operation_;
     unsigned timeout_download_request_;
