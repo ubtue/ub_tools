@@ -37,7 +37,7 @@ CREATE TABLE zeder_journals (
     journal_name VARCHAR(1000) NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT zeder_journal_zeder_id_and_zeder_instance UNIQUE (zeder_id, zeder_instance)
-) DEFAULT CHARSET=utf8mb4;
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 -- Table to be used w/ our validate_harvested_records tool:
 CREATE TABLE metadata_presence_tracer (
@@ -56,7 +56,7 @@ CREATE TABLE delivered_marc_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
     hash VARCHAR(40) NOT NULL,
     zeder_journal_id INT(11) UNSIGNED NOT NULL,
-    delivery_state ENUM('automatic', 'manual', 'error', 'ignore', 'reset') DEFAULT 'automatic' NOT NULL,
+    delivery_state ENUM('automatic', 'manual', 'error', 'ignore', 'reset', 'online_first') DEFAULT 'automatic' NOT NULL,
     error_message VARCHAR(1000) DEFAULT NULL,
     delivered_at TIMESTAMP NOT NULL DEFAULT NOW(),
     main_title VARCHAR(1000) NOT NULL,
