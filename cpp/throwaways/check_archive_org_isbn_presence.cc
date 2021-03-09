@@ -44,7 +44,7 @@ std::atomic<bool> work_available(true);
 
 
 void WorkerThread(Downloader * const downloader, std::deque<std::set<std::string>> * const task_queue,
-                  std::mutex * const task_queue_mutex, unsigned * const isbn_found_count, File * const isbn_list_output,
+                  std::mutex * const task_queue_mutex, unsigned * const record_found_count, File * const isbn_list_output,
                   std::mutex * const output_mutex)
 {
     std::set<std::string> isbns;
@@ -76,8 +76,8 @@ void WorkerThread(Downloader * const downloader, std::deque<std::set<std::string
             if (downloader->getMessageBody().find("result") != std::string::npos) {
                 std::lock_guard<std::mutex> output_mutex_locker(*output_mutex);
                 isbn_list_output->writeln(isbn);
-                ++*isbn_found_count;
-                std::cout << *isbn_found_count << '\n';
+                ++*record_found_count;
+                std::cout << *record_found_count << '\n';
                 break;
             }
         }
@@ -114,11 +114,11 @@ int Main(int argc, char *argv[]) {
     std::vector<std::thread> thread_pool((WORKER_THREAD_COUNT));
     std::deque<std::set<std::string>> task_queue;
     std::mutex task_queue_mutex, output_mutex;
-    unsigned isbn_found_count(0);
+    unsigned record_found_count(0);
     auto isbn_list_output(FileUtil::OpenOutputFileOrDie(argv[3]));
     for (size_t i(0); i < WORKER_THREAD_COUNT; ++i)
         thread_pool[i] = std::thread(WorkerThread, new Downloader(), &task_queue, &task_queue_mutex,
-                                     &isbn_found_count, isbn_list_output.get(), &output_mutex);
+                                     &record_found_count, isbn_list_output.get(), &output_mutex);
 
     auto marc_reader(MARC::Reader::Factory(argv[2]));
     ProcessRecords(marc_reader.get(), &task_queue, &task_queue_mutex);
@@ -126,7 +126,7 @@ int Main(int argc, char *argv[]) {
     work_available = false; // Let our worker threads return.
     for (size_t i(0); i < WORKER_THREAD_COUNT; ++i)
         thread_pool[i].join();
-    LOG_INFO("Found " + std::to_string(isbn_found_count) + " monographs on Archive.org.");
+    LOG_INFO("Found " + std::to_string(record_found_count) + " monographs on Archive.org.");
 
     return EXIT_SUCCESS;
 }
