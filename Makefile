@@ -10,7 +10,6 @@ all:
 	fi
 
 install: install_configs Makefile
-	rm --recursive --force /usr/local/bin/*
 	$(MAKE) -C cpp/lib/mkdep install;
 	$(MAKE) -C cpp install;
 	$(MAKE) -C cronjobs install;
