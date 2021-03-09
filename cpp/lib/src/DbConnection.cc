@@ -357,7 +357,7 @@ bool DbConnection::queryFile(const std::string &filename) {
                 return false;
             }
         }
-	return true;
+        return true;
     } else {
         std::vector<std::string> individual_statements;
         SplitSqliteStatements(statements, &individual_statements);
