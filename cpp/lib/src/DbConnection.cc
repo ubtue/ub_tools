@@ -185,6 +185,7 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
                    and StringUtil::StartsWith(StringUtil::LeftTrimWhite(statement), "DELIMITER ", /* ignore_case= */true))
         {
             delimiter = StringUtil::RightTrimWhite(StringUtil::LeftTrimWhite(statement).substr(__builtin_strlen("DELIMITER ")));
+            statements.emplace_back(StringUtil::LeftTrimWhite(statement));
             statement.clear();
         } else {
             if (*ch == '\'' or *ch == '"')
