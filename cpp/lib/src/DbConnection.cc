@@ -894,7 +894,8 @@ unsigned DbTransaction::active_count_;
 
 
 DbTransaction::DbTransaction(DbConnection * const db_connection, const bool rollback_when_exceptions_are_in_flight)
-    : db_connection_(*db_connection), rollback_when_exceptions_are_in_flight_(rollback_when_exceptions_are_in_flight)
+    : db_connection_(*db_connection), rollback_when_exceptions_are_in_flight_(rollback_when_exceptions_are_in_flight),
+      explicit_commit_or_rollback_has_happened_(false)
 {
     if (active_count_ > 0)
         LOG_ERROR("no nested transactions are allowed!");
@@ -918,17 +919,30 @@ DbTransaction::DbTransaction(DbConnection * const db_connection, const bool roll
             LOG_ERROR("unknown autocommit status \"" + autocommit_status + "\"!");
         db_connection_.queryOrDie("START TRANSACTION");
     }
-
 }
 
 
 DbTransaction::~DbTransaction() {
-    if (std::uncaught_exceptions() == 0)
-        db_connection_.queryOrDie("COMMIT");
-    else if (rollback_when_exceptions_are_in_flight_)
-        db_connection_.queryOrDie("ROLLBACK");
+    if (not explicit_commit_or_rollback_has_happened_) {
+        if (std::uncaught_exceptions() == 0)
+            db_connection_.queryOrDie("COMMIT");
+        else if (rollback_when_exceptions_are_in_flight_)
+            db_connection_.queryOrDie("ROLLBACK");
+    }
 
     if (db_connection_.getType() == DbConnection::T_MYSQL and autocommit_was_on_)
         db_connection_.queryOrDie("SET autocommit=ON");
     --active_count_;
+}
+
+
+void DbTransaction::commit() {
+    db_connection_.queryOrDie("COMMIT");
+    explicit_commit_or_rollback_has_happened_ = true;
+}
+
+
+void DbTransaction::rollback() {
+    db_connection_.queryOrDie("ROLLBACK");
+    explicit_commit_or_rollback_has_happened_ = true;
 }

@@ -321,10 +321,16 @@ class DbTransaction final {
     DbConnection &db_connection_;
     bool autocommit_was_on_;
     bool rollback_when_exceptions_are_in_flight_;
+    bool explicit_commit_or_rollback_has_happened_;
 public:
     /** \param rollback_when_exceptions_are_in_flight  If true, the destructor issue a ROLLBACK instead of a commit if
      *         current thread has a live exception object derived from std::exception.
      */
     explicit DbTransaction(DbConnection * const db_connection, const bool rollback_when_exceptions_are_in_flight = true);
+
+    /** \note unless a call to commit() or rollback() has happened the destructur issues a commit. */
     ~DbTransaction();
+
+    void commit();
+    void rollback();
 };
