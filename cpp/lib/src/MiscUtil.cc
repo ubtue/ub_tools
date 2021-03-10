@@ -7,7 +7,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2016-2020 Universitätsbibliothek Tübingen
+ *  Copyright 2016-2021 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -662,6 +662,17 @@ bool AddToPATH(const std::string &new_directory_path, const PreferredPathLocatio
         SetEnv("PATH", PATH + ":" + new_directory_path);
 
     return true;
+}
+
+
+std::string GenerateAddress(const std::string &optional_first_name, const std::string &optional_last_name,
+                            const std::string &fallback)
+{
+    if (optional_first_name.empty())
+        return optional_last_name.empty() ? fallback : optional_last_name;
+    else if (optional_last_name.empty())
+        return optional_first_name.empty() ? fallback : optional_first_name;
+    return optional_first_name + " " + optional_last_name;
 }
 
 

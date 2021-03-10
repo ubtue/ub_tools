@@ -29,6 +29,7 @@
 #include "EmailSender.h"
 #include "FileUtil.h"
 #include "HtmlUtil.h"
+#include "MiscUtil.h"
 #include "SqlUtil.h"
 #include "StringUtil.h"
 #include "SyndicationFormat.h"
@@ -234,16 +235,6 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
 }
 
 
-// Yes, this function has a confusing name but I could not think of a better one. :-(
-// What is meant is how to address a user!
-std::string GenerateUserAddress(const std::string &first_name, const std::string &last_name) {
-    if (last_name.empty())
-        return first_name.empty() ? "Subscriber" : first_name;
-
-    return first_name + " " + last_name;
-}
-
-
 } // unnamed namespace
 
 
@@ -308,7 +299,7 @@ int Main(int argc, char *argv[]) {
         }
 
         if (ProcessFeeds(user_id, user_info.rss_feed_last_notification_, error_email_address, user_info.email_,
-                         GenerateUserAddress(user_info.first_name_, user_info.last_name_),
+                         MiscUtil::GenerateAddress(user_info.first_name_, user_info.last_name_, "Subscriber"),
                          user_info.language_code_, vufind_user_id.empty(), subsystem_type, db_connection.get()))
         {
             if (vufind_user_id.empty())
