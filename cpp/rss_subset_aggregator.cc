@@ -236,7 +236,7 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
 // What is meant is how to address a user!
 std::string GenerateUserAddress(const std::string &first_name, const std::string &last_name) {
     if (last_name.empty())
-        return first_name;
+        return first_name.empty() ? "Sir/Madam" : first_name;
 
     return first_name + " " + last_name;
 }

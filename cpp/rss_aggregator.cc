@@ -240,7 +240,8 @@ size_t SelectItems(const std::string &subsystem_type, DbConnection * const db_co
 }
 
 
-const unsigned DEFAULT_XML_INDENT_AMOUNT(2);
+constexpr unsigned DEFAULT_XML_INDENT_AMOUNT = 2;
+constexpr unsigned SECONDS_TO_MILLISECONDS = 1000;
 
 
 int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_output_filename,
@@ -251,10 +252,11 @@ int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_outpu
     auto result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
         LOG_INFO("Processing feed \"" + row["feed_name"] + "\".");
-        const unsigned new_item_count(ProcessFeed(row["id"], row["feed_name"], row["feed_url"],
-                                                  row.getValue("title_suppression_regex"),
-                                                  row.getValue("strptime_format"), downloader, db_connection,
-                                                  StringUtil::ToUnsigned(row["downloader_time_limit"])));
+        const unsigned new_item_count(
+            ProcessFeed(row["id"], row["feed_name"], row["feed_url"],
+                        row.getValue("title_suppression_regex"),
+                        row.getValue("strptime_format"), downloader, db_connection,
+                        StringUtil::ToUnsigned(row["downloader_time_limit"]) * SECONDS_TO_MILLISECONDS));
         LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
     }
 
@@ -283,7 +285,7 @@ int Main(int argc, char *argv[]) {
 
     Downloader::Params params;
     if (argc == 5) {
-        if (std::strcmp(argv[0], "--use-web-proxy") != 0)
+        if (std::strcmp(argv[1], "--use-web-proxy") != 0)
             Usage();
         --argc, ++argv;
         params.proxy_host_and_port_ = UBTools::GetUBWebProxyURL();
