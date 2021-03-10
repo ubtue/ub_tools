@@ -436,7 +436,7 @@ void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::strin
     // In Spanish we have two last name components, so move over if appropriate
     if (language == "spa") {
         // Skip transformation if the first name/last name association already seems reasonable
-        static const auto first_name_end_preposition(ThreadSafeRegexMatcher("(des?\\s+las?|del)$",
+        static const auto first_name_end_preposition(ThreadSafeRegexMatcher("(des?\\s+las?|del|\\p{Lu}[.])$",
              ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE));
         if (first_name_end_preposition.match(*first_name))
             return;
