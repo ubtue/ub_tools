@@ -436,7 +436,7 @@ void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::strin
     // In Spanish we have two last name components, so move over if appropriate
     if (language == "spa") {
         // Skip transformation if the first name/last name association already seems reasonable
-        static const auto first_name_end_preposition(ThreadSafeRegexMatcher("(des?\\s+las?|del)$",
+        static const auto first_name_end_preposition(ThreadSafeRegexMatcher("(des?\\s+las?|del|\\p{Lu}[.])$",
              ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE));
         if (first_name_end_preposition.match(*first_name))
             return;
@@ -739,6 +739,8 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
     // fill-in license and SSG values
     if (journal_params.license_ == "LF")
         metadata_record->license_ = journal_params.license_;
+    else if (metadata_record->custom_metadata_.find("LF") != metadata_record->custom_metadata_.end())
+        metadata_record->license_ = "LF";
     metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(journal_params.ssgn_);
 
     DetectReviews(metadata_record, parameters);
