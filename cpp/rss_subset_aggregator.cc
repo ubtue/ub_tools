@@ -144,8 +144,7 @@ bool SendEmail(const std::string &subsystem_type, const std::string &email_sende
     static const std::string email_template(FileUtil::ReadStringOrDie(template_filename));
 
     Template::Map names_to_values_map;
-    names_to_values_map.insertScalar("user_email", user_email);
-    names_to_values_map.insertScalar("user_address", user_address);
+    names_to_values_map.insertScalar("user_name", user_address);
 
     std::vector<std::string> titles, links, descriptions;
     for (const auto &harvested_item : harvested_items) {
@@ -252,13 +251,15 @@ struct UserInfo {
     std::string last_name_;
     std::string email_;
     std::string rss_feed_last_notification_;
+    std::string language_code_;
 public:
     UserInfo() = default;
     UserInfo(const UserInfo &other) = default;
     UserInfo(const std::string &user_id, const std::string &first_name, const std::string &last_name,
-             const std::string &email, const std::string &rss_feed_last_notification)
+             const std::string &email, const std::string &rss_feed_last_notification,
+             const std::string &language_code)
         : user_id_(user_id), first_name_(first_name), last_name_(last_name), email_(email),
-          rss_feed_last_notification_(rss_feed_last_notification) { }
+          rss_feed_last_notification_(rss_feed_last_notification), language_code_(language_code) { }
 };
 
 
@@ -268,7 +269,7 @@ int Main(int argc, char *argv[]) {
 
     std::string error_email_address, vufind_user_id;
     if (std::strcmp(argv[1], "--mode=email") == 0)
-        vufind_user_id = argv[2];
+        error_email_address = argv[2];
     else if (std::strcmp(argv[1], "--mode=rss_xml") == 0)
         vufind_user_id = argv[2];
     else
@@ -280,7 +281,7 @@ int Main(int argc, char *argv[]) {
     const auto db_connection(VuFind::GetDbConnection());
 
     std::string sql_query("SELECT id,firstname,lastname,email,tuefind_rss_feed_send_emails"
-                          ",tuefind_rss_feed_last_notification FROM user");
+                          ",tuefind_rss_feed_last_notification,last_language FROM user");
     if (vufind_user_id.empty())
         sql_query += " WHERE tuefind_rss_feed_send_emails IS TRUE";
     else
@@ -289,10 +290,13 @@ int Main(int argc, char *argv[]) {
 
     auto user_result_set(db_connection->getLastResultSet());
     std::unordered_map<std::string, UserInfo> ids_to_user_infos_map;
-    while (const auto user_row = user_result_set.getNextRow())
+    while (const auto user_row = user_result_set.getNextRow()) {
+        const std::string last_language(user_row["last_language"]);
         ids_to_user_infos_map[user_row["id"]] =
             UserInfo(user_row["id"], user_row["firstname"], user_row["lastname"], user_row["email"],
-                     user_row["tuefind_rss_feed_last_notification"]);
+                     user_row["tuefind_rss_feed_last_notification"],
+                     (last_language.empty() ? "en" : last_language));
+    }
 
     unsigned feed_generation_count(0), email_sent_count(0);
     for (const auto &[user_id, user_info] : ids_to_user_infos_map) {
@@ -301,10 +305,9 @@ int Main(int argc, char *argv[]) {
             continue;
         }
 
-        const std::string language("en");
         if (ProcessFeeds(user_id, user_info.rss_feed_last_notification_, error_email_address, user_info.email_,
                          GenerateUserAddress(user_info.first_name_, user_info.last_name_),
-                         language, vufind_user_id.empty(), subsystem_type, db_connection.get()))
+                         user_info.language_code_, vufind_user_id.empty(), subsystem_type, db_connection.get()))
         {
             if (vufind_user_id.empty())
                 ++email_sent_count;
