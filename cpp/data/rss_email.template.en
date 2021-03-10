@@ -7,17 +7,17 @@ The following items from your selected RSS feeds are new:</br>
     <table>
         <thead>
             <tr>
-                <th>Title</th>
-                <th>Description</th>
-                <th>URL</th>
+                <th>Item Title</th>
+                <th>Feed</th>
+                <th>Item URL</th>
             </tr>
         </thead>
         <tbody>
-        {LOOP titles,descriptions,links}
+        {LOOP item_titles,feed_url,feed_name,item_urls}
             <tr>
-                <td>{titles}</td>
-                <td>{descriptions}</td>
-                <td><a href="{links}">{links}</a></td>
+                <td>{item_titles}</td>
+                <td><a href="{feed_url}">{feed_name></a></td>
+                <td><a href="{item_urls}">{item_urls}</a></td>
             </tr>
         {ENDLOOP}
         </tbody>

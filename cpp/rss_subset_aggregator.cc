@@ -146,15 +146,17 @@ bool SendEmail(const std::string &subsystem_type, const std::string &email_sende
     Template::Map names_to_values_map;
     names_to_values_map.insertScalar("user_name", user_address);
 
-    std::vector<std::string> titles, links, descriptions;
+    std::vector<std::string> item_titles, item_urls, feed_urls, feed_names;
     for (const auto &harvested_item : harvested_items) {
-        titles.emplace_back(HtmlUtil::HtmlEscape(harvested_item.item_.getTitle()));
-        links.emplace_back(harvested_item.item_.getLink());
-        descriptions.emplace_back(HtmlUtil::HtmlEscape(harvested_item.item_.getDescription()));
+        item_titles.emplace_back(HtmlUtil::HtmlEscape(harvested_item.item_.getTitle()));
+        item_urls.emplace_back(harvested_item.item_.getLink());
+        feed_urls.emplace_back(harvested_item.feed_url_);
+        feed_names.emplace_back(harvested_item.feed_title_);
     }
-    names_to_values_map.insertArray("titles", titles);
-    names_to_values_map.insertArray("links", links);
-    names_to_values_map.insertArray("descriptions", descriptions);
+    names_to_values_map.insertArray("item_titles", item_titles);
+    names_to_values_map.insertArray("item_urls", item_urls);
+    names_to_values_map.insertArray("feed_urls", feed_urls);
+    names_to_values_map.insertArray("feed_names", feed_names);
 
     const auto email_body(Template::ExpandTemplate(email_template, names_to_values_map));
     const auto retcode(EmailSender::SimplerSendEmail(email_sender, { user_email }, GetChannelDescEntry(subsystem_type, "title"),
