@@ -62,8 +62,8 @@ std::string MetadataRecord::toString() const {
         out += "\tdate: " + date_ + ",\n";
     if (not doi_.empty())
         out += "\tdoi: " + doi_ + ",\n";
-    if (not language_.empty())
-        out += "\tlanguage: " + language_ + ",\n";
+    for (const auto &language : languages_)
+        out += "\tlanguage: " + language + ",\n";
     if (not issn_.empty())
         out += "\tissn: " + issn_ + ",\n";
     if (not superior_ppn_.empty())
@@ -288,7 +288,9 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
     metadata_record->pages_ = GetStrippedHTMLStringFromJSON(zotero_item, "pages");
     metadata_record->date_ = GetStrippedHTMLStringFromJSON(zotero_item, "date");
     metadata_record->doi_ = GetStrippedHTMLStringFromJSON(zotero_item, "DOI");
-    metadata_record->language_ = GetStrippedHTMLStringFromJSON(zotero_item, "language");
+    const std::string language(GetStrippedHTMLStringFromJSON(zotero_item, "language"));
+    if (not language.empty())
+        metadata_record->languages_.emplace();
     metadata_record->url_ = GetStrippedHTMLStringFromJSON(zotero_item, "url");
     metadata_record->issn_ = GetStrippedHTMLStringFromJSON(zotero_item, "ISSN");
 
@@ -432,9 +434,9 @@ void JoinAuthorTokens(const std::vector<std::string> &tokens_first, std::string 
 }
 
 
-void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::string * const last_name, const std::string &language) {
+void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::string * const last_name, const std::set<std::string> &languages) {
     // In Spanish we have two last name components, so move over if appropriate
-    if (language == "spa") {
+    if (languages.find("spa") != languages.end()) {
         // Skip transformation if the first name/last name association already seems reasonable
         static const auto first_name_end_preposition(ThreadSafeRegexMatcher("(des?\\s+las?|del|\\p{Lu}[.])$",
              ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE));
@@ -469,12 +471,12 @@ void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::strin
 
 
 void PostProcessAuthorName(std::string * const first_name, std::string * const last_name, std::string * const title,
-                           std::string * const affix, const std::string &language)
+                           std::string * const affix, const std::set<std::string> &languages)
 {
     std::string first_name_buffer, title_buffer;
     std::vector<std::string> tokens;
 
-    AdjustFirstAndLastNameByLanguage(first_name, last_name, language);
+    AdjustFirstAndLastNameByLanguage(first_name, last_name, languages);
 
     StringUtil::Split(*first_name, ' ', &tokens, /* suppress_empty_components = */true);
     for (const auto &token : tokens) {
@@ -531,66 +533,90 @@ std::string TikaDetectLanguage(const std::string &record_text) {
 }
 
 
-void DetectLanguage(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params) {
-    // Normalize given language
-    if (not Config::IsAllowedLanguage(metadata_record->language_)) {
-        LOG_WARNING("Removing invalid language: " + metadata_record->language_);
-        metadata_record->language_.clear();
-    } else if (not Config::IsNormalizedLanguage(metadata_record->language_)) {
-        const std::string normalized_language(Config::GetNormalizedLanguage(metadata_record->language_));
-        LOG_DEBUG("Normalized language: " + metadata_record->language_ + " => " + normalized_language);
-        metadata_record->language_ = normalized_language;
+void NormalizeGivenLanguages(MetadataRecord * const metadata_record) {
+    // Normalize given languages
+    // We cant remove during iteration, so we use a multipass approach
+    std::set<std::string> unallowed_languages;
+    std::set<std::string> normalized_languages;
+    for (const auto &language : metadata_record->languages_) {
+        if (not Config::IsAllowedLanguage(language)) {
+            LOG_WARNING("Removing invalid language: " + language);
+            unallowed_languages.emplace(language);
+        } else if (not Config::IsNormalizedLanguage(language)) {
+            const std::string normalized_language(Config::GetNormalizedLanguage(language));
+            LOG_INFO("Normalized language: " + language + " => " + normalized_language);
+            unallowed_languages.emplace(language);
+            normalized_languages.emplace(normalized_language);
+        }
     }
+    for (const auto &language : unallowed_languages)
+        metadata_record->languages_.erase(language);
+    for (const auto &normalized_language : normalized_languages)
+        metadata_record->languages_.emplace(normalized_language);
+}
 
-    // attempt to automatically detect the language
+
+std::string DetectLanguage(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params) {
+    std::string record_text;
+    if (journal_params.language_params_.source_text_fields_.empty()
+        or journal_params.language_params_.source_text_fields_ == "title")
+    {
+        record_text = metadata_record->title_;
+    } else if (journal_params.language_params_.source_text_fields_ == "abstract")
+        record_text = metadata_record->abstract_note_;
+    else if (journal_params.language_params_.source_text_fields_ == "title+abstract")
+        record_text = metadata_record->title_ + " " + metadata_record->abstract_note_;
+    else
+        LOG_ERROR("unknown text field '" + journal_params.language_params_.source_text_fields_ + "' for language detection");
+
+    std::string detected_language(TikaDetectLanguage(record_text));
+    // Fallback to custom NGram
+    if (detected_language.empty()) {
+        std::vector<NGram::DetectedLanguage> detected_languages;
+        NGram::ClassifyLanguage(record_text, &detected_languages, journal_params.language_params_.expected_languages_,
+                             /*alternative_cutoff_factor = */ 0);
+        const auto top_language(detected_languages.front());
+        detected_language = top_language.language_;
+    }
+    return detected_language;
+}
+
+
+void AdjustLanguages(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params) {
+    NormalizeGivenLanguages(metadata_record);
+
+    // Check if the needed settings exist
     if (journal_params.language_params_.expected_languages_.empty())
         return;
 
-    std::string configured_or_detected_language, configured_or_detected_info;
-    if (journal_params.language_params_.expected_languages_.size() == 1) {
-        configured_or_detected_language = *journal_params.language_params_.expected_languages_.begin();
-        configured_or_detected_info = "configured";
-    } else {
-        configured_or_detected_info = "detected";
-        std::string record_text;
-        if (journal_params.language_params_.source_text_fields_.empty()
-            or journal_params.language_params_.source_text_fields_ == "title")
-        {
-            record_text = metadata_record->title_;
-        } else if (journal_params.language_params_.source_text_fields_ == "abstract")
-            record_text = metadata_record->abstract_note_;
-        else if (journal_params.language_params_.source_text_fields_ == "title+abstract")
-            record_text = metadata_record->title_ + " " + metadata_record->abstract_note_;
-        else
-            LOG_ERROR("unknown text field '" + journal_params.language_params_.source_text_fields_ + "' for language detection");
-        configured_or_detected_language = TikaDetectLanguage(record_text);
-        // Fallback to custom NGram
-        if (configured_or_detected_language.empty()) {
-            std::vector<NGram::DetectedLanguage> detected_languages;
-            NGram::ClassifyLanguage(record_text, &detected_languages, journal_params.language_params_.expected_languages_,
-                                 /*alternative_cutoff_factor = */ 0);
-            const auto top_language(detected_languages.front());
-            configured_or_detected_language = top_language.language_;
-        }
+    // Override directly via configuration (if corresponding mode is set)
+    if (journal_params.language_params_.mode_ == Config::LanguageParams::FORCE_LANGUAGES) {
+        LOG_INFO("Override languages with configuration value: " + StringUtil::Join(journal_params.language_params_.expected_languages_, ","));
+        metadata_record->languages_ = journal_params.language_params_.expected_languages_;
+        return;
     }
 
+    // automatic language detection
+    std::string detected_language;
+    if (journal_params.language_params_.expected_languages_.size() == 1)
+        detected_language = *journal_params.language_params_.expected_languages_.begin();
+    else
+        detected_language = DetectLanguage(metadata_record, journal_params);
+
     // compare language from zotero to detected language
-    if (not configured_or_detected_language.empty()) {
-        if (journal_params.force_language_detection_) {
-            LOG_INFO ("Force language detection active - using " + configured_or_detected_info + " language: " + configured_or_detected_language);
-            metadata_record->language_ = configured_or_detected_language;
-        } else if (metadata_record->language_.empty()) {
-            LOG_INFO("Using " + configured_or_detected_info + " language: " + configured_or_detected_language);
-            metadata_record->language_ = configured_or_detected_language;
-        } else if (configured_or_detected_language == metadata_record->language_)
-            LOG_INFO("The given language is equal to the " + configured_or_detected_info + " language: " + configured_or_detected_language);
-        else if (journal_params.force_language_detection_) {
-            LOG_INFO ("Force language detection active - using " + configured_or_detected_info + " language: " + configured_or_detected_language);
-            metadata_record->language_ = configured_or_detected_language;
-        } else {
-            LOG_INFO("The given language " + metadata_record->language_ +  " and the " + configured_or_detected_info + " language " + configured_or_detected_language + " are different. "
+    if (not detected_language.empty()) {
+        if (journal_params.language_params_.mode_ == Config::LanguageParams::FORCE_DETECTION) {
+            LOG_INFO ("Force language detection active - using detected language: " + detected_language);
+            metadata_record->languages_ = { detected_language };
+        } else if (metadata_record->languages_.empty()) {
+            LOG_INFO("Using detected language: " + detected_language);
+            metadata_record->languages_.emplace(detected_language);
+        } else if (*metadata_record->languages_.begin() == detected_language and metadata_record->languages_.size() == 1)
+            LOG_INFO("The given language is equal to the detected language: " + detected_language);
+        else {
+            LOG_INFO("The given language " + StringUtil::Join(metadata_record->languages_, ",") + " and the detected language " + detected_language + " are different. "
                      "No language will be set.");
-            metadata_record->language_.clear();
+            metadata_record->languages_.clear();
         }
     }
 }
@@ -712,12 +738,12 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
     }
 
     // autodetect or map language
-    DetectLanguage(metadata_record, journal_params);
+    AdjustLanguages(metadata_record, journal_params);
 
     // fetch creator GNDs and postprocess names
     for (auto &creator : metadata_record->creators_) {
         PostProcessAuthorName(&creator.first_name_, &creator.last_name_, &creator.title_, &creator.affix_,
-                              metadata_record->language_);
+                              metadata_record->languages_);
 
         if (not creator.last_name_.empty()) {
             std::string combined_name(creator.last_name_);
@@ -988,8 +1014,8 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         marc_record->insertField("245", { { 'a', metadata_record.title_ } }, /* indicator 1 = */'0', /* indicator 2 = */'0');
 
     // Language
-    if (not metadata_record.language_.empty())
-        marc_record->insertField("041", { { 'a', metadata_record.language_ } });
+    for (const auto &language : metadata_record.languages_)
+        marc_record->insertField("041", { { 'a', language } });
 
     // Abstract Note
     if (not metadata_record.abstract_note_.empty())
