@@ -1170,8 +1170,9 @@ std::set<std::string> Record::getISSNs() const {
     std::set<std::string> issns;
     for (const auto &field : getTagRange("022")) {
         const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
-        if (not first_subfield_a.empty())
-            issns.emplace(first_subfield_a);
+        std::string normalised_issn;
+        if (MiscUtil::NormaliseISSN(first_subfield_a, &normalised_issn))
+            issns.insert(normalised_issn);;
     }
 
     return issns;
@@ -1182,8 +1183,9 @@ std::set<std::string> Record::getSuperiorISSNs() const {
     std::set<std::string> superior_issns;
     for (const auto &field : getTagRange("773")) {
         const std::string first_subfield_x(field.getFirstSubfieldWithCode('x'));
-        if (not first_subfield_x.empty())
-            superior_issns.emplace(first_subfield_x);
+        std::string normalised_issn;
+        if (MiscUtil::NormaliseISSN(first_subfield_x, &normalised_issn))
+            superior_issns.insert(normalised_issn);
     }
 
     return superior_issns;
@@ -1193,8 +1195,9 @@ std::set<std::string> Record::getISBNs() const {
     std::set<std::string> isbns;
     for (const auto &field : getTagRange("020")) {
         const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
-        if (not first_subfield_a.empty())
-            isbns.emplace(first_subfield_a);
+        std::string normalised_isbn;
+        if (MiscUtil::NormaliseISSN(first_subfield_a, &normalised_isbn))
+            isbns.insert(normalised_isbn);
     }
 
     return isbns;
