@@ -37,10 +37,17 @@ namespace {
 
 
 [[noreturn]] void Usage() {
+<<<<<<< HEAD
     ::Usage("gnd_input keyword_input keyword_matches_output keyword_without_matches_output"
                "       Searches for keyword matches in the \"gnd_input\" file."
                "       Returns a \"keyword_matches_output\" file with matching keywords and their PPN,"
                "       as well as \"keywords_without_matches\" file containing keywords where no matches were found.\n");
+=======
+    ::Usage(" gnd_input keyword_input keyword_matches_output keyword_without_matches_output \n"
+               "       Searches for keyword matches in the \"gnd_input\" file.\n"
+               "       Returns a \"keyword_matches_output\" file with matching keywords and their PPN,\n"
+               "       as well as \"keywords_without_matches\" file containing keywords where no matches were found.\n\n");
+>>>>>>> 98135d5b4b86bae482724a253dc067944f53704d
 }
 
 
@@ -59,22 +66,38 @@ void ReadInGndKeywords(MARC::Reader * const marc_reader, std::unordered_map<std:
             gnd_keywords->emplace(std::make_pair(record.getFirstSubfieldValue("150", 'x'), record.getControlNumber()));
     }
 
+<<<<<<< HEAD
     LOG_INFO("Processed " + std::to_string(record_count) + " MARC record(s).");
+=======
+    LOG_INFO("Processed " + std::to_string(record_count) + " entries.");
+>>>>>>> 98135d5b4b86bae482724a253dc067944f53704d
     
 }
 
 
+<<<<<<< HEAD
 void FindEquivalentKeywords(std::unordered_map<std::string, std::string> const *keywords_to_gnd, std::unordered_set<std::string> const *keywords_to_compare, const std::string matches_output_file, const std::string no_matches_output_file) {
     std::unordered_map<std::string, std::string> keyword_matches;
     std::unordered_set<std::string> keywords_without_match;
     for (const auto &keyword : *keywords_to_compare) {
         const auto lookup(keywords_to_gnd->find(keyword));
+=======
+void FindEquivalentKeywords(std::unordered_map<std::string, std::string> const *keywords_to_gnd, std::set<std::string> const *keywords_to_compare, const std::string matches_output_file, const std::string no_matches_output_file) {
+    std::unordered_map<std::string, std::string> keyword_matches;
+    std::unordered_set<std::string> keywords_without_match;
+    //std::unordered_map<std::string, std::string>::iterator lookup;
+    for (const auto &keyword : *keywords_to_compare) {
+        //std::cout << "'" << StringUtil::TrimWhite(keyword) << "'" << "\n";
+        const auto lookup(keywords_to_gnd->find(keyword));
+        //lookup = keywords_to_gnd.find(keyword);
+>>>>>>> 98135d5b4b86bae482724a253dc067944f53704d
         if (lookup != keywords_to_gnd->end()) {
             keyword_matches.insert(*lookup);
             continue;
         }
         keywords_without_match.insert(keyword);
     }
+<<<<<<< HEAD
     LOG_INFO("Found " + std::to_string(keyword_matches.size()) + " keyword matches.\n");
     double percentage = (static_cast<double>(keyword_matches.size())/static_cast<double>(keywords_to_compare->size())) * 100;
     LOG_INFO("Which makes up for " + std::to_string(percentage) + "%\n");
@@ -84,6 +107,17 @@ void FindEquivalentKeywords(std::unordered_map<std::string, std::string> const *
         output_file << "Keyword:  " << key << " PPN: " << value << "\n";
     }
     std::ofstream out_file(no_matches_output_file);
+=======
+    std::cout << "Found: " << keyword_matches.size() << " matches.\n";
+    float percentage = ((float)(keyword_matches.size()*100))/keywords_to_compare->size();
+    std::cout << "Which makes up for " << std::fixed << std::setprecision(2) << percentage  << "% \n";
+    std::cout << "Found: " << keywords_without_match.size() << " entries that didn't match.\n";
+    std::ofstream output_file; output_file.open(matches_output_file);
+    for (const auto &[key, value]: keyword_matches) {
+        output_file << "Keyword:  " << key << " PPN: " << value << "\n";
+    }
+    std::ofstream out_file; out_file.open(no_matches_output_file);
+>>>>>>> 98135d5b4b86bae482724a253dc067944f53704d
     for (const auto &word : keywords_without_match) {
         out_file << word << "\n";
     }
@@ -93,7 +127,11 @@ void FindEquivalentKeywords(std::unordered_map<std::string, std::string> const *
 } // unnamed namespace
 
 
+<<<<<<< HEAD
 void  ReadInKeywordsToCompare(const std::string &filename, std::unordered_set<std::string> * const keywords) {
+=======
+void  ReadInKeywordsToCompare(const std::string &filename, std::set<std::string> * const keywords) {
+>>>>>>> 98135d5b4b86bae482724a253dc067944f53704d
     std::ifstream input_file(filename.c_str());
     if (input_file.fail())
        throw std::runtime_error("in IniFile::processFile: can't open \"" + filename + "\"! ("
@@ -129,11 +167,19 @@ int Main(int argc, char *argv[]) {
 
     std::unordered_map<std::string, std::string> keywords_to_gnd;
 
+<<<<<<< HEAD
     const std::string filename(argv[2]);
     const std::string match_output(argv[3]);
     const std::string no_match_output(argv[4]);
 
     std::unordered_set<std::string> keywords_to_compare;
+=======
+    std::string filename = argv[2];
+    std::string match_output = argv[3];
+    std::string no_match_output = argv[4];
+
+    std::set<std::string> keywords_to_compare;
+>>>>>>> 98135d5b4b86bae482724a253dc067944f53704d
     ReadInKeywordsToCompare(filename, &keywords_to_compare);
 
     const std::string input_filename(argv[1]);
