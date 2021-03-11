@@ -203,10 +203,12 @@ private:
 
 
 struct LanguageParams {
+    enum Mode : unsigned { DEFAULT, FORCE_LANGUAGES, FORCE_DETECTION };
     std::set<std::string> expected_languages_;
     std::string source_text_fields_ = "title";
+    Mode mode_;
 public:
-    void reset() { expected_languages_.clear(); source_text_fields_ = "title"; }
+    void reset() { expected_languages_.clear(); source_text_fields_ = "title"; mode_ = DEFAULT; }
 };
 
 
@@ -267,7 +269,6 @@ struct JournalParams {
     MarcMetadataParams marc_metadata_params_;
     bool zeder_newly_synced_entry_;
     bool selective_evaluation_;
-    bool force_language_detection_;
 public:
     JournalParams(const GlobalParams &global_params);
     JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);
