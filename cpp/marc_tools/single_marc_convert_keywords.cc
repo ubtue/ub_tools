@@ -26,6 +26,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <iomanip>
 #include "FileUtil.h"
 #include "MARC.h"
 #include "StringUtil.h"
@@ -36,19 +37,14 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--quiet] [--limit max_no_of_records] [--output-individual-files] marc_input marc_output [CTLN_1 CTLN_2 .. CTLN_N]\n"
-              << "       Autoconverts the MARC format of \"marc_input\" to \"marc_output\".\n"
-              << "       Supported extensions are \"xml\", \"mrc\", \"marc\" and \"raw\".\n"
-              << "       All extensions except for \"xml\" are assumed to imply MARC-21.\n"
-              << "       If a control number list has been specified only those records will\n"
-              << "       be extracted or converted.\n"
-              << "       If --output-individual-files is specified marc_output must be a writable directory\n"
-              << "       and files are named from the control numbers and written as XML\n\n";
-    std::exit(EXIT_FAILURE);
+    ::Usage(" gnd_input keyword_input keyword_matches_output keyword_without_matches_output \n"
+               "       Searches for keyword matches in the \"gnd_input\" file.\n"
+               "       Returns a \"keyword_matches_output\" file with matching keywords and their PPN,\n"
+               "       as well as \"keywords_without_matches\" file containing keywords where no matches were found.\n\n");
 }
 
 
-void readInGndKeywords(MARC::Reader * const marc_reader, std::unordered_map<std::string, std::string> * const gnd_keywords)
+void ReadInGndKeywords(MARC::Reader * const marc_reader, std::unordered_map<std::string, std::string> * const gnd_keywords)
 {
     unsigned record_count(0);
 
@@ -61,55 +57,46 @@ void readInGndKeywords(MARC::Reader * const marc_reader, std::unordered_map<std:
             gnd_keywords->emplace(std::make_pair(record.getFirstSubfieldValue("150", 'g'), record.getControlNumber()));
         if (not record.getFirstSubfieldValue("150", 'x').empty())
             gnd_keywords->emplace(std::make_pair(record.getFirstSubfieldValue("150", 'x'), record.getControlNumber()));
-
-        const std::string controlNumber = record.getControlNumber();
-        const std::string keywordSubfield = record.getFirstSubfieldValue("150", 'a');
-        const std::string keywordSubfieldG = record.getFirstSubfieldValue("150", 'g');
-        const std::string keywordSubfieldX = record.getFirstSubfieldValue("150", 'x');
-
-       // if (not keywordSubfield.empty() or not keywordSubfieldG.empty() or not keywordSubfieldX.empty())
-       //     std::cout << controlNumber << " a: " << keywordSubfield << " g:  " << keywordSubfieldG << " x: " << keywordSubfieldX << "\n";
-
     }
 
-        LOG_INFO("Processed " + std::to_string(record_count) + " MARC record(s).");
+    LOG_INFO("Processed " + std::to_string(record_count) + " entries.");
     
 }
 
-void findEquivalentKeywords(std::unordered_map<std::string, std::string> keywords_to_gnd, std::set<std::string> keywords_to_compare) {
-    std::map<std::string, std::string> keyword_matches;
-    std::set<std::string> keywords_without_match;
-    std::unordered_map<std::string, std::string>::iterator lookup;
-    for(const auto &keyword : keywords_to_compare) {
-        lookup = keywords_to_gnd.find(keyword);
-        if (lookup != keywords_to_gnd.end()) {
+
+void FindEquivalentKeywords(std::unordered_map<std::string, std::string> const *keywords_to_gnd, std::set<std::string> const *keywords_to_compare, const std::string matches_output_file, const std::string no_matches_output_file) {
+    std::unordered_map<std::string, std::string> keyword_matches;
+    std::unordered_set<std::string> keywords_without_match;
+    //std::unordered_map<std::string, std::string>::iterator lookup;
+    for (const auto &keyword : *keywords_to_compare) {
+        //std::cout << "'" << StringUtil::TrimWhite(keyword) << "'" << "\n";
+        const auto lookup(keywords_to_gnd->find(keyword));
+        //lookup = keywords_to_gnd.find(keyword);
+        if (lookup != keywords_to_gnd->end()) {
             keyword_matches.insert(*lookup);
             continue;
         }
         keywords_without_match.insert(keyword);
     }
     std::cout << "Found: " << keyword_matches.size() << " matches.\n";
+    float percentage = ((float)(keyword_matches.size()*100))/keywords_to_compare->size();
+    std::cout << "Which makes up for " << std::fixed << std::setprecision(2) << percentage  << "% \n";
     std::cout << "Found: " << keywords_without_match.size() << " entries that didn't match.\n";
-
-    std::ofstream output_file;
-    output_file.open ("keyword_matches.txt");
-    for(const auto& [key, value]: keyword_matches) {
+    std::ofstream output_file; output_file.open(matches_output_file);
+    for (const auto &[key, value]: keyword_matches) {
         output_file << "Keyword:  " << key << " PPN: " << value << "\n";
     }
-    output_file.close();
-
-    std::ofstream out_file;
-    out_file.open ("keywords_without_match.txt");
+    std::ofstream out_file; out_file.open(no_matches_output_file);
     for (const auto &word : keywords_without_match) {
         out_file << word << "\n";
     }
-    out_file.close();
 }
 
 
 } // unnamed namespace
 
-void  readInKeywordsToCompare(const std::string &filename, std::set<std::string> * const keywords) {
+
+void  ReadInKeywordsToCompare(const std::string &filename, std::set<std::string> * const keywords) {
     std::ifstream input_file(filename.c_str());
     if (input_file.fail())
        throw std::runtime_error("in IniFile::processFile: can't open \"" + filename + "\"! ("
@@ -134,37 +121,28 @@ void  readInKeywordsToCompare(const std::string &filename, std::set<std::string>
         // skip blank lines:
         if (line.length() == 0)
             continue;
-    keywords->emplace(line);    
-    //std::cout << line << "\n";
+    keywords->emplace(StringUtil::TrimWhite(line));    
     }
 }
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-    if (argc < 3)
+int Main(int argc, char *argv[]) {
+    if (argc < 5)
         Usage();
 
     std::unordered_map<std::string, std::string> keywords_to_gnd;
 
     std::string filename = argv[2];
+    std::string match_output = argv[3];
+    std::string no_match_output = argv[4];
 
     std::set<std::string> keywords_to_compare;
-    readInKeywordsToCompare(filename, &keywords_to_compare);
-//    for(const auto &keyword : keywords_to_compare) {
-//        std::cout << keyword << "\n ";
-//    }
+    ReadInKeywordsToCompare(filename, &keywords_to_compare);
 
     const std::string input_filename(argv[1]);
 
-    try {
-        std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename));
-        readInGndKeywords(marc_reader.get(), &keywords_to_gnd);
-//        for (const auto& [key, value]: keywords_to_gnd) {
-//            std::cout << key << " has value " << value << "\n";
-//        }
-        findEquivalentKeywords(keywords_to_gnd, keywords_to_compare);
-    } catch (const std::exception &e) {
-        LOG_ERROR("Caught exception: " + std::string(e.what()));
-    }
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename));
+    ReadInGndKeywords(marc_reader.get(), &keywords_to_gnd);
+    FindEquivalentKeywords(&keywords_to_gnd, &keywords_to_compare, match_output, no_match_output);
+    return EXIT_SUCCESS;
 }
