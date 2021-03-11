@@ -13,10 +13,10 @@ The following items from your selected RSS feeds are new:</br>
             </tr>
         </thead>
         <tbody>
-        {LOOP item_titles,feed_url,feed_name,item_urls}
+        {LOOP item_titles,feed_urls,feed_names,item_urls}
             <tr>
                 <td>{item_titles}</td>
-                <td><a href="{feed_url}">{feed_name></a></td>
+                <td><a href="{feed_urls}">{feed_names></a></td>
                 <td><a href="{item_urls}">{item_urls}</a></td>
             </tr>
         {ENDLOOP}
