@@ -595,7 +595,7 @@ public:
     /** Returns all superior ISSN's as normalised ISSN's, i.e. w/o hypens. */
     std::set<std::string> getSuperiorISSNs() const;
 
-    /** Returns all ISSN's as normalised ISSN's, i.e. w/o hypens. */
+    /** Returns all ISBN's as normalised ISBN's, i.e. w/o hypens. */
     std::set<std::string> getISBNs() const;
 
     std::set<std::string> getDDCs() const;
