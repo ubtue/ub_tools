@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015-2019 Universitätsbibliothek Tübingen
+ *  Copyright 2015-2021 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -43,13 +43,15 @@ class File;
 
 
 /** \class  IniFile
- *  \brief  Read a configuration file in .ini format.
+ *  \brief  Read a configuration file in our .ini format.
  *
  *  This class allows access to the contents of an ini file.  It is initialised with the name of the file, and the
  *  settings stored in the file can then be accessed through the Lookup and get* methods.  String constants can use
  *  C-style character backslash escapes like \\n.  If you want to embed a hash mark in a string you must preceede it with
  *  a single backslash.  In order to extend a string constant over multiple lines, put backslashes just before the line
  *  ends on all but the last line.
+ *  Entries in one section can be inherited by later sections by using a '@inhert "section_name"' directive.  The name of
+ *  the section whose values will be inherited must be a double-quoted string.
  */
 class IniFile {
 public:
@@ -546,6 +548,7 @@ private:
 
     void processSectionHeader(const std::string &line);
     void processInclude(const std::string &line);
+    void processInherit(const std::string &line, Section * const current_section);
     void processSectionEntry(const std::string &line, const std::string &comment);
     void processFile(const std::string &filename);
 };
