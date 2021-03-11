@@ -290,7 +290,7 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
     metadata_record->doi_ = GetStrippedHTMLStringFromJSON(zotero_item, "DOI");
     const std::string language(GetStrippedHTMLStringFromJSON(zotero_item, "language"));
     if (not language.empty())
-        metadata_record->languages_.emplace();
+        metadata_record->languages_.emplace(language);
     metadata_record->url_ = GetStrippedHTMLStringFromJSON(zotero_item, "url");
     metadata_record->issn_ = GetStrippedHTMLStringFromJSON(zotero_item, "ISSN");
 
