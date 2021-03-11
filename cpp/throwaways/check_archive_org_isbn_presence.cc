@@ -45,7 +45,7 @@ std::atomic<bool> work_available(true);
 
 void WorkerThread(Downloader * const downloader, std::deque<std::set<std::string>> * const task_queue,
                   std::mutex * const task_queue_mutex, unsigned * const record_found_count, File * const isbn_list_output,
-                  std::mutex * const output_mutex)
+                  std::mutex * const output_mutex, unsigned * const failed_download_count)
 {
     std::set<std::string> isbns;
     for (;;) {
@@ -60,16 +60,17 @@ void WorkerThread(Downloader * const downloader, std::deque<std::set<std::string
         if (isbns.empty()) {
             if (not work_available)
                 return;
-            std::this_thread::sleep_for(std::chrono::seconds(20));
+            std::this_thread::sleep_for(std::chrono::seconds(5));
             continue;
         }
 
         for (const auto &isbn : isbns) {
             const std::string url("https://archive.org/metadata/isbn_" + isbn + "/created");
-            if (not downloader->newUrl(url)) {
+            if (not downloader->newUrl(url, 2 * Downloader::DEFAULT_TIME_LIMIT)) {
                 std::lock_guard<std::mutex> output_mutex_locker(*output_mutex);
                 LOG_WARNING("URL \"" + url + " failed to download! ("
                             + downloader->getLastErrorMessage() + ")");
+                ++*failed_download_count;
                 continue;
             }
 
@@ -116,9 +117,11 @@ int Main(int argc, char *argv[]) {
     std::mutex task_queue_mutex, output_mutex;
     unsigned record_found_count(0);
     auto isbn_list_output(FileUtil::OpenOutputFileOrDie(argv[3]));
+    unsigned failed_download_count(0);
     for (size_t i(0); i < WORKER_THREAD_COUNT; ++i)
         thread_pool[i] = std::thread(WorkerThread, new Downloader(), &task_queue, &task_queue_mutex,
-                                     &record_found_count, isbn_list_output.get(), &output_mutex);
+                                     &record_found_count, isbn_list_output.get(), &output_mutex,
+                                     &failed_download_count);
 
     auto marc_reader(MARC::Reader::Factory(argv[2]));
     ProcessRecords(marc_reader.get(), &task_queue, &task_queue_mutex);
@@ -126,7 +129,8 @@ int Main(int argc, char *argv[]) {
     work_available = false; // Let our worker threads return.
     for (size_t i(0); i < WORKER_THREAD_COUNT; ++i)
         thread_pool[i].join();
-    LOG_INFO("Found " + std::to_string(record_found_count) + " monographs on Archive.org.");
+    LOG_INFO("Found " + std::to_string(record_found_count) + " monographs on Archive.org. ("
+             + std::to_string(failed_download_count) + " failed downloads!)");
 
     return EXIT_SUCCESS;
 }
