@@ -962,41 +962,40 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         marc_record->insertField("007", "tu");
 
     // Authors/Creators
-    // Use reverse iterator to keep order, because "insertField" inserts at first possible position
     // The first creator is always saved in the "100" field, all following creators go into the 700 field
     unsigned num_creators_left(metadata_record.creators_.size());
-    for (auto creator(metadata_record.creators_.rbegin()); creator != metadata_record.creators_.rend(); ++creator) {
+    for (const auto &creator : metadata_record.creators_) {
         MARC::Subfields subfields;
-        if (not creator->ppn_.empty())
-            subfields.appendSubfield('0', "(DE-627)" + creator->ppn_);
-        if (not creator->gnd_number_.empty())
-            subfields.appendSubfield('0', "(DE-588)" + creator->gnd_number_);
-        if (not creator->type_.empty()) {
-            const auto creator_type_marc21(CREATOR_TYPES_TO_MARC21_MAP.find(creator->type_));
+        if (not creator.ppn_.empty())
+            subfields.appendSubfield('0', "(DE-627)" + creator.ppn_);
+        if (not creator.gnd_number_.empty())
+            subfields.appendSubfield('0', "(DE-588)" + creator.gnd_number_);
+        if (not creator.type_.empty()) {
+            const auto creator_type_marc21(CREATOR_TYPES_TO_MARC21_MAP.find(creator.type_));
             if (creator_type_marc21 == CREATOR_TYPES_TO_MARC21_MAP.end())
-                LOG_ERROR("zotero creator type '" + creator->type_ + "' could not be mapped to MARC21");
+                LOG_ERROR("zotero creator type '" + creator.type_ + "' could not be mapped to MARC21");
 
             subfields.appendSubfield('4', creator_type_marc21->second);
         }
 
-        subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({ creator->last_name_, creator->first_name_ }),
+        subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({ creator.last_name_, creator.first_name_ }),
                                  ", "));
 
-        if (not creator->affix_.empty())
-            subfields.appendSubfield('b', creator->affix_ + ".");
-        if (not creator->title_.empty())
-            subfields.appendSubfield('c', creator->title_);
+        if (not creator.affix_.empty())
+            subfields.appendSubfield('b', creator.affix_ + ".");
+        if (not creator.title_.empty())
+            subfields.appendSubfield('c', creator.title_);
         subfields.appendSubfield('e', "VerfasserIn");
 
         if (num_creators_left == 1)
-            marc_record->insertField("100", subfields, /* indicator 1 = */'1');
+            marc_record->insertFieldAtEnd("100", subfields, /* indicator 1 = */'1');
         else
-            marc_record->insertField("700", subfields, /* indicator 1 = */'1');
+            marc_record->insertFieldAtEnd("700", subfields, /* indicator 1 = */'1');
 
-        if (not creator->ppn_.empty() or not creator->gnd_number_.empty()) {
-            const std::string _887_data("Autor in der Zoterovorlage [" + creator->last_name_ + ", "
-                                        + creator->first_name_ + "] maschinell zugeordnet");
-            marc_record->insertField("887", { { 'a', _887_data }, { '2', "ixzom" } });
+        if (not creator.ppn_.empty() or not creator.gnd_number_.empty()) {
+            const std::string _887_data("Autor in der Zoterovorlage [" + creator.last_name_ + ", "
+                                        + creator.first_name_ + "] maschinell zugeordnet");
+            marc_record->insertFieldAtEnd("887", { { 'a', _887_data }, { '2', "ixzom" } });
         }
 
         --num_creators_left;
@@ -1011,9 +1010,9 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     else
         marc_record->insertField("245", { { 'a', metadata_record.title_ } }, /* indicator 1 = */'0', /* indicator 2 = */'0');
 
-    // Language
-    for (auto language(metadata_record.languages_.rbegin()); language != metadata_record.languages_.rend(); ++language)
-        marc_record->insertField("041", { { 'a', *language } });
+    // Languages
+    for (const auto &language : metadata_record.languages_)
+        marc_record->insertFieldAtEnd("041", { { 'a', language } });
 
     // Abstract Note
     if (not metadata_record.abstract_note_.empty())
@@ -1159,27 +1158,25 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         marc_record->insertField("084", _084_subfields);
     }
 
-    // Zotero sigil
-    // Similar to the 100/700 fields, we need to insert 935 fields in reverse
-    // order to preserve the intended ordering
-    marc_record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
-
     // Abrufzeichen und ISIL
     const auto zeder_instance(ZederInterop::GetZederInstanceForGroup(parameters.group_params_));
     switch (zeder_instance) {
     case Zeder::Flavour::IXTHEO:
-        marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
-        marc_record->insertField("935", { { 'a', "mteo" } });
+        marc_record->insertFieldAtEnd("935", { { 'a', "mteo" } });
+        marc_record->insertFieldAtEnd("935", { { 'a', "ixzs" }, { '2', "LOK" } });
         break;
     case Zeder::Flavour::KRIMDOK:
-        marc_record->insertField("935", { { 'a', "mkri" } });
+        marc_record->insertFieldAtEnd("935", { { 'a', "mkri" } });
         break;
     }
     marc_record->insertField("852", { { 'a', parameters.group_params_.isil_ } });
 
+    // Zotero sigil
+    marc_record->insertFieldAtEnd("935", { { 'a', "zota" }, { '2', "LOK" } });
+
     // Selective evaluation
     if (parameters.download_item_.journal_.selective_evaluation_)
-        marc_record->insertField("935", { { 'a', "NABZ" }, { '2', "LOK" } });
+        marc_record->insertFieldAtEnd("935", { { 'a', "NABZ" }, { '2', "LOK" } });
 
     // Book-keeping fields
     if (not metadata_record.url_.empty())
