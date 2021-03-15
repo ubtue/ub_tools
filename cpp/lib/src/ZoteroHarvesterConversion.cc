@@ -535,24 +535,19 @@ std::string TikaDetectLanguage(const std::string &record_text) {
 
 void NormalizeGivenLanguages(MetadataRecord * const metadata_record) {
     // Normalize given languages
-    // We cant remove during iteration, so we use a multipass approach
-    std::set<std::string> unallowed_languages;
-    std::set<std::string> normalized_languages;
-    for (const auto &language : metadata_record->languages_) {
-        if (not Config::IsAllowedLanguage(language)) {
+    // We cant remove during iteration, so we use a copy
+    std::set<std::string> languages(metadata_record->languages_);
+    metadata_record->languages_.clear();
+    for (const auto &language : languages) {
+        if (not Config::IsAllowedLanguage(language))
             LOG_WARNING("Removing invalid language: " + language);
-            unallowed_languages.emplace(language);
-        } else if (not Config::IsNormalizedLanguage(language)) {
+        else if (not Config::IsNormalizedLanguage(language)) {
             const std::string normalized_language(Config::GetNormalizedLanguage(language));
             LOG_INFO("Normalized language: " + language + " => " + normalized_language);
-            unallowed_languages.emplace(language);
-            normalized_languages.emplace(normalized_language);
-        }
+            metadata_record->languages_.emplace(normalized_language);
+        } else
+            metadata_record->languages_.emplace(language);
     }
-    for (const auto &language : unallowed_languages)
-        metadata_record->languages_.erase(language);
-    for (const auto &normalized_language : normalized_languages)
-        metadata_record->languages_.emplace(normalized_language);
 }
 
 
