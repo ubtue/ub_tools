@@ -139,7 +139,7 @@ std::string extractDOI(const std::string &extract_doi_candidate);
 bool IsPossibleISSN(std::string issn_candidate);
 
 
-/** \brief Converts an ISSN to the XXXX-YYYY format.
+/** \brief Converts an ISSN to the XXXXYYYY format w/o hyphens.
  *  \return True if the input had a length of 8 or 9 and false o/w.
  */
 bool NormaliseISSN(const std::string &issn_candidate, std::string * const normalised_issn);

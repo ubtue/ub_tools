@@ -588,9 +588,16 @@ public:
     std::set<std::string> getAllISSNs() const;
 
     std::set<std::string> getDOIs() const;
+
+    /** Returns all ISSN's as normalised ISSN's, i.e. w/o hypens. */
     std::set<std::string> getISSNs() const;
+
+    /** Returns all superior ISSN's as normalised ISSN's, i.e. w/o hypens. */
     std::set<std::string> getSuperiorISSNs() const;
+
+    /** Returns all ISBN's as normalised ISBN's, i.e. w/o hypens. */
     std::set<std::string> getISBNs() const;
+
     std::set<std::string> getDDCs() const;
     std::set<std::string> getRVKs() const;
     std::set<std::string> getSSGNs() const;
