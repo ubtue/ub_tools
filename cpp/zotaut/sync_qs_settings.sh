@@ -31,13 +31,12 @@ mysql --defaults-extra-file=<(echo ${MYSQL_LOGIN_PARAMS}) "${TMP_DATABASE}" --ex
 mysql --defaults-extra-file=<(echo ${MYSQL_LOGIN_PARAMS}) "${TMP_DATABASE}" --execute "CREATE TABLE ${TMP_DATABASE}.metadata_presence_tracer_new SELECT ${TMP_DATABASE}.id_mapping.orig AS journal_id, marc_field_tag, marc_subfield_code, regex, record_type, field_presence FROM id_mapping RIGHT JOIN metadata_presence_tracer ON id_mapping.new=metadata_presence_tracer.journal_id"
 
 # Backup
-
 mysql --defaults-extra-file=<(echo ${MYSQL_LOGIN_PARAMS}) "${TMP_DATABASE}" --execute "DROP TABLE IF EXISTS ${DATABASE}.metadata_presence_tracer_${CURRENT_DATE}"
 mysql --defaults-extra-file=<(echo ${MYSQL_LOGIN_PARAMS}) "${TMP_DATABASE}" --execute "CREATE TABLE ${DATABASE}.metadata_presence_tracer_${CURRENT_DATE} SELECT * FROM metadata_presence_tracer"
 
 #Replace the original
 mysql --defaults-extra-file=<(echo ${MYSQL_LOGIN_PARAMS}) "${TMP_DATABASE}" --execute "DROP TABLE ${DATABASE}.metadata_presence_tracer"
-mysql --defaults-extra-file=<(echo ${MYSQL_LOGIN_PARAMS}) "${TMP_DATABASE}" --execute "CREATE TABLE ${DATABASE}.metadata_presence_tracer SELECT * FROM ${TMP_DATABASE}.metadata_presence_tracer"
+mysql --defaults-extra-file=<(echo ${MYSQL_LOGIN_PARAMS}) "${TMP_DATABASE}" --execute "CREATE TABLE ${DATABASE}.metadata_presence_tracer SELECT * FROM ${TMP_DATABASE}.metadata_presence_tracer_new"
 
 #Clean up
 mysql --defaults-extra-file=<(echo ${MYSQL_LOGIN_PARAMS}) "${TMP_DATABASE}" --execute "DROP DATABASE ${TMP_DATABASE}"
