@@ -597,24 +597,27 @@ void AdjustLanguages(MetadataRecord * const metadata_record, const Config::Journ
     }
 
     // automatic language detection
-    std::string detected_language;
-    if (journal_params.language_params_.expected_languages_.size() == 1)
+    std::string detected_language, configured_or_detected_info;
+    if (journal_params.language_params_.expected_languages_.size() == 1) {
         detected_language = *journal_params.language_params_.expected_languages_.begin();
-    else
+        configured_or_detected_info = "single configured";
+    } else {
         detected_language = DetectLanguage(metadata_record, journal_params);
+        configured_or_detected_info = "detected";
+    }
 
     // compare language from zotero to detected language
     if (not detected_language.empty()) {
         if (journal_params.language_params_.mode_ == Config::LanguageParams::FORCE_DETECTION) {
-            LOG_INFO ("Force language detection active - using detected language: " + detected_language);
+            LOG_INFO ("Force language detection active - using " + configured_or_detected_info + " language: " + detected_language);
             metadata_record->languages_ = { detected_language };
         } else if (metadata_record->languages_.empty()) {
-            LOG_INFO("Using detected language: " + detected_language);
+            LOG_INFO("Using " + configured_or_detected_info + " language: " + detected_language);
             metadata_record->languages_.emplace(detected_language);
         } else if (*metadata_record->languages_.begin() == detected_language and metadata_record->languages_.size() == 1)
-            LOG_INFO("The given language is equal to the detected language: " + detected_language);
+            LOG_INFO("The given language is equal to the " + configured_or_detected_info + " language: " + detected_language);
         else {
-            LOG_INFO("The given language " + StringUtil::Join(metadata_record->languages_, ",") + " and the detected language " + detected_language + " are different. "
+            LOG_INFO("The given language " + StringUtil::Join(metadata_record->languages_, ",") + " and the " + configured_or_detected_info + " language " + detected_language + " are different. "
                      "No language will be set.");
             metadata_record->languages_.clear();
         }
