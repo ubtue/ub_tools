@@ -76,7 +76,7 @@ struct MetadataRecord {
     std::string pages_;
     std::string date_;
     std::string doi_;
-    std::string language_;
+    std::set<std::string> languages_;
     std::string url_;
     std::string issn_;
     std::string license_;
