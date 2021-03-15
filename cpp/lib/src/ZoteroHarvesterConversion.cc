@@ -768,6 +768,8 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
         metadata_record->license_ = journal_params.license_;
     else if (metadata_record->custom_metadata_.find("LF") != metadata_record->custom_metadata_.end())
         metadata_record->license_ = "LF";
+    else
+        metadata_record->license_ = "ZZ";
     metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(journal_params.ssgn_);
 
     DetectReviews(metadata_record, parameters);
