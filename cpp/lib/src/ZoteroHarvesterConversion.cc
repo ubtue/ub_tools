@@ -1012,8 +1012,8 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         marc_record->insertField("245", { { 'a', metadata_record.title_ } }, /* indicator 1 = */'0', /* indicator 2 = */'0');
 
     // Language
-    for (const auto &language : metadata_record.languages_)
-        marc_record->insertField("041", { { 'a', language } });
+    for (auto language(metadata_record.languages_.rbegin()); language != metadata_record.languages_.rend(); ++language)
+        marc_record->insertField("041", { { 'a', *language } });
 
     // Abstract Note
     if (not metadata_record.abstract_note_.empty())
