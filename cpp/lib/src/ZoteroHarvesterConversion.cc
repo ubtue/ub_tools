@@ -966,6 +966,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
 
     // Authors/Creators
     // The first creator is always saved in the "100" field, all following creators go into the 700 field
+    const auto zeder_instance(ZederInterop::GetZederInstanceForGroup(parameters.group_params_));
     unsigned num_creators_left(metadata_record.creators_.size());
     for (const auto &creator : metadata_record.creators_) {
         MARC::Subfields subfields;
@@ -998,7 +999,8 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         if (not creator.ppn_.empty() or not creator.gnd_number_.empty()) {
             const std::string _887_data("Autor in der Zoterovorlage [" + creator.last_name_ + ", "
                                         + creator.first_name_ + "] maschinell zugeordnet");
-            marc_record->insertFieldAtEnd("887", { { 'a', _887_data }, { '2', "ixzom" } });
+            const std::string _subfield2_value(zeder_instance == Zeder::Flavour::IXTHEO ? "ixzom" : "krzom");
+            marc_record->insertFieldAtEnd("887", { { 'a', _887_data }, { '2', _subfield2_value } });
         }
 
         --num_creators_left;
@@ -1162,7 +1164,6 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     }
 
     // Abrufzeichen und ISIL
-    const auto zeder_instance(ZederInterop::GetZederInstanceForGroup(parameters.group_params_));
     switch (zeder_instance) {
     case Zeder::Flavour::IXTHEO:
         marc_record->insertFieldAtEnd("935", { { 'a', "mteo" } });
