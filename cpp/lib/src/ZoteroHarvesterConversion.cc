@@ -539,9 +539,12 @@ void NormalizeGivenLanguages(MetadataRecord * const metadata_record) {
     std::set<std::string> languages(metadata_record->languages_);
     metadata_record->languages_.clear();
     for (const auto &language : languages) {
-        if (not Config::IsAllowedLanguage(language))
+        if (not Config::IsAllowedLanguage(language)) {
             LOG_WARNING("Removing invalid language: " + language);
-        else if (not Config::IsNormalizedLanguage(language)) {
+            continue;
+        }
+
+        if (not Config::IsNormalizedLanguage(language)) {
             const std::string normalized_language(Config::GetNormalizedLanguage(language));
             LOG_INFO("Normalized language: " + language + " => " + normalized_language);
             metadata_record->languages_.emplace(normalized_language);
