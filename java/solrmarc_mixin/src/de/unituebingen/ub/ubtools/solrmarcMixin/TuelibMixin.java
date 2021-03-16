@@ -70,6 +70,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     protected final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
     protected final static Pattern PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN = Pattern.compile("\\(" + ISIL_K10PLUS + "\\)(.*)");
     protected final static Pattern SUPERIOR_PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN = PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN;
+    protected final static Pattern SORTABLE_STRING_REMOVE_PATTERN = Pattern.compile("[^\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lo}\\p{N}]+");
 
     // TODO: This should be in a translation mapping file
     protected final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
@@ -699,10 +700,10 @@ public class TuelibMixin extends SolrIndexerMixin {
     protected String normalizeSortableString(String string) {
         // Only keep letters & numbers. For unicode character classes, see:
         // https://en.wikipedia.org/wiki/Template:General_Category_(Unicode)
-        if (string != null)
-            string = string.replaceAll("[^\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lo}\\p{N}]+", "").trim();
-
-        return string;
+        if (string == null)
+            return null;
+        //c.f. https://stackoverflow.com/questions/1466959/string-replaceall-vs-matcher-replaceall-performance-differences (21/03/16)
+        return SORTABLE_STRING_REMOVE_PATTERN.matcher(string).replaceAll("").trim();
     }
 
     public String getSortableAuthorUnicode(final Record record, final String tagList, final String acceptWithoutRelator,
