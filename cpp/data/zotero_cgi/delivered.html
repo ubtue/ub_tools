@@ -70,6 +70,10 @@
                             {IF delivery_states == "automatic"}
                                 <a href="?action=show_downloaded&id={id}&reset={ids}" onclick="return confirm('Are you sure? The harvester will try to deliver this record again.')">Reset &amp; try again</a>
                             {ENDIF}
+                            {IF delivery_states == "online_first"}
+                                <a href="?action=show_downloaded&id={id}&reset={ids}">Reset &amp; try again</a>
+                            {ENDIF}
+
                             {IF delivery_states == "manual"}
                                 <a href="?action=show_downloaded&id={id}&reset={ids}" onclick="return confirm('Are you sure? The harvester will try to deliver this record again.')">Reset &amp; try again</a>
                             {ENDIF}
