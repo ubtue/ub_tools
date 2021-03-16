@@ -465,9 +465,9 @@ unsigned UpdateZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                                      field_to_update));
                 if (new_title != old_title) {
                     const std::string rename_message("old: \"" + old_title + "\" => new: \"" + new_title + "\"");
-                    if (harvester_config->sectionIsDefined(new_title)) {
+                    if (harvester_config->sectionIsDefined(new_title))
                         LOG_WARNING("cannot rename journal, section already exists! " + rename_message);
-                    } else {
+                    else {
                         LOG_INFO("renaming section: " + rename_message);
                         existing_journal_section->setSectionName(new_title);
                     }
