@@ -27,5 +27,4 @@
   # tuefind-specific
   /usr/local/vufind/** r,
   /usr/local/vufind/local/tuefind/instances/** rwk,
-
 }
