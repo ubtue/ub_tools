@@ -16,7 +16,7 @@
             {LOOP item_titles,website_urls,feed_names,item_urls}
                 <tr>
                     <td>{item_titles}</td>
-                    <td><a href="{website_urls}">{feed_names></a></td>
+                    <td><a href="{website_urls}">{feed_names}</a></td>
                     <td><a href="{item_urls}">{item_urls}</a></td>
                 </tr>
             {ENDLOOP}
