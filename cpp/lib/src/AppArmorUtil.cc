@@ -75,9 +75,11 @@ ProfileMode GetProfileMode(const std::string &profile_id) {
 }
 
 
-void InstallProfile(const std::string &profile_path) {
-    static const std::string PROFILES_DIR("/etc/apparmor.d/local/");
-    const std::string target_path(PROFILES_DIR + FileUtil::GetBasename(profile_path));
+static const std::string PROFILES_DIR("/etc/apparmor.d/local");
+
+
+void InstallLocalProfile(const std::string &profile_path) {
+    const std::string target_path(PROFILES_DIR + "/" + FileUtil::GetBasename(profile_path));
     FileUtil::CopyOrDie(profile_path, target_path);
 }
 
@@ -87,7 +89,7 @@ bool IsAvailable() {
 }
 
 
-void SetProfileMode(const std::string &profile_id, const ProfileMode profile_mode) {
+void SetLocalProfileMode(const std::string &profile_id, const ProfileMode profile_mode) {
     std::string executable;
     switch (profile_mode) {
     case AUDIT:
@@ -100,7 +102,7 @@ void SetProfileMode(const std::string &profile_id, const ProfileMode profile_mod
         executable = "aa-enforce";
         break;
     }
-    ExecUtil::ExecOrDie(ExecUtil::Which(executable), { profile_id });
+    ExecUtil::ExecOrDie(ExecUtil::Which(executable), { PROFILES_DIR + "/" + profile_id });
 }
 
 
