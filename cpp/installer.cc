@@ -37,6 +37,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include "AppArmorUtil.h"
 #include "DbConnection.h"
 #include "DnsUtil.h"
 #include "Downloader.h"
@@ -566,6 +567,10 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY, "httpd_sys_content_t",
                                                      ZOTERO_ENHANCEMENT_MAPS_DIRECTORY + "(/.*)?");
+    } else if (AppArmorUtil::IsAvailable()) {
+        const std::string profile_id("apache2");
+        AppArmorUtil::InstallProfile(INSTALLER_DATA_DIRECTORY + "/apparmor/" + profile_id);
+        AppArmorUtil::SetProfileMode(profile_id, AppArmorUtil::ENFORCE);
     }
 
     // ...and then install the rest of ub_tools:

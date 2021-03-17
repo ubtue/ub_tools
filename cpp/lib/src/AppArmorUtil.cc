@@ -20,6 +20,7 @@
 
 #include "AppArmorUtil.h"
 #include "ExecUtil.h"
+#include "FileUtil.h"
 #include "JSON.h"
 
 
@@ -71,6 +72,13 @@ ProfileMode GetProfileMode(const std::string &profile_id) {
             return profile.second;
     }
     LOG_ERROR("Profile not found: " + profile_id);
+}
+
+
+void InstallProfile(const std::string &profile_path) {
+    static const std::string PROFILES_DIR("/etc/apparmor.d/local/");
+    const std::string target_path(PROFILES_DIR + FileUtil::GetBasename(profile_path));
+    FileUtil::CopyOrDie(profile_path, target_path);
 }
 
 
