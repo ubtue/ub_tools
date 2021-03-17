@@ -2,12 +2,12 @@
 #include <tunables/global>
 
 /usr/sbin/apache2 flags=(attach_disconnected) {
-  #include <abstractions/base>
+  include <abstractions/base>
 
-  #include <abstractions/apache2-common>
-  #include <abstractions/mysql>
-  #include <abstractions/php>
-  #include <abstractions/postfix-common>
+  include <abstractions/apache2-common>
+  include <abstractions/mysql>
+  include <abstractions/php>
+  include <abstractions/postfix-common>
 
   # apache2 basics
   /etc/** r,                    # apache.conf, also /etc/ssl and others
