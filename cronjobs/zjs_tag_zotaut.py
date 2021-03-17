@@ -97,6 +97,7 @@ def TagZoteroJournalDeliveryStatusFromZeder():
                 issue_number = str(issue['number'])
                 data = { "labels" : new_labels }
                 github_api_util.UpdateIssueInRepository('zotero-journal-status', issue_number, data)
+            continue
         if zottest_status:
             new_labels = github_ubtue_util.AdjustZoteroStatusLabels(issue, [ github_ubtue_util.BSZ_LABEL ],
                              [github_ubtue_util.ZOTAUT_LABEL, github_ubtue_util.UNTESTED_LABEL])
@@ -104,6 +105,15 @@ def TagZoteroJournalDeliveryStatusFromZeder():
                 issue_number = str(issue['number'])
                 data = { "labels" : new_labels }
                 github_api_util.UpdateIssueInRepository('zotero-journal-status', issue_number, data)
+            continue
+        else:
+            new_labels = github_ubtue_util.AdjustZoteroStatusLabels(issue, [],
+                             [github_ubtue_util.ZOTAUT_LABEL, github_ubtue_util.BSZ_LABEL])
+            if not github_ubtue_util.LabelsAreIdentical(issue, new_labels):
+                issue_number = str(issue['number'])
+                data = { "labels" : new_labels }
+                github_api_util.UpdateIssueInRepository('zotero-journal-status', issue_number, data)
+
 
 
 def Main():
