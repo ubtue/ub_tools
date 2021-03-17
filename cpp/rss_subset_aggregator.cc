@@ -52,10 +52,10 @@ namespace {
 struct HarvestedRSSItem {
     SyndicationFormat::Item item_;
     std::string feed_title_;
-    std::string feed_url_;
+    std::string website_url_;
 
-    HarvestedRSSItem(const SyndicationFormat::Item item, const std::string feed_title, const std::string feed_url)
-        : item_(item), feed_title_(feed_title), feed_url_(feed_url) {}
+    HarvestedRSSItem(const SyndicationFormat::Item item, const std::string &feed_title, const std::string &website_url)
+        : item_(item), feed_title_(feed_title), website_url_(website_url) {}
 };
 
 
@@ -147,16 +147,16 @@ bool SendEmail(const std::string &subsystem_type, const std::string &email_sende
     Template::Map names_to_values_map;
     names_to_values_map.insertScalar("user_name", user_address);
 
-    std::vector<std::string> item_titles, item_urls, feed_urls, feed_names;
+    std::vector<std::string> item_titles, item_urls, website_urls, feed_names;
     for (const auto &harvested_item : harvested_items) {
         item_titles.emplace_back(HtmlUtil::HtmlEscape(harvested_item.item_.getTitle()));
         item_urls.emplace_back(harvested_item.item_.getLink());
-        feed_urls.emplace_back(harvested_item.feed_url_);
+        website_urls.emplace_back(harvested_item.website_url_);
         feed_names.emplace_back(harvested_item.feed_title_);
     }
     names_to_values_map.insertArray("item_titles", item_titles);
     names_to_values_map.insertArray("item_urls", item_urls);
-    names_to_values_map.insertArray("feed_urls", feed_urls);
+    names_to_values_map.insertArray("website_urls", website_urls);
     names_to_values_map.insertArray("feed_names", feed_names);
 
     const auto email_body(Template::ExpandTemplate(email_template, names_to_values_map));
@@ -197,11 +197,11 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
     std::vector<HarvestedRSSItem> harvested_items;
     std::string max_insertion_time;
     for (const auto &feed_id : feed_ids) {
-        db_connection->queryOrDie("SELECT feed_name,feed_url FROM tuefind_rss_feeds WHERE id=" + feed_id);
+        db_connection->queryOrDie("SELECT feed_name,website_url FROM tuefind_rss_feeds WHERE id=" + feed_id);
         auto feed_result_set(db_connection->getLastResultSet());
         const auto feed_row(feed_result_set.getNextRow());
         const auto feed_name(feed_row["feed_name"]);
-        const auto feed_url(feed_row["feed_url"]);
+        const auto website_url(feed_row["website_url"]);
         feed_result_set.~DbResultSet();
 
         std::string query("SELECT item_title,item_description,item_url,item_id,pub_date,insertion_time FROM "
@@ -215,7 +215,7 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
             harvested_items.emplace_back(SyndicationFormat::Item(item_row["item_title"], item_row["item_description"],
                                                                  item_row["item_url"], item_row["item_id"],
                                                                  SqlUtil::DatetimeToTimeT(item_row["pub_date"])),
-                                         feed_name, feed_url);
+                                         feed_name, website_url);
             const auto insertion_time(item_row["insertion_time"]);
             if (insertion_time > max_insertion_time)
                 max_insertion_time = insertion_time;
