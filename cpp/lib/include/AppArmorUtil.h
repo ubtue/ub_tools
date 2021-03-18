@@ -40,7 +40,9 @@ std::vector<std::pair<std::string, ProfileMode>> GetProfiles();
 /** \brief  Return the mode for the given profile. */
 ProfileMode GetProfileMode(const std::string &profile_id);
 
-/** \brief  Install the profile from the given path as a local profile. Filename will later be used as profile_id. */
+/** \brief  Install the profile from the given path as a local profile.
+ *          The filename of the profile_path will later be used as the profile_id.
+ */
 void InstallLocalProfile(const std::string &profile_path);
 
 /** \brief  Set the mode for the given local profile. */
