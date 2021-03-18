@@ -52,7 +52,7 @@ void ProcessJournal(ZoteroHarvester::Util::UploadTracker * const upload_tracker,
                     const ZoteroHarvester::Config::UploadOperation delivery_mode, const unsigned update_window,
                     std::string * tardy_list)
 {
-     // Make sure articles stored as online first are retried after half an update_window period or at most 14 days
+    // Make sure articles stored as online first are retried after half an update_window period or at most 14 days
     upload_tracker->deleteOnlineFirstEntriesOlderThan(StringUtil::ToUnsigned(zeder_id), zeder_instance, std::min(update_window / 2 , static_cast<unsigned>(14)));
 
     if (delivery_mode == ZoteroHarvester::Config::UploadOperation::LIVE) {
