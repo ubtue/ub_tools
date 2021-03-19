@@ -567,7 +567,7 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY, "httpd_sys_content_t",
                                                      ZOTERO_ENHANCEMENT_MAPS_DIRECTORY + "(/.*)?");
-    } else if (AppArmorUtil::IsAvailable()) {
+    } else if (AppArmorUtil::IsEnabled()) {
         const std::string profile_id("apache2");
         AppArmorUtil::InstallLocalProfile(INSTALLER_DATA_DIRECTORY + "/apparmor/" + profile_id);
         AppArmorUtil::SetLocalProfileMode(profile_id, AppArmorUtil::ENFORCE);
