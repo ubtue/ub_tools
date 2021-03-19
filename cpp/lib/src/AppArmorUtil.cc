@@ -84,8 +84,11 @@ void InstallLocalProfile(const std::string &profile_path) {
 }
 
 
-bool IsAvailable() {
-    return (not ExecUtil::Which("aa-status").empty());
+bool IsEnabled() {
+    const std::string executable(ExecUtil::Which("aa-enabled"));
+    if (executable.empty())
+        return false;
+    return (ExecUtil::Exec(executable, { "--quiet" }) == 0);
 }
 
 
