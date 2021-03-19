@@ -711,8 +711,13 @@ void DownloadVuFind() {
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "clone", git_url, VUFIND_DIRECTORY });
         GitActivateCustomHooks(VUFIND_DIRECTORY);
 
+        // We need to raise COMPOSER_PROCESS_TIMEOUT. Default is 300 seconds,
+        // but due to lots of downloads (including Solr) this is not enough.
         TemporaryChDir tmp2(VUFIND_DIRECTORY);
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("composer"), { "install" });
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("composer"), /*args=*/{ "install" },
+                            /*new_stdin=*/"", /*new_stdout=*/"", /*new_stderr=*/"",
+                            /*timeout_in_seconds=*/0, /*tardy_child_signal=*/SIGKILL,
+                            /*envs=*/{ { "COMPOSER_PROCESS_TIMEOUT", "1800" } });
     }
 }
 
