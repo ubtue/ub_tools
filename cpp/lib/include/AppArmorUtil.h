@@ -31,8 +31,8 @@ namespace AppArmorUtil {
 enum ProfileMode { AUDIT, COMPLAIN, ENFORCE };
 
 
-/** \brief  Check if AppArmor is available (installed) on the current system. */
-bool IsAvailable();
+/** \brief  Check if AppArmor is enabled (installed+active) on the current system. */
+bool IsEnabled();
 
 /** \brief  Return a list of all profile ids and their mode. */
 std::vector<std::pair<std::string, ProfileMode>> GetProfiles();
