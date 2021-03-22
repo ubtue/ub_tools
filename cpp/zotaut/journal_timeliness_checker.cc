@@ -91,6 +91,8 @@ int Main(int argc, char *argv[]) {
     IniFile ini_file(UBTools::GetTuelibPath() + "zotero-enhancement-maps/zotero_harvester.conf");
     std::string tardy_list;
     for (const auto &section : ini_file) {
+	if (section.getSectionName().empty())
+            continue; // global section
         if (section.find("user_agent") != section.end())
             continue; // Not a journal section.
 
