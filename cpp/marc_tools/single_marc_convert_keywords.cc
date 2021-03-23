@@ -43,10 +43,27 @@ namespace {
 }
 
 
-void extractSubfieldsForTag(MARC::Record const &record, const std::string &subfield_tag, const std::string &subfield_codes, std::vector<std::string> *subfields) {
-    if (not record.hasTag(subfield_tag))
+void ExtractSubfieldsForTag(const MARC::Record &record, const std::string &subfield_tag, const std::string &subfield_codes, std::vector<std::string> * const subfields) {
+    const auto gnd_and_fields_iterator(record.findTag(subfield_tag));
+    if (record.findTag(subfield_tag) == record.end())
         return;
-    for (const char &subfield_code : subfield_codes) {
+    const MARC::Subfields subfield_tag_subfields(gnd_and_fields_iterator->getSubfields());
+    for (const char subfield_code : subfield_codes) {
+        const std::vector<std::string> subfield_values(subfield_tag_subfields.extractSubfields(subfield_code));
+        if (subfield_values.empty()) {
+            if (subfield_code == 'a')
+                LOG_WARNING("Entry has no Subfield 'a' for PPN " + record.getControlNumber());
+            continue;
+        }
+        std::string subfield_value(subfield_values[0]);
+        if (subfield_code == 'x')
+            subfield_value = '(' + subfield_value + ')';
+        subfields->emplace_back(subfield_value);
+        }
+    }
+/*    if (not record.hasTag(subfield_tag))
+        return;
+    for (const char subfield_code : subfield_codes) {
         std::string subfield_value(record.getFirstSubfieldValue(subfield_tag, subfield_code));
         if (not subfield_value.empty() ) {
             if (subfield_code == 'x')
@@ -55,8 +72,7 @@ void extractSubfieldsForTag(MARC::Record const &record, const std::string &subfi
         }
         else if (subfield_code == 'a')
             LOG_WARNING("Entry has no Subfield 'a' for PPN " + record.getControlNumber());
-    }
-}
+    } */
 
 
 void ReadInGndKeywords(MARC::Reader * const marc_reader, std::unordered_map<std::string, std::string> * const gnd_keywords)
@@ -67,31 +83,34 @@ void ReadInGndKeywords(MARC::Reader * const marc_reader, std::unordered_map<std:
         ++record_count;
 
         std::vector<std::string> subfields;
-        extractSubfieldsForTag(record, "150", "agx", &subfields);
-        //entry for every single 'a' subfield
+        ExtractSubfieldsForTag(record, "150", "agx", &subfields);
+        // making 2 entries: one for every single 'a' subfield and one for all subfields
         if (subfields.size() == 1)
             gnd_keywords->emplace(std::make_pair(subfields[0], record.getControlNumber()));
-        //entry for all subfields combined
+        ExtractSubfieldsForTag(record, "100", "atg", &subfields);
+        ExtractSubfieldsForTag(record, "110", "agx", &subfields);
+        ExtractSubfieldsForTag(record, "111", "agx", &subfields);
+        ExtractSubfieldsForTag(record, "130", "agx", &subfields);
+        ExtractSubfieldsForTag(record, "151", "agx", &subfields);
+        // second entry for all subfields combined
         if (subfields.size() > 1) {
-            std::string key(StringUtil::Join(subfields, " "));
+            const std::string key(StringUtil::Join(subfields, " "));
             gnd_keywords->emplace(std::make_pair(key , record.getControlNumber()));
         }
     }
-    
     LOG_INFO("Processed " + std::to_string(record_count) + " MARC record(s).");
 }
 
 
-void FindEquivalentKeywords(std::unordered_map<std::string, std::string> const *keywords_to_gnd, std::unordered_set<std::string> const &keywords_to_compare, const std::string matches_output_file, const std::string no_matches_output_file) {
+void FindEquivalentKeywords(std::unordered_map<std::string, std::string> const &keywords_to_gnd_numbers_map, std::unordered_set<std::string> const &keywords_to_compare, const std::string matches_output_file, const std::string no_matches_output_file) {
     std::unordered_map<std::string, std::string> keyword_matches;
     std::unordered_set<std::string> keywords_without_match;
     for (const auto &keyword : keywords_to_compare) {
-        const auto lookup(keywords_to_gnd->find(keyword));
-        if (lookup != keywords_to_gnd->end()) {
-            keyword_matches.insert(*lookup);
-            continue;
-        }
-        keywords_without_match.insert(keyword);
+        const auto gnd_number(keywords_to_gnd_numbers_map.find(keyword));
+        if (gnd_number == keywords_to_gnd_numbers_map.end())
+            keywords_without_match.insert(keyword);
+        else
+            keyword_matches.insert(*gnd_number);
     }
     LOG_INFO("Found " + std::to_string(keyword_matches.size()) + " keyword matches.\n");
     const double percentage((static_cast<double>(keyword_matches.size())/static_cast<double>(keywords_to_compare.size())) * 100);
@@ -109,41 +128,11 @@ void FindEquivalentKeywords(std::unordered_map<std::string, std::string> const *
 } // unnamed namespace
 
 
-void  ReadInKeywordsToCompare(const std::string &filename, std::unordered_set<std::string> * const keywords) {
-    std::ifstream input_file(filename.c_str());
-    if (input_file.fail())
-       throw std::runtime_error("in IniFile::processFile: can't open \"" + filename + "\"! ("
-                                 + std::string(::strerror(errno)) + ")");
-
-    // Read the file:
-    while (not input_file.eof()) {
-        std::string line;
-        // read lines until newline character is not preceeded by a '\'
-        bool continued_line;
-        do {
-            std::string buf;
-            std::getline(input_file, buf);
-            line += StringUtil::Trim(buf, " \t");
-            if (line.empty())
-                continue;
-
-            continued_line = line[line.length() - 1] == '\\';
-            if (continued_line)
-                line = StringUtil::Trim(line.substr(0, line.length() - 1), " \t");
-        } while (continued_line);
-        // skip blank lines:
-        if (line.length() == 0)
-            continue;
-    keywords->emplace(StringUtil::TrimWhite(line));    
-    }
-}
-
-
 int Main(int argc, char *argv[]) {
     if (argc < 5)
         Usage();
 
-    std::unordered_map<std::string, std::string> keywords_to_gnd;
+    std::unordered_map<std::string, std::string> keywords_to_gnd_numbers_map;
 
     const std::string filename(argv[2]);
     const std::string match_output(argv[3]);
@@ -161,7 +150,7 @@ int Main(int argc, char *argv[]) {
     const std::string input_filename(argv[1]);
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename));
-    ReadInGndKeywords(marc_reader.get(), &keywords_to_gnd);
-    FindEquivalentKeywords(&keywords_to_gnd, keywords_to_compare, match_output, no_match_output);
+    ReadInGndKeywords(marc_reader.get(), &keywords_to_gnd_numbers_map);
+    FindEquivalentKeywords(keywords_to_gnd_numbers_map, keywords_to_compare, match_output, no_match_output);
     return EXIT_SUCCESS;
 }
