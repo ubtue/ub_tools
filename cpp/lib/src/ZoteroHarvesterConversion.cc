@@ -995,7 +995,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
             subfields.appendSubfield('c', creator.title_);
         subfields.appendSubfield('e', "VerfasserIn");
 
-        if (num_creators_left == 1)
+        if (num_creators_left == metadata_record.creators_.size())
             marc_record->insertFieldAtEnd("100", subfields, /* indicator 1 = */'1');
         else
             marc_record->insertFieldAtEnd("700", subfields, /* indicator 1 = */'1');
