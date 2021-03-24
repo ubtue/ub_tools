@@ -7,7 +7,7 @@
 /*
  *  Copyright 2003-2009 Project iVia.
  *  Copyright 2003-2009 The Regents of The University of California.
- *  Copyright 2015-2020 Universitätsbibliothek Tübingen.
+ *  Copyright 2015-2021 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -674,8 +674,14 @@ std::string Base64Decode(const std::string &s, const char symbol63, const char s
     std::string decoded_chars;
     unsigned state(1);
     unsigned char decoded_ch;
-    for (const char encoded_ch : s) {
-        const unsigned char ch(char_to_bits_map[static_cast<unsigned char>(encoded_ch)]);
+
+    // Remove padding at the end.
+    auto end(s.cend());
+    while (end != s.cbegin() and *(end - 1) == '=')
+        --end;
+
+    for (auto encoded_ch(s.cbegin()); encoded_ch != end; ++encoded_ch) {
+        const unsigned char ch(char_to_bits_map[static_cast<unsigned char>(*encoded_ch)]);
         switch (state) {
         case 1:
             decoded_ch = ch << 2u;
