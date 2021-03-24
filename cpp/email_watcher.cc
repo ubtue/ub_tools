@@ -215,8 +215,12 @@ void ProcessMBox(const std::string &mbox_filename, const long forward_priority,
             if (email_message.isMultipartMessage()) {
                 std::string as_string(email_message.headerToString());
                 as_string += "\n----\n";
-                for (const auto &body_part : email_message)
-                    as_string += DecodeBodyPart(body_part) + "\n----\n";
+                for (const auto &body_part : email_message) {
+                    as_string += DecodeBodyPart(body_part);
+                    if (as_string.back() != '\n')
+                        as_string += '\n';
+                    as_string += "----\n";
+                }
                 unmatched_emails->emplace_back(as_string);
             } else
                 unmatched_emails->emplace_back(email_message.toString());
@@ -255,14 +259,14 @@ std::map<std::string, time_t> LoadSectionNamesToLastSeenTimeWindowsMap() {
     return section_names_to_last_seen_time_map;
 }
 
-#if 0
+
 void SaveSectionNamesToLastSeenTimeWindowsMap(const std::map<std::string, time_t> &section_names_to_last_seen_time_map) {
     const auto output(FileUtil::OpenOutputFileOrDie(MAPFILE_PATH));
     for (const auto &[section_name, last_seen_time] : section_names_to_last_seen_time_map)
         (*output) << section_name << '=' << last_seen_time << '\n';
     LOG_INFO("Wrote " + std::to_string(section_names_to_last_seen_time_map.size()) + " entries/entry to " + MAPFILE_PATH + ".");
 }
-#endif
+
 
 void SendNotificationsForOverdueEmails(const IniFile &ini_file, std::set<std::string> * const matched_section_names,
                                        const std::vector<std::string> &notification_email_addresses, const time_t NOW,
@@ -356,11 +360,11 @@ int Main(int argc, char *argv[]) {
         else
             section_name_and_last_seen_time->second = NOW;
     }
-#if 0
+
     SaveSectionNamesToLastSeenTimeWindowsMap(section_names_to_last_seen_time_map);
 
     FileUtil::RenameFileOrDie(MBOX_FILENAME, backup_dir_path + FileUtil::GetBasename(MBOX_FILENAME) + "-"
                               + TimeUtil::GetCurrentDateAndTime());
-#endif
+
     return EXIT_SUCCESS;
 }
