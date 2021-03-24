@@ -2,7 +2,7 @@
  *  \brief  mbox processing support
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2020-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -31,17 +31,34 @@ MBox::Message &MBox::Message::swap(Message &other_message) {
     other_message.subject_.swap(subject_);
     std::swap(other_message.priority_, priority_);
     other_message.message_body_.swap(message_body_);
+    other_message.body_parts_.swap(body_parts_);
     return *this;
 }
 
 
-std::string MBox::Message::toString() const {
-    return   "reception_time: " + TimeUtil::TimeTToString(reception_time_) + "\n"
+std::string MBox::Message::headerToString() const {
+    return "reception_time: " + TimeUtil::TimeTToString(reception_time_) + "\n"
            + "original_host:  " + original_host_ + "\n"
            + "sender:         " + sender_ + "\n"
            + "subject:        " + subject_ + "\n"
-           + "priority:       " + std::to_string(priority_) + "\n\n"
-           + message_body_;
+           + "priority:       " + std::to_string(priority_) + "\n\n";
+}
+
+
+std::string MBox::Message::toString() const {
+    std::string as_string(headerToString());
+    if (isMultipartMessage()) {
+        as_string += "----\n";
+        for (const auto &body_part : body_parts_) {
+            for (const auto &mime_header : body_part.getMIMEHeaders())
+                as_string += mime_header.first + ": " + mime_header.second + "\n";
+            as_string += body_part.getBody() + "\n";
+            as_string += "----\n";
+        }
+    } else
+        as_string += message_body_;
+
+    return as_string;
 }
 
 
@@ -163,7 +180,7 @@ MBox::Message MBox::getNextMessage() const {
             LOG_ERROR("invalid From line \"" + line + "\" in \"" + input_->getPath() + "\"!");
     }
 
-    std::string sender, original_host, subject;
+    std::string sender, original_host, subject, message_boundary;
     unsigned priority(0);
     for (;;) {
         if (unlikely(input_->eof()))
@@ -189,6 +206,15 @@ MBox::Message MBox::getNextMessage() const {
         } else if (field_name == "x-priority") {
             if (not StringUtil::ToNumber(field_body, &priority))
                 LOG_WARNING("failed to parse the priority \"" + field_body + "\"!");
+        } else if (field_name == "content-type" and likely(not field_body.empty())) {
+            if (StringUtil::StartsWith(field_body, "multipart/mixed; boundary=\"")) {
+                if (unlikely(field_body.back() != '"'))
+                    LOG_ERROR("weird field body!");
+                message_boundary =
+                    field_body.substr(__builtin_strlen("multipart/mixed; boundary=\""),
+                                      field_body.length() - __builtin_strlen("multipart/mixed; boundary=\"")
+                                      - 1/* for the closing double quote */);
+            }
         }
     }
 
@@ -211,7 +237,47 @@ MBox::Message MBox::getNextMessage() const {
         message_body += '\n';
     }
 
-    return Message(reception_time, original_host, sender, subject, priority, message_body);
+    std::vector<BodyPart> body_parts;
+    if (not message_boundary.empty()) {
+        std::vector<std::string> lines;
+        if (unlikely(StringUtil::Split(message_body, '\n', &lines) == 0))
+            LOG_ERROR("unexpected empty body of multipart messages!");
+
+        const std::string boundary_start("--" + message_boundary), boundary_end(boundary_start + "--");
+        if (lines.front() != boundary_start)
+            LOG_ERROR("expected multipart message body to start with \"" + boundary_start
+                      + "\" but found \"" + lines.front() + "\"!");
+        if (lines.back() != boundary_end)
+            LOG_ERROR("expected multipart message body to end with \"" + boundary_end
+                      + "\" but found \"" + lines.back() + "\"!");
+
+        std::vector<std::pair<std::string, std::string>> part_headers;
+        std::string part_body;
+        bool in_header_section(true);
+        for (auto body_line(lines.cbegin() + 1/* skip over start of first boundary */);
+             body_line != lines.cend(); ++body_line)
+        {
+            if (*body_line == boundary_start or *body_line == boundary_end) {
+                body_parts.emplace_back(part_headers, part_body);
+                part_headers.clear(), part_body.clear();
+                in_header_section = true;
+            } else if (in_header_section) {
+                if (body_line->empty())
+                    in_header_section = false;
+                else {
+                    std::string key, value;
+                    if (not ParseRFC822Header(*body_line, &key, &value))
+                        LOG_ERROR("couldn't parse multipart header line \"" + *body_line + "\"!");
+                    part_headers.emplace_back(key, value);
+                }
+            } else
+                part_body += *body_line + "\n";
+        }
+        message_boundary.clear();
+        message_body.clear();
+    }
+
+    return Message(reception_time, original_host, sender, subject, priority, message_body, body_parts);
 }
 
 
