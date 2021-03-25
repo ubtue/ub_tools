@@ -854,13 +854,6 @@ inline std::string BackslashEscape(const std::string &chars_to_escape, const std
 std::string ExtractHead(std::string * const target, const std::string &delimiter_string = " ", std::string::size_type start = 0);
 
 
-// \note If the delimiter is the first character in "s", an empty entry will be the first entry in the
-//       returned vector.  If the delimiter is the last entry in "s", no entry will be created at the end
-//       of the returned vector.  E.g. "\nfred\nbob\n" will generate a vector with 3 entries, the first one
-//       of which will be empty.
-std::vector<std::string> Split(const std::string &s, const char delimiter = '\n');
-
-
 /** \brief  Split a string around a delimiter string.
  *  \param  source                     The string to split.
  *  \param  delimiter_string           The string to split around.

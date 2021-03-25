@@ -2160,26 +2160,6 @@ std::string ExtractHead(std::string * const tail, const std::string &delimiter_s
 }
 
 
-std::vector<std::string> Split(const std::string &s, const char delimiter) {
-    std::vector<std::string> parts;
-
-    std::string part;
-    for (auto ch(s.cbegin()); ch != s.cend(); ++ch) {
-        if (*ch != delimiter)
-            part += *ch;
-        else {
-            parts.emplace_back(part);
-            part.clear();
-        }
-    }
-
-    if (not part.empty())
-        parts.emplace_back(part);
-
-    return parts;
-}
-
-
 // SplitListValues -- Split any list entry that includes the delimiter into multiple values.
 //
 void SplitListValues(std::list<std::string> * const values, const std::string &delimiter) {
