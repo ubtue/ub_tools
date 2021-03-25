@@ -48,17 +48,20 @@ bool MaxDeliveredAtSmallerThanUpdateWindow(const time_t &max_delivered_at, const
 
 
 void ProcessJournal(ZoteroHarvester::Util::UploadTracker * const upload_tracker, const std::string &journal_name,
-                    const std::string &zeder_id, const std::string &zeder_instance, const unsigned update_window,
+                    const std::string &zeder_id, const std::string &zeder_instance,
+                    const ZoteroHarvester::Config::UploadOperation delivery_mode, const unsigned update_window,
                     std::string * tardy_list)
 {
-    // Make sure articles stored as online first are retried after an update_window period
-    upload_tracker->deleteOnlineFirstEntriesOlderThan(StringUtil::ToUnsigned(zeder_id), zeder_instance, update_window);
+    // Make sure articles stored as online first are retried after half an update_window period or at most 14 days
+    upload_tracker->deleteOnlineFirstEntriesOlderThan(StringUtil::ToUnsigned(zeder_id), zeder_instance, std::min(update_window / 2 , static_cast<unsigned>(14)));
 
-    const time_t max_delivered_at(upload_tracker->getLastUploadTime(StringUtil::ToUnsigned(zeder_id),
-                                  Zeder::ParseFlavour(zeder_instance)));
+    if (delivery_mode == ZoteroHarvester::Config::UploadOperation::LIVE) {
+        const time_t max_delivered_at(upload_tracker->getLastUploadTime(StringUtil::ToUnsigned(zeder_id),
+                                      Zeder::ParseFlavour(zeder_instance)));
 
-    if (MaxDeliveredAtSmallerThanUpdateWindow(max_delivered_at, update_window))
-        *tardy_list += journal_name + ": " + TimeUtil::TimeTToString(max_delivered_at) + "\n";
+        if (MaxDeliveredAtSmallerThanUpdateWindow(max_delivered_at, update_window))
+            *tardy_list += journal_name + ": " + TimeUtil::TimeTToString(max_delivered_at) + "\n";
+    }
 }
 
 
@@ -88,12 +91,15 @@ int Main(int argc, char *argv[]) {
     IniFile ini_file(UBTools::GetTuelibPath() + "zotero-enhancement-maps/zotero_harvester.conf");
     std::string tardy_list;
     for (const auto &section : ini_file) {
+	if (section.getSectionName().empty())
+            continue; // global section
         if (section.find("user_agent") != section.end())
             continue; // Not a journal section.
 
-        const auto delivery_mode(section.getEnum("zotero_delivery_mode", ZoteroHarvester::Config::STRING_TO_UPLOAD_OPERATION_MAP,
-                                                 ZoteroHarvester::Config::UploadOperation::NONE));
-        if (delivery_mode != ZoteroHarvester::Config::UploadOperation::LIVE or section.getBool("zeder_newly_synced_entry", false))
+        const auto delivery_mode(static_cast<ZoteroHarvester::Config::UploadOperation>(
+             section.getEnum("zotero_delivery_mode", ZoteroHarvester::Config::STRING_TO_UPLOAD_OPERATION_MAP,
+                             ZoteroHarvester::Config::UploadOperation::NONE)));
+        if (section.getBool("zeder_newly_synced_entry", false))
             continue;
 
         const std::string journal_name(section.getSectionName());
@@ -109,7 +115,7 @@ int Main(int argc, char *argv[]) {
             update_window = section.getUnsigned("zotero_update_window");
         LOG_WARNING("USING ZOTERO_UPDATE_WINDOW: " + std::to_string(update_window));
 
-        ProcessJournal(&upload_tracker, journal_name, zeder_id, zeder_instance, update_window, &tardy_list);
+        ProcessJournal(&upload_tracker, journal_name, zeder_id, zeder_instance, delivery_mode, update_window, &tardy_list);
     }
 
     if (not tardy_list.empty()) {
