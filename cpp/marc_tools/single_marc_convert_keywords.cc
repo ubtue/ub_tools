@@ -96,7 +96,7 @@ void ReadInGndKeywords(MARC::Reader * const marc_reader, std::unordered_map<std:
 }
 
 
-void FindEquivalentKeywords(std::unordered_map<std::string, std::string> const &keywords_to_gnd_numbers_map, std::unordered_set<std::string> const &keywords_to_compare, const std::string matches_output_file, const std::string no_matches_output_file) {
+void FindEquivalentKeywords(std::unordered_map<std::string, std::string> const &keywords_to_gnd_numbers_map, std::unordered_set<std::string> const &keywords_to_compare,  File * const matches_output_file, File * const no_matches_output_file) {
     std::unordered_map<std::string, std::string> keywords_to_ppns_map;
     std::unordered_set<std::string> keywords_without_match;
     for (const auto &keyword : keywords_to_compare) {
@@ -110,12 +110,10 @@ void FindEquivalentKeywords(std::unordered_map<std::string, std::string> const &
     const double percentage((static_cast<double>(keywords_to_ppns_map.size()) / static_cast<double>(keywords_to_compare.size())) * 100);
     LOG_INFO("Which makes up for " + std::to_string(percentage) + "%\n");
     LOG_INFO("Couldn't find a match for " + std::to_string(keywords_without_match.size()) + " keyword(s).\n");
-    std::ofstream output_file(matches_output_file);
     for (const auto &[key, value] : keywords_to_ppns_map)
-        output_file << TextUtil::CSVEscape(key) << ',' << TextUtil::CSVEscape(value) << '\n';
-    std::ofstream out_file(no_matches_output_file);
+        *matches_output_file << TextUtil::CSVEscape(key) << ',' << TextUtil::CSVEscape(value) << '\n';
     for (const auto &word : keywords_without_match)
-        out_file << TextUtil::CSVEscape(word) << '\n';
+        *no_matches_output_file << TextUtil::CSVEscape(word) << '\n';
 }
 
 
@@ -127,8 +125,6 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     const std::string filename(argv[2]);
-    const std::string match_output(argv[3]);
-    const std::string no_match_output(argv[4]);
 
     std::unordered_set<std::string> keywords_to_compare;
     std::vector<std::vector<std::string>> lines;
@@ -140,10 +136,12 @@ int Main(int argc, char *argv[]) {
     }
 
     const std::string input_filename(argv[1]);
+    const auto match_output(FileUtil::OpenOutputFileOrDie(argv[3]));
+    const auto no_match_output(FileUtil::OpenOutputFileOrDie(argv[4]));
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(input_filename));
     std::unordered_map<std::string, std::string> keywords_to_gnd_numbers_map;
     ReadInGndKeywords(marc_reader.get(), &keywords_to_gnd_numbers_map);
-    FindEquivalentKeywords(keywords_to_gnd_numbers_map, keywords_to_compare, match_output, no_match_output);
+    FindEquivalentKeywords(keywords_to_gnd_numbers_map, keywords_to_compare, match_output.get(), no_match_output.get());
     return EXIT_SUCCESS;
 }
