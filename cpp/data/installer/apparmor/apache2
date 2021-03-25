@@ -1,0 +1,36 @@
+# vim:syntax=apparmor
+#include <tunables/global>
+
+/usr/sbin/apache2 flags=(attach_disconnected) {
+  include <abstractions/base>
+
+  include <abstractions/apache2-common>
+  include <abstractions/mysql>
+  include <abstractions/php>
+  include <abstractions/postfix-common>
+
+  # apache2 basics (some should be contained in abstractions/apache2-common, but somehow aren't!)
+  /etc/apache2/** r,            # apache2 configuration
+  /etc/mime.types r,            # MIME types
+  /etc/php/** r,                # PHP configuration
+  /etc/pki/** r,                # SSL certs (from PKI, if used)
+  /etc/ssl/** r,                # SSL certs (alternative)
+  /run/apache2/** rw,           # PID file
+  /tmp/** rw,                   # temporary files (especially VuFind sessions!)
+  /var/log/apache2/** rw,       # log files
+  /var/www/cgi-bin/** pux,      # CGI programs
+  /var/www/html/** r,           # HTML pages (e.g. TueFind maintenance pages)
+  network,                      # extended networking for MySQL/Solr connections, and so on
+
+  # ub_tools-specific
+  /usr/local/bin/** pux,
+  /usr/local/run/** rw,
+  /usr/local/var/lib/tuelib/** rw,
+  /usr/local/var/log/tuefind/** rw,
+  /usr/local/var/tmp/** rw,
+  /var/www/cgi-bin/** pux,
+
+  # tuefind-specific
+  /usr/local/vufind/** r,
+  /usr/local/vufind/local/tuefind/instances/** rwk,
+}

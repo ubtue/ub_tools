@@ -20,6 +20,7 @@
 
 #include "AppArmorUtil.h"
 #include "ExecUtil.h"
+#include "FileUtil.h"
 #include "JSON.h"
 
 
@@ -74,12 +75,24 @@ ProfileMode GetProfileMode(const std::string &profile_id) {
 }
 
 
-bool IsAvailable() {
-    return (not ExecUtil::Which("aa-status").empty());
+static const std::string PROFILES_DIR("/etc/apparmor.d/local");
+
+
+void InstallLocalProfile(const std::string &profile_path) {
+    const std::string target_path(PROFILES_DIR + "/" + FileUtil::GetBasename(profile_path));
+    FileUtil::CopyOrDie(profile_path, target_path);
 }
 
 
-void SetProfileMode(const std::string &profile_id, const ProfileMode profile_mode) {
+bool IsEnabled() {
+    const std::string executable(ExecUtil::Which("aa-enabled"));
+    if (executable.empty())
+        return false;
+    return (ExecUtil::Exec(executable, { "--quiet" }) == 0);
+}
+
+
+void SetLocalProfileMode(const std::string &profile_id, const ProfileMode profile_mode) {
     std::string executable;
     switch (profile_mode) {
     case AUDIT:
@@ -92,7 +105,7 @@ void SetProfileMode(const std::string &profile_id, const ProfileMode profile_mod
         executable = "aa-enforce";
         break;
     }
-    ExecUtil::ExecOrDie(ExecUtil::Which(executable), { profile_id });
+    ExecUtil::ExecOrDie(ExecUtil::Which(executable), { PROFILES_DIR + "/" + profile_id });
 }
 
 

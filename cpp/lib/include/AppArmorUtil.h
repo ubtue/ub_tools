@@ -31,8 +31,8 @@ namespace AppArmorUtil {
 enum ProfileMode { AUDIT, COMPLAIN, ENFORCE };
 
 
-/** \brief  Check if AppArmor is available (installed) on the current system. */
-bool IsAvailable();
+/** \brief  Check if AppArmor is enabled (installed+active) on the current system. */
+bool IsEnabled();
 
 /** \brief  Return a list of all profile ids and their mode. */
 std::vector<std::pair<std::string, ProfileMode>> GetProfiles();
@@ -40,8 +40,13 @@ std::vector<std::pair<std::string, ProfileMode>> GetProfiles();
 /** \brief  Return the mode for the given profile. */
 ProfileMode GetProfileMode(const std::string &profile_id);
 
-/** \brief  Set the mode for the given profile. */
-void SetProfileMode(const std::string &profile_id, const ProfileMode profile_mode);
+/** \brief  Install the profile from the given path as a local profile.
+ *          The filename of the profile_path will later be used as the profile_id.
+ */
+void InstallLocalProfile(const std::string &profile_path);
+
+/** \brief  Set the mode for the given local profile. */
+void SetLocalProfileMode(const std::string &profile_id, const ProfileMode profile_mode);
 
 
 } // namespace AppArmorUtil
