@@ -100,6 +100,26 @@ EmailDescription::EmailDescription(const IniFile::Section &ini_file_section) {
 }
 
 
+std::vector<std::string> SplitIntoLines(const std::string &s) {
+    std::vector<std::string> lines;
+
+    std::string line;
+    for (auto ch(s.cbegin()); ch != s.cend(); ++ch) {
+        if (*ch != '\n')
+            line += *ch;
+        else {
+            lines.emplace_back(line);
+            line.clear();
+        }
+    }
+
+    if (not line.empty())
+        lines.emplace_back(line);
+
+    return lines;
+}
+
+
 std::string DecodeBodyPart(const MBox::BodyPart &body_part) {
     std::string charset("utf-8");
     bool is_base64_encoded(false);
@@ -117,7 +137,7 @@ std::string DecodeBodyPart(const MBox::BodyPart &body_part) {
     }
 
     std::string body;
-    for (const auto &body_line : StringUtil::Split(body_part.getBody())) {
+    for (const auto &body_line : SplitIntoLines(body_part.getBody())) {
         body += body_line;
         if (not is_base64_encoded)
             body += '\n';
