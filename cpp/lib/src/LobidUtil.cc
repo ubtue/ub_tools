@@ -125,7 +125,7 @@ std::string GetAuthorGNDNumber(const std::string &author, const std::string &add
 }
 
 
-std::string GetAuthorLastFirstGNDNumber(const std::string &author_surname, const std::string &author_firstname, const std::string &additional_query_params) {
+std::string GetAuthorGNDNumber(const std::string &author_surname, const std::string &author_firstname, const std::string &additional_query_params) {
     return QueryAndLookupString(BuildUrl(BASE_URL_GND, { { "preferredNameEntityForThePerson.surname", author_surname },
                                  { "preferredNameEntityForThePerson.forename", author_firstname } },
                                  { { "type", "DifferentiatedPerson" } }, additional_query_params),
