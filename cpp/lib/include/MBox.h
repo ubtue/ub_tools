@@ -41,7 +41,7 @@ public:
         BodyPart(const std::vector<std::pair<std::string, std::string>> &mime_headers, const std::string &body)
             : mime_headers_(mime_headers), body_(body) { }
 
-        /** \note Ther keys are all lowercase. */
+        /** \note The keys are all lowercase. */
         inline const std::vector<std::pair<std::string, std::string>> &getMIMEHeaders() const { return mime_headers_; }
 
         inline const std::string &getBody() const { return body_; }
