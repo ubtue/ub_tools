@@ -189,7 +189,7 @@ public class IxTheo extends SolrIndexerMixin {
         return record.getVariableFields("CAN").isEmpty() ? "false" : "true";
     }
 
-    // For subfields sepcified by "fieldSpecs" matches found in "bce_replacement_map" will be substituted w/ their replacements.
+    // For subfields specified by "fieldSpecs" matches found in "bce_replacement_map" will be substituted w/ their replacements.
     // Non-matching subfields contents will be returned unaltered.
     public Set<String> getBCENormalizedContents(final Record record, final String fieldSpecs) {
         Set<String> normalizedValues = new HashSet<String>();
