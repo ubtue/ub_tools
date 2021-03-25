@@ -109,7 +109,7 @@ FieldRules::FieldRules(const char subfield_code, const FieldPresence field_prese
 void FieldRules::addRule(const char subfield_code, const FieldPresence field_presence,
                          RegexMatcher * const regex_matcher)
 {
-    if (unlikely(subfield_code_to_field_presence_and_regex_map_.contains(subfield_code)))
+    if (unlikely(subfield_code_to_field_presence_and_regex_map_.find(subfield_code) != subfield_code_to_field_presence_and_regex_map_.end()))
         LOG_ERROR("Attempt to insert a second rule for subfield code '" + std::string(1, subfield_code) + "'!");
 
     subfield_code_to_field_presence_and_regex_map_[subfield_code] =
