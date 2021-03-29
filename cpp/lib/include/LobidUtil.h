@@ -32,12 +32,12 @@ namespace LobidUtil {
  *         - http://lobid.org/organisations/api/de
  *         - http://lobid.org/resources/api
  */
-std::string GetAuthorGNDNumber(const std::string &author, const std::string &additional_query_params="");
+std::string GetAuthorGNDNumber(const std::string &author, const std::string &additional_query_params = "");
 std::string GetAuthorGNDNumber(const std::string &author_surname, const std::string &author_firstname,
                                         const std::string &additional_query_params);
-std::vector<std::string> GetAuthorProfessions(const std::string &author, const std::string &additional_query_params="");
-std::string GetOrganisationISIL(const std::string &organisation, const std::string &additional_query_params="");
-std::string GetTitleDOI(const std::string &title, const std::string &additional_query_params="");
+std::vector<std::string> GetAuthorProfessions(const std::string &author, const std::string &additional_query_params = "");
+std::string GetOrganisationISIL(const std::string &organisation, const std::string &additional_query_params = "");
+std::string GetTitleDOI(const std::string &title, const std::string &additional_query_params = "");
 
 
 } // namespace LobidUtil
