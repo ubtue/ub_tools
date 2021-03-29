@@ -24,6 +24,7 @@
 #include <set>
 #include <unordered_map>
 #include <cstdlib>
+#include <strings.h>
 #include "DbConnection.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
@@ -31,6 +32,7 @@
 #include "MBox.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "TimeUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -98,13 +100,88 @@ EmailDescription::EmailDescription(const IniFile::Section &ini_file_section) {
 }
 
 
+std::vector<std::string> SplitIntoLines(const std::string &s) {
+    std::vector<std::string> lines;
+
+    std::string line;
+    for (auto ch(s.cbegin()); ch != s.cend(); ++ch) {
+        if (*ch != '\n')
+            line += *ch;
+        else {
+            lines.emplace_back(line);
+            line.clear();
+        }
+    }
+
+    if (not line.empty())
+        lines.emplace_back(line);
+
+    return lines;
+}
+
+
+std::string DecodeBodyPart(const MBox::BodyPart &body_part) {
+    std::string charset("utf-8");
+    bool is_base64_encoded(false);
+
+    for (const auto &header : body_part.getMIMEHeaders()) {
+        if (header.first == "content-type") {
+            const auto charset_start_pos(header.second.find("charset="));
+            if (charset_start_pos != std::string::npos) {
+                charset = header.second.substr(charset_start_pos + __builtin_strlen("charset="));
+                StringUtil::Trim(&charset);
+                StringUtil::Trim(&charset, '"');
+            }
+        } else if (header.first == "content-transfer-encoding" and ::strcasecmp(header.second.c_str(), "base64") == 0)
+            is_base64_encoded = true;
+    }
+
+    std::string body;
+    for (const auto &body_line : SplitIntoLines(body_part.getBody())) {
+        body += body_line;
+        if (not is_base64_encoded)
+            body += '\n';
+    }
+
+    if (::strcasecmp(charset.c_str(), "utf-8") != 0) {
+        std::string error_message;
+        const auto encoding_converter(
+            TextUtil::EncodingConverter::Factory(charset, TextUtil::EncodingConverter::CANONICAL_UTF8_NAME,
+                                                 &error_message));
+        if (unlikely(not error_message.empty()))
+            LOG_ERROR("failed to create an encoding converter from \"" + charset + "\" to UTF-8!");
+
+        std::string utf8_body;
+        if (unlikely(not encoding_converter->convert(body, &utf8_body)))
+            LOG_ERROR("couldn't convert the body from \"" + charset + " UTF-8!");
+        utf8_body.swap(body);
+    }
+
+    return is_base64_encoded ? TextUtil::Base64Decode(body) : body;
+}
+
+
 bool EmailDescription::subjectAndBodyMatched(const MBox::Message &email_message) const {
     if (not subject_matcher_->matched(email_message.getSubject()))
         return false;
-    if (positive_body_matcher_ != nullptr and not positive_body_matcher_->matched(email_message.getMessageBody()))
-        return false;
-    if (negative_body_matcher_ != nullptr and negative_body_matcher_->matched(email_message.getMessageBody()))
-        return false;
+
+    if (positive_body_matcher_ == nullptr and negative_body_matcher_ == nullptr)
+        return true;
+
+    if (email_message.isMultipartMessage()) {
+        for (const auto &body_part : email_message) {
+            const auto decoded_body(DecodeBodyPart(body_part));
+            if (positive_body_matcher_ != nullptr and not positive_body_matcher_->matched(decoded_body))
+                return false;
+            if (negative_body_matcher_ != nullptr and negative_body_matcher_->matched(decoded_body))
+                return false;
+        }
+    } else {
+        if (positive_body_matcher_ != nullptr and not positive_body_matcher_->matched(email_message.getMessageBody()))
+            return false;
+        if (negative_body_matcher_ != nullptr and negative_body_matcher_->matched(email_message.getMessageBody()))
+            return false;
+    }
 
     return true;
 }
@@ -154,8 +231,20 @@ void ProcessMBox(const std::string &mbox_filename, const long forward_priority,
             }
         }
 
-        if (not matched_a_section)
-            unmatched_emails->emplace_back(email_message.toString());
+        if (not matched_a_section) {
+            if (email_message.isMultipartMessage()) {
+                std::string as_string(email_message.headerToString());
+                as_string += "\n----\n";
+                for (const auto &body_part : email_message) {
+                    as_string += DecodeBodyPart(body_part);
+                    if (as_string.back() != '\n')
+                        as_string += '\n';
+                    as_string += "----\n";
+                }
+                unmatched_emails->emplace_back(as_string);
+            } else
+                unmatched_emails->emplace_back(email_message.toString());
+        }
     }
     LOG_INFO("Processed " + std::to_string(email_message_count) + " email message(s) and found "
              + std::to_string(unmatched_emails->size()) + " unmatched message(s).");
@@ -190,14 +279,14 @@ std::map<std::string, time_t> LoadSectionNamesToLastSeenTimeWindowsMap() {
     return section_names_to_last_seen_time_map;
 }
 
-#if 0
+
 void SaveSectionNamesToLastSeenTimeWindowsMap(const std::map<std::string, time_t> &section_names_to_last_seen_time_map) {
     const auto output(FileUtil::OpenOutputFileOrDie(MAPFILE_PATH));
     for (const auto &[section_name, last_seen_time] : section_names_to_last_seen_time_map)
         (*output) << section_name << '=' << last_seen_time << '\n';
     LOG_INFO("Wrote " + std::to_string(section_names_to_last_seen_time_map.size()) + " entries/entry to " + MAPFILE_PATH + ".");
 }
-#endif
+
 
 void SendNotificationsForOverdueEmails(const IniFile &ini_file, std::set<std::string> * const matched_section_names,
                                        const std::vector<std::string> &notification_email_addresses, const time_t NOW,
@@ -268,7 +357,6 @@ int Main(int argc, char *argv[]) {
                 email_descriptions, &unmatched_emails, &matched_section_names);
 
     if (not unmatched_emails.empty()) {
-        LOG_WARNING("Found " + std::to_string(unmatched_emails.size()) + " unmatched email(s)!");
         if (EmailSender::SendEmailWithInlineAttachments(
             "no-reply@ub.uni-tuebingen.de", notification_email_addresses,
             "Unmatched Email(s)!",
@@ -292,11 +380,11 @@ int Main(int argc, char *argv[]) {
         else
             section_name_and_last_seen_time->second = NOW;
     }
-#if 0
+
     SaveSectionNamesToLastSeenTimeWindowsMap(section_names_to_last_seen_time_map);
 
     FileUtil::RenameFileOrDie(MBOX_FILENAME, backup_dir_path + FileUtil::GetBasename(MBOX_FILENAME) + "-"
                               + TimeUtil::GetCurrentDateAndTime());
-#endif
+
     return EXIT_SUCCESS;
 }
