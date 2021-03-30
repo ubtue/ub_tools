@@ -31,7 +31,6 @@ def TagRelbibJournalsFromZoteroHarvesterConf():
                 ssgn = GetSSGNStatusFromConfig(config, issn)
                 has_relbib_ssgn = False
                 if ssgn == "FG_0":
-                    #print("SSGN for " + issue['title'] + ": " + ssgn)
                     new_labels = github_ubtue_util.AdjustZoteroStatusLabels(
                                      issue, [ github_ubtue_util.RELBIB_LABEL ],
                                      [github_ubtue_util.IXTHEO_LABEL])
