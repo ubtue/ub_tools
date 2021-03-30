@@ -78,9 +78,9 @@ public:
 // Metadata parameters related to MARC that will be re-used in global as well as journal params later
 struct MarcMetadataParams {
     std::vector<std::string> fields_to_add_;
-    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> fields_to_remove_;
-    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> subfields_to_remove_;
-    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
+    std::map<std::string, std::shared_ptr<ThreadSafeRegexMatcher>> fields_to_remove_;
+    std::map<std::string, std::shared_ptr<ThreadSafeRegexMatcher>> subfields_to_remove_;
+    std::map<std::string, std::shared_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
 public:
     MarcMetadataParams() = default;
     MarcMetadataParams(const IniFile::Section &config_section);
