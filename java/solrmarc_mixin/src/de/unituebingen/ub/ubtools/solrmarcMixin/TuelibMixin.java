@@ -1615,12 +1615,57 @@ public class TuelibMixin extends SolrIndexerMixin {
      * In the q-Subfield of 689 standardized subjects we have "z" (time subject), "f" (genre subject), "g" (region subject)
      * Alternatively this is in the d-Subfields
      */
-    Predicate<DataField> _689IsTimeSubject = (DataField marcField) -> {
-        if (!marcField.getTag().equals("689"))
+
+
+    Predicate<DataField> _LOK689IsTimeSubject = (DataField marcField) -> {
+        if (!(marcField.getTag().equals("LOK") && marcField.getSubfield('0') != null &&
+              marcField.getSubfield('0').getData().substring(0,3).equals("689")))
             return true;
-        Subfield subfieldQ = marcField.getSubfield('q');
-        Subfield subfieldD = marcField.getSubfield('d');
-        return (subfieldQ != null && subfieldQ.getData().equals("z")) || (subfieldD != null && subfieldD.getData().equals("z"));
+        Subfield subfield0 = marcField.getSubfield('0');
+        if (subfield0 != null && subfield0.getData().substring(0,3).equals("689")) {
+            Subfield subfieldA = marcField.getSubfield('a'); //Should be capital
+            return (subfieldA != null && subfieldA.getData().equals("z"));
+        }
+        return false;
+    };
+
+
+    Predicate<DataField> _LOK689IsRegionSubject = (DataField marcField) -> {
+        if (!(marcField.getTag().equals("LOK") && marcField.getSubfield('0') != null &&
+              marcField.getSubfield('0').getData().substring(0,3).equals("689")))
+            return true;
+        Subfield subfield0 = marcField.getSubfield('0');
+        if (subfield0 != null && subfield0.getData().substring(0,3).equals("689")) {
+            Subfield subfieldA = marcField.getSubfield('a'); //Should be capital
+            return (subfieldA != null && subfieldA.getData().equals("g"));
+        }
+        return false;
+    };
+
+
+    Predicate<DataField> _LOK689IsCorporationSubject = (DataField marcField) -> {
+        if (!(marcField.getTag().equals("LOK") && marcField.getSubfield('0') != null &&
+              marcField.getSubfield('0').getData().substring(0,3).equals("689")))
+            return true;
+        Subfield subfield0 = marcField.getSubfield('0');
+        if (subfield0 != null && subfield0.getData().substring(0,3).equals("689")) {
+            Subfield subfieldA = marcField.getSubfield('a'); //Should be capital
+            return (subfieldA != null && subfieldA.getData().equals("k"));
+        }
+        return false;
+    };
+
+
+
+    Predicate<DataField> _LOK689IsOrdinarySubject = (DataField marcField) -> {
+        if (!(marcField.getTag().equals("LOK")))
+            return false;
+        Subfield subfield0 = marcField.getSubfield('0');
+        if (subfield0 != null && subfield0.getData().substring(0,3).equals("689")) {
+            Subfield subfieldA = marcField.getSubfield('a');
+            return (subfieldA != null && subfieldA.getData().equals("s"));
+        }
+        return false;
     };
 
 
@@ -1633,16 +1678,38 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     Predicate<DataField> _689IsRegionSubject = (DataField marcField) -> {
+        if (marcField.getTag().equals("LOK"))
+            return _LOK689IsRegionSubject.test(marcField);
+
+        // Do not prevent non 689-fields
         if (!marcField.getTag().equals("689")) {
             return true;
 }
         Subfield subfieldQ = marcField.getSubfield('q');
         Subfield subfieldD = marcField.getSubfield('d');
-        return (subfieldQ != null &&  subfieldQ.getData().equals("g")) || (subfieldD != null && subfieldD.getData().equals("g"));
+        return (subfieldQ != null && subfieldQ.getData().equals("g")) || (subfieldD != null && subfieldD.getData().equals("g"));
     };
 
 
+    Predicate<DataField> _689IsTimeSubject = (DataField marcField) -> {
+        if (marcField.getTag().equals("LOK"))
+            return _LOK689IsTimeSubject.test(marcField);
+
+        // Do not prevent non 689-fields
+        if (!marcField.getTag().equals("689"))
+            return true;
+        Subfield subfieldQ = marcField.getSubfield('q');
+        Subfield subfieldD = marcField.getSubfield('d');
+        return (subfieldQ != null && subfieldQ.getData().equals("z")) || (subfieldD != null && subfieldD.getData().equals("z"));
+    };
+
+
+
     Predicate<DataField> _689IsOrdinarySubject = (DataField marcField) -> {
+        if (marcField.getTag().equals("LOK"))
+            return _LOK689IsOrdinarySubject.test(marcField);
+
+        // Do not prevent non 689-fields
         if (!marcField.getTag().equals("689"))
             return true;
 
@@ -1962,7 +2029,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     {
         final Pattern subfieldPattern = Pattern.compile(subfieldTags.length() == 0 ? "[a-z]"
 							                         : extractNormalizedSubfieldPatternHelper(subfieldTags));
-
+        fieldloop:
         for (final VariableField vf : marcFieldList) {
             final ArrayList<Topic> topicParts = new ArrayList<>();
             final DataField marcField = (DataField) vf;
@@ -1971,13 +2038,26 @@ public class TuelibMixin extends SolrIndexerMixin {
                 continue;
             final List<Subfield> subfields = marcField.getSubfields();
 
+            // Handle LOK Fields
+            if (fieldTag.length() == 6 && fieldTag.substring(0,3).equals("LOK")) {
+                 final String lokTag = fieldTag.substring(3);
+                 for (final Subfield subfield : subfields) {
+                     if (subfield.getCode() == '0') {
+                         if (subfield.getData().substring(0,3).equals(lokTag))
+                             break;
+                         else
+                             continue fieldloop;
+                     }
+                 }
+            }
+
             // Case 1: The separator specification is empty thus we add the subfields individually
             if (separators.get("default").equals("")) {
                 for (final Subfield subfield : subfields) {
                     if (Character.isDigit(subfield.getCode()))
                         continue;
                     final String term = subfield.getData().trim();
-                    if (term.length() > 0)
+                    if (term.length() > 1) //Skip on character terms to address uppercase subfield problems in standardized keywords
                         topicParts.add(new Topic(term));
                 }
             }
@@ -1991,6 +2071,8 @@ public class TuelibMixin extends SolrIndexerMixin {
 
                     Topic topic = new Topic();
                     String term = subfield.getData().trim();
+                    if (term.length() < 2)
+                        continue; //Skip on character terms to address uppercase subfield problems in standardized keywords
 
                     if (topicParts.size() > 0) {
                         final String separator = getSubfieldBasedSeparator(separators, subfield.getCode(), term);
