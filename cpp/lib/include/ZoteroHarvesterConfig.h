@@ -191,6 +191,7 @@ struct GroupParams {
     std::string output_folder_;
     std::string author_swb_lookup_url_;
     std::string author_lobid_lookup_query_params_;
+    MarcMetadataParams marc_metadata_params_;
 public:
     GroupParams(const IniFile::Section &group_section);
     GroupParams(const GroupParams &rhs) = default;

@@ -841,6 +841,7 @@ void InsertCustomMarcFields(const MetadataRecord &metadata_record, const Convers
                             MARC::Record * const marc_record)
 {
     InsertCustomMarcFieldsForParams(metadata_record, marc_record, parameters.global_params_.marc_metadata_params_);
+    InsertCustomMarcFieldsForParams(metadata_record, marc_record, parameters.group_params_.marc_metadata_params_);
     InsertCustomMarcFieldsForParams(metadata_record, marc_record, parameters.download_item_.journal_.marc_metadata_params_);
 }
 
