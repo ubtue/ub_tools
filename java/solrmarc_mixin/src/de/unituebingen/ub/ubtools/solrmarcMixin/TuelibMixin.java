@@ -1616,10 +1616,14 @@ public class TuelibMixin extends SolrIndexerMixin {
      * Alternatively this is in the d-Subfields
      */
 
+     boolean HasLocalTag(final DataField marcField, final String tag) {
+        return marcField.getTag().equals("LOK") && marcField.getSubfield('0') != null &&
+              marcField.getSubfield('0').getData().substring(0,3).equals(tag);
+    }
+
 
     Predicate<DataField> _LOK689IsTimeSubject = (DataField marcField) -> {
-        if (!(marcField.getTag().equals("LOK") && marcField.getSubfield('0') != null &&
-              marcField.getSubfield('0').getData().substring(0,3).equals("689")))
+        if (!HasLocalTag(marcField, "689"))
             return true;
         Subfield subfield0 = marcField.getSubfield('0');
         if (subfield0 != null && subfield0.getData().substring(0,3).equals("689")) {
@@ -1631,8 +1635,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     Predicate<DataField> _LOK689IsRegionSubject = (DataField marcField) -> {
-        if (!(marcField.getTag().equals("LOK") && marcField.getSubfield('0') != null &&
-              marcField.getSubfield('0').getData().substring(0,3).equals("689")))
+        if (!HasLocalTag(marcField, "689"))
             return true;
         Subfield subfield0 = marcField.getSubfield('0');
         if (subfield0 != null && subfield0.getData().substring(0,3).equals("689")) {
@@ -1644,8 +1647,7 @@ public class TuelibMixin extends SolrIndexerMixin {
 
 
     Predicate<DataField> _LOK689IsCorporationSubject = (DataField marcField) -> {
-        if (!(marcField.getTag().equals("LOK") && marcField.getSubfield('0') != null &&
-              marcField.getSubfield('0').getData().substring(0,3).equals("689")))
+        if (!HasLocalTag(marcField, "689"))
             return true;
         Subfield subfield0 = marcField.getSubfield('0');
         if (subfield0 != null && subfield0.getData().substring(0,3).equals("689")) {
@@ -1662,7 +1664,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             return false;
         Subfield subfield0 = marcField.getSubfield('0');
         if (subfield0 != null && subfield0.getData().substring(0,3).equals("689")) {
-            Subfield subfieldA = marcField.getSubfield('a');
+            Subfield subfieldA = marcField.getSubfield('a'); //Should be capital
             return (subfieldA != null && subfieldA.getData().equals("s"));
         }
         return false;
