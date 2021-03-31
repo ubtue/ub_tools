@@ -34,6 +34,8 @@ StartPhase "Check Record Integrity at the Beginning of the Pipeline"
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
+
+
 if [[ $(date +%d) == "01" ]]; then # Only do this on the 1st of every month.
     echo "*** Occasional Phase: Checking Rule Violations ***" | tee --append "${log}"
     marc_check_log="/usr/local/var/log/tuefind/marc_check_rule_violations.log"
@@ -56,6 +58,7 @@ StartPhase "Add Local Data from Database"
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
+
 
 StartPhase "Swap and Delete PPN's in Various Databases"
 (patch_ppns_in_databases --report-only GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
