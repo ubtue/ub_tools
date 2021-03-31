@@ -1,5 +1,5 @@
 #!/bin/bash
-# we intentionally do not use errexit here, because we would like create the email body
+# We intentionally do not use errexit here, because we would like to create the email body
 # based on the result of `systemctl is-system-running`, even if its exit code is not 0.
 set -o nounset
 
