@@ -8,7 +8,7 @@
 /*
  *  Copyright 2003-2008 Project iVia.
  *  Copyright 2003-2008 The Regents of The University of California.
- *  Copyright 2018-2020 Universitätsbibliothek Tübingen
+ *  Copyright 2018-2021 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -131,6 +131,16 @@ void GetCurrentDate(unsigned * const year, unsigned * const month, unsigned * co
  */
 std::string TimeTToString(const time_t &the_time, const std::string &format = DEFAULT_FORMAT, const TimeZone time_zone = LOCAL,
                           const std::string &time_locale = UB_DEFAULT_LOCALE);
+
+
+/** \brief Converts a UNIX timestamp (in seconds) to a time_t. */
+bool StringToTimeT(const std::string &time_str, time_t * const unix_time);
+
+
+/** \brief Converts a UNIX timestamp (in seconds) to a time_t.
+ *  \note This function will abort if "time_str" cannot be converted to a valid time_t!
+ */
+time_t StringToTimeT(const std::string &time_str);
 
 
 /** \brief  Inverse of gmtime(3).

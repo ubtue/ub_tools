@@ -171,6 +171,27 @@ std::string TimeTToString(const time_t &the_time, const std::string &format, con
 }
 
 
+bool StringToTimeT(const std::string &time_str, time_t * const unix_time) {
+    char *endptr;
+    errno = 0;
+    *unix_time = std::strtol(time_str.c_str(), &endptr, 10);
+    if (errno != 0 or *endptr != '\0' or *unix_time < 0) {
+        *unix_time = BAD_TIME_T;
+        return false;
+    }
+
+    return true;
+}
+
+
+time_t StringToTimeT(const std::string &time_str) {
+    time_t unix_time;
+    if (StringToTimeT(time_str, &unix_time))
+        return unix_time;
+    LOG_ERROR("\"" + time_str + "\" cannot be converted to a valid time_t!");
+}
+
+
 time_t TimeGm(const struct tm &tm) {
     const char * const saved_time_zone(::getenv("TZ"));
 
