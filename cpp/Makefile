@@ -48,12 +48,13 @@ regular_install: $(INSTALL_PROGS) Makefile
 data_install: Makefile data/*.conf data/*.map data/*.ttf data/IxTheo_Notation.csv data/stopwords.* \
               data/bibleRef/* data/crossref_downloader/* data/full_text_cache_monitor/* \
               data/translate_chainer/* data/zotero_cgi/* data/marc_check.rules data/language_models/*.lm \
-              data/mime.types data/geographic_689_field_contents \
+              data/mime.types data/geographic_689_field_contents data/*.template.?? \
               data/bib_ref_candidates_in_titles.exclusion_list
 	@echo "Installing data..."
 	cp data/*.conf /usr/local/var/lib/tuelib/
 	cp data/*.map /usr/local/var/lib/tuelib/
 	cp data/*.ttf /usr/local/var/lib/tuelib/
+	cp data/*.template.?? /usr/local/var/lib/tuelib/
 	cp data/IxTheo_Notation.csv /usr/local/var/lib/tuelib/
 	cp data/stopwords.* /usr/local/var/lib/tuelib/
 	cp -r data/bibleRef /usr/local/var/lib/tuelib/

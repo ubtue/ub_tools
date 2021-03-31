@@ -2,7 +2,7 @@
  *  \brief  Interface for the DbResultSet class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -39,6 +39,9 @@ private:
     explicit DbResultSet(sqlite3_stmt * const stmt_handle);
 public:
     DbResultSet(DbResultSet &&other);
+
+    /** \note If you need to instantiate a new DbResultSet instance while another is still live,
+              you need to call this destructor explicitly on the live instance! (Yes, this is an evil hack!) */
     ~DbResultSet();
 
     /** \return The number of rows in the result set. */
