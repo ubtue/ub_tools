@@ -437,7 +437,7 @@ unsigned short SendEmail(const std::string &sender, const std::vector<std::strin
 
     const TimeLimit time_limit(20000 /* ms */);
 
-    perform_logging = not MiscUtil::SafeGetEnv("ENABLE_SMPT_CLIENT_PERFORM_LOGGING").empty();
+    perform_logging = not MiscUtil::SafeGetEnv("ENABLE_SMTP_CLIENT_PERFORM_LOGGING").empty();
 
     // Open connection:
     const unsigned short PORT(587);
