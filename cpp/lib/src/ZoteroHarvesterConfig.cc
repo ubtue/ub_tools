@@ -232,8 +232,9 @@ GroupParams::GroupParams(const IniFile::Section &group_section) {
     output_folder_ = group_section.getString(GetIniKeyString(OUTPUT_FOLDER));
     author_swb_lookup_url_ = group_section.getString(GetIniKeyString(AUTHOR_SWB_LOOKUP_URL));
     author_lobid_lookup_query_params_ = group_section.getString(GetIniKeyString(AUTHOR_LOBID_LOOKUP_QUERY_PARAMS), "");
+    marc_metadata_params_ = MarcMetadataParams(group_section);
 
-    CheckIniSection(group_section, GroupParams::KEY_TO_STRING_MAP);
+    CheckIniSection(group_section, GroupParams::KEY_TO_STRING_MAP, { MarcMetadataParams::IsValidIniEntry });
 }
 
 
