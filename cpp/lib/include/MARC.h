@@ -1,7 +1,7 @@
 /** \brief Various classes, functions etc. having to do with the Library of Congress MARC bibliographic format.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -42,6 +42,12 @@ class RegexMatcher;
 
 
 namespace MARC {
+
+
+// These tags are for fields that may contain w-subfields with cross or uplink PPNs following "(DE-627)".
+// Important:  You *must* keep a alphanumerically increasing order of these tags!
+const std::set<std::string> CROSS_LINK_FIELD_TAGS{ "689", "700", "770", "772", "773", "775", "776", "780",
+                                                   "785", "787", "800", "810", "811", "830", "880", "889" };
 
 
 class Tag {
