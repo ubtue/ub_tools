@@ -279,9 +279,9 @@ void UpdateTextFiles(const std::unordered_map<std::string, ZederIdAndPPNType> &p
         const auto ppns_and_zeder_id_and_type(ppns_to_zeder_ids_and_types_map.find(ppn));
         if (unlikely(ppns_and_zeder_id_and_type == ppns_to_zeder_ids_and_types_map.cend()))
             LOG_ERROR("Map lookup failed for \"" + ppn + "\"!");
-        const auto output(FileUtil::OpenForAppendingOrDie(DIRECTORY_PREFIX
-                                                          + std::to_string(ppns_and_zeder_id_and_type->second.zeder_id_)
-                                                          + ".txt"));
+        const auto filename(DIRECTORY_PREFIX + std::to_string(ppns_and_zeder_id_and_type->second.zeder_id_) + ".txt");
+        const auto output(FileUtil::OpenForAppendingOrDie(filename));
+        updated_files.emplace(filename);
         (*output) << db_entry.jahr_ << ',' << db_entry.band_ << ',' << db_entry.heft_ << db_entry.seitenbereich_ << '\n';
     }
 
