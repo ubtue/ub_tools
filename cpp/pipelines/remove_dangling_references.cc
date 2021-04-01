@@ -51,8 +51,8 @@ void EliminateDanglingCrossReferences(MARC::Reader * const reader, MARC::Writer 
         for (auto field(first_field); field != record.end(); ++field) {
             if (field->isCrossLinkField()) {
                 for (const auto &subfield : field->getSubfields()) {
-                    if (subfield.code_ == 'w' and StringUtil::StartsWith(subfield.value_, "(DE-627")) {
-                        const auto bsz_ppn(subfield.value_.substr(__builtin_strlen("(DE-627")));
+                    if (subfield.code_ == 'w' and StringUtil::StartsWith(subfield.value_, "(DE-627)")) {
+                        const auto bsz_ppn(subfield.value_.substr(__builtin_strlen("(DE-627)")));
                         if (unlikely(all_ppns.find(bsz_ppn) == all_ppns.cend())) {
                             field_indices_to_be_deleted.emplace_back(field - first_field);
                             (*log_file) << record.getControlNumber() << ": " << field->getTag().toString()
