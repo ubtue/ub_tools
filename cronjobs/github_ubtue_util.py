@@ -7,6 +7,10 @@ HAS_ISSUE_LABEL = "Has Issue"
 ZOTAUT_LABEL = "ZOTAUT"
 READY_FOR_PRODUCTION_LABEL = "Ready for Production"
 BSZ_LABEL = "BSZ"
+IXTHEO_LABEL = "IxTheo"
+KRIMDOK_LABEL = "Krimdok"
+RELBIB_LABEL = "RelBib"
+
 
 
 def AdjustZoteroStatusLabels(issue, labels_to_add, labels_to_remove):

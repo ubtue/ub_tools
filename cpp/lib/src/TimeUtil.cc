@@ -155,12 +155,14 @@ void GetCurrentDate(unsigned * const year, unsigned * const month, unsigned * co
 
 // TimeTToLocalTimeString -- Convert a time from a time_t to a string.
 //
-std::string TimeTToString(const time_t &the_time, const std::string &format, const TimeZone time_zone, const std::string &time_locale) {
+std::string TimeTToString(const time_t &the_time, const std::string &format, const TimeZone time_zone,
+                          const std::string &time_locale)
+{
     Locale locale(time_locale, LC_TIME);
 
     struct tm tm;
     if (unlikely((time_zone == LOCAL ? ::localtime_r(&the_time, &tm) : ::gmtime_r(&the_time, &tm)) == nullptr))
-        LOG_ERROR("time conversion error!");
+        LOG_ERROR("time conversion error! (time_locale = " + time_locale + ")");
     char time_buf[50 + 1];
     errno = 0;
     if (unlikely(std::strftime(time_buf, sizeof(time_buf), format.c_str(), &tm) == 0 or errno != 0))

@@ -755,8 +755,10 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
             if (not creator.gnd_number_.empty())
                 LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + " (SWB lookup)");
             else {
-                creator.gnd_number_ = HtmlUtil::StripHtmlTags(LobidUtil::GetAuthorGNDNumber(
-                                                              combined_name, group_params.author_lobid_lookup_query_params_));
+                creator.gnd_number_ = HtmlUtil::StripHtmlTags((not creator.first_name_.empty() ?
+                                         LobidUtil::GetAuthorGNDNumber(creator.last_name_, creator.first_name_, group_params.author_lobid_lookup_query_params_) :
+                                         LobidUtil::GetAuthorGNDNumber(creator.last_name_, group_params.author_lobid_lookup_query_params_)));
+
                 if (not creator.gnd_number_.empty())
                     LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + "(Lobid lookup)");
             }
@@ -839,6 +841,7 @@ void InsertCustomMarcFields(const MetadataRecord &metadata_record, const Convers
                             MARC::Record * const marc_record)
 {
     InsertCustomMarcFieldsForParams(metadata_record, marc_record, parameters.global_params_.marc_metadata_params_);
+    InsertCustomMarcFieldsForParams(metadata_record, marc_record, parameters.group_params_.marc_metadata_params_);
     InsertCustomMarcFieldsForParams(metadata_record, marc_record, parameters.download_item_.journal_.marc_metadata_params_);
 }
 
@@ -993,7 +996,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
             subfields.appendSubfield('c', creator.title_);
         subfields.appendSubfield('e', "VerfasserIn");
 
-        if (num_creators_left == 1)
+        if (num_creators_left == metadata_record.creators_.size())
             marc_record->insertFieldAtEnd("100", subfields, /* indicator 1 = */'1');
         else
             marc_record->insertFieldAtEnd("700", subfields, /* indicator 1 = */'1');
@@ -1083,10 +1086,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     static const std::string ARTICLE_NUM_INDICATOR("article");
     if (not pages.empty()) {
         if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR)) {
-            const std::string potential_year_and_separator((not year.empty()) ? " (" + year + "), " : "");
-            _936_subfields.appendSubfield('y', StringUtil::Trim(((not volume.empty()) ? std::string("Bd. ") + volume + " " : "")
-                                               + potential_year_and_separator +
-                                               ((not issue.empty()) ? issue + ", " : " ") + pages));
+            _936_subfields.appendSubfield('i', StringUtil::TrimWhite(pages.substr(ARTICLE_NUM_INDICATOR.length())));
         } else
            _936_subfields.appendSubfield('h', pages);
     }

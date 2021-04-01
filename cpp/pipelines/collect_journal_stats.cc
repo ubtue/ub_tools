@@ -1,7 +1,7 @@
 /** \brief Updates Zeder (via Ingo's SQL database) w/ the last N issues of harvested articles for each journal.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -16,12 +16,13 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <iostream>
+
 #include <unordered_map>
 #include <cstdlib>
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DnsUtil.h"
+#include "FileUtil.h"
 #include "IniFile.h"
 #include "MARC.h"
 #include "SqlUtil.h"
@@ -263,6 +264,31 @@ void UpdateDatabase(const IniFile &ini_file, const std::string &system_type, con
 }
 
 
+const std::string TEXT_FILE_DIRECTORY("/mnt/ZE020150/FID-Entwicklung/Zeder_Supervision");
+
+
+void UpdateTextFiles(const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
+                     const std::unordered_map<std::string, DbEntry> &ppns_to_most_recent_entries_map)
+{
+    const auto DIRECTORY_PREFIX(TEXT_FILE_DIRECTORY + "/" + DnsUtil::GetHostname() + "/");
+    if (not FileUtil::Exists(DIRECTORY_PREFIX))
+        FileUtil::MakeDirectoryOrDie(DIRECTORY_PREFIX);
+
+    std::unordered_set<std::string> updated_files;
+    for (const auto &[ppn, db_entry] : ppns_to_most_recent_entries_map) {
+        const auto ppns_and_zeder_id_and_type(ppns_to_zeder_ids_and_types_map.find(ppn));
+        if (unlikely(ppns_and_zeder_id_and_type == ppns_to_zeder_ids_and_types_map.cend()))
+            LOG_ERROR("Map lookup failed for \"" + ppn + "\"!");
+        const auto filename(DIRECTORY_PREFIX + std::to_string(ppns_and_zeder_id_and_type->second.zeder_id_) + ".txt");
+        const auto output(FileUtil::OpenForAppendingOrDie(filename));
+        updated_files.emplace(filename);
+        (*output) << db_entry.jahr_ << ',' << db_entry.band_ << ',' << db_entry.heft_ << db_entry.seitenbereich_ << '\n';
+    }
+
+    LOG_INFO("Updated " + std::to_string(updated_files.size()) + " file(s) under " + DIRECTORY_PREFIX + ".");
+}
+
+
 } // unnamed namespace
 
 
@@ -290,6 +316,7 @@ int Main(int argc, char *argv[]) {
                              ppns_to_zeder_ids_and_types_map, &ppns_to_most_recent_entries_map);
     UpdateDatabase(ini_file, system_type, HOSTNAME, ppns_to_zeder_ids_and_types_map,
                    ppns_to_most_recent_entries_map);
+    UpdateTextFiles(ppns_to_zeder_ids_and_types_map, ppns_to_most_recent_entries_map);
 
     return EXIT_SUCCESS;
 }

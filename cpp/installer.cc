@@ -567,10 +567,10 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY, "httpd_sys_content_t",
                                                      ZOTERO_ENHANCEMENT_MAPS_DIRECTORY + "(/.*)?");
-    } else if (AppArmorUtil::IsAvailable()) {
+    } else if (AppArmorUtil::IsEnabled()) {
         const std::string profile_id("apache2");
-        AppArmorUtil::InstallProfile(INSTALLER_DATA_DIRECTORY + "/apparmor/" + profile_id);
-        AppArmorUtil::SetProfileMode(profile_id, AppArmorUtil::ENFORCE);
+        AppArmorUtil::InstallLocalProfile(INSTALLER_DATA_DIRECTORY + "/apparmor/" + profile_id);
+        AppArmorUtil::SetLocalProfileMode(profile_id, AppArmorUtil::ENFORCE);
     }
 
     // ...and then install the rest of ub_tools:
@@ -711,8 +711,9 @@ void DownloadVuFind() {
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "clone", git_url, VUFIND_DIRECTORY });
         GitActivateCustomHooks(VUFIND_DIRECTORY);
 
+        // We need to increase default_socket_timeout for big downloads on slow mirrors, especially Solr (default 60 seconds) .
         TemporaryChDir tmp2(VUFIND_DIRECTORY);
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("composer"), { "install" });
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { "-ddefault_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" });
     }
 }
 

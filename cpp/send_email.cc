@@ -213,9 +213,9 @@ int Main(int argc, char *argv[]) {
                                                     (attachments.empty() or attachment_type == FILE_ATTACHMENT)
                                                         ? EmailSender::AT_FILENAMES : EmailSender::AT_DATA));
     if (response_code >= 300) {
-        if (not MiscUtil::EnvironmentVariableExists("ENABLE_SMPT_CLIENT_PERFORM_LOGGING"))
+        if (not MiscUtil::EnvironmentVariableExists("ENABLE_SMTP_CLIENT_PERFORM_LOGGING"))
             LOG_ERROR("failed to send your email, the response code was: " + std::to_string(response_code)
-                      + " (You may want to set the ENABLE_SMPT_CLIENT_PERFORM_LOGGING to debug the problem.)");
+                      + " (You may want to set the ENABLE_SMTP_CLIENT_PERFORM_LOGGING to debug the problem.)");
         else
             LOG_ERROR("failed to send your email, the response code was: " + std::to_string(response_code));
     }
