@@ -358,6 +358,8 @@ public:
         inline bool isControlField() const __attribute__ ((pure)) { return tag_ <= "009"; }
         inline bool isDataField() const __attribute__ ((pure)) { return tag_ > "009"; }
         inline bool isRepeatableField() const { return MARC::IsRepeatableField(tag_); };
+        inline bool isCrossLinkField() const
+            { return CROSS_LINK_FIELD_TAGS.find(tag_.toString()) != CROSS_LINK_FIELD_TAGS.cend(); }
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
         inline void setIndicator1(const char new_indicator1) { if (likely(not contents_.empty())) contents_[0] = new_indicator1; }
