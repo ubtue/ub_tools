@@ -1,3 +1,4 @@
 check_archive_org_isbn_presence
+find_reference_subfields
 generate_year_correction_list
 retro_estimate
