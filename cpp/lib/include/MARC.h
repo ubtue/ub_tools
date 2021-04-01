@@ -45,6 +45,7 @@ namespace MARC {
 
 
 // These tags are for fields that may contain w-subfields with cross or uplink PPNs following "(DE-627)".
+// Important:  You *must* keep a alphanumerically increasing order of these tags!
 const std::set<std::string> CROSS_LINK_FIELD_TAGS{ "689", "700", "770", "772", "773", "775", "776", "780",
                                                    "785", "787", "800", "810", "811", "830", "880", "889" };
 
