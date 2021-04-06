@@ -272,7 +272,7 @@ void UpdateDatabase(const IniFile &ini_file, const std::string &system_type, con
 }
 
 
-const std::string TEXT_FILE_DIRECTORY("/mnt/ZE020150/FID-Entwicklung/Zeder_Supervision");
+const std::string TEXT_FILE_DIRECTORY("/mnt/ZE020110/FID-Projekte/Zeder_Supervision");
 
 
 void UpdateTextFiles(const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
