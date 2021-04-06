@@ -59,10 +59,13 @@ std::string ExtractNextBacktickQuotedText(const std::string::const_iterator &end
         ++cp;
     if (unlikely(cp == end))
         return "";
+    ++cp; // Skip over the opening backtick.
 
     std::string quoted_text;
-    while (*cp != '`')
+    while (cp != end and *cp != '`')
         quoted_text += *cp++;
+    if (unlikely(cp == end))
+        return "";
     ++cp; // Skip over the closing backtick.
 
     return quoted_text;
@@ -113,7 +116,12 @@ void LoadSchema(const std::string &filename,
                                                             : line.substr(__builtin_strlen("CREATE VIEW ")));
             current_schema.clear();
         } else if (line_starts_with_create_trigger) {
-            current_table_or_view.clear();
+            if (not current_schema.empty()) {
+                std::sort(current_schema.begin(), current_schema.end(), SchemaLineIsLessThan);
+                (*table_or_view_name_to_schema_map)[current_table_or_view] = current_schema;
+                current_table_or_view.clear();
+                current_schema.clear();
+            }
             triggers->emplace_back(line);
         } else {
             if (line[line.length() - 1] == ',')
@@ -310,12 +318,12 @@ void DiffTriggers(const std::vector<std::string> &triggers1, const std::vector<s
         ExtractTriggerNameAndTable(*trigger2, &name2, &table2);
 
         if (name1 == name2 and table1 == table2) {
-            ++trigger1, ++trigger2;
             if (*trigger1 != *trigger2) {
                 std::cout << "Triggers w/ same name and same tables differ:\n"
                           << '\t' << *trigger1 << '\n'
                           << '\t' << *trigger2 << '\n';
             }
+            ++trigger1, ++trigger2;
         } else if (name1 + table1 < name2 + table2) {
             std::cout << "Trigger is present in the 1st schema but missing in the 2nd schema: " << *trigger1 << '\n';
             ++trigger1;
