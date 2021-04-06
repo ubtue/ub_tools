@@ -22,6 +22,7 @@
 #include "Compiler.h"
 #include "DbConnection.h"
 #include "DnsUtil.h"
+#include "EmailSender.h"
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "MARC.h"
@@ -53,12 +54,18 @@ public:
 
 
 std::unordered_map<std::string, ZederIdAndPPNType> GetPPNsToZederIdsAndTypesMap(const std::string &system_type) {
-    const Zeder::SimpleZeder zeder(system_type == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK, { "eppn", "pppn" });
-    if (unlikely(zeder.empty()))
-        LOG_ERROR("found no Zeder entries matching any of our requested columns!"
-                  " (This *should* not happen as we included the column ID!)");
-
     std::unordered_map<std::string, ZederIdAndPPNType> ppns_to_zeder_ids_and_types_map;
+
+    const Zeder::SimpleZeder zeder(system_type == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK, { "eppn", "pppn" });
+    if (unlikely(zeder.empty())) {
+        EmailSender::SimplerSendEmail("no-reply", { system_type + "team@ub.uni-tuebingen.de" },
+                                      "Zeder Download Problems in collect_journal_stats",
+                                      "found no Zeder entries matching any of our requested columns!"
+                                      " (This *should* not happen as we included the column ID!)",
+                                      EmailSender::VERY_HIGH);
+        return ppns_to_zeder_ids_and_types_map;
+    }
+
     unsigned included_journal_count(0);
     std::set<std::string> bundle_ppns; // We use a std::set because it is automatically being sorted for us.
     for (const auto &journal : zeder) {
@@ -173,8 +180,9 @@ void CollectMostRecentEntries(const IniFile &ini_file, MARC::Reader * const read
                               std::unordered_map<std::string, DbEntry> * const ppns_to_most_recent_entries_map)
 {
     std::unordered_map<std::string, DbEntry> existing_entries;
-    LOG_INFO("Found " + std::to_string(GetExistingDbEntries(ini_file, hostname, system_type, &existing_entries))
-             + " existing database entries.");
+    if (not ppns_to_zeder_ids_and_types_map.empty())
+        LOG_INFO("Found " + std::to_string(GetExistingDbEntries(ini_file, hostname, system_type, &existing_entries))
+                 + " existing database entries.");
 
     unsigned total_count(0);
     while (const auto record = reader->read()) {
@@ -314,9 +322,12 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, DbEntry> ppns_to_most_recent_entries_map;
     CollectMostRecentEntries(ini_file, marc_reader.get(), marc_writer.get(), system_type, HOSTNAME,
                              ppns_to_zeder_ids_and_types_map, &ppns_to_most_recent_entries_map);
-    UpdateDatabase(ini_file, system_type, HOSTNAME, ppns_to_zeder_ids_and_types_map,
-                   ppns_to_most_recent_entries_map);
-    UpdateTextFiles(ppns_to_zeder_ids_and_types_map, ppns_to_most_recent_entries_map);
+
+    if (not ppns_to_zeder_ids_and_types_map.empty()) {
+        UpdateDatabase(ini_file, system_type, HOSTNAME, ppns_to_zeder_ids_and_types_map,
+                       ppns_to_most_recent_entries_map);
+        UpdateTextFiles(ppns_to_zeder_ids_and_types_map, ppns_to_most_recent_entries_map);
+    }
 
     return EXIT_SUCCESS;
 }
