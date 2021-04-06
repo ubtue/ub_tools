@@ -50,6 +50,15 @@ void ProcessTablesOrViews(DbConnection * const db_connection, const bool process
 }
 
 
+void ProcessTriggers(DbConnection * const db_connection, const std::string &database_name) {
+    db_connection->queryOrDie("SHOW TRIGGERS FROM `" + database_name + "`");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    while (const auto row = result_set.getNextRow())
+        std::cout << "CREATE TRIGGER `" << row["Trigger"] << "` ON `" << database_name << '.' << row["Table"]
+                  << "` " << row["Timing"] << ' ' << row["Event"] << ' ' << row["Statement"] << ";\n";
+}
+
+
 int Main(int argc, char *argv[]) {
     if (argc != 1 and argc != 3 and argc != 4 and argc != 5 and argc != 6)
         Usage();
@@ -75,6 +84,8 @@ int Main(int argc, char *argv[]) {
 
     ProcessTablesOrViews(db_connection.get(), /* process_tables = */true);
     ProcessTablesOrViews(db_connection.get(), /* process_tables = */false);
+    ProcessTriggers(db_connection.get(), "vufind");
+    ProcessTriggers(db_connection.get(), "ub_tools");
 
     return EXIT_SUCCESS;
 }
