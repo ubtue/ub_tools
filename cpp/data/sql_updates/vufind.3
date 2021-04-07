@@ -2,6 +2,4 @@ ALTER TABLE vufind.user ADD tuefind_uuid CHAR(36) DEFAULT NULL;
 ALTER TABLE vufind.user ADD CONSTRAINT tuefind_user_uuid UNIQUE (tuefind_uuid);
 UPDATE vufind.user SET tuefind_uuid=(SELECT UUID());
 ALTER TABLE vufind.user MODIFY COLUMN tuefind_uuid CHAR(36) NOT NULL;
-DELIMITER //
-CREATE TRIGGER vufind.before_user_insert BEFORE INSERT ON vufind.user FOR EACH ROW IF NEW.tuefind_uuid IS NULL THEN SET NEW.tuefind_uuid = UUID(); END IF;//
-DELIMITER ;
+CREATE TRIGGER vufind.before_user_insert BEFORE INSERT ON vufind.user FOR EACH ROW SET NEW.tuefind_uuid = IF(NEW.tuefind_uuid IS NULL, UUID(), NEW.tuefind_uuid);
