@@ -110,7 +110,8 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
             attachment = FileUtil::ExpandTildePath(attachment);
             if (not FileUtil::IsReadable(attachment))
                 LOG_ERROR("attachment \"" + attachment + "\" does not exist or isn't readable!");
-            attachments->emplace_back(attachment);
+            attachments->emplace_back(current_attachment_type == INLINE_ATTACHMENT
+                                      ? FileUtil::ReadStringOrDie(attachment) : attachment);
             ++argv;
         } else if (ExtractArg(*argv, "sender", sender) or ExtractArg(*argv, "reply-to", reply_to)
             or ExtractArg(*argv, "recipients", recipients) or ExtractArg(*argv, "cc-recipients", cc_recipients)
@@ -212,9 +213,9 @@ int Main(int argc, char *argv[]) {
                                                     (attachments.empty() or attachment_type == FILE_ATTACHMENT)
                                                         ? EmailSender::AT_FILENAMES : EmailSender::AT_DATA));
     if (response_code >= 300) {
-        if (not MiscUtil::EnvironmentVariableExists("ENABLE_SMPT_CLIENT_PERFORM_LOGGING"))
+        if (not MiscUtil::EnvironmentVariableExists("ENABLE_SMTP_CLIENT_PERFORM_LOGGING"))
             LOG_ERROR("failed to send your email, the response code was: " + std::to_string(response_code)
-                      + " (You may want to set the ENABLE_SMPT_CLIENT_PERFORM_LOGGING to debug the problem.)");
+                      + " (You may want to set the ENABLE_SMTP_CLIENT_PERFORM_LOGGING to debug the problem.)");
         else
             LOG_ERROR("failed to send your email, the response code was: " + std::to_string(response_code));
     }

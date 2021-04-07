@@ -21,6 +21,7 @@
 /convert_bible_references
 /convert_json_to_marc
 /convert_oai_pmh_dc_to_marc21
+/convert_rss_db_tables
 /convert_tags_to_keywords
 /count_gnd_refs
 /create_full_text_db
@@ -70,6 +71,7 @@
 /generate_year_correction_list
 /get_dangling_title_references
 /get_essay_collection_pdfs
+/import_rss_aggregator_conf
 /inifile_lookup
 /insert_translation_gaps
 /installer
@@ -106,6 +108,7 @@
 /rewrite_ssoar
 /rss_aggregator
 /rss_feed_generator
+/rss_subset_aggregator
 /sammelschrift_statistik
 /send_email
 /set_tad_access_flag

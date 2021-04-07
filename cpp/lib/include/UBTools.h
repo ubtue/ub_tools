@@ -1,7 +1,7 @@
 /** \file   UBTools.h
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -25,19 +25,32 @@
 namespace UBTools {
 
 
+inline std::string GetUBWebProxyURL() {
+    return "http://wwwproxy.uni-tuebingen.de:3128";
+}
+
+
 // \return A slash-terminated absolute path.
 inline std::string GetTuelibPath() {
     return "/usr/local/var/lib/tuelib/";
 }
+
 
 // \return A slash-terminated absolute path.
 inline std::string GetTueFindLogPath() {
     return "/usr/local/var/log/tuefind/";
 }
 
+
 // \return  A slash-terminated absolute path.
 inline std::string GetTueLocalTmpPath() {
     return "/usr/local/var/tmp/";
+}
+
+
+// \return  A slash-terminated absolute path.
+inline std::string GetFIDProjectsPath() {
+    return "/mnt/ZE020110/FID-Projekte/";
 }
 
 

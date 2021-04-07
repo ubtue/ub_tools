@@ -67,7 +67,7 @@ void AddMainSubfieldAndCombinationsToGndKeywords(const MARC::Record &record, std
     if (subfield_codes.find('a') != std::string::npos) {
         const std::string subfield_value_a(record.getFirstSubfieldValue(field_tag, 'a'));
         if (not subfield_value_a.empty())
-            keywords_to_gnd_numbers_map->emplace(std::make_pair(subfield_value_a, record.getControlNumber()));
+            keywords_to_gnd_numbers_map->emplace(std::make_pair(subfield_value_a, record.getControlNumber() + " & " + field_tag));
     }
     std::vector<std::string> subfields;
     ExtractSubfieldsForTag(record, field_tag, subfield_codes, &subfields);
@@ -103,8 +103,10 @@ void FindEquivalentKeywords(std::unordered_map<std::string, std::string> const &
         const auto gnd_number(keywords_to_gnd_numbers_map.find(keyword));
         if (gnd_number == keywords_to_gnd_numbers_map.end())
             keywords_without_match.insert(keyword);
-        else
+        else {
             keywords_to_ppns_map.insert(*gnd_number);
+            LOG_INFO("Keyword '" + keyword + "' matched to PPN & Tag '" + gnd_number->second + "' \n");
+        }
     }
     LOG_INFO("Found " + std::to_string(keywords_to_ppns_map.size()) + " keyword match(es).\n");
     const double percentage((static_cast<double>(keywords_to_ppns_map.size()) / static_cast<double>(keywords_to_compare.size())) * 100);
