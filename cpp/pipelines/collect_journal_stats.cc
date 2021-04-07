@@ -58,14 +58,17 @@ std::unordered_map<std::string, ZederIdAndPPNType> GetPPNsToZederIdsAndTypesMap(
     std::unordered_map<std::string, ZederIdAndPPNType> ppns_to_zeder_ids_and_types_map;
 
     const Zeder::SimpleZeder zeder(system_type == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK, { "eppn", "pppn" });
-    if (unlikely(zeder.empty())) {
+    if (not zeder) {
         EmailSender::SimplerSendEmail("no-reply", { system_type + "team@ub.uni-tuebingen.de" },
                                       "Zeder Download Problems in collect_journal_stats",
-                                      "found no Zeder entries matching any of our requested columns!"
-                                      " (This *should* not happen as we included the column ID!)",
+                                      "We can't contact the Zeder MySQL server!",
                                       EmailSender::VERY_HIGH);
         return ppns_to_zeder_ids_and_types_map;
     }
+
+    if (unlikely(zeder.empty()))
+        LOG_ERROR("found no Zeder entries matching any of our requested columns!"
+                  " (This *should* not happen as we included the column ID!)");
 
     unsigned included_journal_count(0);
     std::set<std::string> bundle_ppns; // We use a std::set because it is automatically being sorted for us.
