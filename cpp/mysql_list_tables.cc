@@ -85,8 +85,7 @@ int Main(int argc, char *argv[]) {
 
     ProcessTablesOrViews(db_connection.get(), /* process_tables = */true);
     ProcessTablesOrViews(db_connection.get(), /* process_tables = */false);
-    ProcessTriggers(db_connection.get(), "vufind");
-    ProcessTriggers(db_connection.get(), "ub_tools");
+    ProcessTriggers(db_connection.get(), argc == 1 ? "ub_tools" : argv[1]);
 
     return EXIT_SUCCESS;
 }
