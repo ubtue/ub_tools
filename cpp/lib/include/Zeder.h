@@ -458,12 +458,14 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive = fal
 class SimpleZeder {
     typedef EntryCollection::const_iterator const_iterator;
 private:
+    bool failed_to_connect_to_database_server_;
     EntryCollection entries_;
 public:
     // \param "column_filter" If not empty, only the specified short column names will be accessible via the
     //        lookup member function of class Journal.  This is a performance and memory optimisation only.
     explicit SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter = {});
 
+    inline operator bool() const { return not failed_to_connect_to_database_server_; }
     inline size_t size() const { return entries_.size(); }
     inline size_t empty() const { return entries_.empty(); }
     inline const_iterator begin() const { return entries_.begin(); }
