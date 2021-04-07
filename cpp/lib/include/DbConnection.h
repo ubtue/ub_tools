@@ -261,6 +261,18 @@ public:
         db_connection.mySQLCreateUser(new_user, new_passwd, host);
     }
 
+    static void MySQLCreateUserIfNotExists(const std::string &new_user, const std::string &new_passwd, const std::string &admin_user,
+                                           const std::string &admin_passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                           const Charset charset = UTF8MB4)
+    {
+        DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
+        if (not db_connection.mySQLUserExists(new_user, host)) {
+            LOG_INFO("Creating MySQL user '" + new_user + "'@'" + host + "'");
+            db_connection.mySQLCreateUser(new_user, new_passwd, host);
+        } else
+            LOG_INFO("MySQL user '" + new_user + "'@'" + host + "' already exists");
+    }
+
     static bool MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
                                     const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
                                     const Charset charset = UTF8MB4)
