@@ -111,6 +111,8 @@ public:
 public:
     inline void insertScalar(const std::string &name, const std::string &value)
         { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, value))); }
+    inline void insertScalar(const std::string &name, const char * const value)
+        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, value))); }
     inline void insertScalar(const std::string &name, const char &value)
         { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::string(1, value)))); }
     inline void insertScalar(const std::string &name, const bool &value)
