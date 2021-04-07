@@ -33,5 +33,6 @@ LOG_DIR=/usr/local/var/log/tuefind
 0 22 * * * "$BIN/new_journal_alert" ixtheo {ixtheo_host} "IxTheo Team<no-reply@ub.uni-tuebingen.de>" "IxTheo Subscriptions" > "$LOG_DIR/new_journal_alert_ixtheo.log" 2>&1
 30 22 * * * "$BIN/new_journal_alert" relbib {relbib_host} "RelBib Team<no-reply@ub.uni-tuebingen.de>" "RelBib Subscriptions" > "$LOG_DIR/new_journal_alert_relbib.log" 2>&1
 0 23 * * * "$BIN/update_tad_email_acl.sh" "$EMAIL"
-30 23 * * * "$BIN/rss_aggregator" "/usr/local/var/lib/tuelib/rss_aggregator_relbib.conf" "$EMAIL" "/usr/local/vufind/public/relbib_docs/news.rss" > "$LOG_DIR/rss_aggregator_relbib.log" 2>&1
+15 23 * * * "$BIN/rss_aggregator" relbib "$EMAIL" "/usr/local/vufind/public/relbib_docs/news.rss" > "$LOG_DIR/rss_aggregator_relbib.log" 2>&1
+45 23 * * * "$BIN/rss_subset_aggregator" "--mode=email" "$EMAIL" "relbib" > "$LOG_DIR/rss_subset_aggregator_relbib.log" 2>&1
 #{IF DEFINED(production)}0 17 1 Jul,Dec * "$BIN/ch.sh"{ENDIF}
