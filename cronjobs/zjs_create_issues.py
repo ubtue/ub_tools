@@ -1,6 +1,5 @@
 #!/bin/python3
 # -*- coding: utf-8 -*-
-import configparser
 import json
 import os
 import stdnum.issn as issn_checker
