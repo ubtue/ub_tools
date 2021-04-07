@@ -2,7 +2,7 @@
  *  \brief A tool for listing the differences between two schemas.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2020-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -53,17 +53,24 @@ inline bool SchemaLineIsLessThan(const std::string &line1, const std::string &li
 }
 
 
-void LoadSchema(const std::string &filename, std::map<std::string, std::vector<std::string>> * const table_name_to_schema_map) {
-    std::string current_table;
+void LoadSchema(const std::string &filename,
+                std::map<std::string, std::vector<std::string>> * const table_or_view_name_to_schema_map)
+{
+    std::string current_table_or_view;
     std::vector<std::string> current_schema;
     for (auto line : FileUtil::ReadLines(filename)) {
         StringUtil::Trim(&line);
-        if (StringUtil::StartsWith(line, "CREATE TABLE ")) {
-            if (not current_table.empty()) {
+        const bool line_starts_with_create_table(StringUtil::StartsWith(line, "CREATE TABLE "));
+        const bool line_starts_with_create_view(line_starts_with_create_table ? false
+                                                : StringUtil::StartsWith(line, "CREATE VIEW "));
+        if (line_starts_with_create_table or line_starts_with_create_view) {
+            if (not current_table_or_view.empty()) {
                 std::sort(current_schema.begin(), current_schema.end(), SchemaLineIsLessThan);
-                (*table_name_to_schema_map)[current_table] = current_schema;
+                (*table_or_view_name_to_schema_map)[current_table_or_view] = current_schema;
             }
-            current_table = ExtractBackQuotedString(line.substr(__builtin_strlen("CREATE TABLE ")));
+            current_table_or_view = ExtractBackQuotedString(line_starts_with_create_table
+                                                            ? line.substr(__builtin_strlen("CREATE TABLE "))
+                                                            : line.substr(__builtin_strlen("CREATE VIEW ")));
             current_schema.clear();
         } else {
             if (line[line.length() - 1] == ',')
@@ -73,7 +80,7 @@ void LoadSchema(const std::string &filename, std::map<std::string, std::vector<s
     }
     if (not current_schema.empty()) {
         std::sort(current_schema.begin(), current_schema.end(), SchemaLineIsLessThan);
-        (*table_name_to_schema_map)[current_table] = current_schema;
+        (*table_or_view_name_to_schema_map)[current_table_or_view] = current_schema;
     }
 }
 
@@ -89,13 +96,14 @@ std::vector<std::string> FindLinesStartingWithPrefix(const std::vector<std::stri
 
 
 // Reports differences for lines that start w/ "prefix" for tables w/ the identical names.
-void CompareTables(const std::string &prefix, const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map1,
-                   const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map2)
+void CompareTables(const std::string &prefix,
+                   const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map1,
+                   const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map2)
 {
-    for (const auto &table_name1_and_schema1 : table_name_to_schema_map1) {
+    for (const auto &table_name1_and_schema1 : table_or_view_name_to_schema_map1) {
         const auto &table_name1(table_name1_and_schema1.first);
-        const auto table_name2_and_schema2(table_name_to_schema_map2.find(table_name1));
-        if (table_name2_and_schema2 == table_name_to_schema_map2.cend())
+        const auto table_name2_and_schema2(table_or_view_name_to_schema_map2.find(table_name1));
+        if (table_name2_and_schema2 == table_or_view_name_to_schema_map2.cend())
             continue;
         const auto &schema2(table_name2_and_schema2->second);
 
@@ -107,7 +115,8 @@ void CompareTables(const std::string &prefix, const std::map<std::string, std::v
         }
         for (const auto &line_in_table2 : schema2) {
             if (StringUtil::StartsWith(line_in_table2, prefix)
-                and std::find(matching_lines_in_table1.cbegin(), matching_lines_in_table1.cend(), line_in_table2) == matching_lines_in_table1.cend())
+                and std::find(matching_lines_in_table1.cbegin(), matching_lines_in_table1.cend(), line_in_table2)
+                    == matching_lines_in_table1.cend())
                 std::cout << line_in_table2 << " is missing in 1st schema for table " << table_name1 << '\n';
         }
     }
@@ -128,13 +137,13 @@ public:
 };
 
 
-void CompareTableOptions(const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map1,
-                         const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map2)
+void CompareTableOptions(const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map1,
+                         const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map2)
 {
-    for (const auto &table_name1_and_schema1 : table_name_to_schema_map1) {
+    for (const auto &table_name1_and_schema1 : table_or_view_name_to_schema_map1) {
         const auto &table_name1(table_name1_and_schema1.first);
-        const auto table_name2_and_schema2(table_name_to_schema_map2.find(table_name1));
-        if (table_name2_and_schema2 == table_name_to_schema_map2.cend())
+        const auto table_name2_and_schema2(table_or_view_name_to_schema_map2.find(table_name1));
+        if (table_name2_and_schema2 == table_or_view_name_to_schema_map2.cend())
             continue;
 
         const auto &schema1(table_name1_and_schema1.second);
@@ -158,10 +167,12 @@ void CompareTableOptions(const std::map<std::string, std::vector<std::string>> &
 }
 
 
-void ReportUnknownLines(const std::string &schema, const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map) {
+void ReportUnknownLines(const std::string &schema,
+                        const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map)
+{
     static const std::vector<std::string> KNOWN_LINE_PREFIXES{ "KEY", "PRIMARY KEY", "UNIQUE KEY", "CONSTRAINT", ") ", "`" };
 
-    for (const auto &table_name_and_schema : table_name_to_schema_map) {
+    for (const auto &table_name_and_schema : table_or_view_name_to_schema_map) {
         for (const auto &line : table_name_and_schema.second) {
             bool found_a_known_prefix(false);
             for (const auto &known_prefix : KNOWN_LINE_PREFIXES) {
@@ -178,21 +189,21 @@ void ReportUnknownLines(const std::string &schema, const std::map<std::string, s
 }
 
 
-void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map1,
-                 const std::map<std::string, std::vector<std::string>> &table_name_to_schema_map2)
+void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map1,
+                 const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map2)
 {
-    std::set<std::string> already_processed_table_names;
-    for (const auto &table_name1_and_schema1 : table_name_to_schema_map1) {
-        const auto &table_name1(table_name1_and_schema1.first);
-        already_processed_table_names.emplace(table_name1);
-        const auto table_name2_and_schema2(table_name_to_schema_map2.find(table_name1));
-        if (table_name2_and_schema2 == table_name_to_schema_map2.cend()) {
-            std::cout << "Table was deleted: " << table_name1 << '\n';
+    std::set<std::string> already_processed_table_or_view_names;
+    for (const auto &table_or_view_name1_and_schema1 : table_or_view_name_to_schema_map1) {
+        const auto &table_or_view_name1(table_or_view_name1_and_schema1.first);
+        already_processed_table_or_view_names.emplace(table_or_view_name1);
+        const auto table_or_view_name2_and_schema2(table_or_view_name_to_schema_map2.find(table_or_view_name1));
+        if (table_or_view_name2_and_schema2 == table_or_view_name_to_schema_map2.cend()) {
+            std::cout << "Table or view was deleted: " << table_or_view_name1 << '\n';
             continue;
         }
 
-        const auto &schema1(table_name1_and_schema1.second);
-        const auto &schema2(table_name2_and_schema2->second);
+        const auto &schema1(table_or_view_name1_and_schema1.second);
+        const auto &schema2(table_or_view_name2_and_schema2->second);
 
         // Compare column definitions first:
         const auto last_column_def1(std::find_if(schema1.crbegin(), schema1.crend(),
@@ -206,39 +217,40 @@ void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_na
             already_processed_column_names.emplace(column_name1);
             const auto column_def2(std::find_if(schema2.cbegin(), last_column_def2.base(), StartsWithColumnName(column_name1)));
             if (column_def2 == last_column_def2.base())
-                std::cout << "Column does not exist in 1st schema: " << table_name1 << '.' << column_name1 << '\n';
+                std::cout << "Column does not exist in 1st schema: " << table_or_view_name1 << '.' << column_name1 << '\n';
             else if (*column_def1 != *column_def2)
-                std::cout << "Column definition differs between the 1st and 2nd schemas (" << table_name1 << "): " << *column_def1 << " -> " << *column_def2 << '\n';
+                std::cout << "Column definition differs between the 1st and 2nd schemas (" << table_or_view_name1 << "): "
+                          << *column_def1 << " -> " << *column_def2 << '\n';
         }
 
         for (auto column_def2(schema2.cbegin()); column_def2 != last_column_def2.base(); ++column_def2) {
             const auto column_name2(ExtractBackQuotedString(*column_def2));
             if (already_processed_column_names.find(column_name2) == already_processed_column_names.cend())
-                std::cout << "Column exists only in 2nd schema: " << table_name1 << '.' << column_name2 << '\n';
+                std::cout << "Column exists only in 2nd schema: " << table_or_view_name1 << '.' << column_name2 << '\n';
         }
     }
 
     std::set<std::string> schema2_tables;
-    for (const auto &table_name2_and_schema2 : table_name_to_schema_map2) {
-        const auto &table_name2(table_name2_and_schema2.first);
-        schema2_tables.emplace(table_name2);
-        if (already_processed_table_names.find(table_name2) == already_processed_table_names.cend())
-            std::cout << "Table exists only in 1st schema: " << table_name2 << '\n';
+    for (const auto &table_or_view_name2_and_schema2 : table_or_view_name_to_schema_map2) {
+        const auto &table_or_view_name2(table_or_view_name2_and_schema2.first);
+        schema2_tables.emplace(table_or_view_name2);
+        if (already_processed_table_or_view_names.find(table_or_view_name2) == already_processed_table_or_view_names.cend())
+            std::cout << "Table or view exists only in 1st schema: " << table_or_view_name2 << '\n';
     }
-    for (const auto &table_name1_and_schema1 : table_name_to_schema_map1) {
-        const auto &table_name1(table_name1_and_schema1.first);
-        if (schema2_tables.find(table_name1) == schema2_tables.cend())
-            std::cout << "Table exist only in 2st schema: " << table_name1 << '\n';
+    for (const auto &table_or_view_name1_and_schema1 : table_or_view_name_to_schema_map1) {
+        const auto &table_or_view_name1(table_or_view_name1_and_schema1.first);
+        if (schema2_tables.find(table_or_view_name1) == schema2_tables.cend())
+            std::cout << "Table or view exist only in 2st schema: " << table_or_view_name1 << '\n';
     }
 
-    CompareTables("KEY", table_name_to_schema_map1, table_name_to_schema_map2);
-    CompareTables("PRIMARY KEY", table_name_to_schema_map1, table_name_to_schema_map2);
-    CompareTables("UNIQUE KEY", table_name_to_schema_map1, table_name_to_schema_map2);
-    CompareTables("CONSTRAINT", table_name_to_schema_map1, table_name_to_schema_map2);
-    CompareTableOptions(table_name_to_schema_map1, table_name_to_schema_map2);
+    CompareTables("KEY", table_or_view_name_to_schema_map1, table_or_view_name_to_schema_map2);
+    CompareTables("PRIMARY KEY", table_or_view_name_to_schema_map1, table_or_view_name_to_schema_map2);
+    CompareTables("UNIQUE KEY", table_or_view_name_to_schema_map1, table_or_view_name_to_schema_map2);
+    CompareTables("CONSTRAINT", table_or_view_name_to_schema_map1, table_or_view_name_to_schema_map2);
+    CompareTableOptions(table_or_view_name_to_schema_map1, table_or_view_name_to_schema_map2);
 
-    ReportUnknownLines("schema1", table_name_to_schema_map1);
-    ReportUnknownLines("schema2", table_name_to_schema_map2);
+    ReportUnknownLines("schema1", table_or_view_name_to_schema_map1);
+    ReportUnknownLines("schema2", table_or_view_name_to_schema_map2);
 }
 
 
@@ -247,13 +259,13 @@ int Main(int argc, char *argv[]) {
         ::Usage("schema1 schema2\n"
                 "Please note that this tool may not work particularly well if you do not use output from mysql_list_tables");
 
-    std::map<std::string, std::vector<std::string>> table_name_to_schema_map1;
-    LoadSchema(argv[1], &table_name_to_schema_map1);
+    std::map<std::string, std::vector<std::string>> table_or_view_name_to_schema_map1;
+    LoadSchema(argv[1], &table_or_view_name_to_schema_map1);
 
-    std::map<std::string, std::vector<std::string>> table_name_to_schema_map2;
-    LoadSchema(argv[2], &table_name_to_schema_map2);
+    std::map<std::string, std::vector<std::string>> table_or_view_name_to_schema_map2;
+    LoadSchema(argv[2], &table_or_view_name_to_schema_map2);
 
-    DiffSchemas(table_name_to_schema_map1, table_name_to_schema_map2);
+    DiffSchemas(table_or_view_name_to_schema_map1, table_or_view_name_to_schema_map2);
 
     return EXIT_SUCCESS;
 }

@@ -524,11 +524,9 @@ void ProcessSingleUser(
     LOG_INFO("Found " + std::to_string(control_numbers_or_bundle_names_and_last_modification_times.size()) + " subscriptions for \""
              + username + "\".");
 
-    std::string name_of_user("Subscriber");
     const std::string firstname(row["firstname"]);
     const std::string lastname(row["lastname"]);
-    if (not firstname.empty() and not lastname.empty())
-        name_of_user = firstname + " " + lastname;
+    const auto  name_of_user(MiscUtil::GenerateAddress(firstname, lastname, "Subscriber"));
 
     const std::string email(row["email"]);
     const std::string user_type(row["user_type"]);

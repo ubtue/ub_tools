@@ -34,6 +34,8 @@ StartPhase "Check Record Integrity at the Beginning of the Pipeline"
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
+
+
 if [[ $(date +%d) == "01" ]]; then # Only do this on the 1st of every month.
     echo "*** Occasional Phase: Checking Rule Violations ***" | tee --append "${log}"
     marc_check_log="/usr/local/var/log/tuefind/marc_check_rule_violations.log"
@@ -49,13 +51,32 @@ if [[ $(date +%d) == "01" ]]; then # Only do this on the 1st of every month.
 fi
 
 
-# WARNING; This phase needs to come first in the pipeline as it assumes that we have not yet
+StartPhase "Remove Dangling References"
+(remove_dangling_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                            GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
+                            dangling_references.log 2>&1 && \
+EndPhase || Abort) &
+wait
+if [[ $(date +%d) == "01" ]]; then # Only do this on the 1st of every month.
+    if [[ ! $(wc --lines dangling_references.log) =~ 0.* ]]; then
+        echo "Sending email for dangling references..." | tee --append "${log}"
+        send_email --priority=high \
+                   --recipients=ixtheo-team@ub.uni-tuebingen.de \
+                   --subject="Referenzen auf fehlende Datensätze gefunden" \
+                   --message-body="Liste im Anhang." \
+                   --attachment="dangling_references.log"
+    fi
+fi
+
+
+# WARNING; This phase needs to come early in the pipeline as it assumes that we have not yet
 # added any of our own tags and because later phases may need to use the local data fields!
 StartPhase "Add Local Data from Database"
 (add_local_data GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
+
 
 StartPhase "Swap and Delete PPN's in Various Databases"
 (patch_ppns_in_databases --report-only GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
@@ -80,6 +101,12 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --replace 260b:264b /usr/local/var/lib/tuelib/publisher_normalisation.map \
     --replace 245a "^L' (.*)" "L'\\1" `# Replace "L' arbe" with "L'arbe" etc.` \
     --replace 100a:700a "^\\s+(.*)" "\\1" `# Replace " van Blerk, Nico" with "van Blerk, Nico" etc.` \
+    --replace 100d "v(\\d+)\\s?-\\s?v(\\d+)" "\\1 v.Chr.-\\2 v.Chr" \
+    --replace 100d "v(\\d+)\\s?-\\s?(\\d+)" "\\1 v.Chr.-\\2" \
+    --replace 100d "v(\\d+)" "\\1 v. Chr." \
+    --replace 700d "v(\\d+)\\s?-\\s?v(\\d+)" "\\1 v.Chr.-\\2 v.Chr" \
+    --replace 700d "v(\\d+)\\s?-\\s?(\\d+)" "\\1 v.Chr.-\\2" \
+    --replace 700d "v(\\d+)" "\\1 v. Chr." \
 >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait

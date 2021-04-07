@@ -62,8 +62,8 @@ std::string MetadataRecord::toString() const {
         out += "\tdate: " + date_ + ",\n";
     if (not doi_.empty())
         out += "\tdoi: " + doi_ + ",\n";
-    if (not language_.empty())
-        out += "\tlanguage: " + language_ + ",\n";
+    for (const auto &language : languages_)
+        out += "\tlanguage: " + language + ",\n";
     if (not issn_.empty())
         out += "\tissn: " + issn_ + ",\n";
     if (not superior_ppn_.empty())
@@ -288,7 +288,9 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
     metadata_record->pages_ = GetStrippedHTMLStringFromJSON(zotero_item, "pages");
     metadata_record->date_ = GetStrippedHTMLStringFromJSON(zotero_item, "date");
     metadata_record->doi_ = GetStrippedHTMLStringFromJSON(zotero_item, "DOI");
-    metadata_record->language_ = GetStrippedHTMLStringFromJSON(zotero_item, "language");
+    const std::string language(GetStrippedHTMLStringFromJSON(zotero_item, "language"));
+    if (not language.empty())
+        metadata_record->languages_.emplace(language);
     metadata_record->url_ = GetStrippedHTMLStringFromJSON(zotero_item, "url");
     metadata_record->issn_ = GetStrippedHTMLStringFromJSON(zotero_item, "ISSN");
 
@@ -432,11 +434,11 @@ void JoinAuthorTokens(const std::vector<std::string> &tokens_first, std::string 
 }
 
 
-void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::string * const last_name, const std::string &language) {
+void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::string * const last_name, const std::set<std::string> &languages) {
     // In Spanish we have two last name components, so move over if appropriate
-    if (language == "spa") {
+    if (languages.find("spa") != languages.end()) {
         // Skip transformation if the first name/last name association already seems reasonable
-        static const auto first_name_end_preposition(ThreadSafeRegexMatcher("(des?\\s+las?|del)$",
+        static const auto first_name_end_preposition(ThreadSafeRegexMatcher("(des?\\s+las?|del|\\p{Lu}[.])$",
              ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE));
         if (first_name_end_preposition.match(*first_name))
             return;
@@ -469,12 +471,12 @@ void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::strin
 
 
 void PostProcessAuthorName(std::string * const first_name, std::string * const last_name, std::string * const title,
-                           std::string * const affix, const std::string &language)
+                           std::string * const affix, const std::set<std::string> &languages)
 {
     std::string first_name_buffer, title_buffer;
     std::vector<std::string> tokens;
 
-    AdjustFirstAndLastNameByLanguage(first_name, last_name, language);
+    AdjustFirstAndLastNameByLanguage(first_name, last_name, languages);
 
     StringUtil::Split(*first_name, ' ', &tokens, /* suppress_empty_components = */true);
     for (const auto &token : tokens) {
@@ -531,61 +533,91 @@ std::string TikaDetectLanguage(const std::string &record_text) {
 }
 
 
-void DetectLanguage(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params) {
-    // Normalize given language
-    if (not Config::IsAllowedLanguage(metadata_record->language_)) {
-        LOG_WARNING("Removing invalid language: " + metadata_record->language_);
-        metadata_record->language_.clear();
-    } else if (not Config::IsNormalizedLanguage(metadata_record->language_)) {
-        const std::string normalized_language(Config::GetNormalizedLanguage(metadata_record->language_));
-        LOG_DEBUG("Normalized language: " + metadata_record->language_ + " => " + normalized_language);
-        metadata_record->language_ = normalized_language;
-    }
+void NormalizeGivenLanguages(MetadataRecord * const metadata_record) {
+    // Normalize given languages
+    // We cant remove during iteration, so we use a copy
+    std::set<std::string> languages(metadata_record->languages_);
+    metadata_record->languages_.clear();
+    for (const auto &language : languages) {
+        if (not Config::IsAllowedLanguage(language)) {
+            LOG_WARNING("Removing invalid language: " + language);
+            continue;
+        }
 
-    // attempt to automatically detect the language
+        if (not Config::IsNormalizedLanguage(language)) {
+            const std::string normalized_language(Config::GetNormalizedLanguage(language));
+            LOG_INFO("Normalized language: " + language + " => " + normalized_language);
+            metadata_record->languages_.emplace(normalized_language);
+        } else
+            metadata_record->languages_.emplace(language);
+    }
+}
+
+
+std::string DetectLanguage(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params) {
+    std::string record_text;
+    if (journal_params.language_params_.source_text_fields_.empty()
+        or journal_params.language_params_.source_text_fields_ == "title")
+    {
+        record_text = metadata_record->title_;
+    } else if (journal_params.language_params_.source_text_fields_ == "abstract")
+        record_text = metadata_record->abstract_note_;
+    else if (journal_params.language_params_.source_text_fields_ == "title+abstract")
+        record_text = metadata_record->title_ + " " + metadata_record->abstract_note_;
+    else
+        LOG_ERROR("unknown text field '" + journal_params.language_params_.source_text_fields_ + "' for language detection");
+
+    std::string detected_language(TikaDetectLanguage(record_text));
+    // Fallback to custom NGram
+    if (detected_language.empty()) {
+        std::vector<NGram::DetectedLanguage> detected_languages;
+        NGram::ClassifyLanguage(record_text, &detected_languages, journal_params.language_params_.expected_languages_,
+                             /*alternative_cutoff_factor = */ 0);
+        const auto top_language(detected_languages.front());
+        detected_language = top_language.language_;
+    }
+    return detected_language;
+}
+
+
+void AdjustLanguages(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params) {
+    NormalizeGivenLanguages(metadata_record);
+
+    // Check if the needed settings exist
     if (journal_params.language_params_.expected_languages_.empty())
         return;
 
-    std::string detected_language;
-    if (journal_params.language_params_.expected_languages_.size() == 1)
-        detected_language = *journal_params.language_params_.expected_languages_.begin();
-    else {
-        std::string record_text;
-        if (journal_params.language_params_.source_text_fields_.empty()
-            or journal_params.language_params_.source_text_fields_ == "title")
-        {
-            record_text = metadata_record->title_;
-        } else if (journal_params.language_params_.source_text_fields_ == "abstract")
-            record_text = metadata_record->abstract_note_;
-        else if (journal_params.language_params_.source_text_fields_ == "title+abstract")
-            record_text = metadata_record->title_ + " " + metadata_record->abstract_note_;
-        else
-            LOG_ERROR("unknown text field '" + journal_params.language_params_.source_text_fields_ + "' for language detection");
-        detected_language = TikaDetectLanguage(record_text);
-        // Fallback to custom NGram
-        if (detected_language.empty()) {
-            std::vector<NGram::DetectedLanguage> detected_languages;
-            NGram::ClassifyLanguage(record_text, &detected_languages, journal_params.language_params_.expected_languages_,
-                                 /*alternative_cutoff_factor = */ 0);
-            const auto top_language(detected_languages.front());
-            detected_language = top_language.language_;
-        }
+    // Override directly via configuration (if corresponding mode is set)
+    if (journal_params.language_params_.mode_ == Config::LanguageParams::FORCE_LANGUAGES) {
+        LOG_INFO("Override languages with configuration value: " + StringUtil::Join(journal_params.language_params_.expected_languages_, ","));
+        metadata_record->languages_ = journal_params.language_params_.expected_languages_;
+        return;
     }
 
-    // compare given language to detected language
+    // automatic language detection
+    std::string detected_language, configured_or_detected_info;
+    if (journal_params.language_params_.expected_languages_.size() == 1) {
+        detected_language = *journal_params.language_params_.expected_languages_.begin();
+        configured_or_detected_info = "single configured";
+    } else {
+        detected_language = DetectLanguage(metadata_record, journal_params);
+        configured_or_detected_info = "detected";
+    }
+
+    // compare language from zotero to detected language
     if (not detected_language.empty()) {
-        if (metadata_record->language_.empty()) {
-            LOG_INFO("Using detected language: " + detected_language);
-            metadata_record->language_ = detected_language;
-        } else if (detected_language == metadata_record->language_)
-            LOG_INFO("The given language is equal to the detected language: " + detected_language);
-        else if (journal_params.force_language_detection_) {
-            LOG_INFO ("Force language detection active - using detected language: " + detected_language);
-            metadata_record->language_ = detected_language;
-        } else {
-            LOG_INFO("The given language " + metadata_record->language_ +  " and the detected language " + detected_language + " are different. "
+        if (journal_params.language_params_.mode_ == Config::LanguageParams::FORCE_DETECTION) {
+            LOG_INFO ("Force language detection active - using " + configured_or_detected_info + " language: " + detected_language);
+            metadata_record->languages_ = { detected_language };
+        } else if (metadata_record->languages_.empty()) {
+            LOG_INFO("Using " + configured_or_detected_info + " language: " + detected_language);
+            metadata_record->languages_.emplace(detected_language);
+        } else if (*metadata_record->languages_.begin() == detected_language and metadata_record->languages_.size() == 1)
+            LOG_INFO("The given language is equal to the " + configured_or_detected_info + " language: " + detected_language);
+        else {
+            LOG_INFO("The given language " + StringUtil::Join(metadata_record->languages_, ",") + " and the " + configured_or_detected_info + " language " + detected_language + " are different. "
                      "No language will be set.");
-            metadata_record->language_.clear();
+            metadata_record->languages_.clear();
         }
     }
 }
@@ -707,12 +739,12 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
     }
 
     // autodetect or map language
-    DetectLanguage(metadata_record, journal_params);
+    AdjustLanguages(metadata_record, journal_params);
 
     // fetch creator GNDs and postprocess names
     for (auto &creator : metadata_record->creators_) {
         PostProcessAuthorName(&creator.first_name_, &creator.last_name_, &creator.title_, &creator.affix_,
-                              metadata_record->language_);
+                              metadata_record->languages_);
 
         if (not creator.last_name_.empty()) {
             std::string combined_name(creator.last_name_);
@@ -723,8 +755,10 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
             if (not creator.gnd_number_.empty())
                 LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + " (SWB lookup)");
             else {
-                creator.gnd_number_ = HtmlUtil::StripHtmlTags(LobidUtil::GetAuthorGNDNumber(
-                                                              combined_name, group_params.author_lobid_lookup_query_params_));
+                creator.gnd_number_ = HtmlUtil::StripHtmlTags((not creator.first_name_.empty() ?
+                                         LobidUtil::GetAuthorGNDNumber(creator.last_name_, creator.first_name_, group_params.author_lobid_lookup_query_params_) :
+                                         LobidUtil::GetAuthorGNDNumber(creator.last_name_, group_params.author_lobid_lookup_query_params_)));
+
                 if (not creator.gnd_number_.empty())
                     LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + "(Lobid lookup)");
             }
@@ -734,6 +768,10 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
     // fill-in license and SSG values
     if (journal_params.license_ == "LF")
         metadata_record->license_ = journal_params.license_;
+    else if (metadata_record->custom_metadata_.find("LF") != metadata_record->custom_metadata_.end())
+        metadata_record->license_ = "LF";
+    else
+        metadata_record->license_ = "ZZ";
     metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(journal_params.ssgn_);
 
     DetectReviews(metadata_record, parameters);
@@ -803,6 +841,7 @@ void InsertCustomMarcFields(const MetadataRecord &metadata_record, const Convers
                             MARC::Record * const marc_record)
 {
     InsertCustomMarcFieldsForParams(metadata_record, marc_record, parameters.global_params_.marc_metadata_params_);
+    InsertCustomMarcFieldsForParams(metadata_record, marc_record, parameters.group_params_.marc_metadata_params_);
     InsertCustomMarcFieldsForParams(metadata_record, marc_record, parameters.download_item_.journal_.marc_metadata_params_);
 }
 
@@ -931,41 +970,42 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         marc_record->insertField("007", "tu");
 
     // Authors/Creators
-    // Use reverse iterator to keep order, because "insertField" inserts at first possible position
     // The first creator is always saved in the "100" field, all following creators go into the 700 field
+    const auto zeder_instance(ZederInterop::GetZederInstanceForGroup(parameters.group_params_));
     unsigned num_creators_left(metadata_record.creators_.size());
-    for (auto creator(metadata_record.creators_.rbegin()); creator != metadata_record.creators_.rend(); ++creator) {
+    for (const auto &creator : metadata_record.creators_) {
         MARC::Subfields subfields;
-        if (not creator->ppn_.empty())
-            subfields.appendSubfield('0', "(DE-627)" + creator->ppn_);
-        if (not creator->gnd_number_.empty())
-            subfields.appendSubfield('0', "(DE-588)" + creator->gnd_number_);
-        if (not creator->type_.empty()) {
-            const auto creator_type_marc21(CREATOR_TYPES_TO_MARC21_MAP.find(creator->type_));
+        if (not creator.ppn_.empty())
+            subfields.appendSubfield('0', "(DE-627)" + creator.ppn_);
+        if (not creator.gnd_number_.empty())
+            subfields.appendSubfield('0', "(DE-588)" + creator.gnd_number_);
+        if (not creator.type_.empty()) {
+            const auto creator_type_marc21(CREATOR_TYPES_TO_MARC21_MAP.find(creator.type_));
             if (creator_type_marc21 == CREATOR_TYPES_TO_MARC21_MAP.end())
-                LOG_ERROR("zotero creator type '" + creator->type_ + "' could not be mapped to MARC21");
+                LOG_ERROR("zotero creator type '" + creator.type_ + "' could not be mapped to MARC21");
 
             subfields.appendSubfield('4', creator_type_marc21->second);
         }
 
-        subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({ creator->last_name_, creator->first_name_ }),
+        subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({ creator.last_name_, creator.first_name_ }),
                                  ", "));
 
-        if (not creator->affix_.empty())
-            subfields.appendSubfield('b', creator->affix_ + ".");
-        if (not creator->title_.empty())
-            subfields.appendSubfield('c', creator->title_);
+        if (not creator.affix_.empty())
+            subfields.appendSubfield('b', creator.affix_ + ".");
+        if (not creator.title_.empty())
+            subfields.appendSubfield('c', creator.title_);
         subfields.appendSubfield('e', "VerfasserIn");
 
-        if (num_creators_left == 1)
-            marc_record->insertField("100", subfields, /* indicator 1 = */'1');
+        if (num_creators_left == metadata_record.creators_.size())
+            marc_record->insertFieldAtEnd("100", subfields, /* indicator 1 = */'1');
         else
-            marc_record->insertField("700", subfields, /* indicator 1 = */'1');
+            marc_record->insertFieldAtEnd("700", subfields, /* indicator 1 = */'1');
 
-        if (not creator->ppn_.empty() or not creator->gnd_number_.empty()) {
-            const std::string _887_data("Autor in der Zoterovorlage [" + creator->last_name_ + ", "
-                                        + creator->first_name_ + "] maschinell zugeordnet");
-            marc_record->insertField("887", { { 'a', _887_data }, { '2', "ixzom" } });
+        if (not creator.ppn_.empty() or not creator.gnd_number_.empty()) {
+            const std::string _887_data("Autor in der Zoterovorlage [" + creator.last_name_ + ", "
+                                        + creator.first_name_ + "] maschinell zugeordnet");
+            const std::string _subfield2_value(zeder_instance == Zeder::Flavour::IXTHEO ? "ixzom" : "krzom");
+            marc_record->insertFieldAtEnd("887", { { 'a', _887_data }, { '2', _subfield2_value } });
         }
 
         --num_creators_left;
@@ -980,9 +1020,9 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     else
         marc_record->insertField("245", { { 'a', metadata_record.title_ } }, /* indicator 1 = */'0', /* indicator 2 = */'0');
 
-    // Language
-    if (not metadata_record.language_.empty())
-        marc_record->insertField("041", { { 'a', metadata_record.language_ } });
+    // Languages
+    for (const auto &language : metadata_record.languages_)
+        marc_record->insertFieldAtEnd("041", { { 'a', language } });
 
     // Abstract Note
     if (not metadata_record.abstract_note_.empty())
@@ -1046,10 +1086,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     static const std::string ARTICLE_NUM_INDICATOR("article");
     if (not pages.empty()) {
         if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR)) {
-            const std::string potential_year_and_separator((not year.empty()) ? " (" + year + "), " : "");
-            _936_subfields.appendSubfield('y', StringUtil::Trim(((not volume.empty()) ? std::string("Bd. ") + volume + " " : "")
-                                               + potential_year_and_separator +
-                                               ((not issue.empty()) ? issue + ", " : " ") + pages));
+            _936_subfields.appendSubfield('i', StringUtil::TrimWhite(pages.substr(ARTICLE_NUM_INDICATOR.length())));
         } else
            _936_subfields.appendSubfield('h', pages);
     }
@@ -1128,27 +1165,24 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         marc_record->insertField("084", _084_subfields);
     }
 
-    // Zotero sigil
-    // Similar to the 100/700 fields, we need to insert 935 fields in reverse
-    // order to preserve the intended ordering
-    marc_record->insertField("935", { { 'a', "zota" }, { '2', "LOK" } });
-
     // Abrufzeichen und ISIL
-    const auto zeder_instance(ZederInterop::GetZederInstanceForGroup(parameters.group_params_));
     switch (zeder_instance) {
     case Zeder::Flavour::IXTHEO:
-        marc_record->insertField("935", { { 'a', "ixzs" }, { '2', "LOK" } });
-        marc_record->insertField("935", { { 'a', "mteo" } });
+        marc_record->insertFieldAtEnd("935", { { 'a', "mteo" } });
+        marc_record->insertFieldAtEnd("935", { { 'a', "ixzs" }, { '2', "LOK" } });
         break;
     case Zeder::Flavour::KRIMDOK:
-        marc_record->insertField("935", { { 'a', "mkri" } });
+        marc_record->insertFieldAtEnd("935", { { 'a', "mkri" } });
         break;
     }
     marc_record->insertField("852", { { 'a', parameters.group_params_.isil_ } });
 
+    // Zotero sigil
+    marc_record->insertFieldAtEnd("935", { { 'a', "zota" }, { '2', "LOK" } });
+
     // Selective evaluation
     if (parameters.download_item_.journal_.selective_evaluation_)
-        marc_record->insertField("935", { { 'a', "NABZ" }, { '2', "LOK" } });
+        marc_record->insertFieldAtEnd("935", { { 'a', "NABZ" }, { '2', "LOK" } });
 
     // Book-keeping fields
     if (not metadata_record.url_.empty())

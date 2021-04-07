@@ -78,9 +78,9 @@ public:
 // Metadata parameters related to MARC that will be re-used in global as well as journal params later
 struct MarcMetadataParams {
     std::vector<std::string> fields_to_add_;
-    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> fields_to_remove_;
-    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> subfields_to_remove_;
-    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
+    std::map<std::string, std::shared_ptr<ThreadSafeRegexMatcher>> fields_to_remove_;
+    std::map<std::string, std::shared_ptr<ThreadSafeRegexMatcher>> subfields_to_remove_;
+    std::map<std::string, std::shared_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
 public:
     MarcMetadataParams() = default;
     MarcMetadataParams(const IniFile::Section &config_section);
@@ -191,6 +191,7 @@ struct GroupParams {
     std::string output_folder_;
     std::string author_swb_lookup_url_;
     std::string author_lobid_lookup_query_params_;
+    MarcMetadataParams marc_metadata_params_;
 public:
     GroupParams(const IniFile::Section &group_section);
     GroupParams(const GroupParams &rhs) = default;
@@ -203,10 +204,12 @@ private:
 
 
 struct LanguageParams {
+    enum Mode : unsigned { DEFAULT, FORCE_LANGUAGES, FORCE_DETECTION };
     std::set<std::string> expected_languages_;
     std::string source_text_fields_ = "title";
+    Mode mode_;
 public:
-    void reset() { expected_languages_.clear(); source_text_fields_ = "title"; }
+    void reset() { expected_languages_.clear(); source_text_fields_ = "title"; mode_ = DEFAULT; }
 };
 
 
@@ -267,7 +270,6 @@ struct JournalParams {
     MarcMetadataParams marc_metadata_params_;
     bool zeder_newly_synced_entry_;
     bool selective_evaluation_;
-    bool force_language_detection_;
 public:
     JournalParams(const GlobalParams &global_params);
     JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);

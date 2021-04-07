@@ -1,7 +1,7 @@
 /** \brief Utility for updating SQL schemata etc.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2019-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -70,7 +70,9 @@ bool FileNameCompare(const std::string &filename1, const std::string &filename2)
 }
 
 
-void LoadAndSortUpdateFilenames(const bool test, const std::string &directory_path, std::vector<std::string> * const update_filenames) {
+void LoadAndSortUpdateFilenames(const bool test, const std::string &directory_path,
+                                std::vector<std::string> * const update_filenames)
+{
     FileUtil::Directory directory(directory_path, "[^.]+\\.\\d+");
     for (const auto &entry : directory)
         update_filenames->emplace_back(entry.getName());
@@ -86,7 +88,9 @@ void LoadAndSortUpdateFilenames(const bool test, const std::string &directory_pa
 }
 
 
-void ApplyUpdate(DbConnection * const db_connection, const std::string &update_directory_path, const std::string &update_filename) {
+void ApplyUpdate(DbConnection * const db_connection, const std::string &update_directory_path,
+                 const std::string &update_filename)
+{
     std::string database;
     unsigned update_version;
     SplitIntoDatabaseAndVersion(update_filename, &database, &update_version);

@@ -6,7 +6,7 @@
 /*
  *  Copyright 2002-2009 Project iVia.
  *  Copyright 2002-2009 The Regents of The University of California.
- *  Copyright 2016-2019 Universitätsbibliothek Tübingen.
+ *  Copyright 2016-2021 Universitätsbibliothek Tübingen.
  *
  *  This file is part of the libiViaCore package.
  *
@@ -139,7 +139,7 @@ std::string extractDOI(const std::string &extract_doi_candidate);
 bool IsPossibleISSN(std::string issn_candidate);
 
 
-/** \brief Converts an ISSN to the XXXX-YYYY format.
+/** \brief Converts an ISSN to the XXXXYYYY format w/o hyphens.
  *  \return True if the input had a length of 8 or 9 and false o/w.
  */
 bool NormaliseISSN(const std::string &issn_candidate, std::string * const normalised_issn);
@@ -273,6 +273,14 @@ template<typename ContainerType, typename KeyType, typename ValueType> ValueType
         return default_value;
     }
 }
+
+
+/** \returns optional_first_name + " " + optional_last_name if both are non-empty,
+ *           optional_last_name or optional_first_name if one of the two is empty and
+ *           fallback, if both are empty.
+ */
+std::string GenerateAddress(const std::string &optional_first_name, const std::string &optional_last_name,
+                            const std::string &fallback);
 
 
 } // namespace MiscUtil
