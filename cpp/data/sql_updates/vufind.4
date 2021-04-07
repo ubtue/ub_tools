@@ -1,0 +1,3 @@
+ALTER TABLE vufind.ixtheo_id_result_sets DROP FOREIGN KEY ixtheo_id_result_sets_ibfk_1;
+ALTER TABLE vufind.ixtheo_id_result_sets CHANGE COLUMN id id BIGINT UNSIGNED NOT NULL;
+ALTER TABLE vufind.ixtheo_id_result_sets ADD CONSTRAINT `ixtheo_id_result_sets_ibfk_1` FOREIGN KEY (id) REFERENCES search(id) ON DELETE CASCADE;
