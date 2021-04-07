@@ -1,5 +1,7 @@
 #!/bin/bash
-set -o errexit -o nounset -o pipefail
+# We explicitly do NOT use -o nounset here, because $TUEFIND_FLAVOUR will not exist
+# on systems where only ub_tools is installed, e.g. for zotaut.
+set -o errexit -o pipefail
 
 cd /usr/local/ub_tools/cpp
 
