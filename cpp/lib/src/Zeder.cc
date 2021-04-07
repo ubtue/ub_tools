@@ -680,8 +680,7 @@ SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::st
         new FullDumpDownloader::Params(endpoint_url, entries_to_download, column_filter, filter_regexps));
 
     auto downloader(Zeder::FullDumpDownloader::Factory(FullDumpDownloader::Type::FULL_DUMP, std::move(downloader_params)));
-    if (not downloader->download(&entries_))
-        LOG_WARNING("couldn't download full dump for " + FLAVOUR_TO_STRING_MAP.at(flavour));
+    failed_to_connect_to_database_server_ = not downloader->download(&entries_);
 }
 
 
