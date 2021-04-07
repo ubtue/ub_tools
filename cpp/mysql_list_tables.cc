@@ -54,8 +54,9 @@ void ProcessTriggers(DbConnection * const db_connection, const std::string &data
     db_connection->queryOrDie("SHOW TRIGGERS FROM `" + database_name + "`");
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow())
-        std::cout << "CREATE TRIGGER `" << row["Trigger"] << "` ON `" << database_name << '.' << row["Table"]
-                  << "` " << row["Timing"] << ' ' << row["Event"] << ' ' << row["Statement"] << ";\n";
+        std::cout << "CREATE TRIGGER DEFINER `" << row.getValue("Definer") << "` `" << row["Trigger"]
+                  << "` ON `" << database_name << '.' << row["Table"] << "` " << row["Timing"] << ' '
+                  << row["Event"] << ' ' << row["Statement"] << ";\n";
 }
 
 

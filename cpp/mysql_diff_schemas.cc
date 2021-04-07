@@ -74,6 +74,8 @@ std::string ExtractNextBacktickQuotedText(const std::string::const_iterator &end
 
 void ExtractTriggerNameAndTable(const std::string &trigger, std::string * const name, std::string * const table) {
     auto cp(trigger.cbegin());
+    ExtractNextBacktickQuotedText(trigger.cend(), cp); // Skip over the definer.
+
     *name = ExtractNextBacktickQuotedText(trigger.cend(), cp);
     if (unlikely(name->empty()))
         LOG_ERROR("couldn't extract a trigger name from \"" + trigger + "\"!");
