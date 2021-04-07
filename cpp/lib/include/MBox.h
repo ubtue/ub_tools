@@ -2,7 +2,7 @@
  *  \brief  mbox processing support
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2020-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -21,6 +21,8 @@
 
 
 #include <string>
+#include <utility>
+#include <vector>
 #include <ctime>
 #include "File.h"
 
@@ -29,7 +31,26 @@ class MBox {
 public:
     class const_iterator; // Forward declaration;
 
+    /** Part of a multipart message. */
+    class BodyPart {
+        std::vector<std::pair<std::string, std::string>> mime_headers_;
+        std::string body_;
+    public:
+        BodyPart() = default;
+        BodyPart(const BodyPart &other) = default;
+        BodyPart(const std::vector<std::pair<std::string, std::string>> &mime_headers, const std::string &body)
+            : mime_headers_(mime_headers), body_(body) { }
+
+        /** \note The keys are all lowercase. */
+        inline const std::vector<std::pair<std::string, std::string>> &getMIMEHeaders() const { return mime_headers_; }
+
+        inline const std::string &getBody() const { return body_; }
+    };
+
     class Message {
+    public:
+        typedef std::vector<BodyPart>::const_iterator const_iterator;
+    private:
         friend class MBox;
         friend class MBox::const_iterator;
         time_t reception_time_; // local time
@@ -38,6 +59,7 @@ public:
         std::string subject_;
         int priority_;
         std::string message_body_;
+        std::vector<BodyPart> body_parts_;
     public:
         inline time_t getReceptionTime() const { return reception_time_; }
         inline const std::string &getOriginalHost() const { return original_host_; }
@@ -45,6 +67,14 @@ public:
         inline const std::string &getSubject() const { return subject_; }
         inline int getPriority() const { return priority_; }
         inline const std::string &getMessageBody() const { return message_body_; }
+        inline bool isMultipartMessage() const { return not body_parts_.empty(); }
+
+        // Iterate over the parts of a multipart message:
+        inline const_iterator begin() const { return body_parts_.cbegin(); }
+        inline const_iterator end() const { return body_parts_.cend(); }
+
+        /** \brief Returns a string representation of a Message header */
+        std::string headerToString() const;
 
         /** \brief Returns a string representation of a Message */
         std::string toString() const;
@@ -52,9 +82,10 @@ public:
         Message() = default;
         Message(const Message &rhs) = default;
         Message(const time_t reception_time, const std::string &original_host, const std::string &sender,
-                const std::string &subject, const int priority, const std::string &message_body)
+                const std::string &subject, const int priority, const std::string &message_body,
+                const std::vector<BodyPart> &body_parts)
             : reception_time_(reception_time), original_host_(original_host), sender_(sender), subject_(subject),
-              priority_(priority), message_body_(message_body) { }
+              priority_(priority), message_body_(message_body), body_parts_(body_parts) { }
 
         Message &swap(Message &other_message);
         inline bool empty() const {

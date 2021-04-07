@@ -60,7 +60,7 @@ using namespace ZoteroHarvester;
             "\tzeder_ids                       Comma-separated list of Zeder entry IDs to import/update.\n"
             "\t                                Special-case for updating: Use '*' to update all entries found in the config that belong to the Zeder flavour\n"
             "\tfields_to_update                Comma-separated list of the following fields to update: \n"
-            "\t                                \tONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSGN, LICENSE, SELECTIVE_EVALUATION.\n"
+            "\t                                \tNAME, ONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSGN, LICENSE, SELECTIVE_EVALUATION.\n"
             "\t                                Ignored when importing entries (all importable fields will be imported).\n"
             "\t                                If mode is IMPORT and zeder_ids is '*', new journals will only be added if UPLOAD_OPERATION is not NONE.\n\n");
 }
@@ -124,6 +124,7 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
         return;
 
     static const std::map<std::string, Config::JournalParams::IniKey> ALLOWED_INI_KEYS {
+        { "NAME",                  Config::JournalParams::NAME                 },
         { "ENTRY_POINT_URL",       Config::JournalParams::ENTRY_POINT_URL      },
         { "UPLOAD_OPERATION",      Config::JournalParams::UPLOAD_OPERATION     },
         { "ONLINE_PPN",            Config::JournalParams::ONLINE_PPN           },
@@ -458,6 +459,22 @@ unsigned UpdateZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
         LOG_INFO("checking Zeder entry " + std::to_string(zeder_id) + " (" + title + ") for updates...");
         bool at_least_one_field_updated(false);
         for (const auto field_to_update : fields_to_update) {
+            if (field_to_update == Config::JournalParams::IniKey::NAME) {
+                const auto old_title(existing_journal_section->getSectionName());
+                const auto new_title(ZederInterop::GetJournalParamsIniValueFromZederEntry(zeder_entry, zeder_flavour,
+                                     field_to_update));
+                if (new_title != old_title) {
+                    const std::string rename_message("old: \"" + old_title + "\" => new: \"" + new_title + "\"");
+                    if (harvester_config->sectionIsDefined(new_title))
+                        LOG_WARNING("cannot rename journal, section already exists! " + rename_message);
+                    else {
+                        LOG_INFO("renaming section: " + rename_message);
+                        existing_journal_section->setSectionName(new_title);
+                    }
+                }
+                continue;
+            }
+
             const auto ini_key_str(Config::JournalParams::GetIniKeyString(field_to_update));
             const auto ini_old_val_str(existing_journal_section->getString(ini_key_str, ""));
             auto ini_new_val_str(ZederInterop::GetJournalParamsIniValueFromZederEntry(zeder_entry, zeder_flavour,

@@ -1,0 +1,4 @@
+-- Delete old feed entries that are now missing from rss_aggregator_relbib.conf before
+-- migrating to the SQL table implementation.
+DELETE FROM rss_aggregator WHERE feed_url = 'https://killingthebuddha.com/category/ktblog/feed/';
+DELETE FROM rss_aggregator WHERE feed_url = 'https://religionnews.com/feed/';

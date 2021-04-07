@@ -6,13 +6,15 @@ import util
 import zjs_create_issues
 import zjs_tag_from_datenprobleme
 import zjs_tag_zotaut
+import zjs_tag_relbib
 
 
 def Main():
     github_api_util.ExportPersonalAuthenticationToken()
     zjs_create_issues.CreateNewZoteroJournalStatusIssues()
     zjs_tag_from_datenprobleme.TagZoteroJournalStatusFromDatenProbleme()
-    zjs_tag_zotaut.TagZoteroJournalStatusZotAutFromZeder()
+    zjs_tag_zotaut.TagZoteroJournalDeliveryStatusFromZeder()
+    zjs_tag_relbib.TagRelbibJournalsFromZoteroHarvesterConf()
     util.SendEmail("ZJS Update Journal Status", "Successfully updated zotero-journal-status")
 
 

@@ -8,7 +8,7 @@
 /*
  *  Copyright 2002-2008 Project iVia.
  *  Copyright 2002-2008 The Regents of The University of California.
- *  Copyright 2015-2019 Universitätsbibliothek Tübingen
+ *  Copyright 2015-2021 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -438,6 +438,38 @@ void IniFile::processInclude(const std::string &line) {
 }
 
 
+void IniFile::processInherit(const std::string &line, Section * const current_section) {
+    if (not StringUtil::StartsWith(line, "@inherit "))
+        throw std::runtime_error("in IniFile::processInherit: malformed @inherit statement on line "
+                                 + std::to_string(getCurrentLineNo()) + " in file \""
+                                 + getCurrentFile() + "\"!");
+
+    auto quoted_section_name(StringUtil::TrimWhite(line.substr(__builtin_strlen("@inherit "))));
+    if (quoted_section_name.length() < 3 or quoted_section_name.front() != '"' or quoted_section_name.back() != '"') {
+        throw std::runtime_error("in IniFile::processInherit: malformed @inherit statement on line "
+                                 + std::to_string(getCurrentLineNo()) + " in file \""
+                                 + getCurrentFile() + "\"! (2)");
+    }
+
+    try {
+        const auto section_name(StringUtil::CStyleUnescape(quoted_section_name.substr(1, quoted_section_name.length() - 2)));
+        const auto section(std::find_if(sections_.begin(), sections_.end(),
+                                        [&section_name](const Section &section){ return section.section_name_ == section_name; }));
+        if (unlikely(section == sections_.end())) {
+            throw std::runtime_error("in IniFile::processInherit: unknown section name \"" + section_name
+                                     + "\" in @inherit statement on line "+  std::to_string(getCurrentLineNo())
+                                     + " in file \"" + getCurrentFile() + "\"!");
+        }
+        for (const auto &entry: *section)
+            current_section->insert(entry.name_, entry.value_, entry.comment_);
+    } catch (...) {
+        throw std::runtime_error("in IniFile::processInherit: malformed @inherit statement on line "
+                                 + std::to_string(getCurrentLineNo()) + " in file \""
+                                 + getCurrentFile() + "\"! (3)");
+    }
+}
+
+
 namespace {
 
 
@@ -612,7 +644,11 @@ void IniFile::processFile(const std::string &external_filename) {
             processSectionHeader(line);
         else if (line.length() > 7 and line.substr(0, 7) == "include" and (line[7] == ' ' or line[7] == '\t'))
             processInclude(line);
-        else {// should be a new setting!
+        else if (StringUtil::StartsWith(line, "@inherit")) {
+            if (unlikely(sections_.empty()))
+                throw std::runtime_error("in IniFile::processFile: file \"" + filename + " @inherit in global section!");
+            processInherit(line, &(sections_.back()));
+        } else {// should be a new setting!
             if (sections_.empty())
                 sections_.emplace_back(Section(""));
             processSectionEntry(line, comment);

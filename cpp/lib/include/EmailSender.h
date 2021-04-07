@@ -70,7 +70,7 @@ unsigned short SendEmail(const std::string &sender, const std::vector<std::strin
                          const std::string &subject, const std::string &message_body,
                          const Priority priority = DO_NOT_SET_PRIORITY, const Format format = PLAIN_TEXT,
                          const std::string &reply_to = "", const std::vector<std::string> &attachments = {},
-                         const AttachmentType attachmen_type = AT_INVALID, const bool use_ssl = true,
+                         const AttachmentType attachment_type = AT_INVALID, const bool use_ssl = true,
                          const bool use_authentication = true);
 
 

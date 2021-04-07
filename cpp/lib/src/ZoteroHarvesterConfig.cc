@@ -232,8 +232,9 @@ GroupParams::GroupParams(const IniFile::Section &group_section) {
     output_folder_ = group_section.getString(GetIniKeyString(OUTPUT_FOLDER));
     author_swb_lookup_url_ = group_section.getString(GetIniKeyString(AUTHOR_SWB_LOOKUP_URL));
     author_lobid_lookup_query_params_ = group_section.getString(GetIniKeyString(AUTHOR_LOBID_LOOKUP_QUERY_PARAMS), "");
+    marc_metadata_params_ = MarcMetadataParams(group_section);
 
-    CheckIniSection(group_section, GroupParams::KEY_TO_STRING_MAP);
+    CheckIniSection(group_section, GroupParams::KEY_TO_STRING_MAP, { MarcMetadataParams::IsValidIniEntry });
 }
 
 
@@ -259,7 +260,6 @@ JournalParams::JournalParams(const GlobalParams &global_params) {
     update_window_ = 0;
     crawl_params_.max_crawl_depth_ = 1;
     selective_evaluation_ = false;
-    force_language_detection_ = false;
 }
 
 
@@ -339,7 +339,6 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     ssgn_ = journal_section.getString(GetIniKeyString(SSGN), "");
     license_ = journal_section.getString(GetIniKeyString(LICENSE), "");
     selective_evaluation_ = journal_section.getBool(GetIniKeyString(SELECTIVE_EVALUATION), false);
-    force_language_detection_ = journal_section.getBool(GetIniKeyString(FORCE_LANGUAGE_DETECTION), false);
 
     const auto review_regex(journal_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
     if (not review_regex.empty())
@@ -348,6 +347,10 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     const std::string expected_languages(journal_section.getString(GetIniKeyString(EXPECTED_LANGUAGES), ""));
     if (not ParseExpectedLanguages(expected_languages, &language_params_))
         LOG_ERROR("invalid setting for expected languages: \"" + expected_languages + "\"");
+
+    // for backwards compatibility:
+    if (journal_section.getBool(GetIniKeyString(FORCE_LANGUAGE_DETECTION), false) and language_params_.mode_ == LanguageParams::DEFAULT)
+        language_params_.mode_ = LanguageParams::FORCE_DETECTION;
 
     crawl_params_.max_crawl_depth_ = journal_section.getUnsigned(GetIniKeyString(CRAWL_MAX_DEPTH), 0);
     const auto extraction_regex(journal_section.getString(GetIniKeyString(CRAWL_EXTRACTION_REGEX), ""));
@@ -458,15 +461,23 @@ std::string GetNormalizedLanguage(const std::string &language) {
 
 
 bool ParseExpectedLanguages(const std::string &expected_languages_string, LanguageParams * const language_params) {
-    // Setting is optional, so empty value is allowed (use defaults)
+    // setting is optional, so empty value is allowed (use defaults)
     language_params->reset();
     if (expected_languages_string.empty())
         return true;
 
-    // force? (deprecated, treat as invalid)
+    // detect mode (* is old/deprecated)
     std::string expected_languages(expected_languages_string);
     if (expected_languages[0] == '*')
         return false;
+    else if (expected_languages[0] == '!' or expected_languages[0] == '?') {
+        if (expected_languages[0] == '!')
+            language_params->mode_ = Config::LanguageParams::FORCE_LANGUAGES;
+        else if (expected_languages[0] == '?')
+            language_params->mode_ = Config::LanguageParams::FORCE_DETECTION;
+
+        expected_languages = expected_languages.substr(1);
+    }
 
     // source text fields
     const auto field_separator_pos(expected_languages.find(':'));

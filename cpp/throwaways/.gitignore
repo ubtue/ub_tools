@@ -1,2 +1,5 @@
+check_archive_org_isbn_presence
+extract_both_700_and_71X
+find_reference_subfields
 generate_year_correction_list
 retro_estimate

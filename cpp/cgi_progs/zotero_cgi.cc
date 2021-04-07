@@ -813,7 +813,7 @@ void ProcessShowLogsAction() {
 } // unnamed namespace
 
 
-const std::string SKIP_ONLINE_FIRST_TRUE_DIRECTIVE("\rskip_online_first_articles_unconditionally=true");
+const std::string SKIP_ONLINE_FIRST_TRUE_DIRECTIVE("skip_online_first_articles_unconditionally=true");
 
 
 int Main(int argc, char *argv[]) {
@@ -832,7 +832,7 @@ int Main(int argc, char *argv[]) {
     const std::string include_online_first(GetCGIParameterOrDefault(cgi_args, "include_online_first", ""));
     std::string config_overrides(GetCGIParameterOrDefault(cgi_args, "config_overrides"));
     if (include_online_first.empty())
-         config_overrides.append(SKIP_ONLINE_FIRST_TRUE_DIRECTIVE);
+         config_overrides.append((config_overrides.empty() ? "" : "\n") + SKIP_ONLINE_FIRST_TRUE_DIRECTIVE);
     const std::string url(GetCGIParameterOrDefault(cgi_args, "url"));
 
     if (action == "download")
