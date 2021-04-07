@@ -479,13 +479,17 @@ bool FullDumpDownloader::downloadData(const std::string &endpoint_url, std::shar
     case 4:
     case 5:
     case 9:
-        LOG_WARNING("Couldn't download full from endpoint '" + endpoint_url + "'! Error Code: " + std::to_string(downloader.getResponseCode()));
+        LOG_WARNING("Couldn't download full from endpoint '" + endpoint_url + "'! Error Code: "
+                    + std::to_string(downloader.getResponseCode()));
         return false;
     }
 
     JSON::Parser json_parser(downloader.getMessageBody());
-    if (not json_parser.parse(json_data))
-        LOG_ERROR("Couldn't parse JSON response from endpoint '" + endpoint_url + "'! Error: " + json_parser.getErrorMessage());
+    if (not json_parser.parse(json_data)) {
+        LOG_WARNING("Couldn't parse JSON response from endpoint '" + endpoint_url + "'! Error: "
+                    + json_parser.getErrorMessage());
+        return false;
+    }
 
     return true;
 }
@@ -676,8 +680,7 @@ SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::st
         new FullDumpDownloader::Params(endpoint_url, entries_to_download, column_filter, filter_regexps));
 
     auto downloader(Zeder::FullDumpDownloader::Factory(FullDumpDownloader::Type::FULL_DUMP, std::move(downloader_params)));
-    if (not downloader->download(&entries_))
-        LOG_ERROR("couldn't download full dump for " + FLAVOUR_TO_STRING_MAP.at(flavour));
+    failed_to_connect_to_database_server_ = not downloader->download(&entries_);
 }
 
 

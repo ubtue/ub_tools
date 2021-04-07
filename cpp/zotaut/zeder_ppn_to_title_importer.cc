@@ -1,7 +1,7 @@
 /** \file   zeder_ppn_to_title_importer.cc
  *  \brief  Imports data from Zeder and writes a map file mapping online and print PPN's to journal titles.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
- *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -75,6 +75,8 @@ int Main(int argc, char */*argv*/[]) {
         ::Usage("[--min-log-level=min_verbosity]");
 
     const Zeder::SimpleZeder zeder(Zeder::IXTHEO, { "eppn", "pppn", "tit" });
+    if (not zeder)
+        LOG_ERROR("we can't connect to the Zeder MySQL database!");
     if (unlikely(zeder.empty()))
         LOG_ERROR("found no Zeder entries matching any of our requested columns!");
 
