@@ -926,6 +926,9 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     if (not FileUtil::Exists(HMAC_FILE_PATH))
         FileUtil::WriteStringOrDie(HMAC_FILE_PATH, StringUtil::GenerateRandom(/*length=*/32, /*alphabet=*/"abcdefghijklmnopqrstuvwxyz0123456789"));
 
+    Echo("Building CSS");
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { VUFIND_DIRECTORY + "/util/cssBuilder.php" });
+
     Echo(vufind_system_type_string + " configuration completed!");
 }
 
@@ -1114,6 +1117,6 @@ int Main(int argc, char **argv) {
         }
     }
 
-    LOG_INFO("installation complete.");
+    Echo("installation complete.");
     return EXIT_SUCCESS;
 }
