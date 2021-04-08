@@ -172,6 +172,65 @@ std::string ThreadSafeRegexMatcher::replaceAll(const std::string &subject, const
 }
 
 
+static std::string InsertReplacement(const ThreadSafeRegexMatcher::MatchResult &result, const std::string &replacement_pattern) {
+    std::string replacement_text;
+
+    bool backslash_seen(false);
+    for (const char ch : replacement_pattern) {
+        if (backslash_seen) {
+            if (unlikely(ch == '\\'))
+                replacement_text += '\\';
+            else {
+                if (unlikely(not StringUtil::IsDigit(ch)))
+                    LOG_ERROR("not a digit nor a backslash found in the replacement pattern \"" + replacement_pattern + "\"!");
+                const unsigned group_no(ch - '0'); // Only works with ASCII!
+                replacement_text += result[group_no];
+            }
+
+            backslash_seen = false;
+        } else if (ch == '\\')
+            backslash_seen = true;
+        else
+            replacement_text += ch;
+    }
+
+    return replacement_text;
+}
+
+
+std::string ThreadSafeRegexMatcher::replaceWithBackreferences(const std::string &subject, const std::string &replacement, const bool global) {
+    if (not match(subject))
+        return subject;
+
+    std::string replaced_string;
+    // the matches need to be sequentially sorted from left to right
+    size_t subject_start_offset(0), match_start_offset(0), match_end_offset(0);
+    for (MatchResult result = match(subject, subject_start_offset, &match_start_offset, &match_end_offset);
+         subject_start_offset < subject.length() and result;
+         result = match(subject, subject_start_offset, &match_start_offset, &match_end_offset))
+    {
+        if (subject_start_offset == match_start_offset and subject_start_offset == match_end_offset) {
+            replaced_string += subject[subject_start_offset++];
+            continue;
+        }
+
+        replaced_string += subject.substr(subject_start_offset, match_start_offset - subject_start_offset);
+        replaced_string += InsertReplacement(result, replacement);
+        subject_start_offset = match_end_offset;
+        if (not global)
+            break;
+    }
+
+    while (subject_start_offset < subject.length())
+        replaced_string += subject[subject_start_offset++];
+
+    return replaced_string;
+}
+
+
+
+
+
 bool RegexMatcher::utf8_configured_;
 
 
