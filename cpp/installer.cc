@@ -335,11 +335,7 @@ void CreateUbToolsDatabase(const OSSystemType os_system_type) {
     const std::string sql_username(section->getString("sql_username"));
     const std::string sql_password(section->getString("sql_password"));
 
-    if (not DbConnection::MySQLUserExists(sql_username, root_username, root_password)) {
-        Echo("creating ub_tools MySQL user");
-        DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
-    }
-
+    DbConnection::MySQLCreateUserIfNotExists(sql_username, sql_password, root_username, root_password);
     if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
         Echo("creating ub_tools MySQL database");
         DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
@@ -371,10 +367,10 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, const OSSy
     const std::string sql_username("vufind");
     const std::string sql_password("vufind");
 
+    DbConnection::MySQLCreateUserIfNotExists(sql_username, sql_password, root_username, root_password);
     if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
         Echo("creating " + sql_database + " database");
         DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
-        DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
         DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
         DbConnection::MySQLImportFile(VUFIND_DIRECTORY + "/module/VuFind/sql/mysql.sql", sql_database, root_username, root_password);
         MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/TueFind/sql/mysql.sql", sql_database, root_username, root_password);
@@ -399,10 +395,10 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, const OSSy
         const std::string ixtheo_database(translations_ini_section->getString("sql_database"));
         const std::string ixtheo_username(translations_ini_section->getString("sql_username"));
         const std::string ixtheo_password(translations_ini_section->getString("sql_password"));
+        DbConnection::MySQLCreateUserIfNotExists(ixtheo_username, ixtheo_password, root_username, root_password);
         if (not DbConnection::MySQLDatabaseExists(ixtheo_database, root_username, root_password)) {
             Echo("creating " + ixtheo_database + " database");
             DbConnection::MySQLCreateDatabase(ixtheo_database, root_username, root_password);
-            DbConnection::MySQLCreateUser(ixtheo_username, ixtheo_password, root_username, root_password);
             DbConnection::MySQLGrantAllPrivileges(ixtheo_database, ixtheo_username, root_username, root_password);
             DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ixtheo.sql", ixtheo_database, root_username, root_password);
         }
