@@ -151,6 +151,7 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
             else if (*ch == '\\')
                 escaped = true;
         } else if ((ch == query.cbegin() or *(ch - 1) == '\n') and *ch == '#') {
+            ++ch; // Skip over the hash mark.
             std::string directive;
             while (ch != query.cend() and *ch != '\n')
                 directive += *ch++;
@@ -169,6 +170,7 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
                 if (not statement.empty())
                     statements.emplace_back(statement);
                 statement.clear();
+                do_not_split_on_semicolons = false;
                 continue;
             } else
                 LOG_ERROR("unknown directive #" + directive + "!");
