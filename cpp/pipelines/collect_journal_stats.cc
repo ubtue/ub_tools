@@ -59,7 +59,7 @@ std::unordered_map<std::string, ZederIdAndPPNType> GetPPNsToZederIdsAndTypesMap(
 
     const Zeder::SimpleZeder zeder(system_type == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK, { "eppn", "pppn" });
     if (not zeder) {
-        EmailSender::SimplerSendEmail("no-reply", { system_type + "team@ub.uni-tuebingen.de" },
+        EmailSender::SimplerSendEmail("no-reply@ub.uni-tuebingen.de", { system_type + "-team@ub.uni-tuebingen.de" },
                                       "Zeder Download Problems in collect_journal_stats",
                                       "We can't contact the Zeder MySQL server!",
                                       EmailSender::VERY_HIGH);
