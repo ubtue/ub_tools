@@ -236,18 +236,25 @@ private:
     void init(const std::string &database_name, const std::string &user, const std::string &passwd,
               const std::string &host, const unsigned port, const Charset charset, const TimeZone time_zone);
 
-    void init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port, const Charset charset,
-              const TimeZone time_zone);
+    void init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port,
+              const Charset charset, const TimeZone time_zone);
 public:
+    /** \brief Splits "query" into individual statements.
+     *
+     * Splits "query" on semicolons unless we're in a section bounded by "#do_not_split_on_semicolons"
+     * and "#end_do_not_split_on_semicolons".  These two directives have to start at the beginning of a line, i.e.
+     * either at the start of "query" or immediately after a newline.
+     */
     static std::vector<std::string> SplitMySQLStatements(const std::string &query);
 
     static std::string CharsetToString(const Charset charset);
 
     static std::string CollationToString(const Collation collation);
 
-    static void MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
-                                    const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
-                                    const Charset charset = UTF8MB4, const Collation collation = UTF8MB4_BIN)
+    static void MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user,
+                                    const std::string &admin_passwd, const std::string &host = "localhost",
+                                    const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4,
+                                    const Collation collation = UTF8MB4_BIN)
     {
         DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
         db_connection.mySQLCreateDatabase(database_name, charset, collation);
