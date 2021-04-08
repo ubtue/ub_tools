@@ -177,6 +177,8 @@ MarcMetadataParams::MarcMetadataParams(const IniFile::Section &config_section) {
                 LOG_ERROR("invalid rewrite field name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
 
             std::string replace_term(entry.value_);
+            if (replace_term.find(" ||| ") == std::string::npos)
+                 LOG_ERROR("invalid rewrite expression '" + replace_term + "'");
             rewrite_filters_.insert(std::make_pair(field_name,
                                     std::make_pair(std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(
                                                                    StringUtil::ExtractHead(&replace_term, " ||| "))),
