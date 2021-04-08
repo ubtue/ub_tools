@@ -323,9 +323,7 @@ void GetMaxTableVersions(std::map<std::string, unsigned> * const table_name_to_v
 }
 
 
-void CreateUbToolsDatabase(const OSSystemType os_system_type, DbConnection * const db_connection_root) {
-    AssureMysqlServerIsRunning(os_system_type);
-
+void CreateUbToolsDatabase(DbConnection * const db_connection_root) {
     IniFile ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
     const auto section(ini_file.getSection("Database"));
     const std::string sql_database(section->getString("sql_database"));
@@ -354,9 +352,7 @@ void CreateUbToolsDatabase(const OSSystemType os_system_type, DbConnection * con
 }
 
 
-void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, const OSSystemType os_system_type, DbConnection * const db_connection_root) {
-    AssureMysqlServerIsRunning(os_system_type);
-
+void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnection * const db_connection_root) {
     const std::string sql_database("vufind");
     const std::string sql_username("vufind");
     const std::string sql_password("vufind");
@@ -573,7 +569,7 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type, 
     else
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("make"), { "--jobs=4" });
 
-    CreateUbToolsDatabase(os_system_type, db_connection_root);
+    CreateUbToolsDatabase(db_connection_root);
     GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
     FileUtil::MakeDirectoryOrDie("/usr/local/run");
     RegisterSystemUpdateVersion();
@@ -1087,6 +1083,7 @@ int Main(int argc, char **argv) {
 
 
     // Init root DB connection for later re-use
+    AssureMysqlServerIsRunning(os_system_type);
     DbConnection db_connection_root("mysql", "root", "");
     // Needed so ub_tools user will be able to execute updates later, including triggers and stores procedures
     db_connection_root.queryOrDie("SET GLOBAL log_bin_trust_function_creators = 1");
@@ -1106,7 +1103,7 @@ int Main(int argc, char **argv) {
     if (installation_type == FULLTEXT_BACKEND)
         ConfigureFullTextBackend(production, not omit_cronjobs);
     else if (installation_type == VUFIND) {
-        CreateVuFindDatabases(vufind_system_type, os_system_type, &db_connection_root);
+        CreateVuFindDatabases(vufind_system_type, &db_connection_root);
 
         if (SELinuxUtil::IsEnabled()) {
             // allow httpd/php to connect to solr + mysql
