@@ -1,7 +1,7 @@
 /** \file   generate_subscription_packets.cc
  *  \brief  Imports data from Zeder and writes a subscription packets defintion file.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
- *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2020-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -157,9 +157,12 @@ int Main(int argc, char *argv[]) {
     const IniFile packet_definitions_ini_file(argv[1]);
     const auto zeder_instance(packet_definitions_ini_file.getString("", "zeder_instance"));
     if (zeder_instance != "ixtheo" and zeder_instance != "relbib")
-        LOG_ERROR("zeder_instance in \"" + packet_definitions_ini_file.getFilename() + "\" must be either \"ixtheo\" or \"relbib\"!");
+        LOG_ERROR("zeder_instance in \"" + packet_definitions_ini_file.getFilename()
+                  + "\" must be either \"ixtheo\" or \"relbib\"!");
 
     const Zeder::SimpleZeder zeder(zeder_instance == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK);
+    if (not zeder)
+        LOG_ERROR("can't connect to the Zeder MySQL server!");
     if (unlikely(zeder.empty()))
         LOG_ERROR("found no Zeder entries matching any of our requested columns!"
                   " (This *should* not happen as we included the column ID!)");

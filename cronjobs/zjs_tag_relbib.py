@@ -1,7 +1,5 @@
 #!/bin/python3
 # -*- coding: utf-8 -*-
-import configparser
-import json
 import github_api_util
 import github_ubtue_util
 import zotero_harvester_util
