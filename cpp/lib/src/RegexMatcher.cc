@@ -228,9 +228,6 @@ std::string ThreadSafeRegexMatcher::replaceWithBackreferences(const std::string 
 }
 
 
-
-
-
 bool RegexMatcher::utf8_configured_;
 
 

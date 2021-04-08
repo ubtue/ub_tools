@@ -67,7 +67,6 @@ struct ZoteroMetadataParams {
     std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> fields_to_suppress_;
     std::map<std::string, std::string> fields_to_override_;
     std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
-//    std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> rewrite_filters_;
     std::map<std::string, std::pair<std::unique_ptr<ThreadSafeRegexMatcher>, std::string>> rewrite_filters_;
 public:
     ZoteroMetadataParams() = default;
