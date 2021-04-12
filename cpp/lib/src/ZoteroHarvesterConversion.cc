@@ -879,12 +879,9 @@ void RemoveCustomMarcFieldsForParams(MARC::Record * const marc_record, const Con
     std::vector<MARC::Record::iterator> matched_fields;
     for (const auto &filter : marc_metadata_params.fields_to_remove_) {
         const auto &tag_and_subfield_code(filter.first);
-        GetMatchedMARCFields(marc_record, filter.first, *filter.second.get(), &matched_fields);
-
-        for (const auto &matched_field : matched_fields) {
-            marc_record->erase(matched_field);
+        if (marc_record->deleteFieldWithSubfieldCodeMatching(tag_and_subfield_code.substr(0,3),
+                                                             tag_and_subfield_code[3], *filter.second.get()))
             LOG_DEBUG("erased field '" + tag_and_subfield_code + "' due to removal filter '" + filter.second->getPattern() + "'");
-        }
     }
 }
 
