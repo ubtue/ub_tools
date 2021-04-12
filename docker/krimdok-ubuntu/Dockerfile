@@ -39,7 +39,8 @@ RUN . /etc/profile.d/vufind.sh \
 EXPOSE 80
 EXPOSE 443
 RUN rm /etc/apache2/sites-enabled/000-default.conf
-ADD apache2/*.conf /etc/apache2/sites-enabled/
+ADD apache2/*.conf /etc/apache2/sites-available/
+RUN ln -s /etc/apache2/sites-available/vufind-vhosts.conf /etc/apache2/sites-enabled/vufind-vhosts.conf
 ADD apache2/*.pem /etc/ssl/certs/
 
 # start services when container is run
