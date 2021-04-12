@@ -916,6 +916,36 @@ void RemoveCustomMarcSubfields(MARC::Record * const marc_record, const Conversio
 }
 
 
+void RewriteMarcFieldsForParams(MARC::Record * const marc_record, const Config::MarcMetadataParams &marc_metadata_params) {
+    std::vector<MARC::Record::iterator> matched_fields;
+    for (const auto &filter : marc_metadata_params.rewrite_filters_) {
+        const auto &tag_and_subfield_code(filter.first);
+        auto &matcher(*filter.second.first.get());
+        GetMatchedMARCFields(marc_record, filter.first, matcher, &matched_fields);
+
+        for (const auto &matched_field : matched_fields) {
+            char subfield_code(tag_and_subfield_code[3]);
+            if (matched_field->hasSubfield(subfield_code)) {
+                const std::string old_subfield_value(matched_field->getFirstSubfieldWithCode(subfield_code));
+                const std::string replacement(filter.second.second);
+                const std::string new_subfield_value(matcher.replaceWithBackreferences(old_subfield_value, replacement));
+                matched_field->insertOrReplaceSubfield(subfield_code, new_subfield_value);
+                LOG_DEBUG("Rewrote '" + tag_and_subfield_code + "' with content '" + old_subfield_value +
+                          "' due to filter '" + matcher.getPattern() + "', replacement string '" + replacement
+                          + "' and result '" + new_subfield_value + "'");
+            }
+        }
+    }
+}
+
+
+
+void RewriteMarcFields(MARC::Record * const marc_record, const ConversionParams &parameters) {
+    RewriteMarcFieldsForParams(marc_record, parameters.global_params_.marc_metadata_params_);
+    RewriteMarcFieldsForParams(marc_record, parameters.download_item_.journal_.marc_metadata_params_);
+}
+
+
 // Zotero values see https://raw.githubusercontent.com/zotero/zotero/master/test/tests/data/allTypesAndFields.js
 // MARC21 values see https://www.loc.gov/marc/relators/relaterm.html
 const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP {
@@ -1201,6 +1231,9 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
 
     // Remove subfields from specific field
     RemoveCustomMarcSubfields(marc_record, parameters);
+
+    // Rewrite fields
+    RewriteMarcFields(marc_record, parameters);
 
     // Has to be generated in the very end as it contains the hash of the record
     *marc_record_hash = CalculateMarcRecordHash(*marc_record);
