@@ -132,7 +132,7 @@ void CleanUpZombies(const unsigned no_of_zombies_to_collect,
         if (exit_code != 0) {
             const auto process_id_and_record_start(process_id_to_record_start_map->find(zombie_pid));
             if (process_id_and_record_start != process_id_to_record_start_map->end()) {
-                LOG_WARNING("Child process for PID "+ std::to_string(zombie_pid) + " failed: Writing our record anyway");
+                LOG_WARNING("Child process for PID "+ std::to_string(zombie_pid) + " failed: Writing out record anyway");
                 if (unlikely(not marc_reader->seek(process_id_and_record_start->second)))
                     LOG_ERROR("seek failed!");
                 const MARC::Record record = marc_reader->read();
