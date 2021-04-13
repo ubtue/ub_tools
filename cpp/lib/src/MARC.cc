@@ -867,16 +867,17 @@ bool Record::deleteFieldWithSubfieldCodeMatching(const Tag &tag, const char subf
     bool matched(false);
     fields_.erase(std::remove_if(fields_.begin(), fields_.end(),
                   [&](const Field &field) -> bool
-                  { if ((field.getTag() != tag) or not field.hasSubfield(subfield_code))
-                        return false;
-                    const auto subfield_values(this->getSubfieldValues(tag, subfield_code));
-                    for (const auto &subfield_value : subfield_values) {
-                         if (matcher.match(subfield_value)) {
-                             matched = true;
-                             return true;
-                         }
-                    }
-                    return false;
+                  {
+                      if ((field.getTag() != tag) or not field.hasSubfield(subfield_code))
+                          return false;
+                      const auto subfield_values(this->getSubfieldValues(tag, subfield_code));
+                      for (const auto &subfield_value : subfield_values) {
+                           if (matcher.match(subfield_value)) {
+                               matched = true;
+                               return true;
+                           }
+                      }
+                      return false;
                   }),
                   fields_.end());
     return matched;
