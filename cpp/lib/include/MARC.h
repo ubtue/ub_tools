@@ -858,6 +858,8 @@ public:
      */
     iterator erase(const Tag &tag, const bool first_occurrence_only = false);
 
+    bool deleteFieldWithSubfieldCodeMatching(const Tag &tag, const char subfield_code, const ThreadSafeRegexMatcher &matcher);
+
     /** \return True if field with tag "tag" exists. */
     inline bool hasTag(const Tag &tag) const { return findTag(tag) != fields_.cend(); }
 

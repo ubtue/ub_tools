@@ -323,74 +323,63 @@ void GetMaxTableVersions(std::map<std::string, unsigned> * const table_name_to_v
 }
 
 
-void CreateUbToolsDatabase(const OSSystemType os_system_type) {
-    AssureMysqlServerIsRunning(os_system_type);
-
-    const std::string root_username("root");
-    const std::string root_password("");
-
+void CreateUbToolsDatabase(DbConnection * const db_connection_root) {
     IniFile ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
     const auto section(ini_file.getSection("Database"));
     const std::string sql_database(section->getString("sql_database"));
     const std::string sql_username(section->getString("sql_username"));
     const std::string sql_password(section->getString("sql_password"));
 
-    if (not DbConnection::MySQLUserExists(sql_username, root_username, root_password)) {
-        Echo("creating ub_tools MySQL user");
-        DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
-    }
-
-    if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
+    db_connection_root->mySQLCreateUserIfNotExists(sql_username, sql_password);
+    if (not db_connection_root->mySQLDatabaseExists(sql_database)) {
         Echo("creating ub_tools MySQL database");
-        DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
-        DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
-        DbConnection::MySQLGrantAllPrivileges(sql_database + "_tmp", sql_username, root_username, root_password);
-        DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, root_username, root_password);
+        db_connection_root->mySQLCreateDatabase(sql_database);
+        db_connection_root->mySQLGrantAllPrivileges(sql_database, sql_username);
+        db_connection_root->mySQLGrantAllPrivileges(sql_database + "_tmp", sql_username);
+        DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, sql_username, sql_password);
     }
 
     // Populate our database versions table to reflect the patch level for each database for which patches already exist.
     // This assumes that we have been religiously updating our database creation statements for each patch that we created!
     std::map<std::string, unsigned> table_name_to_version_map;
     GetMaxTableVersions(&table_name_to_version_map);
-    DbConnection connection;
+    DbConnection db_connection;
     for (const auto &table_name_and_version : table_name_to_version_map) {
         const std::string replace_statement("REPLACE INTO ub_tools.database_versions SET database_name='" + table_name_and_version.first
                                            +"', version=" + StringUtil::ToString(table_name_and_version.second));
-        connection.queryOrDie(replace_statement);
+        db_connection.queryOrDie(replace_statement);
     }
 }
 
 
-void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, const OSSystemType os_system_type) {
-    AssureMysqlServerIsRunning(os_system_type);
-
-    const std::string root_username("root");
-    const std::string root_password("");
-
+void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnection * const db_connection_root) {
     const std::string sql_database("vufind");
     const std::string sql_username("vufind");
     const std::string sql_password("vufind");
 
-    if (not DbConnection::MySQLDatabaseExists(sql_database, root_username, root_password)) {
+    db_connection_root->mySQLCreateUserIfNotExists(sql_username, sql_password);
+    if (not db_connection_root->mySQLDatabaseExists(sql_database)) {
         Echo("creating " + sql_database + " database");
-        DbConnection::MySQLCreateDatabase(sql_database, root_username, root_password);
-        DbConnection::MySQLCreateUser(sql_username, sql_password, root_username, root_password);
-        DbConnection::MySQLGrantAllPrivileges(sql_database, sql_username, root_username, root_password);
-        DbConnection::MySQLImportFile(VUFIND_DIRECTORY + "/module/VuFind/sql/mysql.sql", sql_database, root_username, root_password);
-        MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/TueFind/sql/mysql.sql", sql_database, root_username, root_password);
-        switch(vufind_system_type) {
-        case IXTHEO:
-            MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/IxTheo/sql/mysql.sql", sql_database, root_username, root_password);
-            break;
-        case KRIMDOK:
-            MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", sql_database, root_username, root_password);
-            break;
-        }
+        db_connection_root->mySQLCreateDatabase(sql_database);
+        db_connection_root->mySQLGrantAllPrivileges(sql_database, sql_username);
 
         IniFile ub_tools_ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
         const auto ub_tools_ini_section(ub_tools_ini_file.getSection("Database"));
         const std::string ub_tools_username(ub_tools_ini_section->getString("sql_username"));
-        DbConnection::MySQLGrantAllPrivileges(sql_database, ub_tools_username, root_username, root_password);
+        db_connection_root->mySQLGrantAllPrivileges(sql_database, ub_tools_username);
+
+        DbConnection::MySQLImportFile(VUFIND_DIRECTORY + "/module/VuFind/sql/mysql.sql", sql_database, sql_username, sql_password);
+        MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/TueFind/sql/mysql.sql", sql_database, sql_username, sql_password);
+        switch(vufind_system_type) {
+        case IXTHEO:
+            MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/IxTheo/sql/mysql.sql", sql_database, sql_username, sql_password);
+            break;
+        case KRIMDOK:
+            MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", sql_database, sql_username, sql_password);
+            break;
+        }
+
+
     }
 
     if (vufind_system_type == IXTHEO) {
@@ -399,12 +388,12 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, const OSSy
         const std::string ixtheo_database(translations_ini_section->getString("sql_database"));
         const std::string ixtheo_username(translations_ini_section->getString("sql_username"));
         const std::string ixtheo_password(translations_ini_section->getString("sql_password"));
-        if (not DbConnection::MySQLDatabaseExists(ixtheo_database, root_username, root_password)) {
+        db_connection_root->mySQLCreateUserIfNotExists(ixtheo_username, ixtheo_password);
+        if (not db_connection_root->mySQLDatabaseExists(ixtheo_database)) {
             Echo("creating " + ixtheo_database + " database");
-            DbConnection::MySQLCreateDatabase(ixtheo_database, root_username, root_password);
-            DbConnection::MySQLCreateUser(ixtheo_username, ixtheo_password, root_username, root_password);
-            DbConnection::MySQLGrantAllPrivileges(ixtheo_database, ixtheo_username, root_username, root_password);
-            DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ixtheo.sql", ixtheo_database, root_username, root_password);
+            db_connection_root->mySQLCreateDatabase(ixtheo_database);
+            db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, ixtheo_username);
+            DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ixtheo.sql", ixtheo_database, ixtheo_username, ixtheo_password);
         }
     }
 }
@@ -530,7 +519,7 @@ void SetupSudo() {
 }
 
 
-void InstallUBTools(const bool make_install, const OSSystemType os_system_type) {
+void InstallUBTools(const bool make_install, const OSSystemType os_system_type, DbConnection * const db_connection_root) {
     // First install iViaCore-mkdep...
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY + "/cpp/lib/mkdep");
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("make"), { "--jobs=4", "install" });
@@ -580,7 +569,7 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type) 
     else
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("make"), { "--jobs=4" });
 
-    CreateUbToolsDatabase(os_system_type);
+    CreateUbToolsDatabase(db_connection_root);
     GitActivateCustomHooks(UB_TOOLS_DIRECTORY);
     FileUtil::MakeDirectoryOrDie("/usr/local/run");
     RegisterSystemUpdateVersion();
@@ -933,6 +922,9 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     if (not FileUtil::Exists(HMAC_FILE_PATH))
         FileUtil::WriteStringOrDie(HMAC_FILE_PATH, StringUtil::GenerateRandom(/*length=*/32, /*alphabet=*/"abcdefghijklmnopqrstuvwxyz0123456789"));
 
+    Echo("Building CSS");
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { VUFIND_DIRECTORY + "/util/cssBuilder.php" });
+
     Echo(vufind_system_type_string + " configuration completed!");
 }
 
@@ -1089,6 +1081,13 @@ int Main(int argc, char **argv) {
 
     MountDeptDriveAndInstallSSHKeysOrDie(vufind_system_type);
 
+
+    // Init root DB connection for later re-use
+    AssureMysqlServerIsRunning(os_system_type);
+    DbConnection db_connection_root("mysql", "root", "");
+    // Needed so ub_tools user will be able to execute updates later, including triggers and stores procedures
+    db_connection_root.queryOrDie("SET GLOBAL log_bin_trust_function_creators = 1");
+
     if (installation_type == VUFIND) {
         FileUtil::MakeDirectoryOrDie("/mnt/zram");
         DownloadVuFind();
@@ -1100,13 +1099,13 @@ int Main(int argc, char **argv) {
         #   pragma GCC diagnostic error "-Wmaybe-uninitialized"
         #endif
     }
-    InstallUBTools(/* make_install = */ true, os_system_type);
+    InstallUBTools(/* make_install = */ true, os_system_type, &db_connection_root);
     if (installation_type == FULLTEXT_BACKEND)
         ConfigureFullTextBackend(production, not omit_cronjobs);
     else if (installation_type == VUFIND) {
-        CreateVuFindDatabases(vufind_system_type, os_system_type);
+        CreateVuFindDatabases(vufind_system_type, &db_connection_root);
 
-        if (SystemdUtil::IsAvailable()) {
+        if (SELinuxUtil::IsEnabled()) {
             // allow httpd/php to connect to solr + mysql
             SELinuxUtil::Boolean::Set("httpd_can_network_connect", true);
             SELinuxUtil::Boolean::Set("httpd_can_network_connect_db", true);
@@ -1115,5 +1114,6 @@ int Main(int argc, char **argv) {
         }
     }
 
+    Echo("installation complete.");
     return EXIT_SUCCESS;
 }
