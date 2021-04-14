@@ -69,6 +69,24 @@ inline bool IsBundle(const std::string &serial_control_number) {
 }
 
 
+size_t GetBundleSize(const IniFile &bundles_config, const std::string &bundle_name) {
+    static std::map<std::string, size_t> bundle_names_to_sizes_map;
+    const auto bundle_name_and_size(bundle_names_to_sizes_map.find(bundle_name));
+    if (bundle_name_and_size != bundle_names_to_sizes_map.cend())
+        return bundle_name_and_size->second;
+
+    const std::string bundle_ppns_string(bundles_config.getString(bundle_name, "ppns", ""));
+    if (unlikely(bundle_ppns_string.empty()))
+        LOG_ERROR("bundle \"" + bundle_name + "\" not found in \"" + bundles_config.getFilename() + "\"!");
+
+    std::vector<std::string> bundle_ppns;
+    StringUtil::SplitThenTrim(bundle_ppns_string, "," , " \t", &bundle_ppns);
+    bundle_names_to_sizes_map[bundle_name] = bundle_ppns.size();
+
+    return bundle_ppns.size();
+}
+
+
 void CollectStats(DbConnection * const db_connection, const std::string &user_type, Stats * const stats) {
     db_connection->queryOrDie("SELECT DISTINCT user_id FROM ixtheo_journal_subscriptions WHERE user_id IN (SELECT id FROM "
                               "ixtheo_user WHERE ixtheo_user.user_type = '" + user_type  + "')");
@@ -89,11 +107,7 @@ void CollectStats(DbConnection * const db_connection, const std::string &user_ty
                 journal_control_number_or_bundle_name_row["journal_control_number_or_bundle_name"]);
             if (IsBundle(journal_control_number_or_bundle_name)) {
                 ++no_of_bundle_subscriptions;
-                const auto bundle_section(bundles_config.getSection(journal_control_number_or_bundle_name));
-                if (unlikely(bundle_section == bundles_config.end()))
-                    LOG_ERROR("bundle \"" + journal_control_number_or_bundle_name + "\" not found in \""
-                              + bundles_config.getFilename() + "\"!");
-                no_of_individual_subscriptions += bundle_section->size();
+                no_of_individual_subscriptions += GetBundleSize(bundles_config, journal_control_number_or_bundle_name);
             }
         }
     }
