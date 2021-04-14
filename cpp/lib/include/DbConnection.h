@@ -216,6 +216,15 @@ public:
 
     bool mySQLUserExists(const std::string &user, const std::string &host);
 
+    void mySQLCreateUserIfNotExists(const std::string &new_user, const std::string &new_passwd, const std::string &host = "localhost")
+    {
+        if (not mySQLUserExists(new_user, host)) {
+            LOG_INFO("Creating MySQL user '" + new_user + "'@'" + host + "'");
+            mySQLCreateUser(new_user, new_passwd, host);
+        } else
+            LOG_INFO("MySQL user '" + new_user + "'@'" + host + "' already exists");
+    }
+
     inline bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges,
                                 const std::string &user, const std::string &host = "localhost")
     {
@@ -266,6 +275,14 @@ public:
     {
         DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
         db_connection.mySQLCreateUser(new_user, new_passwd, host);
+    }
+
+    static void MySQLCreateUserIfNotExists(const std::string &new_user, const std::string &new_passwd, const std::string &admin_user,
+                                           const std::string &admin_passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                           const Charset charset = UTF8MB4)
+    {
+        DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
+        db_connection.mySQLCreateUserIfNotExists(new_user, new_passwd, host);
     }
 
     static bool MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,

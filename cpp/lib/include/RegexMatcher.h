@@ -83,6 +83,8 @@ public:
     MatchResult match(const std::string &subject, const size_t subject_start_offset = 0,
                       size_t * const start_pos = nullptr, size_t * const end_pos = nullptr) const;
     std::string replaceAll(const std::string &subject, const std::string &replacement) const;
+    /* c.f. description of RegexMatcher::replaceWithBackreferences below for usage and examples */
+    std::string replaceWithBackreferences(const std::string &subject, const std::string &replacement, const bool global = false);
 };
 
 
