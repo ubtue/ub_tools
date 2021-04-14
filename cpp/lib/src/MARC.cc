@@ -863,6 +863,27 @@ Record::iterator Record::erase(const Tag &tag, const bool first_occurrence_only)
 }
 
 
+bool Record::deleteFieldWithSubfieldCodeMatching(const Tag &tag, const char subfield_code, const ThreadSafeRegexMatcher &matcher) {
+    bool matched(false);
+    fields_.erase(std::remove_if(fields_.begin(), fields_.end(),
+                  [&](const Field &field) -> bool
+                  {
+                      if ((field.getTag() != tag) or not field.hasSubfield(subfield_code))
+                          return false;
+                      const auto subfield_values(this->getSubfieldValues(tag, subfield_code));
+                      for (const auto &subfield_value : subfield_values) {
+                           if (matcher.match(subfield_value)) {
+                               matched = true;
+                               return true;
+                           }
+                      }
+                      return false;
+                  }),
+                  fields_.end());
+    return matched;
+}
+
+
 bool Record::hasTagWithIndicators(const Tag &tag, const char indicator1, const char indicator2) const {
     for (const auto &field : getTagRange(tag)) {
         if (field.getIndicator1() == indicator1 and field.getIndicator2() == indicator2)

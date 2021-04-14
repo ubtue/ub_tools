@@ -879,12 +879,9 @@ void RemoveCustomMarcFieldsForParams(MARC::Record * const marc_record, const Con
     std::vector<MARC::Record::iterator> matched_fields;
     for (const auto &filter : marc_metadata_params.fields_to_remove_) {
         const auto &tag_and_subfield_code(filter.first);
-        GetMatchedMARCFields(marc_record, filter.first, *filter.second.get(), &matched_fields);
-
-        for (const auto &matched_field : matched_fields) {
-            marc_record->erase(matched_field);
+        if (marc_record->deleteFieldWithSubfieldCodeMatching(tag_and_subfield_code.substr(0,3),
+                                                             tag_and_subfield_code[3], *filter.second.get()))
             LOG_DEBUG("erased field '" + tag_and_subfield_code + "' due to removal filter '" + filter.second->getPattern() + "'");
-        }
     }
 }
 
@@ -913,6 +910,36 @@ void RemoveCustomMarcSubfieldsForParams(MARC::Record * const marc_record, const 
 void RemoveCustomMarcSubfields(MARC::Record * const marc_record, const ConversionParams &parameters) {
     RemoveCustomMarcSubfieldsForParams(marc_record, parameters.global_params_.marc_metadata_params_);
     RemoveCustomMarcSubfieldsForParams(marc_record, parameters.download_item_.journal_.marc_metadata_params_);
+}
+
+
+void RewriteMarcFieldsForParams(MARC::Record * const marc_record, const Config::MarcMetadataParams &marc_metadata_params) {
+    std::vector<MARC::Record::iterator> matched_fields;
+    for (const auto &filter : marc_metadata_params.rewrite_filters_) {
+        const auto &tag_and_subfield_code(filter.first);
+        auto &matcher(*filter.second.first.get());
+        GetMatchedMARCFields(marc_record, filter.first, matcher, &matched_fields);
+
+        for (const auto &matched_field : matched_fields) {
+            char subfield_code(tag_and_subfield_code[3]);
+            if (matched_field->hasSubfield(subfield_code)) {
+                const std::string old_subfield_value(matched_field->getFirstSubfieldWithCode(subfield_code));
+                const std::string replacement(filter.second.second);
+                const std::string new_subfield_value(matcher.replaceWithBackreferences(old_subfield_value, replacement));
+                matched_field->insertOrReplaceSubfield(subfield_code, new_subfield_value);
+                LOG_DEBUG("Rewrote '" + tag_and_subfield_code + "' with content '" + old_subfield_value +
+                          "' due to filter '" + matcher.getPattern() + "', replacement string '" + replacement
+                          + "' and result '" + new_subfield_value + "'");
+            }
+        }
+    }
+}
+
+
+
+void RewriteMarcFields(MARC::Record * const marc_record, const ConversionParams &parameters) {
+    RewriteMarcFieldsForParams(marc_record, parameters.global_params_.marc_metadata_params_);
+    RewriteMarcFieldsForParams(marc_record, parameters.download_item_.journal_.marc_metadata_params_);
 }
 
 
@@ -1201,6 +1228,9 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
 
     // Remove subfields from specific field
     RemoveCustomMarcSubfields(marc_record, parameters);
+
+    // Rewrite fields
+    RewriteMarcFields(marc_record, parameters);
 
     // Has to be generated in the very end as it contains the hash of the record
     *marc_record_hash = CalculateMarcRecordHash(*marc_record);
