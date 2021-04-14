@@ -53,16 +53,61 @@ inline bool SchemaLineIsLessThan(const std::string &line1, const std::string &li
 }
 
 
+std::string ExtractNextBacktickQuotedText(const std::string::const_iterator &end, std::string::const_iterator &cp) {
+    // Find the opening backtick:
+    while (cp != end and *cp != '`')
+        ++cp;
+    if (unlikely(cp == end))
+        return "";
+    ++cp; // Skip over the opening backtick.
+
+    std::string quoted_text;
+    while (cp != end and *cp != '`')
+        quoted_text += *cp++;
+    if (unlikely(cp == end))
+        return "";
+    ++cp; // Skip over the closing backtick.
+
+    return quoted_text;
+}
+
+
+void ExtractTriggerNameAndTable(const std::string &trigger, std::string * const name, std::string * const table) {
+    auto cp(trigger.cbegin());
+    ExtractNextBacktickQuotedText(trigger.cend(), cp); // Skip over the definer.
+
+    *name = ExtractNextBacktickQuotedText(trigger.cend(), cp);
+    if (unlikely(name->empty()))
+        LOG_ERROR("couldn't extract a trigger name from \"" + trigger + "\"!");
+
+    *table = ExtractNextBacktickQuotedText(trigger.cend(), cp);
+    if (unlikely(table->empty()))
+        LOG_ERROR("couldn't extract a trigger table name from \"" + trigger + "\"!");
+}
+
+
+inline bool TriggerLineIsLessThan(const std::string &line1, const std::string &line2) {
+    std::string name1, table1;
+    ExtractTriggerNameAndTable(line1, &name1, &table1);
+    std::string name2, table2;
+    ExtractTriggerNameAndTable(line2, &name2, &table2);
+
+    return name1 + table1 < name2 + table2;
+}
+
+
 void LoadSchema(const std::string &filename,
-                std::map<std::string, std::vector<std::string>> * const table_or_view_name_to_schema_map)
+                std::map<std::string, std::vector<std::string>> * const table_or_view_name_to_schema_map,
+                std::vector<std::string> * const triggers)
 {
     std::string current_table_or_view;
     std::vector<std::string> current_schema;
     for (auto line : FileUtil::ReadLines(filename)) {
         StringUtil::Trim(&line);
         const bool line_starts_with_create_table(StringUtil::StartsWith(line, "CREATE TABLE "));
-        const bool line_starts_with_create_view(line_starts_with_create_table ? false
-                                                : StringUtil::StartsWith(line, "CREATE VIEW "));
+        const bool line_starts_with_create_view(StringUtil::StartsWith(line, "CREATE VIEW "));
+        const bool line_starts_with_create_trigger(StringUtil::StartsWith(line, "CREATE TRIGGER "));
+
         if (line_starts_with_create_table or line_starts_with_create_view) {
             if (not current_table_or_view.empty()) {
                 std::sort(current_schema.begin(), current_schema.end(), SchemaLineIsLessThan);
@@ -72,16 +117,27 @@ void LoadSchema(const std::string &filename,
                                                             ? line.substr(__builtin_strlen("CREATE TABLE "))
                                                             : line.substr(__builtin_strlen("CREATE VIEW ")));
             current_schema.clear();
+        } else if (line_starts_with_create_trigger) {
+            if (not current_schema.empty()) {
+                std::sort(current_schema.begin(), current_schema.end(), SchemaLineIsLessThan);
+                (*table_or_view_name_to_schema_map)[current_table_or_view] = current_schema;
+                current_table_or_view.clear();
+                current_schema.clear();
+            }
+            triggers->emplace_back(line);
         } else {
             if (line[line.length() - 1] == ',')
                 line = line.substr(0, line.length() - 1);
             current_schema.emplace_back(line);
         }
     }
+
     if (not current_schema.empty()) {
         std::sort(current_schema.begin(), current_schema.end(), SchemaLineIsLessThan);
         (*table_or_view_name_to_schema_map)[current_table_or_view] = current_schema;
     }
+
+    std::sort(triggers->begin(), triggers->end(), TriggerLineIsLessThan);
 }
 
 
@@ -240,7 +296,7 @@ void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_or
     for (const auto &table_or_view_name1_and_schema1 : table_or_view_name_to_schema_map1) {
         const auto &table_or_view_name1(table_or_view_name1_and_schema1.first);
         if (schema2_tables.find(table_or_view_name1) == schema2_tables.cend())
-            std::cout << "Table or view exist only in 2st schema: " << table_or_view_name1 << '\n';
+            std::cout << "Table or view exists only in 2nd schema: " << table_or_view_name1 << '\n';
     }
 
     CompareTables("KEY", table_or_view_name_to_schema_map1, table_or_view_name_to_schema_map2);
@@ -254,18 +310,53 @@ void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_or
 }
 
 
+void DiffTriggers(const std::vector<std::string> &triggers1, const std::vector<std::string> &triggers2) {
+    auto trigger1(triggers1.cbegin());
+    auto trigger2(triggers2.cbegin());
+    while (trigger1 != triggers1.cend() and trigger2 != triggers2.cend()) {
+        std::string name1, table1;
+        ExtractTriggerNameAndTable(*trigger1, &name1, &table1);
+        std::string name2, table2;
+        ExtractTriggerNameAndTable(*trigger2, &name2, &table2);
+
+        if (name1 == name2 and table1 == table2) {
+            if (*trigger1 != *trigger2) {
+                std::cout << "Triggers w/ same name and same tables differ:\n"
+                          << '\t' << *trigger1 << '\n'
+                          << '\t' << *trigger2 << '\n';
+            }
+            ++trigger1, ++trigger2;
+        } else if (name1 + table1 < name2 + table2) {
+            std::cout << "Trigger is present in the 1st schema but missing in the 2nd schema: " << *trigger1 << '\n';
+            ++trigger1;
+        } else {
+            std::cout << "Trigger is present in the 2nd schema but missing in the 1st schema: " << *trigger2 << '\n';
+            ++trigger2;
+        }
+    }
+
+    for (/* Intentionally empty! */; trigger1 != triggers1.cend(); ++trigger1)
+        std::cout << "Trigger found only in 1st schema: " << *trigger1 << '\n';
+    for (/* Intentionally empty! */; trigger2 != triggers2.cend(); ++trigger2)
+        std::cout << "Trigger found only in 2nd schema: " << *trigger2 << '\n';
+}
+
+
 int Main(int argc, char *argv[]) {
     if (argc != 3)
         ::Usage("schema1 schema2\n"
                 "Please note that this tool may not work particularly well if you do not use output from mysql_list_tables");
 
     std::map<std::string, std::vector<std::string>> table_or_view_name_to_schema_map1;
-    LoadSchema(argv[1], &table_or_view_name_to_schema_map1);
+    std::vector<std::string> triggers1;
+    LoadSchema(argv[1], &table_or_view_name_to_schema_map1, &triggers1);
 
     std::map<std::string, std::vector<std::string>> table_or_view_name_to_schema_map2;
-    LoadSchema(argv[2], &table_or_view_name_to_schema_map2);
+    std::vector<std::string> triggers2;
+    LoadSchema(argv[2], &table_or_view_name_to_schema_map2, &triggers2);
 
     DiffSchemas(table_or_view_name_to_schema_map1, table_or_view_name_to_schema_map2);
+    DiffTriggers(triggers1, triggers2);
 
     return EXIT_SUCCESS;
 }
