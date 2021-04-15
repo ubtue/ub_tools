@@ -12,6 +12,8 @@ COPY . /app
 COPY ./extra_certs /app/extra_certs
 ENV NODE_EXTRA_CA_CERTS=/app/extra_certs/extra_certs.pem
 
+ENV SPRINGER_API_KEY=$SPRINGER_API_KEY
+
 # Cloning zotero translators repository
 RUN rm -Rf /app/modules/translators/
 RUN git clone --depth=1 https://github.com/ubtue/zotero-translators /app/modules/translators/
