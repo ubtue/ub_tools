@@ -1,5 +1,7 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -30,9 +32,9 @@ public class TuelibAuthMixin extends SolrIndexerMixin {
             return input;
         } else {
             if (category.equalsIgnoreCase("isni")) {
-                return stripped.substring(0, 4) + "-" + stripped.substring(4, 8) + "-" + stripped.substring(8, 12) + "-" + stripped.substring(12, 16);
-            } else if (category.equalsIgnoreCase("orcid")) {
                 return stripped.substring(0, 4) + " " + stripped.substring(4, 8) + " " + stripped.substring(8, 12) + " " + stripped.substring(12, 16);
+            } else if (category.equalsIgnoreCase("orcid")) {
+                return stripped.substring(0, 4) + "-" + stripped.substring(4, 8) + "-" + stripped.substring(8, 12) + "-" + stripped.substring(12, 16);
             } else {
                 return input;
             }
