@@ -431,6 +431,10 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
         LOG_WARNING("caught exception: " + std::string(x.what()));
     }
 
+    // On failure pass writing out the record to create_full_text_db
+    if (not success)
+	return success;
+
     // Safely append the modified MARC data to the MARC output file:
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY,
                                                                     MARC::Writer::APPEND));

@@ -216,6 +216,15 @@ public:
 
     bool mySQLUserExists(const std::string &user, const std::string &host);
 
+    void mySQLCreateUserIfNotExists(const std::string &new_user, const std::string &new_passwd, const std::string &host = "localhost")
+    {
+        if (not mySQLUserExists(new_user, host)) {
+            LOG_INFO("Creating MySQL user '" + new_user + "'@'" + host + "'");
+            mySQLCreateUser(new_user, new_passwd, host);
+        } else
+            LOG_INFO("MySQL user '" + new_user + "'@'" + host + "' already exists");
+    }
+
     inline bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges,
                                 const std::string &user, const std::string &host = "localhost")
     {
@@ -236,18 +245,25 @@ private:
     void init(const std::string &database_name, const std::string &user, const std::string &passwd,
               const std::string &host, const unsigned port, const Charset charset, const TimeZone time_zone);
 
-    void init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port, const Charset charset,
-              const TimeZone time_zone);
+    void init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port,
+              const Charset charset, const TimeZone time_zone);
 public:
+    /** \brief Splits "query" into individual statements.
+     *
+     * Splits "query" on semicolons unless we're in a section bounded by "#do_not_split_on_semicolons"
+     * and "#end_do_not_split_on_semicolons".  These two directives have to start at the beginning of a line, i.e.
+     * either at the start of "query" or immediately after a newline.
+     */
     static std::vector<std::string> SplitMySQLStatements(const std::string &query);
 
     static std::string CharsetToString(const Charset charset);
 
     static std::string CollationToString(const Collation collation);
 
-    static void MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
-                                    const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
-                                    const Charset charset = UTF8MB4, const Collation collation = UTF8MB4_BIN)
+    static void MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user,
+                                    const std::string &admin_passwd, const std::string &host = "localhost",
+                                    const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4,
+                                    const Collation collation = UTF8MB4_BIN)
     {
         DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
         db_connection.mySQLCreateDatabase(database_name, charset, collation);
@@ -266,11 +282,7 @@ public:
                                            const Charset charset = UTF8MB4)
     {
         DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-        if (not db_connection.mySQLUserExists(new_user, host)) {
-            LOG_INFO("Creating MySQL user '" + new_user + "'@'" + host + "'");
-            db_connection.mySQLCreateUser(new_user, new_passwd, host);
-        } else
-            LOG_INFO("MySQL user '" + new_user + "'@'" + host + "' already exists");
+        db_connection.mySQLCreateUserIfNotExists(new_user, new_passwd, host);
     }
 
     static bool MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,

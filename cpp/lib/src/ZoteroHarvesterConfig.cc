@@ -84,6 +84,7 @@ static const auto PREFIX_ADD_MARC_FIELD("add_marc_field_");
 static const auto PREFIX_REMOVE_MARC_FIELD("remove_marc_field_");
 static const auto PREFIX_REMOVE_MARC_SUBFIELD("remove_marc_subfield_");
 static const auto PREFIX_EXCLUDE_MARC_FIELD("exclude_if_marc_field_");
+static const auto PREFIX_REWRITE_MARC_FIELD("rewrite_marc_field_");
 
 
 bool DownloadDelayParams::IsValidIniEntry(const IniFile::Entry &entry) {
@@ -140,7 +141,8 @@ bool MarcMetadataParams::IsValidIniEntry(const IniFile::Entry &entry) {
     return (StringUtil::StartsWith(entry.name_, PREFIX_ADD_MARC_FIELD)
             or StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_FIELD)
             or StringUtil::StartsWith(entry.name_, PREFIX_REMOVE_MARC_SUBFIELD)
-            or StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_MARC_FIELD));
+            or StringUtil::StartsWith(entry.name_, PREFIX_EXCLUDE_MARC_FIELD)
+            or StringUtil::StartsWith(entry.name_, PREFIX_REWRITE_MARC_FIELD));
 }
 
 
@@ -169,7 +171,20 @@ MarcMetadataParams::MarcMetadataParams(const IniFile::Section &config_section) {
 
             subfields_to_remove_.insert(std::make_pair(field_name,
                                      std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(entry.value_))));
+        } else if (StringUtil::StartsWith(entry.name_, PREFIX_REWRITE_MARC_FIELD)) {
+            const auto field_name(entry.name_.substr(__builtin_strlen(PREFIX_REWRITE_MARC_FIELD)));
+            if (field_name.length() != MARC::Record::TAG_LENGTH and field_name.length() != MARC::Record::TAG_LENGTH + 1)
+                LOG_ERROR("invalid rewrite field name '" + field_name + "'! expected format: <tag> or <tag><subfield_code>");
+
+            std::string replace_term(entry.value_);
+            if (replace_term.find(" ||| ") == std::string::npos)
+                 LOG_ERROR("invalid rewrite expression '" + replace_term + "'");
+            rewrite_filters_.insert(std::make_pair(field_name,
+                                    std::make_pair(std::unique_ptr<ThreadSafeRegexMatcher>(new ThreadSafeRegexMatcher(
+                                                                   StringUtil::ExtractHead(&replace_term, " ||| "))),
+                                                   replace_term)));
         }
+
     }
 }
 

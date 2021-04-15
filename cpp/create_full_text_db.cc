@@ -122,13 +122,24 @@ void ProcessNoDownloadRecords(const bool only_open_access, MARC::Reader * const 
 void CleanUpZombies(const unsigned no_of_zombies_to_collect,
                     std::map<std::string, unsigned> * const hostname_to_outstanding_request_count_map,
                     std::map<int, std::string> * const process_id_to_hostname_map,
+                    std::map<int, off_t> * const process_id_to_record_start_map,
+                    MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                     unsigned * const child_reported_failure_count, unsigned * const active_child_count)
 {
     for (unsigned zombie_no(0); zombie_no < no_of_zombies_to_collect; ++zombie_no) {
         int exit_code;
         const pid_t zombie_pid(::wait(&exit_code));
-        if (exit_code != 0)
+        if (exit_code != 0) {
+            const auto process_id_and_record_start(process_id_to_record_start_map->find(zombie_pid));
+            if (process_id_and_record_start != process_id_to_record_start_map->end()) {
+                LOG_WARNING("Child process for PID "+ std::to_string(zombie_pid) + " failed: Writing out record anyway");
+                if (unlikely(not marc_reader->seek(process_id_and_record_start->second)))
+                    LOG_ERROR("seek failed!");
+                const MARC::Record record = marc_reader->read();
+                MARC::FileLockedComposeAndWriteRecord(marc_writer, record);
+            }
             ++*child_reported_failure_count;
+        }
         --*active_child_count;
 
         const auto process_id_and_hostname(process_id_to_hostname_map->find(zombie_pid));
@@ -148,7 +159,8 @@ const std::string UPDATE_FULL_TEXT_DB_PATH("/usr/local/bin/update_full_text_db")
 void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_record_start, const unsigned pdf_extraction_timeout,
                         const std::string &marc_input_filename, const std::string &marc_output_filename,
                         std::map<std::string, unsigned> * const hostname_to_outstanding_request_count_map,
-                        std::map<int, std::string> * const process_id_to_hostname_map,
+                        std::map<int, std::string> * const process_id_to_hostname_map, std::map<int, off_t> * const process_id_to_record_start_map,
+                        MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                         unsigned * const child_reported_failure_count, unsigned * const active_child_count,
                         const bool store_pdfs_as_html, const bool use_separate_entries_per_url,
                         const bool include_all_tocs, const bool only_pdf_fulltexts)
@@ -167,6 +179,7 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
         }
 
         CleanUpZombies(/*no_of_zombies*/ 1, hostname_to_outstanding_request_count_map, process_id_to_hostname_map,
+                       process_id_to_record_start_map, marc_reader, marc_writer,
                        child_reported_failure_count, active_child_count);
     }
 
@@ -193,6 +206,7 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
         LOG_ERROR("ExecUtil::Spawn failed! (no more resources?)");
 
     (*process_id_to_hostname_map)[child_pid] = server_hostname;
+    (*process_id_to_record_start_map)[child_pid] = marc_record_start;
     ++*active_child_count;
 }
 
@@ -211,6 +225,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
 
     std::map<std::string, unsigned> hostname_to_outstanding_request_count_map;
     std::map<int, std::string> process_id_to_hostname_map;
+    std::map<int, off_t> process_id_to_record_start_map;
 
     for (const auto &offset_and_url : download_record_offsets_and_urls) {
         const std::string &url(offset_and_url.second);
@@ -232,16 +247,20 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
 
         ScheduleSubprocess(authority, offset_and_url.first, pdf_extraction_timeout, marc_reader->getPath(),
                            marc_writer->getFile().getPath(), &hostname_to_outstanding_request_count_map,
-                           &process_id_to_hostname_map, &child_reported_failure_count, &active_child_count,
+                           &process_id_to_hostname_map, &process_id_to_record_start_map,
+                           marc_reader, marc_writer,
+                           &child_reported_failure_count, &active_child_count,
                            store_pdfs_as_html, use_separate_entries_per_url, include_all_tocs, only_pdf_fulltexts);
 
         if (active_child_count > process_count_high_watermark)
             CleanUpZombies(active_child_count - process_count_low_watermark, &hostname_to_outstanding_request_count_map,
-                           &process_id_to_hostname_map, &child_reported_failure_count, &active_child_count);
+                           &process_id_to_hostname_map, &process_id_to_record_start_map, marc_reader, marc_writer,
+                           &child_reported_failure_count, &active_child_count);
     }
 
     // Wait for stragglers:
     CleanUpZombies(active_child_count, &hostname_to_outstanding_request_count_map, &process_id_to_hostname_map,
+                   &process_id_to_record_start_map, marc_reader, marc_writer,
                    &child_reported_failure_count, &active_child_count);
 
     std::cerr << "Spawned " << download_record_offsets_and_urls.size() << " subprocesses.\n";
