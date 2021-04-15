@@ -4,15 +4,21 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.Set;
 import java.util.logging.Logger;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
+import org.marc4j.marc.Subfield;
+import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexerMixin;
 
 public class TuelibAuthMixin extends SolrIndexerMixin {
 
     protected final static Logger logger = Logger.getLogger(TuelibAuthMixin.class.getName());
+
+    protected final static Pattern YEAR_RANGE_PATTERN = Pattern.compile("^(\\d+)-(\\d+)$");
 
     /**
      * normalize string due to specification for isni or orcid
@@ -71,5 +77,19 @@ public class TuelibAuthMixin extends SolrIndexerMixin {
             }
 
         }
+    }
+
+    public String getYearRange(final Record record) {
+        final List<VariableField> yearFields = record.getVariableFields("400");
+        for (final VariableField yearField : yearFields) {
+            final DataField field = (DataField) yearField;
+            for (final Subfield subfield_d : field.getSubfields('d')) {
+                final Matcher matcher = YEAR_RANGE_PATTERN.matcher(subfield_d.getData());
+                if (matcher.matches())
+                    return "[" + matcher.group(1) + " TO " + matcher.group(2) + "]";
+            }
+        }
+
+        return null;
     }
 }
