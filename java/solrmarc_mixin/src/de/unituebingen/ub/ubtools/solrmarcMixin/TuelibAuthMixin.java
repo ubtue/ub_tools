@@ -8,6 +8,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.Set;
 import java.util.logging.Logger;
+
+import org.apache.commons.lang3.StringUtils;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
@@ -17,6 +19,7 @@ import org.solrmarc.index.SolrIndexerMixin;
 public class TuelibAuthMixin extends SolrIndexerMixin {
 
     protected final static Logger logger = Logger.getLogger(TuelibAuthMixin.class.getName());
+    protected final static Pattern SORTABLE_STRING_REMOVE_PATTERN = Pattern.compile("[^\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lo}\\p{N}]+");
 
     protected final static Pattern YEAR_RANGE_PATTERN = Pattern.compile("^(\\d+)-(\\d+)$");
 
@@ -77,8 +80,27 @@ public class TuelibAuthMixin extends SolrIndexerMixin {
             }
 
         }
+    }   
+    
+    protected String normalizeSortableString(String string) {
+        // Only keep letters & numbers. For unicode character classes, see:
+        // https://en.wikipedia.org/wiki/Template:General_Category_(Unicode)
+        if (string == null)
+            return null;
+        //c.f. https://stackoverflow.com/questions/1466959/string-replaceall-vs-matcher-replaceall-performance-differences (21/03/16)
+        return SORTABLE_STRING_REMOVE_PATTERN.matcher(string).replaceAll("").trim();
     }
-
+    
+    public Collection<String> normalizeSortableString(Collection<String> extractedValues) {
+        Collection<String> results = new ArrayList<String>();
+        for (final String value : extractedValues) {
+            final String newValue = normalizeSortableString(value);
+            if (newValue != null && !newValue.isEmpty())
+                results.add(StringUtils.stripAccents(newValue));
+        }
+        return results;
+    }
+    
     public String getYearRange(final Record record) {
         final List<VariableField> yearFields = record.getVariableFields("400");
         for (final VariableField yearField : yearFields) {
