@@ -29,6 +29,7 @@
 
 #include "TimeUtil.h"
 #include <algorithm>
+#include <chrono>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -558,6 +559,41 @@ double GetJulianDayNumber(const unsigned year, const unsigned month, const unsig
     const unsigned E = static_cast<unsigned>(365.25 * (year + 4716));
     const unsigned F = static_cast<unsigned>(30.6001 * (month + 1));
     return C + day + E + F - 1524.5;
+}
+
+
+namespace {
+
+
+//
+// Taken from https://stackoverflow.com/questions/33964461/handling-julian-dates-in-c11-14
+//
+
+
+constexpr auto jdiff() {
+    using namespace std::chrono_literals;
+    return 58574100h;
+}
+
+
+struct jdate_clock {
+    using rep        = double;
+    using period     = std::ratio<86400>;
+    using duration   = std::chrono::duration<rep, period>;
+    using time_point = std::chrono::time_point<jdate_clock>;
+
+    static time_point now() noexcept {
+        using namespace std::chrono;
+        return time_point{duration{system_clock::now().time_since_epoch()} + jdiff()};
+    }
+};
+
+
+} // unnamed namespace
+
+
+double GetJulianDayNumber() {
+    return jdate_clock::now().time_since_epoch().count();
 }
 
 
