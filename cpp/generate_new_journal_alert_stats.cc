@@ -25,13 +25,16 @@
 #include <vector>
 #include <cstdlib>
 #include <cstring>
+#include "BinaryIO.h"
 #include "Compiler.h"
 #include "DbConnection.h"
-#include "EmailSender.h"
 #include "DnsUtil.h"
+#include "EmailSender.h"
+#include "FileUtil.h"
 #include "IniFile.h"
 #include "Solr.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include "UBTools.h"
 #include "util.h"
 #include "VuFind.h"
@@ -41,13 +44,10 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[solr_host_and_port] user_type hostname email_recipient\n"
-            "  Sends out notification emails for journal subscribers.\n"
+    ::Usage("[solr_host_and_port] user_type report_interval_in_days email_recipient\n"
+            "  Sends out statistics emails about journal subscriptions.\n"
             "  Should \"solr_host_and_port\" be missing \"" + Solr::DEFAULT_HOST + ":" + std::to_string(Solr::DEFAULT_PORT) + "\" will be used.\n"
-            "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm."
-            "  \"hostname\" should be the symbolic hostname which will be used in constructing\n"
-            "  URL's that a user might see.\n"
-            "  If \"--debug\" is given, emails will not be sent and database will not be updated.\n");
+            "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm.\n");
 }
 
 
@@ -56,8 +56,9 @@ struct Stats {
     double average_number_of_bundle_subscriptions_;
     double average_subscriptions_per_user_;
     unsigned no_of_subscribed_journals_;
+    unsigned no_of_journals_for_which_notifications_were_sent_;
     unsigned no_of_subscribed_journals_with_notifications_;
-    double average_number_of_notified_articles_per_subscribed_journal_;
+    double average_number_of_notified_articles_per_notified_journal_;
     unsigned report_interval_in_days_;
 };
 
@@ -87,7 +88,7 @@ size_t GetBundleSize(const IniFile &bundles_config, const std::string &bundle_na
 }
 
 
-void CollectStats(DbConnection * const db_connection, const std::string &user_type, Stats * const stats) {
+void CollectConfigStats(DbConnection * const db_connection, const std::string &user_type, Stats * const stats) {
     db_connection->queryOrDie("SELECT DISTINCT user_id FROM ixtheo_journal_subscriptions WHERE user_id IN (SELECT id FROM "
                               "ixtheo_user WHERE ixtheo_user.user_type = '" + user_type  + "')");
     auto user_ids_result_set(db_connection->getLastResultSet());
@@ -117,6 +118,40 @@ void CollectStats(DbConnection * const db_connection, const std::string &user_ty
 }
 
 
+void CollectUsageStats(const std::string &user_type, Stats * const stats) {
+    const auto USAGE_STATS_PATH(UBTools::GetTuelibPath() + "new_journal_alert.stats");
+    const auto usage_stats_file(FileUtil::OpenInputFileOrDie(USAGE_STATS_PATH));
+
+    const double NOW(TimeUtil::GetJulianDayNumber());
+    const double TIME_WINDOW(NOW - stats->report_interval_in_days_);
+
+    stats->no_of_subscribed_journals_with_notifications_ = 0;
+    stats->average_number_of_notified_articles_per_notified_journal_ = 0.0;
+    std::unordered_set<std::string> seen_superior_ppns;
+    while (not usage_stats_file->eof()) {
+        double julian_day_number;
+        BinaryIO::ReadOrDie(*usage_stats_file, &julian_day_number);
+        std::string logged_user_type;
+        BinaryIO::ReadOrDie(*usage_stats_file, &logged_user_type);
+        std::string journal_ppn;
+        BinaryIO::ReadOrDie(*usage_stats_file, &journal_ppn);
+        unsigned notified_count;
+        BinaryIO::ReadOrDie(*usage_stats_file, &notified_count);
+
+        if (julian_day_number > TIME_WINDOW and logged_user_type == user_type) {
+            if (seen_superior_ppns.find(journal_ppn) == seen_superior_ppns.end()) {
+                seen_superior_ppns.emplace(journal_ppn);
+                ++(stats->no_of_subscribed_journals_with_notifications_);
+            }
+            stats->average_number_of_notified_articles_per_notified_journal_ += notified_count;
+        }
+    }
+
+    stats->average_number_of_notified_articles_per_notified_journal_ /=
+        stats->no_of_subscribed_journals_with_notifications_;
+}
+
+
 void GenerateAndMailReport(const std::string &email_address, const Stats &stats) {
     if (EmailSender::SimplerSendEmail("no-reply@ub.uni-tuebingen.de", email_address, "Journal Alert Stats",
                                       "Host: " + DnsUtil::GetHostname() + "\n"
@@ -129,11 +164,10 @@ void GenerateAndMailReport(const std::string &email_address, const Stats &stats)
                                       + StringUtil::ToString(stats.average_number_of_bundle_subscriptions_, 3) + "\n"
                                       + "Total number of currently subscribed journals: "
                                       + std::to_string(stats.no_of_subscribed_journals_) + "\n"
-                                      + "Number of subscribed journals w/ no notifications: "
-                                      + std::to_string(stats.no_of_subscribed_journals_
-                                                       - stats.no_of_subscribed_journals_with_notifications_) + "\n"
-                                      + "Average number of notified articles per subscribed journal: "
-                                      + StringUtil::ToString(stats.average_number_of_notified_articles_per_subscribed_journal_))
+                                      + "Number of subscribed journals w/ notifications: "
+                                      + std::to_string(stats.no_of_subscribed_journals_with_notifications_) + "\n"
+                                      + "Average number of notified articles per notified journal: "
+                                      + StringUtil::ToString(stats.average_number_of_notified_articles_per_notified_journal_))
         > 299)
         LOG_ERROR("failed to send an email report to \"" + email_address + "\"!");
 }
@@ -160,13 +194,13 @@ int Main(int argc, char **argv) {
     if (user_type != "ixtheo" and user_type != "relbib")
         LOG_ERROR("user_type parameter must be either \"ixtheo\" or \"relbib\"!");
 
-    const std::string hostname(argv[2]);
-    const std::string email_recipient(argv[3]);
-
-    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
-
     Stats stats;
-    CollectStats(db_connection.get(), user_type, &stats);
+    stats.report_interval_in_days_ = StringUtil::ToUnsigned(argv[2]);
+
+    const std::string email_recipient(argv[3]);
+    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
+    CollectConfigStats(db_connection.get(), user_type, &stats);
+    CollectUsageStats(user_type, &stats);
     GenerateAndMailReport(email_recipient, stats);
 
     return EXIT_SUCCESS;
