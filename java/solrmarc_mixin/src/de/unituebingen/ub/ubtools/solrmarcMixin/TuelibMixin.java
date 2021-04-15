@@ -18,7 +18,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -350,18 +349,6 @@ public class TuelibMixin extends SolrIndexerMixin {
         topics.addAll(getLocal689Topics(record));
         return topics;
     }
-
-
-    public String getAuthorityType(final Record record) {
-        if (record.getVariableFields("100").size() > 0)
-            return "person";
-        if (record.getVariableFields("110").size() > 0)
-            return "corporate";
-        if (record.getVariableFields("111").size() > 0)
-            return "meeting";
-        return null;
-    }
-
 
     /**
      * Hole das Sachschlagwort aus 689|a (wenn 689|d != z oder f)
@@ -2529,7 +2516,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         final Set<String> formats = map935b(record, TuelibMixin.phys_code_to_format_map);
         final String leader = record.getLeader().toString();
         final ControlField fixedField = (ControlField) record.getVariableField("008");
-        final DataField title = (DataField) record.getVariableField("245");
+        //final DataField title = (DataField) record.getVariableField("245");
         String formatString;
         char formatCode = ' ';
         char formatCode2 = ' ';

@@ -5,17 +5,16 @@
 package de.uni_tuebingen.ub.ixTheo;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.ArrayList;
-import org.apache.lucene.document.Field;
-import org.apache.solr.common.util.NamedList;
-import org.apache.solr.common.util.StrUtils;
+import java.util.List;
+
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.params.SolrParams;
-import org.apache.solr.common.SolrException;
-import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.common.util.NamedList;
+import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.request.SolrQueryRequest;
-import org.apache.solr.response.transform.*;
+import org.apache.solr.response.transform.DocTransformer;
+import org.apache.solr.response.transform.TransformerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

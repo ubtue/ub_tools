@@ -19,8 +19,8 @@ import org.solrmarc.index.SolrIndexerMixin;
 public class TuelibAuthMixin extends SolrIndexerMixin {
 
     protected final static Logger logger = Logger.getLogger(TuelibAuthMixin.class.getName());
+    
     protected final static Pattern SORTABLE_STRING_REMOVE_PATTERN = Pattern.compile("[^\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lo}\\p{N}]+");
-
     protected final static Pattern YEAR_RANGE_PATTERN = Pattern.compile("^(\\d+)-(\\d+)$");
 
     /**
@@ -56,6 +56,7 @@ public class TuelibAuthMixin extends SolrIndexerMixin {
      */
     public String getNormalizedValueByTag2(final Record record, final String tagNumber, final String number2Category) {
 
+        @SuppressWarnings("unchecked")
         List<DataField> mainFields = (List<DataField>) (List<?>) record.getVariableFields(tagNumber);
         mainFields.removeIf(m -> m.getSubfield('2') == null);
         mainFields.removeIf(m -> m.getSubfield('a') == null);
@@ -112,6 +113,16 @@ public class TuelibAuthMixin extends SolrIndexerMixin {
             }
         }
 
+        return null;
+    }
+    
+    public String getAuthorityType(final Record record) {
+        if (record.getVariableFields("100").size() > 0)
+            return "person";
+        if (record.getVariableFields("110").size() > 0)
+            return "corporate";
+        if (record.getVariableFields("111").size() > 0)
+            return "meeting";
         return null;
     }
 }

@@ -1,17 +1,15 @@
 package de.uni_tuebingen.ub.ixTheo.rangeSearch;
 
 
+import java.io.IOException;
+
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Weight;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 
 public class RangeQuery extends Query {
-    private static Logger logger = LoggerFactory.getLogger(RangeQuery.class);
+    //private static Logger logger = LoggerFactory.getLogger(RangeQuery.class);
 
     private Query query;
     protected Range[] ranges;
