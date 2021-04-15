@@ -6,6 +6,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
+
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.solrmarc.index.SolrIndexerMixin;
@@ -13,6 +15,7 @@ import org.solrmarc.index.SolrIndexerMixin;
 public class TuelibAuthMixin extends SolrIndexerMixin {
 
     protected final static Logger logger = Logger.getLogger(TuelibAuthMixin.class.getName());
+    protected final static Pattern SORTABLE_STRING_REMOVE_PATTERN = Pattern.compile("[^\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lo}\\p{N}]+");
 
     /**
      * normalize string due to specification for isni or orcid
@@ -71,5 +74,28 @@ public class TuelibAuthMixin extends SolrIndexerMixin {
             }
 
         }
+    }
+    
+    
+    protected String normalizeSortableString(String string) {
+        // Only keep letters & numbers. For unicode character classes, see:
+        // https://en.wikipedia.org/wiki/Template:General_Category_(Unicode)
+        if (string == null)
+            return null;
+        //c.f. https://stackoverflow.com/questions/1466959/string-replaceall-vs-matcher-replaceall-performance-differences (21/03/16)
+        return SORTABLE_STRING_REMOVE_PATTERN.matcher(string).replaceAll("").trim();
+    }
+    
+    /*
+     * Custom normalisation map function
+     */
+    public Collection<String> normalizeSortableString(Collection<String> extractedValues) {
+        Collection<String> results = new ArrayList<String>();
+        for (final String value : extractedValues) {
+            final String newValue = normalizeSortableString(value);
+            if (newValue != null && !newValue.isEmpty())
+                results.add(newValue);
+        }
+        return results;
     }
 }
