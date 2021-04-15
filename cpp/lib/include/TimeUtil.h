@@ -277,6 +277,12 @@ inline std::string UtcToLocalTime(const std::string &utc, const std::string &for
 double GetJulianDayNumber(const unsigned year, const unsigned month, const unsigned day);
 
 
+/** \return The Julian Day Number for the current moment.
+ *  \note   This will typically not be a fractional value.
+ */
+double GetJulianDayNumber();
+
+
 /** \brief  Calculates the Gregorian year, month, and day corresponding to a Julian Day Number.
  *  \param  julian_day_number  The Julian Day Number to convert from.
  *  \param  year               Output: A four-digit year.
