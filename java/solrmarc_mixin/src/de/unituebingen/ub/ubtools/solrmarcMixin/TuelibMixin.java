@@ -978,7 +978,7 @@ public class TuelibMixin extends SolrIndexerMixin {
     boolean isCurrentYearAndMonth(final String year, final String month) {
         Calendar calendar = Calendar.getInstance();
         return (Integer.valueOf(year) == calendar.get(Calendar.YEAR)) &&
-               (Integer.valueOf(month) == calendar.get(Calendar.MONTH));
+               (Integer.valueOf(month) == calendar.get(Calendar.MONTH) + 1);
     }
 
 

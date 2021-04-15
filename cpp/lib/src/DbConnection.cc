@@ -127,19 +127,6 @@ int DbConnection::getLastErrorCode() const {
 }
 
 
-// Looks for a statement delimiter and, if found, advances "cp" by length(delimiter) - 1.
-bool FoundDelimiter(const std::string &delimiter, std::string::const_iterator &cp, const std::string::const_iterator &end) {
-    auto cp1(cp);
-    for (const char delim_ch : delimiter) {
-        if (cp1 == end or delim_ch != *cp1++)
-            return false;
-    }
-
-    cp += (cp1 - cp) - 1;
-    return true;
-}
-
-
 enum CommentFlavour { NO_COMMENT, C_STYLE_COMMENT, END_OF_LINE_COMMENT };
 
 
@@ -149,8 +136,8 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
     std::string statement;
     char current_quote('\0'); // NUL means not currently in a string constant.
     bool escaped(false); // backslash not yet seen
+    bool do_not_split_on_semicolons(false);
     CommentFlavour comment_flavour(NO_COMMENT);
-    std::string delimiter(";");
     for (auto ch(query.cbegin()); ch != query.cend(); ++ch) {
         if (comment_flavour != NO_COMMENT) {
             if ((comment_flavour == END_OF_LINE_COMMENT and *ch == '\n')
@@ -163,7 +150,31 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
                 current_quote = '\0';
             else if (*ch == '\\')
                 escaped = true;
-        } else if (unlikely(FoundDelimiter(delimiter, ch, query.cend()))) {
+        } else if ((ch == query.cbegin() or *(ch - 1) == '\n') and *ch == '#') {
+            ++ch; // Skip over the hash mark.
+            std::string directive;
+            while (ch != query.cend() and *ch != '\n')
+                directive += *ch++;
+            if (ch != query.cend())
+                ++ch; // Skip over the newline.
+            StringUtil::RightTrim(&directive);
+
+            if (directive == "do_not_split_on_semicolons") {
+                if (do_not_split_on_semicolons)
+                    LOG_ERROR("found a #do_not_split_on_semicolons after an earlier #do_not_split_on_semicolons directive!");
+                do_not_split_on_semicolons = true;
+            } else if (directive == "end_do_not_split_on_semicolons") {
+                if (not do_not_split_on_semicolons)
+                    LOG_ERROR("found an #end_do_not_split_on_semicolons w/o an earlier #do_not_split_on_semicolons directive!");
+                StringUtil::TrimWhite(&statement);
+                if (not statement.empty())
+                    statements.emplace_back(statement);
+                statement.clear();
+                do_not_split_on_semicolons = false;
+                continue;
+            } else
+                LOG_ERROR("unknown directive #" + directive + "!");
+        } else if (unlikely(not do_not_split_on_semicolons and *ch == ';')) {
             StringUtil::TrimWhite(&statement);
             if (not statement.empty())
                 statements.emplace_back(statement);
@@ -181,12 +192,6 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
             statement += *ch;
             ++ch;
             comment_flavour = END_OF_LINE_COMMENT;
-        } else if (*ch == '\n'
-                   and StringUtil::StartsWith(StringUtil::LeftTrimWhite(statement), "DELIMITER ", /* ignore_case= */true))
-        {
-            delimiter = StringUtil::RightTrimWhite(StringUtil::LeftTrimWhite(statement).substr(__builtin_strlen("DELIMITER ")));
-            statements.emplace_back(StringUtil::LeftTrimWhite(statement));
-            statement.clear();
         } else {
             if (*ch == '\'' or *ch == '"')
                 current_quote = *ch;
@@ -194,6 +199,9 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
 
         statement += *ch;
     }
+
+    if (unlikely(do_not_split_on_semicolons))
+        LOG_ERROR("found #do_not_split_on_semicolons w/o #end_do_not_split_on_semicolons!");
 
     StringUtil::TrimWhite(&statement);
     if (not statement.empty())
