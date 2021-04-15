@@ -84,7 +84,6 @@ public class TuelibAuthMixin extends SolrIndexerMixin {
         for (final VariableField yearField : yearFields) {
             final DataField field = (DataField) yearField;
             for (final Subfield subfield_d : field.getSubfields('d')) {
-
                 final Matcher matcher = YEAR_RANGE_PATTERN.matcher(subfield_d.getData());
                 if (matcher.matches())
                     return "[" + matcher.group(1) + " TO " + matcher.group(2) + "]";
