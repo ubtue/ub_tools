@@ -1,19 +1,15 @@
 package de.uni_tuebingen.ub.ixTheo.bibleDateRangeSearch;
 
 
-import java.util.Set;
-import java.util.TreeSet;
 import org.apache.lucene.search.Query;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.search.QParser;
 import org.apache.solr.search.SyntaxError;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 public class BibleDateRangeParser extends QParser {
-    private static Logger logger = LoggerFactory.getLogger(BibleDateRangeParser.class);
+    //private static Logger logger = LoggerFactory.getLogger(BibleDateRangeParser.class);
 
     /**
      * Constructor for the QParser

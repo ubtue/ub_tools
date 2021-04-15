@@ -1,42 +1,24 @@
 package de.uni_tuebingen.ub.ixTheo.handler.component;
 
-import de.uni_tuebingen.ub.ixTheo.util.SolrPluginUtils;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.lucene.search.Query;
-import org.apache.solr.common.SolrDocumentList;
-import org.apache.solr.common.params.CommonParams;
-import org.apache.solr.common.params.ModifiableSolrParams;
-import org.apache.solr.common.util.NamedList;
-import org.apache.solr.common.util.SimpleOrderedMap;
-import org.apache.solr.common.util.SuppressForbidden;
-import org.apache.solr.handler.component.DebugComponent;
-import org.apache.solr.handler.component.ResponseBuilder;
-import org.apache.solr.handler.component.ShardRequest;
-import org.apache.solr.handler.component.SearchComponent;
-import org.apache.solr.request.SolrQueryRequest;
-import org.apache.solr.search.DocList;
-import org.apache.solr.search.QueryParsing;
-import org.apache.solr.search.facet.FacetDebugInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import static org.apache.solr.common.params.CommonParams.FQ;
 import static org.apache.solr.common.params.CommonParams.JSON;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.lucene.search.Query;
+import org.apache.solr.common.util.NamedList;
+import org.apache.solr.handler.component.DebugComponent;
+import org.apache.solr.handler.component.ResponseBuilder;
+import org.apache.solr.search.DocList;
+import org.apache.solr.search.QueryParsing;
+import org.apache.solr.search.facet.FacetDebugInfo;
+
+import de.uni_tuebingen.ub.ixTheo.util.SolrPluginUtils;
+
 public class IxTheoDebugComponent extends DebugComponent {
-    private static Logger logger = LoggerFactory.getLogger(IxTheoDebugComponent.class);
+    //private static Logger logger = LoggerFactory.getLogger(IxTheoDebugComponent.class);
     public static final String COMPONENT_NAME = "debug";
 
     @SuppressWarnings("unchecked")

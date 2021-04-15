@@ -17,7 +17,6 @@
 package de.uni_tuebingen.ub.ixTheo.util;
 
 import java.io.IOException;
-import java.lang.invoke.MethodHandles;
 import java.util.Map;
 
 import org.apache.lucene.search.Explanation;
@@ -26,19 +25,16 @@ import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.request.SolrQueryRequest;
-import org.apache.solr.request.SolrRequestHandler;
 import org.apache.solr.schema.IndexSchema;
 import org.apache.solr.search.DocList;
 import org.apache.solr.search.SolrIndexSearcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Utilities that may be of use to RequestHandlers.
  */
 public class SolrPluginUtils extends org.apache.solr.util.SolrPluginUtils {
 
-    private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    //private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private static NamedList<String> explanationsToStrings(NamedList<Explanation> explanations) {
 

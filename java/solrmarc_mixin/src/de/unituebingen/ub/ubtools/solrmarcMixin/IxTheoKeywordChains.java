@@ -7,7 +7,6 @@ import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexerMixin;
-import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 
 public class IxTheoKeywordChains extends SolrIndexerMixin {
 
@@ -154,7 +153,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
         if (keyword.length() > 0) {
             // Check whether there exists a translation for the whole chain
             final String complexTranslation = (complexElements.size() > 1) ?
-                                              tuelibMixin.getTranslationOrNull(String.join(" / ", complexElements), lang) : null;
+                                              TuelibMixin.getTranslationOrNull(String.join(" / ", complexElements), lang) : null;
             String keywordString = (complexTranslation != null) ? complexTranslation : keyword.toString();
             keywordString = keywordString.replace("/", "\\/");
             keyWordChain.add(lang.equals("de") ? BCEReplacer.replaceBCEPatterns(keywordString) : keywordString);
