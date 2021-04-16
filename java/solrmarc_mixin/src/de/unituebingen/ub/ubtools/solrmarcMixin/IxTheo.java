@@ -145,7 +145,7 @@ public class IxTheo extends SolrIndexerMixin {
     public Set<String> getIxTheoNotationFacets(final Record record) {
         final Set<String> ixTheoNotations = getIxTheoNotations(record);
         if (ixTheoNotations.isEmpty()) {
-            return TuelibMixin.UNASSIGNED_SET;
+            return TuelibBiblioMixin.UNASSIGNED_SET;
         }
         return ixTheoNotations;
     }
@@ -157,7 +157,7 @@ public class IxTheo extends SolrIndexerMixin {
         if (langShortcut.equals("de"))
             return topics;
         Set<String> translated_topics = new HashSet<String>();
-        Map<String, String> translation_map = TuelibMixin.getTranslationMap(langShortcut);
+        Map<String, String> translation_map = TuelibBiblioMixin.getTranslationMap(langShortcut);
 
         for (String topic : topics) {
             // Some ordinary topics contain words with an escaped slash as a

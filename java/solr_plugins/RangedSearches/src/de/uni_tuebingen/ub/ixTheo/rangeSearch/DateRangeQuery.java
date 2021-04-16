@@ -11,7 +11,6 @@ import org.apache.lucene.search.Weight;
 
 
 public class DateRangeQuery extends Query {
-    //private static Logger logger = LoggerFactory.getLogger(DateRangeQuery.class);
 
     private Query query;
     protected Range[] ranges;

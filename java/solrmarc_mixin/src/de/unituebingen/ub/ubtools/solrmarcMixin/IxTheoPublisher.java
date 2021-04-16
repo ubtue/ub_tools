@@ -137,7 +137,7 @@ public class IxTheoPublisher extends SolrIndexerMixin {
     public Set<String> getPublishersOrUnassigned(final Record record) {
         final Set<String> publishers = getNormalizedPublishers(record);
         if (publishers == null || publishers.isEmpty()) {
-            return TuelibMixin.UNASSIGNED_SET;
+            return TuelibBiblioMixin.UNASSIGNED_SET;
         }
         return publishers;
     }

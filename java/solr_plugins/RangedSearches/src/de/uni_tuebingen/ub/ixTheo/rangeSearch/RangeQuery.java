@@ -9,7 +9,6 @@ import org.apache.lucene.search.Weight;
 
 
 public class RangeQuery extends Query {
-    //private static Logger logger = LoggerFactory.getLogger(RangeQuery.class);
 
     private Query query;
     protected Range[] ranges;

@@ -14,7 +14,6 @@ import org.apache.solr.search.SyntaxError;
 public class CanonesRangeParser extends QParser {
     private final static String QUERY_SEPARATOR = " ";
     private final static String DB_FIELD_SEPARATOR = ",";
-    //private static Logger logger = LoggerFactory.getLogger(CanonesRangeParser.class);
 
     /**
      * @param qstr        The part of the query string specific to this parser

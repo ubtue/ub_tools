@@ -9,7 +9,6 @@ import org.apache.solr.search.SyntaxError;
 
 
 public class BibleDateRangeParser extends QParser {
-    //private static Logger logger = LoggerFactory.getLogger(BibleDateRangeParser.class);
 
     /**
      * Constructor for the QParser
