@@ -12,7 +12,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
 
     private final static String KEYWORD_DELIMITER = "/";
     private final static String SUBFIELD_CODES = "abcdetnpzf";
-    private final static TuelibMixin tuelibMixin = new TuelibMixin();
+    private final static TuelibBiblioMixin tuelibMixin = new TuelibBiblioMixin();
 
     public Set<String> getKeyWordChain(final Record record, final String fieldSpec, final String lang) {
         final List<VariableField> variableFields = record.getVariableFields(fieldSpec);
@@ -153,7 +153,7 @@ public class IxTheoKeywordChains extends SolrIndexerMixin {
         if (keyword.length() > 0) {
             // Check whether there exists a translation for the whole chain
             final String complexTranslation = (complexElements.size() > 1) ?
-                                              TuelibMixin.getTranslationOrNull(String.join(" / ", complexElements), lang) : null;
+                                              TuelibBiblioMixin.getTranslationOrNull(String.join(" / ", complexElements), lang) : null;
             String keywordString = (complexTranslation != null) ? complexTranslation : keyword.toString();
             keywordString = keywordString.replace("/", "\\/");
             keyWordChain.add(lang.equals("de") ? BCEReplacer.replaceBCEPatterns(keywordString) : keywordString);

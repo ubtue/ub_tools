@@ -9,7 +9,6 @@ import org.apache.solr.search.SyntaxError;
 
 
 public class CanonesDateRangeParser extends QParser {
-    //private static Logger logger = LoggerFactory.getLogger(CanonesDateRangeParser.class);
 
     /**
      * @param qstr        The part of the query string specific to this parser

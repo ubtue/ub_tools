@@ -18,7 +18,6 @@ import org.apache.solr.search.facet.FacetDebugInfo;
 import de.uni_tuebingen.ub.ixTheo.util.SolrPluginUtils;
 
 public class IxTheoDebugComponent extends DebugComponent {
-    //private static Logger logger = LoggerFactory.getLogger(IxTheoDebugComponent.class);
     public static final String COMPONENT_NAME = "debug";
 
     @SuppressWarnings("unchecked")

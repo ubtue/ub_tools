@@ -24,7 +24,6 @@ import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeScorer;
 
 public class TimeAspectDateRangeWeight extends ConstantScoreWeight {
     private final static float NOT_RELEVANT = Float.NEGATIVE_INFINITY;
-    //private final static Logger logger = LoggerFactory.getLogger(TimeAspectDateRangeWeight.class);
     private final static String FIELD = "time_aspect_ranges";
     private final IntFloatMap scoring = new IntFloatHashMap();
     private final TimeAspectDateRange[] ranges;

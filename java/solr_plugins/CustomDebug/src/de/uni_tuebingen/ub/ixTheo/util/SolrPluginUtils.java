@@ -34,10 +34,7 @@ import org.apache.solr.search.SolrIndexSearcher;
  */
 public class SolrPluginUtils extends org.apache.solr.util.SolrPluginUtils {
 
-    //private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
     private static NamedList<String> explanationsToStrings(NamedList<Explanation> explanations) {
-
         NamedList<String> out = new SimpleOrderedMap<>();
         for (Map.Entry<String, Explanation> entry : explanations) {
             out.add(entry.getKey(), "\n" + entry.getValue().toString());

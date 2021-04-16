@@ -14,9 +14,8 @@ import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
-import org.solrmarc.index.SolrIndexerMixin;
 
-public class TuelibAuthMixin extends SolrIndexerMixin {
+public class TuelibAuthMixin extends TuelibMixin {
 
     protected final static Logger logger = Logger.getLogger(TuelibAuthMixin.class.getName());
     
