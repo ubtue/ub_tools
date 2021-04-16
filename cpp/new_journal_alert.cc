@@ -24,12 +24,14 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include "Compiler.h"
+#include "BinaryIO.h"
 #include "DbConnection.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
@@ -76,16 +78,17 @@ public:
 
 struct NewIssueInfo {
     std::string control_number_;
+    std::string series_control_number_;
     std::string series_title_;
     std::string issue_title_;
     std::string volume_, year_, issue_, start_page_;
     std::vector<std::string> authors_;
 public:
-    NewIssueInfo(const std::string &control_number, const std::string &series_title, const std::string &issue_title,
-                 const std::string &volume, const std::string &year, const std::string &issue, const std::string &start_page,
-                 const std::vector<std::string> &authors)
-        : control_number_(control_number), series_title_(series_title), issue_title_(issue_title), volume_(volume), year_(year),
-          issue_(issue), start_page_(start_page), authors_(authors) { }
+    NewIssueInfo(const std::string &control_number, const std::string &series_control_number, const std::string &series_title,
+                 const std::string &issue_title, const std::string &volume, const std::string &year, const std::string &issue,
+                 const std::string &start_page, const std::vector<std::string> &authors)
+        : control_number_(control_number), series_control_number_(series_control_number), series_title_(series_title),
+          issue_title_(issue_title), volume_(volume), year_(year), issue_(issue), start_page_(start_page), authors_(authors) { }
     bool operator<(const NewIssueInfo &rhs) const;
     bool operator==(const NewIssueInfo &rhs) const;
     friend std::ostream &operator<<(std::ostream &output, const NewIssueInfo &new_issue_info);
@@ -94,7 +97,8 @@ public:
 
 std::ostream &operator<<(std::ostream &output, const NewIssueInfo &new_issue_info) {
     output << new_issue_info.control_number_
-           << (new_issue_info.series_title_.empty() ? "*Missing Series Title*" : new_issue_info.series_title_) << ' '
+           << (new_issue_info.series_control_number_.empty() ? "Missing series PPN*" : new_issue_info.series_control_number_)
+           << ' ' << (new_issue_info.series_title_.empty() ? "*Missing Series Title*" : new_issue_info.series_title_) << ' '
            << (new_issue_info.issue_title_.empty() ? "*Missing Issue Title*" : new_issue_info.issue_title_) << ' '
            << (new_issue_info.volume_.empty() ? "*Missing Volume*" : new_issue_info.volume_) << ' '
            << (new_issue_info.year_.empty() ? "*Missing Year*" : new_issue_info.year_) << ' '
@@ -264,7 +268,8 @@ std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode
 
     std::vector<std::string> authors;
     for (const auto &array_entry : *author_array) {
-        const std::shared_ptr<const JSON::StringNode> author_string(JSON::JSONNode::CastToStringNodeOrDie("author string", array_entry));
+        const std::shared_ptr<const JSON::StringNode> author_string(
+            JSON::JSONNode::CastToStringNodeOrDie("author string", array_entry));
         authors.emplace_back(author_string->getValue());
     }
 
@@ -273,7 +278,7 @@ std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode
 
 
 /** \return True if new issues were found, false o/w. */
-bool ExtractNewIssueInfos(const std::unique_ptr<KeyValueDB> &notified_db,
+bool ExtractNewIssueInfos(const std::unique_ptr<KeyValueDB> &notified_db, const std::string &serial_control_number,
                           std::unordered_set<std::string> * const new_notification_ids,
                           const std::string &json_document, std::vector<NewIssueInfo> * const new_issue_infos,
                           std::string * const max_last_modification_time)
@@ -311,7 +316,8 @@ bool ExtractNewIssueInfos(const std::unique_ptr<KeyValueDB> &notified_db,
         const std::string issue(JSON::LookupString("/issue", doc_obj, /* default_value = */ ""));
         const std::string start_page(JSON::LookupString("/start_page", doc_obj, /* default_value = */ ""));
 
-        new_issue_infos->emplace_back(id, series_title, issue_title, volume, year, issue, start_page, authors);
+        new_issue_infos->emplace_back(id, serial_control_number, series_title, issue_title, volume, year, issue,
+                                      start_page, authors);
 
         const std::string last_modification_time(GetLastModificationTime(doc_obj));
         if (last_modification_time > *max_last_modification_time) {
@@ -343,7 +349,8 @@ bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
                                  solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         LOG_ERROR("Solr query failed or timed-out: \"" + QUERY + "\". (" + err_msg + ")");
 
-    return ExtractNewIssueInfos(notified_db, new_notification_ids, json_result, new_issue_infos, max_last_modification_time);
+    return ExtractNewIssueInfos(notified_db, serial_control_number, new_notification_ids, json_result,
+                                new_issue_infos, max_last_modification_time);
 }
 
 
@@ -505,8 +512,9 @@ std::string GetMinLastModificationTime(const std::map<std::string, std::string> 
 void ProcessSingleUser(
     const bool debug, DbConnection * const db_connection, const std::unique_ptr<KeyValueDB> &notified_db,
     const IniFile &bundles_config, std::unordered_set<std::string> * const new_notification_ids,
-    const std::string &user_id, const std::string &solr_host_and_port, const std::string &hostname,
-    const std::string &sender_email, const std::string &email_subject,
+    std::unordered_map<std::string, unsigned> * const journal_ppns_to_counts_map, const std::string &user_id,
+    const std::string &solr_host_and_port, const std::string &hostname, const std::string &sender_email,
+    const std::string &email_subject,
     std::vector<SerialControlNumberAndMaxLastModificationTime> &control_numbers_or_bundle_names_and_last_modification_times,
     std::map<std::string, std::map<std::string, std::string>> * const bundle_journal_last_modification_times)
 {
@@ -521,19 +529,21 @@ void ProcessSingleUser(
     const DbRow row(result_set.getNextRow());
     const std::string username(row["username"]);
 
-    LOG_INFO("Found " + std::to_string(control_numbers_or_bundle_names_and_last_modification_times.size()) + " subscriptions for \""
-             + username + "\".");
+    LOG_INFO("Found " + std::to_string(control_numbers_or_bundle_names_and_last_modification_times.size())
+             + " subscriptions for \"" + username + "\".");
 
     const std::string firstname(row["firstname"]);
     const std::string lastname(row["lastname"]);
-    const auto  name_of_user(MiscUtil::GenerateAddress(firstname, lastname, "Subscriber"));
+    const auto name_of_user(MiscUtil::GenerateAddress(firstname, lastname, "Subscriber"));
 
     const std::string email(row["email"]);
     const std::string user_type(row["user_type"]);
 
     // Collect the dates for new issues.
     std::vector<NewIssueInfo> new_issue_infos;
-    for (auto &control_number_or_bundle_name_and_last_modification_time : control_numbers_or_bundle_names_and_last_modification_times) {
+    for (auto &control_number_or_bundle_name_and_last_modification_time
+             : control_numbers_or_bundle_names_and_last_modification_times)
+    {
         std::string max_last_modification_time(control_number_or_bundle_name_and_last_modification_time.last_modification_time_);
         if (IsBundle(control_number_or_bundle_name_and_last_modification_time.serial_control_number_)) {
             const std::string bundle_name(
@@ -541,25 +551,25 @@ void ProcessSingleUser(
             std::vector<std::string> bundle_control_numbers;
             LoadBundleControlNumbers(bundles_config, bundle_name, &bundle_control_numbers);
             std::map<std::string, std::string> bundles_journal_control_number_and_last_modification_times;
-            LoadBundleMaxLastModificationTimes(db_connection, bundle_name, bundle_control_numbers, &bundles_journal_control_number_and_last_modification_times);
+            LoadBundleMaxLastModificationTimes(db_connection, bundle_name, bundle_control_numbers,
+                                               &bundles_journal_control_number_and_last_modification_times);
             for (const auto &bundle_control_number : bundle_control_numbers) {
                 const std::string bundle_journal_last_modification_time(
-                   bundles_journal_control_number_and_last_modification_times.count(bundle_control_number) and
-                      (TimeUtil::Iso8601StringToTimeT(bundles_journal_control_number_and_last_modification_times[bundle_control_number], TimeUtil::UTC) >=
-                       TimeUtil::Iso8601StringToTimeT(max_last_modification_time, TimeUtil::UTC))
-                   ?
-                   bundles_journal_control_number_and_last_modification_times[bundle_control_number]
-                   :
-                   max_last_modification_time);
+                   bundles_journal_control_number_and_last_modification_times.count(bundle_control_number)
+                   and (TimeUtil::Iso8601StringToTimeT(
+                            bundles_journal_control_number_and_last_modification_times[bundle_control_number], TimeUtil::UTC)
+                        >= TimeUtil::Iso8601StringToTimeT(max_last_modification_time, TimeUtil::UTC))
+                   ? bundles_journal_control_number_and_last_modification_times[bundle_control_number]
+                   : max_last_modification_time);
                 if (GetNewIssues(notified_db, new_notification_ids, solr_host_and_port, bundle_control_number,
-                                 bundle_journal_last_modification_time, &new_issue_infos,
-                                 &max_last_modification_time))
-                    bundles_journal_control_number_and_last_modification_times[bundle_control_number] = max_last_modification_time;
+                                 bundle_journal_last_modification_time, &new_issue_infos, &max_last_modification_time))
+                    bundles_journal_control_number_and_last_modification_times[bundle_control_number] =
+                        max_last_modification_time;
             }
             (*bundle_journal_last_modification_times)[bundle_name] = bundles_journal_control_number_and_last_modification_times;
             // Get the minimum of all candidates - if they were already sent the notified_db will come in
             control_number_or_bundle_name_and_last_modification_time.setMaxLastModificationTime(
-                        GetMinLastModificationTime(bundles_journal_control_number_and_last_modification_times));
+                GetMinLastModificationTime(bundles_journal_control_number_and_last_modification_times));
         } else {
             if (GetNewIssues(notified_db, new_notification_ids, solr_host_and_port,
                              control_number_or_bundle_name_and_last_modification_time.serial_control_number_,
@@ -568,7 +578,8 @@ void ProcessSingleUser(
                 control_number_or_bundle_name_and_last_modification_time.setMaxLastModificationTime(max_last_modification_time);
         }
     }
-    // Deduplicate and sort
+
+    // Deduplicate and sort:
     const std::unordered_set<NewIssueInfo> new_issue_infos_set(new_issue_infos.begin(), new_issue_infos.end());
     new_issue_infos = std::vector<NewIssueInfo>(new_issue_infos_set.begin(), new_issue_infos_set.end());
     std::sort(new_issue_infos.begin(), new_issue_infos.end());
@@ -585,9 +596,18 @@ void ProcessSingleUser(
         for (const auto &new_issue_info : new_issue_infos)
             std::cerr << new_issue_info << '\n';
         return;
+    } else {
+        for (const auto &new_issue_info : new_issue_infos) {
+            auto journal_ppn_and_count(journal_ppns_to_counts_map->find(new_issue_info.series_control_number_));
+            if (journal_ppn_and_count == journal_ppns_to_counts_map->end())
+                (*journal_ppns_to_counts_map)[new_issue_info.series_control_number_] = 1;
+            else
+                ++(journal_ppn_and_count->second);
+        }
     }
 
-    for (const auto &control_number_or_bundle_name_and_last_modification_time : control_numbers_or_bundle_names_and_last_modification_times)
+    for (const auto &control_number_or_bundle_name_and_last_modification_time
+             : control_numbers_or_bundle_names_and_last_modification_times)
     {
         if (not control_number_or_bundle_name_and_last_modification_time.changed())
             continue;
@@ -618,6 +638,7 @@ void StoreBundleJournalsMaxModificationTimes(DbConnection * const db_connection,
 
 void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, const std::unique_ptr<KeyValueDB> &notified_db,
                           const IniFile &bundles_config, std::unordered_set<std::string> * const new_notification_ids,
+                          std::unordered_map<std::string, unsigned> * const journal_ppns_to_counts_map,
                           const std::string &solr_host_and_port, const std::string &user_type, const std::string &hostname,
                           const std::string &sender_email, const std::string &email_subject)
 {
@@ -636,13 +657,14 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
         DbResultSet result_set(db_connection->getLastResultSet());
         std::vector<SerialControlNumberAndMaxLastModificationTime> control_numbers_or_bundle_names_and_last_modification_times;
         while (const DbRow row = result_set.getNextRow()) {
-            control_numbers_or_bundle_names_and_last_modification_times.emplace_back(SerialControlNumberAndMaxLastModificationTime(
-                row["journal_control_number_or_bundle_name"], ConvertDateToZuluDate(row["max_last_modification_time"])));
+            control_numbers_or_bundle_names_and_last_modification_times.emplace_back(
+                SerialControlNumberAndMaxLastModificationTime(
+                    row["journal_control_number_or_bundle_name"], ConvertDateToZuluDate(row["max_last_modification_time"])));
             ++subscription_count;
         }
-        ProcessSingleUser(debug, db_connection, notified_db, bundles_config, new_notification_ids, user_id, solr_host_and_port,
-                          hostname, sender_email, email_subject, control_numbers_or_bundle_names_and_last_modification_times,
-                          &bundle_journals_last_modification_times);
+        ProcessSingleUser(debug, db_connection, notified_db, bundles_config, new_notification_ids, journal_ppns_to_counts_map,
+                          user_id, solr_host_and_port, hostname, sender_email, email_subject,
+                          control_numbers_or_bundle_names_and_last_modification_times, &bundle_journals_last_modification_times);
     }
 
     StoreBundleJournalsMaxModificationTimes(db_connection, bundle_journals_last_modification_times);
@@ -666,6 +688,22 @@ std::unique_ptr<KeyValueDB> CreateOrOpenKeyValueDB(const std::string &user_type)
         KeyValueDB::Create(DB_FILENAME);
 
     return std::unique_ptr<KeyValueDB>(new KeyValueDB(DB_FILENAME));
+}
+
+
+void RecordStats(const std::string &user_type, std::unordered_map<std::string, unsigned> &journal_ppns_to_counts_map) {
+    const auto USAGE_STATS_PATH(UBTools::GetTuelibPath() + "new_journal_alert.stats");
+    const auto usage_stats_file(FileUtil::OpenForAppendingOrDie(USAGE_STATS_PATH));
+
+    const auto JULIAN_DAY_NUMBER(TimeUtil::GetJulianDayNumber());
+    for (const auto &[journal_ppn, count] : journal_ppns_to_counts_map) {
+        BinaryIO::WriteOrDie(*usage_stats_file, JULIAN_DAY_NUMBER);
+        BinaryIO::WriteOrDie(*usage_stats_file, user_type);
+        BinaryIO::WriteOrDie(*usage_stats_file, journal_ppn);
+        BinaryIO::WriteOrDie(*usage_stats_file, count);
+    }
+
+    LOG_INFO("Appended " + std::to_string(journal_ppns_to_counts_map.size()) + " entries to " + USAGE_STATS_PATH + ".");
 }
 
 
@@ -710,10 +748,15 @@ int Main(int argc, char **argv) {
     const IniFile bundles_config(UBTools::GetTuelibPath() + "journal_alert_bundles.conf");
 
     std::unordered_set<std::string> new_notification_ids;
-    ProcessSubscriptions(debug, db_connection.get(), notified_db, bundles_config, &new_notification_ids, solr_host_and_port,
-                         user_type, hostname, sender_email, email_subject);
-    if (not debug)
+    std::unordered_map<std::string, unsigned> journal_ppns_to_counts_map;
+    ProcessSubscriptions(debug, db_connection.get(), notified_db, bundles_config, &new_notification_ids,
+                         &journal_ppns_to_counts_map, solr_host_and_port, user_type, hostname, sender_email,
+                         email_subject);
+
+    if (not debug) {
         RecordNewlyNotifiedIds(notified_db, new_notification_ids);
+        RecordStats(user_type, journal_ppns_to_counts_map);
+    }
 
     return EXIT_SUCCESS;
 }

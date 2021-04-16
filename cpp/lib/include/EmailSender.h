@@ -38,6 +38,12 @@ enum Format { PLAIN_TEXT, HTML };
 unsigned short SimplerSendEmail(const std::string &sender, const std::vector<std::string> &recipients,
                                 const std::string &subject, const std::string &message_body,
                                 const Priority priority = DO_NOT_SET_PRIORITY, const Format format = PLAIN_TEXT);
+inline unsigned short SimplerSendEmail(const std::string &sender, const std::string &recipient,
+                                       const std::string &subject, const std::string &message_body,
+                                       const Priority priority = DO_NOT_SET_PRIORITY, const Format format = PLAIN_TEXT)
+    { return SimplerSendEmail(sender, std::vector<std::string>{ recipient }, subject, message_body, priority, format); }
+
+
 unsigned short SendEmailWithFileAttachments(const std::string &sender, const std::vector<std::string> &recipients,
                                             const std::string &subject, const std::string &message_body,
                                             const std::vector<std::string> &attachment_filenames,
@@ -63,7 +69,7 @@ enum AttachmentType {
  *  \note The message body must be UTF-8!
  *  \return In order to understand the significance of the return codes, read https://www.ietf.org/rfc/rfc5321.txt
  *          especially starting at the section titled "Reply Code Severities and Theory" (4.2.1.).
- *  \note It is probably Ok to test for test for <= 299 as a successful return code.
+ *  \note It is probably Ok to test for <= 299 as a successful return code.
  */
 unsigned short SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
                          const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
