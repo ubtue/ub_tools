@@ -126,12 +126,14 @@ void LoadAuthorityData(MARC::Reader * const reader,
 }
 
 
-void CollectAuthorityPPNs(const MARC::Record &record, const MARC::Tag &linking_field, std::vector<std::string> * const authority_ppns) {
+void CollectAuthorityPPNs(const MARC::Record &record, const MARC::Tag &linking_field,
+                          std::vector<std::string> * const authority_ppns)
+{
     for (const auto &field : record.getTagRange(linking_field)) {
         const MARC::Subfields subfields(field.getSubfields());
         for (const auto &subfield : subfields) {
-            if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-576)"))
-                authority_ppns->emplace_back(subfield.value_.substr(__builtin_strlen("(DE-576)")));
+            if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-627)"))
+                authority_ppns->emplace_back(subfield.value_.substr(__builtin_strlen("(DE-627)")));
         }
     }
 }
@@ -140,7 +142,7 @@ void CollectAuthorityPPNs(const MARC::Record &record, const MARC::Tag &linking_f
 void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                     const std::unordered_map<std::string, std::string> &authority_ppns_to_canon_law_codes_map)
 {
-    static const std::vector<std::string> CANONES_GND_LINKING_TAGS{ "689", "655" };
+    static const std::vector<std::string> CANONES_GND_LINKING_TAGS{ "689", "655", "610" };
 
     unsigned total_count(0), augmented_count(0);
     std::map<std::string, unsigned> reference_counts;
