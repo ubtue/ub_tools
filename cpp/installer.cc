@@ -702,7 +702,7 @@ void DownloadVuFind() {
 
         // We need to increase default_socket_timeout for big downloads on slow mirrors, especially Solr (default 60 seconds) .
         TemporaryChDir tmp2(VUFIND_DIRECTORY);
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { "-ddefault_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" });
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { "-d", "default_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" });
     }
 }
 
