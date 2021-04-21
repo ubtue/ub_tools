@@ -2704,6 +2704,10 @@ bool ConsistsOf(const std::string &s, const std::set<char> &set) {
     return true;
 }
 
+bool Contains(const std::string &s, const std::string &test) {
+    return (s.find(test) != std::string::npos);
+}
+
 
 bool ContainsAtLeastOneLowercaseLetter(const std::string &s) {
     for (std::string::const_iterator ch(s.begin()); ch != s.end(); ++ch) {

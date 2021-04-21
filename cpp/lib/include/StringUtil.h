@@ -2416,6 +2416,8 @@ template<typename Number> inline Number StringToBinary(const std::string &bits) 
 }
 
 
+bool Contains(const std::string &s, const std::string &test);
+
 /** \brief   Predicate to determine whether a string "s" contains at least a single lowercase letter or not.
  *  \warning This function is locale dependent in that its notion of what consitutes a lowercase letter depends on the current locale setting!
  */

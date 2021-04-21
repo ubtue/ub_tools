@@ -164,9 +164,13 @@ bool ProcessRSSItem(const std::string &feed_id, const SyndicationFormat::Item &i
 
 
 // \return the number of new items.
+// use ---- as delimiter in database table (should be pair wise, e.g. 
+//   update tuefind_rss_feeds set description_substitution_pair_4minus='a----A----e----E----b----""----r..g----RUNG' where id=1;
+// for replacing by empty values (deletions) use '' or ""
 unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, const std::string &feed_url,
-                     const std::string &title_suppression_regex_str, const std::string &strptime_format,
-                     Downloader * const downloader, DbConnection * const db_connection, const unsigned downloader_time_limit)
+                     const std::string &title_suppression_regex_str, const std::string &description_substitution_str,
+                     const std::string &strptime_format, Downloader * const downloader, 
+                     DbConnection * const db_connection, const unsigned downloader_time_limit)
 {
     SyndicationFormat::AugmentParams augment_params;
     augment_params.strptime_format_ = strptime_format;
@@ -174,6 +178,12 @@ unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, c
     const auto title_suppression_regex(
         title_suppression_regex_str.empty() ? nullptr : RegexMatcher::RegexMatcherFactoryOrDie(title_suppression_regex_str));
 
+    std::string description_separator = "----";
+    std::list<std::string> description_pair_elems;
+    if (StringUtil::Contains(description_substitution_str, description_separator)) {
+        StringUtil::Split(description_substitution_str, description_separator, &description_pair_elems, /* suppress_empty_components = */ true);
+    }
+    
     unsigned new_item_count(0);
     if (not downloader->newUrl(feed_url, downloader_time_limit))
         LOG_WARNING(feed_name + ": failed to download the feed: " + downloader->getLastErrorMessage());
@@ -184,10 +194,24 @@ unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, c
         if (unlikely(syndication_format == nullptr))
             LOG_WARNING("failed to parse feed: " + error_message);
         else {
-            for (const auto &item : *syndication_format) {
+            for (/*const*/ auto &item : *syndication_format) {
                 if (title_suppression_regex != nullptr and title_suppression_regex->matched(item.getTitle())) {
                     LOG_INFO("Suppressed item because of title: \"" + StringUtil::ShortenText(item.getTitle(), 40) + "\".");
                     continue; // Skip suppressed item.
+                }
+
+                std::string pair_first = "";
+                for (std::string elem : description_pair_elems) {
+                    if (pair_first == "") {
+                        pair_first = elem;
+                    } else {
+                        if (elem == "\"\"" || elem == "''") {
+                            elem = "";
+                        }
+                        const auto description_substitution(RegexMatcher::RegexMatcherFactoryOrDie(pair_first));
+                        item.setDescription(description_substitution->replaceAll(item.getDescription(), elem));
+                        pair_first = "";
+                    }
                 }
 
                 if (ProcessRSSItem(feed_id, item, db_connection))
@@ -198,7 +222,6 @@ unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, c
 
     return new_item_count;
 }
-
 
 const unsigned HARVEST_TIME_WINDOW(60); // days
 
@@ -254,7 +277,7 @@ int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_outpu
         LOG_INFO("Processing feed \"" + row["feed_name"] + "\".");
         const unsigned new_item_count(
             ProcessFeed(row["id"], row["feed_name"], row["feed_url"],
-                        row.getValue("title_suppression_regex"),
+                        row.getValue("title_suppression_regex"), row.getValue("description_substitution_pair_4minus"),
                         row.getValue("strptime_format"), downloader, db_connection,
                         StringUtil::ToUnsigned(row["downloader_time_limit"]) * SECONDS_TO_MILLISECONDS));
         LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
