@@ -9,20 +9,8 @@ import de.uni_tuebingen.ub.ixTheo.rangeSearch.Range;
 public class BibleDateRange extends Range {
     private final static int VERSE_LENGTH = 3;
     private final static int CHAPTER_LENGTH = 3;
-    private final static int BOOK_LENGTH = 2;
-
     private final static int CHAPTER_MASK = tenToThePowerOf(VERSE_LENGTH + CHAPTER_LENGTH);
-    private final static int BOOK_MASK = tenToThePowerOf(VERSE_LENGTH + CHAPTER_LENGTH + BOOK_LENGTH);
-
     private final static int MAX_CHAPTER_CODE = CHAPTER_MASK - 1;
-    private final static int MAX_BOOK_CODE = BOOK_MASK - 1;
-
-    private final static int BIBLE_CODE_LENGTH = VERSE_LENGTH + CHAPTER_LENGTH + BOOK_LENGTH;
-
-    private final static int LOWER_BIBLE_CODE_START = 0;
-    private final static int UPPER_BIBLE_CODE_START = LOWER_BIBLE_CODE_START + BIBLE_CODE_LENGTH + 1;
-
-    private final static int RANGE_STRING_LENGTH = BIBLE_CODE_LENGTH + 1 + BIBLE_CODE_LENGTH;
 
     public BibleDateRange(final String date_range) {
         super(date_range);

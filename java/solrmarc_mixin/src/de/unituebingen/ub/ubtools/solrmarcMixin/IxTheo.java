@@ -5,18 +5,14 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.Reader.*;
 import java.util.logging.Logger;
 import java.util.*;
 import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.VariableField;
-import org.marc4j.marc.*;
 import org.solrmarc.index.SolrIndexer;
 import org.solrmarc.index.SolrIndexerMixin;
-import org.solrmarc.tools.DataUtil;
 import org.solrmarc.tools.Utils;
-import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 
 public class IxTheo extends SolrIndexerMixin {
     protected static Logger logger = Logger.getLogger(IxTheo.class.getName());
@@ -113,7 +109,7 @@ public class IxTheo extends SolrIndexerMixin {
      */
     public Set<String> getIxTheoNotations(final Record record) {
         final Set<String> ixTheoNotations = new TreeSet<>();
-        final List fields = record.getVariableFields("652");
+        final List<VariableField> fields = record.getVariableFields("652");
         if (fields.isEmpty())
             return ixTheoNotations;
 
@@ -149,7 +145,7 @@ public class IxTheo extends SolrIndexerMixin {
     public Set<String> getIxTheoNotationFacets(final Record record) {
         final Set<String> ixTheoNotations = getIxTheoNotations(record);
         if (ixTheoNotations.isEmpty()) {
-            return TuelibMixin.UNASSIGNED_SET;
+            return TuelibBiblioMixin.UNASSIGNED_SET;
         }
         return ixTheoNotations;
     }
@@ -161,7 +157,7 @@ public class IxTheo extends SolrIndexerMixin {
         if (langShortcut.equals("de"))
             return topics;
         Set<String> translated_topics = new HashSet<String>();
-        Map<String, String> translation_map = TuelibMixin.getTranslationMap(langShortcut);
+        Map<String, String> translation_map = TuelibBiblioMixin.getTranslationMap(langShortcut);
 
         for (String topic : topics) {
             // Some ordinary topics contain words with an escaped slash as a

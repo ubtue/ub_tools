@@ -1,25 +1,29 @@
 package de.uni_tuebingen.ub.ixTheo.canonesDateRangeSearch;
 
 
-import com.carrotsearch.hppc.IntFloatHashMap;
-import com.carrotsearch.hppc.IntFloatMap;
+import java.io.IOException;
+
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.search.*;
+import org.apache.lucene.search.ConstantScoreWeight;
+import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.TwoPhaseIterator;
+import org.apache.lucene.search.Weight;
 import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.BitSetIterator;
 import org.apache.lucene.util.FixedBitSet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import java.io.IOException;
+
+import com.carrotsearch.hppc.IntFloatHashMap;
+import com.carrotsearch.hppc.IntFloatMap;
+
 import de.uni_tuebingen.ub.ixTheo.rangeSearch.Range;
 import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeScorer;
 
 
 public class CanonesDateRangeWeight extends ConstantScoreWeight {
     private final static float NOT_RELEVANT = Float.NEGATIVE_INFINITY;
-    private final static Logger logger = LoggerFactory.getLogger(CanonesDateRangeWeight.class);
     private final static String FIELD = "canon_law_ranges";
     private final IntFloatMap scoring = new IntFloatHashMap();
     private final boolean isSearchingForCodices;

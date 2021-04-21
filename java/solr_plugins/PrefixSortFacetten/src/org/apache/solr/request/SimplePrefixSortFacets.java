@@ -1,15 +1,22 @@
 package org.apache.solr.request;
 
-import de.uni_tuebingen.ub.ixTheo.common.params.FacetPrefixSortParams;
+import static org.apache.solr.common.params.CommonParams.SORT;
+
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.function.Predicate;
+
 import org.apache.lucene.util.BytesRef;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.params.FacetParams;
 import org.apache.solr.common.params.GroupParams;
 import org.apache.solr.common.params.SolrParams;
-import org.apache.solr.common.SolrException;
-import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.handler.component.ResponseBuilder;
@@ -18,22 +25,12 @@ import org.apache.solr.schema.FieldType;
 import org.apache.solr.schema.SchemaField;
 import org.apache.solr.schema.TrieField;
 import org.apache.solr.search.DocSet;
-import org.apache.solr.search.facet.FacetDebugInfo;
 import org.apache.solr.search.facet.FacetProcessor;
 import org.apache.solr.util.RTimer;
-import org.apache.solr.request.SimpleFacets;
-import org.apache.solr.request.SubstringBytesRefFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Executor;
-import java.util.function.Predicate;
-
-import static org.apache.solr.common.params.CommonParams.SORT;
+import de.uni_tuebingen.ub.ixTheo.common.params.FacetPrefixSortParams;
 
 public class SimplePrefixSortFacets extends SimpleFacets {
     private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
