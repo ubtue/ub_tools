@@ -33,7 +33,6 @@ import org.apache.commons.lang.LocaleUtils;
 import org.apache.commons.lang.*;
 
 import java.io.IOException;
-import java.net.URL;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
@@ -47,7 +46,7 @@ import java.text.Collator;
  *
  * @since solr 1.3
  */
-@SuppressWarnings("rawtypes")
+
 // public class FacetComponent extends SearchComponent {
 public class FacetPrefixSortComponent extends org.apache.solr.handler.component.FacetComponent {
 

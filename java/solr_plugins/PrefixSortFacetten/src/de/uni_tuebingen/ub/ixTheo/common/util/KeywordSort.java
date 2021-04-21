@@ -1,7 +1,6 @@
 package de.uni_tuebingen.ub.ixTheo.common.util;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 
 

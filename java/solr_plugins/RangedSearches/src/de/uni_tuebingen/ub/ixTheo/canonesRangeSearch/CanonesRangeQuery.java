@@ -1,13 +1,13 @@
 package de.uni_tuebingen.ub.ixTheo.canonesRangeSearch;
 
 
+import java.io.IOException;
+import java.util.Arrays;
+
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Weight;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import java.io.IOException;
-import java.util.Arrays;
+
 import de.uni_tuebingen.ub.ixTheo.rangeSearch.Range;
 import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeQuery;
 

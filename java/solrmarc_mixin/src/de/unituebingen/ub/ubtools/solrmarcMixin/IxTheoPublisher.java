@@ -6,7 +6,6 @@ import org.marc4j.marc.Record;
 import org.marc4j.marc.Subfield;
 import org.marc4j.marc.VariableField;
 import org.solrmarc.index.SolrIndexerMixin;
-import de.unituebingen.ub.ubtools.solrmarcMixin.*;
 
 public class IxTheoPublisher extends SolrIndexerMixin {
     private final static Map<String, String> replacements = new LinkedHashMap<>(128);
@@ -138,7 +137,7 @@ public class IxTheoPublisher extends SolrIndexerMixin {
     public Set<String> getPublishersOrUnassigned(final Record record) {
         final Set<String> publishers = getNormalizedPublishers(record);
         if (publishers == null || publishers.isEmpty()) {
-            return TuelibMixin.UNASSIGNED_SET;
+            return TuelibBiblioMixin.UNASSIGNED_SET;
         }
         return publishers;
     }
