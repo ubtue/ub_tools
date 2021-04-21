@@ -165,7 +165,7 @@ bool ProcessRSSItem(const std::string &feed_id, const SyndicationFormat::Item &i
 
 // \return the number of new items.
 // use ---- as delimiter in database table (should be pair wise, e.g. 
-//   update tuefind_rss_feeds set description_substitution_pair_4minus='a----A----e----E----b----""----r..g----RUNG' where id=1;
+//   update tuefind_rss_feeds set descriptions_and_substitutions='a----A----e----E----b----""----r..g----RUNG' where id=1;
 // for replacing by empty values (deletions) use '' or ""
 unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, const std::string &feed_url,
                      const std::string &title_suppression_regex_str, const std::string &description_substitution_str,
@@ -194,23 +194,22 @@ unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, c
         if (unlikely(syndication_format == nullptr))
             LOG_WARNING("failed to parse feed: " + error_message);
         else {
-            for (/*const*/ auto &item : *syndication_format) {
+            for (auto &item : *syndication_format) {
                 if (title_suppression_regex != nullptr and title_suppression_regex->matched(item.getTitle())) {
                     LOG_INFO("Suppressed item because of title: \"" + StringUtil::ShortenText(item.getTitle(), 40) + "\".");
                     continue; // Skip suppressed item.
                 }
 
-                std::string pair_first = "";
-                for (std::string elem : description_pair_elems) {
-                    if (pair_first == "") {
+                std::string pair_first;
+                for (std::string &elem : description_pair_elems) {
+                    if (pair_first.empty()) 
                         pair_first = elem;
-                    } else {
-                        if (elem == "\"\"" || elem == "''") {
-                            elem = "";
-                        }
+                    else {
+                        if (elem == "\"\"" or elem == "''") 
+                            elem.clear();
                         const auto description_substitution(RegexMatcher::RegexMatcherFactoryOrDie(pair_first));
                         item.setDescription(description_substitution->replaceAll(item.getDescription(), elem));
-                        pair_first = "";
+                        pair_first.clear();
                     }
                 }
 
@@ -277,7 +276,7 @@ int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_outpu
         LOG_INFO("Processing feed \"" + row["feed_name"] + "\".");
         const unsigned new_item_count(
             ProcessFeed(row["id"], row["feed_name"], row["feed_url"],
-                        row.getValue("title_suppression_regex"), row.getValue("description_substitution_pair_4minus"),
+                        row.getValue("title_suppression_regex"), row.getValue("descriptions_and_substitutions"),
                         row.getValue("strptime_format"), downloader, db_connection,
                         StringUtil::ToUnsigned(row["downloader_time_limit"]) * SECONDS_TO_MILLISECONDS));
         LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
