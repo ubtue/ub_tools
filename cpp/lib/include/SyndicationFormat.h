@@ -1,7 +1,7 @@
 /** \brief Interface of the SyndicationFormat class and descendents thereof.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -25,6 +25,7 @@
 #include <ctime>
 #include "TextUtil.h"
 #include "XMLParser.h"
+
 
 // This class needs to be thread-safe as it is used by multi-threaded Zotero Harvester code.
 class SyndicationFormat {
@@ -62,10 +63,10 @@ public:
 
     class const_iterator final {
         friend class SyndicationFormat;
-        SyndicationFormat *syndication_format_;
-        std::unique_ptr<Item> item_;
+        mutable const SyndicationFormat *syndication_format_;
+        std::unique_ptr<const Item> item_;
     private:
-        explicit const_iterator(SyndicationFormat *syndication_format)
+        explicit const_iterator(const SyndicationFormat * const syndication_format)
             : syndication_format_(syndication_format), item_(syndication_format_->getNextItem()) { }
         const_iterator(): syndication_format_(nullptr) { }
     public:
@@ -73,9 +74,27 @@ public:
             { rhs.syndication_format_ = nullptr; }
 
         void operator++();
-        const Item &operator*() const { return *item_; }
+        inline const Item &operator*() const { return *item_; }
         bool operator==(const const_iterator &rhs) const;
         inline bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
+    };
+
+    class iterator final {
+        friend class SyndicationFormat;
+        SyndicationFormat *syndication_format_;
+        std::unique_ptr<Item> item_;
+    private:
+        explicit iterator(SyndicationFormat *syndication_format)
+            : syndication_format_(syndication_format), item_(syndication_format_->getNextItem()) { }
+        iterator(): syndication_format_(nullptr) { }
+    public:
+        iterator(iterator &&rhs): syndication_format_(rhs.syndication_format_), item_(rhs.item_.release())
+            { rhs.syndication_format_ = nullptr; }
+
+        void operator++();
+        inline Item &operator*() { return *item_; }
+        bool operator==(const iterator &rhs) const;
+        inline bool operator!=(const iterator &rhs) const { return not operator==(rhs); }
     };
 
     struct AugmentParams {
@@ -83,7 +102,7 @@ public:
     };
 protected:
     friend class const_iterator;
-    XMLParser xml_parser_;
+    mutable XMLParser xml_parser_;
     std::string title_, link_, description_, id_;
     time_t last_build_date_;
     AugmentParams augment_params_;
@@ -101,14 +120,18 @@ public:
     inline const std::string &getLink() const { return link_; }
     inline const std::string &getDescription() const { return description_; }
 
-    inline const_iterator begin() { return const_iterator(this); }
-    inline const_iterator end() { return const_iterator(); }
+    inline const_iterator begin() const { return const_iterator(this); }
+    inline const_iterator end() const { return const_iterator(); }
+    inline iterator begin() { return iterator(this); }
+    inline iterator end() { return iterator(); }
 
     // \return an instance of a subclass of SyndicationFormat on success or a nullptr upon failure.
     static std::unique_ptr<SyndicationFormat> Factory(const std::string &xml_document, const AugmentParams &augment_params,
                                                       std::string * const err_msg);
 protected:
     virtual std::unique_ptr<Item> getNextItem() = 0;
+    inline std::unique_ptr<const Item> getNextItem() const
+        { return (std::unique_ptr<const Item>)const_cast<SyndicationFormat *>(this)->getNextItem(); }
 };
 
 
