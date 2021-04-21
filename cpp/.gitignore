@@ -2,6 +2,7 @@
 ## (here we use / at the beginning by default, so e.g. /installer is ignored, but not data/installer)
 .static_deps
 /add_journal_subscription
+/generate_new_journal_alert_stats
 /add_title_keywords
 /append_marc_xml
 /apply_differential_update

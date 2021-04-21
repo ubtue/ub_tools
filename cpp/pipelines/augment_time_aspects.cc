@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2019, Library of the University of Tübingen
+    Copyright (C) 2019-2021, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -56,12 +56,14 @@ void LoadAuthorityData(MARC::Reader * const reader,
 }
 
 
-void CollectAuthorityPPNs(const MARC::Record &record, const MARC::Tag &linking_field, std::vector<std::string> * const authority_ppns) {
+void CollectAuthorityPPNs(const MARC::Record &record, const MARC::Tag &linking_field,
+                          std::vector<std::string> * const authority_ppns)
+{
     for (const auto &field : record.getTagRange(linking_field)) {
         const MARC::Subfields subfields(field.getSubfields());
         for (const auto &subfield : subfields) {
-            if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-576)"))
-                authority_ppns->emplace_back(subfield.value_.substr(__builtin_strlen("(DE-576)")));
+            if (subfield.code_ == '0' and StringUtil::StartsWith(subfield.value_, "(DE-627)"))
+                authority_ppns->emplace_back(subfield.value_.substr(__builtin_strlen("(DE-627)")));
         }
     }
 }
