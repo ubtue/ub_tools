@@ -649,8 +649,8 @@ bool ReplaceSubfields(const std::vector<std::string> &subfield_specs, RegexMatch
 }
 
 
-bool SubstituteWithinSubfields(const std::vector<std::string> &subfield_specs, RegexMatcher &matcher, const std::string &replacement,
-                               MARC::Record * const record)
+bool SubstituteWithinSubfields(const std::vector<std::string> &subfield_specs, RegexMatcher &matcher,
+                               const std::string &replacement, MARC::Record * const record)
 {
     bool modified_at_least_one_field(false);
     for (auto &field : *record) {
