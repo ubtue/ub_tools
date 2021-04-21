@@ -55,7 +55,7 @@ public:
         inline bool operator==(const Item &rhs) const { return pub_date_ == rhs.pub_date_ and description_ == rhs.description_; }
         inline const std::string &getTitle() const { return title_; }
         inline const std::string &getDescription() const { return description_; }
-        inline void setDescription(const std::string description) { description_ = description; }
+        inline void setDescription(const std::string &description) { description_ = description; }
         inline const std::string &getLink() const { return link_; }
         inline const std::string &getId() const { return id_; }
         inline time_t getPubDate() const { return pub_date_; }
