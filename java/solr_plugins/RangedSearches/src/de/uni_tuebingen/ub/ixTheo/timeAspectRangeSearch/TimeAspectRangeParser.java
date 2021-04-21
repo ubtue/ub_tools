@@ -1,21 +1,17 @@
 package de.uni_tuebingen.ub.ixTheo.timeAspectRangeSearch;
 
 
-import java.util.Set;
-import java.util.TreeSet;
 import org.apache.lucene.search.Query;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.search.QParser;
 import org.apache.solr.search.SyntaxError;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 public class TimeAspectRangeParser extends QParser {
     private final static String QUERY_SEPARATOR = " ";
     private final static String DB_FIELD_SEPARATOR = ",";
-    private static Logger logger = LoggerFactory.getLogger(TimeAspectRangeParser.class);
+    //private static Logger logger = LoggerFactory.getLogger(TimeAspectRangeParser.class);
 
     /**
      * @param qstr        The part of the query string specific to this parser

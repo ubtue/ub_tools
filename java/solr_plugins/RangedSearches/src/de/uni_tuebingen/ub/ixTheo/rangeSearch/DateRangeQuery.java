@@ -1,19 +1,16 @@
 package de.uni_tuebingen.ub.ixTheo.rangeSearch;
 
 
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.Weight;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.Instant;
 
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.Weight;
+
 
 public class DateRangeQuery extends Query {
-    private static Logger logger = LoggerFactory.getLogger(DateRangeQuery.class);
 
     private Query query;
     protected Range[] ranges;
