@@ -1,7 +1,7 @@
 /** \brief A MARC-21 filter utility that can remove records or fields based on patterns for MARC subfields.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -595,14 +595,16 @@ bool ReplaceSubfields(const std::vector<std::string> &subfield_specs, RegexMatch
                       const std::vector<StringFragmentOrBackreference> &string_fragments_and_back_references,
                       MARC::Record * const record)
 {
+    std::vector<size_t> indices_of_deleted_fields;
+    std::set<std::string> tags_of_deleted_fields;
     bool modified_at_least_one_field(false);
-    for (auto &field : *record) {
-        const std::string subfield_codes(GetSubfieldCodes(field.getTag(), subfield_specs));
+    for (auto field(record->begin()); field != record->end(); ++field) {
+        const std::string subfield_codes(GetSubfieldCodes(field->getTag(), subfield_specs));
         if (subfield_codes.empty())
             continue;
 
         bool modified_at_least_one_subfield(false);
-        MARC::Subfields subfields(field.getSubfields());
+        MARC::Subfields subfields(field->getSubfields());
         for (auto &subfield : subfields) {
             if (subfield_codes.find(subfield.code_) == std::string::npos)
                 continue;
@@ -627,16 +629,28 @@ bool ReplaceSubfields(const std::vector<std::string> &subfield_specs, RegexMatch
 
         if (modified_at_least_one_subfield) {
             modified_at_least_one_field = true;
-            field.setContents(std::string(1, field.getIndicator1()) + std::string(1, field.getIndicator2()) + subfields.toString());
+            field->setContents(std::string(1, field->getIndicator1()) + std::string(1, field->getIndicator2())
+                              + subfields.toString());
+            if (unlikely(field->empty())) {
+                indices_of_deleted_fields.emplace_back(field - record->begin());
+                tags_of_deleted_fields.insert(field->getTag().toString());
+            }
         }
+    }
+
+    // Did we generate completely empty fields?
+    if (unlikely(not indices_of_deleted_fields.empty())) {
+        LOG_WARNING("regex \"" + matcher.getPattern() + "\" led to empty fields in the record w/ control number "
+                    + record->getControlNumber() + " and field(s) " + StringUtil::Join(tags_of_deleted_fields, ',') + "!");
+        record->deleteFields(indices_of_deleted_fields);
     }
 
     return modified_at_least_one_field;
 }
 
 
-bool SubstituteWithinSubfields(const std::vector<std::string> &subfield_specs, RegexMatcher &matcher, const std::string &replacement,
-                               MARC::Record * const record)
+bool SubstituteWithinSubfields(const std::vector<std::string> &subfield_specs, RegexMatcher &matcher,
+                               const std::string &replacement, MARC::Record * const record)
 {
     bool modified_at_least_one_field(false);
     for (auto &field : *record) {

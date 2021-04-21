@@ -134,6 +134,7 @@ public:
     Subfield(const Subfield &other) = default;
 
     Subfield &operator=(const Subfield &rhs) = default;
+    inline bool empty() const { return value_.empty(); }
 
     inline std::string toString() const {
         std::string as_string;
@@ -289,8 +290,10 @@ public:
 
     inline std::string toString() const {
         std::string as_string;
-        for (const auto &subfield : subfields_)
-            as_string += subfield.toString();
+        for (const auto &subfield : subfields_) {
+            if (likely(not subfield.empty()))
+                as_string += subfield.toString();
+        }
         return as_string;
     }
 };
