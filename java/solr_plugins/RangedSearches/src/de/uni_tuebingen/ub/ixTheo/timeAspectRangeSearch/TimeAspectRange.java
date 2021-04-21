@@ -1,8 +1,6 @@
 package de.uni_tuebingen.ub.ixTheo.timeAspectRangeSearch;
 
 
-import java.util.ArrayList;
-import java.util.List;
 import de.uni_tuebingen.ub.ixTheo.rangeSearch.Range;
 
 

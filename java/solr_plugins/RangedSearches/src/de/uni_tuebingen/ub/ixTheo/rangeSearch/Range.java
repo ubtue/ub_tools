@@ -1,7 +1,5 @@
 package de.uni_tuebingen.ub.ixTheo.rangeSearch;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.util.ArrayList;

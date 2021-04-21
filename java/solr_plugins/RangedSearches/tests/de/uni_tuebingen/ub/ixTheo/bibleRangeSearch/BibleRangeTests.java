@@ -3,8 +3,9 @@ package de.uni_tuebingen.ub.ixTheo.bibleRangeSearch;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import de.uni_tuebingen.ub.ixTheo.rangeSearch.Range; //AN_20210412
 
+import static org.junit.Assert.*;
 
 public class BibleRangeTests {
     private Range r1, r2;
@@ -191,14 +192,14 @@ public class BibleRangeTests {
         assertEquals(20, r1.getUpper());
     }
 
-    @Test
-    public void testIsChepter() {
-        assertFalse(new BibleRange("27003020_27003021").isEntireChapter());
-        assertFalse(new BibleRange("27000000_27003021").isEntireChapter());
-        assertTrue(new BibleRange("68003000_68003999").isEntireChapter());
-        assertTrue(new BibleRange("68107000_68150999").isEntireChapter());
-        assertFalse(new BibleRange("6800000_68999999").isEntireChapter());
-    }
+//    @Test
+//    public void testIsChepter() {
+//        assertFalse(new BibleRange("27003020_27003021").isEntireChapter());
+//        assertFalse(new BibleRange("27000000_27003021").isEntireChapter());
+//        assertTrue(new BibleRange("68003000_68003999").isEntireChapter());
+//        assertTrue(new BibleRange("68107000_68150999").isEntireChapter());
+//        assertFalse(new BibleRange("6800000_68999999").isEntireChapter());
+//    }
 
     @Test
     public void testIsBook() {

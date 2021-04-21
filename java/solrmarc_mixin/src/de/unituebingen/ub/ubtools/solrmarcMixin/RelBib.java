@@ -1,9 +1,5 @@
 package de.unituebingen.ub.ubtools.solrmarcMixin;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.Reader.*;
-import java.io.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.*;
@@ -12,8 +8,6 @@ import org.marc4j.marc.DataField;
 import org.marc4j.marc.Record;
 import org.marc4j.marc.VariableField;
 import org.marc4j.marc.*;
-import org.solrmarc.index.SolrIndexerMixin;
-import org.solrmarc.tools.Utils;
 
 
 public class RelBib extends IxTheo {

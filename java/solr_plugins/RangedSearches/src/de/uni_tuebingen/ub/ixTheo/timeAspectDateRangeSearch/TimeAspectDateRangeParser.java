@@ -1,19 +1,14 @@
 package de.uni_tuebingen.ub.ixTheo.timeAspectDateRangeSearch;
 
 
-import java.util.Set;
-import java.util.TreeSet;
 import org.apache.lucene.search.Query;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.search.QParser;
 import org.apache.solr.search.SyntaxError;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 public class TimeAspectDateRangeParser extends QParser {
-    private static Logger logger = LoggerFactory.getLogger(TimeAspectDateRangeParser.class);
 
     /**
      * @param qstr        The part of the query string specific to this parser
