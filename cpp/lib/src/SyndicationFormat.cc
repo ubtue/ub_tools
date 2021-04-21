@@ -1,7 +1,7 @@
 /** \brief Interface of the SyndicationFormat class and descendents thereof.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -35,6 +35,20 @@ void SyndicationFormat::const_iterator::operator++() {
 
 
 bool SyndicationFormat::const_iterator::operator==(const SyndicationFormat::const_iterator &rhs) const {
+    if (item_ == nullptr and rhs.item_ == nullptr)
+        return true;
+    if ((item_ == nullptr and rhs.item_ != nullptr) or (item_ != nullptr and rhs.item_ == nullptr))
+        return false;
+    return *item_ == *rhs.item_;
+}
+
+
+void SyndicationFormat::iterator::operator++() {
+    item_ = syndication_format_->getNextItem();
+}
+
+
+bool SyndicationFormat::iterator::operator==(const SyndicationFormat::iterator &rhs) const {
     if (item_ == nullptr and rhs.item_ == nullptr)
         return true;
     if ((item_ == nullptr and rhs.item_ != nullptr) or (item_ != nullptr and rhs.item_ == nullptr))
