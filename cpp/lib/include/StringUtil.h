@@ -2416,8 +2416,8 @@ template<typename Number> inline Number StringToBinary(const std::string &bits) 
 }
 
 
-bool Contains(const std::string &s, const std::string &test) {
-    return s.find(test) != std::string::npos;
+inline bool Contains(const std::string &haystack, const std::string &needle) {
+    return haystack.find(needle) != std::string::npos;
 }
 
 
