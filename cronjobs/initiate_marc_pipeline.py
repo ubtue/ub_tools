@@ -139,11 +139,12 @@ def Main():
         file_name_list = util.ExtractAndRenameBSZFiles(bsz_data)
 
         RunPipelineAndImportIntoSolr(pipeline_script_name, file_name_list[0], conf)
+        util.WriteTimestamp()
+        DeleteReftermMutex()
+        WriteImportFinishedFile()
         util.SendEmail("MARC-21 Pipeline", "Pipeline completed successfully.", priority=5,
                        attachments=[solrmarc_log_summary, import_log_summary])
-        util.WriteTimestamp()
-        DeleteReftermMutex();
-        WriteImportFinishedFile()
+
     else:
         util.SendEmail("MARC-21 Pipeline Kick-Off", "No new data was found.", priority=5)
 
