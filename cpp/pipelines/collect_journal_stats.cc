@@ -36,6 +36,12 @@
 namespace {
 
 
+[[noreturn]] void Usage() {
+    ::Usage("[--min-log-level=log_level] [--debug] system_type marc_input marc_output\n"
+            "\twhere \"system_type\" must be one of ixtheo|krimdok");
+}
+
+
 // Please note that Zeder PPN entries are separated by spaces and, unlike what the column names "print_ppn" and
 // "online_ppn" imply may in rare cases contain space-separated lists of PPN's.
 inline auto SplitZederPPNs(const std::string &ppns) {
@@ -279,10 +285,10 @@ void UpdateDatabase(const IniFile &ini_file, const std::string &system_type, con
 const std::string TEXT_FILE_DIRECTORY(UBTools::GetFIDProjectsPath() + "Zeder_Supervision");
 
 
-void UpdateTextFiles(const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
+void UpdateTextFiles(const bool debug, const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
                      const std::unordered_map<std::string, DbEntry> &ppns_to_most_recent_entries_map)
 {
-    const auto DIRECTORY_PREFIX(TEXT_FILE_DIRECTORY + "/" + DnsUtil::GetHostname() + "/");
+    const auto DIRECTORY_PREFIX(debug ? "/tmp/collect_journal_stats" : TEXT_FILE_DIRECTORY + "/" + DnsUtil::GetHostname() + "/");
     if (not FileUtil::Exists(DIRECTORY_PREFIX))
         FileUtil::MakeDirectoryOrDie(DIRECTORY_PREFIX);
 
@@ -294,7 +300,7 @@ void UpdateTextFiles(const std::unordered_map<std::string, ZederIdAndPPNType> &p
         const auto filename(DIRECTORY_PREFIX + std::to_string(ppns_and_zeder_id_and_type->second.zeder_id_) + ".txt");
         const auto output(FileUtil::OpenForAppendingOrDie(filename));
         updated_files.emplace(filename);
-        (*output) << db_entry.jahr_ << ',' << db_entry.band_ << ',' << db_entry.heft_ << db_entry.seitenbereich_ << '\n';
+        (*output) << db_entry.jahr_ << ',' << db_entry.band_ << ',' << db_entry.heft_ << ',' << db_entry.seitenbereich_ << '\n';
     }
 
     LOG_INFO("Updated " + std::to_string(updated_files.size()) + " file(s) under " + DIRECTORY_PREFIX + ".");
@@ -305,9 +311,16 @@ void UpdateTextFiles(const std::unordered_map<std::string, ZederIdAndPPNType> &p
 
 
 int Main(int argc, char *argv[]) {
+    if (argc != 4 and argc != 5)
+        Usage();
+
+    bool debug(false);
+    if (__builtin_strcmp(argv[1], "--debug") == 0) {
+        debug = true;
+        --argc, ++argv;
+    }
     if (argc != 4)
-        ::Usage("[--min-log-level=log_level] system_type marc_input marc_output\n"
-                "\twhere \"system_type\" must be one of ixtheo|krimdok");
+        Usage();
 
     std::string system_type;
     if (__builtin_strcmp("ixtheo", argv[1]) == 0)
@@ -328,9 +341,10 @@ int Main(int argc, char *argv[]) {
                              ppns_to_zeder_ids_and_types_map, &ppns_to_most_recent_entries_map);
 
     if (not ppns_to_zeder_ids_and_types_map.empty()) {
-        UpdateDatabase(ini_file, system_type, HOSTNAME, ppns_to_zeder_ids_and_types_map,
-                       ppns_to_most_recent_entries_map);
-        UpdateTextFiles(ppns_to_zeder_ids_and_types_map, ppns_to_most_recent_entries_map);
+        if (not debug)
+            UpdateDatabase(ini_file, system_type, HOSTNAME, ppns_to_zeder_ids_and_types_map,
+                           ppns_to_most_recent_entries_map);
+        UpdateTextFiles(debug, ppns_to_zeder_ids_and_types_map, ppns_to_most_recent_entries_map);
     }
 
     return EXIT_SUCCESS;
