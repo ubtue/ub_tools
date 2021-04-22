@@ -288,7 +288,7 @@ const std::string TEXT_FILE_DIRECTORY(UBTools::GetFIDProjectsPath() + "Zeder_Sup
 void UpdateTextFiles(const bool debug, const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
                      const std::unordered_map<std::string, DbEntry> &ppns_to_most_recent_entries_map)
 {
-    const auto DIRECTORY_PREFIX(debug ? "/tmp/collect_journal_stats" : TEXT_FILE_DIRECTORY + "/" + DnsUtil::GetHostname() + "/");
+    const auto DIRECTORY_PREFIX(debug ? "/tmp/collect_journal_stats/" : TEXT_FILE_DIRECTORY + "/" + DnsUtil::GetHostname() + "/");
     if (not FileUtil::Exists(DIRECTORY_PREFIX))
         FileUtil::MakeDirectoryOrDie(DIRECTORY_PREFIX);
 
