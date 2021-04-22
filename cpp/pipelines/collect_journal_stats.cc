@@ -169,7 +169,7 @@ size_t GetExistingDbEntries(const IniFile &ini_file, const std::string &hostname
 }
 
 
-// \return True if "test_entry" either does not exist in the databse or is newer than the newest existing entry.
+// \return True if "test_entry" either does not exist in the database or is newer than the newest existing entry.
 bool NewerThanWhatExistsInDB(const std::unordered_map<std::string, DbEntry> &existing_entries,
                              const std::string &zeder_id, const std::string &ppn, const DbEntry &test_entry)
 {
@@ -229,7 +229,8 @@ void CollectMostRecentEntries(const IniFile &ini_file, MARC::Reader * const read
         const DbEntry new_db_entry(year_as_string, volume, issue, pages);
         if (NewerThanWhatExistsInDB(existing_entries, zeder_id, superior_control_number, new_db_entry)) {
             const auto superior_control_number_and_entry(ppns_to_most_recent_entries_map->find(superior_control_number));
-            if (superior_control_number_and_entry == ppns_to_most_recent_entries_map->end() or new_db_entry.isNewerThan(superior_control_number_and_entry->second))
+            if (superior_control_number_and_entry == ppns_to_most_recent_entries_map->end()
+                or new_db_entry.isNewerThan(superior_control_number_and_entry->second))
                 (*ppns_to_most_recent_entries_map)[superior_control_number] = new_db_entry;
         }
     }
@@ -293,25 +294,25 @@ void UpdateTextFiles(const bool debug, const std::unordered_map<std::string, Zed
     if (not FileUtil::Exists(DIRECTORY_PREFIX))
         FileUtil::MakeDirectoryOrDie(DIRECTORY_PREFIX);
 
-    std::unordered_set<std::string> updated_files;
+    std::unordered_map<unsigned, std::string> zeder_ids_to_file_contents_map;
     for (const auto &[ppn, db_entry] : ppns_to_most_recent_entries_map) {
         const auto ppns_and_zeder_id_and_type(ppns_to_zeder_ids_and_types_map.find(ppn));
         if (unlikely(ppns_and_zeder_id_and_type == ppns_to_zeder_ids_and_types_map.cend()))
             LOG_ERROR("Map lookup failed for \"" + ppn + "\"!");
-        const auto filename(DIRECTORY_PREFIX + std::to_string(ppns_and_zeder_id_and_type->second.zeder_id_) + ".txt");
+        const auto &zeder_id(ppns_and_zeder_id_and_type->second.zeder_id_);
 
-        std::unique_ptr<File> output;
-        if (updated_files.find(filename) != updated_files.end())
-            output = FileUtil::OpenForAppendingOrDie(filename);
-        else { // It's the first time we're opeing this file so we want to overwrite old contents should they exist.
-            output = FileUtil::OpenOutputFileOrDie(filename);
-            updated_files.emplace(filename);
-        }
+        auto zeder_id_and_file_contents(zeder_ids_to_file_contents_map.find(zeder_id));
+        if (zeder_id_and_file_contents == zeder_ids_to_file_contents_map.end())
+            zeder_id_and_file_contents = zeder_ids_to_file_contents_map.insert(std::make_pair(zeder_id, "")).first;
 
-        (*output) << db_entry.jahr_ << ',' << db_entry.band_ << ',' << db_entry.heft_ << ',' << db_entry.seitenbereich_ << '\n';
+        zeder_id_and_file_contents->second += db_entry.jahr_ + "," + db_entry.band_ + "," + db_entry.heft_
+                                              + ',' + db_entry.seitenbereich_ + "\n";
     }
 
-    LOG_INFO("Updated " + std::to_string(updated_files.size()) + " file(s) under " + DIRECTORY_PREFIX + ".");
+    for (const auto &[zeder_id, file_contents] : zeder_ids_to_file_contents_map)
+        FileUtil::WriteStringOrDie(DIRECTORY_PREFIX + std::to_string(zeder_id) + ".txt", file_contents);
+
+    LOG_INFO("Wrote " + std::to_string(zeder_ids_to_file_contents_map.size()) + " file(s) under " + DIRECTORY_PREFIX + ".");
 }
 
 
