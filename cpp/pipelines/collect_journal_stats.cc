@@ -300,16 +300,15 @@ void UpdateTextFiles(const bool debug, const std::unordered_map<std::string, Zed
             LOG_ERROR("Map lookup failed for \"" + ppn + "\"!");
         const auto filename(DIRECTORY_PREFIX + std::to_string(ppns_and_zeder_id_and_type->second.zeder_id_) + ".txt");
 
-        File *output;
+        std::unique_ptr<File> output;
         if (updated_files.find(filename) != updated_files.end())
-            output = FileUtil::OpenForAppendingOrDie(filename).get();
+            output = FileUtil::OpenForAppendingOrDie(filename);
         else { // It's the first time we're opeing this file so we want to overwrite old contents should they exist.
-            output = FileUtil::OpenOutputFileOrDie(filename).get();
+            output = FileUtil::OpenOutputFileOrDie(filename);
             updated_files.emplace(filename);
         }
 
         (*output) << db_entry.jahr_ << ',' << db_entry.band_ << ',' << db_entry.heft_ << ',' << db_entry.seitenbereich_ << '\n';
-        delete output;
     }
 
     LOG_INFO("Updated " + std::to_string(updated_files.size()) + " file(s) under " + DIRECTORY_PREFIX + ".");
