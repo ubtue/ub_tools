@@ -1,7 +1,7 @@
 /** \brief Various classes, functions etc. having to do with the Library of Congress MARC bibliographic format.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -2387,8 +2387,12 @@ bool XmlReader::getNext(XMLSubsetParser<File>::Type * const type,
 std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, FileType writer_type,
                                         const WriterMode writer_mode)
 {
-    if (writer_type == FileType::AUTO)
-        writer_type = GuessFileType(output_filename, GuessFileTypeBehaviour::USE_THE_FILENAME_ONLY);
+    if (writer_type == FileType::AUTO) {
+        if (output_filename == "/dev/null")
+            writer_type = FileType::BINARY;
+        else
+            writer_type = GuessFileType(output_filename, GuessFileTypeBehaviour::USE_THE_FILENAME_ONLY);
+    }
 
     std::unique_ptr<File> output(writer_mode == WriterMode::OVERWRITE
                                  ? FileUtil::OpenOutputFileOrDie(output_filename)
