@@ -288,7 +288,8 @@ const std::string TEXT_FILE_DIRECTORY(UBTools::GetFIDProjectsPath() + "Zeder_Sup
 void UpdateTextFiles(const bool debug, const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
                      const std::unordered_map<std::string, DbEntry> &ppns_to_most_recent_entries_map)
 {
-    const auto DIRECTORY_PREFIX(debug ? "/tmp/collect_journal_stats/" : TEXT_FILE_DIRECTORY + "/" + DnsUtil::GetHostname() + "/");
+    const auto DIRECTORY_PREFIX(debug ? "/tmp/collect_journal_stats/"
+                                      : TEXT_FILE_DIRECTORY + "/" + DnsUtil::GetHostname() + "/");
     if (not FileUtil::Exists(DIRECTORY_PREFIX))
         FileUtil::MakeDirectoryOrDie(DIRECTORY_PREFIX);
 
@@ -298,8 +299,15 @@ void UpdateTextFiles(const bool debug, const std::unordered_map<std::string, Zed
         if (unlikely(ppns_and_zeder_id_and_type == ppns_to_zeder_ids_and_types_map.cend()))
             LOG_ERROR("Map lookup failed for \"" + ppn + "\"!");
         const auto filename(DIRECTORY_PREFIX + std::to_string(ppns_and_zeder_id_and_type->second.zeder_id_) + ".txt");
-        const auto output(FileUtil::OpenForAppendingOrDie(filename));
-        updated_files.emplace(filename);
+
+        std::unique_ptr<File> output;
+        if (updated_files.find(filename) != updated_files.end())
+            output = FileUtil::OpenForAppendingOrDie(filename);
+        else { // It's the first time we're opeing this file so we want to overwrite old contents should they exist.
+            output = FileUtil::OpenOutputFileOrDie(filename);
+            updated_files.emplace(filename);
+        }
+
         (*output) << db_entry.jahr_ << ',' << db_entry.band_ << ',' << db_entry.heft_ << ',' << db_entry.seitenbereich_ << '\n';
     }
 
