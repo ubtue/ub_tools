@@ -182,8 +182,8 @@ void PerformSubstitutions(const std::string &patterns_and_replacements, Syndicat
             item->setDescription(RegexMatcher::ReplaceAll(pattern, item->getDescription(), replacement));
             pattern.clear(), replacement.clear();
             in_pattern = true;
-        } if (ch == '\\')
-              escaped = true;
+        } else if (ch == '\\')
+            escaped = true;
         else if (in_pattern)
             pattern += ch;
         else
