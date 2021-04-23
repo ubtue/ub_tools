@@ -2,7 +2,7 @@
  *  \brief  Interface for the RegexMatcher class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2014-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2014-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -187,7 +187,18 @@ public:
      *  \param end_pos     If match successfull, last+1 character position of the matched part of the subject.
      */
     static bool Matched(const std::string &regex, const std::string &subject, const unsigned options = 0,
-                        std::string * const err_msg = nullptr, size_t * const start_pos = nullptr, size_t * const end_pos = nullptr);
+                        std::string * const err_msg = nullptr, size_t * const start_pos = nullptr,
+                        size_t * const end_pos = nullptr);
+
+    /** \brief  One-shot pattern replacement.
+     *  \param  pattern     The pattern to use.
+     *  \param  subject     The subject to match.
+     *  \param  replacement  What to substitute for pattern maches.
+     *  \param  options     Or'ed together values of type enum Option.
+     *  \return "subject" after the replacments have taken place.
+     */
+    static std::string ReplaceAll(const std::string &regex, const std::string &subject, const std::string &replacement,
+                                  const unsigned options = 0);
 
     /** \brief Escape all PCRE metacharacters in the given string with a backslash (see `man pcrepattern`) */
     static std::string Escape(const std::string &subpattern);
