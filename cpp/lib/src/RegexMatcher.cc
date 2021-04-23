@@ -2,7 +2,7 @@
  *  \brief  Implementation of the RegexMatcher class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -410,6 +410,19 @@ bool RegexMatcher::Matched(const std::string &regex, const std::string &subject,
     regex_to_matcher_map[KEY] = matcher;
 
     return matcher->matched(subject, err_msg, start_pos, end_pos);
+}
+
+
+std::string RegexMatcher::ReplaceAll(const std::string &regex, const std::string &subject, const std::string &replacement,
+                                     const unsigned options)
+{
+    std::string err_msg;
+    auto matcher(RegexMatcherFactory(regex, &err_msg, options));
+    if (matcher == nullptr)
+        LOG_ERROR("failed to compile \"" + regex + "\": " + err_msg);
+    const auto result(matcher->replaceAll(subject, replacement));
+    delete matcher;
+    return result;
 }
 
 
