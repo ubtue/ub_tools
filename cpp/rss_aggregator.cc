@@ -163,12 +163,41 @@ bool ProcessRSSItem(const std::string &feed_id, const SyndicationFormat::Item &i
 }
 
 
+// "patterns_and_replacements" contains pairs of regex patterns and replacment strings separated by colons.
+// Pairs are separated by semicolons.  In order to allow colons and semicolons in patterns and replacments
+// we support backslash escaping.
+void PerformSubstitutions(const std::string &patterns_and_replacements, SyndicationFormat::Item * const item) {
+    std::string pattern, replacement;
+    bool in_pattern(true), escaped(false);
+    for (const char ch : patterns_and_replacements + ";")  {
+        if (escaped) {
+            escaped = false;
+            if (in_pattern)
+                pattern += ch;
+            else
+                replacement += ch;
+        } else if (ch == ':')
+            in_pattern = false;
+        else if (ch == ';') {
+            const auto regex_matcher(RegexMatcher::RegexMatcherFactoryOrDie(pattern));
+            item->setDescription(regex_matcher->replaceAll(item->getDescription(), replacement));
+            delete regex_matcher;
+            pattern.clear(), replacement.clear();
+            in_pattern = true;
+        } if (ch == '\\')
+              escaped = true;
+        else if (in_pattern)
+            pattern += ch;
+        else
+            replacement += ch;
+    }
+}
+
+
 // \return the number of new items.
-// use ---- as delimiter in database table (should be pair wise, e.g. 
-//   update tuefind_rss_feeds set descriptions_and_substitutions='a:A;00\\:11:0011;e:E;b:"";r..g:RUNG' where id=1;
 unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, const std::string &feed_url,
-                     const std::string &title_suppression_regex_str, const std::string &description_substitution_str,
-                     const std::string &strptime_format, Downloader * const downloader, 
+                     const std::string &title_suppression_regex_str, const std::string &patterns_and_replacements,
+                     const std::string &strptime_format, Downloader * const downloader,
                      DbConnection * const db_connection, const unsigned downloader_time_limit)
 {
     SyndicationFormat::AugmentParams augment_params;
@@ -176,7 +205,7 @@ unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, c
 
     const auto title_suppression_regex(
         title_suppression_regex_str.empty() ? nullptr : RegexMatcher::RegexMatcherFactoryOrDie(title_suppression_regex_str));
-    
+
     unsigned new_item_count(0);
     if (not downloader->newUrl(feed_url, downloader_time_limit))
         LOG_WARNING(feed_name + ": failed to download the feed: " + downloader->getLastErrorMessage());
@@ -192,31 +221,7 @@ unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, c
                     LOG_INFO("Suppressed item because of title: \"" + StringUtil::ShortenText(item.getTitle(), 40) + "\".");
                     continue; // Skip suppressed item.
                 }
-                std::string source;
-                std::string dest;
-                bool is_source = true;
-                bool is_escaped = false;
-                for (const char c : description_substitution_str + ";")  {
-                    if (c == '\\') {
-                        is_escaped = not is_escaped;
-                    }
-                    if ((c == ':' or c == ';') and not is_escaped){
-                        is_source = not is_source;
-                        if (c == ';') {
-                            const auto description_substitution(RegexMatcher::RegexMatcherFactoryOrDie(source));
-                            item.setDescription(description_substitution->replaceAll(item.getDescription(), dest));
-                            source.clear();
-                            dest.clear();
-                        }
-                    } else if (c != '\\' or (c == '\\' and not is_escaped)){
-                        if (is_source)
-                            source.push_back(c);
-                        else
-                            dest.push_back(c);
-                    }
-                    if (is_escaped and c != '\\')
-                        is_escaped = false;
-                }
+                PerformSubstitutions(patterns_and_replacements, &item);
                 if (ProcessRSSItem(feed_id, item, db_connection))
                     ++new_item_count;
             }
