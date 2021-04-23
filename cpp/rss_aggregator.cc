@@ -166,7 +166,7 @@ bool ProcessRSSItem(const std::string &feed_id, const SyndicationFormat::Item &i
 // "patterns_and_replacements" contains pairs of regex patterns and replacment strings separated by colons.
 // Pairs are separated by semicolons.  In order to allow colons and semicolons in patterns and replacments
 // we support backslash escaping.
-void PerformSubstitutions(const std::string &patterns_and_replacements, SyndicationFormat::Item * const item) {
+void PerformDescriptionSubstitutions(const std::string &patterns_and_replacements, SyndicationFormat::Item * const item) {
     std::string pattern, replacement;
     bool in_pattern(true), escaped(false);
     for (const char ch : patterns_and_replacements + ";")  {
@@ -179,13 +179,11 @@ void PerformSubstitutions(const std::string &patterns_and_replacements, Syndicat
         } else if (ch == ':')
             in_pattern = false;
         else if (ch == ';') {
-            const auto regex_matcher(RegexMatcher::RegexMatcherFactoryOrDie(pattern));
-            item->setDescription(regex_matcher->replaceAll(item->getDescription(), replacement));
-            delete regex_matcher;
+            item->setDescription(RegexMatcher::ReplaceAll(pattern, item->getDescription(), replacement));
             pattern.clear(), replacement.clear();
             in_pattern = true;
-        } if (ch == '\\')
-              escaped = true;
+        } else if (ch == '\\')
+            escaped = true;
         else if (in_pattern)
             pattern += ch;
         else
@@ -221,7 +219,7 @@ unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, c
                     LOG_INFO("Suppressed item because of title: \"" + StringUtil::ShortenText(item.getTitle(), 40) + "\".");
                     continue; // Skip suppressed item.
                 }
-                PerformSubstitutions(patterns_and_replacements, &item);
+                PerformDescriptionSubstitutions(patterns_and_replacements, &item);
                 if (ProcessRSSItem(feed_id, item, db_connection))
                     ++new_item_count;
             }
