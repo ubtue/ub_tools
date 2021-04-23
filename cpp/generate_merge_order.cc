@@ -51,11 +51,6 @@ void LoadFilePCRE(std::string * const file_pcre) {
 }
 
 
-inline bool Contains(const std::string &haystack, const std::string &needle) {
-    return haystack.find(needle) != std::string::npos;
-}
-
-
 // Shift a given YYMMDD to ten days after
 std::string ShiftDateToTenDaysAfter(const std::string &cutoff_date) {
     struct tm cutoff_date_tm(TimeUtil::StringToStructTm(cutoff_date, "%y%m%d"));
@@ -71,11 +66,11 @@ std::string ShiftDateToTenDaysAfter(const std::string &cutoff_date) {
 
 bool FileComparator(const std::string &filename1, const std::string &filename2) {
     auto date1(BSZUtil::ExtractDateFromFilenameOrDie(filename1));
-    if (Contains(filename1, "sekkor"))
+    if (StringUtil::Contains(filename1, "sekkor"))
         date1 = ShiftDateToTenDaysAfter(date1);
 
     auto date2(BSZUtil::ExtractDateFromFilenameOrDie(filename2));
-    if (Contains(filename2, "sekkor"))
+    if (StringUtil::Contains(filename2, "sekkor"))
         date2 = ShiftDateToTenDaysAfter(date2);
 
     if (date1 != date2)
@@ -100,15 +95,15 @@ bool FileComparator(const std::string &filename1, const std::string &filename2) 
         return false;
 
     // Sekkor updates come before anything else:
-    if (Contains(filename1, "sekkor") and not Contains(filename2, "sekkor"))
+    if (StringUtil::Contains(filename1, "sekkor") and not StringUtil::Contains(filename2, "sekkor"))
         return true;
-    if (Contains(filename2, "sekkor") and not Contains(filename1, "sekkor"))
+    if (StringUtil::Contains(filename2, "sekkor") and not StringUtil::Contains(filename1, "sekkor"))
         return false;
 
     // Files w/o local data come before those w/ local data:
-    if (Contains(filename1, "_o") and not Contains(filename2, "_o"))
+    if (StringUtil::Contains(filename1, "_o") and not StringUtil::Contains(filename2, "_o"))
         return true;
-    if (Contains(filename2, "_o") and not Contains(filename1, "_o"))
+    if (StringUtil::Contains(filename2, "_o") and not StringUtil::Contains(filename1, "_o"))
         return false;
 
     LOG_ERROR("don't know how to compare \"" + filename1 + "\" with \"" + filename2 + "\"!");
