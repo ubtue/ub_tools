@@ -179,9 +179,7 @@ void PerformSubstitutions(const std::string &patterns_and_replacements, Syndicat
         } else if (ch == ':')
             in_pattern = false;
         else if (ch == ';') {
-            const auto regex_matcher(RegexMatcher::RegexMatcherFactoryOrDie(pattern));
-            item->setDescription(regex_matcher->replaceAll(item->getDescription(), replacement));
-            delete regex_matcher;
+            item->setDescription(RegexMatcher::ReplaceAll(pattern, item->getDescription(), replacement));
             pattern.clear(), replacement.clear();
             in_pattern = true;
         } if (ch == '\\')
