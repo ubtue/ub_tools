@@ -30,6 +30,7 @@ constexpr unsigned DEFAULT_TIMEOUT(10); // in s
 constexpr unsigned JAVA_INT_MAX(2147483647);
 const std::string DEFAULT_HOST("localhost");
 const unsigned DEFAULT_PORT(8983);
+const std::string DEFAULT_HOST_AND_PORT(DEFAULT_HOST + ':' + std::to_string(DEFAULT_PORT));
 
 
 enum QueryResultFormat { XML, JSON };
@@ -70,6 +71,12 @@ inline bool Query(const std::string &query, const std::string &fields, std::stri
     return Query(query, fields, /* start_row = */0, max_no_of_rows, xml_or_json_result, err_msg, host, port, timeout,
                  query_result_format);
 }
+
+
+bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
+                  std::string * const err_msg, const std::string &host_and_port = DEFAULT_HOST_AND_PORT,
+                  const unsigned timeout = DEFAULT_TIMEOUT, const QueryResultFormat query_result_format = XML,
+                  const unsigned max_no_of_rows = JAVA_INT_MAX);
 
 
 } // namespace Solr
