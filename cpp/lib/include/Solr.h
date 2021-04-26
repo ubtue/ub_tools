@@ -72,4 +72,10 @@ inline bool Query(const std::string &query, const std::string &fields, std::stri
 }
 
 
+bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
+                  std::string * const err_msg, const std::string &host_and_port,
+                  const unsigned timeout, const QueryResultFormat query_result_format = XML,
+                  const unsigned max_no_of_rows = JAVA_INT_MAX);
+
+
 } // namespace Solr

@@ -23,6 +23,7 @@
 #include "Downloader.h"
 #include "HttpHeader.h"
 #include "JSON.h"
+#include "StringUtil.h"
 #include "UrlUtil.h"
 
 
@@ -75,6 +76,21 @@ bool Query(const std::string &query, const std::string &fields, const unsigned s
     if (not xml_or_json_result->empty())
         *err_msg = (query_result_format == JSON) ? JSONError(*xml_or_json_result) : XMLError(*xml_or_json_result);
     return false;
+}
+
+
+bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
+                  std::string * const err_msg, const std::string &host_and_port,
+                  const unsigned timeout, const QueryResultFormat query_result_format,
+                  const unsigned max_no_of_rows)
+{
+    std::vector<std::string> host_and_port_split;
+    StringUtil::Split(host_and_port, ':', &host_and_port_split);
+    if (host_and_port_split.size() != 2)
+        LOG_ERROR("Invalid host_and_port \"" + host_and_port + "\" Must have format host:port");
+    return Query(query, fields, /* start_row = */0, max_no_of_rows, xml_or_json_result, err_msg,
+                 host_and_port_split[0], StringUtil::ToInt(host_and_port_split[1]),
+                 timeout, query_result_format);
 }
 
 
