@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2020, Library of the University of Tübingen
+    Copyright (C) 2020,2021, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,15 +19,20 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
+#include <functional>
 #include <iostream>
 #include <sstream>
 #include "ExecUtil.h"
+#include "IniFile.h"
 #include "StringUtil.h"
 #include "WebUtil.h"
 #include "util.h"
 
 namespace {
+
+const std::string ZTS_RESTART_CONFIG("/usr/local/var/lib/tuelib/zts_restart.conf");
+const std::string ZTS_TRANSLATORS_DIR("/tmp/translators");
+
 
 void SendHeaders() {
     std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n"
@@ -40,53 +45,81 @@ void SendTrailer() {
 
 }
 
+struct TranslatorsLocationConfig {
+    std::string name_;
+    std::string url_;
+    std::string local_path_;
+    std::string branch_;
+    TranslatorsLocationConfig(std::string name = "", std::string url = "",
+        std::string local_path = "", std::string branch = "") :
+        name_(name), url_(url), local_path_(local_path), branch_(branch)
+        {}
+};
 
-void DisplayRestartButton() {
+
+void GetTranslatorLocationConfigs(const IniFile &ini_file,
+                               std::vector<TranslatorsLocationConfig> * translators_location_configs) {
+    translators_location_configs->clear();
+    const std::string location_prefix("Repo_");
+    for (const auto &section : ini_file) {
+        if (StringUtil::StartsWith(section.getSectionName(), location_prefix)) {
+            TranslatorsLocationConfig translators_location_config;
+            translators_location_config.name_ = section.getSectionName().substr(location_prefix.length());
+            translators_location_config.url_  = section.getString("url");
+            translators_location_config.local_path_  = section.getString("local_path");
+            translators_location_config.branch_ = section.getString("branch");
+            translators_location_configs->emplace_back(translators_location_config);
+        }
+    }
+}
+
+
+void DisplayRestartAndSelectButtons(const  std::vector<TranslatorsLocationConfig> &translators_location_configs) {
     SendHeaders();
     std::cout << "<h2>Restart Zotero Translation Server Service</h2>\n"
-              << "<form action=\"\" method=\"post\">\n"
-              << "\t<input type=\"submit\" name=\"action\" value=\"Restart\">\n"
+              << "<form action=\"\" method=\"post\">\n";
+    for (const auto &translators_location_config : translators_location_configs)
+        std::cout  << "\t<input type=\"submit\" name=\"action\" value=\"" + translators_location_config.name_  +"\">\n";
+    std::cout << "\t<input type=\"submit\" name=\"action\" value=\"Restart\">\n"
               << "</form>\n";
     SendTrailer();
 }
 
 
-bool IsRestartActionPresent(std::multimap<std::string, std::string> *cgi_args) {
-    WebUtil::GetAllCgiArgs(cgi_args);
-    const auto key_and_value(cgi_args->find("action"));
-    return key_and_value != cgi_args->cend() and key_and_value->second == "Restart";
+bool IsRestartActionPresent(const std::multimap<std::string, std::string> &cgi_args) {
+    const auto key_and_value(cgi_args.find("action"));
+    return key_and_value != cgi_args.cend() and key_and_value->second == "Restart";
 }
 
-
-void OutputZTSStatus() {
-    const std::string tmp_output(FileUtil::AutoTempFile().getFilePath());
-    ExecUtil::ExecOrDie("/usr/bin/sudo", { "systemctl", "status", "zts" }, "" /*stdin*/,
+void ExecuteAndDumpMessages(const std::string &command, const std::vector<std::string> &args) {
+    auto auto_temp_file((FileUtil::AutoTempFile()));
+    const std::string tmp_output(auto_temp_file.getFilePath());
+    ExecUtil::ExecOrDie(command, args, "" /*stdin*/,
                         tmp_output, tmp_output);
-
-    std::ifstream zts_output_file(tmp_output);
-    if (not zts_output_file)
+    std::ifstream output_file(tmp_output);
+    if (not output_file)
         LOG_ERROR("Could not open " + tmp_output + " for reading\n");
-    std::stringstream zts_output_istream;
-    zts_output_istream << zts_output_file.rdbuf();
-    std::cout << StringUtil::ReplaceString("\n", "<br/>", zts_output_istream.str());
+    std::stringstream output_istream;
+    output_istream << output_file.rdbuf();
+    std::cout << StringUtil::ReplaceString("\n", "<br/>", output_istream.str());
 }
 
 
-void RestartZTS() {
+template<typename Function>
+void ExecuteAndSendStatus(const std::string &message, Function function) {
     SendHeaders();
-    std::cout << "<h2>Attempting restart of ZTS...</h2>\n" << std::endl;
+    std::cout << message << std::endl;
     bool log_no_decorations_old(logger->getLogNoDecorations());
     bool log_strip_call_site_old(logger->getLogStripCallSite());
     logger->setLogNoDecorations(true);
     logger->setLogStripCallSite(true);
     logger->redirectOutput(STDOUT_FILENO);
     try {
-        ExecUtil::ExecOrDie("/usr/bin/sudo", { "systemctl", "restart", "zts" });
-        OutputZTSStatus();
-    } catch (const std::runtime_error &error) { 
+        function();
+    } catch (const std::runtime_error &error) {
         std::cerr << error.what();
     }
-    std::cout << "<h2>Done...</h>\n";
+    std::cout << "<h2>Done...</h2>\n";
     SendTrailer();
     logger->redirectOutput(STDERR_FILENO);
     logger->setLogNoDecorations(log_no_decorations_old);
@@ -94,15 +127,65 @@ void RestartZTS() {
 }
 
 
+void RestartZTS() {
+    auto closure =  []{
+                        ExecUtil::ExecOrDie("/usr/bin/sudo", { "systemctl", "restart", "zts" });
+                        ExecuteAndDumpMessages("/usr/bin/sudo", { "systemctl", "status", "zts" });
+                      };
+    ExecuteAndSendStatus("<h2>Trying to restart ZTS Server</h2>", closure);
+}
+
+
+void RelinkTranslatorDirectory(const TranslatorsLocationConfig &translators_location_config) {
+     auto closure = [&]{ExecuteAndDumpMessages("/usr/bin/sudo",
+                            { "ln" , "--symbolic", "--force", "--no-dereference",
+                              translators_location_config.local_path_, ZTS_TRANSLATORS_DIR});};
+     ExecuteAndSendStatus("<h2>Switching to branch " + translators_location_config.name_ + "</h2>",
+                           closure);
+}
+
+
+bool GetSwitchBranch(const std::multimap<std::string, std::string> &cgi_args,
+                     std::vector<TranslatorsLocationConfig> translators_location_configs,
+                     TranslatorsLocationConfig * const translator_location_config) {
+     const auto key_and_value(cgi_args.find("action"));
+     if (key_and_value == cgi_args.end())
+         return false;
+     const std::string target(key_and_value->second);
+     auto match(std::find_if(translators_location_configs.begin(),
+                             translators_location_configs.end(),
+                             [&target](const TranslatorsLocationConfig &target_obj)
+                                      {return target_obj.name_ == target;}));
+     if (match == translators_location_configs.end()) {
+         std::cout << "NO MATCH";
+         return false;
+     }
+     *translator_location_config = *match;
+     return true;
+}
+
+
+
 } // end unnamed namespace
 
 int Main(int /*argc*/, char */*argv*/[]) {
     std::multimap<std::string, std::string> cgi_args;
-    if (not IsRestartActionPresent(&cgi_args)) {
-        DisplayRestartButton();
+    WebUtil::GetAllCgiArgs(&cgi_args);
+    IniFile ini_file(ZTS_RESTART_CONFIG);
+    std::vector<TranslatorsLocationConfig> translators_location_configs;
+    GetTranslatorLocationConfigs(ini_file, &translators_location_configs);
+    if (IsRestartActionPresent(cgi_args)) {
+        RestartZTS();
         return EXIT_SUCCESS;
-    } 
-    RestartZTS();
+    }
+
+    TranslatorsLocationConfig translators_location_config;
+    if (GetSwitchBranch(cgi_args, translators_location_configs, &translators_location_config)) {
+        RelinkTranslatorDirectory(translators_location_config);
+        return EXIT_SUCCESS;
+    }
+
+    DisplayRestartAndSelectButtons(translators_location_configs);
     return EXIT_SUCCESS;
 }
 
