@@ -30,8 +30,9 @@
 
 namespace {
 
-const std::string ZTS_RESTART_CONFIG("/usr/local/var/lib/tuelib/zts_restart.conf");
-const std::string ZTS_TRANSLATORS_DIR("/tmp/translators");
+const std::string ZTS_RESTART_CONFIG("/usr/local/var/lib/tuelib/restart_zts.conf");
+// Make sure to match this directory in /etc/sudoers.d/99-zts-restart otherwise symbolic linking will fail
+const std::string ZTS_TRANSLATORS_DIR("/usr/local/zotero-translators");
 
 
 void SendHeaders() {
@@ -65,7 +66,7 @@ void GetTranslatorLocationConfigs(const IniFile &ini_file,
         if (StringUtil::StartsWith(section.getSectionName(), location_prefix)) {
             TranslatorsLocationConfig translators_location_config;
             translators_location_config.name_ = section.getSectionName().substr(location_prefix.length());
-            translators_location_config.url_  = section.getString("url");
+            translators_location_config.url_  = section.getString("url", "");
             translators_location_config.local_path_  = section.getString("local_path");
             translators_location_config.branch_ = section.getString("branch");
             translators_location_configs->emplace_back(translators_location_config);
@@ -73,29 +74,16 @@ void GetTranslatorLocationConfigs(const IniFile &ini_file,
     }
 }
 
-
-void DisplayRestartAndSelectButtons(const  std::vector<TranslatorsLocationConfig> &translators_location_configs) {
-    SendHeaders();
-    std::cout << "<h2>Restart Zotero Translation Server Service</h2>\n"
-              << "<form action=\"\" method=\"post\">\n";
-    for (const auto &translators_location_config : translators_location_configs)
-        std::cout  << "\t<input type=\"submit\" name=\"action\" value=\"" + translators_location_config.name_  +"\">\n";
-    std::cout << "\t<input type=\"submit\" name=\"action\" value=\"Restart\">\n"
-              << "</form>\n";
-    SendTrailer();
-}
-
-
 bool IsRestartActionPresent(const std::multimap<std::string, std::string> &cgi_args) {
     const auto key_and_value(cgi_args.find("action"));
     return key_and_value != cgi_args.cend() and key_and_value->second == "Restart";
 }
 
+
 void ExecuteAndDumpMessages(const std::string &command, const std::vector<std::string> &args) {
     auto auto_temp_file((FileUtil::AutoTempFile()));
     const std::string tmp_output(auto_temp_file.getFilePath());
-    ExecUtil::ExecOrDie(command, args, "" /*stdin*/,
-                        tmp_output, tmp_output);
+    ExecUtil::ExecOrDie(command, args, "" /*stdin*/, tmp_output, "/dev/stdout");
     std::ifstream output_file(tmp_output);
     if (not output_file)
         LOG_ERROR("Could not open " + tmp_output + " for reading\n");
@@ -106,9 +94,8 @@ void ExecuteAndDumpMessages(const std::string &command, const std::vector<std::s
 
 
 template<typename Function>
-void ExecuteAndSendStatus(const std::string &message, Function function) {
-    SendHeaders();
-    std::cout << message << std::endl;
+void ExecuteAndDisplayStatus(const std::string &header_msg, Function function, std::string footer_msg = "<h2>Done...</h2>") {
+    std::cout << header_msg << std::endl;
     bool log_no_decorations_old(logger->getLogNoDecorations());
     bool log_strip_call_site_old(logger->getLogStripCallSite());
     logger->setLogNoDecorations(true);
@@ -119,11 +106,42 @@ void ExecuteAndSendStatus(const std::string &message, Function function) {
     } catch (const std::runtime_error &error) {
         std::cerr << error.what();
     }
-    std::cout << "<h2>Done...</h2>\n";
-    SendTrailer();
+    std::cout << footer_msg << std::endl;
     logger->redirectOutput(STDERR_FILENO);
     logger->setLogNoDecorations(log_no_decorations_old);
     logger->setLogStripCallSite(log_strip_call_site_old);
+}
+
+
+template<typename Function>
+void ExecuteAndSendStatus(const std::string &message, Function function) {
+    SendHeaders();
+    ExecuteAndDisplayStatus(message, function);
+    SendTrailer();
+}
+
+
+void GetCurrentRepoAndBranch() {
+    const std::string chdir_to_translators_dir("cd " + ZTS_TRANSLATORS_DIR + "/translators");
+    auto closure = [&]{
+                      ExecuteAndDumpMessages("/usr/bin/sudo",
+                       { "/bin/bash", "-c", "/usr/local/bin/restart_zts_show_current_gitrepo.sh" });
+                     };
+    ExecuteAndDisplayStatus("<h4>Current repo and branch </h4>", closure, "<p>");
+}
+
+
+void DisplayRestartAndSelectButtons(const std::vector<TranslatorsLocationConfig> &translators_location_configs) {
+    SendHeaders();
+    std::cout << "<h2>Restart Zotero Translation Server Service</h2>\n";
+    GetCurrentRepoAndBranch();
+    std::cout << "<form action=\"\" method=\"post\">\n";
+    for (const auto &translators_location_config : translators_location_configs)
+        std::cout  << "\t<input type=\"submit\" name=\"action\" value=\"" + translators_location_config.name_  +"\">\n";
+    std::cout << "<p/><hr/><p/>" << std::endl;
+    std::cout << "\t<input type=\"submit\" name=\"action\" value=\"Restart\">\n"
+              << "</form>\n";
+    SendTrailer();
 }
 
 
@@ -137,9 +155,12 @@ void RestartZTS() {
 
 
 void RelinkTranslatorDirectory(const TranslatorsLocationConfig &translators_location_config) {
-     auto closure = [&]{ExecuteAndDumpMessages("/usr/bin/sudo",
+     auto closure = [&]{
+                        ExecuteAndDumpMessages("/usr/bin/sudo",
                             { "ln" , "--symbolic", "--force", "--no-dereference",
-                              translators_location_config.local_path_, ZTS_TRANSLATORS_DIR});};
+                              translators_location_config.local_path_, ZTS_TRANSLATORS_DIR});
+                        std::cout << "Linking " + ZTS_TRANSLATORS_DIR + " to " + translators_location_config.local_path_ << '\n';
+                       };
      ExecuteAndSendStatus("<h2>Switching to branch " + translators_location_config.name_ + "</h2>",
                            closure);
 }
@@ -163,7 +184,6 @@ bool GetSwitchBranch(const std::multimap<std::string, std::string> &cgi_args,
      *translator_location_config = *match;
      return true;
 }
-
 
 
 } // end unnamed namespace
