@@ -94,7 +94,7 @@ void ExecuteAndDumpMessages(const std::string &command, const std::vector<std::s
 
 
 template<typename Function>
-void ExecuteAndDisplayStatus(const std::string &header_msg, Function function, std::string footer_msg = "<h2>Done...</h2>") {
+void ExecuteAndDisplayStatus(const std::string &header_msg, Function function, std::string footer_msg = "") {
     std::cout << header_msg << std::endl;
     bool log_no_decorations_old(logger->getLogNoDecorations());
     bool log_strip_call_site_old(logger->getLogStripCallSite());
@@ -160,6 +160,7 @@ void RelinkTranslatorDirectory(const TranslatorsLocationConfig &translators_loca
                             { "ln" , "--symbolic", "--force", "--no-dereference",
                               translators_location_config.local_path_, ZTS_TRANSLATORS_DIR});
                         std::cout << "Linking " + ZTS_TRANSLATORS_DIR + " to " + translators_location_config.local_path_ << '\n';
+                        RestartZTS();
                        };
      ExecuteAndSendStatus("<h2>Switching to branch " + translators_location_config.name_ + "</h2>",
                            closure);
@@ -187,6 +188,7 @@ bool GetSwitchBranch(const std::multimap<std::string, std::string> &cgi_args,
 
 
 } // end unnamed namespace
+
 
 int Main(int /*argc*/, char */*argv*/[]) {
     std::multimap<std::string, std::string> cgi_args;
