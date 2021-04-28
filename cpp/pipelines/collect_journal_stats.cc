@@ -295,7 +295,7 @@ void UpdateDatabase(const std::string &system_type,
 const std::string TEXT_FILE_DIRECTORY(UBTools::GetFIDProjectsPath() + "Zeder_Supervision");
 
 
-void UpdateTextFiles(const bool debug, const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
+void UpdateTextFiles(const bool debug,
                      const std::unordered_map<std::string, std::vector<Article>> &zeder_ids_plus_ppns_to_articles_map)
 {
     const auto DIRECTORY_PREFIX(debug ? "/tmp/collect_journal_stats/"
@@ -304,13 +304,7 @@ void UpdateTextFiles(const bool debug, const std::unordered_map<std::string, Zed
         FileUtil::MakeDirectoryOrDie(DIRECTORY_PREFIX);
 
     std::unordered_map<std::string, std::string> zeder_ids_plus_ppns_to_file_contents_map;
-    for (const auto &[ppn, articles] : zeder_ids_plus_ppns_to_articles_map) {
-        const auto ppns_and_zeder_id_and_type(ppns_to_zeder_ids_and_types_map.find(ppn));
-        if (unlikely(ppns_and_zeder_id_and_type == ppns_to_zeder_ids_and_types_map.cend()))
-            LOG_ERROR("Map lookup failed for \"" + ppn + "\"!");
-        const auto &zeder_id(ppns_and_zeder_id_and_type->second.zeder_id_);
-
-        const auto zeder_id_plus_ppn(std::to_string(zeder_id) + "+" + ppn);
+    for (const auto &[zeder_id_plus_ppn, articles] : zeder_ids_plus_ppns_to_articles_map) {
         auto zeder_id_plus_ppn_and_file_contents(zeder_ids_plus_ppns_to_file_contents_map.find(zeder_id_plus_ppn));
         if (zeder_id_plus_ppn_and_file_contents == zeder_ids_plus_ppns_to_file_contents_map.end())
             zeder_id_plus_ppn_and_file_contents =
@@ -373,7 +367,7 @@ int Main(int argc, char *argv[]) {
         SortArticles(&zeder_ids_plus_ppns_to_articles_map);
         if (not debug)
             UpdateDatabase(system_type, ppns_to_zeder_ids_and_types_map, zeder_ids_plus_ppns_to_articles_map);
-        UpdateTextFiles(debug, ppns_to_zeder_ids_and_types_map, zeder_ids_plus_ppns_to_articles_map);
+        UpdateTextFiles(debug, zeder_ids_plus_ppns_to_articles_map);
     }
 
     return EXIT_SUCCESS;
