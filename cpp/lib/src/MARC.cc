@@ -1138,6 +1138,15 @@ std::vector<std::string> Record::getDatesOfProductionEtc() const {
 }
 
 
+std::string Record::getMainAuthor() const {
+    const auto field_100(findTag("100"));
+    if (unlikely(field_100 == end()))
+        return "";
+
+    return field_100->getFirstSubfieldWithCode('a');
+}
+
+
 std::map<std::string, std::string> Record::getAllAuthorsAndPPNs() const {
     static const std::vector<std::string> AUTHOR_TAGS { "100", "109", "700" };
 
