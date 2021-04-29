@@ -642,8 +642,8 @@ inline std::string Now() {
     unsigned year, month, day;
     TimeUtil::GetCurrentDate(&year, &month, &day);
     return StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
-           +  StringUtil::ToString(month, /* radix = */10, /* width = */2, /* padding_char = */'0')
-           +  StringUtil::ToString(day, /* radix = */10, /* width = */2, /* padding_char = */'0');
+           + StringUtil::ToString(month, /* radix = */10, /* width = */2, /* padding_char = */'0')
+           + StringUtil::ToString(day, /* radix = */10, /* width = */2, /* padding_char = */'0');
 }
 
 
