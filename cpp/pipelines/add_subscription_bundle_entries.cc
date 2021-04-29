@@ -65,10 +65,14 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
         record.insertField("BIB", { { 'a', "1" } });
     if (include_churchlaw)
         record.insertField("CAN", { { 'a', "1" } });
+    
+    std::vector<MARC::Subfield> elc_subfields;
     if (media_type == "online_and_print" or media_type == "online")
-        record.insertField("ELC", 'a', "1");
+        elc_subfields.push_back({'a', "1"});
     if (media_type == "online_and_print" or media_type == "print")
-        record.insertField("ELC", 'b', "1");
+        elc_subfields.push_back({'b', "1"});
+    record.insertField("ELC", elc_subfields);
+    
     return record;
 }
 
