@@ -88,7 +88,8 @@ wait
 StartPhase "Filter out Self-referential 856 Fields" \
            "\n\tRemove Sorting Chars From Title Subfields" \
            "\n\tRemove blmsh Subject Heading Terms" \
-           "\n\tFix Local Keyword Capitalisations"
+           "\n\tFix Local Keyword Capitalisations" \
+           "\n\tStandardise German B.C. Year References"
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --remove-fields '856u:ixtheo\.de' \
