@@ -88,7 +88,8 @@ wait
 StartPhase "Filter out Self-referential 856 Fields" \
            "\n\tRemove Sorting Chars From Title Subfields" \
            "\n\tRemove blmsh Subject Heading Terms" \
-           "\n\tFix Local Keyword Capitalisations"
+           "\n\tFix Local Keyword Capitalisations" \
+           "\n\tStandardise German B.C. Year References"
 (marc_filter \
      GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --remove-fields '856u:ixtheo\.de' \
@@ -101,12 +102,9 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --replace 260b:264b /usr/local/var/lib/tuelib/publisher_normalisation.map \
     --replace 245a "^L' (.*)" "L'\\1" `# Replace "L' arbe" with "L'arbe" etc.` \
     --replace 100a:700a "^\\s+(.*)" "\\1" `# Replace " van Blerk, Nico" with "van Blerk, Nico" etc.` \
-    --replace 100d "v(\\d+)\\s?-\\s?v(\\d+)" "\\1 v.Chr.-\\2 v.Chr" \
-    --replace 100d "v(\\d+)\\s?-\\s?(\\d+)" "\\1 v.Chr.-\\2" \
-    --replace 100d "v(\\d+)" "\\1 v. Chr." \
-    --replace 700d "v(\\d+)\\s?-\\s?v(\\d+)" "\\1 v.Chr.-\\2 v.Chr" \
-    --replace 700d "v(\\d+)\\s?-\\s?(\\d+)" "\\1 v.Chr.-\\2" \
-    --replace 700d "v(\\d+)" "\\1 v. Chr." \
+    --replace 100d:689d:700d "v(\\d+)\\s?-\\s?v(\\d+)" "\\1 v.Chr.-\\2 v.Chr" \
+    --replace 100d:689d:700d "v(\\d+)\\s?-\\s?(\\d+)" "\\1 v.Chr.-\\2" \
+    --replace 100d:689d:700d "v(\\d+)" "\\1 v. Chr." \
 >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
