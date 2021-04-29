@@ -592,6 +592,9 @@ public:
      */
     std::vector<std::string> getDatesOfProductionEtc() const;
 
+    // \return The author from 100$a or the empty string if the record has no 100$a.
+    std::string getMainAuthor() const;
+
     /** \return All author names in fields 100$a and 700$a and theitr associated authority record PPN's. */
     std::map<std::string, std::string> getAllAuthorsAndPPNs() const;
 
