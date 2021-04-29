@@ -108,8 +108,8 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
 {
     unsigned included_journal_count(0);
     std::set<std::string> bundle_ppns; // We use a std::set because it is automatically being sorted for us.
-    bool contains_print = false;
-    bool contains_online = false;
+    bool contains_print(false);
+    bool contains_online(false);
     for (const auto &journal : zeder) {
         if (journal.empty() or not IncludeJournal(journal, section))
             continue;

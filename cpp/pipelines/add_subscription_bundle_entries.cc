@@ -65,9 +65,9 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
         record.insertField("BIB", { { 'a', "1" } });
     if (include_churchlaw)
         record.insertField("CAN", { { 'a', "1" } });
-    if (media_type.compare("online_and_print") == 0 or media_type.compare("online") == 0)
+    if (media_type == "online_and_print" or media_type == "online")
         record.insertField("ELC", 'a', "1");
-    if (media_type.compare("online_and_print") == 0 or media_type.compare("print") == 0)
+    if (media_type == "online_and_print" or media_type == "print")
         record.insertField("ELC", 'b', "1");
     return record;
 }
