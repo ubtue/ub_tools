@@ -37,7 +37,7 @@ using BundleToPPNsMap = std::map<std::string, std::set<std::string>>;
 
 
 MARC::Record GenerateBundleRecord(const std::string &record_id, const std::string &bundle_name, const std::vector<std::string> &instances,
-                                  const std::string &description)
+                                  const std::string &description, const std::string &media_type)
 {
     const std::string today(TimeUtil::GetCurrentDateAndTime("%y%m%d"));
     // exclude from Ixtheo e.g. because it's a pure Relbib list
@@ -65,6 +65,14 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
         record.insertField("BIB", { { 'a', "1" } });
     if (include_churchlaw)
         record.insertField("CAN", { { 'a', "1" } });
+    
+    std::vector<MARC::Subfield> elc_subfields;
+    if (media_type == "online_and_print" or media_type == "online")
+        elc_subfields.push_back({ 'a', "1" });
+    if (media_type == "online_and_print" or media_type == "print")
+        elc_subfields.push_back({ 'b', "1" });
+    record.insertField("ELC", elc_subfields);
+    
     return record;
 }
 
@@ -85,9 +93,10 @@ void GenerateBundleEntry(MARC::Writer * const marc_writer, const std::string &bu
     const std::string instances_string(bundles_config.getString(bundle_name, "instances", ""));
     std::vector<std::string> instances;
     const std::string description(bundles_config.getString(bundle_name, "description", ""));
+    const std::string media_type(bundles_config.getString(bundle_name, "media_type", ""));
     if (not instances_string.empty())
         StringUtil::SplitThenTrim(instances_string, ",", " \t", &instances);
-    marc_writer->write(GenerateBundleRecord(bundle_name, bundles_config.getString(bundle_name, "display_name"), instances, description));
+    marc_writer->write(GenerateBundleRecord(bundle_name, bundles_config.getString(bundle_name, "display_name"), instances, description, media_type));
 }
 
 
