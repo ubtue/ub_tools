@@ -671,9 +671,9 @@ bool ConvertTextToTimeRange(const std::string &text, std::string * const range, 
         return true;
     }
 
-    static const std::string BEFORE_CHRIST_PATTERNS("(?: v\\. ?Chr\\.|BC|avant J\\.-C\\.|a\\.C\\.|公元前)"); // de:en:fr:it:cn
+    static const std::string BEFORE_CHRIST_PATTERNS("(?: ?v\\. ?[Cc]hr\\.|BC|avant J\\.-C\\.|a\\.C\\.|公元前)"); // de:en:fr:it:cn
     static auto matcher3(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{2,4})" + BEFORE_CHRIST_PATTERNS
-                                                                + "?-(\\d{2,4})" + BEFORE_CHRIST_PATTERNS + "$"));
+                                                                + "? ?- ?(\\d{2,4})" + BEFORE_CHRIST_PATTERNS + "$"));
     if (matcher3->matched(text)) {
         const unsigned year1(StringUtil::ToUnsigned((*matcher3)[1]));
         const unsigned year2(StringUtil::ToUnsigned((*matcher3)[2]));
