@@ -68,9 +68,9 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
     
     std::vector<MARC::Subfield> elc_subfields;
     if (media_type == "online_and_print" or media_type == "online")
-        elc_subfields.push_back( { 'a', "1" } );
+        elc_subfields.push_back({ 'a', "1" });
     if (media_type == "online_and_print" or media_type == "print")
-        elc_subfields.push_back( { 'b', "1" } );
+        elc_subfields.push_back({ 'b', "1" });
     record.insertField("ELC", elc_subfields);
     
     return record;
