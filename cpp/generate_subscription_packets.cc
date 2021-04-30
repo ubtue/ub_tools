@@ -108,6 +108,8 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
 {
     unsigned included_journal_count(0);
     std::set<std::string> bundle_ppns; // We use a std::set because it is automatically being sorted for us.
+    bool contains_print(false);
+    bool contains_online(false);
     for (const auto &journal : zeder) {
         if (journal.empty() or not IncludeJournal(journal, section))
             continue;
@@ -123,10 +125,15 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
         }
 
         // Prefer online journals to print journals:
-        if (not online_ppns.empty())
+        // At the moment the logic is electronic over print
+        // in discussion if this should be changed (if so, publication year range has to be considered)
+        if (not online_ppns.empty()) {
             ProcessPPNs(online_ppns, &bundle_ppns);
-        else
+            contains_online = true;
+        } else {
             ProcessPPNs(print_ppns, &bundle_ppns);
+            contains_print = true;
+        }
     }
 
     if (bundle_ppns.empty())
@@ -138,6 +145,15 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
         if (description != section.end())
             (*output_file) << "description  = \"" << EscapeDoubleQuotes(description->value_) << "\"\n";
         (*output_file) << "instances    = \"" << bundle_instances << "\"\n";
+        std::string media_type;
+        if (contains_online) 
+            if (contains_print)
+                media_type = "online_and_print";
+            else
+                media_type = "online";
+        else
+            media_type = "print";
+        (*output_file) << "media_type   = \"" << media_type << "\"\n";
         (*output_file) << "ppns         = " << StringUtil::Join(bundle_ppns, ',') << '\n';
         (*output_file) << '\n';
     }
