@@ -164,6 +164,29 @@ public class TuelibMixin extends SolrIndexerMixin {
         //c.f. https://stackoverflow.com/questions/1466959/string-replaceall-vs-matcher-replaceall-performance-differences (21/03/16)
         return SORTABLE_STRING_REMOVE_PATTERN.matcher(string).replaceAll("").trim();
     }
+    
+    public String getRangeSplitByUnderscore(final Record record, final String fieldTag, final String subfieldTag, final String partStartingWithZero) {
+        final DataField field = (DataField) record.getVariableField(fieldTag);
+        if (field == null)
+            return null;
+
+        if (subfieldTag.trim().replaceAll("'","").length() < 1)
+            return null;
+
+        try {
+            Integer part = Integer.parseInt(partStartingWithZero.trim());
+
+            final Subfield subfield = field.getSubfield(subfieldTag.trim().replaceAll("'","").charAt(0));
+            final String[] parts = subfield.getData().split("_");
+
+            if (parts == null || parts.length == 0 || !(part < parts.length))
+                return null;
+
+            return parts[part];
+        } catch (NumberFormatException ne) {
+            return null;
+        }
+    }
 
     /**
      * This function is copied from VuFind's CreatorTools
