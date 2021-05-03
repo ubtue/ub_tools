@@ -164,6 +164,37 @@ public class TuelibMixin extends SolrIndexerMixin {
         //c.f. https://stackoverflow.com/questions/1466959/string-replaceall-vs-matcher-replaceall-performance-differences (21/03/16)
         return SORTABLE_STRING_REMOVE_PATTERN.matcher(string).replaceAll("").trim();
     }
+    
+    /**
+     * At the moment used for time range(s) parsing, if more than one timerange exists in TIM-field, minimum lower and maximum upper have to be implemented
+     * @param record
+     * @param fieldTag
+     * @param subfieldTag
+     * @param partNumber starting with zero
+     * @return
+     */
+    public String getRangeSplitByUnderscore(final Record record, final String fieldTag, final String subfieldTag, final String partNumber) {
+        final DataField field = (DataField) record.getVariableField(fieldTag);
+        if (field == null)
+            return null;
+
+        if (subfieldTag.trim().length() < 1)
+            return null;
+
+        try {
+            Integer part = Integer.parseInt(partNumber.trim());
+
+            final Subfield subfield = field.getSubfield(subfieldTag.trim().charAt(0));
+            final String[] parts = subfield.getData().split("_");
+
+            if (parts == null || parts.length == 0 || !(part < parts.length))
+                return null;
+
+            return parts[part];
+        } catch (NumberFormatException ne) {
+            return null;
+        }
+    }
 
     /**
      * This function is copied from VuFind's CreatorTools

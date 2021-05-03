@@ -35,12 +35,23 @@ public class TimeAspectRangeParser extends QParser {
     private String[] getFieldsFromQuery() {
         return qstr.split(QUERY_SEPARATOR);
     }
-
+    
     @Override
     public Query parse() throws SyntaxError {
-        final String queryString = "time_aspect_ranges:*";
-        final QParser parser = getParser(queryString, "multiLanguageQueryParser", getReq());
+        
+        String queryString = "time_aspect_ranges:*";
         final TimeAspectRange[] ranges = getRangesFromQuery();
+        
+        //if more than one time range become relevant, minimum lower and 
+        //maximum upper need to be implemented for pre-selection
+        if (ranges.length != 1) {
+            throw new SyntaxError("Unsupported format");
+        }
+        TimeAspectRange range = ranges[0];
+        String lower = String.format("%08d", range.getLower());
+        String upper = String.format("%08d", range.getUpper());
+        queryString = "time_range_end:[" + lower + " TO " + "*" + "] AND time_range_start:[" + "*" + " TO " + upper + "]";
+        final QParser parser = getParser(queryString, "multiLanguageQueryParser", getReq());        
         return new TimeAspectRangeQuery(parser.parse(), ranges);
     }
 }
