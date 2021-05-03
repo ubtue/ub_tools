@@ -754,14 +754,6 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
             creator.gnd_number_ = HtmlUtil::StripHtmlTags(BSZUtil::GetAuthorGNDNumber(combined_name, group_params.author_swb_lookup_url_));
             if (not creator.gnd_number_.empty())
                 LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + " (SWB lookup)");
-            else {
-                creator.gnd_number_ = HtmlUtil::StripHtmlTags((not creator.first_name_.empty() ?
-                                         LobidUtil::GetAuthorGNDNumber(creator.last_name_, creator.first_name_, group_params.author_lobid_lookup_query_params_) :
-                                         LobidUtil::GetAuthorGNDNumber(creator.last_name_, group_params.author_lobid_lookup_query_params_)));
-
-                if (not creator.gnd_number_.empty())
-                    LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + "(Lobid lookup)");
-            }
         }
     }
 
