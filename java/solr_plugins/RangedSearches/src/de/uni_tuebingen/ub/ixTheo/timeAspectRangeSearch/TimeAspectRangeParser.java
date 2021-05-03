@@ -42,6 +42,8 @@ public class TimeAspectRangeParser extends QParser {
         String queryString = "time_aspect_ranges:*";
         final TimeAspectRange[] ranges = getRangesFromQuery();
         
+        //if more than one time range become relevant, minimum lower and 
+        //maximum upper need to be implemented for pre-selection
         if (ranges.length != 1) {
             throw new SyntaxError("Unsupported format");
         }

@@ -165,18 +165,26 @@ public class TuelibMixin extends SolrIndexerMixin {
         return SORTABLE_STRING_REMOVE_PATTERN.matcher(string).replaceAll("").trim();
     }
     
+    /**
+     * At the moment used for time range(s) parsing, if more than one timerange exists in TIM-field, minimum lower and maximum upper have to be implemented
+     * @param record
+     * @param fieldTag
+     * @param subfieldTag
+     * @param partStartingWithZero
+     * @return
+     */
     public String getRangeSplitByUnderscore(final Record record, final String fieldTag, final String subfieldTag, final String partStartingWithZero) {
         final DataField field = (DataField) record.getVariableField(fieldTag);
         if (field == null)
             return null;
 
-        if (subfieldTag.trim().replaceAll("'","").length() < 1)
+        if (subfieldTag.trim().length() < 1)
             return null;
 
         try {
             Integer part = Integer.parseInt(partStartingWithZero.trim());
 
-            final Subfield subfield = field.getSubfield(subfieldTag.trim().replaceAll("'","").charAt(0));
+            final Subfield subfield = field.getSubfield(subfieldTag.trim().charAt(0));
             final String[] parts = subfield.getData().split("_");
 
             if (parts == null || parts.length == 0 || !(part < parts.length))
