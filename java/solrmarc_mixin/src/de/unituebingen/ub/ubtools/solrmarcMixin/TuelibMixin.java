@@ -170,10 +170,10 @@ public class TuelibMixin extends SolrIndexerMixin {
      * @param record
      * @param fieldTag
      * @param subfieldTag
-     * @param partStartingWithZero
+     * @param partNumber starting with zero
      * @return
      */
-    public String getRangeSplitByUnderscore(final Record record, final String fieldTag, final String subfieldTag, final String partStartingWithZero) {
+    public String getRangeSplitByUnderscore(final Record record, final String fieldTag, final String subfieldTag, final String partNumber) {
         final DataField field = (DataField) record.getVariableField(fieldTag);
         if (field == null)
             return null;
@@ -182,7 +182,7 @@ public class TuelibMixin extends SolrIndexerMixin {
             return null;
 
         try {
-            Integer part = Integer.parseInt(partStartingWithZero.trim());
+            Integer part = Integer.parseInt(partNumber.trim());
 
             final Subfield subfield = field.getSubfield(subfieldTag.trim().charAt(0));
             final String[] parts = subfield.getData().split("_");
