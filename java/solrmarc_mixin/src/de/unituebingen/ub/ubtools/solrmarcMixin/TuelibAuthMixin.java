@@ -18,9 +18,9 @@ import org.marc4j.marc.VariableField;
 public class TuelibAuthMixin extends TuelibMixin {
 
     protected final static Logger logger = Logger.getLogger(TuelibAuthMixin.class.getName());
-    
+
     protected final static Pattern SORTABLE_STRING_REMOVE_PATTERN = Pattern.compile("[^\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lo}\\p{N}]+");
-    protected final static Pattern YEAR_RANGE_PATTERN = Pattern.compile("^(\\d+)-(\\d+)$");
+    protected final static Pattern YEAR_RANGE_PATTERN = Pattern.compile("^([v]?)(\\d+)-([v]?)(\\d+)$");
 
     /**
      * normalize string due to specification for isni or orcid
@@ -80,8 +80,8 @@ public class TuelibAuthMixin extends TuelibMixin {
             }
 
         }
-    }   
-    
+    }
+
     protected String normalizeSortableString(String string) {
         // Only keep letters & numbers. For unicode character classes, see:
         // https://en.wikipedia.org/wiki/Template:General_Category_(Unicode)
@@ -90,7 +90,7 @@ public class TuelibAuthMixin extends TuelibMixin {
         //c.f. https://stackoverflow.com/questions/1466959/string-replaceall-vs-matcher-replaceall-performance-differences (21/03/16)
         return SORTABLE_STRING_REMOVE_PATTERN.matcher(string).replaceAll("").trim();
     }
-    
+
     public Collection<String> normalizeSortableString(Collection<String> extractedValues) {
         Collection<String> results = new ArrayList<String>();
         for (final String value : extractedValues) {
@@ -100,21 +100,39 @@ public class TuelibAuthMixin extends TuelibMixin {
         }
         return results;
     }
-    
+
     public String getYearRange(final Record record) {
         final List<VariableField> yearFields = record.getVariableFields("400");
         for (final VariableField yearField : yearFields) {
             final DataField field = (DataField) yearField;
             for (final Subfield subfield_d : field.getSubfields('d')) {
                 final Matcher matcher = YEAR_RANGE_PATTERN.matcher(subfield_d.getData());
-                if (matcher.matches())
-                    return "[" + matcher.group(1) + " TO " + matcher.group(2) + "]";
+                if (matcher.matches()) {
+                    String year1 = matcher.group(2);
+                    String year2 = matcher.group(4);
+                    Integer year1Int = Integer.parseInt(year1);
+                    Integer year2Int = Integer.parseInt(year2);
+
+                    boolean year1IsBC = matcher.group(1).equals("v");
+                    boolean year2IsBC = matcher.group(3).equals("v");
+                    if (!year1IsBC && !year2IsBC && year2Int < year1Int) {
+                        year1IsBC = true;
+                        year2IsBC = true;
+                    }
+
+                    if (year1IsBC)
+                        year1 = "-" + year1;
+                    if (year2IsBC)
+                        year2 = "-" + year2;
+
+                    return "[" + year1 + " TO " + year2 + "]";
+                }
             }
         }
 
         return null;
     }
-    
+
     public String getAuthorityType(final Record record) {
         if (record.getVariableFields("100").size() > 0)
             return "person";
