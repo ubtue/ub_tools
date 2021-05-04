@@ -27,7 +27,6 @@ if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); th
     fi
 else
     echo "No explicit MYSQL schema updates detected"
-    exit 0
 fi
 
 
