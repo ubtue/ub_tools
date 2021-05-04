@@ -94,28 +94,30 @@ void CopyItem(DbConnection * const db_writer, const std::string &feed_id, const 
 
 int Main(int /*argc*/, char */*argv*/[]) {
     auto db_reader((DbConnection()));
-    auto db_writer(VuFind::GetDbConnection());
 
-    db_reader.queryOrDie("SELECT * FROM rss_aggregator");
-    auto result_set(db_reader.getLastResultSet());
-    DbTransaction transaction(db_writer.get());
-    while (const auto row = result_set.getNextRow()) {
-        FeedInfo feed_info;
-        if (not GetRSSFeedsID(db_writer.get(), row["feed_url"], &feed_info)) {
-            transaction.rollback();
-            LOG_WARNING("Undid partial conversion w/ a ROLLBACK!");
-            return EXIT_FAILURE;
+    if (not VuFind::GetTueFindFlavour().empty()) {
+        auto db_writer(VuFind::GetDbConnection());
+        db_reader.queryOrDie("SELECT * FROM rss_aggregator");
+        auto result_set(db_reader.getLastResultSet());
+        DbTransaction transaction(db_writer.get());
+        while (const auto row = result_set.getNextRow()) {
+            FeedInfo feed_info;
+            if (not GetRSSFeedsID(db_writer.get(), row["feed_url"], &feed_info)) {
+                transaction.rollback();
+                LOG_WARNING("Undid partial conversion w/ a ROLLBACK!");
+                return EXIT_FAILURE;
+            }
+
+            if (unlikely(not feed_info.isCompatibleWith(row["flavour"])))
+                LOG_ERROR("Item w/ item_id \"" + row["item_id"] + " has a flavour \"" + row["flavour"] +
+                          "\" which is incompatible with the subsystem_types \""
+                          + StlHelpers::ContainerToString(feed_info.subsystem_types_.cbegin(),
+                                                          feed_info.subsystem_types_.cend(), ","));
+            CopyItem(db_writer.get(), feed_info.id_, row["item_id"], row["item_url"], row["item_title"],
+                     row["item_description"], row["pub_date"], row["insertion_time"]);
         }
-
-        if (unlikely(not feed_info.isCompatibleWith(row["flavour"])))
-            LOG_ERROR("Item w/ item_id \"" + row["item_id"] + " has a flavour \"" + row["flavour"] +
-                      "\" which is incompatible with the subsystem_types \""
-                      + StlHelpers::ContainerToString(feed_info.subsystem_types_.cbegin(),
-                                                      feed_info.subsystem_types_.cend(), ","));
-        CopyItem(db_writer.get(), feed_info.id_, row["item_id"], row["item_url"], row["item_title"],
-                 row["item_description"], row["pub_date"], row["insertion_time"]);
+        transaction.commit();
     }
-    transaction.commit();
     db_reader.queryOrDie("DROP TABLE IF EXISTS ub_tools.rss_aggregator");
 
     return EXIT_SUCCESS;
