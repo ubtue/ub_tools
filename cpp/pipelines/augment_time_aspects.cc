@@ -122,7 +122,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
 
 augment_record:
         if (not range.empty()) {
-            record.insertField("TIM", { { 'a', range }, {'b', category.length()==0?RangeUtil::ConvertTimeRangeToText(range):category} });
+            record.insertField("TIM", { { 'a', range }, {'b', category.length() == 0 ? RangeUtil::ConvertTimeRangeToText(range) : category} });
             ++augmented_count;
         }
 
