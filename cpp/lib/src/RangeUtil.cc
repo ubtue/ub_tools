@@ -677,10 +677,10 @@ std::string ConvertTimeRangeToText(const std::string &range) {
         date2 = "v" + std::to_string(u_date2);
     }
     if (month_day1 != "0101") {
-        date1 = date1 + "_" + month_day1;
+        date1 = date1 + "-" + month_day1.substr(0,2) + "-" + month_day1.substr(2);
     }
     if (month_day2 != "1231") {
-        date2 = date2 + "_" + month_day2;
+        date2 = date2 + "-" + month_day2.substr(0,2) + "-" + month_day2.substr(2);
     }
     return date1 + " - " + date2;
 }
