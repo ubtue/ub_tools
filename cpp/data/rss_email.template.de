@@ -1,0 +1,26 @@
+<!DOCTYPE HTML>
+<html>
+    <body>
+        <p>Liebe/r {user_name},</p>
+
+        <p>Die folgenden Beiträge / Posts aus Ihrer RSS Feed-Auswahl sind neu:</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Beitrag / Post</th>
+                    <th>Feed Website</th>
+                    <th>Beitrag / Post URL</th>
+                </tr>
+            </thead>
+            <tbody>
+            {LOOP item_titles,website_urls,feed_names,item_urls}
+                <tr>
+                    <td>{item_titles}</td>
+                    <td><a href="{website_urls}">{feed_names}</a></td>
+                    <td><a href="{item_urls}">{item_urls}</a></td>
+                </tr>
+            {ENDLOOP}
+            </tbody>
+        </table>
+    </body>
+</html>
