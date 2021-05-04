@@ -650,6 +650,42 @@ inline std::string Now() {
 } // unnamed namespace
 
 
+std::string ConvertTimeRangeToText(const std::string &range) {
+    const auto separator_pos(range.find('_'));
+    if (separator_pos == std::string::npos)
+        LOG_ERROR("range w/o a underline: \"" + range + "\"!");
+    std::string date1(range.substr(0, separator_pos));
+    std::string date2(range.substr(separator_pos + 1));
+    const std::string month_day1(date1.substr(date1.length()-4));
+    const std::string month_day2(date2.substr(date2.length()-4));
+    date1 = date1.substr(0, date1.length()-4);
+    date2 = date2.substr(0, date2.length()-4);
+    unsigned u_date1 = std::stoi(date1);
+    unsigned u_date2 = std::stoi(date2);
+    if (u_date1 > OFFSET) {
+        u_date1 -= OFFSET;
+        date1 = std::to_string(u_date1);
+    } else {
+        u_date1 = (OFFSET - u_date1);
+        date1 = "v" + std::to_string(u_date1);
+    }
+    if (u_date2 > OFFSET) {
+        u_date2 -= OFFSET;
+        date2 = std::to_string(u_date2);
+    } else {
+        u_date2 = (OFFSET - u_date2);
+        date2 = "v" + std::to_string(u_date2);
+    }
+    if (month_day1 != "0101") {
+        date1 = date1 + "-" + month_day1.substr(0,2) + "-" + month_day1.substr(2);
+    }
+    if (month_day2 != "1231") {
+        date2 = date2 + "-" + month_day2.substr(0,2) + "-" + month_day2.substr(2);
+    }
+    return date1 + " - " + date2;
+}
+
+
 bool ConvertTextToTimeRange(const std::string &text, std::string * const range, const bool special_case_centuries) {
     static auto matcher1(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,4})-(\\d{1,4})$"));
     if (matcher1->matched(text)) {

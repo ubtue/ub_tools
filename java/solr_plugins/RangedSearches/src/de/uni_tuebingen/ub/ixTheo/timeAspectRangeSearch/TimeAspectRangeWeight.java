@@ -55,6 +55,7 @@ public class TimeAspectRangeWeight extends ConstantScoreWeight {
         final LeafReader reader = leafReaderContext.reader();
         final BitSet matchingDocs = new FixedBitSet(reader.maxDoc());
         for (int i = iterator.nextDoc(); i != DocIdSetIterator.NO_MORE_DOCS; i = iterator.nextDoc()) {
+            //this line (fetch) needs lots of performance, not the check and scoring
             final Document doc = reader.document(i);
             if (matches(doc)) {
                 matchingDocs.set(i);

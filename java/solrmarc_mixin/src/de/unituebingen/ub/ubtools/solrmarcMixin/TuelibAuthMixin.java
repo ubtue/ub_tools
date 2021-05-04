@@ -129,13 +129,18 @@ public class TuelibAuthMixin extends TuelibMixin {
                 }
             }
         }
-
         return null;
     }
 
     public String getAuthorityType(final Record record) {
-        if (record.getVariableFields("100").size() > 0)
+        if (record.getVariableFields("100").size() > 0) {
+            for (VariableField field100 : record.getVariableFields("100")) {
+                if (((DataField)field100).getSubfield('t') != null) {
+                    return "work";
+                }
+            }
             return "person";
+        }
         if (record.getVariableFields("110").size() > 0)
             return "corporate";
         if (record.getVariableFields("111").size() > 0)
