@@ -104,6 +104,9 @@ bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start
 bool ConvertTextToTimeRange(const std::string &text, std::string * const range, const bool special_case_centuries = false);
 
 
+std::string ConvertTimeRangeToText(const std::string &range);
+
+
 /** \brief Special processing for 2 Esdras, 5 Esra and 6 Esra
  *
  *  The following rules are currently implemented:
