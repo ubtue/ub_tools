@@ -91,6 +91,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
         ++total_count;
 
         std::string range;
+        std::string category;
         for (const std::string &tag : TIME_ASPECT_GND_LINKING_TAGS) {
             for (const auto &time_aspect_field : record.getTagRange(tag)) {
                 auto a_subfield(time_aspect_field.getFirstSubfieldWithCode('a'));
@@ -102,8 +103,10 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                 if (StringUtil::StartsWith(a_subfield, "Kirchengeschichte Anfänge-"))
                     a_subfield = "Kirchengeschichte 30" + a_subfield.substr(__builtin_strlen("Kirchengeschichte Anfänge"));
 
-                if (RangeUtil::ConvertTextToTimeRange(a_subfield.substr(matched_prefix->length()), &range))
+                if (RangeUtil::ConvertTextToTimeRange(a_subfield.substr(matched_prefix->length()), &range)) {
+                    category = a_subfield;
                     goto augment_record;
+                }
             }
 
             std::vector<std::string> authority_ppns;
@@ -119,7 +122,7 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
 
 augment_record:
         if (not range.empty()) {
-            record.insertField("TIM", { { 'a', range } });
+            record.insertField("TIM", { { 'a', range }, {'b', category.length() == 0 ? RangeUtil::ConvertTimeRangeToText(range) : category} });
             ++augmented_count;
         }
 
