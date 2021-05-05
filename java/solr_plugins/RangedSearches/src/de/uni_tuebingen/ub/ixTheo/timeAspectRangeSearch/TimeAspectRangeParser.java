@@ -48,8 +48,8 @@ public class TimeAspectRangeParser extends QParser {
             throw new SyntaxError("Unsupported format");
         }
         TimeAspectRange range = ranges[0];
-        String lower = String.format("%08d", range.getLower());
-        String upper = String.format("%08d", range.getUpper());
+        String lower = String.format("%012d", range.getLower());
+        String upper = String.format("%012d", range.getUpper());
         queryString = "time_range_end:[" + lower + " TO " + "*" + "] AND time_range_start:[" + "*" + " TO " + upper + "]";
         final QParser parser = getParser(queryString, "multiLanguageQueryParser", getReq());        
         return new TimeAspectRangeQuery(parser.parse(), ranges);
