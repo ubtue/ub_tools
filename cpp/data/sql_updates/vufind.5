@@ -1,0 +1,3 @@
+DROP TRIGGER vufind.before_user_insert;
+CREATE TRIGGER vufind.before_user_insert BEFORE INSERT ON vufind.user FOR EACH ROW SET NEW.tuefind_uuid = UUID();
+UPDATE vufind.user SET tuefind_uuid = UUID() WHERE tuefind_uuid = '' OR tuefind_uuid IS NULL;
