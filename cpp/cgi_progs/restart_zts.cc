@@ -33,6 +33,7 @@ namespace {
 const std::string ZTS_RESTART_CONFIG("/usr/local/var/lib/tuelib/restart_zts.conf");
 // Make sure to match this directory in /etc/sudoers.d/99-zts-restart otherwise symbolic linking will fail
 const std::string ZTS_TRANSLATORS_DIR("/usr/local/zotero-translators");
+const std::string ZOTERO_ENHANCEMENT_MAPS_DIR("/usr/local/var/lib/tuelib/zotero-enhancement-maps");
 
 
 void SendHeaders() {
@@ -51,9 +52,15 @@ struct TranslatorsLocationConfig {
     std::string url_;
     std::string local_path_;
     std::string branch_;
+    std::string zotero_enhancement_maps_local_path_;
+    std::string zotero_enhancement_maps_branch_;
     TranslatorsLocationConfig(std::string name = "", std::string url = "",
-        std::string local_path = "", std::string branch = "") :
-        name_(name), url_(url), local_path_(local_path), branch_(branch)
+        std::string local_path = "", std::string branch = "",
+        std::string zotero_enhancement_maps_local_path = "",
+        std::string zotero_enhancement_maps_branch = "") :
+        name_(name), url_(url), local_path_(local_path), branch_(branch),
+        zotero_enhancement_maps_local_path_(zotero_enhancement_maps_local_path),
+        zotero_enhancement_maps_branch_(zotero_enhancement_maps_branch)
         {}
 };
 
@@ -69,6 +76,10 @@ void GetTranslatorLocationConfigs(const IniFile &ini_file,
             translators_location_config.url_  = section.getString("url", "");
             translators_location_config.local_path_  = section.getString("local_path");
             translators_location_config.branch_ = section.getString("branch");
+            translators_location_config.zotero_enhancement_maps_local_path_ =
+                section.getString("zotero_enhancement_maps_local_path");
+            translators_location_config.zotero_enhancement_maps_branch_ =
+                section.getString("zotero_enhancement_maps_branch");
             translators_location_configs->emplace_back(translators_location_config);
         }
     }
@@ -131,6 +142,9 @@ void GetCurrentRepoAndBranch() {
 }
 
 
+
+
+
 void DisplayRestartAndSelectButtons(const std::vector<TranslatorsLocationConfig> &translators_location_configs) {
     SendHeaders();
     std::cout << "<h2>Restart Zotero Translation Server Service</h2>\n";
@@ -154,12 +168,17 @@ void RestartZTS() {
 }
 
 
-void RelinkTranslatorDirectory(const TranslatorsLocationConfig &translators_location_config) {
+void RelinkTranslatorAndEnhancemenMapsDirectory(const TranslatorsLocationConfig &translators_location_config) {
      auto closure = [&]{
                         ExecuteAndDumpMessages("/usr/bin/sudo",
                             { "ln" , "--symbolic", "--force", "--no-dereference",
                               translators_location_config.local_path_, ZTS_TRANSLATORS_DIR});
-                        std::cout << "Linking " + ZTS_TRANSLATORS_DIR + " to " + translators_location_config.local_path_ << '\n';
+                        std::cout << "Linking " << ZTS_TRANSLATORS_DIR << " to " << translators_location_config.local_path_ << "<br/>";
+                        ExecuteAndDumpMessages("/usr/bin/sudo",
+                            { "ln" , "--symbolic", "--force", "--no-dereference",
+                              translators_location_config.zotero_enhancement_maps_local_path_, ZOTERO_ENHANCEMENT_MAPS_DIR});
+                        std::cout << "Linking " << ZOTERO_ENHANCEMENT_MAPS_DIR << " to " <<
+                                     translators_location_config.zotero_enhancement_maps_local_path_ << "<br/>";
                         RestartZTS();
                        };
      ExecuteAndSendStatus("<h2>Switching to branch " + translators_location_config.name_ + "</h2>",
@@ -203,7 +222,7 @@ int Main(int /*argc*/, char */*argv*/[]) {
 
     TranslatorsLocationConfig translators_location_config;
     if (GetSwitchBranch(cgi_args, translators_location_configs, &translators_location_config)) {
-        RelinkTranslatorDirectory(translators_location_config);
+        RelinkTranslatorAndEnhancemenMapsDirectory(translators_location_config);
         return EXIT_SUCCESS;
     }
 
