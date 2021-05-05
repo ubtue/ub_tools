@@ -32,7 +32,7 @@ dnf --assumeyes install dnf-plugins-core
 dnf --assumeyes install curl epel-release wget
 
 # additional repos (Alexander_Pozdnyakov = tesseract)
-dnf config-manager --set-enabled PowerTools
+dnf config-manager --set-enabled powertools
 dnf config-manager --add-repo https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/elasticsearch.repo
 dnf config-manager --add-repo https://download.opensuse.org/repositories/home:/Alexander_Pozdnyakov/CentOS_8/
 dnf config-manager --add-repo http://rpms.remirepo.net/enterprise/8/remi/x86_64/
