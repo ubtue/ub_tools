@@ -718,12 +718,31 @@ bool ConvertTextToTimeRange(const std::string &text, std::string * const range, 
         return true;
     }
 
+    static auto matcher3b(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{2,4})" + BEFORE_CHRIST_PATTERNS
+                                                                + "? ?- ?(\\d{2,4})" + "$"));
+    if (matcher3b->matched(text)) {
+        const unsigned year1(StringUtil::ToUnsigned((*matcher3b)[1]));
+        const unsigned year2(StringUtil::ToUnsigned((*matcher3b)[2]));
+        *range = StringUtil::ToString(OFFSET - year1, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        return true;
+    }
+
     static auto matcher4(RegexMatcher::RegexMatcherFactoryOrDie("^v(\\d{2,4}) ?- ?v(\\d{2,4})$"));
     if (matcher4->matched(text)) {
         const unsigned year1(StringUtil::ToUnsigned((*matcher4)[1]));
         const unsigned year2(StringUtil::ToUnsigned((*matcher4)[2]));
         *range = StringUtil::ToString(OFFSET - year1, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
                  + StringUtil::ToString(OFFSET - year2, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        return true;
+    }
+
+    static auto matcher4b(RegexMatcher::RegexMatcherFactoryOrDie("^v(\\d{2,4}) ?- ?(\\d{2,4})$"));
+    if (matcher4b->matched(text)) {
+        const unsigned year1(StringUtil::ToUnsigned((*matcher4b)[1]));
+        const unsigned year2(StringUtil::ToUnsigned((*matcher4b)[2]));
+        *range = StringUtil::ToString(OFFSET - year1, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
         return true;
     }
 
