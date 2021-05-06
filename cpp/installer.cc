@@ -378,8 +378,6 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
             MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/KrimDok/sql/mysql.sql", sql_database, sql_username, sql_password);
             break;
         }
-
-
     }
 
     if (vufind_system_type == IXTHEO) {
@@ -393,6 +391,8 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
             Echo("creating " + ixtheo_database + " database");
             db_connection_root->mySQLCreateDatabase(ixtheo_database);
             db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, ixtheo_username);
+            db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, sql_username);
+            db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, "ub_tools");
             DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ixtheo.sql", ixtheo_database, ixtheo_username, ixtheo_password);
         }
     }
