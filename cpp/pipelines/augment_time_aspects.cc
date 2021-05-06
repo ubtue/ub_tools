@@ -55,37 +55,44 @@ void LoadAuthorityData(MARC::Reader * const reader,
     while (auto record = reader->read()) {
         ++total_count;
 
-        bool found(false);
-        const auto _548_field(record.findTag("548"));
-        if (_548_field != record.end() and _548_field->hasSubfieldWithValue('i', "Zeitraum")) {
-            const std::string free_form_range_candidate(_548_field->getFirstSubfieldWithCode('a'));
-            std::string range;
-            if (RangeUtil::ConvertTextToTimeRange(free_form_range_candidate, &range, /* special_case_centuries = */true)) {
-                (*authority_ppns_to_time_codes_map)[record.getControlNumber()] = range;
-                found = true;
-                const auto _150_field(record.findTag("150"));
-                if (_150_field != record.end() and _150_field->hasSubfield('a')) {
-                    std::string _150a_subfield = _150_field->getFirstSubfieldWithCode('a');
-                    if (StringUtil::Contains(_150a_subfield, free_form_range_candidate) == false) 
+        bool found_548(false);
+
+        auto _548_field(record.findTag("548"));
+        while (_548_field != record.end()) {
+            if (_548_field->hasSubfieldWithValue('i', "Zeitraum")) {
+                const std::string free_form_range_candidate(_548_field->getFirstSubfieldWithCode('a'));
+                std::string range;
+                if (RangeUtil::ConvertTextToTimeRange(free_form_range_candidate, &range, /* special_case_centuries = */ true)) {
+                    (*authority_ppns_to_time_codes_map)[record.getControlNumber()] = range;
+                    found_548 = true;
+                    const auto _150_field(record.findTag("150"));
+                    if (_150_field != record.end() and _150_field->hasSubfield('a')) {
+                        std::string _150a_subfield = _150_field->getFirstSubfieldWithCode('a');
                         _150a_subfield = _150a_subfield + " " + free_form_range_candidate;
-                    (*authority_ppns_to_time_categories_map)[record.getControlNumber()] = _150a_subfield;
-                }
+                        (*authority_ppns_to_time_categories_map)[record.getControlNumber()] = _150a_subfield;
+                    }
+                    break;
+                } else
+                    LOG_WARNING("can't convert \"" + free_form_range_candidate + "\" to a time range!");
             }
-            else
-                LOG_WARNING("can't convert \"" + free_form_range_candidate + "\" to a time range!");
-        } 
-        if (found == false) {
-            const auto _450_field(record.findTag("450"));
-            if (_450_field != record.end() and _450_field->hasSubfield('a')) {
-                std::string _450a_subfield = _450_field->getFirstSubfieldWithCode('a');
-                const auto matched_prefix(FindFirstPrefixMatch(_450a_subfield, KEYWORD_PREFIXES));
-                if (matched_prefix != KEYWORD_PREFIXES.cend()) {
-                    std::string range;
-                    if (RangeUtil::ConvertTextToTimeRange(_450a_subfield.substr(matched_prefix->length()), &range)) {
-                        (*authority_ppns_to_time_codes_map)[record.getControlNumber()] = range;
-                        (*authority_ppns_to_time_categories_map)[record.getControlNumber()] = _450a_subfield;
+            _548_field++;
+        }
+        if (found_548 == false) {
+            auto _450_field(record.findTag("450"));
+            while (_450_field != record.end()) {
+                if (_450_field->hasSubfield('a')) {
+                    std::string _450a_subfield = _450_field->getFirstSubfieldWithCode('a');
+                    const auto matched_prefix(FindFirstPrefixMatch(_450a_subfield, KEYWORD_PREFIXES));
+                    if (matched_prefix != KEYWORD_PREFIXES.cend()) {
+                        std::string range;
+                        if (RangeUtil::ConvertTextToTimeRange(_450a_subfield.substr(matched_prefix->length()), &range)) {
+                            (*authority_ppns_to_time_codes_map)[record.getControlNumber()] = range;
+                            (*authority_ppns_to_time_categories_map)[record.getControlNumber()] = _450a_subfield;
+                            break;
+                        }
                     }
                 }
+                _450_field++;
             }
         }
     }
