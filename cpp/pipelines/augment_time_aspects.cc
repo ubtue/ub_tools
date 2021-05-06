@@ -32,6 +32,20 @@
 
 namespace {
 
+static const std::vector<std::string> TIME_ASPECT_GND_LINKING_TAGS{ "689" };
+static const std::vector<std::string> _689_PREFIXES{ "Geschichte ", "Geistesgeschichte ", "Ideengeschichte ", "Kirchengeschichte ",
+                                                         "Sozialgeschichte ", "Vor- und Frühgeschichte ", "Weltgeschichte ", "Prognose " };
+
+
+inline std::vector<std::string>::const_iterator FindFirstPrefixMatch(const std::string &s, const std::vector<std::string> &prefixes) {
+    for (auto prefix(prefixes.cbegin()); prefix != prefixes.cend(); ++prefix) {
+        if (StringUtil::StartsWith(s, *prefix))
+            return prefix;
+    }
+
+    return prefixes.cend();
+}
+
 
 void LoadAuthorityData(MARC::Reader * const reader,
                        std::unordered_map<std::string, std::string> * const authority_ppns_to_time_codes_map,
@@ -41,13 +55,15 @@ void LoadAuthorityData(MARC::Reader * const reader,
     while (auto record = reader->read()) {
         ++total_count;
 
+        bool found(false);
         const auto _548_field(record.findTag("548"));
-        const auto _150_field(record.findTag("150"));
         if (_548_field != record.end() and _548_field->hasSubfieldWithValue('i', "Zeitraum")) {
             const std::string free_form_range_candidate(_548_field->getFirstSubfieldWithCode('a'));
             std::string range;
             if (RangeUtil::ConvertTextToTimeRange(free_form_range_candidate, &range, /* special_case_centuries = */true)) {
                 (*authority_ppns_to_time_codes_map)[record.getControlNumber()] = range;
+                found = true;
+                const auto _150_field(record.findTag("150"));
                 if (_150_field != record.end() and _150_field->hasSubfield('a')) {
                     std::string _150a_subfield = _150_field->getFirstSubfieldWithCode('a');
                     if (StringUtil::Contains(_150a_subfield, free_form_range_candidate) == false) 
@@ -57,6 +73,20 @@ void LoadAuthorityData(MARC::Reader * const reader,
             }
             else
                 LOG_WARNING("can't convert \"" + free_form_range_candidate + "\" to a time range!");
+        } 
+        if (found == false) {
+            const auto _450_field(record.findTag("450"));
+            if (_450_field != record.end() and _450_field->hasSubfield('a')) {
+                std::string _450a_subfield = _450_field->getFirstSubfieldWithCode('a');
+                const auto matched_prefix(FindFirstPrefixMatch(_450a_subfield, _689_PREFIXES));
+                if (matched_prefix != _689_PREFIXES.cend()) {
+                    std::string range;
+                    if (RangeUtil::ConvertTextToTimeRange(_450a_subfield.substr(matched_prefix->length()), &range)) {
+                        (*authority_ppns_to_time_codes_map)[record.getControlNumber()] = range;
+                        (*authority_ppns_to_time_categories_map)[record.getControlNumber()] = _450a_subfield;
+                    }
+                }
+            }
         }
     }
 
@@ -78,24 +108,10 @@ void CollectAuthorityPPNs(const MARC::Record &record, const MARC::Tag &linking_f
 }
 
 
-inline std::vector<std::string>::const_iterator FindFirstPrefixMatch(const std::string &s, const std::vector<std::string> &prefixes) {
-    for (auto prefix(prefixes.cbegin()); prefix != prefixes.cend(); ++prefix) {
-        if (StringUtil::StartsWith(s, *prefix))
-            return prefix;
-    }
-
-    return prefixes.cend();
-}
-
-
 void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                     const std::unordered_map<std::string, std::string> &authority_ppns_to_time_codes_map,
                     const std::unordered_map<std::string, std::string> &authority_ppns_to_time_categories_map)
 {
-    static const std::vector<std::string> TIME_ASPECT_GND_LINKING_TAGS{ "689" };
-    static const std::vector<std::string> _689_PREFIXES{ "Geschichte ", "Geistesgeschichte ", "Ideengeschichte ", "Kirchengeschichte ",
-                                                         "Sozialgeschichte ", "Vor- und Frühgeschichte ", "Weltgeschichte ", "Prognose " };
-
     unsigned total_count(0), augmented_count(0);
     while (auto record = reader->read()) {
         ++total_count;
