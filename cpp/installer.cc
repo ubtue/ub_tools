@@ -896,7 +896,7 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     if (SELinuxUtil::IsEnabled()) {
         SELinuxUtil::FileContext::AddRecordIfMissing(UBTools::GetTueFindLogPath(),
                                                      "httpd_sys_rw_content_t",
-                                                     UBTools::GetTueFindLogPath() + "(.*)");
+                                                     UBTools::GetTueFindLogPath() + "(.*)?");
     }
 
     ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
