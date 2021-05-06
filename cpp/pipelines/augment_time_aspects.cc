@@ -33,7 +33,7 @@
 namespace {
 
 static const std::vector<std::string> TIME_ASPECT_GND_LINKING_TAGS{ "689" };
-static const std::vector<std::string> _689_PREFIXES{ "Geschichte ", "Geistesgeschichte ", "Ideengeschichte ", "Kirchengeschichte ",
+static const std::vector<std::string> KEYWORD_PREFIXES{ "Geschichte ", "Geistesgeschichte ", "Ideengeschichte ", "Kirchengeschichte ",
                                                          "Sozialgeschichte ", "Vor- und Frühgeschichte ", "Weltgeschichte ", "Prognose " };
 
 
@@ -78,8 +78,8 @@ void LoadAuthorityData(MARC::Reader * const reader,
             const auto _450_field(record.findTag("450"));
             if (_450_field != record.end() and _450_field->hasSubfield('a')) {
                 std::string _450a_subfield = _450_field->getFirstSubfieldWithCode('a');
-                const auto matched_prefix(FindFirstPrefixMatch(_450a_subfield, _689_PREFIXES));
-                if (matched_prefix != _689_PREFIXES.cend()) {
+                const auto matched_prefix(FindFirstPrefixMatch(_450a_subfield, KEYWORD_PREFIXES));
+                if (matched_prefix != KEYWORD_PREFIXES.cend()) {
                     std::string range;
                     if (RangeUtil::ConvertTextToTimeRange(_450a_subfield.substr(matched_prefix->length()), &range)) {
                         (*authority_ppns_to_time_codes_map)[record.getControlNumber()] = range;
@@ -121,8 +121,8 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
         for (const std::string &tag : TIME_ASPECT_GND_LINKING_TAGS) {
             for (const auto &time_aspect_field : record.getTagRange(tag)) {
                 auto a_subfield(time_aspect_field.getFirstSubfieldWithCode('a'));
-                const auto matched_prefix(FindFirstPrefixMatch(a_subfield, _689_PREFIXES));
-                if (matched_prefix == _689_PREFIXES.cend())
+                const auto matched_prefix(FindFirstPrefixMatch(a_subfield, KEYWORD_PREFIXES));
+                if (matched_prefix == KEYWORD_PREFIXES.cend())
                     continue;
 
                 // Special handling of ranges like "Kirchengeschichte Anfänge-1600":
