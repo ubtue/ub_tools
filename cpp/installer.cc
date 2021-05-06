@@ -510,7 +510,7 @@ void SetupSysLog(const OSSystemType os_system_type) {
         // This file needs to be written to from journald/syslog + read from apache user
         // since we cannot give container_log_t and httpd_sys_content_t to the same file,
         // we use httpd_tmp_t instead
-        SELinuxUtil::FileContext::AddRecordIfMissing(ZTS_LOGFILE, "httpd_tmp_t", ZTS_LOGFILE);
+        SELinuxUtil::FileContext::AddRecord("httpd_tmp_t", ZTS_LOGFILE);
     }
 }
 
