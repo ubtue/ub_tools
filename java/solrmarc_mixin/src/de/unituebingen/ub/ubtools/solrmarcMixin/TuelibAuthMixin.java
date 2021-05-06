@@ -145,6 +145,8 @@ public class TuelibAuthMixin extends TuelibMixin {
             return "corporate";
         if (record.getVariableFields("111").size() > 0)
             return "meeting";
+        if (record.getVariableFields("150").size() > 0)
+            return "keyword";
         return null;
     }
 }
