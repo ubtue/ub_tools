@@ -34,18 +34,27 @@ namespace {
 
 
 void LoadAuthorityData(MARC::Reader * const reader,
-                       std::unordered_map<std::string, std::string> * const authority_ppns_to_time_codes_map)
+                       std::unordered_map<std::string, std::string> * const authority_ppns_to_time_codes_map,
+                       std::unordered_map<std::string, std::string> * const authority_ppns_to_time_categories_map)
 {
     unsigned total_count(0);
     while (auto record = reader->read()) {
         ++total_count;
 
         const auto _548_field(record.findTag("548"));
+        const auto _150_field(record.findTag("150"));
         if (_548_field != record.end() and _548_field->hasSubfieldWithValue('i', "Zeitraum")) {
             const std::string free_form_range_candidate(_548_field->getFirstSubfieldWithCode('a'));
             std::string range;
-            if (RangeUtil::ConvertTextToTimeRange(free_form_range_candidate, &range, /* special_case_centuries = */true))
+            if (RangeUtil::ConvertTextToTimeRange(free_form_range_candidate, &range, /* special_case_centuries = */true)) {
                 (*authority_ppns_to_time_codes_map)[record.getControlNumber()] = range;
+                if (_150_field != record.end() and _150_field->hasSubfield('a')) {
+                    std::string _150a_subfield = _150_field->getFirstSubfieldWithCode('a');
+                    if (StringUtil::Contains(_150a_subfield, free_form_range_candidate) == false) 
+                        _150a_subfield = _150a_subfield + " " + free_form_range_candidate;
+                    (*authority_ppns_to_time_categories_map)[record.getControlNumber()] = _150a_subfield;
+                }
+            }
             else
                 LOG_WARNING("can't convert \"" + free_form_range_candidate + "\" to a time range!");
         }
@@ -80,7 +89,8 @@ inline std::vector<std::string>::const_iterator FindFirstPrefixMatch(const std::
 
 
 void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
-                    const std::unordered_map<std::string, std::string> &authority_ppns_to_time_codes_map)
+                    const std::unordered_map<std::string, std::string> &authority_ppns_to_time_codes_map,
+                    const std::unordered_map<std::string, std::string> &authority_ppns_to_time_categories_map)
 {
     static const std::vector<std::string> TIME_ASPECT_GND_LINKING_TAGS{ "689" };
     static const std::vector<std::string> _689_PREFIXES{ "Geschichte ", "Geistesgeschichte ", "Ideengeschichte ", "Kirchengeschichte ",
@@ -115,6 +125,10 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                 const auto authority_ppn_and_time_code(authority_ppns_to_time_codes_map.find(authority_ppn));
                 if (authority_ppn_and_time_code != authority_ppns_to_time_codes_map.cend()) {
                     range = authority_ppn_and_time_code->second;
+                    const auto authority_ppn_and_category_code(authority_ppns_to_time_categories_map.find(authority_ppn));
+                    if (authority_ppn_and_category_code != authority_ppns_to_time_categories_map.cend()) {
+                        category = authority_ppn_and_category_code->second;
+                    }
                     goto augment_record;
                 }
             }
@@ -152,11 +166,12 @@ int Main(int argc, char **argv) {
 
     auto authority_reader(MARC::Reader::Factory(authority_filename));
     std::unordered_map<std::string, std::string> authority_ppns_to_time_codes_map;
-    LoadAuthorityData(authority_reader.get(), &authority_ppns_to_time_codes_map);
+    std::unordered_map<std::string, std::string> authority_ppns_to_time_categories_map;
+    LoadAuthorityData(authority_reader.get(), &authority_ppns_to_time_codes_map, &authority_ppns_to_time_categories_map);
 
     auto title_reader(MARC::Reader::Factory(title_input_filename));
     auto title_writer(MARC::Writer::Factory(title_output_filename));
-    ProcessRecords(title_reader.get(), title_writer.get(), authority_ppns_to_time_codes_map);
+    ProcessRecords(title_reader.get(), title_writer.get(), authority_ppns_to_time_codes_map, authority_ppns_to_time_categories_map);
 
     return EXIT_SUCCESS;
 }
