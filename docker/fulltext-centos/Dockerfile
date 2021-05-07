@@ -3,8 +3,8 @@ MAINTAINER Johannes Riedl <johannes.riedl@uni-tuebingen.de>
 
 # add needed configuration files
 # (+simulate mounted /mnt/ZE020150)
-ADD mnt/ZE020150 /mnt/ZE020150
-ADD Elasticsearch.conf /usr/local/var/lib/tuelib/Elasticsearch.conf
+COPY mnt/ZE020150 /mnt/ZE020150
+COPY Elasticsearch.conf /usr/local/var/lib/tuelib/Elasticsearch.conf
 # set java encoding to avoid problems when compiling solr plugins
 ENV JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
 
@@ -23,6 +23,6 @@ RUN /tmp/install_ubtools.sh fulltext-backend --test
 EXPOSE 9200
 
 # start services when container is run
-ADD startup.sh /startup.sh
-ADD elasticsearch.yml /etc/elasticsearch/elasticsearch.yml
+COPY elasticsearch.yml /etc/elasticsearch/elasticsearch.yml
+COPY startup.sh /startup.sh
 CMD [ "/startup.sh" ]
