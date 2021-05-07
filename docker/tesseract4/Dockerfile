@@ -39,5 +39,5 @@ RUN cd /usr/local/tesseract-ocr && make --jobs=4 training
 RUN cd /usr/local/tesseract-ocr && make --jobs=4 training-install
 
 # allow container to run infinitely
-ADD startup.sh /startup.sh
+COPY startup.sh /startup.sh
 CMD ["/startup.sh"]
