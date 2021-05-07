@@ -126,6 +126,7 @@ bool IsDockerEnvironment() {
 
 const std::string UB_TOOLS_DIRECTORY("/usr/local/ub_tools");
 const std::string VUFIND_DIRECTORY("/usr/local/vufind");
+const std::string VUFIND_LOCAL_OVERRIDES_DIRECTORY(VUFIND_DIRECTORY + "/local/tuefind/local_overrides");
 const std::string INSTALLER_DATA_DIRECTORY(UB_TOOLS_DIRECTORY + "/cpp/data/installer");
 const std::string INSTALLER_SCRIPTS_DIRECTORY(INSTALLER_DATA_DIRECTORY + "/scripts");
 
@@ -918,9 +919,22 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     }
 
     Echo("generating HMAC hash");
-    const std::string HMAC_FILE_PATH(VUFIND_DIRECTORY + "/local/tuefind/local_overrides/hmac.conf");
+    const std::string HMAC_FILE_PATH(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/hmac.conf");
     if (not FileUtil::Exists(HMAC_FILE_PATH))
         FileUtil::WriteStringOrDie(HMAC_FILE_PATH, StringUtil::GenerateRandom(/*length=*/32, /*alphabet=*/"abcdefghijklmnopqrstuvwxyz0123456789"));
+
+    // We need to create empty local_overrides files so that basic programs like cssBuilder can run
+    FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/database.conf");
+    FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/database_solrmarc.conf");
+    switch (vufind_system_type) {
+    case IXTHEO:
+        FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/ixtheo_site.conf");
+        FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/relbib_site.conf");
+        break;
+    case KRIMDOK:
+        FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/krimdok_site.conf");
+        break;
+    }
 
     Echo("Building CSS");
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { VUFIND_DIRECTORY + "/util/cssBuilder.php" });
