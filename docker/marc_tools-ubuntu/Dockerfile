@@ -12,5 +12,5 @@ RUN cd /tmp/ub_tools && unzip /tmp/ub_tools/master.zip
 RUN apt --quiet --yes install /tmp/ub_tools/ub_tools-master/cpp/marc_tools/debs/*.deb
 
 # keep container running
-ADD startup.sh /startup.sh
+COPY startup.sh /startup.sh
 CMD [ "/startup.sh" ]

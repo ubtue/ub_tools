@@ -3,7 +3,7 @@ MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 
 # add needed configuration files
 # (+simulate mounted /mnt/ZE020150)
-ADD mnt/ZE020150 /mnt/ZE020150
+COPY mnt/ZE020150 /mnt/ZE020150
 
 # set java encoding to avoid problems when compiling solr plugins
 ENV JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"
@@ -17,9 +17,9 @@ RUN /tmp/install_ubtools.sh ub-tools-only
 # configure apache
 EXPOSE 80
 EXPOSE 443
-ADD httpd/*.conf /etc/httpd/conf.d/
-ADD httpd/*.pem /etc/ssl/certs/
+COPY httpd/*.conf /etc/httpd/conf.d/
+COPY httpd/*.pem /etc/ssl/certs/
 
 # start services when container is run
-ADD startup.sh /startup.sh
+COPY startup.sh /startup.sh
 CMD [ "/startup.sh" ]

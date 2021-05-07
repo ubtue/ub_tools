@@ -2,5 +2,5 @@ FROM centos:8
 MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 
 # start services when container is run
-ADD startup.sh /startup.sh
+COPY startup.sh /startup.sh
 CMD [ "/startup.sh" ]
