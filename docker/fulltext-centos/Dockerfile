@@ -4,6 +4,7 @@ MAINTAINER Johannes Riedl <johannes.riedl@uni-tuebingen.de>
 # add needed configuration files
 # (+simulate mounted /mnt/ZE020150)
 COPY mnt/ZE020150 /mnt/ZE020150
+COPY .smbcredentials /root/.smbcredentials
 COPY Elasticsearch.conf /usr/local/var/lib/tuelib/Elasticsearch.conf
 # set java encoding to avoid problems when compiling solr plugins
 ENV JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF8"

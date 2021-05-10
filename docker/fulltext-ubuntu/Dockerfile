@@ -4,6 +4,7 @@ MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 # add needed configuration files
 # (+simulate mounted /mnt/ZE020150)
 COPY mnt/ZE020150 /mnt/ZE020150
+COPY .smbcredentials /root/.smbcredentials
 COPY elasticsearch.yml /etc/elasticsearch/elasticsearch.yml
 COPY Elasticsearch.conf /usr/local/var/lib/tuelib/Elasticsearch.conf
 
