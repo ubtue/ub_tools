@@ -147,6 +147,10 @@ public class TuelibAuthMixin extends TuelibMixin {
             return "meeting";
         if (record.getVariableFields("150").size() > 0)
             return "keyword";
+        if (record.getVariableFields("151").size() > 0)
+            return "place";
+        if (record.getVariableFields("155").size() > 0)
+            return "genre";
         return null;
     }
 }
