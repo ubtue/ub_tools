@@ -2,7 +2,8 @@ FROM centos:8
 MAINTAINER Johannes Riedl <johannes.riedl@uni-tuebingen.de>
 
 # add needed configuration files
-# (+simulate mounted /mnt/ZE020150)
+# (+simulate mounts)
+RUN mkdir --parents /mnt/ZE020110/FID-Projekte/Default
 COPY mnt/ZE020150 /mnt/ZE020150
 COPY .smbcredentials /root/.smbcredentials
 COPY Elasticsearch.conf /usr/local/var/lib/tuelib/Elasticsearch.conf
