@@ -257,7 +257,7 @@ void UpdateDatabase(const std::string &system_type,
     for (const auto &[ppn, articles] : zeder_ids_plus_ppns_to_articles_map) {
         const auto ppn_and_zeder_id_and_ppn_type(ppns_to_zeder_ids_and_types_map.find(ppn));
         if (unlikely(ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend()))
-            LOG_ERROR("this should *never* happen!");
+            LOG_ERROR("no Zeder ID found for PPN \"" + ppn + "\"!");
 
         const auto zeder_id(std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_));
         for (auto article(articles.cbegin());
