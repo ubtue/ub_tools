@@ -293,7 +293,7 @@ bool NormaliseDOI(const std::string &doi_candidate, std::string * const normalis
 }
 
 
-const ThreadSafeRegexMatcher CONTAINS_DOI_MATCHER("(10.\\d{4,9}/[-._;()/:A-Z0-9]+)");
+const ThreadSafeRegexMatcher CONTAINS_DOI_MATCHER("(10.\\d{4,9}/[-._;()/:A-Za-z0-9]+)");
 
 
 bool ContainsDOI(const std::string &contains_doi_candidate) {
