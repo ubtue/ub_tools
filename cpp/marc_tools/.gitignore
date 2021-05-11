@@ -18,6 +18,7 @@ marc_diff
 marc_filter
 marc_grep
 marc_grep_ng
+marc_head
 marc_info
 marc_mgrep
 marc_ngram_language_stats
