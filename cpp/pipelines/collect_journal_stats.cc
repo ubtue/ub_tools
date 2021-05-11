@@ -235,6 +235,14 @@ bool IsNewerThanWhatExistsInDB(const std::unordered_map<std::string, Article> &e
 }
 
 
+std::string GetPNN(const std::string &zeder_id_plus_ppn) {
+    const auto plus_pos(zeder_id_plus_ppn.find('+'));
+    if (unlikely(plus_pos == std::string::npos))
+        LOG_ERROR("missing + in \"" + zeder_id_plus_ppn + "\"!");
+    return zeder_id_plus_ppn.substr(plus_pos + 1);
+}
+
+
 void UpdateDatabase(const std::string &system_type,
                     const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
                     const std::unordered_map<std::string, std::vector<Article>> &zeder_ids_plus_ppns_to_articles_map)
@@ -254,7 +262,8 @@ void UpdateDatabase(const std::string &system_type,
                                                  "PPN", "Jahr", "Band", "Heft", "Seitenbereich" };
     std::vector<std::vector<std::optional<std::string>>> column_values;
 
-    for (const auto &[ppn, articles] : zeder_ids_plus_ppns_to_articles_map) {
+    for (const auto &[zeder_id_plus_ppn, articles] : zeder_ids_plus_ppns_to_articles_map) {
+        const auto ppn(GetPNN(zeder_id_plus_ppn));
         const auto ppn_and_zeder_id_and_ppn_type(ppns_to_zeder_ids_and_types_map.find(ppn));
         if (unlikely(ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend()))
             LOG_ERROR("no Zeder ID found for PPN \"" + ppn + "\"!");
