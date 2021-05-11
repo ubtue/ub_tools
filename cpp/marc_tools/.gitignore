@@ -27,6 +27,7 @@ marc_remove_dups
 marc_size
 marc_split
 marc_tag_grep
+remove_marc_dups
 replace_marc_records
 sanitize_marc
 single_marc_convert_keywords
