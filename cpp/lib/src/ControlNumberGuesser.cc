@@ -3,7 +3,7 @@
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2018,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -147,23 +147,36 @@ void ControlNumberGuesser::insertISBN(const std::string &isbn, const std::string
 }
 
 
-std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::string &title, const std::set<std::string> &authors,
-                                                                     const std::string &year, const std::string &doi,
-                                                                     const std::string &issn, const std::string &isbn) const
+std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(
+    const std::string &title, const std::set<std::string> &authors,
+    const std::string &year, const std::set<std::string> &dois,
+    const std::set<std::string> &issns, const std::set<std::string> &isbns) const
 {
-    if (not doi.empty()) {
+    std::set<std::string> control_numbers;
+
+    for (const auto &doi : dois) {
         std::set<std::string> doi_control_numbers;
         lookupDOI(doi, &doi_control_numbers);
-        if (not doi_control_numbers.empty())
-            return doi_control_numbers;
+        control_numbers.insert(doi_control_numbers.cbegin(), doi_control_numbers.cend());
     }
+    if (not control_numbers.empty())
+        return control_numbers;
 
-    if (not isbn.empty()) {
+    for (const auto &issn : issns) {
+        std::set<std::string> issn_control_numbers;
+        lookupISSN(issn, &issn_control_numbers);
+        control_numbers.insert(issn_control_numbers.cbegin(), issn_control_numbers.cend());
+    }
+    if (not control_numbers.empty())
+        return control_numbers;
+
+    for (const auto &isbn : isbns) {
         std::set<std::string> isbn_control_numbers;
         lookupISBN(isbn, &isbn_control_numbers);
-        if (not isbn_control_numbers.empty())
-            return isbn_control_numbers;
+        control_numbers.insert(isbn_control_numbers.cbegin(), isbn_control_numbers.cend());
     }
+    if (not control_numbers.empty())
+        return control_numbers;
 
     const auto normalised_title(NormaliseTitle(title));
     std::set<std::string> title_control_numbers, all_author_control_numbers, doi_control_numbers;
@@ -190,20 +203,13 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
         return { };
     }
 
-    auto common_control_numbers(MiscUtil::Intersect(title_control_numbers, all_author_control_numbers));
-
-    if (not issn.empty()) {
-        std::set<std::string> issn_control_numbers;
-        lookupISSN(issn, &issn_control_numbers);
-        if (not issn_control_numbers.empty())
-            common_control_numbers = MiscUtil::Intersect(common_control_numbers, issn_control_numbers);
-    }
+    control_numbers = MiscUtil::Intersect(title_control_numbers, all_author_control_numbers);
 
     if (year.empty())
-        return common_control_numbers;
+        return control_numbers;
 
     lookupYear(year, &year_control_numbers);
-    return MiscUtil::Intersect(common_control_numbers, year_control_numbers);
+    return MiscUtil::Intersect(control_numbers, year_control_numbers);
 }
 
 

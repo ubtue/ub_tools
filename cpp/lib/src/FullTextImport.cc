@@ -2,7 +2,7 @@
  *  \brief   Implementation of classes and functions related to the importing of full-text into Elasticsearch
  *  \author  Madeeswaran Kannan
  *
- *  Copyright (c) 2018,2019 Library of the University of Tübingen
+ *  Copyright (c) 2018-2021 Library of the University of Tübingen
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -110,8 +110,8 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
 bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, const FullTextData &full_text_data,
                            std::set<std::string> * const control_numbers) {
     *control_numbers = control_number_guesser.getGuessedControlNumbers(full_text_data.title_, full_text_data.authors_,
-                                                                             full_text_data.year_, full_text_data.doi_,
-                                                                             full_text_data.issn_, full_text_data.isbn_);
+                                                                       full_text_data.year_, { full_text_data.doi_ },
+                                                                       { full_text_data.issn_ }, { full_text_data.isbn_ });
     if (control_numbers->empty())
         return false;
 
