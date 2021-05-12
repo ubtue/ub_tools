@@ -2370,7 +2370,6 @@ public class TuelibBiblioMixin extends TuelibMixin {
                         // 856 field to be labeled as electronicRessource
                         break;
                     default:
-                        formats.add("Software");
                         break;
                     }
                     break;
@@ -2582,6 +2581,17 @@ public class TuelibBiblioMixin extends TuelibMixin {
                     formats.remove("Kit");
                     formats.add("LiteraryRemains");
                     return formats;
+                }
+            }
+        }
+        
+        //Software
+        final List<VariableField> _336Fields = record.getVariableFields("336");
+        for (final VariableField variableField : _336Fields) {
+            final DataField _336Field = (DataField) variableField;
+            for (final Subfield aSubfield : _336Field.getSubfields('a')) {
+                if (aSubfield.getData().startsWith("Computerprogramm")) {
+                    formats.add("Software");
                 }
             }
         }
