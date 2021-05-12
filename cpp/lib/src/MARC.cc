@@ -1147,9 +1147,25 @@ std::string Record::getMainAuthor() const {
 }
 
 
-std::map<std::string, std::string> Record::getAllAuthorsAndPPNs() const {
-    static const std::vector<std::string> AUTHOR_TAGS { "100", "109", "700" };
+static const std::vector<std::string> AUTHOR_TAGS { "100", "109", "700" };
 
+
+std::set<std::string> Record::getAllAuthors() const {
+    std::set<std::string> author_names;
+    for (const auto &tag : AUTHOR_TAGS) {
+        for (const auto &field : getTagRange(tag)) {
+            for (const auto &subfield : field.getSubfields()) {
+                if (subfield.code_ == 'a')
+                    author_names.emplace(subfield.value_);
+            }
+        }
+    }
+
+    return author_names;
+}
+
+
+std::map<std::string, std::string> Record::getAllAuthorsAndPPNs() const {
     std::map<std::string, std::string> author_names_to_authority_ppns_map;
     std::set<std::string> already_seen_author_names;
     for (const auto &tag : AUTHOR_TAGS) {
