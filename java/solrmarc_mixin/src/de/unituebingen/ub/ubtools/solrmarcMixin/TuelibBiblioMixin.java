@@ -2369,8 +2369,6 @@ public class TuelibBiblioMixin extends TuelibMixin {
                         // Do not return - this will cause anything with an
                         // 856 field to be labeled as electronicRessource
                         break;
-                    default:
-                        break;
                     }
                     break;
                 case 'D':
@@ -2590,7 +2588,7 @@ public class TuelibBiblioMixin extends TuelibMixin {
         for (final VariableField variableField : _336Fields) {
             final DataField _336Field = (DataField) variableField;
             for (final Subfield aSubfield : _336Field.getSubfields('a')) {
-                if (aSubfield.getData().startsWith("Computerprogramm")) {
+                if (aSubfield.getData().equals("Computerprogramm")) {
                     formats.add("Software");
                 }
             }
