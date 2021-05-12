@@ -257,7 +257,7 @@ void UpdateDatabase(const std::string &system_type,
     const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
 
     DbConnection db_connection_insert(ini_file, "DatabaseInsert");
-    const unsigned SQL_INSERT_BATCH_SIZE(20);
+    const unsigned SQL_INSERT_BATCH_SIZE(50);
     const std::vector<std::string> COLUMN_NAMES{ "timestamp", "Quellrechner", "Systemtyp", "Zeder_ID", "PPN_Typ",
                                                  "PPN", "Jahr", "Band", "Heft", "Seitenbereich" };
     std::vector<std::vector<std::optional<std::string>>> column_values;
