@@ -172,10 +172,13 @@ void PerformDescriptionSubstitutions(const std::string &patterns_and_replacement
     for (const char ch : patterns_and_replacements + ";")  {
         if (escaped) {
             escaped = false;
-            if (in_pattern)
+            if (in_pattern) {
+                (ch == ':' or ch == ';') ? pattern += "" : pattern += "\\";
                 pattern += ch;
-            else
+            } else {
+                (ch == ':' or ch == ';') ? replacement += "" : replacement += "\\";
                 replacement += ch;
+            }
         } else if (ch == ':')
             in_pattern = false;
         else if (ch == ';') {
@@ -219,7 +222,9 @@ unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, c
                     LOG_INFO("Suppressed item because of title: \"" + StringUtil::ShortenText(item.getTitle(), 40) + "\".");
                     continue; // Skip suppressed item.
                 }
-                PerformDescriptionSubstitutions(patterns_and_replacements, &item);
+                if (patterns_and_replacements.empty() == false) {
+                    PerformDescriptionSubstitutions(patterns_and_replacements, &item);
+                }
                 if (ProcessRSSItem(feed_id, item, db_connection))
                     ++new_item_count;
             }
