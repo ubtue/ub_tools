@@ -53,6 +53,9 @@ public:
     void insertDOI(const std::string &doi, const std::string &control_number);
     void insertISSN(const std::string &issn, const std::string &control_number);
     void insertISBN(const std::string &isbn, const std::string &control_number);
+
+    /** \warning You *must* pass in complete titles for "title"!  If you obtain the title from a MARC record,
+                 you can use getCompleteTitle() on the MARC:Record instance. */
     std::set<std::string> getGuessedControlNumbers(const std::string &title, const std::set<std::string> &authors,
                                                    const std::string &year = "", const std::set<std::string> &dois = {},
                                                    const std::set<std::string> &issns = {},

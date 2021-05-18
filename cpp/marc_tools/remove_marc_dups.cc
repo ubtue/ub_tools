@@ -36,7 +36,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
         const auto guessed_control_numbers(control_number_guesser.getGuessedControlNumbers(
-            record.getMainTitle(), record.getAllAuthors(), record.getMostRecentPublicationYear(), record.getDOIs(),
+            record.getCompleteTitle(), record.getAllAuthors(), record.getMostRecentPublicationYear(), record.getDOIs(),
             record.getISSNs(), record.getISBNs()));
         if (guessed_control_numbers.empty())
             marc_writer->write(record);
