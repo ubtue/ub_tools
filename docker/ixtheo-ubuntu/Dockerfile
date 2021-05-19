@@ -1,4 +1,4 @@
-FROM ubuntu:focal
+FROM ub_tools-deps-ubuntu
 MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 
 # add needed configuration files
