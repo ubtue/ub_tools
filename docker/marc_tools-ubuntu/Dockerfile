@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ub_tools-deps-ubuntu
 MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 
 # install curl
