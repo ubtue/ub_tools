@@ -29,6 +29,8 @@ for filename in "$@"; do
 	    marc_grep_output=$(marc_grep --input-format=marc-21 "$archive_member" "$marc_grep_conditional_expression" 3>&2 2>&1 1>&3)
             if [[ $? -ne 0 ]]; then
                 echo "marc_grep failed ($marc_grep_output)!"
+                rm "$archive_member"
+                rm "$tar_filename"
                 exit 1
             fi
             last_line=$(echo "$marc_grep_output" | tail -1)
