@@ -22,25 +22,30 @@ for filename in "$@"; do
             found=0
 	fi
     else
-	tar_filename=${filename%.gz}
+    filebasename="/tmp/$(basename ${filename})"
+	tar_foldername=${filebasename%.gz}
+    mkdir "$tar_foldername"
+    tar_filename="${tar_foldername}/`basename ${tar_foldername}`"
 	gunzip < "$filename" > "$tar_filename"
 	for archive_member in $(tar --list --file "$tar_filename"); do
-	    tar --extract --file "$tar_filename" "$archive_member"
-	    marc_grep_output=$(marc_grep --input-format=marc-21 "$archive_member" "$marc_grep_conditional_expression" 3>&2 2>&1 1>&3)
+	    tar --extract --file "$tar_filename" --directory "${tar_foldername}" "$archive_member"
+	    marc_grep_output=$(marc_grep --input-format=marc-21 "${tar_foldername}/$archive_member" "$marc_grep_conditional_expression" 3>&2 2>&1 1>&3)
             if [[ $? -ne 0 ]]; then
                 echo "marc_grep failed ($marc_grep_output)!"
-                rm "$archive_member"
+                rm "${tar_foldername}/$archive_member"
                 rm "$tar_filename"
+                rmdir "$tar_foldername"
                 exit 1
             fi
             last_line=$(echo "$marc_grep_output" | tail -1)
-            rm "$archive_member"
+            rm "${tar_foldername}/$archive_member"
             if [[ ! $last_line =~ ^Matched\ 0 && $last_line =~ ^Matched ]]; then
 		echo "was found in $tar_filename($archive_member)"
                 found=0
 	    fi
 	done
 	rm "$tar_filename"
+    rmdir "$tar_foldername"
     fi
 done
 
