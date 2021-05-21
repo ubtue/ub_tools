@@ -14,12 +14,12 @@ error_message=""
 wget https://labs.ddb.de/app/beagen/item/person/archive/latest -O archivportal-d.beacon.temp
 if [ $? == 0 ]; then
     if IsResultSuspicouslyShort archivportal-d.beacon.temp; then
-        error_message .= $'Obtained an empty or suspicously short file from Archivportal-d.\n'
+        error_message+=$'Obtained an empty or suspicously short file from Archivportal-d.\n'
     else
         mv archivportal-d.beacon.temp archivportal-d.beacon
     fi
 else
-    error_message .= $'Failed to download the Beacon file from Archivportal-D.\n'
+    error_message+=$'Failed to download the Beacon file from Archivportal-D.\n'
 fi
 
 wget http://kalliope.staatsbibliothek-berlin.de/beacon/beacon.txt -O kalliope.staatsbibliothek-berlin.beacon.temp
@@ -31,7 +31,7 @@ if [ $? == 0 ]; then
         sed -i -e 's/#FORMAT: GND-BEACON/#FORMAT: BEACON/g' kalliope.staatsbibliothek-berlin.beacon
     fi
 else
-    error_message .= $'Failed to download the Beacon file from Kalliope.\n'
+    error_message+=$'Failed to download the Beacon file from Kalliope.\n'
 fi
 
 if [[ ! -z "$error_message" ]]; then
