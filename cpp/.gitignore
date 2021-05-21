@@ -56,7 +56,6 @@
 /full_text_cache_cleaner
 /full_text_cache_monitor
 /full_text_stats
-/generate_complete_dumpfile
 /generate_issn_maps_from_zeder
 /generate_keyword_normalizations
 /generate_language_model
