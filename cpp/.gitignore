@@ -5,8 +5,6 @@
 /generate_new_journal_alert_stats
 /add_title_keywords
 /append_marc_xml
-/apply_differential_update
-/archive_delete_ids
 /base_tar_unpacker
 /base62_coder
 /bib_ref_to_codes_tool
@@ -58,13 +56,11 @@
 /full_text_cache_cleaner
 /full_text_cache_monitor
 /full_text_stats
-/generate_complete_dumpfile
 /generate_issn_maps_from_zeder
 /generate_keyword_normalizations
 /generate_language_model
 /generate_library_dependency_graph
 /generate_list_of_essay_collections
-/generate_merge_order
 /generate_simple_math_puzzle
 /generate_subscription_packets
 /generate_tags_and_keyword_fields_map
@@ -83,7 +79,6 @@
 /lcsh_stats
 /library_finder
 /log_rotate
-/merge_print_and_online
 /missing_metadata_db_tool
 /mpi_stats
 /mysql_database_patcher
