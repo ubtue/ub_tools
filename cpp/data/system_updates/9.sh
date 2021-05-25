@@ -2,7 +2,7 @@
 set -o errexit
 
 
-if [[ $(hostname) == "ub16.uni-tuebingen.dex" ]]; then
+if [[ $(hostname) == "ub16.uni-tuebingen.de" ]]; then
     if [ -e /var/spool/cron/root ]; then # CentOS
         root_crontab=/var/spool/cron/root
     else # Ubuntu
