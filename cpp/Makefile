@@ -10,6 +10,7 @@ all: .deps $(PROGS)
 	$(MAKE) -C elasticsearch
 	$(MAKE) -C cgi_progs
 	$(MAKE) -C marc_tools
+	$(MAKE) -C merge_tools
 	$(MAKE) -C pipelines
 	$(MAKE) -C test
 	$(MAKE) -C tests
@@ -38,6 +39,7 @@ install: regular_install data_install
 	$(MAKE) -C elasticsearch install
 	$(MAKE) -C cgi_progs install
 	$(MAKE) -C marc_tools install
+	$(MAKE) -C merge_tools install
 	$(MAKE) -C pipelines install
 	$(MAKE) -C zotaut install
 
@@ -81,6 +83,7 @@ clean: local_clean Makefile
 	$(MAKE) -C cgi_progs clean
 	$(MAKE) -C lib clean
 	$(MAKE) -C marc_tools clean
+	$(MAKE) -C merge_tools clean
 	$(MAKE) -C pipelines clean
 	$(MAKE) -C test clean
 	$(MAKE) -C tests clean
