@@ -3,7 +3,7 @@
 set -o errexit -o nounset
 
 readonly CONFIG_PATH=/usr/local/var/lib/tuelib/cologne.conf
-readonly EMAIL=$(inifile_lookup "$CONFIG_PATH" "" email)
+readonly RECIPIENTS=$(inifile_lookup "$CONFIG_PATH" "" recipients)
 readonly PASSWORD=$(inifile_lookup "$CONFIG_PATH" "" password)
 
 cd /usr/local/ub_tools/bsz_daten
