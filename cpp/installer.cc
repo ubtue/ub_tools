@@ -700,10 +700,6 @@ void DownloadVuFind() {
         const std::string git_url("https://github.com/ubtue/tuefind.git");
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("git"), { "clone", git_url, VUFIND_DIRECTORY });
         GitActivateCustomHooks(VUFIND_DIRECTORY);
-
-        // We need to increase default_socket_timeout for big downloads on slow mirrors, especially Solr (default 60 seconds) .
-        TemporaryChDir tmp2(VUFIND_DIRECTORY);
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { "-d", "default_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" });
     }
 }
 
@@ -865,6 +861,10 @@ void SetFulltextEnvironmentVariables() {
 void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system_type, const OSSystemType os_system_type,
                      const bool install_cronjobs, const bool install_systemctl)
 {
+    // We need to increase default_socket_timeout for big downloads on slow mirrors, especially Solr (default 60 seconds) .
+    TemporaryChDir tmp2(VUFIND_DIRECTORY);
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { "-d", "default_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" });
+
     const std::string vufind_system_type_string(VuFindSystemTypeToString(vufind_system_type));
     Echo("Starting configuration for " + vufind_system_type_string);
     const std::string dirname_solr_conf = VUFIND_DIRECTORY + "/solr/vufind/biblio/conf";
