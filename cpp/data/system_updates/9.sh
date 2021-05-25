@@ -11,7 +11,7 @@ if [[ $(hostname) == "ub16.uni-tuebingen.dex" ]]; then
 
     # Make sure our crontab ends with a newline:
     readonly $newline=$(echo -e \\n)
-    if [[ $(tail -c 1 $root_crontab) != $newline ]]; then
+    if [[ $(tail --bytes=1 $root_crontab) != $newline ]]; then
         echo $newline >> $root_crontab
     fi
     
