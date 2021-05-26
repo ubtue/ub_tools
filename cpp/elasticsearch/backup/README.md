@@ -20,6 +20,7 @@ For additional information, have a look at the manual:
 - https://www.elastic.co/guide/en/elasticsearch/reference/current/snapshot-lifecycle-management-api.html
 
 Additional useful commands:
-- Show existing indices:      wget http://localhost:9200/_cat/indices
-- Show existing repositories: wget http://localhost:9200/_snapshot
-- Show existing policies:     wget http://localhost:9200/_slm/policy
+- Show existing indices:               wget http://localhost:9200/_cat/indices
+- Show existing snapshot repositories: wget http://localhost:9200/_snapshot
+- Show existing policies:              wget http://localhost:9200/_slm/policy
+- Execute snapshot manually:           curl -X PUT http://localhost:9200/_slm/policy/es_backup/_execute
