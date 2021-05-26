@@ -1,18 +1,28 @@
 To install, first create the directory:
-`mkdir /usr/local/es_backup`
-`chown elasticsearch:elasticsearch /usr/local/es_backup`
+```
+mkdir /usr/local/es_backup
+chown elasticsearch:elasticsearch /usr/local/es_backup
+```
 
 Also register the directory in /etc/elasticsearch/elasticsearch.yml:
-`path.repo: ["/usr/local/es_backup"]`
+```
+path.repo: ["/usr/local/es_backup"]
+```
 
 Elasticsearch restart might be necessary:
-`systemctl restart elasticsearch`
+```
+systemctl restart elasticsearch
+```
 
 Register the snapshot repository in elasticsearch:
-`curl -H 'Content-Type: application/json' -T repository.json http://localhost:9200/_snapshot/es_backup`
+```
+curl -H 'Content-Type: application/json' -T repository.json http://localhost:9200/_snapshot/es_backup
+```
 
 Register the policy (cronjob+indexes) in elasticsearch:
-`curl -H 'Content-Type: application/json' -T policy.json http://localhost:9200/_slm/policy/es_backup`
+```
+curl -H 'Content-Type: application/json' -T policy.json http://localhost:9200/_slm/policy/es_backup
+```
 
 
 For additional information, have a look at the manual:
