@@ -1,0 +1,1 @@
+{"name":"<fulltext-snap-{now/d{yyMMdd}}>","schedule":"0 0 19 * * ?","repository":"es_backup","config":{"indices":["full_text_cache","full_text_cache_html","full_text_cache_urls"]},"retention":{"expire_after":"10d","min_count":7,"max_count":10}}
