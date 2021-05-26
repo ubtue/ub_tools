@@ -22,5 +22,7 @@ For additional information, have a look at the manual:
 Additional useful commands:
 - Show existing indices:               wget http://localhost:9200/_cat/indices
 - Show existing snapshot repositories: wget http://localhost:9200/_snapshot
+- Show existing snapshots:             wget http://localhost:9200/_cat/snapshots/es_backup
 - Show existing policies:              wget http://localhost:9200/_slm/policy
 - Execute snapshot manually:           curl -X PUT http://localhost:9200/_slm/policy/es_backup/_execute
+- Execute restore manually:            curl -X POST http://localhost:9200/_snapshot/es_backup/fulltext-snap-210526-hi3kbl4ntk2pq2jbo6cpxw/_restore
