@@ -36,6 +36,8 @@ public:
      *  \param open_mode      Use CREATE to make a new semaphore and ATTACH to attach to an existing one.
      *  \param initial_value  The initial value of the semaphore if CREATE is used.  This parameter will be
      *                        ignored if "open_mode" is ATTACH.
+     *  \note                 Normally you can use "semaphore" or "/semaphore" (see man sem_open),
+     *                        but using a "/" at the beginning might lead to problems in Ubuntu.
      */
     Semaphore(const std::string &name, const OpenMode open_mode, const int initial_value = 0);
     ~Semaphore();
