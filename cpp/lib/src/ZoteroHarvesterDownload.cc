@@ -37,7 +37,8 @@ namespace DirectDownload {
 ThreadUtil::Semaphore translation_server_request_semaphore(MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS);
 
 
-void PostToTranslationServer(const Url &translation_server_url, const unsigned time_limit, const std::string &user_agent,
+void PostToTranslationServer(const Url &translation_server_url, const std::string &translation_server_endpoint, const unsigned time_limit,
+                             const std::string &user_agent,
                              const std::string &request_body, const bool request_is_json, std::string * const response_body,
                              unsigned * response_code, std::string * const error_message)
 {
@@ -61,7 +62,7 @@ void PostToTranslationServer(const Url &translation_server_url, const unsigned t
 
     try {
         LOG_DEBUG("Sending request to translation server: " + request_body);
-        const Url endpoint_url(translation_server_url.toString() + "/web");
+        const Url endpoint_url(translation_server_url.toString() + '/' + translation_server_endpoint);
         Downloader downloader(endpoint_url, downloader_params, time_limit);
         if (downloader.anErrorOccurred()) {
             *response_code = downloader.getLastErrorCode();
@@ -123,7 +124,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
     }
 
     if (parameters.operation_ == Operation::USE_TRANSLATION_SERVER) {
-        PostToTranslationServer(parameters.translation_server_url_, parameters.time_limit_, parameters.user_agent_,
+        PostToTranslationServer(parameters.translation_server_url_, "web", parameters.time_limit_, parameters.user_agent_,
                                 parameters.download_item_.url_, /* request_is_json = */ false, &result->response_body_,
                                 &result->response_code_, &result->error_message_);
 
@@ -132,7 +133,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
             LOG_DEBUG("multiple articles found => trying to harvest children");
             //LOG_DEBUG("\tresponse: " + result->response_body_);
 
-            PostToTranslationServer(parameters.translation_server_url_, parameters.time_limit_ * 2, parameters.user_agent_,
+            PostToTranslationServer(parameters.translation_server_url_, "web", parameters.time_limit_ * 2, parameters.user_agent_,
                                     result->response_body_, /* request_is_json = */ true, &result->response_body_,
                                     &result->response_code_, &result->error_message_);
 
@@ -431,6 +432,109 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 } // end namespace RSS
 
 
+namespace ApiQuery {
+
+void Tasklet::run(const DirectDownload::Params &parameters, DirectDownload::Result * const result) {
+
+    DirectDownload::PostToTranslationServer(parameters.translation_server_url_, "searchmultiple", parameters.time_limit_, parameters.user_agent_,
+                            parameters.download_item_.url_, /* request_is_json = */ false, &result->response_body_,
+                            &result->response_code_, &result->error_message_);
+
+    // 300 => multiple matches found, try to harvest children 
+    if (result->response_code_ == 300) {
+        LOG_DEBUG("Received expected multiple entries => harvest individual results");
+
+        DirectDownload::PostToTranslationServer(parameters.translation_server_url_, "searchmultiple", parameters.time_limit_ * 2, parameters.user_agent_,
+                                result->response_body_, /* request_is_json = */ true, &result->response_body_,
+                                &result->response_code_, &result->error_message_);
+
+        // additionally cache individual items in the response
+        if (result->downloadSuccessful()) {
+            std::shared_ptr<JSON::JSONNode> tree_root;
+            JSON::Parser json_parser(result->response_body_);
+
+            if (json_parser.parse(&tree_root)) {
+                unsigned num_individual_items(0);
+                const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root));
+
+                for (const auto &entry : *JSON::JSONNode::CastToArrayNodeOrDie("tree_root", tree_root)) {
+                    const auto json_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
+                    const auto url(json_object->getOptionalStringValue("url"));
+
+                    // this appears to happen randomly when the translation server is processing multiple requests
+                    if (array_node->size() == 1 and url == parameters.download_item_.url_.toString()) {
+                        result->error_message_ = "translation server returned an invalid multiple-match response!";
+                        result->response_code_ = 500;
+                        break;
+                    }
+
+                    if (url.empty())
+                        continue;
+
+                    // the response must always be an array of objects
+                    std::string json_string("[" + json_object->toString() + "]");
+
+                    LOG_DEBUG("caching download for URL " + url + " @ item " + parameters.download_item_.toString());
+                    LOG_DEBUG("\tresponse: " + json_string + "\n");
+
+                    download_manager_->addToDownloadCache(parameters.download_item_, url, json_string,
+                                                          parameters.operation_);
+                    ++num_individual_items;
+                }
+
+                if (num_individual_items > 0)
+                    LOG_DEBUG("cached " + std::to_string(num_individual_items) + " items from a multi-result response");
+            }
+        }
+    }
+
+    if (result->downloadSuccessful())
+        download_manager_->addToDownloadCache(parameters.download_item_, parameters.download_item_.url_.toString(),
+                                              result->response_body_, parameters.operation_);
+}
+
+
+Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
+                 std::unique_ptr<DirectDownload::Params> parameters)
+ : Util::Tasklet<DirectDownload::Params, DirectDownload::Result>(instance_counter, parameters->download_item_,
+                                 "ApiQuery: " + parameters->download_item_.url_.toString(),
+                                 std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
+                                 std::unique_ptr<DirectDownload::Result>(new DirectDownload::Result(parameters->download_item_, parameters->operation_)),
+                                 std::move(parameters), ResultPolicy::COPY),
+                                 download_manager_(download_manager) {}
+
+
+} // end namespace ApiQuery
+
+
+void DownloadManager::addToDownloadCache(const Util::HarvestableItem &source, const std::string &url,
+                                         const std::string &response_body, const DirectDownload::Operation operation)
+{
+    std::lock_guard<std::recursive_mutex> download_cache_lock(cached_download_data_mutex_);
+
+    auto cache_hit(cached_download_data_.equal_range(url));
+    for (auto itr(cache_hit.first); itr != cache_hit.second; ++itr) {
+        if (itr->second.operation_ == operation) {
+            LOG_WARNING("cached download data collision for URL '" + url + "' (operation "
+                        + std::to_string(static_cast<int>(operation)) + ")");
+            LOG_WARNING("\told source: " + itr->second.source_.toString());
+            LOG_WARNING("\tnew source: " + source.toString());
+
+            if (itr->second.response_body_ != response_body) {
+                LOG_WARNING("\tresponse mismatch!");
+                LOG_WARNING("\t\told: " + itr->second.response_body_);
+                LOG_WARNING("\t\tnew: " + response_body);
+            }
+
+            return;
+        }
+    }
+
+    cached_download_data_.emplace(url, CachedDownloadData { source, operation, response_body });
+}
+
+
+
 DownloadManager::GlobalParams::GlobalParams(const Config::GlobalParams &config_global_params,
                                             Util::HarvestableItemManager * const harvestable_manager)
  : translation_server_url_(config_global_params.translation_server_url_),
@@ -573,6 +677,21 @@ void DownloadManager::processQueueBuffers() {
             rss_queue_buffer_.pop_front();
         }
     }
+
+
+    {
+        std::lock_guard<std::recursive_mutex> apiquery_queue_buffer_lock(rss_queue_buffer_mutex_);
+        while (not apiquery_queue_buffer_.empty()) {
+            std::shared_ptr<ApiQuery::Tasklet> tasklet(apiquery_queue_buffer_.front());
+            auto domain_data(lookupDomainData(tasklet->getParameter().download_item_.url_, /* add_if_absent = */ true));
+            domain_data->queued_apiqueries_.emplace_back(tasklet);
+            ++tasklet_counters_.apiquery_queue_counter_;
+
+            apiquery_queue_buffer_.pop_front();
+        }
+    }
+
+
 }
 
 
@@ -640,6 +759,21 @@ void DownloadManager::processDomainQueues(DomainData * const domain_data) {
         --tasklet_counters_.rss_feeds_queue_counter_;
 
         if (adhere_to_download_limit) {
+            domain_data->delay_params_.time_limit_.restart();
+            return;
+        }
+    }
+
+    while(not domain_data->queued_apiqueries_.empty()
+          and tasklet_counters_.apiquery_tasklet_execution_counter_ < MAX_APIQUERY_TASKLETS)
+    {
+       std::shared_ptr<ApiQuery::Tasklet> apiquery_tasklet(domain_data->queued_apiqueries_.front());
+       domain_data->active_apiqueries_.emplace_back(apiquery_tasklet);
+       domain_data->queued_apiqueries_.pop_front();
+       apiquery_tasklet->start();
+       --tasklet_counters_.apiquery_queue_counter_;
+       
+       if (adhere_to_download_limit) {
             domain_data->delay_params_.time_limit_.restart();
             return;
         }
@@ -826,30 +960,23 @@ std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> DownloadManager::rss(con
 }
 
 
-void DownloadManager::addToDownloadCache(const Util::HarvestableItem &source, const std::string &url,
-                                         const std::string &response_body, const DirectDownload::Operation operation)
+std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
+    DownloadManager::apiQuery(const Util::HarvestableItem &source) 
 {
-    std::lock_guard<std::recursive_mutex> download_cache_lock(cached_download_data_mutex_);
+      std::unique_ptr<DirectDownload::Params> parameters(new DirectDownload::Params(source,
+                                                       global_params_.translation_server_url_.toString(), "" /*user_agent*/,
+                                                       true /*ignore robots.txt*/, 0 /*time limit*/, DirectDownload::Operation::USE_TRANSLATION_SERVER));
+      std::shared_ptr<ApiQuery::Tasklet> new_tasklet(
+        new ApiQuery::Tasklet(&tasklet_counters_.apiquery_tasklet_execution_counter_, this, std::move(parameters)));
 
-    auto cache_hit(cached_download_data_.equal_range(url));
-    for (auto itr(cache_hit.first); itr != cache_hit.second; ++itr) {
-        if (itr->second.operation_ == operation) {
-            LOG_WARNING("cached download data collision for URL '" + url + "' (operation "
-                        + std::to_string(static_cast<int>(operation)) + ")");
-            LOG_WARNING("\told source: " + itr->second.source_.toString());
-            LOG_WARNING("\tnew source: " + source.toString());
+      {
+         std::lock_guard<std::recursive_mutex> queue_buffer_lock(apiquery_queue_buffer_mutex_);
+         apiquery_queue_buffer_.emplace_back(new_tasklet);
+      }
 
-            if (itr->second.response_body_ != response_body) {
-                LOG_WARNING("\tresponse mismatch!");
-                LOG_WARNING("\t\told: " + itr->second.response_body_);
-                LOG_WARNING("\t\tnew: " + response_body);
-            }
-
-            return;
-        }
-    }
-
-    cached_download_data_.emplace(url, CachedDownloadData { source, operation, response_body });
+       std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
+        download_result(new Util::Future<DirectDownload::Params, DirectDownload::Result>(new_tasklet));
+    return download_result;
 }
 
 
@@ -873,6 +1000,7 @@ std::unique_ptr<DirectDownload::Result> DownloadManager::fetchFromDownloadCache(
 
     return nullptr;
 }
+
 
 bool DownloadManager::downloadInProgress() const {
     return tasklet_counters_.direct_download_tasklet_execution_counter_ != 0
