@@ -3,8 +3,6 @@
 -- Also, the default collating sequence is a Swedish one.  This leads to aliasing problems for characters with
 -- diacritical marks => we need to override it and use utf8mb4_bin.
 
--- The sizes here must be in sync with the constants defined in rss_aggregator.cc!
-
 -- Please always add names to your CONSTRAINTs! (for succeeding sql_updates)
 -- <table>_<field_names_with_"and"> (unless it's too long)
 CREATE TABLE database_versions (
