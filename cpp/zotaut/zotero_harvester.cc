@@ -231,6 +231,7 @@ struct JournalDatastore {
     std::deque<std::unique_ptr<Util::Future<Download::DirectDownload::Params, Download::DirectDownload::Result>>> queued_downloads_;
     std::unique_ptr<Util::Future<Download::Crawling::Params, Download::Crawling::Result>> current_crawl_;
     std::unique_ptr<Util::Future<Download::RSS::Params, Download::RSS::Result>> current_rss_feed_;
+    std::unique_ptr<Util::Future<Download::DirectDownload::Params, Download::DirectDownload::Result>> current_apiquery_;
     std::deque<std::unique_ptr<Util::Future<Conversion::ConversionParams, Conversion::ConversionResult>>> queued_marc_records_;
 public:
     JournalDatastore(const Config::JournalParams &journal_params) : journal_params_(journal_params) {}
@@ -241,6 +242,7 @@ struct Metrics {
     unsigned num_journals_with_harvest_operation_direct_;
     unsigned num_journals_with_harvest_operation_rss_;
     unsigned num_journals_with_harvest_operation_crawl_;
+    unsigned num_journals_with_harvest_operation_apiquery_;
     unsigned num_downloads_crawled_successful_;
     unsigned num_downloads_crawled_unsuccessful_;
     unsigned num_downloads_crawled_cache_hits_;
@@ -249,6 +251,9 @@ struct Metrics {
     unsigned num_downloads_harvested_cache_hits_;
     unsigned num_downloads_skipped_since_already_harvested_;
     unsigned num_downloads_skipped_since_already_delivered_;
+    unsigned num_downloads_apiquery_successful_;
+    unsigned num_downloads_apiquery_unsuccessful_;
+    unsigned num_downloads_apiquery_cache_hits_;
     unsigned num_marc_conversions_successful_;
     unsigned num_marc_conversions_unsuccessful_;
     unsigned num_marc_conversions_skipped_since_undesired_item_type_;
@@ -265,15 +270,29 @@ public:
 
 
 Metrics::Metrics()
-    : num_journals_with_harvest_operation_direct_(0), num_journals_with_harvest_operation_rss_(0),
-      num_journals_with_harvest_operation_crawl_(0),
-      num_downloads_crawled_successful_(0), num_downloads_crawled_unsuccessful_(0),
-      num_downloads_crawled_cache_hits_(0), num_downloads_harvested_successful_(0), num_downloads_harvested_unsuccessful_(0),
-      num_downloads_harvested_cache_hits_(0), num_downloads_skipped_since_already_harvested_(0),
-      num_downloads_skipped_since_already_delivered_(0), num_marc_conversions_successful_(0), num_marc_conversions_unsuccessful_(0),
-      num_marc_conversions_skipped_since_undesired_item_type_(0), num_marc_conversions_skipped_since_online_first_(0),
-      num_marc_conversions_skipped_since_early_view_(0), num_marc_conversions_skipped_since_exclusion_filters_(0),
-      num_marc_conversions_skipped_since_already_delivered_(0) {}
+      : num_journals_with_harvest_operation_direct_(0),
+        num_journals_with_harvest_operation_rss_(0),
+        num_journals_with_harvest_operation_crawl_(0),
+        num_journals_with_harvest_operation_apiquery_(0),
+        num_downloads_crawled_successful_(0),
+        num_downloads_crawled_unsuccessful_(0),
+        num_downloads_crawled_cache_hits_(0),
+        num_downloads_harvested_successful_(0),
+        num_downloads_harvested_unsuccessful_(0),
+        num_downloads_harvested_cache_hits_(0),
+        num_downloads_skipped_since_already_harvested_(0),
+        num_downloads_skipped_since_already_delivered_(0),
+        num_downloads_apiquery_successful_(0),
+        num_downloads_apiquery_unsuccessful_(0),
+        num_downloads_apiquery_cache_hits_(0),
+        num_marc_conversions_successful_(0),
+        num_marc_conversions_unsuccessful_(0),
+        num_marc_conversions_skipped_since_undesired_item_type_(0),
+        num_marc_conversions_skipped_since_online_first_(0),
+        num_marc_conversions_skipped_since_early_view_(0),
+        num_marc_conversions_skipped_since_exclusion_filters_(0),
+        num_marc_conversions_skipped_since_already_delivered_(0)
+      {}
 
 
 std::string Metrics::toString() const {
@@ -285,7 +304,7 @@ std::string Metrics::toString() const {
     out += "\t\tDirect: " + std::to_string(num_journals_with_harvest_operation_direct_) + "\n";
     out += "\t\tRSS: " + std::to_string(num_journals_with_harvest_operation_rss_) + "\n";
     out += "\t\tCrawl: " + std::to_string(num_journals_with_harvest_operation_crawl_) + "\n";
-
+    out += "\t\tApiQuery: " + std::to_string(num_journals_with_harvest_operation_apiquery_) + "\n";
     out += "\tCrawls: " + std::to_string(num_downloads_crawled_successful_ + num_downloads_crawled_unsuccessful_) + "\n";
     out += "\t\tSuccessful: " + std::to_string(num_downloads_crawled_successful_) + "\n";
     out += "\t\tUnsuccessful : " + std::to_string(num_downloads_crawled_unsuccessful_) + "\n";
@@ -330,11 +349,12 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
 {
     const auto &group_params(harvester_config.lookupJournalGroup(journal_params));
     std::unique_ptr<JournalDatastore> current_journal_datastore(new JournalDatastore(journal_params));
-    const auto download_item(harvestable_manager->newHarvestableItem(journal_params.entry_point_url_, journal_params));
 
     switch (journal_params.harvester_operation_) {
     case Config::HarvesterOperation::DIRECT:
     {
+
+        const auto download_item(harvestable_manager->newHarvestableItem(journal_params.entry_point_url_, journal_params));
         auto future(download_manager->directDownload(download_item, group_params.user_agent_,
                                                      Download::DirectDownload::Operation::USE_TRANSLATION_SERVER));
         current_journal_datastore->queued_downloads_.emplace_back(future.release());
@@ -343,6 +363,7 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
     }
     case Config::HarvesterOperation::RSS:
     {
+        const auto download_item(harvestable_manager->newHarvestableItem(journal_params.entry_point_url_, journal_params));
         auto future(download_manager->rss(download_item, group_params.user_agent_));
         current_journal_datastore->current_rss_feed_.reset(future.release());
         ++metrics->num_journals_with_harvest_operation_rss_;
@@ -350,9 +371,18 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
     }
     case Config::HarvesterOperation::CRAWL:
     {
+        const auto download_item(harvestable_manager->newHarvestableItem(journal_params.entry_point_url_, journal_params));
         auto future(download_manager->crawl(download_item, group_params.user_agent_));
         current_journal_datastore->current_crawl_.reset(future.release());
         ++metrics->num_journals_with_harvest_operation_crawl_;
+        break;
+    }
+    case Config::HarvesterOperation::APIQUERY:
+    {
+        const auto download_item(harvestable_manager->newHarvestableItem(journal_params.issn_.online_, journal_params));
+        auto future(download_manager->apiQuery(download_item));
+        current_journal_datastore->current_apiquery_.reset(future.release());
+        ++metrics->num_journals_with_harvest_operation_apiquery_;
         break;
     }
     }
@@ -393,6 +423,13 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
 
             journal_datastore->current_rss_feed_.reset();
         } else
+            *jobs_in_progress = true;
+    }
+
+    if (journal_datastore->current_apiquery_ != nullptr) {
+        if (journal_datastore->current_apiquery_->isComplete() and journal_datastore->current_apiquery_->hasResult())
+            journal_datastore->queued_downloads_.emplace_back(journal_datastore->current_apiquery_.release());
+        else
             *jobs_in_progress = true;
     }
 }
