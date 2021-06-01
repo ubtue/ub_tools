@@ -13,7 +13,6 @@ readonly OUTPUT_FILE=$1
 
 declare -r API_KEY=$(< /usr/local/var/lib/tuelib/CORE-API.key)
 declare -r CORE_API_URL=https://core.ac.uk/api-v2/articles/search
-declare -r -i CHUNK_COUNT=11
 declare -r -i MAX_HITS_PER_PAGE=1000
 declare -r QUERY=criminolog*
 declare -i page_no=0
