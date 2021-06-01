@@ -671,7 +671,8 @@ bool ProcessSubfield(const MARC::Tag &marc_tag, const std::shared_ptr<const JSON
         extracted_value = (*regex_matcher)[0];
     }
     if (not map_name.empty())
-        extracted_value = MapJSONValue(extracted_value, map_name, map_key, fallback_passthrough, issns_to_journal_titles_ppns_and_issns_map);
+        extracted_value = MapJSONValue(extracted_value, map_name, map_key, fallback_passthrough,
+                                       issns_to_journal_titles_ppns_and_issns_map);
     if (extracted_value.empty())
         return false;
 
@@ -679,8 +680,9 @@ bool ProcessSubfield(const MARC::Tag &marc_tag, const std::shared_ptr<const JSON
         const std::string original_value(extracted_value);
         extracted_value = MARC::MapToMARCLanguageCode(extracted_value);
         if (extracted_value.empty()) {
+            if (original_value == "zz"/* Unknown or unspecified country. */ or original_value == "zy" /* Junk? */)
+                return false;
             LOG_ERROR("can't map \"" + original_value + "\" to a MARC language code!");
-            return false;
         }
     }
 
