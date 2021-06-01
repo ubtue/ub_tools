@@ -54,6 +54,7 @@ std::unordered_set<std::string> GetMatchingJournalPPNs(const Zeder::Flavour zede
         } else {
             matching_journal_ppns.insert(print_ppns.cbegin(), print_ppns.cend());
             matching_journal_ppns.insert(online_ppns.cbegin(), online_ppns.cend());
+            ++match_count;
         }
     }
 
