@@ -222,7 +222,7 @@ unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, c
                     LOG_INFO("Suppressed item because of title: \"" + StringUtil::ShortenText(item.getTitle(), 40) + "\".");
                     continue; // Skip suppressed item.
                 }
-                if (patterns_and_replacements.empty() == false) {
+                if (not patterns_and_replacements.empty()) {
                     PerformDescriptionSubstitutions(patterns_and_replacements, &item);
                 }
                 if (ProcessRSSItem(feed_id, item, db_connection))

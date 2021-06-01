@@ -1,0 +1,6 @@
+{
+  "type": "fs",
+  "settings": {
+    "location": "/usr/local/es_backup"
+  }
+}
