@@ -3168,6 +3168,8 @@ const std::unordered_map<std::string, std::string> UNKNOWN_CODE_TO_MARC_CODE{
     { "pt",  "por" },
     { "ger", "ger" },
     { "de",  "ger" },
+    { "ita", "ita" },
+    { "it",  "ita" },
 };
 
 
