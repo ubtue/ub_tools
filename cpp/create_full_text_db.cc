@@ -220,7 +220,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
                             const bool include_all_tocs,
                             const bool only_pdf_fulltexts)
 {
-    Semaphore semaphore("/full_text_cached_counter", Semaphore::CREATE);
+    Semaphore semaphore("full_text_cached_counter", Semaphore::CREATE);
     unsigned active_child_count(0), child_reported_failure_count(0);
 
     std::map<std::string, unsigned> hostname_to_outstanding_request_count_map;
