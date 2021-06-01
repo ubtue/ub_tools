@@ -2,7 +2,8 @@
 # PointerAlignment: & and * are treated the same, but we need * as Middle and & as Right. (Disable DerivePointerAlignment for this to have an effect).
 # InsertEmptyLineBeforeAccessModifier Not available in current version
 # Blocks with single line content (without parentheses) will be merged
-
+# Similar issue for "SpacesInParentheses", that affects both round and curly brackets
+# BreakBeforeBraces (...), Custom (uses BraceWrapping flags) - use MultiLine (https://reviews.llvm.org/D68296)
 ---
 Language:        Cpp
 # BasedOnStyle:  Google
@@ -21,8 +22,8 @@ AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: None
 AllowShortLambdasOnASingleLine: All
-AllowShortIfStatementsOnASingleLine: WithoutElse
-AllowShortLoopsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: true
@@ -32,7 +33,7 @@ BinPackParameters: true
 BraceWrapping:
   AfterCaseLabel:  false
   AfterClass:      false
-  AfterControlStatement: false
+  AfterControlStatement: MultiLine
   AfterEnum:       false
   AfterFunction:   false
   AfterNamespace:  false
@@ -47,7 +48,7 @@ BraceWrapping:
   SplitEmptyRecord: true
   SplitEmptyNamespace: true
 BreakBeforeBinaryOperators: None
-BreakBeforeBraces: Attach
+BreakBeforeBraces: Custom
 BreakBeforeInheritanceComma: false
 BreakInheritanceList: BeforeColon
 BreakBeforeTernaryOperators: true
