@@ -299,7 +299,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             (only_pdf_fulltexts and not cache.dummyEntryExists(ppn)))
         {
             cache.getFullText(ppn, &combined_text_final);
-            Semaphore semaphore("/full_text_cached_counter", Semaphore::ATTACH);
+            Semaphore semaphore("full_text_cached_counter", Semaphore::ATTACH);
             ++semaphore;
             if (not combined_text_final.empty())
                 record->insertField("FUL", { { 'e', "http://localhost/cgi-bin/full_text_lookup?id=" + ppn } });
