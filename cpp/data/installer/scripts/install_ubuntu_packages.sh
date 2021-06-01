@@ -38,6 +38,9 @@ apt-get --quiet --yes --allow-unauthenticated install \
         tesseract-ocr-nld tesseract-ocr-nor tesseract-ocr-pol tesseract-ocr-por tesseract-ocr-rus tesseract-ocr-script-grek tesseract-ocr-slv \
         tesseract-ocr-spa tesseract-ocr-swe tidy unzip uuid-dev xsltproc
 
+# Explicitly enable mod_cgi. If we would use `a2enmod cgi`, it would enable mod_cgid, which would fail on apache startup.
+ln -s ../mods-available/cgi.load /etc/apache2/mods-enabled/cgi.load
+
 # From 18.04 on, Java 8 needs to be enabled as well for Solr + mixins (18.04 ships with 10)
 # (unfortunately, >= string comparison is impossible in Bash, so we compare > 17.10)
 . /etc/lsb-release
