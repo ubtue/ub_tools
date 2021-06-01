@@ -32,6 +32,9 @@ rm --force chunk
 
 jq . < $OUTPUT_FILE > $OUTPUT_FILE.$$
 mv $OUTPUT_FILE.$$ $OUTPUT_FILE
+
+# The following sed expression merges the metadata arrays from the individually downloaded chunks into one huge
+# JSON array.  It also eliminates the "status" and "totalHits" entries at the boundaries between two arrays.
 sed --in-place --regexp-extended --expression \
     ':a;N;$!ba;s/\s+\}\n\]\n\[\n\s+\{\n\s+\"status\"\:\s*\"OK\",\n\s+\"totalHits\":\s+[0-9]+\s*,\n\s+\"data\"\:\s*\[\n/,\n/g' \
     $OUTPUT_FILE
