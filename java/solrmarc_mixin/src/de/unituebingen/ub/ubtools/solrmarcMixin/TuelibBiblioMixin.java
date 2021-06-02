@@ -1844,7 +1844,7 @@ public class TuelibBiblioMixin extends TuelibMixin {
                     if (Character.isDigit(subfield.getCode()))
                         continue;
                     final String term = subfield.getData().trim();
-                    if (term.length() > 1) //Skip on character terms to address uppercase subfield problems in standardized keywords
+                    if (term.length() > 1 || term.matches("\\d")) //Skip on character terms to address uppercase subfield problems in standardized keywords
                         topicParts.add(new Topic(term));
                 }
             }
@@ -1858,7 +1858,7 @@ public class TuelibBiblioMixin extends TuelibMixin {
 
                     Topic topic = new Topic();
                     String term = subfield.getData().trim();
-                    if (term.length() < 2)
+                    if ((term.length() < 2) && !term.matches("\\d"))
                         continue; //Skip on character terms to address uppercase subfield problems in standardized keywords
 
                     if (topicParts.size() > 0) {
