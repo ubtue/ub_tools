@@ -764,7 +764,9 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
         metadata_record->license_ = "LF";
     else
         metadata_record->license_ = "ZZ";
-    metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(journal_params.ssgn_);
+    // Skip SSG on selective evaluation so its is not automatically included in the FID stock
+    if (not parameters.download_item_.journal_.selective_evaluation_)
+        metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(journal_params.ssgn_);
 
     DetectReviews(metadata_record, parameters);
 }
@@ -1185,14 +1187,13 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     }
 
     // Abrufzeichen und ISIL
-    switch (zeder_instance) {
-    case Zeder::Flavour::IXTHEO:
-        marc_record->insertFieldAtEnd("935", { { 'a', "mteo" } });
+    // Do not include subject links on selective evaluation to prevent automatic inclusion in the FID stock
+    if (zeder_instance == Zeder::Flavour::IXTHEO) {
+        if (not parameters.download_item_.journal_.selective_evaluation_)
+            marc_record->insertFieldAtEnd("935", { { 'a', "mteo" } });
         marc_record->insertFieldAtEnd("935", { { 'a', "ixzs" }, { '2', "LOK" } });
-        break;
-    case Zeder::Flavour::KRIMDOK:
+    } else if ((zeder_instance == Zeder::Flavour::KRIMDOK) and not parameters.download_item_.journal_.selective_evaluation_) {
         marc_record->insertFieldAtEnd("935", { { 'a', "mkri" } });
-        break;
     }
     marc_record->insertField("852", { { 'a', parameters.group_params_.isil_ } });
 
