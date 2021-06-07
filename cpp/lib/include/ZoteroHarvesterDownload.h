@@ -99,6 +99,7 @@ struct Result {
     unsigned response_code_;
     std::string error_message_;
     unsigned flags_;
+    unsigned items_skipped_since_already_delivered_; // Trace multiple results from ZTS
 public:
     explicit Result(const Util::HarvestableItem &source, const Operation operation)
         : source_(source), operation_(operation), response_code_(0), flags_(0) {}
@@ -295,11 +296,13 @@ public:
 
 class Tasklet : public Util::Tasklet<DirectDownload::Params, DirectDownload::Result> {
     DownloadManager * const download_manager_;
-
+    const Util::UploadTracker &upload_tracker_;
+    bool force_downloads_;
     void run(const DirectDownload::Params &parameters, DirectDownload::Result * const result);
 public:
     Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
-            DownloadManager * const download_manager, std::unique_ptr<DirectDownload::Params> parameters);
+            DownloadManager * const download_manager, const Util::UploadTracker &upload_tracker,
+            const std::unique_ptr<DirectDownload::Params> parameters, const bool force_downloads);
     virtual ~Tasklet() override = default;
 };
 

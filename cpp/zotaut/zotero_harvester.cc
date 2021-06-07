@@ -427,8 +427,11 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
     }
 
     if (journal_datastore->current_apiquery_ != nullptr) {
-        if (journal_datastore->current_apiquery_->isComplete() and journal_datastore->current_apiquery_->hasResult())
+        if (journal_datastore->current_apiquery_->isComplete() and journal_datastore->current_apiquery_->hasResult()) {
+            const auto &result(journal_datastore->current_apiquery_->getResult());
+            metrics->num_downloads_skipped_since_already_delivered_ += result.items_skipped_since_already_delivered_;
             journal_datastore->queued_downloads_.emplace_back(journal_datastore->current_apiquery_.release());
+        }
         else
             *jobs_in_progress = true;
     }

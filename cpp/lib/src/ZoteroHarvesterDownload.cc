@@ -434,18 +434,68 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 
 namespace ApiQuery {
 
+void SelectNonExistingEntriesFromZTSMultiple(const std::string &all, std::string * const filtered, const Util::UploadTracker &upload_tracker,
+                                             const bool force_downloads, unsigned * const all_items_num, unsigned * const filtered_items_num) {
+     std::shared_ptr<JSON::JSONNode> tree_root;
+     JSON::Parser json_parser(all);
+
+     if (not json_parser.parse(&tree_root))
+         LOG_ERROR("Could not appropriately parse " + all);
+
+     auto select_object(JSON::JSONNode::CastToObjectNodeOrDie("select_object", tree_root));
+     auto items(select_object->getObjectNode("items"));
+     const std::shared_ptr<JSON::ObjectNode> new_items(new JSON::ObjectNode());
+     *all_items_num = 0;
+     *filtered_items_num = 0;
+     for (const auto &doi_and_index : *items) {
+         ++(*all_items_num);
+
+         // Handling only here to get valid stats
+         if (force_downloads) {
+             new_items->insert(doi_and_index.first, doi_and_index.second);
+             ++(*filtered_items_num);
+             continue;
+         }
+
+         if (not upload_tracker.urlAlreadyInDatabase(doi_and_index.first, /*delivery_states_to_ignore=*/ Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
+             new_items->insert(doi_and_index.first, doi_and_index.second);
+             ++(*filtered_items_num);
+         }
+     }
+
+     select_object->remove("items");
+     select_object->insert("items", new_items);
+     *filtered = select_object->toString();
+}
+
+
 void Tasklet::run(const DirectDownload::Params &parameters, DirectDownload::Result * const result) {
 
     DirectDownload::PostToTranslationServer(parameters.translation_server_url_, "searchmultiple", parameters.time_limit_, parameters.user_agent_,
                             parameters.download_item_.url_, /* request_is_json = */ false, &result->response_body_,
                             &result->response_code_, &result->error_message_);
 
-    // 300 => multiple matches found, try to harvest children 
+    // 300 => multiple matches found, try to harvest children
     if (result->response_code_ == 300) {
         LOG_DEBUG("Received expected multiple entries => harvest individual results");
 
-        DirectDownload::PostToTranslationServer(parameters.translation_server_url_, "searchmultiple", parameters.time_limit_ * 2, parameters.user_agent_,
-                                result->response_body_, /* request_is_json = */ true, &result->response_body_,
+        std::string filtered_multiple_object;
+        unsigned all_items_num;
+        unsigned filtered_items_num;
+
+        SelectNonExistingEntriesFromZTSMultiple(result->response_body_, &filtered_multiple_object, upload_tracker_, force_downloads_, &all_items_num, &filtered_items_num);
+        LOG_INFO("NEW REQUEST: " + filtered_multiple_object);
+        if (filtered_items_num == 0) {
+            LOG_INFO("No non-delivered items detected - not sending back any JSON object");
+            result->items_skipped_since_already_delivered_ += all_items_num; 
+            return;
+        }
+
+        result->items_skipped_since_already_delivered_ += (all_items_num - filtered_items_num);
+
+        DirectDownload::PostToTranslationServer(parameters.translation_server_url_, "searchmultiple", parameters.time_limit_ * 10 /*give plenty of time */,
+                                parameters.user_agent_,
+                                filtered_multiple_object, /* request_is_json = */ true, &result->response_body_,
                                 &result->response_code_, &result->error_message_);
 
         // additionally cache individual items in the response
@@ -495,13 +545,13 @@ void Tasklet::run(const DirectDownload::Params &parameters, DirectDownload::Resu
 
 
 Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
-                 std::unique_ptr<DirectDownload::Params> parameters)
+                 const Util::UploadTracker &upload_tracker, std::unique_ptr<DirectDownload::Params> parameters, const bool force_downloads)
  : Util::Tasklet<DirectDownload::Params, DirectDownload::Result>(instance_counter, parameters->download_item_,
                                  "ApiQuery: " + parameters->download_item_.url_.toString(),
                                  std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
                                  std::unique_ptr<DirectDownload::Result>(new DirectDownload::Result(parameters->download_item_, parameters->operation_)),
                                  std::move(parameters), ResultPolicy::COPY),
-                                 download_manager_(download_manager) {}
+                                 download_manager_(download_manager), upload_tracker_(upload_tracker),  force_downloads_(force_downloads) {}
 
 
 } // end namespace ApiQuery
@@ -772,7 +822,7 @@ void DownloadManager::processDomainQueues(DomainData * const domain_data) {
        domain_data->queued_apiqueries_.pop_front();
        apiquery_tasklet->start();
        --tasklet_counters_.apiquery_queue_counter_;
-       
+
        if (adhere_to_download_limit) {
             domain_data->delay_params_.time_limit_.restart();
             return;
@@ -961,13 +1011,13 @@ std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> DownloadManager::rss(con
 
 
 std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
-    DownloadManager::apiQuery(const Util::HarvestableItem &source) 
+    DownloadManager::apiQuery(const Util::HarvestableItem &source)
 {
       std::unique_ptr<DirectDownload::Params> parameters(new DirectDownload::Params(source,
                                                        global_params_.translation_server_url_.toString(), "" /*user_agent*/,
                                                        true /*ignore robots.txt*/, 0 /*time limit*/, DirectDownload::Operation::USE_TRANSLATION_SERVER));
       std::shared_ptr<ApiQuery::Tasklet> new_tasklet(
-        new ApiQuery::Tasklet(&tasklet_counters_.apiquery_tasklet_execution_counter_, this, std::move(parameters)));
+        new ApiQuery::Tasklet(&tasklet_counters_.apiquery_tasklet_execution_counter_, this, upload_tracker_, std::move(parameters), global_params_.force_downloads_));
 
       {
          std::lock_guard<std::recursive_mutex> queue_buffer_lock(apiquery_queue_buffer_mutex_);
