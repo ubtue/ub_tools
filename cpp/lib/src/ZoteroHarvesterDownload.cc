@@ -434,13 +434,13 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 
 namespace ApiQuery {
 
-void SelectNonExistingEntriesFromZTSMultiple(const std::string &all_items, std::string * const filtered_items, const Util::UploadTracker &upload_tracker,
+void SelectNonExistingEntriesFromZTSMultiple(const std::string &all_items_object, std::string * const filtered_items_object, const Util::UploadTracker &upload_tracker,
                                              const bool force_downloads, unsigned * const all_items_num, unsigned * const filtered_items_num) {
      std::shared_ptr<JSON::JSONNode> tree_root;
-     JSON::Parser json_parser(all_items);
+     JSON::Parser json_parser(all_items_object);
 
      if (not json_parser.parse(&tree_root))
-         LOG_ERROR("Could not appropriately parse " + all_items);
+         LOG_ERROR("Could not appropriately parse " + all_items_object);
 
      auto select_object(JSON::JSONNode::CastToObjectNodeOrDie("select_object", tree_root));
      auto items(select_object->getObjectNode("items"));
@@ -465,7 +465,7 @@ void SelectNonExistingEntriesFromZTSMultiple(const std::string &all_items, std::
 
      select_object->remove("items");
      select_object->insert("items", new_items);
-     *filtered_items = select_object->toString();
+     *filtered_items_object = select_object->toString();
 }
 
 
