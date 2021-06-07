@@ -434,13 +434,13 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 
 namespace ApiQuery {
 
-void SelectNonExistingEntriesFromZTSMultiple(const std::string &all, std::string * const filtered, const Util::UploadTracker &upload_tracker,
+void SelectNonExistingEntriesFromZTSMultiple(const std::string &all_items, std::string * const filtered_items, const Util::UploadTracker &upload_tracker,
                                              const bool force_downloads, unsigned * const all_items_num, unsigned * const filtered_items_num) {
      std::shared_ptr<JSON::JSONNode> tree_root;
-     JSON::Parser json_parser(all);
+     JSON::Parser json_parser(all_items);
 
      if (not json_parser.parse(&tree_root))
-         LOG_ERROR("Could not appropriately parse " + all);
+         LOG_ERROR("Could not appropriately parse " + all_items);
 
      auto select_object(JSON::JSONNode::CastToObjectNodeOrDie("select_object", tree_root));
      auto items(select_object->getObjectNode("items"));
@@ -465,7 +465,7 @@ void SelectNonExistingEntriesFromZTSMultiple(const std::string &all, std::string
 
      select_object->remove("items");
      select_object->insert("items", new_items);
-     *filtered = select_object->toString();
+     *filtered_items = select_object->toString();
 }
 
 
@@ -487,7 +487,7 @@ void Tasklet::run(const DirectDownload::Params &parameters, DirectDownload::Resu
         LOG_INFO("NEW REQUEST: " + filtered_multiple_object);
         if (filtered_items_num == 0) {
             LOG_INFO("No non-delivered items detected - not sending back any JSON object");
-            result->items_skipped_since_already_delivered_ += all_items_num; 
+            result->items_skipped_since_already_delivered_ += all_items_num;
             return;
         }
 
