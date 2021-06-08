@@ -336,7 +336,7 @@ bool File::setPipeBufferSize(int new_buffer_size) {
             pipe_max_size.resize(pipe_max_size.size() - 1);
 
         if (not StringUtil::ToInt(pipe_max_size, &new_buffer_size))
-            LOG_ERROR("can't convert \"" + pipe_max_size + "\" to an unsigned long!");
+            LOG_ERROR("can't convert \"" + pipe_max_size + "\" to an int!");
     }
     if (unlikely(new_buffer_size <= 0))
         LOG_ERROR("new buffer size must be non-negative!");
@@ -344,5 +344,4 @@ bool File::setPipeBufferSize(int new_buffer_size) {
     errno = 0;
     ::fcntl(fileno(file_), F_SETPIPE_SZ, new_buffer_size);
     return errno == 0;
-
 }
