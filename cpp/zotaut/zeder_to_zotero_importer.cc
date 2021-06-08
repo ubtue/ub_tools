@@ -483,9 +483,17 @@ unsigned UpdateZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                 if (unlikely(not GetValidValue(field_to_update, &ini_new_val_str)))
                     LOG_WARNING("\tinvalid new value for field '" + ini_key_str + "': '" + ini_new_val_str + "' (old value: '" + ini_old_val_str + "')");
                 else if (ini_new_val_str != ini_old_val_str) {
-                    WriteIniEntry(existing_journal_section, ini_key_str, ini_new_val_str);
-                    LOG_INFO("\t" + ini_key_str + ": '" + ini_old_val_str + "' => '" + ini_new_val_str + "'");
-                    at_least_one_field_updated = true;
+                    // for APIQUERY keep a manually set value
+                    if (field_to_update == Config::JournalParams::IniKey::HARVESTER_OPERATION and
+                        ini_old_val_str == Config::HARVESTER_OPERATION_TO_STRING_MAP.at(Config::HarvesterOperation::APIQUERY))
+                    {
+                        WriteIniEntry(existing_journal_section, ini_key_str, ini_old_val_str);
+                        LOG_INFO("\tKeep original value '" + ini_old_val_str + "' for '" + ini_key_str + "'");
+                    } else {
+                        WriteIniEntry(existing_journal_section, ini_key_str, ini_new_val_str);
+                        LOG_INFO("\t" + ini_key_str + ": '" + ini_old_val_str + "' => '" + ini_new_val_str + "'");
+                        at_least_one_field_updated = true;
+                    }
                 }
             } else if (not ini_old_val_str.empty())
                 LOG_WARNING("\tinvalid empty new value for field '" + ini_key_str + "'. old value: '" + ini_old_val_str + "'");
