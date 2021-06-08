@@ -61,8 +61,6 @@ bool HasHasConspicuousName(const std::string &candidate) {
     if (matcher == nullptr)
         LOG_ERROR("Failed to compile regex matcher: " + err_msg);
     return matcher->matched(first_name) or matcher->matched(last_name);
-
-
 }
 
 
