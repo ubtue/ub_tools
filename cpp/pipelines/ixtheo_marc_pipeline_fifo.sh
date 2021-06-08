@@ -62,7 +62,7 @@ if [[ $(date +%d) == "01" ]]; then # Only do this on the 1st of every month.
         echo "Sending email for dangling references..." | tee --append "${log}"
         send_email --priority=high \
                    --recipients=ixtheo-team@ub.uni-tuebingen.de \
-                   --subject="Referenzen auf fehlende Datensätze gefunden" \
+                   --subject="Referenzen auf fehlende Datensätze gefunden ($(hostname))" \
                    --message-body="Liste im Anhang." \
                    --attachment="dangling_references.log"
     fi
