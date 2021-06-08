@@ -39,7 +39,15 @@ process_next_record:
             if (local_field.getLocalTag() == "935") {
                 const auto subfield_a(local_field.getFirstSubfieldWithCode('a'));
                 if (subfield_a == "iFSA" or subfield_a == "iSWA" or subfield_a == "iZSA") { // See tuefind issue #1462
-                    (*output) << record.getControlNumber() << '\n';
+                    std::string STAR_ID("\"STAR-ID fehlt!\"");
+                    for (const auto &_935_field : record.getTagRange("935")) {
+                        auto _935_subfield_a(_935_field.getFirstSubfieldWithCode('a'));
+                        if (not _935_subfield_a.empty()) {
+                            STAR_ID.swap(_935_subfield_a);
+                            break;
+                        }
+                    }
+                    (*output) << record.getControlNumber() << ',' << STAR_ID << '\n';
                     ++missing_author_count;
                     goto process_next_record;
                 }
