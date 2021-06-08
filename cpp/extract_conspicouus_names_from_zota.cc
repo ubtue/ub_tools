@@ -43,7 +43,7 @@ namespace {
 bool isZota(const MARC::Record &record) {
     const auto local_block_starts(record.findStartOfAllLocalDataBlocks());
     for (const auto &local_block_start : local_block_starts) {
-         for (const auto LOK935_field : record.getLocalTagRange("935", local_block_start)) {
+         for (const auto &LOK935_field : record.getLocalTagRange("935", local_block_start)) {
              if (LOK935_field.hasSubfieldWithValue('a', "zota"))
                  return true;
          }
