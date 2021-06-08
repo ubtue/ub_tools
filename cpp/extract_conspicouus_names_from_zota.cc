@@ -39,6 +39,7 @@ namespace {
     std::exit(EXIT_FAILURE);
 }
 
+
 bool isZota(const MARC::Record &record) {
     const auto local_block_starts(record.findStartOfAllLocalDataBlocks());
     for (const auto &local_block_start : local_block_starts) {
@@ -49,6 +50,7 @@ bool isZota(const MARC::Record &record) {
     }
     return false;
 }
+
 
 bool HasHasConspicuousName(const std::string &candidate) {
     std::string err_msg;
@@ -62,6 +64,7 @@ bool HasHasConspicuousName(const std::string &candidate) {
 
 
 }
+
 
 void ProcessRecords(MARC::Reader * const marc_reader) {
     while (MARC::Record record = marc_reader->read()) {
