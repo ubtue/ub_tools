@@ -676,4 +676,18 @@ std::string GenerateAddress(const std::string &optional_first_name, const std::s
 }
 
 
+// The files in the proc filesystem all have a file size of 0 even if they are not empty.
+std::string ReadProcEntry(const std::string &path) {
+    std::string file_contents;
+    File input(path, "r");
+    for (;;) {
+        char byte;
+        if (input.read(&byte, 1) == 1)
+            file_contents += byte;
+        else
+            return file_contents;
+    }
+}
+
+
 } // namespace MiscUtil
