@@ -37,9 +37,8 @@ void ProcessRecords(const std::vector<std::string> &lokale_abrufzeichen, MARC::R
 
         bool found_a_match(false);
         for (const auto &local_field : record.getTagRange("LOK")) {
-            if (local_field.getFirstSubfieldWithCode('0') != "935")
+            if (local_field.getFirstSubfieldWithCode('0') != "935  ")
                 continue;
-LOG_ERROR("Looking for "+StringUtil::Join(lokale_abrufzeichen, ','));
 
             const auto subfield_a(local_field.getFirstSubfieldWithCode('a'));
             if (std::find(lokale_abrufzeichen.cbegin(), lokale_abrufzeichen.cend(), subfield_a) != lokale_abrufzeichen.cend()) {
@@ -51,7 +50,7 @@ LOG_ERROR("Looking for "+StringUtil::Join(lokale_abrufzeichen, ','));
         if (found_a_match) {
             std::string STAR_ID;
             for (const auto &local_field : record.getTagRange("LOK")) {
-                if (local_field.getFirstSubfieldWithCode('0') != "035")
+                if (local_field.getFirstSubfieldWithCode('0') != "035  ")
                     continue;
 
                 const auto _035_subfield_a(local_field.getFirstSubfieldWithCode('a'));
