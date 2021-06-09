@@ -1,20 +1,22 @@
-#!/bin/python3
+#!/bin/python3.9
 # -*- coding: utf-8 -*-
 
 # Algorithm to bring pipeline phases in an ideal order
 
 import argparse
+from graphlib import TopologicalSorter
 
 class Phase:
     key = "" 
     mode = ""
-    name = ""
     title_norm = ""
+    name = ""
     command = ""
-    def __init__(self, _key, _mode, _title_norm):
+    def __init__(self, _key, _mode, _title_norm, _name):
         self.key = _key
         self.mode = _mode
         self.title_norm = _title_norm
+        self.name = _name
 
 # Dependency list has to be built dynamically later
 # Preprocessing
@@ -28,39 +30,102 @@ class Phase:
 #   leading and trailing "_" has to run independently
 
 phases = {
-        Phase("3","","t"),
-        Phase("4","","t"),
-        Phase("5","","t"),
-        Phase("6","","t"),
-        Phase("14","","t"),
-        Phase("7","","t"),
-        Phase("8","","t"),
-        Phase("9","_i","t"),
-        Phase("13","","t"),
-        Phase("a","","t"),
-        Phase("b","","t"),
-        Phase("c","","t"),
-        Phase("k","","t"),
-        Phase("m","","t"),
-        Phase("x","","t"),
-        Phase("z","","t")
+        Phase("check_record_integrity_beginning","_i_","x","Check Record Integrity at the Beginning of the Pipeline"),
+        Phase("remove_dangling_references","","t","Remove Dangling References"),
+        Phase("add_local_data_from_database","","t","Add Local Data from Database"),
+        Phase("swap_and_delete_ppns","i_","x","Swap and Delete PPN's in Various Databases"),
+        Phase("filter_856_etc","","t","Filter out Self-referential 856 Fields AND Remove Sorting Chars From Title Subfields AND Remove blmsh Subject Heading Terms AND Fix Local Keyword Capitalisations AND Standardise German B.C. Year References"),
+        Phase("rewrite_authors_from_authority_data","","t","Rewrite Authors and Standardized Keywords from Authority Data"),
+        Phase("add_missing_cross_links","","t","Add Missing Cross Links Between Records"),
+        Phase("extract_translations","i_","t","Extract Translations and Generate Interface Translation Files"),
+        Phase("transfer_880_to_750","","n","Transfer 880 Authority Data Translations to 750"),
+        Phase("augment_authority_data_with_keyword_translations","","n","Augment Authority Data with Keyword Translations"),
+        Phase("add_beacon_to_authority_data","","n","Add BEACON Information to Authority Data"),
+        Phase("cross_link_articles","","t","Cross Link Articles"),
+        Phase("normalize_urls","","t","Normalise URL's"),
+        Phase("parent_to_child_linking","","t","Parent-to-Child Linking and Flagging of Subscribable Items"),
+        Phase("populate_zeder_journal","","t","Populate the Zeder Journal Timeliness Database Table"),
+        Phase("add_additional_open_access","","t","Add Additional Open Access URL's"),
+        Phase("extract_normdata_translations","","n","Extract Normdata Translations"),
+        Phase("add_author_synomyns_from_authority","","t","Add Author Synonyms from Authority Data"),
+        Phase("add_aco_fields","","t","Add ACO Fields to Records That Are Article Collections"),
+        Phase("add_isbn_issn","","t","Adding of ISBN's and ISSN's to Component Parts"),
+        Phase("extract_keywords_from_titles","","t","Extracting Keywords from Titles"),
+        Phase("flag_electronic_and_open_access","","t","Flag Electronic and Open-Access Records"),
+        Phase("augment_bible_references","","t","Augment Bible References"),
+        Phase("augment_canon_law_references","","t","Augment Canon Law References"),
+        Phase("augment_time_aspect_references","","t","Augment Time Aspect References"),
+        Phase("update_ixtheo_notations","","t","Update IxTheo Notations"),
+        Phase("replace_689a_689q","","t","Replace 689\$A with 689\$q"),
+        Phase("map_ddc_to_ixtheo_notations","","t","Map DDC to IxTheo Notations"),
+        Phase("fill_missing_773a","","t","Fill in missing 773\$a Subfields"),
+        Phase("tag_further_potential_relbib_entries","","t","Tag further potential relbib entries"),
+        Phase("integrate_sort_year_for_serials","","t","Integrate Reasonable Sort Year for Serials"),
+        Phase("integrate_refterms","","t","Integrate Refterms"),
+        Phase("tag_tue_records_with_ita_field","","t","Tag Records that are Available in Tübingen with an ITA Field"),
+        Phase("add_entries_for_subscription_bundles","","t","Add Entries for Subscription Bundles and Tag Journals"),
+        Phase("add_tags_for_subsystems","","t","Add Tags for subsystems"),
+        Phase("tag_pda_candidates","","t","Tag PDA candidates"),
+        Phase("patch_transitive_records","","t","Patch Transitive Church Law, Religous Studies and Bible Studies Records"),
+        Phase("cross_link_type_tagging","","t","Cross-link Type Tagging"),
+        Phase("tag_inferior_records","","t","Tags Which Subsystems have Inferior Records in Superior Works Records"),
+        Phase("appending_literary_remains","_i_","x","Appending Literary Remains Records"),
+        Phase("DUMMY","_i_","t","Dummy phase for testing"),
+        Phase("add_keyword_synonyms_from_authority","_i_","x","Add Keyword Synonyms from Authority Data"),
+        Phase("check_record_integrity_end","_i_","x","Check Record Integrity at the End of the Pipeline"),
+        Phase("cleanup","_i_","x","Cleanup of Intermediate Files")
         }
+
+graph = {
+        "remove_dangling_references" : {"check_record_integrity_beginning"},
+        "add_local_data_from_database" : {"remove_dangling_references"},
+        "swap_and_delete_ppns" : {"add_local_data_from_database"},
+        "filter_856_etc" : {"add_local_data_from_database"},
+        "rewrite_authors_from_authority_data" : {"filter_856_etc"},
+        "add_missing_cross_links" : {"rewrite_authors_from_authority_data"},
+        "extract_translations" : {"check_record_integrity_beginning"},
+        "transfer_880_to_750" : {"check_record_integrity_beginning"},
+        "augment_authority_data_with_keyword_translations" : {"transfer_880_to_750"},
+        "add_beacon_to_authority_data" : {"augment_authority_data_with_keyword_translations"},
+        "cross_link_articles" : {"add_missing_cross_links"},
+        "normalize_urls" : {"cross_link_articles"},
+        "parent_to_child_linking" : {"normalize_urls"},
+        "populate_zeder_journal" : {"parent_to_child_linking"},
+        "add_additional_open_access" : {"populate_zeder_journal"},
+        "extract_normdata_translations" : {"add_beacon_to_authority_data"},
+        "add_author_synomyns_from_authority" : {"add_additional_open_access"},
+        "add_aco_fields" : {"add_author_synomyns_from_authority"},
+        "add_isbn_issn" : {"add_aco_fields"},
+        "extract_keywords_from_titles" : {"add_isbn_issn"},
+        "flag_electronic_and_open_access" : {"extract_keywords_from_titles"},
+        "augment_bible_references" : {"flag_electronic_and_open_access"},
+        "augment_canon_law_references" : {"augment_bible_references"},
+        "augment_time_aspect_references" : {"augment_canon_law_references"},
+        "update_ixtheo_notations" : {"augment_time_aspect_references"},
+        "replace_689a_689q" : {"update_ixtheo_notations"},
+        "map_ddc_to_ixtheo_notations" : {"replace_689a_689q"},
+        "add_keyword_synonyms_from_authority" : {"add_beacon_to_authority_data", "map_ddc_to_ixtheo_notations"},
+        "fill_missing_773a" : {"add_keyword_synonyms_from_authority"},
+        "tag_further_potential_relbib_entries" : {"fill_missing_773a"},
+        "integrate_sort_year_for_serials" : {"tag_further_potential_relbib_entries"},
+        "integrate_refterms" : {"integrate_sort_year_for_serials"},
+        "tag_tue_records_with_ita_field" : {"integrate_refterms"},
+        "add_entries_for_subscription_bundles" : {"tag_tue_records_with_ita_field"},
+        "add_tags_for_subsystems" : {"add_entries_for_subscription_bundles"},
+        "appending_literary_remains" : {"add_beacon_to_authority_data", "add_tags_for_subsystems"},
+        "tag_pda_candidates" : {"add_tags_for_subsystems"},
+        "patch_transitive_records" : {"tag_pda_candidates"},
+        "cross_link_type_tagging" : {"patch_transitive_records"},
+        "tag_inferior_records" : {"cross_link_type_tagging"},
+        "check_record_integrity_end" : {"extract_translations"},
+        "cleanup" : {"check_record_integrity_end", "extract_translations"}
+       }
 
 def get_phase_by_key(key):
     for phase in phases:
         if phase.key == key:
             return phase
     return None
-
-def contains_phase_title_norm(title_norm):
-    for phase in phases:
-        if phase.title_norm == title_norm:
-            return True
-    return False
-
-# e.g. ["5","3"] means that "5" can only be run after "3"
-deps = [["5","3"],["5","14"],["7","4"],["8","5"],["9","7"],["6","13"],["3","13"],["b","a"],["c","a"],["m","k"],["z","x"],["z","k"],["c","b"]]
-#deps = [["5","3"],["7","4"],["8","5"],["_9","7"],["6","13"],["3","13"],["3","8"]] #not valid
 
 def split_to_equal_parts(lst, n):
     chunks = []
@@ -70,12 +135,12 @@ def split_to_equal_parts(lst, n):
         phase_mode = get_phase_by_key(elem).mode
         phase_title_norm = get_phase_by_key(elem).title_norm
         if phase_mode.startswith("_") == False and (last_phase_title_norm == None or last_phase_title_norm == phase_title_norm):
-            each_chunk.append(elem) 
+            each_chunk.append(elem + " -> " + phase_title_norm) 
         else:
             if len(each_chunk) > 0:
                 chunks.append(each_chunk)
                 each_chunk = []
-            each_chunk.append(elem)
+            each_chunk.append(elem + " -> " + phase_title_norm)
         if phase_mode.endswith("_") == True:
             chunks.append(each_chunk)
             each_chunk = []
@@ -87,131 +152,44 @@ def split_to_equal_parts(lst, n):
     return chunks
 
 
-def contains_elem(lst_2d, elem):
-    for lst in lst_2d:
-        if elem in lst:
-            return True
-    return False
-
-def min_length_list(input_list):
-    #min_length = min(len(x) for x in input_list )
-    min_list = min(input_list, key = len)
-    min_pos = input_list.index(min_list)
-    return(min_pos, min_list)
-
 def Main():
     parser = argparse.ArgumentParser(description='bring pipeline phases in an ideal order')
-    parser.add_argument("--par_runs", default=2, type=int, help="(max.) number of separate running groups executed at the same time")
     parser.add_argument("--run_steps", default=3, type=int, help="(max.) number of elements inside a running group")
     args = parser.parse_args()
 
     is_debug = False
-    # Number of parallel running groups
-    number_of_groups = args.par_runs # def. 2, 1 = without parallelization
-    # Number of running phases in a running group
+    # Number of running phases 
     items_in_group = args.run_steps
 
-    # Checking if all phases used in deps are defined
-    for elem in deps:
-        if not any(x.key == elem[0] for x in phases):
-            print(elem[0], " used in dependency: ", elem, " but not defined in phases")
+    # Checking if all phases used in deps-graph are defined
+    for elem in graph:
+        if not any(x.key == elem for x in phases):
+            print(elem, " used in dependency: ", elem, " -> ",  graph[elem], " but not defined in phases")
             exit()
-        if not any(x.key == elem[1] for x in phases):
-            print(elem[1], " used in dependency: ", elem, " but not defined in phases")
-            exit()
-        if get_phase_by_key(elem[0]).title_norm != get_phase_by_key(elem[1]).title_norm:
-            print("Dependecies of Phases must not be mixed: ", elem[0], " and ", elem[1])
-            exit()
-
-    # determine independent groups
-    # if both phases of a dependency have not yet occured -> create new group
-    # if one phase of a dependency is already in a group -> add phases and dependency to that group
-    # moving phases and dependency if phases are in different groups, e.g.
-    # [3,5] -> new group, [6,13] -> new group, [3,13] -> add to [3,5] -> move [6,13] to [[3,5],[3,13]]
-
-    if is_debug:
-        print("\nDependencies: ", deps)
-
-    moved = []
-    grouped = [] 
-    for elem in deps:
-        found = -1 
-        for i in range(len(grouped)):
-            if contains_elem(grouped[i],elem[0]) or contains_elem(grouped[i],elem[1]):
-                if found > -1:
-                    # store for later replacement
-                    moved.append([found,i])
-                else:
-                    grouped[i].append(elem)
-                    print("adding: ",elem)
-                    found = i 
-        if found == -1:
-            grouped.append([elem])
-            print("creating: ",elem)
-
-    deleted_elems = set() 
-    for elem in moved:
-        print("Moving: ", grouped[elem[1]], " to ", grouped[elem[0]])
-        grouped[elem[0]].extend(grouped[elem[1]])
-        deleted_elems.add(elem[1])
-    # list element must be deleted from right to left to keep order
-    deleted_elems = sorted(deleted_elems)
-    deleted_elems.reverse()
-    for elem in deleted_elems:
-        del grouped[elem]
-
-    if is_debug:
-        print("Grouping possibilities dependencies only: ", grouped)
-
-    # rearrange groups to number of parallel running groups
-    while len(grouped) > number_of_groups and len(grouped) > 1:
-        [min_position, min_list] = min_length_list(grouped)
-        del grouped[min_position]
-        [min_position_new, min_list_ignore] = min_length_list(grouped) #adding to new min after deletion
-        grouped[min_position_new].extend(min_list)
-
-    if is_debug:
-        print("Grouping rearranged to ", number_of_groups, " groups: ", grouped)
-
-    totalorder = []
-    for dep in grouped:
-        order = []
-        for elem in dep:
-            if elem[1] not in order:
-                order.insert(0,elem[1])
-            order.insert(order.index(elem[1])+1, elem[0])
-            # eliminate dupplicates using latest (rightest position) version
-            order.reverse()
-            order = list(dict.fromkeys(order))
-            order.reverse()
-
-        # check for cross / wrong references
-        for elem in dep:
-            if order.index(elem[0]) < order.index(elem[1]):
-                print("Error: cross reference at " + elem[0] + "<-" + elem[1], " order: ", order)
+        for subelem in graph[elem]:
+            if not any(x.key == subelem for x in phases):
+                print(subelem, " used in dependency: ", elem, " -> ",  graph[elem], " but not defined in phases")
                 exit()
 
-        totalorder.append(order)
-    
+    # Determine dependencies
     if is_debug:
-        print("Order in running group: ", totalorder)
-
+        print("\nDependencies: ", graph)
+        
     # Adding phases without dependencies
     for elem in phases:
-        if not contains_elem(deps, elem.key):
-            if len(totalorder) < number_of_groups:
-                totalorder.append([elem.key])
-            else:
-                [min_position, min_list_ignore] = min_length_list(totalorder)
-                totalorder[min_position].append(elem.key)
+        if not elem.key in graph:
+            graph[elem.key] =  {}
 
+    order = []
 
-    if is_debug:
-        print("Added phases without dependencies: ", totalorder)
+    try:
+        ts = TopologicalSorter(graph)
+        order = list(tuple(ts.static_order()))
+    except:
+        print("Error: cross reference / cicle in graph")
+        exit()
 
-    split_total_order = []
-    for elem in totalorder:
-        split_total_order.append(list(split_to_equal_parts(elem, items_in_group)))
+    split_total_order = list(split_to_equal_parts(order, items_in_group))
 
     print("Split order of phases in running group: ", split_total_order)
 
