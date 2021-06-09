@@ -19,8 +19,8 @@ send_email --sender=ixtheo@ub.uni-tuebingen.de \
            --recipients="$RECIPIENTS" \
            --expand-newline-escapes \
            --subject="Neue IxTheo-Daten verfügbar" \
-           --message-body="URL: http://ixtheo.de/docs/$(urlencode ${output}).7z"\\n
-Das Passwort für die 7-Zip-Datei (https://de.wikipedia.org/wiki/7-Zip) lautet: "$PASSWORD"\\n
+           --message-body="URL: http://ixtheo.de/docs/$(urlencode ${output}).7z\\n
+Das Passwort für die 7-Zip-Datei \(https://de.wikipedia.org/wiki/7-Zip\) lautet: "$PASSWORD"\\n
 Das IxTheo Team\\n
 --\\n
 Falls es irgendwelche Fragen oder Probleme mit dieser Datenlieferung gab,\\n
