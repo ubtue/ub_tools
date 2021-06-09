@@ -84,6 +84,7 @@
 /mysql_database_patcher
 /mysql_diff_schemas
 /mysql_list_tables
+/make_named_pipe
 /new_journal_alert
 /new_journal_tool
 /ngram_stats
