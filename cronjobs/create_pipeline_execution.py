@@ -29,6 +29,8 @@ class Phase:
 #   trailing "_" successor must not run before job has finished
 #   leading and trailing "_" has to run independently
 
+phase_counter = 0
+
 phases = {
         Phase("check_record_integrity_beginning","_i_","x","Check Record Integrity at the Beginning of the Pipeline"),
         Phase("remove_dangling_references","","t","Remove Dangling References"),
@@ -128,11 +130,13 @@ def get_phase_by_key(key):
     return None
 
 def process_chunk(lst):
+    global phase_counter
     if len(lst) > 0:
         for i, elem in enumerate(lst):
+            phase_counter += 1
             if len(lst) > 1 and i != len(lst) - 1:
-                print("making fifo _ ", elem.title_norm)
-            print("processing ", elem.key, " -> ", elem.title_norm)
+                print("making fifo _ ", elem.title_norm, " phase counter: ", phase_counter)
+            print("processing ", elem.key, " -> ", elem.title_norm, " phase counter: ", phase_counter)
         print("---")
 
 def split_to_equal_parts(lst, n):
@@ -171,7 +175,7 @@ def split_to_equal_parts(lst, n):
         elif phase_title_norm.startswith("x"):
             process_chunk([elem])
 
-        if phase_mode.endswith("_"):
+        if phase_mode.endswith("_") or elemkey == lst[-1]:
             if phase_title_norm.startswith("t"):
                 process_chunk(open_fifo_title)
                 open_fifo_title = []
