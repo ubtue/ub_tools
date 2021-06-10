@@ -31,7 +31,7 @@ for filename in "$@"; do
             tar --extract --file "$tarpath" --directory "$tmppath" "$archive_member"
             marc_grep_output=$(marc_grep --input-format=marc-21 "$tmppath/$archive_member" "$marc_grep_conditional_expression" 3>&2 2>&1 1>&3)
             if [[ $? -ne 0 ]]; then
-                echo "marc_grep failed ($marc_grep_output)!"
+                echo "marc_grep failed $filebasename ($marc_grep_output)!"
                 rm "$tmppath/$archive_member"
                 rm "$tarpath"
                 rmdir "$tmppath"
@@ -40,7 +40,7 @@ for filename in "$@"; do
             last_line=$(echo "$marc_grep_output" | tail -1)
             rm "$tmppath/$archive_member"
             if [[ ! $last_line =~ ^Matched\ 0 && $last_line =~ ^Matched ]]; then
-                echo "was found in $tmppath($archive_member)"
+                echo "was found in $filebasename ($archive_member)"
                 found=0
             fi
         done
