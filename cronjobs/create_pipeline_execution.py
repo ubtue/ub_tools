@@ -117,7 +117,7 @@ graph = {
         "patch_transitive_records" : {"tag_pda_candidates"},
         "cross_link_type_tagging" : {"patch_transitive_records"},
         "tag_inferior_records" : {"cross_link_type_tagging"},
-        "check_record_integrity_end" : {"extract_translations"},
+        "check_record_integrity_end" : {"extract_translations", "tag_inferior_records"},
         "cleanup" : {"check_record_integrity_end", "extract_translations"}
        }
 
@@ -127,29 +127,57 @@ def get_phase_by_key(key):
             return phase
     return None
 
+def process_chunk(lst):
+    if len(lst) > 0:
+        for i, elem in enumerate(lst):
+            if len(lst) > 1 and i != len(lst) - 1:
+                print("making fifo _ ", elem.title_norm)
+            print("processing ", elem.key, " -> ", elem.title_norm)
+        print("---")
+
 def split_to_equal_parts(lst, n):
-    chunks = []
-    each_chunk = []
-    last_phase_title_norm = None
-    for elem in lst:
-        phase_mode = get_phase_by_key(elem).mode
-        phase_title_norm = get_phase_by_key(elem).title_norm
-        if phase_mode.startswith("_") == False and (last_phase_title_norm == None or last_phase_title_norm == phase_title_norm):
-            each_chunk.append(elem + " -> " + phase_title_norm) 
-        else:
-            if len(each_chunk) > 0:
-                chunks.append(each_chunk)
-                each_chunk = []
-            each_chunk.append(elem + " -> " + phase_title_norm)
-        if phase_mode.endswith("_") == True:
-            chunks.append(each_chunk)
-            each_chunk = []
-        if len(each_chunk) == n or elem == lst[-1]:
-            if len(each_chunk) > 0:
-                chunks.append(each_chunk)
-            each_chunk = []
-        last_phase_title_norm = phase_title_norm 
-    return chunks
+    open_fifo_title = []
+    open_fifo_norm =[] 
+
+    for elemkey in lst:
+        elem = get_phase_by_key(elemkey)
+        phase_mode = elem.mode
+        phase_title_norm = elem.title_norm
+
+        if phase_title_norm.startswith("x"):
+            process_chunk(open_fifo_title)
+            process_chunk(open_fifo_norm)
+            open_fifo_title = []
+            open_fifo_norm =[] 
+        elif phase_mode.startswith("_"):
+            if phase_title_norm.startswith("t"):
+                process_chunk(open_fifo_title)
+                open_fifo_title = []
+            if phase_title_norm.startswith("n"):
+                process_chunk(open_fifo_norm)
+                open_fifo_norm = []
+
+        if len(open_fifo_title) ==n:
+            process_chunk(open_fifo_title)
+            open_fifo_title = []
+        if len(open_fifo_norm) ==n:
+            process_chunk(open_fifo_norm)
+            open_fifo_title = []
+
+        if phase_title_norm.startswith("t"):
+            open_fifo_title.append(elem)
+        elif phase_title_norm.startswith("n"):
+            open_fifo_norm.append(elem)
+        elif phase_title_norm.startswith("x"):
+            process_chunk([elem])
+
+        if phase_mode.endswith("_"):
+            if phase_title_norm.startswith("t"):
+                process_chunk(open_fifo_title)
+                open_fifo_title = []
+            elif phase_title_norm.startswith("n"):
+                process_chunk(open_fifo_norm)
+                open_fifo_title = []
 
 
 def Main():
@@ -189,9 +217,8 @@ def Main():
         print("Error: cross reference / cicle in graph")
         exit()
 
-    split_total_order = list(split_to_equal_parts(order, items_in_group))
-
-    print("Split order of phases in running group: ", split_total_order)
+    print("Split order of phases in running group:")
+    split_to_equal_parts(order, items_in_group)
 
     print("")
 
