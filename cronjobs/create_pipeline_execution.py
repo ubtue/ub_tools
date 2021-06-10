@@ -6,6 +6,17 @@
 import argparse
 from graphlib import TopologicalSorter
 
+# possible entries for title_norm field:
+#   t = title data
+#   n = norm (authority) data
+#   x = has predecessor in title data AND norm data
+#       also used for first phase (integrity check)
+#
+# convention in dict-keys: 
+#   leading "_" can only run after predecessor has finished
+#   trailing "_" successor must not run before job has finished
+#   leading and trailing "_" has to run independently
+
 class Phase:
     key = "" 
     mode = ""
@@ -18,20 +29,11 @@ class Phase:
         self.title_norm = _title_norm
         self.name = _name
 
-# Dependency list has to be built dynamically later
-# Preprocessing
-# Check Record Integrity at the Beginning of the Pipeline
-# marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
-#            --write-data=GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc GesamtTiteldaten-"${date}".mrc >> "${log}" 2>&1
 
-# convention in dict-keys: 
-#   leading "_" can only run after predecessor has finished
-#   trailing "_" successor must not run before job has finished
-#   leading and trailing "_" has to run independently
 
 phase_counter = 0
 
-phases = {
+phases = [
         Phase("check_record_integrity_beginning","_i_","x","Check Record Integrity at the Beginning of the Pipeline"),
         Phase("remove_dangling_references","","t","Remove Dangling References"),
         Phase("add_local_data_from_database","","t","Add Local Data from Database"),
@@ -76,7 +78,7 @@ phases = {
         Phase("add_keyword_synonyms_from_authority","_i_","x","Add Keyword Synonyms from Authority Data"),
         Phase("check_record_integrity_end","_i_","x","Check Record Integrity at the End of the Pipeline"),
         Phase("cleanup","_i_","x","Cleanup of Intermediate Files")
-        }
+        ]
 
 graph = {
         "remove_dangling_references" : {"check_record_integrity_beginning"},
@@ -139,7 +141,7 @@ def process_chunk(lst):
             print("processing ", elem.key, " -> ", elem.title_norm, " phase counter: ", phase_counter)
         print("---")
 
-def split_to_equal_parts(lst, n):
+def split_and_write_pipeline_steps(lst, n):
     open_fifo_title = []
     open_fifo_norm =[] 
 
@@ -186,12 +188,11 @@ def split_to_equal_parts(lst, n):
 
 def Main():
     parser = argparse.ArgumentParser(description='bring pipeline phases in an ideal order')
-    parser.add_argument("--run_steps", default=3, type=int, help="(max.) number of elements inside a running group")
+    parser.add_argument("--max-group-size", default=3, type=int, help="(max.) number of elements inside a running group")
     args = parser.parse_args()
 
     is_debug = False
-    # Number of running phases 
-    items_in_group = args.run_steps
+    max_items_in_group = args.max_group_size
 
     # Checking if all phases used in deps-graph are defined
     for elem in graph:
@@ -222,7 +223,7 @@ def Main():
         exit()
 
     print("Split order of phases in running group:")
-    split_to_equal_parts(order, items_in_group)
+    split_and_write_pipeline_steps(order, max_items_in_group)
 
     print("")
 
