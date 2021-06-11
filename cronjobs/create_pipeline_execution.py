@@ -86,7 +86,6 @@ phases = [
         Phase("patch_transitive_records","_i","t","Patch Transitive Church Law, Religous Studies and Bible Studies Records [rewind]"),
         Phase("cross_link_type_tagging","_i","t","Cross-link Type Tagging [rewind]"),
         Phase("tag_inferior_records","_i","t","Tags Which Subsystems have Inferior Records in Superior Works Records [rewind]"),
-        #Phase("DUMMY","_i_","t","Dummy phase for testing"),
         Phase("check_record_integrity_end","i_","t","Check Record Integrity at the End of the Pipeline"),
         Phase("cleanup","_i_","x","Cleanup of Intermediate Files")
         ]
@@ -140,8 +139,6 @@ graph = {
         "check_record_integrity_end" : {"extract_translations", "tag_inferior_records"},
         "cleanup" : {"check_record_integrity_end", "extract_translations"}
        }
-
-graph_alt = graph.copy()
 
 def get_phase_by_key(key):
     for phase in phases:
@@ -229,7 +226,7 @@ def Main():
 
     # Determine dependencies
     if is_debug:
-        print("\nDependencies: ", graph_alt)
+        print("\nDependencies: ", graph)
         
     order = []
 
