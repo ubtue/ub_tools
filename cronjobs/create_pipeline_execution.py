@@ -34,48 +34,48 @@ class Phase:
 phase_counter = 0
 
 phases = [
-        Phase("check_record_integrity_beginning","_i_","x","Check Record Integrity at the Beginning of the Pipeline"),
-        Phase("remove_dangling_references","","t","Remove Dangling References"),
+        Phase("check_record_integrity_beginning","_i","t","Check Record Integrity at the Beginning of the Pipeline"),
+        Phase("remove_dangling_references","_i","t","Remove Dangling References [rewind]"),
         Phase("add_local_data_from_database","","t","Add Local Data from Database"),
-        Phase("swap_and_delete_ppns","i_","x","Swap and Delete PPN's in Various Databases"),
+        Phase("swap_and_delete_ppns","_i_","x","Swap and Delete PPN's in Various Databases [used in merge_differential_and_full_marc_updates, maybe independent]"),
         Phase("filter_856_etc","","t","Filter out Self-referential 856 Fields AND Remove Sorting Chars From Title Subfields AND Remove blmsh Subject Heading Terms AND Fix Local Keyword Capitalisations AND Standardise German B.C. Year References"),
         Phase("rewrite_authors_from_authority_data","","t","Rewrite Authors and Standardized Keywords from Authority Data"),
-        Phase("add_missing_cross_links","","t","Add Missing Cross Links Between Records"),
-        Phase("extract_translations","i_","t","Extract Translations and Generate Interface Translation Files"),
+        Phase("add_missing_cross_links","_i","t","Add Missing Cross Links Between Records [rewind]"),
+        Phase("extract_translations","_i_","x","Extract Translations and Generate Interface Translation Files [from vufind ini files to db and vice versa, maybe independent]"),
         Phase("transfer_880_to_750","","n","Transfer 880 Authority Data Translations to 750"),
         Phase("augment_authority_data_with_keyword_translations","","n","Augment Authority Data with Keyword Translations"),
         Phase("add_beacon_to_authority_data","","n","Add BEACON Information to Authority Data"),
-        Phase("cross_link_articles","","t","Cross Link Articles"),
+        Phase("cross_link_articles","_i","t","Cross Link Articles [rewind]"),
         Phase("normalize_urls","","t","Normalise URL's"),
-        Phase("parent_to_child_linking","","t","Parent-to-Child Linking and Flagging of Subscribable Items"),
+        Phase("parent_to_child_linking","_i","t","Parent-to-Child Linking and Flagging of Subscribable Items [rewind]"),
         Phase("populate_zeder_journal","","t","Populate the Zeder Journal Timeliness Database Table"),
         Phase("add_additional_open_access","","t","Add Additional Open Access URL's"),
-        Phase("extract_normdata_translations","","n","Extract Normdata Translations"),
+        Phase("extract_normdata_translations","i_","n","Extract Normdata Translations"),
         Phase("add_author_synomyns_from_authority","","t","Add Author Synonyms from Authority Data"),
-        Phase("add_aco_fields","","t","Add ACO Fields to Records That Are Article Collections"),
-        Phase("add_isbn_issn","","t","Adding of ISBN's and ISSN's to Component Parts"),
-        Phase("extract_keywords_from_titles","","t","Extracting Keywords from Titles"),
+        Phase("add_aco_fields","_i","t","Add ACO Fields to Records That Are Article Collections [rewind]"),
+        Phase("add_isbn_issn","_i","t","Adding of ISBN's and ISSN's to Component Parts [rewind]"),
+        Phase("extract_keywords_from_titles","_i","t","Extracting Keywords from Titles [rewind]"),
         Phase("flag_electronic_and_open_access","","t","Flag Electronic and Open-Access Records"),
         Phase("augment_bible_references","","t","Augment Bible References"),
         Phase("augment_canon_law_references","","t","Augment Canon Law References"),
         Phase("augment_time_aspect_references","","t","Augment Time Aspect References"),
         Phase("update_ixtheo_notations","","t","Update IxTheo Notations"),
         Phase("replace_689a_689q","","t","Replace 689\$A with 689\$q"),
-        Phase("map_ddc_to_ixtheo_notations","","t","Map DDC to IxTheo Notations"),
-        Phase("fill_missing_773a","","t","Fill in missing 773\$a Subfields"),
+        Phase("map_ddc_to_ixtheo_notations","","t","Map DDC to IxTheo Notations [reads csv file ddc_ixtheo.map - what source?]"),
+        Phase("add_keyword_synonyms_from_authority","_i_","x","Add Keyword Synonyms from Authority Data"),
+        Phase("fill_missing_773a","_i","t","Fill in missing 773\$a Subfields [rewind]"),
         Phase("tag_further_potential_relbib_entries","","t","Tag further potential relbib entries"),
         Phase("integrate_sort_year_for_serials","","t","Integrate Reasonable Sort Year for Serials"),
         Phase("integrate_refterms","","t","Integrate Refterms"),
-        Phase("tag_tue_records_with_ita_field","","t","Tag Records that are Available in Tübingen with an ITA Field"),
+        Phase("tag_tue_records_with_ita_field","_i","t","Tag Records that are Available in Tübingen with an ITA Field [rewind]"),
         Phase("add_entries_for_subscription_bundles","","t","Add Entries for Subscription Bundles and Tag Journals"),
-        Phase("add_tags_for_subsystems","","t","Add Tags for subsystems"),
-        Phase("tag_pda_candidates","","t","Tag PDA candidates"),
-        Phase("patch_transitive_records","","t","Patch Transitive Church Law, Religous Studies and Bible Studies Records"),
-        Phase("cross_link_type_tagging","","t","Cross-link Type Tagging"),
-        Phase("tag_inferior_records","","t","Tags Which Subsystems have Inferior Records in Superior Works Records"),
+        Phase("add_tags_for_subsystems","_i","t","Add Tags for subsystems [rewind]"),
         Phase("appending_literary_remains","_i_","x","Appending Literary Remains Records"),
-        Phase("DUMMY","_i_","t","Dummy phase for testing"),
-        Phase("add_keyword_synonyms_from_authority","_i_","x","Add Keyword Synonyms from Authority Data"),
+        Phase("tag_pda_candidates","","t","Tag PDA candidates"),
+        Phase("patch_transitive_records","_i","t","Patch Transitive Church Law, Religous Studies and Bible Studies Records [rewind]"),
+        Phase("cross_link_type_tagging","_i","t","Cross-link Type Tagging [rewind]"),
+        Phase("tag_inferior_records","_i","t","Tags Which Subsystems have Inferior Records in Superior Works Records [rewind]"),
+        #Phase("DUMMY","_i_","t","Dummy phase for testing"),
         Phase("check_record_integrity_end","_i_","x","Check Record Integrity at the End of the Pipeline"),
         Phase("cleanup","_i_","x","Cleanup of Intermediate Files")
         ]
@@ -137,7 +137,7 @@ def process_chunk(lst):
         for i, elem in enumerate(lst):
             phase_counter += 1
             if len(lst) > 1 and i != len(lst) - 1:
-                print("making fifo _ ", elem.title_norm, " phase counter: ", phase_counter)
+                print("making fifo - ", elem.title_norm, " phase counter: ", phase_counter)
             print("processing ", elem.key, " -> ", elem.title_norm, " phase counter: ", phase_counter)
         print("---")
 
