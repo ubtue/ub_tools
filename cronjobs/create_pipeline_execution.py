@@ -212,7 +212,7 @@ def Main():
     args = parser.parse_args()
 
     is_debug = False
-    max_items_in_group = args.max_group_size
+    max_group_size = args.max_group_size
 
     # Checking if all phases used in deps-graph are defined
     for elem in graph:
@@ -238,7 +238,7 @@ def Main():
         exit()
 
     print("Split order of phases in running group:")
-    split_and_write_pipeline_steps(order, max_items_in_group)
+    split_and_write_pipeline_steps(order, max_group_size)
 
     print("")
 
