@@ -10,12 +10,21 @@ from graphlib import TopologicalSorter
 #   t = title data
 #   n = norm (authority) data
 #   x = has predecessor in title data AND norm data
+#       no fifo for input possible (because reading from mult. files)
 #       also used for first phase (integrity check)
+#   x_t = same as x but output fifo for t possible 
+#   x_n = same as x but output fifo for n possible 
 #
 # convention in dict-keys: 
 #   leading "_" can only run after predecessor has finished
 #   trailing "_" successor must not run before job has finished
 #   leading and trailing "_" has to run independently
+#
+# restriction:
+#   only one valid order is processed.
+#   there is no comparision between different valid orders
+#   so if you want to put a phase to the front you have to add dependencies
+#
 
 class Phase:
     key = "" 
@@ -62,7 +71,7 @@ phases = [
         Phase("update_ixtheo_notations","","t","Update IxTheo Notations"),
         Phase("replace_689a_689q","","t","Replace 689\$A with 689\$q"),
         Phase("map_ddc_to_ixtheo_notations","","t","Map DDC to IxTheo Notations [reads csv file ddc_ixtheo.map - what source?]"),
-        Phase("add_keyword_synonyms_from_authority","_i_","x","Add Keyword Synonyms from Authority Data"),
+        Phase("add_keyword_synonyms_from_authority","_i","x_t","Add Keyword Synonyms from Authority Data"),
         Phase("fill_missing_773a","_i","t","Fill in missing 773\$a Subfields [rewind]"),
         Phase("tag_further_potential_relbib_entries","","t","Tag further potential relbib entries"),
         Phase("integrate_sort_year_for_serials","","t","Integrate Reasonable Sort Year for Serials"),
@@ -70,25 +79,29 @@ phases = [
         Phase("tag_tue_records_with_ita_field","_i","t","Tag Records that are Available in Tübingen with an ITA Field [rewind]"),
         Phase("add_entries_for_subscription_bundles","","t","Add Entries for Subscription Bundles and Tag Journals"),
         Phase("add_tags_for_subsystems","_i","t","Add Tags for subsystems [rewind]"),
-        Phase("appending_literary_remains","_i_","x","Appending Literary Remains Records"),
+        Phase("appending_literary_remains","_i","x_t","Appending Literary Remains Records"),
         Phase("tag_pda_candidates","","t","Tag PDA candidates"),
         Phase("patch_transitive_records","_i","t","Patch Transitive Church Law, Religous Studies and Bible Studies Records [rewind]"),
         Phase("cross_link_type_tagging","_i","t","Cross-link Type Tagging [rewind]"),
         Phase("tag_inferior_records","_i","t","Tags Which Subsystems have Inferior Records in Superior Works Records [rewind]"),
         #Phase("DUMMY","_i_","t","Dummy phase for testing"),
-        Phase("check_record_integrity_end","_i_","x","Check Record Integrity at the End of the Pipeline"),
+        Phase("check_record_integrity_end","i_","t","Check Record Integrity at the End of the Pipeline"),
         Phase("cleanup","_i_","x","Cleanup of Intermediate Files")
         ]
 
 graph = {
         "remove_dangling_references" : {"check_record_integrity_beginning"},
-        "add_local_data_from_database" : {"remove_dangling_references"},
-        "swap_and_delete_ppns" : {"add_local_data_from_database"},
+        "add_local_data_from_database" : {"swap_and_delete_ppns","swap_and_delete_ppns","extract_translations"},
+        #"add_local_data_from_database" : {"remove_dangling_references"}, #orig
+        "swap_and_delete_ppns" : {"remove_dangling_references"},
+        #"swap_and_delete_ppns" : {"add_local_data_from_database"}, #orig
         "filter_856_etc" : {"add_local_data_from_database"},
         "rewrite_authors_from_authority_data" : {"filter_856_etc"},
         "add_missing_cross_links" : {"rewrite_authors_from_authority_data"},
-        "extract_translations" : {"check_record_integrity_beginning"},
-        "transfer_880_to_750" : {"check_record_integrity_beginning"},
+        #"extract_translations" : {"check_record_integrity_beginning"}, #orig
+        "extract_translations" : {"swap_and_delete_ppns"},
+        #"transfer_880_to_750" : {"check_record_integrity_beginning"}, #orig
+        "transfer_880_to_750" : {"check_record_integrity_beginning", "swap_and_delete_ppns","extract_translations"},
         "augment_authority_data_with_keyword_translations" : {"transfer_880_to_750"},
         "add_beacon_to_authority_data" : {"augment_authority_data_with_keyword_translations"},
         "cross_link_articles" : {"add_missing_cross_links"},
@@ -138,7 +151,7 @@ def process_chunk(lst):
             phase_counter += 1
             if len(lst) > 1 and i != len(lst) - 1:
                 print("making fifo - ", elem.title_norm, " phase counter: ", phase_counter)
-            print("processing ", elem.key, " -> ", elem.title_norm, " phase counter: ", phase_counter)
+            print("processing ", elem.key, " -> ", elem.title_norm, " phase counter: ", phase_counter, "[", elem.mode, "]")
         print("---")
 
 def split_and_write_pipeline_steps(lst, n):
@@ -154,7 +167,7 @@ def split_and_write_pipeline_steps(lst, n):
             process_chunk(open_fifo_title)
             process_chunk(open_fifo_norm)
             open_fifo_title = []
-            open_fifo_norm =[] 
+            open_fifo_norm = [] 
         elif phase_mode.startswith("_"):
             if phase_title_norm.startswith("t"):
                 process_chunk(open_fifo_title)
@@ -163,27 +176,32 @@ def split_and_write_pipeline_steps(lst, n):
                 process_chunk(open_fifo_norm)
                 open_fifo_norm = []
 
-        if len(open_fifo_title) ==n:
+        if len(open_fifo_title) == n:
             process_chunk(open_fifo_title)
             open_fifo_title = []
-        if len(open_fifo_norm) ==n:
+        if len(open_fifo_norm) == n:
             process_chunk(open_fifo_norm)
-            open_fifo_title = []
+            open_fifo_norm = []
 
         if phase_title_norm.startswith("t"):
             open_fifo_title.append(elem)
         elif phase_title_norm.startswith("n"):
             open_fifo_norm.append(elem)
         elif phase_title_norm.startswith("x"):
-            process_chunk([elem])
+            if phase_title_norm == "x_t":
+                open_fifo_title.append(elem)
+            if phase_title_norm == "x_n":
+                open_fifo_norm.append(elem)
+            else:
+                process_chunk([elem])
 
         if phase_mode.endswith("_") or elemkey == lst[-1]:
-            if phase_title_norm.startswith("t"):
+            if phase_title_norm.startswith("t") or phase_title_norm == "x_t":
                 process_chunk(open_fifo_title)
                 open_fifo_title = []
-            elif phase_title_norm.startswith("n"):
+            elif phase_title_norm.startswith("n") or phase_title_norm == "x_n":
                 process_chunk(open_fifo_norm)
-                open_fifo_title = []
+                open_fifo_norm = []
 
 
 def Main():
