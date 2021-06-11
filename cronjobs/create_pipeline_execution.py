@@ -1,10 +1,12 @@
-#!/bin/python3.9
+#!/bin/python3
 # -*- coding: utf-8 -*-
 
 # Algorithm to bring pipeline phases in an ideal order
+# change from python 3.9 graphlib to toposort because it 
+# not only provides a flatten order but also a order with alternatives
 
 import argparse
-from graphlib import TopologicalSorter
+from toposort import toposort_flatten #, toposort
 
 # possible entries for title_norm field:
 #   t = title data
@@ -89,6 +91,7 @@ phases = [
         Phase("cleanup","_i_","x","Cleanup of Intermediate Files")
         ]
 
+# every phase should be part of the dependency graph (key of phase)
 graph = {
         "remove_dangling_references" : {"check_record_integrity_beginning"},
         "add_local_data_from_database" : {"swap_and_delete_ppns","swap_and_delete_ppns","extract_translations"},
@@ -137,6 +140,8 @@ graph = {
         "check_record_integrity_end" : {"extract_translations", "tag_inferior_records"},
         "cleanup" : {"check_record_integrity_end", "extract_translations"}
        }
+
+graph_alt = graph.copy()
 
 def get_phase_by_key(key):
     for phase in phases:
@@ -224,18 +229,13 @@ def Main():
 
     # Determine dependencies
     if is_debug:
-        print("\nDependencies: ", graph)
+        print("\nDependencies: ", graph_alt)
         
-    # Adding phases without dependencies
-    for elem in phases:
-        if not elem.key in graph:
-            graph[elem.key] =  {}
-
     order = []
 
     try:
-        ts = TopologicalSorter(graph)
-        order = list(tuple(ts.static_order()))
+        #use toposort without flatten to get possible alternatives
+        order = list(toposort_flatten(graph))
     except:
         print("Error: cross reference / cicle in graph")
         exit()
