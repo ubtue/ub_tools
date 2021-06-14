@@ -7,7 +7,7 @@
 
 import argparse
 from toposort import toposort
-from itertools import product
+import itertools as it
 
 # possible entries for title_norm field:
 #   t = title data
@@ -216,7 +216,7 @@ def split_and_write_pipeline_steps(lst, n, do_print = False):
 
 def Main():
     parser = argparse.ArgumentParser(description='bring pipeline phases in an ideal order')
-    parser.add_argument("--max-group-size", default=3, type=int, help="(max.) number of elements inside a running group")
+    parser.add_argument("--max-group-size", default=5, type=int, help="(max.) number of elements inside a running group")
     args = parser.parse_args()
 
     is_debug = False
@@ -241,17 +241,19 @@ def Main():
     best_fifo = 0
     best_order = []
 
-    try:
-        order_topo = list(toposort(graph))
-        all_combinations = list(product(*order_topo))
-        for elem in all_combinations:
-            split_and_write_pipeline_steps(elem, max_group_size, False) #sets global var. fifo_counter
-            if fifo_counter > best_fifo:
-                best_fifo = fifo_counter
-                best_order = elem
-    except:
-        print("Error: cross reference / cicle in graph")
-        exit()
+    order_topo = list(toposort(graph))
+
+    #c = [{1,2,3},{4,5}]  a = {1,2,3}   b = {4,5}
+    #print(list(it.product(it.permutations(a), it.permutations(b))))
+    #print(list(it.product(*(it.permutations(k) for k in c))))
+    all_combinations = list(it.product(*(it.permutations(k) for k in order_topo)))
+
+    for tup_elem in all_combinations:
+        elem = list(it.chain(*tup_elem))
+        split_and_write_pipeline_steps(elem, max_group_size, False) #sets global var. fifo_counter
+        if fifo_counter > best_fifo:
+            best_fifo = fifo_counter
+            best_order = elem
 
     split_and_write_pipeline_steps(best_order, max_group_size, True)
     print("Created: ", fifo_counter, " fifos")
