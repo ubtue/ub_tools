@@ -46,9 +46,11 @@ install: regular_install data_install
 regular_install: $(INSTALL_PROGS) Makefile
 	@echo "Installing programs..."
 	cp $(INSTALL_PROGS) /usr/local/bin/
-	if [ $(id --user) -eq 0 ]; then # If we are root, enable make_named_pipe to set large FIFO buffers.
-		setcap cap_sys_resource+p make_named_pipe
-	fi
+
+    # If we are root, enable make_named_pipe to set large FIFO buffers.
+	@if [ $(shell id --user) -eq 0 ]; then \
+		setcap cap_sys_resource+p make_named_pipe; \
+	fi;
 
 data_install: Makefile data/*.conf data/*.map data/*.ttf data/IxTheo_Notation.csv data/stopwords.* \
               data/bibleRef/* data/crossref_downloader/* data/full_text_cache_monitor/* \
