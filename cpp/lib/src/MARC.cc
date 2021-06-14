@@ -1892,11 +1892,9 @@ BinaryReader::BinaryReader(File * const input)
     struct stat stat_buf;
     if (::fstat(input->getFileDescriptor(), &stat_buf) != 0)
         LOG_ERROR("fstat(2) on \"" + input->getPath() + "\" failed!");
-    if (S_ISFIFO(stat_buf.st_mode)) {
+    if (S_ISFIFO(stat_buf.st_mode))
         mmap_ = nullptr;
-        if (not input->setPipeBufferSize())
-            LOG_ERROR("failed to increase the pipe (FIFO) buffer size!");
-    } else {
+    else {
         offset_ = 0;
         input_file_size_ = stat_buf.st_size;
         if (input_file_size_ == 0) {

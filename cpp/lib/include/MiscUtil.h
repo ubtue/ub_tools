@@ -257,10 +257,9 @@ bool AddToPATH(const std::string &new_directory_path, const PreferredPathLocatio
 
 
 /** Search for key in container and return its value, or default value if not found. */
-template<typename ContainerType, typename KeyType, typename ValueType> ValueType GetContainerValueOrDefault(const ContainerType &container,
-                                                                                                            const KeyType &key,
-                                                                                                            const ValueType &default_value,
-                                                                                                            bool * const default_returned = nullptr)
+template<typename ContainerType, typename KeyType, typename ValueType> ValueType GetContainerValueOrDefault(
+    const ContainerType &container, const KeyType &key, const ValueType &default_value,
+    bool * const default_returned = nullptr)
 {
     const auto key_and_value(container.find(key));
     if (key_and_value != container.cend()) {
@@ -281,6 +280,11 @@ template<typename ContainerType, typename KeyType, typename ValueType> ValueType
  */
 std::string GenerateAddress(const std::string &optional_first_name, const std::string &optional_last_name,
                             const std::string &fallback);
+
+
+// Entries in /proc require special handling to read them.
+// This is what this function provides.  "path" must be an absolute path.
+std::string ReadProcEntry(const std::string &path);
 
 
 } // namespace MiscUtil
