@@ -66,8 +66,12 @@ void ExtractSubfieldsForTag(const MARC::Record &record, const std::string &field
 void AddMainSubfieldAndCombinationsToGndKeywords(const MARC::Record &record, std::unordered_map<std::string, std::string> * const keywords_to_gnd_numbers_map, const std::string &field_tag, const std::string &subfield_codes) {
     if (subfield_codes.find('a') != std::string::npos) {
         const std::string subfield_value_a(record.getFirstSubfieldValue(field_tag, 'a'));
-        if (not subfield_value_a.empty())
-            keywords_to_gnd_numbers_map->emplace(std::make_pair(subfield_value_a, record.getControlNumber() + " & " + field_tag));
+        if (not subfield_value_a.empty()) {
+            std::string gnd_code;
+            if (not MARC::GetGNDCode(record, &gnd_code))
+                LOG_WARNING("Unable to extract GND Code for " + record.getControlNumber());
+            keywords_to_gnd_numbers_map->emplace(std::make_pair(subfield_value_a, record.getControlNumber() + ';' + gnd_code  + ';' + field_tag));
+        }
     }
     std::vector<std::string> subfields;
     ExtractSubfieldsForTag(record, field_tag, subfield_codes, &subfields);
