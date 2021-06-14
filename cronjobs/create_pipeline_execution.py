@@ -200,7 +200,7 @@ def split_and_write_pipeline_steps(lst, n, do_print = False):
         elif phase_title_norm.startswith("x"):
             if phase_title_norm == "x_t":
                 open_fifo_title.append(elem)
-            if phase_title_norm == "x_n":
+            elif phase_title_norm == "x_n":
                 open_fifo_norm.append(elem)
             else:
                 process_chunk([elem], do_print)
