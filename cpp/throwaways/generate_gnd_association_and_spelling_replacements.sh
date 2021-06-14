@@ -1,5 +1,5 @@
-# Create krimdok local keyword file from the original output and make misspellings and potential GND references explicit
 #!/bin/bash
+# Create krimdok local keyword file from the original output and make misspellings and potential GND references explicit
 
 
 if [ $# != 4 ]; then
@@ -12,18 +12,18 @@ readonly AZ_CLEANED=$2
 readonly GND_FULL=$3
 readonly RESULT_FILE=$4
 readonly tmp_prefix=$(basename $0)
-#readonly gnd_matches="./matched3.txt"
-#readonly gnd_matches="./tmp/matched_210609_1.txt"
 
 function MkTempFile {
-  echo $(mktemp /tmp/${tmp_prefix}.XXXXX)
+   echo $(mktemp /tmp/${tmp_prefix}.XXXXX)
 }
+
+readonly gnd_matched=$(MkTempFile)
+readonly gnd_unmatched=$(MkTempFile)
+readonly gnd_matched_clean=$(MkTempFile)
+readonly association_and_spelling=$(MkTempFile)
 
 
 function GenerateKeywordToGNDMap {
-   readonly gnd_matched=$(MkTempFile)
-   readonly gnd_unmatched=$(MkTempFile)
-   readonly gnd_matched_clean=$(MkTempFile)
    single_marc_convert_keywords ${GND_FULL} ${AZ_CLEANED} ${gnd_matched} ${gnd_unmatched} 
    cat ${gnd_matched} | sed -r 's/^"|"$//g' |  sed 's/","/;/' > ${gnd_matched_clean}
 }
@@ -45,7 +45,6 @@ function ReorderAZOutput {
 
 
 function JoinAssociationAndSpelling {
-    readonly association_and_spelling=$(MkTempFile)
     join -t';' -1 1 -2 1  -a 2 <(sort ${gnd_matched_clean}) <(sort ${az_output_reordered}) > ${association_and_spelling}
 }
 
