@@ -6,7 +6,8 @@
 # not only provides a flatten order but also a order with alternatives
 
 import argparse
-from toposort import toposort_flatten #, toposort
+from toposort import toposort
+from itertools import product
 
 # possible entries for title_norm field:
 #   t = title data
@@ -43,6 +44,7 @@ class Phase:
 
 
 phase_counter = 0
+fifo_counter = 0
 
 phases = [
         Phase("check_record_integrity_beginning","_i","t","Check Record Integrity at the Beginning of the Pipeline"),
@@ -93,17 +95,13 @@ phases = [
 # every phase should be part of the dependency graph (key of phase)
 graph = {
         "remove_dangling_references" : {"check_record_integrity_beginning"},
-        "add_local_data_from_database" : {"swap_and_delete_ppns","swap_and_delete_ppns","extract_translations"},
-        #"add_local_data_from_database" : {"remove_dangling_references"}, #orig
-        "swap_and_delete_ppns" : {"remove_dangling_references"},
-        #"swap_and_delete_ppns" : {"add_local_data_from_database"}, #orig
+        "add_local_data_from_database" : {"remove_dangling_references"},
+        "swap_and_delete_ppns" : {"check_record_integrity_beginning"},
         "filter_856_etc" : {"add_local_data_from_database"},
         "rewrite_authors_from_authority_data" : {"filter_856_etc"},
         "add_missing_cross_links" : {"rewrite_authors_from_authority_data"},
-        #"extract_translations" : {"check_record_integrity_beginning"}, #orig
-        "extract_translations" : {"swap_and_delete_ppns"},
-        #"transfer_880_to_750" : {"check_record_integrity_beginning"}, #orig
-        "transfer_880_to_750" : {"check_record_integrity_beginning", "swap_and_delete_ppns","extract_translations"},
+        "extract_translations" : {"check_record_integrity_beginning"},
+        "transfer_880_to_750" : {"check_record_integrity_beginning"},
         "augment_authority_data_with_keyword_translations" : {"transfer_880_to_750"},
         "add_beacon_to_authority_data" : {"augment_authority_data_with_keyword_translations"},
         "cross_link_articles" : {"add_missing_cross_links"},
@@ -136,8 +134,8 @@ graph = {
         "patch_transitive_records" : {"tag_pda_candidates"},
         "cross_link_type_tagging" : {"patch_transitive_records"},
         "tag_inferior_records" : {"cross_link_type_tagging"},
-        "check_record_integrity_end" : {"extract_translations", "tag_inferior_records"},
-        "cleanup" : {"check_record_integrity_end", "extract_translations"}
+        "check_record_integrity_end" : {"tag_inferior_records"},
+        "cleanup" : {"check_record_integrity_end"}
        }
 
 def get_phase_by_key(key):
@@ -146,17 +144,27 @@ def get_phase_by_key(key):
             return phase
     return None
 
-def process_chunk(lst):
+def process_chunk(lst, do_print = False):
     global phase_counter
+    global fifo_counter
     if len(lst) > 0:
         for i, elem in enumerate(lst):
             phase_counter += 1
             if len(lst) > 1 and i != len(lst) - 1:
-                print("making fifo - ", elem.title_norm, " phase counter: ", phase_counter)
-            print("processing ", elem.key, " -> ", elem.title_norm, " phase counter: ", phase_counter, "[", elem.mode, "]")
-        print("---")
+                fifo_counter += 1
+                if do_print == True:
+                    print("making fifo - ", elem.title_norm, " phase counter: ", phase_counter)
+            if do_print == True:
+                print("processing ", elem.key, " -> ", elem.title_norm, " phase counter: ", phase_counter, "[", elem.mode, "]")
+        if do_print == True:
+            print("---")
 
-def split_and_write_pipeline_steps(lst, n):
+def split_and_write_pipeline_steps(lst, n, do_print = False):
+    global phase_counter
+    global fifo_counter
+    phase_counter = 0
+    fifo_counter = 0
+
     open_fifo_title = []
     open_fifo_norm =[] 
 
@@ -166,23 +174,23 @@ def split_and_write_pipeline_steps(lst, n):
         phase_title_norm = elem.title_norm
 
         if phase_title_norm.startswith("x"):
-            process_chunk(open_fifo_title)
-            process_chunk(open_fifo_norm)
+            process_chunk(open_fifo_title, do_print)
+            process_chunk(open_fifo_norm, do_print)
             open_fifo_title = []
             open_fifo_norm = [] 
         elif phase_mode.startswith("_"):
             if phase_title_norm.startswith("t"):
-                process_chunk(open_fifo_title)
+                process_chunk(open_fifo_title, do_print)
                 open_fifo_title = []
             if phase_title_norm.startswith("n"):
-                process_chunk(open_fifo_norm)
+                process_chunk(open_fifo_norm, do_print)
                 open_fifo_norm = []
 
         if len(open_fifo_title) == n:
-            process_chunk(open_fifo_title)
+            process_chunk(open_fifo_title, do_print)
             open_fifo_title = []
         if len(open_fifo_norm) == n:
-            process_chunk(open_fifo_norm)
+            process_chunk(open_fifo_norm, do_print)
             open_fifo_norm = []
 
         if phase_title_norm.startswith("t"):
@@ -195,14 +203,14 @@ def split_and_write_pipeline_steps(lst, n):
             if phase_title_norm == "x_n":
                 open_fifo_norm.append(elem)
             else:
-                process_chunk([elem])
+                process_chunk([elem], do_print)
 
         if phase_mode.endswith("_") or elemkey == lst[-1]:
             if phase_title_norm.startswith("t") or phase_title_norm == "x_t":
-                process_chunk(open_fifo_title)
+                process_chunk(open_fifo_title, do_print)
                 open_fifo_title = []
             elif phase_title_norm.startswith("n") or phase_title_norm == "x_n":
-                process_chunk(open_fifo_norm)
+                process_chunk(open_fifo_norm, do_print)
                 open_fifo_norm = []
 
 
@@ -214,6 +222,7 @@ def Main():
     is_debug = False
     max_group_size = args.max_group_size
 
+    print("")
     # Checking if all phases used in deps-graph are defined
     for elem in graph:
         if not any(x.key == elem for x in phases):
@@ -228,18 +237,24 @@ def Main():
     if is_debug:
         print("\nDependencies: ", graph)
         
-    order = []
+    global fifo_counter
+    best_fifo = 0
+    best_order = []
 
     try:
-        #use toposort without flatten to get possible alternatives
-        order = list(toposort_flatten(graph))
+        order_topo = list(toposort(graph))
+        all_combinations = list(product(*order_topo))
+        for elem in all_combinations:
+            split_and_write_pipeline_steps(elem, max_group_size, False) #sets global var. fifo_counter
+            if fifo_counter > best_fifo:
+                best_fifo = fifo_counter
+                best_order = elem
     except:
         print("Error: cross reference / cicle in graph")
         exit()
 
-    print("Split order of phases in running group:")
-    split_and_write_pipeline_steps(order, max_group_size)
-
+    split_and_write_pipeline_steps(best_order, max_group_size, True)
+    print("Created: ", fifo_counter, " fifos")
     print("")
 
 Main()
