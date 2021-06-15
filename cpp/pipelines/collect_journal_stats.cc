@@ -302,6 +302,7 @@ void UpdateDatabase(const std::string &system_type,
 
 
 const std::string TEXT_FILE_DIRECTORY(UBTools::GetFIDProjectsPath() + "Zeder_Supervision");
+constexpr unsigned MAX_NUMBER_OF_TEXT_FILE_ENTRIES = 6;
 
 
 void UpdateTextFiles(const bool debug,
@@ -319,9 +320,13 @@ void UpdateTextFiles(const bool debug,
             zeder_id_plus_ppn_and_file_contents =
                 zeder_ids_plus_ppns_to_file_contents_map.insert(std::make_pair(zeder_id_plus_ppn, "")).first;
 
+        unsigned article_count(0);
         for (const auto &article : articles) {
             zeder_id_plus_ppn_and_file_contents->second +=
                 article.jahr_ + "," + article.band_ + "," + article.heft_ + ',' + article.seitenbereich_ + "\n";
+            ++article_count;
+            if (article_count == MAX_NUMBER_OF_TEXT_FILE_ENTRIES)
+                break;
         }
     }
 
@@ -337,7 +342,7 @@ void UpdateTextFiles(const bool debug,
 void SortArticles(std::unordered_map<std::string, std::vector<Article>> * const zeder_ids_plus_ppns_to_articles_map) {
     for (auto &[_, articles] : *zeder_ids_plus_ppns_to_articles_map)
         std::sort(articles.begin(), articles.end(),
-                  [](const Article &a1, const Article &a2) -> bool { return a2.isNewerThan(a1); });
+                  [](const Article &a1, const Article &a2) -> bool { return a1.isNewerThan(a2); });
 }
 
 
