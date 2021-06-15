@@ -43,3 +43,6 @@ declare -r MARC_OUTPUT=KrimDok-CORE-$(date +%Y%M%d).mrc
 convert_json_to_marc --create-unique-id-db /usr/local/var/lib/tuelib/core.conf \
                      "$WORK_FILE" unmapped_issn.list "$MARC_OUTPUT"
 echo "Generated $MARC_OUTPUT, unmapped ISSN's are in unmapped_issn.list"
+
+
+upload_to_bsz_ftp_server.py "$MARC_OUTPUT" /pub/UBTuebingen_Default/

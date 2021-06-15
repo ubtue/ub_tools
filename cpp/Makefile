@@ -42,6 +42,7 @@ install: regular_install data_install
 	$(MAKE) -C merge_tools install
 	$(MAKE) -C pipelines install
 	$(MAKE) -C zotaut install
+	$(MAKE) -C core install
 
 regular_install: $(INSTALL_PROGS) Makefile
 	@echo "Installing programs..."
