@@ -295,7 +295,7 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
     metadata_record->issn_ = GetStrippedHTMLStringFromJSON(zotero_item, "ISSN");
 
     const auto creators_array(zotero_item->getOptionalArrayNode("creators"));
-    if (creators_array) {
+    if (creators_array and not creators_array->empty()) {
         for (const auto &entry :*creators_array) {
             const auto creator_object(JSON::JSONNode::CastToObjectNodeOrDie("array_element", entry));
             metadata_record->creators_.emplace_back(GetStrippedHTMLStringFromJSON(creator_object, "firstName"),
