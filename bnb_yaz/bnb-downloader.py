@@ -173,8 +173,8 @@ def Main():
 
     util.default_email_recipient = sys.argv[1]
     SetupWorkDirectory()
-    OUTPUT_FILENAME_PREFIX: str = "ixtheo_bnb-" + datetime.datetime.now().strftime("%y%m%d") + "-"
-    FTP_UPLOAD_DIRECTORY: str = "pub/UBTuebingen_Default"
+    OUTPUT_FILENAME_PREFIX: str = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + "-"
+    FTP_UPLOAD_DIRECTORY: str = "pub/UBTuebingen_BNB"
 
     yaz_client = ConnectToYAZServer()
     yaz_client.sendline("format marc21")
