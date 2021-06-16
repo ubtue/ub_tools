@@ -1,5 +1,5 @@
 /** \brief Tool to adjust validation rules for journal set to selective
- *         evaluation to avoid failing QS checks for field not eligible 
+ *         evaluation to avoid failing QS checks for field not eligible
  *         in this context
  *  \author Johannes Riedl
  *
@@ -49,23 +49,26 @@ std::string AssembleValaditionRulesIfNotExist(const std::string journal_id)
     const std::vector<std::string> record_types({"regular_article", "review"});
     std::vector<std::string> values;
     const auto field_presence("ignore");
-    for (const auto &subfield_code : subfield_codes) 
+    // The following is the logic for "Insert if not exists beforehand"
+    // The SELECTs in the for loop generate anonymous tuples that are merged in an multi row table by UNION ALL
+    for (const auto &subfield_code : subfield_codes)
         for (const auto &record_type : record_types)
-             values.emplace_back("(SELECT " + journal_id + ", \'" + tag + "\', \'" + subfield_code + "\', NULL, \'" 
+             values.emplace_back("(SELECT " + journal_id + ", \'" + tag + "\', \'" + subfield_code + "\', NULL, \'"
                                  + record_type + "\', \'"  + field_presence + "\')");
 
     return std::string("INSERT INTO metadata_presence_tracer ") +
-                       "SELECT * FROM (" + StringUtil::Join(values, " UNION ALL ") + ") AS tmp " + 
+                       "SELECT * FROM (" + StringUtil::Join(values, " UNION ALL ") + ") AS tmp " +
                        "WHERE NOT EXISTS(SELECT 1 FROM metadata_presence_tracer WHERE journal_id=" + journal_id
                                        + " AND marc_field_tag=" + tag + " LIMIT 1);";
 }
 
 
-void LoadHarvesterConfig(const std::string &config_path, 
-                         std::vector<std::unique_ptr<Config::JournalParams>> * const journal_params) {
+void LoadHarvesterConfig(const std::string &config_path,
+                         std::vector<std::unique_ptr<Config::JournalParams>> * const journal_params)
+{
     std::unique_ptr<Config::GlobalParams> global_params;
     std::vector<std::unique_ptr<Config::GroupParams>> group_params;
-    Config::LoadHarvesterConfigFile(config_path, 
+    Config::LoadHarvesterConfigFile(config_path,
                                     &global_params,
                                     &group_params,
                                     journal_params);
