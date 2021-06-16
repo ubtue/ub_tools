@@ -45,7 +45,7 @@ using namespace ZoteroHarvester;
 std::string AssembleValaditionRulesIfNotExist(const std::string journal_id)
 {
     const auto tag("084");
-    const std::vector<char> subfield_codes({ 'a', '4' });
+    const std::vector<char> subfield_codes({ 'a', '2' });
     const std::vector<std::string> record_types({"regular_article", "review"});
     std::vector<std::string> values;
     const auto field_presence("ignore");
@@ -75,10 +75,23 @@ void LoadHarvesterConfig(const std::string &config_path,
 }
 
 
+std::string GetJournalId(DbConnection * const db_connection, const std::string &zeder_id, const std::string &group) {
+    db_connection->queryOrDie("SELECT id FROM zeder_journals WHERE zeder_id=\'" + zeder_id +
+                              "\' AND zeder_instance=\'" + group + "\'");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    if (result_set.size() != 1)
+        LOG_ERROR("Unable to uniquely determine journal_id for zeder_id " + zeder_id + " and group " + group);
+    return result_set.getNextRow()["id"];
+}
+
+
 void UpdateRules(DbConnection * const db_connection, const std::vector<std::unique_ptr<Config::JournalParams>> &journal_params) {
     for (const auto &journal : journal_params)
-         if (journal->selective_evaluation_)
-             db_connection->queryOrDie(AssembleValaditionRulesIfNotExist(std::to_string(journal->zeder_id_)));
+         if (journal->selective_evaluation_) {
+             const std::string journal_id(GetJournalId(db_connection, std::to_string(journal->zeder_id_),
+                                          StringUtil::ASCIIToLower(journal->group_)));
+             db_connection->queryOrDie(AssembleValaditionRulesIfNotExist(journal_id));
+         }
 }
 
 
