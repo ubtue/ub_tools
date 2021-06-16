@@ -45,10 +45,13 @@ class Phase:
 
 phase_counter = 0
 fifo_counter = 0
+last_title_phase = 0
+last_norm_phase = 0
+print_commands = False
 
 phases = [
         Phase("check_record_integrity_beginning","_i","t","Check Record Integrity at the Beginning of the Pipeline"),
-        Phase("remove_dangling_references","_i","t","Remove Dangling References [rewind]"),
+        Phase("remove_dangling_references","_i_","t","Remove Dangling References [rewind, no fifo-out due to included monthly checks]"),
         Phase("add_local_data_from_database","","t","Add Local Data from Database"),
         Phase("swap_and_delete_ppns","_i_","x","Swap and Delete PPN's in Various Databases [used in merge_differential_and_full_marc_updates, maybe independent]"),
         Phase("filter_856_etc","","t","Filter out Self-referential 856 Fields AND Remove Sorting Chars From Title Subfields AND Remove blmsh Subject Heading Terms AND Fix Local Keyword Capitalisations AND Standardise German B.C. Year References"),
@@ -147,17 +150,46 @@ def get_phase_by_key(key):
 def process_chunk(lst, do_print = False):
     global phase_counter
     global fifo_counter
+    global print_commands
+    global last_title_phase
+    global last_norm_phase
     if len(lst) > 0:
         for i, elem in enumerate(lst):
             phase_counter += 1
+            insert_fifo = ""
             if len(lst) > 1 and i != len(lst) - 1:
                 fifo_counter += 1
                 if do_print == True:
-                    print("making fifo - ", elem.title_norm, " phase counter: ", phase_counter)
+                    if print_commands == False:
+                        print("making fifo - ", elem.title_norm, " phase counter: ", phase_counter)
+                    else:
+                        if elem.title_norm == "t" or elem.title_norm == "x_t":
+                            insert_fifo = """MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc"""
+                        elif elem.title_norm == "n" or elem.title_norm == "x_n":
+                            insert_fifo = """MakeFIFO Normdaten-post-phase"$PHASE"-"${date}".mrc"""
             if do_print == True:
-                print("processing ", elem.key, " -> ", elem.title_norm, " phase counter: ", phase_counter, "[", elem.mode, "]")
+                if print_commands == False:
+                    print("processing ", elem.key, " -> ", elem.title_norm, " phase counter: ", phase_counter, "[", elem.mode, "]")
+                else:
+                    newline_pos = elem.command.find("\n")
+                    print("")
+                    elem.command = elem.command.replace("""GesamtTiteldaten-post-phase"$((PHASE-X))""","""GesamtTiteldaten-post-phase"$((PHASE-""" + \
+                            str(phase_counter - last_title_phase) + """))""")
+                    elem.command = elem.command.replace("""Normdaten-post-phase"$((PHASE-X))""","""Normdaten-post-phase"$((PHASE-""" + \
+                            str(phase_counter - last_norm_phase) + """))""")
+                    print(elem.command[:newline_pos])
+                    if len(insert_fifo) > 0:
+                        print(insert_fifo)
+                    print(elem.command[newline_pos+1:])
         if do_print == True:
-            print("---")
+            if print_commands == False:
+                print("---")
+            else:
+                print("wait")
+        if elem.title_norm == "t" or elem.title_norm == "x_t":
+            last_title_phase = phase_counter
+        elif elem.title_norm == "n" or elem.title_norm == "x_n":
+            last_norm_phase = phase_counter
 
 def split_and_write_pipeline_steps(lst, n, do_print = False):
     global phase_counter
@@ -216,13 +248,18 @@ def split_and_write_pipeline_steps(lst, n, do_print = False):
 
 def Main():
     parser = argparse.ArgumentParser(description='bring pipeline phases in an ideal order')
-    parser.add_argument("--max-group-size", default=5, type=int, help="(max.) number of elements inside a running group")
+    parser.add_argument("--max-group-size", default=9, type=int, help="(max.) number of elements inside a running group")
     parser.add_argument("--use-flatten", default=0, type=int, help="use only one possible order instead of all possible variants")
+    parser.add_argument("--print-commands", default=0, type=int, help="if set to 1, all commands will be printed instead of short analysis")
     args = parser.parse_args()
 
     is_debug = False
     max_group_size = args.max_group_size
     use_flatten = args.use_flatten
+
+    global print_commands
+    if args.print_commands == 1:
+        print_commands = True
 
     print("")
     # Checking if all phases used in deps-graph are defined
@@ -243,6 +280,11 @@ def Main():
     best_fifo = 0
     best_order = []
 
+    global last_title_phase
+    last_title_phase = 0
+    global last_norm_phase
+    last_norm_phase = 0
+
     order_topo = list(toposort(graph))
 
     #c = [{1,2,3},{4,5}]  a = {1,2,3}   b = {4,5}
@@ -250,7 +292,8 @@ def Main():
     #print(list(it.product(*(it.permutations(k) for k in c))))
     if use_flatten == False:
         all_combinations = list(it.product(*(it.permutations(k) for k in order_topo)))
-        print("There are: ", len(all_combinations), " possible combinations")
+        if print_commands == False:
+            print("There are: ", len(all_combinations), " possible combinations")
         for tup_elem in all_combinations:
          elem = list(it.chain(*tup_elem))
          split_and_write_pipeline_steps(elem, max_group_size, False) #sets global var. fifo_counter
@@ -261,8 +304,9 @@ def Main():
         best_order = list(it.chain(*order_topo))
 
     split_and_write_pipeline_steps(best_order, max_group_size, True)
-    print("Created: ", fifo_counter, " fifos")
-    print("")
+    if print_commands == False:
+        print("Created: ", fifo_counter, " fifos")
+        print("")
 
 
 
@@ -289,15 +333,13 @@ if [[ $(date +%d) == "01" ]]; then # Only do this on the 1st of every month.
                    --message-body="PPNs im Anhang." \
                    --attachment="${marc_check_log}"
     fi
-fi
-
-"""
+fi """
 
 phase_iter = get_phase_by_key("remove_dangling_references")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(remove_dangling_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(remove_dangling_references GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                             GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
                             dangling_references.log 2>&1 && \
 EndPhase || Abort) &
@@ -311,33 +353,30 @@ if [[ $(date +%d) == "01" ]]; then # Only do this on the 1st of every month.
                    --message-body="Liste im Anhang." \
                    --attachment="dangling_references.log"
     fi
-fi
-"""
+fi """
 
 phase_iter = get_phase_by_key("add_local_data_from_database")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(add_local_data GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_local_data GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("swap_and_delete_ppns")
 phase_iter.command = \
-    "StartPhase ", phase_iter.name, "\\",
+    "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(patch_ppns_in_databases --report-only GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
+(patch_ppns_in_databases --report-only GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc Normdaten-"${date}".mrc \
                          -- entire_record_deletion.log >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("filter_856_etc")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
 (marc_filter \
-     GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+     GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     --remove-fields '856u:ixtheo\.de' \
     --remove-fields 'LOK:086630(.*)\x{1F}x' `# Remove internal bibliographic comments` \
     --filter-chars 130a:240a:245a '@' \
@@ -352,28 +391,24 @@ r"""
     --replace 100d:689d:700d "v(\\d+)\\s?-\\s?(\\d+)" "\\1 v.Chr.-\\2" \
     --replace 100d:689d:700d "v(\\d+)" "\\1 v. Chr." \
 >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("rewrite_authors_from_authority_data")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(rewrite_keywords_and_authors_from_authority_data GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(rewrite_keywords_and_authors_from_authority_data GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                                                   Normdaten-"${date}".mrc \
                                                   GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("add_missing_cross_links")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(augment_authority_data_with_translations Normdaten-partially-augmented0-"${date}".mrc \
-                                          Normdaten-partially-augmented1-"${date}".mrc \
-                                          >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+(add_missing_cross_links GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
+                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("extract_translations")
 phase_iter.command = \
@@ -384,74 +419,66 @@ r"""
     $(ls -1 "$VUFIND_HOME"/local/tuefind/languages/??.ini | grep -v 'de.ini$') >> "${log}" 2>&1 && \
 generate_vufind_translation_files "$VUFIND_HOME"/local/tuefind/languages/ >> "${log}" 2>&1 && \
 "$VUFIND_HOME"/clean_vufind_cache.sh >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("transfer_880_to_750")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
 (transfer_880_translations Normdaten-"${date}".mrc \
-                           Normdaten-partially-augmented0-"${date}.mrc" \
+                           Normdaten-post-phase"$PHASE"-"${date}".mrc \
                            >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("augment_authority_data_with_keyword_translations")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(augment_authority_data_with_translations Normdaten-partially-augmented0-"${date}".mrc \
-                                          Normdaten-partially-augmented1-"${date}".mrc \
+(augment_authority_data_with_translations Normdaten-post-phase"$((PHASE-X))"-"${date}".mrc \
+                                          Normdaten-post-phase"$PHASE"-"${date}".mrc \
                                           >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("add_beacon_to_authority_data")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(add_authority_beacon_information Normdaten-partially-augmented1-"${date}".mrc \
-                                  Normdaten-partially-augmented2-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+(add_authority_beacon_information Normdaten-post-phase"$((PHASE-X))"-"${date}".mrc \
+                                  Normdaten-post-phase"$PHASE"-"${date}".mrc *.beacon >> "${log}" 2>&1 && \
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("cross_link_articles")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-5))"-"${date}".mrc \
+(add_article_cross_links GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                          article_matches.list >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("normalize_urls")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("parent_to_child_linking")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                                   GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("populate_zeder_journal")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(collect_journal_stats ixtheo GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(collect_journal_stats ixtheo GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                               GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("add_additional_open_access")
 phase_iter.command = \
@@ -459,156 +486,140 @@ phase_iter.command = \
 r"""
 # Execute early for programs that rely on it for determining the open access property
 OADOI_URLS_FILE="/mnt/ZE020150/FID-Entwicklung/oadoi/oadoi_urls_ixtheo.json"
-(add_oa_urls ${OADOI_URLS_FILE} GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_oa_urls ${OADOI_URLS_FILE} GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("extract_normdata_translations")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(extract_authority_data_translations Normdaten-partially-augmented2-"${date}".mrc \
+(extract_authority_data_translations Normdaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                                      normdata_translations.txt >> "${log}" 2>&1 &&
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("add_author_synomyns_from_authority")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc Normdaten-"${date}".mrc \
+(add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc Normdaten-"${date}".mrc \
                      GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("add_aco_fields")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(flag_article_collections GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(flag_article_collections GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("add_isbn_issn")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_isbns_or_issns_to_articles GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("extract_keywords_from_titles")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  /usr/local/var/lib/tuelib/stopwords.???  >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("flag_electronic_and_open_access")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(flag_electronic_and_open_access_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(flag_electronic_and_open_access_records GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("augment_bible_references")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(augment_time_aspects GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(augment_time_aspects GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                       Normdaten-"${date}".mrc \
                       GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("augment_canon_law_references")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
 (update_ixtheo_notations \
-    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     /usr/local/var/lib/tuelib/IxTheo_Notation.csv >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("augment_time_aspect_references")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(subfield_code_replacer GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(subfield_code_replacer GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                         "689A=q" >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("update_ixtheo_notations")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
 (map_ddc_to_ixtheo_notations \
-    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
     /usr/local/var/lib/tuelib/ddc_ixtheo.map >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("replace_689a_689q")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
 (add_synonyms \
-    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    Normdaten-partially-augmented2-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
+    Normdaten-post-phase"$((PHASE-X))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("map_ddc_to_ixtheo_notations")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("add_keyword_synonyms_from_authority")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
 (add_synonyms \
-    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    Normdaten-partially-augmented2-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
+    Normdaten-post-phase"$((PHASE-X))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("fill_missing_773a")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("tag_further_potential_relbib_entries")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(add_additional_relbib_entries GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_additional_relbib_entries GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("integrate_sort_year_for_serials")
 phase_iter.command = \
@@ -616,58 +627,52 @@ phase_iter.command = \
 r"""
 (add_publication_year_to_serials \
     Schriftenreihen-Sortierung-"${date}".txt \
-    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("integrate_refterms")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(add_referenceterms Hinweissätze-Ergebnisse-"${date}".txt GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_referenceterms Hinweissätze-Ergebnisse-"${date}".txt GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("tag_tue_records_with_ita_field")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
 (flag_records_as_available_in_tuebingen \
-    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("add_entries_for_subscription_bundles")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(add_subscription_bundle_entries GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_subscription_bundle_entries GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("add_tags_for_subsystems")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(add_subsystem_tags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
+(add_subsystem_tags GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc Normdaten-"${date}".mrc \
                     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("appending_literary_remains")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                                 Normdaten-partially-augmented2-"${date}".mrc \
+                                 Normdaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                                  Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("tag_pda_candidates")
 phase_iter.command = \
@@ -676,38 +681,34 @@ r"""
 # Use the most recent GVI PPN list.
 (augment_pda \
     $(ls -t gvi_ppn_list-??????.txt | head -1) \
-    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("patch_transitive_records")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(find_transitive_record_set GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(find_transitive_record_set GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
                             GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc 2>&1 \
                             dangling_references.list && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("cross_link_type_tagging")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(add_cross_link_type GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_cross_link_type GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("tag_inferior_records")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(add_is_superior_work_for_subsystems GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+(add_is_superior_work_for_subsystems GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc \
     GesamtTiteldaten-post-pipeline-"${date}".mrc >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 phase_iter = get_phase_by_key("check_record_integrity_end")
 phase_iter.command = \
@@ -716,20 +717,18 @@ r"""
 (marc_check --do-not-abort-on-empty-subfields --do-not-abort-on-invalid-repeated-fields \
             GesamtTiteldaten-post-pipeline-"${date}".mrc \
     >> "${log}" 2>&1 && \
-EndPhase || Abort) &
-"""
+EndPhase || Abort) & """
 
 
 phase_iter = get_phase_by_key("cleanup")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-for p in $(seq 0 "$((PHASE-2))"); do
+for p in $(seq 0 "$((PHASE-X))"); do
     rm -f GesamtTiteldaten-post-phase"$p"-??????.mrc
 done
 rm -f child_refs child_titles parent_refs
-EndPhase
-"""
+EndPhase """
 
 Main()
 
