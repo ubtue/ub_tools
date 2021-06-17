@@ -337,7 +337,7 @@ void UpdateTextFiles(const bool debug,
 void SortArticles(std::unordered_map<std::string, std::vector<Article>> * const zeder_ids_plus_ppns_to_articles_map) {
     for (auto &[_, articles] : *zeder_ids_plus_ppns_to_articles_map)
         std::sort(articles.begin(), articles.end(),
-                  [](const Article &a1, const Article &a2) -> bool { return a2.isNewerThan(a1); });
+                  [](const Article &a1, const Article &a2) -> bool { return a1.isNewerThan(a2); });
 }
 
 
