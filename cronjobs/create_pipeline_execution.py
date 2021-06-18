@@ -15,6 +15,7 @@ import itertools as it
 #   x = has predecessor in title data AND norm data
 #       no fifo for input possible (because reading from mult. files)
 #       also used for first phase (integrity check)
+#       use x also if result is not readable in queue, e.g. txt out file
 #   x_t = same as x but output fifo for t possible 
 #   x_n = same as x but output fifo for n possible 
 #
@@ -24,10 +25,10 @@ import itertools as it
 #   leading and trailing "_" has to run independently
 #
 # restriction:
-#   only one valid order is processed.
-#   there is no comparision between different valid orders
-#   so if you want to put a phase to the front you have to add dependencies
-#
+#   to determine the best of all possible orders can be time consuming
+#   use flatten-param to give only one possible order if necessary
+#   temp. article_cross_link phase and zeder phase are commented
+#   because they do not run in the test setup
 
 class Phase:
     key = "" 
@@ -40,8 +41,6 @@ class Phase:
         self.mode = _mode
         self.title_norm = _title_norm
         self.name = _name
-
-
 
 phase_counter = 0
 fifo_counter = 0
@@ -171,7 +170,6 @@ def process_chunk(lst, do_print = False):
                 if print_commands == False:
                     print("processing ", elem.key, " -> ", elem.title_norm, " phase counter: ", phase_counter, "[", elem.mode, "]")
                 else:
-                    #print("DDDD: Phasecounter: ",phase_counter, " last_title_counter: ", last_title_phase, " last_norm_counter: ", last_norm_phase)
                     newline_pos = elem.command.find("\n")
                     print("")
                     elem.command = elem.command.replace("""GesamtTiteldaten-post-phase"$((PHASE-X))""","""GesamtTiteldaten-post-phase"$((PHASE-""" + \
@@ -258,7 +256,6 @@ def Main():
     parser.add_argument("--print-commands", default=0, type=int, help="if set to 1, all commands will be printed instead of short analysis")
     args = parser.parse_args()
 
-    is_debug = False
     max_group_size = args.max_group_size
     use_flatten = args.use_flatten
 
@@ -277,20 +274,16 @@ def Main():
                 print(subelem, " used in dependency: ", elem, " -> ",  graph[elem], " but not defined in phases")
                 exit()
 
-    # Determine dependencies
-    if is_debug:
-        print("\nDependencies: ", graph)
-        
     global fifo_counter
     best_fifo = 0
     best_order = []
 
-
     order_topo = list(toposort(graph))
 
-    #c = [{1,2,3},{4,5}]  a = {1,2,3}   b = {4,5}
-    #print(list(it.product(it.permutations(a), it.permutations(b))))
-    #print(list(it.product(*(it.permutations(k) for k in c))))
+    # simpler example to show how to determine all combinations
+    # c = [{1,2,3},{4,5}]  a = {1,2,3}   b = {4,5}
+    # print(list(it.product(it.permutations(a), it.permutations(b))))
+    # print(list(it.product(*(it.permutations(k) for k in c))))
     if use_flatten == False:
         all_combinations = list(it.product(*(it.permutations(k) for k in order_topo)))
         if print_commands == False:
