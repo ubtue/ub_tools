@@ -69,6 +69,6 @@ int Main(int argc, char *argv[]) {
 
     }
     for (const auto &[token, frequency] : local_keyword_frequencies)
-        std::cerr << token << " --- " << frequency << '\n';
+        std::cout << token << ";" << frequency << '\n';
     return EXIT_SUCCESS;
 }
