@@ -88,7 +88,7 @@ public:
                  const std::string &issue_title, const std::string &volume, const std::string &year, const std::string &issue,
                  const std::string &start_page, const std::vector<std::string> &authors)
         : control_number_(control_number), series_control_number_(series_control_number), series_title_(series_title),
-          issue_title_(issue_title), volume_(volume), year_(year), issue_(issue), start_page_(start_page), authors_(authors) { }
+          issue_title_(issue_title), volume_(volume), year_(year), issue_(issue), start_page_(start_page), authors_(authors) {}
     bool operator<(const NewIssueInfo &rhs) const;
     bool operator==(const NewIssueInfo &rhs) const;
     friend std::ostream &operator<<(std::ostream &output, const NewIssueInfo &new_issue_info);
@@ -153,6 +153,88 @@ bool NewIssueInfo::operator==(const NewIssueInfo &rhs) const {
            start_page_ == rhs.start_page_ and
            authors_ == rhs.authors_;
 }
+
+
+inline std::string CapitalizedUserType(const std::string &user_type) {
+    return user_type == "ixtheo" ? "IxTheo" : "RelBib";
+}
+
+
+class GenerateEmailContents {
+public:
+    ~GenerateEmailContents() {};
+    virtual std::string generateContent(const std::string &user_type, const std::string &name_of_user, const std::string &vufind_host,
+                           const std::vector<NewIssueInfo> &new_issue_infos) const = 0;
+};
+
+
+class GenerateDefaultEmailContents : public GenerateEmailContents {
+public:
+     virtual std::string generateContent(const std::string &user_type, const std::string &name_of_user, const std::string &vufind_host,
+                                       const std::vector<NewIssueInfo> &new_issue_infos) const
+     {
+         std::string email_contents("Dear " + name_of_user + ",<br /><br />\n"
+                                    "An automated process has determined that new issues are available for\n"
+                                    "serials that you are subscribed to.  The list is:\n"
+                                    "<ul>\n"); // start journal list
+
+         std::string last_series_title, last_volume_year_and_issue;
+         for (const auto &new_issue_info : new_issue_infos) {
+             const bool new_serial(new_issue_info.series_title_ != last_series_title);
+             if (new_serial) {
+                 if (not last_series_title.empty()) { // Not first iteration!
+                     email_contents += "    </ul>\n"; // end items
+                     email_contents += "  </ul>\n"; // end volume/year/issue list
+                 }
+                 last_series_title = new_issue_info.series_title_;
+                 email_contents += "  <li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
+                 email_contents += "  <ul>\n"; // start volume/year/issue list
+                 last_volume_year_and_issue.clear();
+             }
+
+             // Generate "volume_year_and_issue":
+             std::string volume_year_and_issue;
+             if (not new_issue_info.volume_.empty())
+                 volume_year_and_issue += new_issue_info.volume_;
+             if (not new_issue_info.year_.empty()) {
+                 if (not volume_year_and_issue.empty())
+                     volume_year_and_issue += " ";
+                 volume_year_and_issue += "(" + new_issue_info.year_ + ")";
+             }
+             if (not new_issue_info.issue_.empty()) {
+                 if (not volume_year_and_issue.empty())
+                     volume_year_and_issue += ", ";
+                 volume_year_and_issue += new_issue_info.issue_;
+             }
+
+             if (volume_year_and_issue != last_volume_year_and_issue) {
+                 if (not new_serial)
+                     email_contents += "    </ul>\n"; // end items
+                 email_contents += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
+                 last_volume_year_and_issue = volume_year_and_issue;
+                 email_contents += "    <ul>\n"; // start items
+             }
+
+             const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
+             std::string authors;
+             for (const auto &author : new_issue_info.authors_)
+                 authors += "&nbsp;&nbsp;&nbsp;" + HtmlUtil::HtmlEscape(author);
+             email_contents += "      <li><a href=" + URL + ">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors
+                               + "</li>\n";
+         }
+         email_contents += "    </ul>\n"; // end items
+         email_contents += "  </ul>\n"; // end volume/year/issue list
+         email_contents += "</ul>\n"; // end journal list
+         email_contents += "<br />\n"
+                           "Sincerely,<br />\n"
+                           "The " + CapitalizedUserType(user_type) + " Team\n"
+                           "<br />--<br />\n"
+                           "If you have questions regarding this service please contact\n"
+                           "<a href=\"mailto:" + user_type + "@ub.uni-tuebingen.de\">" + user_type + "@ub.uni-tuebingen.de</a>.\n";
+
+         return email_contents;
+     }
+};
 
 
 } //unnamed namespace
@@ -354,82 +436,13 @@ bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
 }
 
 
-inline std::string CapitalizedUserType(const std::string &user_type) {
-    return user_type == "ixtheo" ? "IxTheo" : "RelBib";
-}
 
 
-std::string GenerateEmailContents(const std::string &user_type, const std::string &name_of_user, const std::string &vufind_host,
-                                  const std::vector<NewIssueInfo> &new_issue_infos)
-{
-    std::string email_contents("Dear " + name_of_user + ",<br /><br />\n"
-                               "An automated process has determined that new issues are available for\n"
-                               "serials that you are subscribed to.  The list is:\n"
-                               "<ul>\n"); // start journal list
-
-    std::string last_series_title, last_volume_year_and_issue;
-    for (const auto &new_issue_info : new_issue_infos) {
-        const bool new_serial(new_issue_info.series_title_ != last_series_title);
-        if (new_serial) {
-            if (not last_series_title.empty()) { // Not first iteration!
-                email_contents += "    </ul>\n"; // end items
-                email_contents += "  </ul>\n"; // end volume/year/issue list
-            }
-            last_series_title = new_issue_info.series_title_;
-            email_contents += "  <li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
-            email_contents += "  <ul>\n"; // start volume/year/issue list
-            last_volume_year_and_issue.clear();
-        }
-
-        // Generate "volume_year_and_issue":
-        std::string volume_year_and_issue;
-        if (not new_issue_info.volume_.empty())
-            volume_year_and_issue += new_issue_info.volume_;
-        if (not new_issue_info.year_.empty()) {
-            if (not volume_year_and_issue.empty())
-                volume_year_and_issue += " ";
-            volume_year_and_issue += "(" + new_issue_info.year_ + ")";
-        }
-        if (not new_issue_info.issue_.empty()) {
-            if (not volume_year_and_issue.empty())
-                volume_year_and_issue += ", ";
-            volume_year_and_issue += new_issue_info.issue_;
-        }
-
-        if (volume_year_and_issue != last_volume_year_and_issue) {
-            if (not new_serial)
-                email_contents += "    </ul>\n"; // end items
-            email_contents += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
-            last_volume_year_and_issue = volume_year_and_issue;
-            email_contents += "    <ul>\n"; // start items
-        }
-
-        const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
-        std::string authors;
-        for (const auto &author : new_issue_info.authors_)
-            authors += "&nbsp;&nbsp;&nbsp;" + HtmlUtil::HtmlEscape(author);
-        email_contents += "      <li><a href=" + URL + ">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors
-                          + "</li>\n";
-    }
-    email_contents += "    </ul>\n"; // end items
-    email_contents += "  </ul>\n"; // end volume/year/issue list
-    email_contents += "</ul>\n"; // end journal list
-    email_contents += "<br />\n"
-                      "Sincerely,<br />\n"
-                      "The " + CapitalizedUserType(user_type) + " Team\n"
-                      "<br />--<br />\n"
-                      "If you have questions regarding this service please contact\n"
-                      "<a href=\"mailto:" + user_type + "@ub.uni-tuebingen.de\">" + user_type + "@ub.uni-tuebingen.de</a>.\n";
-
-    return email_contents;
-}
-
-
-void SendNotificationEmail(const bool debug, const std::string &name_of_user, const std::string &recipient_email,
+void SendNotificationEmail(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user, const std::string &recipient_email,
                            const std::string &vufind_host, const std::string &sender_email, const std::string &email_subject,
                            const std::vector<NewIssueInfo> &new_issue_infos, const std::string &user_type)
 {
-    const std::string email_contents(GenerateEmailContents(user_type, name_of_user, vufind_host, new_issue_infos));
+    const std::string email_contents(mail_contents_generator.generateContent(user_type, name_of_user, vufind_host, new_issue_infos));
     if (debug)
         LOG_DEBUG("Debug mode, email address is " + sender_email + ", template expanded to: \"" + email_contents + "\"");
     else {
@@ -587,7 +600,7 @@ void ProcessSingleUser(
     LOG_INFO("Found " + std::to_string(new_issue_infos.size()) + " new issues for " + "\"" + username + "\".");
 
     if (not new_issue_infos.empty())
-        SendNotificationEmail(debug, name_of_user, email, hostname, sender_email, email_subject, new_issue_infos, user_type);
+        SendNotificationEmail(debug, GenerateDefaultEmailContents(), name_of_user, email, hostname, sender_email, email_subject, new_issue_infos, user_type);
 
     // Update the database with the new last issue dates
     // skip in DEBUG mode
