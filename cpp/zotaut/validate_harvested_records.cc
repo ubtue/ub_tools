@@ -163,7 +163,7 @@ public:
                                 std::string * const reason_for_being_invalid) const = 0;
 
     virtual void findMissingTags(const unsigned journal_id, const std::set<std::string> &present_tags,
-                                 std::set<std::string> * const missing_tags) const = 0;
+                                 std::set<std::string> * const missing_tags, std::set<std::string> * const checked_tags) const = 0;
 };
 
 
@@ -175,7 +175,7 @@ public:
     virtual bool foundRuleMatch(const unsigned journal_id, const MARC::Record::Field &field,
                                 std::string * const reason_for_being_invalid) const;
     virtual void findMissingTags(const unsigned journal_id, const std::set<std::string> &present_tags,
-                                 std::set<std::string> * const missing_tags) const;
+                                 std::set<std::string> * const missing_tags, std::set<std::string> * const checked_tags) const;
 };
 
 
@@ -208,11 +208,16 @@ bool GeneralFieldValidator::foundRuleMatch(const unsigned /*journal_id*/, const 
 
 
 void GeneralFieldValidator::findMissingTags(const unsigned /*journal_id*/, const std::set<std::string> &present_tags,
-                                            std::set<std::string> * const missing_tags) const
+                                            std::set<std::string> * const missing_tags, std::set<std::string> * const checked_tags) const
 {
     for (const auto &[required_tag, rule] : tags_to_rules_map_) {
+        if (checked_tags->find(required_tag) != checked_tags->end())
+            continue;
+
         if (rule.isMandatoryField() and present_tags.find(required_tag) == present_tags.cend())
             missing_tags->emplace(required_tag);
+
+        checked_tags->emplace(required_tag);
     }
 }
 
@@ -225,7 +230,7 @@ public:
     virtual bool foundRuleMatch(const unsigned journal_id, const MARC::Record::Field &field,
                                 std::string * const reason_for_being_invalid) const;
     virtual void findMissingTags(const unsigned journal_id, const std::set<std::string> &present_tags,
-                                 std::set<std::string> * const missing_tags) const;
+                                 std::set<std::string> * const missing_tags, std::set<std::string> * const checked_tags) const;
 };
 
 
@@ -254,12 +259,13 @@ bool JournalSpecificFieldValidator::foundRuleMatch(const unsigned journal_id, co
 
 void JournalSpecificFieldValidator::findMissingTags(const unsigned journal_id,
                                                     const std::set<std::string> &present_tags,
-                                                    std::set<std::string> * const missing_tags) const
+                                                    std::set<std::string> * const missing_tags,
+                                                    std::set<std::string> * const checked_tags) const
 {
     const auto journal_id_and_field_validators(journal_ids_to_field_validators_map_.find(journal_id));
     if (journal_id_and_field_validators == journal_ids_to_field_validators_map_.cend())
         return;
-    journal_id_and_field_validators->second.findMissingTags(journal_id, present_tags, missing_tags);
+    journal_id_and_field_validators->second.findMissingTags(journal_id, present_tags, missing_tags, checked_tags);
 }
 
 
@@ -414,9 +420,9 @@ bool RecordIsValid(DbConnection * const db_connection, const MARC::Record &recor
     }
 
     // 2. Check for missing required fields:
-    std::set<std::string> missing_tags;
+    std::set<std::string> missing_tags, checked_tags;
     for (const auto field_validator : field_validators)
-        field_validator->findMissingTags(journal_id, present_tags, &missing_tags);
+        field_validator->findMissingTags(journal_id, present_tags, &missing_tags, &checked_tags);
     for (const auto &missing_tag : missing_tags)
         reasons_for_being_invalid->emplace_back("required " + missing_tag + "-field is missing");
 
