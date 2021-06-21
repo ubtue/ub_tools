@@ -237,6 +237,39 @@ public:
 };
 
 
+class SendNotificationEmail {
+public:
+    ~SendNotificationEmail() {};
+    virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user, const std::string &recipient_email,
+                             const std::string &vufind_host, const std::string &sender_email, const std::string &email_subject,
+                             const std::vector<NewIssueInfo> &new_issue_infos, const std::string &user_type) const = 0;
+};
+
+class SendDefaultNotificationEmail : public SendNotificationEmail {
+public:
+    virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user, const std::string &recipient_email,
+                               const std::string &vufind_host, const std::string &sender_email, const std::string &email_subject,
+                               const std::vector<NewIssueInfo> &new_issue_infos, const std::string &user_type) const
+    {
+        const std::string email_contents(mail_contents_generator.generateContent(user_type, name_of_user, vufind_host, new_issue_infos));
+        if (debug)
+            LOG_DEBUG("Debug mode, email address is " + sender_email + ", template expanded to: \"" + email_contents + "\"");
+        else {
+            const auto response_code(EmailSender::SimplerSendEmail(sender_email, { recipient_email }, email_subject, email_contents,
+                                                                   EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
+
+            if (response_code >= 300) {
+                if (response_code == 550)
+                    LOG_WARNING("failed to send a notification email to \"" + recipient_email + "\", recipient may not exist!");
+                else
+                    LOG_ERROR("failed to send a notification email to \"" + recipient_email + "\"! (response code was: "
+                              + std::to_string(response_code) + ")");
+            }
+        }
+    }
+};
+
+
 } //unnamed namespace
 
 
@@ -438,26 +471,7 @@ bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
 
 
 
-void SendNotificationEmail(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user, const std::string &recipient_email,
-                           const std::string &vufind_host, const std::string &sender_email, const std::string &email_subject,
-                           const std::vector<NewIssueInfo> &new_issue_infos, const std::string &user_type)
-{
-    const std::string email_contents(mail_contents_generator.generateContent(user_type, name_of_user, vufind_host, new_issue_infos));
-    if (debug)
-        LOG_DEBUG("Debug mode, email address is " + sender_email + ", template expanded to: \"" + email_contents + "\"");
-    else {
-        const auto response_code(EmailSender::SimplerSendEmail(sender_email, { recipient_email }, email_subject, email_contents,
-                                                               EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
 
-        if (response_code >= 300) {
-            if (response_code == 550)
-                LOG_WARNING("failed to send a notification email to \"" + recipient_email + "\", recipient may not exist!");
-            else
-                LOG_ERROR("failed to send a notification email to \"" + recipient_email + "\"! (response code was: "
-                          + std::to_string(response_code) + ")");
-        }
-    }
-}
 
 
 void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &bundle_name,
@@ -600,7 +614,7 @@ void ProcessSingleUser(
     LOG_INFO("Found " + std::to_string(new_issue_infos.size()) + " new issues for " + "\"" + username + "\".");
 
     if (not new_issue_infos.empty())
-        SendNotificationEmail(debug, GenerateDefaultEmailContents(), name_of_user, email, hostname, sender_email, email_subject, new_issue_infos, user_type);
+        SendDefaultNotificationEmail().send(debug, GenerateDefaultEmailContents(), name_of_user, email, hostname, sender_email, email_subject, new_issue_infos, user_type);
 
     // Update the database with the new last issue dates
     // skip in DEBUG mode
