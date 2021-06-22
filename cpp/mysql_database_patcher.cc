@@ -162,7 +162,7 @@ int Main(int argc, char *argv[]) {
         unsigned version;
         SplitIntoDatabaseAndVersion(update_filename, &database, &version);
         if (last_schema.empty() or database != last_schema)
-            db_connection.queryOrDie("use " + database);
+            db_connection.queryOrDie("USE " + database);
         ApplyUpdate(&db_connection, update_directory_path, update_filename);
         last_schema = database;
     }
