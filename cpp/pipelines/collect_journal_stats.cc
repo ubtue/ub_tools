@@ -131,6 +131,18 @@ public:
 };
 
 
+std::string GetLeadingDigits(const std::string &s) {
+    std::string leading_digits;
+    for (const char ch : s) {
+        if (StringUtil::IsDigit(ch))
+            leading_digits += ch;
+        else
+            return leading_digits;
+    }
+    return leading_digits;
+}
+
+
 inline bool Article::isNewerThan(const Article &other) const {
     if (jahr_ < other.jahr_)
         return false;
@@ -144,6 +156,12 @@ inline bool Article::isNewerThan(const Article &other) const {
         return false;
     if (heft_ > other.heft_)
         return true;
+
+    const auto leading_digits(GetLeadingDigits(seitenbereich_));
+    const auto other_leading_digits(GetLeadingDigits(other.seitenbereich_));
+    if (not leading_digits.empty() and not other_leading_digits.empty())
+        return StringUtil::ToUnsignedOrDie(leading_digits) > StringUtil::ToUnsignedOrDie(other_leading_digits);
+
     return seitenbereich_ > other.seitenbereich_; // Somewhat nonsensical, but useful nonetheless.
 }
 
