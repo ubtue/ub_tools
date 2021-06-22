@@ -930,6 +930,7 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     case IXTHEO:
         FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/ixtheo_site.conf");
         FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/relbib_site.conf");
+        FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/http.conf");
         break;
     case KRIMDOK:
         FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/krimdok_site.conf");
