@@ -31,6 +31,7 @@
 #include "UBTools.h"
 #include "util.h"
 #include "Zeder.h"
+#include "JSON.h"
 
 
 namespace {
@@ -319,6 +320,49 @@ void UpdateDatabase(const std::string &system_type,
 }
 
 
+void GenerateJson(const std::string &system_type,
+                    const std::unordered_map<std::string, ZederIdAndPPNType> &ppns_to_zeder_ids_and_types_map,
+                    const std::unordered_map<std::string, std::vector<Article>> &zeder_ids_plus_ppns_to_articles_map)
+{
+    const auto HOSTNAME(DnsUtil::GetHostname());
+    auto json_file(FileUtil::OpenOutputFileOrDie("/tmp/collect_journal_stats.json"));
+    const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
+    unsigned long outer_size = zeder_ids_plus_ppns_to_articles_map.size();
+    unsigned long outer_position = 0;
+    *json_file << "[" << "\n";
+    for (const auto &[zeder_id_plus_ppn, articles] : zeder_ids_plus_ppns_to_articles_map) {
+        ++outer_position;
+        const auto ppn(GetPNN(zeder_id_plus_ppn));
+        const auto ppn_and_zeder_id_and_ppn_type(ppns_to_zeder_ids_and_types_map.find(ppn));
+        if (unlikely(ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend()))
+            LOG_ERROR("no Zeder ID found for PPN \"" + ppn + "\"!");
+        const auto zeder_id(std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_));
+        unsigned long inner_position = 0;
+        for (auto &article : articles) {
+            ++inner_position;
+            const std::unordered_map<std::string, std::string> columns{
+                 {"timestamp", JOB_START_TIME},
+                 {"Quellrechner", HOSTNAME},
+                 {"Systemtyp", system_type},
+                 {"Zeder_ID", zeder_id},
+                 {"PPN_Typ", std::string(1, ppn_and_zeder_id_and_ppn_type->second.type_)},
+                 {"PPN", ppn},
+                 {"Jahr", article.jahr_},
+                 {"Band", article.band_},
+                 {"Heft", article.heft_},
+                 {"Seitenbereich", article.seitenbereich_}
+            };
+            JSON::ObjectNode object_node(columns);
+            *json_file << object_node.toString();
+            std::string separator = inner_position >= articles.size() and outer_position >= outer_size ? "" : ",";
+            *json_file << separator << "\n";
+        }
+    }
+    *json_file << "]" << "\n";
+    LOG_INFO("Inserted " + std::to_string(outer_size) + " entries into JSON file for Ingo's database.");
+}
+
+
 const std::string TEXT_FILE_DIRECTORY(UBTools::GetFIDProjectsPath() + "Zeder_Supervision");
 
 
@@ -394,6 +438,7 @@ int Main(int argc, char *argv[]) {
         SortArticles(&zeder_ids_plus_ppns_to_articles_map);
         if (not debug)
             UpdateDatabase(system_type, ppns_to_zeder_ids_and_types_map, zeder_ids_plus_ppns_to_articles_map);
+        GenerateJson(system_type, ppns_to_zeder_ids_and_types_map, zeder_ids_plus_ppns_to_articles_map);
         UpdateTextFiles(debug, zeder_ids_plus_ppns_to_articles_map);
     }
 
