@@ -51,13 +51,13 @@ namespace Download {
 static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 5;
 static constexpr unsigned MAX_CRAWLING_TASKLETS        = 5;
 static constexpr unsigned MAX_RSS_TASKLETS             = 5;
+static constexpr unsigned MAX_APIQUERY_TASKLETS        = 1;
 // Set to 20 empirically. Larger numbers increase the incidence of the
 // translation server bug that returns an empty/broken response.
 static constexpr unsigned MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS = 15;
 
 
 class DownloadManager;
-
 
 // Given a HarvestableItem, i.e, a URL, either download the resource at the location directly or
 // use the Zotero Translation Server to extract metadata from said resource. Successful downloads
@@ -99,6 +99,7 @@ struct Result {
     unsigned response_code_;
     std::string error_message_;
     unsigned flags_;
+    unsigned items_skipped_since_already_delivered_; // Trace multiple results from ZTS
 public:
     explicit Result(const Util::HarvestableItem &source, const Operation operation)
         : source_(source), operation_(operation), response_code_(0), flags_(0) {}
@@ -273,6 +274,43 @@ public:
 } // end namespace RSS
 
 
+namespace ApiQuery {
+
+struct Params {
+    Util::HarvestableItem download_item_;
+    Url translation_server_url_;
+    std::string user_agent_;
+    bool ignore_robots_dot_txt_;
+    unsigned time_limit_;
+    DirectDownload::Operation operation_;
+public:
+    explicit Params(const Util::HarvestableItem &download_item, const std::string &translation_server_url,
+                    const std::string user_agent, const bool ignore_robots_dot_txt, const unsigned time_limit,
+                    const DirectDownload::Operation operation)
+        : download_item_(download_item), translation_server_url_(translation_server_url), user_agent_(user_agent),
+          ignore_robots_dot_txt_(ignore_robots_dot_txt), time_limit_(time_limit), operation_(operation) {}
+    operator DirectDownload::Params() const { return DirectDownload::Params(download_item_, translation_server_url_, user_agent_,
+                                                                           ignore_robots_dot_txt_, time_limit_, operation_); }
+};
+
+
+class Tasklet : public Util::Tasklet<DirectDownload::Params, DirectDownload::Result> {
+    DownloadManager * const download_manager_;
+    const Util::UploadTracker &upload_tracker_;
+    bool force_downloads_;
+    void run(const DirectDownload::Params &parameters, DirectDownload::Result * const result);
+public:
+    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
+            DownloadManager * const download_manager, const Util::UploadTracker &upload_tracker,
+            const std::unique_ptr<DirectDownload::Params> parameters, const bool force_downloads);
+    virtual ~Tasklet() override = default;
+};
+
+
+} // end namespace ApiQuery
+
+
+
 // Orchestrates all downloads and manages the relevant state. Consumers of this class can
 // queue downloads as if they were synchronous operations and await their results at a later
 // point in time. RSS and Crawl operations are decomposed into individual DirectDownload operations
@@ -328,6 +366,8 @@ private:
         std::deque<std::shared_ptr<Crawling::Tasklet>> queued_crawls_;
         std::deque<std::shared_ptr<RSS::Tasklet>> active_rss_feeds_;
         std::deque<std::shared_ptr<RSS::Tasklet>> queued_rss_feeds_;
+        std::deque<std::shared_ptr<ApiQuery::Tasklet>> active_apiqueries_;
+        std::deque<std::shared_ptr<ApiQuery::Tasklet>> queued_apiqueries_;
     public:
         DomainData(const DelayParams &delay_params) : delay_params_(delay_params) {};
     };
@@ -341,6 +381,8 @@ private:
         ThreadUtil::ThreadSafeCounter<unsigned> direct_downloads_direct_query_queue_counter_;
         ThreadUtil::ThreadSafeCounter<unsigned> crawls_queue_counter_;
         ThreadUtil::ThreadSafeCounter<unsigned> rss_feeds_queue_counter_;
+        ThreadUtil::ThreadSafeCounter<unsigned> apiquery_tasklet_execution_counter_;
+        ThreadUtil::ThreadSafeCounter<unsigned> apiquery_queue_counter_;
     };
 
 
@@ -360,11 +402,13 @@ private:
     std::deque<std::shared_ptr<DirectDownload::Tasklet>> direct_download_queue_buffer_;
     std::deque<std::shared_ptr<Crawling::Tasklet>> crawling_queue_buffer_;
     std::deque<std::shared_ptr<RSS::Tasklet>> rss_queue_buffer_;
+    std::deque<std::shared_ptr<ApiQuery::Tasklet>> apiquery_queue_buffer_;
     mutable std::recursive_mutex cached_download_data_mutex_;
     mutable std::recursive_mutex ongoing_direct_downloads_mutex_;
     mutable std::recursive_mutex direct_download_queue_buffer_mutex_;
     mutable std::recursive_mutex crawling_queue_buffer_mutex_;
     mutable std::recursive_mutex rss_queue_buffer_mutex_;
+    mutable std::recursive_mutex apiquery_queue_buffer_mutex_;
     Util::UploadTracker upload_tracker_;
     TaskletCounters tasklet_counters_;
 
@@ -392,6 +436,7 @@ public:
     std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> rss(const Util::HarvestableItem &source,
                                                                 const std::string &user_agent,
                                                                 const std::string &feed_contents = "");
+    std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>> apiQuery(const Util::HarvestableItem &source);
     void addToDownloadCache(const Util::HarvestableItem &source, const std::string &url, const std::string &response_body,
                             const DirectDownload::Operation operation);
     std::unique_ptr<DirectDownload::Result> fetchFromDownloadCache(const Util::HarvestableItem &source,

@@ -184,15 +184,13 @@ Zeder::Flavour GetZederInstanceForGroup(const Config::GroupParams &group_params)
 
 
 Zeder::Flavour GetZederInstanceFromMarcRecord(const MARC::Record &record) {
-    for (const auto &field : record.getTagRange("935")) {
-        const auto sigil(field.getFirstSubfieldWithCode('a'));
-        if (sigil == "mteo")
-            return Zeder::Flavour::IXTHEO;
-        else if (sigil == "mkri")
-            return Zeder::Flavour::KRIMDOK;
-    }
+    const auto zid_b(record.getFirstSubfieldValue("ZID", 'b'));
+    if (zid_b == "ixtheo")
+        return Zeder::Flavour::IXTHEO;
+    else if (zid_b == "krimdok")
+        return Zeder::Flavour::KRIMDOK;
 
-    throw std::runtime_error("missing sigil field in Zotero record '" + record.getControlNumber() + "'");
+    throw std::runtime_error("missing ZID system field in Zotero record '" + record.getControlNumber() + "'");
 }
 
 
