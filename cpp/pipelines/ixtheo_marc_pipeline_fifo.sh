@@ -1,6 +1,7 @@
 #!/bin/bash
 # Runs through the phases of the IxTheo MARC processing pipeline.
 source pipeline_functions.sh
+declare -r -i FIFO_BUFFER_SIZE=1000000 # in bytes
 
 
 if [ $# != 1 ]; then
@@ -62,7 +63,7 @@ if [[ $(date +%d) == "01" ]]; then # Only do this on the 1st of every month.
         echo "Sending email for dangling references..." | tee --append "${log}"
         send_email --priority=high \
                    --recipients=ixtheo-team@ub.uni-tuebingen.de \
-                   --subject="Referenzen auf fehlende Datensätze gefunden" \
+                   --subject="Referenzen auf fehlende Datensätze gefunden ($(hostname))" \
                    --message-body="Liste im Anhang." \
                    --attachment="dangling_references.log"
     fi
@@ -173,7 +174,7 @@ wait
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                   GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
@@ -224,7 +225,7 @@ wait
 
 
 StartPhase "Extracting Keywords from Titles"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (enrich_keywords_with_title_words GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  /usr/local/var/lib/tuelib/stopwords.???  >> "${log}" 2>&1 && \
@@ -239,7 +240,7 @@ wait
 
 
 StartPhase "Augment Bible References"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (augment_bible_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                          Normdaten-"${date}".mrc \
                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
@@ -248,7 +249,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Augment Canon Law References"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (augment_canones_references GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                             Normdaten-"${date}".mrc \
                             GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
@@ -256,7 +257,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Augment Time Aspect References"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (augment_time_aspects GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                       Normdaten-"${date}".mrc \
                       GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
@@ -264,7 +265,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Update IxTheo Notations"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (update_ixtheo_notations \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
@@ -273,7 +274,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Replace 689\$A with 689\$q"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (subfield_code_replacer GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                         "689A=q" >> "${log}" 2>&1 && \
@@ -281,7 +282,7 @@ EndPhase || Abort) &
 
 
 StartPhase "Map DDC to IxTheo Notations"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (map_ddc_to_ixtheo_notations \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
@@ -299,21 +300,21 @@ wait
 
 
 StartPhase "Fill in missing 773\$a Subfields"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (augment_773a --verbose GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
 StartPhase "Tag further potential relbib entries"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (add_additional_relbib_entries GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
 StartPhase "Integrate Reasonable Sort Year for Serials"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (add_publication_year_to_serials \
     Schriftenreihen-Sortierung-"${date}".txt \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
@@ -329,7 +330,7 @@ wait
 
 
 StartPhase "Tag Records that are Available in Tübingen with an ITA Field"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (flag_records_as_available_in_tuebingen \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
@@ -351,7 +352,7 @@ wait
 
 
 StartPhase "Appending Literary Remains Records"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  Normdaten-partially-augmented2-"${date}".mrc \

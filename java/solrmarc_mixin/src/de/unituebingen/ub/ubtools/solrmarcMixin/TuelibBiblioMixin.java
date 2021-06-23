@@ -1844,7 +1844,7 @@ public class TuelibBiblioMixin extends TuelibMixin {
                     if (Character.isDigit(subfield.getCode()))
                         continue;
                     final String term = subfield.getData().trim();
-                    if (term.length() > 1) //Skip on character terms to address uppercase subfield problems in standardized keywords
+                    if (term.length() > 1 || term.matches("\\d")) //Skip on character terms to address uppercase subfield problems in standardized keywords
                         topicParts.add(new Topic(term));
                 }
             }
@@ -1858,7 +1858,7 @@ public class TuelibBiblioMixin extends TuelibMixin {
 
                     Topic topic = new Topic();
                     String term = subfield.getData().trim();
-                    if (term.length() < 2)
+                    if ((term.length() < 2) && !term.matches("\\d"))
                         continue; //Skip on character terms to address uppercase subfield problems in standardized keywords
 
                     if (topicParts.size() > 0) {
@@ -2957,7 +2957,7 @@ public class TuelibBiblioMixin extends TuelibMixin {
     public String getSuperiorPPN(final Record record) {
         // The order of the subfields matters, since 8XX can contain information about the series in which
         // an article in a volume is published but we do not want this as an immediate superior work
-        Vector<String> superiorDescriptors = new Vector<String>(Arrays.asList("800w:810w:830w:773w".split(":")));
+        Vector<String> superiorDescriptors = new Vector<String>(Arrays.asList("773w:800w:810w:830w".split(":")));
         for (String superiorDescriptor : superiorDescriptors) {
             final List<VariableField> superiorFields = record.getVariableFields(superiorDescriptor.substring(0, 3));
             for (final VariableField superiorField : superiorFields) {

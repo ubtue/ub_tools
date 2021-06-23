@@ -163,7 +163,7 @@ private:
 };
 
 
-enum HarvesterOperation : unsigned { RSS, CRAWL, DIRECT };
+enum HarvesterOperation : unsigned { RSS, CRAWL, DIRECT, APIQUERY };
 
 
 extern const std::map<int, std::string> HARVESTER_OPERATION_TO_STRING_MAP;

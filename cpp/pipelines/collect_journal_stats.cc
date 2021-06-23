@@ -131,6 +131,18 @@ public:
 };
 
 
+std::string GetLeadingDigits(const std::string &s) {
+    std::string leading_digits;
+    for (const char ch : s) {
+        if (StringUtil::IsDigit(ch))
+            leading_digits += ch;
+        else
+            return leading_digits;
+    }
+    return leading_digits;
+}
+
+
 inline bool Article::isNewerThan(const Article &other) const {
     if (jahr_ < other.jahr_)
         return false;
@@ -144,6 +156,12 @@ inline bool Article::isNewerThan(const Article &other) const {
         return false;
     if (heft_ > other.heft_)
         return true;
+
+    const auto leading_digits(GetLeadingDigits(seitenbereich_));
+    const auto other_leading_digits(GetLeadingDigits(other.seitenbereich_));
+    if (not leading_digits.empty() and not other_leading_digits.empty())
+        return StringUtil::ToUnsignedOrDie(leading_digits) > StringUtil::ToUnsignedOrDie(other_leading_digits);
+
     return seitenbereich_ > other.seitenbereich_; // Somewhat nonsensical, but useful nonetheless.
 }
 
@@ -337,7 +355,7 @@ void UpdateTextFiles(const bool debug,
 void SortArticles(std::unordered_map<std::string, std::vector<Article>> * const zeder_ids_plus_ppns_to_articles_map) {
     for (auto &[_, articles] : *zeder_ids_plus_ppns_to_articles_map)
         std::sort(articles.begin(), articles.end(),
-                  [](const Article &a1, const Article &a2) -> bool { return a2.isNewerThan(a1); });
+                  [](const Article &a1, const Article &a2) -> bool { return a1.isNewerThan(a2); });
 }
 
 

@@ -17,6 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <algorithm>
 #include <cstdlib>
 #include "FileUtil.h"
 #include "MARC.h"
@@ -26,24 +27,41 @@
 namespace {
 
 
-void ProcessRecords(MARC::Reader * const marc_reader, File * const output) {
+void ProcessRecords(const std::vector<std::string> &lokale_abrufzeichen, MARC::Reader * const marc_reader, File * const output) {
     unsigned record_count(0), missing_author_count(0);
-process_next_record:
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
 
-        if (not record.getMainAuthor().empty())
+        if (record.hasTag("100"))
             continue;
 
+        bool found_a_match(false);
         for (const auto &local_field : record.getTagRange("LOK")) {
-            if (local_field.getLocalTag() == "935") {
-                const auto subfield_a(local_field.getFirstSubfieldWithCode('a'));
-                if (subfield_a == "iFSA" or subfield_a == "iSWA" or subfield_a == "iZSA") { // See tuefind issue #1462
-                    (*output) << record.getControlNumber() << '\n';
-                    ++missing_author_count;
-                    goto process_next_record;
+            if (local_field.getFirstSubfieldWithCode('0') != "935  ")
+                continue;
+
+            const auto subfield_a(local_field.getFirstSubfieldWithCode('a'));
+            if (std::find(lokale_abrufzeichen.cbegin(), lokale_abrufzeichen.cend(), subfield_a) != lokale_abrufzeichen.cend()) {
+                found_a_match = true;
+                break;
+            }
+        }
+
+        if (found_a_match) {
+            std::string STAR_ID;
+            for (const auto &local_field : record.getTagRange("LOK")) {
+                if (local_field.getFirstSubfieldWithCode('0') != "035  ")
+                    continue;
+
+                const auto _035_subfield_a(local_field.getFirstSubfieldWithCode('a'));
+                if (StringUtil::StartsWith(_035_subfield_a, "(DE-Tue135-1)")) {
+                    STAR_ID = _035_subfield_a.substr(__builtin_strlen("(DE-Tue135-1)"));
+                    break;
                 }
             }
+
+            (*output) << record.getControlNumber() << ',' << (STAR_ID.empty() ? "\"STAR-ID fehlt!\"" : STAR_ID) << '\n';
+            ++missing_author_count;
         }
     }
 
@@ -56,12 +74,17 @@ process_next_record:
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
-        ::Usage("marc_input ppn_list_output");
+    if (argc < 4)
+        ::Usage("marc_input ppn+STAR-ID_list_output lokales_abrufzeichen1 [lokales_abrufzeichen2 .. lokales_abrufzeichenN]");
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
     const auto output(FileUtil::OpenOutputFileOrDie(argv[2]));
-    ProcessRecords(marc_reader.get(), output.get());
+
+    std::vector<std::string> lokale_abrufzeichen;
+    for (int arg_no(3); arg_no < argc; ++arg_no)
+        lokale_abrufzeichen.emplace_back(argv[arg_no]);
+
+    ProcessRecords(lokale_abrufzeichen, marc_reader.get(), output.get());
 
     return EXIT_SUCCESS;
 }

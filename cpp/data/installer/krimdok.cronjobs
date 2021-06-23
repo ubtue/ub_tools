@@ -23,3 +23,4 @@ LOG_DIR=/usr/local/var/log/tuefind
 0 21 * * 7 systemctl restart vufind
 30 21 * * 7 "$BIN/collect_solr_stats_data.py" "$EMAIL" krimdok > "$LOG_DIR/collect_solr_stats_data.log" 2>&1
 0 20 * * * "$BIN/mail_krimdok_newsletter.sh" > "$LOG_DIR/mail_krimdok_newsletter.log" 2>&1
+{IF DEFINED(production)}0 0 1 * * "$BIN/download_krimdok_core.sh"{ENDIF}

@@ -35,12 +35,14 @@ namespace Config {
 const std::map<int, std::string> HARVESTER_OPERATION_TO_STRING_MAP{
     { HarvesterOperation::RSS,    "RSS"    },
     { HarvesterOperation::CRAWL,  "CRAWL"  },
-    { HarvesterOperation::DIRECT, "DIRECT" }
+    { HarvesterOperation::DIRECT, "DIRECT" },
+    { HarvesterOperation::APIQUERY, "APIQUERY"}
 };
 const std::map<std::string, int> STRING_TO_HARVEST_OPERATION_MAP {
     { "RSS",    HarvesterOperation::RSS    },
     { "DIRECT", HarvesterOperation::DIRECT },
-    { "CRAWL",  HarvesterOperation::CRAWL  }
+    { "CRAWL",  HarvesterOperation::CRAWL  },
+    { "APIQUERY", HarvesterOperation::APIQUERY}
 };
 
 

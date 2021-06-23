@@ -1892,11 +1892,9 @@ BinaryReader::BinaryReader(File * const input)
     struct stat stat_buf;
     if (::fstat(input->getFileDescriptor(), &stat_buf) != 0)
         LOG_ERROR("fstat(2) on \"" + input->getPath() + "\" failed!");
-    if (S_ISFIFO(stat_buf.st_mode)) {
+    if (S_ISFIFO(stat_buf.st_mode))
         mmap_ = nullptr;
-        if (not input->setPipeBufferSize())
-            LOG_ERROR("failed to increase the pipe (FIFO) buffer size!");
-    } else {
+    else {
         offset_ = 0;
         input_file_size_ = stat_buf.st_size;
         if (input_file_size_ == 0) {
@@ -3160,6 +3158,7 @@ std::set<std::string> ExtractCrossLinkPPNs(const MARC::Record &record) {
 
 
 const std::unordered_map<std::string, std::string> UNKNOWN_CODE_TO_MARC_CODE{
+    { "zz",  ""    }, // Unknown or unspecified country
     { "eng", "eng" },
     { "en",  "eng" },
     { "fre", "fre" },
@@ -3168,6 +3167,72 @@ const std::unordered_map<std::string, std::string> UNKNOWN_CODE_TO_MARC_CODE{
     { "pt",  "por" },
     { "ger", "ger" },
     { "de",  "ger" },
+    { "ita", "ita" },
+    { "it",  "ita" },
+    { "dut", "dut" },
+    { "nl",  "dut" },
+    { "fin", "fin" },
+    { "fi",  "fin" },
+    { "spa", "spa" },
+    { "es",  "spa" },
+    { "lit", "lit" },
+    { "lt",  "lit" },
+    { "ind", "ind" },
+    { "id",  "ind" },
+    { "grc", "grc" },
+    { "el",  "grc" },
+    { "hun", "hun" },
+    { "hu",  "hun" },
+    { "hrv", "hrv" },
+    { "hr",  "hrv" },
+    { "yor", "yor" },
+    { "yo",  "yor" },
+    { "tai", "tai" },
+    { "th",  "tai" },
+    { "rus", "rus" },
+    { "ru",  "rus" },
+    { "cat", "cat" },
+    { "ca",  "cat" },
+    { "swe", "swe" },
+    { "sv",  "swe" },
+    { "slv", "slv" },
+    { "sl",  "slv" },
+    { "ukr", "ukr" },
+    { "uk",  "ukr" },
+    { "epo", "epo" },
+    { "eo",  "epo" },
+    { "dan", "dan" },
+    { "da",  "dan" },
+    { "mac", "mac" },
+    { "mk",  "mac" },
+    { "slo", "slo" },
+    { "sk",  "slo" },
+    { "est", "est" },
+    { "et",  "est" },
+    { "wel", "wel" },
+    { "cy",  "wel" },
+    { "pol", "pol" },
+    { "pl",  "pol" },
+    { "nor", "nor" },
+    { "no",  "nor" },
+    { "bos", "bos" },
+    { "bs",  "bos" },
+    { "ara", "ara" },
+    { "ar",  "ara" },
+    { "tur", "tur" },
+    { "tr",  "tur" },
+    { "bul", "bul" },
+    { "bg",  "bul" },
+    { "rum", "rum" },
+    { "ro",  "rum" },
+    { "nob", "nob" },
+    { "nb",  "nob" },
+    { "jpn", "jpn" },
+    { "ja",  "jpn" },
+    { "cze", "cze" },
+    { "cs",  "cze" },
+    { "baq", "baq" },
+    { "eu",  "baq" },
 };
 
 

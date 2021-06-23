@@ -242,11 +242,11 @@ void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_t
         FileUtil::MakeDirectoryOrDie(SSH_KEYS_DIR_LOCAL, false, 0700);
     if (not FileUtil::Exists(GITHUB_ROBOT_PRIVATE_KEY_LOCAL)) {
         FileUtil::CopyOrDie(GITHUB_ROBOT_PRIVATE_KEY_REMOTE, GITHUB_ROBOT_PRIVATE_KEY_LOCAL);
-        FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PRIVATE_KEY_LOCAL, 600);
+        FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PRIVATE_KEY_LOCAL, 0600);
     }
     if (not FileUtil::Exists(GITHUB_ROBOT_PUBLIC_KEY_LOCAL)) {
         FileUtil::CopyOrDie(GITHUB_ROBOT_PUBLIC_KEY_REMOTE, GITHUB_ROBOT_PUBLIC_KEY_LOCAL);
-        FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PUBLIC_KEY_LOCAL, 600);
+        FileUtil::ChangeModeOrDie(GITHUB_ROBOT_PUBLIC_KEY_LOCAL, 0600);
     }
 }
 
@@ -930,6 +930,7 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     case IXTHEO:
         FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/ixtheo_site.conf");
         FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/relbib_site.conf");
+        FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/http.conf");
         break;
     case KRIMDOK:
         FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/krimdok_site.conf");

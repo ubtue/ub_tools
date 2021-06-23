@@ -1,6 +1,7 @@
 #!/bin/bash
 # Runs through the phases of the KrimDok MARC processing pipeline.
 source pipeline_functions.sh
+declare -r -i FIFO_BUFFER_SIZE=1000000 # in bytes
 
 
 if [ $# != 1 ]; then
@@ -113,7 +114,7 @@ EndPhase
 
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                   GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
     >> "${log}" 2>&1 && \
@@ -122,7 +123,7 @@ EndPhase || Abort) &
 
 # Note: It is necessary to run this phase after articles have had their journal's PPN's inserted!
 StartPhase "Populate the Zeder Journal Timeliness Database Table"
-MakeFIFO GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (collect_journal_stats krimdok GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
