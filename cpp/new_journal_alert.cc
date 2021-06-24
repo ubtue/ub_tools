@@ -61,6 +61,19 @@ namespace {
 }
 
 
+typedef enum journal_subscription_format { MEISTERTASK } journal_subscription_format;
+
+
+const std::map<journal_subscription_format, std::string> JOURNAL_SUBSCRIPTION_FORMAT_TO_STRING_MAP {
+    { MEISTERTASK, "meistertask"}
+};
+
+
+const std::map<std::string, journal_subscription_format> JOURNAL_SUBSCRIPTION_FORMAT_ENUM_MAP {
+    { "meistertask", MEISTERTASK }
+};
+
+
 struct SerialControlNumberAndMaxLastModificationTime {
     std::string serial_control_number_;
     std::string last_modification_time_;
@@ -165,6 +178,8 @@ public:
     ~GenerateEmailContents() {};
     virtual std::string generateContent(const std::string &user_type, const std::string &name_of_user, const std::string &vufind_host,
                            const std::vector<NewIssueInfo> &new_issue_infos) const = 0;
+    virtual std::string generateContent(const std::string &vufind_host, const NewIssueInfo &new_issue_infos) const = 0;
+
 };
 
 
@@ -234,6 +249,63 @@ public:
 
          return email_contents;
      }
+
+
+     virtual std::string generateContent(__attribute__((unused)) const std::string &vufind_host,
+                                         __attribute__((unused)) const NewIssueInfo &new_issue_infos) const
+     {
+         LOG_ERROR(std::string(__FUNCTION__) +  " currently not implemented");
+     }
+};
+
+
+class GenerateMeistertaskEmailContents :  public GenerateEmailContents {
+public:
+     virtual std::string generateContent(const std::string &vufind_host, const NewIssueInfo &new_issue_info) const
+     {
+         std::string email_contents("");
+
+         std::string last_series_title, last_volume_year_and_issue;
+         const bool new_serial(new_issue_info.series_title_ != last_series_title);
+         if (new_serial) {
+             if (not last_series_title.empty()) { // Not first iteration!
+                 email_contents += "    </ul>\n"; // end items
+                 email_contents += "  </ul>\n"; // end volume/year/issue list
+             }
+             last_series_title = new_issue_info.series_title_;
+             email_contents += "  <li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
+             email_contents += "  <ul>\n"; // start volume/year/issue list
+             last_volume_year_and_issue.clear();
+         }
+
+         // Generate "volume_year_and_issue":
+         std::string volume_year_and_issue;
+         if (not new_issue_info.volume_.empty())
+             volume_year_and_issue += new_issue_info.volume_;
+         if (not new_issue_info.year_.empty()) {
+             if (not volume_year_and_issue.empty())
+                 volume_year_and_issue += " ";
+             volume_year_and_issue += "(" + new_issue_info.year_ + ")";
+         }
+         if (volume_year_and_issue != last_volume_year_and_issue) {
+             if (not new_serial)
+                 email_contents += "    </ul>\n"; // end items
+             email_contents += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
+             last_volume_year_and_issue = volume_year_and_issue;
+             email_contents += "    <ul>\n"; // start items
+         }
+
+         const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
+         return email_contents;
+     }
+
+     virtual std::string generateContent(__attribute__((unused)) const std::string &user_type,
+                                         __attribute__((unused)) const std::string &name_of_user,
+                                         __attribute__((unused)) const std::string &vufind_host,
+                                         __attribute__((unused)) const std::vector<NewIssueInfo> &new_issue_infos) const
+     {
+         LOG_ERROR(std::string(__FUNCTION__) +  " currently not implemented");
+     }
 };
 
 
@@ -241,8 +313,11 @@ class SendNotificationEmail {
 public:
     ~SendNotificationEmail() {};
     virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user, const std::string &recipient_email,
-                             const std::string &vufind_host, const std::string &sender_email, const std::string &email_subject,
-                             const std::vector<NewIssueInfo> &new_issue_infos, const std::string &user_type) const = 0;
+                      const std::string &vufind_host, const std::string &sender_email, const std::string &email_subject,
+                      const std::vector<NewIssueInfo> &new_issue_infos, const std::string &user_type) const = 0;
+    virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &recipient_email,
+                      const std::string &vufind_host, const std::string &sender_email, const std::vector<NewIssueInfo> &new_issue_infos) const = 0;
+
 };
 
 class SendDefaultNotificationEmail : public SendNotificationEmail {
@@ -266,6 +341,46 @@ public:
                               + std::to_string(response_code) + ")");
             }
         }
+    }
+
+   virtual void send(__attribute__((unused)) const bool debug, __attribute__((unused)) const GenerateEmailContents &mail_contents_generator,
+                     __attribute__((unused)) const std::string &recipient_email, __attribute__((unused)) const std::string &vufind_host,
+                     __attribute__((unused)) const std::string &sender_email, __attribute__((unused)) const std::vector<NewIssueInfo> &new_issue_infos) const
+   {
+         LOG_ERROR(std::string(__FUNCTION__) +  " currently not implemented");
+   }
+};
+
+
+class SendMeistertaskNotificationEmails : public SendNotificationEmail {
+public:
+    virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator,  const std::string &recipient_email,
+                      const std::string &vufind_host, const std::string &sender_email, const std::vector<NewIssueInfo> &new_issue_infos) const
+    {
+        const std::string email_contents(mail_contents_generator.generateContent(vufind_host, new_issue_infos[0]));
+        if (debug)
+            LOG_DEBUG("Debug mode, email address is " + sender_email + ", template expanded to: \"" + email_contents + "\"");
+        else {
+            const auto response_code(EmailSender::SimplerSendEmail(sender_email, { recipient_email }, new_issue_infos[0].series_title_, email_contents,
+                                                                   EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
+
+            if (response_code >= 300) {
+                if (response_code == 550)
+                    LOG_WARNING("failed to send a notification email to \"" + recipient_email + "\", recipient may not exist!");
+                else
+                    LOG_ERROR("failed to send a notification email to \"" + recipient_email + "\"! (response code was: "
+                              + std::to_string(response_code) + ")");
+            }
+        }
+    }
+
+    virtual void  send(__attribute__((unused)) const bool debug, __attribute__((unused)) const GenerateEmailContents &mail_contents_generator,
+         __attribute__((unused)) const std::string &name_of_user, __attribute__((unused)) const std::string &recipient_email,
+         __attribute__((unused)) const std::string &vufind_host, __attribute__((unused)) const std::string &sender_email,
+         __attribute__((unused)) const std::string &email_subject, __attribute__((unused)) const std::vector<NewIssueInfo> &new_issue_infos,
+         __attribute__((unused)) const std::string &user_type) const
+    {
+         LOG_ERROR(std::string(__FUNCTION__) +  " currently not implemented");
     }
 };
 
@@ -470,10 +585,6 @@ bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
 
 
 
-
-
-
-
 void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &bundle_name,
                               std::vector<std::string> * const control_numbers)
 {
@@ -613,8 +724,17 @@ void ProcessSingleUser(
 
     LOG_INFO("Found " + std::to_string(new_issue_infos.size()) + " new issues for " + "\"" + username + "\".");
 
-    if (not new_issue_infos.empty())
-        SendDefaultNotificationEmail().send(debug, GenerateDefaultEmailContents(), name_of_user, email, hostname, sender_email, email_subject, new_issue_infos, user_type);
+    if (not new_issue_infos.empty()) {
+        db_connection->queryOrDie("SELECT journal_subscription_format FROM vufind.user WHERE id=" + user_id);
+        DbResultSet journal_subscription_format_result_set(db_connection->getLastResultSet());
+        const std::string journal_subscription_format(journal_subscription_format_result_set.empty() ? "" :
+                                                      journal_subscription_format_result_set.getNextRow()["journal_subscription_format"]);
+        if (journal_subscription_format == JOURNAL_SUBSCRIPTION_FORMAT_TO_STRING_MAP.at(MEISTERTASK))
+            SendMeistertaskNotificationEmails().send(debug, GenerateMeistertaskEmailContents(), email, hostname, sender_email, new_issue_infos);
+        else
+            SendDefaultNotificationEmail().send(debug, GenerateDefaultEmailContents(), name_of_user, email, hostname,
+                                                sender_email, email_subject, new_issue_infos, user_type);
+    }
 
     // Update the database with the new last issue dates
     // skip in DEBUG mode
