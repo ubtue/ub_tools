@@ -104,6 +104,7 @@ public:
           issue_title_(issue_title), volume_(volume), year_(year), issue_(issue), start_page_(start_page), authors_(authors) {}
     bool operator<(const NewIssueInfo &rhs) const;
     bool operator==(const NewIssueInfo &rhs) const;
+    bool operator%(const NewIssueInfo &rhs) const; // Has same year, volume and issue
     friend std::ostream &operator<<(std::ostream &output, const NewIssueInfo &new_issue_info);
 };
 
@@ -167,10 +168,42 @@ bool NewIssueInfo::operator==(const NewIssueInfo &rhs) const {
            authors_ == rhs.authors_;
 }
 
+// Derive equality only in a certain respect
+bool NewIssueInfo::operator%(const NewIssueInfo &rhs) const {
+   if (year_ < rhs.year_)
+       return true;
+   if (rhs.year_ < year_)
+       return false;
+   if (volume_ < rhs.volume_)
+       return true;
+   if (rhs.volume_ < volume_)
+       return false;
+   if (issue_ < rhs.issue_)
+       return true;
+   if (rhs.issue_ < issue_)
+       return false;
+   return false;
+}
+
 
 inline std::string CapitalizedUserType(const std::string &user_type) {
     return user_type == "ixtheo" ? "IxTheo" : "RelBib";
 }
+
+} // unamed namespace
+
+namespace std {
+    template <>
+    struct hash<NewIssueInfo> {
+        size_t operator()(const NewIssueInfo &i) const {
+            // hash method here
+            return hash<string>()(i.control_number_);
+        }
+    };
+} // namespace std
+
+
+namespace {
 
 
 class GenerateEmailContents {
@@ -263,21 +296,7 @@ class GenerateMeistertaskEmailContents :  public GenerateEmailContents {
 public:
      virtual std::string generateContent(const std::string &vufind_host, const NewIssueInfo &new_issue_info) const
      {
-         std::string email_contents("");
-
-         std::string last_series_title, last_volume_year_and_issue;
-         const bool new_serial(new_issue_info.series_title_ != last_series_title);
-         if (new_serial) {
-             if (not last_series_title.empty()) { // Not first iteration!
-                 email_contents += "    </ul>\n"; // end items
-                 email_contents += "  </ul>\n"; // end volume/year/issue list
-             }
-             last_series_title = new_issue_info.series_title_;
-             email_contents += "  <li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
-             email_contents += "  <ul>\n"; // start volume/year/issue list
-             last_volume_year_and_issue.clear();
-         }
-
+         std::string email_contents(HtmlUtil::HtmlEscape(new_issue_info.series_title_) + " ");
          // Generate "volume_year_and_issue":
          std::string volume_year_and_issue;
          if (not new_issue_info.volume_.empty())
@@ -287,17 +306,19 @@ public:
                  volume_year_and_issue += " ";
              volume_year_and_issue += "(" + new_issue_info.year_ + ")";
          }
-         if (volume_year_and_issue != last_volume_year_and_issue) {
-             if (not new_serial)
-                 email_contents += "    </ul>\n"; // end items
-             email_contents += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
-             last_volume_year_and_issue = volume_year_and_issue;
-             email_contents += "    <ul>\n"; // start items
+         if (not new_issue_info.issue_.empty()) {
+             if (not volume_year_and_issue.empty())
+                 volume_year_and_issue += ", ";
+             volume_year_and_issue += new_issue_info.issue_;
          }
 
-         const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
+         email_contents += HtmlUtil::HtmlEscape(volume_year_and_issue) + "<br/>\n";
+
+         const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.series_control_number_);
+         email_contents += "<a href=" + URL + ">" +  URL + "</a>\n";
          return email_contents;
      }
+
 
      virtual std::string generateContent(__attribute__((unused)) const std::string &user_type,
                                          __attribute__((unused)) const std::string &name_of_user,
@@ -319,6 +340,7 @@ public:
                       const std::string &vufind_host, const std::string &sender_email, const std::vector<NewIssueInfo> &new_issue_infos) const = 0;
 
 };
+
 
 class SendDefaultNotificationEmail : public SendNotificationEmail {
 public:
@@ -357,22 +379,27 @@ public:
     virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator,  const std::string &recipient_email,
                       const std::string &vufind_host, const std::string &sender_email, const std::vector<NewIssueInfo> &new_issue_infos) const
     {
-        const std::string email_contents(mail_contents_generator.generateContent(vufind_host, new_issue_infos[0]));
-        if (debug)
-            LOG_DEBUG("Debug mode, email address is " + sender_email + ", template expanded to: \"" + email_contents + "\"");
-        else {
-            const auto response_code(EmailSender::SimplerSendEmail(sender_email, { recipient_email }, new_issue_infos[0].series_title_, email_contents,
-                                                                   EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
+        std::vector<NewIssueInfo> unique_issues_infos;
+        deduplicateIdenticalIssues(new_issue_infos, &unique_issues_infos);      
+        for (const auto &unique_issue_info : unique_issues_infos) {
+            const std::string email_contents(mail_contents_generator.generateContent(vufind_host, unique_issue_info));
+            if (debug)
+                LOG_DEBUG("Debug mode, email address is " + sender_email + ", template expanded to: \"" + email_contents + "\"");
+            else {
+                const auto response_code(EmailSender::SimplerSendEmail(sender_email, { recipient_email }, unique_issue_info.series_title_, email_contents,
+                                                                       EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
 
-            if (response_code >= 300) {
-                if (response_code == 550)
-                    LOG_WARNING("failed to send a notification email to \"" + recipient_email + "\", recipient may not exist!");
-                else
-                    LOG_ERROR("failed to send a notification email to \"" + recipient_email + "\"! (response code was: "
-                              + std::to_string(response_code) + ")");
+                if (response_code >= 300) {
+                    if (response_code == 550)
+                        LOG_WARNING("failed to send a notification email to \"" + recipient_email + "\", recipient may not exist!");
+                    else
+                        LOG_ERROR("failed to send a notification email to \"" + recipient_email + "\"! (response code was: "
+                                  + std::to_string(response_code) + ")");
+                }
             }
         }
     }
+
 
     virtual void  send(__attribute__((unused)) const bool debug, __attribute__((unused)) const GenerateEmailContents &mail_contents_generator,
          __attribute__((unused)) const std::string &name_of_user, __attribute__((unused)) const std::string &recipient_email,
@@ -382,24 +409,15 @@ public:
     {
          LOG_ERROR(std::string(__FUNCTION__) +  " currently not implemented");
     }
+
+
+    void deduplicateIdenticalIssues(const std::vector<NewIssueInfo> new_issue_infos, std::vector<NewIssueInfo> * const deduplicated_new_issue_infos) const {
+        const auto one_per_issue_comparator = [](const NewIssueInfo &lhs,  const NewIssueInfo &rhs) { return lhs.operator%(rhs); };
+        std::set<NewIssueInfo, decltype(one_per_issue_comparator)> new_issue_infos_one_per_issue(one_per_issue_comparator);
+        new_issue_infos_one_per_issue.insert(new_issue_infos.begin(), new_issue_infos.end());
+        deduplicated_new_issue_infos->assign(new_issue_infos_one_per_issue.begin(), new_issue_infos_one_per_issue.end());
+    }
 };
-
-
-} //unnamed namespace
-
-
-namespace std {
-    template <>
-    struct hash<NewIssueInfo> {
-        size_t operator()(const NewIssueInfo &i) const {
-            // hash method here
-            return hash<string>()(i.control_number_);
-        }
-    };
-} // namespace std
-
-
-namespace {
 
 
 // Makes "date" look like an ISO-8601 date ("2017-01-01 00:00:00" => "2017-01-01T00:00:00Z")
