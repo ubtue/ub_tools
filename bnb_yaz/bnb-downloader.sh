@@ -2,7 +2,7 @@
 
 
 BIN=/usr/local/bin
-EMAIL=johannes.ruscheinski@ub.uni-tuebingen.de
+EMAIL=johannes.ruscheinski@ub.uni-tuebingen.de,andreas.nutz@uni-tuebingen.de
 MARC_FILENAME=bnb-$(date +%y%m%d).mrc
 
 
