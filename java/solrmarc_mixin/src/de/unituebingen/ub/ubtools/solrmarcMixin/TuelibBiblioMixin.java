@@ -1192,13 +1192,18 @@ public class TuelibBiblioMixin extends TuelibMixin {
                                                               final String relatorConfig, final String prefix)
     {
         CreatorTools tools = new CreatorTools();
-        List<String> ids = tools.getAuthorsFilteredByRelator(
+
+        // An author normally has multiple $0 subfields which will be
+        // concatenated by the tools function, so it will generate strings like this
+        // which we need to split:
+        //
+        // (DE-588)118562215 (DE-627)035286210 (DE-576)208988572
+        List<String> idsStrings = tools.getAuthorsFilteredByRelator(
             record, tagList, acceptWithoutRelator, relatorConfig
         );
         List<String> result = new LinkedList<String>();
-        for (final String idsString : ids) {
-            String[] idsArray = idsString.split(" ");
-            for (final String id : idsArray) {
+        for (final String idsString : idsStrings) {
+            for (final String id : idsString.split(" ")) {
                 if (id.startsWith(prefix))
                     result.add(id.substring(prefix.length()));
             }
