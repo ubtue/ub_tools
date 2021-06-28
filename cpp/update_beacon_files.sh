@@ -22,7 +22,7 @@ else
     error_message+=$'Failed to download the Beacon file from Archivportal-D.\n'
 fi
 
-wget http://kalliope.staatsbibliothek-berlin.de/beacon/beacon.txt -O kalliope.staatsbibliothek-berlin.beacon.temp
+wget https://kalliope-verbund.info/beacon/beacon.txt -O kalliope.staatsbibliothek-berlin.beacon.temp
 if [ $? == 0 ]; then
     if IsResultSuspicouslyShort kalliope.staatsbibliothek-berlin.beacon.temp; then
         error_message .= $'"Obtained an empty or suspicously short file from Kalliope.\n'
