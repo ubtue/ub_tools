@@ -1179,9 +1179,17 @@ public class TuelibBiblioMixin extends TuelibMixin {
         return false;
     }
 
-    public List<String> getAuthorIdsByPrefixFilteredByRelator(final Record record,
-                                                              final String tagList, final String acceptWithoutRelator, final String relatorConfig,
-                                                              final String prefix)
+    /**
+     * This function is similar to VuFind's own ...byRelator functions.
+     * This is important to keep it in sync with other fields
+     * (e.g. for author_role, author2_role, author_corporate_role and so on.)
+     *
+     * This function can be used to e.g. get the k10plus id or GND number
+     * by passing the corresponding prefix like e.g. "(DE-627)"
+     * in marc_local.properties.
+     */
+    public List<String> getAuthorIdsByPrefixFilteredByRelator(final Record record, final String tagList, final String acceptWithoutRelator,
+                                                              final String relatorConfig, final String prefix)
     {
         CreatorTools tools = new CreatorTools();
         List<String> ids = tools.getAuthorsFilteredByRelator(
