@@ -267,7 +267,7 @@ public:
              std::string authors;
              for (const auto &author : new_issue_info.authors_)
                  authors += "&nbsp;&nbsp;&nbsp;" + HtmlUtil::HtmlEscape(author);
-             email_contents += "      <li><a href=" + URL + ">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors
+             email_contents += "      <li><a href=\"" + URL + "\">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors
                                + "</li>\n";
          }
          email_contents += "    </ul>\n"; // end items
