@@ -1179,6 +1179,24 @@ public class TuelibBiblioMixin extends TuelibMixin {
         return false;
     }
 
+    public List<String> getAuthorIdsByPrefixFilteredByRelator(final Record record,
+                                                              final String tagList, final String acceptWithoutRelator, final String relatorConfig,
+                                                              final String prefix)
+    {
+        CreatorTools tools = new CreatorTools();
+        List<String> ids = tools.getAuthorsFilteredByRelator(
+            record, tagList, acceptWithoutRelator, relatorConfig
+        );
+        List<String> result = new LinkedList<String>();
+        for (final String idsString : ids) {
+            String[] idsArray = idsString.split(" ");
+            for (final String id : idsArray) {
+                if (id.startsWith(prefix))
+                    result.add(id.substring(prefix.length()));
+            }
+        }
+        return result;
+    }
 
     /**
      * @param record
@@ -2582,7 +2600,7 @@ public class TuelibBiblioMixin extends TuelibMixin {
                 }
             }
         }
-        
+
         //Software
         final List<VariableField> _336Fields = record.getVariableFields("336");
         for (final VariableField variableField : _336Fields) {
