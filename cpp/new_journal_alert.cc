@@ -743,7 +743,7 @@ void ProcessSingleUser(
     LOG_INFO("Found " + std::to_string(new_issue_infos.size()) + " new issues for " + "\"" + username + "\".");
 
     if (not new_issue_infos.empty()) {
-        db_connection->queryOrDie("SELECT journal_subscription_format FROM vufind.user WHERE id=" + user_id);
+        db_connection->queryOrDie("SELECT ixtheo_journal_subscription_format FROM vufind.user WHERE id=" + user_id);
         DbResultSet journal_subscription_format_result_set(db_connection->getLastResultSet());
         const std::string journal_subscription_format(journal_subscription_format_result_set.empty() ? "" :
                                                       journal_subscription_format_result_set.getNextRow()["journal_subscription_format"]);
