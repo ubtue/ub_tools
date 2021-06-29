@@ -240,6 +240,7 @@ void AppendLiteraryRemainsRecords(
             new_record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } });
 
         writer->write(new_record);
+        ++creation_count;
     }
 
     LOG_INFO("Appended a total of " + std::to_string(creation_count) + " record(s).");
