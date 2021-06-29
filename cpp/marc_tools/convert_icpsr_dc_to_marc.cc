@@ -41,6 +41,8 @@ bool ParseRecord(XMLParser * const xml_parser, MARC::Writer * const marc_writer)
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED,
                             "ICPSR" + StringUtil::ToString(record_number, /* radix = */10, /* width = */6,
                                                            /* padding_char = */'0'));
+    new_record.insertField(MARC::Tag("935"), { { 'a', "icpsr" }, { '2', "LOK" } });
+
     XMLParser::XMLPart xml_part;
     std::string last_data;
     while (xml_parser->getNext(&xml_part)) {
