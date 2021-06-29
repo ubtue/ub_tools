@@ -72,6 +72,7 @@ void CopyMarcAndCollectRelgiousStudiesFrequencies(
 
 
 struct LiteraryRemainsInfo {
+    std::string author_id_;
     std::string author_name_;
     std::string url_;
     std::string source_name_;
@@ -79,8 +80,8 @@ struct LiteraryRemainsInfo {
 public:
     LiteraryRemainsInfo() = default;
     LiteraryRemainsInfo(const LiteraryRemainsInfo &other) = default;
-    LiteraryRemainsInfo(const std::string &author_name, const std::string &url, const std::string &source_name, const std::string &dates)
-        : author_name_(author_name), url_(url), source_name_(source_name), dates_(dates) { }
+    LiteraryRemainsInfo(const std::string &author_id, const std::string &author_name, const std::string &url, const std::string &source_name, const std::string &dates)
+        : author_id_(author_id), author_name_(author_name), url_(url), source_name_(source_name), dates_(dates) { }
 
     LiteraryRemainsInfo &operator=(const LiteraryRemainsInfo &rhs) = default;
 };
@@ -158,7 +159,7 @@ void LoadAuthorGNDNumbersAndTagAuthors(
 
         std::vector<LiteraryRemainsInfo> literary_remains_infos;
         while (beacon_field != record.end() and beacon_field->getTag() == "BEA") {
-            literary_remains_infos.emplace_back(author_name, beacon_field->getFirstSubfieldWithCode('u'),
+            literary_remains_infos.emplace_back(record.getControlNumber(), author_name, beacon_field->getFirstSubfieldWithCode('u'),
                                                 beacon_field->getFirstSubfieldWithCode('a'), dates);
             ++beacon_field;
         }
@@ -216,10 +217,10 @@ void AppendLiteraryRemainsRecords(
         new_record.insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
         new_record.insertField("008", "190606s2019    xx |||||      00| ||ger c");
         if (gnd_numbers_and_literary_remains_infos.second.front().dates_.empty())
-            new_record.insertField("100", { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first } });
+            new_record.insertField("100", { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first }, { '0', "(DE-627)" + gnd_numbers_and_literary_remains_infos.second.front().author_id_ } });
         else
             new_record.insertField("100",
-                                   { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first },
+                                   { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first }, { '0', "(DE-627)" + gnd_numbers_and_literary_remains_infos.second.front().author_id_ },
                                      { 'd', gnd_numbers_and_literary_remains_infos.second.front().dates_ } });
         new_record.insertField("245", { { 'a', "Nachlass von " + NormaliseAuthorName(author_name) + dates } });
 
