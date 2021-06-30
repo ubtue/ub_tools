@@ -188,6 +188,9 @@ void CollectZederArticles(MARC::Reader * const reader, MARC::Writer * const writ
         if (_936_field == record.end())
             continue;
 
+        if (_936_field->getIndicator1() != 'u' or _936_field->getIndicator2() != 'w')
+            continue;
+
         const std::string pages(_936_field->getFirstSubfieldWithCode('h'));
         std::string volume;
         std::string issue(_936_field->getFirstSubfieldWithCode('e'));
