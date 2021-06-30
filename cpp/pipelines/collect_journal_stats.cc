@@ -188,6 +188,9 @@ void CollectZederArticles(MARC::Reader * const reader, MARC::Writer * const writ
         if (_936_field == record.end())
             continue;
 
+        if (_936_field->getIndicator1() != 'u' or _936_field->getIndicator2() != 'w')
+            continue;
+
         const std::string pages(_936_field->getFirstSubfieldWithCode('h'));
         std::string volume;
         std::string issue(_936_field->getFirstSubfieldWithCode('e'));
@@ -195,9 +198,7 @@ void CollectZederArticles(MARC::Reader * const reader, MARC::Writer * const writ
             issue = _936_field->getFirstSubfieldWithCode('d');
         else
             volume = _936_field->getFirstSubfieldWithCode('d');
-        std::string year(_936_field->getFirstSubfieldWithCode('j'));
-        if (_936_field->getIndicator1() != 'u' or _936_field->getIndicator2() != 'w')
-            year = "";
+        const std::string year(_936_field->getFirstSubfieldWithCode('j'));
 
         const std::string zeder_id(std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_));
         const std::string ppn_type(1, ppn_and_zeder_id_and_ppn_type->second.type_);
