@@ -746,7 +746,7 @@ void ProcessSingleUser(
         db_connection->queryOrDie("SELECT ixtheo_journal_subscription_format FROM vufind.user WHERE id=" + user_id);
         DbResultSet journal_subscription_format_result_set(db_connection->getLastResultSet());
         const std::string journal_subscription_format(journal_subscription_format_result_set.empty() ? "" :
-                                                      journal_subscription_format_result_set.getNextRow()["journal_subscription_format"]);
+                                                      journal_subscription_format_result_set.getNextRow()["ixtheo_journal_subscription_format"]);
         if (journal_subscription_format == JOURNAL_SUBSCRIPTION_FORMAT_TO_STRING_MAP.at(MEISTERTASK))
             SendMeistertaskNotificationEmails().send(debug, GenerateMeistertaskEmailContents(), email, hostname, sender_email, new_issue_infos);
         else
