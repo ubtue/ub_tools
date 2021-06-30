@@ -315,7 +315,8 @@ public:
          email_contents += HtmlUtil::HtmlEscape(volume_year_and_issue) + "<br/>\n";
 
          const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.series_control_number_);
-         email_contents += "<a href=\"" + URL + "#details\">" +  URL + "</a>\n";
+         email_contents += "<a href=\"" + URL + "#details\">" +  URL + "</a><br/>\n";
+         email_contents += "{Z eppn pppn tiefs} *ppn:" + new_issue_info.series_control_number_ + '\n';
          return email_contents;
      }
 
