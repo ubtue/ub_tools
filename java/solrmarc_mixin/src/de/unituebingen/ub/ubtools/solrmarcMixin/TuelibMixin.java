@@ -19,7 +19,7 @@ import org.solrmarc.index.SolrIndexerMixin;
 
 public class TuelibMixin extends SolrIndexerMixin {
 
-    protected static final Logger logger = Logger.getLogger(TuelibBiblioMixin.class.getName());
+    protected static final Logger logger = Logger.getLogger(TuelibMixin.class.getName());
     protected static final Pattern SORTABLE_STRING_REMOVE_PATTERN = Pattern.compile("[^\\p{Lu}\\p{Ll}\\p{Lt}\\p{Lo}\\p{N}]+");
 
     protected static Set<String> getAllSubfieldsBut(final Record record, final String fieldSpecList, char excludeSubfield) {
@@ -76,14 +76,14 @@ public class TuelibMixin extends SolrIndexerMixin {
     protected static String getFirstSubfieldValue(final Record record, final String tag, final char subfieldCode) {
         if (tag == null || tag.length() != 3)
             throw new IllegalArgumentException("bad tag (null or length != 3)!");
-    
+
         for (final VariableField variableField : record.getVariableFields(tag)) {
             final DataField dataField = (DataField) variableField;
             final Subfield subfield = dataField.getSubfield(subfieldCode);
             if (subfield != null)
                 return subfield.getData();
         }
-    
+
         return null;
     }
 
@@ -100,7 +100,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         List<Subfield> returnSubfields = new ArrayList<>();
         HashMap<String, Set<String>> parsedTagList = getParsedTagList(subfieldList);
         List<VariableField> fields = SolrIndexer.instance().getFieldSetMatchingTagList(record, subfieldList);
-    
+
         for (final VariableField variableField : fields) {
             DataField field = (DataField)variableField;
             for (final String subfieldCharacters : parsedTagList.get(field.getTag())) {
@@ -164,7 +164,7 @@ public class TuelibMixin extends SolrIndexerMixin {
         //c.f. https://stackoverflow.com/questions/1466959/string-replaceall-vs-matcher-replaceall-performance-differences (21/03/16)
         return SORTABLE_STRING_REMOVE_PATTERN.matcher(string).replaceAll("").trim();
     }
-    
+
     /**
      * At the moment used for time range(s) parsing, if more than one timerange exists in TIM-field, minimum lower and maximum upper have to be implemented
      * @param record
@@ -221,17 +221,17 @@ public class TuelibMixin extends SolrIndexerMixin {
     protected static String getFirstSubfieldValue(final Record record, final String tag, final char indicator1, final char indicator2, final char subfieldCode) {
         if (tag == null || tag.length() != 3)
             throw new IllegalArgumentException("bad tag (null or length != 3)!");
-    
+
         for (final VariableField variableField : record.getVariableFields(tag)) {
             final DataField dataField = (DataField) variableField;
             if (dataField.getIndicator1() != indicator1 || dataField.getIndicator2() != indicator2)
                 continue;
-    
+
             final Subfield subfield = dataField.getSubfield(subfieldCode);
             if (subfield != null)
                 return subfield.getData();
         }
-    
+
         return null;
     }
 
