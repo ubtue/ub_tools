@@ -38,7 +38,7 @@ import org.solrmarc.tools.PropertyUtils;
 import org.solrmarc.tools.Utils;
 import org.solrmarc.driver.Boot;
 import org.vufind.index.DatabaseManager;
-import org.vufind.index.CreatorTools;
+import org.tuefind.index.CreatorTools;
 import java.sql.*;
 
 public class TuelibBiblioMixin extends TuelibMixin {
@@ -66,6 +66,10 @@ public class TuelibBiblioMixin extends TuelibMixin {
     protected final static Pattern BRACKET_DIRECTIVE_PATTERN = Pattern.compile("\\[(.)(.)\\]");
     protected final static Pattern PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN = Pattern.compile("\\(" + ISIL_K10PLUS + "\\)(.*)");
     protected final static Pattern SUPERIOR_PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN = PPN_WITH_K10PLUS_ISIL_PREFIX_PATTERN;
+
+    // use static instance for better performance
+    protected static CreatorTools creatorTools = new CreatorTools();
+
     // TODO: This should be in a translation mapping file
     protected final static HashMap<String, String> isil_to_department_map = new HashMap<String, String>() {
         {
@@ -554,8 +558,7 @@ public class TuelibBiblioMixin extends TuelibMixin {
     public String getSortableAuthorUnicode(final Record record, final String tagList, final String acceptWithoutRelator,
                                            final String relatorConfig)
     {
-        CreatorTools tools = new CreatorTools();
-        String author = tools.getFirstAuthorFilteredByRelator(record, tagList,
+        String author = creatorTools.getFirstAuthorFilteredByRelator(record, tagList,
                                                               acceptWithoutRelator,
                                                               relatorConfig);
 
@@ -1191,14 +1194,12 @@ public class TuelibBiblioMixin extends TuelibMixin {
     public List<String> getAuthorIdsByPrefixFilteredByRelator(final Record record, final String tagList, final String acceptWithoutRelator,
                                                               final String relatorConfig, final String prefix)
     {
-        CreatorTools tools = new CreatorTools();
-
         // An author normally has multiple $0 subfields which will be
         // concatenated by the tools function, so it will generate strings like this
         // which we need to split:
         //
         // (DE-588)118562215 (DE-627)035286210 (DE-576)208988572
-        List<String> idsStrings = tools.getAuthorsFilteredByRelator(
+        List<String> idsStrings = creatorTools.getAuthorsFilteredByRelator(
             record, tagList, acceptWithoutRelator, relatorConfig
         );
         List<String> result = new LinkedList<String>();
