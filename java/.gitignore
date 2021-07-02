@@ -8,10 +8,8 @@ MultiLanguageDocTransformerFactory-0.0.1.jar
 MultiLanguageQueryParser-0.0.1.jar
 KeywordChainParser-*.jar
 RangedSearches.jar
-SolrmarcMixin-*.jar
 solr_plugins/build.xml
 solr_plugins/Bibelstellensuche/bin/
 solr_plugins/Schlagwortfolgensuche/bin/
 solr_plugins/PrefixSortFacetten/bin/
-solrmarc_mixin/bin/
-solrmarc_mixin/src/build.xml
+
