@@ -8,5 +8,5 @@ fi
 
 DIR=/usr/local/ub_tools/java/solrmarc_mixin
 if [ -d "$DIR" ]; then
-    rm -d "$DIR"
+    rm -rf "$DIR"
 fi
