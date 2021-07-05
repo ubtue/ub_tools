@@ -496,6 +496,14 @@ std::string &UTF8Truncate(std::string * const utf8_string, const size_t max_leng
 std::string &UTF8ByteTruncate(std::string * const utf8_string, const size_t max_length);
 
 
+/** \brief Truncates "utf8_string" to a maximum length of "max_length" bytes.
+ *  \return A copy of the truncated "utf8_string".
+ *  \note  This function will not return a string that has a partial UTF8 sequence at the end!
+ */
+std::string UTF8ByteTruncate(const std::string &utf8_string, const size_t max_length);
+
+
+
 inline bool IsGeneralPunctuationCharacter(const wchar_t ch) { return ch >= 0x2000 and ch <= 0x206F; }
 bool IsSpaceSeparatorCharacter(const wchar_t ch);
 
