@@ -1560,6 +1560,12 @@ std::string &UTF8ByteTruncate(std::string * const utf8_string, const size_t max_
 }
 
 
+std::string UTF8ByteTruncate(const std::string &utf8_string, const size_t max_length) {
+    std::string utf8_string_copy(utf8_string);
+    return UTF8ByteTruncate(&utf8_string_copy, max_length);
+}
+
+
 // See https://www.compart.com/en/unicode/category/Zs for where we got this.
 bool IsSpaceSeparatorCharacter(const wchar_t ch) {
     return ch == 0x0020 or ch == 0x00A0 or ch == 0x1680 or ch == 0x2000 or ch == 0x2001 or ch == 0x2002 or ch == 0x2003 or ch == 0x2004

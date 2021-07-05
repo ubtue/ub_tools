@@ -971,7 +971,7 @@ const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP {
 
 std::string TruncateAbstractField(const std::string &abstract_field) {
    return abstract_field.length() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH ?
-          StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - 3, abstract_field) + "..." :
+          TextUtil::UTF8ByteTruncate(abstract_field, MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - 3) + "..." :
           abstract_field;
 }
 
