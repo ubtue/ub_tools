@@ -3,9 +3,11 @@ dist
 test
 
 BibleRangeParser-*.jar
+ConditionalInsertField-*.jar
+CustomDebugComponent-*.jar
 FacetPrefixSortComponent-*.jar
-MultiLanguageDocTransformerFactory-0.0.1.jar
-MultiLanguageQueryParser-0.0.1.jar
+MultiLanguageDocTransformerFactory-*.jar
+MultiLanguageQueryParser-*.jar
 KeywordChainParser-*.jar
 RangedSearches.jar
 solr_plugins/build.xml
