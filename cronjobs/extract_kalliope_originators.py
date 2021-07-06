@@ -16,7 +16,7 @@ def Main():
         name = recordData.find('.//{*}name')
         if genre is not None and name is not None :
             gnd = name.get('valueURI').replace('https://d-nb.info/gnd/','') if name.get('valueURI') else None
-            originator_type = genre.text if genre.text else ''
+            originator_type = genre.text
             if gnd and originator_type and valid_gnd.match(gnd):
                 if gnd in gnds_and_type and not originator_type in gnds_and_type[gnd]:
                     gnds_and_type[gnd].add(originator_type)
