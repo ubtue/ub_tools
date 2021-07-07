@@ -969,9 +969,12 @@ const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP {
     { "wordsBy",            "wam" },
 };
 
+
 std::string TruncateAbstractField(const std::string &abstract_field) {
-   return abstract_field.length() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH ?
-          TextUtil::UTF8ByteTruncate(abstract_field, MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - 3) + "..." :
+   const unsigned max_admissible_content_length(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH -
+                                               (2 /* indicators */ + 1 /* separator */ + 1 /* subfield code */));
+   return abstract_field.length() > max_admissible_content_length ?
+          TextUtil::UTF8ByteTruncate(abstract_field, max_admissible_content_length - 3 /* trailing dots */) + "..." :
           abstract_field;
 }
 
