@@ -31,7 +31,7 @@ function ExitHandler {
 }
 
 
-function ShutdownRamdisk {
+function ShutdownRamdisk() {
     sleep 1
     rmmod zram
 }
