@@ -27,8 +27,16 @@ EOF
 
 
 function ExitHandler {
-   shutdown_ramdisk
+   ShutdownRamdisk
 }
+
+
+function ShutdownRamdisk() {
+    sleep 1
+    rmmod zram
+}
+
+
 if [ $# -ne 1 ]; then
     >&2 echo -e "$0 : Invalid number of parameters\n"
     Usage
