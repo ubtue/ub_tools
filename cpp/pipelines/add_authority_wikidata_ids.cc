@@ -1,4 +1,4 @@
-/** \file WikidataTest.cc
+/** \file add_authority_wikidata_ids.cc
  *  \brief functionality to acquire wikidata id corresponding to their gnds
  *  \author andreas-ub
  *
@@ -26,7 +26,7 @@
 #include <regex>
 
 //Scenario 1:
-// use --create_mapping_file parameter <fileparth> to generate the mapping file 
+// use --create_mapping_file parameter <filepath> to generate the mapping file 
 //  of the downloaded dnb authoriy dump (must bei unzipped first)
 //  Download from:  https://data.dnb.de/opendata/authorities-person_lds.jsonld.gz 
 //  and unzip to e.g. authorities-person_lds_20210613.jsonld
@@ -35,23 +35,12 @@
 // use converted file from scenario 1 from cpp/data to create a map during 
 //  pipeline processing. The norm_data_input is extended by wikidata ids where possible
 //  and saved to 024 field indicator1:7 where wikidata id is not yet present
+//  file can be taken from /mnt/ZE020150/FID-Entwicklung/ub_tools (gnd_to_wiki.txt)
 [[noreturn]] void Usage() {
-    ::Usage("norm_data_marc_input norm_data_marc_output mapping_txt_file OR_USE_THIS_TO_CREATE_MAPPING_FILE: --create_mapping_file dnb_input_unzipped_file mapping_txt_file");
-}
-
-
-std::string ltrim(const std::string &s) {
-    return std::regex_replace(s, std::regex("^\\s+"), std::string(""));
-}
-
-
-std::string rtrim(const std::string &s) {
-    return std::regex_replace(s, std::regex("\\s+$"), std::string(""));
-}
-
-
-std::string trim(const std::string &s) {
-    return ltrim(rtrim(s));
+    ::Usage("    :\n"
+            "     invocation modes:\n"
+            "     1.)   norm_data_marc_input norm_data_marc_output mapping_txt_file\n"
+            "     2.)   --create_mapping_file dnb_input_unzipped_file mapping_txt_file\n");
 }
 
 
@@ -80,7 +69,7 @@ void ParseDataDnbFile(std::string input_filename, std::string output_filename) {
             } else if (read_preferred_name) {
                 read_preferred_name = false;
                 act_name = std::regex_replace(line, std::regex("(value|:|\"|@)"), "");
-                act_name = trim(act_name);
+                act_name = StringUtil::TrimWhite(act_name);
             } else if (StringUtil::Contains(line, "info/gnd/") and read_gnd_id) {
                 read_gnd_id = false;
                 std::size_t last_slash = line.find_last_of("/");
@@ -110,11 +99,14 @@ void ParseGndWikidataMappingFile(std::string filename, std::unordered_map<std::s
         std::string act_gnd;
         std::string act_wiki;
         while (std::getline(file, line)) {
-            if (StringUtil::StartsWith(line, "Name:") and StringUtil::Contains(line, "GND:") and StringUtil::Contains(line, "Wikidata:")) {
-                act_gnd = line.substr(line.find("GND:") + 4);
-                act_gnd = act_gnd.substr(0, act_gnd.find("Wikidata:"));
-                act_wiki = line.substr(line.find("Wikidata:") + 9);
-                gnd_to_wikidataid->emplace(trim(act_gnd), trim(act_wiki));
+            const std::string NAME = "Name:";
+            const std::string GND = "GND:";
+            const std::string WIKIDATA = "Wikidata:";
+            if (StringUtil::StartsWith(line, NAME) and StringUtil::Contains(line, GND) and StringUtil::Contains(line, WIKIDATA)) {
+                act_gnd = line.substr(line.find(GND) + GND.length());
+                act_gnd = act_gnd.substr(0, act_gnd.find(WIKIDATA));
+                act_wiki = line.substr(line.find(WIKIDATA) + WIKIDATA.length());
+                gnd_to_wikidataid->emplace(StringUtil::TrimWhite(act_gnd), StringUtil::TrimWhite(act_wiki));
             }
         }
         file.close();
@@ -142,8 +134,8 @@ int Main(int argc, char * argv[]) {
     std::unordered_map<std::string, std::string> gnd_to_wikidataid;
     ParseGndWikidataMappingFile(mapping_txt_filename, &gnd_to_wikidataid);
     
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename_or_create_flag, MARC::FileType::BINARY));
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename_or_dnb_input, MARC::FileType::BINARY));
+    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename_or_create_flag));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename_or_dnb_input));
 
     if (unlikely(marc_input_filename_or_create_flag == marc_output_filename_or_dnb_input))
         LOG_ERROR("Norm data input file name equals output file name!");
@@ -153,18 +145,8 @@ int Main(int argc, char * argv[]) {
         std::string record_gnd;
         std::string wikidata_id;
 
-        auto field_035(record.getFirstField("035"));
-        while (field_035 != record.end() and field_035->getTag() == "035") {
-            if (not field_035->getFirstSubfieldWithCode('a').empty() and
-                field_035->getFirstSubfieldWithCode('a').find("(DE-588)") != std::string::npos)
-            {
-                record_gnd = field_035->getFirstSubfieldWithCode('a');
-                record_gnd = record_gnd.substr(record_gnd.find("(DE-588)") + 8);
-                record_gnd = trim(record_gnd);
-                break;
-            }
-            ++field_035;
-        }
+        MARC::GetGNDCode(record, &record_gnd);
+    
         //record lookup
         if (not record_gnd.empty()) {
             auto gnd_to_wikidataid_iter = gnd_to_wikidataid.find(record_gnd);
