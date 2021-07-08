@@ -434,6 +434,8 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 
 namespace ApiQuery {
 
+const unsigned MAX_PER_REQUEST_DOWNLOADS(500);
+
 void SelectNonExistingEntriesFromZTSMultiple(const std::string &all_items_object, std::string * const filtered_items_object, const Util::UploadTracker &upload_tracker,
                                              const bool force_downloads, unsigned * const all_items_num, unsigned * const filtered_items_num) {
      std::shared_ptr<JSON::JSONNode> tree_root;
@@ -449,6 +451,9 @@ void SelectNonExistingEntriesFromZTSMultiple(const std::string &all_items_object
      *filtered_items_num = 0;
      for (const auto &doi_and_index : *items) {
          ++(*all_items_num);
+         // Hard limit for number of downloads in one batch since we encounter problems...
+         if (*filtered_items_num >= MAX_PER_REQUEST_DOWNLOADS)
+             break;
 
          // Handling only here to get valid stats
          if (force_downloads) {
