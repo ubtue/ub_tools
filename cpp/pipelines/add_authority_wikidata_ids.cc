@@ -70,6 +70,7 @@ void ParseDataDnbFile(std::string input_filename, std::string output_filename) {
             if (line == "}, {") {
                 if (not act_wiki.empty() and not act_name.empty() and not act_wiki.empty()) {
                     output_file << "Name: " << act_name << " GND: " << act_gnd << " Wikidata: " << act_wiki << "\n";
+                    std::cout << "Name: " << act_name << " GND: " << act_gnd << " Wikidata: " << act_wiki << "\n";
                 }
                 act_gnd = "";
                 act_name = "";
