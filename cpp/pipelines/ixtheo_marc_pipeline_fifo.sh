@@ -202,6 +202,12 @@ StartPhase "Extract Normdata Translations"
 EndPhase || Abort) &
 wait
 
+StartPhase "Add Wikidata IDs to Authority Data"
+(add_authority_wikidata_ids Normdaten-partially-augmented2-"${date}".mrc \
+                            Normdaten-partially-augmented3-"${date}".mrc \
+                            /usr/local/var/lib/tuelib/gnd_to_wiki.txt >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
 
 StartPhase "Add Author Synonyms from Authority Data"
 (add_author_synonyms GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc Normdaten-"${date}".mrc \
@@ -293,7 +299,7 @@ EndPhase || Abort) &
 StartPhase "Add Keyword Synonyms from Authority Data"
 (add_synonyms \
     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-    Normdaten-partially-augmented2-"${date}".mrc \
+    Normdaten-partially-augmented3-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -355,7 +361,7 @@ StartPhase "Appending Literary Remains Records"
 make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                                 Normdaten-partially-augmented2-"${date}".mrc \
+                                 Normdaten-partially-augmented3-"${date}".mrc \
                                  Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
