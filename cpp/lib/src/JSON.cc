@@ -150,6 +150,7 @@ TokenType Scanner::parseNumber() {
     }
 
     if (*ch_ == '.') {
+        number_as_string += '.';
         for (++ch_; ch_ != end_ and StringUtil::IsDigit(*ch_); ++ch_)
             number_as_string += *ch_;
     }
@@ -164,6 +165,9 @@ TokenType Scanner::parseNumber() {
         last_double_constant_ = value;
         return DOUBLE_CONST;
     }
+
+    if (*ch_ == 'e' or *ch_ == 'E') 
+        number_as_string += *ch_;
 
     ++ch_;
     if (*ch_ == '+' or *ch_ == '-')

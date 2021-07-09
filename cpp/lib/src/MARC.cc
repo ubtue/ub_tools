@@ -2544,6 +2544,21 @@ bool GetGNDCode(const Record &record, std::string * const gnd_code) {
 }
 
 
+bool GetWikidataId(const Record &record, std::string * const wikidata_id) {
+    wikidata_id->clear();
+    for (const auto &_024_field : record.getTagRange("024")) {
+        const Subfields _024_subfields(_024_field.getSubfields());
+        const std::string _024a_field(_024_subfields.getFirstSubfieldWithCode('a'));
+        const std::string _024_2_field(_024_subfields.getFirstSubfieldWithCode('2'));
+        if (StringUtil::Contains(_024_2_field, "wikidata")) {
+            *wikidata_id = _024a_field;
+            return not wikidata_id->empty();
+        }
+    }
+    return false;
+}
+
+
 static inline bool CompareField(const Record::Field * const field1, const Record::Field * const field2) {
     if (field1->getTag() < field2->getTag())
         return true;
