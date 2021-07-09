@@ -363,7 +363,7 @@ EndPhase || Abort) &
 StartPhase "Add Wikidata IDs to Authority Data"
 (add_authority_wikidata_ids Normdaten-partially-augmented3-"${date}".mrc \
                             Normdaten-fully-augmented-"${date}".mrc \
-			    /mnt/ZE020150/FID-Entwicklung/ub_tools/gnd_to_wiki.txt >> "${log}" 2>&1 && \
+                            /mnt/ZE020150/FID-Entwicklung/ub_tools/gnd_to_wiki.txt >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
