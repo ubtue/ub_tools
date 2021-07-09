@@ -356,15 +356,23 @@ make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHA
 (create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                                  Normdaten-partially-augmented2-"${date}".mrc \
-                                 Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
+                                 Normdaten-partially-augmented3-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+
+
+StartPhase "Add Wikidata IDs to Authority Data"
+(add_authority_wikidata_ids Normdaten-partially-augmented3-"${date}".mrc \
+                            Normdaten-fully-augmented-"${date}".mrc \
+			    /mnt/ZE020150/FID-Entwicklung/ub_tools/gnd_to_wiki.txt >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
 
 
 StartPhase "Tag PDA candidates"
 # Use the most recent GVI PPN list.
 (augment_pda \
     $(ls -t gvi_ppn_list-??????.txt | head -1) \
-    GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+    GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
