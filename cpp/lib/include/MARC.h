@@ -1139,6 +1139,10 @@ size_t GetLanguageCodes(const Record &record, std::set<std::string> * const lang
 bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
 
 
+/** \brief True if a wikidata id was found in 024$a ($2 = wikidata) else false. */
+bool GetWikidataId(const Record &record, std::string * const wikidata_id);
+
+
 /** \brief Generates a reproducible SHA-1 hash over our internal data.
  *  \param excluded_fields        The list of tags specified here will be excluded from the checksum calculation.
  *  \param suppress_local_fields  If true we exclude fields that have non-pure-digit tags or tags that contain at least one digit nine.
