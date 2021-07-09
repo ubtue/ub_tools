@@ -146,6 +146,10 @@ int Main(int argc, char * argv[]) {
         std::string wikidata_id;
 
         MARC::GetGNDCode(record, &record_gnd);
+        MARC::GetWikidataId(record, &wikidata_id);
+
+        if (not wikidata_id.empty())
+            continue;
     
         //record lookup
         if (not record_gnd.empty()) {
@@ -155,21 +159,10 @@ int Main(int argc, char * argv[]) {
                 //std::cout << "Match: " << record_gnd << " --- " << wikidata_id << "\n";
             }
         }
-        //record write wikidata id (if not already there)
-        bool wikidataid_existing(false);
-        auto field_024(record.getFirstField("024"));
-        while (field_024 != record.end() and field_024->getTag() == "024") {
-            if (not field_024->getFirstSubfieldWithCode('2').empty() and
-                field_024->getFirstSubfieldWithCode('2').find("wikidata") != std::string::npos)
-            {
-                wikidataid_existing = true;
-                break;
-            }
-            ++field_024;
-        }
-        if (not wikidataid_existing and not wikidata_id.empty()) {
+        
+        if (not wikidata_id.empty())
             record.insertField("024", { { 'a', wikidata_id }, { '2', "wikidata" }, {'9', "PipeLineGenerated"} }, /*indicator 1*/ '7');
-        }
+        
         marc_writer.get()->write(record);
     }
 
