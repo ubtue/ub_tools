@@ -12,7 +12,7 @@ readonly date="${newest:17:6}"
 readonly filename_prefix=IxTheoDatenFürKöln-
 readonly output="${filename_prefix}${date}".mrc
 generate_zeder_subset ixtheo koe Köln "${newest}" "${output}"
-rm --force /usr/local/vufind/public/docs/"${filename_prefix}"*.xml.7z
+rm --force /usr/local/vufind/public/docs/"${filename_prefix}"*.mrc.7z
 7za u -p"${PASSWORD}" /usr/local/vufind/public/docs/"${output}".7z "${output}"
 rm "${output}"
 chcon unconfined_u:object_r:usr_t:s0 /usr/local/vufind/public/docs/"${output}".7z
