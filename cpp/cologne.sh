@@ -9,9 +9,10 @@ readonly PASSWORD=$(inifile_lookup "$CONFIG_PATH" "" password)
 cd /usr/local/ub_tools/bsz_daten
 readonly newest=$(ls -t GesamtTiteldaten-??????.mrc | head -1)
 readonly date="${newest:17:6}"
-readonly output=IxTheoDatenFürKöln-"${date}".mrc
+readonly filename_prefix=IxTheoDatenFürKöln-
+readonly output="${filename_prefix}${date}".mrc
 generate_zeder_subset ixtheo koe Köln "${newest}" "${output}"
-rm --force /usr/local/vufind/public/docs/"${output}".7z
+rm --force /usr/local/vufind/public/docs/"${filename_prefix}"*.xml.7z
 7za u -p"${PASSWORD}" /usr/local/vufind/public/docs/"${output}".7z "${output}"
 rm "${output}"
 chcon unconfined_u:object_r:usr_t:s0 /usr/local/vufind/public/docs/"${output}".7z
