@@ -18,13 +18,13 @@ function ExtractMatchingAuthorityRecords() {
     for ((lower=1; lower < $(wc -l < ${beacon_file}); lower+=${STEPSIZE}))
     do
          upper=$((( ${lower}+${STEPSIZE})))
-         # Strip beacon header, get only a chunk of stepsize records, join to a regular expression 
+         # Strip beacon header, get only a chunk of stepsize records, join to a regular expression
          # and prefix with the old PND prefix ISIL
          echo "Processing entries ${lower} to ${upper}"
          match_command=$(cat ${beacon_file} | grep -v '^#'  | sed --quiet "${lower},${upper}p" | \
                          sed -e ':a;N;$!ba;s/\n/\|/g' | sed -E 's/([^|]+)/\\\\(DE-588a\\\\)\1/g')
-         marc_grep ${authority_file} 'if "035z"=="'${match_command}'" extract "001"' marc_binary >> ${outfile}
-         
+         # >> does not seem to work thus the tee approach
+         marc_grep ${authority_file} 'if "035z"=="'${match_command}'" extract "001"' marc_binary | tee --append ${outfile} 1>/dev/null
     done
 }
 
