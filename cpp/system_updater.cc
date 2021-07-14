@@ -37,11 +37,11 @@ unsigned GetCurrentVersion() {
     if (not FileUtil::Exists(VERSION_PATH))
         return 0;
 
-    const auto version_number_string(FileUtil::ReadStringOrDie(VERSION_PATH));
+    const auto version_number_string(StringUtil::TrimWhite(FileUtil::ReadStringOrDie(VERSION_PATH)));
 
     unsigned version;
     if (not StringUtil::ToUnsigned(version_number_string, &version))
-        LOG_ERROR("can't convert the contents of \"" + VERSION_PATH + "\" to an unsigned number!");
+        LOG_ERROR("can't convert the contents of \"" + VERSION_PATH + "\" to an unsigned number! (\"" + version_number_string + "\")");
 
     return version;
 }
