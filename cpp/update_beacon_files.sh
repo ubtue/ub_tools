@@ -11,6 +11,10 @@ cd /usr/local/ub_tools/bsz_daten
 
 error_message=""
 
+# We frequently get a HTTP 500 error on our systems, so wait a random time up to 50 second to avoid simultaneous access
+# c.f. https://blog.buberel.org/2010/07/howto-random-sleep-duration-in-bash.html
+sleep $[ ( $RANDOM % 50 ) + 1 ]s
+
 wget https://labs.ddb.de/app/beagen/item/person/archive/latest -O archivportal-d.beacon.temp
 if [ $? == 0 ]; then
     if IsResultSuspicouslyShort archivportal-d.beacon.temp; then
