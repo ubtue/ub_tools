@@ -180,7 +180,7 @@ int Main(int argc, char * argv[]) {
         if (not wikidata_id.empty())
             record.insertField("024", { { 'a', wikidata_id }, { '2', "wikidata" }, { '9', "PipeLineGenerated" } }, /*indicator 1*/ '7');
         if (not wikipedia_link.empty())
-            record.insertField("670", { { 'a', wikipedia_link }, { '2', "wikipedia" }, { '9', "PipeLineGenerated" } });
+            record.insertField("670", { { 'a', "Wikipedia" }, { 'u', wikipedia_link }, { '9', "PipeLineGenerated" } });
         
         marc_writer.get()->write(record);
     }

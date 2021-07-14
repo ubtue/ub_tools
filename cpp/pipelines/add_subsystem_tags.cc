@@ -40,25 +40,24 @@ namespace {
 
 
 void ExtractAuthors(MARC::Reader * const marc_reader, std::set<std::string> * authors) {
+    static std::vector<std::string> tags_to_check{ "100", "110", "111", "700", "710", "711" };
     unsigned record_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
-
-        const auto field_245(record.findTag("245"));
-        if (unlikely(field_245 == record.end()))
-            continue;
-
-        const std::string main_title(field_245->getSubfields().getFirstSubfieldWithCode('a'));
-        if (unlikely(main_title.empty()))
-            continue;
-
-        for (const auto &field : record.getTagRange("100")) {
-            const auto subfields(field.getSubfields());
-            const std::string author(subfields.getFirstSubfieldWithCode('a'));
-            if (likely(not author.empty())) {
-                if (not StringUtil::StartsWith(author, "(DE-627)"))
-                    continue;
-                authors->emplace(author.substr(std::string("(DE-627)").length()));
+        for (auto tag_to_check : tags_to_check) {
+            for (auto &field : record.getTagRange(tag_to_check)) {
+                const auto subfields(field.getSubfields());
+                for (const auto &subfield : subfields) {
+                    if (subfield.code_ == '0') {
+                        const std::string author(subfield.value_);
+                        if (likely(not author.empty())) {
+                            if (not StringUtil::StartsWith(author, "(DE-627)"))
+                                continue;
+                            authors->emplace(author.substr(std::string("(DE-627)").length()));
+                            // std::cout << "Found: " << author.substr(std::string("(DE-627)").length()) << "\n";
+                        }
+                    }
+                }
             }
         }
     }
@@ -466,13 +465,15 @@ int Main(int argc, char **argv) {
         ::Usage("marc_input authority_records marc_output authority_output");
 
     const std::string marc_input_filename(argv[1]);
+    const std::string authority_input_filename(argv[2]);
     const std::string marc_output_filename(argv[3]);
+    const std::string authority_output_filename(argv[4]);
     if (unlikely(marc_input_filename == marc_output_filename))
         LOG_ERROR("Title data input file name equals output file name!");
 
     std::unordered_set<std::string> bible_studies_gnd_numbers, canon_law_gnd_numbers;
-    std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(argv[2]));
-    std::unique_ptr<MARC::Writer> authority_writer(MARC::Writer::Factory(argv[4]));
+    std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_input_filename));
+    std::unique_ptr<MARC::Writer> authority_writer(MARC::Writer::Factory(authority_output_filename));
     CollectGNDNumbers(authority_reader.get(), &bible_studies_gnd_numbers, &canon_law_gnd_numbers);
     authority_reader->rewind();
 
