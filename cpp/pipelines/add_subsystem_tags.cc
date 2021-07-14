@@ -39,12 +39,45 @@
 namespace {
 
 
+void ExtractAuthors(MARC::Reader * const marc_reader, std::set<std::string> * authors) {
+    unsigned record_count(0);
+    while (const MARC::Record record = marc_reader->read()) {
+        ++record_count;
+
+        const auto field_245(record.findTag("245"));
+        if (unlikely(field_245 == record.end()))
+            continue;
+
+        const std::string main_title(field_245->getSubfields().getFirstSubfieldWithCode('a'));
+        if (unlikely(main_title.empty()))
+            continue;
+
+        for (const auto &field : record.getTagRange("100")) {
+            const auto subfields(field.getSubfields());
+            const std::string author(subfields.getFirstSubfieldWithCode('a'));
+            if (likely(not author.empty())) {
+                if (not StringUtil::StartsWith(author, "(DE-627)"))
+                    continue;
+                authors->emplace(author.substr(std::string("(DE-627)").length()));
+            }
+        }
+    }
+}
+
+void TagAuthors(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer, std::set<std::string> &authors) {
+    while (MARC::Record record = authority_reader->read()) {
+         if (authors.find(record.getControlNumber()) != authors.end()) {
+             record.insertField("TIT", { { 'a', "ixtheo" } });
+         }
+         authority_writer->write(record);
+    }
+}
+
 // See https://github.com/ubtue/tuefind/wiki/Daten-Abzugskriterien#abzugskriterien-bibelwissenschaften, both entries Nr. 6 in order
 // to understand this implementation.
-void CollectGNDNumbers(const std::string &authority_records_filename, std::unordered_set<std::string> * const bible_studies_gnd_numbers,
+void CollectGNDNumbers(MARC::Reader * const authority_reader, std::unordered_set<std::string> * const bible_studies_gnd_numbers,
                        std::unordered_set<std::string> * const canon_law_gnd_numbers)
 {
-    auto authority_reader(MARC::Reader::Factory(authority_records_filename));
     unsigned record_count(0);
     while (MARC::Record record = authority_reader->read()) {
         ++record_count;
@@ -429,8 +462,8 @@ void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const mar
 
 
 int Main(int argc, char **argv) {
-    if (argc != 4)
-        ::Usage("marc_input authority_records marc_output");
+    if (argc != 5)
+        ::Usage("marc_input authority_records marc_output authority_output");
 
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[3]);
@@ -438,14 +471,24 @@ int Main(int argc, char **argv) {
         LOG_ERROR("Title data input file name equals output file name!");
 
     std::unordered_set<std::string> bible_studies_gnd_numbers, canon_law_gnd_numbers;
-    CollectGNDNumbers(argv[2], &bible_studies_gnd_numbers, &canon_law_gnd_numbers);
+    std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(argv[2]));
+    std::unique_ptr<MARC::Writer> authority_writer(MARC::Writer::Factory(argv[4]));
+    CollectGNDNumbers(authority_reader.get(), &bible_studies_gnd_numbers, &canon_law_gnd_numbers);
+    authority_reader->rewind();
 
     std::vector<std::unordered_set<std::string>> subsystem_sets(NUM_OF_SUBSYSTEMS);
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
+
+    std::set<std::string> authors;
+    ExtractAuthors(marc_reader.get(), &authors);
+    marc_reader->rewind();
+    
     GetSubsystemPPNSet(marc_reader.get(), bible_studies_gnd_numbers, canon_law_gnd_numbers, &subsystem_sets);
     marc_reader->rewind();
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
     AddSubsystemTags(marc_reader.get(), marc_writer.get(), subsystem_sets);
+
+    TagAuthors(authority_reader.get(), authority_writer.get(), authors);
 
     return EXIT_SUCCESS;
 }
