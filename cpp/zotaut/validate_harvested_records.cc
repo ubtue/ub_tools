@@ -281,7 +281,7 @@ void LoadRules(DbConnection * const db_connection, GeneralFieldValidator * const
     while (const auto row = result_set.getNextRow()) {
         std::string error_message;
         RegexMatcher *new_regex_matcher(row.isNull("regex") ? nullptr
-                                        : RegexMatcher::RegexMatcherFactory(row["regex"], &error_message));
+                                        : RegexMatcher::RegexMatcherFactory(row["regex"], &error_message, RegexMatcher::ENABLE_UTF8));
         if (unlikely(not error_message.empty()))
             LOG_ERROR("could not compile \"" + row["regex"] + "\" as a PCRE!");
 
