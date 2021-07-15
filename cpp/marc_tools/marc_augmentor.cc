@@ -58,7 +58,7 @@ void Usage() {
               << "               Any fields that matched or that have subfields that matched will be dropped.\n"
               << "           --replace-subfield-if-regex field_or_subfield_spec field_or_subfield_spec_and_pcre_regex"
               << " replace_regex (i.e. /pattern/replacement/)\n"
-              << "               Backregerences are supported\n"
+              << "               Backreferences are supported\n"
               << "           --add-subfield-if field_or_subfield_spec field_or_subfield_spec_and_pcre_regex"
               << " new_field_or_subfield_data\n"
               << "               Any field with a matching tag will have a new subfield inserted if the regex matched.\n"
