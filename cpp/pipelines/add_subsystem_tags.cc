@@ -54,7 +54,7 @@ void ExtractAuthors(MARC::Reader * const marc_reader, std::set<std::string> * au
                             if (not StringUtil::StartsWith(author, "(DE-627)"))
                                 continue;
                             authors->emplace(author.substr(std::string("(DE-627)").length()));
-                            // std::cout << "Found: " << author.substr(std::string("(DE-627)").length()) << "\n";
+                            //std::cout << "Found: " << author.substr(std::string("(DE-627)").length()) << "\n";
                         }
                     }
                 }
