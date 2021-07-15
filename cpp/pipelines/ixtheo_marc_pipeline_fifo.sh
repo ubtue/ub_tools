@@ -366,7 +366,7 @@ make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHA
 EndPhase || Abort) &
 
 
-StartPhase "Add paragraph to CIC $p"
+StartPhase "Add paragraph to CIC \$p"
 make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (marc_augmentor GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc  >> "${log}" 2>&1 && \
