@@ -58,9 +58,8 @@ void ParseDataDnbFile(std::string input_filename, std::string output_filename) {
         bool read_gnd_id(false);
         while (std::getline(input_file, line)) {
             if (line == "}, {") {
-                if (not act_wikidata.empty() and not act_name.empty() and not act_wikidata.empty()) {
+                if (not act_wikidata.empty() and not act_name.empty() and not act_wikipedia.empty()) {
                     output_file << "Name: " << act_name << " GND: " << act_gnd << " Wikidata: " << act_wikidata << " Wikipedia: " << act_wikipedia << "\n";
-                    //std::cout << "Name: " << act_name << " GND: " << act_gnd << " Wikidata: " << act_wikidata << " Wikipedia: " << act_wikipedia << "\n";
                 }
                 act_gnd = "";
                 act_name = "";
