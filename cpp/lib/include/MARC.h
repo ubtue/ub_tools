@@ -388,6 +388,9 @@ public:
         /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
         std::string getFirstSubfieldWithCode(const char subfield_code) const;
 
+        /** \return Either the contents of the subfield with prefix or the empty string if no corresponding subfield was found. */
+        std::string getFirstSubfieldWithCodeAndPrefix(const char subfield_code, const std::string &prefix) const;
+
         bool hasSubfield(const char subfield_code) const;
         bool hasSubfieldWithValue(const char subfield_code, const std::string &value, const bool case_insensitive = false) const;
 
