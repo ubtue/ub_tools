@@ -39,39 +39,6 @@
 namespace {
 
 
-void ExtractAuthors(MARC::Reader * const marc_reader, std::set<std::string> * authors) {
-    static std::vector<std::string> tags_to_check{ "100", "110", "111", "700", "710", "711" };
-    unsigned record_count(0);
-    while (const MARC::Record record = marc_reader->read()) {
-        ++record_count;
-        for (auto tag_to_check : tags_to_check) {
-            for (auto &field : record.getTagRange(tag_to_check)) {
-                const auto subfields(field.getSubfields());
-                for (const auto &subfield : subfields) {
-                    if (subfield.code_ == '0') {
-                        const std::string author(subfield.value_);
-                        if (likely(not author.empty())) {
-                            if (not StringUtil::StartsWith(author, "(DE-627)"))
-                                continue;
-                            authors->emplace(author.substr(std::string("(DE-627)").length()));
-                            //std::cout << "Found: " << author.substr(std::string("(DE-627)").length()) << "\n";
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-void TagAuthors(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer, std::set<std::string> &authors) {
-    while (MARC::Record record = authority_reader->read()) {
-         if (authors.find(record.getControlNumber()) != authors.end()) {
-             record.insertField("TIT", { { 'a', "ixtheo" } });
-         }
-         authority_writer->write(record);
-    }
-}
-
 // See https://github.com/ubtue/tuefind/wiki/Daten-Abzugskriterien#abzugskriterien-bibelwissenschaften, both entries Nr. 6 in order
 // to understand this implementation.
 void CollectGNDNumbers(MARC::Reader * const authority_reader, std::unordered_set<std::string> * const bible_studies_gnd_numbers,
@@ -457,6 +424,67 @@ void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const mar
 }
 
 
+void ExtractAuthors(MARC::Reader * const marc_reader, std::map<std::string, std::set<std::string>> * authors,
+                        const std::unordered_set<std::string> &bible_studies_gnd_numbers,
+                        const std::unordered_set<std::string> &canon_law_gnd_numbers) {
+    static std::vector<std::string> tags_to_check{ "100", "110", "111", "700", "710", "711" };
+    unsigned record_count(0);
+    while (const MARC::Record record = marc_reader->read()) {
+        ++record_count;
+        for (auto tag_to_check : tags_to_check) {
+            for (auto &field : record.getTagRange(tag_to_check)) {
+                const auto subfields(field.getSubfields());
+                for (const auto &subfield : subfields) {
+                    if (subfield.code_ == '0') {
+                        const std::string author(subfield.value_);
+                        if (likely(not author.empty())) {
+                            if (not StringUtil::StartsWith(author, "(DE-627)"))
+                                continue;
+                            std::string author_id(author.substr(std::string("(DE-627)").length()));
+                            auto it_author = authors->find(author_id);
+                            std::set<std::string> instances;
+                            if (it_author != authors->end())
+                                instances = it_author->second;
+                            
+                            if (IsRelBibRecord(record))
+                                instances.emplace("r");
+                            if (IsCanonLawRecord(record, canon_law_gnd_numbers))
+                                instances.emplace("c");
+                            if (IsBibleStudiesRecord(record, bible_studies_gnd_numbers))
+                                instances.emplace("b");
+                            
+                            if (authors->find(author_id) == authors->end())
+                                authors->emplace(author_id, instances);
+                            else
+                                (*authors)[author_id] = instances;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+void TagAuthors(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer, std::map<std::string, std::set<std::string>> &authors) {
+    while (MARC::Record record = authority_reader->read()) {
+         auto it_authors = authors.find(record.getControlNumber());
+         if (it_authors != authors.end()) {
+             std::vector<MARC::Subfield> tits{ { 'a', "ixtheo" } };
+             std::set<std::string> instances = it_authors->second;
+             if (instances.find("r") != instances.end())
+                tits.push_back({ 'a', "relbib" });
+             if (instances.find("b") != instances.end())
+                tits.push_back({ 'a', "biblestudies" });
+             if (instances.find("c") != instances.end())
+                tits.push_back({ 'a', "canonlaw" });
+            record.insertField("TIT", tits);
+         }
+         authority_writer->write(record);
+    }
+}
+
+
 } //unnamed namespace
 
 
@@ -480,8 +508,8 @@ int Main(int argc, char **argv) {
     std::vector<std::unordered_set<std::string>> subsystem_sets(NUM_OF_SUBSYSTEMS);
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
 
-    std::set<std::string> authors;
-    ExtractAuthors(marc_reader.get(), &authors);
+    std::map<std::string, std::set<std::string>> authors;
+    ExtractAuthors(marc_reader.get(), &authors, bible_studies_gnd_numbers, canon_law_gnd_numbers);
     marc_reader->rewind();
     
     GetSubsystemPPNSet(marc_reader.get(), bible_studies_gnd_numbers, canon_law_gnd_numbers, &subsystem_sets);
