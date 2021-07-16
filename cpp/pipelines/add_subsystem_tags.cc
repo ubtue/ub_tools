@@ -440,11 +440,8 @@ void ExtractAuthors(MARC::Reader * const marc_reader, std::unordered_map<std::st
                 const std::string author(field.getFirstSubfieldWithCodeAndPrefix('0', "(DE-627)"));
                 if (likely(not author.empty())) {
                     std::string author_id(author.substr(std::string("(DE-627)").length()));
-                    auto it_author = authors->find(author_id);
-                    if (it_author == authors->end()) {
-                        std::set<std::string> instances;
-                        it_author = authors->insert({author_id, instances}).first;
-                    }
+                    std::set<std::string> instances;
+                    auto it_author = authors->emplace(author_id, instances).first;
                     if (is_relbib_record)
                         it_author->second.emplace("r");
                     if (is_canonlaw_record)

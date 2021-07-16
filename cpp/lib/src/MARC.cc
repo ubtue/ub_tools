@@ -279,7 +279,7 @@ std::string Record::Field::getFirstSubfieldWithCode(const char subfield_code) co
 }
 
 
-std::string Record::Field::getFirstSubfieldWithCodeAndPrefix(const char subfield_code, const std::string prefix) const {
+std::string Record::Field::getFirstSubfieldWithCodeAndPrefix(const char subfield_code, const std::string &prefix) const {
     const auto subfields(getSubfields());
     for (const auto &subfield : subfields) {
         if (subfield.code_ == subfield_code) {
