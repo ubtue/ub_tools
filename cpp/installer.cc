@@ -203,7 +203,7 @@ public:
 void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_type) {
     std::vector<Mountpoint> mount_points;
     mount_points.emplace_back(Mountpoint("/mnt/ZE020150", "/mnt/ZE020150/FID-Entwicklung", "//sn00.zdv.uni-tuebingen.de/ZE020150"));
-    mount_points.emplace_back(Mountpoint("/mnt/ZE020110/FID-Projekte", "/mnt/ZE020110/FID-Projekte/Default", "//sn00.zdv.uni-tuebingen.de/ZE020110/FID-Projekte"));
+    mount_points.emplace_back(Mountpoint("/mnt/ZE020110", "/mnt/ZE020110/FID-Projekte", "//sn00.zdv.uni-tuebingen.de/ZE020110"));
 
     for (const auto &mount_point : mount_points) {
         FileUtil::MakeDirectoryOrDie(mount_point.path_, /*recursive = */ true);
@@ -224,7 +224,7 @@ void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_t
 
                 appendix += mount_point.unc_path_ + " " + mount_point.path_ + " cifs "
                             "credentials=/root/.smbcredentials,workgroup=uni-tuebingen.de,uid=root,"
-                            "gid=root,vers=1.0,auto 0 0";
+                            "gid=root,auto 0 0";
                 FileUtil::AppendStringToFile("/etc/fstab", appendix);
             }
             ExecUtil::ExecOrDie("/bin/mount", { mount_point.path_ });
