@@ -128,7 +128,8 @@ void CollectUsageStats(const std::string &user_type, Stats * const stats) {
     stats->no_of_subscribed_journals_with_notifications_ = 0;
     stats->average_number_of_notified_articles_per_notified_journal_ = 0.0;
     std::unordered_set<std::string> seen_superior_ppns;
-    while (not usage_stats_file->eof()) {
+    const auto USAGE_STATS_FILE_SIZE(usage_stats_file->size());
+    while (usage_stats_file->tell() < USAGE_STATS_FILE_SIZE) {
         double julian_day_number;
         BinaryIO::ReadOrDie(*usage_stats_file, &julian_day_number);
         std::string logged_user_type;
@@ -183,7 +184,7 @@ int Main(int argc, char **argv) {
         Usage();
 
     std::string solr_host_and_port;
-    if (argc == 3)
+    if (argc == 4)
         solr_host_and_port = Solr::DEFAULT_HOST + ":" + std::to_string(Solr::DEFAULT_PORT);
     else {
         solr_host_and_port = argv[1];
