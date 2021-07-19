@@ -498,7 +498,7 @@ void Tasklet::run(const DirectDownload::Params &parameters, DirectDownload::Resu
 
         result->items_skipped_since_already_delivered_ += (all_items_num - filtered_items_num);
 
-        DirectDownload::PostToTranslationServer(parameters.translation_server_url_, "searchmultiple", parameters.time_limit_ * 10 /*give plenty of time */,
+        DirectDownload::PostToTranslationServer(parameters.translation_server_url_, "searchmultiple", parameters.time_limit_ * 100 /*give plenty of time */,
                                 parameters.user_agent_,
                                 filtered_multiple_object, /* request_is_json = */ true, &result->response_body_,
                                 &result->response_code_, &result->error_message_);
