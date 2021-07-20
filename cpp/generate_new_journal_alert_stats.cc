@@ -34,6 +34,7 @@
 #include "IniFile.h"
 #include "Solr.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "TimeUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -44,7 +45,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[solr_host_and_port] user_type report_interval_in_days email_recipient\n"
+    ::Usage("[solr_host_and_port] user_type report_interval_in_days\n"
             "  Sends out statistics emails about journal subscriptions.\n"
             "  Should \"solr_host_and_port\" be missing \"" + Solr::DEFAULT_HOST + ":" + std::to_string(Solr::DEFAULT_PORT) + "\" will be used.\n"
             "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm.\n");
@@ -153,34 +154,31 @@ void CollectUsageStats(const std::string &user_type, Stats * const stats) {
 }
 
 
-void GenerateAndMailReport(const std::string &email_address, const Stats &stats) {
-    if (EmailSender::SimplerSendEmail("no-reply@ub.uni-tuebingen.de", email_address, "Journal Alert Stats",
-                                      "Host: " + DnsUtil::GetHostname() + "\n"
-                                      + "Report interval in days: " + std::to_string(stats.report_interval_in_days_) + "\n"
-                                      + "Number of users w/ subscriptions: "
-                                      + std::to_string(stats.no_of_users_with_subscriptions_) + "\n"
-                                      + "Average number of subscriptions per user: "
-                                      + StringUtil::ToString(stats.average_subscriptions_per_user_, 3) + "\n"
-                                      + "Average number of bundle subscriptions per user: "
-                                      + StringUtil::ToString(stats.average_number_of_bundle_subscriptions_, 3) + "\n"
-                                      + "Total number of currently subscribed journals: "
-                                      + std::to_string(stats.no_of_subscribed_journals_) + "\n"
-                                      + "Number of subscribed journals w/ notifications: "
-                                      + std::to_string(stats.no_of_subscribed_journals_with_notifications_) + "\n"
-                                      + "Average number of notified articles per notified journal: "
-                                      + StringUtil::ToString(stats.average_number_of_notified_articles_per_notified_journal_))
-        > 299)
-        LOG_ERROR("failed to send an email report to \"" + email_address + "\"!");
+void GenerateReport(File * const report_file, const Stats &stats) {
+    (*report_file) << "\"Host\"," << TextUtil::CSVEscape(DnsUtil::GetHostname()) << '\n'
+                   << "\"Report interval in days\"," << stats.report_interval_in_days_ << '\n'
+                   << "\"Number of users w/ subscriptions\"," << stats.no_of_users_with_subscriptions_ << '\n'
+                   << "\"Average number of subscriptions per user\"," << stats.average_subscriptions_per_user_ << '\n'
+                   << "\"Average number of bundle subscriptions per user\","
+                   << stats.average_number_of_bundle_subscriptions_ << '\n'
+                   << "\"Total number of currently subscribed journals\"," << stats.no_of_subscribed_journals_ << '\n'
+                   << "\"Number of subscribed journals w/ notifications\","
+                   << stats.no_of_subscribed_journals_with_notifications_ << '\n'
+                   << "\"Average number of notified articles per notified journal\","
+                   << stats.average_number_of_notified_articles_per_notified_journal_ << '\n';
 }
 
 
 } // unnamed namespace
 
 
+const std::string REPORT_DIRECTORY("/mnt/ZE020110/FID-Projekte/Statistik/"); // Must end w/ a slash!
+
+
 // gets user subscriptions for superior works from MySQL
 // uses a KeyValueDB instance to prevent entries from being sent multiple times to same user
 int Main(int argc, char **argv) {
-    if (argc != 4 and argc != 5)
+    if (argc != 3 and argc != 4)
         Usage();
 
     std::string solr_host_and_port;
@@ -202,7 +200,9 @@ int Main(int argc, char **argv) {
     std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
     CollectConfigStats(db_connection.get(), user_type, &stats);
     CollectUsageStats(user_type, &stats);
-    GenerateAndMailReport(email_recipient, stats);
+
+    const auto report_file(FileUtil::OpenOutputFileOrDie(REPORT_DIRECTORY + "new_journal_alert_stats." + user_type + ".csv"));
+    GenerateReport(report_file.get(), stats);
 
     return EXIT_SUCCESS;
 }

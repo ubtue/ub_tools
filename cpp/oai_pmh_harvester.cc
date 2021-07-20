@@ -153,7 +153,7 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
     }
 
     *resumption_token = ExtractResumptionToken(message_body, cursor, complete_list_size);
-    return false;//not resumption_token->empty();
+    return not resumption_token->empty();
 }
 
 
