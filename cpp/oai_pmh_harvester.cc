@@ -173,14 +173,11 @@ std::string MakeRequestURL(const std::string &base_url, const std::string &metad
 }
 
 
-const std::string OAI_DUPS_DB_FILENAME(UBTools::GetTuelibPath() + "oai_dups.db");
+std::unique_ptr<KeyValueDB> CreateOrOpenKeyValueDB(const std::string &path_to_dups_database) {
+    if (not FileUtil::Exists(path_to_dups_database))
+        KeyValueDB::Create(path_to_dups_database);
 
-
-std::unique_ptr<KeyValueDB> CreateOrOpenKeyValueDB() {
-    if (not FileUtil::Exists(OAI_DUPS_DB_FILENAME))
-        KeyValueDB::Create(OAI_DUPS_DB_FILENAME);
-
-    return std::unique_ptr<KeyValueDB>(new KeyValueDB(OAI_DUPS_DB_FILENAME));
+    return std::unique_ptr<KeyValueDB>(new KeyValueDB(path_to_dups_database));
 }
 
 
@@ -298,11 +295,8 @@ void GenerateValidatedOutputFromMARC(KeyValueDB * const dups_db, MARC::Reader * 
 
 
 int Main(int argc, char **argv) {
-    std::unique_ptr<KeyValueDB> dups_db;
-    if (argc > 1 and std::strcmp(argv[1], "--skip-dups") == 0) {
-        dups_db = CreateOrOpenKeyValueDB();
+    if (argc > 1 and std::strcmp(argv[1], "--skip-dups") == 0)
         --argc, ++argv;
-    }
 
     bool ignore_ssl_certificates(false);
     if (argc > 1 and std::strcmp(argv[1], "--ignore-ssl-certificates") == 0) {
@@ -310,9 +304,9 @@ int Main(int argc, char **argv) {
        --argc, ++argv;
     }
 
-    if (argc != 6 and argc != 7)
+    if (argc != 7 and argc != 8)
         ::Usage("[--skip-dups] [--ignore-ssl-certificates] base_url metadata_prefix [harvest_set_or_identifier] "
-                "control_number_prefix output_filename time_limit_per_request\n"
+                "control_number_prefix output_filename time_limit_per_request path_to_dups_database\n"
                 "If \"--skip-dups\" has been specified, records that we already encountered in the past won't\n"
                 "included in the output file.\n"
                 "\"harvest_set_or_identifier\" must start with \"set=\" or \"identifier=\".\n"
@@ -335,6 +329,7 @@ int Main(int argc, char **argv) {
     const std::string control_number_prefix(argc == 7 ? argv[3] : argv[2]);
     const std::string output_filename(argc == 7 ? argv[5] : argv[4]);
     const std::string time_limit_per_request_as_string(argc == 7 ? argv[6] : argv[5]);
+    const std::string path_to_dups_database(argc == 7 ? argv[7] : argv[6]);
 
     unsigned time_limit_per_request_in_seconds;
     if (not StringUtil::ToUnsigned(time_limit_per_request_as_string, &time_limit_per_request_in_seconds))
@@ -370,7 +365,8 @@ int Main(int argc, char **argv) {
     temp_output->close();
     LOG_INFO("Downloaded " + std::to_string(total_record_count) + " record(s).");
 
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(output_filename));
+    const std::unique_ptr<KeyValueDB> dups_db(CreateOrOpenKeyValueDB(path_to_dups_database));
+    const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(output_filename));
     if (metadata_prefix == "oai_dc") {
         XMLParser xml_parser(TEMP_FILENAME, XMLParser::XML_FILE);
         GenerateValidatedOutputFromOAI_DC(dups_db.get(), &xml_parser, control_number_prefix, marc_writer.get());
