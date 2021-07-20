@@ -201,7 +201,8 @@ int Main(int argc, char **argv) {
     CollectConfigStats(db_connection.get(), user_type, &stats);
     CollectUsageStats(user_type, &stats);
 
-    const auto report_file(FileUtil::OpenOutputFileOrDie(REPORT_DIRECTORY + "new_journal_alert_stats." + user_type + ".csv"));
+    const auto report_file(FileUtil::OpenOutputFileOrDie(REPORT_DIRECTORY + "new_journal_alert_stats." + user_type
+                                                         + "." + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d") + ".csv"));
     GenerateReport(report_file.get(), stats);
 
     return EXIT_SUCCESS;
