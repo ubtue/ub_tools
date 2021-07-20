@@ -93,9 +93,7 @@ bool ParseRecord(XMLParser * const xml_parser, MARC::Writer * const marc_writer)
                 new_record.insertField(MARC::Tag("655"), 'a', last_data, ' ', '7');
             else if (tag == "source")
                 new_record.insertField(MARC::Tag("786"), 'n', last_data, '0', ' ');
-            else if (tag == "coverage")
-                new_record.insertField(MARC::Tag("500"), 'a', last_data);
-            else if (tag == "subject")
+            else if (tag == "coverage" or tag == "subject")
                 new_record.insertField(MARC::Tag("653"), 'a', last_data);
             else
                 LOG_ERROR("Unhandled tag: \"" + xml_part.data_ + "\"!");
