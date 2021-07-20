@@ -67,7 +67,7 @@ void CopyAndCollectPPNs(LocalDataDB * const local_data_db, MARC::Reader * const 
             authority_ppns_in_delta->emplace(PPN);
             if (record.getFirstField("ORI") == record.end())
                 record.insertField("ORI", 'a', FileUtil::GetLastPathComponent(reader->getPath()));
-            if (check_input_ppns == false || authority_ppns_in_input.find(PPN) != authority_ppns_in_input.end())
+            if (check_input_ppns == false or authority_ppns_in_input.find(PPN) != authority_ppns_in_input.end())
                 writer->write(record);
         }
     }
@@ -82,8 +82,8 @@ void CopySelectedTypes(LocalDataDB * const local_data_db, const std::vector<std:
         if (selected_types.find(BSZUtil::GetArchiveType(archive_member)) != selected_types.cend()) {
             const auto reader(MARC::Reader::Factory(archive_member, MARC::FileType::BINARY));
             //only check if delta records are present in source record if it is a sekkor file, not if TA file etc.
-            check_input_ppns |= StringUtil::Contains(archive_member, "sekkor");
-            CopyAndCollectPPNs(local_data_db, reader.get(), writer, authority_ppns_in_delta, authority_ppns_in_input, check_input_ppns);
+            bool check_input_ppns_or_sekkor = check_input_ppns | StringUtil::Contains(archive_member, "sekkor");
+            CopyAndCollectPPNs(local_data_db, reader.get(), writer, authority_ppns_in_delta, authority_ppns_in_input, check_input_ppns_or_sekkor);
         }
     }
 }
@@ -95,22 +95,19 @@ void PreFetchPPNSOfInput(const std::vector<std::string> &archive_members, const 
     for (const auto &archive_member : archive_members) {
         if (selected_types.find(BSZUtil::GetArchiveType(archive_member)) != selected_types.cend()) {
             const auto reader(MARC::Reader::Factory(archive_member, MARC::FileType::BINARY));
-            while (auto record = reader->read()) {
-                const auto PPN(record.getControlNumber());
-                authority_ppns_in_input->emplace(PPN);
-            }
-            reader->rewind();
+            while (auto record = reader->read())
+                authority_ppns_in_input->emplace(record.getControlNumber());
         }
     }
 }
 
 
-void PatchArchiveMembersAndCreateOutputArchive(LocalDataDB * const local_data_db, const std::vector<std::string> &input_archive_members,
-                                               const std::vector<std::string> &difference_archive_members, const std::string &output_directory)
+void PatchArchiveMembersAndCreateOutputArchive(LocalDataDB * const local_data_db, const std::vector<std::string> &input_left_archive_members,
+                                               const std::vector<std::string> &input_right_archive_members, const std::string &output_directory)
 {
-    if (input_archive_members.empty())
+    if (input_left_archive_members.empty())
         LOG_ERROR("no input archive members!");
-    if (difference_archive_members.empty())
+    if (input_right_archive_members.empty())
         LOG_WARNING("no difference archive members!");
 
     std::unordered_set<std::string> title_ppns_in_delta;
@@ -122,16 +119,16 @@ void PatchArchiveMembersAndCreateOutputArchive(LocalDataDB * const local_data_db
     //
 
     const auto title_writer(MARC::Writer::Factory(output_directory + "/tit.mrc", MARC::FileType::BINARY));
-    CopySelectedTypes(local_data_db, difference_archive_members, title_writer.get(), { BSZUtil::TITLE_RECORDS, BSZUtil::SUPERIOR_TITLES },
+    CopySelectedTypes(local_data_db, input_right_archive_members, title_writer.get(), { BSZUtil::TITLE_RECORDS, BSZUtil::SUPERIOR_TITLES },
                       &title_ppns_in_delta, authority_ppns_in_input, false);
-    CopySelectedTypes(local_data_db, input_archive_members, title_writer.get(), { BSZUtil::TITLE_RECORDS, BSZUtil::SUPERIOR_TITLES },
+    CopySelectedTypes(local_data_db, input_left_archive_members, title_writer.get(), { BSZUtil::TITLE_RECORDS, BSZUtil::SUPERIOR_TITLES },
                       &title_ppns_in_delta, authority_ppns_in_input, false);
 
     const auto authority_writer(MARC::Writer::Factory(output_directory + "/aut.mrc", MARC::FileType::BINARY));
-    PreFetchPPNSOfInput(input_archive_members, { BSZUtil::AUTHORITY_RECORDS }, &authority_ppns_in_input);
-    CopySelectedTypes(local_data_db, difference_archive_members, authority_writer.get(), { BSZUtil::AUTHORITY_RECORDS },
+    PreFetchPPNSOfInput(input_left_archive_members, { BSZUtil::AUTHORITY_RECORDS }, &authority_ppns_in_input);
+    CopySelectedTypes(local_data_db, input_right_archive_members, authority_writer.get(), { BSZUtil::AUTHORITY_RECORDS },
                       &authority_ppns_in_delta, authority_ppns_in_input, true);
-    CopySelectedTypes(local_data_db, input_archive_members, authority_writer.get(), { BSZUtil::AUTHORITY_RECORDS },
+    CopySelectedTypes(local_data_db, input_left_archive_members, authority_writer.get(), { BSZUtil::AUTHORITY_RECORDS },
                       &authority_ppns_in_delta, authority_ppns_in_input, false);
 }
 
