@@ -985,4 +985,23 @@ bool AscTimeToStructTm(std::string asctime_output, struct tm * const tm) {
 }
 
 
+bool IsLeapYear(const unsigned year) {
+    if ((year % 4) != 0)
+        return false;
+
+    if ((year % 100) == 0)
+        return (year % 400) == 0;
+
+    return true;
+}
+
+
+bool IsLeapYear(const std::string &year_candidate) {
+    unsigned year;
+    if (StringUtil::ToUnsigned(year_candidate, &year))
+        return IsLeapYear(year);
+    return false;
+}
+
+
 } // namespace TimeUtil
