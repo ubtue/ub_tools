@@ -248,6 +248,15 @@ off_t GetFileSize(const std::string &path) {
 }
 
 
+bool GetLastModificationDate(const std::string &path, timespec * mtim) {
+    struct stat stat_buf;
+    if (::stat(path.c_str(), &stat_buf) == -1)
+        return false;
+    *mtim = stat_buf.st_mtim;
+    return true;
+}
+
+
 bool WriteString(const std::string &path, const std::string &data) {
     std::ofstream output(path, std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
     if (output.fail())

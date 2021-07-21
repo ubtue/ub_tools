@@ -620,17 +620,70 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
 }
 
 
-bool FullDumpDownloader::download(EntryCollection * const collection) {
+bool FullDumpDownloader::download(EntryCollection * const collection, bool disable_cache_mechanism) {
     const auto params(dynamic_cast<FullDumpDownloader::Params * const>(downloader_params_.get()));
     if (unlikely(params == nullptr))
         LOG_ERROR("dynamic_cast failed!");
 
     std::unordered_map<std::string, ColumnMetadata> column_to_metadata_map;
     std::shared_ptr<JSON::JSONNode> json_data;
+    std::shared_ptr<JSON::JSONNode> json_cached_data;
 
-    if (not downloadData(params->endpoint_url_, &json_data))
-        return false;
+    bool use_cache = not disable_cache_mechanism;
+    bool cache_present = false;
+    bool downloaded = false;
+    std::string zeder_cache_path = UBTools::GetTuelibPath();
+    if (StringUtil::EndsWith(params->endpoint_url_, "ixtheo", true))
+        zeder_cache_path += "zeder_ixtheo.json";
+    else if (StringUtil::EndsWith(params->endpoint_url_, "krim", true))
+        zeder_cache_path += "zeder_krimdok.json";
+    else
+        use_cache = false;
 
+    if (use_cache) {
+        std::string json_document;
+        if (FileUtil::ReadString(zeder_cache_path, &json_document)) {
+            JSON::Parser json_parser(json_document);
+            if (not json_parser.parse(&json_cached_data))
+                use_cache = false;
+            else {
+                cache_present = true;
+                timespec mtim, now;
+                clock_gettime(CLOCK_REALTIME, &now);
+                if (not FileUtil::GetLastModificationDate(zeder_cache_path, &mtim))
+                    use_cache = false;
+                else {
+                    double dif = std::difftime(now.tv_sec, mtim.tv_sec);
+                    if (dif > 60.0 /*min*/ * 60.0 /*sec*/)
+                        use_cache = false;
+                }
+            }
+        }
+        else
+            use_cache = false;
+    }
+
+    if (not use_cache) {
+        if (not downloadData(params->endpoint_url_, &json_data)) {
+            if (not cache_present)
+                return false;
+            else {
+                json_data = std::move(json_cached_data);
+                LOG_INFO("Used zeder cache file due to failed zeder download");
+            }
+        }
+        else
+            downloaded = true;
+    }
+    else {
+        json_data = std::move(json_cached_data);
+        LOG_INFO("Used zeder cache file");
+    }
+
+    if (downloaded)
+    {
+        FileUtil::WriteString(zeder_cache_path, json_data->toString());
+    }
     parseColumnMetadata(json_data, &column_to_metadata_map);
     parseRows(*params, json_data, column_to_metadata_map,  collection);
     return true;
@@ -680,7 +733,7 @@ SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::st
         new FullDumpDownloader::Params(endpoint_url, entries_to_download, column_filter, filter_regexps));
 
     auto downloader(Zeder::FullDumpDownloader::Factory(FullDumpDownloader::Type::FULL_DUMP, std::move(downloader_params)));
-    failed_to_connect_to_database_server_ = not downloader->download(&entries_);
+    failed_to_connect_to_database_server_ = not downloader->download(&entries_, false);
 }
 
 
