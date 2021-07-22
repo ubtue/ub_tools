@@ -21,15 +21,65 @@
 #include <cstdlib>
 #include "BeaconFile.h"
 #include "MARC.h"
+#include "FileUtil.h"
 #include "StringUtil.h"
 #include "util.h"
+#include <iostream>
 
 
 namespace {
 
 
+class TypeFile {
+
+    struct Entry {
+        std::string gnd_number_;
+        std::vector<std::string> types_;
+    public:
+        Entry() = default;
+        Entry(const Entry &other) = default;
+        Entry(const std::string gnd_number, const std::vector<std::string> &types) : gnd_number_(gnd_number), types_(types) {}
+        inline bool operator<(const Entry &rhs) { return gnd_number_ < rhs.gnd_number_; }
+        inline bool operator==(const Entry &rhs) const { return gnd_number_ == rhs.gnd_number_; }
+        inline bool operator()(const Entry &rhs) { return gnd_number_ < rhs.gnd_number_; }
+    };
+
+    class EntryHasher {
+    public:
+        inline std::size_t operator()(const Entry &entry) const { return std::hash<std::string>()(entry.gnd_number_); }
+    };
+
+    private:
+        const std::string filename_;
+        std::unordered_set<Entry, EntryHasher> entries_;
+    public:
+        typedef std::unordered_set<Entry, EntryHasher>::const_iterator const_iterator;
+    public:
+        explicit TypeFile(const std::string filename) : filename_(filename) {
+            unsigned line_no(0);
+            const auto input(FileUtil::OpenInputFileOrDie(filename));
+            while (not input->eof()) {
+                const std::string line(input->getLineAny());
+                ++line_no;
+                std::vector<std::string> gnd_and_types;
+                StringUtil::Split(line, std::string(" - "), &gnd_and_types);
+                if (gnd_and_types.size() != 2)
+                    LOG_ERROR("Invalid type file " + filename + " in line " + std::to_string(line_no));
+                std::vector<std::string> types;
+                StringUtil::SplitThenTrimWhite(gnd_and_types[1], ',', &types);
+                entries_.emplace(Entry(StringUtil::TrimWhite(gnd_and_types[0]), types));
+            }
+        }
+        inline const_iterator begin() const { return entries_.cbegin(); }
+        inline const_iterator end() const { return entries_.cend(); }
+        inline const_iterator find(const std::string &gnd_number) const { return entries_.find(Entry(gnd_number, {})); };
+};
+
+
+
 void ProcessAuthorityRecords(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer,
-                             const std::vector<BeaconFile> &beacon_files)
+                             const std::vector<BeaconFile> &beacon_files,
+                             const std::map<std::string, TypeFile> &beacon_to_type_files_map)
 {
     unsigned gnd_tagged_count(0);
     while (auto record = authority_reader->read()) {
@@ -42,6 +92,15 @@ void ProcessAuthorityRecords(MARC::Reader * const authority_reader, MARC::Writer
 
                 ++gnd_tagged_count;
                 record.insertField("BEA", { { 'a', beacon_file.getName() }, { 'u', beacon_file.getURL(*beacon_entry) } });
+                if (beacon_to_type_files_map.find(beacon_file.getFileName()) != beacon_to_type_files_map.end()) {
+                    const TypeFile &type_file(beacon_to_type_files_map.at(beacon_file.getFileName()));
+                    const auto &type_entry(type_file.find(gnd_number));
+                    if (type_entry != type_file.end()) {
+                        for (const auto &type : type_entry->types_)
+                            record.addSubfield("BEA", 'v', type);
+                    }
+                }
+
             }
         }
 
@@ -57,7 +116,7 @@ void ProcessAuthorityRecords(MARC::Reader * const authority_reader, MARC::Writer
 
 int Main(int argc, char **argv) {
     if (argc < 4)
-        ::Usage("authority_records augmented_authority_records [beacon_list1 beacon_list2 .. beacon_listN]");
+        ::Usage("authority_records augmented_authority_records [beacon_list1 [--type-file type_file1] beacon_list2 [--type-file type_file2] .. beacon_listN [--type-file type-fileN]");
 
     const std::string authority_records_filename(argv[1]);
     const std::string augmented_authority_records_filename(argv[2]);
@@ -69,10 +128,23 @@ int Main(int argc, char **argv) {
     auto authority_writer(MARC::Writer::Factory(augmented_authority_records_filename));
 
     std::vector<BeaconFile> beacon_files;
-    for (int arg_no(3); arg_no < argc; ++arg_no)
-        beacon_files.emplace_back(BeaconFile(argv[arg_no]));
+    std::map<std::string, TypeFile> beacon_to_type_files_map;
 
-    ProcessAuthorityRecords(authority_reader.get(), authority_writer.get(), beacon_files);
+
+    for (int arg_no(3); arg_no < argc; ++arg_no) {
+        if (argv[arg_no] == std::string("--type-file")) {
+            if (not (arg_no + 1 < argc))
+                LOG_ERROR("No typefile given");
+            if (arg_no - 1 < 3)
+                LOG_ERROR("No beacon file given for type file " + std::string(argv[arg_no + 1]));
+            beacon_to_type_files_map.emplace(argv[arg_no - 1], TypeFile(argv[arg_no + 1]));
+            ++arg_no;
+        } else
+            beacon_files.emplace_back(BeaconFile(argv[arg_no]));
+    }
+
+
+    ProcessAuthorityRecords(authority_reader.get(), authority_writer.get(), beacon_files, beacon_to_type_files_map);
 
     return EXIT_SUCCESS;
 }
