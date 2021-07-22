@@ -161,8 +161,11 @@ int Main(int argc, char * argv[]) {
         MARC::GetGNDCode(record, &record_gnd);
         MARC::GetWikidataId(record, &wikidata_id);
 
-        if (not wikidata_id.empty())
+        if (not wikidata_id.empty()) {
+            marc_writer.get()->write(record);    
             continue;
+        }
+            
     
         //record lookup
         if (not record_gnd.empty()) {
