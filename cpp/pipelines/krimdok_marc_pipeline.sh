@@ -115,8 +115,8 @@ EndPhase
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
 make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
-(add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
+(add_superior_and_alertable_flags krimdok GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                          GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
