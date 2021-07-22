@@ -405,7 +405,7 @@ protected:
 public:
     virtual ~EndpointDownloader() = default;
 public:
-    virtual bool download(EntryCollection * const collection, bool disable_cache_mechanism) = 0;
+    virtual bool download(EntryCollection * const collection, const bool disable_cache_mechanism = false) = 0;
 
     static std::unique_ptr<EndpointDownloader> Factory(Type downloader_type, std::unique_ptr<Params> params);
 };
@@ -446,7 +446,7 @@ private:
 public:
     virtual ~FullDumpDownloader() = default;
 public:
-    virtual bool download(EntryCollection * const collection, bool disable_cache_mechanism) override;
+    virtual bool download(EntryCollection * const collection, const bool disable_cache_mechanism = false) override;
 };
 
 

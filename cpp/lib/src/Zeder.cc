@@ -620,7 +620,21 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
 }
 
 
-bool FullDumpDownloader::download(EntryCollection * const collection, bool disable_cache_mechanism) {
+bool IsCacheUpToDate(const std::string &zeder_cache_path) {
+    timespec mtim, now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    if (not FileUtil::GetLastModificationTimestamp(zeder_cache_path, &mtim))
+        return false;
+    else {
+        double dif = std::difftime(now.tv_sec, mtim.tv_sec);
+        if (dif > 60.0 /*min*/ * 60.0 /*sec*/)
+            return false;
+    }
+    return true;
+}
+
+
+bool FullDumpDownloader::download(EntryCollection * const collection, const bool disable_cache_mechanism) {
     const auto params(dynamic_cast<FullDumpDownloader::Params * const>(downloader_params_.get()));
     if (unlikely(params == nullptr))
         LOG_ERROR("dynamic_cast failed!");
@@ -642,31 +656,26 @@ bool FullDumpDownloader::download(EntryCollection * const collection, bool disab
 
     if (use_cache) {
         std::string json_document;
-        if (FileUtil::ReadString(zeder_cache_path, &json_document)) {
+        if (not FileUtil::ReadString(zeder_cache_path, &json_document))
+            use_cache = false;
+        else {
             JSON::Parser json_parser(json_document);
             if (not json_parser.parse(&json_cached_data))
                 use_cache = false;
             else {
                 cache_present = true;
-                timespec mtim, now;
-                clock_gettime(CLOCK_REALTIME, &now);
-                if (not FileUtil::GetLastModificationDate(zeder_cache_path, &mtim))
+                if (not IsCacheUpToDate(zeder_cache_path))
                     use_cache = false;
-                else {
-                    double dif = std::difftime(now.tv_sec, mtim.tv_sec);
-                    if (dif > 60.0 /*min*/ * 60.0 /*sec*/)
-                        use_cache = false;
-                }
             }
-        }
-        else
-            use_cache = false;
+        }            
     }
 
     if (not use_cache) {
         if (not downloadData(params->endpoint_url_, &json_data)) {
-            if (not cache_present)
+            if (not cache_present) {
+                LOG_WARNING("Zeder Download and also Zeder cache failed");
                 return false;
+            }
             else {
                 json_data = std::move(json_cached_data);
                 LOG_INFO("Used zeder cache file due to failed zeder download");
@@ -691,6 +700,7 @@ bool FullDumpDownloader::download(EntryCollection * const collection, bool disab
 
 
 std::string GetFullDumpEndpointPath(Flavour zeder_flavour) {
+    //if the URL changes FullDumpDownloader::download might also be changed
     static const std::string endpoint_base_url("http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?"
                                                "action=get&Dimension=wert&Bearbeiter=&Instanz=");
     switch (zeder_flavour) {
@@ -733,7 +743,7 @@ SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::st
         new FullDumpDownloader::Params(endpoint_url, entries_to_download, column_filter, filter_regexps));
 
     auto downloader(Zeder::FullDumpDownloader::Factory(FullDumpDownloader::Type::FULL_DUMP, std::move(downloader_params)));
-    failed_to_connect_to_database_server_ = not downloader->download(&entries_, false);
+    failed_to_connect_to_database_server_ = not downloader->download(&entries_);
 }
 
 

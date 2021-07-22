@@ -248,7 +248,7 @@ off_t GetFileSize(const std::string &path) {
 }
 
 
-bool GetLastModificationDate(const std::string &path, timespec * mtim) {
+bool GetLastModificationTimestamp(const std::string &path, timespec * const mtim) {
     struct stat stat_buf;
     if (::stat(path.c_str(), &stat_buf) == -1)
         return false;

@@ -194,7 +194,7 @@ off_t GetFileSize(const std::string &path);
 /** \return The last modification timestamp of the file named by "path".
  *  \note   Returns false if "path" does not exist or we don't have the rights to stat it.
  */
-bool GetLastModificationDate(const std::string &path, timespec * mtim);
+bool GetLastModificationTimestamp(const std::string &path, timespec * const mtim);
 
 
 /** \class AutoTempFile

@@ -170,7 +170,7 @@ void DownloadZederEntries(const Zeder::Flavour flavour, const std::unordered_set
         new Zeder::FullDumpDownloader::Params(endpoint_url, entries_to_download, columns_to_download, filter_regexps));
 
     auto downloader(Zeder::FullDumpDownloader::Factory(Zeder::FullDumpDownloader::Type::FULL_DUMP, std::move(downloader_params)));
-    if (not downloader->download(downloaded_entries, true))
+    if (not downloader->download(downloaded_entries, /*disable_cache_mechanism=*/ true))
         LOG_ERROR("couldn't download full dump for " + Zeder::FLAVOUR_TO_STRING_MAP.at(flavour));
 }
 
