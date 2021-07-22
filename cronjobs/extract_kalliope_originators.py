@@ -23,7 +23,8 @@ def Main():
                 else:
                     gnds_and_type[gnd] =  { originator_type }
     for gnd, originator_type in gnds_and_type.items():
-        print(gnd, ' - ', originator_type)
+        print(gnd, ' - ', end='')
+        print(*originator_type, sep=', ')
 
 
 try:
