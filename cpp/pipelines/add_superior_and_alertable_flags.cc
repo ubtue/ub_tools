@@ -34,13 +34,14 @@
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "util.h"
+#include "Zeder.h"
 
 
 namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " marc_input marc_output\n";
+    std::cerr << "Usage: " << ::progname << " zeder_flavour marc_input marc_output\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -72,7 +73,7 @@ bool SeriesHasNotBeenCompleted(const MARC::Record &record) {
 
 
 void ProcessRecord(MARC::Writer * const marc_writer, const std::unordered_set<std::string> &superior_ppns,
-                   MARC::Record * const record, unsigned * const modified_count)
+                   MARC::Record * const record, unsigned * const modified_count, const std::set<std::string> &ppns_in_kat)
 {
     // Don't add the flag twice:
     if (record->getFirstField("SPR") != record->end()) {
@@ -88,7 +89,7 @@ void ProcessRecord(MARC::Writer * const marc_writer, const std::unordered_set<st
         superior_subfields.addSubfield('a', "1"); // Could be anything but we can't have an empty field.
 
     // Set the, you-can-subscribe-to-this flag, if appropriate:
-    if (record->isSerial() and SeriesHasNotBeenCompleted(*record))
+    if (record->isSerial() and SeriesHasNotBeenCompleted(*record) and ppns_in_kat.find(record->getControlNumber()) != ppns_in_kat.end())
         superior_subfields.addSubfield('b', "1");
 
     if (not superior_subfields.empty()) {
@@ -101,11 +102,19 @@ void ProcessRecord(MARC::Writer * const marc_writer, const std::unordered_set<st
 
 
 void AddSuperiorFlag(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                     const std::unordered_set<std::string> &superior_ppns)
+                     const std::unordered_set<std::string> &superior_ppns, const std::string &flavour)
 {
     unsigned modified_count(0);
+
+    Zeder::SimpleZeder zeder(Zeder::IXTHEO, { "eppn", "pppn", "kat" }, { { "kat", flavour } });
+    std::set<std::string> ppns_in_kat;
+    for (const auto &journal : zeder) {
+        ppns_in_kat.emplace(journal.lookup("pppn"));
+        ppns_in_kat.emplace(journal.lookup("eppn"));
+    }
+
     while (MARC::Record record = marc_reader->read())
-        ProcessRecord(marc_writer, superior_ppns, &record, &modified_count);
+        ProcessRecord(marc_writer, superior_ppns, &record, &modified_count, ppns_in_kat);
 
     LOG_INFO("Modified " + std::to_string(modified_count) + " record(s).");
 }
@@ -117,17 +126,26 @@ void AddSuperiorFlag(MARC::Reader * const marc_reader, MARC::Writer * const marc
 int main(int argc, char **argv) {
     ::progname = argv[0];
 
-    if (argc != 3)
+    if (argc != 4)
         Usage();
 
-    const std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
-    const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[2]));
+    std::string flavour;
+    if (__builtin_strcmp(argv[1], "ixtheo") == 0)
+        flavour = "IxTheo";
+    else if (__builtin_strcmp(argv[1], "krimdok") == 0)
+        flavour = "KrimDok"; //KrimDok is not used in Zeder, if used in the future, check naming
+    else
+        LOG_ERROR("zeder_flavour must be one of (ixtheo,krimdok)!");
+
+
+    const std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[2]));
+    const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
 
     try {
         std::unordered_set<std::string> superior_ppns;
         LoadSuperiorPPNs(marc_reader.get(), &superior_ppns);
         marc_reader->rewind();
-        AddSuperiorFlag(marc_reader.get(), marc_writer.get(), superior_ppns);
+        AddSuperiorFlag(marc_reader.get(), marc_writer.get(), superior_ppns, flavour);
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }

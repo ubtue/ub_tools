@@ -58,7 +58,7 @@ void ParseDataDnbFile(std::string input_filename, std::string output_filename) {
         bool read_gnd_id(false);
         while (std::getline(input_file, line)) {
             if (line == "}, {") {
-                if (not act_wikidata.empty() and not act_name.empty() and not act_wikipedia.empty()) {
+                if (not act_gnd.empty() and not act_name.empty() and not act_wikidata.empty() ) {
                     output_file << "Name: " << act_name << " GND: " << act_gnd << " Wikidata: " << act_wikidata << " Wikipedia: " << act_wikipedia << "\n";
                 }
                 act_gnd = "";
@@ -161,8 +161,11 @@ int Main(int argc, char * argv[]) {
         MARC::GetGNDCode(record, &record_gnd);
         MARC::GetWikidataId(record, &wikidata_id);
 
-        if (not wikidata_id.empty())
+        if (not wikidata_id.empty()) {
+            marc_writer.get()->write(record);    
             continue;
+        }
+            
     
         //record lookup
         if (not record_gnd.empty()) {

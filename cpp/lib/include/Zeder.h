@@ -405,7 +405,7 @@ protected:
 public:
     virtual ~EndpointDownloader() = default;
 public:
-    virtual bool download(EntryCollection * const collection) = 0;
+    virtual bool download(EntryCollection * const collection, const bool disable_cache_mechanism = false) = 0;
 
     static std::unique_ptr<EndpointDownloader> Factory(Type downloader_type, std::unique_ptr<Params> params);
 };
@@ -446,7 +446,7 @@ private:
 public:
     virtual ~FullDumpDownloader() = default;
 public:
-    virtual bool download(EntryCollection * const collection) override;
+    virtual bool download(EntryCollection * const collection, const bool disable_cache_mechanism = false) override;
 };
 
 
@@ -463,7 +463,8 @@ private:
 public:
     // \param "column_filter" If not empty, only the specified short column names will be accessible via the
     //        lookup member function of class Journal.  This is a performance and memory optimisation only.
-    explicit SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter = {});
+    explicit SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter = {},
+                         const std::unordered_map<std::string, std::string> &filter_regexps = {});
 
     inline operator bool() const { return not failed_to_connect_to_database_server_; }
     inline size_t size() const { return entries_.size(); }
