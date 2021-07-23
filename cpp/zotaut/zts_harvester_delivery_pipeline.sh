@@ -122,7 +122,7 @@ EndPhase
 
 StartPhase "Validate Generated Records"
 # Make sure journals with selective evaluation get the appropriate exception rules for validation
-adjust_selective_evaluation_validation_rules ${HARVESTER_CONFIG_FILE}
+adjust_selective_evaluation_validation_rules ${HARVESTER_CONFIG_FILE} >> "$LOG" 2>&1
 cd "$HARVESTER_OUTPUT_DIRECTORY"
 counter=0
 shopt -s nullglob
