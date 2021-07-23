@@ -657,7 +657,6 @@ bool FullDumpDownloader::download(EntryCollection *const collection, const bool 
 
     bool use_cache = not disable_cache_mechanism;
     bool cache_present = false;
-    bool downloaded = false;
     std::string zeder_cache_path = UBTools::GetTuelibPath();
     if (StringUtil::EndsWith(params->endpoint_url_, "ixtheo", true))
         zeder_cache_path += "zeder_ixtheo.json";
@@ -679,15 +678,12 @@ bool FullDumpDownloader::download(EntryCollection *const collection, const bool 
                 LOG_INFO("Used zeder cache file due to failed zeder download");
             }
         } else
-            downloaded = true;
+            FileUtil::WriteString(zeder_cache_path, json_data->toString());
     } else {
         json_data = std::move(json_cached_data);
         LOG_INFO("Used zeder cache file");
     }
 
-    if (downloaded)
-        FileUtil::WriteString(zeder_cache_path, json_data->toString());
-    
     parseColumnMetadata(json_data, &column_to_metadata_map);
     parseRows(*params, json_data, column_to_metadata_map, collection);
     return true;
