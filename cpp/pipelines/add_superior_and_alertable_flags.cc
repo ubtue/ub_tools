@@ -105,15 +105,10 @@ void AddSuperiorFlag(MARC::Reader * const marc_reader, MARC::Writer * const marc
                      const std::unordered_set<std::string> &superior_ppns, const std::string &flavour)
 {
     unsigned modified_count(0);
-    
-    Zeder::SimpleZeder zeder(Zeder::IXTHEO, { "eppn", "pppn", "kat" });
+
+    Zeder::SimpleZeder zeder(Zeder::IXTHEO, { "eppn", "pppn", "kat" }, { { "kat", flavour } });
     std::set<std::string> ppns_in_kat;
     for (const auto &journal : zeder) {
-        if (not journal.hasAttribute("kat"))
-            continue;
-        std::string kat = journal.lookup("kat");
-        if (not StringUtil::EndsWith(kat, flavour, true))
-            continue;
         ppns_in_kat.emplace(journal.lookup("pppn"));
         ppns_in_kat.emplace(journal.lookup("eppn"));
     }

@@ -735,9 +735,10 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
 }
 
 
-SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter) {
+SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter,
+                         const std::unordered_map<std::string, std::string>  &filter_regexps) 
+    {
     const auto endpoint_url(GetFullDumpEndpointPath(flavour));
-    const std::unordered_map<std::string, std::string> filter_regexps {}; // intentionally empty
     const std::unordered_set<unsigned> entries_to_download; // empty means all entries
     std::unique_ptr<FullDumpDownloader::Params> downloader_params(
         new FullDumpDownloader::Params(endpoint_url, entries_to_download, column_filter, filter_regexps));
