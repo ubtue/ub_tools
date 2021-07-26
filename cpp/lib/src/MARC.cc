@@ -2577,7 +2577,7 @@ bool GetWikipediaLink(const Record &record, std::string * const wikipedia_link) 
         const Subfields _670_subfields(_670_field.getSubfields());
         const std::string _670a_field(_670_subfields.getFirstSubfieldWithCode('a'));
         const std::string _670u_field(_670_subfields.getFirstSubfieldWithCode('u'));
-        if (StringUtil::Contains(_670a_field, "wikipedia")) {
+        if (StringUtil::Contains(_670a_field, "Wikipedia")) {
             *wikipedia_link = _670u_field;
             return not wikipedia_link->empty();
         }
