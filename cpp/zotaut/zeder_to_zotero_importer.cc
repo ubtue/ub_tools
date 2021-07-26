@@ -458,6 +458,8 @@ unsigned UpdateZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
 
         LOG_INFO("checking Zeder entry " + std::to_string(zeder_id) + " (" + title + ") for updates...");
         bool at_least_one_field_updated(false);
+        const auto harvester_operation(existing_journal_section->getString(Config::JournalParams::GetIniKeyString(Config::JournalParams::IniKey::HARVESTER_OPERATION), ""));
+        const bool is_apiquery(harvester_operation == Config::HARVESTER_OPERATION_TO_STRING_MAP.at(Config::HarvesterOperation::APIQUERY));
         for (const auto field_to_update : fields_to_update) {
             if (field_to_update == Config::JournalParams::IniKey::NAME) {
                 const auto old_title(existing_journal_section->getSectionName());
@@ -484,8 +486,7 @@ unsigned UpdateZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                     LOG_WARNING("\tinvalid new value for field '" + ini_key_str + "': '" + ini_new_val_str + "' (old value: '" + ini_old_val_str + "')");
                 else if (ini_new_val_str != ini_old_val_str) {
                     // for APIQUERY keep a manually set value
-                    if (field_to_update == Config::JournalParams::IniKey::HARVESTER_OPERATION and
-                        ini_old_val_str == Config::HARVESTER_OPERATION_TO_STRING_MAP.at(Config::HarvesterOperation::APIQUERY))
+                    if (is_apiquery and (field_to_update == Config::JournalParams::IniKey::HARVESTER_OPERATION or field_to_update == Config::JournalParams::IniKey::UPLOAD_OPERATION))
                     {
                         WriteIniEntry(existing_journal_section, ini_key_str, ini_old_val_str);
                         LOG_INFO("\tKeep original value '" + ini_old_val_str + "' for '" + ini_key_str + "'");
