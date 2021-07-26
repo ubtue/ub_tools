@@ -1,6 +1,7 @@
 /archive_sent_records
 /adjust_selective_evaluation_validation_rules
 /journal_timeliness_checker
+/missing_metadata_db_tool
 /update_sent_records
 /validate_harvested_records
 /zeder_entry_downloader
