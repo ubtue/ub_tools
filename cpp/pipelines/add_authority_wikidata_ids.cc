@@ -155,18 +155,15 @@ int Main(int argc, char * argv[]) {
         // 035|a (DE-588)118562215
         std::string record_gnd;
         std::string wikidata_id;
+        std::string wikidata_id_orig;
         std::string wikipedia_link;
+        std::string wikipedia_link_orig;
         std::vector<std::string> wiki_elements;
 
         MARC::GetGNDCode(record, &record_gnd);
-        MARC::GetWikidataId(record, &wikidata_id);
+        MARC::GetWikidataId(record, &wikidata_id_orig);
+        MARC::GetWikipediaLink(record, &wikipedia_link_orig);
 
-        if (not wikidata_id.empty()) {
-            marc_writer.get()->write(record);    
-            continue;
-        }
-            
-    
         //record lookup
         if (not record_gnd.empty()) {
             auto gnd_to_wikielements_iter = gnd_to_wikielements.find(record_gnd);
@@ -178,10 +175,10 @@ int Main(int argc, char * argv[]) {
                     wikipedia_link = wiki_elements[1];
             }
         }
-        
-        if (not wikidata_id.empty())
+
+        if (not wikidata_id.empty() and wikidata_id_orig != wikidata_id)
             record.insertField("024", { { 'a', wikidata_id }, { '2', "wikidata" }, { '9', "PipeLineGenerated" } }, /*indicator 1*/ '7');
-        if (not wikipedia_link.empty())
+        if (not wikipedia_link.empty() and wikipedia_link != wikidata_id_orig)
             record.insertField("670", { { 'a', "Wikipedia" }, { 'u', wikipedia_link }, { '9', "PipeLineGenerated" } });
         
         marc_writer.get()->write(record);

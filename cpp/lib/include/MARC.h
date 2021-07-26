@@ -1146,6 +1146,10 @@ bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
 bool GetWikidataId(const Record &record, std::string * const wikidata_id);
 
 
+/** \brief True if a wikipedia link was found in 670$u ($a = wikipedia) else false. */
+bool GetWikipediaLink(const Record &record, std::string * const wikipedia_link);
+
+
 /** \brief Generates a reproducible SHA-1 hash over our internal data.
  *  \param excluded_fields        The list of tags specified here will be excluded from the checksum calculation.
  *  \param suppress_local_fields  If true we exclude fields that have non-pure-digit tags or tags that contain at least one digit nine.
