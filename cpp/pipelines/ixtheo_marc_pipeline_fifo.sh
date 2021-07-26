@@ -366,6 +366,16 @@ make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHA
 EndPhase || Abort) &
 
 
+StartPhase "Add paragraph to CIC \$p"
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
+(marc_augmentor GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                --replace-subfield-if-regex '610p:/(\d+)/§\1/' '610t:Codex iuris canonici' \
+                --replace-subfield-if-regex '610p:/(\d+-\d+)/§\1/' '610t:Codex iuris canonici' \
+		>> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Tag PDA candidates"
 # Use the most recent GVI PPN list.
 (augment_pda \

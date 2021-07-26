@@ -79,6 +79,9 @@ std::string GetJournalId(DbConnection * const db_connection, const std::string &
     db_connection->queryOrDie("SELECT id FROM zeder_journals WHERE zeder_id=\'" + zeder_id +
                               "\' AND zeder_instance=\'" + group + "\'");
     DbResultSet result_set(db_connection->getLastResultSet());
+    if (not result_set.size()) {
+        return "";
+    }
     if (result_set.size() != 1)
         LOG_ERROR("Unable to uniquely determine journal_id for zeder_id " + zeder_id + " and group " + group);
     return result_set.getNextRow()["id"];
@@ -90,6 +93,11 @@ void UpdateRules(DbConnection * const db_connection, const std::vector<std::uniq
          if (journal->selective_evaluation_) {
              const std::string journal_id(GetJournalId(db_connection, std::to_string(journal->zeder_id_),
                                           StringUtil::ASCIIToLower(journal->group_)));
+             if (journal_id.empty()) {
+                 LOG_WARNING("No journal_id result for zeder_id " +  std::to_string(journal->zeder_id_)
+                              + " in group " + journal->group_ + " - Skipping journal");
+                 continue;
+             }
              db_connection->queryOrDie(AssembleValaditionRulesIfNotExist(journal_id));
          }
 }

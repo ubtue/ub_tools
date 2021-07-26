@@ -135,9 +135,9 @@ void Subfields::addSubfield(const char subfield_code, const std::string &subfiel
 
 bool Subfields::replaceFirstSubfield(const char subfield_code, const std::string &new_subfield_value) {
     auto replacement_location(subfields_.begin());
-    while (replacement_location != subfields_.end() and replacement_location->code_ < subfield_code)
+    while (replacement_location != subfields_.end() and replacement_location->code_ != subfield_code)
         ++replacement_location;
-    if (replacement_location == subfields_.end() or replacement_location->code_ != subfield_code)
+    if (replacement_location == subfields_.end())
         return false;
     replacement_location->value_ = new_subfield_value;
     return true;
@@ -148,9 +148,9 @@ bool Subfields::replaceAllSubfields(const char subfield_code, const std::string 
                                     const std::string &new_subfield_value)
 {
     auto replacement_location(subfields_.begin());
-    while (replacement_location != subfields_.end() and replacement_location->code_ < subfield_code)
+    while (replacement_location != subfields_.end() and replacement_location->code_ != subfield_code)
         ++replacement_location;
-    if (replacement_location == subfields_.end() or replacement_location->code_ != subfield_code)
+    if (replacement_location == subfields_.end())
         return false;
 
     bool replaced_at_least_one_subfield(false);
