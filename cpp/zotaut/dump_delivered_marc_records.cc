@@ -40,7 +40,7 @@ namespace {
 
 
 MARC::Record GetTemporaryRecord(const std::string &blob) {
-    const std::string decompressed_blob(GzStream::DecompressString(blob));
+    const std::string decompressed_blob(GzStream::DecompressString(blob, GzStream::GUNZIP));
     const auto tmp_path(FileUtil::UniqueFileName());
     FileUtil::WriteStringOrDie(tmp_path, decompressed_blob);
     auto reader(MARC::Reader::Factory(tmp_path));
@@ -71,7 +71,7 @@ void GetJournalEntriesFromDb(DbConnection * const db_connection, const std::stri
         if (extended and not row["record"].empty()) {
             const auto record(GetTemporaryRecord(row["record"]));
             const auto dois(record.getDOIs());
-            csv_row += TextUtil::CSVEscape(StringUtil::Join(dois, '\n'));
+            csv_row += ";" + TextUtil::CSVEscape(StringUtil::Join(dois, '\n'));
         }
 
         csv_file->writeln(csv_row);
