@@ -45,10 +45,12 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[solr_host_and_port] user_type report_interval_in_days\n"
-            "  Sends out statistics emails about journal subscriptions.\n"
-            "  Should \"solr_host_and_port\" be missing \"" + Solr::DEFAULT_HOST + ":" + std::to_string(Solr::DEFAULT_PORT) + "\" will be used.\n"
-            "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm.\n");
+    ::Usage("[solr_host_and_port] user_type report_interval_in_days)\n"
+            "  Generates a CSV report about journal subscription statistics.\n"
+            "  Should \"solr_host_and_port\" be missing \"" + Solr::DEFAULT_HOST + ":"
+            + std::to_string(Solr::DEFAULT_PORT) + "\" will be used.\n"
+            "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm.\n"
+            "  \"report_interval_in_days\" can be a number or the text \"days_in_last_month\".\n");
 }
 
 
@@ -155,8 +157,7 @@ void CollectUsageStats(const std::string &user_type, Stats * const stats) {
 
 
 void GenerateReport(File * const report_file, const Stats &stats) {
-    (*report_file) << "\"Host\"," << TextUtil::CSVEscape(DnsUtil::GetHostname()) << '\n'
-                   << "\"Report interval in days\"," << stats.report_interval_in_days_ << '\n'
+    (*report_file) << "\"Report interval in days\"," << stats.report_interval_in_days_ << '\n'
                    << "\"Number of users w/ subscriptions\"," << stats.no_of_users_with_subscriptions_ << '\n'
                    << "\"Average number of subscriptions per user\"," << stats.average_subscriptions_per_user_ << '\n'
                    << "\"Average number of bundle subscriptions per user\","
@@ -194,14 +195,27 @@ int Main(int argc, char **argv) {
         LOG_ERROR("user_type parameter must be either \"ixtheo\" or \"relbib\"!");
 
     Stats stats;
-    stats.report_interval_in_days_ = StringUtil::ToUnsigned(argv[2]);
+    if (std::strcmp(argv[2], "days_in_last_month") != 0)
+        stats.report_interval_in_days_ = StringUtil::ToUnsigned(argv[2]);
+    else {
+        unsigned year, month, day;
+        TimeUtil::GetCurrentDate(&year, &month, &day);
+        if (month != 1)
+            --month;
+        else {
+            month = 12;
+            --year;
+        }
+        stats.report_interval_in_days_ = TimeUtil::GetDaysInMonth(year, month);
+    }
 
     const std::string email_recipient(argv[3]);
     std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
     CollectConfigStats(db_connection.get(), user_type, &stats);
     CollectUsageStats(user_type, &stats);
 
-    const auto report_file(FileUtil::OpenOutputFileOrDie(REPORT_DIRECTORY + "new_journal_alert_stats." + user_type
+    const auto report_file(FileUtil::OpenOutputFileOrDie(REPORT_DIRECTORY + "new_journal_alert_stats."
+                                                         + DnsUtil::GetHostname() + "." + user_type
                                                          + "." + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d") + ".csv"));
     GenerateReport(report_file.get(), stats);
 
