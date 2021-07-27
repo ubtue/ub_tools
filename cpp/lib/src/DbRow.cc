@@ -36,7 +36,8 @@ DbRow::DbRow(DbRow &&other) {
 
 std::string DbRow::operator[](const size_t i) const {
     if (unlikely(i >= size()))
-        throw std::out_of_range("index out of range in DbRow::operator[]: max. index is " + std::to_string(static_cast<int>(size()) - 1)
+        throw std::out_of_range("index out of range in DbRow::operator[]: max. index is "
+                                + std::to_string(static_cast<int>(size()) - 1)
                                 + ", actual index was " + std::to_string(i) + "!");
 
     if (stmt_handle_ == nullptr)
@@ -45,7 +46,8 @@ std::string DbRow::operator[](const size_t i) const {
         const char * const text(reinterpret_cast<const char *>(::sqlite3_column_text(stmt_handle_, i)));
         if (text == nullptr)
             LOG_ERROR("trying to access a NULL value as a string!");
-        return text;
+        const auto field_size(::sqlite3_column_bytes(stmt_handle_, i));
+        return std::string(text, field_size);
     }
 }
 
