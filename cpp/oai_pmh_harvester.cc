@@ -33,6 +33,17 @@
 
 namespace {
 
+[[noreturn]] void Usage() {
+    ::Usage("[--path-to-dups-database=path] [--ignore-ssl-certificates] base_url metadata_prefix [harvest_set_or_identifier] "
+            "control_number_prefix output_filename time_limit_per_request\n"
+            "If \"--path-to-dups-database\" has been specified, records that we already encountered in the past,\n"
+            "while specifying the same dups database, won't be included in the output file.\n"
+            "\"harvest_set_or_identifier\" must start with \"set=\" or \"identifier=\".\n"
+            "\"control_number_prefix\" will be used if the received records have no control numbers\n"
+            "to autogenerate our own control numbers.  \"time_limit_per_request\" is in seconds. (Some\n"
+            "servers are very slow so we recommend at least 20 seconds!)\n");
+}
+
 
 std::string ExtractResumptionToken(const std::string &xml_document, std::string * const cursor,
                                    std::string * const complete_list_size)
@@ -295,8 +306,11 @@ void GenerateValidatedOutputFromMARC(KeyValueDB * const dups_db, MARC::Reader * 
 
 
 int Main(int argc, char **argv) {
-    if (argc > 1 and std::strcmp(argv[1], "--skip-dups") == 0)
+    std::string path_to_dups_database;
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--path-to-dups-database=") == 0) {
+        path_to_dups_database = argv[1] + __builtin_strlen("--path-to-dups-database=");
         --argc, ++argv;
+    }
 
     bool ignore_ssl_certificates(false);
     if (argc > 1 and std::strcmp(argv[1], "--ignore-ssl-certificates") == 0) {
@@ -304,15 +318,8 @@ int Main(int argc, char **argv) {
        --argc, ++argv;
     }
 
-    if (argc != 7 and argc != 8)
-        ::Usage("[--skip-dups] [--ignore-ssl-certificates] base_url metadata_prefix [harvest_set_or_identifier] "
-                "control_number_prefix output_filename time_limit_per_request path_to_dups_database\n"
-                "If \"--skip-dups\" has been specified, records that we already encountered in the past won't\n"
-                "included in the output file.\n"
-                "\"harvest_set_or_identifier\" must start with \"set=\" or \"identifier=\".\n"
-                "\"control_number_prefix\" will be used if the received records have no control numbers\n"
-                "to autogenerate our own control numbers.  \"time_limit_per_request\" is in seconds. (Some\n"
-                "servers are very slow so we recommend at least 20 seconds!)\n");
+    if (argc != 7 and argc != 6)
+        Usage();
 
     const std::string base_url(argv[1]);
 
@@ -326,10 +333,9 @@ int Main(int argc, char **argv) {
              and not StringUtil::StartsWith(harvest_set_or_identifier, "identifier=")))
         LOG_ERROR("harvest_set_or_identifier must start with set= or identifier=!");
 
-    const std::string control_number_prefix(argc == 7 ? argv[3] : argv[2]);
+    const std::string control_number_prefix(argc == 7 ? argv[4] : argv[3]);
     const std::string output_filename(argc == 7 ? argv[5] : argv[4]);
     const std::string time_limit_per_request_as_string(argc == 7 ? argv[6] : argv[5]);
-    const std::string path_to_dups_database(argc == 7 ? argv[7] : argv[6]);
 
     unsigned time_limit_per_request_in_seconds;
     if (not StringUtil::ToUnsigned(time_limit_per_request_as_string, &time_limit_per_request_in_seconds))
