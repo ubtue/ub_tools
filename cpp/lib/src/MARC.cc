@@ -2571,6 +2571,21 @@ bool GetWikidataId(const Record &record, std::string * const wikidata_id) {
 }
 
 
+bool GetWikipediaLink(const Record &record, std::string * const wikipedia_link) {
+    wikipedia_link->clear();
+    for (const auto &_670_field : record.getTagRange("670")) {
+        const Subfields _670_subfields(_670_field.getSubfields());
+        const std::string _670a_field(_670_subfields.getFirstSubfieldWithCode('a'));
+        const std::string _670u_field(_670_subfields.getFirstSubfieldWithCode('u'));
+        if (StringUtil::Contains(_670a_field, "Wikipedia")) {
+            *wikipedia_link = _670u_field;
+            return not wikipedia_link->empty();
+        }
+    }
+    return false;
+}
+
+
 static inline bool CompareField(const Record::Field * const field1, const Record::Field * const field2) {
     if (field1->getTag() < field2->getTag())
         return true;
