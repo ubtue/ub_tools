@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include "DbConnection.h"
 #include "FileUtil.h"
+#include "GzStream.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -39,8 +40,9 @@ namespace {
 
 
 MARC::Record GetTemporaryRecord(const std::string &blob) {
+    const std::string decompressed_blob(GzStream::DecompressString(blob));
     const auto tmp_path(FileUtil::UniqueFileName());
-    FileUtil::WriteStringOrDie(tmp_path, blob);
+    FileUtil::WriteStringOrDie(tmp_path, decompressed_blob);
     auto reader(MARC::Reader::Factory(tmp_path));
     return reader->read();
 }
