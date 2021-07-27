@@ -41,9 +41,9 @@ namespace {
 
 MARC::Record GetTemporaryRecord(const std::string &blob) {
     const std::string decompressed_blob(GzStream::DecompressString(blob, GzStream::GUNZIP));
-    const auto tmp_path(FileUtil::UniqueFileName());
-    FileUtil::WriteStringOrDie(tmp_path, decompressed_blob);
-    auto reader(MARC::Reader::Factory(tmp_path));
+    const FileUtil::AutoTempFile tmp_file;
+    FileUtil::WriteStringOrDie(tmp_file.getFilePath(), decompressed_blob);
+    auto reader(MARC::Reader::Factory(tmp_file.getFilePath()));
     return reader->read();
 }
 
