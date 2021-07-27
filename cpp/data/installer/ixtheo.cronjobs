@@ -12,7 +12,8 @@ LOG_DIR=/usr/local/var/log/tuefind
 0 0 * * * "$BIN/log_rotate" --max-rotations=4 "$LOG_DIR" "(?<!(java_mem_stats))\\.log$"
 0 0 * * * "$BIN/log_rotate" --no-of-lines-to-keep=200 "$LOG_DIR" "^java_mem_stats\\.log$"
 30 0 * * * cd "$BSZ_DATEN" && "$BIN/purge_old_data.py" "$EMAIL" > "$LOG_DIR/purge_old_data.log" 2>&1
-30 0 * * * "$BIN/generate_new_journal_alert_stats.sh"
+30 0 * * * "$BIN/generate_new_journal_alert_stats ixtheo days_in_last_month"
+30 0 * * * "$BIN/generate_new_journal_alert_stats relbib days_in_last_month"
 0 1 * * * php "$VUFIND_HOME/util/expire_searches.php" 30 > "$LOG_DIR/expire_searches.log" 2>&1
 0 1 * * * "$BIN/enable_pipeline_triggers.sh" > "$LOG_DIR/enable_pipeline_triggers.log" 2>&1
 0 3 * * * cd "$BSZ_DATEN" && "$BIN/fetch_marc_updates.py" "$EMAIL" > "$LOG_DIR/fetch_marc_updates.log" 2>&1
