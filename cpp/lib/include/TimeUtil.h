@@ -369,4 +369,7 @@ int IsDateInRange(time_t first, time_t last, time_t date);
 bool AscTimeToStructTm(std::string asctime_output, struct tm * const tm);
 
 
+unsigned GetDaysInMonth(const unsigned year, const unsigned month);
+
+
 } // namespace TimeUtil

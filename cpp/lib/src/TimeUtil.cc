@@ -985,4 +985,18 @@ bool AscTimeToStructTm(std::string asctime_output, struct tm * const tm) {
 }
 
 
+unsigned GetDaysInMonth(const unsigned year, const unsigned month) {
+    if (unlikely(month < 1 or month > 12))
+        LOG_ERROR("month can't be " + std::to_string(month) + "!");
+
+    if (month == 2)
+        return IsLeapYear(year) ? 29 : 28;
+
+    if (month == 1 or month == 3 or month == 5 or month == 7 or month == 8 or month == 10 or month == 12)
+        return 31;
+
+    return 30;
+}
+
+
 } // namespace TimeUtil
