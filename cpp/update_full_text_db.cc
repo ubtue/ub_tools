@@ -292,6 +292,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
     std::set<std::string> urls;
     ExtractUrlsFromUrlsAndTextTypes(urls_and_text_types, &urls);;
     FullTextCache cache;
+    const std::string semaphore_id("full_text_cached_counter");
 
     if (not use_separate_entries_per_url) {
         std::string combined_text_final;
@@ -299,7 +300,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             (only_pdf_fulltexts and not cache.dummyEntryExists(ppn)))
         {
             cache.getFullText(ppn, &combined_text_final);
-            Semaphore semaphore("full_text_cached_counter", Semaphore::ATTACH);
+            Semaphore semaphore(semaphore_id, Semaphore::ATTACH);
             ++semaphore;
             if (not combined_text_final.empty())
                 record->insertField("FUL", { { 'e', "http://localhost/cgi-bin/full_text_lookup?id=" + ppn } });
@@ -309,7 +310,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
     } else {
         bool at_least_one_expired(false);
         if (only_pdf_fulltexts and cache.dummyEntryExists(ppn)) {
-            Semaphore semaphore("/full_text_cached_counter", Semaphore::ATTACH);
+            Semaphore semaphore(semaphore_id, Semaphore::ATTACH);
             ++semaphore;
             return true;
         }
@@ -317,7 +318,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             const bool expired(cache.singleUrlExpired(ppn, url_and_text_type->url_));
             if (not expired) {
                 url_and_text_type = urls_and_text_types.erase(url_and_text_type);
-                Semaphore semaphore("/full_text_cached_counter", Semaphore::ATTACH);
+                Semaphore semaphore(semaphore_id, Semaphore::ATTACH);
                 ++semaphore;
             } else {
                 at_least_one_expired |= expired;

@@ -29,7 +29,7 @@ def OptimizeSolrIndex(index):
     try:
         request = urllib.request.Request(
             "http://localhost:8983/solr/" + index + "/update?optimize=true")
-        urllib.request.urlopen(request, timeout=1800)
+        urllib.request.urlopen(request, timeout=3600)
     except:
         util.SendEmail("MARC-21 Pipeline", "Failed to optimize the SOLR index \"" + index + "\"!", priority=1)
         sys.exit(-1)
