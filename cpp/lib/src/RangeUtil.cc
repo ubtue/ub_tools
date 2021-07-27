@@ -686,7 +686,73 @@ std::string ConvertTimeRangeToText(const std::string &range) {
 }
 
 
-bool ConvertTextToTimeRange(const std::string &text, std::string * const range, const bool special_case_centuries) {
+// Deals with date ranges like "XX.XX.1992-22.09.2000", "XX.01.1906-XX.XX.1936" etc.
+static void ReplaceXs(std::string * const time_range_candidate) {
+    if (likely(time_range_candidate->find("XX") == std::string::npos))
+        return; // No substitutions are required!
+
+    const size_t dash_pos(time_range_candidate->find('-'));
+    if (unlikely(dash_pos == std::string::npos))
+        return; // Not a date range!
+
+    //
+    // 1. Deal w/ X's before the dash.
+    //
+
+    if (StringUtil::StartsWith(*time_range_candidate, "XX.XX.XXXX") or StringUtil::StartsWith(*time_range_candidate, "XXXX")) {
+        *time_range_candidate = time_range_candidate->substr(dash_pos);
+        return;
+    }
+
+    if (StringUtil::StartsWith(*time_range_candidate, "XX.XX."))
+        *time_range_candidate = "01.01" + time_range_candidate->substr(5);
+    else if (StringUtil::StartsWith(*time_range_candidate, "XX."))
+        *time_range_candidate = "01" + time_range_candidate->substr(2);
+
+    //
+    // 2. Deal w/ X's after the dash.
+    //
+
+    if (likely(time_range_candidate->find("XX", dash_pos) == std::string::npos))
+        return; // No substitutions after the dash are required!
+
+    const std::string range_start_plus_dash(time_range_candidate->substr(0, dash_pos + 1));
+    if (StringUtil::StartsWith(time_range_candidate->substr(dash_pos + 1), "XX.XX.XXXX")
+        or StringUtil::StartsWith(time_range_candidate->substr(dash_pos + 1), "XXXX")) {
+        *time_range_candidate = range_start_plus_dash; // Truncate after the dash!
+        return;
+    }
+
+    std::string range_end(time_range_candidate->substr(dash_pos + 1));
+    if (StringUtil::StartsWith(range_end, "XX.XX."))
+        range_end = "31.12" + range_end.substr(5);
+    else if (StringUtil::StartsWith(range_end, "XX.")) {
+        unsigned month;
+        if (not StringUtil::ToUnsigned(range_end.substr(3, 2), &month) or month == 0 or month > 12)
+            return; // Garbage instead of a month!
+        if (month == 1 or month == 3 or month == 5 or month == 7 or month == 8 or month == 10 or month == 12)
+            range_end = "31" + range_end.substr(2);
+        else if (month == 2) {
+            unsigned year;
+            if (not StringUtil::ToUnsigned(range_end.substr(6), &year))
+                return; // Garbage instead of a year!
+            if (TimeUtil::IsLeapYear(year))
+                range_end = "29" + range_end.substr(2);
+            else
+                range_end = "28" + range_end.substr(2);
+        } else
+            range_end = "30" + range_end.substr(2);
+    }
+
+    *time_range_candidate = range_start_plus_dash + range_end;
+}
+
+
+bool ConvertTextToTimeRange(std::string text, std::string * const range, const bool special_case_centuries) {
+    if (StringUtil::StartsWith(text, "ca. "))
+        text = text.substr(4);
+    ReplaceXs(&text);
+
     static auto matcher1(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,4})-(\\d{1,4})$"));
     if (matcher1->matched(text)) {
         unsigned year1(StringUtil::ToUnsigned((*matcher1)[1]));
@@ -759,6 +825,79 @@ bool ConvertTextToTimeRange(const std::string &text, std::string * const range, 
         const unsigned year(StringUtil::ToUnsigned((*matcher6)[1]));
         *range = StringUtil::ToString(OFFSET - year, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
                  + StringUtil::ToString(OFFSET - year, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        return true;
+    }
+
+    static const auto current_year(TimeUtil::GetCurrentYear());
+    static auto matcher7(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,4})-$"));
+    if (matcher7->matched(text)) {
+        unsigned year1(StringUtil::ToUnsigned((*matcher7)[1]));
+        unsigned year2(StringUtil::ToUnsigned(current_year));
+        if (year2 < year1)
+            std::swap(year1, year2);
+        if (special_case_centuries and year1 % 100 == 0 and year2 % 100 == 0)
+            --year2;
+        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        return true;
+    }
+
+    static auto matcher8(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,2}).(\\d{1,2}).(\\d{1,4})-$"));
+    if (matcher8->matched(text)) {
+        unsigned day1(StringUtil::ToUnsigned((*matcher8)[1]));
+        unsigned month1(StringUtil::ToUnsigned((*matcher8)[2]));
+        unsigned year1(StringUtil::ToUnsigned((*matcher8)[3]));
+        unsigned year2(StringUtil::ToUnsigned(current_year));
+        if (year2 < year1)
+            std::swap(year1, year2);
+        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
+                 + StringUtil::ToString(month1, /* radix = */10, /* width = */2, /* padding_char = */'0')
+                 + StringUtil::ToString(day1, /* radix = */10, /* width = */2, /* padding_char = */'0') + "_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        return true;
+    }
+
+    static auto matcher9(
+        RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,2}).(\\d{1,2}).(\\d{1,4})-(\\d{1,2}).(\\d{1,2}).(\\d{1,4})$"));
+    if (matcher9->matched(text)) {
+        unsigned day1(StringUtil::ToUnsigned((*matcher9)[1]));
+        unsigned month1(StringUtil::ToUnsigned((*matcher9)[2]));
+        unsigned year1(StringUtil::ToUnsigned((*matcher9)[3]));
+        unsigned day2(StringUtil::ToUnsigned((*matcher9)[4]));
+        unsigned month2(StringUtil::ToUnsigned((*matcher9)[5]));
+        unsigned year2(StringUtil::ToUnsigned((*matcher9)[6]));
+        if (year2 < year1 or (year2 == year1 and month2 < month1) or (year2 == year1 and month2 == month1 and day2 < day1)) {
+            std::swap(year1, year2);
+            std::swap(month1, month2);
+            std::swap(day1, day2);
+        }
+        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
+                 + StringUtil::ToString(month1, /* radix = */10, /* width = */2, /* padding_char = */'0')
+                 + StringUtil::ToString(day1, /* radix = */10, /* width = */2, /* padding_char = */'0') + "_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
+                 + StringUtil::ToString(month2, /* radix = */10, /* width = */2, /* padding_char = */'0')
+                 + StringUtil::ToString(day2, /* radix = */10, /* width = */2, /* padding_char = */'0');
+        return true;
+    }
+
+    static const std::string MINUS_INFINITY("000000000000");
+    static auto matcher10(RegexMatcher::RegexMatcherFactoryOrDie("^-(\\d{1,4})$"));
+    if (matcher10->matched(text)) {
+        unsigned year2(StringUtil::ToUnsigned((*matcher10)[1]));
+        *range = MINUS_INFINITY + "_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        return true;
+    }
+
+    static auto matcher11(RegexMatcher::RegexMatcherFactoryOrDie("^-(\\d{1,2}).(\\d{1,2}).(\\d{1,4})$"));
+    if (matcher11->matched(text)) {
+        unsigned day2(StringUtil::ToUnsigned((*matcher11)[1]));
+        unsigned month2(StringUtil::ToUnsigned((*matcher11)[2]));
+        unsigned year2(StringUtil::ToUnsigned((*matcher11)[3]));
+        *range = MINUS_INFINITY + "_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
+                 + StringUtil::ToString(month2, /* radix = */10, /* width = */2, /* padding_char = */'0')
+                 + StringUtil::ToString(day2, /* radix = */10, /* width = */2, /* padding_char = */'0');
         return true;
     }
 

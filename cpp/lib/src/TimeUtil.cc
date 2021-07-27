@@ -985,6 +985,25 @@ bool AscTimeToStructTm(std::string asctime_output, struct tm * const tm) {
 }
 
 
+bool IsLeapYear(const unsigned year) {
+    if ((year % 4) != 0)
+        return false;
+
+    if ((year % 100) == 0)
+        return (year % 400) == 0;
+
+    return true;
+}
+
+
+bool IsLeapYear(const std::string &year_candidate) {
+    unsigned year;
+    if (StringUtil::ToUnsigned(year_candidate, &year))
+        return IsLeapYear(year);
+    return false;
+}
+
+
 unsigned GetDaysInMonth(const unsigned year, const unsigned month) {
     if (unlikely(month < 1 or month > 12))
         LOG_ERROR("month can't be " + std::to_string(month) + "!");
