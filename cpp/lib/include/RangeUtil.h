@@ -100,7 +100,11 @@ public:
 bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start, unsigned * const range_end);
 
 
-/** \return True if "text" contained a valid time range, o/w false. */
+/**
+ * \param special_case_centuries If true, ranges like 1800-1900 will be interpreted as 1800-1899.  This only
+ *                               happens if both years of a range are evenly divisible by 100.
+ * \return True if "text" contained a valid time range, o/w false.
+ */
 bool ConvertTextToTimeRange(std::string text, std::string * const range, const bool special_case_centuries = false);
 
 
