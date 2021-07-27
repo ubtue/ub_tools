@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include "DbConnection.h"
 #include "FileUtil.h"
+#include "GzStream.h"
 #include "MARC.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -39,9 +40,10 @@ namespace {
 
 
 MARC::Record GetTemporaryRecord(const std::string &blob) {
-    const auto tmp_path(FileUtil::UniqueFileName());
-    FileUtil::WriteStringOrDie(tmp_path, blob);
-    auto reader(MARC::Reader::Factory(tmp_path));
+    const std::string decompressed_blob(GzStream::DecompressString(blob, GzStream::GUNZIP));
+    const FileUtil::AutoTempFile tmp_file;
+    FileUtil::WriteStringOrDie(tmp_file.getFilePath(), decompressed_blob);
+    auto reader(MARC::Reader::Factory(tmp_file.getFilePath()));
     return reader->read();
 }
 
@@ -68,8 +70,16 @@ void GetJournalEntriesFromDb(DbConnection * const db_connection, const std::stri
         std::string csv_row(row["id"] + ";" + row["hash"] + ";" + row["delivery_state"] + ";" + TextUtil::CSVEscape(row["error_message"]) + ";" + row["delivered_at"] + ";" + TextUtil::CSVEscape(row["main_title"]));
         if (extended and not row["record"].empty()) {
             const auto record(GetTemporaryRecord(row["record"]));
+
             const auto dois(record.getDOIs());
-            csv_row += TextUtil::CSVEscape(StringUtil::Join(dois, '\n'));
+            csv_row += ";" + TextUtil::CSVEscape(StringUtil::Join(dois, '\n'));
+
+            for (const auto &_936_field : record.getTagRange("936")) {
+                csv_row += ";" + _936_field.getFirstSubfieldWithCode('j');
+                csv_row += ";" + _936_field.getFirstSubfieldWithCode('d');
+                csv_row += ";" + _936_field.getFirstSubfieldWithCode('e');
+                break;
+            }
         }
 
         csv_file->writeln(csv_row);
@@ -100,7 +110,7 @@ int Main(int argc, char *argv[]) {
 
     std::string entries_header("id;hash;delivery_state;error_message;delivered_at;main_title");
     if (extended)
-        entries_header += ";DOIs";
+        entries_header += ";DOIs;year;volume;issue";
     csv_file->writeln(entries_header);
     GetJournalEntriesFromDb(&db_connection, zeder_journal_id, csv_file.get(), extended);
 
