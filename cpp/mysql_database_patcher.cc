@@ -89,15 +89,23 @@ void LoadAndSortUpdateFilenames(const bool test, const std::string &directory_pa
 
 
 void ApplyUpdate(DbConnection * const db_connection, const std::string &update_directory_path,
-                 const std::string &update_filename)
+                 const std::string &update_filename, std::string * const current_schema, const std::string &last_schema)
 {
     std::string database;
     unsigned update_version;
     SplitIntoDatabaseAndVersion(update_filename, &database, &update_version);
+    *current_schema = database;
 
     if (not db_connection->mySQLDatabaseExists(database)) {
         LOG_INFO("database \"" + database + "\" does not exist, skipping file " + update_filename);
         return;
+    }
+
+    if (last_schema.empty() or database != last_schema) {
+        if (db_connection->mySQLDatabaseExists(database)) {
+            LOG_INFO("switching to database: " + database);
+            db_connection->queryOrDie("USE " + database);
+        }
     }
 
     DbTransaction transaction(db_connection); // No new scope required as the transaction is supposed to last until the end
@@ -157,16 +165,10 @@ int Main(int argc, char *argv[]) {
     }
 
     std::string last_schema;
+    std::string current_schema;
     for (const auto &update_filename : update_filenames) {
-        std::string database;
-        unsigned version;
-        SplitIntoDatabaseAndVersion(update_filename, &database, &version);
-        if (last_schema.empty() or database != last_schema) {
-            if (db_connection.mySQLDatabaseExists(database))
-                db_connection.queryOrDie("USE " + database);
-        }
-        ApplyUpdate(&db_connection, update_directory_path, update_filename);
-        last_schema = database;
+        ApplyUpdate(&db_connection, update_directory_path, update_filename, &current_schema, last_schema);
+        last_schema = current_schema;
     }
 
     return EXIT_SUCCESS;
