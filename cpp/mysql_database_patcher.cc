@@ -161,8 +161,10 @@ int Main(int argc, char *argv[]) {
         std::string database;
         unsigned version;
         SplitIntoDatabaseAndVersion(update_filename, &database, &version);
-        if (last_schema.empty() or database != last_schema)
-            db_connection.queryOrDie("USE " + database);
+        if (last_schema.empty() or database != last_schema) {
+            if (db_connection.mySQLDatabaseExists(database))
+                db_connection.queryOrDie("USE " + database);
+        }
         ApplyUpdate(&db_connection, update_directory_path, update_filename);
         last_schema = database;
     }
