@@ -141,6 +141,42 @@ void LoadSchema(const std::string &filename,
 }
 
 
+void CleanupSchema(std::map<std::string, std::vector<std::string>> * const table_or_view_name_to_schema_map) {
+    const std::string default_char_set = "DEFAULT CHARSET=";
+    const std::string char_set = "CHARACTER SET "; //incl. space at the end
+    std::string table_char_set;
+    for (const auto &entry : *table_or_view_name_to_schema_map) {
+        auto table_name(entry.first);
+        auto table_definitions(entry.second);
+        bool erasing_done(false);
+        for (std::string &table_definition : table_definitions) {
+            if (table_definition.find(default_char_set) != table_definition.npos) {
+                table_char_set = table_definition.substr(table_definition.find(default_char_set) + default_char_set.length());
+                size_t split_pos = table_char_set.find(' ');
+                table_char_set = table_char_set.substr(0,split_pos);
+            }
+        }
+        if (not table_char_set.empty()) {
+            for (std::string &table_definition : table_definitions) {
+                std::string column_char_set;
+                size_t char_set_pos(table_definition.find(char_set));
+                if (char_set_pos != table_definition.npos) {
+                    column_char_set = table_definition.substr(table_definition.find(char_set) + char_set.length());
+                    size_t split_pos = column_char_set.find(' ');
+                    column_char_set = column_char_set.substr(0,split_pos);
+                    if (table_char_set == column_char_set) {
+                        table_definition.erase(char_set_pos, char_set.length() + 1 + column_char_set.length());
+                        erasing_done = true;
+                    }
+                }
+            }
+            if (erasing_done)
+                (*table_or_view_name_to_schema_map)[table_name] = table_definitions;
+        }
+    }
+}
+
+
 std::vector<std::string> FindLinesStartingWithPrefix(const std::vector<std::string> &lines, const std::string &prefix) {
     std::vector<std::string> matching_lines;
     for (const auto &line : lines) {
@@ -350,10 +386,12 @@ int Main(int argc, char *argv[]) {
     std::map<std::string, std::vector<std::string>> table_or_view_name_to_schema_map1;
     std::vector<std::string> triggers1;
     LoadSchema(argv[1], &table_or_view_name_to_schema_map1, &triggers1);
+    CleanupSchema(&table_or_view_name_to_schema_map1);
 
     std::map<std::string, std::vector<std::string>> table_or_view_name_to_schema_map2;
     std::vector<std::string> triggers2;
     LoadSchema(argv[2], &table_or_view_name_to_schema_map2, &triggers2);
+    CleanupSchema(&table_or_view_name_to_schema_map2);
 
     DiffSchemas(table_or_view_name_to_schema_map1, table_or_view_name_to_schema_map2);
     DiffTriggers(triggers1, triggers2);
