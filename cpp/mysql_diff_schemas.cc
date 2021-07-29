@@ -145,11 +145,8 @@ void CleanupSchema(std::map<std::string, std::vector<std::string>> * const table
     const std::string default_char_set = "DEFAULT CHARSET=";
     const std::string char_set = "CHARACTER SET "; //incl. space at the end
     std::string table_char_set;
-    for (const auto &entry : *table_or_view_name_to_schema_map) {
-        auto table_name(entry.first);
-        auto table_definitions(entry.second);
-        bool erasing_done(false);
-        for (std::string &table_definition : table_definitions) {
+    for (auto &[table_name, table_definitions] : *table_or_view_name_to_schema_map) {
+        for (const std::string &table_definition : table_definitions) {
             if (table_definition.find(default_char_set) != table_definition.npos) {
                 table_char_set = table_definition.substr(table_definition.find(default_char_set) + default_char_set.length());
                 size_t split_pos = table_char_set.find(' ');
@@ -168,12 +165,9 @@ void CleanupSchema(std::map<std::string, std::vector<std::string>> * const table
                         column_char_set = column_char_set.substr(0, split_pos);
                     if (table_char_set == column_char_set) {
                         table_definition.erase(char_set_pos, char_set.length() + 1 + column_char_set.length());
-                        erasing_done = true;
                     }
                 }
             }
-            if (erasing_done)
-                (*table_or_view_name_to_schema_map)[table_name] = table_definitions;
         }
     }
 }
