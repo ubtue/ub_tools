@@ -102,10 +102,8 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
     }
 
     if (last_schema.empty() or database != last_schema) {
-        if (db_connection->mySQLDatabaseExists(database)) {
-            LOG_INFO("switching to database: " + database);
-            db_connection->queryOrDie("USE " + database);
-        }
+        LOG_INFO("switching to database: " + database);
+        db_connection->queryOrDie("USE " + database);
     }
 
     DbTransaction transaction(db_connection); // No new scope required as the transaction is supposed to last until the end
