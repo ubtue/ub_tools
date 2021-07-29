@@ -153,7 +153,8 @@ void CleanupSchema(std::map<std::string, std::vector<std::string>> * const table
             if (table_definition.find(default_char_set) != table_definition.npos) {
                 table_char_set = table_definition.substr(table_definition.find(default_char_set) + default_char_set.length());
                 size_t split_pos = table_char_set.find(' ');
-                table_char_set = table_char_set.substr(0,split_pos);
+                if (split_pos != table_char_set.npos)
+                    table_char_set = table_char_set.substr(0, split_pos);
             }
         }
         if (not table_char_set.empty()) {
@@ -163,7 +164,8 @@ void CleanupSchema(std::map<std::string, std::vector<std::string>> * const table
                 if (char_set_pos != table_definition.npos) {
                     column_char_set = table_definition.substr(table_definition.find(char_set) + char_set.length());
                     size_t split_pos = column_char_set.find(' ');
-                    column_char_set = column_char_set.substr(0,split_pos);
+                    if (split_pos != column_char_set.npos)
+                        column_char_set = column_char_set.substr(0, split_pos);
                     if (table_char_set == column_char_set) {
                         table_definition.erase(char_set_pos, char_set.length() + 1 + column_char_set.length());
                         erasing_done = true;
