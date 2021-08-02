@@ -3,7 +3,7 @@ MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
 
 # add needed configuration files
 # (+simulate mounts)
-RUN mkdir --parents /mnt/ZE020110/FID-Projekte/Default
+RUN mkdir --parents /mnt/ZE020110/FID-Projekte
 COPY mnt/ZE020150 /mnt/ZE020150
 COPY .smbcredentials /root/.smbcredentials
 COPY elasticsearch.yml /etc/elasticsearch/elasticsearch.yml

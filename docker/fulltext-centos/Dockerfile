@@ -3,7 +3,7 @@ MAINTAINER Johannes Riedl <johannes.riedl@uni-tuebingen.de>
 
 # add needed configuration files
 # (+simulate mounts)
-RUN mkdir --parents /mnt/ZE020110/FID-Projekte/Default
+RUN mkdir --parents /mnt/ZE020110/FID-Projekte
 COPY mnt/ZE020150 /mnt/ZE020150
 COPY .smbcredentials /root/.smbcredentials
 COPY Elasticsearch.conf /usr/local/var/lib/tuelib/Elasticsearch.conf
