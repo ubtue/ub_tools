@@ -458,7 +458,7 @@ FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::
 }
 
 
-bool FullDumpDownloader::downloadData(const std::string &endpoint_url, std::shared_ptr<JSON::JSONNode> * const json_data) {
+bool FullDumpDownloader::downloadData(const std::string &endpoint_url, std::shared_ptr<JSON::ObjectNode> * const json_data) {
     const IniFile zeder_authentification(UBTools::GetTuelibPath() + "zeder_authentification.conf");
 
     Downloader::Params downloader_params;
@@ -485,9 +485,22 @@ bool FullDumpDownloader::downloadData(const std::string &endpoint_url, std::shar
     }
 
     JSON::Parser json_parser(downloader.getMessageBody());
-    if (not json_parser.parse(json_data)) {
+    std::shared_ptr<JSON::JSONNode> tree_root;
+    if (not json_parser.parse(&tree_root)) {
         LOG_WARNING("Couldn't parse JSON response from endpoint '" + endpoint_url + "'! Error: "
                     + json_parser.getErrorMessage());
+        return false;
+    }
+
+    const auto root_node_type(tree_root.get()->getType());
+    if (root_node_type == JSON::JSONNode::OBJECT_NODE) {
+        *json_data = JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root);
+        if (json_data->get()->hasNode("error")) { // e.g. "Failed to connect to database"
+            LOG_WARNING("parsed error in JSON response from endpoint '" + endpoint_url + "'! Error: " + json_data->get()->toString());
+            return false;
+        }
+    } else {
+        LOG_WARNING("root not of type Object_Node in JSON response from endpoint '" + endpoint_url + "'! Error: " + tree_root.get()->toString());
         return false;
     }
 
@@ -620,7 +633,7 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
 }
 
 
-bool IsCacheUpToDate(const std::string &zeder_cache_path, std::shared_ptr<JSON::JSONNode> *const json_cached_data,
+bool IsCacheUpToDate(const std::string &zeder_cache_path, std::shared_ptr<JSON::ObjectNode> *const json_cached_data,
                      bool *const cache_present) {
     timespec mtim, now;
     clock_gettime(CLOCK_REALTIME, &now);
@@ -629,10 +642,18 @@ bool IsCacheUpToDate(const std::string &zeder_cache_path, std::shared_ptr<JSON::
         return false;
     else {
         JSON::Parser json_parser(json_document);
-        if (not json_parser.parse(json_cached_data))
+        std::shared_ptr<JSON::JSONNode> tree_root;
+        if (not json_parser.parse(&tree_root))
             return false;
         else {
+            const auto root_node_type(tree_root.get()->getType());
+            if (root_node_type == JSON::JSONNode::OBJECT_NODE)
+                *json_cached_data = JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root);
+            else
+                return false;
+
             *cache_present = true;
+
             if (not FileUtil::GetLastModificationTimestamp(zeder_cache_path, &mtim))
                 return false;
             else {
@@ -652,8 +673,8 @@ bool FullDumpDownloader::download(EntryCollection *const collection, const bool 
         LOG_ERROR("dynamic_cast failed!");
 
     std::unordered_map<std::string, ColumnMetadata> column_to_metadata_map;
-    std::shared_ptr<JSON::JSONNode> json_data;
-    std::shared_ptr<JSON::JSONNode> json_cached_data;
+    std::shared_ptr<JSON::ObjectNode> json_data;
+    std::shared_ptr<JSON::ObjectNode> json_cached_data;
 
     bool use_cache = not disable_cache_mechanism;
     bool cache_present = false;
