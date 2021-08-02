@@ -439,9 +439,9 @@ private:
     };
 
     bool downloadData(const std::string &endpoint_url, std::shared_ptr<JSON::ObjectNode> * const json_data);
-    void parseColumnMetadata(const std::shared_ptr<JSON::JSONNode> &json_data,
+    void parseColumnMetadata(const std::shared_ptr<JSON::ObjectNode> &json_data,
                              std::unordered_map<std::string, ColumnMetadata> * const column_to_metadata_map);
-    void parseRows(const Params &params, const std::shared_ptr<JSON::JSONNode> &json_data,
+    void parseRows(const Params &params, const std::shared_ptr<JSON::ObjectNode> &json_data,
                    const std::unordered_map<std::string, ColumnMetadata> &column_to_metadata_map, EntryCollection * const collection);
 public:
     virtual ~FullDumpDownloader() = default;

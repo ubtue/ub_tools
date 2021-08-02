@@ -508,13 +508,12 @@ bool FullDumpDownloader::downloadData(const std::string &endpoint_url, std::shar
 }
 
 
-void FullDumpDownloader::parseColumnMetadata(const std::shared_ptr<JSON::JSONNode> &json_data,
+void FullDumpDownloader::parseColumnMetadata(const std::shared_ptr<JSON::ObjectNode> &json_data,
                                              std::unordered_map<std::string, ColumnMetadata> * const column_to_metadata_map)
 {
     static const std::unordered_set<std::string> valid_column_types{ "text", "multi", "dropdown" };
 
-    const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", json_data));
-    for (const auto &metadata : *root_node->getArrayNode("meta")) {
+    for (const auto &metadata : *(json_data->getArrayNode("meta"))) {
         const auto metadata_wrapper(JSON::JSONNode::CastToObjectNodeOrDie("entry", metadata));
         const auto column_name(metadata_wrapper->getStringValue("Kurz"));
         const auto column_type(metadata_wrapper->getStringValue("Feldtyp"));
@@ -534,7 +533,7 @@ void FullDumpDownloader::parseColumnMetadata(const std::shared_ptr<JSON::JSONNod
 }
 
 
-void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<JSON::JSONNode> &json_data,
+void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<JSON::ObjectNode> &json_data,
                                    const std::unordered_map<std::string, ColumnMetadata> &column_to_metadata_map,
                                    EntryCollection * const collection)
 {
@@ -544,8 +543,7 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
             LOG_ERROR("can't download unknown short column \"" + short_column_name + "\" from Zeder!");
     }
 
-    const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", json_data));
-    for (const auto &data : *root_node->getArrayNode("daten")) {
+    for (const auto &data : *json_data->getArrayNode("daten")) {
         const auto data_wrapper(JSON::JSONNode::CastToObjectNodeOrDie("entry", data));
         const auto row_id(data_wrapper->getIntegerValue("DT_RowId"));
         const auto mtime(data_wrapper->getStringValue("Mtime"));
