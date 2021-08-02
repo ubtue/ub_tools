@@ -146,7 +146,7 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
             (*output_file) << "description  = \"" << EscapeDoubleQuotes(description->value_) << "\"\n";
         (*output_file) << "instances    = \"" << bundle_instances << "\"\n";
         std::string media_type;
-        if (contains_online) 
+        if (contains_online)
             if (contains_print)
                 media_type = "online_and_print";
             else
@@ -178,7 +178,7 @@ int Main(int argc, char *argv[]) {
 
     const Zeder::SimpleZeder zeder(zeder_instance == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK);
     if (not zeder)
-        LOG_ERROR("can't connect to the Zeder MySQL server!");
+        LOG_ERROR("can't connect to Zeder!");
     if (unlikely(zeder.empty()))
         LOG_ERROR("found no Zeder entries matching any of our requested columns!"
                   " (This *should* not happen as we included the column ID!)");
