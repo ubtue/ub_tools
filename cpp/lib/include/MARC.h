@@ -388,6 +388,9 @@ public:
         /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
         std::string getFirstSubfieldWithCode(const char subfield_code) const;
 
+        /** \return Either the contents of the subfield with prefix or the empty string if no corresponding subfield was found. */
+        std::string getFirstSubfieldWithCodeAndPrefix(const char subfield_code, const std::string &prefix) const;
+
         bool hasSubfield(const char subfield_code) const;
         bool hasSubfieldWithValue(const char subfield_code, const std::string &value, const bool case_insensitive = false) const;
 
@@ -1141,6 +1144,10 @@ bool GetGNDCode(const MARC::Record &record, std::string * const gnd_code);
 
 /** \brief True if a wikidata id was found in 024$a ($2 = wikidata) else false. */
 bool GetWikidataId(const Record &record, std::string * const wikidata_id);
+
+
+/** \brief True if a wikipedia link was found in 670$u ($a = wikipedia) else false. */
+bool GetWikipediaLink(const Record &record, std::string * const wikipedia_link);
 
 
 /** \brief Generates a reproducible SHA-1 hash over our internal data.

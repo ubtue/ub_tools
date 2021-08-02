@@ -279,6 +279,18 @@ std::string Record::Field::getFirstSubfieldWithCode(const char subfield_code) co
 }
 
 
+std::string Record::Field::getFirstSubfieldWithCodeAndPrefix(const char subfield_code, const std::string &prefix) const {
+    const auto subfields(getSubfields());
+    for (const auto &subfield : subfields) {
+        if (subfield.code_ == subfield_code) {
+            if (StringUtil::StartsWith(subfield.value_, prefix))
+                return subfield.value_;
+        }
+    }
+    return "";
+}
+
+
 bool Record::Field::hasSubfield(const char subfield_code) const {
     bool subfield_delimiter_seen(false);
     for (const char ch : contents_) {
@@ -2553,6 +2565,21 @@ bool GetWikidataId(const Record &record, std::string * const wikidata_id) {
         if (StringUtil::Contains(_024_2_field, "wikidata")) {
             *wikidata_id = _024a_field;
             return not wikidata_id->empty();
+        }
+    }
+    return false;
+}
+
+
+bool GetWikipediaLink(const Record &record, std::string * const wikipedia_link) {
+    wikipedia_link->clear();
+    for (const auto &_670_field : record.getTagRange("670")) {
+        const Subfields _670_subfields(_670_field.getSubfields());
+        const std::string _670a_field(_670_subfields.getFirstSubfieldWithCode('a'));
+        const std::string _670u_field(_670_subfields.getFirstSubfieldWithCode('u'));
+        if (StringUtil::Contains(_670a_field, "Wikipedia")) {
+            *wikipedia_link = _670u_field;
+            return not wikipedia_link->empty();
         }
     }
     return false;

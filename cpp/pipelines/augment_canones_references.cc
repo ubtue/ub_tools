@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2019-2020, Library of the University of Tübingen
+    Copyright (C) 2019-2021, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -62,8 +62,10 @@ std::string FieldToCanonLawCode(const std::string &ppn, const Codex codex, const
     if (subfield_part.empty()) {
         range_start = 0;
         range_end = 99999999;
-    } else if (not RangeUtil::ParseCanonLawRanges(subfield_part, &range_start, &range_end))
-        LOG_ERROR("don't know how to parse codex parts \"" + subfield_part + "\"! (PPN: " + ppn + ")");
+    } else if (not RangeUtil::ParseCanonLawRanges(subfield_part, &range_start, &range_end)) {
+        LOG_WARNING("don't know how to parse codex parts \"" + subfield_part + "\"! (PPN: " + ppn + ")");
+        return "";
+    }
 
     switch (codex) {
     case CIC1917:
@@ -111,7 +113,11 @@ void LoadAuthorityData(MARC::Reader * const reader,
             continue;
 
         const Codex codex(DetermineCodex(t_subfield, _110_field->getFirstSubfieldWithCode('f'), record.getControlNumber()));
-        const auto canon_law_code(FieldToCanonLawCode(record.getControlNumber(), codex, _110_field->getFirstSubfieldWithCode('p')));
+        const auto canon_law_code(
+            FieldToCanonLawCode(record.getControlNumber(), codex, _110_field->getFirstSubfieldWithCode('p')));
+        if (unlikely(canon_law_code.empty()))
+            continue;
+
         (*authority_ppns_to_canon_law_codes_map)[record.getControlNumber()] = canon_law_code;
 
         for (const auto &_140_field : record.getTagRange("410")) {

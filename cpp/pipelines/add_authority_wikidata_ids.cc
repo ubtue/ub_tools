@@ -51,19 +51,20 @@ void ParseDataDnbFile(std::string input_filename, std::string output_filename) {
         std::string line;
         std::string act_gnd;
         std::string act_name;
-        std::string act_wiki;
+        std::string act_wikidata;
+        std::string act_wikipedia;
         bool sameAs_reached(false);
         bool read_preferred_name(false);
         bool read_gnd_id(false);
         while (std::getline(input_file, line)) {
             if (line == "}, {") {
-                if (not act_wiki.empty() and not act_name.empty() and not act_wiki.empty()) {
-                    output_file << "Name: " << act_name << " GND: " << act_gnd << " Wikidata: " << act_wiki << "\n";
-                    std::cout << "Name: " << act_name << " GND: " << act_gnd << " Wikidata: " << act_wiki << "\n";
+                if (not act_gnd.empty() and not act_name.empty() and not act_wikidata.empty() ) {
+                    output_file << "Name: " << act_name << " GND: " << act_gnd << " Wikidata: " << act_wikidata << " Wikipedia: " << act_wikipedia << "\n";
                 }
                 act_gnd = "";
                 act_name = "";
-                act_wiki = "";
+                act_wikidata = "";
+                act_wikipedia = "";
                 sameAs_reached = false;
                 read_gnd_id = true;
             } else if (read_preferred_name) {
@@ -77,8 +78,12 @@ void ParseDataDnbFile(std::string input_filename, std::string output_filename) {
                 act_gnd = std::regex_replace(act_gnd, std::regex("(\\s|,|\")"), "");
             } else if (StringUtil::Contains(line, "www.wikidata.org/entity/") and sameAs_reached) {
                 std::size_t last_slash = line.find_last_of("/");
-                act_wiki = line.substr(last_slash + 1);
-                act_wiki = std::regex_replace(act_wiki, std::regex("(\\s|,|\")"), "");
+                act_wikidata = line.substr(last_slash + 1);
+                act_wikidata = std::regex_replace(act_wikidata, std::regex("(\\s|,|\")"), "");
+            } else if (StringUtil::Contains(line, "wikipedia.org/wiki/") and StringUtil::Contains(line, "http") and sameAs_reached) {
+                std::size_t first_http = line.find("http");
+                act_wikipedia = line.substr(first_http);
+                act_wikipedia = std::regex_replace(act_wikipedia, std::regex("(\\s|,|\")"), "");
             } else if (StringUtil::Contains(line, "owl#sameAs")) {
                 sameAs_reached = true;
             } else if (StringUtil::Contains(line, "preferredNameForThePerson")) {
@@ -92,21 +97,27 @@ void ParseDataDnbFile(std::string input_filename, std::string output_filename) {
         LOG_ERROR("input or output files could not be opened");
 }
 
-void ParseGndWikidataMappingFile(std::string filename, std::unordered_map<std::string, std::string> * const gnd_to_wikidataid) {
+void ParseGndWikidataMappingFile(std::string filename, std::unordered_map<std::string, std::vector<std::string>> * const gnd_to_wikidataid_and_wikipedia_link) 
+{
     std::ifstream file(filename);
     if (file.is_open()) {
         std::string line;
         std::string act_gnd;
-        std::string act_wiki;
+        std::string act_wikidata;
+        std::string act_wikipedia;
         while (std::getline(file, line)) {
             const std::string NAME = "Name:";
             const std::string GND = "GND:";
             const std::string WIKIDATA = "Wikidata:";
-            if (StringUtil::StartsWith(line, NAME) and StringUtil::Contains(line, GND) and StringUtil::Contains(line, WIKIDATA)) {
+            const std::string WIKIPEDIA = "Wikipedia:";
+            if (StringUtil::StartsWith(line, NAME) and StringUtil::Contains(line, GND) and StringUtil::Contains(line, WIKIDATA) and StringUtil::Contains(line, WIKIPEDIA)) {
                 act_gnd = line.substr(line.find(GND) + GND.length());
                 act_gnd = act_gnd.substr(0, act_gnd.find(WIKIDATA));
-                act_wiki = line.substr(line.find(WIKIDATA) + WIKIDATA.length());
-                gnd_to_wikidataid->emplace(StringUtil::TrimWhite(act_gnd), StringUtil::TrimWhite(act_wiki));
+                act_wikidata = line.substr(line.find(WIKIDATA) + WIKIDATA.length());
+                act_wikidata = act_wikidata.substr(0, act_wikidata.find(WIKIPEDIA));
+                act_wikipedia = line.substr(line.find(WIKIPEDIA) + WIKIPEDIA.length());
+                std::vector<std::string> wiki_elements = { StringUtil::TrimWhite(act_wikidata), StringUtil::TrimWhite(act_wikipedia) };
+                gnd_to_wikidataid_and_wikipedia_link->emplace(StringUtil::TrimWhite(act_gnd), wiki_elements);
             }
         }
         file.close();
@@ -127,12 +138,12 @@ int Main(int argc, char * argv[]) {
 
     if (marc_input_filename_or_create_flag == "--create_mapping_file") {
         //e.g. "/..../authorities-person_lds_20210613.jsonld" and /usr/local/ub_tools/cpp/data/gnd_to_wiki.txt
-        ParseDataDnbFile(marc_output_filename_or_dnb_input, mapping_txt_filename); 
+        ParseDataDnbFile(marc_output_filename_or_dnb_input, mapping_txt_filename);
         return EXIT_SUCCESS;
     }
 
-    std::unordered_map<std::string, std::string> gnd_to_wikidataid;
-    ParseGndWikidataMappingFile(mapping_txt_filename, &gnd_to_wikidataid);
+    std::unordered_map<std::string, std::vector<std::string>> gnd_to_wikielements;
+    ParseGndWikidataMappingFile(mapping_txt_filename, &gnd_to_wikielements);
     
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename_or_create_flag));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename_or_dnb_input));
@@ -144,24 +155,31 @@ int Main(int argc, char * argv[]) {
         // 035|a (DE-588)118562215
         std::string record_gnd;
         std::string wikidata_id;
+        std::string wikidata_id_orig;
+        std::string wikipedia_link;
+        std::string wikipedia_link_orig;
+        std::vector<std::string> wiki_elements;
 
         MARC::GetGNDCode(record, &record_gnd);
-        MARC::GetWikidataId(record, &wikidata_id);
+        MARC::GetWikidataId(record, &wikidata_id_orig);
+        MARC::GetWikipediaLink(record, &wikipedia_link_orig);
 
-        if (not wikidata_id.empty())
-            continue;
-    
         //record lookup
         if (not record_gnd.empty()) {
-            auto gnd_to_wikidataid_iter = gnd_to_wikidataid.find(record_gnd);
-            if (gnd_to_wikidataid_iter != gnd_to_wikidataid.end()) {
-                wikidata_id = gnd_to_wikidataid_iter->second;
-                //std::cout << "Match: " << record_gnd << " --- " << wikidata_id << "\n";
+            auto gnd_to_wikielements_iter = gnd_to_wikielements.find(record_gnd);
+            if (gnd_to_wikielements_iter != gnd_to_wikielements.end()) {
+                wiki_elements = gnd_to_wikielements_iter->second;
+                if (wiki_elements.size() > 0)
+                    wikidata_id = wiki_elements[0];
+                if (wiki_elements.size() > 1)
+                    wikipedia_link = wiki_elements[1];
             }
         }
-        
-        if (not wikidata_id.empty())
-            record.insertField("024", { { 'a', wikidata_id }, { '2', "wikidata" }, {'9', "PipeLineGenerated"} }, /*indicator 1*/ '7');
+
+        if (not wikidata_id.empty() and wikidata_id_orig != wikidata_id)
+            record.insertField("024", { { 'a', wikidata_id }, { '2', "wikidata" }, { '9', "PipeLineGenerated" } }, /*indicator 1*/ '7');
+        if (not wikipedia_link.empty() and wikipedia_link != wikidata_id_orig)
+            record.insertField("670", { { 'a', "Wikipedia" }, { 'u', wikipedia_link }, { '9', "PipeLineGenerated" } });
         
         marc_writer.get()->write(record);
     }

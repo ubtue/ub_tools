@@ -175,8 +175,8 @@ wait
 
 StartPhase "Parent-to-Child Linking and Flagging of Subscribable Items"
 make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
-(add_superior_and_alertable_flags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+(add_superior_and_alertable_flags ixtheo GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                         GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 
@@ -351,8 +351,8 @@ wait
 
 
 StartPhase "Add Tags for subsystems"
-(add_subsystem_tags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
-                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
+(add_subsystem_tags GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-partially-augmented3-"${date}".mrc \
+                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc Normdaten-partially-augmented4-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
@@ -361,7 +361,7 @@ StartPhase "Appending Literary Remains Records"
 make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 (create_literary_remains_records GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                                  GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                                 Normdaten-partially-augmented3-"${date}".mrc \
+                                 Normdaten-partially-augmented4-"${date}".mrc \
                                  Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 

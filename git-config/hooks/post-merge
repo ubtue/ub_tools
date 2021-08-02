@@ -5,11 +5,19 @@ MYSQL_SCHEMA_UPDATES_PATH=/usr/local/ub_tools/cpp/data/sql_updates
 MYSQL_SCHEMA_UPDATES_PATH_LOCAL=cpp/data/sql_updates
 MYSQL_DATABASE_PATCHER=/usr/local/bin/mysql_database_patcher
 SYSTEM_UPDATES_PATH=/usr/local/ub_tools/cpp/data/system_updates
+OLD_UB_TOOLS_SCHEMA=/tmp/old_ub_tools.schema
+NEW_UB_TOOLS_SCHEMA=/tmp/new_ub_tools.schema
+INSTALLER_UB_TOOLS_SCHEMA=/tmp/installer_ub_tools.schema
+SCHEMA_DIFFS=/tmp/schema_diffs
 
+rm -f $OLD_UB_TOOLS_SCHEMA
+rm -f $NEW_UB_TOOLS_SCHEMA
+rm -f $INSTALLER_UB_TOOLS_SCHEMA
+rm -f $SCHEMA_DIFFS
 
 declare -i compare_against_installer_schema=$(if $(echo "$CHANGED_FILES" | grep --quiet cpp/data/installer/ub_tools.sql); then echo 1; else echo 0; fi)
 if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); then
-    /usr/local/bin/mysql_list_tables > /tmp/old_ub_tools.schema
+    /usr/local/bin/mysql_list_tables > $OLD_UB_TOOLS_SCHEMA
     if [[ -x $MYSQL_DATABASE_PATCHER ]]; then
 	echo "Executing MYSQL schema updates tool"
         $MYSQL_DATABASE_PATCHER $MYSQL_SCHEMA_UPDATES_PATH
@@ -17,8 +25,8 @@ if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); th
             echo "$MYSQL_DATABASE_PATCHER $MYSQL_SCHEMA_UPDATES_PATH failed!"
             exit 1
         fi
-        /usr/local/bin/mysql_list_tables > /tmp/new_ub_tools.schema
-        /usr/local/bin/mysql_diff_schemas /tmp/old_ub_tools.schema /tmp/new_ub_tools.schema
+        /usr/local/bin/mysql_list_tables > $NEW_UB_TOOLS_SCHEMA
+        /usr/local/bin/mysql_diff_schemas $OLD_UB_TOOLS_SCHEMA $NEW_UB_TOOLS_SCHEMA
         compare_against_installer_schema=1
         echo "MYSQL schema update completed"
     else
@@ -30,16 +38,16 @@ else
 fi
 
 
-if [[ $compare_against_installer_schema && -r /tmp/new_ub_tools.schema ]]; then
+if [[ $compare_against_installer_schema && -r $NEW_UB_TOOLS_SCHEMA ]]; then
     MYSQL_PWD=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_password)
     MYSQL_USER=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_username)
     echo "DROP DATABASE IF EXISTS ub_tools_tmp;" | mysql --user=$MYSQL_USER --password="$MYSQL_PWD"
     echo "CREATE DATABASE ub_tools_tmp;" | mysql --user=$MYSQL_USER --password="$MYSQL_PWD"
     echo "USE ub_tools_tmp" | cat - /usr/local/ub_tools/cpp/data/installer/ub_tools.sql | mysql --user=$MYSQL_USER --password="$MYSQL_PWD"
-    mysql_list_tables ub_tools_tmp ub_tools $MYSQL_PWD > /tmp/installer_ub_tools.schema
+    mysql_list_tables ub_tools_tmp ub_tools $MYSQL_PWD > $INSTALLER_UB_TOOLS_SCHEMA
     echo "DROP DATABASE ub_tools_tmp;" | mysql --user=$MYSQL_USER --password="$MYSQL_PWD"
-    /usr/local/bin/mysql_diff_schemas /tmp/installer_ub_tools.schema /tmp/new_ub_tools.schema | tee /tmp/schema_diffs
-    if [ -s /tmp/schema_diffs ]; then
+    /usr/local/bin/mysql_diff_schemas $INSTALLER_UB_TOOLS_SCHEMA $NEW_UB_TOOLS_SCHEMA | tee $SCHEMA_DIFFS
+    if [ -s $SCHEMA_DIFFS ]; then
         MYSQL_DB=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_database)
         echo "**** The patched $MYSQL_DB database schema differs from the one that the installer uses.  You *must* fix this"'! ****'
     else
