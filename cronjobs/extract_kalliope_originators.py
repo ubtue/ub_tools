@@ -11,9 +11,9 @@ def Main():
         exit(1)
     root = ET.parse(sys.argv[1]).getroot()
     gnds_and_type = {}
-    for recordData in root.findall('.//{*}recordData'):
-        genre = recordData.find('.//{*}genre')
-        name = recordData.find('.//{*}name')
+    for recordData in root.findall('.//{http://www.loc.gov/zing/srw/}recordData'):
+        genre = recordData.find('.//{http://www.loc.gov/mods/v3}genre')
+        name = recordData.find('.//{http://www.loc.gov/mods/v3}name')
         if genre is not None and name is not None :
             gnd = name.get('valueURI').replace('https://d-nb.info/gnd/','') if name.get('valueURI') else None
             originator_type = genre.text
