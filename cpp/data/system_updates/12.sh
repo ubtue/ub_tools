@@ -2,8 +2,7 @@
 set -o errexit
 
 
-readonly HOSTNAME=$(hostname)
-if [[ $HOSTNAME == "ub16.uni-tuebingen.de" || $HOSTNAME == "ptah.ub.uni-tuebingen.de" ]]; then
+if [[ $TUEFIND_FLAVOUR == "ixtheo" ]]; then
     if [ -e /var/spool/cron/root ]; then # CentOS
         root_crontab=/var/spool/cron/root
     else # Ubuntu
