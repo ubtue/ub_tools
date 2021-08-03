@@ -373,4 +373,7 @@ bool IsLeapYear(const unsigned year);
 bool IsLeapYear(const std::string &year);
 
 
+unsigned GetDaysInMonth(const unsigned year, const unsigned month);
+
+
 } // namespace TimeUtil

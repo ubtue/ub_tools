@@ -20,6 +20,7 @@
 #include <cstdlib>
 #include "MARC.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include "util.h"
 #include "XMLParser.h"
 
@@ -34,6 +35,24 @@ bool IsCriminologyRecord(const MARC::Record &record) {
 }
 
 
+// "american_date" is expected to contain the pattern mm-dd-yyyy.
+std::string AmericanDateToGermanDate(const std::string &american_date) {
+    const auto month(StringUtil::ToUnsigned(american_date.substr(0, 2)));
+    if (unlikely(month == 0 or month > 12))
+        LOG_ERROR("bad month in \"" + american_date + "\"!");
+
+    const auto day(StringUtil::ToUnsigned(american_date.substr(3, 2)));
+    if (unlikely(day == 0 or day > 31))
+        LOG_ERROR("bad day in \"" + american_date + "\"!");
+
+    const auto year(StringUtil::ToUnsigned(american_date.substr(6)));
+    if (unlikely(year < 1000 or year > 2099))
+        LOG_ERROR("bad year in \"" + american_date + "\"!");
+
+    return StringUtil::ToString(day) + "." + StringUtil::ToString(month) + "." + StringUtil::ToString(year);
+}
+
+
 // Mostly uses the mapping found at https://www.loc.gov/marc/dccross.html to map DC to MARC.
 bool ParseRecord(XMLParser * const xml_parser, MARC::Writer * const marc_writer) {
     static unsigned record_number;
@@ -41,6 +60,10 @@ bool ParseRecord(XMLParser * const xml_parser, MARC::Writer * const marc_writer)
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED,
                             "ICPSR" + StringUtil::ToString(record_number, /* radix = */10, /* width = */6,
                                                            /* padding_char = */'0'));
+    static const std::string today(TimeUtil::GetCurrentDateAndTime("%y%m%d"));
+    static const std::string current_year(TimeUtil::GetCurrentYear());
+    static const std::string _008_contents(today + 's' + current_year);
+    new_record.insertField(MARC::Tag("008"), _008_contents);
     new_record.insertField(MARC::Tag("935"), { { 'a', "icpsr" }, { '2', "LOK" } });
 
     XMLParser::XMLPart xml_part;
@@ -65,14 +88,12 @@ bool ParseRecord(XMLParser * const xml_parser, MARC::Writer * const marc_writer)
                     new_record.insertField(MARC::Tag("856"), 'u', last_data);
                 }
             } else if (tag == "date")
-                new_record.insertField(MARC::Tag("260"), 'c', last_data);
+                new_record.insertField(MARC::Tag("260"), 'c', AmericanDateToGermanDate(last_data));
             else if (tag == "type")
                 new_record.insertField(MARC::Tag("655"), 'a', last_data, ' ', '7');
             else if (tag == "source")
                 new_record.insertField(MARC::Tag("786"), 'n', last_data, '0', ' ');
-            else if (tag == "coverage")
-                new_record.insertField(MARC::Tag("500"), 'a', last_data);
-            else if (tag == "subject")
+            else if (tag == "coverage" or tag == "subject")
                 new_record.insertField(MARC::Tag("653"), 'a', last_data);
             else
                 LOG_ERROR("Unhandled tag: \"" + xml_part.data_ + "\"!");

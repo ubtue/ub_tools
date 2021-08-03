@@ -12,6 +12,8 @@ LOG_DIR=/usr/local/var/log/tuefind
 0 0 * * * "$BIN/log_rotate" --max-rotations=4 "$LOG_DIR" "(?<!(java_mem_stats))\\.log$"
 0 0 * * * "$BIN/log_rotate" --no-of-lines-to-keep=200 "$LOG_DIR" "^java_mem_stats\\.log$"
 30 0 * * * cd "$BSZ_DATEN" && "$BIN/purge_old_data.py" "$EMAIL" > "$LOG_DIR/purge_old_data.log" 2>&1
+30 0 * * * "$BIN/generate_new_journal_alert_stats ixtheo days_in_last_month"
+30 0 * * * "$BIN/generate_new_journal_alert_stats relbib days_in_last_month"
 0 1 * * * php "$VUFIND_HOME/util/expire_searches.php" 30 > "$LOG_DIR/expire_searches.log" 2>&1
 0 1 * * * "$BIN/enable_pipeline_triggers.sh" > "$LOG_DIR/enable_pipeline_triggers.log" 2>&1
 0 3 * * * cd "$BSZ_DATEN" && "$BIN/fetch_marc_updates.py" "$EMAIL" > "$LOG_DIR/fetch_marc_updates.log" 2>&1
@@ -35,5 +37,4 @@ LOG_DIR=/usr/local/var/log/tuefind
 0 23 * * * "$BIN/update_tad_email_acl.sh" "$EMAIL"
 15 23 * * * "$BIN/rss_aggregator" relbib "$EMAIL" "/usr/local/vufind/public/relbib_docs/news.rss" > "$LOG_DIR/rss_aggregator_relbib.log" 2>&1
 45 23 * * * "$BIN/rss_subset_aggregator" "--mode=email" "$EMAIL" "relbib" > "$LOG_DIR/rss_subset_aggregator_relbib.log" 2>&1
-{IF DEFINED(production)}0 17 1 Jul,Dec * "$BIN/ch.sh"{ENDIF}
 {IF DEFINED(production)}0 0 1 * * "$BIN/cologne.sh"{ENDIF}
