@@ -294,6 +294,7 @@ const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_
     { PRINT_ISSN,               "print_issn"                },
     { SSGN,                     "ssgn"                      },
     { LICENSE,                  "license"                   },
+    { PERSONALIZED_AUTHORS,     "tiefp"                     },
     { SELECTIVE_EVALUATION,     "selective_evaluation"      },
     { FORCE_LANGUAGE_DETECTION, "force_language_detection"  },
     { STRPTIME_FORMAT_STRING,   "zotero_strptime_format"    },
@@ -319,6 +320,7 @@ const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_
     { "print_issn",                PRINT_ISSN               },
     { "ssgn",                      SSGN                     },
     { "license",                   LICENSE                  },
+    { "tiefp",                     PERSONALIZED_AUTHORS     },
     { "selective_evaluation",      SELECTIVE_EVALUATION     },
     { "force_language_detection",  FORCE_LANGUAGE_DETECTION },
     { "zotero_strptime_format",    STRPTIME_FORMAT_STRING   },
@@ -356,6 +358,7 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     ssgn_ = journal_section.getString(GetIniKeyString(SSGN), "");
     license_ = journal_section.getString(GetIniKeyString(LICENSE), "");
     selective_evaluation_ = journal_section.getBool(GetIniKeyString(SELECTIVE_EVALUATION), false);
+    personalized_authors_ = journal_section.getString(GetIniKeyString(PERSONALIZED_AUTHORS), "-");
 
     const auto review_regex(journal_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
     if (not review_regex.empty())

@@ -60,7 +60,7 @@ using namespace ZoteroHarvester;
             "\tzeder_ids                       Comma-separated list of Zeder entry IDs to import/update.\n"
             "\t                                Special-case for updating: Use '*' to update all entries found in the config that belong to the Zeder flavour\n"
             "\tfields_to_update                Comma-separated list of the following fields to update: \n"
-            "\t                                \tNAME, ONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSGN, LICENSE, SELECTIVE_EVALUATION.\n"
+            "\t                                \tNAME, ONLINE_PPN, PRINT_PPN, ONLINE_ISSN, PRINT_ISSN, EXPECTED_LANGUAGES, ENTRY_POINT_URL, UPLOAD_OPERATION, UPDATE_WINDOW, SSGN, LICENSE, TIEFP, SELECTIVE_EVALUATION.\n"
             "\t                                Ignored when importing entries (all importable fields will be imported).\n"
             "\t                                If mode is IMPORT and zeder_ids is '*', new journals will only be added if UPLOAD_OPERATION is not NONE.\n\n");
 }
@@ -134,6 +134,7 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
         { "UPDATE_WINDOW",         Config::JournalParams::UPDATE_WINDOW        },
         { "SSGN",                  Config::JournalParams::SSGN                 },
         { "LICENSE",               Config::JournalParams::LICENSE              },
+        { "PERSONALIZED_AUTHORS",  Config::JournalParams::PERSONALIZED_AUTHORS },
         { "SELECTIVE_EVALUATION",  Config::JournalParams::SELECTIVE_EVALUATION },
         { "EXPECTED_LANGUAGES",    Config::JournalParams::EXPECTED_LANGUAGES   },
     };
@@ -363,6 +364,7 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
             Config::JournalParams::UPDATE_WINDOW,
             Config::JournalParams::EXPECTED_LANGUAGES,
             Config::JournalParams::SSGN,
+            Config::JournalParams::PERSONALIZED_AUTHORS,
             Config::JournalParams::LICENSE,
             Config::JournalParams::SELECTIVE_EVALUATION,
         };

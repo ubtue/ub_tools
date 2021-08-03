@@ -241,6 +241,7 @@ struct JournalParams {
         CRAWL_MAX_DEPTH,
         CRAWL_EXTRACTION_REGEX,
         CRAWL_URL_REGEX,
+        PERSONALIZED_AUTHORS,
     };
 
     unsigned zeder_id_;
@@ -268,6 +269,7 @@ struct JournalParams {
         std::unique_ptr<ThreadSafeRegexMatcher> extraction_regex_;
         std::unique_ptr<ThreadSafeRegexMatcher> crawl_url_regex_;
     } crawl_params_;
+    std::string personalized_authors_;
     ZoteroMetadataParams zotero_metadata_params_;
     MarcMetadataParams marc_metadata_params_;
     bool zeder_newly_synced_entry_;
