@@ -31,14 +31,13 @@ namespace {
 
 
 class TypeFile {
-
     struct Entry {
         std::string gnd_number_;
         std::vector<std::string> types_;
     public:
         Entry() = default;
         Entry(const Entry &other) = default;
-        Entry(const std::string gnd_number, const std::vector<std::string> &types) : gnd_number_(gnd_number), types_(types) {}
+        Entry(const std::string gnd_number, const std::vector<std::string> &types): gnd_number_(gnd_number), types_(types) {}
         inline bool operator<(const Entry &rhs) { return gnd_number_ < rhs.gnd_number_; }
         inline bool operator==(const Entry &rhs) const { return gnd_number_ == rhs.gnd_number_; }
         inline bool operator()(const Entry &rhs) { return gnd_number_ < rhs.gnd_number_; }
@@ -62,8 +61,7 @@ class TypeFile {
                 const std::string line(input->getLineAny());
                 ++line_no;
                 std::vector<std::string> gnd_and_types;
-                StringUtil::Split(line, std::string(" - "), &gnd_and_types);
-                if (gnd_and_types.size() != 2)
+                if (StringUtil::Split(line, std::string(" - "), &gnd_and_types) != 2)
                     LOG_ERROR("Invalid type file " + filename + " in line " + std::to_string(line_no));
                 std::vector<std::string> types;
                 StringUtil::SplitThenTrimWhite(gnd_and_types[1], ',', &types);
@@ -74,7 +72,6 @@ class TypeFile {
         inline const_iterator end() const { return entries_.cend(); }
         inline const_iterator find(const std::string &gnd_number) const { return entries_.find(Entry(gnd_number, {})); };
 };
-
 
 
 void ProcessAuthorityRecords(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer,
@@ -100,7 +97,6 @@ void ProcessAuthorityRecords(MARC::Reader * const authority_reader, MARC::Writer
                             record.addSubfield("BEA", 'v', type);
                     }
                 }
-
             }
         }
 
@@ -130,9 +126,8 @@ int Main(int argc, char **argv) {
     std::vector<BeaconFile> beacon_files;
     std::map<std::string, TypeFile> beacon_to_type_files_map;
 
-
     for (int arg_no(3); arg_no < argc; ++arg_no) {
-        if (argv[arg_no] == std::string("--type-file")) {
+        if (std::strcmp(argv[arg_no], "--type-file") == 0) {
             if (not (arg_no + 1 < argc))
                 LOG_ERROR("No typefile given");
             if (arg_no - 1 < 3)
@@ -140,7 +135,7 @@ int Main(int argc, char **argv) {
             beacon_to_type_files_map.emplace(argv[arg_no - 1], TypeFile(argv[arg_no + 1]));
             ++arg_no;
         } else
-            beacon_files.emplace_back(BeaconFile(argv[arg_no]));
+            beacon_files.emplace_back(argv[arg_no]);
     }
 
 
