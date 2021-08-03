@@ -40,10 +40,12 @@ def Main():
     sys.stdout.close()
     if not IsResultPlausible(result_file):
         raise("Error - Implausible result file: " + result_file);
-    shutil.move(result_file, '/usr/local/ub_tools/bsz_daten/' + RESULT_FILE_NAME)
+    BSZ_DATEN_DIR = '/usr/local/ub_tools/bsz_daten/'
+    shutil.move(result_file, BSZ_DATEN_DIR + RESULT_FILE_NAME)
     os.remove(kalliope_fifo)
     os.rmdir(tmpdir)
-    util.SendEmail("Generate Kalliope Originators File", "Successfully generated originators file /usr/local/ub_tools/" + RESULT_FILE)
+    util.SendEmail("Generate Kalliope Originators File", "Successfully generated originators file " +
+                   BSZ_DATEN_DIR + RESULT_FILE_NAME)
     
 
 
