@@ -222,6 +222,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
     std::vector<std::string> all_journal_ids;
     std::vector<std::string> all_journal_zeder_ids;
     std::vector<std::string> all_journal_zeder_urls;
+    std::vector<std::string> all_tiefps;
     std::vector<std::string> all_journal_harvest_statuses;
     std::vector<std::string> all_urls;
 
@@ -262,6 +263,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
         const auto &url(journal_param->entry_point_url_);
         const auto &strptime_format(journal_param->strptime_format_string_);
         const auto &zeder_id(journal_param->zeder_id_);
+        const auto &tiefp(journal_param->tiefp_);
 
         std::string zeder_instance;
         std::string zeder_instance_for_url;
@@ -290,6 +292,12 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
         all_journal_zeder_urls.emplace_back(zeder_url);
         all_journal_delivery_modes.emplace_back(ZoteroHarvester::Config::UPLOAD_OPERATION_TO_STRING_MAP.at(delivery_mode));
         all_urls.emplace_back(url);
+        std::string tiefp_transf("-");
+        if (tiefp == "1" or tiefp == "N" or tiefp == "n")
+            tiefp_transf = "N";
+        if (tiefp == "2" or tiefp == "J" or tiefp == "j")
+            tiefp_transf = "J";
+        all_tiefps.emplace_back(tiefp_transf);
 
         if (harvest_type == ZoteroHarvester::Config::HarvesterOperation::RSS) {
             rss_journal_titles.emplace_back(title);
@@ -328,6 +336,7 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
     names_to_values_map.insertArray("all_journal_ids", all_journal_ids);
     names_to_values_map.insertArray("all_journal_zeder_ids", all_journal_zeder_ids);
     names_to_values_map.insertArray("all_journal_zeder_urls", all_journal_zeder_urls);
+    names_to_values_map.insertArray("all_tiefps", all_tiefps);
     names_to_values_map.insertArray("all_journal_harvest_statuses", all_journal_harvest_statuses);
     names_to_values_map.insertArray("all_urls", all_urls);
 

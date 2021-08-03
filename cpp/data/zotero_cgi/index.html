@@ -96,11 +96,12 @@
                             <th>Action&nbsp;1</th>
                             <th>Action&nbsp;2</th>
                             <th>Zeder ID</th>
+                            <th>Personalized Author</th>
                             <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {LOOP all_journal_titles, all_journal_groups, all_journal_print_issns, all_journal_online_issns, all_journal_print_ppns, all_journal_online_ppns, all_journal_methods, all_journal_delivery_modes, all_journal_ids, all_journal_zeder_ids, all_journal_zeder_urls, all_journal_harvest_statuses, all_urls}
+                        {LOOP all_journal_titles, all_journal_groups, all_journal_print_issns, all_journal_online_issns, all_journal_print_ppns, all_journal_online_ppns, all_journal_methods, all_journal_delivery_modes, all_journal_ids, all_journal_zeder_ids, all_journal_zeder_urls, all_tiefps, all_journal_harvest_statuses, all_urls}
                             <tr>
                                 <td>{all_journal_groups}</td>
                                 <td><a target="_blank" href="{all_urls}">{all_journal_titles}</a></td>
@@ -131,6 +132,7 @@
                                         <a target="_blank" href="{all_journal_zeder_urls}">{all_journal_zeder_ids}</a>
                                     {ENDIF}
                                 </td>
+                                <td>{all_tiefps}</td>
                                 <td align="center" style="vertical-align: middle;"
                                     {IF all_journal_harvest_statuses == "ERROR"}data-sort="0"{ENDIF}
                                     {IF all_journal_harvest_statuses == "WARNING"}data-sort="1"{ENDIF}
