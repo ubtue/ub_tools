@@ -79,7 +79,7 @@ std::string GetJournalId(DbConnection * const db_connection, const std::string &
     db_connection->queryOrDie("SELECT id FROM zeder_journals WHERE zeder_id=\'" + zeder_id +
                               "\' AND zeder_instance=\'" + group + "\'");
     DbResultSet result_set(db_connection->getLastResultSet());
-    if (not result_set.size()) {
+    if (not result_set.size() != 0) {
         return "";
     }
     if (result_set.size() != 1)
