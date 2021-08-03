@@ -73,7 +73,8 @@ void LoadAuthorityData(MARC::Reader * const reader,
                     }
                     break;
                 } else
-                    LOG_WARNING("can't convert \"" + free_form_range_candidate + "\" to a time range!");
+                    LOG_WARNING("can't convert \"" + free_form_range_candidate + "\" to a time range! (PPN: "
+                                + record.getControlNumber() + ")");
             }
             _548_field++;
         }
