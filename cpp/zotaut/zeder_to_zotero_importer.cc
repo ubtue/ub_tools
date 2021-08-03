@@ -134,7 +134,7 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
         { "UPDATE_WINDOW",         Config::JournalParams::UPDATE_WINDOW        },
         { "SSGN",                  Config::JournalParams::SSGN                 },
         { "LICENSE",               Config::JournalParams::LICENSE              },
-        { "TIEFP",                 Config::JournalParams::TIEFP                },
+        { "TIEFP",                 Config::JournalParams::PERSONALIZED_AUTHORS },
         { "SELECTIVE_EVALUATION",  Config::JournalParams::SELECTIVE_EVALUATION },
         { "EXPECTED_LANGUAGES",    Config::JournalParams::EXPECTED_LANGUAGES   },
     };
@@ -364,7 +364,7 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
             Config::JournalParams::UPDATE_WINDOW,
             Config::JournalParams::EXPECTED_LANGUAGES,
             Config::JournalParams::SSGN,
-            Config::JournalParams::TIEFP,
+            Config::JournalParams::PERSONALIZED_AUTHORS,
             Config::JournalParams::LICENSE,
             Config::JournalParams::SELECTIVE_EVALUATION,
         };
