@@ -16,7 +16,7 @@ def GetTotalResults(query):
     with urllib.request.urlopen(BASE_URI + query + MAXIMUM_RECORDS + '0' + RECORD_SCHEMA) as response:
         result = response.read()
         root = ET.fromstring(result)
-        num_of_records =  root.find('.//{*}numberOfRecords')
+        num_of_records =  root.find('.//{http://www.loc.gov/zing/srw/}numberOfRecords')
         if num_of_records is None:
             raise RuntimeError('No numberOfRecords')
         return num_of_records.text
@@ -41,7 +41,7 @@ def JoinResultFile(files, outfile):
             first.extend(data)
     if first is not None:
          outfile.write(ET.tostring(first))
-         
+
 
 def CleanUp(fileset):
    for tmp_file in fileset:
@@ -49,11 +49,8 @@ def CleanUp(fileset):
        os.remove(tmp_file)
 
 
-def Main():
-    if len(sys.argv) != 2:
-        print("Usage: " + sys.argv[0] + " outfile")
-        exit(1)
-    outfile = open(sys.argv[1], 'wb') 
+def DownloadKalliopeOriginatorRecords(filename):
+    outfile = open(filename, 'wb')
     tmp_fileset = []
     for gnd_prefix in range(0,9):
         query = str(gnd_prefix) + '*'
@@ -66,7 +63,15 @@ def Main():
     CleanUp(tmp_fileset)
 
 
-try:
+def Main():
+    try:
+       if len(sys.argv) != 2:
+           print("Usage: " + sys.argv[0] + " outfile")
+           exit(1)
+       DownloadKalliopeOriginatorRecords(sys.argv[1])
+    except Exception as e:
+       print("ERROR: " + e)
+
+
+if __name__ == "__main__":
     Main()
-except Exception as e:
-    print("ERROR: " + e)

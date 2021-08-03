@@ -5,10 +5,7 @@ import xml.etree.ElementTree as ET
 
 valid_gnd = re.compile('[0-9\-X]+')
 
-def Main():
-    if len(sys.argv) != 2:
-        print("Usage: " + sys.argv[0] + " kalliope_originator_record_file")
-        exit(1)
+def ExtractKalliopeOriginators(filename):
     root = ET.parse(sys.argv[1]).getroot()
     gnds_and_type = {}
     for recordData in root.findall('.//{http://www.loc.gov/zing/srw/}recordData'):
@@ -25,6 +22,13 @@ def Main():
     for gnd, originator_type in gnds_and_type.items():
         print(gnd, ' - ', end='')
         print(*originator_type, sep=', ')
+
+
+def Main():
+    if len(sys.argv) != 2:
+        print("Usage: " + sys.argv[0] + " kalliope_originator_record_file")
+        exit(1)
+    ExtractKalliopeOriginators(sys.argv[1])
 
 
 try:
