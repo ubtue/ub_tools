@@ -28,7 +28,6 @@
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "UBTools.h"
-#include "util.h"
 
 
 const std::set<std::string> ControlNumberGuesser::EMPTY_SET;
