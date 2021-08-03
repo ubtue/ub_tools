@@ -3,8 +3,9 @@
 set -e
 
 echo "Download the data from SSOAR"
-oai_pmh_harvester https://www.ssoar.info/OAIHandler/request marcxml col_collection_10214 KRIM_SSOAR \
-                  krim_ssoar.xml 20 /usr/local/var/lib/tuelib/krim_ssoar-dups.db
+oai_pmh_harvester --path-to-dups-database=/usr/local/var/lib/tuelib/krim_ssoar-dups.db \
+                  https://www.ssoar.info/OAIHandler/request marcxml col_collection_10214 KRIM_SSOAR \
+                  krim_ssoar.xml 20
 
 
 if [[ $(marc_size krim_ssoar.xml) == 0 ]]; then

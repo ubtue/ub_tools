@@ -324,8 +324,8 @@ int Main(int argc, char **argv) {
     const std::string base_url(argv[1]);
 
     const std::string metadata_prefix(argv[2]);
-    if (metadata_prefix != "marc" and metadata_prefix != "oai_dc")
-        LOG_ERROR("metadata_prefix must be \"marc\" or \"oai_dc\"!");
+    if (metadata_prefix != "marc" and metadata_prefix != "marcxml" and metadata_prefix != "oai_dc")
+        LOG_ERROR("metadata_prefix must be \"marc\", \"marcxml\" or \"oai_dc\"!");
 
     const std::string harvest_set_or_identifier(argc == 7 ? argv[3] : "");
     if (not harvest_set_or_identifier.empty()
