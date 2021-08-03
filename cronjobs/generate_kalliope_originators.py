@@ -11,6 +11,7 @@ import traceback
 import util
 from multiprocessing import Process
 
+
 def IsResultPlausible(result_file):
     if os.path.getsize(result_file) == 0:
         return False
@@ -21,15 +22,14 @@ def IsResultPlausible(result_file):
             if not correct_line.match(line):
               return False
     return True
-    
+
 
 def Main():
     tmpdir = tempfile.mkdtemp()
     kalliope_fifo = os.path.join(tmpdir, 'kalliope_fifo')
-    print ("Create FIFO: " + kalliope_fifo)
     os.mkfifo(kalliope_fifo)
     RESULT_FILE_NAME = 'kalliope_originators.txt'
-    download_process = Process(target=download_kalliope_originator_records.DownloadKalliopeOriginatorRecords, args=[kalliope_fifo]) 
+    download_process = Process(target=download_kalliope_originator_records.DownloadKalliopeOriginatorRecords, args=[kalliope_fifo])
     download_process.start()
     result_file = os.path.join(tmpdir, RESULT_FILE_NAME)
     sys.stdout = open(result_file, 'w')
@@ -44,13 +44,12 @@ def Main():
     shutil.move(result_file, BSZ_DATEN_DIR + RESULT_FILE_NAME)
     os.remove(kalliope_fifo)
     os.rmdir(tmpdir)
-    util.SendEmail("Generate Kalliope Originators File", "Successfully generated originators file " +
+    util.SendEmail("Success", "Successfully generated originators file " +
                    BSZ_DATEN_DIR + RESULT_FILE_NAME)
-    
 
 
 try:
     Main()
 except Exception as e:
-    util.SendEmail("Generate Kalliope Originators File", "An unexpected error occurred: " 
+    util.SendEmail("Failure", "An unexpected error occurred: "
                    + str(e) + "\n\n" + traceback.format_exc(20), priority=1)
