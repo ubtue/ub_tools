@@ -77,11 +77,12 @@ struct LiteraryRemainsInfo {
     std::string url_;
     std::string source_name_;
     std::string dates_;
+    std::vector<std::string> types_;
 public:
     LiteraryRemainsInfo() = default;
     LiteraryRemainsInfo(const LiteraryRemainsInfo &other) = default;
-    LiteraryRemainsInfo(const std::string &author_id, const std::string &author_name, const std::string &url, const std::string &source_name, const std::string &dates)
-        : author_id_(author_id), author_name_(author_name), url_(url), source_name_(source_name), dates_(dates) { }
+    LiteraryRemainsInfo(const std::string &author_id, const std::string &author_name, const std::string &url, const std::string &source_name, const std::string &dates, const std::vector<std::string> &types = {})
+        : author_id_(author_id), author_name_(author_name), url_(url), source_name_(source_name), dates_(dates), types_(types) { }
 
     LiteraryRemainsInfo &operator=(const LiteraryRemainsInfo &rhs) = default;
 };
@@ -115,6 +116,10 @@ std::string ReplaceNonStandardBCEDates(const std::string &dates) {
     }
 
     return dates;
+}
+
+std::vector<std::string> GetBEATypes(const MARC::Record::Field &beacon_field) {
+   return beacon_field.getSubfields().extractSubfields("v");
 }
 
 
@@ -160,7 +165,7 @@ void LoadAuthorGNDNumbersAndTagAuthors(
         std::vector<LiteraryRemainsInfo> literary_remains_infos;
         while (beacon_field != record.end() and beacon_field->getTag() == "BEA") {
             literary_remains_infos.emplace_back(record.getControlNumber(), author_name, beacon_field->getFirstSubfieldWithCode('u'),
-                                                beacon_field->getFirstSubfieldWithCode('a'), dates);
+                                                beacon_field->getFirstSubfieldWithCode('a'), dates, GetBEATypes(*beacon_field));
             ++beacon_field;
         }
         (*gnd_numbers_to_literary_remains_infos_map)[gnd_number] = literary_remains_infos;
@@ -200,6 +205,21 @@ std::string NormaliseAuthorName(std::string author_name) {
 }
 
 
+std::string GetTitle(const std::string &author_name, const std::string &dates, const std::vector<std::string> &types) {
+        std::string introductory_clause;
+        if (std::find(types.begin(), types.end(), "Nachlass") != types.end())
+            introductory_clause = "Nachlass von ";
+        else if (std::find(types.begin(), types.end(), "Teilnachlass") != types.end())
+            introductory_clause = "Teilnachlass von ";
+        else
+            introductory_clause = "Archivmaterialen zu ";
+        std::string title(introductory_clause + author_name + ',' + dates);
+        if (types.size() > 1)
+            title += " ("  + StringUtil::Join(types, ", ") + ')';
+        return title;
+}
+
+
 void AppendLiteraryRemainsRecords(
     MARC::Writer * const writer,
     const std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> &gnd_numbers_to_literary_remains_infos_map,
@@ -222,12 +242,14 @@ void AppendLiteraryRemainsRecords(
             new_record.insertField("100",
                                    { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first }, { '0', "(DE-627)" + gnd_numbers_and_literary_remains_infos.second.front().author_id_ },
                                      { 'd', gnd_numbers_and_literary_remains_infos.second.front().dates_ } });
-        new_record.insertField("245", { { 'a', "Nachlass von " + NormaliseAuthorName(author_name) + dates } });
+
+        const auto &title(GetTitle(NormaliseAuthorName(author_name), dates, gnd_numbers_and_literary_remains_infos.second.front().types_));
+        new_record.insertField("245", { { 'a', title } });
 
         for (const auto &literary_remains_info : gnd_numbers_and_literary_remains_infos.second)
             new_record.insertField("856",
                                    { { 'u', literary_remains_info.url_ },
-                                       { '3', "Nachlassdatenbank (" + literary_remains_info.source_name_ + ")" } });
+                                       { '3', "Archivdatenbank (" + literary_remains_info.source_name_ + ")" } });
 
         // Do we have a religious studies author?
         const auto gnd_number_and_author_ppn(gnd_numbers_to_ppns_map.find(gnd_numbers_and_literary_remains_infos.first));
