@@ -5,7 +5,7 @@ set -o errexit
 if [[ $TUEFIND_FLAVOUR == "ixtheo" ]]; then
     if [ -e /var/spool/cron/root ]; then # CentOS
         root_crontab=/var/spool/cron/root
-    else # Ubuntu
+    elif [ -e /var/spool/cron/crontabs/root ]; then # Ubuntu
         root_crontab=/var/spool/cron/crontabs/root
     fi
 
