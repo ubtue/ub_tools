@@ -134,7 +134,7 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
         { "UPDATE_WINDOW",         Config::JournalParams::UPDATE_WINDOW        },
         { "SSGN",                  Config::JournalParams::SSGN                 },
         { "LICENSE",               Config::JournalParams::LICENSE              },
-        { "TIEFP",                 Config::JournalParams::PERSONALIZED_AUTHORS },
+        { "PERSONALIZED_AUTHORS",  Config::JournalParams::PERSONALIZED_AUTHORS },
         { "SELECTIVE_EVALUATION",  Config::JournalParams::SELECTIVE_EVALUATION },
         { "EXPECTED_LANGUAGES",    Config::JournalParams::EXPECTED_LANGUAGES   },
     };
