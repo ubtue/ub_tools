@@ -647,8 +647,10 @@ bool IsCacheUpToDate(const std::string &zeder_cache_path, std::shared_ptr<JSON::
             const auto root_node_type(tree_root.get()->getType());
             if (root_node_type == JSON::JSONNode::OBJECT_NODE)
                 *json_cached_data = JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root);
-            else
+            else {
+                LOG_WARNING("Root Node is not of type 'ObjectNode'");
                 return false;
+            }
 
             *cache_present = true;
 
