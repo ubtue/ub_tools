@@ -434,7 +434,7 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 
 namespace ApiQuery {
 
-const unsigned MAX_PER_REQUEST_DOWNLOADS(1000);
+const unsigned MAX_PER_REQUEST_DOWNLOADS(400);
 
 void SelectNonExistingEntriesFromZTSMultiple(const std::string &all_items_object, std::string * const filtered_items_object, const Util::UploadTracker &upload_tracker,
                                              const bool force_downloads, unsigned * const all_items_num, unsigned * const filtered_items_num) {
