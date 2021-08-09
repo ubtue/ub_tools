@@ -370,10 +370,13 @@ EndPhase || Abort) &
 
 StartPhase "Add paragraph to CIC \$p"
 make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
+readonly field_match_pattern='610t:Codex (iuris canonici|canonum ecclesiarum orientalium)'
 (marc_augmentor GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
-                --replace-subfield-if-regex '610p:/(\d+)/§\1/' '610t:Codex iuris canonici' \
-                --replace-subfield-if-regex '610p:/(\d+-\d+)/§\1/' '610t:Codex iuris canonici' \
+                --replace-subfield-if-regex '610p:/^(\d+)$/can. \1/' "${field_match_pattern}" \
+                --replace-subfield-if-regex '610p:/^(\d+),(\d+)$/can. \1, §\2/' "${field_match_pattern}" \
+                --replace-subfield-if-regex '610p:/^(\d+),(\d+-\d+)$/can. \1 §§\2/' "${field_match_pattern}" \
+                --replace-subfield-if-regex '610p:/^(\d+),(\d+),(\d+)$/can. \1, §\2 n. \3/' "${field_match_pattern}" \
 		>> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
