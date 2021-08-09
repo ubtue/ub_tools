@@ -581,6 +581,7 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
 
         if (current_conversion->hasResult()) {
             const auto &conversion_result(current_conversion->getResult());
+            metrics->num_marc_conversions_skipped_since_undesired_item_type_ += conversion_result.num_skipped_since_undesired_item_type_;
             metrics->num_marc_conversions_skipped_since_online_first_ += conversion_result.num_skipped_since_online_first_;
             metrics->num_marc_conversions_skipped_since_early_view_ += conversion_result.num_skipped_since_early_view_;
             metrics->num_marc_conversions_skipped_since_exclusion_filters_ += conversion_result.num_skipped_since_exclusion_filters_;
