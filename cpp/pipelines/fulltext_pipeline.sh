@@ -61,7 +61,7 @@ EndPhase || Abort) &
 
 StartPhase "Harvest Title Data Fulltext"
 (create_full_text_db --store-pdfs-as-html --use-separate-entries-per-url --include-all-tocs \
-    --only-pdf-fulltexts GesamtTiteldaten-"${date}".mrc ${TMP_NULL} \
+    --include-list-of-references --only-pdf-fulltexts GesamtTiteldaten-"${date}".mrc ${TMP_NULL} \
     >> "${log}" 2>&1 && \
         EndPhase || Abort) &
 wait

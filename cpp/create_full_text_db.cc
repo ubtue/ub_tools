@@ -54,6 +54,7 @@ constexpr unsigned DEFAULT_PDF_EXTRACTION_TIMEOUT = 120; // seconds
             "\"--store-pdfs-as-html\" means that an HTML representation of downloaded PDF's is stored if possible.\n"
             "\"--use-separate-entries-per-url\": Store individual entries for the fulltext locations in a record\n"
             "\"--include-all-tocs\": Extract TOCs even if they are not matched by the only-open-access-filter\n"
+            "\"--include-list-of-references\": Extract list of references\n"
             "\"--only-pdf-fulltexts\": Download real Fulltexts only if the link points to a PDF\n"
            );
 
@@ -163,7 +164,8 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
                         MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                         unsigned * const child_reported_failure_count, unsigned * const active_child_count,
                         const bool store_pdfs_as_html, const bool use_separate_entries_per_url,
-                        const bool include_all_tocs, const bool only_pdf_fulltexts)
+                        const bool include_all_tocs, const bool include_list_of_references, const bool only_pdf_fulltexts)
+
 {
     constexpr unsigned MAX_CONCURRENT_DOWNLOADS_PER_SERVER = 2;
 
@@ -193,6 +195,8 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
         args.emplace_back("--use-separate-entries-per-url");
     if (include_all_tocs)
         args.emplace_back("--include-all-tocs");
+    if (include_list_of_references)
+        args.emplace_back("--include-list-of-references");
     if (only_pdf_fulltexts)
         args.emplace_back("--only-pdf-fulltexts");
     args.emplace_back(std::to_string(marc_record_start));
@@ -218,6 +222,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
                             const bool store_pdfs_as_html,
                             const bool use_separate_entries_per_url,
                             const bool include_all_tocs,
+                            const bool include_list_of_references,
                             const bool only_pdf_fulltexts)
 {
     Semaphore semaphore("full_text_cached_counter", Semaphore::CREATE);
@@ -250,7 +255,7 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
                            &process_id_to_hostname_map, &process_id_to_record_start_map,
                            marc_reader, marc_writer,
                            &child_reported_failure_count, &active_child_count,
-                           store_pdfs_as_html, use_separate_entries_per_url, include_all_tocs, only_pdf_fulltexts);
+                           store_pdfs_as_html, use_separate_entries_per_url, include_all_tocs, include_list_of_references, only_pdf_fulltexts);
 
         if (active_child_count > process_count_high_watermark)
             CleanUpZombies(active_child_count - process_count_low_watermark, &hostname_to_outstanding_request_count_map,
@@ -338,6 +343,13 @@ int Main(int argc, char **argv) {
         ++argv, --argc;
     }
 
+    bool include_list_of_references(false);
+        if (argc > 1 and StringUtil::StartsWith(argv[1], "--include-list-of-references")) {
+        include_list_of_references = true;
+        ++argv, --argc;
+    }
+
+
     bool only_pdf_fulltexts(false);
     if (argc > 1 and std::strcmp(argv[1], "--only-pdf-fulltexts") == 0) {
         only_pdf_fulltexts = true;
@@ -364,7 +376,8 @@ int Main(int argc, char **argv) {
 
         ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), pdf_extraction_timeout,
                                download_record_offsets_and_urls, process_count_low_watermark, process_count_high_watermark,
-                               store_pdfs_as_html, use_separate_entries_per_url, include_all_tocs, only_pdf_fulltexts);
+                               store_pdfs_as_html, use_separate_entries_per_url, include_all_tocs,
+                               include_list_of_references, only_pdf_fulltexts);
     } catch (const std::exception &e) {
         LOG_ERROR("Caught exception: " + std::string(e.what()));
     }
