@@ -762,8 +762,12 @@ bool DbConnection::tableExists(const std::string &database_name, const std::stri
         connection.queryOrDie("SELECT name FROM sqlite_master WHERE type='table' AND name='"
                               + connection.escapeString(table_name) + "'");
         return not connection.getLastResultSet().empty();
-    } else // Postgres
-        LOG_ERROR("not yet implemented for Postgres!");
+    } else { // Postgres
+        queryOrDie("SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = '" + database_name
+                   + "' AND tablename = '" + table_name + "'");
+        DbResultSet result_set(getLastResultSet());
+        return result_set.getNextRow()[0] == "t";
+    }
 }
 
 
