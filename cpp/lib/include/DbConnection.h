@@ -97,6 +97,8 @@ public:
     inline unsigned getPort() const { return port_; }
     inline Charset getCharset() const { return charset_; }
     inline TimeZone getTimeZone() const { return time_zone_; }
+
+    /** \warning You must not call this for Postgres as it doesn't support the notion of a purely numeric error code! */
     int getLastErrorCode() const;
 
     /** \note If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be

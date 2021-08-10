@@ -128,8 +128,8 @@ int DbConnection::getLastErrorCode() const {
         return static_cast<int>(::mysql_errno(&mysql_));
     else if (type_ == T_SQLITE)
         return ::sqlite3_errcode(sqlite3_);
-    else
-        LOG_ERROR("not implemented for Postgres!");
+    else // Postgres uses alphanumeric error codes!
+        LOG_ERROR("cannot be implemented for Postgres!");
 }
 
 
