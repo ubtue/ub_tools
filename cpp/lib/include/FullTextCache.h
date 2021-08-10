@@ -66,7 +66,7 @@ public:
     bool entryExpired(const std::string &key, std::vector<std::string> urls);
     bool singleUrlExpired(const std::string &key, const std::string &url);
     bool dummyEntryExists(const std::string &key);
-    enum TextType { FULLTEXT = 1, TOC = 2, ABSTRACT = 4, SUMMARY = 8, UNKNOWN = 0 }; // Must match constants in TuelibMixin.java
+    enum TextType { FULLTEXT = 1, TOC = 2, ABSTRACT = 4, SUMMARY = 8, LIST_OF_REFERENCES = 16, UNKNOWN = 0 }; // Must match constants in TuelibMixin.java
     static constexpr auto DUMMY_URL = "DUMMY URL";
     static constexpr auto DUMMY_DOMAIN = "DUMMY DOMAIN";
     static constexpr auto DUMMY_ERROR = "DUMMY ERROR";

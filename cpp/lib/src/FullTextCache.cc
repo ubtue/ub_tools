@@ -43,7 +43,8 @@ static const std::map<std::string, FullTextCache::TextType> description_to_text_
     { "Volltext", FullTextCache::FULLTEXT },
     { "Inhaltsverzeichnis", FullTextCache::TOC },
     { "Inhaltstext", FullTextCache::ABSTRACT },
-    { "Zusammenfassung", FullTextCache::SUMMARY }
+    { "Zusammenfassung", FullTextCache::SUMMARY },
+    { "Literaturverzeichnis", FullTextCache::LIST_OF_REFERENCES }
 };
 
 
