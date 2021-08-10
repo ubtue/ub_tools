@@ -344,7 +344,7 @@ int Main(int argc, char **argv) {
     }
 
     bool include_list_of_references(false);
-        if (argc > 1 and StringUtil::StartsWith(argv[1], "--include-list-of-references")) {
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--include-list-of-references")) {
         include_list_of_references = true;
         ++argv, --argc;
     }
