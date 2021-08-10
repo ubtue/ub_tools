@@ -217,6 +217,12 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
 }
 
 
+std::vector<std::string> DbConnection::SplitPostgresStatements(const std::string &query) {
+    // This may have to be refined in the future to account for differences in the syntax between MySQL and Psql:
+    return SplitMySQLStatements(query);
+}
+
+
 const std::string DbConnection::DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath() + "ub_tools.conf");
 
 
@@ -396,8 +402,27 @@ bool DbConnection::queryFile(const std::string &filename) {
         }
 
         return true;
-    } else
-        LOG_ERROR("not implemented for Postgres yet!");
+    } else { // Postgres
+        const auto individual_statements(SplitPostgresStatements(statements));
+        for (const auto &statement : individual_statements) {
+            if (pg_result_ != nullptr)
+                ::PQclear(pg_result_);
+            pg_result_ = ::PQexec(pg_conn_, statement.c_str());
+            if (pg_result_ == nullptr)
+                LOG_ERROR("out of memory or failure to send the query to the server!");
+
+            switch (::PQresultStatus(pg_result_)) {
+            case PGRES_BAD_RESPONSE:
+            case PGRES_FATAL_ERROR:
+                ::PQclear(pg_result_);
+                pg_result_ = nullptr;
+                return false;
+            default:
+                /* do nothing */;
+            }
+        }
+        return true;
+    }
 }
 
 

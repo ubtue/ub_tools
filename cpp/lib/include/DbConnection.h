@@ -275,6 +275,7 @@ public:
      * either at the start of "query" or immediately after a newline.
      */
     static std::vector<std::string> SplitMySQLStatements(const std::string &query);
+    static std::vector<std::string> SplitPostgresStatements(const std::string &query);
 
     static std::string CharsetToString(const Charset charset);
 
