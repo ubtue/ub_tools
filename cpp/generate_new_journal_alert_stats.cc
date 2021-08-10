@@ -183,7 +183,7 @@ int Main(int argc, char **argv) {
         Usage();
 
     std::string solr_host_and_port;
-    if (argc == 4)
+    if (argc == 3)
         solr_host_and_port = Solr::DEFAULT_HOST + ":" + std::to_string(Solr::DEFAULT_PORT);
     else {
         solr_host_and_port = argv[1];
