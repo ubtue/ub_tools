@@ -10,7 +10,6 @@ if [[ $TUEFIND_FLAVOUR == "ixtheo" ]]; then
     else
         exit 0 # There is no crontab for root.
     fi
-    #replace quotation so that all parameters are quoted, parameter ixtheo|relbib (param1) are quoted through '" "' at param0 and param2
-    sed --in-place 's/generate_new_journal_alert_stats /generate_new_journal_alert_stats" "/g' $root_crontab
-    sed --in-place 's/ days_in_last_month"/" "days_in_last_month" "$EMAIL"/g' $root_crontab
+    #replace quotation due to error in 12.sh
+    sed --in-place --regexp-extended 's/("\$BIN\/generate_new_journal_alert_stats) (ixtheo|relbib) (days_in_last_month")/\1" "\2" "\3 "$EMAIL"/g' $root_crontab
 fi
