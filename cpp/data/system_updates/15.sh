@@ -1,4 +1,5 @@
 #!/bin/bash
+#replace quotation due to error in 12.sh
 set -o errexit
 
 
@@ -10,6 +11,5 @@ if [[ $TUEFIND_FLAVOUR == "ixtheo" ]]; then
     else
         exit 0 # There is no crontab for root.
     fi
-    #replace quotation due to error in 12.sh
     sed --in-place --regexp-extended 's/("\$BIN\/generate_new_journal_alert_stats) (ixtheo|relbib) (days_in_last_month")/\1" "\2" "\3 "$EMAIL"/g' $root_crontab
 fi
