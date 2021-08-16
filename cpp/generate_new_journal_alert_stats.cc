@@ -179,11 +179,11 @@ const std::string REPORT_DIRECTORY("/mnt/ZE020110/FID-Projekte/Statistik/"); // 
 // gets user subscriptions for superior works from MySQL
 // uses a KeyValueDB instance to prevent entries from being sent multiple times to same user
 int Main(int argc, char **argv) {
-    if (argc != 3 and argc != 4)
+    if (argc != 4 and argc != 5)
         Usage();
 
     std::string solr_host_and_port;
-    if (argc == 3)
+    if (argc == 4)
         solr_host_and_port = Solr::DEFAULT_HOST + ":" + std::to_string(Solr::DEFAULT_PORT);
     else {
         solr_host_and_port = argv[1];
