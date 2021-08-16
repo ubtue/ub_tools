@@ -328,6 +328,7 @@ bool Crawler::getNextPage(CrawlResult * const crawl_result) {
                                                   DirectDownload::Operation::DIRECT_QUERY, parameters_.per_crawl_url_time_limit_));
     future->await();
     if (not future->hasResult() or not future->getResult().downloadSuccessful()) {
+        LOG_WARNING("Unsuccessful crawl attempt for " + next_url);
         ++num_crawled_unsuccessful_;
         return continueCrawling();
     }
