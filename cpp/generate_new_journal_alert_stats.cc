@@ -45,12 +45,13 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[solr_host_and_port] user_type report_interval_in_days)\n"
+    ::Usage("[solr_host_and_port] user_type report_interval_in_days email\n"
             "  Generates a CSV report about journal subscription statistics.\n"
             "  Should \"solr_host_and_port\" be missing \"" + Solr::DEFAULT_HOST + ":"
             + std::to_string(Solr::DEFAULT_PORT) + "\" will be used.\n"
             "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm.\n"
-            "  \"report_interval_in_days\" can be a number or the text \"days_in_last_month\".\n");
+            "  \"report_interval_in_days\" can be a number or the text \"days_in_last_month\n"
+            "  \"email\" recipient email address.\n");
 }
 
 
