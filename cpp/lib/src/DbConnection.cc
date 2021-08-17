@@ -30,7 +30,7 @@
 
 
 DbConnection::DbConnection(const std::string &mysql_url, const Charset charset, const TimeZone time_zone)
-    : sqlite3_(nullptr), stmt_handle_(nullptr)
+    : pg_conn_(nullptr), sqlite3_(nullptr), stmt_handle_(nullptr)
 {
     static RegexMatcher * const mysql_url_matcher(
         RegexMatcher::RegexMatcherFactory("mysql://([^:]+):([^@]+)@([^:/]+)(\\d+:)?/(.+)"));
@@ -79,7 +79,9 @@ DbConnection::DbConnection(const IniFile &ini_file, const std::string &ini_file_
 }
 
 
-DbConnection::DbConnection(const std::string &database_path, const OpenMode open_mode): type_(T_SQLITE), stmt_handle_(nullptr) {
+DbConnection::DbConnection(const std::string &database_path, const OpenMode open_mode)
+    : type_(T_SQLITE), pg_conn_(nullptr), stmt_handle_(nullptr)
+{
     int flags(0);
     switch (open_mode) {
     case READONLY:
@@ -96,7 +98,6 @@ DbConnection::DbConnection(const std::string &database_path, const OpenMode open
     if (::sqlite3_open_v2(database_path.c_str(), &sqlite3_, flags, nullptr) != SQLITE_OK)
         LOG_ERROR("failed to create or open an Sqlite3 database with path \"" + database_path + "\"!");
     errno = 0; // It seems that sqlite3_open_v2 internally tries something that fails but doesn't clear errno afterwards.
-    stmt_handle_ = nullptr;
     initialised_ = true;
 }
 
@@ -105,15 +106,18 @@ DbConnection::~DbConnection() {
     if (initialised_) {
         if (type_ == T_MYSQL)
             ::mysql_close(&mysql_);
-        else {
+        else if (type_ == T_SQLITE) {
             if (stmt_handle_ != nullptr) {
                 const int result_code(::sqlite3_finalize(stmt_handle_));
                 if (result_code != SQLITE_OK)
                     LOG_ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was "
-                          + std::to_string(result_code) + ")");
+                              + std::to_string(result_code) + ")");
             }
             if (::sqlite3_close(sqlite3_) != SQLITE_OK)
                 LOG_ERROR("failed to cleanly close an Sqlite3 database!");
+        } else { // Postgres
+            ::PQfinish(pg_conn_);
+            pg_conn_ = nullptr;
         }
     }
 }
@@ -122,8 +126,10 @@ DbConnection::~DbConnection() {
 int DbConnection::getLastErrorCode() const {
     if (type_ == T_MYSQL)
         return static_cast<int>(::mysql_errno(&mysql_));
-    else
+    else if (type_ == T_SQLITE)
         return ::sqlite3_errcode(sqlite3_);
+    else // Postgres uses alphanumeric error codes!
+        LOG_ERROR("cannot be implemented for Postgres!");
 }
 
 
@@ -211,6 +217,12 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
 }
 
 
+std::vector<std::string> DbConnection::SplitPostgresStatements(const std::string &query) {
+    // This may have to be refined in the future to account for differences in the syntax between MySQL and Psql:
+    return SplitMySQLStatements(query);
+}
+
+
 const std::string DbConnection::DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath() + "ub_tools.conf");
 
 
@@ -229,7 +241,7 @@ bool DbConnection::query(const std::string &query_statement) {
             }
         }
 	return true;
-    } else {
+    } else if (type_ == T_SQLITE) {
         if (stmt_handle_ != nullptr) {
             const int result_code(::sqlite3_finalize(stmt_handle_));
             if (result_code != SQLITE_OK) {
@@ -259,6 +271,20 @@ bool DbConnection::query(const std::string &query_statement) {
         }
 
         return true;
+    } else { // Postgres
+        pg_result_ = ::PQexec(pg_conn_, query_statement.c_str());
+        if (pg_result_ == nullptr)
+            LOG_ERROR("out of memory or failure to send the query to the server!");
+
+        switch (::PQresultStatus(pg_result_)) {
+        case PGRES_BAD_RESPONSE:
+        case PGRES_FATAL_ERROR:
+            ::PQclear(pg_result_);
+            pg_result_ = nullptr;
+            return false;
+        default:
+            return true;
+        }
     }
 }
 
@@ -367,7 +393,7 @@ bool DbConnection::queryFile(const std::string &filename) {
             }
         }
         return true;
-    } else {
+    } else if (type_ == T_SQLITE) {
         std::vector<std::string> individual_statements;
         SplitSqliteStatements(statements, &individual_statements);
         for (const auto &statement : individual_statements) {
@@ -375,6 +401,26 @@ bool DbConnection::queryFile(const std::string &filename) {
                 return false;
         }
 
+        return true;
+    } else { // Postgres
+        const auto individual_statements(SplitPostgresStatements(statements));
+        for (const auto &statement : individual_statements) {
+            if (pg_result_ != nullptr)
+                ::PQclear(pg_result_);
+            pg_result_ = ::PQexec(pg_conn_, statement.c_str());
+            if (pg_result_ == nullptr)
+                LOG_ERROR("out of memory or failure to send the query to the server!");
+
+            switch (::PQresultStatus(pg_result_)) {
+            case PGRES_BAD_RESPONSE:
+            case PGRES_FATAL_ERROR:
+                ::PQclear(pg_result_);
+                pg_result_ = nullptr;
+                return false;
+            default:
+                /* do nothing */;
+            }
+        }
         return true;
     }
 }
@@ -537,21 +583,27 @@ void DbConnection::insertIntoTableOrDie(const std::string &table_name, const std
 
 
 DbResultSet DbConnection::getLastResultSet() {
-    if (sqlite3_ == nullptr) {
+    if (type_ == T_MYSQL) {
         MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
         if (result_set == nullptr)
             LOG_ERROR("::mysql_store_result() failed! (" + getLastErrorMessage() + ")");
 
         return DbResultSet(result_set);
-    } else {
+    } else if (type_ == T_SQLITE) {
         const auto temp_handle(stmt_handle_);
         stmt_handle_ = nullptr;
         return DbResultSet(temp_handle);
+    } else { // Postgres
+        const auto temp_pg_result = pg_result_;
+        pg_result_ = nullptr;
+        return DbResultSet(temp_pg_result);
     }
 }
 
 
-std::string DbConnection::escapeString(const std::string &unescaped_string, const bool add_quotes, const bool return_null_on_empty_string) {
+std::string DbConnection::escapeString(const std::string &unescaped_string, const bool add_quotes,
+                                       const bool return_null_on_empty_string)
+{
     if (unescaped_string.empty() and return_null_on_empty_string)
         return "NULL";
 
@@ -591,6 +643,9 @@ std::string DbConnection::sqliteEscapeBlobData(const std::string &blob_data) {
 
 
 void DbConnection::setTimeZone(const TimeZone time_zone) {
+    if (unlikely(type_ != T_MYSQL))
+        LOG_ERROR("this only works for MySQL!");
+
     switch (time_zone) {
     case TZ_SYSTEM:
         /* Default => Do nothing! */
@@ -608,6 +663,8 @@ void DbConnection::init(const std::string &database_name, const std::string &use
                         const std::string &host, const unsigned port, const Charset charset, const TimeZone time_zone)
 {
     initialised_ = false;
+    pg_conn_ = nullptr;
+    pg_result_ = nullptr;
     sqlite3_ = nullptr;
     type_ = T_MYSQL;
 
@@ -640,6 +697,8 @@ void DbConnection::init(const std::string &user, const std::string &passwd, cons
                         const Charset charset, const TimeZone time_zone)
 {
     initialised_ = false;
+    pg_conn_ = nullptr;
+    pg_result_ = nullptr;
     sqlite3_ = nullptr;
     type_ = T_MYSQL;
 
@@ -698,10 +757,16 @@ bool DbConnection::tableExists(const std::string &database_name, const std::stri
                    + "' AND table_name = '" + escapeString(table_name) + "')");
         DbResultSet result_set(getLastResultSet());
         return result_set.getNextRow()[0] == "1";
-    } else { // Sqlite
+    } else if (type_ == T_SQLITE) {
         DbConnection connection(database_name, READONLY);
-        connection.queryOrDie("SELECT name FROM sqlite_master WHERE type='table' AND name='" + connection.escapeString(table_name) + "'");
+        connection.queryOrDie("SELECT name FROM sqlite_master WHERE type='table' AND name='"
+                              + connection.escapeString(table_name) + "'");
         return not connection.getLastResultSet().empty();
+    } else { // Postgres
+        queryOrDie("SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = '" + database_name
+                   + "' AND tablename = '" + table_name + "'");
+        DbResultSet result_set(getLastResultSet());
+        return result_set.getNextRow()[0] == "t";
     }
 }
 
@@ -793,6 +858,31 @@ bool DbConnection::mySQLUserExists(const std::string &user, const std::string &h
     DbResultSet result_set(getLastResultSet());
     const DbRow result_row(result_set.getNextRow());
     return result_row["user_count"] != "0";
+}
+
+
+DbConnection *DbConnection::PostgresFactory(std::string * const error_message, const std::string &database_name,
+                                            const std::string &user_name, const std::string &password,
+                                            const std::string &hostname, const unsigned port,
+                                            const std::string &options)
+{
+    const auto port_as_string(StringUtil::ToString(port));
+    const auto pg_conn(::PQsetdbLogin(hostname.c_str(), port_as_string.c_str(), options.c_str(), /* pgtty = */options.c_str(),
+                                      database_name.c_str(), user_name.c_str(), password.c_str()));
+
+    if (PQstatus(pg_conn) == CONNECTION_OK) {
+        error_message->clear();
+        if (::PQsetClientEncoding(pg_conn, "UTF8") != 0) {
+            *error_message = "failed to set the client encoding to UTF8!";
+            ::PQfinish(pg_conn);
+            return nullptr;
+        }
+        return new DbConnection(pg_conn, user_name, password, hostname, port);
+    } else {
+        *error_message = ::PQerrorMessage(pg_conn);
+        ::PQfinish(pg_conn);
+        return nullptr;
+    }
 }
 
 

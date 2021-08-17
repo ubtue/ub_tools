@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <map>
 #include <unordered_set>
+#include <libpq-fe.h>
 #include <mysql/mysql.h>
 #include <sqlite3.h>
 #include "DbRow.h"
@@ -30,13 +31,15 @@
 
 class DbResultSet {
     friend class DbConnection;
-    MYSQL_RES *result_set_;
+    PGresult *pg_result_;
+    MYSQL_RES *mysql_res_;
     sqlite3_stmt *stmt_handle_;
-    size_t no_of_rows_, column_count_;
+    size_t no_of_rows_, column_count_, current_row_;
     std::map<std::string, unsigned> field_name_to_index_map_;
 private:
-    explicit DbResultSet(MYSQL_RES * const result_set);
+    explicit DbResultSet(MYSQL_RES * const mysql_res);
     explicit DbResultSet(sqlite3_stmt * const stmt_handle);
+    explicit DbResultSet(PGresult * const pg_result);
 public:
     DbResultSet(DbResultSet &&other);
 
@@ -65,4 +68,6 @@ public:
 
     /** \return The set of all values in column "column" contained in this result set. */
     std::unordered_set<std::string> getColumnSet(const std::string &column);
+
+    inline const std::map<std::string, unsigned> getColumnNamesAndIndices() const { return field_name_to_index_map_; }
 };

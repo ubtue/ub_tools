@@ -44,9 +44,10 @@ dnf --assumeyes update
 InstallIfMissing "ca-certificates"
 dnf --assumeyes install \
     ant bc cifs-utils clang crontabs ftp gawk gcc-c++ git glibc-all-langpacks ImageMagick incron java-1.8.0-openjdk-devel \
-    jq libcurl-devel libdb-devel libsq3-devel libstemmer-devel libuuid-devel libwebp libxml2-devel libxml2 libxslt lsof lz4 make mariadb \
-    mariadb-devel mariadb-server mariadb-server-utils mod_ssl mutt openssl-devel pcre-devel policycoreutils-python-utils \
-    poppler-utils python3 python3-pexpect python3-pyflakes rpmdevtools rsync sqlite sudo tidy unzip xerces-c-devel yaz
+    jq libcurl-devel libdb-devel libsq3-devel libpq-devel libstemmer-devel libuuid-devel libwebp libxml2-devel libxml2 \
+    libxslt lsof lz4 make mariadb mariadb-devel mariadb-server mariadb-server-utils mod_ssl mutt openssl-devel pcre-devel \
+    policycoreutils-python-utils poppler-utils postgresql python3 python3-pexpect python3-pyflakes \
+    rpmdevtools rsync sqlite sudo tidy unzip xerces-c-devel yaz
 
 dnf --assumeyes install \
     tesseract tesseract-devel tesseract-langpack-bul tesseract-langpack-ces tesseract-langpack-dan tesseract-langpack-deu tesseract-langpack-eng tesseract-langpack-fin tesseract-langpack-fra tesseract-langpack-grc tesseract-langpack-heb tesseract-langpack-hun tesseract-langpack-ita tesseract-langpack-lat tesseract-langpack-nld tesseract-langpack-nor tesseract-langpack-pol tesseract-langpack-por tesseract-langpack-rus tesseract-langpack-slv tesseract-langpack-spa tesseract-langpack-swe

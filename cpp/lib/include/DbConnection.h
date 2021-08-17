@@ -23,6 +23,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <libpq-fe.h>
 #include <mysql/mysql.h>
 #ifdef MARIADB_PORT
 #       define MYSQL_PORT MARIADB_PORT
@@ -44,7 +45,7 @@ public:
     enum DuplicateKeyBehaviour { DKB_FAIL, DKB_REPLACE };
     enum OpenMode { READONLY, READWRITE, CREATE /* = create if not exists */ };
     enum TimeZone { TZ_SYSTEM, TZ_UTC };
-    enum Type { T_MYSQL, T_SQLITE };
+    enum Type { T_MYSQL, T_SQLITE, T_POSTGRES };
     enum MYSQL_PRIVILEGE { P_SELECT, P_INSERT, P_UPDATE, P_DELETE, P_CREATE, P_DROP, P_REFERENCES,
                            P_INDEX, P_ALTER, P_CREATE_TEMPORARY_TABLES, P_LOCK_TABLES, P_EXECUTE,
                            P_CREATE_VIEW, P_SHOW_VIEW, P_CREATE_ROUTINE, P_ALTER_ROUTINE,
@@ -53,6 +54,8 @@ public:
     static const std::string DEFAULT_CONFIG_FILE_PATH;
 private:
     Type type_;
+    PGconn *pg_conn_;
+    PGresult *pg_result_;
     sqlite3 *sqlite3_;
     sqlite3_stmt *stmt_handle_;
     mutable MYSQL mysql_;
@@ -75,7 +78,8 @@ public:
     // Expects to find entries named "sql_database", "sql_username" and "sql_password".  Optionally there may also
     // be an entry named "sql_host".  If this entry is missing a default value of "localhost" will be assumed.
     // Another optional entry is "sql_port".  If that entry is missing the default value MYSQL_PORT will be used.
-    explicit DbConnection(const IniFile &ini_file, const std::string &ini_file_section = "Database", const TimeZone time_zone = TZ_SYSTEM);
+    explicit DbConnection(const IniFile &ini_file, const std::string &ini_file_section = "Database",
+                          const TimeZone time_zone = TZ_SYSTEM);
 
     // Creates or opens an Sqlite3 database.
     DbConnection(const std::string &database_path, const OpenMode open_mode);
@@ -93,6 +97,8 @@ public:
     inline unsigned getPort() const { return port_; }
     inline Charset getCharset() const { return charset_; }
     inline TimeZone getTimeZone() const { return time_zone_; }
+
+    /** \warning You must not call this for Postgres as it doesn't support the notion of a purely numeric error code! */
     int getLastErrorCode() const;
 
     /** \note If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be
@@ -216,7 +222,8 @@ public:
 
     bool mySQLUserExists(const std::string &user, const std::string &host);
 
-    void mySQLCreateUserIfNotExists(const std::string &new_user, const std::string &new_passwd, const std::string &host = "localhost")
+    void mySQLCreateUserIfNotExists(const std::string &new_user, const std::string &new_passwd,
+                                    const std::string &host = "localhost")
     {
         if (not mySQLUserExists(new_user, host)) {
             LOG_INFO("Creating MySQL user '" + new_user + "'@'" + host + "'");
@@ -226,7 +233,7 @@ public:
     }
 
     inline bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges,
-                                const std::string &user, const std::string &host = "localhost")
+                                       const std::string &user, const std::string &host = "localhost")
     {
         return MiscUtil::AbsoluteComplement(privileges, mySQLGetUserPrivileges(user, database_name, host)).empty();
     }
@@ -234,12 +241,27 @@ public:
     inline bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges) {
         return mySQLUserHasPrivileges(database_name, privileges, getUser(), getHost());
     }
+
+    /** \brief   Creates a Postgres database connection.
+     *  \param   options  See https://www.postgresql.org/docs/9.4/runtime-config.html for a huge list.
+     *  \returns NULL if no database connection could be established and sets error_message.
+     */
+    static DbConnection *PostgresFactory(
+        std::string * const error_message, const std::string &database_name = "", const std::string &user_name = "",
+        const std::string &password = "", const std::string &hostname = "localhost", const unsigned port = 5432,
+        const std::string &options = "");
 private:
     /** \note This constructor is for operations which do not require any existing database.
      *        It should only be used in static functions.
      */
-    DbConnection(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port, const Charset charset)
+    DbConnection(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port,
+                 const Charset charset)
         { type_ = T_MYSQL; init(user, passwd, host, port, charset, TZ_SYSTEM); }
+
+    DbConnection(PGconn * const pg_conn, const std::string &user, const std::string &passwd, const std::string &host,
+                 const unsigned port)
+        : type_(T_POSTGRES), pg_conn_(pg_conn), pg_result_(nullptr), sqlite3_(nullptr), stmt_handle_(nullptr),
+          user_(user), passwd_(passwd), host_(host), port_(port) { }
 
     void setTimeZone(const TimeZone time_zone);
     void init(const std::string &database_name, const std::string &user, const std::string &passwd,
@@ -255,6 +277,7 @@ public:
      * either at the start of "query" or immediately after a newline.
      */
     static std::vector<std::string> SplitMySQLStatements(const std::string &query);
+    static std::vector<std::string> SplitPostgresStatements(const std::string &query);
 
     static std::string CharsetToString(const Charset charset);
 

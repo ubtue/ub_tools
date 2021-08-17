@@ -2,7 +2,7 @@
  *  \brief  Implementation of the DbRow class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -24,6 +24,8 @@
 
 
 DbRow::DbRow(DbRow &&other) {
+    pg_result_ = other.pg_result_;
+    other.pg_result_ = nullptr;
     row_ = other.row_;
     other.row_ = nullptr;
     field_sizes_ = other.field_sizes_;
@@ -40,14 +42,17 @@ std::string DbRow::operator[](const size_t i) const {
                                 + std::to_string(static_cast<int>(size()) - 1)
                                 + ", actual index was " + std::to_string(i) + "!");
 
-    if (stmt_handle_ == nullptr)
+    if (row_ != nullptr)
         return std::string(row_[i], field_sizes_[i]);
-    else {
+    else if (stmt_handle_ != nullptr) {
         const char * const text(reinterpret_cast<const char *>(::sqlite3_column_text(stmt_handle_, i)));
         if (text == nullptr)
             LOG_ERROR("trying to access a NULL value as a string!");
         const auto field_size(::sqlite3_column_bytes(stmt_handle_, i));
         return std::string(text, field_size);
+    } else {
+        const int column_length(::PQgetlength(pg_result_, pg_row_number_, i));
+        return std::string(::PQgetvalue(pg_result_, pg_row_number_, i), column_length);
     }
 }
 
