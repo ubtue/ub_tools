@@ -6,7 +6,7 @@ CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Wno-paren
                  -I$(shell pg_config --includedir)
 LIBS           = -L$(LIB) -lubtue -lstemmer -lxml2 -lpcre -lmagic -lz \
                  -larchive -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt -lssl -lcrypto -lpthread -ldl \
-                 -luuid -llept -ltesseract -lsqlite3 -lxerces-c -ldb -lpq
+                 -luuid -llept -ltesseract -lsqlite3 -lxerces-c -ldb -lpq -lsystemd
 
 ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
   LD_FLAGS = -flto

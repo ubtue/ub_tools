@@ -37,7 +37,7 @@ apt-get --quiet --yes --allow-unauthenticated install \
         tesseract-ocr-deu tesseract-ocr-eng tesseract-ocr-fin tesseract-ocr-fra tesseract-ocr-heb tesseract-ocr-hun \
         tesseract-ocr-ita tesseract-ocr-lat tesseract-ocr-nld tesseract-ocr-nor tesseract-ocr-pol tesseract-ocr-por \
         tesseract-ocr-rus tesseract-ocr-script-grek tesseract-ocr-slv tesseract-ocr-spa tesseract-ocr-swe tidy unzip \
-        uuid-dev xsltproc
+        uuid-dev xsltproc libsystemd-dev
 
 # Explicitly enable mod_cgi. If we would use `a2enmod cgi`, it would enable mod_cgid, which would fail on apache startup.
 ln -s ../mods-available/cgi.load /etc/apache2/mods-enabled/cgi.load
