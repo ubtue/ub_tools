@@ -27,7 +27,6 @@
 #include "IniFile.h"
 #include "StringUtil.h"
 #include "util.h"
-#include "VuFind.h"
 
 
 namespace {
@@ -82,7 +81,7 @@ int Main(int argc, char *argv[]) {
         LOG_ERROR("subsystem_type must be one of {krimdok,ixtheo,relbib}!");
 
     const IniFile ini_file(argv[2]);
-    const auto db_connection(VuFind::GetDbConnection());
+    auto db_connection(DbConnection::VuFindMySQLFactory());
 
     unsigned default_downloader_time_limit(30), updated_or_inserted(0), feed_section_count(0);
     for (const auto &section : ini_file) {
@@ -95,7 +94,7 @@ int Main(int argc, char *argv[]) {
         }
 
         ++feed_section_count;
-        if (ProcessSection(subsystem_type, default_downloader_time_limit, db_connection.get(), section))
+        if (ProcessSection(subsystem_type, default_downloader_time_limit, &db_connection, section))
             ++updated_or_inserted;
     }
 

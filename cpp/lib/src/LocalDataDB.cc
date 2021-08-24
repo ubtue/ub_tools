@@ -24,53 +24,52 @@
 #include "UBTools.h"
 
 
-static void CreateTables() {
-    DbConnection db_connection(
-        UBTools::GetTuelibPath() + "local_data.sq3" /* must be the same path as in fetch_marc_updates.py */,
-        DbConnection::CREATE);
-    db_connection.queryOrDie("CREATE TABLE IF NOT EXISTS local_data ("
-                             "    title_ppn TEXT PRIMARY KEY,"
-                             "    local_fields BLOB NOT NULL"
-                             ") WITHOUT ROWID");
-    db_connection.queryOrDie("CREATE UNIQUE INDEX IF NOT EXISTS local_data_index ON local_data (title_ppn)");
-
-    db_connection.queryOrDie("CREATE TABLE IF NOT EXISTS local_ppns_to_title_ppns_map ("
-                             "    local_ppn TEXT PRIMARY KEY,"
-                             "    title_ppn TEXT NOT NULL,"
-                             "    CONSTRAINT foreign_key_column"
-                             "        FOREIGN KEY(title_ppn)"
-                             "        REFERENCES local_data(title_ppn)"
-                             "        ON DELETE CASCADE"
-                             ") WITHOUT ROWID");
-    db_connection.queryOrDie("CREATE INDEX IF NOT EXISTS local_ppns_to_title_ppns_map_index "
-                             "ON local_ppns_to_title_ppns_map (title_ppn)");
+static void CreateTables(DbConnection * const db_connection) {
+    db_connection->queryOrDie("CREATE TABLE IF NOT EXISTS local_data ("
+                              "    title_ppn TEXT PRIMARY KEY,"
+                              "    local_fields BLOB NOT NULL"
+                              ") WITHOUT ROWID");
+    db_connection->queryOrDie("CREATE UNIQUE INDEX IF NOT EXISTS local_data_index ON local_data (title_ppn)");
+    db_connection->queryOrDie("CREATE TABLE IF NOT EXISTS local_ppns_to_title_ppns_map ("
+                              "    local_ppn TEXT PRIMARY KEY,"
+                              "    title_ppn TEXT NOT NULL,"
+                              "    CONSTRAINT foreign_key_column"
+                              "        FOREIGN KEY(title_ppn)"
+                              "        REFERENCES local_data(title_ppn)"
+                              "        ON DELETE CASCADE"
+                              ") WITHOUT ROWID");
+    db_connection->queryOrDie("CREATE INDEX IF NOT EXISTS local_ppns_to_title_ppns_map_index "
+                              "ON local_ppns_to_title_ppns_map (title_ppn)");
 }
 
 
-LocalDataDB::LocalDataDB(const OpenMode open_mode): single_transaction_(open_mode == READ_WRITE) {
-    CreateTables();
-    db_connection_ = new DbConnection(UBTools::GetTuelibPath() + "local_data.sq3" /* must be the same path as in fetch_marc_updates.py */,
-                                      (open_mode == READ_WRITE) ? DbConnection::CREATE : DbConnection::READONLY);
+LocalDataDB::LocalDataDB(const OpenMode open_mode)
+    : db_connection_(DbConnection::Sqlite3Factory(
+          UBTools::GetTuelibPath() + "local_data.sq3" /* must be the same path as in fetch_marc_updates.py */,
+          (open_mode == READ_WRITE) ? DbConnection::CREATE : DbConnection::READONLY)),
+      single_transaction_(open_mode == READ_WRITE)
+{
+    CreateTables(&db_connection_);
     if (open_mode == READ_ONLY)
         return;
 
     if (single_transaction_)
-        db_connection_->queryOrDie("BEGIN TRANSACTION"); // This can lead to a 3 orders of magnitude speedup for INSERTs and UPDATEs!
+        db_connection_.queryOrDie("BEGIN TRANSACTION"); // This can lead to a 3 orders of magnitude speedup
+                                                         // for INSERTs and UPDATEs!
 }
 
 
 LocalDataDB::~LocalDataDB() {
     if (single_transaction_)
-        db_connection_->queryOrDie("END TRANSACTION");
-    delete db_connection_;
+        db_connection_.queryOrDie("END TRANSACTION");
 }
 
 
 void LocalDataDB::clear() {
-    db_connection_->queryOrDie("DROP TABLE IF EXISTS local_ppns_to_title_ppns_map");
-    db_connection_->queryOrDie("DROP TABLE IF EXISTS local_data");
+    db_connection_.queryOrDie("DROP TABLE IF EXISTS local_ppns_to_title_ppns_map");
+    db_connection_.queryOrDie("DROP TABLE IF EXISTS local_data");
 
-    CreateTables();
+    CreateTables(&db_connection_);
 }
 
 
@@ -141,27 +140,27 @@ static std::string ConvertLocalFieldsVectorToBlob(const std::vector<std::string>
 
 void LocalDataDB::insertOrReplace(const std::string &title_ppn, const std::vector<std::string> &local_fields) {
     // 1. Clear out any local PPNs associated with "title_ppn":
-    db_connection_->queryOrDie("DELETE FROM local_ppns_to_title_ppns_map WHERE title_ppn = "
-                               + db_connection_->escapeAndQuoteString(title_ppn));
+    db_connection_.queryOrDie("DELETE FROM local_ppns_to_title_ppns_map WHERE title_ppn = "
+                              + db_connection_.escapeAndQuoteString(title_ppn));
 
     // 2. Replace or insert the local data keyed by the title PPN's:
-    db_connection_->queryOrDie("REPLACE INTO local_data (title_ppn, local_fields) VALUES("
-                               + db_connection_->escapeAndQuoteString(title_ppn) + ","
-                               + db_connection_->sqliteEscapeBlobData(ConvertLocalFieldsVectorToBlob(local_fields)) + ")");
+    db_connection_.queryOrDie("REPLACE INTO local_data (title_ppn, local_fields) VALUES("
+                              + db_connection_.escapeAndQuoteString(title_ppn) + ","
+                              + db_connection_.sqliteEscapeBlobData(ConvertLocalFieldsVectorToBlob(local_fields)) + ")");
 
     // 3. Insert the mappings from the local PPN's to the title PPN's:
     for (const auto &local_ppn : ExtractLocalPPNsFromLocalFieldsVector(local_fields)) {
-        db_connection_->queryOrDie("REPLACE INTO local_ppns_to_title_ppns_map (local_ppn, title_ppn) VALUES("
-                                   + db_connection_->escapeAndQuoteString(local_ppn) + ","
-                                   + db_connection_->escapeAndQuoteString(title_ppn) + ")");
+        db_connection_.queryOrDie("REPLACE INTO local_ppns_to_title_ppns_map (local_ppn, title_ppn) VALUES("
+                                  + db_connection_.escapeAndQuoteString(local_ppn) + ","
+                                  + db_connection_.escapeAndQuoteString(title_ppn) + ")");
     }
 }
 
 
 std::vector<std::string> LocalDataDB::getLocalFields(const std::string &title_ppn) const {
-    db_connection_->queryOrDie("SELECT local_fields FROM local_data WHERE title_ppn = "
-                               + db_connection_->escapeAndQuoteString(title_ppn));
-    auto result_set(db_connection_->getLastResultSet());
+    db_connection_.queryOrDie("SELECT local_fields FROM local_data WHERE title_ppn = "
+                              + db_connection_.escapeAndQuoteString(title_ppn));
+    auto result_set(db_connection_.getLastResultSet());
     if (result_set.empty())
         return {}; // empty vector
 
@@ -171,8 +170,8 @@ std::vector<std::string> LocalDataDB::getLocalFields(const std::string &title_pp
 
 
 void LocalDataDB::removeTitleDataSet(const std::string &title_ppn) {
-    db_connection_->queryOrDie("DELETE FROM local_data WHERE title_ppn = "
-                               + db_connection_->escapeAndQuoteString(title_ppn));
+    db_connection_.queryOrDie("DELETE FROM local_data WHERE title_ppn = "
+                              + db_connection_.escapeAndQuoteString(title_ppn));
 }
 
 
@@ -197,9 +196,9 @@ static std::vector<std::string> RemoveLocalDataSet(const std::string &local_ppn,
 
 bool LocalDataDB::removeLocalDataSet(const std::string &local_ppn) {
     // 1. Determine the title PPN associated w/ the local PPN:
-    db_connection_->queryOrDie("SELECT title_ppn FROM local_ppns_to_title_ppns_map WHERE local_ppn="
-                               + db_connection_->escapeAndQuoteString(local_ppn));
-    auto result_set(db_connection_->getLastResultSet());
+    db_connection_.queryOrDie("SELECT title_ppn FROM local_ppns_to_title_ppns_map WHERE local_ppn="
+                              + db_connection_.escapeAndQuoteString(local_ppn));
+    auto result_set(db_connection_.getLastResultSet());
     if (result_set.empty())
         return false;
     const auto row(result_set.getNextRow());
@@ -212,15 +211,15 @@ bool LocalDataDB::removeLocalDataSet(const std::string &local_ppn) {
     const auto filtered_local_fields(RemoveLocalDataSet(local_ppn, local_fields));
 
     // 4. Update our SQL tables:
-    db_connection_->queryOrDie("DELETE FROM local_ppns_to_title_ppns_map WHERE local_ppn="
-                               + db_connection_->escapeAndQuoteString(local_ppn));
+    db_connection_.queryOrDie("DELETE FROM local_ppns_to_title_ppns_map WHERE local_ppn="
+                               + db_connection_.escapeAndQuoteString(local_ppn));
     if (filtered_local_fields.empty())
-        db_connection_->queryOrDie("DELETE FROM local_data WHERE title_ppn="
-                                   + db_connection_->escapeAndQuoteString(title_ppn));
+        db_connection_.queryOrDie("DELETE FROM local_data WHERE title_ppn="
+                                  + db_connection_.escapeAndQuoteString(title_ppn));
     else
-        db_connection_->queryOrDie("REPLACE INTO local_data (title_ppn, local_fields) VALUES("
-                                   + db_connection_->escapeAndQuoteString(title_ppn) + ","
-                                   + db_connection_->sqliteEscapeBlobData(ConvertLocalFieldsVectorToBlob(local_fields)) + ")");
+        db_connection_.queryOrDie("REPLACE INTO local_data (title_ppn, local_fields) VALUES("
+                                  + db_connection_.escapeAndQuoteString(title_ppn) + ","
+                                  + db_connection_.sqliteEscapeBlobData(ConvertLocalFieldsVectorToBlob(local_fields)) + ")");
 
     return true;
 }

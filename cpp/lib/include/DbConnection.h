@@ -34,8 +34,11 @@
 #include "util.h"
 
 
-// Forward declaration:
+// Forward declarations:
 class IniFile;
+class MySQLDbConnection;
+class Sqlite3DbConnection;
+class PostgresDbConnection;
 
 
 class DbConnection {
@@ -53,58 +56,66 @@ public:
     static const std::unordered_set<MYSQL_PRIVILEGE> MYSQL_ALL_PRIVILEGES;
     static const std::string DEFAULT_CONFIG_FILE_PATH;
 private:
-    Type type_;
-    PGconn *pg_conn_;
-    PGresult *pg_result_;
-    sqlite3 *sqlite3_;
-    sqlite3_stmt *stmt_handle_;
-    mutable MYSQL mysql_;
+    DbConnection *db_connection_;
+protected:
     bool initialised_;
     std::string database_name_;
     std::string user_;
     std::string passwd_;
     std::string host_;
     unsigned port_;
-    Charset charset_;
-    TimeZone time_zone_;
 public:
-    explicit DbConnection(const TimeZone time_zone = TZ_SYSTEM); // Uses the ub_tools database.
+    // \return An unusable DbConnection, in fact, all you can do on it is call isNullConnection().
+    static DbConnection NullFactory() { return DbConnection(); }
 
-    DbConnection(const std::string &database_name, const std::string &user, const std::string &passwd = "",
-                 const std::string &host = "localhost", const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4,
-                 const TimeZone time_zone = TZ_SYSTEM)
-        { type_ = T_MYSQL; init(database_name, user, passwd, host, port, charset, time_zone); }
+    static DbConnection UBToolsFactory(const TimeZone time_zone = TZ_SYSTEM); // Uses the ub_tools database.
+
+    static DbConnection MySQLFactory(const std::string &database_name, const std::string &user, const std::string &passwd = "",
+                                     const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                     const Charset charset = UTF8MB4, const TimeZone time_zone = TZ_SYSTEM);
 
     // Expects to find entries named "sql_database", "sql_username" and "sql_password".  Optionally there may also
     // be an entry named "sql_host".  If this entry is missing a default value of "localhost" will be assumed.
     // Another optional entry is "sql_port".  If that entry is missing the default value MYSQL_PORT will be used.
-    explicit DbConnection(const IniFile &ini_file, const std::string &ini_file_section = "Database",
-                          const TimeZone time_zone = TZ_SYSTEM);
-
-    // Creates or opens an Sqlite3 database.
-    DbConnection(const std::string &database_path, const OpenMode open_mode);
+    static DbConnection MySQLFactory(const IniFile &ini_file, const std::string &ini_file_section = "Database",
+                                     const TimeZone time_zone = TZ_SYSTEM);
 
     /** \brief Attemps to parse something like "mysql://ruschein:xfgYu8z@localhost:3345/vufind" */
-    explicit DbConnection(const std::string &mysql_url, const Charset charset = UTF8MB4, const TimeZone time_zone = TZ_SYSTEM);
+    static DbConnection MySQLFactory(const std::string &mysql_url, const Charset charset = UTF8MB4,
+                                     const TimeZone time_zone = TZ_SYSTEM);
 
-    virtual ~DbConnection();
+    // \return A connection to the VuFind MySQL database.
+    static DbConnection VuFindMySQLFactory();
 
-    inline Type getType() const { return type_; }
+    // Creates or opens an Sqlite3 database.
+    static DbConnection Sqlite3Factory(const std::string &database_path, const OpenMode open_mode);
+
+    /** \brief   Creates a Postgres database connection.
+     *  \param   options  See https://www.postgresql.org/docs/9.4/runtime-config.html for a huge list.
+     *  \returns NULL if no database connection could be established and sets error_message.
+     */
+    static DbConnection PostgresFactory(
+        std::string * const error_message, const std::string &database_name = "", const std::string &user_name = "",
+        const std::string &password = "", const std::string &hostname = "localhost", const unsigned port = 5432,
+        const std::string &options = "");
+
+    inline virtual ~DbConnection() { delete db_connection_; db_connection_ = nullptr; }
+
+    inline bool isNullConnection() const { return db_connection_ == nullptr; }
+    inline virtual Type getType() const { return db_connection_->getType(); }
     inline std::string getDbName() const { return database_name_; }
     inline std::string getUser() const { return user_; }
     inline std::string getPasswd() const { return passwd_; }
     inline std::string getHost() const { return host_; }
     inline unsigned getPort() const { return port_; }
-    inline Charset getCharset() const { return charset_; }
-    inline TimeZone getTimeZone() const { return time_zone_; }
 
     /** \warning You must not call this for Postgres as it doesn't support the notion of a purely numeric error code! */
-    int getLastErrorCode() const;
+    virtual int getLastErrorCode() const { return db_connection_->getLastErrorCode(); }
 
     /** \note If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be
      *        logged to /usr/local/var/log/tuefind/sql_debug.log.
      */
-    bool query(const std::string &query_statement);
+    inline virtual bool query(const std::string &query_statement) { return db_connection_->query(query_statement); }
 
     /** \brief Executes an SQL statement and aborts printing an error message to stderr if an error occurred.
      *  \note If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be
@@ -117,7 +128,7 @@ public:
      *  \note  If the environment variable "UTIL_LOG_DEBUG" has been set "true", query statements will be
      *         logged to /usr/local/var/log/tuefind/sql_debug.log.
      */
-    bool queryFile(const std::string &filename);
+    inline virtual bool queryFile(const std::string &filename) { return db_connection_->queryFile(filename); }
 
     /** \brief Reads SQL statements from "filename" and executes them.
      *  \note  Aborts printing an error message to stderr if an error occurred.
@@ -129,12 +140,15 @@ public:
     /** \note Currently only works w/ Sqlite.
      *  \note Supports online backups of a running database.
      */
-    bool backup(const std::string &output_filename, std::string * const err_msg);
+    inline virtual bool backup(const std::string &output_filename, std::string * const err_msg)
+        { return db_connection_->backup(output_filename, err_msg); }
     void backupOrDie(const std::string &output_filename);
 
     /* \param where_clause Do not include the WHERE keyword and only use this if duplicate_key_behaviour is DKB_REPLACE. */
-    void insertIntoTableOrDie(const std::string &table_name, const std::map<std::string, std::string> &column_names_to_values_map,
-                              const DuplicateKeyBehaviour duplicate_key_behaviour = DKB_FAIL, const std::string &where_clause = "");
+    void insertIntoTableOrDie(const std::string &table_name,
+                              const std::map<std::string, std::string> &column_names_to_values_map,
+                              const DuplicateKeyBehaviour duplicate_key_behaviour = DKB_FAIL,
+                              const std::string &where_clause = "");
 
     /* \param   where_clause  Do not include the WHERE keyword and only use this if duplicate_key_behaviour is DKB_REPLACE.
      * \param   column_names  The column names.
@@ -143,23 +157,26 @@ public:
      */
     void insertIntoTableOrDie(const std::string &table_name, const std::vector<std::string> &column_names,
                               const std::vector<std::vector<std::optional<std::string>>> &values,
-                              const DuplicateKeyBehaviour duplicate_key_behaviour = DKB_FAIL, const std::string &where_clause = "");
+                              const DuplicateKeyBehaviour duplicate_key_behaviour = DKB_FAIL,
+                              const std::string &where_clause = "");
 
-    DbResultSet getLastResultSet();
-    inline std::string getLastErrorMessage() const
-        { return (type_ == T_MYSQL) ? ::mysql_error(&mysql_) : ::sqlite3_errmsg(sqlite3_); }
+    inline virtual DbResultSet getLastResultSet() { return db_connection_->getLastResultSet(); }
+
+    inline virtual std::string getLastErrorMessage() const { return db_connection_->getLastErrorMessage(); }
 
     /** \return The the number of rows changed, deleted, or inserted by the last statement if it was an UPDATE,
      *          DELETE, or INSERT.
      *  \note   Must be called immediately after calling "query()".
      */
-    inline unsigned getNoOfAffectedRows() const
-        { return (type_ == T_MYSQL) ? ::mysql_affected_rows(&mysql_) : ::sqlite3_changes(sqlite3_); }
+    inline virtual unsigned getNoOfAffectedRows() const { return db_connection_->getNoOfAffectedRows(); }
 
     /** \note Converts the binary contents of "unescaped_string" into a form that can used as a string.
      *  \note This probably breaks for Sqlite if the string contains binary characters.
      */
-    std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false, const bool return_null_on_empty_string = false);
+    inline virtual std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false,
+                                            const bool return_null_on_empty_string = false)
+        { return db_connection_->escapeString(unescaped_string, add_quotes, return_null_on_empty_string); }
+
     inline std::string escapeAndQuoteString(const std::string &unescaped_string) {
         return escapeString(unescaped_string, /* add_quotes = */true);
     }
@@ -173,8 +190,7 @@ public:
      *  \note   Adds "," as delimiter.
      *  \param  source     The container of strings that are to be joined.
      */
-    template<typename StringContainer> std::string joinAndEscapeAndQuoteStrings(const StringContainer &container)
-    {
+    template<typename StringContainer> std::string joinAndEscapeAndQuoteStrings(const StringContainer &container) {
         std::string subquery;
         for (const auto &string : container) {
             if (not subquery.empty())
@@ -183,6 +199,10 @@ public:
         }
         return subquery;
     }
+
+    // Deletes and recreates the underlying Sqlite3 database.  If "script_path" is non-empty
+    // it will be executed after recreation.
+    void sqliteResetDatabase(const std::string &script_path = "");
 
     // Returns a string of the form x'A554E59F' etc.
     std::string sqliteEscapeBlobData(const std::string &blob_data);
@@ -200,7 +220,8 @@ public:
 
     bool mySQLDatabaseExists(const std::string &database_name);
 
-    bool tableExists(const std::string &database_name, const std::string &table_name);
+    inline virtual bool tableExists(const std::string &database_name, const std::string &table_name)
+        { return db_connection_->tableExists(database_name, table_name); }
 
     bool mySQLDropDatabase(const std::string &database_name);
 
@@ -215,10 +236,6 @@ public:
 
     std::unordered_set<MYSQL_PRIVILEGE> mySQLGetUserPrivileges(const std::string &user, const std::string &database_name,
                                                                const std::string &host = "localhost");
-
-    inline void mySQLSelectDatabase(const std::string &database_name) {
-        ::mysql_select_db(&mysql_, database_name.c_str());
-    }
 
     bool mySQLUserExists(const std::string &user, const std::string &host);
 
@@ -242,33 +259,30 @@ public:
         return mySQLUserHasPrivileges(database_name, privileges, getUser(), getHost());
     }
 
-    /** \brief   Creates a Postgres database connection.
-     *  \param   options  See https://www.postgresql.org/docs/9.4/runtime-config.html for a huge list.
-     *  \returns NULL if no database connection could be established and sets error_message.
-     */
-    static DbConnection *PostgresFactory(
-        std::string * const error_message, const std::string &database_name = "", const std::string &user_name = "",
-        const std::string &password = "", const std::string &hostname = "localhost", const unsigned port = 5432,
-        const std::string &options = "");
-private:
-    /** \note This constructor is for operations which do not require any existing database.
-     *        It should only be used in static functions.
-     */
-    DbConnection(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port,
-                 const Charset charset)
-        { type_ = T_MYSQL; init(user, passwd, host, port, charset, TZ_SYSTEM); }
+    static std::string TypeToString(const Type type);
+protected:
+    DbConnection(): db_connection_(nullptr) { }
+    DbConnection(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port)
+        : db_connection_(nullptr), user_(user), passwd_(passwd), host_(host), port_(port) { }
+    DbConnection(DbConnection * const db_connection) : db_connection_(db_connection) { }
 
-    DbConnection(PGconn * const pg_conn, const std::string &user, const std::string &passwd, const std::string &host,
-                 const unsigned port)
-        : type_(T_POSTGRES), pg_conn_(pg_conn), pg_result_(nullptr), sqlite3_(nullptr), stmt_handle_(nullptr),
-          user_(user), passwd_(passwd), host_(host), port_(port) { }
-
-    void setTimeZone(const TimeZone time_zone);
-    void init(const std::string &database_name, const std::string &user, const std::string &passwd,
-              const std::string &host, const unsigned port, const Charset charset, const TimeZone time_zone);
-
-    void init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port,
-              const Charset charset, const TimeZone time_zone);
+    // Used for returns from the factory member functions.
+    DbConnection(DbConnection &&other) {
+        delete db_connection_;
+        db_connection_ = other.db_connection_;
+        initialised_   = other.initialised_;
+        database_name_ = other.database_name_;
+        passwd_        = other.passwd_;
+        host_          = other.host_;
+        port_          = other.port_;
+        other.db_connection_ = nullptr;
+        other.initialised_ = false;
+        other.database_name_.clear();
+        other.user_.clear();
+        other.passwd_.clear();
+        other.host_.clear();
+        other.port_ = 0;
+    }
 public:
     /** \brief Splits "query" into individual statements.
      *
@@ -286,76 +300,141 @@ public:
     static void MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user,
                                     const std::string &admin_passwd, const std::string &host = "localhost",
                                     const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4,
-                                    const Collation collation = UTF8MB4_BIN)
-    {
-        DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-        db_connection.mySQLCreateDatabase(database_name, charset, collation);
-    }
+                                    const Collation collation = UTF8MB4_BIN);
 
     static void MySQLCreateUser(const std::string &new_user, const std::string &new_passwd, const std::string &admin_user,
-                                const std::string &admin_passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
-                                const Charset charset = UTF8MB4)
-    {
-        DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-        db_connection.mySQLCreateUser(new_user, new_passwd, host);
-    }
+                                const std::string &admin_passwd, const std::string &host = "localhost",
+                                const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4);
 
-    static void MySQLCreateUserIfNotExists(const std::string &new_user, const std::string &new_passwd, const std::string &admin_user,
-                                           const std::string &admin_passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
-                                           const Charset charset = UTF8MB4)
-    {
-        DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-        db_connection.mySQLCreateUserIfNotExists(new_user, new_passwd, host);
-    }
+    static void MySQLCreateUserIfNotExists(const std::string &new_user, const std::string &new_passwd,
+                                           const std::string &admin_user, const std::string &admin_passwd,
+                                           const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                           const Charset charset = UTF8MB4);
 
-    static bool MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
-                                    const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
-                                    const Charset charset = UTF8MB4)
-    {
-        DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-        return db_connection.mySQLDatabaseExists(database_name);
-    }
+    static bool MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user,
+                                    const std::string &admin_passwd, const std::string &host = "localhost",
+                                    const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4);
 
-    static bool MySQLDropDatabase(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
-                                  const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
-                                  const Charset charset = UTF8MB4)
-    {
-        DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-        return db_connection.mySQLDropDatabase(database_name);
-    }
+    static bool MySQLDropDatabase(const std::string &database_name, const std::string &admin_user,
+                                  const std::string &admin_passwd, const std::string &host = "localhost",
+                                  const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4);
 
     static std::vector<std::string> MySQLGetDatabaseList(const std::string &admin_user, const std::string &admin_passwd,
                                                          const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
-                                                         const Charset charset = UTF8MB4)
-    {
-        DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-        return db_connection.mySQLGetDatabaseList();
-    }
+                                                         const Charset charset = UTF8MB4);
 
-    static void MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user, const std::string &admin_user,
-                                        const std::string &admin_passwd, const std::string &host = "localhost",
-                                        const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4)
-    {
-        DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-        return db_connection.mySQLGrantAllPrivileges(database_name, database_user, host);
-    }
+    static void MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user,
+                                        const std::string &admin_user, const std::string &admin_passwd,
+                                        const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                        const Charset charset = UTF8MB4);
 
     static bool MySQLUserExists(const std::string &database_user, const std::string &admin_user, const std::string &admin_passwd,
                                 const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
-                                const Charset charset = UTF8MB4)
-    {
-        DbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-        return db_connection.mySQLUserExists(database_user, host);
-    }
+                                const Charset charset = UTF8MB4);
 
     /** \note This function will enable "multiple statement execution support".
      *        To avoid problems with other operations, this function should always create a new connection which is not reusable.
      */
     static void MySQLImportFile(const std::string &sql_file, const std::string &database_name, const std::string &admin_user,
-                                const std::string &admin_passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
-                                const Charset charset = UTF8MB4);
+                                const std::string &admin_passwd, const std::string &host = "localhost",
+                                const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4,
+                                const TimeZone time_zone = TZ_SYSTEM);
 
     std::string MySQLPrivilegeToString(const MYSQL_PRIVILEGE mysql_privilege);
+};
+
+
+class MySQLDbConnection final : public DbConnection {
+    friend class DbConnection;
+    mutable MYSQL mysql_;
+    DbConnection::Charset charset_;
+    TimeZone time_zone_;
+protected:
+    explicit MySQLDbConnection(const TimeZone time_zone); // Uses the ub_tools database.
+    MySQLDbConnection(const std::string &database_name, const std::string &user, const std::string &passwd,
+                      const std::string &host, const unsigned port, const DbConnection::Charset charset,
+                      const DbConnection::TimeZone time_zone)
+        { init(database_name, user, passwd, host, port, charset, time_zone); }
+    MySQLDbConnection(const std::string &mysql_url, const DbConnection::Charset charset,
+                      const DbConnection::TimeZone time_zone);
+    MySQLDbConnection(const IniFile &ini_file, const std::string &ini_file_section, const TimeZone time_zone);
+
+    /** \note This constructor is for operations which do not require any existing database.
+     *        It should only be used in static functions.
+     */
+    MySQLDbConnection(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port,
+                      const Charset charset)
+        { init(user, passwd, host, port, charset, TZ_SYSTEM); }
+    virtual ~MySQLDbConnection();
+
+    inline virtual DbConnection::Type getType() const override { return DbConnection::T_MYSQL; }
+    inline virtual std::string getLastErrorMessage() const override { return ::mysql_error(&mysql_); }
+    inline DbConnection::Charset getCharset() const { return charset_; }
+    inline DbConnection::TimeZone getTimeZone() const { return time_zone_; }
+    void setTimeZone(const TimeZone time_zone);
+    inline virtual unsigned getNoOfAffectedRows() const override { return ::mysql_affected_rows(&mysql_); }
+    inline virtual int getLastErrorCode() const override { return static_cast<int>(::mysql_errno(&mysql_)); }
+    inline virtual bool query(const std::string &query_statement) override;
+    virtual bool queryFile(const std::string &filename) override;
+    virtual bool backup(const std::string &output_filename, std::string * const err_msg) override;
+    virtual DbResultSet getLastResultSet() override;
+    virtual std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false,
+                                     const bool return_null_on_empty_string = false) override;
+    virtual bool tableExists(const std::string &database_name, const std::string &table_name) override;
+private:
+    void init(const std::string &database_name, const std::string &user, const std::string &passwd,
+              const std::string &host, const unsigned port, const Charset charset, const TimeZone time_zone);
+
+    void init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port,
+              const Charset charset, const TimeZone time_zone);
+};
+
+
+class Sqlite3DbConnection final : public DbConnection {
+    friend class DbConnection;
+    sqlite3 *sqlite3_;
+    sqlite3_stmt *stmt_handle_;
+    std::string database_path_;
+protected:
+    Sqlite3DbConnection(const std::string &database_path, const OpenMode open_mode);
+    inline virtual ~Sqlite3DbConnection();
+
+    inline virtual DbConnection::Type getType() const override { return DbConnection::T_SQLITE; }
+    inline virtual unsigned getNoOfAffectedRows() const override { return ::sqlite3_changes(sqlite3_); }
+    inline virtual std::string getLastErrorMessage() const override { return ::sqlite3_errmsg(sqlite3_); }
+    inline virtual int getLastErrorCode() const override { return ::sqlite3_errcode(sqlite3_); }
+    inline virtual bool query(const std::string &query_statement) override;
+    virtual bool queryFile(const std::string &filename) override;
+    virtual bool backup(const std::string &output_filename, std::string * const err_msg) override;
+    virtual DbResultSet getLastResultSet() override;
+    virtual std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false,
+                                     const bool return_null_on_empty_string = false) override;
+    virtual bool tableExists(const std::string &database_name, const std::string &table_name) override;
+    inline const std::string &getDatabasePath() const { return database_path_; }
+};
+
+
+class PostgresDbConnection final : public DbConnection {
+    friend class DbConnection;
+    PGconn *pg_conn_;
+    PGresult *pg_result_;
+protected:
+    PostgresDbConnection(PGconn * const pg_conn, const std::string &user, const std::string &passwd, const std::string &host,
+                         const unsigned port)
+        : DbConnection(user, passwd, host, port), pg_conn_(pg_conn), pg_result_(nullptr) { }
+    inline virtual ~PostgresDbConnection();
+
+    inline virtual DbConnection::Type getType() const override { return DbConnection::T_POSTGRES; }
+    virtual inline std::string getLastErrorMessage() const override { return ::PQerrorMessage(pg_conn_); }
+    virtual unsigned getNoOfAffectedRows() const override;
+    virtual int getLastErrorCode() const override;
+    inline virtual bool query(const std::string &query_statement) override;
+    virtual bool queryFile(const std::string &filename) override;
+    virtual bool backup(const std::string &output_filename, std::string * const err_msg) override;
+    virtual DbResultSet getLastResultSet() override;
+    virtual std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false,
+                                     const bool return_null_on_empty_string = false) override;
+    virtual bool tableExists(const std::string &database_name, const std::string &table_name) override;
 };
 
 
