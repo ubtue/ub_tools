@@ -661,7 +661,7 @@ void DetectReviews(MetadataRecord * const metadata_record, const ConversionParam
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
 const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
-const ThreadSafeRegexMatcher PROPER_LAST_NAME("(?!^\\p{L}\\.$)");
+const ThreadSafeRegexMatcher PROPER_LAST_NAME("^(?!\\p{L}\\.).*$");
 
 
 bool IsProperLastName(const std::string &last_name) {
