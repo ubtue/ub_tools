@@ -2,7 +2,7 @@
  *  \brief A tool for reading/editing of the "translations" SQL table.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -219,7 +219,7 @@ int main(int argc, char *argv[]) {
         const std::string sql_database(ini_file.getString("Database", "sql_database"));
         const std::string sql_username(ini_file.getString("Database", "sql_username"));
         const std::string sql_password(ini_file.getString("Database", "sql_password"));
-        DbConnection db_connection(sql_database, sql_username, sql_password);
+        DbConnection db_connection(DbConnection::MySQLFactory(sql_database, sql_username, sql_password));
 
         if (std::strcmp(argv[1], "get_missing") == 0) {
             if (argc != 3)

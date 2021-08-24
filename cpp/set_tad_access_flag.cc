@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2020, Library of the University of Tübingen
+    Copyright (C) 2016-2021, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -370,14 +370,14 @@ int Main(int argc, char **argv) {
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(EMAIL_RULES_FILE));
     std::vector<Pattern> patterns;
     ParseEmailRules(input.get(), &patterns);
-    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
+    auto db_connection(DbConnection::VuFindMySQLFactory());
 
     if (flag_or_user_ID == "--update-all-users")
-        UpdateAllUsers(db_connection.get(), patterns, /* create_missing_ix_theo_users = */false);
+        UpdateAllUsers(&db_connection, patterns, /* create_missing_ix_theo_users = */false);
     else if (flag_or_user_ID == "--patch-ixtheo_user")
-        UpdateAllUsers(db_connection.get(), patterns, /* create_missing_ix_theo_users = */true);
+        UpdateAllUsers(&db_connection, patterns, /* create_missing_ix_theo_users = */true);
     else
-        UpdateSingleUser(db_connection.get(), patterns, flag_or_user_ID);
+        UpdateSingleUser(&db_connection, patterns, flag_or_user_ID);
 
     return EXIT_SUCCESS;
 }

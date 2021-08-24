@@ -61,31 +61,32 @@ void ProcessTriggers(DbConnection * const db_connection, const std::string &data
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 1 and argc != 3 and argc != 4 and argc != 5 and argc != 6)
-        Usage();
-
-    std::unique_ptr<DbConnection> db_connection;
+    std::string database_name, user, passwd, host("localhost");
+    unsigned port(MYSQL_PORT);
     switch (argc) {
     case 1:
-        db_connection.reset(new DbConnection());
-        break;
-    case 3:
-        db_connection.reset(new DbConnection(argv[1], argv[2]));
-        break;
-    case 4:
-        db_connection.reset(new DbConnection(argv[1], argv[2], argv[3]));
-        break;
-    case 5:
-        db_connection.reset(new DbConnection(argv[1], argv[2], argv[3], argv[4]));
         break;
     case 6:
-        db_connection.reset(new DbConnection(argv[1], argv[2], argv[3], argv[4], StringUtil::ToUnsigned(argv[5])));
+        port = StringUtil::ToUnsigned(argv[5]);
+    case 5:
+        host = argv[4];
+    case 4:
+        passwd = argv[3];
+    case 3:
+        user = argv[2];
+        database_name = argv[1];
         break;
+    default:
+        Usage();
     }
 
-    ProcessTablesOrViews(db_connection.get(), /* process_tables = */true);
-    ProcessTablesOrViews(db_connection.get(), /* process_tables = */false);
-    ProcessTriggers(db_connection.get(), argc == 1 ? "ub_tools" : argv[1]);
+    DbConnection db_connection(database_name.empty()
+                                   ? DbConnection::UBToolsFactory()
+                                   : DbConnection::MySQLFactory(database_name, user, passwd, host, port));
+
+    ProcessTablesOrViews(&db_connection, /* process_tables = */true);
+    ProcessTablesOrViews(&db_connection, /* process_tables = */false);
+    ProcessTriggers(&db_connection, argc == 1 ? "ub_tools" : argv[1]);
 
     return EXIT_SUCCESS;
 }

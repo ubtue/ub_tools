@@ -1,7 +1,7 @@
-/** \brief Utility for finding performing certain edits on the metadata_presence_tracer MySQL table in ub_tools.
+/** \brief Utility for performing certain edits on the metadata_presence_tracer MySQL table in ub_tools.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -98,7 +98,9 @@ void SetFieldsToIgnore(DbConnection * const db_connection, const std::string &jo
 }
 
 
-void SetFieldsToSometimes(DbConnection * const db_connection, const std::string &journal_name, const std::string &escaped_field_list) {
+void SetFieldsToSometimes(DbConnection * const db_connection, const std::string &journal_name,
+                          const std::string &escaped_field_list)
+{
     SetFieldsToIgnore(db_connection, journal_name, escaped_field_list, "sometimes");
 }
 
@@ -110,7 +112,7 @@ int Main(int argc, char *argv[]) {
     if (argc < 3)
         Usage();
 
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
     if (std::strcmp(argv[1], "--clear-journals") == 0) {
         if (argc != 3)
             Usage();

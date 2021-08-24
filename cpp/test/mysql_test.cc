@@ -1,7 +1,7 @@
 /** \brief Test program for the new MySQL Db* classes.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
     const std::string query(argv[4]);
 
     try {
-        DbConnection connection(db, user, passwd);
+        DbConnection connection(DbConnection::MySQLFactory(db, user, passwd));
         connection.queryOrDie(query);
         DbResultSet result_set(connection.getLastResultSet());
         if (not raw)

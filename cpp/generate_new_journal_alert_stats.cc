@@ -38,7 +38,6 @@
 #include "TimeUtil.h"
 #include "UBTools.h"
 #include "util.h"
-#include "VuFind.h"
 
 
 namespace {
@@ -211,8 +210,8 @@ int Main(int argc, char **argv) {
     }
 
     const std::string email_recipient(argv[3]);
-    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
-    CollectConfigStats(db_connection.get(), user_type, &stats);
+    auto db_connection(DbConnection::VuFindMySQLFactory());
+    CollectConfigStats(&db_connection, user_type, &stats);
     CollectUsageStats(user_type, &stats);
 
     const auto report_file(FileUtil::OpenOutputFileOrDie(REPORT_DIRECTORY + "new_journal_alert_stats."
