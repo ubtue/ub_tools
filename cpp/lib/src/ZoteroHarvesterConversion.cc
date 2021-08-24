@@ -661,6 +661,12 @@ void DetectReviews(MetadataRecord * const metadata_record, const ConversionParam
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
 const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
+const ThreadSafeRegexMatcher PROPER_LAST_NAME("(?!^\\p{L}\\.$)");
+
+
+bool IsProperLastName(const std::string &last_name) {
+    return PROPER_LAST_NAME.match(last_name);
+}
 
 
 void AugmentMetadataRecord(MetadataRecord * const metadata_record, const ConversionParams &parameters)
@@ -751,9 +757,11 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
             if (not creator.first_name_.empty())
                 combined_name += ", " + creator.first_name_;
 
-            creator.gnd_number_ = HtmlUtil::StripHtmlTags(BSZUtil::GetAuthorGNDNumber(combined_name, group_params.author_swb_lookup_url_));
-            if (not creator.gnd_number_.empty())
-                LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + " (SWB lookup)");
+            if (IsProperLastName(creator.last_name_)) {
+                creator.gnd_number_ = HtmlUtil::StripHtmlTags(BSZUtil::GetAuthorGNDNumber(combined_name, group_params.author_swb_lookup_url_));
+                if (not creator.gnd_number_.empty())
+                    LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + " (SWB lookup)");
+            }
         }
     }
 
