@@ -29,6 +29,11 @@
 #include "ExecUtil.h"
 #include "WebUtil.h"
 #include "util.h"
+#include <systemd/sd-bus.h>
+
+const char* sd_path = "/";
+const char* sd_interface = "de.ubtue";
+const char* sd_member = "translator_update";
 
 
 const std::string getTranslatorOrEmptryString() {
@@ -75,6 +80,41 @@ std::string GetEnvParameterOrEmptyString(const std::multimap<std::string, std::s
 }
 
 
+void broadcastToSDBus(std::string gnd, std::string language) {
+    #pragma GCC diagnostic ignored "-Wc99-extensions"
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    sd_bus_message *msg = NULL;
+    sd_bus *bus = NULL;
+    int rc;
+
+    std::string message = std::string("{gnd : ") + gnd + ", language : " + language + "}";
+
+    // Connect to the bus
+    rc = sd_bus_default(&bus);
+    if (rc < 0) {
+        std::cerr << "Failed to connect to system bus: " << strerror(-rc) << std::endl;
+	    goto finish;
+    }
+
+    rc = sd_bus_match_signal(bus, NULL, NULL, sd_path, sd_interface, sd_member, NULL, NULL);
+    if (rc < 0) {
+        std::cerr << "Failed to register match signal: " <<  error.message << std::endl;
+	    goto finish;
+    }
+
+    rc = sd_bus_emit_signal(bus, sd_path, sd_interface, sd_member, "s", message.c_str());
+    if (rc < 0) {
+        std::cerr << "Failed to create new signal: " << strerror(-rc) << std::endl;
+	    goto finish;
+    }
+
+finish:
+    sd_bus_error_free(&error);
+    sd_bus_message_unref(msg);
+    sd_bus_unref(bus);
+}
+
+
 void Update(const std::multimap<std::string, std::string> &cgi_args, const std::multimap<std::string, std::string> &env_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
@@ -90,6 +130,8 @@ void Update(const std::multimap<std::string, std::string> &cgi_args, const std::
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(update_command, &output))
         LOG_ERROR("failed to execute \"" + update_command + "\" or it returned a non-zero exit code!");
+
+    broadcastToSDBus(gnd_code,  language_code);
 }
 
 
@@ -111,6 +153,8 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args, const std::
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(insert_command, &output))
         LOG_ERROR("failed to execute \"" + insert_command + "\" or it returned a non-zero exit code!");
+
+    broadcastToSDBus(gnd_code,  language_code);
 }
 
 

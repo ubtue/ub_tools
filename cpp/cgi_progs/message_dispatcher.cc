@@ -45,7 +45,7 @@ int Main(int argc, char *argv[]) {
     sd_bus *bus = NULL;
     int r;
 
-    /* Connect to the bus */
+    // Connect to the bus
     r = sd_bus_default(&bus);
     if (r < 0) {
         fprintf(stderr, "Failed to connect to system bus: %s\n", strerror(-r));
@@ -53,13 +53,11 @@ int Main(int argc, char *argv[]) {
     }
 
     // Register signal filter 
-
     r = sd_bus_match_signal(bus, NULL, NULL, "/", "de.ubtue", "translator_update", NULL, NULL);
     if (r < 0) {
         std::cerr << "Failed to register match signal: " <<  error.message << std::endl;
         goto finish;
     }
-    
 
     // Send out headers once
     std::cout << "Content-Type: text/event-stream; charset=utf-8\r\n";
@@ -74,14 +72,13 @@ int Main(int argc, char *argv[]) {
        else if ( r > 0) {
            char *message;
            sd_bus_message_read(m, "s", &message);
-           std::cout << message << "\n\n" << std::flush;
+           std::cout << "data: " << message << "\n\n" << std::flush;
            sd_bus_message_unref(m);
        } else {
            std::cerr << "Error processing sd-bus message " << strerror(-r);
            goto finish;
 
         return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
-
        }
     }
 

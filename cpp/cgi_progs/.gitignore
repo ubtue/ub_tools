@@ -2,6 +2,7 @@ display_translate_stats
 full_text_cache_monitor
 full_text_lookup
 ini_validator
+message_dispatcher
 restart_zts
 translator
 translator_ajax

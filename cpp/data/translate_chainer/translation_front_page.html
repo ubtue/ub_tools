@@ -46,6 +46,27 @@
         $(".editable_translation").blur(function() {{
             InsertTranslationIntoDB(this);
         });
+
+        var eventSource;
+        if (!!window.EventSource)
+        {{
+            eventSource = new EventSource('/cgi-bin/message_dispatcher', {{ withCredentials: true});
+        }
+        else
+        {{
+            alert('Your browser does not support HTML5 Server-Sent Events');
+        }
+
+        eventSource.onmessage = function(event) {{
+            console.log("message: " + event.data);
+        };
+        eventSource.onopen = function(event) {{
+            console.log(event);
+        };
+        eventSource.onerror = function(event) {{
+            console.log(event);
+        };
+
     });
 
     function IsEmpty(str) {{
