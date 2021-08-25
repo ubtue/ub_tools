@@ -1378,6 +1378,9 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
             ConvertZoteroItemToMetadataRecord(json_object, &new_metadata_record);
 
             if (ExcludeUndesiredItemTypes(new_metadata_record)) {
+                LOG_WARNING("Skipping record with URL " +
+                            (new_metadata_record.url_.empty() ? new_metadata_record.url_ : "[Unknown]") +
+                            " because it is an undesired item type");
                 ++result->num_skipped_since_undesired_item_type_;
                 continue;
             }
