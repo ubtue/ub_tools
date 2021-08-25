@@ -31,9 +31,9 @@
 #include "util.h"
 #include <systemd/sd-bus.h>
 
-const char* sd_path = "/";
-const char* sd_interface = "de.ubtue";
-const char* sd_member = "translator_update";
+const std::string sd_path("/");
+const std::string sd_interface("de.ubtue");
+const std::string sd_member("translator_update");
 
 
 const std::string getTranslatorOrEmptryString() {
@@ -80,14 +80,35 @@ std::string GetEnvParameterOrEmptyString(const std::multimap<std::string, std::s
 }
 
 
-void broadcastToSDBus(std::string gnd, std::string language) {
+void ExtractParams(const std::multimap<std::string, std::string> &cgi_args, const std::multimap<std::string, std::string> &env_args,
+                   std::string * const language_code, std::string * const translation,
+                   std::string * const index, std::string * const gnd_code,
+                   std::string * const translator)
+{
+    *language_code = GetCGIParameterOrDie(cgi_args, "language_code");
+    *translation = GetCGIParameterOrDie(cgi_args, "translation");
+    *index = GetCGIParameterOrDie(cgi_args, "index");
+    *gnd_code = GetCGIParameterOrEmptyString(cgi_args, "gnd_code");
+    *translator = GetEnvParameterOrEmptyString(env_args, "REMOTE_USER");
+}
+
+
+void broadcastToSDBus(const std::multimap<std::string, std::string> &cgi_args, const std::multimap<std::string, std::string> &env_args)
+{
     #pragma GCC diagnostic ignored "-Wc99-extensions"
     sd_bus_error error = SD_BUS_ERROR_NULL;
     sd_bus_message *msg = NULL;
     sd_bus *bus = NULL;
     int rc;
 
-    std::string message = std::string("{gnd : ") + gnd + ", language : " + language + "}";
+    std::string language_code, translation, index, gnd_code, translator;
+    ExtractParams(cgi_args, env_args, &language_code, &translation, &index, &gnd_code, &translator);
+    std::string message = std::string("{\"gnd_code\" : \"") + gnd_code
+                          + "\", \"language_code\" : \"" + language_code
+                          + "\", \"index\" : \"" + index
+                          + "\", \"translation\" : \"" + translation
+                          + "\", \"translator\" : \"" + translator
+                          + "\"}";
 
     // Connect to the bus
     rc = sd_bus_default(&bus);
@@ -96,13 +117,13 @@ void broadcastToSDBus(std::string gnd, std::string language) {
 	    goto finish;
     }
 
-    rc = sd_bus_match_signal(bus, NULL, NULL, sd_path, sd_interface, sd_member, NULL, NULL);
+    rc = sd_bus_match_signal(bus, NULL, NULL, sd_path.c_str(), sd_interface.c_str(), sd_member.c_str(), NULL, NULL);
     if (rc < 0) {
         std::cerr << "Failed to register match signal: " <<  error.message << std::endl;
 	    goto finish;
     }
 
-    rc = sd_bus_emit_signal(bus, sd_path, sd_interface, sd_member, "s", message.c_str());
+    rc = sd_bus_emit_signal(bus, sd_path.c_str(), sd_interface.c_str(), sd_member.c_str(), "s", message.c_str());
     if (rc < 0) {
         std::cerr << "Failed to create new signal: " << strerror(-rc) << std::endl;
 	    goto finish;
@@ -116,12 +137,8 @@ finish:
 
 
 void Update(const std::multimap<std::string, std::string> &cgi_args, const std::multimap<std::string, std::string> &env_args) {
-    const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
-    const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
-    const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
-    const std::string gnd_code(GetCGIParameterOrEmptyString(cgi_args, "gnd_code"));
-    const std::string translator(GetEnvParameterOrEmptyString(env_args, "REMOTE_USER"));
-
+    std::string language_code, translation, index, gnd_code, translator;
+    ExtractParams(cgi_args, env_args, &language_code, &translation, &index, &gnd_code, &translator);
     std::string update_command("/usr/local/bin/translation_db_tool update '" + index);
     if (not gnd_code.empty())
         update_command += "' '" + gnd_code;
@@ -130,18 +147,12 @@ void Update(const std::multimap<std::string, std::string> &cgi_args, const std::
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(update_command, &output))
         LOG_ERROR("failed to execute \"" + update_command + "\" or it returned a non-zero exit code!");
-
-    broadcastToSDBus(gnd_code,  language_code);
 }
 
 
 void Insert(const std::multimap<std::string, std::string> &cgi_args, const std::multimap<std::string, std::string> &env_args) {
-    const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
-    const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
-    const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
-    const std::string gnd_code(GetCGIParameterOrEmptyString(cgi_args, "gnd_code"));
-    const std::string translator(GetEnvParameterOrEmptyString(env_args, "REMOTE_USER"));
-
+    std::string language_code, translation, index, gnd_code, translator;
+    ExtractParams(cgi_args, env_args, &language_code, &translation, &index, &gnd_code, &translator);
     if (translation.empty())
         return;
 
@@ -153,8 +164,6 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args, const std::
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(insert_command, &output))
         LOG_ERROR("failed to execute \"" + insert_command + "\" or it returned a non-zero exit code!");
-
-    broadcastToSDBus(gnd_code,  language_code);
 }
 
 
@@ -179,10 +188,12 @@ int main(int argc, char *argv[]) {
                 status = "Status: 200 OK\r\n";
             } else
                 LOG_ERROR("Unknown action: " + action + "! Expecting 'insert' or 'update'.");
-
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
             const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
             std::cout << status;
+
+            // Inform other users about update
+            broadcastToSDBus(cgi_args, env_args);
         } else
             LOG_ERROR("we should be called w/ either or 5 or 6 CGI arguments!");
     } catch (const std::exception &x) {
