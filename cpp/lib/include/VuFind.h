@@ -2,7 +2,7 @@
  *  \brief  VuFind-related constants and utility functions.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017,2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -45,9 +45,6 @@ std::string GetDefaultDatabaseConfOrDie();
  *  \return The extracted URL
  */
 std::string GetMysqlURLOrDie(const std::string &vufind_config_file_path = "");
-
-
-std::shared_ptr<DbConnection> GetDbConnection();
 
 
 /** \brief Get TueFind Flavour from ENV variable or empty string if not set. */

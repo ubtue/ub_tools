@@ -30,7 +30,9 @@
 
 
 class DbResultSet {
-    friend class DbConnection;
+    friend class MySQLDbConnection;
+    friend class Sqlite3DbConnection;
+    friend class PostgresDbConnection;
     PGresult *pg_result_;
     MYSQL_RES *mysql_res_;
     sqlite3_stmt *stmt_handle_;

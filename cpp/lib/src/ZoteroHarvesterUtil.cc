@@ -513,7 +513,7 @@ bool UploadTracker::recordAlreadyInDatabase(const std::string &record_hash, cons
 
 bool UploadTracker::journalHasRecordToRetry(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) const {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
 
     const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
     std::string delivery_states_subquery("(");
@@ -538,7 +538,7 @@ bool UploadTracker::urlAlreadyInDatabase(const std::string &url, const std::set<
                                          Entry * const entry) const
 {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
 
     return urlAlreadyInDatabase(url, delivery_states_to_ignore, entry, &db_connection);
 }
@@ -548,7 +548,7 @@ bool UploadTracker::hashAlreadyInDatabase(const std::string &hash, const std::se
                                           std::vector<Entry> * const entries) const
 {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
 
     return hashAlreadyInDatabase(hash, delivery_states_to_ignore, entries, &db_connection);
 }
@@ -558,7 +558,7 @@ bool UploadTracker::recordAlreadyInDatabase(const MARC::Record &record, const st
                                             std::vector<Entry> * const entries) const
 {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
 
     const auto hash(Conversion::CalculateMarcRecordHash(record));
     const auto urls(GetMarcRecordUrls(record));
@@ -569,7 +569,7 @@ bool UploadTracker::recordAlreadyInDatabase(const MARC::Record &record, const st
 
 time_t UploadTracker::getLastUploadTime(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) const {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
 
     const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
     db_connection.queryOrDie("SELECT MAX(delivered_at) AS max_delivered_at FROM delivered_marc_records "
@@ -600,12 +600,15 @@ std::vector<UploadTracker::Entry> GetEntriesFromLastResultSet(DbConnection * con
 }
 
 
-std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) {
+std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(const unsigned zeder_id,
+                                                                               const Zeder::Flavour zeder_flavour)
+{
     WaitOnSemaphore lock(&connection_pool_semaphore_);
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
 
     const std::string zeder_instance(GetZederInstanceString(zeder_flavour));
-    db_connection.queryOrDie("SELECT dmru.url, dmr.delivered_at, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash, dmr.delivery_state, dmr.error_message, dmr.id AS entry_id "
+    db_connection.queryOrDie("SELECT dmru.url, dmr.delivered_at, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash, "
+                             "dmr.delivery_state, dmr.error_message, dmr.id AS entry_id "
                              "FROM delivered_marc_records_urls AS dmru "
                              "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
                              "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
@@ -617,9 +620,11 @@ std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(c
 }
 
 
-bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryState delivery_state, const std::string &error_message) {
+bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryState delivery_state,
+                                  const std::string &error_message)
+{
     WaitOnSemaphore lock(&connection_pool_semaphore_);
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
 
     const auto hash(Conversion::CalculateMarcRecordHash(record));
     const auto main_title(record.getMainTitle());
@@ -704,9 +709,11 @@ std::string UploadTracker::GetZederInstanceString(const std::string &group) {
 }
 
 
-void UploadTracker::registerZederJournal(const unsigned zeder_id, const std::string &zeder_instance, const std::string &journal_name) {
+void UploadTracker::registerZederJournal(const unsigned zeder_id, const std::string &zeder_instance,
+                                         const std::string &journal_name)
+{
     WaitOnSemaphore lock(&connection_pool_semaphore_);
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
 
     // intentionally use INSERT INTO with ON DUPLICATE KEY UPDATE instead of REPLACE INTO
     // (we do NOT want the auto increment index to change if title hasn't changed)
@@ -722,7 +729,7 @@ void UploadTracker::deleteOnlineFirstEntriesOlderThan(const unsigned zeder_id, c
                                                       const unsigned &update_window)
 {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
     db_connection.queryOrDie(std::string("DELETE FROM delivered_marc_records WHERE zeder_journal_id=")
                              + "(SELECT id FROM zeder_journals WHERE zeder_id="
                                  + db_connection.escapeAndQuoteString(std::to_string(zeder_id))

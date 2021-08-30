@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
 
     try {
         const IniFile ini_file;
-        DbConnection db_connection(ini_file);
+        DbConnection db_connection(DbConnection::MySQLFactory(ini_file));
 
         CollectGeneralStats(system_type, &db_connection);
         if (system_type == "krimdok")

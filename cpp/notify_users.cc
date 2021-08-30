@@ -1,7 +1,7 @@
 /** \brief IxTheo utility to inform subscribed users of changes in monitored queries etc.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015,2017 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -389,7 +389,7 @@ int Main(int argc, char *argv[]) {
     const std::string passwd(ini_file.getString("", "passwd"));
     const std::string db(ini_file.getString("", "database"));
 
-    DbConnection connection(db, user, passwd);
+    DbConnection connection(DbConnection::MySQLFactory(db, user, passwd));
     connection.queryOrDie("SELECT id,email FROM user");
     DbResultSet result_set(connection.getLastResultSet());
     DbRow row;

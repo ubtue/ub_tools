@@ -771,7 +771,7 @@ int Main(int argc, char *argv[]) {
     const std::string sql_database(ini_file.getString("Database", "sql_database"));
     const std::string sql_username(ini_file.getString("Database", "sql_username"));
     const std::string sql_password(ini_file.getString("Database", "sql_password"));
-    DbConnection db_connection(sql_database, sql_username, sql_password);
+    DbConnection db_connection(DbConnection::MySQLFactory(sql_database, sql_username, sql_password));
 
     const std::string translator(GetTranslatorOrEmptyString());
 

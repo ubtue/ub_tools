@@ -36,7 +36,6 @@
 #include "Template.h"
 #include "UBTools.h"
 #include "util.h"
-#include "VuFind.h"
 #include "XmlWriter.h"
 
 
@@ -271,17 +270,17 @@ int Main(int argc, char *argv[]) {
     if (subsystem_type != "ixtheo" and subsystem_type != "relbib" and subsystem_type != "krimdok")
         LOG_ERROR("subsystem_type must be one of {ixtheo,relbib,krimdok}!");
 
-    const auto db_connection(VuFind::GetDbConnection());
+    auto db_connection(DbConnection::VuFindMySQLFactory());
 
     std::string sql_query("SELECT id,firstname,lastname,email,tuefind_rss_feed_send_emails"
                           ",tuefind_rss_feed_last_notification,last_language FROM user");
     if (vufind_user_id.empty())
         sql_query += " WHERE tuefind_rss_feed_send_emails IS TRUE";
     else
-        sql_query += " WHERE id=" + db_connection->escapeAndQuoteString(vufind_user_id);
-    db_connection->queryOrDie(sql_query);
+        sql_query += " WHERE id=" + db_connection.escapeAndQuoteString(vufind_user_id);
+    db_connection.queryOrDie(sql_query);
 
-    auto user_result_set(db_connection->getLastResultSet());
+    auto user_result_set(db_connection.getLastResultSet());
     std::unordered_map<std::string, UserInfo> ids_to_user_infos_map;
     while (const auto user_row = user_result_set.getNextRow()) {
         const std::string last_language(user_row["last_language"]);
@@ -300,7 +299,7 @@ int Main(int argc, char *argv[]) {
 
         if (ProcessFeeds(user_id, user_info.rss_feed_last_notification_, error_email_address, user_info.email_,
                          MiscUtil::GenerateAddress(user_info.first_name_, user_info.last_name_, "Subscriber"),
-                         user_info.language_code_, vufind_user_id.empty(), subsystem_type, db_connection.get()))
+                         user_info.language_code_, vufind_user_id.empty(), subsystem_type, &db_connection))
         {
             if (vufind_user_id.empty())
                 ++email_sent_count;

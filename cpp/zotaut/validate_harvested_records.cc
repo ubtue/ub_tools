@@ -456,7 +456,7 @@ int Main(int argc, char *argv[]) {
         update_db_errors = true;
     }
 
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
     auto valid_records_writer(MARC::Writer::Factory(argv[2]));
@@ -466,7 +466,8 @@ int Main(int argc, char *argv[]) {
     ZoteroHarvester::Util::UploadTracker upload_tracker;
 
     GeneralFieldValidator general_regular_article_validator, general_review_article_validator;
-    JournalSpecificFieldValidator journal_specific_regular_article_validator, journal_specific_review_article_validator;
+    JournalSpecificFieldValidator journal_specific_regular_article_validator,
+                                  journal_specific_review_article_validator;
     LoadRules(&db_connection, &general_regular_article_validator, &journal_specific_regular_article_validator,
               &general_review_article_validator, &journal_specific_review_article_validator);
     std::vector<const FieldValidator *> regular_article_field_validators{ &journal_specific_regular_article_validator,

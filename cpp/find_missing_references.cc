@@ -32,13 +32,13 @@
 namespace {
 
 
-DbConnection *OpenOrCreateDatabase() {
+DbConnection OpenOrCreateDatabase() {
     const std::string DATABASE_PATH(UBTools::GetTuelibPath() + "previously_reported_missing_ppns.sq3");
     if (FileUtil::Exists(DATABASE_PATH))
-        return new DbConnection(DATABASE_PATH, DbConnection::READWRITE);
+        return DbConnection::Sqlite3Factory(DATABASE_PATH, DbConnection::READWRITE);
 
-    DbConnection *db_connection(new DbConnection(DATABASE_PATH, DbConnection::CREATE));
-    db_connection->queryOrDie("CREATE TABLE missing_references (ppn TEXT PRIMARY KEY) WITHOUT ROWID");
+    DbConnection db_connection(DbConnection::Sqlite3Factory(DATABASE_PATH, DbConnection::CREATE));
+    db_connection.queryOrDie("CREATE TABLE missing_references (ppn TEXT PRIMARY KEY) WITHOUT ROWID");
     return db_connection;
 }
 
@@ -58,7 +58,7 @@ int Main(int argc, char *argv[]) {
     if (not EmailSender::IsValidEmailAddress(email_address))
         LOG_ERROR("\"" + email_address + "\" is not a valid email address!");
 
-    DbConnection *db_connection(OpenOrCreateDatabase());
+    DbConnection db_connection(OpenOrCreateDatabase());
 
     std::unordered_set<std::string> all_ppns;
     while (const auto record = marc_reader->read())
@@ -90,8 +90,8 @@ int Main(int argc, char *argv[]) {
     std::unordered_set<std::string> new_missing_ppns;
     std::string missing_references_text;
     for (const auto &[missing_ppn, referers] : missing_ppns_to_referers_map) {
-        db_connection->queryOrDie("SELECT ppn FROM missing_references WHERE ppn='" + missing_ppn + "'");
-        const DbResultSet result_set(db_connection->getLastResultSet());
+        db_connection.queryOrDie("SELECT ppn FROM missing_references WHERE ppn='" + missing_ppn + "'");
+        const DbResultSet result_set(db_connection.getLastResultSet());
         if (result_set.empty()) {
             new_missing_ppns.emplace(missing_ppn);
             missing_references_text += missing_ppn + " <- " + StringUtil::Join(referers, ", ") + "\n";
@@ -124,12 +124,12 @@ int Main(int argc, char *argv[]) {
             ++count;
             if (count == BATCH_SIZE) {
                 values.resize(values.size() - 1); // Strip off the last comma.
-                db_connection->queryOrDie("INSERT INTO missing_references (ppn) VALUES " + values);
+                db_connection.queryOrDie("INSERT INTO missing_references (ppn) VALUES " + values);
                 count = 0, values.clear();
             }
         }
         if (not values.empty())
-            db_connection->queryOrDie("INSERT INTO missing_references (ppn) VALUES " + values);
+            db_connection.queryOrDie("INSERT INTO missing_references (ppn) VALUES " + values);
     }
 
     return EXIT_SUCCESS;

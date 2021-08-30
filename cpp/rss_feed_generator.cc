@@ -70,7 +70,7 @@ int Main(int argc, char *argv[]) {
     }
 
     IniFile ini_file(CONF_FILE_PATH);
-    DbConnection db_connection(ini_file);
+    DbConnection db_connection(DbConnection::MySQLFactory(ini_file));
 
     std::unique_ptr<File> output(FileUtil::OpenOutputFileOrDie(output_filename));
 

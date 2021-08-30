@@ -93,16 +93,16 @@ void CopyItem(DbConnection * const db_writer, const std::string &feed_id, const 
 
 
 int Main(int /*argc*/, char */*argv*/[]) {
-    auto db_reader((DbConnection()));
+    auto db_reader((DbConnection::UBToolsFactory()));
 
     if (not VuFind::GetTueFindFlavour().empty()) {
-        auto db_writer(VuFind::GetDbConnection());
+        auto db_writer(DbConnection::VuFindMySQLFactory());
         db_reader.queryOrDie("SELECT * FROM rss_aggregator");
         auto result_set(db_reader.getLastResultSet());
-        DbTransaction transaction(db_writer.get());
+        DbTransaction transaction(&db_writer);
         while (const auto row = result_set.getNextRow()) {
             FeedInfo feed_info;
-            if (not GetRSSFeedsID(db_writer.get(), row["feed_url"], &feed_info)) {
+            if (not GetRSSFeedsID(&db_writer, row["feed_url"], &feed_info)) {
                 transaction.rollback();
                 LOG_WARNING("Undid partial conversion w/ a ROLLBACK!");
                 return EXIT_FAILURE;
@@ -113,7 +113,7 @@ int Main(int /*argc*/, char */*argv*/[]) {
                           "\" which is incompatible with the subsystem_types \""
                           + StlHelpers::ContainerToString(feed_info.subsystem_types_.cbegin(),
                                                           feed_info.subsystem_types_.cend(), ","));
-            CopyItem(db_writer.get(), feed_info.id_, row["item_id"], row["item_url"], row["item_title"],
+            CopyItem(&db_writer, feed_info.id_, row["item_id"], row["item_url"], row["item_title"],
                      row["item_description"], row["pub_date"], row["insertion_time"]);
         }
         transaction.commit();

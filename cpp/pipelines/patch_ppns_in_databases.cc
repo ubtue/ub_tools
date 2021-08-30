@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2019, Library of the University of Tübingen
+    Copyright (C) 2019-2021, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -237,7 +237,7 @@ int Main(int argc, char **argv) {
             Usage();
     }
 
-    DbConnection db_connection; // ub_tools user
+    DbConnection db_connection(DbConnection::UBToolsFactory());
 
     CheckMySQLPermissions(&db_connection);
 

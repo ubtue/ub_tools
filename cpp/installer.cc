@@ -344,10 +344,11 @@ void CreateUbToolsDatabase(DbConnection * const db_connection_root) {
     // This assumes that we have been religiously updating our database creation statements for each patch that we created!
     std::map<std::string, unsigned> table_name_to_version_map;
     GetMaxTableVersions(&table_name_to_version_map);
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
     for (const auto &table_name_and_version : table_name_to_version_map) {
-        const std::string replace_statement("REPLACE INTO ub_tools.database_versions SET database_name='" + table_name_and_version.first
-                                           +"', version=" + StringUtil::ToString(table_name_and_version.second));
+        const std::string replace_statement("REPLACE INTO ub_tools.database_versions SET database_name='"
+                                            + table_name_and_version.first +"', version="
+                                            + StringUtil::ToString(table_name_and_version.second));
         db_connection.queryOrDie(replace_statement);
     }
 }
@@ -1099,7 +1100,7 @@ int Main(int argc, char **argv) {
 
     // Init root DB connection for later re-use
     AssureMysqlServerIsRunning(os_system_type);
-    DbConnection db_connection_root("mysql", "root", "");
+    DbConnection db_connection_root(DbConnection::MySQLFactory("mysql", "root", ""));
     // Needed so ub_tools user will be able to execute updates later, including triggers and stores procedures
     db_connection_root.queryOrDie("SET GLOBAL log_bin_trust_function_creators = 1");
 

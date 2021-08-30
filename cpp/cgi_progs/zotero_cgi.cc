@@ -3,7 +3,7 @@
  *  \author  Mario Trojan
  */
 /*
-    Copyright (C) 2016-2020, Library of the University of Tübingen
+    Copyright (C) 2016-2021, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -834,7 +834,7 @@ int Main(int argc, char *argv[]) {
     else
         names_to_values_map.insertScalar("test", "false");
 
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
     ZoteroHarvester::Util::UploadTracker upload_tracker;
     const std::string default_action("list");
     const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));

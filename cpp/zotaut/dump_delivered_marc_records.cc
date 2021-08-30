@@ -104,7 +104,7 @@ int Main(int argc, char *argv[]) {
 
     auto csv_file(FileUtil::OpenOutputFileOrDie(csv_path));
 
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
     csv_file->writeln("zeder_journal_id;zeder_id;zeder_instance;journal_name");
     GetJournalDetailsFromDb(&db_connection, zeder_journal_id, csv_file.get());
 
