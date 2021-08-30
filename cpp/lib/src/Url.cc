@@ -957,6 +957,9 @@ bool Url::makeAbsolute(const std::string &override_base_url) {
         else if (relative_url_[0] == '/') // We assume that "relative_url_" is an absolute path.
             url_ += relative_url_;
         else {  // We assume that "relative_url_" is a relative path.
+            // Make sure we do not skip the last part if relative_url_ is in fact a parameter
+            if (relative_url_[0] == '?' and base_path.back() != '/')
+                base_path.append(1, '/');
             if (not CanonizePath(relative_url_, base_path, &relative_url_)) {
                 error("in Url::makeAbsolute: cannot make relative path absolute!");
                 return false;
