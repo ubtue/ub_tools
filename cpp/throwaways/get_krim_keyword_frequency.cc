@@ -39,7 +39,7 @@ void ParseFrequencyTable(const std::string &path, std::unordered_map<std::string
     TextUtil::ParseCSVFileOrDie(path, &keywords_and_frequencies);
     for (const auto &keyword_and_frequency : keywords_and_frequencies) {
          if (keyword_and_frequency.size() != 2)
-            LOG_ERROR("Invalid keyword and frequency for entry " + 
+            LOG_ERROR("Invalid keyword and frequency for entry " +
                        StringUtil::Join(keyword_and_frequency, ","));
          all_frequency_map->emplace(keyword_and_frequency[0], keyword_and_frequency[1]);
     }
@@ -61,7 +61,7 @@ int Main(int argc, char *argv[]) {
         unsigned frequency_with_variants(0);
         for (const auto &token : tokens) {
             if (not std::all_of(token.begin(),token.end(),isspace)) {
-                if (all_frequencies_map.contains(token))
+                if (all_frequencies_map.find(token) != all_frequencies_map.end())
                     frequency_with_variants += std::stoi(all_frequencies_map[token]);
             }
         }
