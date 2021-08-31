@@ -22,109 +22,30 @@
 #include "util.h"
 
 
-DbResultSet::DbResultSet(MYSQL_RES * const mysql_res)
-    : pg_result_(nullptr), mysql_res_(mysql_res), stmt_handle_(nullptr), column_count_(::mysql_num_fields(mysql_res))
+void DbResultSet::init(size_t * const /*no_of_rows*/, size_t * const /*column_count*/,
+                       std::map<std::string, unsigned> * const /*field_name_to_index_map*/)
 {
-    const MYSQL_FIELD * const fields(::mysql_fetch_fields(mysql_res_));
-    for (unsigned col_no(0); col_no < column_count_; ++col_no)
-        field_name_to_index_map_.insert(std::pair<std::string, unsigned>(fields[col_no].name, col_no));
-    no_of_rows_ = ::mysql_num_rows(mysql_res_);
-}
-
-
-DbResultSet::DbResultSet(sqlite3_stmt * const stmt_handle)
-    : pg_result_(nullptr), mysql_res_(nullptr), stmt_handle_(stmt_handle), column_count_(::sqlite3_column_count(stmt_handle))
-{
-    for (unsigned col_no(0); col_no < column_count_; ++col_no) {
-        const char * const column_name(::sqlite3_column_name(stmt_handle_, col_no));
-        if (column_name == nullptr)
-            LOG_ERROR("sqlite3_column_name() failed for index " + std::to_string(col_no) + "!");
-        field_name_to_index_map_.insert(std::pair<std::string, unsigned>(column_name, col_no));
-    }
-    no_of_rows_ = ::sqlite3_data_count(stmt_handle_);
-    if (::sqlite3_reset(stmt_handle_) != SQLITE_OK)
-        LOG_ERROR("sqlite3_reset failed!");
-}
-
-
-DbResultSet::DbResultSet(PGresult * const pg_result)
-    : pg_result_(pg_result), mysql_res_(nullptr), stmt_handle_(nullptr), no_of_rows_(::PQntuples(pg_result)),
-      column_count_(::PQnfields(pg_result)), current_row_(-1)
-{
-    for (unsigned col_no(0); col_no < column_count_; ++col_no)
-        field_name_to_index_map_.insert(std::pair<std::string, unsigned>(::PQfname(pg_result, col_no), col_no));
-
-    no_of_rows_ = (pg_result_ == nullptr) ? 0 : ::PQntuples(pg_result_);
+    LOG_ERROR("this function must *never* be called!");
 }
 
 
 DbResultSet::DbResultSet(DbResultSet &&other) {
     if (&other != this) {
-        mysql_res_ = other.mysql_res_;
-        other.mysql_res_ = nullptr;
-        stmt_handle_ = other.stmt_handle_;
-        other.stmt_handle_ = nullptr;
+        delete db_result_set_;
+        db_result_set_ = other.db_result_set_;
+        other.db_result_set_ = nullptr;
+        no_of_rows_ = other.no_of_rows_;
+        column_count_ = other.column_count_;
+        field_name_to_index_map_.clear();
+        field_name_to_index_map_.swap(other.field_name_to_index_map_);
     }
 }
 
 
 DbResultSet::~DbResultSet() {
     field_name_to_index_map_.clear();
-    if (mysql_res_ != nullptr) {
-        ::mysql_free_result(mysql_res_);
-        mysql_res_ = nullptr;
-    } else {
-        if (stmt_handle_ != nullptr) {
-            if (sqlite3_finalize(stmt_handle_) != SQLITE_OK)
-                LOG_ERROR("failed to finalise an Sqlite3 statement!");
-            stmt_handle_ = nullptr;
-        }
-    }
-}
-
-
-DbRow DbResultSet::getNextRow() {
-    if (stmt_handle_ != nullptr) {
-        switch (::sqlite3_step(stmt_handle_)) {
-        case SQLITE_DONE:
-        case SQLITE_OK:
-            if (::sqlite3_finalize(stmt_handle_) != SQLITE_OK)
-                LOG_ERROR("failed to finalise an Sqlite3 statement!");
-            stmt_handle_ = nullptr;
-            field_name_to_index_map_.clear();
-            break;
-        case SQLITE_ROW:
-            break;
-        default:
-            LOG_ERROR("an unknown error occurred while calling sqlite3_step()!");
-        }
-
-        return DbRow(stmt_handle_, field_name_to_index_map_);
-    } else if (mysql_res_ != nullptr) {
-        const MYSQL_ROW row(::mysql_fetch_row(mysql_res_));
-
-        unsigned long *field_sizes;
-        unsigned field_count;
-        if (row == nullptr) {
-            field_sizes = nullptr;
-            field_count = 0;
-            field_name_to_index_map_.clear();
-        } else {
-            field_sizes = ::mysql_fetch_lengths(mysql_res_);
-            field_count = ::mysql_num_fields(mysql_res_);
-        }
-
-        return DbRow(row, field_sizes, field_count, field_name_to_index_map_);
-    } else { // Postgres
-        ++current_row_;
-        if (current_row_ == no_of_rows_) {
-            field_name_to_index_map_.clear();
-            return DbRow(nullptr, current_row_, /* field_count = */0, field_name_to_index_map_);
-        }
-
-        const int column_count(::PQnfields(pg_result_));
-        return DbRow(pg_result_, current_row_, column_count, field_name_to_index_map_);
-    }
+    delete db_result_set_;
+    db_result_set_ = nullptr;
 }
 
 
@@ -140,4 +61,120 @@ std::unordered_set<std::string> DbResultSet::getColumnSet(const std::string &col
         set.emplace(row[column]);
 
     return set;
+}
+
+
+DbResultSet::DbResultSet(DbResultSet * const db_result_set): db_result_set_(db_result_set) {
+    db_result_set_->init(&no_of_rows_, &column_count_, &field_name_to_index_map_);
+}
+
+
+void MySQLResultSet::init(size_t * const no_of_rows, size_t * const column_count,
+                          std::map<std::string, unsigned> * const field_name_to_index_map)
+{
+    *no_of_rows   = ::mysql_num_rows(mysql_res_);
+    *column_count = ::mysql_num_fields(mysql_res_);
+
+    const MYSQL_FIELD * const fields(::mysql_fetch_fields(mysql_res_));
+    for (unsigned col_no(0); col_no < column_count_; ++col_no)
+        field_name_to_index_map->insert(std::pair<std::string, unsigned>(fields[col_no].name, col_no));
+}
+
+
+DbRow MySQLResultSet::getNextRow() {
+    const MYSQL_ROW row(::mysql_fetch_row(mysql_res_));
+
+    unsigned long *field_sizes;
+    unsigned field_count;
+    if (row == nullptr) {
+        field_sizes = nullptr;
+        field_count = 0;
+        field_name_to_index_map_.clear();
+    } else {
+        field_sizes = ::mysql_fetch_lengths(mysql_res_);
+        field_count = ::mysql_num_fields(mysql_res_);
+    }
+
+    return DbRow(row, field_sizes, field_count, field_name_to_index_map_);
+}
+
+
+MySQLResultSet::~MySQLResultSet() {
+    if (mysql_res_ != nullptr) {
+        ::mysql_free_result(mysql_res_);
+        mysql_res_ = nullptr;
+    }
+}
+
+
+void Sqlite3ResultSet::init(size_t * const no_of_rows, size_t * const column_count,
+                            std::map<std::string, unsigned> * const field_name_to_index_map)
+{
+    *no_of_rows   = ::sqlite3_data_count(stmt_handle_);
+    *column_count = ::sqlite3_column_count(stmt_handle_);
+
+    for (unsigned col_no(0); col_no < *column_count; ++col_no) {
+        const char * const column_name(::sqlite3_column_name(stmt_handle_, col_no));
+        if (column_name == nullptr)
+            LOG_ERROR("sqlite3_column_name() failed for index " + std::to_string(col_no) + "!");
+        field_name_to_index_map->insert(std::pair<std::string, unsigned>(column_name, col_no));
+    }
+
+    if (::sqlite3_reset(stmt_handle_) != SQLITE_OK)
+        LOG_ERROR("sqlite3_reset failed!");
+}
+
+
+Sqlite3ResultSet::~Sqlite3ResultSet() {
+    if (stmt_handle_ != nullptr) {
+        if (sqlite3_finalize(stmt_handle_) != SQLITE_OK)
+            LOG_ERROR("failed to finalise an Sqlite3 statement!");
+        stmt_handle_ = nullptr;
+    }
+}
+
+
+DbRow Sqlite3ResultSet::getNextRow() {
+    switch (::sqlite3_step(stmt_handle_)) {
+    case SQLITE_DONE:
+    case SQLITE_OK:
+        if (::sqlite3_finalize(stmt_handle_) != SQLITE_OK)
+            LOG_ERROR("failed to finalise an Sqlite3 statement!");
+        stmt_handle_ = nullptr;
+        field_name_to_index_map_.clear();
+        break;
+    case SQLITE_ROW:
+        break;
+    default:
+        LOG_ERROR("an unknown error occurred while calling sqlite3_step()!");
+    }
+
+    return DbRow(stmt_handle_, field_name_to_index_map_);
+}
+
+
+void PostgresResultSet::init(size_t * const no_of_rows, size_t * const column_count,
+                             std::map<std::string, unsigned> * const field_name_to_index_map)
+{
+    if (pg_result_ == nullptr)
+        *no_of_rows = *column_count = 0;
+    else {
+        *no_of_rows   = (pg_result_ == nullptr) ? 0 : ::PQntuples(pg_result_);
+        *column_count = ::PQnfields(pg_result_);
+
+        for (unsigned col_no(0); col_no < column_count_; ++col_no)
+            field_name_to_index_map->insert(std::pair<std::string, unsigned>(::PQfname(pg_result_, col_no), col_no));
+    }
+}
+
+
+DbRow PostgresResultSet::getNextRow() {
+    ++pg_row_number_;
+    if (pg_row_number_ == static_cast<int>(no_of_rows_)) {
+        field_name_to_index_map_.clear();
+        return DbRow(nullptr, pg_row_number_, /* field_count = */0, field_name_to_index_map_);
+    }
+
+    const int column_count(::PQnfields(pg_result_));
+    return DbRow(pg_result_, pg_row_number_, column_count, field_name_to_index_map_);
 }

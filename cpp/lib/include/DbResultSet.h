@@ -30,24 +30,20 @@
 
 
 class DbResultSet {
+    friend class DbConnection;
     friend class MySQLDbConnection;
     friend class Sqlite3DbConnection;
     friend class PostgresDbConnection;
-    PGresult *pg_result_;
-    MYSQL_RES *mysql_res_;
-    sqlite3_stmt *stmt_handle_;
-    size_t no_of_rows_, column_count_, current_row_;
+    DbResultSet *db_result_set_;
+protected:
+    size_t no_of_rows_, column_count_;
     std::map<std::string, unsigned> field_name_to_index_map_;
-private:
-    explicit DbResultSet(MYSQL_RES * const mysql_res);
-    explicit DbResultSet(sqlite3_stmt * const stmt_handle);
-    explicit DbResultSet(PGresult * const pg_result);
 public:
     DbResultSet(DbResultSet &&other);
 
     /** \note If you need to instantiate a new DbResultSet instance while another is still live,
               you need to call this destructor explicitly on the live instance! (Yes, this is an evil hack!) */
-    ~DbResultSet();
+    virtual ~DbResultSet();
 
     /** \return The number of rows in the result set. */
     inline size_t size() const { return no_of_rows_; }
@@ -64,7 +60,7 @@ public:
      *      ProcessRow(row);
      *
      */
-    DbRow getNextRow();
+    inline virtual DbRow getNextRow() { return db_result_set_->getNextRow(); }
 
     bool hasColumn(const std::string &column_name) const;
 
@@ -72,4 +68,54 @@ public:
     std::unordered_set<std::string> getColumnSet(const std::string &column);
 
     inline const std::map<std::string, unsigned> getColumnNamesAndIndices() const { return field_name_to_index_map_; }
+protected:
+    DbResultSet(DbResultSet * const db_result_set);
+    virtual void init(size_t * const no_of_rows, size_t * const column_count,
+                      std::map<std::string, unsigned> * const field_name_to_index_map);
+};
+
+
+class MySQLResultSet final : public DbResultSet {
+    friend class DbConnection;
+    friend class DbResultSet;
+    friend class MySQLDbConnection;
+    MYSQL_RES *mysql_res_;
+private:
+    MySQLResultSet(MYSQL_RES * const mysql_res): DbResultSet(this), mysql_res_(mysql_res) { }
+    virtual ~MySQLResultSet();
+
+    virtual void init(size_t * const no_of_rows, size_t * const column_count,
+                      std::map<std::string, unsigned> * const field_name_to_index_map);
+    virtual DbRow getNextRow();
+};
+
+
+class Sqlite3ResultSet final : public DbResultSet {
+    friend class DbConnection;
+    friend class DbResultSet;
+    friend class Sqlite3DbConnection;
+    sqlite3_stmt *stmt_handle_;
+private:
+    Sqlite3ResultSet(sqlite3_stmt * const stmt_handle): DbResultSet(this), stmt_handle_(stmt_handle) { }
+    virtual ~Sqlite3ResultSet();
+
+    virtual void init(size_t * const no_of_rows, size_t * const column_count,
+                      std::map<std::string, unsigned> * const field_name_to_index_map);
+    virtual DbRow getNextRow();
+};
+
+
+class PostgresResultSet final : public DbResultSet {
+    friend class DbConnection;
+    friend class DbResultSet;
+    friend class PostgresDbConnection;
+    PGresult *pg_result_;
+    int pg_row_number_;
+private:
+    PostgresResultSet(PGresult * const pg_result): DbResultSet(this), pg_result_(pg_result), pg_row_number_(-1) { }
+    virtual ~PostgresResultSet() { }
+
+    virtual void init(size_t * const no_of_rows, size_t * const column_count,
+                      std::map<std::string, unsigned> * const field_name_to_index_map);
+    virtual DbRow getNextRow();
 };
