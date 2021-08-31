@@ -56,31 +56,16 @@
         $(".editable_translation").blur(function() {{
             InsertTranslationIntoDB(this);
         });
-
-        var eventSource;
         if (!!window.EventSource)
         {{
-            eventSource = new EventSource('/cgi-bin/message_dispatcher', {{ withCredentials: true});
+            setupEventSource();
         }
         else
         {{
             alert('Your browser does not support HTML5 Server-Sent Events');
         }
-
-        eventSource.onmessage = function(event) {{
-            //console.log("message: " + event.data);
-            EventSourceChangeStyle(event.data);
-        };
-        eventSource.onopen = function(event) {{
-            console.log(event);
-        };
-        eventSource.onerror = function(event) {{
-            console.log(event);
-        };
-
-
-
     });
+
 
     function EventSourceChangeStyle(eventData){{
         if(IsJsonString(eventData) === true){{
@@ -92,8 +77,69 @@
                 }
             })
         }
-
     }
+
+
+    function isFunction(functionToCheck) {{
+            return functionToCheck && {{}.toString.call(functionToCheck) === '[object Function]';
+    }
+
+
+    function debounce(func, wait) {{
+        var timeout;
+        var waitFunc;
+
+        return function () {{
+            if (isFunction(wait)) {{
+                waitFunc = wait;
+            }
+            else {{
+                waitFunc = function () {{ return wait };
+            }
+            var context = this, args = arguments;
+            var later = function () {{
+                timeout = null;
+                func.apply(context, args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, waitFunc());
+        };
+    }
+
+
+    // reconnectFrequencySeconds doubles every retry
+    var reconnectFrequencySeconds = 1;
+    var eventSource;
+    var reconnectFunc = debounce(function () {{
+        setupEventSource();
+        // Double every attempt to avoid overwhelming server
+        reconnectFrequencySeconds *= 2;
+        // Max out at ~1 minute as a compromise between user experience and server load
+        if (reconnectFrequencySeconds >= 64) {{
+            reconnectFrequencySeconds = 64;
+        }
+    }, function () {{ return reconnectFrequencySeconds * 1000 });
+
+
+    function setupEventSource() {{
+        eventSource = new EventSource('/cgi-bin/message_dispatcher', {{ withCredentials: true });
+        eventSource.onmessage = function (event) {{
+            EventSourceChangeStyle(event.data)
+        };
+        eventSource.onopen = function (event) {{
+            console.log(event);
+            // Reset reconnect frequency upon successful connection
+            reconnectFrequencySeconds = 1;
+        };
+        eventSource.onerror = function (event) {{
+            console.log(event);
+            if (eventSource.readyState == 2) {{
+                eventSource.close();
+                reconnectFunc();
+            }
+        };
+    }
+
 
     function IsJsonString(str) {{
         try {{
@@ -104,9 +150,11 @@
         return true;
     }
 
+
     function IsEmpty(str) {{
        return (!str || 0 === str.length);
     }
+
 
     function InsertTranslationIntoDB(object) {{
        var index = $(object).attr("index");

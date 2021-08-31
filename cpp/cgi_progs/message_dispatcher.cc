@@ -33,6 +33,30 @@
 #include "UrlUtil.h"
 #include "util.h"
 #include "WebUtil.h"
+#include "TimerUtil.h"
+
+const int TIMEOUT = 3 * 1000 * 60;
+
+
+extern "C" void InterruptCgi(int /*signal_no*/) {
+    std::cerr << "Translator timeout reached - stopping cgi (will be reinitialized by sse  client)" << std::endl;
+    std::exit(0);
+}
+
+
+void InitializeTimer() {
+    TimerUtil::malarm(0);
+    struct sigaction new_action;
+    new_action.sa_handler = InterruptCgi;
+    sigemptyset(&new_action.sa_mask);
+    new_action.sa_flags = 0;
+    if (::sigaction(SIGALRM, &new_action, nullptr) < 0) {
+      std::cerr << "fatal: signal registration failed" << std::endl;
+      std::exit(-1);
+    }
+    TimerUtil::malarm(TIMEOUT);
+}
+
 
 int Main(int argc, char *argv[]) {
     
@@ -66,6 +90,7 @@ int Main(int argc, char *argv[]) {
     // Wait for incoming message 
     while(true) {
        sd_bus_wait(bus, UINT64_MAX);
+       InitializeTimer();
        r = sd_bus_process(bus, &m);
        if (r == 0)
            continue;
