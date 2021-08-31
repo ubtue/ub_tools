@@ -607,8 +607,16 @@ void AdjustLanguages(MetadataRecord * const metadata_record, const Config::Journ
     // compare language from zotero to detected language
     if (not detected_language.empty()) {
         if (journal_params.language_params_.mode_ == Config::LanguageParams::FORCE_DETECTION) {
-            LOG_INFO ("Force language detection active - using " + configured_or_detected_info + " language: " + detected_language);
-            metadata_record->languages_ = { detected_language };
+            LOG_INFO ("Force language detection active - " + configured_or_detected_info + " language: " + detected_language);
+            if (journal_params.language_params_.expected_languages_.find(detected_language) == journal_params.language_params_.expected_languages_.end()) {
+                LOG_INFO("Detected language : " + detected_language + " is not in the given set of admissible languages. "
+                         "No language will be set");
+                metadata_record->languages_.clear();
+            } else {
+                LOG_INFO("Using detected language: " + detected_language);
+                metadata_record->languages_ = { detected_language };
+            }
+
         } else if (metadata_record->languages_.empty()) {
             LOG_INFO("Using " + configured_or_detected_info + " language: " + detected_language);
             metadata_record->languages_.emplace(detected_language);
@@ -1378,6 +1386,9 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
             ConvertZoteroItemToMetadataRecord(json_object, &new_metadata_record);
 
             if (ExcludeUndesiredItemTypes(new_metadata_record)) {
+                LOG_WARNING("Skipping record with URL " +
+                            (new_metadata_record.url_.empty() ? new_metadata_record.url_ : "[Unknown]") +
+                            " because it is an undesired item type");
                 ++result->num_skipped_since_undesired_item_type_;
                 continue;
             }

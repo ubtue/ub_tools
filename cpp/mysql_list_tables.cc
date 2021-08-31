@@ -41,7 +41,7 @@ void ProcessTablesOrViews(DbConnection * const db_connection, const bool process
     DbRow row1;
     while (row1 = result_set1.getNextRow()) {
         db_connection->queryOrDie("SHOW CREATE " + std::string(process_tables ? "TABLE" : "VIEW")
-                                  + " " + db_connection->getDbName() + "." + row1[0]);
+                                  + " " + db_connection->mySQLGetDbName() + "." + row1[0]);
         DbResultSet result_set2(db_connection->getLastResultSet());
         DbRow row2;
         while (row2 = result_set2.getNextRow())

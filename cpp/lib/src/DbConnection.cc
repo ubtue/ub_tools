@@ -37,17 +37,8 @@ DbConnection::DbConnection(DbConnection &&other) {
     delete db_connection_;
     db_connection_ = other.db_connection_;
     initialised_   = other.initialised_;
-    database_name_ = other.database_name_;
-    passwd_        = other.passwd_;
-    host_          = other.host_;
-    port_          = other.port_;
     other.db_connection_ = nullptr;
     other.initialised_ = false;
-    other.database_name_.clear();
-    other.user_.clear();
-    other.passwd_.clear();
-    other.host_.clear();
-    other.port_ = 0;
 }
 
 
@@ -371,6 +362,51 @@ std::string DbConnection::sqliteEscapeBlobData(const std::string &blob_data) {
 }
 
 
+std::string DbConnection::mySQLGetDbName() const {
+    const auto mysql_db_connection(dynamic_cast<MySQLDbConnection *>(db_connection_));
+    if (unlikely(mysql_db_connection == nullptr))
+        LOG_ERROR("we need a MySQLDbConnection here!");
+
+    return mysql_db_connection->getDbName();
+}
+
+
+std::string DbConnection::mySQLGetUser() const {
+    const auto mysql_db_connection(dynamic_cast<MySQLDbConnection *>(db_connection_));
+    if (unlikely(mysql_db_connection == nullptr))
+        LOG_ERROR("we need a MySQLDbConnection here!");
+
+    return mysql_db_connection->getUser();
+}
+
+
+std::string DbConnection::mySQLGetPasswd() const {
+    const auto mysql_db_connection(dynamic_cast<MySQLDbConnection *>(db_connection_));
+    if (unlikely(mysql_db_connection == nullptr))
+        LOG_ERROR("we need a MySQLDbConnection here!");
+
+    return mysql_db_connection->getPasswd();
+}
+
+
+std::string DbConnection::mySQLGetHost() const {
+    const auto mysql_db_connection(dynamic_cast<MySQLDbConnection *>(db_connection_));
+    if (unlikely(mysql_db_connection == nullptr))
+        LOG_ERROR("we need a MySQLDbConnection here!");
+
+    return mysql_db_connection->getHost();
+}
+
+
+unsigned DbConnection::mySQLGetPort() const {
+    const auto mysql_db_connection(dynamic_cast<MySQLDbConnection *>(db_connection_));
+    if (unlikely(mysql_db_connection == nullptr))
+        LOG_ERROR("we need a MySQLDbConnection here!");
+
+    return mysql_db_connection->getPort();
+}
+
+
 std::string DbConnection::CharsetToString(const Charset charset) {
     switch (charset) {
     case UTF8MB3:
@@ -560,6 +596,33 @@ bool DbConnection::mySQLUserExists(const std::string &user, const std::string &h
     DbResultSet result_set(getLastResultSet());
     const DbRow result_row(result_set.getNextRow());
     return result_row["user_count"] != "0";
+}
+
+
+std::string DbConnection::PostgresGetUser() const {
+    const auto mysql_db_connection(dynamic_cast<PostgresDbConnection *>(db_connection_));
+    if (unlikely(mysql_db_connection == nullptr))
+        LOG_ERROR("we need a PostgresDbConnection here!");
+
+    return mysql_db_connection->getUser();
+}
+
+
+std::string DbConnection::PostgresGetPasswd() const {
+    const auto mysql_db_connection(dynamic_cast<PostgresDbConnection *>(db_connection_));
+    if (unlikely(mysql_db_connection == nullptr))
+        LOG_ERROR("we need a PostgresDbConnection here!");
+
+    return mysql_db_connection->getPasswd();
+}
+
+
+unsigned DbConnection::PostgresGetPort() const {
+    const auto mysql_db_connection(dynamic_cast<PostgresDbConnection *>(db_connection_));
+    if (unlikely(mysql_db_connection == nullptr))
+        LOG_ERROR("we need a PostgresDbConnection here!");
+
+    return mysql_db_connection->getPort();
 }
 
 

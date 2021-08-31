@@ -59,11 +59,6 @@ private:
     DbConnection *db_connection_;
 protected:
     bool initialised_;
-    std::string database_name_;
-    std::string user_;
-    std::string passwd_;
-    std::string host_;
-    unsigned port_;
 public:
     DbConnection(DbConnection &&other);
 
@@ -105,11 +100,6 @@ public:
 
     inline bool isNullConnection() const { return db_connection_ == nullptr; }
     inline virtual Type getType() const { return db_connection_->getType(); }
-    inline std::string getDbName() const { return database_name_; }
-    inline std::string getUser() const { return user_; }
-    inline std::string getPasswd() const { return passwd_; }
-    inline std::string getHost() const { return host_; }
-    inline unsigned getPort() const { return port_; }
 
     /** \warning You must not call this for Postgres as it doesn't support the notion of a purely numeric error code! */
     virtual int getLastErrorCode() const { return db_connection_->getLastErrorCode(); }
@@ -209,6 +199,12 @@ public:
     // Returns a string of the form x'A554E59F' etc.
     std::string sqliteEscapeBlobData(const std::string &blob_data);
 
+    std::string mySQLGetDbName() const;
+    std::string mySQLGetUser() const;
+    std::string mySQLGetPasswd() const;
+    std::string mySQLGetHost() const;
+    unsigned mySQLGetPort() const;
+
     inline void mySQLCreateDatabase(const std::string &database_name, const Charset charset = UTF8MB4,
                                     const Collation collation = UTF8MB4_BIN)
     {
@@ -258,14 +254,17 @@ public:
     }
 
     inline bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges) {
-        return mySQLUserHasPrivileges(database_name, privileges, getUser(), getHost());
+        return mySQLUserHasPrivileges(database_name, privileges, mySQLGetUser(), mySQLGetHost());
     }
+
+    std::string PostgresGetUser() const;
+    std::string PostgresGetPasswd() const;
+    std::string PostgresGetHost() const;
+    unsigned PostgresGetPort() const;
 
     static std::string TypeToString(const Type type);
 protected:
     DbConnection(): db_connection_(nullptr) { }
-    DbConnection(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port)
-        : db_connection_(nullptr), user_(user), passwd_(passwd), host_(host), port_(port) { }
     DbConnection(DbConnection * const db_connection) : db_connection_(db_connection) { }
 public:
     /** \brief Splits "query" into individual statements.
@@ -331,6 +330,11 @@ public:
 class MySQLDbConnection final : public DbConnection {
     friend class DbConnection;
     mutable MYSQL mysql_;
+    std::string database_name_;
+    std::string user_;
+    std::string passwd_;
+    std::string host_;
+    unsigned port_;
     DbConnection::Charset charset_;
     TimeZone time_zone_;
 protected:
@@ -371,6 +375,11 @@ private:
 
     void init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port,
               const Charset charset, const TimeZone time_zone);
+    inline std::string getDbName() const { return database_name_; }
+    inline std::string getUser() const { return user_; }
+    inline std::string getPasswd() const { return passwd_; }
+    inline std::string getHost() const { return host_; }
+    inline unsigned getPort() const { return port_; }
 };
 
 
@@ -402,10 +411,14 @@ class PostgresDbConnection final : public DbConnection {
     friend class DbConnection;
     PGconn *pg_conn_;
     PGresult *pg_result_;
+    std::string user_;
+    std::string passwd_;
+    std::string host_;
+    unsigned port_;
 protected:
     PostgresDbConnection(PGconn * const pg_conn, const std::string &user, const std::string &passwd, const std::string &host,
                          const unsigned port)
-        : DbConnection(user, passwd, host, port), pg_conn_(pg_conn), pg_result_(nullptr) { }
+        : DbConnection(this), pg_conn_(pg_conn), pg_result_(nullptr), user_(user), passwd_(passwd), host_(host), port_(port) { }
     inline virtual ~PostgresDbConnection();
 
     inline virtual DbConnection::Type getType() const override { return DbConnection::T_POSTGRES; }
@@ -419,6 +432,11 @@ protected:
     virtual std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false,
                                      const bool return_null_on_empty_string = false) override;
     virtual bool tableExists(const std::string &database_name, const std::string &table_name) override;
+private:
+    inline std::string getUser() const { return user_; }
+    inline std::string getPasswd() const { return passwd_; }
+    inline std::string getHost() const { return host_; }
+    inline unsigned getPort() const { return port_; }
 };
 
 
