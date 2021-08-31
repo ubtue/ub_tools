@@ -178,10 +178,11 @@ void DeleteFromNotifiedDB(const std::string &user_type, const std::unordered_set
 
 void CheckMySQLPermissions(DbConnection * const db_connection) {
     if (not db_connection->mySQLUserHasPrivileges("vufind", DbConnection::MYSQL_ALL_PRIVILEGES))
-        LOG_ERROR("'" + db_connection->getUser() + "'@'" + db_connection->getHost() + "' needs all permissions on the vufind database!");
+        LOG_ERROR("'" + db_connection->mySQLGetUser() + "'@'" + db_connection->mySQLGetHost()
+                  + "' needs all permissions on the vufind database!");
     if (VuFind::GetTueFindFlavour() == "ixtheo") {
         if (not db_connection->mySQLUserHasPrivileges("ixtheo", DbConnection::MYSQL_ALL_PRIVILEGES))
-            LOG_ERROR("'" + db_connection->getUser() + "'@' " + db_connection->getHost()
+            LOG_ERROR("'" + db_connection->mySQLGetUser() + "'@' " + db_connection->mySQLGetHost()
                       + "' needs all permissions on the ixtheo database!");
     }
 }
