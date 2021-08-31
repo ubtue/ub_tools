@@ -30,6 +30,27 @@
 #include "VuFind.h"
 
 
+DbConnection::DbConnection(DbConnection &&other) {
+    if (unlikely(this == &other))
+        return;
+
+    delete db_connection_;
+    db_connection_ = other.db_connection_;
+    initialised_   = other.initialised_;
+    database_name_ = other.database_name_;
+    passwd_        = other.passwd_;
+    host_          = other.host_;
+    port_          = other.port_;
+    other.db_connection_ = nullptr;
+    other.initialised_ = false;
+    other.database_name_.clear();
+    other.user_.clear();
+    other.passwd_.clear();
+    other.host_.clear();
+    other.port_ = 0;
+}
+
+
 DbConnection DbConnection::UBToolsFactory(const TimeZone time_zone) {
     return DbConnection(new MySQLDbConnection(time_zone));
 }
@@ -889,7 +910,7 @@ DbResultSet MySQLDbConnection::getLastResultSet() {
     if (result_set == nullptr)
         LOG_ERROR("::mysql_store_result() failed! (" + getLastErrorMessage() + ")");
 
-    return DbResultSet(result_set);
+    return DbResultSet(new MySQLResultSet(result_set));
 }
 
 
@@ -1058,7 +1079,7 @@ bool Sqlite3DbConnection::backup(const std::string &output_filename, std::string
 DbResultSet Sqlite3DbConnection::getLastResultSet() {
     const auto temp_handle(stmt_handle_);
     stmt_handle_ = nullptr;
-    return DbResultSet(temp_handle);
+    return DbResultSet(new Sqlite3ResultSet(temp_handle));
 }
 
 
@@ -1183,7 +1204,7 @@ bool PostgresDbConnection::backup(const std::string &/*output_filename*/, std::s
 DbResultSet PostgresDbConnection::getLastResultSet() {
     const auto temp_pg_result = pg_result_;
     pg_result_ = nullptr;
-    return DbResultSet(temp_pg_result);
+    return DbResultSet(new PostgresResultSet(temp_pg_result));
 }
 
 

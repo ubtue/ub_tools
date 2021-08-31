@@ -65,22 +65,7 @@ protected:
     std::string host_;
     unsigned port_;
 public:
-    DbConnection(DbConnection &&other) {
-        delete db_connection_;
-        db_connection_ = other.db_connection_;
-        initialised_   = other.initialised_;
-        database_name_ = other.database_name_;
-        passwd_        = other.passwd_;
-        host_          = other.host_;
-        port_          = other.port_;
-        other.db_connection_ = nullptr;
-        other.initialised_ = false;
-        other.database_name_.clear();
-        other.user_.clear();
-        other.passwd_.clear();
-        other.host_.clear();
-        other.port_ = 0;
-    }
+    DbConnection(DbConnection &&other);
 
     // \return An unusable DbConnection, in fact, all you can do on it is call isNullConnection().
     static DbConnection NullFactory() { return DbConnection(); }
