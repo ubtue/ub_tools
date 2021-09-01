@@ -59,10 +59,22 @@
         if (!!window.EventSource)
         {{
             connectEventSource();
+
+            let reconnecting = false;
+            setInterval(() => {{
+                if (eventSource.readyState == EventSource.CLOSED) {{
+                    reconnecting = true;
+                    console.log("reconnecting...");
+                    connectEventSource();
+                } else if (reconnecting) {{
+                    reconnecting = false
+                    console.log("reconnected!");
+                }
+            }, 3000);
         }
         else
         {{
-            alert('Your browser does not support HTML5 Server-Sent Events');
+            alert('You will not be updated of changes made by others - consider using a different browser');
         }
     });
 
@@ -82,7 +94,6 @@
 
     let eventSource = null;
 
-
     function connectEventSource() {{
         eventSource = new EventSource('/cgi-bin/message_dispatcher', {{ withCredentials: true });
         eventSource.onerror = function() {{
@@ -92,19 +103,6 @@
             EventSourceChangeStyle(event.data)
         };
     }
-
-
-    let reconnecting = false;
-    setInterval(() => {{
-        if (eventSource.readyState == EventSource.CLOSED) {{
-            reconnecting = true;
-            console.log("reconnecting...");
-            connectEventSource();
-        } else if (reconnecting) {{
-            reconnecting = false
-            console.log("reconnected!");
-        }
-    }, 3000);
 
 
     function IsJsonString(str) {{
