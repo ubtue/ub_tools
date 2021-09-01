@@ -25,7 +25,7 @@ install: $(PROGS)
 	@echo "Installing CGI programs..."
 	mkdir --parents $(CGI_DIR)
 ifndef APACHE_SYSTEMCTL_ARGUMENT
-$(error could not determine systemctl argument)
+	$(error could not determine systemctl argument)
 else
 	if [ $(shell pgrep --count --full message_dispatcher) -ne 0 ]; then \
 	    systemctl stop $(APACHE_SYSTEMCTL_ARGUMENT); \
