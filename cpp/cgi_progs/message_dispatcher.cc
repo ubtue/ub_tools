@@ -33,16 +33,49 @@
 #include "UrlUtil.h"
 #include "util.h"
 #include "WebUtil.h"
+#include "TimerUtil.h"
+
+const int TIMEOUT = 3 * 1000 * 60;
+
+#pragma GCC diagnostic ignored "-Wc99-extensions"
+sd_bus_error error = SD_BUS_ERROR_NULL;
+sd_bus_message *m = NULL;
+sd_bus *bus = NULL;
+
+
+void cleanup() {
+    sd_bus_error_free(&error);
+    sd_bus_message_unref(m);
+    sd_bus_unref(bus);
+}
+
+
+extern "C" void InterruptCgi(int /*signal_no*/) {
+    std::cerr << "Translator timeout reached - stopping cgi (will be reinitialized by sse  client)" << std::endl;
+    cleanup();
+    std::exit(0);
+}
+
+
+void InitializeTimer() {
+    TimerUtil::malarm(0);
+    struct sigaction new_action;
+    new_action.sa_handler = InterruptCgi;
+    sigemptyset(&new_action.sa_mask);
+    new_action.sa_flags = 0;
+    if (::sigaction(SIGALRM, &new_action, nullptr) < 0) {
+      std::cerr << "fatal: signal registration failed" << std::endl;
+      std::exit(-1);
+    }
+    TimerUtil::malarm(TIMEOUT);
+}
+
 
 int Main(int argc, char *argv[]) {
     
     std::multimap<std::string, std::string> cgi_args;
     WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
-    
-    #pragma GCC diagnostic ignored "-Wc99-extensions"
-    sd_bus_error error = SD_BUS_ERROR_NULL;
-    sd_bus_message *m = NULL;
-    sd_bus *bus = NULL;
+
     int r;
 
     // Connect to the bus
@@ -63,9 +96,12 @@ int Main(int argc, char *argv[]) {
     std::cout << "Content-Type: text/event-stream; charset=utf-8\r\n";
     std::cout << "Cache-Control: no-cache\r\n\r\n" << std::flush;
 
+    InitializeTimer();
+
     // Wait for incoming message 
     while(true) {
        sd_bus_wait(bus, UINT64_MAX);
+       InitializeTimer();
        r = sd_bus_process(bus, &m);
        if (r == 0)
            continue;
@@ -83,9 +119,7 @@ int Main(int argc, char *argv[]) {
     }
 
 finish:
-    sd_bus_error_free(&error);
-    sd_bus_message_unref(m);
-    sd_bus_unref(bus);
+    cleanup();
 
     return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

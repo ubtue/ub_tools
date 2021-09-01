@@ -56,31 +56,28 @@
         $(".editable_translation").blur(function() {{
             InsertTranslationIntoDB(this);
         });
-
-        var eventSource;
         if (!!window.EventSource)
         {{
-            eventSource = new EventSource('/cgi-bin/message_dispatcher', {{ withCredentials: true});
+            connectEventSource();
+
+            let reconnecting = false;
+            setInterval(() => {{
+                if (eventSource.readyState == EventSource.CLOSED) {{
+                    reconnecting = true;
+                    console.log("reconnecting...");
+                    connectEventSource();
+                } else if (reconnecting) {{
+                    reconnecting = false
+                    console.log("reconnected!");
+                }
+            }, 3000);
         }
         else
         {{
-            alert('Your browser does not support HTML5 Server-Sent Events');
+            alert('You will not be updated of changes made by others - consider using a different browser');
         }
-
-        eventSource.onmessage = function(event) {{
-            //console.log("message: " + event.data);
-            EventSourceChangeStyle(event.data);
-        };
-        eventSource.onopen = function(event) {{
-            console.log(event);
-        };
-        eventSource.onerror = function(event) {{
-            console.log(event);
-        };
-
-
-
     });
+
 
     function EventSourceChangeStyle(eventData){{
         if(IsJsonString(eventData) === true){{
@@ -92,8 +89,21 @@
                 }
             })
         }
-
     }
+
+
+    let eventSource = null;
+
+    function connectEventSource() {{
+        eventSource = new EventSource('/cgi-bin/message_dispatcher', {{ withCredentials: true });
+        eventSource.onerror = function() {{
+            eventSource.close();
+        }
+        eventSource.onmessage = function (event) {{
+            EventSourceChangeStyle(event.data)
+        };
+    }
+
 
     function IsJsonString(str) {{
         try {{
@@ -104,9 +114,11 @@
         return true;
     }
 
+
     function IsEmpty(str) {{
        return (!str || 0 === str.length);
     }
+
 
     function InsertTranslationIntoDB(object) {{
        var index = $(object).attr("index");
