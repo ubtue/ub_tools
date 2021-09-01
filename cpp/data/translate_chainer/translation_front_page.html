@@ -58,7 +58,7 @@
         });
         if (!!window.EventSource)
         {{
-            setupEventSource();
+            connectEventSource();
         }
         else
         {{
@@ -80,65 +80,31 @@
     }
 
 
-    function isFunction(functionToCheck) {{
-            return functionToCheck && {{}.toString.call(functionToCheck) === '[object Function]';
-    }
+    let eventSource = null;
 
 
-    function debounce(func, wait) {{
-        var timeout;
-        var waitFunc;
-
-        return function () {{
-            if (isFunction(wait)) {{
-                waitFunc = wait;
-            }
-            else {{
-                waitFunc = function () {{ return wait };
-            }
-            var context = this, args = arguments;
-            var later = function () {{
-                timeout = null;
-                func.apply(context, args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, waitFunc());
-        };
-    }
-
-
-    // reconnectFrequencySeconds doubles every retry
-    var reconnectFrequencySeconds = 1;
-    var eventSource;
-    var reconnectFunc = debounce(function () {{
-        setupEventSource();
-        // Double every attempt to avoid overwhelming server
-        reconnectFrequencySeconds *= 2;
-        // Max out at ~1 minute as a compromise between user experience and server load
-        if (reconnectFrequencySeconds >= 64) {{
-            reconnectFrequencySeconds = 64;
-        }
-    }, function () {{ return reconnectFrequencySeconds * 1000 });
-
-
-    function setupEventSource() {{
+    function connectEventSource() {{
         eventSource = new EventSource('/cgi-bin/message_dispatcher', {{ withCredentials: true });
+        eventSource.onerror = function() {{
+            eventSource.close();
+        }
         eventSource.onmessage = function (event) {{
             EventSourceChangeStyle(event.data)
         };
-        eventSource.onopen = function (event) {{
-            console.log(event);
-            // Reset reconnect frequency upon successful connection
-            reconnectFrequencySeconds = 1;
-        };
-        eventSource.onerror = function (event) {{
-            console.log(event);
-            if (eventSource.readyState == 2) {{
-                eventSource.close();
-                reconnectFunc();
-            }
-        };
     }
+
+
+    let reconnecting = false;
+    setInterval(() => {{
+        if (eventSource.readyState == EventSource.CLOSED) {{
+            reconnecting = true;
+            console.log("reconnecting...");
+            connectEventSource();
+        } else if (reconnecting) {{
+            reconnecting = false
+            console.log("reconnected!");
+        }
+    }, 3000);
 
 
     function IsJsonString(str) {{

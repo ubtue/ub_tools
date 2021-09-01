@@ -37,9 +37,22 @@
 
 const int TIMEOUT = 3 * 1000 * 60;
 
+#pragma GCC diagnostic ignored "-Wc99-extensions"
+sd_bus_error error = SD_BUS_ERROR_NULL;
+sd_bus_message *m = NULL;
+sd_bus *bus = NULL;
+
+
+void cleanup() {
+    sd_bus_error_free(&error);
+    sd_bus_message_unref(m);
+    sd_bus_unref(bus);
+}
+
 
 extern "C" void InterruptCgi(int /*signal_no*/) {
     std::cerr << "Translator timeout reached - stopping cgi (will be reinitialized by sse  client)" << std::endl;
+    cleanup();
     std::exit(0);
 }
 
@@ -62,11 +75,7 @@ int Main(int argc, char *argv[]) {
     
     std::multimap<std::string, std::string> cgi_args;
     WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
-    
-    #pragma GCC diagnostic ignored "-Wc99-extensions"
-    sd_bus_error error = SD_BUS_ERROR_NULL;
-    sd_bus_message *m = NULL;
-    sd_bus *bus = NULL;
+
     int r;
 
     // Connect to the bus
@@ -86,6 +95,8 @@ int Main(int argc, char *argv[]) {
     // Send out headers once
     std::cout << "Content-Type: text/event-stream; charset=utf-8\r\n";
     std::cout << "Cache-Control: no-cache\r\n\r\n" << std::flush;
+
+    InitializeTimer();
 
     // Wait for incoming message 
     while(true) {
@@ -108,9 +119,7 @@ int Main(int argc, char *argv[]) {
     }
 
 finish:
-    sd_bus_error_free(&error);
-    sd_bus_message_unref(m);
-    sd_bus_unref(bus);
+    cleanup();
 
     return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }
