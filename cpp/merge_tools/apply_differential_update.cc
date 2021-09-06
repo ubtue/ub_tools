@@ -48,7 +48,7 @@ namespace {
 
 
 void CopyAndCollectPPNs(LocalDataDB * const local_data_db, MARC::Reader * const reader, MARC::Writer * const writer,
-                        std::unordered_set<std::string> * const authority_ppns_in_delta, 
+                        std::unordered_set<std::string> * const authority_ppns_in_delta,
                         const std::unordered_set<std::string>  &authority_ppns_in_input, bool check_input_ppns = false)
 {
     while (auto record = reader->read()) {
@@ -81,15 +81,17 @@ void CopySelectedTypes(LocalDataDB * const local_data_db, const std::vector<std:
     for (const auto &archive_member : archive_members) {
         if (selected_types.find(BSZUtil::GetArchiveType(archive_member)) != selected_types.cend()) {
             const auto reader(MARC::Reader::Factory(archive_member, MARC::FileType::BINARY));
-            //only check if delta records are present in source record if it is a sekkor file, not if TA file etc.
-            bool check_input_ppns_or_sekkor = check_input_ppns | StringUtil::Contains(archive_member, "sekkor");
-            CopyAndCollectPPNs(local_data_db, reader.get(), writer, authority_ppns_in_delta, authority_ppns_in_input, check_input_ppns_or_sekkor);
+
+            //only check if delta records are present in source record if it is a sekkor file, not if TA file etc
+            bool really_check_input_ppns = check_input_ppns and StringUtil::Contains(FileUtil::GetBasename(archive_member), "sekkor");
+
+            CopyAndCollectPPNs(local_data_db, reader.get(), writer, authority_ppns_in_delta, authority_ppns_in_input, really_check_input_ppns);
         }
     }
 }
 
 
-void PreFetchPPNSOfInput(const std::vector<std::string> &archive_members, const std::set<BSZUtil::ArchiveType> &selected_types, 
+void PreFetchPPNSOfInput(const std::vector<std::string> &archive_members, const std::set<BSZUtil::ArchiveType> &selected_types,
                          std::unordered_set<std::string> * const authority_ppns_in_input)
 {
     for (const auto &archive_member : archive_members) {
