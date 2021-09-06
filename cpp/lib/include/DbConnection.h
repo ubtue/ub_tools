@@ -20,15 +20,9 @@
 #pragma once
 
 
-#include <optional>
 #include <string>
 #include <vector>
 #include <libpq-fe.h>
-#include <mysql/mysql.h>
-#ifdef MARIADB_PORT
-#       define MYSQL_PORT MARIADB_PORT
-#endif
-#include <sqlite3.h>
 #include "DbResultSet.h"
 #include "MiscUtil.h"
 #include "util.h"
@@ -60,13 +54,7 @@ private:
 protected:
     bool initialised_;
 public:
-    DbConnection(DbConnection &&other) {
-        delete db_connection_;
-        db_connection_ = other.db_connection_;
-        initialised_   = other.initialised_;
-        other.db_connection_ = nullptr;
-        other.initialised_ = false;
-    }
+    DbConnection(DbConnection &&other);
 
     // \return An unusable DbConnection, in fact, all you can do on it is call isNullConnection().
     static DbConnection NullFactory() { return DbConnection(); }
@@ -330,119 +318,6 @@ public:
                                 const TimeZone time_zone = TZ_SYSTEM);
 
     std::string MySQLPrivilegeToString(const MYSQL_PRIVILEGE mysql_privilege);
-};
-
-
-class MySQLDbConnection final : public DbConnection {
-    friend class DbConnection;
-    mutable MYSQL mysql_;
-    std::string database_name_;
-    std::string user_;
-    std::string passwd_;
-    std::string host_;
-    unsigned port_;
-    DbConnection::Charset charset_;
-    TimeZone time_zone_;
-protected:
-    explicit MySQLDbConnection(const TimeZone time_zone); // Uses the ub_tools database.
-    MySQLDbConnection(const std::string &database_name, const std::string &user, const std::string &passwd,
-                      const std::string &host, const unsigned port, const DbConnection::Charset charset,
-                      const DbConnection::TimeZone time_zone)
-        { init(database_name, user, passwd, host, port, charset, time_zone); }
-    MySQLDbConnection(const std::string &mysql_url, const DbConnection::Charset charset,
-                      const DbConnection::TimeZone time_zone);
-    MySQLDbConnection(const IniFile &ini_file, const std::string &ini_file_section, const TimeZone time_zone);
-
-    /** \note This constructor is for operations which do not require any existing database.
-     *        It should only be used in static functions.
-     */
-    MySQLDbConnection(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port,
-                      const Charset charset)
-        { init(user, passwd, host, port, charset, TZ_SYSTEM); }
-    virtual ~MySQLDbConnection();
-
-    inline virtual DbConnection::Type getType() const override { return DbConnection::T_MYSQL; }
-    inline virtual std::string getLastErrorMessage() const override { return ::mysql_error(&mysql_); }
-    inline DbConnection::Charset getCharset() const { return charset_; }
-    inline DbConnection::TimeZone getTimeZone() const { return time_zone_; }
-    void setTimeZone(const TimeZone time_zone);
-    inline virtual unsigned getNoOfAffectedRows() const override { return ::mysql_affected_rows(&mysql_); }
-    inline virtual int getLastErrorCode() const override { return static_cast<int>(::mysql_errno(&mysql_)); }
-    inline virtual bool query(const std::string &query_statement) override;
-    virtual bool queryFile(const std::string &filename) override;
-    virtual bool backup(const std::string &output_filename, std::string * const err_msg) override;
-    virtual DbResultSet getLastResultSet() override;
-    virtual std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false,
-                                     const bool return_null_on_empty_string = false) override;
-    virtual bool tableExists(const std::string &database_name, const std::string &table_name) override;
-private:
-    void init(const std::string &database_name, const std::string &user, const std::string &passwd,
-              const std::string &host, const unsigned port, const Charset charset, const TimeZone time_zone);
-
-    void init(const std::string &user, const std::string &passwd, const std::string &host, const unsigned port,
-              const Charset charset, const TimeZone time_zone);
-    inline std::string getDbName() const { return database_name_; }
-    inline std::string getUser() const { return user_; }
-    inline std::string getPasswd() const { return passwd_; }
-    inline std::string getHost() const { return host_; }
-    inline unsigned getPort() const { return port_; }
-};
-
-
-class Sqlite3DbConnection final : public DbConnection {
-    friend class DbConnection;
-    sqlite3 *sqlite3_;
-    sqlite3_stmt *stmt_handle_;
-    std::string database_path_;
-protected:
-    Sqlite3DbConnection(const std::string &database_path, const OpenMode open_mode);
-    inline virtual ~Sqlite3DbConnection();
-
-    inline virtual DbConnection::Type getType() const override { return DbConnection::T_SQLITE; }
-    inline virtual unsigned getNoOfAffectedRows() const override { return ::sqlite3_changes(sqlite3_); }
-    inline virtual std::string getLastErrorMessage() const override { return ::sqlite3_errmsg(sqlite3_); }
-    inline virtual int getLastErrorCode() const override { return ::sqlite3_errcode(sqlite3_); }
-    inline virtual bool query(const std::string &query_statement) override;
-    virtual bool queryFile(const std::string &filename) override;
-    virtual bool backup(const std::string &output_filename, std::string * const err_msg) override;
-    virtual DbResultSet getLastResultSet() override;
-    virtual std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false,
-                                     const bool return_null_on_empty_string = false) override;
-    virtual bool tableExists(const std::string &database_name, const std::string &table_name) override;
-    inline const std::string &getDatabasePath() const { return database_path_; }
-};
-
-
-class PostgresDbConnection final : public DbConnection {
-    friend class DbConnection;
-    PGconn *pg_conn_;
-    PGresult *pg_result_;
-    std::string user_;
-    std::string passwd_;
-    std::string host_;
-    unsigned port_;
-protected:
-    PostgresDbConnection(PGconn * const pg_conn, const std::string &user, const std::string &passwd, const std::string &host,
-                         const unsigned port)
-        : DbConnection(this), pg_conn_(pg_conn), pg_result_(nullptr), user_(user), passwd_(passwd), host_(host), port_(port) { }
-    inline virtual ~PostgresDbConnection();
-
-    inline virtual DbConnection::Type getType() const override { return DbConnection::T_POSTGRES; }
-    virtual inline std::string getLastErrorMessage() const override { return ::PQerrorMessage(pg_conn_); }
-    virtual unsigned getNoOfAffectedRows() const override;
-    virtual int getLastErrorCode() const override;
-    inline virtual bool query(const std::string &query_statement) override;
-    virtual bool queryFile(const std::string &filename) override;
-    virtual bool backup(const std::string &output_filename, std::string * const err_msg) override;
-    virtual DbResultSet getLastResultSet() override;
-    virtual std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false,
-                                     const bool return_null_on_empty_string = false) override;
-    virtual bool tableExists(const std::string &database_name, const std::string &table_name) override;
-private:
-    inline std::string getUser() const { return user_; }
-    inline std::string getPasswd() const { return passwd_; }
-    inline std::string getHost() const { return host_; }
-    inline unsigned getPort() const { return port_; }
 };
 
 
