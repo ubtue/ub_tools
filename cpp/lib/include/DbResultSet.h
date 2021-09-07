@@ -71,7 +71,8 @@ public:
 protected:
     DbResultSet(DbResultSet * const db_result_set);
     virtual void init(size_t * const no_of_rows, size_t * const column_count,
-                      std::map<std::string, unsigned> * const field_name_to_index_map);
+                      std::map<std::string, unsigned> * const field_name_to_index_map)
+        { db_result_set_->init(no_of_rows, column_count, field_name_to_index_map); }
 };
 
 

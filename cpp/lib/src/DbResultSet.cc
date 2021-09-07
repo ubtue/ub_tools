@@ -22,13 +22,6 @@
 #include "util.h"
 
 
-void DbResultSet::init(size_t * const /*no_of_rows*/, size_t * const /*column_count*/,
-                       std::map<std::string, unsigned> * const /*field_name_to_index_map*/)
-{
-    LOG_ERROR("this function must *never* be called!");
-}
-
-
 DbResultSet::DbResultSet(DbResultSet &&other) {
     if (&other != this) {
         delete db_result_set_;
