@@ -27,23 +27,13 @@ DbResultSet::DbResultSet(DbResultSet &&other) {
         delete db_result_set_;
         db_result_set_ = other.db_result_set_;
         other.db_result_set_ = nullptr;
-        no_of_rows_ = other.no_of_rows_;
-        column_count_ = other.column_count_;
-        field_name_to_index_map_.clear();
-        field_name_to_index_map_.swap(other.field_name_to_index_map_);
     }
 }
 
 
 DbResultSet::~DbResultSet() {
-    field_name_to_index_map_.clear();
     delete db_result_set_;
     db_result_set_ = nullptr;
-}
-
-
-bool DbResultSet::hasColumn(const std::string &column_name) const {
-    return field_name_to_index_map_.find(column_name) != field_name_to_index_map_.cend();
 }
 
 
@@ -57,20 +47,15 @@ std::unordered_set<std::string> DbResultSet::getColumnSet(const std::string &col
 }
 
 
-DbResultSet::DbResultSet(DbResultSet * const db_result_set): db_result_set_(db_result_set) {
-    db_result_set_->init(&no_of_rows_, &column_count_, &field_name_to_index_map_);
-}
-
-
-void MySQLResultSet::init(size_t * const no_of_rows, size_t * const column_count,
-                          std::map<std::string, unsigned> * const field_name_to_index_map)
+MySQLResultSet::MySQLResultSet(MYSQL_RES * const mysql_res)
+    : mysql_res_(mysql_res)
 {
-    *no_of_rows   = ::mysql_num_rows(mysql_res_);
-    *column_count = ::mysql_num_fields(mysql_res_);
+    no_of_rows_   = ::mysql_num_rows(mysql_res_);
+    column_count_ = ::mysql_num_fields(mysql_res_);
 
     const MYSQL_FIELD * const fields(::mysql_fetch_fields(mysql_res_));
     for (unsigned col_no(0); col_no < column_count_; ++col_no)
-        field_name_to_index_map->insert(std::pair<std::string, unsigned>(fields[col_no].name, col_no));
+        field_name_to_index_map_.insert(std::pair<std::string, unsigned>(fields[col_no].name, col_no));
 }
 
 
@@ -100,17 +85,17 @@ MySQLResultSet::~MySQLResultSet() {
 }
 
 
-void Sqlite3ResultSet::init(size_t * const no_of_rows, size_t * const column_count,
-                            std::map<std::string, unsigned> * const field_name_to_index_map)
+Sqlite3ResultSet::Sqlite3ResultSet(sqlite3_stmt * const stmt_handle)
+    : stmt_handle_(stmt_handle)
 {
-    *no_of_rows   = ::sqlite3_data_count(stmt_handle_);
-    *column_count = ::sqlite3_column_count(stmt_handle_);
+    no_of_rows_   = ::sqlite3_data_count(stmt_handle_);
+    column_count_ = ::sqlite3_column_count(stmt_handle_);
 
-    for (unsigned col_no(0); col_no < *column_count; ++col_no) {
+    for (unsigned col_no(0); col_no < column_count_; ++col_no) {
         const char * const column_name(::sqlite3_column_name(stmt_handle_, col_no));
         if (column_name == nullptr)
             LOG_ERROR("sqlite3_column_name() failed for index " + std::to_string(col_no) + "!");
-        field_name_to_index_map->insert(std::pair<std::string, unsigned>(column_name, col_no));
+        field_name_to_index_map_.insert(std::pair<std::string, unsigned>(column_name, col_no));
     }
 
     if (::sqlite3_reset(stmt_handle_) != SQLITE_OK)
@@ -146,17 +131,17 @@ DbRow Sqlite3ResultSet::getNextRow() {
 }
 
 
-void PostgresResultSet::init(size_t * const no_of_rows, size_t * const column_count,
-                             std::map<std::string, unsigned> * const field_name_to_index_map)
+PostgresResultSet::PostgresResultSet(PGresult * const pg_result)
+    : pg_result_(pg_result), pg_row_number_(-1)
 {
-    if (pg_result_ == nullptr)
-        *no_of_rows = *column_count = 0;
+      if (pg_result_ == nullptr)
+        no_of_rows_ = column_count_ = 0;
     else {
-        *no_of_rows   = (pg_result_ == nullptr) ? 0 : ::PQntuples(pg_result_);
-        *column_count = ::PQnfields(pg_result_);
+        no_of_rows_   = (pg_result_ == nullptr) ? 0 : ::PQntuples(pg_result_);
+        column_count_ = ::PQnfields(pg_result_);
 
         for (unsigned col_no(0); col_no < column_count_; ++col_no)
-            field_name_to_index_map->insert(std::pair<std::string, unsigned>(::PQfname(pg_result_, col_no), col_no));
+            field_name_to_index_map_.insert(std::pair<std::string, unsigned>(::PQfname(pg_result_, col_no), col_no));
     }
 }
 
