@@ -343,8 +343,8 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
     const std::string token_where_clause(
             lookfor.empty() ? "" : "WHERE token " + search_pattern);
     const std::string token_query("SELECT distinct token FROM vufind_translations " + token_where_clause + " ORDER BY token");
-    const std::string query("SELECT token, translation, language_code, translator, next_version_id FROM vufind_translations "
-                            "WHERE token IN (SELECT * FROM (" + token_query
+    const std::string query("SELECT token, translation, language_code, translator FROM vufind_translations "
+                            "WHERE next_version_id is null AND token IN (SELECT * FROM (" + token_query
                             + ") as t) ORDER BY token, language_code");
 
     const std::string create_vufind_ger_sorted("CREATE TEMPORARY TABLE vufind_ger_sorted AS (" + query + ")");
@@ -355,7 +355,7 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
     db_connection.queryOrDie(create_sort_limit);
 
 
-    const std::string create_result_with_limit("SELECT  token, translation, language_code, translator, next_version_id FROM vufind_ger_sorted AS v"
+    const std::string create_result_with_limit("SELECT  token, translation, language_code, translator FROM vufind_ger_sorted AS v"
                                        " INNER JOIN vufind_sort_limit AS u USING (token)");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(create_result_with_limit, &db_connection));
 
@@ -373,9 +373,6 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
        std::string translation(db_row["translation"]);
        std::string language_code(db_row["language_code"]);
        std::string translator(db_row["translator"]);
-       std::string next_version_id(db_row["next_version_id"]);
-       if (not next_version_id.empty())
-           continue;
        if (current_token != token) {
            if (not current_token.empty())
               rows->emplace_back(StringUtil::Join(row_values, ""));
@@ -461,10 +458,10 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                                        + "%')");
 
     const std::string search_clause(lookfor.empty() ? "" : search_pattern);
-    const std::string query("SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator, l.german_updated, l.next_version_id "
+    const std::string query("SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator, l.german_updated "
                             "FROM keyword_translations AS k INNER JOIN keyword_translations AS l ON k.language_code='ger' AND "
                             "k.status='reliable' AND k.ppn=l.ppn AND l.status!='reliable_synonym' AND l.status != "
-                            "'unreliable_synonym'" + search_clause + " ORDER BY k.translation");
+                            "'unreliable_synonym' AND l.next_version_id is null" + search_clause + " ORDER BY k.translation");
 
     const std::string create_keywords_ger_sorted("CREATE TEMPORARY TABLE keywords_ger_sorted AS (" + query + ")");
     db_connection.queryOrDie(create_keywords_ger_sorted);
@@ -474,7 +471,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     db_connection.queryOrDie(create_sort_limit);
 
     const std::string create_result_with_limit("SELECT ppn, translation, language_code, gnd_code, status, translator, "
-                                               "german_updated, next_version_id FROM keywords_ger_sorted AS v INNER JOIN sort_limit AS u USING "
+                                               "german_updated FROM keywords_ger_sorted AS v INNER JOIN sort_limit AS u USING "
                                                "(ppn)");
 
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(create_result_with_limit, &db_connection));
@@ -498,7 +495,6 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
        std::string translator(db_row["translator"]);
        std::string gnd_code(db_row["gnd_code"]);
        std::string german_updated(db_row["german_updated"]);
-       std::string next_version_id(db_row["next_version_id"]);
        if (current_ppn != ppn){
            if (not current_ppn.empty())
               rows->emplace_back(StringUtil::Join(row_values, ""));
@@ -532,8 +528,6 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
        int index(GetColumnIndexForColumnHeading(display_languages, row_values, language_code));
        if (index == NO_INDEX)
-           continue;
-       if (not next_version_id.empty())
            continue;
        if (IsTranslatorLanguage(translator_languages, language_code)) {
            // We can have several translations in one language, i.e. from MACS, IxTheo (reliable) or translated by this tool (new)
