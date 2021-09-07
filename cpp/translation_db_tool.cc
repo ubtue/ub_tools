@@ -171,9 +171,8 @@ void UpdateIntoVuFindTranslations(DbConnection * const connection, const std::st
                                   const std::string &language_code, const std::string &text,
                                   const std::string &translator)
 {
-    connection->queryOrDie("UPDATE vufind_translations SET translation=\"" + connection->escapeString(text)
-                           + "\", translator=\"" + translator + "\" WHERE token=\"" + token
-                           + "\" AND language_code=\"" + language_code + "\";");
+    connection->queryOrDie("CALL insert_vufind_translation_entry('" + token + "','" + language_code + "','" + 
+                                   connection->escapeString(text) +"','" + translator + "');");
 }
 
 
@@ -181,10 +180,8 @@ void UpdateIntoKeywordTranslations(DbConnection * const connection, const std::s
                                    const std::string &gnd_code, const std::string &language_code,
                                    const std::string &text, const std::string &translator)
 {
-    connection->queryOrDie("UPDATE keyword_translations SET translation=\"" + connection->escapeString(text)
-                           + "\", translator=\"" + translator + "\" WHERE ppn=\"" + ppn + "\" AND gnd_code=\""
-                           + gnd_code + "\" AND language_code=\"" + language_code + "\""
-                           + "AND status != \"unreliable\";");
+    connection->queryOrDie("CALL insert_keyword_translation_entry('" + ppn + "','" + gnd_code + "','" + language_code + "','" + 
+                                   connection->escapeString(text) +"','" + translator + "');");
 }
 
 
