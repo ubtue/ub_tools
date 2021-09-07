@@ -341,10 +341,11 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
     const std::string search_pattern(lookfor.size() <=
                                     LOOKFOR_PREFIX_LIMIT ? "LIKE '" + lookfor + "%'" : "LIKE '%" + lookfor + "%'");
     const std::string token_where_clause(
-            lookfor.empty() ? "WHERE next_version_id IS NULL" : "WHERE token " + search_pattern + " AND next_version_id IS NULL");
+            lookfor.empty() ? "WHERE next_version_id IS NULL" : "WHERE next_version_id IS NULL AND token " + search_pattern);
     const std::string token_query("SELECT token FROM vufind_translations " + token_where_clause + " ORDER BY token");
-    const std::string query("SELECT token, translation, language_code, translator FROM vufind_translations "
-                            "WHERE next_version_id IS NULL AND token IN (SELECT * FROM (" + token_query
+    const std::string query("WITH vufind_newest AS (SELECT * FROM vufind_translations WHERE next_version_id IS NULL) "
+                            "SELECT token, translation, language_code, translator FROM vufind_newest "
+                            "WHERE token IN (SELECT * FROM (" + token_query
                             + ") as t) ORDER BY token, language_code");
 
     const std::string create_vufind_ger_sorted("CREATE TEMPORARY TABLE vufind_ger_sorted AS (" + query + ")");
@@ -453,16 +454,14 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
     // For short strings make a prefix search, otherwise search substring
     const std::string search_pattern(lookfor.size() <= LOOKFOR_PREFIX_LIMIT
-                                     ? "AND k.next_version_id IS NULL AND k.translation LIKE '" + lookfor + "%'"
-                                     : "AND l.ppn IN (SELECT ppn from keyword_translations WHERE translation LIKE '%" + lookfor
+                                     ? "AND k.translation LIKE '" + lookfor + "%'"
+                                     : "AND l.ppn IN (SELECT ppn from keyword_translations WHERE next_version_id IS NULL AND translation LIKE '%" + lookfor
                                        + "%')");
 
     const std::string search_clause(lookfor.empty() ? "" : search_pattern);
 
-    const std::string create_keywords_newest("CREATE TEMPORARY TABLE keywords_newest AS (SELECT * FROM keyword_translations WHERE next_version_id IS NULl)");
-    db_connection.queryOrDie(create_keywords_newest);
-
-    const std::string query("SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator, l.german_updated "
+    const std::string query("WITH keywords_newest AS (SELECT * FROM keyword_translations WHERE next_version_id IS NULL) "
+                            "SELECT l.ppn, l.translation, l.language_code, l.gnd_code, l.status, l.translator, l.german_updated "
                             "FROM keywords_newest AS k INNER JOIN keywords_newest AS l ON k.language_code='ger' AND "
                             "k.status='reliable' AND k.ppn=l.ppn AND l.status!='reliable_synonym' AND l.status != "
                             "'unreliable_synonym'" + search_clause + " ORDER BY k.translation");
@@ -555,10 +554,8 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     }
     rows->emplace_back(StringUtil::Join(row_values, ""));
     const std::string drop_get_sorted("DROP TEMPORARY TABLE keywords_ger_sorted");
-    const std::string drop_keywords_newest("DROP TEMPORARY TABLE keywords_ger_sorted");
     const std::string drop_sort_limit("DROP TEMPORARY TABLE sort_limit");
     db_connection.queryOrDie(drop_get_sorted);
-    db_connection.queryOrDie(drop_keywords_newest);
     db_connection.queryOrDie(drop_sort_limit);
 }
 
