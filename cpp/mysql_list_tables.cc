@@ -60,6 +60,16 @@ void ProcessTriggers(DbConnection * const db_connection, const std::string &data
 }
 
 
+void ProcessProcedures(DbConnection * const db_connection, const std::string &database_name) {
+    db_connection->queryOrDie("SHOW PROCEDURE STATUS");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    while (const auto row = result_set.getNextRow()) {
+        if (row["Db"] == database_name)
+            std::cout << "PROCEDURE NAME `" << row["Name"] << "`;\n";
+    }
+}
+
+
 int Main(int argc, char *argv[]) {
     std::string database_name, user, passwd, host("localhost");
     unsigned port(MYSQL_PORT);
@@ -87,6 +97,7 @@ int Main(int argc, char *argv[]) {
     ProcessTablesOrViews(&db_connection, /* process_tables = */true);
     ProcessTablesOrViews(&db_connection, /* process_tables = */false);
     ProcessTriggers(&db_connection, argc == 1 ? "ub_tools" : argv[1]);
+    ProcessProcedures(&db_connection, argc == 1 ? "ub_tools" : argv[1]);
 
     return EXIT_SUCCESS;
 }
