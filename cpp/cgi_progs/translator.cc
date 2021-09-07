@@ -342,7 +342,7 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
                                     LOOKFOR_PREFIX_LIMIT ? "LIKE '" + lookfor + "%'" : "LIKE '%" + lookfor + "%'");
     const std::string token_where_clause(
             lookfor.empty() ? "" : "WHERE token " + search_pattern);
-    const std::string token_query("SELECT distinct token FROM vufind_translations " + token_where_clause + " ORDER BY token");
+    const std::string token_query("SELECT token FROM vufind_translations " + token_where_clause + " ORDER BY token");
     const std::string query("SELECT token, translation, language_code, translator FROM vufind_translations "
                             "WHERE next_version_id is null AND token IN (SELECT * FROM (" + token_query
                             + ") as t) ORDER BY token, language_code");
