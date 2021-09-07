@@ -377,6 +377,7 @@ readonly field_match_pattern='610t:Codex (iuris canonici|canonum ecclesiarum ori
                 --replace-subfield-if-regex '610p:/^(\d+),(\d+)$/can. \1, §\2/' "${field_match_pattern}" \
                 --replace-subfield-if-regex '610p:/^(\d+),(\d+-\d+)$/can. \1 §§\2/' "${field_match_pattern}" \
                 --replace-subfield-if-regex '610p:/^(\d+),(\d+),(\d+)$/can. \1, §\2 n. \3/' "${field_match_pattern}" \
+                --replace-subfield-if-regex '610p:/^(\d+),(\d+),(\d+)-(\d+)$/can. \1, §\2 n. \3-\4/' "${field_match_pattern}" \
 		>> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
