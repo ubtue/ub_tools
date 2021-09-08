@@ -61,21 +61,31 @@ public:
 };
 
 
+void LoadMappingByFieldSpec(const MARC::Record &record, const std::string &tag, const char subfield_code,
+                            const std::unordered_multimap<std::string, std::string> &already_processed_ppns_and_sigils,
+                            std::vector<PPNsAndSigil> * const old_ppns_sigils_and_new_ppns)
+{
+    static auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("^\\((DE-627)\\)(.+)"));
+
+    for (const auto &field : record.getTagRange(tag)) {
+        const auto subfield(field.getFirstSubfieldWithCode(subfield_code));
+        if (matcher->matched(subfield)) {
+            const std::string old_sigil((*matcher)[1]);
+            const std::string old_ppn((*matcher)[2]);
+            if (old_ppn != record.getControlNumber() and not MapUtil::Contains(already_processed_ppns_and_sigils, old_ppn, old_sigil))
+                old_ppns_sigils_and_new_ppns->emplace_back(old_ppn, old_sigil, record.getControlNumber());
+        }
+    }
+}
+
+
 void LoadMapping(MARC::Reader * const marc_reader,
                  const std::unordered_multimap<std::string, std::string> &already_processed_ppns_and_sigils,
                  std::vector<PPNsAndSigil> * const old_ppns_sigils_and_new_ppns)
 {
-    auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("^\\((DE-627)\\)(.+)"));
     while (const auto record = marc_reader->read()) {
-        for (const auto &field : record.getTagRange("035")) {
-            const auto subfield_a(field.getFirstSubfieldWithCode('a'));
-            if (matcher->matched(subfield_a)) {
-                const std::string old_sigil((*matcher)[1]);
-                const std::string old_ppn((*matcher)[2]);
-                if (old_ppn != record.getControlNumber() and not MapUtil::Contains(already_processed_ppns_and_sigils, old_ppn, old_sigil))
-                    old_ppns_sigils_and_new_ppns->emplace_back(old_ppn, old_sigil, record.getControlNumber());
-            }
-        }
+        LoadMappingByFieldSpec(record, "035", 'a', already_processed_ppns_and_sigils, old_ppns_sigils_and_new_ppns);
+        LoadMappingByFieldSpec(record, "889", 'w', already_processed_ppns_and_sigils, old_ppns_sigils_and_new_ppns);
     }
 
     LOG_INFO("Found " + std::to_string(old_ppns_sigils_and_new_ppns->size()) + " new mappings of old PPN's to new PPN's in \""
