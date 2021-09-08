@@ -1,3 +1,17 @@
+ALTER TABLE ixtheo.keyword_translations MODIFY COLUMN create_timestamp datetime DEFAULT NOW();
+ALTER TABLE ixtheo.keyword_translations ADD COLUMN id int(10) not null auto_increment primary key;
+ALTER TABLE ixtheo.keyword_translations ADD COLUMN prev_version_id int(10);
+ALTER TABLE ixtheo.keyword_translations ADD COLUMN next_version_id int(10);
+ALTER TABLE ixtheo.keyword_translations DROP INDEX ppn_language_code_status_translator;
+
+ALTER TABLE ixtheo.vufind_translations ADD COLUMN create_timestamp datetime;
+ALTER TABLE ixtheo.vufind_translations MODIFY COLUMN create_timestamp datetime DEFAULT NOW();
+ALTER TABLE ixtheo.vufind_translations ADD COLUMN id int(10) not null auto_increment primary key;
+ALTER TABLE ixtheo.vufind_translations ADD COLUMN prev_version_id int(10);
+ALTER TABLE ixtheo.vufind_translations ADD COLUMN next_version_id int(10);
+ALTER TABLE ixtheo.vufind_translations DROP INDEX token_language_code;
+
+
 DROP PROCEDURE IF EXISTS insert_vufind_translation_entry;
 #do_not_split_on_semicolons
 CREATE PROCEDURE insert_vufind_translation_entry(IN in_token VARCHAR(191), IN in_language_code CHAR(4), IN in_translation VARCHAR(1024), IN in_translator VARCHAR(50))
