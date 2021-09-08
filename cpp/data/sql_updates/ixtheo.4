@@ -1,3 +1,4 @@
+ALTER TABLE keyword_translations ADD COLUMN create_timestamp datetime;
 ALTER TABLE ixtheo.keyword_translations MODIFY COLUMN create_timestamp datetime DEFAULT NOW();
 ALTER TABLE ixtheo.keyword_translations ADD COLUMN id int(10) not null auto_increment primary key;
 ALTER TABLE ixtheo.keyword_translations ADD COLUMN prev_version_id int(10);
