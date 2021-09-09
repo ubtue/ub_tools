@@ -224,9 +224,11 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
     ++keyword_count;
 
     // Remove entries for which authoritative translation were shipped to us from the BSZ:
+    // if prev_version_id!=null -> it's a successor
+    // if next_version_id!=null -> it has been modified by translation tool (stored proc.)
     const std::string ppn(record->getControlNumber());
     shared_connection->queryOrDie("DELETE FROM keyword_translations WHERE ppn=\"" + ppn + "\" AND "
-                                  + "translator IS NULL AND "
+                                  + "prev_version_id IS NULL AND next_version_id IS NULL AND translator IS NULL AND "
                                   + GenerateLanguageCodeWhereClause(text_language_codes_statuses_and_origin_tags));
 
     if (not MARC::GetGNDCode(*record, &gnd_code)) {
@@ -257,6 +259,19 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
         const std::string status(StatusToString(std::get<2>(text_language_code_status_and_origin)));
         const std::string &origin(std::get<3>(text_language_code_status_and_origin));
         const bool updated_german(std::get<4>(text_language_code_status_and_origin));
+
+        // check if there is an existing entry, insert ignore does not work here
+        // any longer due to the deleted unique key for the history functionality.
+        // Unsure if it worked before due to translator=null not affecting a ukey in mysql
+        const std::string CHECK_EXISTING("SELECT ppn FROM keyword_translations WHERE ppn=\"" + ppn
+           + "\" AND language_code=\"" + language_code
+		   + "\" AND status=\"" + status + "); ");
+        shared_connection->queryOrDie(CHECK_EXISTING);
+        DbResultSet result(shared_connection->getLastResultSet());
+        if (not result.empty()) {
+            continue;
+        }
+
         insert_statement += "('" + ppn + "', '" + gnd_code + "', '" + language_code + "', '" + translation
                             + "', '" + status + "', '" + origin + "', '" + gnd_system  + "', " + (updated_german ? "true" : "false")
                             +  "), ";
