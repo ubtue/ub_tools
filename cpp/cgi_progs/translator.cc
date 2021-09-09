@@ -123,7 +123,7 @@ const std::string AssembleTermIdentifiers(const std::string &category, const std
 
        return std::string(" category=\"" +  UrlUtil::UrlEncode(category) + "\" index=\"" + UrlUtil::UrlEncode(index)
                           + "\" language_code=\"" + UrlUtil::UrlEncode(language_code) + "\" gnd_code=\"" + gnd_code
-                          + "\" comparable=\""+ index
+                          + "\" comparable=\""+ HtmlUtil::HtmlEscape(index)
                           + "\" translation=\"" + translation + "\" ");
 }
 
