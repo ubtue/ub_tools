@@ -75,7 +75,7 @@ void ExtractTranslations(DbConnection * const db_connection,
     while (const DbRow ppn_row = ppn_result_set.getNextRow()) {
         std::string ppn = ppn_row["ppn"];
         db_connection->queryOrDie("SELECT ppn, language_code, translation, origin, status FROM keyword_translations "
-                                  "WHERE ppn='" + ppn + "'");
+                                  "WHERE ppn='" + ppn + "' AND next_version_id IS NULL");
         DbResultSet result_set(db_connection->getLastResultSet());
         std::vector<Translation> translations;
         while (const DbRow row = result_set.getNextRow()) {

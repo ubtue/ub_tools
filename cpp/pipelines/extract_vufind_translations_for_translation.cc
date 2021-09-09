@@ -56,25 +56,35 @@ void InsertTranslations(
 
         // Skip inserting translations if we have a translator, i.e. the web translation tool was used
         // to insert the translations into the database
-        const std::string GET_TRANSLATOR("SELECT translator FROM vufind_translations WHERE language_code=\""
+        // successors get a prev_version_id value, successors should not be modified (if prev_version_id is not null)
+        const std::string GET_TRANSLATOR("SELECT translator, next_version_id FROM vufind_translations WHERE language_code=\""
            + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
-           + "\" AND token=\"" + key + "\"");
+           + "\" AND token=\"" + key + "\" AND prev_version_id IS NULL");
         connection->queryOrDie(GET_TRANSLATOR);
         DbResultSet result(connection->getLastResultSet());
         if (not result.empty()) {
             const DbRow row(result.getNextRow());
+            // translator != null in a (prev_version_id==null)entry can happen due to previous logic
             if (not row.isNull("translator")) {
                 const std::string translator(row["translator"]);
                 if (not translator.empty())
                     continue;
             }
+            // do not update original translations after they were modified for a successor
+            // (even if translation is now 'b' and was before 'a' with a modification to 'a1')
+            if (not row.isNull("next_version_id")) {
+                const std::string next_version_id(row["next_version_id"]);
+                if (not next_version_id.empty())
+                    continue;
+            }
         }
-
-        const std::string INSERT_OTHER(
-           "REPLACE INTO vufind_translations SET language_code=\""
-	   + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
-	   + "\", token=\"" + key + "\", translation=\"" + translation + "\"");
-        connection->queryOrDie(INSERT_OTHER);
+        else {
+            const std::string INSERT_OTHER(
+                "INSERT INTO vufind_translations SET language_code=\""
+	            + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
+	            + "\", token=\"" + key + "\", translation=\"" + translation + "\"");
+            connection->queryOrDie(INSERT_OTHER);
+        }
     }
 }
 

@@ -73,7 +73,7 @@ void GenerateAuthortyRecords(DbConnection * const db_connection, MARC::Writer * 
         const std::string ppn(ppn_row["ppn"]);
         const std::string status(ppn_row["status"]);
         db_connection->queryOrDie("SELECT language_code,translation FROM keyword_translations WHERE ppn='" + ppn
-                                  + "' AND (status='new' OR status='replaced')");
+                                  + "' AND next_version_id IS NULL AND (status='new' OR status='replaced')");
         DbResultSet result_set(db_connection->getLastResultSet());
 
         MARC::Record new_record(MARC::Record::TypeOfRecord::AUTHORITY, MARC::Record::BibliographicLevel::UNDEFINED, ppn);
