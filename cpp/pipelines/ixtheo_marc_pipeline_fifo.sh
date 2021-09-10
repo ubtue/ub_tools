@@ -80,7 +80,7 @@ wait
 
 
 StartPhase "Swap and Delete PPN's in Various Databases"
-(patch_ppns_in_databases --report-only GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
+(patch_ppns_in_databases --report-only GesamtTiteldaten-"${date}".mrc Normdaten-"${date}".mrc \
                          -- entire_record_deletion.log >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
