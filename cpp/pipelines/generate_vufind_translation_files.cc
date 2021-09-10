@@ -75,7 +75,7 @@ void ProcessLanguage(const bool verbose, const std::string &output_file_path, co
     if (unlikely(output.fail()))
         LOG_ERROR("failed to open \"" + output_file_path + "\" for writing!");
 
-    db_connection->queryOrDie("SELECT token,translation FROM vufind_translations WHERE language_code='" + _3letter_code + "'");
+    db_connection->queryOrDie("SELECT token,translation FROM vufind_translations WHERE next_version_id IS NULL AND language_code='" + _3letter_code + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (unlikely(result_set.empty()))
         LOG_ERROR("found no translations for language code \"" + _3letter_code + "\"!");
