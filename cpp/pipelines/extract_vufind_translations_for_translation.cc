@@ -57,7 +57,7 @@ void InsertTranslations(
         // Skip inserting translations if we have a translator, i.e. the web translation tool was used
         // to insert the translations into the database
         // successors get a prev_version_id value, successors should not be modified (if prev_version_id is not null)
-        const std::string GET_TRANSLATOR("SELECT translator, next_version_id FROM vufind_translations WHERE language_code=\""
+        const std::string GET_TRANSLATOR("SELECT id, translator, next_version_id FROM vufind_translations WHERE language_code=\""
            + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
            + "\" AND token=\"" + key + "\" AND prev_version_id IS NULL");
         connection->queryOrDie(GET_TRANSLATOR);
@@ -77,6 +77,10 @@ void InsertTranslations(
                 if (not next_version_id.empty())
                     continue;
             }
+
+            const std::string UPDATE_STMT(
+                "UPDATE vufind_translations SET translation=\"" + translation + "\" WHERE id=" + row["id"]);
+            connection->queryOrDie(UPDATE_STMT);
         }
         else {
             const std::string INSERT_OTHER(
