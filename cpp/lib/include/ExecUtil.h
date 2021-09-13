@@ -34,6 +34,7 @@
 #include <vector>
 #include <signal.h>
 #include <sys/types.h>
+#include "StringUtil.h"
 
 
 namespace ExecUtil {
@@ -155,6 +156,16 @@ bool SetProcessName(char *argv0, const std::string &new_process_name);
 /** \return The unmodified, i.e. orginal, command-name for the given PID or the empty string if no process with
     the provided PID was found. */
 std::string GetOriginalCommandNameFromPID(const pid_t pid);
+
+
+inline std::string EscapeArg(const std::string &arg, const char quote_type) {
+    return StringUtil::BackslashEscape(quote_type, arg);
+}
+
+
+inline std::string EscapeAndQuoteArg(const std::string &arg) {
+    return "\"" + EscapeArg(arg, '"') + "\"";
+}
 
 
 } // namespace ExecUtil
