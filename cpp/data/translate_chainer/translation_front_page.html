@@ -84,11 +84,11 @@
             let objData = JSON.parse(eventData);
             $('td').each(function(){{
                 if($(this).attr('comparable') == objData.index && $(this).attr('gnd_code') == objData.gnd_code && $(this).attr('language_code') == objData.language_code){{
-                    $(this).html(objData.translation);
+                    $(this).text(objData.translation);
                     $(this).css("background-color", "orange");
                 }
                 if($(this).attr('comparable') == objData.index && $(this).attr('gnd_code') == '' && $(this).attr('language_code') == objData.language_code){{
-                    $(this).html(objData.translation);
+                    $(this).text(objData.translation);
                     $(this).css("background-color", "orange");
                 }
             })
