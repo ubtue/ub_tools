@@ -114,6 +114,7 @@ void PatchTable(DbConnection * const db_connection, const std::string &table, co
             if (batch_size >= MAX_BATCH_SIZE) {
                 db_connection->queryOrDie("COMMIT");
                 db_connection->queryOrDie("BEGIN");
+                batch_size = 0;
             }
         }
     }
@@ -149,6 +150,7 @@ void DeleteFromTable(DbConnection * const db_connection, const std::string &tabl
             if (batch_size >= MAX_BATCH_SIZE) {
                 db_connection->queryOrDie("COMMIT");
                 db_connection->queryOrDie("BEGIN");
+                batch_size = 0;
             }
         }
     }
