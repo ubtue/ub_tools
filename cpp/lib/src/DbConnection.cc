@@ -707,13 +707,19 @@ std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPriv
     DbResultSet result_set(getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
         static RegexMatcher * const mysql_privileges_matcher(
-            RegexMatcher::RegexMatcherFactory("GRANT (.+) ON [`']?" + database_name + "[`']?.* TO ['`]?" + user
-                                              + "['`]?@['`]?" + host + "['`]?"));
+            RegexMatcher::RegexMatcherFactory("GRANT (.+) ON [`']?([^`'.]+)[`']?\\.\\* TO ['`]?([^`'@]+)['`]?@['`]?([^`' ]+)['`]?"));
 
         if (not mysql_privileges_matcher->matched(row[0]))
             LOG_WARNING("unexpectedly, no privileges were extracted from " + row[0]);
         else {
             const std::string matched_privileges((*mysql_privileges_matcher)[1]);
+            const std::string matched_database((*mysql_privileges_matcher)[2]);
+            const std::string matched_user((*mysql_privileges_matcher)[3]);
+            const std::string matched_host((*mysql_privileges_matcher)[4]);
+
+            if (matched_user != user or matched_database != database_name)
+                continue;
+
             if (matched_privileges == "ALL PRIVILEGES")
                 return MYSQL_ALL_PRIVILEGES;
 
