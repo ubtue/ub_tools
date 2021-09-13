@@ -208,6 +208,22 @@ void DbConnection::queryFileOrDie(const std::string &filename) {
 }
 
 
+DbResultSet DbConnection::selectOrDie(const std::string &select_statement) {
+    queryOrDie(select_statement);
+    return getLastResultSet();
+}
+
+
+unsigned DbConnection::countOrDie(const std::string &select_statement, const std::string &count_variable_name) {
+    auto result_set(selectOrDie(select_statement));
+    if (result_set.size() != 1)
+        LOG_ERROR("Invalid result set size for query: " + select_statement);
+
+    const auto row = result_set.getNextRow();
+    return StringUtil::ToUnsigned(row[count_variable_name]);
+}
+
+
 void DbConnection::backupOrDie(const std::string &output_filename) {
     std::string err_msg;
     if (not backup(output_filename, &err_msg))
