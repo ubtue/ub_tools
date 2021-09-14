@@ -38,7 +38,7 @@ int Main(int argc, char *argv[]) {
         LOG_ERROR("won't overwrite original database!");
 
     DbConnection db_connection(DbConnection::Sqlite3Factory(original_database, DbConnection::READONLY));
-    db_connection.backupOrDie(copy_of_database);
+    db_connection.sqlite3BackupOrDie(copy_of_database);
 
     return EXIT_SUCCESS;
 }

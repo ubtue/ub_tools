@@ -46,7 +46,6 @@ protected:
     virtual int getLastErrorCode() const override;
     inline virtual bool query(const std::string &query_statement) override;
     virtual bool queryFile(const std::string &filename) override;
-    virtual bool backup(const std::string &output_filename, std::string * const err_msg) override;
     virtual DbResultSet getLastResultSet() override;
     virtual std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false,
                                      const bool return_null_on_empty_string = false) override;

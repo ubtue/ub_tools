@@ -41,10 +41,10 @@ protected:
     inline virtual int getLastErrorCode() const override { return ::sqlite3_errcode(sqlite3_); }
     inline virtual bool query(const std::string &query_statement) override;
     virtual bool queryFile(const std::string &filename) override;
-    virtual bool backup(const std::string &output_filename, std::string * const err_msg) override;
     virtual DbResultSet getLastResultSet() override;
     virtual std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false,
                                      const bool return_null_on_empty_string = false) override;
     virtual bool tableExists(const std::string &database_name, const std::string &table_name) override;
     inline const std::string &getDatabasePath() const { return database_path_; }
+    bool backup(const std::string &output_filename, std::string * const err_msg);
 };
