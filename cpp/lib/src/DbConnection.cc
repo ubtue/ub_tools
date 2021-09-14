@@ -224,9 +224,17 @@ unsigned DbConnection::countOrDie(const std::string &select_statement, const std
 }
 
 
-void DbConnection::backupOrDie(const std::string &output_filename) {
+bool DbConnection::sqlite3Backup(const std::string &output_filename, std::string * const err_msg) {
+    auto sqlite3_db_connection(dynamic_cast<Sqlite3DbConnection *>(db_connection_));
+    if (unlikely(sqlite3_db_connection == nullptr))
+        LOG_ERROR("you must use a pointer to a Sqlite3DbConnection instance here!");
+    return sqlite3_db_connection->backup(output_filename, err_msg);
+}
+
+
+void DbConnection::sqlite3BackupOrDie(const std::string &output_filename) {
     std::string err_msg;
-    if (not backup(output_filename, &err_msg))
+    if (not sqlite3Backup(output_filename, &err_msg))
         LOG_ERROR(err_msg);
 }
 

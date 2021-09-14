@@ -199,46 +199,6 @@ bool Sqlite3DbConnection::queryFile(const std::string &filename) {
 }
 
 
-bool Sqlite3DbConnection::backup(const std::string &output_filename, std::string * const err_msg) {
-    sqlite3 *sqlite3_backup_file;
-    int return_code;
-    if ((return_code = ::sqlite3_open(output_filename.c_str(), &sqlite3_backup_file)) != SQLITE_OK) {
-        *err_msg = "failed to create backup to \"" + output_filename + "\": "
-                   + std::string(::sqlite3_errmsg(sqlite3_backup_file));
-        return false;
-    }
-
-    sqlite3_backup *backup_handle(::sqlite3_backup_init(sqlite3_backup_file, "main", sqlite3_, "main"));
-    if (backup_handle == nullptr) {
-        ::sqlite3_close(sqlite3_backup_file);
-        *err_msg = "failed to initialize Sqlite3 backup to \"" + output_filename
-                   + "\": there is already a read or read-write transaction open on the destination database!";
-        return false;
-    }
-
-    const int DATABASE_PAGE_COUNT(500); // How many pages to copy to the backup at each iteration.
-    const int SLEEP_INTERVAL(100);      // in milliseconds.
-    bool backup_incomplete;
-    do {
-        return_code = ::sqlite3_backup_step(backup_handle, DATABASE_PAGE_COUNT);
-        backup_incomplete = return_code == SQLITE_OK or return_code == SQLITE_BUSY or return_code == SQLITE_LOCKED;
-        if (backup_incomplete)
-            ::sqlite3_sleep(SLEEP_INTERVAL);
-    } while (backup_incomplete);
-    ::sqlite3_backup_finish(backup_handle);
-
-    return_code = ::sqlite3_errcode(sqlite3_backup_file);
-    ::sqlite3_close(sqlite3_backup_file);
-    if (return_code != SQLITE_OK) {
-        *err_msg = "an error occurred during the backup to \"" + output_filename + "\": "
-                   + std::string(::sqlite3_errmsg(sqlite3_backup_file));
-        return false;
-    }
-
-    return true;
-}
-
-
 DbResultSet Sqlite3DbConnection::getLastResultSet() {
     const auto temp_handle(stmt_handle_);
     stmt_handle_ = nullptr;
@@ -283,4 +243,44 @@ bool Sqlite3DbConnection::tableExists(const std::string &database_name, const st
     connection.queryOrDie("SELECT name FROM sqlite_master WHERE type='table' AND name='"
                           + connection.escapeString(table_name) + "'");
     return not connection.getLastResultSet().empty();
+}
+
+
+bool Sqlite3DbConnection::backup(const std::string &output_filename, std::string * const err_msg) {
+    sqlite3 *sqlite3_backup_file;
+    int return_code;
+    if ((return_code = ::sqlite3_open(output_filename.c_str(), &sqlite3_backup_file)) != SQLITE_OK) {
+        *err_msg = "failed to create backup to \"" + output_filename + "\": "
+                   + std::string(::sqlite3_errmsg(sqlite3_backup_file));
+        return false;
+    }
+
+    sqlite3_backup *backup_handle(::sqlite3_backup_init(sqlite3_backup_file, "main", sqlite3_, "main"));
+    if (backup_handle == nullptr) {
+        ::sqlite3_close(sqlite3_backup_file);
+        *err_msg = "failed to initialize Sqlite3 backup to \"" + output_filename
+                   + "\": there is already a read or read-write transaction open on the destination database!";
+        return false;
+    }
+
+    const int DATABASE_PAGE_COUNT(500); // How many pages to copy to the backup at each iteration.
+    const int SLEEP_INTERVAL(100);      // in milliseconds.
+    bool backup_incomplete;
+    do {
+        return_code = ::sqlite3_backup_step(backup_handle, DATABASE_PAGE_COUNT);
+        backup_incomplete = return_code == SQLITE_OK or return_code == SQLITE_BUSY or return_code == SQLITE_LOCKED;
+        if (backup_incomplete)
+            ::sqlite3_sleep(SLEEP_INTERVAL);
+    } while (backup_incomplete);
+    ::sqlite3_backup_finish(backup_handle);
+
+    return_code = ::sqlite3_errcode(sqlite3_backup_file);
+    ::sqlite3_close(sqlite3_backup_file);
+    if (return_code != SQLITE_OK) {
+        *err_msg = "an error occurred during the backup to \"" + output_filename + "\": "
+                   + std::string(::sqlite3_errmsg(sqlite3_backup_file));
+        return false;
+    }
+
+    return true;
 }

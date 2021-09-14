@@ -99,11 +99,6 @@ bool PostgresDbConnection::queryFile(const std::string &filename) {
 }
 
 
-bool PostgresDbConnection::backup(const std::string &/*output_filename*/, std::string * const /*err_msg*/) {
-    LOG_ERROR("not yet implemented!");
-}
-
-
 DbResultSet PostgresDbConnection::getLastResultSet() {
     const auto temp_pg_result = pg_result_;
     pg_result_ = nullptr;

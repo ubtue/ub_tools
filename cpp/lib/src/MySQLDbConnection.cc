@@ -190,11 +190,6 @@ bool MySQLDbConnection::queryFile(const std::string &filename) {
 }
 
 
-bool MySQLDbConnection::backup(const std::string &/*output_filename*/, std::string * const /*err_msg*/) {
-    LOG_ERROR("not yet implemented!");
-}
-
-
 DbResultSet MySQLDbConnection::getLastResultSet() {
     MYSQL_RES * const result_set(::mysql_store_result(&mysql_));
     if (result_set == nullptr)

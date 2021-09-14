@@ -132,12 +132,10 @@ public:
      */
     unsigned countOrDie(const std::string &select_statement, const std::string &count_variable_name);
 
-    /** \note Currently only works w/ Sqlite.
-     *  \note Supports online backups of a running database.
+    /** \note Supports online backups of a running database.
      */
-    inline virtual bool backup(const std::string &output_filename, std::string * const err_msg)
-        { return db_connection_->backup(output_filename, err_msg); }
-    void backupOrDie(const std::string &output_filename);
+    bool sqlite3Backup(const std::string &output_filename, std::string * const err_msg);
+    void sqlite3BackupOrDie(const std::string &output_filename);
 
     /* \param where_clause Do not include the WHERE keyword and only use this if duplicate_key_behaviour is DKB_REPLACE. */
     void insertIntoTableOrDie(const std::string &table_name,
