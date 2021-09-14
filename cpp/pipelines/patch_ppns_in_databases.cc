@@ -143,7 +143,8 @@ void DeleteFromTable(DbConnection * const db_connection, const std::string &tabl
 
         const std::string where("WHERE " + column + "='" + deletion_ppn + "'");
         if (report_only)
-            deletion_count += db_connection->countOrDie("SELECT count(*) AS deletion_count FROM '" + table + "' " + where, "deletion_count");
+            deletion_count += db_connection->countOrDie("SELECT count(*) AS deletion_count FROM " + table
+                                                        + " " + where, "deletion_count");
         else {
             db_connection->queryOrDie("DELETE FROM '" + table + "' " + where);
             deletion_count += db_connection->getNoOfAffectedRows();
@@ -303,8 +304,11 @@ int Main(int argc, char **argv) {
 
     std::unordered_set <std::string> deletion_ppns;
     if (arg_no < argc) {
-        for (auto line : FileUtil::ReadLines((argv[arg_no])))
-            deletion_ppns.emplace(line);
+        for (auto line : FileUtil::ReadLines((argv[arg_no]))) {
+            StringUtil::TrimWhite(&line);
+            if (not line.empty())
+                deletion_ppns.emplace(line);
+        }
         ++arg_no;
     }
     if (arg_no != argc)
