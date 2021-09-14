@@ -143,7 +143,8 @@ void DeleteFromTable(DbConnection * const db_connection, const std::string &tabl
 
         const std::string where("WHERE " + column + "='" + deletion_ppn + "'");
         if (report_only)
-            deletion_count += db_connection->countOrDie("SELECT count(*) AS deletion_count FROM '" + table + "' " + where, "deletion_count");
+            deletion_count += db_connection->countOrDie("SELECT count(*) AS deletion_count FROM " + table
+                                                        + " " + where, "deletion_count");
         else {
             db_connection->queryOrDie("DELETE FROM '" + table + "' " + where);
             deletion_count += db_connection->getNoOfAffectedRows();
