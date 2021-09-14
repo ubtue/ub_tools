@@ -12,6 +12,7 @@ CREATE TABLE vufind_translations (
   create_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
   prev_version_id INT DEFAULT NULL,
   next_version_id INT DEFAULT NULL,
+  PRIMARY KEY (id),
   KEY vufind_translations_idx_token (token),
   KEY vufind_translations_idx_language_code (language_code)
 ) DEFAULT CHARSET=utf8mb4;
@@ -32,6 +33,7 @@ CREATE TABLE keyword_translations (
   create_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
   prev_version_id INT DEFAULT NULL,
   next_version_id INT DEFAULT NULL,
+  PRIMARY KEY (id),
   KEY keyword_translations_idx_ppn (ppn),
   KEY keyword_translations_idx_language_code (language_code),
   KEY keyword_translations_idx_translation (translation(30)),

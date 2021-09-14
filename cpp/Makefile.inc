@@ -3,7 +3,7 @@ CCC            ?= clang++
 CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Wno-parentheses -march=native -ftrapv \
                  -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
                  -DETC_DIR='"/usr/local/var/lib/tuelib"' -DUB_DEFAULT_LOCALE='"en_US.UTF-8"' \
-                 -I$(shell /usr/bin/pg_config --includedir)
+                 -I$(shell pg_config --includedir)
 LIBS           = -L$(LIB) -lubtue -lstemmer -lxml2 -lpcre -lmagic -lz \
                  -larchive -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt -lssl -lcrypto -lpthread -ldl \
                  -luuid -llept -ltesseract -lsqlite3 -lxerces-c -ldb -lpq -lsystemd
