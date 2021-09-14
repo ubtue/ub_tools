@@ -125,37 +125,42 @@
 
 
     function InsertTranslationIntoDB(object) {{
-       var index = $(object).attr("index");
-       var gnd_code = $(object).attr("gnd_code");
-       var language_code = $(object).closest('table').find('th').eq($(object).index()).text(); //Determine language from the heading
-       var old_translation = $(object).attr("translation");
-       var translator_exists = $(object).attr("translator_exists");
-       var translation = $(object).text();
-       var category = $(object).attr("category");
-       if (translation == old_translation)
-           return;
+        var index = $(object).attr("index");
+        var gnd_code = $(object).attr("gnd_code");
+        var language_code = $(object).closest('table').find('th').eq($(object).index()).text(); //Determine language from the heading
+        var old_translation = $(object).attr("translation");
+        var translator_exists = $(object).attr("translator_exists");
+        var translation = $(object).text();
+        var category = $(object).attr("category");
+        if (translation == old_translation)
+            return;
 
-       $(object).attr("translation", translation);
-       // For VuFind we can take a straightforward approach
-       // For Keywords there are possibly unreliable translations from the MACS project thus
-       // we have to insert a new translation even if there is already one present in the cell
-       var action = ((category == "vufind_translations" && !IsEmpty(old_translation)) || translator_exists) ? "update" : "insert"
-       $.ajax({{
-          type: "PUT",
-          url: "translator_ajax",
-          data: "index=" + index + "&gnd_code=" + gnd_code + "&language_code=" + language_code
-                         + "&translation=" + translation + "&action=" + action,
-          success: function(json) {{
-             $(object).css("background-color", "yellow");
-             // Make sure that translator_exists will be correctly present for subsequent calls
-             $(object).attr("translator_exists", "1");
-         }, // end success
+        $(object).attr("translation", translation);
+        // For VuFind we can take a straightforward approach
+        // For Keywords there are possibly unreliable translations from the MACS project thus
+        // we have to insert a new translation even if there is already one present in the cell
+        var action = ((category == "vufind_translations" && !IsEmpty(old_translation)) || translator_exists) ? "update" : "insert"
+        $.ajax({{
+            type: "PUT",
+            url: "translator_ajax",
+            data: {{
+                index: index,
+                gnd_code: gnd_code,
+                language_code: language_code,
+                translation: translation,
+                action: action
+            }, // end data
+            success: function(json) {{
+                $(object).css("background-color", "yellow");
+                // Make sure that translator_exists will be correctly present for subsequent calls
+                $(object).attr("translator_exists", "1");
+            }, // end success
 
-          error: function (xhr, ajaxOptions, thrownError) {{
-                   $(object).css("background-color", "red");
-                   alert("Writing to database failed");
-          }
-       }); // end ajax
+            error: function (xhr, ajaxOptions, thrownError) {{
+                $(object).css("background-color", "red");
+                alert("Writing to database failed");
+            }
+        }); // end ajax
     }
     </script>
 

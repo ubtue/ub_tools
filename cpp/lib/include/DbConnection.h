@@ -123,6 +123,15 @@ public:
      */
     void queryFileOrDie(const std::string &filename);
 
+    /** \brief Similar to queryOrDie, but returns a DbResultSet, typically used for SELECT statements. */
+    DbResultSet selectOrDie(const std::string &select_statement);
+
+    /** \brief Can be used as a short helper function to evaluate SELECT COUNT(*)... query.
+     *  \param select_statement     The statement containing a 'COUNT (*) AS <variable>' expression
+     *  \param count_variable_name  The name of the variable as defined after the AS statement.
+     */
+    unsigned countOrDie(const std::string &select_statement, const std::string &count_variable_name);
+
     /** \note Currently only works w/ Sqlite.
      *  \note Supports online backups of a running database.
      */

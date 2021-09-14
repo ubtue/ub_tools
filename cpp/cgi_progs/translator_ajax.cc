@@ -25,11 +25,12 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
+#include <systemd/sd-bus.h>
 #include "Compiler.h"
 #include "ExecUtil.h"
 #include "WebUtil.h"
 #include "util.h"
-#include <systemd/sd-bus.h>
+
 
 const std::string sd_path("/");
 const std::string sd_interface("de.ubtue");
@@ -139,10 +140,10 @@ finish:
 void Update(const std::multimap<std::string, std::string> &cgi_args, const std::multimap<std::string, std::string> &env_args) {
     std::string language_code, translation, index, gnd_code, translator;
     ExtractParams(cgi_args, env_args, &language_code, &translation, &index, &gnd_code, &translator);
-    std::string update_command("/usr/local/bin/translation_db_tool update '" + index);
+    std::string update_command("/usr/local/bin/translation_db_tool update " + ExecUtil::EscapeAndQuoteArg(index));
     if (not gnd_code.empty())
-        update_command += "' '" + gnd_code;
-    update_command += "' " + language_code + " \"" + translation + "\" '" + translator + "'";
+        update_command += " " + ExecUtil::EscapeAndQuoteArg(gnd_code);
+    update_command += " " + ExecUtil::EscapeAndQuoteArg(language_code) + " " + ExecUtil::EscapeAndQuoteArg(translation) + " " + ExecUtil::EscapeAndQuoteArg(translator);
 
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(update_command, &output))
@@ -156,10 +157,10 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args, const std::
     if (translation.empty())
         return;
 
-    std::string insert_command("/usr/local/bin/translation_db_tool insert '" + index);
+    std::string insert_command("/usr/local/bin/translation_db_tool insert " + ExecUtil::EscapeAndQuoteArg(index));
     if (not gnd_code.empty())
-        insert_command += "' '" + gnd_code;
-    insert_command += "' " + language_code + " \"" + translation + "\" '" + translator + "'";
+        insert_command += " " + ExecUtil::EscapeAndQuoteArg(gnd_code);
+    insert_command += " " + ExecUtil::EscapeAndQuoteArg(language_code) + " " + ExecUtil::EscapeAndQuoteArg(translation) + " " + ExecUtil::EscapeAndQuoteArg(translator);
 
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(insert_command, &output))
