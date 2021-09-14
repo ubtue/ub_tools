@@ -304,8 +304,11 @@ int Main(int argc, char **argv) {
 
     std::unordered_set <std::string> deletion_ppns;
     if (arg_no < argc) {
-        for (auto line : FileUtil::ReadLines((argv[arg_no])))
-            deletion_ppns.emplace(line);
+        for (auto line : FileUtil::ReadLines((argv[arg_no]))) {
+            StringUtil::TrimWhite(&line);
+            if (not line.empty())
+                deletion_ppns.emplace(line);
+        }
         ++arg_no;
     }
     if (arg_no != argc)
