@@ -56,6 +56,7 @@ CREATE TABLE translators (
 
 DROP PROCEDURE IF EXISTS insert_vufind_translation_entry;
 #do_not_split_on_semicolons
+DELIMITER $$
 CREATE PROCEDURE insert_vufind_translation_entry(IN in_token VARCHAR(191), IN in_language_code CHAR(4), IN in_translation VARCHAR(1024), IN in_translator VARCHAR(50))
 SQL SECURITY INVOKER
 BEGIN
@@ -82,7 +83,8 @@ SET @new_record_id := LAST_INSERT_ID();
 
 UPDATE vufind_translations SET next_version_id=@new_record_id WHERE id=@old_record_id;
 COMMIT;
-
+END$$
+DELIMITER ;
 #end_do_not_split_on_semicolons
 ;
 
@@ -90,6 +92,7 @@ COMMIT;
 
 DROP PROCEDURE IF EXISTS insert_keyword_translation_entry;
 #do_not_split_on_semicolons
+DELIMITER $$
 CREATE PROCEDURE insert_keyword_translation_entry(IN in_ppn CHAR(10), IN in_gnd_code CHAR(10), IN in_language_code CHAR(10), IN in_translation VARCHAR(1024), IN in_translator VARCHAR(30))
 SQL SECURITY INVOKER
 BEGIN
@@ -116,6 +119,7 @@ SET @new_record_id := LAST_INSERT_ID();
 
 UPDATE keyword_translations SET next_version_id=@new_record_id WHERE id=@old_record_id;
 COMMIT;
-
+END$$
+DELIMITER ;
 #end_do_not_split_on_semicolons
 ;
