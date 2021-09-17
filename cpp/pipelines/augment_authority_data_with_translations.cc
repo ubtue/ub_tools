@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016, 2017 Library of the University of Tübingen
+    Copyright (C) 2016-2021 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -75,7 +75,7 @@ void ExtractTranslations(DbConnection * const db_connection,
     while (const DbRow ppn_row = ppn_result_set.getNextRow()) {
         std::string ppn = ppn_row["ppn"];
         db_connection->queryOrDie("SELECT ppn, language_code, translation, origin, status FROM keyword_translations "
-                                  "WHERE ppn='" + ppn + "'");
+                                  "WHERE ppn='" + ppn + "' AND next_version_id IS NULL");
         DbResultSet result_set(db_connection->getLastResultSet());
         std::vector<Translation> translations;
         while (const DbRow row = result_set.getNextRow()) {
@@ -204,7 +204,7 @@ int Main(int argc, char **argv) {
     const std::string sql_database(ini_file.getString("Database", "sql_database"));
     const std::string sql_username(ini_file.getString("Database", "sql_username"));
     const std::string sql_password(ini_file.getString("Database", "sql_password"));
-    DbConnection db_connection(sql_database, sql_username, sql_password);
+    DbConnection db_connection(DbConnection::MySQLFactory(sql_database, sql_username, sql_password));
 
     std::unordered_map<std::string, std::vector<Translation> > all_translations;
     ExtractTranslations(&db_connection, &all_translations);

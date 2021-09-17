@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2019, Library of the University of Tübingen
+    Copyright (C) 2016-2021, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -75,7 +75,7 @@ void ProcessLanguage(const bool verbose, const std::string &output_file_path, co
     if (unlikely(output.fail()))
         LOG_ERROR("failed to open \"" + output_file_path + "\" for writing!");
 
-    db_connection->queryOrDie("SELECT token,translation FROM vufind_translations WHERE language_code='" + _3letter_code + "'");
+    db_connection->queryOrDie("SELECT token,translation FROM vufind_translations WHERE next_version_id IS NULL AND language_code='" + _3letter_code + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (unlikely(result_set.empty()))
         LOG_ERROR("found no translations for language code \"" + _3letter_code + "\"!");
@@ -157,12 +157,13 @@ int Main(int argc, char **argv) {
     const std::string sql_database(ini_file.getString("Database", "sql_database"));
     const std::string sql_username(ini_file.getString("Database", "sql_username"));
     const std::string sql_password(ini_file.getString("Database", "sql_password"));
-    DbConnection db_connection(sql_database, sql_username, sql_password);
+    DbConnection db_connection(DbConnection::MySQLFactory(sql_database, sql_username, sql_password));
 
     std::map<std::string, std::string> _2letter_and_3letter_codes;
     GetLanguageCodes(verbose, &db_connection, &_2letter_and_3letter_codes);
     for (const auto &_2letter_intl_code_and_fake_3letter_english_code : _2letter_and_3letter_codes)
-        ProcessLanguage(verbose, output_directory + "/" + _2letter_intl_code_and_fake_3letter_english_code.first + ".ini",
+        ProcessLanguage(verbose,
+                        output_directory + "/" + _2letter_intl_code_and_fake_3letter_english_code.first + ".ini",
                         _2letter_intl_code_and_fake_3letter_english_code.second, &db_connection);
 
     return EXIT_SUCCESS;

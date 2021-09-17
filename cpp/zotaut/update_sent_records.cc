@@ -1,7 +1,7 @@
 /** \brief Utility for updating hashes and URLs of MARC records in our delivery history database.
  *  \author Madeeswaran Kannan (madeeswaran.kannan@uni-tuebingen.de)
  *
- *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2020-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -68,7 +68,8 @@ void SaveRecordUrls(const std::string &record_id, const MARC::Record &record, Db
         // This call will fail at least once for each record that has multiple URLs due to duplicates.
         // Failures of this kind are benign.
         db_connection->query("INSERT INTO delivered_marc_records_urls SET record_id=" + record_id
-                             + ", url=" + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(url)));
+                             + ", url="
+                             + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(url)));
     }
 }
 
@@ -77,7 +78,7 @@ void SaveRecordUrls(const std::string &record_id, const MARC::Record &record, Db
 
 
 int Main(int /* argc */, char ** /* argv */) {
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
 
     db_connection.queryOrDie("SELECT id, hash, record FROM delivered_marc_records");
     auto result_set(db_connection.getLastResultSet());

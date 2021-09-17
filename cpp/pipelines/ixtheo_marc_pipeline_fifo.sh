@@ -80,7 +80,7 @@ wait
 
 
 StartPhase "Swap and Delete PPN's in Various Databases"
-(patch_ppns_in_databases --report-only GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
+(patch_ppns_in_databases --report-only GesamtTiteldaten-"${date}".mrc Normdaten-"${date}".mrc \
                          -- entire_record_deletion.log >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -377,6 +377,7 @@ readonly field_match_pattern='610t:Codex (iuris canonici|canonum ecclesiarum ori
                 --replace-subfield-if-regex '610p:/^(\d+),(\d+)$/can. \1, §\2/' "${field_match_pattern}" \
                 --replace-subfield-if-regex '610p:/^(\d+),(\d+-\d+)$/can. \1 §§\2/' "${field_match_pattern}" \
                 --replace-subfield-if-regex '610p:/^(\d+),(\d+),(\d+)$/can. \1, §\2 n. \3/' "${field_match_pattern}" \
+                --replace-subfield-if-regex '610p:/^(\d+),(\d+),(\d+)-(\d+)$/can. \1, §\2 n. \3-\4/' "${field_match_pattern}" \
 		>> "${log}" 2>&1 && \
 EndPhase || Abort) &
 

@@ -56,44 +56,58 @@
         $(".editable_translation").blur(function() {{
             InsertTranslationIntoDB(this);
         });
-
-        var eventSource;
         if (!!window.EventSource)
         {{
-            eventSource = new EventSource('/cgi-bin/message_dispatcher', {{ withCredentials: true});
+            connectEventSource();
+
+            let reconnecting = false;
+            setInterval(() => {{
+                if (eventSource.readyState == EventSource.CLOSED) {{
+                    reconnecting = true;
+                    console.log("reconnecting...");
+                    connectEventSource();
+                } else if (reconnecting) {{
+                    reconnecting = false
+                    console.log("reconnected!");
+                }
+            }, 3000);
         }
         else
         {{
-            alert('Your browser does not support HTML5 Server-Sent Events');
+            alert('You will not be updated of changes made by others - consider using a different browser');
         }
-
-        eventSource.onmessage = function(event) {{
-            //console.log("message: " + event.data);
-            EventSourceChangeStyle(event.data);
-        };
-        eventSource.onopen = function(event) {{
-            console.log(event);
-        };
-        eventSource.onerror = function(event) {{
-            console.log(event);
-        };
-
-
-
     });
+
 
     function EventSourceChangeStyle(eventData){{
         if(IsJsonString(eventData) === true){{
             let objData = JSON.parse(eventData);
             $('td').each(function(){{
-                if($(this).attr('index') == objData.index && $(this).attr('gnd_code') == objData.gnd_code && $(this).attr('language_code') == objData.language_code){{
+                if($(this).attr('comparable') == objData.index && $(this).attr('gnd_code') == objData.gnd_code && $(this).attr('language_code') == objData.language_code){{
+                    $(this).html(objData.translation);
+                    $(this).css("background-color", "orange");
+                }
+                if($(this).attr('comparable') == objData.index && $(this).attr('gnd_code') == '' && $(this).attr('language_code') == objData.language_code){{
                     $(this).html(objData.translation);
                     $(this).css("background-color", "orange");
                 }
             })
         }
-
     }
+
+
+    let eventSource = null;
+
+    function connectEventSource() {{
+        eventSource = new EventSource('/cgi-bin/message_dispatcher', {{ withCredentials: true });
+        eventSource.onerror = function() {{
+            eventSource.close();
+        }
+        eventSource.onmessage = function (event) {{
+            EventSourceChangeStyle(event.data)
+        };
+    }
+
 
     function IsJsonString(str) {{
         try {{
@@ -104,42 +118,49 @@
         return true;
     }
 
+
     function IsEmpty(str) {{
        return (!str || 0 === str.length);
     }
 
+
     function InsertTranslationIntoDB(object) {{
-       var index = $(object).attr("index");
-       var gnd_code = $(object).attr("gnd_code");
-       var language_code = $(object).closest('table').find('th').eq($(object).index()).text(); //Determine language from the heading
-       var old_translation = $(object).attr("translation");
-       var translator_exists = $(object).attr("translator_exists");
-       var translation = $(object).text();
-       var category = $(object).attr("category");
-       if (translation == old_translation)
-           return;
+        var index = $(object).attr("index");
+        var gnd_code = $(object).attr("gnd_code");
+        var language_code = $(object).closest('table').find('th').eq($(object).index()).text(); //Determine language from the heading
+        var old_translation = $(object).attr("translation");
+        var translator_exists = $(object).attr("translator_exists");
+        var translation = $(object).text();
+        var category = $(object).attr("category");
+        if (translation == old_translation)
+            return;
 
-       $(object).attr("translation", translation);
-       // For VuFind we can take a straightforward approach
-       // For Keywords there are possibly unreliable translations from the MACS project thus
-       // we have to insert a new translation even if there is already one present in the cell
-       var action = ((category == "vufind_translations" && !IsEmpty(old_translation)) || translator_exists) ? "update" : "insert"
-       $.ajax({{
-          type: "PUT",
-          url: "translator_ajax",
-          data: "index=" + index + "&gnd_code=" + gnd_code + "&language_code=" + language_code
-                         + "&translation=" + translation + "&action=" + action,
-          success: function(json) {{
-             $(object).css("background-color", "yellow");
-             // Make sure that translator_exists will be correctly present for subsequent calls
-             $(object).attr("translator_exists", "1");
-         }, // end success
+        $(object).attr("translation", translation);
+        // For VuFind we can take a straightforward approach
+        // For Keywords there are possibly unreliable translations from the MACS project thus
+        // we have to insert a new translation even if there is already one present in the cell
+        var action = ((category == "vufind_translations" && !IsEmpty(old_translation)) || translator_exists) ? "update" : "insert"
+        $.ajax({{
+            type: "PUT",
+            url: "translator_ajax",
+            data: {{
+                index: index,
+                gnd_code: gnd_code,
+                language_code: language_code,
+                translation: translation,
+                action: action
+            }, // end data
+            success: function(json) {{
+                $(object).css("background-color", "yellow");
+                // Make sure that translator_exists will be correctly present for subsequent calls
+                $(object).attr("translator_exists", "1");
+            }, // end success
 
-          error: function (xhr, ajaxOptions, thrownError) {{
-                   $(object).css("background-color", "red");
-                   alert("Writing to database failed");
-          }
-       }); // end ajax
+            error: function (xhr, ajaxOptions, thrownError) {{
+                $(object).css("background-color", "red");
+                alert("Writing to database failed");
+            }
+        }); // end ajax
     }
     </script>
 

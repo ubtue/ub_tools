@@ -7,14 +7,14 @@
 # \brief    Get latest existing container id by image, no matter if the container is running or not.
 # \param    $1 The name of the docker image of the container
 function get_latest_container_id {
-    docker ps --all --quiet --filter ancestor=$1 | head --lines 1
+    docker ps --all | grep -i "$1" | awk '{print $1}' | head --lines 1
 }
 
 
 # \brief    Get latest running container id by image
 # \param    $1 The name of the docker image of the container
 function get_latest_running_container_id {
-    docker ps --quiet --filter ancestor=$1 | head --lines 1
+    docker ps | grep -i "$1" | awk '{print $1}' | head --lines 1
 }
 
 

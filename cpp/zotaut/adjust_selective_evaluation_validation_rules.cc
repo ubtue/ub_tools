@@ -112,7 +112,7 @@ int Main(int argc, char *argv[]) {
     const std::string config_path(argv[1]);
     std::vector<std::unique_ptr<Config::JournalParams>> journal_params;
     LoadHarvesterConfig(config_path, &journal_params);
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
     UpdateRules(&db_connection, journal_params);
     return EXIT_SUCCESS;
 }

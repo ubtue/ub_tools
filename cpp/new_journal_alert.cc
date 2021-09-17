@@ -44,7 +44,6 @@
 #include "TimeUtil.h"
 #include "UBTools.h"
 #include "util.h"
-#include "VuFind.h"
 
 
 namespace {
@@ -380,7 +379,7 @@ public:
                       const std::string &vufind_host, const std::string &sender_email, const std::vector<NewIssueInfo> &new_issue_infos) const
     {
         std::vector<NewIssueInfo> unique_issues_infos;
-        deduplicateIdenticalIssues(new_issue_infos, &unique_issues_infos);      
+        deduplicateIdenticalIssues(new_issue_infos, &unique_issues_infos);
         for (const auto &unique_issue_info : unique_issues_infos) {
             const std::string email_contents(mail_contents_generator.generateContent(vufind_host, unique_issue_info));
             if (debug)
@@ -908,13 +907,13 @@ int Main(int argc, char **argv) {
 
     std::unique_ptr<KeyValueDB> notified_db(CreateOrOpenKeyValueDB(user_type));
 
-    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
+    DbConnection db_connection(DbConnection::VuFindMySQLFactory());
 
     const IniFile bundles_config(UBTools::GetTuelibPath() + "journal_alert_bundles.conf");
 
     std::unordered_set<std::string> new_notification_ids;
     std::unordered_map<std::string, unsigned> journal_ppns_to_counts_map;
-    ProcessSubscriptions(debug, db_connection.get(), notified_db, bundles_config, &new_notification_ids,
+    ProcessSubscriptions(debug, &db_connection, notified_db, bundles_config, &new_notification_ids,
                          &journal_ppns_to_counts_map, solr_host_and_port, user_type, hostname, sender_email,
                          email_subject);
 

@@ -3,7 +3,7 @@
  *  \author  Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  */
 /*
-    Copyright (C) 2017-2019 Library of the University of Tübingen
+    Copyright (C) 2017-2021 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -29,7 +29,6 @@
 #include "DbResultSet.h"
 #include "MARC.h"
 #include "util.h"
-#include "VuFind.h"
 
 
 namespace {
@@ -141,16 +140,16 @@ int Main(int argc, char *argv[]) {
     auto reader(MARC::Reader::Factory(argv[1]));
     auto writer(MARC::Writer::Factory(argv[2]));
 
-    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
+    auto db_connection(DbConnection::VuFindMySQLFactory());
 
     std::unordered_map<std::string, std::string> resource_id_to_record_id_map;
-    PopulateResourceIdToRecordIdMap(db_connection.get(), &resource_id_to_record_id_map);
+    PopulateResourceIdToRecordIdMap(&db_connection, &resource_id_to_record_id_map);
 
     std::unordered_map<std::string, std::string> tag_id_to_resource_id_map;
-    PopulateTagIdToResourceIdMap(db_connection.get(), &tag_id_to_resource_id_map);
+    PopulateTagIdToResourceIdMap(&db_connection, &tag_id_to_resource_id_map);
 
     std::unordered_map<std::string, std::set<std::string>> record_id_to_tags_map;
-    ExtractTags(db_connection.get(), tag_id_to_resource_id_map, resource_id_to_record_id_map, &record_id_to_tags_map);
+    ExtractTags(&db_connection, tag_id_to_resource_id_map, resource_id_to_record_id_map, &record_id_to_tags_map);
 
     AddTagsToRecords(reader.get(), writer.get(), record_id_to_tags_map);
 

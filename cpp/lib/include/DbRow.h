@@ -30,7 +30,9 @@
 /** \warning It is unsafe to access DbRow instances after the DbResultSet that it belongs to has been deleted
  *           or gone out of scope! */
 class DbRow {
-    friend class DbResultSet;
+    friend class MySQLResultSet;
+    friend class Sqlite3ResultSet;
+    friend class PostgresResultSet;
     PGresult *pg_result_;
     int pg_row_number_;
     MYSQL_ROW row_;

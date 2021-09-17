@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2018-2019, Library of the University of Tübingen
+    Copyright (C) 2018-2021, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -31,7 +31,6 @@
 #include "MARC.h"
 #include "StringUtil.h"
 #include "util.h"
-#include "VuFind.h"
 
 
 namespace {
@@ -119,14 +118,14 @@ int Main(int argc, char **argv) {
 
     const std::string marc_input_filename(argv[1]);
 
-    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
+    auto db_connection(DbConnection::VuFindMySQLFactory());
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
     std::unordered_set<std::string> all_record_ids;
     ExtractAllRecordIDs(marc_reader.get(), &all_record_ids);
     std::vector<std::string> unreferenced_ppns;
-    GetUnreferencedPPNsFromDB(db_connection.get(), all_record_ids, &unreferenced_ppns);
-    CreateTemporaryUnreferencedPPNTable(db_connection.get(), unreferenced_ppns);
-    RemoveUnreferencedEntries(db_connection.get());
+    GetUnreferencedPPNsFromDB(&db_connection, all_record_ids, &unreferenced_ppns);
+    CreateTemporaryUnreferencedPPNTable(&db_connection, unreferenced_ppns);
+    RemoveUnreferencedEntries(&db_connection);
     LOG_INFO("Removed superfluous references for " + std::to_string(unreferenced_ppns.size()) +  " PPN(s)");
 
     return EXIT_SUCCESS;

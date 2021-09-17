@@ -32,11 +32,6 @@ static const std::string DATABASE_CONF("local/config/vufind/local_overrides/data
 static const std::string DATABASE_CONF_ALTERNATIVE("local/tuefind/local_overrides/database.conf");
 
 
-std::shared_ptr<DbConnection> GetDbConnection() {
-    return std::make_shared<DbConnection>(GetMysqlURLOrDie());
-}
-
-
 std::string GetDefaultDatabaseConf() {
     const std::string VUFIND_HOME(MiscUtil::SafeGetEnv("VUFIND_HOME"));
     if (VUFIND_HOME.empty())

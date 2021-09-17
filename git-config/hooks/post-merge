@@ -58,5 +58,5 @@ fi
 
 SYSTEM_UPDATER=/usr/local/bin/system_updater
 if [ -e "$SYSTEM_UPDATER" ]; then
-    $("$SYSTEM_UPDATER" "$SYSTEM_UPDATES_PATH")
+    "$SYSTEM_UPDATER" "$SYSTEM_UPDATES_PATH"
 fi

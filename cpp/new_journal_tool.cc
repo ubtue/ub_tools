@@ -1,11 +1,11 @@
 /** \file    new_journal_tool.cc
- *  \brief   Command-line utility to display information about journal subscriptions and to reset entries in the notified_db
- *           for testing purposes.
+ *  \brief   Command-line utility to display information about journal subscriptions and to reset entries
+ *           in the notified_db for testing purposes.
  *  \author  Dr. Johannes Ruscheinski
  */
 
 /*
-    Copyright (C) 2020 Library of the University of Tübingen
+    Copyright (C) 2020-2021 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -35,7 +35,6 @@
 #include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
-#include "VuFind.h"
 
 
 namespace {
@@ -216,19 +215,19 @@ int Main(int argc, char **argv) {
     const std::string DB_FILENAME(UBTools::GetTuelibPath() + user_type + "_notified.db");
     std::unique_ptr<KeyValueDB> notified_db(OpenKeyValueDBOrDie(DB_FILENAME));
 
-    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
+    auto db_connection(DbConnection::VuFindMySQLFactory());
 
     const std::string command(argv[2]);
 
     if (command == "list_users") {
         if (argc != 3)
             Usage();
-        ListUsers(db_connection.get(), user_type);
+        ListUsers(&db_connection, user_type);
     } else if (command == "list_subs") {
         if (argc != 4)
             Usage();
         const std::string username(argv[3]);
-        ListSubs(db_connection.get(), user_type, username, solr_host, solr_port);
+        ListSubs(&db_connection, user_type, username, solr_host, solr_port);
     } else if (command == "clear") {
         if (argc < 4 or argc > 5)
             Usage();
@@ -236,7 +235,7 @@ int Main(int argc, char **argv) {
         if (username == "all" and argc > 4)
             Usage();
         const std::string subscription_name(argc == 5 ? argv[4] : "all");
-        Clear(db_connection.get(), notified_db.get(), username, subscription_name);
+        Clear(&db_connection, notified_db.get(), username, subscription_name);
     } else
         Usage();
 

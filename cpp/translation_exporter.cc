@@ -2,7 +2,7 @@
  *  \brief A tool creating authority data records from expert-translated keywords.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -73,7 +73,7 @@ void GenerateAuthortyRecords(DbConnection * const db_connection, MARC::Writer * 
         const std::string ppn(ppn_row["ppn"]);
         const std::string status(ppn_row["status"]);
         db_connection->queryOrDie("SELECT language_code,translation FROM keyword_translations WHERE ppn='" + ppn
-                                  + "' AND (status='new' OR status='replaced')");
+                                  + "' AND next_version_id IS NULL AND (status='new' OR status='replaced')");
         DbResultSet result_set(db_connection->getLastResultSet());
 
         MARC::Record new_record(MARC::Record::TypeOfRecord::AUTHORITY, MARC::Record::BibliographicLevel::UNDEFINED, ppn);
@@ -112,7 +112,7 @@ int Main(int argc, char *argv[]) {
     const std::string sql_database(ini_file.getString("", "sql_database"));
     const std::string sql_username(ini_file.getString("", "sql_username"));
     const std::string sql_password(ini_file.getString("", "sql_password"));
-    DbConnection db_connection(sql_database, sql_username, sql_password);
+    DbConnection db_connection(DbConnection::MySQLFactory(sql_database, sql_username, sql_password));
 
     GenerateAuthortyRecords(&db_connection, marc_writer.get());
 

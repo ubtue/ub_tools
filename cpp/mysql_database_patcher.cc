@@ -153,7 +153,7 @@ int Main(int argc, char *argv[]) {
     const std::string update_directory_path(argv[1]);
     LoadAndSortUpdateFilenames(test, update_directory_path, &update_filenames);
 
-    DbConnection db_connection;
+    DbConnection db_connection(DbConnection::UBToolsFactory());
     const std::string system_table_name("database_versions");
     if (not db_connection.tableExists("ub_tools", system_table_name)) {
         db_connection.queryOrDie("CREATE TABLE ub_tools." + system_table_name + " (version INT UNSIGNED NOT NULL,"

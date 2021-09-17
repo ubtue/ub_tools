@@ -23,7 +23,6 @@
 #include <cstdlib>
 #include "DbConnection.h"
 
-
 // avoid conflicts with LICENSE defined in mysql_version.h
 #ifdef LICENSE
     #undef LICENSE
@@ -547,8 +546,8 @@ int Main(int argc, char *argv[]) {
         break;
     }
 
-    DbConnection db;
-    harvester_config.config_file_->write(commandline_args.config_path_, /* pretty_print = */ true, /* compact = */ true);
+    harvester_config.config_file_->write(commandline_args.config_path_, /* pretty_print = */ true,
+                                         /* compact = */ true);
 
     return EXIT_SUCCESS;
 }

@@ -20,13 +20,12 @@ int Main(int argc, char *argv[]) {
     std::string hostname(argc == 6 ? argv[5] : "localhost");
 
     std::string error_message;
-    std::unique_ptr<DbConnection> db_connection(
-        DbConnection::PostgresFactory(&error_message, database_name, user_name, password, hostname));
-    if (db_connection == nullptr)
+    auto db_connection(DbConnection::PostgresFactory(&error_message, database_name, user_name, password, hostname));
+    if (not error_message.empty())
         LOG_ERROR("failed to create a Postgres DbConnection: " + error_message);
 
-    db_connection->queryOrDie(query);
-    auto result_set(db_connection->getLastResultSet());
+    db_connection.queryOrDie(query);
+    auto result_set(db_connection.getLastResultSet());
     std::cout << "The result size is " << result_set.size() << ".\n";
     const size_t column_count(result_set.getColumnCount());
     std::cout << "The number of columns in the result set is " << column_count << ".\n";

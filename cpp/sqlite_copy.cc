@@ -1,7 +1,7 @@
 /** \brief Utility for safely backing up Sqlite databases.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2019 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2019-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -37,8 +37,8 @@ int Main(int argc, char *argv[]) {
     if (original_database == copy_of_database)
         LOG_ERROR("won't overwrite original database!");
 
-    DbConnection db_connection(original_database, DbConnection::READONLY);
-    db_connection.backupOrDie(copy_of_database);
+    DbConnection db_connection(DbConnection::Sqlite3Factory(original_database, DbConnection::READONLY));
+    db_connection.sqlite3BackupOrDie(copy_of_database);
 
     return EXIT_SUCCESS;
 }
