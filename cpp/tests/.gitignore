@@ -3,3 +3,4 @@ MarcRecordTests
 MarcReaderAndWriterTests
 MarcTagTests
 SubfieldsTests
+import_ixtheo_sql
