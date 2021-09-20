@@ -1582,13 +1582,7 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
 
     Subfields subfields(field->getContents());
     subfields.addSubfield(subfield_code, subfield_value);
-
-    std::string new_field_value;
-    new_field_value += field->getIndicator1();
-    new_field_value += field->getIndicator2();
-    new_field_value += subfields.toString();
-    field->contents_ = new_field_value;
-
+    field->setSubfields(subfields);
     return true;
 }
 
