@@ -405,15 +405,18 @@ void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const mar
         ++record_count;
         bool modified_record(false);
         if ((subsystem_sets[RELBIB]).find(record.getControlNumber()) != subsystem_sets[RELBIB].end()) {
-            AddSubsystemTag(&record, RELBIB_TAG);
+            AddSubsystemTag(&record, RELBIB_TAG); // remove after migration
+            record.addSubfieldCreateFieldUnique("SUB", 'a', "REL");
             modified_record = true;
         }
         if ((subsystem_sets[BIBSTUDIES]).find(record.getControlNumber()) != subsystem_sets[BIBSTUDIES].end()) {
-            AddSubsystemTag(&record, BIBSTUDIES_TAG);
+            AddSubsystemTag(&record, BIBSTUDIES_TAG); // remove after migration
+            record.addSubfieldCreateFieldUnique("SUB", 'a', "BIB");
             modified_record = true;
         }
         if ((subsystem_sets[CANON_LAW]).find(record.getControlNumber()) != subsystem_sets[CANON_LAW].end()) {
-            AddSubsystemTag(&record, CANON_LAW_TAG);
+            AddSubsystemTag(&record, CANON_LAW_TAG); // remove after migration
+            record.addSubfieldCreateFieldUnique("SUB", 'a', "CAN");
             modified_record = true;
         }
         if (modified_record)
