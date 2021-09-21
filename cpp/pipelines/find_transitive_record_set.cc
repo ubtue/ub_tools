@@ -45,19 +45,19 @@ typedef bool (*RecordTypeOfInterestPredicate)(const MARC::Record &record);
 
 
 inline bool IsBibleStudiesRecord(const MARC::Record &record) {
-    //return record.hasSubfieldWithValue("SUB", '1', "BIB");
+    //return record.hasSubfieldWithValue("SUB", 'a', "BIB");
     return record.findTag("BIB") != record.end(); // remove after migration
 }
 
 
 inline bool IsChurchLawRecord(const MARC::Record &record) {
-    //return record.hasSubfieldWithValue("SUB", '1', "CAN");
+    //return record.hasSubfieldWithValue("SUB", 'a', "CAN");
     return record.findTag("CAN") != record.end(); // remove after migration
 }
 
 
 inline bool IsRelStudiesRecord(const MARC::Record &record) {
-    //return record.hasSubfieldWithValue("SUB", '1', "REL");
+    //return record.hasSubfieldWithValue("SUB", 'a', "REL");
     return record.findTag("REL") != record.end(); // remove after migration
 }
 
@@ -171,7 +171,7 @@ void PatchRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_wr
                 const auto &tag(record_type_to_tag_map[type]); // remove after migration
                 /*const auto &subfield(record_type_to_subfield_map[type]);*/
                 record.insertField(MARC::Tag(tag), std::vector<MARC::Subfield>{ { 'a', "1" }, { 'c', "1" } }); // remove after migration
-                /*record.addSubfieldCreateFieldUnique("SUB", '1', subfield);*/
+                /*record.addSubfieldCreateFieldUnique("SUB", 'a', subfield);*/
                 added_at_least_one_new_type = true;
             }
         }
