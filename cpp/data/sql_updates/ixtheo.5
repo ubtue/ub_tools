@@ -1,0 +1,14 @@
+ALTER TABLE vufind.user ADD COLUMN ixtheo_user_type ENUM('ixtheo', 'relbib') DEFAULT 'ixtheo' AFTER tuefind_is_admin;
+ALTER TABLE vufind.user ADD COLUMN ixtheo_appellation VARCHAR(64) DEFAULT NULL AFTER ixtheo_user_type;
+ALTER TABLE vufind.user ADD COLUMN ixtheo_title VARCHAR(64) DEFAULT NULL AFTER ixtheo_appellation;
+ALTER TABLE vufind.user ADD COLUMN ixtheo_institution VARCHAR(255) DEFAULT NULL AFTER ixtheo_title;
+ALTER TABLE vufind.user ADD COLUMN ixtheo_country VARCHAR(255) DEFAULT NULL AFTER ixtheo_institution;
+ALTER TABLE vufind.user ADD COLUMN ixtheo_language VARCHAR(20) DEFAULT NULL AFTER ixtheo_country;
+ALTER TABLE vufind.user ADD COLUMN ixtheo_can_use_tad BOOLEAN DEFAULT FALSE AFTER ixtheo_language;
+UPDATE vufind.user t1 INNER JOIN vufind.ixtheo_user t2 ON t1.id = t2.id SET t1.ixtheo_user_type=t2.user_type, t1.ixtheo_appellation=t2.appellation, t1.ixtheo_title=t2.title, t1.ixtheo_institution=t2.institution, t1.ixtheo_country=t2.country, t1.ixtheo_language=t2.language, t1.ixtheo_can_use_tad=t2.can_use_tad;
+ALTER TABLE vufind.user MODIFY COLUMN ixtheo_appellation VARCHAR(64) NOT NULL;
+ALTER TABLE vufind.user MODIFY COLUMN ixtheo_title VARCHAR(64) NOT NULL;
+ALTER TABLE vufind.user MODIFY COLUMN ixtheo_institution VARCHAR(255) NOT NULL;
+ALTER TABLE vufind.user MODIFY COLUMN ixtheo_country VARCHAR(255) NOT NULL;
+ALTER TABLE vufind.user MODIFY COLUMN ixtheo_language VARCHAR(20) NOT NULL;
+DROP TABLE vufind.ixtheo_user;
