@@ -53,7 +53,7 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
     record.insertField("SPR", { { 'a', "1" /* is superior work */ },
                                 { 'b', "1" /* series has not been completed */ } });
     record.insertField("935", 'c', "subskriptionspaket" );
-    std::vector<MARC::Subfield> subsystems{};
+    std::vector<MARC::Subfield> subsystems;
 
     if (not description.empty())
         record.insertField("500", 'a', description);
@@ -61,7 +61,7 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
     if (exclude_ixtheo)
         record.addSubfield("935", 'x', "1");
     else
-        record.addSubfieldCreateFieldUnique("SUB", 'a', "ixtheo");
+        record.addSubfieldCreateFieldUnique("SUB", 'a', "IXT");
     if (include_relbib) {
         record.insertField("REL", { { 'a', "1" } }); // remove after migration
         record.addSubfieldCreateFieldUnique("SUB", 'a', "REL");
