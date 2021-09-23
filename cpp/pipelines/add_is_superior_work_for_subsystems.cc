@@ -58,11 +58,14 @@ void CollectSubsystemInfo(MARC::Reader * const marc_reader,
         if (INSTALLATION_TYPE == "KRI")
             continue;
 
-        if (record.hasTag("BIB"))
+        /*if (record.hasSubfieldWithValue("SUB", 'a', "BIB"))*/
+        if (record.hasTag("BIB")) // remove after migration
             superior_ppn_and_subsystem_types->second.emplace("BIB");
-        if (record.hasTag("CAN"))
+        /*if (record.hasSubfieldWithValue("SUB", 'a', "CAN"))*/
+        if (record.hasTag("CAN")) // remove after migration
             superior_ppn_and_subsystem_types->second.emplace("CAN");
-        if (record.hasTag("REL"))
+        /*if (record.hasSubfieldWithValue("SUB", 'a', "REL"))*/
+        if (record.hasTag("REL")) // remove after migration
             superior_ppn_and_subsystem_types->second.emplace("REL");
     }
 

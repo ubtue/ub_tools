@@ -172,7 +172,8 @@ void LoadAuthorGNDNumbersAndTagAuthors(
         references_count += literary_remains_infos.size();
 
         if (author_ppn_to_relstudies_titles_counters.find(record.getControlNumber()) != author_ppn_to_relstudies_titles_counters.cend()) {
-            record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } });
+            record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
+            record.addSubfieldCreateFieldUnique("SUB", 'a', "REL");
             ++tagged_count;
         }
 
@@ -258,8 +259,10 @@ void AppendLiteraryRemainsRecords(
         const auto author_ppn_and_relstudies_titles_counter(
             author_ppn_to_relstudies_titles_counters.find(gnd_number_and_author_ppn->second));
         if (author_ppn_and_relstudies_titles_counter != author_ppn_to_relstudies_titles_counters.cend()
-            and author_ppn_and_relstudies_titles_counter->second.exceedsReligiousStudiesThreshold())
-            new_record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } });
+            and author_ppn_and_relstudies_titles_counter->second.exceedsReligiousStudiesThreshold()) {
+            new_record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
+            new_record.addSubfieldCreateFieldUnique("SUB", 'a', "REL");
+        }
 
         writer->write(new_record);
         ++creation_count;
