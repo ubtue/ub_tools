@@ -759,7 +759,7 @@ public:
 
     /** \brief  Checks if a specified field exists which additionally contains a subfield with a given value.
      */
-    bool hasSubfieldWithValue(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) const;
+    bool hasFieldWithSubfieldValue(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) const;
 
     /** \brief Performs edits on MARC rercord.
      *  \param error_message  If errors occurred this will contain explanatory text for the last error only.

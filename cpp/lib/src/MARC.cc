@@ -1594,22 +1594,18 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
 
 bool Record::addSubfieldCreateFieldUnique(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) {
     const auto &field(findTag(field_tag));
-    bool success = true;
-    if (field == fields_.end()) {
-        success = insertField(field_tag, std::string(1, subfield_code) + subfield_value);
+    if (field == fields_.end())
+        return insertField(field_tag, {{subfield_code, subfield_value}});
+    if (not hasFieldWithSubfieldValue(field_tag, subfield_code, subfield_value)) {
+        return addSubfield(field_tag, subfield_code, subfield_value);
     }
-    if (success) {
-        if (not this->hasSubfieldWithValue(field_tag, subfield_code, subfield_value)) {
-            success = addSubfield(field_tag, subfield_code, subfield_value);
-        }
-    }
-    return success;
+    return false;
 }
 
 
-bool Record::hasSubfieldWithValue(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) const {
+bool Record::hasFieldWithSubfieldValue(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) const {
     auto field(findTag(field_tag));
-    while (field != fields_.cend()) {
+    while (field != fields_.cend() and field->getTag() == field_tag) {
         if (field->hasSubfieldWithValue(subfield_code, subfield_value))
             return true;
         ++field;
