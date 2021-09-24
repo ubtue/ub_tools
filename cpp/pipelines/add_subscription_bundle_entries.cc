@@ -60,8 +60,7 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
 
     if (exclude_ixtheo)
         record.addSubfield("935", 'x', "1");
-    else
-        record.addSubfieldCreateFieldUnique("SUB", 'a', "IXT");
+
     if (include_relbib) {
         record.insertField("REL", { { 'a', "1" } }); // remove after migration
         record.addSubfieldCreateFieldUnique("SUB", 'a', "REL");
