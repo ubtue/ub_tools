@@ -460,19 +460,33 @@ void ExtractAuthors(MARC::Reader * const marc_reader, std::unordered_map<std::st
 
 void TagAuthors(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer, std::unordered_map<std::string, std::set<std::string>> &authors) {
     while (MARC::Record record = authority_reader->read()) {
-         auto it_authors = authors.find(record.getControlNumber());
-         if (it_authors != authors.end()) {
-             std::vector<MARC::Subfield> tit_instances{ { 'a', "ixtheo" } };
-             std::set<std::string> instances = it_authors->second;
-             if (instances.find("r") != instances.end())
+        auto it_authors = authors.find(record.getControlNumber());
+        if (it_authors != authors.end()) {
+            std::set<std::string> instances = it_authors->second;
+
+            // "TIT" will be replaced by "SUB" soon, remove this block after migration
+            std::vector<MARC::Subfield> tit_instances{ { 'a', "ixtheo" } };
+            if (instances.find("r") != instances.end())
                 tit_instances.push_back({ 'a', "relbib" });
-             if (instances.find("b") != instances.end())
+            if (instances.find("b") != instances.end())
                 tit_instances.push_back({ 'a', "biblestudies" });
-             if (instances.find("c") != instances.end())
+            if (instances.find("c") != instances.end())
                 tit_instances.push_back({ 'a', "canonlaw" });
             record.insertField("TIT", tit_instances);
-         }
-         authority_writer->write(record);
+
+            // New "SUB" to keep it similar to title records
+            std::vector<MARC::Subfield> sub_instances;
+            if (instances.find("r") != instances.end())
+                sub_instances.push_back({ 'a', "REL" });
+            if (instances.find("b") != instances.end())
+                sub_instances.push_back({ 'a', "BIB" });
+            if (instances.find("c") != instances.end())
+                sub_instances.push_back({ 'a', "CAN" });
+
+            if (not sub_instances.empty())
+                record.insertField("SUB", sub_instances);
+        }
+        authority_writer->write(record);
     }
 }
 
@@ -482,7 +496,7 @@ void TagAuthors(MARC::Reader * const authority_reader, MARC::Writer * const auth
 
 int Main(int argc, char **argv) {
     if (argc != 5)
-        ::Usage("marc_input authority_input marc_output authority_output");
+        ::Usage("title_input authority_input title_output authority_output");
 
     const std::string marc_input_filename(argv[1]);
     const std::string authority_input_filename(argv[2]);
@@ -503,7 +517,7 @@ int Main(int argc, char **argv) {
     std::unordered_map<std::string, std::set<std::string>> authors;
     ExtractAuthors(marc_reader.get(), &authors, bible_studies_gnd_numbers, canon_law_gnd_numbers);
     marc_reader->rewind();
-    
+
     GetSubsystemPPNSet(marc_reader.get(), bible_studies_gnd_numbers, canon_law_gnd_numbers, &subsystem_sets);
     marc_reader->rewind();
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
