@@ -83,9 +83,7 @@ void PatchSPRFields(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         if (spr_field != record.end()) {
             const auto ppn(record.getControlNumber());
             const auto superior_ppn_and_subsystem_types(superior_ppns_to_subsystem_types.find(ppn));
-            if (unlikely(superior_ppn_and_subsystem_types == superior_ppns_to_subsystem_types.cend()))
-                LOG_WARNING("can't find \"" + ppn + "\" in our map!");
-            else {
+            if (superior_ppn_and_subsystem_types != superior_ppns_to_subsystem_types.cend()) {
                 for (const auto &subsystem_type : superior_ppn_and_subsystem_types->second) {
                     auto subsystem_and_count(subsystems_to_counts_map.find(subsystem_type));
                     if (unlikely(subsystem_and_count == subsystems_to_counts_map.end()))
