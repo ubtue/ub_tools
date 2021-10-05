@@ -18,6 +18,14 @@ rm -f $SCHEMA_DIFFS
 declare -i compare_against_installer_schema=$(if $(echo "$CHANGED_FILES" | grep --quiet cpp/data/installer/ub_tools.sql); then echo 1; else echo 0; fi)
 if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); then
     /usr/local/bin/mysql_list_tables > $OLD_UB_TOOLS_SCHEMA
+
+    # Make sure that we use the newest database patcher:
+    (cd /usr/local/ub_tools/cpp; make mysql_database_patcher; cp mysql_database_patcher /usr/local/bin)
+    if [[ $? != 0 ]]; then
+        echo "Most likely building, or, less likely, the installation of the database patcher failed!"
+        exit 1
+    fi
+
     if [[ -x $MYSQL_DATABASE_PATCHER ]]; then
 	echo "Executing MYSQL schema updates tool"
         $MYSQL_DATABASE_PATCHER $MYSQL_SCHEMA_UPDATES_PATH
@@ -30,7 +38,7 @@ if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); th
         compare_against_installer_schema=1
         echo "MYSQL schema update completed"
     else
-        echo "You need to install $MYSQL_DATABASE_PATCHER and execute it!."
+        echo "You need to install $MYSQL_DATABASE_PATCHER and execute it!"
         exit 1
     fi
 else
