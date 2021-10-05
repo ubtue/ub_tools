@@ -542,6 +542,8 @@ std::shared_ptr<const JSONNode> ObjectNode::deepResolveNode(const std::string &p
             next_node = array_node->getNode(index);
             break;
         }
+        case JSONNode::NULL_NODE:
+            return nullptr;
         default:
             throw std::runtime_error("in JSON::ObjectNode::deepResolveNode: can't descend into a scalar node! (path: "
                                      + path + ")");
