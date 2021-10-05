@@ -2,7 +2,7 @@
  *  \brief  Implementation of JSON-related functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -166,7 +166,7 @@ TokenType Scanner::parseNumber() {
         return DOUBLE_CONST;
     }
 
-    if (*ch_ == 'e' or *ch_ == 'E') 
+    if (*ch_ == 'e' or *ch_ == 'E')
         number_as_string += *ch_;
 
     ++ch_;
@@ -511,7 +511,7 @@ std::shared_ptr<const JSONNode> ObjectNode::deepResolveNode(const std::string &p
         case JSONNode::OBJECT_NODE:
             if ((next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component)) == nullptr) {
                     throw std::runtime_error("in JSON::ObjectNode::deepResolveNode: path component \"" + path_component
-                                             + " is not a key in an object node!");
+                                             + " is not a key in an object node! (path: " + path+ ")");
             }
             break;
         case JSONNode::ARRAY_NODE: {
@@ -780,7 +780,7 @@ template<class JSONNode> static std::shared_ptr<JSONNode> GetLastPathComponent(c
             if ((next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component)) == nullptr) {
                 if (throw_if_not_found)
                     throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
-                                             + " is not a key in an object node!");
+                                             + " is not a key in an object node! (path: " + path + ")");
             }
             break;
         case JSONNode::ARRAY_NODE: {
