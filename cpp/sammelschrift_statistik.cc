@@ -89,7 +89,7 @@ void ProcessRecords(const bool use_religious_studies_only, MARC::Reader * const 
     unsigned record_count(0);
 
     while (const MARC::Record record = marc_reader->read()) {
-        if (use_religious_studies_only and record.findTag("REL") == record.end())
+        if (use_religious_studies_only and /*remove after migration*/ record.findTag("REL") == record.end() /*and not record.hasSubfieldWithValue("SUB", 'a', "REL")*/)
             continue;
         if (not IsCollection(record))
             continue;
@@ -112,7 +112,7 @@ void DetermineAttachedArticleCounts(const bool use_religious_studies_only, MARC:
     while (const MARC::Record record = marc_reader->read()) {
         if (not record.isArticle())
             continue;
-        if (use_religious_studies_only and record.findTag("REL") == record.end())
+        if (use_religious_studies_only and /*remove after migration*/ record.findTag("REL") == record.end() /*and not record.hasSubfieldWithValue("SUB", 'a', "REL")*/)
             continue;
 
         const auto superior_control_number(record.getSuperiorControlNumber());

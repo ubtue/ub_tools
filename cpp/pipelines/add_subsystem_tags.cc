@@ -6,7 +6,7 @@
  */
 
 /*
-    Copyright (C) 2018,2019 Library of the University of Tübingen
+    Copyright (C) 2018-2021 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -366,12 +366,12 @@ enum SubSystem { RELBIB, BIBSTUDIES, CANON_LAW, NUM_OF_SUBSYSTEMS };
 
 
 // Get set of immediately belonging or superior or parallel records
-void GetSubsystemPPNSet(MARC::Reader * const marc_reader,
+void GetSubsystemPPNSet(MARC::Reader * const title_reader,
                         const std::unordered_set<std::string> &bible_studies_gnd_numbers,
                         const std::unordered_set<std::string> &canon_law_gnd_numbers,
                         std::vector<std::unordered_set<std::string>> * const subsystem_sets)
 {
-    while (const MARC::Record record = marc_reader->read()) {
+    while (const MARC::Record record = title_reader->read()) {
         if (IsRelBibRecord(record)) {
             ((*subsystem_sets)[RELBIB]).emplace(record.getControlNumber());
             CollectSuperiorOrParallelWorks(record, &((*subsystem_sets)[RELBIB]));
@@ -397,39 +397,42 @@ const std::string BIBSTUDIES_TAG("BIB");
 const std::string CANON_LAW_TAG("CAN");
 
 
-void AddSubsystemTags(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+void TagTitles(MARC::Reader * const title_reader, MARC::Writer * const title_writer,
                       const std::vector<std::unordered_set<std::string>> &subsystem_sets)
 {
     unsigned record_count(0), modified_count(0);
-    while (MARC::Record record = marc_reader->read()) {
+    while (MARC::Record record = title_reader->read()) {
         ++record_count;
         bool modified_record(false);
         if ((subsystem_sets[RELBIB]).find(record.getControlNumber()) != subsystem_sets[RELBIB].end()) {
-            AddSubsystemTag(&record, RELBIB_TAG);
+            AddSubsystemTag(&record, RELBIB_TAG); // remove after migration
+            record.addSubfieldCreateFieldUnique("SUB", 'a', RELBIB_TAG);
             modified_record = true;
         }
         if ((subsystem_sets[BIBSTUDIES]).find(record.getControlNumber()) != subsystem_sets[BIBSTUDIES].end()) {
-            AddSubsystemTag(&record, BIBSTUDIES_TAG);
+            AddSubsystemTag(&record, BIBSTUDIES_TAG); // remove after migration
+            record.addSubfieldCreateFieldUnique("SUB", 'a', BIBSTUDIES_TAG);
             modified_record = true;
         }
         if ((subsystem_sets[CANON_LAW]).find(record.getControlNumber()) != subsystem_sets[CANON_LAW].end()) {
-            AddSubsystemTag(&record, CANON_LAW_TAG);
+            AddSubsystemTag(&record, CANON_LAW_TAG); // remove after migration
+            record.addSubfieldCreateFieldUnique("SUB", 'a', CANON_LAW_TAG);
             modified_record = true;
         }
         if (modified_record)
             ++modified_count;
-         marc_writer->write(record);
+        title_writer->write(record);
     }
     LOG_INFO("Modified " + std::to_string(modified_count) + " of " + std::to_string(record_count) + " records.");
 }
 
 
-void ExtractAuthors(MARC::Reader * const marc_reader, std::unordered_map<std::string, std::set<std::string>> * const authors,
+void ExtractAuthors(MARC::Reader * const title_reader, std::unordered_map<std::string, std::set<std::string>> * const authors,
                         const std::unordered_set<std::string> &bible_studies_gnd_numbers,
                         const std::unordered_set<std::string> &canon_law_gnd_numbers) {
     static std::vector<std::string> tags_to_check{ "100", "110", "111", "700", "710", "711" };
     unsigned record_count(0);
-    while (const MARC::Record record = marc_reader->read()) {
+    while (const MARC::Record record = title_reader->read()) {
         ++record_count;
         bool is_relbib_record = IsRelBibRecord(record);
         bool is_canonlaw_record = IsCanonLawRecord(record, canon_law_gnd_numbers);
@@ -457,19 +460,33 @@ void ExtractAuthors(MARC::Reader * const marc_reader, std::unordered_map<std::st
 
 void TagAuthors(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer, std::unordered_map<std::string, std::set<std::string>> &authors) {
     while (MARC::Record record = authority_reader->read()) {
-         auto it_authors = authors.find(record.getControlNumber());
-         if (it_authors != authors.end()) {
-             std::vector<MARC::Subfield> tit_instances{ { 'a', "ixtheo" } };
-             std::set<std::string> instances = it_authors->second;
-             if (instances.find("r") != instances.end())
+        auto it_authors = authors.find(record.getControlNumber());
+        if (it_authors != authors.end()) {
+            std::set<std::string> instances = it_authors->second;
+
+            // "TIT" will be replaced by "SUB" soon, remove this block after migration
+            std::vector<MARC::Subfield> tit_instances{ { 'a', "ixtheo" } };
+            if (instances.find("r") != instances.end())
                 tit_instances.push_back({ 'a', "relbib" });
-             if (instances.find("b") != instances.end())
+            if (instances.find("b") != instances.end())
                 tit_instances.push_back({ 'a', "biblestudies" });
-             if (instances.find("c") != instances.end())
+            if (instances.find("c") != instances.end())
                 tit_instances.push_back({ 'a', "canonlaw" });
             record.insertField("TIT", tit_instances);
-         }
-         authority_writer->write(record);
+
+            // New "SUB" to keep it similar to title records
+            std::vector<MARC::Subfield> sub_instances;
+            if (instances.find("r") != instances.end())
+                sub_instances.push_back({ 'a', RELBIB_TAG });
+            if (instances.find("b") != instances.end())
+                sub_instances.push_back({ 'a', BIBSTUDIES_TAG });
+            if (instances.find("c") != instances.end())
+                sub_instances.push_back({ 'a', CANON_LAW_TAG });
+
+            if (not sub_instances.empty())
+                record.insertField("SUB", sub_instances);
+        }
+        authority_writer->write(record);
     }
 }
 
@@ -479,33 +496,33 @@ void TagAuthors(MARC::Reader * const authority_reader, MARC::Writer * const auth
 
 int Main(int argc, char **argv) {
     if (argc != 5)
-        ::Usage("marc_input authority_input marc_output authority_output");
+        ::Usage("title_input authority_input title_output authority_output");
 
-    const std::string marc_input_filename(argv[1]);
+    const std::string title_input_filename(argv[1]);
     const std::string authority_input_filename(argv[2]);
-    const std::string marc_output_filename(argv[3]);
+    const std::string title_output_filename(argv[3]);
     const std::string authority_output_filename(argv[4]);
-    if (unlikely(marc_input_filename == marc_output_filename))
+    if (unlikely(title_input_filename == title_output_filename))
         LOG_ERROR("Title data input file name equals output file name!");
 
     std::unordered_set<std::string> bible_studies_gnd_numbers, canon_law_gnd_numbers;
     std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_input_filename));
-    std::unique_ptr<MARC::Writer> authority_writer(MARC::Writer::Factory(authority_output_filename));
     CollectGNDNumbers(authority_reader.get(), &bible_studies_gnd_numbers, &canon_law_gnd_numbers);
     authority_reader->rewind();
 
+    std::unique_ptr<MARC::Reader> title_reader(MARC::Reader::Factory(title_input_filename));
     std::vector<std::unordered_set<std::string>> subsystem_sets(NUM_OF_SUBSYSTEMS);
-    std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
-
     std::unordered_map<std::string, std::set<std::string>> authors;
-    ExtractAuthors(marc_reader.get(), &authors, bible_studies_gnd_numbers, canon_law_gnd_numbers);
-    marc_reader->rewind();
-    
-    GetSubsystemPPNSet(marc_reader.get(), bible_studies_gnd_numbers, canon_law_gnd_numbers, &subsystem_sets);
-    marc_reader->rewind();
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
-    AddSubsystemTags(marc_reader.get(), marc_writer.get(), subsystem_sets);
+    ExtractAuthors(title_reader.get(), &authors, bible_studies_gnd_numbers, canon_law_gnd_numbers);
+    title_reader->rewind();
 
+    GetSubsystemPPNSet(title_reader.get(), bible_studies_gnd_numbers, canon_law_gnd_numbers, &subsystem_sets);
+    title_reader->rewind();
+
+    std::unique_ptr<MARC::Writer> title_writer(MARC::Writer::Factory(title_output_filename));
+    TagTitles(title_reader.get(), title_writer.get(), subsystem_sets);
+
+    std::unique_ptr<MARC::Writer> authority_writer(MARC::Writer::Factory(authority_output_filename));
     TagAuthors(authority_reader.get(), authority_writer.get(), authors);
 
     return EXIT_SUCCESS;

@@ -1586,6 +1586,27 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
     return true;
 }
 
+bool Record::addSubfieldCreateFieldUnique(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) {
+    const auto &field(findTag(field_tag));
+    if (field == fields_.end())
+        return insertField(field_tag, {{subfield_code, subfield_value}});
+    if (not hasFieldWithSubfieldValue(field_tag, subfield_code, subfield_value)) {
+        return addSubfield(field_tag, subfield_code, subfield_value);
+    }
+    return false;
+}
+
+
+bool Record::hasFieldWithSubfieldValue(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) const {
+    auto field(findTag(field_tag));
+    while (field != fields_.cend() and field->getTag() == field_tag) {
+        if (field->hasSubfieldWithValue(subfield_code, subfield_value))
+            return true;
+        ++field;
+    }
+    return false;
+}
+
 
 bool Record::edit(const std::vector<EditInstruction> &edit_instructions, std::string * const error_message) {
     bool failed_at_least_once(false);

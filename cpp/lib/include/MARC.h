@@ -757,6 +757,15 @@ public:
      */
     bool addSubfield(const Tag &field_tag, const char subfield_code, const std::string &subfield_value);
 
+    /** \brief  Adds a subfield to the first existing field with tag "field_tag". Field is created if it does not exist.
+     *  \return True if a subfield and optionally field created or if subfield with value is already present.
+     */
+    bool addSubfieldCreateFieldUnique(const Tag &field_tag, const char subfield_code, const std::string &subfield_value);
+
+    /** \brief  Checks if a specified field exists which additionally contains a subfield with a given value.
+     */
+    bool hasFieldWithSubfieldValue(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) const;
+
     /** \brief Performs edits on MARC rercord.
      *  \param error_message  If errors occurred this will contain explanatory text for the last error only.
      *  \return True if all edits succeeded and false if at least one edit failed.

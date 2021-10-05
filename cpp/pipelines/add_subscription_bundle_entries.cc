@@ -53,18 +53,26 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
     record.insertField("SPR", { { 'a', "1" /* is superior work */ },
                                 { 'b', "1" /* series has not been completed */ } });
     record.insertField("935", 'c', "subskriptionspaket" );
+    std::vector<MARC::Subfield> subsystems;
 
     if (not description.empty())
         record.insertField("500", 'a', description);
 
     if (exclude_ixtheo)
         record.addSubfield("935", 'x', "1");
-    if (include_relbib)
-        record.insertField("REL", { { 'a', "1" } });
-    if (include_bibstudies)
-        record.insertField("BIB", { { 'a', "1" } });
-    if (include_churchlaw)
-        record.insertField("CAN", { { 'a', "1" } });
+
+    if (include_relbib) {
+        record.insertField("REL", { { 'a', "1" } }); // remove after migration
+        record.addSubfieldCreateFieldUnique("SUB", 'a', "REL");
+    }
+    if (include_bibstudies) {
+        record.insertField("BIB", { { 'a', "1" } }); // remove after migration
+        record.addSubfieldCreateFieldUnique("SUB", 'a', "BIB");
+    }
+    if (include_churchlaw) {
+        record.insertField("CAN", { { 'a', "1" } }); // remove after migration
+        record.addSubfieldCreateFieldUnique("SUB", 'a', "CAN");
+    }
     
     std::vector<MARC::Subfield> elc_subfields;
     if (media_type == "online_and_print" or media_type == "online")
