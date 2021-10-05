@@ -20,7 +20,7 @@ if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); th
     /usr/local/bin/mysql_list_tables > $OLD_UB_TOOLS_SCHEMA
 
     # Make sure that we use the newest database patcher:
-    (cd /usr/local/ub_tools/cpp; make mysql_database_patcher; cp mysql_database_patcher /usr/local/bin)
+    (cd /usr/local/ub_tools/cpp && make mysql_database_patcher && cp mysql_database_patcher /usr/local/bin)
     if [[ $? != 0 ]]; then
         echo "Most likely building, or, less likely, the installation of the database patcher failed!"
         exit 1
