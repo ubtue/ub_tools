@@ -462,14 +462,14 @@ void TagAuthors(MARC::Reader * const authority_reader, MARC::Writer * const auth
     while (MARC::Record record = authority_reader->read()) {
          auto it_authors = authors.find(record.getControlNumber());
          if (it_authors != authors.end()) {
-             std::vector<MARC::Subfield> tit_instances{ { 'a', "ixtheo" } };
+             std::vector<MARC::Subfield> tit_instances{ { 'a', "ixtheo" } }; //remove after migration -> "IXT"
              std::set<std::string> instances = it_authors->second;
              if (instances.find("r") != instances.end())
-                tit_instances.push_back({ 'a', "relbib" });
+                tit_instances.push_back({ 'a', "relbib" }); // remove after migration -> "REL"
              if (instances.find("b") != instances.end())
-                tit_instances.push_back({ 'a', "biblestudies" });
+                tit_instances.push_back({ 'a', "biblestudies" }); // remove after migration -> "BIB"
              if (instances.find("c") != instances.end())
-                tit_instances.push_back({ 'a', "canonlaw" });
+                tit_instances.push_back({ 'a', "canonlaw" }); // remove after migration -> "CAN"
             record.insertField("TIT", tit_instances);
          }
          authority_writer->write(record);
