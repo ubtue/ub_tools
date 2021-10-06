@@ -38,10 +38,10 @@ function CleanUpStaleDirectories() {
 
 
 # Argument processing
-KEEP_ITERMEDIATE_FILES=
+KEEP_INTERMEDIATE_FILES=
 if [[ $# > 1 ]]; then
     if [[ $1 == "--keep-intermediate-files" ]]; then
-        KEEP_ITERMEDIATE_FILES="--keep-intermediate-files"
+        KEEP_INTERMEDIATE_FILES="--keep-intermediate-files"
     else
         Usage
     fi
@@ -101,12 +101,12 @@ for update in $(generate_merge_order | tail --lines=+2); do
     temp_directory=temp_directory.$BASHPID.$counter
     if [[ ${update:0:6} == "LOEKXP" ]]; then
         echo "[$(date +%y%m%d-%R:%S)] Processing deletion list: $update"
-        echo archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory  entire_record_deletion.log
-        archive_delete_ids $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory entire_record_deletion.log
+        echo archive_delete_ids $KEEP_INTERMEDIATE_FILES $input_directory $update $temp_directory  entire_record_deletion.log
+        archive_delete_ids $KEEP_INTERMEDIATE_FILES $input_directory $update $temp_directory entire_record_deletion.log
     else
         echo "[$(date +%y%m%d-%R:%S)] Processing differential dump: $update"
-        echo apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
-        apply_differential_update $KEEP_ITERMEDIATE_FILES $input_directory $update $temp_directory
+        echo apply_differential_update $KEEP_INTERMEDIATE_FILES $input_directory $update $temp_directory
+        apply_differential_update $KEEP_INTERMEDIATE_FILES $input_directory $update $temp_directory
     fi
     if [[ -n "$last_temp_directory" ]]; then
         rm --recursive ${last_temp_directory}
@@ -128,7 +128,7 @@ else
     cd ..
     rm --recursive ${temp_directory}
 
-    if [[ ! keep_itermediate_filenames ]]; then
+    if [[ ! keep_intermediate_filenames ]]; then
         rm temp_directory.$BASHPID.* TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
     fi
 

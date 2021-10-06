@@ -37,9 +37,9 @@ def Main():
         or (len(sys.argv) == 6 and not sys.argv[1].startswith("--filter-field=")):
         SendUsageAndExit()
 
-    count_gnd_refs_args = [];
+    count_author_gnd_refs_args = [];
     if sys.argv[1].startswith("--filter-field="):
-        count_gnd_refs_args.append(sys.argv[1])
+        count_author_gnd_refs_args.append(sys.argv[1])
         del sys.argv[1]
 
     if len(sys.argv) != 4 and len(sys.argv) != 5:
@@ -62,9 +62,9 @@ def Main():
     # Count GND references in the title data:
     gnd_counts_filename = "/tmp/gnd_counts"
     if len(sys.argv) > 4:
-        count_gnd_refs_args.append("--control-number-list=" + sys.argv[4])
-    count_gnd_refs_args.extend([ gnd_numbers_path, most_recent_titles_filename, gnd_counts_filename ])
-    util.ExecOrDie("/usr/local/bin/count_gnd_refs", count_gnd_refs_args)
+        count_author_gnd_refs_args.append("--control-number-list=" + sys.argv[4])
+    count_author_gnd_refs_args.extend([ gnd_numbers_path, most_recent_titles_filename, gnd_counts_filename ])
+    util.ExecOrDie("/usr/local/bin/count_author_gnd_refs", count_author_gnd_refs_args)
 
     # Generate a file with a timestamp in the Beacon format:
     timestamp_filename = "/tmp/beacon_timestamp"
