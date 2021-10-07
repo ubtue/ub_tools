@@ -9,7 +9,7 @@ if [[ $TUEFIND_FLAVOUR == "ixtheo" ]]; then
     else
         exit 0 # There is no crontab for root.
     fi
-    sed --in-place 's/"$LOG_DIR\/generate_beacon_file_relbib.log" 2>&1/"$LOG_DIR\/generate_beacon_file_relbib.log" 2>&1\n15 20 * * * cd "$BSZ_DATEN" && "$BIN\/generate_beacon_file.py" "--filter-field=BIB" "$EMAIL" "\/usr\/local\/ub_tools\/cpp\/data\/bibstudies-beacon.header" "$VUFIND_HOME\/public\/docs\/bibstudies-beacon.txt" > "$LOG_DIR\/generate_beacon_file_bibstudies.log" 2>&1\n45 20 * * * cd "$BSZ_DATEN" && "$BIN\/generate_beacon_file.py" "--filter-field=CAN" "$EMAIL" "\/usr\/local\/ub_tools\/cpp\/data\/canonlaw-beacon.header" "$VUFIND_HOME\/public\/docs\/canonlaw-beacon.txt" > "$LOG_DIR\/generate_beacon_file_canonlaw.log" 2>&1/g' $root_crontab
+    sed --in-place 's/"$LOG_DIR\/generate_beacon_file_relbib.log" 2>\&1/"$LOG_DIR\/generate_beacon_file_relbib.log" 2>\&1\n15 20 * * * cd "$BSZ_DATEN" \&\& "$BIN\/generate_beacon_file.py" "--filter-field=BIB" "$EMAIL" "\/usr\/local\/ub_tools\/cpp\/data\/bibstudies-beacon.header" "$VUFIND_HOME\/public\/docs\/bibstudies-beacon.txt" > "$LOG_DIR\/generate_beacon_file_bibstudies.log" 2>\&1\n45 20 * * * cd "$BSZ_DATEN" \&\& "$BIN\/generate_beacon_file.py" "--filter-field=CAN" "$EMAIL" "\/usr\/local\/ub_tools\/cpp\/data\/canonlaw-beacon.header" "$VUFIND_HOME\/public\/docs\/canonlaw-beacon.txt" > "$LOG_DIR\/generate_beacon_file_canonlaw.log" 2>\&1/g' $root_crontab
 fi
 
 if [[ $TUEFIND_FLAVOUR == "krimdok" ]]; then
@@ -20,5 +20,5 @@ if [[ $TUEFIND_FLAVOUR == "krimdok" ]]; then
     else
         exit 0 # There is no crontab for root.
     fi
-    sed --in-place 's/"$LOG_DIR\/full_text_stats.log" 2>&1/"$LOG_DIR\/full_text_stats.log" 2>&1\n30 20 * * * cd "$BSZ_DATEN" && "$BIN\/generate_beacon_file.py" "$EMAIL" "\/usr\\/local\/ub_tools\/cpp\/data\/krimdok-beacon.header" "$VUFIND_HOME\/public\/docs\/krimdok-beacon.txt" > "$LOG_DIR\/generate_beacon_file_krimdok.log" 2>&1/g' $root_crontab
+    sed --in-place 's/"$LOG_DIR\/full_text_stats.log" 2>\&1/"$LOG_DIR\/full_text_stats.log" 2>\&1\n30 20 * * * cd "$BSZ_DATEN" \&\& "$BIN\/generate_beacon_file.py" "$EMAIL" "\/usr\/local\/ub_tools\/cpp\/data\/krimdok-beacon.header" "$VUFIND_HOME\/public\/docs\/krimdok-beacon.txt" > "$LOG_DIR\/generate_beacon_file_krimdok.log" 2>\&1/g' $root_crontab
 fi
