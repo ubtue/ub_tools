@@ -61,7 +61,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, const std::unordered_set<s
         }
 
         if (not filter_tag.empty()) {
-            if (record.findTag(filter_tag) == record.end())
+            if (record.findTag(filter_tag) == record.end() and not record.hasFieldWithSubfieldValue("SUB",'a',filter_tag))
                 continue;
         }
 

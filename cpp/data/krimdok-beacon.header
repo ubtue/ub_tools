@@ -1,0 +1,8 @@
+#FORMAT: BEACON
+#PREFIX: http://d-nb.info/gnd/
+#TARGET: https://krimdok.uni-tuebingen.de/Search/Results?lookfor={ID}&Type=GND
+#NAME: KRIMDOK
+#MESSAGE: KRIMDOK: Publikationen der Kriminologie
+#DESCRIPTION: Die Datenbank "Krimdok" (IxTheo: https://krimdok.uni-tuebingen.de) ist eine internationale, open access Bibliographie für die Kriminologie. Ausgewertet werden Monographien (Bücher) und Aufsätze aus kriminologischen Zeitschriften sowie Aufsätze aus Sammelschriften (z.B. Kongressveröffentlichungen). Nachgewiesen werden auch einschlägige Datenbanken und Internetlinks. Statistik: ca 270.000 Mio Titel (Stand Oktober 2021).
+#INSTITUTION: Universitätsbibliothek Tübingen
+#CONTACT: krimdok@ub.uni-tuebingen.de
