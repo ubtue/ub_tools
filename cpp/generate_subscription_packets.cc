@@ -56,7 +56,7 @@ bool FoundExpectedClassValue(const std::string &expected_values_str, const std::
 
 bool IncludeJournal(const Zeder::Entry &journal, const IniFile::Section &filter_section) {
     for (const auto &entry : filter_section) {
-        if (entry.name_.empty() or entry.name_ == "description")
+        if (entry.name_.empty() or entry.name_ == "description" or entry.name_ == "lang")
             continue;
 
         const std::string &zeder_column_name(entry.name_);
@@ -137,7 +137,7 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
     }
 
     if (bundle_ppns.empty())
-        LOG_WARNING("No bundle generated for \"" + section.getSectionName() + "\" because there were no matching entries in Zeder!");
+        LOG_ERROR("No bundle generated for \"" + section.getSectionName() + "\" because there were no matching entries in Zeder!");
     else {
         (*output_file) << '[' << section.getSectionName() << "]\n";
         (*output_file) << "display_name = \"" << EscapeDoubleQuotes(section.getSectionName()) << "\"\n";
@@ -154,6 +154,9 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
         else
             media_type = "print";
         (*output_file) << "media_type   = \"" << media_type << "\"\n";
+        const auto lang(section.find("lang"));
+        if (lang != section.end())
+            (*output_file) << "lang         = \"" << EscapeDoubleQuotes(lang->value_) << "\"\n";
         (*output_file) << "ppns         = " << StringUtil::Join(bundle_ppns, ',') << '\n';
         (*output_file) << '\n';
     }
