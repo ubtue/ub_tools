@@ -26,6 +26,7 @@
 #include "MARC.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
+#include "TranslationUtil.h"
 #include "UBTools.h"
 
 
@@ -35,9 +36,14 @@ namespace {
 using BundleToPPNPair = std::pair<std::string, std::set<std::string>>;
 using BundleToPPNsMap = std::map<std::string, std::set<std::string>>;
 
+std::string MapLanguageCode(const std::string &lang) {
+    return TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(
+        TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(lang));
+}
+
 
 MARC::Record GenerateBundleRecord(const std::string &record_id, const std::string &bundle_name, const std::vector<std::string> &instances,
-                                  const std::string &description, const std::string &media_type)
+                                  const std::string &description, const std::string &media_type, const std::string &lang)
 {
     const std::string today(TimeUtil::GetCurrentDateAndTime("%y%m%d"));
     // exclude from Ixtheo e.g. because it's a pure Relbib list
@@ -49,6 +55,7 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
     record.insertField("001", record_id);
     record.insertField("005", "20" + today + "12000000.0:");
     record.insertField("008", today + 's' + TimeUtil::GetCurrentYear());
+    record.insertField("041", { { 'a', MapLanguageCode(lang) } });
     record.insertField("245", { { 'a', bundle_name }, { 'h', "Subscription Bundle" } } );
     record.insertField("SPR", { { 'a', "1" /* is superior work */ },
                                 { 'b', "1" /* series has not been completed */ } });
@@ -57,6 +64,11 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
 
     if (not description.empty())
         record.insertField("500", 'a', description);
+
+    if (lang == "de")
+        record.insertFieldAtEnd("500", MARC::Subfields({ { 'a', "(Zum Abonnieren 🔔-Schaltfläche oben verwenden.)" } }));
+    else
+        record.insertFieldAtEnd("500", MARC::Subfields({ { 'a', "(Use 🔔 button above to subscribe.)" } } ));
 
     if (exclude_ixtheo)
         record.addSubfield("935", 'x', "1");
@@ -73,14 +85,14 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
         record.insertField("CAN", { { 'a', "1" } }); // remove after migration
         record.addSubfieldCreateFieldUnique("SUB", 'a', "CAN");
     }
-    
+
     std::vector<MARC::Subfield> elc_subfields;
     if (media_type == "online_and_print" or media_type == "online")
         elc_subfields.push_back({ 'a', "1" });
     if (media_type == "online_and_print" or media_type == "print")
         elc_subfields.push_back({ 'b', "1" });
     record.insertField("ELC", elc_subfields);
-    
+
     return record;
 }
 
@@ -102,9 +114,11 @@ void GenerateBundleEntry(MARC::Writer * const marc_writer, const std::string &bu
     std::vector<std::string> instances;
     const std::string description(bundles_config.getString(bundle_name, "description", ""));
     const std::string media_type(bundles_config.getString(bundle_name, "media_type", ""));
+    const std::string lang(bundles_config.getString(bundle_name, "lang", ""));
     if (not instances_string.empty())
         StringUtil::SplitThenTrim(instances_string, ",", " \t", &instances);
-    marc_writer->write(GenerateBundleRecord(bundle_name, bundles_config.getString(bundle_name, "display_name"), instances, description, media_type));
+    marc_writer->write(GenerateBundleRecord(bundle_name, bundles_config.getString(bundle_name, "display_name"), instances,
+                                            description, media_type, lang));
 }
 
 
