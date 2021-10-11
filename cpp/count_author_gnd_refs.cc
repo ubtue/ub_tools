@@ -47,7 +47,7 @@ void LoadGNDNumbers(File * const input, std::unordered_map<std::string, unsigned
 }
 
 
-const std::vector<std::string> GND_REFERENCE_FIELDS{ "100", "600", "689", "700" };
+const std::vector<std::string> GND_AUTHOR_REFERENCE_FIELDS{ "100", "600", "689", "700" };
 
 
 void ProcessRecords(MARC::Reader * const marc_reader, const std::unordered_set<std::string> &filter_set,
@@ -61,13 +61,16 @@ void ProcessRecords(MARC::Reader * const marc_reader, const std::unordered_set<s
         }
 
         if (not filter_tag.empty()) {
-            if (record.findTag(filter_tag) == record.end())
+            if (record.findTag(filter_tag) == record.end() and not record.hasFieldWithSubfieldValue("SUB",'a',filter_tag))
                 continue;
         }
 
-        for (const auto &gnd_reference_field : GND_REFERENCE_FIELDS) {
+        for (const auto &gnd_reference_field : GND_AUTHOR_REFERENCE_FIELDS) {
             for (const auto &field : record.getTagRange(gnd_reference_field)) {
                 const MARC::Subfields subfields(field.getSubfields());
+                if (field.getTag() == "689" and not subfields.hasSubfieldWithValue('D', "p"))
+                    continue;
+
                 for (const auto &subfield0 : subfields.extractSubfields('0')) {
                     if (subfield0.length() <= __builtin_strlen("(DE-588)") or not StringUtil::StartsWith(subfield0, "(DE-588)"))
                         continue;
