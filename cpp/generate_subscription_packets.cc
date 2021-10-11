@@ -137,7 +137,7 @@ void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string
     }
 
     if (bundle_ppns.empty())
-        LOG_ERROR("No bundle generated for \"" + section.getSectionName() + "\" because there were no matching entries in Zeder!");
+        LOG_WARNING("No bundle generated for \"" + section.getSectionName() + "\" because there were no matching entries in Zeder!");
     else {
         (*output_file) << '[' << section.getSectionName() << "]\n";
         (*output_file) << "display_name = \"" << EscapeDoubleQuotes(section.getSectionName()) << "\"\n";
