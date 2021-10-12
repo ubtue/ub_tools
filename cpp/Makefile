@@ -9,6 +9,7 @@ include Makefile.inc
 all: .deps $(PROGS)
 	$(MAKE) -C elasticsearch
 	$(MAKE) -C cgi_progs
+	$(MAKE) -C core
 	$(MAKE) -C data_exports
 	$(MAKE) -C marc_tools
 	$(MAKE) -C merge_tools
@@ -39,6 +40,7 @@ tests:
 install: regular_install data_install
 	$(MAKE) -C elasticsearch install
 	$(MAKE) -C cgi_progs install
+	$(MAKE) -C core install
 	$(MAKE) -C data_exports install
 	$(MAKE) -C marc_tools install
 	$(MAKE) -C merge_tools install
@@ -89,6 +91,7 @@ local_clean:
 clean: local_clean Makefile
 	$(MAKE) -C elasticsearch clean
 	$(MAKE) -C cgi_progs clean
+	$(MAKE) -C core clean
 	$(MAKE) -C data_exports clean
 	$(MAKE) -C lib clean
 	$(MAKE) -C marc_tools clean

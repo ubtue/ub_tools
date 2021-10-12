@@ -66,8 +66,8 @@ fi
 # Convert to MARC:
 echo "Before conversion to MARC..."
 declare -r MARC_OUTPUT=KrimDok-CORE-$(date +%Y%M%d).xml
-convert_json_to_marc --min-log-level=DEBUG --create-unique-id-db /usr/local/var/lib/tuelib/core.conf \
-                     "$WORK_FILE" unmapped_issn.list "$MARC_OUTPUT"
+convert_core_json_to_marc --create-unique-id-db /usr/local/var/lib/tuelib/core.conf \
+                          "$WORK_FILE" unmapped_issn.list "$MARC_OUTPUT"
 echo "Generated $MARC_OUTPUT, unmapped ISSN's are in unmapped_issn.list"
 
 
