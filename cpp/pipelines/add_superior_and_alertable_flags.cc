@@ -47,16 +47,9 @@ namespace {
 
 
 void LoadSuperiorPPNs(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const superior_ppns) {
-    const std::vector<std::string> TAGS{ "800", "810", "830", "773" };
     while (const MARC::Record record = marc_reader->read()) {
-        for (const auto &tag : TAGS) {
-            for (const auto &field : record.getTagRange(tag)) {
-                const MARC::Subfields subfields(field.getSubfields());
-                const std::string subfield_w_contents(subfields.getFirstSubfieldWithCode('w'));
-                if (StringUtil::StartsWith(subfield_w_contents, "(DE-627)"))
-                    superior_ppns->emplace(subfield_w_contents.substr(__builtin_strlen("(DE-627)")));
-            }
-        }
+        for (const auto &ppn : record.getSuperiorControlNumbers())
+            superior_ppns->emplace(ppn);
     }
 
     LOG_INFO("Found " + std::to_string(superior_ppns->size()) + " superior PPNs.");

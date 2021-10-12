@@ -104,7 +104,7 @@ public:
 const std::vector<Tag> CROSS_LINK_FIELD_TAGS{ "689", "700", "770", "772", "773", "775", "776", "780",
                                               "785", "787", "800", "810", "811", "830", "880", "889" };
 
-const std::vector<Tag> PARENT_REFERENCE_TAGS{ "800", "810", "830", "773", "776" };
+const std::vector<Tag> UP_LINK_FIELD_TAGS{ "773", "800", "810", "811", "830" };
 
 
 bool IsRepeatableField(const Tag &tag);
@@ -590,6 +590,9 @@ public:
 
     /** \return The control number of the superior work, if found, else the empty string. */
     std::string getSuperiorControlNumber() const;
+
+    /** \return The control number of all superior works, if found. */
+    std::unordered_set<std::string> getSuperiorControlNumbers() const;
 
     /** \return A "summary" (could be an abstract etc.), if found, else the empty string. */
     std::string getSummary() const;

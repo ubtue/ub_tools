@@ -1020,6 +1020,21 @@ std::string Record::getSuperiorControlNumber() const {
     return "";
 }
 
+std::unordered_set<std::string> Record::getSuperiorControlNumbers() const {
+    std::unordered_set<std::string> control_numbers;
+
+    for (const auto &tag : MARC::UP_LINK_FIELD_TAGS) {
+        for (const auto &field : getTagRange(tag)) {
+            const MARC::Subfields subfields(field.getSubfields());
+            const std::string subfield_w_contents(subfields.getFirstSubfieldWithCode('w'));
+            if (StringUtil::StartsWith(subfield_w_contents, "(DE-627)"))
+                control_numbers.emplace(subfield_w_contents.substr(__builtin_strlen("(DE-627)")));
+        }
+    }
+
+    return control_numbers;
+}
+
 
 std::string Record::getSummary() const {
     std::string summary;
@@ -2657,8 +2672,8 @@ const ThreadSafeRegexMatcher PARENT_PPN_MATCHER("^\\([^)]+\\)(.+)$");
 
 std::string GetParentPPN(const Record &record) {
     for (auto &field : record) {
-        if (std::find_if(PARENT_REFERENCE_TAGS.cbegin(), PARENT_REFERENCE_TAGS.cend(),
-                         [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == PARENT_REFERENCE_TAGS.cend())
+        if (std::find_if(UP_LINK_FIELD_TAGS.cbegin(), UP_LINK_FIELD_TAGS.cend(),
+                         [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == UP_LINK_FIELD_TAGS.cend())
             continue;
 
         auto matches(PARENT_PPN_MATCHER.match(field.getFirstSubfieldWithCode('w')));
