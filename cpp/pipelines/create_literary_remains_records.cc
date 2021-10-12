@@ -172,9 +172,11 @@ void LoadAuthorGNDNumbersAndTagAuthors(
         references_count += literary_remains_infos.size();
 
         if (author_ppn_to_relstudies_titles_counters.find(record.getControlNumber()) != author_ppn_to_relstudies_titles_counters.cend()) {
-            record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
-            record.addSubfieldCreateFieldUnique("SUB", 'a', "REL");
-            ++tagged_count;
+            if (author_ppn_to_relstudies_titles_counters.find(record.getControlNumber())->second.religious_studies_count_ > 0) {
+                record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
+                record.addSubfieldCreateFieldUnique("SUB", 'a', "REL");
+                ++tagged_count;
+            }
         }
 
         writer->write(record);
