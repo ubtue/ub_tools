@@ -2656,10 +2656,9 @@ const ThreadSafeRegexMatcher PARENT_PPN_MATCHER("^\\([^)]+\\)(.+)$");
 
 
 std::string GetParentPPN(const Record &record) {
-    static const std::vector<Tag> parent_reference_tags{ "800", "810", "830", "773", "776" };
     for (auto &field : record) {
-        if (std::find_if(parent_reference_tags.cbegin(), parent_reference_tags.cend(),
-                         [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == parent_reference_tags.cend())
+        if (std::find_if(PARENT_REFERENCE_TAGS.cbegin(), PARENT_REFERENCE_TAGS.cend(),
+                         [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == PARENT_REFERENCE_TAGS.cend())
             continue;
 
         auto matches(PARENT_PPN_MATCHER.match(field.getFirstSubfieldWithCode('w')));

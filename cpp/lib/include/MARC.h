@@ -104,6 +104,8 @@ public:
 const std::vector<Tag> CROSS_LINK_FIELD_TAGS{ "689", "700", "770", "772", "773", "775", "776", "780",
                                               "785", "787", "800", "810", "811", "830", "880", "889" };
 
+const std::vector<Tag> PARENT_REFERENCE_TAGS{ "800", "810", "830", "773", "776" };
+
 
 bool IsRepeatableField(const Tag &tag);
 bool IsStandardTag(const Tag &tag);
