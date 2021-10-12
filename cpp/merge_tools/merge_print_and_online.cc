@@ -272,7 +272,6 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
 }
 
 
-const std::set<MARC::Tag> LINK_TAGS{ "773", "775", "776", "800", "810", "830" };
 
 
 // Make inferior works point to the new merged superior parent found in "ppn_to_canonical_ppn_map".  Links referencing a key in
@@ -284,7 +283,7 @@ unsigned PatchLinks(MARC::Record * const record, const std::unordered_map<std::s
     std::set<std::string> link_tags_done;
     for (auto field(record->begin()); field != record->end(); ++field) {
         const std::string field_tag(field->getTag().toString());
-        if (LINK_TAGS.find(field_tag) != LINK_TAGS.cend()) {
+        if (MARC::CROSS_LINK_FIELD_TAGS.find(field_tag) != MARC::CROSS_LINK_FIELD_TAGS.cend()) {
             const std::string link_ppn(ExtractLinkPPN(*field));
             if (link_ppn.empty())
                 continue;
