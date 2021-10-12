@@ -25,13 +25,14 @@ fi
 echo "Using Timestamp: $TIMESTAMP"
 
 
-declare -r QUERY=$(/usr/local/bin/urlencode "(title:criminology OR title:criminological OR title:kriminologie) AND createdDate>$TIMESTAMP")
+#declare -r QUERY=$(/usr/local/bin/urlencode "(title:criminology OR title:criminological OR title:kriminologie) AND createdDate>$TIMESTAMP")
+declare -r QUERY=$(/usr/local/bin/urlencode "(title:criminology OR title:criminological OR title:kriminologie) AND createdDate<2019-01-01")
 
 
 echo "Before curl download..."
 declare -i offset=0
 curl --max-time $SINGLE_CURL_DOWNLOAD_MAX_TIME --header "Authorization: Bearer ${API_KEY}" --request GET \
-     "https://api.core.ac.uk/v3/search/works?offset=$offset&limit=$MAX_HITS_PER_REQUEST&entityType=works&q=$QUERY&scroll" \
+     "${CORE_API}?offset=$offset&limit=$MAX_HITS_PER_REQUEST&entityType=works&q=$QUERY&scroll" \
      > $WORK_FILE
 echo "After curl download..."
 
