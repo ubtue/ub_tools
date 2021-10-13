@@ -53,7 +53,8 @@ const std::vector<std::string> GND_AUTHOR_REFERENCE_FIELDS{ "100", "600", "689",
 void ProcessRecords(MARC::Reader * const marc_reader, const std::unordered_set<std::string> &filter_set,
                     const std::string &filter_tag, std::unordered_map<std::string, unsigned> * const gnd_numbers_and_counts)
 {
-    unsigned matched_count(0);
+    unsigned total_matched_count(0);
+    unsigned distinct_matched_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         if (not filter_set.empty()) {
             if (filter_set.find(record.getControlNumber()) == filter_set.cend())
@@ -65,6 +66,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, const std::unordered_set<s
                 continue;
         }
 
+        std::unordered_set<std::string> processed_gnd_numbers;
         for (const auto &gnd_reference_field : GND_AUTHOR_REFERENCE_FIELDS) {
             for (const auto &field : record.getTagRange(gnd_reference_field)) {
                 const MARC::Subfields subfields(field.getSubfields());
@@ -78,16 +80,20 @@ void ProcessRecords(MARC::Reader * const marc_reader, const std::unordered_set<s
                     const std::string gnd_number(subfield0.substr(__builtin_strlen("(DE-588)")));
                     const auto gnd_number_and_count(gnd_numbers_and_counts->find(gnd_number));
                     if (gnd_number_and_count != gnd_numbers_and_counts->end()) {
-                        ++gnd_number_and_count->second;
-                        ++matched_count;
+                        if (processed_gnd_numbers.find(gnd_number) == processed_gnd_numbers.end()) {
+                            ++gnd_number_and_count->second;
+                            ++distinct_matched_count;
+                            processed_gnd_numbers.emplace(gnd_number);
+                        }
+                        ++total_matched_count;
                     }
                 }
             }
         }
     }
 
-    LOG_INFO("Found " + std::to_string(matched_count) + " reference(s) to " + std::to_string(gnd_numbers_and_counts->size())
-             + " matching GND number(s).");
+    LOG_INFO("Found " + std::to_string(total_matched_count) + " total / " + std::to_string(distinct_matched_count) + " distinct reference(s) to "
+             + std::to_string(gnd_numbers_and_counts->size()) + " matching GND number(s).");
 }
 
 
