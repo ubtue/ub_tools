@@ -1020,10 +1020,12 @@ std::string Record::getSuperiorControlNumber() const {
     return "";
 }
 
-std::unordered_set<std::string> Record::getSuperiorControlNumbers() const {
+std::unordered_set<std::string> Record::getSuperiorControlNumbers(const std::vector<Tag> &additional_tags) const {
     std::unordered_set<std::string> control_numbers;
 
-    for (const auto &tag : MARC::UP_LINK_FIELD_TAGS) {
+    std::vector<Tag> tags(MARC::UP_LINK_FIELD_TAGS);
+    tags.insert(tags.end(), additional_tags.begin(), additional_tags.end());
+    for (const auto &tag : tags) {
         for (const auto &field : getTagRange(tag)) {
             const MARC::Subfields subfields(field.getSubfields());
             const std::string subfield_w_contents(subfields.getFirstSubfieldWithCode('w'));

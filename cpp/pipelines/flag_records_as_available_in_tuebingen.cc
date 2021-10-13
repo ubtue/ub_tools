@@ -116,7 +116,7 @@ void ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer
         return;
     }
 
-    auto superior_ppn_set(record->getSuperiorControlNumbers());
+    auto superior_ppn_set(record->getSuperiorControlNumbers(/* additional_tags=*/ { "776" }));
     // Do we have superior PPN that has DE-21
     auto current_superior_iterator(std::begin(superior_ppn_set));
     for (const auto &superior_ppn : superior_ppn_set) {

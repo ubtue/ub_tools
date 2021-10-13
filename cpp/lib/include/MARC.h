@@ -591,8 +591,10 @@ public:
     /** \return The control number of the superior work, if found, else the empty string. */
     std::string getSuperiorControlNumber() const;
 
-    /** \return The control number of all superior works, if found. */
-    std::unordered_set<std::string> getSuperiorControlNumbers() const;
+    /** \return The control number of all superior works, if found. (see UP_LINK_FIELD_TAGS).
+     *          If you want to consider additional tags, pass them as optional parameter.
+     */
+    std::unordered_set<std::string> getSuperiorControlNumbers(const std::vector<Tag> &additional_tags={}) const;
 
     /** \return A "summary" (could be an abstract etc.), if found, else the empty string. */
     std::string getSummary() const;
