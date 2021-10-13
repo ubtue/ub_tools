@@ -1249,7 +1249,7 @@ std::set<std::string> Record::getISSNs() const {
         const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
         std::string normalised_issn;
         if (MiscUtil::NormaliseISSN(first_subfield_a, &normalised_issn))
-            issns.insert(normalised_issn);;
+            issns.insert(normalised_issn);
     }
 
     return issns;
