@@ -1020,23 +1020,6 @@ std::string Record::getSuperiorControlNumber() const {
     return "";
 }
 
-std::unordered_set<std::string> Record::getSuperiorControlNumbers(const std::vector<Tag> &additional_tags) const {
-    std::unordered_set<std::string> control_numbers;
-
-    std::vector<Tag> tags(MARC::UP_LINK_FIELD_TAGS);
-    tags.insert(tags.end(), additional_tags.begin(), additional_tags.end());
-    for (const auto &tag : tags) {
-        for (const auto &field : getTagRange(tag)) {
-            const MARC::Subfields subfields(field.getSubfields());
-            const std::string subfield_w_contents(subfields.getFirstSubfieldWithCode('w'));
-            if (StringUtil::StartsWith(subfield_w_contents, "(DE-627)"))
-                control_numbers.emplace(subfield_w_contents.substr(__builtin_strlen("(DE-627)")));
-        }
-    }
-
-    return control_numbers;
-}
-
 
 std::string Record::getSummary() const {
     std::string summary;
@@ -2672,8 +2655,8 @@ bool UBTueIsAquisitionRecord(const Record &marc_record) {
 const ThreadSafeRegexMatcher PARENT_PPN_MATCHER("^\\([^)]+\\)(.+)$");
 
 
-std::string GetParentPPN(const Record &record) {
-    for (auto &field : record) {
+std::string Record::getParentControlNumber() const {
+    for (auto &field : fields_) {
         if (std::find_if(UP_LINK_FIELD_TAGS.cbegin(), UP_LINK_FIELD_TAGS.cend(),
                          [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == UP_LINK_FIELD_TAGS.cend())
             continue;
@@ -2687,6 +2670,24 @@ std::string GetParentPPN(const Record &record) {
     }
 
     return "";
+}
+
+
+std::unordered_set<std::string> Record::getParentControlNumbers(const std::vector<Tag> &additional_tags) const {
+    std::unordered_set<std::string> control_numbers;
+
+    std::vector<Tag> tags(MARC::UP_LINK_FIELD_TAGS);
+    tags.insert(tags.end(), additional_tags.begin(), additional_tags.end());
+    for (const auto &tag : tags) {
+        for (const auto &field : getTagRange(tag)) {
+            const MARC::Subfields subfields(field.getSubfields());
+            const std::string subfield_w_contents(subfields.getFirstSubfieldWithCode('w'));
+            if (StringUtil::StartsWith(subfield_w_contents, "(DE-627)"))
+                control_numbers.emplace(subfield_w_contents.substr(__builtin_strlen("(DE-627)")));
+        }
+    }
+
+    return control_numbers;
 }
 
 

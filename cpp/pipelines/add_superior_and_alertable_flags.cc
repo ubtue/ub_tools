@@ -48,7 +48,7 @@ namespace {
 
 void LoadSuperiorPPNs(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const superior_ppns) {
     while (const MARC::Record record = marc_reader->read()) {
-        for (const auto &ppn : record.getSuperiorControlNumbers())
+        for (const auto &ppn : record.getParentControlNumbers())
             superior_ppns->emplace(ppn);
     }
 

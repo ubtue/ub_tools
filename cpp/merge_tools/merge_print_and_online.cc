@@ -283,7 +283,7 @@ unsigned PatchLinks(MARC::Record * const record, const std::unordered_map<std::s
     std::set<std::string> link_tags_done;
     for (auto field(record->begin()); field != record->end(); ++field) {
         const std::string field_tag(field->getTag().toString());
-        if (MARC::CROSS_LINK_FIELD_TAGS.find(field_tag) != MARC::CROSS_LINK_FIELD_TAGS.cend()) {
+        if (std::find(MARC::CROSS_LINK_FIELD_TAGS.begin(), MARC::CROSS_LINK_FIELD_TAGS.end(), field_tag) != MARC::CROSS_LINK_FIELD_TAGS.end()) {
             const std::string link_ppn(ExtractLinkPPN(*field));
             if (link_ppn.empty())
                 continue;

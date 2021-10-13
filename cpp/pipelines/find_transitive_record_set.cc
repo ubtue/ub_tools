@@ -78,7 +78,7 @@ std::set<RecordType> GetRecordTypes(const MARC::Record &record) {
 std::set<std::string> GetReferencedPPNs(const MARC::Record &record) {
     std::set<std::string> referenced_ppns(MARC::ExtractCrossLinkPPNs(record));
 
-    const auto parent_ppn(MARC::GetParentPPN(record));
+    const auto parent_ppn(record.getParentControlNumber());
     if (not parent_ppn.empty())
         referenced_ppns.emplace(parent_ppn);
 

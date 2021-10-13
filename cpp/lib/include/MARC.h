@@ -585,16 +585,23 @@ public:
     /** \return An approximation of the complete title generated from various subfields of field 245. */
     std::string getCompleteTitle() const;
 
-    /** \return The title of the superior work, if applicable. (contents of 773$a) */
-    std::string getSuperiorTitle() const;
+    /** \return A Non-empty string if we managed to find a parent PPN o/w the empty string.
+     *          Use this if you would like to consider all UP_LINK_FIELD_TAGS. Else use getSuperiorControlNumber().
+     */
+    std::string getParentControlNumber() const;
 
-    /** \return The control number of the superior work, if found, else the empty string. */
-    std::string getSuperiorControlNumber() const;
-
-    /** \return The control number of all superior works, if found. (see UP_LINK_FIELD_TAGS).
+    /** \return The PPNs of all parents, if found. (see UP_LINK_FIELD_TAGS).
      *          If you want to consider additional tags, pass them as optional parameter.
      */
-    std::unordered_set<std::string> getSuperiorControlNumbers(const std::vector<Tag> &additional_tags={}) const;
+    std::unordered_set<std::string> getParentControlNumbers(const std::vector<Tag> &additional_tags={}) const;
+
+    /** \return The control number of the superior work, if found, else the empty string.
+     *          Use this if you want to consider 773 only. Else use getParentControlNumber().
+     */
+    std::string getSuperiorControlNumber() const;
+
+    /** \return The title of the superior work, if applicable. (contents of 773$a) */
+    std::string getSuperiorTitle() const;
 
     /** \return A "summary" (could be an abstract etc.), if found, else the empty string. */
     std::string getSummary() const;
@@ -1189,10 +1196,6 @@ bool UBTueIsElectronicResource(const Record &marc_record);
  *  \return True if the referenced item has been ordered but is not yet available, else false.
  */
 bool UBTueIsAquisitionRecord(const Record &marc_record);
-
-
-/** \return A Non-empty string if we managed to find a parent PPN o/w the empty string. */
-std::string GetParentPPN(const Record &record);
 
 
 bool IsOpenAccess(const Record &marc_record);
