@@ -1028,7 +1028,7 @@ bool ProcessSerialRecord(MARC::Record * const record, MARC::Writer * const /*out
 
 bool ElectronicArticleIsAvailableInTuebingen(const MARC::Record &record) {
     if (MARC::UBTueIsElectronicResource(record) and record.isArticle()) {
-        const std::string parent_ppn(record.getParentControlNumber());
+        const std::string parent_ppn(record.getParentControlNumber(/* additional_tags=*/{ "776" }));
         if (parent_ppn.empty())
             return false;
 

@@ -2655,10 +2655,12 @@ bool UBTueIsAquisitionRecord(const Record &marc_record) {
 const ThreadSafeRegexMatcher PARENT_PPN_MATCHER("^\\([^)]+\\)(.+)$");
 
 
-std::string Record::getParentControlNumber() const {
+std::string Record::getParentControlNumber(const std::vector<Tag> &additional_tags) const {
+    std::vector<Tag> tags(MARC::UP_LINK_FIELD_TAGS);
+    tags.insert(tags.end(), additional_tags.begin(), additional_tags.end());
     for (auto &field : fields_) {
-        if (std::find_if(UP_LINK_FIELD_TAGS.cbegin(), UP_LINK_FIELD_TAGS.cend(),
-                         [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == UP_LINK_FIELD_TAGS.cend())
+        if (std::find_if(tags.cbegin(), tags.cend(),
+                         [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == tags.cend())
             continue;
 
         auto matches(PARENT_PPN_MATCHER.match(field.getFirstSubfieldWithCode('w')));

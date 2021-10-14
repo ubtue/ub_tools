@@ -587,11 +587,12 @@ public:
 
     /** \return A Non-empty string if we managed to find a parent PPN o/w the empty string.
      *          Use this if you would like to consider all UP_LINK_FIELD_TAGS. Else use getSuperiorControlNumber().
+     *          If you want to consider additional tags (e.g. 776), pass them as optional parameter.
      */
-    std::string getParentControlNumber() const;
+    std::string getParentControlNumber(const std::vector<Tag> &additional_tags={}) const;
 
     /** \return The PPNs of all parents, if found. (see UP_LINK_FIELD_TAGS).
-     *          If you want to consider additional tags, pass them as optional parameter.
+     *          If you want to consider additional tags (e.g. 776), pass them as optional parameter.
      */
     std::unordered_set<std::string> getParentControlNumbers(const std::vector<Tag> &additional_tags={}) const;
 
