@@ -48,6 +48,12 @@ public:
         { return 100.0 * static_cast<double>(bibstudies_count_) / static_cast<double>(total_count_) >= 10.0 /* percent */; }
     inline bool exceedsCanonLawThreshold() const
         { return 100.0 * static_cast<double>(canonlaw_count_) / static_cast<double>(total_count_) >= 10.0 /* percent */; }
+    inline bool hasReligiousStudies() const
+        { return religious_studies_count_ > 0;}
+    inline bool hasBibStudies() const
+        { return bibstudies_count_ > 0; }
+    inline bool hasCanonLaw() const
+        { return canonlaw_count_ > 0; }
 };
 
 
@@ -281,15 +287,15 @@ void AppendLiteraryRemainsRecords(
         const auto author_ppn_and_subsystem_titles_counter(
             author_ppn_to_subsystem_titles_counters.find(gnd_number_and_author_ppn->second));
         if (author_ppn_and_subsystem_titles_counter != author_ppn_to_subsystem_titles_counters.cend()) {
-            if (author_ppn_and_subsystem_titles_counter->second.exceedsReligiousStudiesThreshold()) {
+            if (author_ppn_and_subsystem_titles_counter->second.hasReligiousStudies()) {
                 new_record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
                 new_record.addSubfieldCreateFieldUnique("SUB", 'a', "REL");
             }
-            if (author_ppn_and_subsystem_titles_counter->second.exceedsBibStudiesThreshold()) {
+            if (author_ppn_and_subsystem_titles_counter->second.hasBibStudies()) {
                 new_record.insertField("BIB", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
                 new_record.addSubfieldCreateFieldUnique("SUB", 'a', "BIB");
             }
-            if (author_ppn_and_subsystem_titles_counter->second.exceedsCanonLawThreshold()) {
+            if (author_ppn_and_subsystem_titles_counter->second.hasCanonLaw()) {
                 new_record.insertField("CAN", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
                 new_record.addSubfieldCreateFieldUnique("SUB", 'a', "CAN");
             }
