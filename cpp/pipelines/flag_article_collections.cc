@@ -36,7 +36,7 @@ void CollectArticleCollectionPPNs(MARC::Reader * const reader, std::unordered_se
     article_collection_ppns->clear();
     while (const MARC::Record record = reader->read()) {
         if (record.isArticle()) {
-            const std::string parent_ppn(MARC::GetParentPPN(record));
+            const std::string parent_ppn(record.getParentControlNumber(/* additional_tags=*/{ "776" }));
             if (not parent_ppn.empty())
                 article_collection_ppns->insert(parent_ppn);
         }
