@@ -46,27 +46,25 @@ void CollectSubsystemInfo(MARC::Reader * const marc_reader,
     while (MARC::Record record = marc_reader->read()) {
         ++record_count;
 
-        const auto superior_ppn(record.getSuperiorControlNumber());
-        if (unlikely(superior_ppn.empty()))
-            continue;
+        for (const auto &superior_ppn : record.getParentControlNumbers()) {
+            auto superior_ppn_and_subsystem_types(superior_ppns_to_subsystem_types->find(superior_ppn));
+            if (superior_ppn_and_subsystem_types == superior_ppns_to_subsystem_types->end()) {
+                const std::set<std::string> new_set{ INSTALLATION_TYPE };
+                superior_ppn_and_subsystem_types = superior_ppns_to_subsystem_types->emplace(superior_ppn, new_set).first;
+            }
+            if (INSTALLATION_TYPE == "KRI")
+                continue;
 
-        auto superior_ppn_and_subsystem_types(superior_ppns_to_subsystem_types->find(superior_ppn));
-        if (superior_ppn_and_subsystem_types == superior_ppns_to_subsystem_types->end()) {
-            const std::set<std::string> new_set{ INSTALLATION_TYPE };
-            superior_ppn_and_subsystem_types = superior_ppns_to_subsystem_types->emplace(superior_ppn, new_set).first;
+            /*if (record.hasSubfieldWithValue("SUB", 'a', "BIB"))*/
+            if (record.hasTag("BIB")) // remove after migration
+                superior_ppn_and_subsystem_types->second.emplace("BIB");
+            /*if (record.hasSubfieldWithValue("SUB", 'a', "CAN"))*/
+            if (record.hasTag("CAN")) // remove after migration
+                superior_ppn_and_subsystem_types->second.emplace("CAN");
+            /*if (record.hasSubfieldWithValue("SUB", 'a', "REL"))*/
+            if (record.hasTag("REL")) // remove after migration
+                superior_ppn_and_subsystem_types->second.emplace("REL");
         }
-        if (INSTALLATION_TYPE == "KRI")
-            continue;
-
-        /*if (record.hasSubfieldWithValue("SUB", 'a', "BIB"))*/
-        if (record.hasTag("BIB")) // remove after migration
-            superior_ppn_and_subsystem_types->second.emplace("BIB");
-        /*if (record.hasSubfieldWithValue("SUB", 'a', "CAN"))*/
-        if (record.hasTag("CAN")) // remove after migration
-            superior_ppn_and_subsystem_types->second.emplace("CAN");
-        /*if (record.hasSubfieldWithValue("SUB", 'a', "REL"))*/
-        if (record.hasTag("REL")) // remove after migration
-            superior_ppn_and_subsystem_types->second.emplace("REL");
     }
 
     LOG_INFO("Read " + std::to_string(record_count) + " record(s).");
