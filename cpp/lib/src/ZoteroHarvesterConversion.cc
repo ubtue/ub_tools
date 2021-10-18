@@ -298,9 +298,17 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
     if (creators_array and not creators_array->empty()) {
         for (const auto &entry :*creators_array) {
             const auto creator_object(JSON::JSONNode::CastToObjectNodeOrDie("array_element", entry));
-            metadata_record->creators_.emplace_back(GetStrippedHTMLStringFromJSON(creator_object, "firstName"),
-                                                    GetStrippedHTMLStringFromJSON(creator_object, "lastName"),
-                                                    GetStrippedHTMLStringFromJSON(creator_object, "creatorType"));
+            if (creator_object->hasNode("firstName") or creator_object->hasNode("lastName")) {
+                metadata_record->creators_.emplace_back(GetStrippedHTMLStringFromJSON(creator_object, "firstName"),
+                                                        GetStrippedHTMLStringFromJSON(creator_object, "lastName"),
+                                                        GetStrippedHTMLStringFromJSON(creator_object, "creatorType"));
+            } else if (creator_object->hasNode("name")) {
+                metadata_record->creators_.emplace_back("",
+                                                        GetStrippedHTMLStringFromJSON(creator_object, "name"),
+                                                        GetStrippedHTMLStringFromJSON(creator_object, "creatorType"));
+            } else {
+                LOG_WARNING("Don't know how to handle authors in non-empty creator_object " + creator_object->toString());
+            }
         }
     }
 

@@ -111,11 +111,11 @@ void LoadJournalPPNs(const std::string &path,
 }
 
 
-static const std::set<std::string> UPLINK_TAGS{ "800", "810", "830", "773", "776" };
-
-
 std::string GetUplinkPPNAndJournalTitle(const MARC::Record &record, std::string * const journal_title) {
-    for (const auto &tag : UPLINK_TAGS) {
+    std::vector<MARC::Tag> tags(MARC::UP_LINK_FIELD_TAGS);
+    tags.emplace_back("776");
+
+    for (const auto &tag : tags) {
         for (const auto &field : record.getTagRange(tag)) {
             const MARC::Subfields subfields(field.getSubfields());
             const std::string w_subfield(subfields.getFirstSubfieldWithCode('w'));

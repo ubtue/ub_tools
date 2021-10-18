@@ -1232,7 +1232,7 @@ std::set<std::string> Record::getISSNs() const {
         const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
         std::string normalised_issn;
         if (MiscUtil::NormaliseISSN(first_subfield_a, &normalised_issn))
-            issns.insert(normalised_issn);;
+            issns.insert(normalised_issn);
     }
 
     return issns;
@@ -1584,6 +1584,27 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
     subfields.addSubfield(subfield_code, subfield_value);
     field->setSubfields(subfields);
     return true;
+}
+
+bool Record::addSubfieldCreateFieldUnique(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) {
+    const auto &field(findTag(field_tag));
+    if (field == fields_.end())
+        return insertField(field_tag, {{subfield_code, subfield_value}});
+    if (not hasFieldWithSubfieldValue(field_tag, subfield_code, subfield_value)) {
+        return addSubfield(field_tag, subfield_code, subfield_value);
+    }
+    return false;
+}
+
+
+bool Record::hasFieldWithSubfieldValue(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) const {
+    auto field(findTag(field_tag));
+    while (field != fields_.cend() and field->getTag() == field_tag) {
+        if (field->hasSubfieldWithValue(subfield_code, subfield_value))
+            return true;
+        ++field;
+    }
+    return false;
 }
 
 
@@ -2634,11 +2655,12 @@ bool UBTueIsAquisitionRecord(const Record &marc_record) {
 const ThreadSafeRegexMatcher PARENT_PPN_MATCHER("^\\([^)]+\\)(.+)$");
 
 
-std::string GetParentPPN(const Record &record) {
-    static const std::vector<Tag> parent_reference_tags{ "800", "810", "830", "773", "776" };
-    for (auto &field : record) {
-        if (std::find_if(parent_reference_tags.cbegin(), parent_reference_tags.cend(),
-                         [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == parent_reference_tags.cend())
+std::string Record::getParentControlNumber(const std::vector<Tag> &additional_tags) const {
+    std::vector<Tag> tags(MARC::UP_LINK_FIELD_TAGS);
+    tags.insert(tags.end(), additional_tags.begin(), additional_tags.end());
+    for (auto &field : fields_) {
+        if (std::find_if(tags.cbegin(), tags.cend(),
+                         [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == tags.cend())
             continue;
 
         auto matches(PARENT_PPN_MATCHER.match(field.getFirstSubfieldWithCode('w')));
@@ -2650,6 +2672,24 @@ std::string GetParentPPN(const Record &record) {
     }
 
     return "";
+}
+
+
+std::unordered_set<std::string> Record::getParentControlNumbers(const std::vector<Tag> &additional_tags) const {
+    std::unordered_set<std::string> control_numbers;
+
+    std::vector<Tag> tags(MARC::UP_LINK_FIELD_TAGS);
+    tags.insert(tags.end(), additional_tags.begin(), additional_tags.end());
+    for (const auto &tag : tags) {
+        for (const auto &field : getTagRange(tag)) {
+            const MARC::Subfields subfields(field.getSubfields());
+            const std::string subfield_w_contents(subfields.getFirstSubfieldWithCode('w'));
+            if (StringUtil::StartsWith(subfield_w_contents, "(DE-627)"))
+                control_numbers.emplace(subfield_w_contents.substr(__builtin_strlen("(DE-627)")));
+        }
+    }
+
+    return control_numbers;
 }
 
 

@@ -77,28 +77,6 @@ void LoadDE21AndTADPPNs(MARC::Reader * const marc_reader,
 }
 
 
-void CollectSuperiorPPNs(const MARC::Record &record, std::unordered_set<std::string> * const superior_ppn_set) {
-    static RegexMatcher * const superior_ppn_matcher(RegexMatcher::RegexMatcherFactory(".DE-627.(.*)"));
-    static const std::vector<std::string> tags{ "800", "810", "830", "773", "776" };
-
-    for (const auto &tag : tags) {
-        const auto field(record.findTag(tag));
-        if (field != record.end()) {
-            // Remove superfluous prefixes
-            for (auto &superior_ppn : field->getSubfields().extractSubfields('w')) {
-                std::string err_msg;
-                if (not superior_ppn_matcher->matched(superior_ppn, &err_msg)) {
-                    if (not err_msg.empty())
-                        LOG_ERROR("Error with regex für superior works " + err_msg);
-                    continue;
-                }
-                superior_ppn_set->insert((*superior_ppn_matcher)[1]);
-            }
-        }
-    }
-}
-
-
 void FlagRecordAsInTuebingenAvailable(MARC::Record * const record, const bool tad_available, unsigned * const modified_count) {
     tad_available ? record->insertField("ITA", {  { 'a', "1" }, { 't', "1" } }) : record->insertField("ITA", 'a', "1");
     ++*modified_count;
@@ -138,8 +116,7 @@ void ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer
         return;
     }
 
-    std::unordered_set<std::string> superior_ppn_set;
-    CollectSuperiorPPNs(*record, &superior_ppn_set);
+    auto superior_ppn_set(record->getParentControlNumbers(/* additional_tags=*/ { "776" }));
     // Do we have superior PPN that has DE-21
     auto current_superior_iterator(std::begin(superior_ppn_set));
     for (const auto &superior_ppn : superior_ppn_set) {
