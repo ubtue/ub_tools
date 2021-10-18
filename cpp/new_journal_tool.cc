@@ -55,8 +55,7 @@ namespace {
 
 
 void ListUsers(DbConnection * const db_connection, const std::string &user_type) {
-    const std::string QUERY("SELECT username,firstname,lastname FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id "
-                            "WHERE ixtheo_user.user_type='" + user_type + "'");
+    const std::string QUERY("SELECT username,firstname,lastname FROM user WHERE user.ixtheo_user_type='" + user_type + "'");
     db_connection->queryOrDie(QUERY);
     DbResultSet result_set(db_connection->getLastResultSet());
     size_t username_max_size(0), firstname_max_size(0);
@@ -125,8 +124,7 @@ std::string GetTitle(const std::string &ppn, const std::string &solr_host, const
 void ListSubs(DbConnection * const db_connection, const std::string &user_type, const std::string &username,
               const std::string &host, const unsigned port)
 {
-    std::string query("SELECT username,ixtheo_user.id AS id FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id "
-                      "WHERE ixtheo_user.user_type='" + user_type + "'");
+    std::string query("SELECT id, username FROM user WHERE user.ixtheo_user_type='" + user_type + "'");
     if (username != "all")
         query += " AND username=" + db_connection->escapeString(username, /* add_quotes = */true);
 
@@ -154,8 +152,7 @@ void ListSubs(DbConnection * const db_connection, const std::string &user_type, 
 void Clear(DbConnection * const db_connection, KeyValueDB * const notified_db, const std::string &username,
            const std::string &subscription_name)
 {
-    db_connection->queryOrDie("SELECT ixtheo_user.id AS id FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id WHERE username="
-                              + db_connection->escapeAndQuoteString(username));
+    db_connection->queryOrDie("SELECT id FROM user WHERE username=" + db_connection->escapeAndQuoteString(username));
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty()) {
         std::cout << "Username \"" << username << "\" was not found!\n";

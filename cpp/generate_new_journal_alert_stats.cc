@@ -93,7 +93,7 @@ size_t GetBundleSize(const IniFile &bundles_config, const std::string &bundle_na
 
 void CollectConfigStats(DbConnection * const db_connection, const std::string &user_type, Stats * const stats) {
     db_connection->queryOrDie("SELECT DISTINCT user_id FROM ixtheo_journal_subscriptions WHERE user_id IN (SELECT id FROM "
-                              "ixtheo_user WHERE ixtheo_user.user_type = '" + user_type  + "')");
+                              "user WHERE user.ixtheo_user_type = '" + user_type  + "')");
     auto user_ids_result_set(db_connection->getLastResultSet());
     stats->no_of_users_with_subscriptions_ = user_ids_result_set.size();
 
