@@ -77,7 +77,8 @@ std::unordered_set<std::string> GetMatchingJournalPPNs(const Zeder::Flavour zede
 }
 
 
-void ProcessRecords(const bool filter_on_zdb_numbers, const std::unordered_set<std::string> &journal_ppns,
+void ProcessRecords(const bool filter_on_zdb_numbers, const bool select_articles_only,
+                    const std::unordered_set<std::string> &journal_ppns,
                     const std::unordered_set<std::string> &journal_zdb_numbers,
                     MARC::Reader * const marc_reader, MARC::Writer * const marc_writer)
 {
@@ -86,6 +87,9 @@ void ProcessRecords(const bool filter_on_zdb_numbers, const std::unordered_set<s
         ++total_record_count;
 
         if (journal_ppns.find(record.getSuperiorControlNumber()) != journal_ppns.cend()) {
+            if (select_articles_only and not record.isArticle())
+                continue; // Skip current record!
+
             if (filter_on_zdb_numbers) {
                 const auto zdb_number(record.getZDBNumber());
                 if (not zdb_number.empty() and journal_zdb_numbers.find(zdb_number) == journal_zdb_numbers.cend())
@@ -103,7 +107,7 @@ void ProcessRecords(const bool filter_on_zdb_numbers, const std::unordered_set<s
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--filter-on-zdb-numbers] zeder_flavour match_column column_regex marc_input marc_output\n\n"
+    ::Usage("[--filter-on-zdb-numbers] [--select-articles-only] zeder_flavour match_column column_regex marc_input marc_output\n\n"
             "Extracts all records from \"marc_input\" which have superior PPN's in Zeder columns pppn and eppn\n"
             "and Zeder column \"match_column\" matches the PCRE \"column_regex\".\n"
             "If --filter-on-zdb-numbers has been specified all inferior works that have their own ZDB number, which\n"
@@ -115,16 +119,23 @@ void ProcessRecords(const bool filter_on_zdb_numbers, const std::unordered_set<s
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 6 and argc != 7)
+    if (argc < 6 or argc > 8)
         Usage();
 
     bool filter_on_zdb_numbers(false);
-    if (argc == 7) {
-        if (__builtin_strcmp(argv[1], "--filter-on-zdb-numbers") != 0)
-            Usage();
+    if (__builtin_strcmp(argv[1], "--filter-on-zdb-numbers") == 0) {
         filter_on_zdb_numbers = true;
         --argc, ++argv;
     }
+
+    bool select_articles_only(false);
+    if (__builtin_strcmp(argv[1], "--select-articles-only") == 0) {
+        select_articles_only = true;
+        --argc, ++argv;
+    }
+
+    if (argc != 6)
+        Usage();
 
     Zeder::Flavour zeder_flavour;
     if (__builtin_strcmp(argv[1], "ixtheo") == 0)
@@ -149,7 +160,7 @@ int Main(int argc, char *argv[]) {
     const auto matching_journal_ppns(GetMatchingJournalPPNs(zeder_flavour, match_column, regex_matcher,
                                                             &matching_journal_zdb_numbers));
     delete regex_matcher;
-    ProcessRecords(filter_on_zdb_numbers, matching_journal_ppns, matching_journal_zdb_numbers,
+    ProcessRecords(filter_on_zdb_numbers, select_articles_only, matching_journal_ppns, matching_journal_zdb_numbers,
                    marc_reader.get(), marc_writer.get());
 
     return EXIT_SUCCESS;
