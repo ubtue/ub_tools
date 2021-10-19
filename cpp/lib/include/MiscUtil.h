@@ -287,4 +287,11 @@ std::string GenerateAddress(const std::string &optional_first_name, const std::s
 std::string ReadProcEntry(const std::string &path);
 
 
+// Currently only cleans up names w/ trailing initials, e.g.
+//   Müller, Fritz A.B. => Müller, Fritz A. B.
+// Doesn't change anything if no comma is found or there are no initials.
+// Also doesn't add a space after the final initial.
+std::string NormalizeName(const std::string &name);
+
+
 } // namespace MiscUtil

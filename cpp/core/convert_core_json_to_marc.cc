@@ -26,6 +26,7 @@
 #include "JSON.h"
 #include "KeyValueDB.h"
 #include "MARC.h"
+#include "MiscUtil.h"
 #include "TimeUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -120,27 +121,6 @@ MARC::Record::BibliographicLevel MapTypeStringToBibliographicLevel(const std::st
 }
 
 
-std::string NormalizeAuthorName(const std::string &author_name) {
-    static const auto author_with_trailing_initials_matcher(
-        RegexMatcher::RegexMatcherFactoryOrDie("([\\p{L}-]+, ?)(\\p{L}\\.){2,}(.)"));
-    if (not author_with_trailing_initials_matcher->matched(author_name))
-        return author_name;
-
-    std::string modified_author_name;
-    modified_author_name.reserve(author_name.size() + 3);
-    bool insert_spaces_after_periods(false);
-    for (auto ch(author_name.cbegin()); ch != author_name.cend(); ++ch) {
-        if (*ch == ',')
-            insert_spaces_after_periods = true;
-        modified_author_name += *ch;
-        if (insert_spaces_after_periods and *ch == '.' and ch != author_name.cend() - 1 and *(ch + 1) != ' ')
-            modified_author_name += ' ';
-    }
-
-    return modified_author_name;
-}
-
-
 // \return True if we found at least one author, else false.
 bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
     const auto authors(entry_object.getArrayNode("authors"));
@@ -148,7 +128,8 @@ bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const r
     for (const auto &author : *authors) {
         const auto author_object(JSON::JSONNode::CastToObjectNodeOrDie("author_object", author));
         record->insertField(first_author ? "100" : "700",
-                            { { 'a', NormalizeAuthorName(author_object->getStringNode("name")->getValue()) }, { '4', "aut" } });
+                            { { 'a', MiscUtil::NormalizeName(author_object->getStringNode("name")->getValue()) },
+                              { '4', "aut" } });
         if (first_author)
             first_author = false;
     }
