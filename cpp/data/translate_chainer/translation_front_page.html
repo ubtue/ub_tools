@@ -153,10 +153,15 @@
     }
 
 
+    function extractLanguageCode(object) {{
+        return $(object).closest('table').find('th').eq($(object).index()).text(); //Determine language from the heading
+    }
+
+
     function InsertTranslationIntoDB(object) {{
         var index = $(object).attr("index");
         var gnd_code = $(object).attr("gnd_code");
-        var language_code = $(object).closest('table').find('th').eq($(object).index()).text(); //Determine language from the heading
+        var language_code = extractLanguageCode(object);
         var old_translation = $(object).attr("translation");
         var translator_exists = $(object).attr("translator_exists");
         var translation = $(object).text();
@@ -216,21 +221,18 @@
             }
             returnValue += "</tbody></table>";
         }
-        if (returnValue.length > 0)
-            return returnValue;
-        else
-            return json;
+        return returnValue;
     }
 
     function GetTranslationForEntry(object) {{
         var index = $(object).attr("index");
-        var language_code = $(object).closest('table').find('th').eq($(object).index()).text(); //Determine language from the heading
+        var language_code = extractLanguageCode(object);
         var category = $(object).attr("category");
 
         var table_name = category == "vufind_translations" ? "vufind_translations" : "keyword_translations"
         var action = "get_history_for_entry"
         $.ajax({{
-            type: "PUT",
+            type: "GET",
             url: "translator_ajax",
             data: {{
                 index: index,
@@ -239,7 +241,11 @@
                 action: action
             }, // end data
             success: function(json) {{
-               $(".txtShowHistory").html(ConvertJsonHistory(json));
+                var convertedJson = ConvertJsonHistory(json);
+                if (convertedJson.length > 0)
+                    $(".txtShowHistory").html(convertedJson);
+                else
+                    $(".txtShowHistory").html(json);
             }, // end success
 
             error: function (xhr, ajaxOptions, thrownError) {{
