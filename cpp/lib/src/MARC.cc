@@ -994,6 +994,17 @@ std::string Record::getCompleteTitle() const {
 }
 
 
+std::string Record::getSuperiorControlNumber() const {
+    for (const auto &field : getTagRange("773")) {
+        const auto w_subfield(field.getFirstSubfieldWithCode('w'));
+        if (likely(StringUtil::StartsWith(w_subfield, "(DE-627)")))
+            return w_subfield.substr(__builtin_strlen("(DE-627)"));
+    }
+
+    return "";
+}
+
+
 std::string  Record::getSuperiorTitle() const {
     for (const auto &field : getTagRange("773")) {
         const auto superior_title_candidate(field.getFirstSubfieldWithCode('t'));
@@ -1010,11 +1021,20 @@ std::string  Record::getSuperiorTitle() const {
 }
 
 
-std::string Record::getSuperiorControlNumber() const {
-    for (const auto &field : getTagRange("773")) {
-        const auto w_subfield(field.getFirstSubfieldWithCode('w'));
-        if (likely(StringUtil::StartsWith(w_subfield, "(DE-627)")))
-            return w_subfield.substr(__builtin_strlen("(DE-627)"));
+std::string Record::getZDBNumber() const {
+    // First we try our luck w/ 016...
+    for (const auto &field : getTagRange("016")) {
+        const Subfields subfields(field.getSubfields());
+        if (subfields.hasSubfieldWithValue('2', "DE-600"))
+            return subfields.getFirstSubfieldWithCode('a');
+    }
+
+    // ...and then we try our luck w/ 035:
+    for (const auto &field : getTagRange("035")) {
+        const Subfields subfields(field.getSubfields());
+        const std::string subfield_a(subfields.getFirstSubfieldWithCode('a'));
+        if (StringUtil::StartsWith(subfield_a, "(DE-599)ZDB"))
+            return subfield_a.substr(11);
     }
 
     return "";
