@@ -104,6 +104,8 @@ public:
 const std::vector<Tag> CROSS_LINK_FIELD_TAGS{ "689", "700", "770", "772", "773", "775", "776", "780",
                                               "785", "787", "800", "810", "811", "830", "880", "889" };
 
+const std::vector<Tag> UP_LINK_FIELD_TAGS{ "773", "800", "810", "811", "830" };
+
 
 bool IsRepeatableField(const Tag &tag);
 bool IsStandardTag(const Tag &tag);
@@ -583,11 +585,26 @@ public:
     /** \return An approximation of the complete title generated from various subfields of field 245. */
     std::string getCompleteTitle() const;
 
+    /** \return A Non-empty string if we managed to find a parent PPN o/w the empty string.
+     *          Use this if you would like to consider all UP_LINK_FIELD_TAGS. Else use getSuperiorControlNumber().
+     *          If you want to consider additional tags (e.g. 776), pass them as optional parameter.
+     */
+    std::string getParentControlNumber(const std::vector<Tag> &additional_tags={}) const;
+
+    /** \return The PPNs of all parents, if found. (see UP_LINK_FIELD_TAGS).
+     *          If you want to consider additional tags (e.g. 776), pass them as optional parameter.
+     */
+    std::unordered_set<std::string> getParentControlNumbers(const std::vector<Tag> &additional_tags={}) const;
+
+    /** \return The control number of the superior work, if found, else the empty string.
+     *          Use this if you want to consider 773 only. Else use getParentControlNumber().
+     */
+    std::string getSuperiorControlNumber() const;
+
     /** \return The title of the superior work, if applicable. (contents of 773$a) */
     std::string getSuperiorTitle() const;
 
-    /** \return The control number of the superior work, if found, else the empty string. */
-    std::string getSuperiorControlNumber() const;
+    std::string getZDBNumber() const;
 
     /** \return A "summary" (could be an abstract etc.), if found, else the empty string. */
     std::string getSummary() const;
@@ -1182,10 +1199,6 @@ bool UBTueIsElectronicResource(const Record &marc_record);
  *  \return True if the referenced item has been ordered but is not yet available, else false.
  */
 bool UBTueIsAquisitionRecord(const Record &marc_record);
-
-
-/** \return A Non-empty string if we managed to find a parent PPN o/w the empty string. */
-std::string GetParentPPN(const Record &record);
 
 
 bool IsOpenAccess(const Record &marc_record);

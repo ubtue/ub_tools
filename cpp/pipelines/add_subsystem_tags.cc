@@ -464,7 +464,7 @@ void TagAuthors(MARC::Reader * const authority_reader, MARC::Writer * const auth
         if (it_authors != authors.end()) {
             std::set<std::string> instances = it_authors->second;
 
-            // "TIT" will be replaced by "SUB" soon, remove this block after migration
+            // "TIT" will be replaced by "SUB" soon, remove after migration
             std::vector<MARC::Subfield> tit_instances{ { 'a', "ixtheo" } };
             if (instances.find("r") != instances.end())
                 tit_instances.push_back({ 'a', "relbib" });
