@@ -2,7 +2,7 @@
  *  \brief  Interface for JSON-related functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -285,7 +285,7 @@ public:
     bool getOptionalBooleanValue(const std::string &label, const bool default_value) const { return getOptionalValue<bool, BooleanNode>(label, default_value, BOOLEAN_NODE); }
     double getOptionalDoubleValue(const std::string &label, const double default_value) const { return getOptionalValue<double, DoubleNode>(label, default_value, DOUBLE_NODE); }
     int64_t getOptionalIntegerValue(const std::string &label, const int64_t default_value) const { return getOptionalValue<int64_t, IntegerNode>(label, default_value, INT64_NODE); }
-    std::string getOptionalStringValue(const std::string &label, const std::string &default_value = "") const { return getOptionalValue<std::string, StringNode>(label, default_value, STRING_NODE); }
+    std::string getOptionalStringValue(const std::string &label, const std::string &default_value = "") const;
 
     const_iterator begin() const { return entries_.cbegin(); }
     const_iterator end() const { return entries_.cend(); }

@@ -41,8 +41,7 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("(--update-all-users|user_ID|--patch-ixtheo_user)\n"
-            "When --patch-ixtheo_user has been specified missing entries for users ID's in vufind.user will be created.");
+    ::Usage("(--update-all-users|user_ID)");
 }
 
 
@@ -325,35 +324,20 @@ std::string GetEmailAddress(DbConnection * const db_connection, const std::strin
 }
 
 
-void CreateSingleUser(DbConnection * const db_connection, const std::vector<Pattern> &patterns, const std::string &user_ID) {
-    const std::string email_address(GetEmailAddress(db_connection, user_ID));
-    db_connection->queryOrDie("INSERT INTO ixtheo_user SET id=" + user_ID + ", can_use_tad="
-                              + std::string(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE"));
-}
-
-
 void UpdateSingleUser(DbConnection * const db_connection, const std::vector<Pattern> &patterns, const std::string &user_ID) {
     const std::string email_address(GetEmailAddress(db_connection, user_ID));
-    db_connection->queryOrDie("UPDATE ixtheo_user SET can_use_tad="
+    db_connection->queryOrDie("UPDATE user SET ixtheo_can_use_tad="
                               + std::string(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE")
                               + " WHERE id=" + user_ID);
 }
 
 
-void UpdateAllUsers(DbConnection * const db_connection, const std::vector<Pattern> &patterns, const bool create_missing_ix_theo_users) {
-    if (create_missing_ix_theo_users) {
-        db_connection->queryOrDie("SELECT id FROM user WHERE id NOT IN (SELECT id FROM ixtheo_user)");
-        DbResultSet result_set(db_connection->getLastResultSet());
+void UpdateAllUsers(DbConnection * const db_connection, const std::vector<Pattern> &patterns) {
+    db_connection->queryOrDie("SELECT id FROM user");
+    DbResultSet result_set(db_connection->getLastResultSet());
 
-        while (const DbRow row = result_set.getNextRow())
-            CreateSingleUser(db_connection, patterns, row["id"]);
-    } else {
-        db_connection->queryOrDie("SELECT id FROM ixtheo_user");
-        DbResultSet result_set(db_connection->getLastResultSet());
-
-        while (const DbRow row = result_set.getNextRow())
-            UpdateSingleUser(db_connection, patterns, row["id"]);
-    }
+    while (const DbRow row = result_set.getNextRow())
+        UpdateSingleUser(db_connection, patterns, row["id"]);
 }
 
 
@@ -373,9 +357,7 @@ int Main(int argc, char **argv) {
     auto db_connection(DbConnection::VuFindMySQLFactory());
 
     if (flag_or_user_ID == "--update-all-users")
-        UpdateAllUsers(&db_connection, patterns, /* create_missing_ix_theo_users = */false);
-    else if (flag_or_user_ID == "--patch-ixtheo_user")
-        UpdateAllUsers(&db_connection, patterns, /* create_missing_ix_theo_users = */true);
+        UpdateAllUsers(&db_connection, patterns);
     else
         UpdateSingleUser(&db_connection, patterns, flag_or_user_ID);
 

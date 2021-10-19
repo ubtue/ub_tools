@@ -35,7 +35,7 @@ void CollectArticleCollectionPPNs(MARC::Reader * const reader,
     article_collection_ppns_and_counts->clear();
     while (const MARC::Record record = reader->read()) {
         if (record.isArticle()) {
-            const std::string parent_ppn(MARC::GetParentPPN(record));
+            const std::string parent_ppn(record.getParentControlNumber());
             if (parent_ppn.empty())
                 continue;
 
