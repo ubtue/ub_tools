@@ -196,6 +196,41 @@ void ProcessLanguage(const JSON::ObjectNode &entry_object, MARC::Record * const 
 }
 
 
+// \return True if an abstract was found, else false.
+bool ProcessAbstract(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
+    if (not entry_object.hasNode("abstract") or entry_object.isNullNode("abstract"))
+        return false;
+    const auto abstract_node(entry_object.getStringNode("abstract"));
+    record->insertField("520", 'a', abstract_node->getValue());
+    return true;
+}
+
+
+// \return True if any uncontrolled terms were found, else false.
+bool ProcessUncontrolledIndexTerms(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
+    bool found_at_least_one_index_term(false);
+
+    const auto document_type_node(entry_object.getOptionalStringNode("documentType"));
+    if (document_type_node != nullptr) {
+        const auto document_type(document_type_node->getValue());
+        if (not document_type.empty() and document_type != "unknown") {
+            record->insertField("653", 'a', document_type);
+            found_at_least_one_index_term = true;
+        }
+    }
+
+    if (not entry_object.hasNode("fieldOfStudy") or entry_object.isNullNode("fieldOfStudy"))
+        return found_at_least_one_index_term;
+    const auto field_of_study(entry_object.getStringNode("fieldOfStudy")->getValue());
+    if (not field_of_study.empty()) {
+        record->insertField("653", 'a', field_of_study);
+        found_at_least_one_index_term = true;
+    }
+
+    return found_at_least_one_index_term;
+}
+
+
 // Collection of ISSN's for which we found no entry in issns_to_journal_titles_ppns_and_issns_map.
 std::unordered_set<std::string> unmatched_issns;
 
@@ -228,6 +263,8 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array, MARC::Writer * cons
             ProcessDOI(*entry_object, &new_record);
             ProcessDownloadURL(*entry_object, &new_record);
             ProcessLanguage(*entry_object, &new_record);
+            ProcessAbstract(*entry_object, &new_record);
+            ProcessUncontrolledIndexTerms(*entry_object, &new_record);
             marc_writer->write(new_record);
             unique_id_to_date_map->addOrReplace(control_number, TimeUtil::GetCurrentDateAndTime());
             ++generated_count;
