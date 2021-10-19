@@ -16,8 +16,9 @@ function CreateTemporaryNullDevice {
 }
 
 
-function GetNetPublisherFulltexts {
-    rsync --archive --verbose --recursive ${FULLTEXT_EXCHANGE_ROOT} ${FULLTEXT_LOCAL_ROOT}
+function GetNewPublisherFulltexts {
+    find ${FULLTEXT_EXCHANGE_ROOT} -type f -mmin +5 -printf '%P\0' | rsync --archive --verbose --recursive --from0 \
+        --files-from=- ${FULLTEXT_EXCHANGE_ROOT} ${FULLTEXT_LOCAL_ROOT}
 }
 
 
@@ -62,7 +63,7 @@ OVERALL_START=$(date +%s.%N)
 
 
 StartPhase "Get New Publisher Fulltexts from Network Drive"
-(GetNetPublisherFulltexts >> "${log}" 2>&1 && \
+(GetNewPublisherFulltexts >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
