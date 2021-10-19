@@ -1,7 +1,11 @@
 #!/bin/bash
+# c.f. https://askubuntu.com/questions/623179/remove-array-of-entries-from-another-array/623220#623220 (211019) for the array difference in ConvertNewMohrData
 set -o errexit -o nounset
 
 source pipeline_functions.sh
+
+readonly FULLTEXT_LOCAL_ROOT="/usr/local/publisher_fulltexts"
+readonly FULLTEXT_EXCHANGE_ROOT="/mnt/ZE020150/FID-Entwicklung/fulltext/publisher_files"
 
 TMP_NULL="/tmp/null"
 function CreateTemporaryNullDevice {
@@ -10,6 +14,28 @@ function CreateTemporaryNullDevice {
         chmod 666 ${TMP_NULL}
     fi
 }
+
+
+function GetNetPublisherFulltexts {
+    rsync --archive --verbose --recursive ${FULLTEXT_EXCHANGE_ROOT} ${FULLTEXT_LOCAL_ROOT}
+}
+
+
+function ConvertNewMohrData {
+    local readonly MOHR_EXTRACTED="/usr/local/publisher_fulltexts/mohr/"
+    local readonly MOHR_ARCHIVE_DIR="${FULLTEXT_LOCAL_ROOT}/publisher_files/mohr"
+    mapfile -t < <(find ${MOHR_EXTRACTED} -type f -name '*.txt' -exec sh -c 'printf "%s\n" $(basename "${0%.*}")' {} ';') present_fulltexts
+    mapfile -t < <(find ${MOHR_ARCHIVE_DIR} -name '*.zip' -exec sh -c 'printf "%s\n" $(basename "${0%.*}")' {} ';') new_fulltexts
+    readonly new_to_import=( $(printf "%s\n" "${present_fulltexts[@]}" "${new_fulltexts[@]}" | sort | uniq --unique) )
+    for item in ${new_to_import[@]}; do
+        echo "Extracting item ${item} to ${MOHR_EXTRACTED}/${item}"
+        unzip -o ${MOHR_ARCHIVE_DIR}/${item}.zip -d ${MOHR_EXTRACTED}/${item}
+        echo "Converting item ${item}"
+        marcxml_metadata_processor ${MOHR_EXTRACTED}/${item}/catalogue_md.xml \
+            ${MOHR_EXTRACTED}/${item}/content/${item}.pdf ${MOHR_EXTRACTED}/${item}.txt
+    done;
+}
+
 
 if [ $# != 1 ]; then
     echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc"
@@ -34,9 +60,22 @@ CreateTemporaryNullDevice
 
 OVERALL_START=$(date +%s.%N)
 
+
+StartPhase "Get New Publisher Fulltexts from Network Drive"
+(GetNetPublisherFulltexts >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
 StartPhase "Create Match DB"
 (create_match_db GesamtTiteldaten-"${date}".mrc
     >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
+StartPhase "Convert Mohr Data"
+(ConvertNewMohrData >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
