@@ -348,9 +348,9 @@
                                     <input type="hidden" name="target" value="{target_translation_scope}">
                                     <div class="lang-un-width">
                                         <label class="visually-hidden" for="specificSizeSelect">&nbsp;</label>
-                                        <select name="lang_un" class="form-select" {lang_un} onchange="this.form.submit()">
-                                            <option value="eng">eng</option>
-                                            <option value="fre">fre</option>
+                                        <select name="lang_un" class="form-select" {lang_un} onchange="if(this.value != '{lang_un}') this.form.submit()">
+                                            <option {IF lang_un == "eng"}selected {ENDIF} value="eng">eng</option>
+                                            <option {IF lang_un == "fre"}selected {ENDIF} value="fre">fre</option>
                                         </select>
                                     </div>
                                     <div class="col-auto">
@@ -429,9 +429,9 @@
                                     <input type="hidden" name="target" value="{target_translation_scope}">
                                     <div class="lang-un-width">
                                         <label class="visually-hidden" for="specificSizeSelect">&nbsp;</label>
-                                        <select name="lang_un" class="form-select" {lang_un} onchange="this.form.submit()">
-                                            <option value="eng">eng</option>
-                                            <option value="fre">fre</option>
+                                        <select name="lang_un" class="form-select" {lang_un} onchange="if(this.value != '{lang_un}') this.form.submit()">
+                                            <option {IF lang_un == "eng"}selected {ENDIF} value="eng">eng</option>
+                                            <option {IF lang_un == "fre"}selected {ENDIF} value="fre">fre</option>
                                         </select>
                                     </div>
                                     <div class="col-auto">
