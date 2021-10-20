@@ -85,11 +85,18 @@ static std::string ResolveEntryPointURL(const Zeder::Entry &zeder_entry, const Z
 
 
 static std::string ResolveHarvesterOperation(const Zeder::Entry &zeder_entry, const Zeder::Flavour /*unused*/) {
-    const auto &rss(zeder_entry.getAttribute("rss", ""));
-    if (not rss.empty())
+    const auto &z_type(zeder_entry.getAttribute("z_type"));
+    if (z_type == "rss")
         return Config::HARVESTER_OPERATION_TO_STRING_MAP.at(Config::HarvesterOperation::RSS);
-    else
+    else if (z_type == "crawl")
         return Config::HARVESTER_OPERATION_TO_STRING_MAP.at(Config::HarvesterOperation::CRAWL);
+    else if (z_type == "email")
+        return Config::HARVESTER_OPERATION_TO_STRING_MAP.at(Config::HarvesterOperation::EMAIL);
+    else if (z_type == "api")
+        return Config::HARVESTER_OPERATION_TO_STRING_MAP.at(Config::HarvesterOperation::APIQUERY);
+    else
+        LOG_ERROR("Invalid Harvester operation value \"" + z_type + "\" for in field z_type");
+
 }
 
 
