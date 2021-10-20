@@ -994,6 +994,17 @@ std::string Record::getCompleteTitle() const {
 }
 
 
+std::string Record::getSuperiorControlNumber() const {
+    for (const auto &field : getTagRange("773")) {
+        const auto w_subfield(field.getFirstSubfieldWithCode('w'));
+        if (likely(StringUtil::StartsWith(w_subfield, "(DE-627)")))
+            return w_subfield.substr(__builtin_strlen("(DE-627)"));
+    }
+
+    return "";
+}
+
+
 std::string  Record::getSuperiorTitle() const {
     for (const auto &field : getTagRange("773")) {
         const auto superior_title_candidate(field.getFirstSubfieldWithCode('t'));
@@ -1010,11 +1021,20 @@ std::string  Record::getSuperiorTitle() const {
 }
 
 
-std::string Record::getSuperiorControlNumber() const {
-    for (const auto &field : getTagRange("773")) {
-        const auto w_subfield(field.getFirstSubfieldWithCode('w'));
-        if (likely(StringUtil::StartsWith(w_subfield, "(DE-627)")))
-            return w_subfield.substr(__builtin_strlen("(DE-627)"));
+std::string Record::getZDBNumber() const {
+    // First we try our luck w/ 016...
+    for (const auto &field : getTagRange("016")) {
+        const Subfields subfields(field.getSubfields());
+        if (subfields.hasSubfieldWithValue('2', "DE-600"))
+            return subfields.getFirstSubfieldWithCode('a');
+    }
+
+    // ...and then we try our luck w/ 035:
+    for (const auto &field : getTagRange("035")) {
+        const Subfields subfields(field.getSubfields());
+        const std::string subfield_a(subfields.getFirstSubfieldWithCode('a'));
+        if (StringUtil::StartsWith(subfield_a, "(DE-599)ZDB"))
+            return subfield_a.substr(11);
     }
 
     return "";
@@ -1232,7 +1252,7 @@ std::set<std::string> Record::getISSNs() const {
         const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
         std::string normalised_issn;
         if (MiscUtil::NormaliseISSN(first_subfield_a, &normalised_issn))
-            issns.insert(normalised_issn);;
+            issns.insert(normalised_issn);
     }
 
     return issns;
@@ -1582,14 +1602,29 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
 
     Subfields subfields(field->getContents());
     subfields.addSubfield(subfield_code, subfield_value);
-
-    std::string new_field_value;
-    new_field_value += field->getIndicator1();
-    new_field_value += field->getIndicator2();
-    new_field_value += subfields.toString();
-    field->contents_ = new_field_value;
-
+    field->setSubfields(subfields);
     return true;
+}
+
+bool Record::addSubfieldCreateFieldUnique(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) {
+    const auto &field(findTag(field_tag));
+    if (field == fields_.end())
+        return insertField(field_tag, {{subfield_code, subfield_value}});
+    if (not hasFieldWithSubfieldValue(field_tag, subfield_code, subfield_value)) {
+        return addSubfield(field_tag, subfield_code, subfield_value);
+    }
+    return false;
+}
+
+
+bool Record::hasFieldWithSubfieldValue(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) const {
+    auto field(findTag(field_tag));
+    while (field != fields_.cend() and field->getTag() == field_tag) {
+        if (field->hasSubfieldWithValue(subfield_code, subfield_value))
+            return true;
+        ++field;
+    }
+    return false;
 }
 
 
@@ -2640,11 +2675,12 @@ bool UBTueIsAquisitionRecord(const Record &marc_record) {
 const ThreadSafeRegexMatcher PARENT_PPN_MATCHER("^\\([^)]+\\)(.+)$");
 
 
-std::string GetParentPPN(const Record &record) {
-    static const std::vector<Tag> parent_reference_tags{ "800", "810", "830", "773", "776" };
-    for (auto &field : record) {
-        if (std::find_if(parent_reference_tags.cbegin(), parent_reference_tags.cend(),
-                         [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == parent_reference_tags.cend())
+std::string Record::getParentControlNumber(const std::vector<Tag> &additional_tags) const {
+    std::vector<Tag> tags(MARC::UP_LINK_FIELD_TAGS);
+    tags.insert(tags.end(), additional_tags.begin(), additional_tags.end());
+    for (auto &field : fields_) {
+        if (std::find_if(tags.cbegin(), tags.cend(),
+                         [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == tags.cend())
             continue;
 
         auto matches(PARENT_PPN_MATCHER.match(field.getFirstSubfieldWithCode('w')));
@@ -2656,6 +2692,24 @@ std::string GetParentPPN(const Record &record) {
     }
 
     return "";
+}
+
+
+std::unordered_set<std::string> Record::getParentControlNumbers(const std::vector<Tag> &additional_tags) const {
+    std::unordered_set<std::string> control_numbers;
+
+    std::vector<Tag> tags(MARC::UP_LINK_FIELD_TAGS);
+    tags.insert(tags.end(), additional_tags.begin(), additional_tags.end());
+    for (const auto &tag : tags) {
+        for (const auto &field : getTagRange(tag)) {
+            const MARC::Subfields subfields(field.getSubfields());
+            const std::string subfield_w_contents(subfields.getFirstSubfieldWithCode('w'));
+            if (StringUtil::StartsWith(subfield_w_contents, "(DE-627)"))
+                control_numbers.emplace(subfield_w_contents.substr(__builtin_strlen("(DE-627)")));
+        }
+    }
+
+    return control_numbers;
 }
 
 

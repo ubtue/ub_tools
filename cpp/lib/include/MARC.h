@@ -44,12 +44,6 @@ class RegexMatcher;
 namespace MARC {
 
 
-// These tags are for fields that may contain w-subfields with cross or uplink PPNs following "(DE-627)".
-// Important:  You *must* keep a alphanumerically increasing order of these tags!
-const std::set<std::string> CROSS_LINK_FIELD_TAGS{ "689", "700", "770", "772", "773", "775", "776", "780",
-                                                   "785", "787", "800", "810", "811", "830", "880", "889" };
-
-
 class Tag {
     /* We have to double this up, so we have one little endian integer for comparison, and one big endian integer
      * containing a char[4] for printing.
@@ -103,6 +97,14 @@ public:
     bool isLocal() const;
     Tag &swap(Tag &other);
 };
+
+
+// These tags are for fields that may contain w-subfields with cross or uplink PPNs following "(DE-627)".
+// Important:  You *must* keep a alphanumerically increasing order of these tags!
+const std::vector<Tag> CROSS_LINK_FIELD_TAGS{ "689", "700", "770", "772", "773", "775", "776", "780",
+                                              "785", "787", "800", "810", "811", "830", "880", "889" };
+
+const std::vector<Tag> UP_LINK_FIELD_TAGS{ "773", "800", "810", "811", "830" };
 
 
 bool IsRepeatableField(const Tag &tag);
@@ -361,12 +363,17 @@ public:
         inline bool isControlField() const __attribute__ ((pure)) { return tag_ <= "009"; }
         inline bool isDataField() const __attribute__ ((pure)) { return tag_ > "009"; }
         inline bool isRepeatableField() const { return MARC::IsRepeatableField(tag_); };
-        inline bool isCrossLinkField() const
-            { return CROSS_LINK_FIELD_TAGS.find(tag_.toString()) != CROSS_LINK_FIELD_TAGS.cend(); }
+        inline bool isCrossLinkField() const {
+            return std::find_if(CROSS_LINK_FIELD_TAGS.cbegin(), CROSS_LINK_FIELD_TAGS.cend(),
+                                [this](const Tag &cross_link_field_tag) -> bool { return this->tag_ == cross_link_field_tag; })
+                != CROSS_LINK_FIELD_TAGS.cend();
+        }
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
-        inline void setIndicator1(const char new_indicator1) { if (likely(not contents_.empty())) contents_[0] = new_indicator1; }
-        inline void setIndicator2(const char new_indicator2) { if (likely(not contents_.empty())) contents_[1] = new_indicator2; }
+        inline void setIndicator1(const char new_indicator1)
+            { if (likely(not contents_.empty())) contents_[0] = new_indicator1; }
+        inline void setIndicator2(const char new_indicator2)
+            { if (likely(not contents_.empty())) contents_[1] = new_indicator2; }
         inline Subfields getSubfields() const { return Subfields(contents_); }
         inline void setSubfields(const Subfields &subfields) {
             setContents(subfields, getIndicator1(), getIndicator2());
@@ -578,11 +585,26 @@ public:
     /** \return An approximation of the complete title generated from various subfields of field 245. */
     std::string getCompleteTitle() const;
 
+    /** \return A Non-empty string if we managed to find a parent PPN o/w the empty string.
+     *          Use this if you would like to consider all UP_LINK_FIELD_TAGS. Else use getSuperiorControlNumber().
+     *          If you want to consider additional tags (e.g. 776), pass them as optional parameter.
+     */
+    std::string getParentControlNumber(const std::vector<Tag> &additional_tags={}) const;
+
+    /** \return The PPNs of all parents, if found. (see UP_LINK_FIELD_TAGS).
+     *          If you want to consider additional tags (e.g. 776), pass them as optional parameter.
+     */
+    std::unordered_set<std::string> getParentControlNumbers(const std::vector<Tag> &additional_tags={}) const;
+
+    /** \return The control number of the superior work, if found, else the empty string.
+     *          Use this if you want to consider 773 only. Else use getParentControlNumber().
+     */
+    std::string getSuperiorControlNumber() const;
+
     /** \return The title of the superior work, if applicable. (contents of 773$a) */
     std::string getSuperiorTitle() const;
 
-    /** \return The control number of the superior work, if found, else the empty string. */
-    std::string getSuperiorControlNumber() const;
+    std::string getZDBNumber() const;
 
     /** \return A "summary" (could be an abstract etc.), if found, else the empty string. */
     std::string getSummary() const;
@@ -751,6 +773,15 @@ public:
      *  \return True if a field with field tag "field_tag" existed and false if no such field was found.
      */
     bool addSubfield(const Tag &field_tag, const char subfield_code, const std::string &subfield_value);
+
+    /** \brief  Adds a subfield to the first existing field with tag "field_tag". Field is created if it does not exist.
+     *  \return True if a subfield and optionally field created or if subfield with value is already present.
+     */
+    bool addSubfieldCreateFieldUnique(const Tag &field_tag, const char subfield_code, const std::string &subfield_value);
+
+    /** \brief  Checks if a specified field exists which additionally contains a subfield with a given value.
+     */
+    bool hasFieldWithSubfieldValue(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) const;
 
     /** \brief Performs edits on MARC rercord.
      *  \param error_message  If errors occurred this will contain explanatory text for the last error only.
@@ -1168,10 +1199,6 @@ bool UBTueIsElectronicResource(const Record &marc_record);
  *  \return True if the referenced item has been ordered but is not yet available, else false.
  */
 bool UBTueIsAquisitionRecord(const Record &marc_record);
-
-
-/** \return A Non-empty string if we managed to find a parent PPN o/w the empty string. */
-std::string GetParentPPN(const Record &record);
 
 
 bool IsOpenAccess(const Record &marc_record);

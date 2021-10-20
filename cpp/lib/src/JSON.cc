@@ -2,7 +2,7 @@
  *  \brief  Implementation of JSON-related functionality.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2017-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2017-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -166,7 +166,7 @@ TokenType Scanner::parseNumber() {
         return DOUBLE_CONST;
     }
 
-    if (*ch_ == 'e' or *ch_ == 'E') 
+    if (*ch_ == 'e' or *ch_ == 'E')
         number_as_string += *ch_;
 
     ++ch_;
@@ -468,6 +468,22 @@ std::shared_ptr<JSONNode> ObjectNode::getNode(const std::string &label) {
 }
 
 
+std::string ObjectNode::getOptionalStringValue(const std::string &label, const std::string &default_value) const {
+    const auto entry(entries_.find(label));
+    if (entry == entries_.cend())
+        return default_value;
+
+    const Type node_type(entry->second->getType());
+    if (node_type == STRING_NODE) {
+        const auto string_node(reinterpret_cast<const StringNode *>(entry->second.get()));
+        return string_node->getValue(); // Can't use toString() as that would add quotes!
+    } else if (node_type == OBJECT_NODE or node_type == ARRAY_NODE)
+        LOG_ERROR("node for label \"" + label + "\" is not a scalar type!");
+    else
+        return entry->second->toString();
+}
+
+
 static size_t ParsePath(const std::string &path, std::deque<std::string> * const components, const bool path_is_absolute) {
     if (unlikely(path_is_absolute and not StringUtil::StartsWith(path, "/")))
         throw std::runtime_error("in JSON::ParsePath: path must start with a slash!");
@@ -511,7 +527,7 @@ std::shared_ptr<const JSONNode> ObjectNode::deepResolveNode(const std::string &p
         case JSONNode::OBJECT_NODE:
             if ((next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component)) == nullptr) {
                     throw std::runtime_error("in JSON::ObjectNode::deepResolveNode: path component \"" + path_component
-                                             + " is not a key in an object node!");
+                                             + " is not a key in an object node! (path: " + path+ ")");
             }
             break;
         case JSONNode::ARRAY_NODE: {
@@ -526,8 +542,11 @@ std::shared_ptr<const JSONNode> ObjectNode::deepResolveNode(const std::string &p
             next_node = array_node->getNode(index);
             break;
         }
+        case JSONNode::NULL_NODE:
+            return nullptr;
         default:
-            throw std::runtime_error("in JSON::ObjectNode::deepResolveNode: can't descend into a scalar node!");
+            throw std::runtime_error("in JSON::ObjectNode::deepResolveNode: can't descend into a scalar node! (path: "
+                                     + path + ")");
             return nullptr;
         }
     }
@@ -760,8 +779,8 @@ std::string TokenTypeToString(const TokenType token) {
 
 // N.B. If "throw_if_not_found" is true an exception will be thrown if "path" can't be resolved o/w NULL will be returned.
 // Please note that a syntactically incorrect "path" will trigger an exception irrespective of the value of "throw_if_not_found."
-template<class JSONNode> static std::shared_ptr<JSONNode> GetLastPathComponent(const std::string &path, const std::shared_ptr<JSONNode> &tree,
-                                                                               const bool throw_if_not_found)
+template<class JSONNode> static std::shared_ptr<JSONNode> GetLastPathComponent(
+    const std::string &path, const std::shared_ptr<JSONNode> &tree, const bool throw_if_not_found)
 {
     std::deque<std::string> path_components;
     if (unlikely(ParsePath(path, &path_components, /* path_is_absolute = */true) == 0))
@@ -780,7 +799,7 @@ template<class JSONNode> static std::shared_ptr<JSONNode> GetLastPathComponent(c
             if ((next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component)) == nullptr) {
                 if (throw_if_not_found)
                     throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
-                                             + " is not a key in an object node!");
+                                             + " is not a key in an object node! (path: " + path + ")");
             }
             break;
         case JSONNode::ARRAY_NODE: {
@@ -803,7 +822,8 @@ template<class JSONNode> static std::shared_ptr<JSONNode> GetLastPathComponent(c
         }
         default:
             if (throw_if_not_found)
-                throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node!");
+                throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node! (path: "
+                                         + path + ")");
             return nullptr;
         }
     }
