@@ -290,7 +290,7 @@
                                     <input type="text" name="lookfor" value="{lookfor}" class="form-control form-control-dark" />
                                     <button aria-describedby="button-addon2" class="btn btn-outline-primary me-2" id="button-addon2">Search</button>
                                     <input type="hidden" name="target" value="{target_translation_scope}">
-                                    <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                                    <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
                                     <input type="hidden" name="lang_un" value="{lang_un}">
                                 </div>
                             </form>
@@ -322,7 +322,7 @@
                             <input type="hidden" name="lookfor" value="{lookfor}">
                             <input type="hidden" name="offset" value="{prev_offset}">
                             <input type="hidden" name="target" value="{target_translation_scope}">
-                            <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                            <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
                             <input type="hidden" name="lang_un" value="{lang_un}">
                         </form>
                         </li>
@@ -332,7 +332,7 @@
                             <input type="hidden" name="lookfor" value="{lookfor}">
                             <input type="hidden" name="offset" value="{next_offset}">
                             <input type="hidden" name="target" value="{target_translation_scope}">
-                            <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                            <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
                             <input type="hidden" name="lang_un" value="{lang_un}">
                         </form>
                         </li>
@@ -348,7 +348,7 @@
                                     <input type="hidden" name="target" value="{target_translation_scope}">
                                     <div class="lang-un-width">
                                         <label class="visually-hidden" for="specificSizeSelect">&nbsp;</label>
-                                        <select name="lang_un" class="form-select" {lang_un} onchange="if(this.value != '{lang_un}') this.form.submit()">
+                                        <select name="lang_un" class="form-select" onchange="if(this.value != '{lang_un}') this.form.submit()">
                                             {LOOP translator_languages_foreign}
                                                 <option {IF lang_un == translator_languages_foreign}selected {ENDIF} value="{translator_languages_foreign}">{translator_languages_foreign}</option>
                                             {ENDLOOP}
@@ -385,7 +385,7 @@
                                             <input type="hidden" name="lookfor" value="{lookfor}">
                                             <input type="hidden" name="offset" value="{current_offset}">
                                             <input type="hidden" name="target" value="{target_translation_scope}">
-                                            <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                                            <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
                                             <input type="hidden" name="lang_un" value="{lang_un}">
                                         </form>
                                     </div>
@@ -394,7 +394,7 @@
                                             <button type="submit" class="link-button">Restore Status</button>
                                             <input type="hidden" name="save_action" value="restore">
                                             <input type="hidden" name="target" value="{target_translation_scope}">
-                                            <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                                            <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
                                             <input type="hidden" name="lang_un" value="{lang_un}">
                                         </form>
                                     </div>
@@ -405,7 +405,7 @@
                                     <button type="submit" class="link-button">Mail my Translations</button>
                                     <input type="hidden" name="target" value="{target_translation_scope}">
                                     <input type="hidden" name="mail" value="mytranslations">
-                                    <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                                    <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
                                     <input type="hidden" name="lang_un" value="{lang_un}">
                                 </form>
                            </div>
@@ -430,7 +430,7 @@
                                     <input type="hidden" name="target" value="{target_translation_scope}">
                                     <div class="lang-un-width">
                                         <label class="visually-hidden" for="specificSizeSelect">&nbsp;</label>
-                                        <select name="lang_un" class="form-select" {lang_un} onchange="if(this.value != '{lang_un}') this.form.submit()">
+                                        <select name="lang_un" class="form-select" onchange="if(this.value != '{lang_un}') this.form.submit()">
                                             {LOOP translator_languages_foreign}
                                                 <option {IF lang_un == translator_languages_foreign}selected {ENDIF} value="{translator_languages_foreign}">{translator_languages_foreign}</option>
                                             {ENDLOOP}
@@ -467,7 +467,7 @@
                                             <input type="hidden" name="lookfor" value="{lookfor}">
                                             <input type="hidden" name="offset" value="{current_offset}">
                                             <input type="hidden" name="target" value="{target_translation_scope}">
-                                            <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                                            <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
                                             <input type="hidden" name="lang_un" value="{lang_un}">
                                         </form>
                                     </div>
@@ -476,7 +476,7 @@
                                             <button type="submit" class="link-button">Restore Status</button>
                                             <input type="hidden" name="save_action" value="restore">
                                             <input type="hidden" name="target" value="{target_translation_scope}">
-                                            <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                                            <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
                                             <input type="hidden" name="lang_un" value="{lang_un}">
                                         </form>
                                     </div>
