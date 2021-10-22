@@ -55,6 +55,12 @@
     <script type="text/javascript">
     $(document).ready(function () {{
 
+        var lang_un_id = document.getElementById("lang_un");
+        for (var i = 0; i < lang_un_id.options.length; ++i) {{
+            if (lang_un_id.options[i].text === "{lang_un}")
+                lang_un_id.options[i].selected = true;
+        }
+
         $('.historyDialog').on('hidden.bs.modal', function () {{
             $(".txtShowHistory").html("...");
         });
@@ -348,9 +354,9 @@
                                     <input type="hidden" name="target" value="{target_translation_scope}">
                                     <div class="lang-un-width">
                                         <label class="visually-hidden" for="specificSizeSelect">&nbsp;</label>
-                                        <select name="lang_un" class="form-select" onchange="if(this.value != '{lang_un}') this.form.submit()">
+                                        <select id="lang_un" name="lang_un" class="form-select" onchange="if(this.value != '{lang_un}') this.form.submit()">
                                             {LOOP translator_languages_foreign}
-                                                <option {IF lang_un == translator_languages_foreign}selected {ENDIF} value="{translator_languages_foreign}">{translator_languages_foreign}</option>
+                                                <option value="{translator_languages_foreign}">{translator_languages_foreign}</option>
                                             {ENDLOOP}
                                         </select>
                                     </div>
@@ -430,9 +436,9 @@
                                     <input type="hidden" name="target" value="{target_translation_scope}">
                                     <div class="lang-un-width">
                                         <label class="visually-hidden" for="specificSizeSelect">&nbsp;</label>
-                                        <select name="lang_un" class="form-select" onchange="if(this.value != '{lang_un}') this.form.submit()">
+                                        <select id="lang_un" name="lang_un" class="form-select" onchange="if(this.value != '{lang_un}') this.form.submit()">
                                             {LOOP translator_languages_foreign}
-                                                <option {IF lang_un == translator_languages_foreign}selected {ENDIF} value="{translator_languages_foreign}">{translator_languages_foreign}</option>
+                                                <option value="{translator_languages_foreign}">{translator_languages_foreign}</option>
                                             {ENDLOOP}
                                         </select>
                                     </div>
