@@ -568,7 +568,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
 
 void GenerateDirectJumpTable(std::vector<std::string> * const jump_table, enum Category category = KEYWORDS,
-                             const bool filter_untranslated = false, const std::string &lang_un = "all")
+                             const bool filter_untranslated = false, const std::string &lang_un = ALL_SUPPORTED_LANGUAGES)
 {
     for (char ch('A'); ch <= 'Z'; ++ch) {
         // We use buttons an style them as link conform to post semantics
@@ -582,6 +582,37 @@ void GenerateDirectJumpTable(std::vector<std::string> * const jump_table, enum C
          "</form>");
         jump_table->emplace_back("<td style=\"border:none;\">" + post_link + "</td>");
     }
+}
+
+
+bool GetNumberOfUntranslatedByLanguage(DbConnection &db_connection, enum Category category, const std::string &language_code, int * const number_untranslated, int * const number_total) {
+
+    std::string query_trans, query_total;
+    if (language_code.empty() or language_code == ALL_SUPPORTED_LANGUAGES)
+        return false;
+    if (category == KEYWORDS) {
+        query_trans = "SELECT COUNT(DISTINCT ppn) AS anzahl FROM keyword_translations WHERE language_code='" + language_code + "';";
+        query_total = "SELECT COUNT(DISTINCT ppn) AS anzahl FROM keyword_translations;";
+    } else if (category == VUFIND) {
+        query_trans = "SELECT COUNT(DISTINCT token) AS anzahl FROM vufind_translations WHERE language_code='" + language_code + "';";
+        query_total = "SELECT COUNT(DISTINCT token) AS anzahl FROM vufind_translations;";
+    } else
+        return false;
+    DbResultSet result_set_total(ExecSqlAndReturnResultsOrDie(query_total, &db_connection));
+    if (result_set_total.empty())
+        return false;
+    DbRow db_row_total(result_set_total.getNextRow());
+    std::string total(db_row_total["anzahl"]);
+    *number_total = std::stoi(total);
+
+    DbResultSet result_set_trans(ExecSqlAndReturnResultsOrDie(query_trans, &db_connection));
+    if (result_set_trans.empty())
+        return false;
+    DbRow db_row_trans(result_set_trans.getNextRow());
+    std::string translated(db_row_trans["anzahl"]);
+    *number_untranslated = *number_total - std::stoi(translated);
+
+    return true;
 }
 
 
@@ -635,6 +666,10 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
             translator_languages_foreign.push_back(lang);
     }
     names_to_values_map.insertArray("translator_languages_foreign", translator_languages_foreign);
+
+    int number_untranslated, number_total;
+    bool success_number_translated = GetNumberOfUntranslatedByLanguage(db_connection, target=="vufind" ? VUFIND : KEYWORDS, lang_un, &number_untranslated, &number_total);
+    names_to_values_map.insertScalar("number_untranslated", success_number_translated ? std::to_string(number_untranslated) + "/" + std::to_string(number_total) : "");
 
     std::ifstream translate_html(UBTools::GetTuelibPath() + "translate_chainer/translation_front_page.html", std::ios::binary);
     Template::ExpandTemplate(translate_html, std::cout, names_to_values_map);
