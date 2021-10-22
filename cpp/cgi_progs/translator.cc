@@ -629,6 +629,13 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
 
     names_to_values_map.insertScalar("lang_un", lang_un);
 
+    std::vector<std::string> translator_languages_foreign;
+    for (const std::string &lang : translator_languages) {
+        if (lang != "ger")
+            translator_languages_foreign.push_back(lang);
+    }
+    names_to_values_map.insertArray("translator_languages_foreign", translator_languages_foreign);
+
     std::ifstream translate_html(UBTools::GetTuelibPath() + "translate_chainer/translation_front_page.html", std::ios::binary);
     Template::ExpandTemplate(translate_html, std::cout, names_to_values_map);
 }

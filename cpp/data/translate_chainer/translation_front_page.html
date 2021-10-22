@@ -349,8 +349,9 @@
                                     <div class="lang-un-width">
                                         <label class="visually-hidden" for="specificSizeSelect">&nbsp;</label>
                                         <select name="lang_un" class="form-select" {lang_un} onchange="if(this.value != '{lang_un}') this.form.submit()">
-                                            <option {IF lang_un == "eng"}selected {ENDIF} value="eng">eng</option>
-                                            <option {IF lang_un == "fre"}selected {ENDIF} value="fre">fre</option>
+                                            {LOOP translator_languages_foreign}
+                                                <option {IF lang_un == translator_languages_foreign}selected {ENDIF} value="{translator_languages_foreign}">{translator_languages_foreign}</option>
+                                            {ENDLOOP}
                                         </select>
                                     </div>
                                     <div class="col-auto">
