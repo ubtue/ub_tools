@@ -20,12 +20,12 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include "DbConnection.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
 #include "UBTools.h"
 #include "util.h"
-
 
 namespace {
 
@@ -49,9 +49,13 @@ unsigned GetCurrentVersion() {
 
 unsigned GetVersionFromScriptName(const std::string &script_name) {
     const auto basename(FileUtil::GetBasename(script_name));
-    if (not StringUtil::EndsWith(script_name, ".sh"))
+    if (StringUtil::EndsWith(script_name, ".sh"))
+        return StringUtil::ToUnsignedOrDie(script_name.substr(0, script_name.length() - 3 /* ".sh" */));
+    else if (StringUtil::EndsWith(script_name, ".sql")) {
+        return StringUtil::ToUnsignedOrDie(script_name.substr(0, script_name.find('.') /* ".xxx.sql" */));
+    }
+    else
         LOG_ERROR("unexpected script name: \"" + script_name + "\"!");
-    return StringUtil::ToUnsignedOrDie(script_name.substr(0, script_name.length() - 3 /* ".sh" */));
 }
 
 
@@ -62,6 +66,41 @@ inline bool ScriptLessThan(const std::string &script_name1, const std::string &s
 }
 
 
+void SplitIntoDatabaseAndVersion(const std::string &update_filename, std::string * const database, unsigned * const version) {
+    const auto first_dot_pos(update_filename.find('.'));
+    if (first_dot_pos == std::string::npos or first_dot_pos == 0 or first_dot_pos == update_filename.length() - 1)
+        LOG_ERROR("invalid update filename \"" + update_filename + "\"!");
+
+    if (not StringUtil::ToUnsigned(update_filename.substr(0, first_dot_pos), version))
+        LOG_ERROR("bad or missing version in update filename \"" + update_filename + "\"!");
+
+    *database = update_filename.substr(first_dot_pos + 1, str.find_last_of("."));
+}
+
+
+void ApplyUpdate(DbConnection * const db_connection, const std::string &update_directory_path,
+                 const std::string &update_filename, std::string * const current_schema, const std::string &last_schema)
+{
+    std::string database;
+    unsigned update_version;
+    SplitIntoDatabaseAndVersion(update_filename, &database, &update_version);
+    *current_schema = database;
+
+    if (not db_connection->mySQLDatabaseExists(database)) {
+        LOG_INFO("database \"" + database + "\" does not exist, skipping file " + update_filename);
+        return;
+    }
+
+    if (last_schema.empty() or database != last_schema) {
+        LOG_INFO("switching to database: " + database);
+        db_connection->queryOrDie("USE " + database);
+    }
+
+    LOG_INFO("applying update " + std::to_string(update_version) + " to database \"" + database + "\".");
+    db_connection->queryFileOrDie(update_directory_path + "/" + update_filename);
+}
+
+
 } // unnamed namespace
 
 
@@ -69,11 +108,12 @@ int Main(int argc, char *argv[]) {
     if (argc != 2)
         ::Usage("path_to_update_scripts");
 
+    DbConnection db_connection(DbConnection::UBToolsFactory());
     const auto current_version(GetCurrentVersion());
 
     std::vector<std::string> script_names;
     const std::string SYSTEM_UPDATES_DIR(argv[1]);
-    FileUtil::Directory system_updates_dir(SYSTEM_UPDATES_DIR, "^\\d+.sh$");
+    FileUtil::Directory system_updates_dir(SYSTEM_UPDATES_DIR, "(^\\d+.sh$|\\d+.(?:ixtheo|ub_tools|vufind|krimdok).sql)");
     for (const auto &entry : system_updates_dir) {
         if (GetVersionFromScriptName(entry.getName()) > current_version)
             script_names.emplace_back(entry.getName());
@@ -84,15 +124,24 @@ int Main(int argc, char *argv[]) {
     }
 
     std::sort(script_names.begin(), script_names.end(), ScriptLessThan);
+    std::string last_schema;
+    std::string current_schema;
 
     for (const auto &script_name : script_names) {
         LOG_INFO("Running " + script_name);
-        ExecUtil::ExecOrDie(SYSTEM_UPDATES_DIR + "/" + script_name);
+        if (script_name.ends_with(".sh"))
+            ExecUtil::ExecOrDie(SYSTEM_UPDATES_DIR + "/" + script_name);
+        else if (script_name.ends_with(".sql")) {
+                ApplyUpdate(&db_connection, SYSTEM_UPDATES_DIR, script_name, &current_schema, last_schema);
+                last_schema = current_schema;
+        }
+        else
+            continue;
 
         // We want to write the version number after each script
         // in case anything goes wrong, to avoid double execution
         // of successfully run scripts
-        const auto version_number(script_name.substr(0, script_name.size() - 3 /* ".sh" */));
+        const auto version_number(GetVersionFromScriptName(script_name));
         FileUtil::WriteStringOrDie(VERSION_PATH, version_number);
     }
 

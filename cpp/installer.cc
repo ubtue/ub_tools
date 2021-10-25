@@ -303,27 +303,6 @@ void MySQLImportFileIfExists(const std::string &sql_file, const std::string &sql
 }
 
 
-void GetMaxTableVersions(std::map<std::string, unsigned> * const table_name_to_version_map) {
-    const std::string SQL_UPDATES_DIRECTORY("/usr/local/ub_tools/cpp/data/sql_updates");
-
-    static RegexMatcher *matcher(RegexMatcher::RegexMatcherFactoryOrDie("^([^.]+)\\.(\\d+)$"));
-    FileUtil::Directory directory(SQL_UPDATES_DIRECTORY);
-    for (const auto entry : directory) {
-        if (matcher->matched(entry.getName())) {
-            const auto database_name((*matcher)[1]);
-            const auto version(StringUtil::ToUnsigned((*matcher)[2]));
-            auto database_name_and_version(table_name_to_version_map->find(database_name));
-            if (database_name_and_version == table_name_to_version_map->end())
-                (*table_name_to_version_map)[database_name] = version;
-            else {
-                if (database_name_and_version->second < version)
-                    database_name_and_version->second = version;
-            }
-        }
-    }
-}
-
-
 void CreateUbToolsDatabase(DbConnection * const db_connection_root) {
     IniFile ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
     const auto section(ini_file.getSection("Database"));
@@ -338,18 +317,6 @@ void CreateUbToolsDatabase(DbConnection * const db_connection_root) {
         db_connection_root->mySQLGrantAllPrivileges(sql_database, sql_username);
         db_connection_root->mySQLGrantAllPrivileges(sql_database + "_tmp", sql_username);
         DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, sql_username, sql_password);
-    }
-
-    // Populate our database versions table to reflect the patch level for each database for which patches already exist.
-    // This assumes that we have been religiously updating our database creation statements for each patch that we created!
-    std::map<std::string, unsigned> table_name_to_version_map;
-    GetMaxTableVersions(&table_name_to_version_map);
-    DbConnection db_connection(DbConnection::UBToolsFactory());
-    for (const auto &table_name_and_version : table_name_to_version_map) {
-        const std::string replace_statement("REPLACE INTO ub_tools.database_versions SET database_name='"
-                                            + table_name_and_version.first +"', version="
-                                            + StringUtil::ToString(table_name_and_version.second));
-        db_connection.queryOrDie(replace_statement);
     }
 }
 
@@ -458,12 +425,11 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
 
 void RegisterSystemUpdateVersion() {
     const std::string SYSTEM_UPDATES_DIRECTORY(UB_TOOLS_DIRECTORY + "/cpp/data/system_updates");
-    FileUtil::Directory directory(SYSTEM_UPDATES_DIRECTORY, "\\d+.sh");
+    FileUtil::Directory directory(SYSTEM_UPDATES_DIRECTORY, "(^\\d+.sh$|\\d+.(?:ixtheo|ub_tools|vufind|krimdok).sql)");
     unsigned max_version(0);
     for (const auto &update_script : directory) {
         const auto &script_name(update_script.getName());
-        const auto script_version(StringUtil::ToUnsignedOrDie(
-            script_name.substr(0, script_name.length() - 3 /* ".sh" */)));
+        const auto script_version(StringUtil::ToUnsignedOrDie(script_name.substr(0, script_name.find('.'))));
         if (script_version > max_version)
             max_version = script_version;
     }
