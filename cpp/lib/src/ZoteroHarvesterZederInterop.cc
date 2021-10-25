@@ -85,7 +85,7 @@ static std::string ResolveEntryPointURL(const Zeder::Entry &zeder_entry, const Z
 
 
 static std::string ResolveHarvesterOperation(const Zeder::Entry &zeder_entry, const Zeder::Flavour /*unused*/) {
-    const auto &z_type(zeder_entry.getAttribute("z_type"));
+    const auto &z_type(zeder_entry.getAttribute("z_type", ""));
     if (z_type == "rss")
         return Config::HARVESTER_OPERATION_TO_STRING_MAP.at(Config::HarvesterOperation::RSS);
     else if (z_type == "crawl")
