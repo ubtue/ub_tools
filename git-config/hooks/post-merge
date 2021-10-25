@@ -18,7 +18,7 @@ rm -f $SCHEMA_DIFFS
 declare -i compare_against_installer_schema=$(if $(echo "$CHANGED_FILES" | grep --quiet cpp/data/installer/ub_tools.sql); then echo 1; else echo 0; fi)
 if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); then
     # Make sure that we use the newest database tools:
-    (cd /usr/local/ub_tools/cpp && make mysql_database_patcher && make mysql_list_tables && make mysql_diff_schemas \
+    (cd /usr/local/ub_tools/cpp && make -j4 mysql_database_patcher && make -j4 mysql_list_tables && make -j4 mysql_diff_schemas \
          && cp mysql_database_patcher mysql_list_tables mysql_diff_schemas /usr/local/bin)
     if [[ $? != 0 ]]; then
         echo "Most likely building, or, less likely, the installation of the database tools failed!"
