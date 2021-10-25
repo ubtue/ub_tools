@@ -385,6 +385,10 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
         ++metrics->num_journals_with_harvest_operation_apiquery_;
         break;
     }
+    case Config::HarvesterOperation::EMAIL:
+    {
+        LOG_ERROR("EMAIL Operation currently not implemented");
+    }
     }
 
     LOG_INFO("Queued journal '" + journal_params.name_ + "' | " + Config::HARVESTER_OPERATION_TO_STRING_MAP.at(journal_params.harvester_operation_) + " @ " + journal_params.entry_point_url_);
