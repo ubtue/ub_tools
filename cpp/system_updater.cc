@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <iostream>
 #include "DbConnection.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
@@ -73,8 +74,7 @@ void SplitIntoDatabaseAndVersion(const std::string &update_filename, std::string
 
     if (not StringUtil::ToUnsigned(update_filename.substr(0, first_dot_pos), version))
         LOG_ERROR("bad or missing version in update filename \"" + update_filename + "\"!");
-
-    *database = update_filename.substr(first_dot_pos + 1, str.find_last_of("."));
+    *database = update_filename.substr(first_dot_pos + 1, update_filename.find_last_of('.') - (first_dot_pos + 1));
 }
 
 
@@ -87,7 +87,7 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
     *current_schema = database;
 
     if (not db_connection->mySQLDatabaseExists(database)) {
-        LOG_INFO("database \"" + database + "\" does not exist, skipping file " + update_filename);
+        LOG_ERROR("database \"" + database + "\" does not exist, skipping file " + update_filename);
         return;
     }
 
@@ -108,6 +108,8 @@ int Main(int argc, char *argv[]) {
     if (argc != 2)
         ::Usage("path_to_update_scripts");
 
+    bool dry_run = false;
+
     DbConnection db_connection(DbConnection::UBToolsFactory());
     const auto current_version(GetCurrentVersion());
 
@@ -124,16 +126,22 @@ int Main(int argc, char *argv[]) {
     }
 
     std::sort(script_names.begin(), script_names.end(), ScriptLessThan);
-    std::string last_schema;
-    std::string current_schema;
+    std::string last_schema, current_schema;
 
     for (const auto &script_name : script_names) {
         LOG_INFO("Running " + script_name);
-        if (script_name.ends_with(".sh"))
-            ExecUtil::ExecOrDie(SYSTEM_UPDATES_DIR + "/" + script_name);
+        if (script_name.ends_with(".sh")) {
+            if (dry_run)
+                std::cout << SYSTEM_UPDATES_DIR << "---" << script_name << std::endl;
+            else
+                ExecUtil::ExecOrDie(SYSTEM_UPDATES_DIR + "/" + script_name);
+        }
         else if (script_name.ends_with(".sql")) {
+            if (dry_run)
+                std::cout << SYSTEM_UPDATES_DIR << " " << script_name << std::endl;
+            else
                 ApplyUpdate(&db_connection, SYSTEM_UPDATES_DIR, script_name, &current_schema, last_schema);
-                last_schema = current_schema;
+            last_schema = current_schema;
         }
         else
             continue;
@@ -141,8 +149,8 @@ int Main(int argc, char *argv[]) {
         // We want to write the version number after each script
         // in case anything goes wrong, to avoid double execution
         // of successfully run scripts
-        const auto version_number(GetVersionFromScriptName(script_name));
-        FileUtil::WriteStringOrDie(VERSION_PATH, version_number);
+        const unsigned version_number(GetVersionFromScriptName(script_name));
+        FileUtil::WriteStringOrDie(VERSION_PATH, std::to_string(version_number));
     }
 
     return EXIT_SUCCESS;
