@@ -50,26 +50,6 @@ void ExtractSubfield(const MARC::Record &record, const std::string &tag, const c
 }
 
 
-std::string ExtractZDBNumber(const MARC::Record &record) {
-    // First we try our luck w/ 016...
-    for (const auto &field : record.getTagRange("016")) {
-        const MARC::Subfields subfields(field.getSubfields());
-        if (subfields.hasSubfieldWithValue('2', "DE-600"))
-            return subfields.getFirstSubfieldWithCode('a');
-    }
-
-    // ...and then we try our luck w/ 035:
-    for (const auto &field : record.getTagRange("035")) {
-        const MARC::Subfields subfields(field.getSubfields());
-        const std::string subfield_a(subfields.getFirstSubfieldWithCode('a'));
-        if (StringUtil::StartsWith(subfield_a, "(DE-599)ZDB"))
-            return subfield_a.substr(11);
-    }
-
-    return "";
-}
-
-
 void ExtractISSNs(const MARC::Record &record, std::set<std::string> * const issns_and_isbns) {
     ExtractSubfield(record, "022", 'a', issns_and_isbns);
     ExtractSubfield(record, "440", 'x', issns_and_isbns);
@@ -260,7 +240,7 @@ bool FindTueDups(const MARC::Record &record, File * const monos_csv, File * cons
             area_or_zdb_number = subfields.getFirstSubfieldWithCode('j');
         }
     } else // SERIALS
-        area_or_zdb_number = ExtractZDBNumber(record);
+        area_or_zdb_number = record.getZDBNumber();
 
 
     std::string main_title(record.getFirstSubfieldValue("245", 'a'));

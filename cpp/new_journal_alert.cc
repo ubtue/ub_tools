@@ -673,7 +673,7 @@ void ProcessSingleUser(
     std::vector<SerialControlNumberAndMaxLastModificationTime> &control_numbers_or_bundle_names_and_last_modification_times,
     std::map<std::string, std::map<std::string, std::string>> * const bundle_journal_last_modification_times)
 {
-    db_connection->queryOrDie("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id WHERE user.id=" + user_id);
+    db_connection->queryOrDie("SELECT * FROM user WHERE user.id=" + user_id);
     DbResultSet result_set(db_connection->getLastResultSet());
 
     if (result_set.empty())
@@ -692,7 +692,7 @@ void ProcessSingleUser(
     const auto name_of_user(MiscUtil::GenerateAddress(firstname, lastname, "Subscriber"));
 
     const std::string email(row["email"]);
-    const std::string user_type(row["user_type"]);
+    const std::string user_type(row["ixtheo_user_type"]);
 
     // Collect the dates for new issues.
     std::vector<NewIssueInfo> new_issue_infos;
@@ -807,7 +807,7 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
                           const std::string &sender_email, const std::string &email_subject)
 {
     db_connection->queryOrDie("SELECT DISTINCT user_id FROM ixtheo_journal_subscriptions WHERE user_id IN (SELECT id FROM "
-                              "ixtheo_user WHERE ixtheo_user.user_type = '" + user_type  + "')");
+                              "user WHERE ixtheo_user_type = '" + user_type  + "')");
 
     unsigned subscription_count(0);
     DbResultSet id_result_set(db_connection->getLastResultSet());

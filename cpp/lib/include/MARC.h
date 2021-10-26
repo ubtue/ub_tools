@@ -604,6 +604,8 @@ public:
     /** \return The title of the superior work, if applicable. (contents of 773$a) */
     std::string getSuperiorTitle() const;
 
+    std::string getZDBNumber() const;
+
     /** \return A "summary" (could be an abstract etc.), if found, else the empty string. */
     std::string getSummary() const;
 
