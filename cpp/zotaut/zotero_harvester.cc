@@ -232,6 +232,7 @@ struct JournalDatastore {
     std::unique_ptr<Util::Future<Download::Crawling::Params, Download::Crawling::Result>> current_crawl_;
     std::unique_ptr<Util::Future<Download::RSS::Params, Download::RSS::Result>> current_rss_feed_;
     std::unique_ptr<Util::Future<Download::DirectDownload::Params, Download::DirectDownload::Result>> current_apiquery_;
+    std::unique_ptr<Util::Future<Download::EmailCrawl::Params, Download::EmailCrawl::Result>> current_email_crawl_;
     std::deque<std::unique_ptr<Util::Future<Conversion::ConversionParams, Conversion::ConversionResult>>> queued_marc_records_;
 public:
     JournalDatastore(const Config::JournalParams &journal_params) : journal_params_(journal_params) {}
@@ -243,6 +244,7 @@ struct Metrics {
     unsigned num_journals_with_harvest_operation_rss_;
     unsigned num_journals_with_harvest_operation_crawl_;
     unsigned num_journals_with_harvest_operation_apiquery_;
+    unsigned num_journals_with_harvest_operation_emailcrawl_;
     unsigned num_downloads_crawled_successful_;
     unsigned num_downloads_crawled_unsuccessful_;
     unsigned num_downloads_crawled_cache_hits_;
@@ -387,7 +389,11 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
     }
     case Config::HarvesterOperation::EMAIL:
     {
-        LOG_ERROR("EMAIL Operation currently not implemented");
+        const auto download_item(harvestable_manager->newHarvestableItem(nullptr, journal_params));
+        auto future(download_manager->emailCrawl(download_item, group_params.user_agent_));
+        current_journal_datastore->current_email_crawl_.reset(future.release());
+        ++metrics->num_journals_with_harvest_operation_emailcrawl_;
+        break;
     }
     }
 
