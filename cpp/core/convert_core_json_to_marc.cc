@@ -124,6 +124,9 @@ MARC::Record::BibliographicLevel MapTypeStringToBibliographicLevel(const std::st
 // \return True if we found at least one author, else false.
 bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
     const auto authors(entry_object.getArrayNode("authors"));
+    if (authors == nullptr or authors->empty())
+        return false;
+
     bool first_author(true);
     for (const auto &author : *authors) {
         const auto author_object(JSON::JSONNode::CastToObjectNodeOrDie("author_object", author));
