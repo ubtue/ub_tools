@@ -45,6 +45,7 @@
 /extract_person_gnd_numbers
 /extract_referenceterms
 /extract_text_from_image_only_pdfs
+/extract_zeder_data
 /find_bib_ref_candidates_in_titles
 /find_gnd_reference_fields
 /find_latest_journal_year
