@@ -27,6 +27,7 @@
 #include "KeyValueDB.h"
 #include "MARC.h"
 #include "MiscUtil.h"
+#include "TextUtil.h"
 #include "TimeUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -63,20 +64,15 @@ public:
 void LoadISSNsToJournalTitlesPPNsAndISSNsMap(
     std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> * const issns_to_journal_titles_ppns_and_issns_map)
 {
-    const std::string MAP_FILE_PATH(UBTools::GetTuelibPath() + "issns_to_journaltitles_and_ppns.map");
-    const auto input(FileUtil::OpenInputFileOrDie(MAP_FILE_PATH));
+    const std::string MAP_FILE_PATH(UBTools::GetTuelibPath() + "print_issns_titles_online_ppns_and_online_issns.csv");
+    std::vector<std::vector<std::string>> lines;
+    TextUtil::ParseCSVFileOrDie(MAP_FILE_PATH, &lines);
 
-    unsigned line_no(0);
-    while (not input->eof()) {
-        ++line_no;
-        const std::string line(input->getline());
-        if (line.empty())
-            continue;
-        const auto parts(StringUtil::Split(line, ':'));
-        if (parts.size() != 4 or parts[0].empty() or parts[1].empty()) // ISSN and titles are required, PPN's and online ISSN's are optional.
-            LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + MAP_FILE_PATH + "\"!");
-        issns_to_journal_titles_ppns_and_issns_map->emplace(parts[0], JournalTitlePPNAndOnlineISSN(parts[1], parts[2],
-                                                                                                   parts[3]));
+    for (const auto &line : lines) {
+        if (lines[0].empty() or line[1].empty())
+            continue; // ISSN and titles are required, PPN's and online ISSN's are optional.
+
+        issns_to_journal_titles_ppns_and_issns_map->emplace(line[0], JournalTitlePPNAndOnlineISSN(line[1], line[2], line[3]));
     }
 
     LOG_INFO("Loaded " + std::to_string(issns_to_journal_titles_ppns_and_issns_map->size())
