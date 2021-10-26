@@ -47,6 +47,7 @@
 #include <cstring>
 #include <inttypes.h>
 #include "Compiler.h"
+#include "util.h"
 
 
 #ifndef BITSPERBYTE
@@ -957,6 +958,48 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
     }
 
     return container->size();
+}
+
+
+/** \brief  Split a string around a delimiter.
+ *  \param  source                     The string to split.
+ *  \param  delimiter                  The character to split around.
+ *  \param  escape_char                Use this if delimiters can be parts of the component values.
+ *  \param  suppress_empty_components  If true we will not return empty components.
+ *  \return The individual components.
+ */
+template<typename StringType> std::vector<StringType> Split(const StringType &source, const char delimiter,
+                                                            const char escape_char = '\\',
+                                                            const bool suppress_empty_components = false)
+{
+    if (unlikely(delimiter == escape_char))
+        LOG_ERROR("the delimiter and escape character cannot be the same!");
+
+    std::vector<StringType> parts;
+    if (unlikely(source.empty()))
+        return parts;
+
+    bool escaped(false);
+    parts.push_back("");
+    for (const char ch : source) {
+        if (escaped) {
+            parts.back() += ch;
+            escaped = false;
+        } else if (ch == escape_char)
+            escaped = true;
+        else if (ch == delimiter) {
+            if (not suppress_empty_components or not parts.back().empty())
+                parts.push_back("");
+        } else
+            parts.back() += ch;
+    }
+    if (escaped)
+        LOG_ERROR("dangling escape character in input!");
+
+    if (unlikely(suppress_empty_components and parts.back().empty()))
+        parts.pop_back();
+
+    return parts;
 }
 
 

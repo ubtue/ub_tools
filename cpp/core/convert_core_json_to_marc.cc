@@ -45,29 +45,6 @@ public:
 };
 
 
-std::vector<std::string> SplitLineOnColons(const std::string &line) {
-    std::vector<std::string> parts;
-
-    bool escaped(false);
-    parts.push_back("");
-    for (const char ch : line) {
-        if (escaped) {
-            parts.back() += ch;
-            escaped = false;
-        } else if (ch == '\\')
-            escaped = true;
-        else if (ch == ':')
-            parts.push_back("");
-        else
-            parts.back() += ch;
-    }
-    if (escaped)
-        parts.clear(); // This way we signal to the caller that we have a bad input line.
-
-    return parts;
-}
-
-
 [[noreturn]] void Usage() {
     ::Usage("[--create-unique-id-db|--ignore-unique-id-dups|--extract-and-count-issns-only] json_input [unmapped_issn_list marc_output]\n"
             "\t--create-unique-id-db: This flag has to be specified the first time this program will be executed only.\n"
@@ -95,7 +72,7 @@ void LoadISSNsToJournalTitlesPPNsAndISSNsMap(
         const std::string line(input->getline());
         if (line.empty())
             continue;
-        std::vector<std::string> parts(SplitLineOnColons(line));
+        const auto parts(StringUtil::Split(line, ':'));
         if (parts.size() != 4 or parts[0].empty() or parts[1].empty()) // ISSN and titles are required, PPN's and online ISSN's are optional.
             LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + MAP_FILE_PATH + "\"!");
         issns_to_journal_titles_ppns_and_issns_map->emplace(parts[0], JournalTitlePPNAndOnlineISSN(parts[1], parts[2],
