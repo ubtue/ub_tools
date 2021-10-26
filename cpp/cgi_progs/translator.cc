@@ -587,14 +587,16 @@ void GenerateDirectJumpTable(std::vector<std::string> * const jump_table, enum C
 
 bool GetNumberOfUntranslatedByLanguage(DbConnection &db_connection, enum Category category, const std::string &language_code, int * const number_untranslated, int * const number_total) {
 
-    std::string query_trans, query_total;
+    std::string query_untrans, query_total;
     if (language_code.empty() or language_code == ALL_SUPPORTED_LANGUAGES)
         return false;
     if (category == KEYWORDS) {
-        query_trans = "SELECT COUNT(DISTINCT ppn) AS anzahl FROM keyword_translations WHERE language_code='" + language_code + "';";
-        query_total = "SELECT COUNT(DISTINCT ppn) AS anzahl FROM keyword_translations;";
+        query_untrans = "SELECT COUNT(DISTINCT ppn) AS anzahl FROM keyword_translations WHERE language_code='ger' and status='reliable' and ppn not in (SELECT DISTINCT ppn FROM keyword_translations WHERE language_code='"
+            + language_code + "' AND translation!='' AND next_version_id IS NULL AND status!='reliable_synonym' AND status!='unreliable_synonym');";
+        query_total = "SELECT COUNT(DISTINCT ppn) AS anzahl FROM keyword_translations WHERE language_code='ger' and status='reliable';";
     } else if (category == VUFIND) {
-        query_trans = "SELECT COUNT(DISTINCT token) AS anzahl FROM vufind_translations WHERE language_code='" + language_code + "';";
+        query_untrans = "SELECT COUNT(DISTINCT token) AS anzahl FROM vufind_translations WHERE language_code='ger' and token not in (SELECT DISTINCT token FROM vufind_translations WHERE language_code='"
+            + language_code + "' AND translation!='' AND next_version_id IS NULL);";
         query_total = "SELECT COUNT(DISTINCT token) AS anzahl FROM vufind_translations;";
     } else
         return false;
@@ -605,12 +607,12 @@ bool GetNumberOfUntranslatedByLanguage(DbConnection &db_connection, enum Categor
     std::string total(db_row_total["anzahl"]);
     *number_total = std::stoi(total);
 
-    DbResultSet result_set_trans(ExecSqlAndReturnResultsOrDie(query_trans, &db_connection));
+    DbResultSet result_set_trans(ExecSqlAndReturnResultsOrDie(query_untrans, &db_connection));
     if (result_set_trans.empty())
         return false;
     DbRow db_row_trans(result_set_trans.getNextRow());
-    std::string translated(db_row_trans["anzahl"]);
-    *number_untranslated = *number_total - std::stoi(translated);
+    std::string untranslated(db_row_trans["anzahl"]);
+    *number_untranslated = std::stoi(untranslated);
 
     return true;
 }

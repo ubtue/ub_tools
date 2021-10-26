@@ -55,12 +55,6 @@
     <script type="text/javascript">
     $(document).ready(function () {{
 
-        var lang_un_id = document.getElementById("lang_un");
-        for (var i = 0; i < lang_un_id.options.length; ++i) {{
-            if (lang_un_id.options[i].text === "{lang_un}")
-                lang_un_id.options[i].selected = true;
-        }
-
         $('.historyDialog').on('hidden.bs.modal', function () {{
             $(".txtShowHistory").html("...");
         });
@@ -356,7 +350,7 @@
                                         <label class="visually-hidden" for="specificSizeSelect">&nbsp;</label>
                                         <select id="lang_un" name="lang_un" class="form-select" onchange="if(this.value != '{lang_un}') this.form.submit()">
                                             {LOOP translator_languages_foreign}
-                                                <option value="{translator_languages_foreign}">{translator_languages_foreign}</option>
+                                                <option {IF lang_un == translator_languages_foreign}selected {ENDIF} value="{translator_languages_foreign}">{translator_languages_foreign}</option>
                                             {ENDLOOP}
                                         </select>
                                     </div>
@@ -438,7 +432,7 @@
                                         <label class="visually-hidden" for="specificSizeSelect">&nbsp;</label>
                                         <select id="lang_un" name="lang_un" class="form-select" onchange="if(this.value != '{lang_un}') this.form.submit()">
                                             {LOOP translator_languages_foreign}
-                                                <option value="{translator_languages_foreign}">{translator_languages_foreign}</option>
+                                                <option {IF lang_un == translator_languages_foreign}selected {ENDIF} value="{translator_languages_foreign}">{translator_languages_foreign}</option>
                                             {ENDLOOP}
                                         </select>
                                     </div>
