@@ -585,21 +585,65 @@ void GenerateDirectJumpTable(std::vector<std::string> * const jump_table, enum C
 }
 
 
-bool GetNumberOfUntranslatedByLanguage(DbConnection &db_connection, enum Category category, const std::string &language_code, int * const number_untranslated, int * const number_total) {
+bool GetNumberOfUntranslatedByLanguage(DbConnection &db_connection, enum Category category, const std::string &language_code, std::vector<std::string> &translator_languages_foreign, int * const number_untranslated, int * const number_total) {
+
+    if (language_code.empty())
+        return false;
 
     std::string query_untranslated, query_total;
-    if (language_code.empty() or language_code == ALL_SUPPORTED_LANGUAGES)
-        return false;
+
     if (category == KEYWORDS) {
-        query_untranslated = "SELECT COUNT(DISTINCT ppn) AS number_untranslated FROM keyword_translations WHERE language_code='ger' and status='reliable' and ppn not in (SELECT DISTINCT ppn FROM keyword_translations WHERE language_code='"
-            + language_code + "' AND translation!='' AND next_version_id IS NULL AND status!='reliable_synonym' AND status!='unreliable_synonym');";
-        query_total = "SELECT COUNT(DISTINCT ppn) AS number_total FROM keyword_translations WHERE language_code='ger' and status='reliable';";
+        if (language_code == ALL_SUPPORTED_LANGUAGES) {
+            for (auto elem : translator_languages_foreign) {
+                if (elem == ALL_SUPPORTED_LANGUAGES)
+                    continue;
+                if (query_untranslated.empty())
+                    query_untranslated = "SELECT COUNT(*) AS number_untranslated FROM (";
+                else
+                    query_untranslated += " UNION ";
+                query_untranslated +=
+                    "SELECT DISTINCT ppn FROM keyword_translations WHERE language_code='ger' "
+                    "and status='reliable' and ppn not in (SELECT DISTINCT ppn FROM keyword_translations WHERE "
+                    "language_code='" + elem +
+                    "' AND translation!='' AND next_version_id IS NULL AND status!='reliable_synonym' AND "
+                    "status!='unreliable_synonym')";
+            }
+            query_untranslated += (") AS subquery;");
+        } else {
+            query_untranslated =
+                "SELECT COUNT(DISTINCT ppn) AS number_untranslated FROM keyword_translations WHERE language_code='ger' "
+                "and status='reliable' and ppn not in (SELECT DISTINCT ppn FROM keyword_translations WHERE "
+                "language_code='" + language_code +
+                "' AND translation!='' AND next_version_id IS NULL AND status!='reliable_synonym' AND "
+                "status!='unreliable_synonym');";
+        }
+        query_total =
+            "SELECT COUNT(DISTINCT ppn) AS number_total FROM keyword_translations WHERE language_code='ger' and "
+            "status='reliable';";
     } else if (category == VUFIND) {
-        query_untranslated = "SELECT COUNT(DISTINCT token) AS number_untranslated FROM vufind_translations WHERE token not in (SELECT DISTINCT token FROM vufind_translations WHERE language_code='"
-            + language_code + "' AND translation!='' AND next_version_id IS NULL);";
+        if (language_code == ALL_SUPPORTED_LANGUAGES) {
+            for (auto elem : translator_languages_foreign) {
+                if (elem == ALL_SUPPORTED_LANGUAGES)
+                    continue;
+                if (query_untranslated.empty())
+                    query_untranslated = "SELECT COUNT(*) AS number_untranslated FROM (";
+                else
+                    query_untranslated += " UNION ";
+                query_untranslated +=
+                    "SELECT DISTINCT token FROM vufind_translations WHERE token not in (SELECT DISTINCT token FROM vufind_translations WHERE "
+                    "language_code='" + elem + "' AND translation!='' AND next_version_id IS NULL)";
+            }
+            query_untranslated += (") AS subquery;");
+        } else {
+            query_untranslated =
+                "SELECT COUNT(DISTINCT token) AS number_untranslated FROM vufind_translations WHERE token not in "
+                "(SELECT DISTINCT token FROM vufind_translations WHERE language_code='" +
+                language_code + "' AND translation!='' AND next_version_id IS NULL);";
+        }
         query_total = "SELECT COUNT(DISTINCT token) AS number_total FROM vufind_translations;";
     } else
         return false;
+
     DbResultSet result_set_total(ExecSqlAndReturnResultsOrDie(query_total, &db_connection));
     if (result_set_total.empty())
         return false;
@@ -663,6 +707,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     names_to_values_map.insertScalar("lang_untranslated", lang_untranslated);
 
     std::vector<std::string> translator_languages_foreign;
+    translator_languages_foreign.push_back("all");
     for (const std::string &lang : translator_languages) {
         if (lang != "ger")
             translator_languages_foreign.push_back(lang);
@@ -670,7 +715,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
     names_to_values_map.insertArray("translator_languages_foreign", translator_languages_foreign);
 
     int number_untranslated, number_total;
-    bool success_number_translated = GetNumberOfUntranslatedByLanguage(db_connection, target=="vufind" ? VUFIND : KEYWORDS, lang_untranslated, &number_untranslated, &number_total);
+    bool success_number_translated = GetNumberOfUntranslatedByLanguage(db_connection, target=="vufind" ? VUFIND : KEYWORDS, lang_untranslated, translator_languages_foreign, &number_untranslated, &number_total);
     names_to_values_map.insertScalar("number_untranslated", success_number_translated ? std::to_string(number_untranslated) + "/" + std::to_string(number_total) : "");
 
     std::ifstream translate_html(UBTools::GetTuelibPath() + "translate_chainer/translation_front_page.html", std::ios::binary);
