@@ -14,31 +14,21 @@ rm -f $INSTALLER_UB_TOOLS_SCHEMA
 rm -f $SCHEMA_DIFFS
 
 
-declare -i compare_against_installer_schema=$(if $(echo "$CHANGED_FILES" | grep --quiet cpp/data/installer/ub_tools.sql); then echo 1; else echo 0; fi)
+declare -i compare_schema=$(if $(echo "$CHANGED_FILES" | grep --quiet cpp/data/installer/ub_tools.sql); then echo 1; else echo 0; fi)
 if ( echo "$CHANGED_FILES" | grep --quiet ${SYSTEM_UPDATES_PATH}/*sql ); then
-    # Make sure that we use the newest database tools:
-    (cd /usr/local/ub_tools/cpp && make system_updater && make mysql_list_tables && make mysql_diff_schemas \
-         && cp mysql_list_tables system_updater mysql_diff_schemas /usr/local/bin)
-    if [[ $? != 0 ]]; then
-        echo "Most likely building, or, less likely, the installation of the system / database tools failed!"
-        exit 1
-    fi
-
     /usr/local/bin/mysql_list_tables > $OLD_UB_TOOLS_SCHEMA
-    if [ -e "$SYSTEM_UPDATER" ]; then
-        "$SYSTEM_UPDATER" "$SYSTEM_UPDATES_PATH"
-    fi
-
-    /usr/local/bin/mysql_list_tables > $NEW_UB_TOOLS_SCHEMA
-    /usr/local/bin/mysql_diff_schemas $OLD_UB_TOOLS_SCHEMA $NEW_UB_TOOLS_SCHEMA
-    compare_against_installer_schema=1
-    echo "MYSQL schema update completed"
-else
-    echo "No explicit MYSQL schema updates detected"
 fi
 
+if [ -e "$SYSTEM_UPDATER" ]; then
+    "$SYSTEM_UPDATER" "$SYSTEM_UPDATES_PATH"
+fi
 
-if [[ $compare_against_installer_schema && -r $NEW_UB_TOOLS_SCHEMA ]]; then
+if [[ $compare_against_installer_schema && -r $OLD_UB_TOOLS_SCHEMA ]]; then
+    echo "Comparing pre-patch schema with post-patch schema:"
+    /usr/local/bin/mysql_list_tables > $NEW_UB_TOOLS_SCHEMA
+    /usr/local/bin/mysql_diff_schemas $OLD_UB_TOOLS_SCHEMA $NEW_UB_TOOLS_SCHEMA
+
+    echo "Checking post-patch schema against installer schema:"
     MYSQL_PWD=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_password)
     MYSQL_USER=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_username)
     echo "DROP DATABASE IF EXISTS ub_tools_tmp;" | mysql --user=$MYSQL_USER --password="$MYSQL_PWD"
@@ -53,9 +43,4 @@ if [[ $compare_against_installer_schema && -r $NEW_UB_TOOLS_SCHEMA ]]; then
     else
         echo "Verification successful! (The current DB schema was successfully compared to the installer's DB schema.)"
     fi
-fi
-
-
-if [ -e "$SYSTEM_UPDATER" ]; then
-    "$SYSTEM_UPDATER" "$SYSTEM_UPDATES_PATH"
 fi

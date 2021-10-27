@@ -50,11 +50,8 @@ unsigned GetCurrentVersion() {
 
 unsigned GetVersionFromScriptName(const std::string &script_name) {
     const auto basename(FileUtil::GetBasename(script_name));
-    if (StringUtil::EndsWith(script_name, ".sh"))
-        return StringUtil::ToUnsignedOrDie(script_name.substr(0, script_name.length() - 3 /* ".sh" */));
-    else if (StringUtil::EndsWith(script_name, ".sql")) {
-        return StringUtil::ToUnsignedOrDie(script_name.substr(0, script_name.find('.') /* ".xxx.sql" */));
-    }
+    if (StringUtil::EndsWith(script_name, ".sh" or StringUtil::EndsWith(script_name, ".sql")))
+        return StringUtil::ToUnsignedOrDie(script_name.substr(0, script_name.find('.')));
     else
         LOG_ERROR("unexpected script name: \"" + script_name + "\"!");
 }
@@ -78,7 +75,7 @@ void SplitIntoDatabaseAndVersion(const std::string &update_filename, std::string
 }
 
 
-void ApplyUpdate(DbConnection * const db_connection, const std::string &update_directory_path,
+void ApplyDatabaseUpdate(DbConnection * const db_connection, const std::string &update_directory_path,
                  const std::string &update_filename, std::string * const current_schema, const std::string &last_schema)
 {
     std::string database;
@@ -87,7 +84,7 @@ void ApplyUpdate(DbConnection * const db_connection, const std::string &update_d
     *current_schema = database;
 
     if (not db_connection->mySQLDatabaseExists(database)) {
-        LOG_ERROR("database \"" + database + "\" does not exist, skipping file " + update_filename);
+        LOG_WARNING("database \"" + database + "\" does not exist, skipping file " + update_filename);
         return;
     }
 
@@ -140,7 +137,7 @@ int Main(int argc, char *argv[]) {
             if (dry_run)
                 std::cout << SYSTEM_UPDATES_DIR << " " << script_name << std::endl;
             else
-                ApplyUpdate(&db_connection, SYSTEM_UPDATES_DIR, script_name, &current_schema, last_schema);
+                ApplyDatabaseUpdate(&db_connection, SYSTEM_UPDATES_DIR, script_name, &current_schema, last_schema);
             last_schema = current_schema;
         }
         else
