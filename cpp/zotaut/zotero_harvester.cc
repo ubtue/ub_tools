@@ -256,6 +256,9 @@ struct Metrics {
     unsigned num_downloads_apiquery_successful_;
     unsigned num_downloads_apiquery_unsuccessful_;
     unsigned num_downloads_apiquery_cache_hits_;
+    unsigned num_downloads_emailcrawl_successful_;
+    unsigned num_downloads_emailcrawl_unsuccessful_;
+    unsigned num_downloads_emailcrawl_cache_hits_;
     unsigned num_marc_conversions_successful_;
     unsigned num_marc_conversions_unsuccessful_;
     unsigned num_marc_conversions_skipped_since_undesired_item_type_;
@@ -287,6 +290,9 @@ Metrics::Metrics()
         num_downloads_apiquery_successful_(0),
         num_downloads_apiquery_unsuccessful_(0),
         num_downloads_apiquery_cache_hits_(0),
+        num_downloads_emailcrawl_successful_(0),
+        num_downloads_emailcrawl_unsuccessful_(0),
+        num_downloads_emailcrawl_cache_hits_(0),
         num_marc_conversions_successful_(0),
         num_marc_conversions_unsuccessful_(0),
         num_marc_conversions_skipped_since_undesired_item_type_(0),
@@ -307,6 +313,7 @@ std::string Metrics::toString() const {
     out += "\t\tRSS: " + std::to_string(num_journals_with_harvest_operation_rss_) + "\n";
     out += "\t\tCrawl: " + std::to_string(num_journals_with_harvest_operation_crawl_) + "\n";
     out += "\t\tApiQuery: " + std::to_string(num_journals_with_harvest_operation_apiquery_) + "\n";
+    out += "\t\tEmail: " + std::to_string(num_journals_with_harvest_operation_emailcrawl_) + "\n";
     out += "\tCrawls: " + std::to_string(num_downloads_crawled_successful_ + num_downloads_crawled_unsuccessful_) + "\n";
     out += "\t\tSuccessful: " + std::to_string(num_downloads_crawled_successful_) + "\n";
     out += "\t\tUnsuccessful : " + std::to_string(num_downloads_crawled_unsuccessful_) + "\n";
@@ -389,7 +396,7 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
     }
     case Config::HarvesterOperation::EMAIL:
     {
-        const auto download_item(harvestable_manager->newHarvestableItem(nullptr, journal_params));
+        const auto download_item(harvestable_manager->newHarvestableItem(journal_params.entry_point_url_, journal_params));
         auto future(download_manager->emailCrawl(download_item, group_params.user_agent_));
         current_journal_datastore->current_email_crawl_.reset(future.release());
         ++metrics->num_journals_with_harvest_operation_emailcrawl_;
@@ -441,6 +448,24 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
             const auto &result(journal_datastore->current_apiquery_->getResult());
             metrics->num_downloads_skipped_since_already_delivered_ += result.items_skipped_since_already_delivered_;
             journal_datastore->queued_downloads_.emplace_back(journal_datastore->current_apiquery_.release());
+        }
+        else
+            *jobs_in_progress = true;
+    }
+
+    if (journal_datastore->current_email_crawl_ != nullptr) {
+        if (journal_datastore->current_email_crawl_->isComplete()) {
+            if (journal_datastore->current_email_crawl_->hasResult()) {
+                auto &result(journal_datastore->current_email_crawl_->getResult());
+                for (auto &result_item : result.downloaded_items_)
+                    journal_datastore->queued_downloads_.emplace_back(result_item.release());
+
+                metrics->num_downloads_emailcrawl_successful_ += result.num_email_crawled_successful_;
+                metrics->num_downloads_emailcrawl_unsuccessful_ += result.num_email_crawled_unsuccessful_;
+                metrics->num_downloads_emailcrawl_cache_hits_ += result.num_email_crawled_cache_hits_;
+                metrics->num_downloads_skipped_since_already_delivered_ += result.num_email_skipped_since_already_delivered_;
+            }
+            journal_datastore->current_email_crawl_.reset();
         }
         else
             *jobs_in_progress = true;

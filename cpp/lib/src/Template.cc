@@ -4,7 +4,7 @@
  */
 
 /*
- *  Copyright 2016-2020 Universitätsbibliothek Tübingen
+ *  Copyright 2016-2021 Universitätsbibliothek Tübingen
  *
  *  This file is part of the libiViaCore package.
  *
@@ -347,11 +347,15 @@ public:
     enum Type { TOP_LEVEL, IF, LOOP };
 private:
     Type type_;
+    bool skipping_;
     unsigned start_line_number_, iteration_count_, loop_count_;
     std::streampos start_stream_pos_;
     std::set<std::string> loop_vars_;
 public:
     Type getType() const { return type_; }
+
+    bool skipping() const { return skipping_; }
+    void toggleSkipping() { skipping_ = not skipping_; }
 
     /** \return where an IF or a LOOP started. */
     unsigned getStartLineNumber() const { return start_line_number_; }
@@ -363,17 +367,18 @@ public:
     std::streampos getStartStreamPos() const;
 
     static Scope MakeTopLevelScope() { return Scope(TOP_LEVEL); }
-    static Scope MakeIfScope(const unsigned start_line_number) { return Scope(IF, start_line_number); }
+    static Scope MakeIfScope(const unsigned start_line_number, const bool skipping)
+        { return Scope(IF, start_line_number, skipping); }
     static Scope MakeLoopScope(const unsigned start_line_number, const std::streampos start_stream_pos,
                                const std::set<std::string> &loop_vars, const unsigned loop_count)
         { return Scope(LOOP, start_line_number, start_stream_pos, loop_vars, loop_count); }
 private:
-    explicit Scope(const Type type): type_(type) { }
-    explicit Scope(const Type type, const unsigned start_line_number)
-        : type_(type), start_line_number_(start_line_number) { }
+    explicit Scope(const Type type): type_(type), skipping_(false) { }
+    explicit Scope(const Type type, const unsigned start_line_number, const bool skipping)
+        : type_(type), skipping_(skipping), start_line_number_(start_line_number) { }
     explicit Scope(const Type type, const unsigned start_line_number, const std::streampos start_stream_pos,
                    const std::set<std::string> &loop_vars, const unsigned loop_count)
-        : type_(type), start_line_number_(start_line_number), iteration_count_(0), loop_count_(loop_count),
+        : type_(type), skipping_(false), start_line_number_(start_line_number), iteration_count_(0), loop_count_(loop_count),
           start_stream_pos_(start_stream_pos), loop_vars_(loop_vars) { }
     static std::string TypeToString(const Type type);
 };
@@ -773,10 +778,23 @@ std::string RegexMatchFunc::call(const std::vector<const Value *> &arguments) co
 }
 
 
+// Returns true if the innermost of one of the upper scopes are set to skipping.
+bool Skipping(const std::vector<Scope> &scopes) {
+    for (auto scope(scopes.rbegin()); scope != scopes.rend(); ++scope) {
+        if (scope->skipping())
+            return true;
+    }
+
+    return false;
+}
+
+
 } // unnamed namespace
 
 
-void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_to_values_map, const std::vector<Function *> &functions) {
+void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_to_values_map,
+                    const std::vector<Function *> &functions)
+{
     if (unlikely(not input))
         LOG_ERROR("input is bad!");
     if (unlikely(not output))
@@ -791,22 +809,21 @@ void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_
     std::vector<Scope> scopes;
     scopes.push_back(Scope::MakeTopLevelScope());
 
-    std::stack<bool> skipping;
     TemplateScanner::TokenType token;
-    while ((token = scanner.getToken(skipping.empty() or not skipping.top())) != TemplateScanner::END_OF_INPUT) {
+    while ((token = scanner.getToken(not Skipping(scopes))) != TemplateScanner::END_OF_INPUT) {
         if (unlikely(token == TemplateScanner::ERROR))
             throw std::runtime_error("in Template::ExpandTemplate: error on line "
                                      + std::to_string(scanner.getLineNo()) + ": " + scanner.getLastErrorMessage());
         if (token == TemplateScanner::IF) {
             const unsigned start_line_no(scanner.getLineNo());
-            skipping.push(not ParseIf(&scanner, names_to_values_map, scopes));
-            scopes.push_back(Scope::MakeIfScope(start_line_no));
+            const bool skipping(not ParseIf(&scanner, names_to_values_map, scopes));
+            scopes.push_back(Scope::MakeIfScope(start_line_no, skipping));
         } else if (token == TemplateScanner::ELSE) {
             if (unlikely(scopes.back().getType() != Scope::IF))
                 throw std::runtime_error("in Template::ExpandTemplate: error on line "
                                          + std::to_string(scanner.getLineNo())
                                          + ": ELSE found w/o corresponding earlier IF!");
-            skipping.top() = not skipping.top();
+            scopes.back().toggleSkipping();
             ProcessEndOfSyntax("ELSE", &scanner);
         } else if (token == TemplateScanner::ENDIF) {
             if (unlikely(scopes.back().getType() != Scope::IF))
@@ -814,7 +831,6 @@ void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_
                                          + std::to_string(scanner.getLineNo())
                                          + ": ENDIF found w/o corresponding earlier IF!");
             scopes.pop_back();
-            skipping.pop();
             ProcessEndOfSyntax("ENDIF", &scanner);
         } else if (token == TemplateScanner::LOOP) {
             std::set<std::string> loop_vars;
@@ -845,7 +861,7 @@ void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_
                 scanner.seek(current_scope.getStartStreamPos(), current_scope.getStartLineNumber());
         } else if (token == TemplateScanner::VARIABLE_NAME) {
             const std::string &last_variable_name(scanner.getLastVariableName());
-            if (skipping.empty() or not skipping.top()) {
+            if (not Skipping(scopes)) {
                 std::string variable_value;
                 if (not GetScalarValue(last_variable_name, names_to_values_map, scopes, &variable_value))
                     throw std::runtime_error("in Template::ExpandTemplate: error on line "
@@ -856,7 +872,7 @@ void ExpandTemplate(std::istream &input, std::ostream &output, const Map &names_
             ProcessEndOfSyntax("variable expansion", &scanner);
         } else if (token == TemplateScanner::FUNCTION_NAME) {
             ParseFunctionCall(&scanner, names_to_values_map, scopes, scanner.getLastFunction(), output,
-                              /* emit_output = */ skipping.empty() or not skipping.top());
+                              /* emit_output = */ Skipping(scopes));
             ProcessEndOfSyntax("function call", &scanner);
         }
     }
