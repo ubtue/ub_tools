@@ -1,0 +1,5 @@
+{IF target_translation_scope == "vufind"}
+{LOOP translator_languages_foreign}
+{IF lang_untranslated == translator_languages_foreign}selected {ENDIF}
+{ENDLOOP}
+{ENDIF}
