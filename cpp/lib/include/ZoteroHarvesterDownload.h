@@ -52,6 +52,7 @@ static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 5;
 static constexpr unsigned MAX_CRAWLING_TASKLETS        = 5;
 static constexpr unsigned MAX_RSS_TASKLETS             = 5;
 static constexpr unsigned MAX_APIQUERY_TASKLETS        = 1;
+static constexpr unsigned MAX_EMAILCRAWL_TASKLETS      = 5;
 // Set to 20 empirically. Larger numbers increase the incidence of the
 // translation server bug that returns an empty/broken response.
 static constexpr unsigned MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS = 15;
@@ -418,6 +419,8 @@ private:
         std::deque<std::shared_ptr<RSS::Tasklet>> queued_rss_feeds_;
         std::deque<std::shared_ptr<ApiQuery::Tasklet>> active_apiqueries_;
         std::deque<std::shared_ptr<ApiQuery::Tasklet>> queued_apiqueries_;
+        std::deque<std::shared_ptr<EmailCrawl::Tasklet>> active_emailcrawls_;
+        std::deque<std::shared_ptr<EmailCrawl::Tasklet>> queued_emailcrawls_;
     public:
         DomainData(const DelayParams &delay_params) : delay_params_(delay_params) {};
     };

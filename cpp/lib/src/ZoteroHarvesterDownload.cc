@@ -564,7 +564,7 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 
 
 namespace EmailCrawl {
-    void Tasklet::run(const Params &parameters, Result * const result) {
+void Tasklet::run(const Params &parameters, Result * const result) {
     LOG_INFO("Email Harvesting Crawling URL " + parameters.download_item_.toString());
 
     const Crawling::Params crawl_parameters(parameters.download_item_, parameters.user_agent_,
@@ -612,18 +612,15 @@ namespace EmailCrawl {
              + std::to_string(result->num_email_queued_for_harvest_) + " URLs for extraction");
 }
 
+
     Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
                  const Util::UploadTracker &upload_tracker, std::unique_ptr<Params> parameters, const bool force_downloads)
  : Util::Tasklet<Params, Result>(instance_counter, parameters->download_item_,
-                                 "Crawling: " + parameters->download_item_.url_.toString(),
+                                 "Email Crawling: " + parameters->download_item_.url_.toString(),
                                  std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
                                  std::unique_ptr<Result>(new Result()), std::move(parameters), ResultPolicy::YIELD),
    download_manager_(download_manager), upload_tracker_(upload_tracker), force_downloads_(force_downloads) {}
-
-
-
-
-} // end namespace Email
+} // end namespace EmailCrawl
 
 
 void DownloadManager::addToDownloadCache(const Util::HarvestableItem &source, const std::string &url,
@@ -799,7 +796,7 @@ void DownloadManager::processQueueBuffers() {
 
 
     {
-        std::lock_guard<std::recursive_mutex> apiquery_queue_buffer_lock(rss_queue_buffer_mutex_);
+        std::lock_guard<std::recursive_mutex> apiquery_queue_buffer_lock(apiquery_queue_buffer_mutex_);
         while (not apiquery_queue_buffer_.empty()) {
             std::shared_ptr<ApiQuery::Tasklet> tasklet(apiquery_queue_buffer_.front());
             auto domain_data(lookupDomainData(tasklet->getParameter().download_item_.url_, /* add_if_absent = */ true));
@@ -809,6 +806,19 @@ void DownloadManager::processQueueBuffers() {
             apiquery_queue_buffer_.pop_front();
         }
     }
+
+    {
+        std::lock_guard<std::recursive_mutex> emailcrawl_queue_buffer_lock(emailcrawl_queue_buffer_mutex_);
+        while (not emailcrawl_queue_buffer_.empty()) {
+            std::shared_ptr<EmailCrawl::Tasklet> tasklet(emailcrawl_queue_buffer_.front());
+            auto domain_data(lookupDomainData(tasklet->getParameter().download_item_.url_, /* add_if_absent = */ true));
+            domain_data->queued_emailcrawls_.emplace_back(tasklet);
+            ++tasklet_counters_.emailcrawl_queue_counter_;
+
+            emailcrawl_queue_buffer_.pop_front();
+        }
+    }
+
 
 
 }
@@ -897,6 +907,22 @@ void DownloadManager::processDomainQueues(DomainData * const domain_data) {
             return;
         }
     }
+
+    while(not domain_data->queued_emailcrawls_.empty()
+          and tasklet_counters_.emailcrawl_tasklet_execution_counter_ < MAX_EMAILCRAWL_TASKLETS)
+    {
+       std::shared_ptr<EmailCrawl::Tasklet> emailcrawl_tasklet(domain_data->queued_emailcrawls_.front());
+       domain_data->active_emailcrawls_.emplace_back(emailcrawl_tasklet);
+       domain_data->queued_emailcrawls_.pop_front();
+       emailcrawl_tasklet->start();
+       --tasklet_counters_.emailcrawl_queue_counter_;
+
+       if (adhere_to_download_limit) {
+            domain_data->delay_params_.time_limit_.restart();
+            return;
+        }
+    }
+
 }
 
 
@@ -924,6 +950,25 @@ void DownloadManager::cleanupCompletedTasklets(DomainData * const domain_data) {
         }
         ++iter;
     }
+
+    for (auto iter(domain_data->active_apiqueries_.begin()); iter != domain_data->active_apiqueries_.end();) {
+        if ((*iter)->isComplete()) {
+            iter = domain_data->active_apiqueries_.erase(iter);
+            continue;
+        }
+        ++iter;
+    }
+
+
+   for (auto iter(domain_data->active_emailcrawls_.begin()); iter != domain_data->active_emailcrawls_.end();) {
+        if ((*iter)->isComplete()) {
+            iter = domain_data->active_emailcrawls_.erase(iter);
+            continue;
+        }
+        ++iter;
+    }
+
+
 }
 
 
@@ -1149,7 +1194,11 @@ bool DownloadManager::downloadInProgress() const {
            or tasklet_counters_.direct_downloads_translation_server_queue_counter_ != 0
            or tasklet_counters_.direct_downloads_direct_query_queue_counter_ != 0
            or tasklet_counters_.crawls_queue_counter_ != 0
-           or tasklet_counters_.rss_feeds_queue_counter_ != 0;
+           or tasklet_counters_.rss_feeds_queue_counter_ != 0
+           or tasklet_counters_.apiquery_tasklet_execution_counter_ != 0
+           or tasklet_counters_.apiquery_queue_counter_ != 0
+           or tasklet_counters_.emailcrawl_tasklet_execution_counter_ != 0
+           or tasklet_counters_.emailcrawl_queue_counter_ != 0;
 }
 
 
