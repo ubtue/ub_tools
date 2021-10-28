@@ -279,6 +279,7 @@ Metrics::Metrics()
         num_journals_with_harvest_operation_rss_(0),
         num_journals_with_harvest_operation_crawl_(0),
         num_journals_with_harvest_operation_apiquery_(0),
+        num_journals_with_harvest_operation_emailcrawl_(0),
         num_downloads_crawled_successful_(0),
         num_downloads_crawled_unsuccessful_(0),
         num_downloads_crawled_cache_hits_(0),
@@ -396,7 +397,7 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
     }
     case Config::HarvesterOperation::EMAIL:
     {
-        const auto download_item(harvestable_manager->newHarvestableItem(journal_params.entry_point_url_, journal_params));
+        const auto download_item(harvestable_manager->newHarvestableItem("" /* we determine the entry points ourselves */, journal_params));
         auto future(download_manager->emailCrawl(download_item, group_params.user_agent_));
         current_journal_datastore->current_email_crawl_.reset(future.release());
         ++metrics->num_journals_with_harvest_operation_emailcrawl_;

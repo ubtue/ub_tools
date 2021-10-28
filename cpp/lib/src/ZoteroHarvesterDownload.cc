@@ -567,7 +567,9 @@ namespace EmailCrawl {
 void Tasklet::run(const Params &parameters, Result * const result) {
     LOG_INFO("Email Harvesting Crawling URL " + parameters.download_item_.toString());
 
-    const Crawling::Params crawl_parameters(parameters.download_item_, parameters.user_agent_,
+    const auto crawl_item(parameters.harvestable_manager_->newHarvestableItem("file:///tmp/jewifilmnewmed", parameters.download_item_.journal_));
+
+    const Crawling::Params crawl_parameters(crawl_item, parameters.user_agent_,
                                       parameters.per_crawl_url_time_limit_, parameters.total_crawl_time_limit_,
                                       parameters.ignore_robots_dot_txt_, parameters.harvestable_manager_);
 
@@ -818,9 +820,6 @@ void DownloadManager::processQueueBuffers() {
             emailcrawl_queue_buffer_.pop_front();
         }
     }
-
-
-
 }
 
 
@@ -1146,6 +1145,7 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
 
 std::unique_ptr<Util::Future<EmailCrawl::Params, EmailCrawl::Result>> DownloadManager::emailCrawl(const Util::HarvestableItem &source,
                                                                                          const std::string &user_agent)
+
 {
     std::unique_ptr<EmailCrawl::Params> parameters(new EmailCrawl::Params(source, user_agent, global_params_.timeout_download_request_,
                                                                       global_params_.timeout_crawl_operation_,
