@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2018 Library of the University of Tübingen
+    Copyright (C) 2018-2021 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -66,9 +66,9 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
         record.insertField("500", 'a', description);
 
     if (lang == "de")
-        record.insertFieldAtEnd("500", MARC::Subfields({ { 'a', "(Zum Abonnieren 🔔-Schaltfläche oben verwenden.)" } }));
+        record.insertFieldAtEnd("500", MARC::Subfields({ { 'a', "Zum Abonnieren 🔔-Schaltfläche oben verwenden. Erläuterungen finden sich unter https://relbib.de/Content/features_personalised?expand#alerting" } }));
     else
-        record.insertFieldAtEnd("500", MARC::Subfields({ { 'a', "(Use 🔔 button above to subscribe.)" } } ));
+        record.insertFieldAtEnd("500", MARC::Subfields({ { 'a', "Use 🔔 button above to subscribe and see https://relbib.de/Content/features_personalised?expand#alerting for a general description." } } ));
 
     if (exclude_ixtheo)
         record.addSubfield("935", 'x', "1");
