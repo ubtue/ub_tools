@@ -50,7 +50,7 @@ unsigned GetCurrentVersion() {
 
 unsigned GetVersionFromScriptName(const std::string &script_name) {
     const auto basename(FileUtil::GetBasename(script_name));
-    if (StringUtil::EndsWith(script_name, ".sh" or StringUtil::EndsWith(script_name, ".sql")))
+    if (StringUtil::EndsWith(script_name, ".sh", true) or StringUtil::EndsWith(script_name, ".sql", true))
         return StringUtil::ToUnsignedOrDie(script_name.substr(0, script_name.find('.')));
     else
         LOG_ERROR("unexpected script name: \"" + script_name + "\"!");
@@ -112,7 +112,7 @@ int Main(int argc, char *argv[]) {
 
     std::vector<std::string> script_names;
     const std::string SYSTEM_UPDATES_DIR(argv[1]);
-    FileUtil::Directory system_updates_dir(SYSTEM_UPDATES_DIR, "(^\\d+.sh$|\\d+.(?:ixtheo|ub_tools|vufind|krimdok).sql)");
+    FileUtil::Directory system_updates_dir(SYSTEM_UPDATES_DIR, "(^\\d+\\.sh$|\\d+\\.(?:.*)\\.sql)");
     for (const auto &entry : system_updates_dir) {
         if (GetVersionFromScriptName(entry.getName()) > current_version)
             script_names.emplace_back(entry.getName());
