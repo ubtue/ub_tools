@@ -18,7 +18,7 @@ function CreateTemporaryNullDevice {
 
 function GetNewPublisherFulltexts {
     find ${FULLTEXT_EXCHANGE_ROOT} -type f -mmin +5 -printf '%P\0' | rsync --archive --verbose --recursive --from0 \
-        --files-from=- ${FULLTEXT_EXCHANGE_ROOT} ${FULLTEXT_LOCAL_ROOT}
+        --files-from=- ${FULLTEXT_EXCHANGE_ROOT} ${FULLTEXT_LOCAL_ROOT}/publisher_files
 }
 
 
