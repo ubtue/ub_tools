@@ -87,6 +87,7 @@ size_t GetBundleSize(const IniFile &bundles_config, const std::string &bundle_na
     StringUtil::SplitThenTrim(bundle_ppns_string, "," , " \t", &bundle_ppns);
     bundle_names_to_sizes_map[bundle_name] = bundle_ppns.size();
 
+    LOG_DEBUG("Bundle \"" + bundle_name + "\" contains " + std::to_string(bundle_ppns.size()) + " serial(s).");
     return bundle_ppns.size();
 }
 
@@ -96,6 +97,7 @@ void CollectConfigStats(DbConnection * const db_connection, const std::string &u
                               "user WHERE user.ixtheo_user_type = '" + user_type  + "')");
     auto user_ids_result_set(db_connection->getLastResultSet());
     stats->no_of_users_with_subscriptions_ = user_ids_result_set.size();
+    LOG_DEBUG(std::to_string(user_ids_result_set.size()) + " user(s) of type '" + user_type + "'have/has some kind of subscription.");
 
     const IniFile bundles_config(UBTools::GetTuelibPath() + "journal_alert_bundles.conf");
     unsigned no_of_individual_subscriptions(0), no_of_bundle_subscriptions(0);
@@ -112,12 +114,15 @@ void CollectConfigStats(DbConnection * const db_connection, const std::string &u
             if (IsBundle(journal_control_number_or_bundle_name)) {
                 ++no_of_bundle_subscriptions;
                 no_of_individual_subscriptions += GetBundleSize(bundles_config, journal_control_number_or_bundle_name);
-            }
+            } else
+                ++no_of_individual_subscriptions; // A normal, IOW non-bundle, subscription.
         }
     }
 
     stats->average_number_of_bundle_subscriptions_ = double(no_of_bundle_subscriptions) / stats->no_of_users_with_subscriptions_;
+    LOG_DEBUG("Avg. number of bundle subscriptions is " + std::to_string(stats->average_number_of_bundle_subscriptions_) + ".");
     stats->average_subscriptions_per_user_ = double(no_of_individual_subscriptions) / stats->no_of_users_with_subscriptions_;
+    LOG_DEBUG("Avg. number of subscriptions per user is " + std::to_string(stats->average_subscriptions_per_user_) + ".");
 }
 
 
@@ -127,12 +132,14 @@ void CollectUsageStats(const std::string &user_type, Stats * const stats) {
 
     const double NOW(TimeUtil::GetJulianDayNumber());
     const double TIME_WINDOW(NOW - stats->report_interval_in_days_);
+    LOG_DEBUG("Stats time window in days is " + std::to_string(TIME_WINDOW) + ".");
 
     stats->no_of_subscribed_journals_with_notifications_ = 0;
     stats->average_number_of_notified_articles_per_notified_journal_ = 0.0;
     std::unordered_set<std::string> seen_superior_ppns;
     const auto USAGE_STATS_FILE_SIZE(usage_stats_file->size());
     while (usage_stats_file->tell() < USAGE_STATS_FILE_SIZE) {
+        // NOTE: The data read here has to match what was written by new_journal_alert!
         double julian_day_number;
         BinaryIO::ReadOrDie(*usage_stats_file, &julian_day_number);
         std::string logged_user_type;
@@ -151,8 +158,7 @@ void CollectUsageStats(const std::string &user_type, Stats * const stats) {
         }
     }
 
-    stats->average_number_of_notified_articles_per_notified_journal_ /=
-        stats->no_of_subscribed_journals_with_notifications_;
+    stats->average_number_of_notified_articles_per_notified_journal_ /= seen_superior_ppns.size();
 }
 
 
