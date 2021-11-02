@@ -72,7 +72,9 @@ void LoadISSNsToJournalTitlesPPNsAndISSNsMap(
         if (lines[0].empty() or line[1].empty())
             continue; // ISSN and titles are required, PPN's and online ISSN's are optional.
 
-        issns_to_journal_titles_ppns_and_issns_map->emplace(line[0], JournalTitlePPNAndOnlineISSN(line[1], line[2], line[3]));
+        const std::string online_ppn(line.size() > 2 ? line[2] : "");
+        const std::string online_issn(line.size() > 3 ? line[3] : "");
+        issns_to_journal_titles_ppns_and_issns_map->emplace(line[0], JournalTitlePPNAndOnlineISSN(line[1], online_ppn, online_issn));
     }
 
     LOG_INFO("Loaded " + std::to_string(issns_to_journal_titles_ppns_and_issns_map->size())
@@ -88,7 +90,8 @@ MARC::Record::BibliographicLevel MapTypeStringToBibliographicLevel(const std::st
     else if (item_type == "Article")
         return MARC::Record::SERIAL_COMPONENT_PART;
     else {
-        LOG_WARNING("unkown item type: " + item_type);
+        if (not item_type.empty())
+            LOG_WARNING("unknown item type: " + item_type);
         return MARC::Record::UNDEFINED;
     }
 }
