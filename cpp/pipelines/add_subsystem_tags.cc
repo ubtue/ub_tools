@@ -436,7 +436,8 @@ void TagTitlesKrimdok(MARC::Reader * const title_reader, MARC::Writer * const ti
     while (MARC::Record record = title_reader->read()) {
         ++record_count;
         bool modified_record(false);
-
+        // modified_record, count and check for subsystems
+        // as it is done in ixtheo, is prepared for future use
         if (modified_record)
             ++modified_count;
         title_writer->write(record);
@@ -586,6 +587,7 @@ int Main(int argc, char **argv) {
         title_reader->rewind();
     } else if (system_type == "krimdok") {
         ExtractAuthorsKrimdok(title_reader.get(), &authors);
+        title_reader->rewind();
     }
 
     std::unique_ptr<MARC::Writer> title_writer(MARC::Writer::Factory(title_output_filename));
