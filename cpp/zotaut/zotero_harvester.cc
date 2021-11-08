@@ -398,7 +398,7 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
     case Config::HarvesterOperation::EMAIL:
     {
         const auto download_item(harvestable_manager->newHarvestableItem("" /* we determine the entry points ourselves */, journal_params));
-        auto future(download_manager->emailCrawl(download_item, group_params.user_agent_));
+        auto future(download_manager->emailCrawl(download_item, harvester_config.global_params_->emailcrawl_mboxes_, group_params.user_agent_));
         current_journal_datastore->current_email_crawl_.reset(future.release());
         ++metrics->num_journals_with_harvest_operation_emailcrawl_;
         break;

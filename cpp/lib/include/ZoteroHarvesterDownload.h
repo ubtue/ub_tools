@@ -320,13 +320,14 @@ struct Params {
     unsigned total_crawl_time_limit_;
     bool ignore_robots_dot_txt_;
     Util::HarvestableItemManager * const harvestable_manager_;
+    std::vector<std::string> emailcrawl_mboxes_;
 public:
     explicit Params(const Util::HarvestableItem &download_item, const std::string user_agent, const unsigned per_crawl_url_time_limit,
                     const unsigned total_crawl_time_limit, const bool ignore_robots_dot_txt,
-                    Util::HarvestableItemManager * const harvestable_manager)
+                    Util::HarvestableItemManager * const harvestable_manager, std::vector<std::string> emailcrawl_mboxes)
         : download_item_(download_item), user_agent_(user_agent), per_crawl_url_time_limit_(per_crawl_url_time_limit),
           total_crawl_time_limit_(total_crawl_time_limit), ignore_robots_dot_txt_(ignore_robots_dot_txt),
-          harvestable_manager_(harvestable_manager) {}
+          harvestable_manager_(harvestable_manager), emailcrawl_mboxes_(emailcrawl_mboxes) {}
 };
 
 
@@ -495,7 +496,7 @@ public:
                                                                 const std::string &feed_contents = "");
     std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>> apiQuery(const Util::HarvestableItem &source);
     std::unique_ptr<Util::Future<EmailCrawl::Params, EmailCrawl::Result>> emailCrawl(const Util::HarvestableItem &source,
-                                                                                         const std::string &user_agent);
+                                                                                     const std::vector<std::string> &mbox_files,                                                                                                                         const std::string &user_agent);
     void addToDownloadCache(const Util::HarvestableItem &source, const std::string &url, const std::string &response_body,
                             const DirectDownload::Operation operation);
     std::unique_ptr<DirectDownload::Result> fetchFromDownloadCache(const Util::HarvestableItem &source,

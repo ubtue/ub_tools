@@ -17,6 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "MBox.h"
 #include "JSON.h"
 #include "StringUtil.h"
 #include "WebUtil.h"
@@ -565,52 +566,75 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 } // end namespace ApiQuery
 
 
+
+
+
 namespace EmailCrawl {
+
+void ExtractEmailsRelevantForJournal(const Params &parameters, std::vector<std::string> * const file_pages_to_handle) {
+    const auto subject_matcher(parameters.download_item_.journal_.emailcrawl_subject_regex_);
+    const std::vector<std::string> mbox_filenames(parameters.emailcrawl_mboxes_);
+    for (const auto &mbox_filename : mbox_filenames) {
+        const MBox mbox(mbox_filename);
+    }
+    file_pages_to_handle->emplace_back(std::string("file://") + "/tmp/jewifilmnewmedi");
+    file_pages_to_handle->emplace_back(std::string("file://") + "/tmp/jewifilmnewmedi");
+}
+
+
+
 void Tasklet::run(const Params &parameters, Result * const result) {
     LOG_INFO("Email Harvesting Crawling URL " + parameters.download_item_.toString());
 
-    const auto crawl_item(parameters.harvestable_manager_->newHarvestableItem("file:///tmp/jewifilmnewmedi", parameters.download_item_.journal_));
+    std::vector<std::string> file_pages_to_handle;
 
-    const Crawling::Params crawl_parameters(crawl_item, parameters.user_agent_,
-                                      parameters.per_crawl_url_time_limit_, parameters.total_crawl_time_limit_,
-                                      parameters.ignore_robots_dot_txt_, parameters.harvestable_manager_);
+    for (const auto &file_page_to_handle : file_pages_to_handle) {
 
-    Crawling::Crawler crawler(crawl_parameters, download_manager_);
-    Crawling::Crawler::CrawlResult crawl_result;
-    std::unordered_set<std::string> queued_urls;
+        const auto crawl_item(parameters.harvestable_manager_->newHarvestableItem(file_page_to_handle, parameters.download_item_.journal_));
 
-    while (not crawler.timeoutExceeded() and crawler.getNextPage(&crawl_result)) {
-        for (auto &outgoing_url : crawl_result.outgoing_urls_) {
-            bool harvest_url(queued_urls.find(outgoing_url.first) == queued_urls.end()
-                             and (parameters.download_item_.journal_.crawl_params_.extraction_regex_ == nullptr
-                             or parameters.download_item_.journal_.crawl_params_.extraction_regex_->match(outgoing_url.first)));
-            bool crawl_url(parameters.download_item_.journal_.crawl_params_.crawl_url_regex_ == nullptr
-                           or parameters.download_item_.journal_.crawl_params_.crawl_url_regex_->match(outgoing_url.first));
+        const Crawling::Params crawl_parameters(crawl_item, parameters.user_agent_,
+                                          parameters.per_crawl_url_time_limit_, parameters.total_crawl_time_limit_,
+                                          parameters.ignore_robots_dot_txt_, parameters.harvestable_manager_);
 
-            if (harvest_url) {
-                if (not force_downloads_ and upload_tracker_.urlAlreadyInDatabase(outgoing_url.first, /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
-                    LOG_INFO("Skipping already delivered URL: " + outgoing_url.first);
-                    ++result->num_email_skipped_since_already_delivered_;
-                    continue;
+        Crawling::Crawler crawler(crawl_parameters, download_manager_);
+        Crawling::Crawler::CrawlResult crawl_result;
+        std::unordered_set<std::string> queued_urls;
+
+        while (not crawler.timeoutExceeded() and crawler.getNextPage(&crawl_result)) {
+            for (auto &outgoing_url : crawl_result.outgoing_urls_) {
+                bool harvest_url(queued_urls.find(outgoing_url.first) == queued_urls.end()
+                                 and (parameters.download_item_.journal_.crawl_params_.extraction_regex_ == nullptr
+                                 or parameters.download_item_.journal_.crawl_params_.extraction_regex_->match(outgoing_url.first)));
+                bool crawl_url(parameters.download_item_.journal_.crawl_params_.crawl_url_regex_ == nullptr
+                               or parameters.download_item_.journal_.crawl_params_.crawl_url_regex_->match(outgoing_url.first));
+
+                if (harvest_url) {
+                    if (not force_downloads_ and upload_tracker_.urlAlreadyInDatabase(outgoing_url.first, 
+                        /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) 
+                    {
+                        LOG_INFO("Skipping already delivered URL: " + outgoing_url.first);
+                        ++result->num_email_skipped_since_already_delivered_;
+                        continue;
+                    }
+                    const auto new_item(crawl_parameters.harvestable_manager_->newHarvestableItem(outgoing_url.first,
+                                                                                            parameters.download_item_.journal_));
+                    result->downloaded_items_.emplace_back(download_manager_->directDownload(new_item, parameters.user_agent_,
+                                                                                             DirectDownload::Operation::USE_TRANSLATION_SERVER));
+                    queued_urls.emplace(outgoing_url.first);
+                    ++result->num_email_queued_for_harvest_;
                 }
-                const auto new_item(crawl_parameters.harvestable_manager_->newHarvestableItem(outgoing_url.first,
-                                                                                        parameters.download_item_.journal_));
-                result->downloaded_items_.emplace_back(download_manager_->directDownload(new_item, parameters.user_agent_,
-                                                                                         DirectDownload::Operation::USE_TRANSLATION_SERVER));
-                queued_urls.emplace(outgoing_url.first);
-                ++result->num_email_queued_for_harvest_;
+
+                outgoing_url.second = crawl_url ? Crawling::Crawler::CrawlResult::MARK_FOR_CRAWLING : Crawling::Crawler::CrawlResult::DO_NOT_CRAWL;
             }
-
-            outgoing_url.second = crawl_url ? Crawling::Crawler::CrawlResult::MARK_FOR_CRAWLING : Crawling::Crawler::CrawlResult::DO_NOT_CRAWL;
         }
+
+        if (crawler.timeoutExceeded())
+            LOG_WARNING("email crawl process timed-out - not all URLs were crawled");
+
+        result->num_email_crawled_successful_ = crawler.numUrlsSuccessfullyCrawled();
+        result->num_email_crawled_unsuccessful_ = crawler.numUrlsUnsuccessfullyCrawled();
+        result->num_email_crawled_cache_hits_ = crawler.numCacheHitsForCrawls();
     }
-
-    if (crawler.timeoutExceeded())
-        LOG_WARNING("email crawl process timed-out - not all URLs were crawled");
-
-    result->num_email_crawled_successful_ = crawler.numUrlsSuccessfullyCrawled();
-    result->num_email_crawled_unsuccessful_ = crawler.numUrlsUnsuccessfullyCrawled();
-    result->num_email_crawled_cache_hits_ = crawler.numCacheHitsForCrawls();
 
     LOG_INFO("email crawled " + std::to_string(result->num_email_crawled_successful_) + " URLs, queued "
              + std::to_string(result->num_email_queued_for_harvest_) + " URLs for extraction");
@@ -1146,13 +1170,15 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
 
 
 std::unique_ptr<Util::Future<EmailCrawl::Params, EmailCrawl::Result>> DownloadManager::emailCrawl(const Util::HarvestableItem &source,
-                                                                                         const std::string &user_agent)
+                                                                                                  const std::vector<std::string> &mbox_files,
+                                                                                                  const std::string &user_agent)
 
 {
     std::unique_ptr<EmailCrawl::Params> parameters(new EmailCrawl::Params(source, user_agent, global_params_.timeout_download_request_,
                                                                       global_params_.timeout_crawl_operation_,
                                                                       global_params_.ignore_robots_txt_,
-                                                                      global_params_.harvestable_manager_));
+                                                                      global_params_.harvestable_manager_,
+                                                                      mbox_files));
     std::shared_ptr<EmailCrawl::Tasklet> new_tasklet(
         new EmailCrawl::Tasklet(&tasklet_counters_.emailcrawl_tasklet_execution_counter_, this, upload_tracker_, std::move(parameters), global_params_.force_downloads_));
 
