@@ -578,7 +578,6 @@ void ExtractEmailsRelevantForJournal(const Params &parameters, std::vector<std::
         const MBox mbox(mbox_filename);
     }
     file_pages_to_handle->emplace_back(std::string("file://") + "/tmp/jewifilmnewmedi");
-    file_pages_to_handle->emplace_back(std::string("file://") + "/tmp/jewifilmnewmedi");
 }
 
 
@@ -587,6 +586,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
     LOG_INFO("Email Harvesting Crawling URL " + parameters.download_item_.toString());
 
     std::vector<std::string> file_pages_to_handle;
+    ExtractEmailsRelevantForJournal(parameters, &file_pages_to_handle);
 
     for (const auto &file_page_to_handle : file_pages_to_handle) {
 

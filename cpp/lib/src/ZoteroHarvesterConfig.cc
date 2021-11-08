@@ -69,7 +69,7 @@ std::string GetHostTranslationServerUrl() {
 std::vector<std::string> GetEmailCrawlMBoxes() {
     const IniFile ini(UBTools::GetTuelibPath() + "zotero.conf");
     std::vector<std::string> mboxes;
-    StringUtil::SplitThenTrimWhite(ini.getString("EmailCrawls", "inboxfiles"), ",", &mboxes);
+    StringUtil::SplitThenTrimWhite(ini.getString("EmailCrawl", "inboxfiles"), ",", &mboxes);
     return mboxes;
 }
 
