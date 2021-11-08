@@ -400,7 +400,7 @@ const std::string IXTHEO_TAG("IXT");
 const std::string KRIMDOK_TAG("KRI");
 
 
-void TagTitles(MARC::Reader * const title_reader, MARC::Writer * const title_writer,
+void TagTitlesIxtheo(MARC::Reader * const title_reader, MARC::Writer * const title_writer,
                       const std::vector<std::unordered_set<std::string>> &subsystem_sets)
 {
     unsigned record_count(0), modified_count(0);
@@ -422,6 +422,21 @@ void TagTitles(MARC::Reader * const title_reader, MARC::Writer * const title_wri
             record.addSubfieldCreateFieldUnique("SUB", 'a', CANON_LAW_TAG);
             modified_record = true;
         }
+        if (modified_record)
+            ++modified_count;
+        title_writer->write(record);
+    }
+    LOG_INFO("Modified " + std::to_string(modified_count) + " of " + std::to_string(record_count) + " records.");
+}
+
+
+void TagTitlesKrimdok(MARC::Reader * const title_reader, MARC::Writer * const title_writer)
+{
+    unsigned record_count(0), modified_count(0);
+    while (MARC::Record record = title_reader->read()) {
+        ++record_count;
+        bool modified_record(false);
+
         if (modified_record)
             ++modified_count;
         title_writer->write(record);
@@ -569,11 +584,16 @@ int Main(int argc, char **argv) {
         title_reader->rewind();
         GetSubsystemPPNSet(title_reader.get(), bible_studies_gnd_numbers, canon_law_gnd_numbers, &subsystem_sets);
         title_reader->rewind();
-        std::unique_ptr<MARC::Writer> title_writer(MARC::Writer::Factory(title_output_filename));
-        TagTitles(title_reader.get(), title_writer.get(), subsystem_sets);
     } else if (system_type == "krimdok") {
         ExtractAuthorsKrimdok(title_reader.get(), &authors);
     }
+
+    std::unique_ptr<MARC::Writer> title_writer(MARC::Writer::Factory(title_output_filename));
+
+    if (system_type == "ixtheo")
+        TagTitlesIxtheo(title_reader.get(), title_writer.get(), subsystem_sets);
+    else if (system_type == "krimdok")
+        TagTitlesKrimdok(title_reader.get(), title_writer.get());
 
     std::unique_ptr<MARC::Writer> authority_writer(MARC::Writer::Factory(authority_output_filename));
 
