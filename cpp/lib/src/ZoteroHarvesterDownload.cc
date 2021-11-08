@@ -340,14 +340,16 @@ bool Crawler::getNextPage(CrawlResult * const crawl_result) {
         ++num_crawled_cache_hits_;
 
     // extract outgoing URLs from the downloaded URL
-    constexpr unsigned EXTRACT_URL_FLAGS(WebUtil::IGNORE_DUPLICATE_URLS | WebUtil::IGNORE_LINKS_IN_IMG_TAGS
+    unsigned EXTRACT_URL_FLAGS(WebUtil::IGNORE_DUPLICATE_URLS | WebUtil::IGNORE_LINKS_IN_IMG_TAGS
                                            | WebUtil::REMOVE_DOCUMENT_RELATIVE_ANCHORS
                                            | WebUtil::CLEAN_UP_ANCHOR_TEXT
-                                           | WebUtil::KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY
                                            | WebUtil::ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS);
 
+    const bool url_is_file(StringUtil::StartsWith(next_url, "file://", true /* case insensitive */));
+    EXTRACT_URL_FLAGS |= url_is_file ? 0 : WebUtil::KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY;
+
     std::vector<WebUtil::UrlAndAnchorTexts> urls_and_anchor_texts;
-    WebUtil::ExtractURLs(download_result.response_body_, next_url, WebUtil::ABSOLUTE_URLS, &urls_and_anchor_texts, EXTRACT_URL_FLAGS);
+    WebUtil::ExtractURLs(download_result.response_body_, url_is_file ? "" : next_url, WebUtil::ABSOLUTE_URLS, &urls_and_anchor_texts, EXTRACT_URL_FLAGS);
 
     crawl_result->current_url_ = next_url;
     crawl_result->outgoing_urls_.clear();
@@ -567,7 +569,7 @@ namespace EmailCrawl {
 void Tasklet::run(const Params &parameters, Result * const result) {
     LOG_INFO("Email Harvesting Crawling URL " + parameters.download_item_.toString());
 
-    const auto crawl_item(parameters.harvestable_manager_->newHarvestableItem("file:///tmp/jewifilmnewmed", parameters.download_item_.journal_));
+    const auto crawl_item(parameters.harvestable_manager_->newHarvestableItem("file:///tmp/jewifilmnewmedi", parameters.download_item_.journal_));
 
     const Crawling::Params crawl_parameters(crawl_item, parameters.user_agent_,
                                       parameters.per_crawl_url_time_limit_, parameters.total_crawl_time_limit_,

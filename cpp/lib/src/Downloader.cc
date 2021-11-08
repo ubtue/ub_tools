@@ -311,8 +311,13 @@ unsigned Downloader::getResponseCode() {
         LOG_ERROR("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
 
     const std::string header(getMessageHeader());
-    if (not matcher->matched(header))
-        LOG_ERROR("Failed to get HTTP response code from header: " + header);
+    if (unlikely(not matcher->matched(header))) {
+        if (current_url_.getScheme() == "file") {
+            LOG_INFO("Read from local file - return dummy response code 200");
+            return 200;
+        } else
+           LOG_ERROR("Failed to get HTTP response code from header: " + header);
+    }
 
     return StringUtil::ToUnsigned((*matcher)[1]);
 }
@@ -398,7 +403,6 @@ void Downloader::init() {
 
 bool Downloader::internalNewUrl(const Url &url, const TimeLimit &time_limit) {
     body_.clear();
-
     redirect_urls_.push_back(url);
 
     curlEasySetopt(CURLOPT_URL, url.c_str(), "Downloader::internalNewUrl:CURLOPT_URL");
