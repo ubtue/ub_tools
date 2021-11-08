@@ -1,6 +1,7 @@
 /** \file    add_subsystem_tags.cc
  *  \brief   Add additional tags for interfaces to identitify subset views of
-             IxTheo like RelBib and Bibstudies
+             IxTheo like RelBib and Bibstudies as well as the possibility
+             to count titles for authors in Krimdok
  *  \author  Johannes Riedl
  *  \author  Dr. Johannes Ruscheinski
  */
@@ -396,6 +397,7 @@ const std::string RELBIB_TAG("REL");
 const std::string BIBSTUDIES_TAG("BIB");
 const std::string CANON_LAW_TAG("CAN");
 const std::string IXTHEO_TAG("IXT");
+const std::string KRIMDOK_TAG("KRI");
 
 
 void TagTitles(MARC::Reader * const title_reader, MARC::Writer * const title_writer,
@@ -428,7 +430,7 @@ void TagTitles(MARC::Reader * const title_reader, MARC::Writer * const title_wri
 }
 
 
-void ExtractAuthors(MARC::Reader * const title_reader, std::unordered_map<std::string, std::map<std::string, int>> * const authors,
+void ExtractAuthorsIxtheo(MARC::Reader * const title_reader, std::unordered_map<std::string, std::map<std::string, int>> * const authors,
                         const std::unordered_set<std::string> &bible_studies_gnd_numbers,
                         const std::unordered_set<std::string> &canon_law_gnd_numbers) {
     static std::vector<std::string> tags_to_check{ "100", "110", "111", "700", "710", "711" };
@@ -467,7 +469,29 @@ void ExtractAuthors(MARC::Reader * const title_reader, std::unordered_map<std::s
 }
 
 
-void TagAuthors(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer, std::unordered_map<std::string, std::map<std::string, int>> &authors) {
+void ExtractAuthorsKrimdok(MARC::Reader * const title_reader, std::unordered_map<std::string, std::map<std::string, int>> * const authors) {
+    static std::vector<std::string> tags_to_check{ "100", "110", "111", "700", "710", "711" };
+    unsigned record_count(0);
+    while (const MARC::Record record = title_reader->read()) {
+        ++record_count;
+
+        for (auto tag_to_check : tags_to_check) {
+            for (auto &field : record.getTagRange(tag_to_check)) {
+                const std::string author(field.getFirstSubfieldWithCodeAndPrefix('0', "(DE-627)"));
+                if (likely(not author.empty())) {
+                    std::string author_id(author.substr(std::string("(DE-627)").length()));
+                    std::map<std::string, int> instances;
+                    auto it_author = authors->emplace(author_id, instances).first;
+                    auto it_author_count = it_author->second.emplace("k", 0).first;
+                    (it_author_count->second)++;
+                }
+            }
+        }
+    }
+}
+
+
+void TagAuthorsIxtheo(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer, std::unordered_map<std::string, std::map<std::string, int>> &authors) {
     while (MARC::Record record = authority_reader->read()) {
         auto it_authors = authors.find(record.getControlNumber());
         if (it_authors != authors.end()) {
@@ -499,39 +523,64 @@ void TagAuthors(MARC::Reader * const authority_reader, MARC::Writer * const auth
 }
 
 
+void TagAuthorsKrimdok(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer, std::unordered_map<std::string, std::map<std::string, int>> &authors) {
+    while (MARC::Record record = authority_reader->read()) {
+        auto it_authors = authors.find(record.getControlNumber());
+        if (it_authors != authors.end()) {
+            std::map<std::string, int> instances = it_authors->second;
+
+            // New "SUB" to keep it similar to title records
+            if (instances.find("k") != instances.end())
+                record.insertField("SUB", { { 'a', KRIMDOK_TAG }, { 'b', std::to_string(instances.find("k")->second) } });
+
+        }
+        authority_writer->write(record);
+    }
+}
+
+
 } //unnamed namespace
 
 
 int Main(int argc, char **argv) {
-    if (argc != 5)
-        ::Usage("title_input authority_input title_output authority_output");
+    if (argc != 6)
+        ::Usage("[ixtheo|krimdok] title_input authority_input title_output authority_output");
 
-    const std::string title_input_filename(argv[1]);
-    const std::string authority_input_filename(argv[2]);
-    const std::string title_output_filename(argv[3]);
-    const std::string authority_output_filename(argv[4]);
+    const std::string system_type(argv[1]);
+    const std::string title_input_filename(argv[2]);
+    const std::string authority_input_filename(argv[3]);
+    const std::string title_output_filename(argv[4]);
+    const std::string authority_output_filename(argv[5]);
     if (unlikely(title_input_filename == title_output_filename))
         LOG_ERROR("Title data input file name equals output file name!");
+    if (system_type != "ixtheo" and system_type != "krimdok")
+        LOG_ERROR("argument 1 must be ixtheo or krimdok!");
 
-    std::unordered_set<std::string> bible_studies_gnd_numbers, canon_law_gnd_numbers;
     std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_input_filename));
-    CollectGNDNumbers(authority_reader.get(), &bible_studies_gnd_numbers, &canon_law_gnd_numbers);
-    authority_reader->rewind();
-
     std::unique_ptr<MARC::Reader> title_reader(MARC::Reader::Factory(title_input_filename));
     std::vector<std::unordered_set<std::string>> subsystem_sets(NUM_OF_SUBSYSTEMS);
     std::unordered_map<std::string, std::map<std::string, int>> authors;
-    ExtractAuthors(title_reader.get(), &authors, bible_studies_gnd_numbers, canon_law_gnd_numbers);
-    title_reader->rewind();
 
-    GetSubsystemPPNSet(title_reader.get(), bible_studies_gnd_numbers, canon_law_gnd_numbers, &subsystem_sets);
-    title_reader->rewind();
-
-    std::unique_ptr<MARC::Writer> title_writer(MARC::Writer::Factory(title_output_filename));
-    TagTitles(title_reader.get(), title_writer.get(), subsystem_sets);
+    if (system_type == "ixtheo") {
+        std::unordered_set<std::string> bible_studies_gnd_numbers, canon_law_gnd_numbers;
+        CollectGNDNumbers(authority_reader.get(), &bible_studies_gnd_numbers, &canon_law_gnd_numbers);
+        authority_reader->rewind();
+        ExtractAuthorsIxtheo(title_reader.get(), &authors, bible_studies_gnd_numbers, canon_law_gnd_numbers);
+        title_reader->rewind();
+        GetSubsystemPPNSet(title_reader.get(), bible_studies_gnd_numbers, canon_law_gnd_numbers, &subsystem_sets);
+        title_reader->rewind();
+        std::unique_ptr<MARC::Writer> title_writer(MARC::Writer::Factory(title_output_filename));
+        TagTitles(title_reader.get(), title_writer.get(), subsystem_sets);
+    } else if (system_type == "krimdok") {
+        ExtractAuthorsKrimdok(title_reader.get(), &authors);
+    }
 
     std::unique_ptr<MARC::Writer> authority_writer(MARC::Writer::Factory(authority_output_filename));
-    TagAuthors(authority_reader.get(), authority_writer.get(), authors);
+
+    if (system_type == "ixtheo")
+        TagAuthorsIxtheo(authority_reader.get(), authority_writer.get(), authors);
+    else if (system_type == "krimdok")
+        TagAuthorsKrimdok(authority_reader.get(), authority_writer.get(), authors);
 
     return EXIT_SUCCESS;
 }
