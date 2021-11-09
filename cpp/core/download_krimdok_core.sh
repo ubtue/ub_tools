@@ -8,6 +8,10 @@ if [ $# != 0 ]; then
 fi
 
 
+# Generate a file that will be used by convert_core_json_to_marc later in this script:
+extract_zeder_data /usr/local/var/lib/tuelib/print_issns_titles_online_ppns_and_online_issns.csv krimdok tit eppn essn
+
+
 declare -r WORK_FILE=download_krimdok_core.json
 declare -i SINGLE_CURL_DOWNLOAD_MAX_TIME=200 # in seconds
 declare -r API_KEY=$(< /usr/local/var/lib/tuelib/CORE-API.key)
@@ -32,7 +36,7 @@ declare -r QUERY=$(/usr/local/bin/urlencode "(title:criminology OR title:crimino
 echo "Before curl download..."
 declare -i offset=0
 curl --max-time $SINGLE_CURL_DOWNLOAD_MAX_TIME --header "Authorization: Bearer ${API_KEY}" --request GET \
-     "${CORE_API}?offset=$offset&limit=$MAX_HITS_PER_REQUEST&entityType=works&q=$QUERY&scroll" \
+     --location "${CORE_API_URL}?offset=$offset&limit=$MAX_HITS_PER_REQUEST&entityType=works&q=$QUERY&scroll" \
      > $WORK_FILE
 echo "After curl download..."
 
@@ -66,8 +70,7 @@ fi
 # Convert to MARC:
 echo "Before conversion to MARC..."
 declare -r MARC_OUTPUT=KrimDok-CORE-$(date +%Y%M%d).xml
-convert_core_json_to_marc --create-unique-id-db /usr/local/var/lib/tuelib/core.conf \
-                          "$WORK_FILE" unmapped_issn.list "$MARC_OUTPUT"
+convert_core_json_to_marc --create-unique-id-db "$WORK_FILE" unmapped_issn.list "$MARC_OUTPUT"
 echo "Generated $MARC_OUTPUT, unmapped ISSN's are in unmapped_issn.list"
 
 
