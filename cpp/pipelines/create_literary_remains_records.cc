@@ -59,10 +59,10 @@ public:
 
 // Counts the number of subsystem title records for authors.
 void CopyMarcAndCollectSubsystemFrequencies(
-    MARC::Reader * const reader, MARC::Writer * const writer,
+    MARC::Reader * const title_reader, MARC::Writer * const title_writer,
     std::unordered_map<std::string, TitleRecordCounter> * const author_ppn_to_subsystem_title_counters)
 {
-    while (auto record = reader->read()) {
+    while (auto record = title_reader->read()) {
         const bool rel_tag_found(record.findTag("REL") != record.end() /*remove after migration*/ or record.hasFieldWithSubfieldValue("SUB", 'a', "REL"));
         const bool bib_tag_found(record.findTag("BIB") != record.end() /*remove after migration*/ or record.hasFieldWithSubfieldValue("SUB", 'a', "BIB"));
         const bool can_tag_found(record.findTag("CAN") != record.end() /*remove after migration*/ or record.hasFieldWithSubfieldValue("SUB", 'a', "CAN"));
@@ -81,7 +81,7 @@ void CopyMarcAndCollectSubsystemFrequencies(
                 ++(author_ppn_and_counter->second.canonlaw_count_);
         }
 
-        writer->write(record);
+        title_writer->write(record);
     }
 }
 
@@ -138,27 +138,52 @@ std::vector<std::string> GetBEATypes(const MARC::Record::Field &beacon_field) {
 }
 
 
-void LoadAuthorGNDNumbers(
-    MARC::Reader * const reader,
+void SetSubsystemCounter(MARC::Record &record, std::string subsystem_code, unsigned int additional_value) {
+    if (not record.hasFieldWithSubfieldValue("SUB", 'a', subsystem_code))
+        record.insertField("SUB", {{'a', subsystem_code}, {'b', std::to_string(additional_value)}});
+    else {
+        for (auto &field : record.getTagRange("SUB")) {
+            if (field.hasSubfieldWithValue('a', subsystem_code)) {
+                MARC::Subfields subfields(field.getContents());
+                if (not field.hasSubfield('b'))
+                    subfields.addSubfield('b', std::to_string(additional_value));
+                else {
+                    std::string orig_count = subfields.getFirstSubfieldWithCode('b');
+                    unsigned int new_count = std::stoi(orig_count) + additional_value;
+                    subfields.replaceFirstSubfield('b', std::to_string(new_count));
+                }
+                field.setSubfields(subfields);
+            }
+        }
+    }
+}
+
+
+void LoadAuthorGNDNumbersAndTagAuthors(
+    MARC::Reader * const authority_reader, MARC::Writer * const authority_writer,
+    const std::unordered_map<std::string, TitleRecordCounter> &author_ppn_to_subsystem_titles_counters,
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> * const gnd_numbers_to_literary_remains_infos_map,
     std::unordered_map<std::string, std::string> * const gnd_numbers_to_ppns_map)
 {
-    unsigned total_count(0), references_count(0);
-    while (auto record = reader->read()) {
+    unsigned total_count(0), references_count(0), tagged_count(0);
+    while (auto record = authority_reader->read()) {
         ++total_count;
 
         auto beacon_field(record.findTag("BEA"));
         if (beacon_field == record.end()) {
+            authority_writer->write(record);
             continue;
         }
 
         const auto _100_field(record.findTag("100"));
         if (_100_field == record.end() or not _100_field->hasSubfield('a')) {
+            authority_writer->write(record);
             continue;
         }
 
         std::string gnd_number;
         if (not MARC::GetGNDCode(record, &gnd_number)) {
+            authority_writer->write(record);
             continue;
         }
 
@@ -181,10 +206,32 @@ void LoadAuthorGNDNumbers(
         }
         (*gnd_numbers_to_literary_remains_infos_map)[gnd_number] = literary_remains_infos;
         references_count += literary_remains_infos.size();
+
+        if (author_ppn_to_subsystem_titles_counters.find(record.getControlNumber()) != author_ppn_to_subsystem_titles_counters.cend()) {
+            auto subsystem_record_counter = author_ppn_to_subsystem_titles_counters.find(record.getControlNumber())->second;
+            if (subsystem_record_counter.religious_studies_count_ > 0) {
+                record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
+                SetSubsystemCounter(record, "REL", 1);
+                ++tagged_count;
+            }
+            if (subsystem_record_counter.bibstudies_count_ > 0) {
+                record.insertField("BIB", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
+                SetSubsystemCounter(record, "BIB", 1);
+                ++tagged_count;
+            }
+            if (subsystem_record_counter.canonlaw_count_ > 0) {
+                record.insertField("CAN", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
+                SetSubsystemCounter(record, "CAN", 1);
+                ++tagged_count;
+            }
+        }
+
+        authority_writer->write(record);
     }
 
-    LOG_INFO("Loaded " + std::to_string(references_count) + " literary remains references from \"" + reader->getPath()
+    LOG_INFO("Loaded " + std::to_string(references_count) + " literary remains references from \"" + authority_reader->getPath()
              + "\" which contained a total of " + std::to_string(total_count) + " records.");
+    LOG_INFO("Tagged " + std::to_string(tagged_count) + " authority records as relevant to religious studies.");
 }
 
 
@@ -224,7 +271,7 @@ std::string GetTitle(const std::string &author_name, const std::string &dates, c
 
 
 void AppendLiteraryRemainsRecords(
-    MARC::Writer * const writer,
+    MARC::Writer * const title_writer,
     const std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> &gnd_numbers_to_literary_remains_infos_map,
     const std::unordered_map<std::string, std::string> &gnd_numbers_to_ppns_map,
     const std::unordered_map<std::string, TitleRecordCounter> &author_ppn_to_subsystem_titles_counters)
@@ -275,7 +322,7 @@ void AppendLiteraryRemainsRecords(
             }
         }
 
-        writer->write(new_record);
+        title_writer->write(new_record);
         ++creation_count;
     }
 
@@ -288,7 +335,7 @@ void AppendLiteraryRemainsRecords(
 
 int Main(int argc, char **argv) {
     if (argc != 5)
-        ::Usage("marc_input marc_output authority_records_input");
+        ::Usage("marc_input marc_output authority_records_input authority_records_output");
 
     auto title_reader(MARC::Reader::Factory(argv[1]));
     auto title_writer(MARC::Writer::Factory(argv[2]));
@@ -298,9 +345,11 @@ int Main(int argc, char **argv) {
         LOG_ERROR("You must run this program on an input that contains some records!");
 
     auto authority_reader(MARC::Reader::Factory(argv[3]));
+    auto authority_writer(MARC::Writer::Factory(argv[4]));
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> gnd_numbers_to_literary_remains_infos_map;
     std::unordered_map<std::string, std::string> gnd_numbers_to_ppns_map;
-    LoadAuthorGNDNumbers(authority_reader.get(), &gnd_numbers_to_literary_remains_infos_map, &gnd_numbers_to_ppns_map);
+    LoadAuthorGNDNumbersAndTagAuthors(authority_reader.get(), authority_writer.get(), author_ppn_to_subsystem_titles_counters,
+                                      &gnd_numbers_to_literary_remains_infos_map, &gnd_numbers_to_ppns_map);
     AppendLiteraryRemainsRecords(title_writer.get(), gnd_numbers_to_literary_remains_infos_map, gnd_numbers_to_ppns_map,
                                  author_ppn_to_subsystem_titles_counters);
 
