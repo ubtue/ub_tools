@@ -2851,4 +2851,11 @@ std::string GenerateRandom(const size_t length, const std::string &alphabet) {
 }
 
 
+std::vector<std::string> SplitIntoLines(const std::string &s) {
+    std::vector<std::string> lines;
+    StringUtil::Split(s, '\n', &lines);
+    return lines;
+}
+
+
 } // namespace StringUtil

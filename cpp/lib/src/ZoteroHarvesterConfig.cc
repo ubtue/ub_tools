@@ -66,6 +66,14 @@ std::string GetHostTranslationServerUrl() {
 }
 
 
+std::vector<std::string> GetEmailCrawlMBoxes() {
+    const IniFile ini(UBTools::GetTuelibPath() + "zotero.conf");
+    std::vector<std::string> mboxes;
+    StringUtil::SplitThenTrimWhite(ini.getString("EmailCrawl", "inboxfiles"), ",", &mboxes);
+    return mboxes;
+}
+
+
 const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MAP {
     { ENHANCEMENT_MAPS_DIRECTORY,                 "enhancement_maps_directory" },
     { GROUP_NAMES,                                "groups" },
@@ -206,7 +214,7 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
 
     // Translation server URL is special-cased
     translation_server_url_ = GetHostTranslationServerUrl();
-
+    emailcrawl_mboxes_ = GetEmailCrawlMBoxes();
     enhancement_maps_directory_ = config_section.getString(GetIniKeyString(ENHANCEMENT_MAPS_DIRECTORY));
     group_names_ = config_section.getString(GetIniKeyString(GROUP_NAMES));
     strptime_format_string_ = config_section.getString(GetIniKeyString(STRPTIME_FORMAT_STRING));
@@ -283,29 +291,30 @@ JournalParams::JournalParams(const GlobalParams &global_params) {
 
 
 const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_MAP {
-    { ZEDER_ID,                 "zeder_id"                  },
-    { ZEDER_MODIFIED_TIME,      "zeder_modified_time"       },
-    { ZEDER_NEWLY_SYNCED_ENTRY, "zeder_newly_synced_entry"  },
-    { GROUP,                    "zotero_group"              },
-    { ENTRY_POINT_URL,          "zotero_url"                },
-    { HARVESTER_OPERATION,      "zotero_type"               },
-    { UPLOAD_OPERATION,         "zotero_delivery_mode"      },
-    { ONLINE_PPN,               "online_ppn"                },
-    { PRINT_PPN,                "print_ppn"                 },
-    { ONLINE_ISSN,              "online_issn"               },
-    { PRINT_ISSN,               "print_issn"                },
-    { SSGN,                     "ssgn"                      },
-    { LICENSE,                  "license"                   },
-    { PERSONALIZED_AUTHORS,     "tiefp"                     },
-    { SELECTIVE_EVALUATION,     "selective_evaluation"      },
-    { FORCE_LANGUAGE_DETECTION, "force_language_detection"  },
-    { STRPTIME_FORMAT_STRING,   "zotero_strptime_format"    },
-    { UPDATE_WINDOW,            "zotero_update_window"      },
-    { REVIEW_REGEX,             "zotero_review_regex"       },
-    { EXPECTED_LANGUAGES,       "zotero_expected_languages" },
-    { CRAWL_MAX_DEPTH,          "zotero_max_crawl_depth"    },
-    { CRAWL_EXTRACTION_REGEX,   "zotero_extraction_regex"   },
-    { CRAWL_URL_REGEX,          "zotero_crawl_url_regex"    },
+    { ZEDER_ID,                  "zeder_id"                  },
+    { ZEDER_MODIFIED_TIME,       "zeder_modified_time"       },
+    { ZEDER_NEWLY_SYNCED_ENTRY,  "zeder_newly_synced_entry"  },
+    { GROUP,                     "zotero_group"              },
+    { ENTRY_POINT_URL,           "zotero_url"                },
+    { HARVESTER_OPERATION,       "zotero_type"               },
+    { UPLOAD_OPERATION,          "zotero_delivery_mode"      },
+    { ONLINE_PPN,                "online_ppn"                },
+    { PRINT_PPN,                 "print_ppn"                 },
+    { ONLINE_ISSN,               "online_issn"               },
+    { PRINT_ISSN,                "print_issn"                },
+    { SSGN,                      "ssgn"                      },
+    { LICENSE,                   "license"                   },
+    { PERSONALIZED_AUTHORS,      "tiefp"                     },
+    { SELECTIVE_EVALUATION,      "selective_evaluation"      },
+    { FORCE_LANGUAGE_DETECTION,  "force_language_detection"  },
+    { STRPTIME_FORMAT_STRING,    "zotero_strptime_format"    },
+    { UPDATE_WINDOW,             "zotero_update_window"      },
+    { REVIEW_REGEX,              "zotero_review_regex"       },
+    { EXPECTED_LANGUAGES,        "zotero_expected_languages" },
+    { CRAWL_MAX_DEPTH,           "zotero_max_crawl_depth"    },
+    { CRAWL_EXTRACTION_REGEX,    "zotero_extraction_regex"   },
+    { CRAWL_URL_REGEX,           "zotero_crawl_url_regex"    },
+    { EMAILCRAWL_SUBJECT_REGEX,  "emailcrawl_subject_regex" },
 };
 
 const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_MAP {
@@ -332,6 +341,7 @@ const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_
     { "zotero_max_crawl_depth",    CRAWL_MAX_DEPTH          },
     { "zotero_extraction_regex",   CRAWL_EXTRACTION_REGEX   },
     { "zotero_crawl_url_regex",    CRAWL_URL_REGEX          },
+    { "emailcrawl_subject_regex", EMAILCRAWL_SUBJECT_REGEX},
 };
 
 
@@ -361,6 +371,10 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     license_ = journal_section.getString(GetIniKeyString(LICENSE), "");
     selective_evaluation_ = journal_section.getBool(GetIniKeyString(SELECTIVE_EVALUATION), false);
     personalized_authors_ = journal_section.getString(GetIniKeyString(PERSONALIZED_AUTHORS), "-");
+    const auto emailcrawl_subject_regex(journal_section.getString(GetIniKeyString(EMAILCRAWL_SUBJECT_REGEX), ""));
+
+    if (not emailcrawl_subject_regex.empty())
+         emailcrawl_subject_regex_.reset(new ThreadSafeRegexMatcher(emailcrawl_subject_regex));
 
     const auto review_regex(journal_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
     if (not review_regex.empty())
