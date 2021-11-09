@@ -2851,4 +2851,24 @@ std::string GenerateRandom(const size_t length, const std::string &alphabet) {
 }
 
 
+std::vector<std::string> SplitIntoLines(const std::string &s) {
+    std::vector<std::string> lines;
+
+    std::string line;
+    for (auto ch(s.cbegin()); ch != s.cend(); ++ch) {
+        if (*ch != '\n')
+            line += *ch;
+        else {
+            lines.emplace_back(line);
+            line.clear();
+        }
+    }
+
+    if (not line.empty())
+        lines.emplace_back(line);
+
+    return lines;
+}
+
+
 } // namespace StringUtil
