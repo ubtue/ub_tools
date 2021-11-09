@@ -138,31 +138,27 @@ std::vector<std::string> GetBEATypes(const MARC::Record::Field &beacon_field) {
 }
 
 
-void LoadAuthorGNDNumbersAndTagAuthors(
-    MARC::Reader * const reader, MARC::Writer * const writer,
-    const std::unordered_map<std::string, TitleRecordCounter> &author_ppn_to_subsystem_titles_counters,
+void LoadAuthorGNDNumbers(
+    MARC::Reader * const reader,
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> * const gnd_numbers_to_literary_remains_infos_map,
     std::unordered_map<std::string, std::string> * const gnd_numbers_to_ppns_map)
 {
-    unsigned total_count(0), references_count(0), tagged_count(0);
+    unsigned total_count(0), references_count(0);
     while (auto record = reader->read()) {
         ++total_count;
 
         auto beacon_field(record.findTag("BEA"));
         if (beacon_field == record.end()) {
-            writer->write(record);
             continue;
         }
 
         const auto _100_field(record.findTag("100"));
         if (_100_field == record.end() or not _100_field->hasSubfield('a')) {
-            writer->write(record);
             continue;
         }
 
         std::string gnd_number;
         if (not MARC::GetGNDCode(record, &gnd_number)) {
-            writer->write(record);
             continue;
         }
 
@@ -185,32 +181,10 @@ void LoadAuthorGNDNumbersAndTagAuthors(
         }
         (*gnd_numbers_to_literary_remains_infos_map)[gnd_number] = literary_remains_infos;
         references_count += literary_remains_infos.size();
-
-        if (author_ppn_to_subsystem_titles_counters.find(record.getControlNumber()) != author_ppn_to_subsystem_titles_counters.cend()) {
-            auto subsystem_record_counter = author_ppn_to_subsystem_titles_counters.find(record.getControlNumber())->second;
-            if (subsystem_record_counter.religious_studies_count_ > 0) {
-                record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
-                record.addSubfieldCreateFieldUnique("SUB", 'a', "REL");
-                ++tagged_count;
-            }
-            if (subsystem_record_counter.bibstudies_count_ > 0) {
-                record.insertField("BIB", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
-                record.addSubfieldCreateFieldUnique("SUB", 'a', "BIB");
-                ++tagged_count;
-            }
-            if (subsystem_record_counter.canonlaw_count_ > 0) {
-                record.insertField("CAN", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
-                record.addSubfieldCreateFieldUnique("SUB", 'a', "CAN");
-                ++tagged_count;
-            }
-        }
-
-        writer->write(record);
     }
 
     LOG_INFO("Loaded " + std::to_string(references_count) + " literary remains references from \"" + reader->getPath()
              + "\" which contained a total of " + std::to_string(total_count) + " records.");
-    LOG_INFO("Tagged " + std::to_string(tagged_count) + " authority records as relevant to religious studies.");
 }
 
 
@@ -314,7 +288,7 @@ void AppendLiteraryRemainsRecords(
 
 int Main(int argc, char **argv) {
     if (argc != 5)
-        ::Usage("marc_input marc_output authority_records_input authority_records_output");
+        ::Usage("marc_input marc_output authority_records_input");
 
     auto title_reader(MARC::Reader::Factory(argv[1]));
     auto title_writer(MARC::Writer::Factory(argv[2]));
@@ -324,11 +298,9 @@ int Main(int argc, char **argv) {
         LOG_ERROR("You must run this program on an input that contains some records!");
 
     auto authority_reader(MARC::Reader::Factory(argv[3]));
-    auto authority_writer(MARC::Writer::Factory(argv[4]));
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> gnd_numbers_to_literary_remains_infos_map;
     std::unordered_map<std::string, std::string> gnd_numbers_to_ppns_map;
-    LoadAuthorGNDNumbersAndTagAuthors(authority_reader.get(), authority_writer.get(), author_ppn_to_subsystem_titles_counters,
-                                      &gnd_numbers_to_literary_remains_infos_map, &gnd_numbers_to_ppns_map);
+    LoadAuthorGNDNumbers(authority_reader.get(), &gnd_numbers_to_literary_remains_infos_map, &gnd_numbers_to_ppns_map);
     AppendLiteraryRemainsRecords(title_writer.get(), gnd_numbers_to_literary_remains_infos_map, gnd_numbers_to_ppns_map,
                                  author_ppn_to_subsystem_titles_counters);
 
