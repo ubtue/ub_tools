@@ -861,6 +861,7 @@ void RecordStats(const std::string &user_type, std::unordered_map<std::string, u
 
     const auto JULIAN_DAY_NUMBER(TimeUtil::GetJulianDayNumber());
     for (const auto &[journal_ppn, count] : journal_ppns_to_counts_map) {
+        // NOTE: The data written here has to match what will be read by generate_new_journal_alert_stats!
         BinaryIO::WriteOrDie(*usage_stats_file, JULIAN_DAY_NUMBER);
         BinaryIO::WriteOrDie(*usage_stats_file, user_type);
         BinaryIO::WriteOrDie(*usage_stats_file, journal_ppn);
