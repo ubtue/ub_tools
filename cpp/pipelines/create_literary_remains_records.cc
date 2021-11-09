@@ -241,7 +241,7 @@ std::string GetTitle(const std::string &author_name, const std::string &dates, c
         else if (std::find(types.begin(), types.end(), "Teilnachlass") != types.end())
             introductory_clause = "Teilnachlass von ";
         else
-            introductory_clause = "Archivmaterialen zu ";
+            introductory_clause = "Archivmaterialien zu ";
         std::string title(introductory_clause + author_name + ',' + dates);
         if (types.size() > 1)
             title += " ("  + StringUtil::Join(types, ", ") + ')';
