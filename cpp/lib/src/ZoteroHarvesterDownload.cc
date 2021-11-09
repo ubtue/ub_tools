@@ -17,8 +17,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "MBox.h"
 #include "JSON.h"
+#include "MBox.h"
+#include "MailUtil.h"
 #include "StringUtil.h"
 #include "WebUtil.h"
 #include "util.h"
@@ -566,27 +567,42 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 } // end namespace ApiQuery
 
 
-
-
-
 namespace EmailCrawl {
 
-void ExtractEmailsRelevantForJournal(const Params &parameters, std::vector<std::string> * const file_pages_to_handle) {
+void ExtractEmailsRelevantForJournal(const Params &parameters, std::vector<std::string> * const file_pages_to_handle,
+                                     const std::string &page_file_tmp_dir_path)
+{
     const auto subject_matcher(parameters.download_item_.journal_.emailcrawl_subject_regex_);
     const std::vector<std::string> mbox_filenames(parameters.emailcrawl_mboxes_);
     for (const auto &mbox_filename : mbox_filenames) {
         const MBox mbox(mbox_filename);
+        for (const auto &message : mbox) {
+            if (subject_matcher->match(message.getSubject())) {
+                if (message.isMultipartMessage()) {
+                    for (const auto &body_part : message)
+                        for (const auto &[key, value] : body_part.getMIMEHeaders()) {
+                            if (StringUtil::ASCIIToLower(key) == "content-type" and StringUtil::StartsWith(value, "text/html")) {
+                                FileUtil::AutoTempFile file_page(page_file_tmp_dir_path + "/ZOT", "", false /* automatically remove */);
+                                const std::string file_page_path(file_page.getFilePath());
+                                FileUtil::WriteStringOrDie(file_page_path, body_part.getBody());
+                                file_pages_to_handle->emplace_back("file://" + file_page_path);
+                            }
+                        }
+                } else {
+                    LOG_WARNING("Currently only HTML Mails supported: Skipping message: \"" + message.getSubject() + '"');
+                }
+            }
+        }
     }
-    file_pages_to_handle->emplace_back(std::string("file://") + "/tmp/jewifilmnewmedi");
 }
 
 
-
 void Tasklet::run(const Params &parameters, Result * const result) {
-    LOG_INFO("Email Harvesting Crawling URL " + parameters.download_item_.toString());
+    LOG_INFO("Email Harvesting Crawling for Journal " + parameters.download_item_.journal_.name_);
 
     std::vector<std::string> file_pages_to_handle;
-    ExtractEmailsRelevantForJournal(parameters, &file_pages_to_handle);
+    FileUtil::AutoTempDirectory file_pages_temp_dir("/tmp/ZOTMAIL");
+    ExtractEmailsRelevantForJournal(parameters, &file_pages_to_handle, file_pages_temp_dir.getDirectoryPath());
 
     for (const auto &file_page_to_handle : file_pages_to_handle) {
 
@@ -609,8 +625,8 @@ void Tasklet::run(const Params &parameters, Result * const result) {
                                or parameters.download_item_.journal_.crawl_params_.crawl_url_regex_->match(outgoing_url.first));
 
                 if (harvest_url) {
-                    if (not force_downloads_ and upload_tracker_.urlAlreadyInDatabase(outgoing_url.first, 
-                        /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) 
+                    if (not force_downloads_ and upload_tracker_.urlAlreadyInDatabase(outgoing_url.first,
+                        /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY))
                     {
                         LOG_INFO("Skipping already delivered URL: " + outgoing_url.first);
                         ++result->num_email_skipped_since_already_delivered_;
@@ -648,6 +664,7 @@ void Tasklet::run(const Params &parameters, Result * const result) {
                                  std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
                                  std::unique_ptr<Result>(new Result()), std::move(parameters), ResultPolicy::YIELD),
    download_manager_(download_manager), upload_tracker_(upload_tracker), force_downloads_(force_downloads) {}
+
 } // end namespace EmailCrawl
 
 
