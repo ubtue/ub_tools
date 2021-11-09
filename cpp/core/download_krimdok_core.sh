@@ -70,7 +70,7 @@ fi
 # Convert to MARC:
 echo "Before conversion to MARC..."
 declare -r MARC_OUTPUT=KrimDok-CORE-$(date +%Y%M%d).xml
-convert_core_json_to_marc --create-unique-id-db "$WORK_FILE" unmapped_issn.list "$MARC_OUTPUT"
+convert_core_json_to_marc --create-unique-id-db --sigil=DE-2619 "$WORK_FILE" unmapped_issn.list "$MARC_OUTPUT"
 echo "Generated $MARC_OUTPUT, unmapped ISSN's are in unmapped_issn.list"
 
 

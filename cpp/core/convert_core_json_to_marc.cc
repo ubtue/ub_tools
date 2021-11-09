@@ -47,12 +47,12 @@ public:
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--create-unique-id-db|--ignore-unique-id-dups|--extract-and-count-issns-only] json_input [unmapped_issn_list marc_output]\n"
+    ::Usage("[--create-unique-id-db|--ignore-unique-id-dups] --sigil=project_sigil json_input [unmapped_issn_list marc_output]\n"
             "\t--create-unique-id-db: This flag has to be specified the first time this program will be executed only.\n"
             "\t--ignore-unique-id-dups: If specified MARC records will be created for unique ID's which we have encountered\n"
             "\t                         before.  The unique ID database will still be updated.\n"
-            "\t--extract-and-count-issns-only: Generates stats on the frequency of ISSN's in the JSON input and does not generate any \n"
-            "\t                                MARC output files.  This requires the existence of the \"magic\" \"ISSN\" config file entry!\n"
+            "\t--sigil: This is used to generate an 852 field which is needed by the K10+ to be able to assign records to the appropriate\n"
+            "\t         project.  An example would be DE-2619 for criminology.\n"
             "\tunmapped_issn_list (output): Here we list the ISSN's for which we have no entry in issns_to_journaltitles_and_ppns.map,\n"
             "\t                             required unless --extract-and-count-issns-only was specified!\n"
             "\tmarc_outpt: required unless --extract-and-count-issns-only was specified!\n\n");
@@ -92,7 +92,7 @@ MARC::Record::BibliographicLevel MapTypeStringToBibliographicLevel(const std::st
     else {
         if (not item_type.empty())
             LOG_WARNING("unknown item type: " + item_type);
-        return MARC::Record::UNDEFINED;
+        return MARC::Record::SERIAL_COMPONENT_PART; // Yes, we're lying here! :-(
     }
 }
 
@@ -108,7 +108,7 @@ bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const r
         const auto author_object(JSON::JSONNode::CastToObjectNodeOrDie("author_object", author));
         record->insertField(first_author ? "100" : "700",
                             { { 'a', MiscUtil::NormalizeName(author_object->getStringNode("name")->getValue()) },
-                              { '4', "aut" } });
+                              { '4', "aut" } }, /*indicator1=*/'1');
         if (first_author)
             first_author = false;
     }
@@ -154,7 +154,7 @@ void ProcessDOI(const JSON::ObjectNode &entry_object, MARC::Record * const recor
     const auto doi_node(entry_object.getStringNode("doi"));
     record->insertField("856",
                         { { 'u', "https://doi.org/" + doi_node->getValue() }, { 'x', "Resolving System" },
-                          { 'z', "Kostenfrei"}, { '3', "Volltext" } });
+                          { 'z', "Kostenfrei"}, { '3', "Volltext" } }, /*indicator1=*/'4', /*indicator2=*/'0');
     record->insertField("024", { { 'a', doi_node->getValue() }, { '2', "doi" } }, '0','7');
 }
 
@@ -210,13 +210,64 @@ bool ProcessUncontrolledIndexTerms(const JSON::ObjectNode &entry_object, MARC::R
 }
 
 
-// Collection of ISSN's for which we found no entry in issns_to_journal_titles_ppns_and_issns_map.
-std::unordered_set<std::string> unmatched_issns;
+// \return True if any uncontrolled terms were found, else false.
+bool ProcessYearPublished(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
+    if (not entry_object.hasNode("yearPublished") or entry_object.isNullNode("yearPublished"))
+        return false;
+    const auto year_published_node(entry_object.getIntegerNode("yearPublished"));
+    record->insertField("264", 'c', year_published_node->toString(), /*indicator1=*/' ', /*indicator2=*/'1');
+    return true;
+}
 
 
-void GenerateMARCFromJSON(const JSON::ArrayNode &root_array, MARC::Writer * const marc_writer,
-                          const bool extract_and_count_issns_only, const bool ignore_unique_id_dups,
-                          KeyValueDB * const unique_id_to_date_map)
+bool ProcessJournal(const JSON::ObjectNode &entry_object,
+                    const std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> &issns_to_journal_titles_ppns_and_issns_map,
+                    std::unordered_map<std::string, unsigned> * const unmatched_issns_to_counts_map, MARC::Record * const record)
+{
+    if (not entry_object.hasNode("journals"))
+        return false;
+    const auto journals(entry_object.getArrayNode("journals"));
+    for (size_t i(0); i < journals->size(); ++i) {
+        const auto journal(journals->getObjectNode(i));
+        if (not journal->hasNode("identifiers"))
+            continue;
+
+        const auto identifiers(journal->getArrayNode("identifiers"));
+        for (size_t k(0); k < identifiers->size(); ++k) {
+            const auto identifier(identifiers->getStringNode(k));
+            const auto issn_candidate(identifier->getValue());
+            if (MiscUtil::IsPossibleISSN(issn_candidate)) {
+                std::string issn;
+                if (unlikely(not MiscUtil::NormaliseISSN(issn_candidate, &issn)))
+                    LOG_ERROR("Bad ISSN, we should *never* get here!");
+
+                const auto issn_and_journal_title_ppn_and_online_ISSN(issns_to_journal_titles_ppns_and_issns_map.find(issn));
+                if (issn_and_journal_title_ppn_and_online_ISSN == issns_to_journal_titles_ppns_and_issns_map.cend()) {
+                    auto issn_and_count(unmatched_issns_to_counts_map->find(issn));
+                    if (issn_and_count != unmatched_issns_to_counts_map->end())
+                        ++(issn_and_count->second);
+                    else
+                        (*unmatched_issns_to_counts_map)[issn] = 1;
+                    return false;
+                }
+
+                record->insertField("773",
+                                    { { 'i', "In: " }, { 't', issn_and_journal_title_ppn_and_online_ISSN->second.journal_title_},
+                                      { 'x', issn_and_journal_title_ppn_and_online_ISSN->second.online_issn_ }, },
+                                    /*indicator1=*/'0', /*indicator2=*/'8');
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+
+void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
+                          const std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> &issns_to_journal_titles_ppns_and_issns_map,
+                          MARC::Writer * const marc_writer, const std::string &project_sigil,
+                          std::unordered_map<std::string, unsigned> * const unmatched_issns_to_counts_map,
+                          const bool ignore_unique_id_dups, KeyValueDB * const unique_id_to_date_map)
 {
     unsigned skipped_dupe_count(0), generated_count(0), skipped_incomplete_count(0);
     for (auto &entry : root_array) {
@@ -238,29 +289,32 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array, MARC::Writer * cons
                 continue;
             }
             new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
+            new_record.insertField("852", 'a', project_sigil);
             ProcessYear(*entry_object, &new_record);
             ProcessDOI(*entry_object, &new_record);
             ProcessDownloadURL(*entry_object, &new_record);
             ProcessLanguage(*entry_object, &new_record);
             ProcessAbstract(*entry_object, &new_record);
             ProcessUncontrolledIndexTerms(*entry_object, &new_record);
+            ProcessYearPublished(*entry_object, &new_record);
+            ProcessJournal(*entry_object, issns_to_journal_titles_ppns_and_issns_map, unmatched_issns_to_counts_map, &new_record);
             marc_writer->write(new_record);
             unique_id_to_date_map->addOrReplace(control_number, TimeUtil::GetCurrentDateAndTime());
             ++generated_count;
         }
     }
-    if (not extract_and_count_issns_only)
-        std::cout << "Skipped " << skipped_dupe_count << " dupes and " << skipped_incomplete_count
-                  << " incomplete entry/entries and generated " << generated_count << " MARC record(s).\n";
+
+    std::cout << "Skipped " << skipped_dupe_count << " dupes and " << skipped_incomplete_count
+              << " incomplete entry/entries and generated " << generated_count << " MARC record(s).\n";
 }
 
 
-void GenerateUnmappedISSNList(File * const unmatched_issns_file) {
-    std::vector<std::string> sorted_unmatched_issns(unmatched_issns.cbegin(), unmatched_issns.cend());
-    std::sort(sorted_unmatched_issns.begin(), sorted_unmatched_issns.end());
-    for (const auto &issn : sorted_unmatched_issns)
-        (*unmatched_issns_file) << issn << '\n';
-    LOG_INFO("Wrote a list of " + std::to_string(sorted_unmatched_issns.size()) + " unmapped ISSN's to \""
+void GenerateUnmappedISSNList(File * const unmatched_issns_file,
+                              const std::unordered_map<std::string, unsigned> &unmatched_issns_to_counts_map)
+{
+    for (const auto &issn_and_count : unmatched_issns_to_counts_map)
+        (*unmatched_issns_file) << issn_and_count.first << '\t' << issn_and_count.second << '\n';
+    LOG_INFO("Wrote a list of " + std::to_string(unmatched_issns_to_counts_map.size()) + " unmapped ISSN's to \""
              + unmatched_issns_file->getPath() + "\".");
 }
 
@@ -272,7 +326,7 @@ const std::string UNIQUE_ID_TO_DATE_MAP_PATH(UBTools::GetTuelibPath() + "convert
 
 
 int Main(int argc, char **argv) {
-    if (argc != 3 and argc != 5)
+    if (argc != 6)
         Usage();
 
     if (std::strcmp(argv[1], "--create-unique-id-db") == 0) {
@@ -286,14 +340,13 @@ int Main(int argc, char **argv) {
         --argc, ++argv;
     }
 
-    bool extract_and_count_issns_only(false);
-    if (std::strcmp(argv[1], "--extract-and-count-issns-only") == 0) {
-        extract_and_count_issns_only = true;
-        --argc, ++argv;
-    }
-
-    if ((extract_and_count_issns_only and argc != 2) or (not extract_and_count_issns_only and argc != 4))
+    if (argc != 5)
         Usage();
+
+    if (::strncmp(argv[1], "--sigil=", 8) != 0)
+        Usage();
+    const std::string project_sigil(argv[1] + 8); // "ISIL" in German.
+    --argc, ++argv;
 
     std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> issns_to_journal_titles_ppns_and_issns_map;
     LoadISSNsToJournalTitlesPPNsAndISSNsMap(&issns_to_journal_titles_ppns_and_issns_map);
@@ -309,29 +362,14 @@ int Main(int argc, char **argv) {
         LOG_ERROR("results node not found!");
     const auto array_root(JSON::JSONNode::CastToArrayNodeOrDie("results", results_node));
 
-    const auto unmatched_issns_file(extract_and_count_issns_only ? nullptr : FileUtil::OpenOutputFileOrDie(argv[2]));
+    const auto unmatched_issns_file(FileUtil::OpenOutputFileOrDie(argv[2]));
 
     KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
-    std::unordered_map<std::string, unsigned> issns_to_counts_map;
-    const std::unique_ptr<MARC::Writer> marc_writer(extract_and_count_issns_only ? nullptr : MARC::Writer::Factory(argv[3]));
-    GenerateMARCFromJSON(*array_root.get()/*, *json_node_to_bibliographic_level_mapper,
-                                            issns_to_journal_titles_ppns_and_issns_map*/, marc_writer.get(), extract_and_count_issns_only/*,
-                                                                                                                                           &issns_to_counts_map*/, ignore_unique_id_dups, &unique_id_to_date_map);
-
-    if (extract_and_count_issns_only) {
-        std::vector<std::pair<std::string, unsigned>> issns_and_counts;
-        issns_and_counts.reserve(issns_to_counts_map.size());
-        for (const auto &issn_and_count : issns_to_counts_map)
-            issns_and_counts.emplace_back(issn_and_count);
-        std::sort(issns_and_counts.begin(), issns_and_counts.end(),
-                  [](const auto &a, const auto &b) { return a.second > b.second; });
-        for (const auto &issn_and_count : issns_and_counts) {
-            if (issns_to_journal_titles_ppns_and_issns_map.find(issn_and_count.first)
-                == issns_to_journal_titles_ppns_and_issns_map.end())
-                std::cout << issn_and_count.first << '\t' << issn_and_count.second << '\n';
-        }
-    } else
-        GenerateUnmappedISSNList(unmatched_issns_file.get());
+    std::unordered_map<std::string, unsigned> unmatched_issns_to_counts_map;
+    const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
+    GenerateMARCFromJSON(*array_root.get(), issns_to_journal_titles_ppns_and_issns_map, marc_writer.get(), project_sigil,
+                         &unmatched_issns_to_counts_map, ignore_unique_id_dups, &unique_id_to_date_map);
+    GenerateUnmappedISSNList(unmatched_issns_file.get(), unmatched_issns_to_counts_map);
 
     return EXIT_SUCCESS;
 }
