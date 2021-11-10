@@ -232,6 +232,7 @@ struct JournalDatastore {
     std::unique_ptr<Util::Future<Download::Crawling::Params, Download::Crawling::Result>> current_crawl_;
     std::unique_ptr<Util::Future<Download::RSS::Params, Download::RSS::Result>> current_rss_feed_;
     std::unique_ptr<Util::Future<Download::DirectDownload::Params, Download::DirectDownload::Result>> current_apiquery_;
+    std::unique_ptr<Util::Future<Download::EmailCrawl::Params, Download::EmailCrawl::Result>> current_email_crawl_;
     std::deque<std::unique_ptr<Util::Future<Conversion::ConversionParams, Conversion::ConversionResult>>> queued_marc_records_;
 public:
     JournalDatastore(const Config::JournalParams &journal_params) : journal_params_(journal_params) {}
@@ -243,6 +244,7 @@ struct Metrics {
     unsigned num_journals_with_harvest_operation_rss_;
     unsigned num_journals_with_harvest_operation_crawl_;
     unsigned num_journals_with_harvest_operation_apiquery_;
+    unsigned num_journals_with_harvest_operation_emailcrawl_;
     unsigned num_downloads_crawled_successful_;
     unsigned num_downloads_crawled_unsuccessful_;
     unsigned num_downloads_crawled_cache_hits_;
@@ -254,6 +256,9 @@ struct Metrics {
     unsigned num_downloads_apiquery_successful_;
     unsigned num_downloads_apiquery_unsuccessful_;
     unsigned num_downloads_apiquery_cache_hits_;
+    unsigned num_downloads_emailcrawl_successful_;
+    unsigned num_downloads_emailcrawl_unsuccessful_;
+    unsigned num_downloads_emailcrawl_cache_hits_;
     unsigned num_marc_conversions_successful_;
     unsigned num_marc_conversions_unsuccessful_;
     unsigned num_marc_conversions_skipped_since_undesired_item_type_;
@@ -274,6 +279,7 @@ Metrics::Metrics()
         num_journals_with_harvest_operation_rss_(0),
         num_journals_with_harvest_operation_crawl_(0),
         num_journals_with_harvest_operation_apiquery_(0),
+        num_journals_with_harvest_operation_emailcrawl_(0),
         num_downloads_crawled_successful_(0),
         num_downloads_crawled_unsuccessful_(0),
         num_downloads_crawled_cache_hits_(0),
@@ -285,6 +291,9 @@ Metrics::Metrics()
         num_downloads_apiquery_successful_(0),
         num_downloads_apiquery_unsuccessful_(0),
         num_downloads_apiquery_cache_hits_(0),
+        num_downloads_emailcrawl_successful_(0),
+        num_downloads_emailcrawl_unsuccessful_(0),
+        num_downloads_emailcrawl_cache_hits_(0),
         num_marc_conversions_successful_(0),
         num_marc_conversions_unsuccessful_(0),
         num_marc_conversions_skipped_since_undesired_item_type_(0),
@@ -305,6 +314,7 @@ std::string Metrics::toString() const {
     out += "\t\tRSS: " + std::to_string(num_journals_with_harvest_operation_rss_) + "\n";
     out += "\t\tCrawl: " + std::to_string(num_journals_with_harvest_operation_crawl_) + "\n";
     out += "\t\tApiQuery: " + std::to_string(num_journals_with_harvest_operation_apiquery_) + "\n";
+    out += "\t\tEmail: " + std::to_string(num_journals_with_harvest_operation_emailcrawl_) + "\n";
     out += "\tCrawls: " + std::to_string(num_downloads_crawled_successful_ + num_downloads_crawled_unsuccessful_) + "\n";
     out += "\t\tSuccessful: " + std::to_string(num_downloads_crawled_successful_) + "\n";
     out += "\t\tUnsuccessful : " + std::to_string(num_downloads_crawled_unsuccessful_) + "\n";
@@ -385,6 +395,14 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
         ++metrics->num_journals_with_harvest_operation_apiquery_;
         break;
     }
+    case Config::HarvesterOperation::EMAIL:
+    {
+        const auto download_item(harvestable_manager->newHarvestableItem("" /* we determine the entry points ourselves */, journal_params));
+        auto future(download_manager->emailCrawl(download_item, harvester_config.global_params_->emailcrawl_mboxes_, group_params.user_agent_));
+        current_journal_datastore->current_email_crawl_.reset(future.release());
+        ++metrics->num_journals_with_harvest_operation_emailcrawl_;
+        break;
+    }
     }
 
     LOG_INFO("Queued journal '" + journal_params.name_ + "' | " + Config::HARVESTER_OPERATION_TO_STRING_MAP.at(journal_params.harvester_operation_) + " @ " + journal_params.entry_point_url_);
@@ -431,6 +449,24 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
             const auto &result(journal_datastore->current_apiquery_->getResult());
             metrics->num_downloads_skipped_since_already_delivered_ += result.items_skipped_since_already_delivered_;
             journal_datastore->queued_downloads_.emplace_back(journal_datastore->current_apiquery_.release());
+        }
+        else
+            *jobs_in_progress = true;
+    }
+
+    if (journal_datastore->current_email_crawl_ != nullptr) {
+        if (journal_datastore->current_email_crawl_->isComplete()) {
+            if (journal_datastore->current_email_crawl_->hasResult()) {
+                auto &result(journal_datastore->current_email_crawl_->getResult());
+                for (auto &result_item : result.downloaded_items_)
+                    journal_datastore->queued_downloads_.emplace_back(result_item.release());
+
+                metrics->num_downloads_emailcrawl_successful_ += result.num_email_crawled_successful_;
+                metrics->num_downloads_emailcrawl_unsuccessful_ += result.num_email_crawled_unsuccessful_;
+                metrics->num_downloads_emailcrawl_cache_hits_ += result.num_email_crawled_cache_hits_;
+                metrics->num_downloads_skipped_since_already_delivered_ += result.num_email_skipped_since_already_delivered_;
+            }
+            journal_datastore->current_email_crawl_.reset();
         }
         else
             *jobs_in_progress = true;

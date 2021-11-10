@@ -40,11 +40,35 @@
               table-layout: fixed;
 
             }
+            .row > .lang-un-width {{
+              width: 120px;
+            }
     </style>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.13.0/themes/base/jquery-ui.css">
+
+    <script src="https://code.jquery.com/jquery-3.6.0.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.0/jquery-ui.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
     <script type="text/javascript">
     $(document).ready(function () {{
+
+        $('.historyDialog').on('hidden.bs.modal', function () {{
+            $(".txtShowHistory").html("...");
+        });
+
+        $('.historyDialog').find('.modal-content')
+            .resizable({{
+                minWidth: 625,
+                minHeight: 175,
+                handles: 'n, e, s, w, ne, sw, se, nw',
+            })
+            .draggable({{
+                handle: '.modal-header'
+            });
+
         $(".editable_translation").keydown(function(event) {{
              if (event.which == 13) {{
                  event.cancelBubble = true;
@@ -53,9 +77,17 @@
                  InsertTranslationIntoDB(this);
              }
         });
+
         $(".editable_translation").blur(function() {{
             InsertTranslationIntoDB(this);
         });
+
+        $(".editable_translation").contextmenu(function(event) {{
+            GetTranslationForEntry(this)
+            $('.historyDialog').modal('show')
+            event.preventDefault();
+        });
+
         if (!!window.EventSource)
         {{
             connectEventSource();
@@ -124,10 +156,15 @@
     }
 
 
+    function extractLanguageCode(object) {{
+        return $(object).closest('table').find('th').eq($(object).index()).text(); //Determine language from the heading
+    }
+
+
     function InsertTranslationIntoDB(object) {{
         var index = $(object).attr("index");
         var gnd_code = $(object).attr("gnd_code");
-        var language_code = $(object).closest('table').find('th').eq($(object).index()).text(); //Determine language from the heading
+        var language_code = extractLanguageCode(object);
         var old_translation = $(object).attr("translation");
         var translator_exists = $(object).attr("translator_exists");
         var translation = $(object).text();
@@ -162,12 +199,87 @@
             }
         }); // end ajax
     }
+
+    function ConvertJsonHistory(json) {{
+        const myArr = json.split("Status: 200 OK");
+        let status = 404;
+        let returnValue = "";
+        if(myArr.length != 0){{
+            status = 200;
+            let jsonData = JSON.parse(myArr[1]);
+            returnValue += "<table class=\"table\">" +
+                "<thead>" +
+                "<tr>" +
+                "<th scope=\"col\">Date</th>" +
+                "<th scope=\"col\">Translator</th>" +
+                "<th scope=\"col\">Translation</th>" +
+                "</tr>" +
+                "</thead><tbody>";
+            for (let i = 0; i < jsonData.history_entries.length; i++) {{
+                returnValue += "<tr>" +
+                    "<td>" + jsonData.history_entries[i].timestamp + "</td>" +
+                    "<td>" + jsonData.history_entries[i].translator + "</td>" +
+                    "<td>" + jsonData.history_entries[i].translation + "</td>" +
+                    "</tr>";
+            }
+            returnValue += "</tbody></table>";
+        }
+        return returnValue;
+    }
+
+    function GetTranslationForEntry(object) {{
+        var index = $(object).attr("index");
+        var language_code = extractLanguageCode(object);
+        var category = $(object).attr("category");
+
+        var table_name = category == "vufind_translations" ? "vufind_translations" : "keyword_translations"
+        var action = "get_history_for_entry"
+        $.ajax({{
+            type: "GET",
+            url: "translator_ajax",
+            data: {{
+                index: index,
+                table_name : table_name,
+                language_code: language_code,
+                action: action
+            }, // end data
+            success: function(json) {{
+                var convertedJson = ConvertJsonHistory(json);
+                if (convertedJson.length > 0)
+                    $(".txtShowHistory").html(convertedJson);
+                else
+                    $(".txtShowHistory").html(json);
+            }, // end success
+
+            error: function (xhr, ajaxOptions, thrownError) {{
+                alert("Failed to retrieve history");
+            }
+        }); // end ajax
+    }
     </script>
 
 </head>
     <body>
         <main>
             <section class="py-5 text-center album">
+                <div class="modal fade historyDialog" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content" >
+                        <div class="modal-header">
+                            <h5 class="modal-title">Translation history</h5>
+                            <button type="button" class="close btn-outline-primary" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="txtShowHistory">...</div>
+                        </div>
+                        <div class="modal-footer">
+                        </div>
+                        </div>
+                    </div>
+                </div>
+
 
                 <header class="p-3 mb-3 border-bottom">
                     <div class="row justify-content-center">
@@ -178,7 +290,8 @@
                                     <input type="text" name="lookfor" value="{lookfor}" class="form-control form-control-dark" />
                                     <button aria-describedby="button-addon2" class="btn btn-outline-primary me-2" id="button-addon2">Search</button>
                                     <input type="hidden" name="target" value="{target_translation_scope}">
-                                    <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                                    <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
+                                    <input type="hidden" name="lang_untranslated" value="{lang_untranslated}">
                                 </div>
                             </form>
                         </div>
@@ -209,7 +322,8 @@
                             <input type="hidden" name="lookfor" value="{lookfor}">
                             <input type="hidden" name="offset" value="{prev_offset}">
                             <input type="hidden" name="target" value="{target_translation_scope}">
-                            <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                            <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
+                            <input type="hidden" name="lang_untranslated" value="{lang_untranslated}">
                         </form>
                         </li>
                         <li class="page-item">
@@ -218,7 +332,8 @@
                             <input type="hidden" name="lookfor" value="{lookfor}">
                             <input type="hidden" name="offset" value="{next_offset}">
                             <input type="hidden" name="target" value="{target_translation_scope}">
-                            <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                            <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
+                            <input type="hidden" name="lang_untranslated" value="{lang_untranslated}">
                         </form>
                         </li>
                       </ul>
@@ -228,12 +343,27 @@
                     <div>
                         <h2>VuFind Translations</h2>
                         <div class="row justify-content-end">
-                            <div class="col-4 text-end">
-                               <form action="/cgi-bin/translator" method="POST">
-                                   <input type="checkbox" class="form-check-input" name="filter_untranslated" value="checked" {filter_untranslated} onChange="this.form.submit()">
-                                   <button type="submit" class="link-button">Filter Untranslated</button>
-                                   <input type="hidden" name="target" value="{target_translation_scope}">
-                               </form>
+                            <div class="col-6 text-end">
+                                <form class="row gx-3 gy-2 align-items-center justify-content-end" action="/cgi-bin/translator" method="POST">
+                                    <input type="hidden" name="target" value="{target_translation_scope}">
+                                    <div class="lang-un-width">
+                                        <label class="visually-hidden" for="specificSizeSelect">&nbsp;</label>
+                                        <select id="lang_untranslated" name="lang_untranslated" class="form-select" onchange="if(this.value != '{lang_untranslated}') this.form.submit()">
+                                            {LOOP translator_languages_foreign}
+                                                <option {IF lang_untranslated == translator_languages_foreign}selected {ENDIF} value="{translator_languages_foreign}">{translator_languages_foreign}</option>
+                                            {ENDLOOP}
+                                        </select>
+                                    </div>
+                                    <div class="col-auto">
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" name="filter_untranslated" value="checked" {filter_untranslated} onChange="this.form.submit()">
+                                            <label class="form-check-label" for="autoSizingCheck2">&nbsp;</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button type="submit" class="link-button">Filter Untranslated {number_untranslated}</button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                         <div class="row">
@@ -255,7 +385,8 @@
                                             <input type="hidden" name="lookfor" value="{lookfor}">
                                             <input type="hidden" name="offset" value="{current_offset}">
                                             <input type="hidden" name="target" value="{target_translation_scope}">
-                                            <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                                            <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
+                                            <input type="hidden" name="lang_untranslated" value="{lang_untranslated}">
                                         </form>
                                     </div>
                                     <div class="col-6 text-start">
@@ -263,7 +394,8 @@
                                             <button type="submit" class="link-button">Restore Status</button>
                                             <input type="hidden" name="save_action" value="restore">
                                             <input type="hidden" name="target" value="{target_translation_scope}">
-                                            <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                                            <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
+                                            <input type="hidden" name="lang_untranslated" value="{lang_untranslated}">
                                         </form>
                                     </div>
                                 </div>
@@ -273,7 +405,8 @@
                                     <button type="submit" class="link-button">Mail my Translations</button>
                                     <input type="hidden" name="target" value="{target_translation_scope}">
                                     <input type="hidden" name="mail" value="mytranslations">
-                                    <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                                    <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
+                                    <input type="hidden" name="lang_untranslated" value="{lang_untranslated}">
                                 </form>
                            </div>
                         </div>
@@ -292,14 +425,29 @@
                     <div >
                        <h2>Keyword Translations</h2>
                        <div class="row justify-content-end">
-                        <div class="col-4 text-end">
-                           <form action="/cgi-bin/translator" method="POST">
-                               <input type="checkbox" class="form-check-input" name="filter_untranslated" value="checked" {filter_untranslated} onChange="this.form.submit()">
-                               <button type="submit" class="link-button">Filter Untranslated</button>
-                               <input type="hidden" name="target" value="{target_translation_scope}">
-                           </form>
+                            <div class="col-6 text-end">
+                                <form class="row gx-3 gy-2 align-items-center justify-content-end" action="/cgi-bin/translator" method="POST">
+                                    <input type="hidden" name="target" value="{target_translation_scope}">
+                                    <div class="lang-un-width">
+                                        <label class="visually-hidden" for="specificSizeSelect">&nbsp;</label>
+                                        <select id="lang_untranslated" name="lang_untranslated" class="form-select" onchange="if(this.value != '{lang_untranslated}') this.form.submit()">
+                                            {LOOP translator_languages_foreign}
+                                                <option {IF lang_untranslated == translator_languages_foreign}selected {ENDIF} value="{translator_languages_foreign}">{translator_languages_foreign}</option>
+                                            {ENDLOOP}
+                                        </select>
+                                    </div>
+                                    <div class="col-auto">
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" name="filter_untranslated" value="checked" {filter_untranslated} onChange="this.form.submit()">
+                                            <label class="form-check-label" for="autoSizingCheck2">&nbsp;</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button type="submit" class="link-button">Filter Untranslated {number_untranslated}</button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
-                       </div>
                        <div class="row">
                             <div class="col-7">
                                 <table style="width: 80%; border: none;">
@@ -319,7 +467,8 @@
                                             <input type="hidden" name="lookfor" value="{lookfor}">
                                             <input type="hidden" name="offset" value="{current_offset}">
                                             <input type="hidden" name="target" value="{target_translation_scope}">
-                                            <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                                            <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
+                                            <input type="hidden" name="lang_untranslated" value="{lang_untranslated}">
                                         </form>
                                     </div>
                                     <div class="col-6 text-start">
@@ -327,7 +476,8 @@
                                             <button type="submit" class="link-button">Restore Status</button>
                                             <input type="hidden" name="save_action" value="restore">
                                             <input type="hidden" name="target" value="{target_translation_scope}">
-                                            <input type="hidden" name="filter_untranslated" value={filter_untranslated}>
+                                            <input type="hidden" name="filter_untranslated" value="{filter_untranslated}">
+                                            <input type="hidden" name="lang_untranslated" value="{lang_untranslated}">
                                         </form>
                                     </div>
                                 </div>

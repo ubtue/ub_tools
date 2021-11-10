@@ -51,7 +51,7 @@ bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullText
         return false;
     }
     FullTextCache::Entry entry;
-    const bool entry_present(full_text_cache->getEntry(ppn, &entry));
+    const bool entry_present(full_text_cache->hasEntryWithType(ppn, FullTextCache::FULLTEXT));
     if (not force_overwrite and entry_present) {
         LOG_WARNING("Skip inserting PPN \"" + ppn + "\" since entry already present");
         return true;

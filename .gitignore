@@ -23,3 +23,6 @@ cronjobs/README
 .vscode
 *.tmp
 
+/.metadata/
+ub_tools.code-workspace
+java/.project

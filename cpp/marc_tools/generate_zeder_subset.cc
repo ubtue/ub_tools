@@ -26,12 +26,16 @@
 #include "Zeder.h"
 
 
+namespace {
+
+
 std::unordered_set<std::string> GetMatchingJournalPPNs(const Zeder::Flavour zeder_flavour, const std::string &match_column,
-                                                       RegexMatcher * const regex_matcher)
+                                                       RegexMatcher * const regex_matcher,
+                                                       std::unordered_set<std::string> * const zdb_numbers)
 {
     std::unordered_set<std::string> matching_journal_ppns;
 
-    Zeder::SimpleZeder zeder(zeder_flavour, { "eppn", "pppn", match_column });
+    Zeder::SimpleZeder zeder(zeder_flavour, { "eppn", "pppn", "pzdb", "ezdb", match_column });
     if (not zeder)
         LOG_ERROR("we can't connect to the Zeder MySQL database!");
     if (unlikely(zeder.empty()))
@@ -56,6 +60,13 @@ std::unordered_set<std::string> GetMatchingJournalPPNs(const Zeder::Flavour zede
             matching_journal_ppns.insert(online_ppns.cbegin(), online_ppns.cend());
             ++match_count;
         }
+
+        std::set<std::string> print_zdb_numbers;
+        StringUtil::SplitThenTrimWhite(journal.lookup("pzdb"), ',', &print_zdb_numbers);
+        zdb_numbers->insert(print_zdb_numbers.cbegin(), print_zdb_numbers.cend());
+        std::set<std::string> online_zdb_numbers;
+        StringUtil::SplitThenTrimWhite(journal.lookup("ezdb"), ',', &online_zdb_numbers);
+        zdb_numbers->insert(online_zdb_numbers.cbegin(), online_zdb_numbers.cend());
     }
 
     LOG_INFO("Processed " + std::to_string(journal_count) + " Zeder journal(s) and found "
@@ -66,14 +77,25 @@ std::unordered_set<std::string> GetMatchingJournalPPNs(const Zeder::Flavour zede
 }
 
 
-void ProcessRecords(const std::unordered_set<std::string> &journal_ppns, MARC::Reader * const marc_reader,
-                    MARC::Writer * const marc_writer)
+void ProcessRecords(const bool filter_on_zdb_numbers, const bool select_articles_only,
+                    const std::unordered_set<std::string> &journal_ppns,
+                    const std::unordered_set<std::string> &journal_zdb_numbers,
+                    MARC::Reader * const marc_reader, MARC::Writer * const marc_writer)
 {
     unsigned total_record_count(0), matched_record_count(0);
     while (const auto record = marc_reader->read()) {
         ++total_record_count;
 
         if (journal_ppns.find(record.getSuperiorControlNumber()) != journal_ppns.cend()) {
+            if (select_articles_only and not record.isArticle())
+                continue; // Skip current record!
+
+            if (filter_on_zdb_numbers) {
+                const auto zdb_number(record.getZDBNumber());
+                if (not zdb_number.empty() and journal_zdb_numbers.find(zdb_number) == journal_zdb_numbers.cend())
+                    continue; // Skip current record!
+            }
+
             ++matched_record_count;
             marc_writer->write(record);
         }
@@ -84,11 +106,36 @@ void ProcessRecords(const std::unordered_set<std::string> &journal_ppns, MARC::R
 }
 
 
+[[noreturn]] void Usage() {
+    ::Usage("[--filter-on-zdb-numbers] [--select-articles-only] zeder_flavour match_column column_regex marc_input marc_output\n\n"
+            "Extracts all records from \"marc_input\" which have superior PPN's in Zeder columns pppn and eppn\n"
+            "and Zeder column \"match_column\" matches the PCRE \"column_regex\".\n"
+            "If --filter-on-zdb-numbers has been specified all inferior works that have their own ZDB number, which\n"
+            "is not a ZDB number of any of the superior PPN's will be omitted.\n");
+}
+
+
+} // namespace
+
+
 int Main(int argc, char *argv[]) {
+    if (argc < 6 or argc > 8)
+        Usage();
+
+    bool filter_on_zdb_numbers(false);
+    if (__builtin_strcmp(argv[1], "--filter-on-zdb-numbers") == 0) {
+        filter_on_zdb_numbers = true;
+        --argc, ++argv;
+    }
+
+    bool select_articles_only(false);
+    if (__builtin_strcmp(argv[1], "--select-articles-only") == 0) {
+        select_articles_only = true;
+        --argc, ++argv;
+    }
+
     if (argc != 6)
-        ::Usage("zeder_flavour match_column column_regex marc_input marc_output\n\n"
-                "Extracts all records from \"marc_input\" which have superior PPN's in Zeder columns pppn and eppn\n"
-                "and Zeder column \"match_column\" matches the PCRE \"column_regex\".\n");
+        Usage();
 
     Zeder::Flavour zeder_flavour;
     if (__builtin_strcmp(argv[1], "ixtheo") == 0)
@@ -109,9 +156,12 @@ int Main(int argc, char *argv[]) {
     const auto marc_reader(MARC::Reader::Factory(argv[4]));
     const auto marc_writer(MARC::Writer::Factory(argv[5]));
 
-    const auto matching_journal_ppns(GetMatchingJournalPPNs(zeder_flavour, match_column, regex_matcher));
+    std::unordered_set<std::string> matching_journal_zdb_numbers;
+    const auto matching_journal_ppns(GetMatchingJournalPPNs(zeder_flavour, match_column, regex_matcher,
+                                                            &matching_journal_zdb_numbers));
     delete regex_matcher;
-    ProcessRecords(matching_journal_ppns, marc_reader.get(), marc_writer.get());
+    ProcessRecords(filter_on_zdb_numbers, select_articles_only, matching_journal_ppns, matching_journal_zdb_numbers,
+                   marc_reader.get(), marc_writer.get());
 
     return EXIT_SUCCESS;
 }
