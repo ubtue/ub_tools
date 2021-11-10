@@ -140,8 +140,10 @@ int Main(int argc, char *argv[]) {
                 ApplyDatabaseUpdate(&db_connection, SYSTEM_UPDATES_DIR, script_name, &current_schema, last_schema);
             last_schema = current_schema;
         }
-        else
+        else {
+	    std::cout << "unable to process file: " << script_name << std::endl;
             continue;
+	}
 
         // We want to write the version number after each script
         // in case anything goes wrong, to avoid double execution
