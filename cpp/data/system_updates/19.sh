@@ -11,4 +11,6 @@ if [ -e /var/spool/cron/root ]; then # CentOS
         exit 0 # There is no crontab for root.
 fi
 
+cp /usr/local/ub_tools/cpp/cifs_keepalive.sh /usr/local/bin
+
 grep --quiet --fixed-strings ${CIFS_KEEP_ALIVE} ${root_crontab} || echo "0 * * * * \"${CIFS_KEEP_ALIVE}\"" >> ${root_crontab}
