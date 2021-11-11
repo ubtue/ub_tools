@@ -79,7 +79,9 @@ void ProcessRecords(MARC::Reader * const marc_reader,
                     const std::unordered_multimap<std::string, std::string> &electronic_ppn_to_isbn_map,
                     const std::unordered_map<std::string, std::string> &mohr_isbn_to_doi_map)
 {
+    unsigned count(0), new_electronic_dois(0), new_print_dois(0);
     while (MARC::Record record = marc_reader->read()) {
+        ++count;
         const std::string ppn(record.getControlNumber());
         if (electronic_ppn_to_isbn_map.contains(ppn)) {
             const auto electronic_isbns(electronic_ppn_to_isbn_map.equal_range(ppn));
@@ -90,14 +92,14 @@ void ProcessRecords(MARC::Reader * const marc_reader,
                      const auto doi_for_isbn(mohr_isbn_to_doi_map.find(isbn)->second);
                      // Insert doi if not present
                      if (std::find(record_dois.begin(), record_dois.end(), doi_for_isbn) == record_dois.end()) {
-                         LOG_INFO("Inserting previously not existing DOI \"" + doi_for_isbn + "\" for electronic record \
-                                   \"" + record.getControlNumber());
+                         LOG_INFO("Inserting previously not existing DOI \"" + doi_for_isbn + "\" for electronic record " +
+                                  "\"" + record.getControlNumber());
                          record.insertField("024", { { 'a', doi_for_isbn }, { '2', "doi" } });
+                         ++new_electronic_dois;
                      }
                      break;
                  }
              }
-             marc_writer->write(record);
         } else if (print_ppn_to_isbn_map.contains(ppn)) {
             const auto print_isbns(print_ppn_to_isbn_map.equal_range(ppn));
             for (auto ppn_and_isbn(print_isbns.first); ppn_and_isbn != print_isbns.second; ++ppn_and_isbn) {
@@ -107,17 +109,19 @@ void ProcessRecords(MARC::Reader * const marc_reader,
                      const auto doi_for_isbn(mohr_isbn_to_doi_map.find(isbn)->second);
                      // Insert doi if not present
                      if (std::find(record_dois.begin(), record_dois.end(), doi_for_isbn) == record_dois.end()) {
-                         LOG_INFO("Inserting previously not existing DOI \"" + doi_for_isbn + "\" for print record \
-                                   \"" + record.getControlNumber());
+                         LOG_INFO("Inserting previously not existing DOI \"" + doi_for_isbn + "\" for print record " +
+                                  "\"" + record.getControlNumber());
                          record.insertField("024", { { 'a', doi_for_isbn }, { '2', "doi" } });
+                         ++new_print_dois;
                      }
                      break;
                  }
             }
-            marc_writer->write(record);
-        } else
-            marc_writer->write(record);
+        }
+        marc_writer->write(record);
     }
+    LOG_INFO("Inserted " + std::to_string(new_electronic_dois) + " new electronic DOIs and " +
+             std::to_string(new_print_dois) + " print DOIs of " + std::to_string(count) + " records altogether");
 }
 
 
