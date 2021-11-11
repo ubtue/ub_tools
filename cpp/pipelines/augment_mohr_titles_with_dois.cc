@@ -87,7 +87,7 @@ void ProcessRecords(MARC::Reader * const marc_reader,
             const auto electronic_isbns(electronic_ppn_to_isbn_map.equal_range(ppn));
             for (auto ppn_and_isbn(electronic_isbns.first); ppn_and_isbn != electronic_isbns.second; ++ppn_and_isbn) {
                  const auto isbn(ppn_and_isbn->second);
-                 if (mohr_isbn_to_doi_map.contains(isbn)) {
+                 if (mohr_isbn_to_doi_map.find(isbn) != mohr_isbn_to_doi_map.end()) {
                      const auto &record_dois(record.getDOIs());
                      const auto doi_for_isbn(mohr_isbn_to_doi_map.find(isbn)->second);
                      // Insert doi if not present
@@ -104,7 +104,7 @@ void ProcessRecords(MARC::Reader * const marc_reader,
             const auto print_isbns(print_ppn_to_isbn_map.equal_range(ppn));
             for (auto ppn_and_isbn(print_isbns.first); ppn_and_isbn != print_isbns.second; ++ppn_and_isbn) {
                  const auto isbn(ppn_and_isbn->second);
-                 if (mohr_isbn_to_doi_map.contains(isbn)) {
+                 if (mohr_isbn_to_doi_map.find(isbn) != mohr_isbn_to_doi_map.end()) {
                      const auto &record_dois(record.getDOIs());
                      const auto doi_for_isbn(mohr_isbn_to_doi_map.find(isbn)->second);
                      // Insert doi if not present
