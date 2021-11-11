@@ -83,7 +83,7 @@ void ProcessRecords(MARC::Reader * const marc_reader,
     while (MARC::Record record = marc_reader->read()) {
         ++count;
         const std::string ppn(record.getControlNumber());
-        if (electronic_ppn_to_isbn_map.contains(ppn)) {
+        if (electronic_ppn_to_isbn_map.find(ppn) != electronic_ppn_to_isbn_map.end()) {
             const auto electronic_isbns(electronic_ppn_to_isbn_map.equal_range(ppn));
             for (auto ppn_and_isbn(electronic_isbns.first); ppn_and_isbn != electronic_isbns.second; ++ppn_and_isbn) {
                  const auto isbn(ppn_and_isbn->second);
@@ -100,7 +100,7 @@ void ProcessRecords(MARC::Reader * const marc_reader,
                      break;
                  }
              }
-        } else if (print_ppn_to_isbn_map.contains(ppn)) {
+        } else if (print_ppn_to_isbn_map.find(ppn) != print_ppn_to_isbn_map.end()) {
             const auto print_isbns(print_ppn_to_isbn_map.equal_range(ppn));
             for (auto ppn_and_isbn(print_isbns.first); ppn_and_isbn != print_isbns.second; ++ppn_and_isbn) {
                  const auto isbn(ppn_and_isbn->second);
