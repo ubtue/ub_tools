@@ -79,4 +79,4 @@ echo "Generated $MARC_OUTPUT, unmapped ISSN's are in unmapped_issn.list"
 date --iso-8601=date > "$TIMESTAMP_FILE"
 
 
-#upload_to_bsz_ftp_server.py "$MARC_OUTPUT" /pub/UBTuebingen_Default/
+upload_to_bsz_ftp_server.py "$MARC_OUTPUT" /pub/UBTuebingen_Default/
