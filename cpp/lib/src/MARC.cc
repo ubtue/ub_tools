@@ -1276,7 +1276,7 @@ std::set<std::string> Record::getISBNs() const {
     for (const auto &field : getTagRange("020")) {
         const std::string first_subfield_a(field.getFirstSubfieldWithCode('a'));
         std::string normalised_isbn;
-        if (MiscUtil::NormaliseISSN(first_subfield_a, &normalised_isbn))
+        if (MiscUtil::NormaliseISBN(first_subfield_a, &normalised_isbn))
             isbns.insert(normalised_isbn);
     }
 

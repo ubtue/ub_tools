@@ -364,8 +364,7 @@ bool NormaliseISBN(const std::string &isbn_candidate, std::string * const normal
         if (ch != '-')
             *normalised_isbn += ch;
     }
-
-    return isbn_candidate.length() == 10 or isbn_candidate.length() == 13;
+    return (normalised_isbn->length() == 10) or (normalised_isbn->length() == 13);
 }
 
 

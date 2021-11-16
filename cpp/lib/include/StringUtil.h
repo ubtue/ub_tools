@@ -2578,5 +2578,8 @@ template<typename Type> std::string AnyToString(const Type value) {
 /** \brief Generate a random string with the given length and alphabet. */
 std::string GenerateRandom(const size_t length, const std::string &alphabet);
 
+// Split string to array on \n
+std::vector<std::string> SplitIntoLines(const std::string &s);
+
 
 } // Namespace StringUtil
