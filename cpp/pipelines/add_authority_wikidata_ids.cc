@@ -178,7 +178,7 @@ int Main(int argc, char * argv[]) {
 
         if (not wikidata_id.empty() and wikidata_id_orig != wikidata_id)
             record.insertField("024", { { 'a', wikidata_id }, { '2', "wikidata" }, { '9', "PipeLineGenerated" } }, /*indicator 1*/ '7');
-        if (not wikipedia_link.empty() and wikipedia_link != wikidata_id_orig)
+        if (not wikipedia_link.empty() and wikipedia_link != wikipedia_link_orig)
             record.insertField("670", { { 'a', "Wikipedia" }, { 'u', wikipedia_link }, { '9', "PipeLineGenerated" } });
         
         marc_writer.get()->write(record);
