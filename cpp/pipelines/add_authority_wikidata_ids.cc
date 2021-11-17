@@ -97,6 +97,7 @@ void ParseDataDnbFile(std::string input_filename, std::string output_filename) {
         LOG_ERROR("input or output files could not be opened");
 }
 
+
 void ParseGndWikidataMappingFile(std::string filename, std::unordered_map<std::string, std::vector<std::string>> * const gnd_to_wikidataid_and_wikipedia_link) 
 {
     std::ifstream file(filename);
