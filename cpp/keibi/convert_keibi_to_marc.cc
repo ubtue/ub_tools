@@ -27,6 +27,7 @@
 #include "IniFile.h"
 #include "MARC.h"
 #include "StringUtil.h"
+#include "TimeUtil.h"
 #include "UBTools.h"
 #include "util.h"
 
@@ -34,7 +35,7 @@
 namespace {
 
 using ConversionFunctor = std::function<void(const std::string, const char, MARC::Record * const, const std::string)>;
-const std::string KEIBI_QUERY("SELECT * FROM citations LIMIT 100");
+const std::string KEIBI_QUERY("SELECT * FROM citations");
 const char SEPARATOR_CHAR('|');
 
 
@@ -65,6 +66,26 @@ void InsertField(const std::string &tag, const char subfield_code, MARC::Record 
 }
 
 
+void IsReview(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
+    if (data.length())
+        record->insertField(tag, subfield_code, "Rezension");
+}
+
+
+void InsertCreationField(const std::string &tag, const char, MARC::Record * const record, const std::string &data) {
+    if (data.length()) {
+        static ThreadSafeRegexMatcher date_matcher("((\\d{4})-\\d{2}-\\d{2})[\\t\\s]+\\d{2}:\\d{2}:\\d{2}");
+        if (const auto &match_result = date_matcher.match(data)) {
+            record->insertField(tag, StringUtil::Filter(match_result[1], "-").substr(2) + "s" + match_result[2] +"    xx |||||      00| ||ger c");
+            return;
+        } else
+            LOG_ERROR("Invalid date format \"" + data + "\"");
+    }
+    // Fallback with dummy data
+    record->insertField(tag, "190606s2019    xx |||||      00| ||ger c");
+
+}
+
 void ConvertCitations(DbConnection * const db_connection,
                       const DbFieldToMARCMappingMultiset &dbfield_to_marc_mappings,
                       MARC::Writer * const marc_writer)
@@ -85,13 +106,17 @@ void ConvertCitations(DbConnection * const db_connection,
             dbfield_to_marc_mapping->extraction_function_(&new_record, row[dbfield_to_marc_mapping->db_field_name_]);
 
         }
+        // Dummy entries
+        new_record.insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
         marc_writer->write(new_record);
     }
 }
 
 
 const std::map<std::string, ConversionFunctor> name_to_functor_map {
-    {  "InsertField", InsertField }
+    {  "InsertField", InsertField },
+    {  "IsReview", IsReview },
+    {  "InsertCreationField", InsertCreationField }
 };
 
 ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
@@ -102,10 +127,11 @@ ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
 
 
 void ExtractTagAndSubfield(const std::string combined, std::string * tag, char * subfield_code) {
-    if (combined.length() != 4)
+    bool is_no_subfield_tag(StringUtil::StartsWith(combined, "00"));
+    if (combined.length() != 4 and not is_no_subfield_tag)
         LOG_ERROR("Invalid Tag and Subfield format " + combined);
     *tag = combined.substr(0,3);
-    *subfield_code = combined[3];
+    *subfield_code = is_no_subfield_tag ? ' ' :  combined[3];
 }
 
 
@@ -122,7 +148,7 @@ void CreateDbFieldToMarcMappings(File * const map_file, DbFieldToMARCMappingMult
             LOG_WARNING("Invalid line format in line " + std::to_string(linenum));
             continue;
         }
-        static ThreadSafeRegexMatcher tag_subfield_and_functorname("(?i)([a-z0-9]{4})\\s+\\((\\p{L}+)\\)\\s*");
+        static ThreadSafeRegexMatcher tag_subfield_and_functorname("(?i)([a-z0-9]{3,4})\\s+\\((\\p{L}+)\\)\\s*");
         const std::vector<std::string> extraction_rules(mapping.begin() + 1, mapping.end());
         for (const auto &extraction_rule : extraction_rules) {
              std::string tag;
@@ -131,11 +157,13 @@ void CreateDbFieldToMarcMappings(File * const map_file, DbFieldToMARCMappingMult
              if (const auto match_result = tag_subfield_and_functorname.match(extraction_rule)) {
                  ExtractTagAndSubfield(match_result[1], &tag, &subfield_code);
                  conversion_functor = GetConversionFunctor(match_result[2]);
-             } else {
-                 ExtractTagAndSubfield(mapping[1], &tag, &subfield_code);
+             } else if (extraction_rule.length() >= 3 && extraction_rule.length() <= 4){
+                 ExtractTagAndSubfield(extraction_rule, &tag, &subfield_code);
                  conversion_functor = GetConversionFunctor("InsertField");
-             }
-             dbfield_to_marc_mappings->emplace(DbFieldToMARCMapping(mapping[0], tag, subfield_code, GetConversionFunctor("InsertField")));
+             } else
+                 LOG_ERROR("Invalid extraction rule: " + extraction_rule);
+
+             dbfield_to_marc_mappings->emplace(DbFieldToMARCMapping(mapping[0], tag, subfield_code, conversion_functor));
         }
     }
 }
