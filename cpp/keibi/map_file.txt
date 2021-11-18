@@ -1,0 +1,46 @@
+ volumeID               | 
+ bibtexEntryType        | 
+ bibtexCitation         | 
+ author                 | 100a
+ title                  | 264a
+ booktitle              | 
+ series                 | 
+ journal                | 773a 
+ institution            | 
+ organization           | 
+ address                | 
+ editor                 | 
+ edition                | 
+ publisher              | 
+ school                 | 
+ type                   | 
+ chapter                | 
+ howpublished           | 
+ keywords               | 650a
+ volume                 | 
+ number                 | 
+ pages                  | 
+ month                  | 
+ year                   | 
+ note                   | 
+ url                    | 856u
+ url_more               | 856u
+ file                   | 
+ confidential           | 
+ is_review              | 
+ has_review             | 
+ reviews                | 
+ more                   | 
+ fs_key                 | 
+ keibi_internal         | 
+ keibi_internal_key     | 
+ keibi_internal_key_sub | 
+ keibi_internal_type    | 
+ comments               | 
+ user                   | 
+ date                   | 
+ status                 | 
+ raw                    | 
+ ref_more               | 
+ semantic_keywords      | 
+ ddc                    

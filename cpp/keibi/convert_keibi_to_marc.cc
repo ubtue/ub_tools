@@ -33,13 +33,9 @@
 
 namespace {
 
-[[noreturn]] void Usage() {
-    ::Usage("db_inifile map_file marc_output");
-}
-
-
-
 using ConversionFunctor = std::function<void(const std::string, const char, MARC::Record * const, const std::string)>;
+const std::string KEIBI_QUERY("SELECT * FROM citations LIMIT 100");
+const char SEPARATOR_CHAR('|');
 
 
 struct DbFieldToMARCMapping {
@@ -58,6 +54,11 @@ const auto DbFieldToMarcMappingComparator = [](const DbFieldToMARCMapping &lhs, 
 using DbFieldToMARCMappingMultiset = std::multiset<DbFieldToMARCMapping, decltype(DbFieldToMarcMappingComparator)>;
 
 
+[[noreturn]] void Usage() {
+    ::Usage("db_inifile map_file marc_output");
+}
+
+
 void InsertField(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
     if (data.length())
         record->insertField(tag, subfield_code, data);
@@ -68,7 +69,7 @@ void ConvertCitations(DbConnection * const db_connection,
                       const DbFieldToMARCMappingMultiset &dbfield_to_marc_mappings,
                       MARC::Writer * const marc_writer)
 {
-    db_connection->queryOrDie("SELECT * FROM citations");
+    db_connection->queryOrDie(KEIBI_QUERY);
     DbResultSet result_set(db_connection->getLastResultSet());
     unsigned i(0);
     while (const auto row = result_set.getNextRow()) {
@@ -114,23 +115,29 @@ void CreateDbFieldToMarcMappings(File * const map_file, DbFieldToMARCMappingMult
         ++linenum;
         std::string line;
         map_file->getline(&line);
-        std::cerr << line << '\n';
+        StringUtil::Trim(&line);
         std::vector<std::string> mapping;
-        StringUtil::SplitThenTrim(line, '|', " \t", &mapping);
-        if (unlikely(mapping.size() < 2)) {
+        StringUtil::SplitThenTrim(line, SEPARATOR_CHAR, " \t", &mapping);
+        if (unlikely(mapping.size() < 2 and line.back() != SEPARATOR_CHAR)) {
             LOG_WARNING("Invalid line format in line " + std::to_string(linenum));
             continue;
         }
-        std::string tag;
-        char subfield_code;
-        if (mapping.size() == 2) {
-            ExtractTagAndSubfield(mapping[1], &tag, &subfield_code);
-
-            dbfield_to_marc_mappings->emplace(DbFieldToMARCMapping(mapping[0], tag, subfield_code, GetConversionFunctor("InsertField")));
+        static ThreadSafeRegexMatcher tag_subfield_and_functorname("(?i)([a-z0-9]{4})\\s+\\((\\p{L}+)\\)\\s*");
+        const std::vector<std::string> extraction_rules(mapping.begin() + 1, mapping.end());
+        for (const auto &extraction_rule : extraction_rules) {
+             std::string tag;
+             char subfield_code;
+             ConversionFunctor conversion_functor;
+             if (const auto match_result = tag_subfield_and_functorname.match(extraction_rule)) {
+                 ExtractTagAndSubfield(match_result[1], &tag, &subfield_code);
+                 conversion_functor = GetConversionFunctor(match_result[2]);
+             } else {
+                 ExtractTagAndSubfield(mapping[1], &tag, &subfield_code);
+                 conversion_functor = GetConversionFunctor("InsertField");
+             }
+             dbfield_to_marc_mappings->emplace(DbFieldToMARCMapping(mapping[0], tag, subfield_code, GetConversionFunctor("InsertField")));
         }
     }
-//    dbfield_to_marc_mappings->emplace(DbFieldToMARCMapping("title", "265", 'c', InsertField));
-//    dbfield_to_marc_mappings->emplace(DbFieldToMARCMapping("author", "100", 'a', InsertField));
 }
 
 } // unnamed namespace
