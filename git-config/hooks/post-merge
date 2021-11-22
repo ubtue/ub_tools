@@ -13,7 +13,6 @@ rm -f $NEW_UB_TOOLS_SCHEMA
 rm -f $INSTALLER_UB_TOOLS_SCHEMA
 rm -f $SCHEMA_DIFFS
 
-
 declare -i compare_schema=$(if $(echo "$CHANGED_FILES" | grep --quiet cpp/data/installer/ub_tools.sql); then echo 1; else echo 0; fi)
 if ( echo "$CHANGED_FILES" | grep --quiet ${SYSTEM_UPDATES_PATH}/*sql ); then
     /usr/local/bin/mysql_list_tables > $OLD_UB_TOOLS_SCHEMA
