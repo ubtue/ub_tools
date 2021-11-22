@@ -35,7 +35,7 @@
 namespace {
 
 using ConversionFunctor = std::function<void(const std::string, const char, MARC::Record * const, const std::string)>;
-const std::string KEIBI_QUERY("SELECT * FROM citations");
+const std::string KEIBI_QUERY("SELECT * FROM citations where uid='131546'");
 const char SEPARATOR_CHAR('|');
 const std::string bibtexEntryType_field("bibtexEntryType");
 
@@ -122,6 +122,54 @@ void InsertCreationField(const std::string &tag, const char, MARC::Record * cons
 
 }
 
+
+void InsertAuthors(const std::string, const char, MARC::Record * const record, const std::string &data) {
+     if (data.length()) {
+         std::vector<std::string> authors;
+         std::string author, further_parts;
+         std::string data_to_split(data);
+         while (StringUtil::SplitOnString(data_to_split, " and ", &author, &further_parts)) {
+             authors.emplace_back(author);
+             data_to_split = further_parts;
+         }
+         authors.emplace_back(data_to_split);
+
+
+         record->insertField("100", { { 'a', authors[0] }, { '4', "aut" }, {'e', "VerfasserIn" } });
+         for (auto further_author = authors.begin() + 1; further_author != authors.end(); ++further_author)
+              record->insertField("700", { { 'a',  *further_author }, { '4', "aut" }, { 'e', "VerfasserIn" } });
+    }
+}
+
+
+void InsertOrForceSubfield(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
+    if (data.length()){
+        if (not record->hasTag(tag)) {
+            InsertField(tag, subfield_code, record, data);
+            return;
+        }
+        for (auto &field : record->getTagRange(tag)) {
+              // FIXME: Do not necessarily replace
+             field.insertOrReplaceSubfield(subfield_code, data);
+        }
+    }
+}
+
+
+void InsertEditors(const std::string, const char, MARC::Record * const record, const std::string &data) {
+    if (data.length()) {
+         std::vector<std::string> editors;
+         std::string editor, further_parts;
+         std::string data_to_split(data);
+         while (StringUtil::SplitOnString(data_to_split, " and ", &editor, &further_parts)) {
+             editors.emplace_back(editor);
+             data_to_split = further_parts;
+         }
+         for (const auto &further_editor : editors )
+              record->insertField("700", { { 'a',  further_editor }, { '4', "edt" }, { 'e', "HerausgeberIn" }});
+    }
+}
+
 void ConvertCitations(DbConnection * const db_connection,
                       const DbFieldToMARCMappingMultiset &dbfield_to_marc_mappings,
                       MARC::Writer * const marc_writer)
@@ -132,7 +180,7 @@ void ConvertCitations(DbConnection * const db_connection,
     while (const auto row = result_set.getNextRow()) {
         ++i;
         std::ostringstream formatted_number;
-        formatted_number << std::setfill('0') << std::setw(8) << i;
+        formatted_number << std::setfill('0') << std::setw(8) << std::atoi(row["uid"].c_str());
         MARC::Record::BibliographicLevel type_of_record;
         DetermineTypeOfRecord(row[bibtexEntryType_field], &type_of_record);
         //MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::COLLECTION,
@@ -154,7 +202,10 @@ void ConvertCitations(DbConnection * const db_connection,
 const std::map<std::string, ConversionFunctor> name_to_functor_map {
     {  "InsertField", InsertField },
     {  "IsReview", IsReview },
-    {  "InsertCreationField", InsertCreationField }
+    {  "InsertCreationField", InsertCreationField },
+    {  "InsertAuthors", InsertAuthors },
+    {  "InsertOrForceSubfield", InsertOrForceSubfield },
+    {  "InsertEditors", InsertEditors },
 };
 
 ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
