@@ -134,13 +134,13 @@ int Main(int argc, char *argv[]) {
 
     for (const auto &script_name : script_names) {
         LOG_INFO("Running " + script_name);
-        if (script_name.ends_with(".sh")) {
+        if (StringUtil::EndsWith(script_name, ".sh", true)) {
             if (dry_run)
                 std::cout << SYSTEM_UPDATES_DIR << "---" << script_name << std::endl;
             else
                 ExecUtil::ExecOrDie(SYSTEM_UPDATES_DIR + "/" + script_name);
         }
-        else if (script_name.ends_with(".sql")) {
+        else if (StringUtil::EndsWith(script_name, ".sql", true)) {
             if (dry_run)
                 std::cout << SYSTEM_UPDATES_DIR << " " << script_name << std::endl;
             else
