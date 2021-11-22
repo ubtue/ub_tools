@@ -674,6 +674,28 @@ void DetectReviews(MetadataRecord * const metadata_record, const ConversionParam
 }
 
 
+bool DetectNotesWithMatcher(MetadataRecord * const metadata_record, ThreadSafeRegexMatcher * const notes_matcher) {
+    if (notes_matcher->match(metadata_record->title_)) {
+        LOG_DEBUG("title matched note pattern");
+        metadata_record->item_type_ = "note";
+        return true;
+    }
+    return false;
+}
+
+
+void DetectNotes(MetadataRecord * const metadata_record, const ConversionParams &parameters) {
+    const auto &global_notes_matcher(parameters.global_params_.notes_regex_.get());
+    if (global_notes_matcher != nullptr and DetectNotesWithMatcher(metadata_record, global_notes_matcher))
+        return;
+
+    const auto &journal_notes_matcher(parameters.download_item_.journal_.notes_regex_.get());
+    if (journal_notes_matcher != nullptr)
+        DetectNotesWithMatcher(metadata_record, journal_notes_matcher);
+}
+
+
+
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
 const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
@@ -793,6 +815,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
         metadata_record->ssg_ = MetadataRecord::GetSSGTypeFromString(journal_params.ssgn_);
 
     DetectReviews(metadata_record, parameters);
+    DetectNotes(metadata_record, parameters);
 }
 
 
@@ -1118,6 +1141,10 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
                                  { '0', "(DE-627)106186019" }, { '2', "gnd-content" } },
                                  /* indicator1 = */' ', /* indicator2 = */'7');
     }
+
+    if (item_type == "note")
+        marc_record->insertField("NOT", { { 'a', "1" } });
+
 
     // Differentiating information about source (see BSZ Konkordanz MARC 936)
     MARC::Subfields _936_subfields;
