@@ -114,10 +114,17 @@ int Main(int argc, char *argv[]) {
     const std::string SYSTEM_UPDATES_DIR(argv[1]);
     FileUtil::Directory system_updates_dir(SYSTEM_UPDATES_DIR, "(^\\d+\\.sh$|\\d+\\.(?:.*)\\.sql)");
     for (const auto &entry : system_updates_dir) {
-        if (GetVersionFromScriptName(entry.getName()) > current_version)
+        const unsigned script_version = GetVersionFromScriptName(entry.getName());
+        if (script_version < 100)
+            LOG_WARNING("script version " + std::to_string(script_version) + " might belong to the old update schema and is no longer supported");
+        else if (script_version > current_version)
             script_names.emplace_back(entry.getName());
     }
     if (script_names.empty()) {
+        if (current_version < 100) {
+            LOG_INFO("Setting current version to 99");
+            FileUtil::WriteStringOrDie(VERSION_PATH, "99");
+        }
         LOG_INFO("nothing to be done!");
         return EXIT_SUCCESS;
     }

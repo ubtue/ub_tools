@@ -426,7 +426,7 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
 void RegisterSystemUpdateVersion() {
     const std::string SYSTEM_UPDATES_DIRECTORY(UB_TOOLS_DIRECTORY + "/cpp/data/system_updates");
     FileUtil::Directory directory(SYSTEM_UPDATES_DIRECTORY, "(^\\d+\\.sh$|\\d+\\.(?:.*)\\.sql)");
-    unsigned max_version(0);
+    unsigned max_version(99);
     for (const auto &update_script : directory) {
         const auto &script_name(update_script.getName());
         const auto script_version(StringUtil::ToUnsignedOrDie(script_name.substr(0, script_name.find('.'))));
