@@ -82,6 +82,7 @@ const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MA
     { DOWNLOAD_DELAY_DEFAULT,                     "default_download_delay_time" },
     { DOWNLOAD_DELAY_MAX,                         "max_download_delay_time" },
     { REVIEW_REGEX,                               "zotero_review_regex" },
+    { NOTES_REGEX,                                "zotero_notes_regex" },
     { TIMEOUT_CRAWL_OPERATION,                    "timeout_crawl_operation" },
     { TIMEOUT_DOWNLOAD_REQUEST,                   "timeout_download_request" },
 };
@@ -226,6 +227,10 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
     if (not review_regex.empty())
         review_regex_.reset(new ThreadSafeRegexMatcher(review_regex));
 
+    const auto notes_regex(config_section.getString(GetIniKeyString(NOTES_REGEX), ""));
+    if (not notes_regex.empty())
+        notes_regex_.reset(new ThreadSafeRegexMatcher(notes_regex));
+
     zotero_metadata_params_ = ZoteroMetadataParams(config_section);
     marc_metadata_params_ = MarcMetadataParams(config_section);
 
@@ -310,11 +315,12 @@ const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_
     { STRPTIME_FORMAT_STRING,    "zotero_strptime_format"    },
     { UPDATE_WINDOW,             "zotero_update_window"      },
     { REVIEW_REGEX,              "zotero_review_regex"       },
+    { NOTES_REGEX,               "zotero_notes_regex"        },
     { EXPECTED_LANGUAGES,        "zotero_expected_languages" },
     { CRAWL_MAX_DEPTH,           "zotero_max_crawl_depth"    },
     { CRAWL_EXTRACTION_REGEX,    "zotero_extraction_regex"   },
     { CRAWL_URL_REGEX,           "zotero_crawl_url_regex"    },
-    { EMAILCRAWL_SUBJECT_REGEX,  "emailcrawl_subject_regex" },
+    { EMAILCRAWL_SUBJECT_REGEX,  "emailcrawl_subject_regex"  },
 };
 
 const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_MAP {
@@ -337,11 +343,12 @@ const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_
     { "zotero_strptime_format",    STRPTIME_FORMAT_STRING   },
     { "zotero_update_window",      UPDATE_WINDOW            },
     { "zotero_review_regex",       REVIEW_REGEX             },
+    { "zotero_notes_regex",        NOTES_REGEX              },
     { "zotero_expected_languages", EXPECTED_LANGUAGES       },
     { "zotero_max_crawl_depth",    CRAWL_MAX_DEPTH          },
     { "zotero_extraction_regex",   CRAWL_EXTRACTION_REGEX   },
     { "zotero_crawl_url_regex",    CRAWL_URL_REGEX          },
-    { "emailcrawl_subject_regex", EMAILCRAWL_SUBJECT_REGEX},
+    { "emailcrawl_subject_regex",  EMAILCRAWL_SUBJECT_REGEX },
 };
 
 
@@ -379,6 +386,10 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     const auto review_regex(journal_section.getString(GetIniKeyString(REVIEW_REGEX), ""));
     if (not review_regex.empty())
         review_regex_.reset(new ThreadSafeRegexMatcher(review_regex));
+
+    const auto notes_regex(journal_section.getString(GetIniKeyString(NOTES_REGEX), ""));
+    if (not notes_regex.empty())
+        notes_regex_.reset(new ThreadSafeRegexMatcher(notes_regex));
 
     const std::string expected_languages(journal_section.getString(GetIniKeyString(EXPECTED_LANGUAGES), ""));
     if (not ParseExpectedLanguages(expected_languages, &language_params_))
