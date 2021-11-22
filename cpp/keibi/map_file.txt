@@ -1,3 +1,4 @@
+ uid                    | UIDa
  volumeID               | VOLa
  bibtexEntryType        | BITa
  bibtexCitation         | BIBa
