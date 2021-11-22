@@ -1,9 +1,7 @@
 #!/bin/bash
 #
 CHANGED_FILES="$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD)"
-MYSQL_SCHEMA_UPDATES_PATH=/usr/local/ub_tools/cpp/data/sql_updates
-MYSQL_SCHEMA_UPDATES_PATH_LOCAL=cpp/data/sql_updates
-MYSQL_DATABASE_PATCHER=/usr/local/bin/mysql_database_patcher
+SYSTEM_UPDATER=/usr/local/bin/system_updater
 SYSTEM_UPDATES_PATH=/usr/local/ub_tools/cpp/data/system_updates
 OLD_UB_TOOLS_SCHEMA=/tmp/old_ub_tools.schema
 NEW_UB_TOOLS_SCHEMA=/tmp/new_ub_tools.schema
@@ -15,39 +13,22 @@ rm -f $NEW_UB_TOOLS_SCHEMA
 rm -f $INSTALLER_UB_TOOLS_SCHEMA
 rm -f $SCHEMA_DIFFS
 
-declare -i compare_against_installer_schema=$(if $(echo "$CHANGED_FILES" | grep --quiet cpp/data/installer/ub_tools.sql); then echo 1; else echo 0; fi)
-if ( echo "$CHANGED_FILES" | grep --quiet $MYSQL_SCHEMA_UPDATES_PATH_LOCAL ); then
-    # Make sure that we use the newest database tools:
-    (cd /usr/local/ub_tools/cpp && make mysql_database_patcher && make mysql_list_tables && make mysql_diff_schemas \
-         && cp mysql_database_patcher mysql_list_tables mysql_diff_schemas /usr/local/bin)
-    if [[ $? != 0 ]]; then
-        echo "Most likely building, or, less likely, the installation of the database tools failed!"
-        exit 1
-    fi
 
+declare -i compare_schema=$(if $(echo "$CHANGED_FILES" | grep --quiet cpp/data/installer/ub_tools.sql); then echo 1; else echo 0; fi)
+if ( echo "$CHANGED_FILES" | grep --quiet ${SYSTEM_UPDATES_PATH}/*sql ); then
     /usr/local/bin/mysql_list_tables > $OLD_UB_TOOLS_SCHEMA
-
-    if [[ -x $MYSQL_DATABASE_PATCHER ]]; then
-	echo "Executing MYSQL schema updates tool"
-        $MYSQL_DATABASE_PATCHER $MYSQL_SCHEMA_UPDATES_PATH
-        if [[ $? != 0 ]]; then
-            echo "$MYSQL_DATABASE_PATCHER $MYSQL_SCHEMA_UPDATES_PATH failed!"
-            exit 1
-        fi
-        /usr/local/bin/mysql_list_tables > $NEW_UB_TOOLS_SCHEMA
-        /usr/local/bin/mysql_diff_schemas $OLD_UB_TOOLS_SCHEMA $NEW_UB_TOOLS_SCHEMA
-        compare_against_installer_schema=1
-        echo "MYSQL schema update completed"
-    else
-        echo "You need to install $MYSQL_DATABASE_PATCHER and execute it!"
-        exit 1
-    fi
-else
-    echo "No explicit MYSQL schema updates detected"
 fi
 
+if [ -e "$SYSTEM_UPDATER" ]; then
+    "$SYSTEM_UPDATER" "$SYSTEM_UPDATES_PATH"
+fi
 
-if [[ $compare_against_installer_schema && -r $NEW_UB_TOOLS_SCHEMA ]]; then
+if [[ $compare_against_installer_schema && -r $OLD_UB_TOOLS_SCHEMA ]]; then
+    echo "Comparing pre-patch schema with post-patch schema:"
+    /usr/local/bin/mysql_list_tables > $NEW_UB_TOOLS_SCHEMA
+    /usr/local/bin/mysql_diff_schemas $OLD_UB_TOOLS_SCHEMA $NEW_UB_TOOLS_SCHEMA
+
+    echo "Checking post-patch schema against installer schema:"
     MYSQL_PWD=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_password)
     MYSQL_USER=$(inifile_lookup /usr/local/var/lib/tuelib/ub_tools.conf Database sql_username)
     echo "DROP DATABASE IF EXISTS ub_tools_tmp;" | mysql --user=$MYSQL_USER --password="$MYSQL_PWD"
@@ -62,10 +43,4 @@ if [[ $compare_against_installer_schema && -r $NEW_UB_TOOLS_SCHEMA ]]; then
     else
         echo "Verification successful! (The current DB schema was successfully compared to the installer's DB schema.)"
     fi
-fi
-
-
-SYSTEM_UPDATER=/usr/local/bin/system_updater
-if [ -e "$SYSTEM_UPDATER" ]; then
-    "$SYSTEM_UPDATER" "$SYSTEM_UPDATES_PATH"
 fi
