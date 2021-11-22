@@ -44,7 +44,6 @@
 #include "TimeUtil.h"
 #include "UBTools.h"
 #include "util.h"
-#include "VuFind.h"
 
 
 namespace {
@@ -380,7 +379,7 @@ public:
                       const std::string &vufind_host, const std::string &sender_email, const std::vector<NewIssueInfo> &new_issue_infos) const
     {
         std::vector<NewIssueInfo> unique_issues_infos;
-        deduplicateIdenticalIssues(new_issue_infos, &unique_issues_infos);      
+        deduplicateIdenticalIssues(new_issue_infos, &unique_issues_infos);
         for (const auto &unique_issue_info : unique_issues_infos) {
             const std::string email_contents(mail_contents_generator.generateContent(vufind_host, unique_issue_info));
             if (debug)
@@ -674,7 +673,7 @@ void ProcessSingleUser(
     std::vector<SerialControlNumberAndMaxLastModificationTime> &control_numbers_or_bundle_names_and_last_modification_times,
     std::map<std::string, std::map<std::string, std::string>> * const bundle_journal_last_modification_times)
 {
-    db_connection->queryOrDie("SELECT * FROM user LEFT JOIN ixtheo_user ON user.id = ixtheo_user.id WHERE user.id=" + user_id);
+    db_connection->queryOrDie("SELECT * FROM user WHERE user.id=" + user_id);
     DbResultSet result_set(db_connection->getLastResultSet());
 
     if (result_set.empty())
@@ -693,7 +692,7 @@ void ProcessSingleUser(
     const auto name_of_user(MiscUtil::GenerateAddress(firstname, lastname, "Subscriber"));
 
     const std::string email(row["email"]);
-    const std::string user_type(row["user_type"]);
+    const std::string user_type(row["ixtheo_user_type"]);
 
     // Collect the dates for new issues.
     std::vector<NewIssueInfo> new_issue_infos;
@@ -808,7 +807,7 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
                           const std::string &sender_email, const std::string &email_subject)
 {
     db_connection->queryOrDie("SELECT DISTINCT user_id FROM ixtheo_journal_subscriptions WHERE user_id IN (SELECT id FROM "
-                              "ixtheo_user WHERE ixtheo_user.user_type = '" + user_type  + "')");
+                              "user WHERE ixtheo_user_type = '" + user_type  + "')");
 
     unsigned subscription_count(0);
     DbResultSet id_result_set(db_connection->getLastResultSet());
@@ -862,6 +861,7 @@ void RecordStats(const std::string &user_type, std::unordered_map<std::string, u
 
     const auto JULIAN_DAY_NUMBER(TimeUtil::GetJulianDayNumber());
     for (const auto &[journal_ppn, count] : journal_ppns_to_counts_map) {
+        // NOTE: The data written here has to match what will be read by generate_new_journal_alert_stats!
         BinaryIO::WriteOrDie(*usage_stats_file, JULIAN_DAY_NUMBER);
         BinaryIO::WriteOrDie(*usage_stats_file, user_type);
         BinaryIO::WriteOrDie(*usage_stats_file, journal_ppn);
@@ -908,13 +908,13 @@ int Main(int argc, char **argv) {
 
     std::unique_ptr<KeyValueDB> notified_db(CreateOrOpenKeyValueDB(user_type));
 
-    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
+    DbConnection db_connection(DbConnection::VuFindMySQLFactory());
 
     const IniFile bundles_config(UBTools::GetTuelibPath() + "journal_alert_bundles.conf");
 
     std::unordered_set<std::string> new_notification_ids;
     std::unordered_map<std::string, unsigned> journal_ppns_to_counts_map;
-    ProcessSubscriptions(debug, db_connection.get(), notified_db, bundles_config, &new_notification_ids,
+    ProcessSubscriptions(debug, &db_connection, notified_db, bundles_config, &new_notification_ids,
                          &journal_ppns_to_counts_map, solr_host_and_port, user_type, hostname, sender_email,
                          email_subject);
 

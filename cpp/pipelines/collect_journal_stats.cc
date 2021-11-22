@@ -223,7 +223,7 @@ void CollectZederArticles(MARC::Reader * const reader, MARC::Writer * const writ
 size_t GetArticlesFromDatabase(const IniFile &ini_file, const std::string &system_type, const std::string &hostname,
                                std::unordered_map<std::string, Article> * const existing_articles)
 {
-    DbConnection db_connection_select(ini_file, "DatabaseSelect");
+    DbConnection db_connection_select(DbConnection::MySQLFactory(ini_file, "DatabaseSelect"));
     db_connection_select.queryOrDie("SELECT MAX(timestamp),Zeder_ID,PPN,Jahr,Band,Heft,Seitenbereich"
                                     " FROM zeder.erschliessung WHERE Quellrechner='" + hostname + "' AND Systemtyp='"
                                     + system_type + "' GROUP BY Zeder_ID,PPN,Jahr,Band,Heft,Seitenbereich");
@@ -268,12 +268,13 @@ void UpdateDatabase(const std::string &system_type,
     const IniFile ini_file;
     const auto HOSTNAME(DnsUtil::GetHostname());
     if (not ppns_to_zeder_ids_and_types_map.empty())
-        LOG_INFO("Found " + std::to_string(GetArticlesFromDatabase(ini_file, system_type, HOSTNAME, &existing_articles))
+        LOG_INFO("Found "
+                 + std::to_string(GetArticlesFromDatabase(ini_file, system_type, HOSTNAME, &existing_articles))
                  + " existing database entries.");
 
     const auto JOB_START_TIME(std::to_string(std::time(nullptr)));
 
-    DbConnection db_connection_insert(ini_file, "DatabaseInsert");
+    DbConnection db_connection_insert(DbConnection::MySQLFactory(ini_file, "DatabaseInsert"));
     const unsigned SQL_INSERT_BATCH_SIZE(50);
     const std::vector<std::string> COLUMN_NAMES{ "timestamp", "Quellrechner", "Systemtyp", "Zeder_ID", "PPN_Typ",
                                                  "PPN", "Jahr", "Band", "Heft", "Seitenbereich" };

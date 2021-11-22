@@ -307,7 +307,7 @@ void GenerateValidatedOutputFromMARC(KeyValueDB * const dups_db, MARC::Reader * 
 
 int Main(int argc, char **argv) {
     std::string path_to_dups_database;
-    if (argc > 1 and StringUtil::StartsWith(argv[1], "--path-to-dups-database=") == 0) {
+    if (argc > 1 and StringUtil::StartsWith(argv[1], "--path-to-dups-database=")) {
         path_to_dups_database = argv[1] + __builtin_strlen("--path-to-dups-database=");
         --argc, ++argv;
     }

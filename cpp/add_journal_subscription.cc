@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2016-2019 Library of the University of Tübingen
+    Copyright (C) 2016-2021 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -31,7 +31,6 @@
 #include "StringUtil.h"
 #include "TimeUtil.h"
 #include "util.h"
-#include "VuFind.h"
 
 
 void Usage() {
@@ -113,8 +112,8 @@ int main(int argc, char **argv) {
     }
 
     try {
-        std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
-        AddSubscriptions(verbose, db_connection.get(), user_id, parent_ppns);
+        auto db_connection(DbConnection::VuFindMySQLFactory());
+        AddSubscriptions(verbose, &db_connection, user_id, parent_ppns);
     } catch (const std::exception &x) {
         LOG_ERROR("caught exception: " + std::string(x.what()));
     }

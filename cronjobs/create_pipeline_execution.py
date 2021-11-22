@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Algorithm to bring pipeline phases in an ideal order
-# change from python 3.9 graphlib to toposort because it 
+# change from python 3.9 graphlib to toposort because it
 # not only provides a flatten order but also a order with alternatives
 
 import argparse
@@ -16,10 +16,10 @@ import itertools as it
 #       no fifo for input possible (because reading from mult. files)
 #       also used for first phase (integrity check)
 #       use x also if result is not readable in queue, e.g. txt out file
-#   x_t = same as x but output fifo for t possible 
-#   x_n = same as x but output fifo for n possible 
+#   x_t = same as x but output fifo for t possible
+#   x_n = same as x but output fifo for n possible
 #
-# convention in dict-keys: 
+# convention in dict-keys:
 #   leading "_" can only run after predecessor has finished
 #   trailing "_" successor must not run before job has finished
 #   leading and trailing "_" has to run independently
@@ -31,7 +31,7 @@ import itertools as it
 #   because they do not run in the test setup
 
 class Phase:
-    key = "" 
+    key = ""
     mode = ""
     title_norm = ""
     name = ""
@@ -201,7 +201,7 @@ def split_and_write_pipeline_steps(lst, n, do_print = False):
     last_norm_phase = 0
 
     open_fifo_title = []
-    open_fifo_norm =[] 
+    open_fifo_norm =[]
 
     for elemkey in lst:
         elem = get_phase_by_key(elemkey)
@@ -212,7 +212,7 @@ def split_and_write_pipeline_steps(lst, n, do_print = False):
             process_chunk(open_fifo_title, do_print)
             process_chunk(open_fifo_norm, do_print)
             open_fifo_title = []
-            open_fifo_norm = [] 
+            open_fifo_norm = []
         elif phase_mode.startswith("_"):
             if phase_title_norm.startswith("t"):
                 process_chunk(open_fifo_title, do_print)
@@ -395,7 +395,7 @@ phase_iter = get_phase_by_key("swap_and_delete_ppns")
 phase_iter.command = \
     "StartPhase " + '"' + phase_iter.name  + '"' + \
 r"""
-(patch_ppns_in_databases --report-only GesamtTiteldaten-post-phase"$((PHASE-X))"-"${date}".mrc Normdaten-"${date}".mrc \
+(patch_ppns_in_databases --report-only GesamtTiteldaten-"${date}".mrc Normdaten-"${date}".mrc \
                          -- entire_record_deletion.log >> "${log}" 2>&1 && \
 EndPhase || Abort) & """
 

@@ -2,10 +2,11 @@ MAKEFLAGS      += --warn-undefined-variables
 CCC            ?= clang++
 CCCFLAGS       = -g -Wall -Wextra -Werror -Wunused-parameter -Wshadow -Wno-parentheses -march=native -ftrapv \
                  -pedantic -I/opt/shibboleth/include -I/usr/include/libxml2 -I$(INC) \
-                 -DETC_DIR='"/usr/local/var/lib/tuelib"' -DUB_DEFAULT_LOCALE='"en_US.UTF-8"'
+                 -DETC_DIR='"/usr/local/var/lib/tuelib"' -DUB_DEFAULT_LOCALE='"en_US.UTF-8"' \
+                 -I$(shell pg_config --includedir)
 LIBS           = -L$(LIB) -lubtue -lstemmer -lxml2 -lpcre -lmagic -lz \
                  -larchive -L/opt/shibboleth/lib64/ -lcurl -L/usr/lib64/mysql/ -lmysqlclient -lrt -lssl -lcrypto -lpthread -ldl \
-                 -luuid -llept -ltesseract -lsqlite3 -lxerces-c -ldb
+                 -luuid -llept -ltesseract -lsqlite3 -lxerces-c -ldb -lpq -lsystemd
 
 ifeq ($(origin UBTOOLS_CPP_NO_OPTIMISATIONS),undefined)
   LD_FLAGS = -flto

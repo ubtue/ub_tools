@@ -34,13 +34,13 @@ class ControlNumberGuesser {
     static const std::string INSTALLER_SCRIPT_PATH;
 
     const size_t MAX_CONTROL_NUMBER_LENGTH;
-    std::unique_ptr<DbConnection> db_connection_;
+    mutable DbConnection db_connection_;
     mutable std::unique_ptr<DbResultSet> title_cursor_, author_cursor_, year_cursor_;
     DbTransaction *db_transaction_;
 public:
     explicit ControlNumberGuesser()
-        : MAX_CONTROL_NUMBER_LENGTH(BSZUtil::PPN_LENGTH_NEW), db_connection_(new DbConnection(DATABASE_PATH, DbConnection::CREATE)),
-          db_transaction_(nullptr) { }
+        : MAX_CONTROL_NUMBER_LENGTH(BSZUtil::PPN_LENGTH_NEW),
+          db_connection_(DbConnection::Sqlite3Factory(DATABASE_PATH, DbConnection::CREATE)), db_transaction_(nullptr) { }
     ~ControlNumberGuesser();
 public:
     void clearDatabase();

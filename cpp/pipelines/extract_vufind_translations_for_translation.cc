@@ -5,7 +5,7 @@
  */
 
 /*
-    Copyright (C) 2016-2018, Library of the University of Tübingen
+    Copyright (C) 2016-2021, Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -56,25 +56,39 @@ void InsertTranslations(
 
         // Skip inserting translations if we have a translator, i.e. the web translation tool was used
         // to insert the translations into the database
-        const std::string GET_TRANSLATOR("SELECT translator FROM vufind_translations WHERE language_code=\""
+        // successors get a prev_version_id value, successors should not be modified (if prev_version_id is not null)
+        const std::string GET_TRANSLATOR("SELECT id, translator, next_version_id FROM vufind_translations WHERE language_code=\""
            + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
-           + "\" AND token=\"" + key + "\"");
+           + "\" AND token=\"" + key + "\" AND prev_version_id IS NULL");
         connection->queryOrDie(GET_TRANSLATOR);
         DbResultSet result(connection->getLastResultSet());
         if (not result.empty()) {
             const DbRow row(result.getNextRow());
+            // translator != null in a (prev_version_id==null)entry can happen due to previous logic
             if (not row.isNull("translator")) {
                 const std::string translator(row["translator"]);
                 if (not translator.empty())
                     continue;
             }
-        }
+            // do not update original translations after they were modified for a successor
+            // (even if translation is now 'b' and was before 'a' with a modification to 'a1')
+            if (not row.isNull("next_version_id")) {
+                const std::string next_version_id(row["next_version_id"]);
+                if (not next_version_id.empty())
+                    continue;
+            }
 
-        const std::string INSERT_OTHER(
-           "REPLACE INTO vufind_translations SET language_code=\""
-	   + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
-	   + "\", token=\"" + key + "\", translation=\"" + translation + "\"");
-        connection->queryOrDie(INSERT_OTHER);
+            const std::string UPDATE_STMT(
+                "UPDATE vufind_translations SET translation=\"" + translation + "\" WHERE id=" + row["id"]);
+            connection->queryOrDie(UPDATE_STMT);
+        }
+        else {
+            const std::string INSERT_OTHER(
+                "INSERT INTO vufind_translations SET language_code=\""
+	            + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
+	            + "\", token=\"" + key + "\", translation=\"" + translation + "\"");
+            connection->queryOrDie(INSERT_OTHER);
+        }
     }
 }
 
@@ -95,7 +109,7 @@ int Main(int argc, char **argv) {
     const std::string sql_database(ini_file.getString("Database", "sql_database"));
     const std::string sql_username(ini_file.getString("Database", "sql_username"));
     const std::string sql_password(ini_file.getString("Database", "sql_password"));
-    DbConnection db_connection(sql_database, sql_username, sql_password);
+    DbConnection db_connection(DbConnection::MySQLFactory(sql_database, sql_username, sql_password));
 
     for (int arg_no(1); arg_no < argc; ++arg_no) {
         // Get the 2-letter language code from the filename.  We expect filenames of the form "xx.ini" or

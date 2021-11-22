@@ -1,7 +1,12 @@
 #!/bin/bash
+# c.f. https://askubuntu.com/questions/623179/remove-array-of-entries-from-another-array/623220#623220 (211019) for the array difference in ConvertNewMohrData
 set -o errexit -o nounset
 
 source pipeline_functions.sh
+
+readonly FULLTEXT_LOCAL_ROOT="/usr/local/publisher_fulltexts"
+readonly FULLTEXT_EXCHANGE_ROOT="/mnt/ZE020150/FID-Entwicklung/fulltext/publisher_files"
+readonly MOHR_EXTRACTED="/usr/local/publisher_fulltexts/mohr/"
 
 TMP_NULL="/tmp/null"
 function CreateTemporaryNullDevice {
@@ -10,6 +15,45 @@ function CreateTemporaryNullDevice {
         chmod 666 ${TMP_NULL}
     fi
 }
+
+
+function GetNewPublisherFulltexts {
+    find ${FULLTEXT_EXCHANGE_ROOT} -type f -mmin +5 -printf '%P\0' | rsync --archive --verbose --recursive --from0 \
+        --files-from=- ${FULLTEXT_EXCHANGE_ROOT} ${FULLTEXT_LOCAL_ROOT}/publisher_files
+}
+
+
+function ConvertNewMohrData {
+    local readonly MOHR_ARCHIVE_DIR="${FULLTEXT_LOCAL_ROOT}/publisher_files/mohr"
+    mapfile -t < <(find ${MOHR_EXTRACTED} -type f -name '*.txt' -exec sh -c 'printf "%s\n" $(basename "${0%.*}")' {} ';') present_fulltexts
+    mapfile -t < <(find ${MOHR_ARCHIVE_DIR} -name '*.zip' -exec sh -c 'printf "%s\n" $(basename "${0%.*}")' {} ';') new_fulltexts
+    readonly new_to_import=( $(printf "%s\n" "${present_fulltexts[@]}" "${new_fulltexts[@]}" | sort | uniq --unique) )
+    for item in ${new_to_import[@]}; do
+        echo "Extracting item ${item} to ${MOHR_EXTRACTED}/${item}"
+        unzip -o ${MOHR_ARCHIVE_DIR}/${item}.zip -d ${MOHR_EXTRACTED}/${item}
+        echo "Converting item ${item}"
+        marcxml_metadata_processor ${MOHR_EXTRACTED}/${item}/catalogue_md.xml \
+            ${MOHR_EXTRACTED}/${item}/content/${item}.pdf ${MOHR_EXTRACTED}/${item}.txt
+    done;
+}
+
+
+function ExtractMohrBookRecords {
+    local readonly mohr_books_marc_file="/tmp/mohr_books.mrc"
+    #find ${MOHR_EXTRACTED} -maxdepth 1 -type d -exec marc_grep '{}'/catalogue_md.xml 'if "020" exists extract * marc_binary' \; 2>/tmp/null
+    find ${MOHR_EXTRACTED}  -maxdepth 1 -type d -print0 | xargs -0 -I'{}'  marc_grep '{}'/catalogue_md.xml \
+         'if "020" exists extract *' marc_binary 2>/tmp/null | cat > ${mohr_books_marc_file}
+    echo ${mohr_books_marc_file}
+}
+
+
+function AddMohrDOIsForBooks {
+    local readonly title_data=${1}
+    local readonly mohr_books_marc_file=${2}
+    local readonly title_data_post_phase=${3}
+    augment_mohr_titles_with_dois ${title_data} ${mohr_books_marc_file} ${title_data_post_phase}
+}
+
 
 if [ $# != 1 ]; then
     echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc"
@@ -34,8 +78,27 @@ CreateTemporaryNullDevice
 
 OVERALL_START=$(date +%s.%N)
 
+
+StartPhase "Get New Publisher Fulltexts from Network Drive"
+(GetNewPublisherFulltexts >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
+StartPhase "Convert Mohr Data"
+(ConvertNewMohrData >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
+StartPhase "Augment Title Data With Mohr DOIs for Books"
+(AddMohrDOIsForBooks GesamtTiteldaten-"${date}".mrc $(ExtractMohrBookRecords) GesamtTiteldaten-augmented-"${date}".mrc >> "${log}" 2>&1 \
+EndPhase || Abort) &
+wait
+
+
 StartPhase "Create Match DB"
-(create_match_db GesamtTiteldaten-"${date}".mrc
+(create_match_db GesamtTiteldaten-augmented-"${date}".mrc
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -61,7 +124,7 @@ EndPhase || Abort) &
 
 StartPhase "Harvest Title Data Fulltext"
 (create_full_text_db --store-pdfs-as-html --use-separate-entries-per-url --include-all-tocs \
-    --include-list-of-references --only-pdf-fulltexts GesamtTiteldaten-"${date}".mrc ${TMP_NULL} \
+    --include-list-of-references --only-pdf-fulltexts GesamtTiteldaten-augmented-"${date}".mrc ${TMP_NULL} \
     >> "${log}" 2>&1 && \
         EndPhase || Abort) &
 wait

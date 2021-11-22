@@ -32,7 +32,8 @@
 
 const std::set<std::string> ControlNumberGuesser::EMPTY_SET;
 const std::string ControlNumberGuesser::DATABASE_PATH(UBTools::GetTuelibPath() + "control_number_guesser.sq3");
-const std::string ControlNumberGuesser::INSTALLER_SCRIPT_PATH("/usr/local/ub_tools/cpp/data/installer/control_number_guesser.sql");
+const std::string ControlNumberGuesser::INSTALLER_SCRIPT_PATH(
+    "/usr/local/ub_tools/cpp/data/installer/control_number_guesser.sql");
 
 
 ControlNumberGuesser::~ControlNumberGuesser() {
@@ -41,16 +42,12 @@ ControlNumberGuesser::~ControlNumberGuesser() {
 
 
 void ControlNumberGuesser::clearDatabase() {
-    db_connection_.reset();
-
-    ::unlink(DATABASE_PATH.c_str());
-    db_connection_.reset(new DbConnection(DATABASE_PATH, DbConnection::CREATE));
-    db_connection_->queryFileOrDie(INSTALLER_SCRIPT_PATH);
+    db_connection_.sqliteResetDatabase(INSTALLER_SCRIPT_PATH);
 }
 
 
 void ControlNumberGuesser::beginUpdate() {
-    db_transaction_ = new DbTransaction(db_connection_.get());
+    db_transaction_ = new DbTransaction(&db_connection_);
 }
 
 
@@ -88,8 +85,8 @@ void ControlNumberGuesser::insertYear(const std::string &year, const std::string
 
     std::string control_numbers;
     size_t padded_length(MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */);
-    db_connection_->queryOrDie("SELECT control_numbers FROM publication_year WHERE year='" + year + "'");
-    auto query_result(db_connection_->getLastResultSet());
+    db_connection_.queryOrDie("SELECT control_numbers FROM publication_year WHERE year='" + year + "'");
+    auto query_result(db_connection_.getLastResultSet());
 
     if (not query_result.empty()) {
         if (query_result.size() != 1)
@@ -104,9 +101,9 @@ void ControlNumberGuesser::insertYear(const std::string &year, const std::string
         control_numbers += '|';
 
     if (not query_result.empty())
-        db_connection_->queryOrDie("UPDATE publication_year SET control_numbers='" + control_numbers + "' WHERE year='" + year + "'");
+        db_connection_.queryOrDie("UPDATE publication_year SET control_numbers='" + control_numbers + "' WHERE year='" + year + "'");
     else
-        db_connection_->queryOrDie("INSERT INTO publication_year VALUES('" + year + "', '" + control_numbers + "')");
+        db_connection_.queryOrDie("INSERT INTO publication_year VALUES('" + year + "', '" + control_numbers + "')");
 }
 
 
@@ -214,8 +211,8 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(
 
 bool ControlNumberGuesser::getNextTitle(std::string * const title, std::set<std::string> * const control_numbers) const {
     if (title_cursor_ == nullptr) {
-        db_connection_->queryOrDie("SELECT * FROM normalised_titles");
-        title_cursor_.reset(new DbResultSet(db_connection_->getLastResultSet()));
+        db_connection_.queryOrDie("SELECT * FROM normalised_titles");
+        title_cursor_.reset(new DbResultSet(db_connection_.getLastResultSet()));
     }
 
     const auto next_row(title_cursor_->getNextRow());
@@ -233,8 +230,8 @@ bool ControlNumberGuesser::getNextTitle(std::string * const title, std::set<std:
 
 bool ControlNumberGuesser::getNextAuthor(std::string * const author_name, std::set<std::string> * const control_numbers) const {
     if (author_cursor_ == nullptr) {
-        db_connection_->queryOrDie("SELECT * FROM normalised_authors");
-        author_cursor_.reset(new DbResultSet(db_connection_->getLastResultSet()));
+        db_connection_.queryOrDie("SELECT * FROM normalised_authors");
+        author_cursor_.reset(new DbResultSet(db_connection_.getLastResultSet()));
     }
 
     const auto next_row(author_cursor_->getNextRow());
@@ -252,8 +249,8 @@ bool ControlNumberGuesser::getNextAuthor(std::string * const author_name, std::s
 
 bool ControlNumberGuesser::getNextYear(std::string * const year, std::unordered_set<std::string> * const control_numbers) const {
     if (year_cursor_ == nullptr) {
-        db_connection_->queryOrDie("SELECT * FROM publication_year");
-        year_cursor_.reset(new DbResultSet(db_connection_->getLastResultSet()));
+        db_connection_.queryOrDie("SELECT * FROM publication_year");
+        year_cursor_.reset(new DbResultSet(db_connection_.getLastResultSet()));
     }
 
     const auto next_row(year_cursor_->getNextRow());
@@ -423,17 +420,17 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
 }
 
 
-void ControlNumberGuesser::insertNewControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
-                                                  const std::string &control_number)
+void ControlNumberGuesser::insertNewControlNumber(const std::string &table, const std::string &column_name,
+                                                  const std::string &column_value, const std::string &control_number)
 {
     std::string control_numbers;
     if (lookupControlNumber(table, column_name, column_value, &control_numbers)) {
         control_numbers += '|' + control_number;
-        db_connection_->queryOrDie("UPDATE " + table + " SET control_numbers='" + control_numbers +
-                                   "' WHERE " + column_name + "='" + db_connection_->escapeString(column_value) + "'");
+        db_connection_.queryOrDie("UPDATE " + table + " SET control_numbers='" + control_numbers +
+                                  "' WHERE " + column_name + "='" + db_connection_.escapeString(column_value) + "'");
     } else {
-        db_connection_->queryOrDie("INSERT INTO " + table + " VALUES('" + db_connection_->escapeString(column_value)
-                                   + "', '" + control_number + "')");
+        db_connection_.queryOrDie("INSERT INTO " + table + " VALUES('" + db_connection_.escapeString(column_value)
+                                  + "', '" + control_number + "')");
     }
 }
 
@@ -441,9 +438,9 @@ void ControlNumberGuesser::insertNewControlNumber(const std::string &table, cons
 bool ControlNumberGuesser::lookupControlNumber(const std::string &table, const std::string &column_name,
                                                const std::string &column_value, std::string * const control_numbers) const
 {
-    db_connection_->queryOrDie("SELECT control_numbers FROM " + table + " WHERE " + column_name + "='"
-                               + db_connection_->escapeString(column_value) + "'");
-    auto query_result(db_connection_->getLastResultSet());
+    db_connection_.queryOrDie("SELECT control_numbers FROM " + table + " WHERE " + column_name + "='"
+                              + db_connection_.escapeString(column_value) + "'");
+    auto query_result(db_connection_.getLastResultSet());
     if (query_result.empty())
         return false;
     else if (query_result.size() != 1)
@@ -471,8 +468,8 @@ unsigned ControlNumberGuesser::swapControlNumbers(const std::string &table_name,
                                                   const std::unordered_map<std::string, std::string> &old_to_new_map)
 {
     unsigned changed_row_count(0);
-    db_connection_->queryOrDie("SELECT " + primary_key + ", control_numbers FROM " + table_name);
-    DbResultSet result_set(db_connection_->getLastResultSet());
+    db_connection_.queryOrDie("SELECT " + primary_key + ", control_numbers FROM " + table_name);
+    DbResultSet result_set(db_connection_.getLastResultSet());
 
     while (const DbRow row = result_set.getNextRow()) {
         std::unordered_set<std::string> control_numbers;
@@ -493,9 +490,9 @@ unsigned ControlNumberGuesser::swapControlNumbers(const std::string &table_name,
             control_numbers.emplace(replacement.second);
         }
 
-        db_connection_->queryOrDie("UPDATE " + table_name + " SET control_numbers='"
-                                   + StringUtil::Join(control_numbers, '|') + "' WHERE " + primary_key + "="
-                                   + db_connection_->escapeAndQuoteString(row[primary_key]));
+        db_connection_.queryOrDie("UPDATE " + table_name + " SET control_numbers='"
+                                  + StringUtil::Join(control_numbers, '|') + "' WHERE " + primary_key + "="
+                                  + db_connection_.escapeAndQuoteString(row[primary_key]));
 
         ++changed_row_count;
     }

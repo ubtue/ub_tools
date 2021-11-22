@@ -1,4 +1,5 @@
 #!/bin/bash
+# The documentation on how to access the CORE API is at https://api.core.ac.uk/docs/v3
 set -o errexit -o nounset
 
 if [ $# != 0 ]; then
@@ -7,42 +8,71 @@ if [ $# != 0 ]; then
 fi
 
 
-readonly WORK_FILE=download_krimdok_core.json
-> "$WORK_FILE"
-
-
+declare -r WORK_FILE=download_krimdok_core.json
+declare -i SINGLE_CURL_DOWNLOAD_MAX_TIME=200 # in seconds
 declare -r API_KEY=$(< /usr/local/var/lib/tuelib/CORE-API.key)
-declare -r CORE_API_URL=https://core.ac.uk/api-v2/articles/search
-declare -r -i MAX_HITS_PER_PAGE=1000
-declare -r QUERY=criminolog*
-declare -i page_no=0
-> chunk
-while true; do
-    ((++page_no))
-    curl --silent --header "Content-Type: application/json" --header "apiKey:${API_KEY}" --request POST \
-         --data-binary "[{ \"page\":$page_no, \"pageSize\":$MAX_HITS_PER_PAGE, \"query\":\"$QUERY\" }]" \
-         $CORE_API_URL > chunk
-    if [[ $(jq '.[].status' < chunk) == '"Not found"' ]]; then break; fi
-    cat chunk >> "$WORK_FILE"
-    sleep 2
-done
-rm --force chunk
+declare -r CORE_API_URL=https://api.core.ac.uk/v3/search/works
+declare -r -i MAX_HITS_PER_REQUEST=100 # The v3 API does not allow more than 100 hits per request!
+declare -r TIMESTAMP_FILE=/usr/local/var/lib/tuelib/CORE-KrimDok.timestamp
 
 
-jq . < "$WORK_FILE" > "$WORK_FILE".$$
-mv "$WORK_FILE".$$ "$WORK_FILE"
+# load the timestamp or use a hard-coded default:
+if [ -r "$TIMESTAMP_FILE" ]; then
+    TIMESTAMP=$(date --date="$(< "$TIMESTAMP_FILE") -1 day" +%Y-%m-%d)
+else
+    TIMESTAMP="2021-01-01"
+fi
+echo "Using Timestamp: $TIMESTAMP"
 
-# The following sed expression merges the metadata arrays from the individually downloaded chunks into one huge
-# JSON array.  It also eliminates the "status" and "totalHits" entries at the boundaries between two arrays.
-sed --in-place --regexp-extended --expression \
-    ':a;N;$!ba;s/\n\s+\]\n\s+}\n\]\n\[\n\s+\{\n\s+\"status\"\:\s*\"OK\",\n\s+\"totalHits\":\s+[0-9]+\s*,\n\s+\"data\"\:\s*\[\n/,\n/g' \
-    "$WORK_FILE"
+
+#declare -r QUERY=$(/usr/local/bin/urlencode "(title:criminology OR title:criminological OR title:kriminologie) AND createdDate>$TIMESTAMP")
+declare -r QUERY=$(/usr/local/bin/urlencode "(title:criminology OR title:criminological OR title:kriminologie) AND createdDate<2019-01-01")
+
+
+echo "Before curl download..."
+declare -i offset=0
+curl --max-time $SINGLE_CURL_DOWNLOAD_MAX_TIME --header "Authorization: Bearer ${API_KEY}" --request GET \
+     "${CORE_API}?offset=$offset&limit=$MAX_HITS_PER_REQUEST&entityType=works&q=$QUERY&scroll" \
+     > $WORK_FILE
+echo "After curl download..."
+
+
+declare -r error_message=$(jq .error\?.message < "$WORK_FILE" 2>/dev/null)
+if [[ $error_message != "" && $error_message != "null" ]]; then
+    echo "Server reported: $error_message"
+    exit 2
+fi
+
+
+declare -r total_hits=$(jq ."[0].totalHits" < "$WORK_FILE" 2>/dev/null)
+if [[ $total_hits == "null" || $total_hits == "0" ]]; then
+    echo "Server reported zero hits."
+    exit 3
+fi
+
+
+if grep --quiet '504 Gateway Time-out' "$WORK_FILE"; then
+    echo "We got a 504 Gateway Time-out"
+    exit 4
+fi
+
+
+declare -r message=$(jq .message < "$WORK_FILE" 2>/dev/null)
+if [[ $message != "" && $message != "null" ]]; then
+    echo "Server reported: $message"
+    exit 5
+fi
 
 # Convert to MARC:
-declare -r MARC_OUTPUT=KrimDok-CORE-$(date +%Y%M%d).mrc
-convert_json_to_marc --create-unique-id-db /usr/local/var/lib/tuelib/core.conf \
+echo "Before conversion to MARC..."
+declare -r MARC_OUTPUT=KrimDok-CORE-$(date +%Y%M%d).xml
+convert_json_to_marc --min-log-level=DEBUG --create-unique-id-db /usr/local/var/lib/tuelib/core.conf \
                      "$WORK_FILE" unmapped_issn.list "$MARC_OUTPUT"
 echo "Generated $MARC_OUTPUT, unmapped ISSN's are in unmapped_issn.list"
 
 
-upload_to_bsz_ftp_server.py "$MARC_OUTPUT" /pub/UBTuebingen_Default/
+# Update contents of the timestamp file:
+date --iso-8601=date > "$TIMESTAMP_FILE"
+
+
+#upload_to_bsz_ftp_server.py "$MARC_OUTPUT" /pub/UBTuebingen_Default/

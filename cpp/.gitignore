@@ -22,7 +22,7 @@
 /convert_oai_pmh_dc_to_marc21
 /convert_rss_db_tables
 /convert_tags_to_keywords
-/count_gnd_refs
+/count_author_gnd_refs
 /create_full_text_db
 /create_match_db
 /crossref_downloader
@@ -80,7 +80,6 @@
 /library_finder
 /log_rotate
 /mpi_stats
-/mysql_database_patcher
 /mysql_diff_schemas
 /mysql_list_tables
 /make_named_pipe

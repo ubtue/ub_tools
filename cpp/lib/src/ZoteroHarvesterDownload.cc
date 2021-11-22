@@ -18,6 +18,8 @@
 */
 
 #include "JSON.h"
+#include "MBox.h"
+#include "MailUtil.h"
 #include "StringUtil.h"
 #include "WebUtil.h"
 #include "util.h"
@@ -328,6 +330,7 @@ bool Crawler::getNextPage(CrawlResult * const crawl_result) {
                                                   DirectDownload::Operation::DIRECT_QUERY, parameters_.per_crawl_url_time_limit_));
     future->await();
     if (not future->hasResult() or not future->getResult().downloadSuccessful()) {
+        LOG_WARNING("Unsuccessful crawl attempt for " + next_url);
         ++num_crawled_unsuccessful_;
         return continueCrawling();
     }
@@ -339,14 +342,16 @@ bool Crawler::getNextPage(CrawlResult * const crawl_result) {
         ++num_crawled_cache_hits_;
 
     // extract outgoing URLs from the downloaded URL
-    constexpr unsigned EXTRACT_URL_FLAGS(WebUtil::IGNORE_DUPLICATE_URLS | WebUtil::IGNORE_LINKS_IN_IMG_TAGS
+    unsigned EXTRACT_URL_FLAGS(WebUtil::IGNORE_DUPLICATE_URLS | WebUtil::IGNORE_LINKS_IN_IMG_TAGS
                                            | WebUtil::REMOVE_DOCUMENT_RELATIVE_ANCHORS
                                            | WebUtil::CLEAN_UP_ANCHOR_TEXT
-                                           | WebUtil::KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY
                                            | WebUtil::ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS);
 
+    const bool url_is_file(StringUtil::StartsWith(next_url, "file://", true /* case insensitive */));
+    EXTRACT_URL_FLAGS |= url_is_file ? 0 : WebUtil::KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY;
+
     std::vector<WebUtil::UrlAndAnchorTexts> urls_and_anchor_texts;
-    WebUtil::ExtractURLs(download_result.response_body_, next_url, WebUtil::ABSOLUTE_URLS, &urls_and_anchor_texts, EXTRACT_URL_FLAGS);
+    WebUtil::ExtractURLs(download_result.response_body_, url_is_file ? "" : next_url, WebUtil::ABSOLUTE_URLS, &urls_and_anchor_texts, EXTRACT_URL_FLAGS);
 
     crawl_result->current_url_ = next_url;
     crawl_result->outgoing_urls_.clear();
@@ -562,6 +567,107 @@ Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counte
 } // end namespace ApiQuery
 
 
+namespace EmailCrawl {
+
+void ExtractEmailsRelevantForJournal(const Params &parameters, std::vector<std::string> * const file_pages_to_handle,
+                                     const std::string &page_file_tmp_dir_path)
+{
+    const auto subject_matcher(parameters.download_item_.journal_.emailcrawl_subject_regex_);
+    const std::vector<std::string> mbox_filenames(parameters.emailcrawl_mboxes_);
+    for (const auto &mbox_filename : mbox_filenames) {
+        const MBox mbox(mbox_filename);
+        for (const auto &message : mbox) {
+            if (subject_matcher->match(message.getSubject())) {
+                if (message.isMultipartMessage()) {
+                    for (const auto &body_part : message)
+                        for (const auto &[key, value] : body_part.getMIMEHeaders()) {
+                            if (StringUtil::ASCIIToLower(key) == "content-type" and StringUtil::StartsWith(value, "text/html")) {
+                                FileUtil::AutoTempFile file_page(page_file_tmp_dir_path + "/ZOT", "", false /* automatically remove */);
+                                const std::string file_page_path(file_page.getFilePath());
+                                FileUtil::WriteStringOrDie(file_page_path, body_part.getBody());
+                                file_pages_to_handle->emplace_back("file://" + file_page_path);
+                            }
+                        }
+                } else {
+                    LOG_WARNING("Currently only HTML Mails supported: Skipping message: \"" + message.getSubject() + '"');
+                }
+            }
+        }
+    }
+}
+
+
+void Tasklet::run(const Params &parameters, Result * const result) {
+    LOG_INFO("Email Harvesting Crawling for Journal " + parameters.download_item_.journal_.name_);
+
+    std::vector<std::string> file_pages_to_handle;
+    FileUtil::AutoTempDirectory file_pages_temp_dir("/tmp/ZOTMAIL");
+    ExtractEmailsRelevantForJournal(parameters, &file_pages_to_handle, file_pages_temp_dir.getDirectoryPath());
+
+    for (const auto &file_page_to_handle : file_pages_to_handle) {
+
+        const auto crawl_item(parameters.harvestable_manager_->newHarvestableItem(file_page_to_handle, parameters.download_item_.journal_));
+
+        const Crawling::Params crawl_parameters(crawl_item, parameters.user_agent_,
+                                          parameters.per_crawl_url_time_limit_, parameters.total_crawl_time_limit_,
+                                          parameters.ignore_robots_dot_txt_, parameters.harvestable_manager_);
+
+        Crawling::Crawler crawler(crawl_parameters, download_manager_);
+        Crawling::Crawler::CrawlResult crawl_result;
+        std::unordered_set<std::string> queued_urls;
+
+        while (not crawler.timeoutExceeded() and crawler.getNextPage(&crawl_result)) {
+            for (auto &outgoing_url : crawl_result.outgoing_urls_) {
+                bool harvest_url(queued_urls.find(outgoing_url.first) == queued_urls.end()
+                                 and (parameters.download_item_.journal_.crawl_params_.extraction_regex_ == nullptr
+                                 or parameters.download_item_.journal_.crawl_params_.extraction_regex_->match(outgoing_url.first)));
+                bool crawl_url(parameters.download_item_.journal_.crawl_params_.crawl_url_regex_ == nullptr
+                               or parameters.download_item_.journal_.crawl_params_.crawl_url_regex_->match(outgoing_url.first));
+
+                if (harvest_url) {
+                    if (not force_downloads_ and upload_tracker_.urlAlreadyInDatabase(outgoing_url.first,
+                        /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY))
+                    {
+                        LOG_INFO("Skipping already delivered URL: " + outgoing_url.first);
+                        ++result->num_email_skipped_since_already_delivered_;
+                        continue;
+                    }
+                    const auto new_item(crawl_parameters.harvestable_manager_->newHarvestableItem(outgoing_url.first,
+                                                                                            parameters.download_item_.journal_));
+                    result->downloaded_items_.emplace_back(download_manager_->directDownload(new_item, parameters.user_agent_,
+                                                                                             DirectDownload::Operation::USE_TRANSLATION_SERVER));
+                    queued_urls.emplace(outgoing_url.first);
+                    ++result->num_email_queued_for_harvest_;
+                }
+
+                outgoing_url.second = crawl_url ? Crawling::Crawler::CrawlResult::MARK_FOR_CRAWLING : Crawling::Crawler::CrawlResult::DO_NOT_CRAWL;
+            }
+        }
+
+        if (crawler.timeoutExceeded())
+            LOG_WARNING("email crawl process timed-out - not all URLs were crawled");
+
+        result->num_email_crawled_successful_ = crawler.numUrlsSuccessfullyCrawled();
+        result->num_email_crawled_unsuccessful_ = crawler.numUrlsUnsuccessfullyCrawled();
+        result->num_email_crawled_cache_hits_ = crawler.numCacheHitsForCrawls();
+    }
+
+    LOG_INFO("email crawled " + std::to_string(result->num_email_crawled_successful_) + " URLs, queued "
+             + std::to_string(result->num_email_queued_for_harvest_) + " URLs for extraction");
+}
+
+
+    Tasklet::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
+                 const Util::UploadTracker &upload_tracker, std::unique_ptr<Params> parameters, const bool force_downloads)
+ : Util::Tasklet<Params, Result>(instance_counter, parameters->download_item_,
+                                 "Email Crawling: " + parameters->download_item_.url_.toString(),
+                                 std::bind(&Tasklet::run, this, std::placeholders::_1, std::placeholders::_2),
+                                 std::unique_ptr<Result>(new Result()), std::move(parameters), ResultPolicy::YIELD),
+   download_manager_(download_manager), upload_tracker_(upload_tracker), force_downloads_(force_downloads) {}
+
+} // end namespace EmailCrawl
+
+
 void DownloadManager::addToDownloadCache(const Util::HarvestableItem &source, const std::string &url,
                                          const std::string &response_body, const DirectDownload::Operation operation)
 {
@@ -735,7 +841,7 @@ void DownloadManager::processQueueBuffers() {
 
 
     {
-        std::lock_guard<std::recursive_mutex> apiquery_queue_buffer_lock(rss_queue_buffer_mutex_);
+        std::lock_guard<std::recursive_mutex> apiquery_queue_buffer_lock(apiquery_queue_buffer_mutex_);
         while (not apiquery_queue_buffer_.empty()) {
             std::shared_ptr<ApiQuery::Tasklet> tasklet(apiquery_queue_buffer_.front());
             auto domain_data(lookupDomainData(tasklet->getParameter().download_item_.url_, /* add_if_absent = */ true));
@@ -746,7 +852,17 @@ void DownloadManager::processQueueBuffers() {
         }
     }
 
+    {
+        std::lock_guard<std::recursive_mutex> emailcrawl_queue_buffer_lock(emailcrawl_queue_buffer_mutex_);
+        while (not emailcrawl_queue_buffer_.empty()) {
+            std::shared_ptr<EmailCrawl::Tasklet> tasklet(emailcrawl_queue_buffer_.front());
+            auto domain_data(lookupDomainData(tasklet->getParameter().download_item_.url_, /* add_if_absent = */ true));
+            domain_data->queued_emailcrawls_.emplace_back(tasklet);
+            ++tasklet_counters_.emailcrawl_queue_counter_;
 
+            emailcrawl_queue_buffer_.pop_front();
+        }
+    }
 }
 
 
@@ -833,6 +949,22 @@ void DownloadManager::processDomainQueues(DomainData * const domain_data) {
             return;
         }
     }
+
+    while(not domain_data->queued_emailcrawls_.empty()
+          and tasklet_counters_.emailcrawl_tasklet_execution_counter_ < MAX_EMAILCRAWL_TASKLETS)
+    {
+       std::shared_ptr<EmailCrawl::Tasklet> emailcrawl_tasklet(domain_data->queued_emailcrawls_.front());
+       domain_data->active_emailcrawls_.emplace_back(emailcrawl_tasklet);
+       domain_data->queued_emailcrawls_.pop_front();
+       emailcrawl_tasklet->start();
+       --tasklet_counters_.emailcrawl_queue_counter_;
+
+       if (adhere_to_download_limit) {
+            domain_data->delay_params_.time_limit_.restart();
+            return;
+        }
+    }
+
 }
 
 
@@ -860,6 +992,25 @@ void DownloadManager::cleanupCompletedTasklets(DomainData * const domain_data) {
         }
         ++iter;
     }
+
+    for (auto iter(domain_data->active_apiqueries_.begin()); iter != domain_data->active_apiqueries_.end();) {
+        if ((*iter)->isComplete()) {
+            iter = domain_data->active_apiqueries_.erase(iter);
+            continue;
+        }
+        ++iter;
+    }
+
+
+   for (auto iter(domain_data->active_emailcrawls_.begin()); iter != domain_data->active_emailcrawls_.end();) {
+        if ((*iter)->isComplete()) {
+            iter = domain_data->active_emailcrawls_.erase(iter);
+            continue;
+        }
+        ++iter;
+    }
+
+
 }
 
 
@@ -1035,6 +1186,30 @@ std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
 }
 
 
+std::unique_ptr<Util::Future<EmailCrawl::Params, EmailCrawl::Result>> DownloadManager::emailCrawl(const Util::HarvestableItem &source,
+                                                                                                  const std::vector<std::string> &mbox_files,
+                                                                                                  const std::string &user_agent)
+
+{
+    std::unique_ptr<EmailCrawl::Params> parameters(new EmailCrawl::Params(source, user_agent, global_params_.timeout_download_request_,
+                                                                      global_params_.timeout_crawl_operation_,
+                                                                      global_params_.ignore_robots_txt_,
+                                                                      global_params_.harvestable_manager_,
+                                                                      mbox_files));
+    std::shared_ptr<EmailCrawl::Tasklet> new_tasklet(
+        new EmailCrawl::Tasklet(&tasklet_counters_.emailcrawl_tasklet_execution_counter_, this, upload_tracker_, std::move(parameters), global_params_.force_downloads_));
+
+    {
+        std::lock_guard<std::recursive_mutex> queue_buffer_lock(emailcrawl_queue_buffer_mutex_);
+        emailcrawl_queue_buffer_.emplace_back(new_tasklet);
+    }
+
+    std::unique_ptr<Util::Future<EmailCrawl::Params, EmailCrawl::Result>>
+        download_result(new Util::Future<EmailCrawl::Params, EmailCrawl::Result>(new_tasklet));
+    return download_result;
+}
+
+
 std::unique_ptr<DirectDownload::Result> DownloadManager::fetchFromDownloadCache(const Util::HarvestableItem &source,
                                                                                 const DirectDownload::Operation operation) const
 {
@@ -1064,7 +1239,11 @@ bool DownloadManager::downloadInProgress() const {
            or tasklet_counters_.direct_downloads_translation_server_queue_counter_ != 0
            or tasklet_counters_.direct_downloads_direct_query_queue_counter_ != 0
            or tasklet_counters_.crawls_queue_counter_ != 0
-           or tasklet_counters_.rss_feeds_queue_counter_ != 0;
+           or tasklet_counters_.rss_feeds_queue_counter_ != 0
+           or tasklet_counters_.apiquery_tasklet_execution_counter_ != 0
+           or tasklet_counters_.apiquery_queue_counter_ != 0
+           or tasklet_counters_.emailcrawl_tasklet_execution_counter_ != 0
+           or tasklet_counters_.emailcrawl_queue_counter_ != 0;
 }
 
 

@@ -38,19 +38,19 @@
 #include "TimeUtil.h"
 #include "UBTools.h"
 #include "util.h"
-#include "VuFind.h"
 
 
 namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[solr_host_and_port] user_type report_interval_in_days)\n"
+    ::Usage("[solr_host_and_port] user_type report_interval_in_days email\n"
             "  Generates a CSV report about journal subscription statistics.\n"
             "  Should \"solr_host_and_port\" be missing \"" + Solr::DEFAULT_HOST + ":"
             + std::to_string(Solr::DEFAULT_PORT) + "\" will be used.\n"
             "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm.\n"
-            "  \"report_interval_in_days\" can be a number or the text \"days_in_last_month\".\n");
+            "  \"report_interval_in_days\" can be a number or the text \"days_in_last_month\n"
+            "  \"email\" recipient email address.\n");
 }
 
 
@@ -87,15 +87,17 @@ size_t GetBundleSize(const IniFile &bundles_config, const std::string &bundle_na
     StringUtil::SplitThenTrim(bundle_ppns_string, "," , " \t", &bundle_ppns);
     bundle_names_to_sizes_map[bundle_name] = bundle_ppns.size();
 
+    LOG_DEBUG("Bundle \"" + bundle_name + "\" contains " + std::to_string(bundle_ppns.size()) + " serial(s).");
     return bundle_ppns.size();
 }
 
 
 void CollectConfigStats(DbConnection * const db_connection, const std::string &user_type, Stats * const stats) {
     db_connection->queryOrDie("SELECT DISTINCT user_id FROM ixtheo_journal_subscriptions WHERE user_id IN (SELECT id FROM "
-                              "ixtheo_user WHERE ixtheo_user.user_type = '" + user_type  + "')");
+                              "user WHERE user.ixtheo_user_type = '" + user_type  + "')");
     auto user_ids_result_set(db_connection->getLastResultSet());
     stats->no_of_users_with_subscriptions_ = user_ids_result_set.size();
+    LOG_DEBUG(std::to_string(user_ids_result_set.size()) + " user(s) of type '" + user_type + "'have/has some kind of subscription.");
 
     const IniFile bundles_config(UBTools::GetTuelibPath() + "journal_alert_bundles.conf");
     unsigned no_of_individual_subscriptions(0), no_of_bundle_subscriptions(0);
@@ -112,12 +114,15 @@ void CollectConfigStats(DbConnection * const db_connection, const std::string &u
             if (IsBundle(journal_control_number_or_bundle_name)) {
                 ++no_of_bundle_subscriptions;
                 no_of_individual_subscriptions += GetBundleSize(bundles_config, journal_control_number_or_bundle_name);
-            }
+            } else
+                ++no_of_individual_subscriptions; // A normal, IOW non-bundle, subscription.
         }
     }
 
     stats->average_number_of_bundle_subscriptions_ = double(no_of_bundle_subscriptions) / stats->no_of_users_with_subscriptions_;
+    LOG_DEBUG("Avg. number of bundle subscriptions is " + std::to_string(stats->average_number_of_bundle_subscriptions_) + ".");
     stats->average_subscriptions_per_user_ = double(no_of_individual_subscriptions) / stats->no_of_users_with_subscriptions_;
+    LOG_DEBUG("Avg. number of subscriptions per user is " + std::to_string(stats->average_subscriptions_per_user_) + ".");
 }
 
 
@@ -127,12 +132,14 @@ void CollectUsageStats(const std::string &user_type, Stats * const stats) {
 
     const double NOW(TimeUtil::GetJulianDayNumber());
     const double TIME_WINDOW(NOW - stats->report_interval_in_days_);
+    LOG_DEBUG("Stats time window in days is " + std::to_string(TIME_WINDOW) + ".");
 
     stats->no_of_subscribed_journals_with_notifications_ = 0;
     stats->average_number_of_notified_articles_per_notified_journal_ = 0.0;
     std::unordered_set<std::string> seen_superior_ppns;
     const auto USAGE_STATS_FILE_SIZE(usage_stats_file->size());
     while (usage_stats_file->tell() < USAGE_STATS_FILE_SIZE) {
+        // NOTE: The data read here has to match what was written by new_journal_alert!
         double julian_day_number;
         BinaryIO::ReadOrDie(*usage_stats_file, &julian_day_number);
         std::string logged_user_type;
@@ -151,8 +158,7 @@ void CollectUsageStats(const std::string &user_type, Stats * const stats) {
         }
     }
 
-    stats->average_number_of_notified_articles_per_notified_journal_ /=
-        stats->no_of_subscribed_journals_with_notifications_;
+    stats->average_number_of_notified_articles_per_notified_journal_ /= seen_superior_ppns.size();
 }
 
 
@@ -179,11 +185,11 @@ const std::string REPORT_DIRECTORY("/mnt/ZE020110/FID-Projekte/Statistik/"); // 
 // gets user subscriptions for superior works from MySQL
 // uses a KeyValueDB instance to prevent entries from being sent multiple times to same user
 int Main(int argc, char **argv) {
-    if (argc != 3 and argc != 4)
+    if (argc != 4 and argc != 5)
         Usage();
 
     std::string solr_host_and_port;
-    if (argc == 3)
+    if (argc == 4)
         solr_host_and_port = Solr::DEFAULT_HOST + ":" + std::to_string(Solr::DEFAULT_PORT);
     else {
         solr_host_and_port = argv[1];
@@ -210,8 +216,8 @@ int Main(int argc, char **argv) {
     }
 
     const std::string email_recipient(argv[3]);
-    std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
-    CollectConfigStats(db_connection.get(), user_type, &stats);
+    auto db_connection(DbConnection::VuFindMySQLFactory());
+    CollectConfigStats(&db_connection, user_type, &stats);
     CollectUsageStats(user_type, &stats);
 
     const auto report_file(FileUtil::OpenOutputFileOrDie(REPORT_DIRECTORY + "new_journal_alert_stats."

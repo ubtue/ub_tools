@@ -1,7 +1,7 @@
 /** \brief A tool to find changed article records for our partners in Cologne.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2020-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -129,7 +129,8 @@ void DetermineSuperiorPPNsOfInterest(std::unordered_set<std::string> * const sup
 void ExtractChangedRelevantArticles(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                                     const std::unordered_set<std::string> &superior_ppns_of_interest)
 {
-    DbConnection db_connection(UBTools::GetTuelibPath() + "cologne_article_hashes.sq3", DbConnection::CREATE);
+    DbConnection db_connection(DbConnection::Sqlite3Factory(UBTools::GetTuelibPath() + "cologne_article_hashes.sq3",
+                                                            DbConnection::CREATE));
     db_connection.queryOrDie("CREATE TABLE IF NOT EXISTS record_hashes ("
                              "    ppn TEXT PRIMARY KEY,"
                              "    hash TEXT NOT NULL"

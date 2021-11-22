@@ -1,7 +1,7 @@
 /** \brief Utility for merging print and online editions into single records.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2018-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2018-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -272,7 +272,6 @@ void EliminateDanglingOrUnreferencedCrossLinks(const bool debug, const std::unor
 }
 
 
-const std::set<MARC::Tag> LINK_TAGS{ "773", "775", "776", "800", "810", "830" };
 
 
 // Make inferior works point to the new merged superior parent found in "ppn_to_canonical_ppn_map".  Links referencing a key in
@@ -284,7 +283,7 @@ unsigned PatchLinks(MARC::Record * const record, const std::unordered_map<std::s
     std::set<std::string> link_tags_done;
     for (auto field(record->begin()); field != record->end(); ++field) {
         const std::string field_tag(field->getTag().toString());
-        if (LINK_TAGS.find(field_tag) != LINK_TAGS.cend()) {
+        if (std::find(MARC::CROSS_LINK_FIELD_TAGS.begin(), MARC::CROSS_LINK_FIELD_TAGS.end(), field_tag) != MARC::CROSS_LINK_FIELD_TAGS.end()) {
             const std::string link_ppn(ExtractLinkPPN(*field));
             if (link_ppn.empty())
                 continue;
@@ -1136,21 +1135,22 @@ int Main(int argc, char *argv[]) {
     CollectRecordOffsetsAndCrosslinks(debug, marc_reader.get(), &ppn_to_offset_map,
                                       &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
 
-    EliminateDanglingOrUnreferencedCrossLinks(debug, ppn_to_offset_map, &ppn_to_canonical_ppn_map, &canonical_ppn_to_ppn_map);
+    EliminateDanglingOrUnreferencedCrossLinks(debug, ppn_to_offset_map, &ppn_to_canonical_ppn_map,
+                                              &canonical_ppn_to_ppn_map);
 
     marc_reader->rewind();
     MergeRecordsAndPatchLinks(marc_reader.get(), marc_writer.get(), ppn_to_offset_map, ppn_to_canonical_ppn_map,
                               canonical_ppn_to_ppn_map);
 
     if (not (debug or skip_db_updates)) {
-        std::shared_ptr<DbConnection> db_connection(VuFind::GetDbConnection());
+        auto db_connection(DbConnection::VuFindMySQLFactory());
 
         const auto tue_find_flavour(VuFind::GetTueFindFlavour());
         if (tue_find_flavour == "ixtheo") {
-            PatchSerialSubscriptions(db_connection.get(), ppn_to_canonical_ppn_map);
-            PatchPDASubscriptions(db_connection.get(), ppn_to_canonical_ppn_map);
+            PatchSerialSubscriptions(&db_connection, ppn_to_canonical_ppn_map);
+            PatchPDASubscriptions(&db_connection, ppn_to_canonical_ppn_map);
         }
-        PatchResourceTable(db_connection.get(), ppn_to_canonical_ppn_map);
+        PatchResourceTable(&db_connection, ppn_to_canonical_ppn_map);
     }
 
     return EXIT_SUCCESS;

@@ -207,12 +207,17 @@ MBox::Message MBox::getNextMessage() const {
             if (not StringUtil::ToNumber(field_body, &priority))
                 LOG_WARNING("failed to parse the priority \"" + field_body + "\"!");
         } else if (field_name == "content-type" and likely(not field_body.empty())) {
-            if (StringUtil::StartsWith(field_body, "multipart/mixed; boundary=\"")) {
+            std::string multipart_type;
+            if (StringUtil::StartsWith(field_body, "multipart/alternative; boundary=\""))
+                multipart_type="multipart/alternative";
+            else if (StringUtil::StartsWith(field_body, "multipart/mixed; boundary=\""))
+                multipart_type ="multipart/mixed";
+            if (not multipart_type.empty()) {
                 if (unlikely(field_body.back() != '"'))
                     LOG_ERROR("weird field body!");
                 message_boundary =
-                    field_body.substr(__builtin_strlen("multipart/mixed; boundary=\""),
-                                      field_body.length() - __builtin_strlen("multipart/mixed; boundary=\"")
+                    field_body.substr(__builtin_strlen((multipart_type + "; boundary=\"").c_str()),
+                                      field_body.length() - __builtin_strlen((multipart_type + "; boundary=\"").c_str())
                                       - 1/* for the closing double quote */);
             }
         }
@@ -242,6 +247,10 @@ MBox::Message MBox::getNextMessage() const {
         std::vector<std::string> lines;
         if (unlikely(StringUtil::Split(message_body, '\n', &lines) == 0))
             LOG_ERROR("unexpected empty body of multipart messages!");
+
+        //skip an empty last line that occurs in the last message
+        if (lines.back().empty())
+            lines.pop_back();
 
         const std::string boundary_start("--" + message_boundary), boundary_end(boundary_start + "--");
         if (lines.front() != boundary_start)

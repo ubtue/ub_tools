@@ -41,7 +41,7 @@ void ProcessTablesOrViews(DbConnection * const db_connection, const bool process
     DbRow row1;
     while (row1 = result_set1.getNextRow()) {
         db_connection->queryOrDie("SHOW CREATE " + std::string(process_tables ? "TABLE" : "VIEW")
-                                  + " " + db_connection->getDbName() + "." + row1[0]);
+                                  + " " + db_connection->mySQLGetDbName() + "." + row1[0]);
         DbResultSet result_set2(db_connection->getLastResultSet());
         DbRow row2;
         while (row2 = result_set2.getNextRow())
@@ -60,32 +60,44 @@ void ProcessTriggers(DbConnection * const db_connection, const std::string &data
 }
 
 
-int Main(int argc, char *argv[]) {
-    if (argc != 1 and argc != 3 and argc != 4 and argc != 5 and argc != 6)
-        Usage();
+void ProcessProcedures(DbConnection * const db_connection, const std::string &database_name) {
+    db_connection->queryOrDie("SHOW PROCEDURE STATUS");
+    DbResultSet result_set(db_connection->getLastResultSet());
+    while (const auto row = result_set.getNextRow()) {
+        if (row["Db"] == database_name)
+            std::cout << "PROCEDURE NAME `" << row["Name"] << "`;\n";
+    }
+}
 
-    std::unique_ptr<DbConnection> db_connection;
+
+int Main(int argc, char *argv[]) {
+    std::string database_name, user, passwd, host("localhost");
+    unsigned port(MYSQL_PORT);
     switch (argc) {
     case 1:
-        db_connection.reset(new DbConnection());
-        break;
-    case 3:
-        db_connection.reset(new DbConnection(argv[1], argv[2]));
-        break;
-    case 4:
-        db_connection.reset(new DbConnection(argv[1], argv[2], argv[3]));
-        break;
-    case 5:
-        db_connection.reset(new DbConnection(argv[1], argv[2], argv[3], argv[4]));
         break;
     case 6:
-        db_connection.reset(new DbConnection(argv[1], argv[2], argv[3], argv[4], StringUtil::ToUnsigned(argv[5])));
+        port = StringUtil::ToUnsigned(argv[5]);
+    case 5:
+        host = argv[4];
+    case 4:
+        passwd = argv[3];
+    case 3:
+        user = argv[2];
+        database_name = argv[1];
         break;
+    default:
+        Usage();
     }
 
-    ProcessTablesOrViews(db_connection.get(), /* process_tables = */true);
-    ProcessTablesOrViews(db_connection.get(), /* process_tables = */false);
-    ProcessTriggers(db_connection.get(), argc == 1 ? "ub_tools" : argv[1]);
+    DbConnection db_connection(database_name.empty()
+                                   ? DbConnection::UBToolsFactory()
+                                   : DbConnection::MySQLFactory(database_name, user, passwd, host, port));
+
+    ProcessTablesOrViews(&db_connection, /* process_tables = */true);
+    ProcessTablesOrViews(&db_connection, /* process_tables = */false);
+    ProcessTriggers(&db_connection, argc == 1 ? "ub_tools" : argv[1]);
+    ProcessProcedures(&db_connection, argc == 1 ? "ub_tools" : argv[1]);
 
     return EXIT_SUCCESS;
 }

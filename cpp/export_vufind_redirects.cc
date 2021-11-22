@@ -1,7 +1,7 @@
 /** \brief Tool to export all datasets from VuFind redirect table to CSV file.
  *  \author Mario Trojan
  *
- *  \copyright 2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2020-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -17,9 +17,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <cstdlib>
+#include "DbConnection.h"
 #include "FileUtil.h"
 #include "TextUtil.h"
-#include "VuFind.h"
 #include "util.h"
 
 
@@ -27,9 +27,9 @@ int Main(int argc, char **argv) {
     if (argc != 2)
         ::Usage("export_file");
 
-    const auto db_connection(VuFind::GetDbConnection());
-    db_connection->queryOrDie("SELECT * FROM tuefind_redirect");
-    auto result_set(db_connection->getLastResultSet());
+    auto db_connection(DbConnection::VuFindMySQLFactory());
+    db_connection.queryOrDie("SELECT * FROM tuefind_redirect");
+    auto result_set(db_connection.getLastResultSet());
 
     const auto csv_file(FileUtil::OpenOutputFileOrDie(argv[1]));
     csv_file->write("url;group;timestamp\n");

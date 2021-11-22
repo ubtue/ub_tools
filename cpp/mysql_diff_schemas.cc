@@ -98,7 +98,7 @@ inline bool TriggerLineIsLessThan(const std::string &line1, const std::string &l
 
 void LoadSchema(const std::string &filename,
                 std::map<std::string, std::vector<std::string>> * const table_or_view_name_to_schema_map,
-                std::vector<std::string> * const triggers)
+                std::vector<std::string> * const triggers, std::vector<std::string> * const procedures)
 {
     std::string current_table_or_view;
     std::vector<std::string> current_schema;
@@ -107,6 +107,7 @@ void LoadSchema(const std::string &filename,
         const bool line_starts_with_create_table(StringUtil::StartsWith(line, "CREATE TABLE "));
         const bool line_starts_with_create_view(StringUtil::StartsWith(line, "CREATE VIEW "));
         const bool line_starts_with_create_trigger(StringUtil::StartsWith(line, "CREATE TRIGGER "));
+        const bool line_starts_with_procedure_name(StringUtil::StartsWith(line, "PROCEDURE NAME "));
 
         if (line_starts_with_create_table or line_starts_with_create_view) {
             if (not current_table_or_view.empty()) {
@@ -125,6 +126,15 @@ void LoadSchema(const std::string &filename,
                 current_schema.clear();
             }
             triggers->emplace_back(line);
+        } else if (line_starts_with_procedure_name) {
+            if (not current_schema.empty()) {
+                std::sort(current_schema.begin(), current_schema.end(), SchemaLineIsLessThan);
+                (*table_or_view_name_to_schema_map)[current_table_or_view] = current_schema;
+                current_table_or_view.clear();
+                current_schema.clear();
+            }
+            const auto procedure_name(ExtractBackQuotedString(line.substr(__builtin_strlen("PROCEDURE NAME "))));
+            procedures->emplace_back(procedure_name);
         } else {
             if (line[line.length() - 1] == ',')
                 line = line.substr(0, line.length() - 1);
@@ -138,6 +148,7 @@ void LoadSchema(const std::string &filename,
     }
 
     std::sort(triggers->begin(), triggers->end(), TriggerLineIsLessThan);
+    std::sort(procedures->begin(), procedures->end());
 }
 
 
@@ -258,7 +269,9 @@ void CompareTableOptions(const std::map<std::string, std::vector<std::string>> &
 void ReportUnknownLines(const std::string &schema,
                         const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map)
 {
-    static const std::vector<std::string> KNOWN_LINE_PREFIXES{ "KEY", "PRIMARY KEY", "UNIQUE KEY", "CONSTRAINT", ") ", "`" };
+    static const std::vector<std::string> KNOWN_LINE_PREFIXES{
+        "KEY", "PRIMARY KEY", "UNIQUE KEY", "CONSTRAINT", "PROCEDURE NAME", ") ", "`"
+    };
 
     for (const auto &table_name_and_schema : table_or_view_name_to_schema_map) {
         for (const auto &line : table_name_and_schema.second) {
@@ -374,23 +387,46 @@ void DiffTriggers(const std::vector<std::string> &triggers1, const std::vector<s
 }
 
 
+void DiffProcedures(const std::vector<std::string> &procedures1, const std::vector<std::string> &procedures2) {
+    auto procedure1(procedures1.cbegin());
+    auto procedure2(procedures2.cbegin());
+    while (procedure1 != procedures1.cend() and procedure2 != procedures2.cend()) {
+        if (*procedure1 == *procedure2)
+            ++procedure1, ++procedure2;
+        else if (*procedure1 < *procedure2) {
+            std::cout << "Procedure is present in the 1st schema but missing in the 2nd schema: " << *procedure1 << '\n';
+            ++procedure1;
+        } else {
+            std::cout << "Procedure is present in the 2nd schema but missing in the 1st schema: " << *procedure2 << '\n';
+            ++procedure2;
+        }
+    }
+
+    for (/* Intentionally empty! */; procedure1 != procedures1.cend(); ++procedure1)
+        std::cout << "Procedure found only in 1st schema: " << *procedure1 << '\n';
+    for (/* Intentionally empty! */; procedure2 != procedures2.cend(); ++procedure2)
+        std::cout << "Procedure found only in 2nd schema: " << *procedure2 << '\n';
+}
+
+
 int Main(int argc, char *argv[]) {
     if (argc != 3)
         ::Usage("schema1 schema2\n"
                 "Please note that this tool may not work particularly well if you do not use output from mysql_list_tables");
 
     std::map<std::string, std::vector<std::string>> table_or_view_name_to_schema_map1;
-    std::vector<std::string> triggers1;
-    LoadSchema(argv[1], &table_or_view_name_to_schema_map1, &triggers1);
+    std::vector<std::string> triggers1, procedures1;
+    LoadSchema(argv[1], &table_or_view_name_to_schema_map1, &triggers1, &procedures1);
     CleanupSchema(&table_or_view_name_to_schema_map1);
 
     std::map<std::string, std::vector<std::string>> table_or_view_name_to_schema_map2;
-    std::vector<std::string> triggers2;
-    LoadSchema(argv[2], &table_or_view_name_to_schema_map2, &triggers2);
+    std::vector<std::string> triggers2, procedures2;
+    LoadSchema(argv[2], &table_or_view_name_to_schema_map2, &triggers2, &procedures2);
     CleanupSchema(&table_or_view_name_to_schema_map2);
 
     DiffSchemas(table_or_view_name_to_schema_map1, table_or_view_name_to_schema_map2);
     DiffTriggers(triggers1, triggers2);
+    DiffProcedures(procedures1, procedures2);
 
     return EXIT_SUCCESS;
 }

@@ -298,9 +298,17 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
     if (creators_array and not creators_array->empty()) {
         for (const auto &entry :*creators_array) {
             const auto creator_object(JSON::JSONNode::CastToObjectNodeOrDie("array_element", entry));
-            metadata_record->creators_.emplace_back(GetStrippedHTMLStringFromJSON(creator_object, "firstName"),
-                                                    GetStrippedHTMLStringFromJSON(creator_object, "lastName"),
-                                                    GetStrippedHTMLStringFromJSON(creator_object, "creatorType"));
+            if (creator_object->hasNode("firstName") or creator_object->hasNode("lastName")) {
+                metadata_record->creators_.emplace_back(GetStrippedHTMLStringFromJSON(creator_object, "firstName"),
+                                                        GetStrippedHTMLStringFromJSON(creator_object, "lastName"),
+                                                        GetStrippedHTMLStringFromJSON(creator_object, "creatorType"));
+            } else if (creator_object->hasNode("name")) {
+                metadata_record->creators_.emplace_back("",
+                                                        GetStrippedHTMLStringFromJSON(creator_object, "name"),
+                                                        GetStrippedHTMLStringFromJSON(creator_object, "creatorType"));
+            } else {
+                LOG_WARNING("Don't know how to handle authors in non-empty creator_object " + creator_object->toString());
+            }
         }
     }
 
@@ -607,8 +615,16 @@ void AdjustLanguages(MetadataRecord * const metadata_record, const Config::Journ
     // compare language from zotero to detected language
     if (not detected_language.empty()) {
         if (journal_params.language_params_.mode_ == Config::LanguageParams::FORCE_DETECTION) {
-            LOG_INFO ("Force language detection active - using " + configured_or_detected_info + " language: " + detected_language);
-            metadata_record->languages_ = { detected_language };
+            LOG_INFO ("Force language detection active - " + configured_or_detected_info + " language: " + detected_language);
+            if (journal_params.language_params_.expected_languages_.find(detected_language) == journal_params.language_params_.expected_languages_.end()) {
+                LOG_INFO("Detected language : " + detected_language + " is not in the given set of admissible languages. "
+                         "No language will be set");
+                metadata_record->languages_.clear();
+            } else {
+                LOG_INFO("Using detected language: " + detected_language);
+                metadata_record->languages_ = { detected_language };
+            }
+
         } else if (metadata_record->languages_.empty()) {
             LOG_INFO("Using " + configured_or_detected_info + " language: " + detected_language);
             metadata_record->languages_.emplace(detected_language);
@@ -661,6 +677,12 @@ void DetectReviews(MetadataRecord * const metadata_record, const ConversionParam
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
 const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
+const ThreadSafeRegexMatcher PROPER_LAST_NAME("^(?!\\p{L}\\.).*$");
+
+
+bool IsProperLastName(const std::string &last_name) {
+    return PROPER_LAST_NAME.match(last_name);
+}
 
 
 void AugmentMetadataRecord(MetadataRecord * const metadata_record, const ConversionParams &parameters)
@@ -751,9 +773,11 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
             if (not creator.first_name_.empty())
                 combined_name += ", " + creator.first_name_;
 
-            creator.gnd_number_ = HtmlUtil::StripHtmlTags(BSZUtil::GetAuthorGNDNumber(combined_name, group_params.author_swb_lookup_url_));
-            if (not creator.gnd_number_.empty())
-                LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + " (SWB lookup)");
+            if (IsProperLastName(creator.last_name_)) {
+                creator.gnd_number_ = HtmlUtil::StripHtmlTags(BSZUtil::GetAuthorGNDNumber(combined_name, group_params.author_swb_lookup_url_));
+                if (not creator.gnd_number_.empty())
+                    LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + " (SWB lookup)");
+            }
         }
     }
 
@@ -1370,6 +1394,9 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
             ConvertZoteroItemToMetadataRecord(json_object, &new_metadata_record);
 
             if (ExcludeUndesiredItemTypes(new_metadata_record)) {
+                LOG_WARNING("Skipping record with URL " +
+                            (new_metadata_record.url_.empty() ? new_metadata_record.url_ : "[Unknown]") +
+                            " because it is an undesired item type");
                 ++result->num_skipped_since_undesired_item_type_;
                 continue;
             }

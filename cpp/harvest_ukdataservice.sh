@@ -6,9 +6,12 @@
 readonly METADATA_PREFIX=oai_dc
 readonly HARVEST_SET_OR_IDENTIFIER=identifier=8812
 readonly CONTROL_NUMBER_PREFIX=UKDATASERVICE
-readonly OUTPUT_FILENAME=ukdataservice.mrc
-readonly TIME_LIMIT_PER_REQUEST=20 # seconds
+readonly OUTPUT_FILENAME=KrimDok-ukdataservice-$(date +%Y%M%d).xml
+readonly TIME_LIMIT_PER_REQUEST=60 # seconds
 readonly DUPS_DATABASE=/usr/local/var/lib/tuelib/ukdataservice-dups.db
-oai_pmh_harvester 'https://oai.ukdataservice.ac.uk:8443/oai/provider' \
+oai_pmh_harvester --path-to-dups-database="${DUPS_DATABASE}" \
+                  'https://oai.ukdataservice.ac.uk:8443/oai/provider' \
                   "${METADATA_PREFIX}" "${HARVEST_SET_OR_IDENTIFIER}" "${CONTROL_NUMBER_PREFIX}" \
-                  "${OUTPUT_FILENAME}" "${TIME_LIMIT_PER_REQUEST}" "${DUPS_DATABASE}"
+                  "${OUTPUT_FILENAME}" "${TIME_LIMIT_PER_REQUEST}"
+
+upload_to_bsz_ftp_server.py "$MARC_OUTPUT" /pub/UBTuebingen_Default/

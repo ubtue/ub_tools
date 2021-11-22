@@ -38,7 +38,6 @@
 #include "SyndicationFormat.h"
 #include "UBTools.h"
 #include "util.h"
-#include "VuFind.h"
 #include "XmlWriter.h"
 
 
@@ -333,10 +332,10 @@ int Main(int argc, char *argv[]) {
     const std::string email_address(argv[2]);
     const std::string xml_output_filename(argv[3]);
 
-    const auto db_connection(VuFind::GetDbConnection());
+    auto db_connection(DbConnection::VuFindMySQLFactory());
 
     try {
-        return ProcessFeeds(subsystem_type, xml_output_filename, db_connection.get(), &downloader);
+        return ProcessFeeds(subsystem_type, xml_output_filename, &db_connection, &downloader);
     } catch (const std::runtime_error &x) {
         const auto program_basename(FileUtil::GetBasename(::progname));
         const auto subject(program_basename + " failed on " + DnsUtil::GetHostname()

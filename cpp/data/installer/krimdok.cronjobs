@@ -20,6 +20,7 @@ LOG_DIR=/usr/local/var/log/tuefind
 0 6 * * * "$BIN/mail_krimdok_newsletter.sh" > "$LOG_DIR/mail_krimdok_newsletter.log" 2>&1
 0 18 * * 6 "$VUFIND_HOME/util/tuefind_generate_sitemap.sh" "krimdok"
 0 20 * * 4 "$BIN/full_text_stats" "/usr/local/var/lib/tuelib/full_text_stats.txt" "$EMAIL" > "$LOG_DIR/full_text_stats.log" 2>&1
+30 20 * * * cd "$BSZ_DATEN" && "$BIN/generate_beacon_file.py" "$EMAIL" "/usr/local/ub_tools/cpp/data/krimdok-beacon.header" "$VUFIND_HOME/public/docs/krimdok-beacon.txt" > "$LOG_DIR/generate_beacon_file_krimdok.log" 2>&1
 0 21 * * 7 systemctl restart vufind
 30 21 * * 7 "$BIN/collect_solr_stats_data.py" "$EMAIL" krimdok > "$LOG_DIR/collect_solr_stats_data.log" 2>&1
 0 20 * * * "$BIN/mail_krimdok_newsletter.sh" > "$LOG_DIR/mail_krimdok_newsletter.log" 2>&1

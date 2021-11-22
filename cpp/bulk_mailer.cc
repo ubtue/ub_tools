@@ -26,7 +26,6 @@
 #include "DbRow.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
-#include "VuFind.h"
 #include "util.h"
 
 
@@ -47,14 +46,15 @@ namespace {
 void CollectRecipientsFromSqlTable(const std::string &select_statment, std::vector<std::string> * const recipients) {
     const auto old_size(recipients->size());
 
-    const auto db_connection(VuFind::GetDbConnection());
-    db_connection->queryOrDie(select_statment);
-    DbResultSet result_set(db_connection->getLastResultSet());
+    auto db_connection(DbConnection::VuFindMySQLFactory());
+    db_connection.queryOrDie(select_statment);
+    DbResultSet result_set(db_connection.getLastResultSet());
     DbRow row;
     while (row = result_set.getNextRow())
         recipients->emplace_back(row[0]);
 
-    LOG_INFO("Collected " + std::to_string(recipients->size() - old_size) + " recipients from the output of the database query.");
+    LOG_INFO("Collected " + std::to_string(recipients->size() - old_size)
+             + " recipients from the output of the database query.");
 }
 
 

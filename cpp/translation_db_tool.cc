@@ -2,7 +2,7 @@
  *  \brief A tool for reading/editing of the "translations" SQL table.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2016-2018 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2016-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -32,6 +32,7 @@
 #include "TranslationUtil.h"
 #include "UBTools.h"
 #include "util.h"
+#include "UrlUtil.h"
 
 
 void Usage() {
@@ -145,12 +146,44 @@ unsigned GetExistingKeywordTranslations(DbConnection * const connection, const s
 }
 
 
+unsigned GetTranslationHistory(DbConnection * const connection, const std::string &table_name, const std::string &index,
+                                        const std::string &language_code)
+{
+    if (table_name == "vufind_translations") {
+        connection->queryOrDie("SELECT create_timestamp, translator, translation FROM vufind_translations WHERE token='" + UrlUtil::UrlDecode(index) +
+                 "' AND language_code='" + language_code + "' ORDER BY create_timestamp DESC;");
+    } else if (table_name == "keyword_translations") {
+        connection->queryOrDie("SELECT create_timestamp, translator, translation FROM keyword_translations WHERE ppn='" + index +
+                 "' AND language_code='" + language_code + "' ORDER BY create_timestamp DESC;");
+    } else {
+       LOG_ERROR("table_name must be either vufind_translations or keyword_translations");
+    }
+    DbResultSet result_set(connection->getLastResultSet());
+    if (result_set.empty())
+        return 0;
+
+    std::cout << "{\"history_entries\":[" << std::endl;
+    bool first_elem = true;
+    while (const DbRow row = result_set.getNextRow()) {
+        if (first_elem == true)
+            first_elem = false;
+        else
+            std::cout << ",";
+        std::cout << "{\"timestamp\":\"" << EscapeCommasAndBackslashes(row["create_timestamp"]) << "\","
+                  << "\"translator\":\"" << EscapeCommasAndBackslashes(row["translator"]) << "\","
+                  << "\"translation\":\"" << EscapeCommasAndBackslashes(row["translation"]) << "\"}" << '\n';
+    }
+    std::cout << "]}" << std::endl;
+
+    return result_set.size();
+}
+
 
 void InsertIntoVuFindTranslations(DbConnection * const connection, const std::string &token,
                                   const std::string &language_code, const std::string &text,
                                   const std::string &translator)
 {
-    connection->queryOrDie("INSERT INTO vufind_translations SET token=\"" + token + "\",language_code=\""
+    connection->queryOrDie("INSERT INTO vufind_translations SET token=\"" + UrlUtil::UrlDecode(token) + "\",language_code=\""
                            + language_code + "\",translation=\"" + connection->escapeString(text)
                            + "\",translator=\"" + translator + "\";");
 }
@@ -171,9 +204,8 @@ void UpdateIntoVuFindTranslations(DbConnection * const connection, const std::st
                                   const std::string &language_code, const std::string &text,
                                   const std::string &translator)
 {
-    connection->queryOrDie("UPDATE vufind_translations SET translation=\"" + connection->escapeString(text)
-                           + "\", translator=\"" + translator + "\" WHERE token=\"" + token
-                           + "\" AND language_code=\"" + language_code + "\";");
+    connection->queryOrDie("CALL insert_vufind_translation_entry('" + UrlUtil::UrlDecode(token) + "','" + language_code + "','" +
+                                   connection->escapeString(text) +"','" + translator + "');");
 }
 
 
@@ -181,10 +213,8 @@ void UpdateIntoKeywordTranslations(DbConnection * const connection, const std::s
                                    const std::string &gnd_code, const std::string &language_code,
                                    const std::string &text, const std::string &translator)
 {
-    connection->queryOrDie("UPDATE keyword_translations SET translation=\"" + connection->escapeString(text)
-                           + "\", translator=\"" + translator + "\" WHERE ppn=\"" + ppn + "\" AND gnd_code=\""
-                           + gnd_code + "\" AND language_code=\"" + language_code + "\""
-                           + "AND status != \"unreliable\";");
+    connection->queryOrDie("CALL insert_keyword_translation_entry('" + ppn + "','" + gnd_code + "','" + language_code + "','" + 
+                                   connection->escapeString(text) +"','" + translator + "');");
 }
 
 
@@ -219,7 +249,7 @@ int main(int argc, char *argv[]) {
         const std::string sql_database(ini_file.getString("Database", "sql_database"));
         const std::string sql_username(ini_file.getString("Database", "sql_username"));
         const std::string sql_password(ini_file.getString("Database", "sql_password"));
-        DbConnection db_connection(sql_database, sql_username, sql_password);
+        DbConnection db_connection(DbConnection::MySQLFactory(sql_database, sql_username, sql_password));
 
         if (std::strcmp(argv[1], "get_missing") == 0) {
             if (argc != 3)
@@ -267,9 +297,16 @@ int main(int argc, char *argv[]) {
                 UpdateIntoVuFindTranslations(&db_connection, argv[2], language_code, argv[4], argv[5]);
             else
                 UpdateIntoKeywordTranslations(&db_connection, argv[2], argv[3], language_code, argv[5], argv[6]);
-        } else if (std::strcmp(argv[1], "validate_keyword") == 0) {
+        } else if (std::strcmp(argv[1], "get_history_for_entry") == 0) {
+            if (argc != 5)
+                logger->error("\"get_history_for_entry\" requires exactly three arguments: table_name ppn language_code!");
+            const std::string table_name(argv[2]);
+            const std::string index(argv[3]);
+            const std::string language_code(argv[4]);
+            GetTranslationHistory(&db_connection, table_name, index, language_code);
+        }else if (std::strcmp(argv[1], "validate_keyword") == 0) {
             if (argc != 4)
-                logger->error("\"get_missing\" requires exactly two argument: ppn translation!");
+                logger->error("\"get_missing\" requires exactly two arguments: ppn translation!");
             const std::string ppn(argv[2]);
             const std::string translation(argv[3]);
             ValidateKeywordTranslation(&db_connection, ppn, translation);

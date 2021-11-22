@@ -627,6 +627,29 @@ bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start
         return true;
     }
 
+    static RegexMatcher *matcher5(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d+),(\\d+),(\\d+)-(\\d+)$"));
+    if (matcher5->matched(ranges)) {
+        const unsigned part1(StringUtil::ToUnsigned((*matcher5)[1]));
+        if (unlikely(part1 == 0 or part1 >= 10000))
+            return false;
+
+        const unsigned part2(StringUtil::ToUnsigned((*matcher5)[2]));
+        if (unlikely(part2 == 0 or part2 >= 100))
+            return false;
+
+        const unsigned part3(StringUtil::ToUnsigned((*matcher5)[3]));
+        if (unlikely(part3 == 0 or part3 >= 100))
+            return false;
+
+        const unsigned part4(StringUtil::ToUnsigned((*matcher5)[4]));
+        if (unlikely(part4 == 0 or part4 >= 100))
+            return false;
+
+        *range_start = part1 * 10000 + part2 * 100 + part3;
+        *range_end = part1 * 10000 + part2 * 100 + part4;
+        return true;
+    }
+
     return false;
 }
 
@@ -662,26 +685,37 @@ std::string ConvertTimeRangeToText(const std::string &range) {
     date2 = date2.substr(0, date2.length()-4);
     unsigned u_date1 = std::stoi(date1);
     unsigned u_date2 = std::stoi(date2);
-    if (u_date1 > OFFSET) {
-        u_date1 -= OFFSET;
-        date1 = std::to_string(u_date1);
-    } else {
-        u_date1 = (OFFSET - u_date1);
-        date1 = "v" + std::to_string(u_date1);
+
+    if (u_date1 == 0 and month_day1 == "0000")
+        date1 = "";
+    else {
+        if (u_date1 > OFFSET) {
+            u_date1 -= OFFSET;
+            date1 = std::to_string(u_date1);
+        } else {
+            u_date1 = (OFFSET - u_date1);
+            date1 = "v" + std::to_string(u_date1);
+        }
+        if (month_day1 != "0101") {
+            date1 = date1 + "-" + month_day1.substr(0, 2) + "-" + month_day1.substr(2);
+        }
     }
-    if (u_date2 > OFFSET) {
-        u_date2 -= OFFSET;
-        date2 = std::to_string(u_date2);
-    } else {
-        u_date2 = (OFFSET - u_date2);
-        date2 = "v" + std::to_string(u_date2);
+
+    if (u_date2 == 0 and month_day2 == "0000")
+        date2 = "";
+    else {
+        if (u_date2 > OFFSET) {
+            u_date2 -= OFFSET;
+            date2 = std::to_string(u_date2);
+        } else {
+            u_date2 = (OFFSET - u_date2);
+            date2 = "v" + std::to_string(u_date2);
+        }
+        if (month_day2 != "1231") {
+            date2 = date2 + "-" + month_day2.substr(0, 2) + "-" + month_day2.substr(2);
+        }
     }
-    if (month_day1 != "0101") {
-        date1 = date1 + "-" + month_day1.substr(0,2) + "-" + month_day1.substr(2);
-    }
-    if (month_day2 != "1231") {
-        date2 = date2 + "-" + month_day2.substr(0,2) + "-" + month_day2.substr(2);
-    }
+
     return date1 + " - " + date2;
 }
 

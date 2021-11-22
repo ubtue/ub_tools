@@ -2,7 +2,7 @@
  *  \brief  Interface for the DbRow class.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
- *  \copyright 2015-2020 Universitätsbibliothek Tübingen.  All rights reserved.
+ *  \copyright 2015-2021 Universitätsbibliothek Tübingen.  All rights reserved.
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as
@@ -22,6 +22,7 @@
 
 #include <map>
 #include <string>
+#include <libpq-fe.h>
 #include <mysql/mysql.h>
 #include <sqlite3.h>
 
@@ -29,7 +30,11 @@
 /** \warning It is unsafe to access DbRow instances after the DbResultSet that it belongs to has been deleted
  *           or gone out of scope! */
 class DbRow {
-    friend class DbResultSet;
+    friend class MySQLResultSet;
+    friend class Sqlite3ResultSet;
+    friend class PostgresResultSet;
+    PGresult *pg_result_;
+    int pg_row_number_;
     MYSQL_ROW row_;
     unsigned long *field_sizes_;
     unsigned field_count_;
@@ -38,13 +43,17 @@ class DbRow {
 private:
     DbRow(MYSQL_ROW row, unsigned long * const field_sizes, const unsigned field_count,
           const std::map<std::string, unsigned> &field_name_to_index_map)
-        : row_(row), field_sizes_(field_sizes), field_count_(field_count), stmt_handle_(nullptr),
+        : pg_result_(nullptr), row_(row), field_sizes_(field_sizes), field_count_(field_count), stmt_handle_(nullptr),
           field_name_to_index_map_(&field_name_to_index_map) { }
     DbRow(sqlite3_stmt *stmt_handle, const std::map<std::string, unsigned> &field_name_to_index_map)
-        : row_(nullptr), field_sizes_(nullptr), field_count_(field_name_to_index_map.size()), stmt_handle_(stmt_handle),
-          field_name_to_index_map_(&field_name_to_index_map) { }
+        : pg_result_(nullptr), row_(nullptr), field_sizes_(nullptr), field_count_(field_name_to_index_map.size()),
+          stmt_handle_(stmt_handle), field_name_to_index_map_(&field_name_to_index_map) { }
+    DbRow(PGresult * const pg_result, const int pg_row_number, const unsigned field_count,
+          const std::map<std::string, unsigned> &field_name_to_index_map)
+        : pg_result_(pg_result), pg_row_number_(pg_row_number), row_(nullptr), field_sizes_(nullptr),
+          field_count_(field_count), stmt_handle_(nullptr), field_name_to_index_map_(&field_name_to_index_map) { }
 public:
-    DbRow(): row_(nullptr), field_sizes_(nullptr), field_count_(0), stmt_handle_(nullptr) { }
+    DbRow(): pg_result_(nullptr), row_(nullptr), field_sizes_(nullptr), field_count_(0), stmt_handle_(nullptr) { }
     DbRow(DbRow &&other);
 
     DbRow &operator=(const DbRow &rhs) = default;

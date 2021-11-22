@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
         Usage();
 
     try {
-        DbConnection db_connection("/tmp/test.sq3", DbConnection::CREATE);
+        DbConnection db_connection(DbConnection::Sqlite3Factory("/tmp/test.sq3", DbConnection::CREATE));
         db_connection.queryFileOrDie("sqlite3_test.sq3");
 
         db_connection.queryOrDie("DELETE FROM contacts;");

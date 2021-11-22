@@ -147,25 +147,25 @@ for d in */ ; do
                                "$online_first_records_output_filepath" \
                                "$invalid_records_output_filepath" "$EMAIL_ADDRESS" 2>&1 | tee --append "$LOG" "$invalid_records_log_filepath"
 
-    invalid_record_count=$(marc_size "$invalid_records_output_filepath")
+    invalid_record_count=$(marc_size "$invalid_records_output_filepath" 2>> "$LOG")
     if [ "$invalid_record_count" != "0" ]; then
         if [ "$DELIVERY_MODE" = "TEST" ]; then
-            cp "$invalid_records_output_filepath" "$invalid_records_log_filepath" "$DEST_DIR_LOCAL_TEST"
+            cp "$invalid_records_output_filepath" "$invalid_records_log_filepath" "$DEST_DIR_LOCAL_TEST" >> "$LOG" 2>&1
         elif [ "$DELIVERY_MODE" = "LIVE" ]; then
-            cp "$invalid_records_output_filepath" "$invalid_records_log_filepath" "$DEST_DIR_LOCAL_LIVE"
+            cp "$invalid_records_output_filepath" "$invalid_records_log_filepath" "$DEST_DIR_LOCAL_LIVE" >> "$LOG" 2>&1
         fi
     fi
 
-    online_first_record_count=$(marc_size "$online_first_records_output_filepath")
+    online_first_record_count=$(marc_size "$online_first_records_output_filepath" 2>> "$LOG")
     if [ "$online_first_record_count" != "0" ]; then
         if [ "$DELIVERY_MODE" = "TEST" ]; then
-            cp "$online_first_records_output_filepath" "$DEST_DIR_LOCAL_TEST"
+            cp "$online_first_records_output_filepath" "$DEST_DIR_LOCAL_TEST" >> "$LOG" 2>&1
         elif [ "$DELIVERY_MODE" = "LIVE" ]; then
-            cp "$online_first_records_output_filepath" "$DEST_DIR_LOCAL_LIVE"
+            cp "$online_first_records_output_filepath" "$DEST_DIR_LOCAL_LIVE" >> "$LOG" 2>&1
         fi
     fi
 
-    valid_record_count=$(marc_size "$valid_records_output_filepath")
+    valid_record_count=$(marc_size "$valid_records_output_filepath" 2>> "$LOG")
     if [ "$valid_record_count" = "0" ]; then
         continue    # skip files with zero records
     fi
