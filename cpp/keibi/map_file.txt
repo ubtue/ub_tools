@@ -2,7 +2,7 @@
  volumeID               | VOLa
  bibtexEntryType        | BITa
  bibtexCitation         | BIBa
- author                 | 100a (InsertField)
+ author                 | XXXa (InsertAuthors)
  title                  | 245a
  booktitle              | 773t
  series                 | SERa
@@ -10,7 +10,7 @@
  institution            | INSa
  organization           | ORGa
  address                | ADDa
- editor                 | 700a
+ editor                 | 700a (InsertEditors)
  edition                | EDNa
  publisher              | 264b
  school                 | SCHa
@@ -22,7 +22,7 @@
  number                 | 936e
  pages                  | 936g
  month                  | MONa
- year                   | 936j
+ year                   | 936j, 264c (InsertOrForceSubfield)
  note                   | 520a
  url                    | 856u
  url_more               | 856u
@@ -32,16 +32,16 @@
  has_review             | HRWa
  reviews                | RWSa
  more                   | MORa
- fs_key                 |
- keibi_internal         |
- keibi_internal_key     |
- keibi_internal_key_sub |
- keibi_internal_type    |
- comments               |
+ fs_key                 | FSKa
+ keibi_internal         | KEIa
+ keibi_internal_key     | KEIb
+ keibi_internal_key_sub | KEIc
+ keibi_internal_type    | KEId
+ comments               | 520a
  user                   | USRa
  date                   | 008 (InsertCreationField)
- status                 |
+ status                 | STAa
  raw                    | RAWa
- ref_more               |
+ ref_more               | RFMa
  semantic_keywords      | 600a
  ddc                    | 082a
