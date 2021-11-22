@@ -37,6 +37,7 @@ namespace {
 using ConversionFunctor = std::function<void(const std::string, const char, MARC::Record * const, const std::string)>;
 const std::string KEIBI_QUERY("SELECT * FROM citations");
 const char SEPARATOR_CHAR('|');
+const std::string bibtexEntryType_field("bibtexEntryType");
 
 
 struct DbFieldToMARCMapping {
@@ -55,6 +56,38 @@ const auto DbFieldToMarcMappingComparator = [](const DbFieldToMARCMapping &lhs, 
 using DbFieldToMARCMappingMultiset = std::multiset<DbFieldToMARCMapping, decltype(DbFieldToMarcMappingComparator)>;
 
 
+enum BIBTEX_ENTRY_TYPES { INPROCEEDINGS, ARTICLE, BOOK, COLLECTION, UNKNOWN};
+const std::map<std::string, int> STRING_TO_BITEX_ENTRY_TYPE {
+   { "inproceedings", BIBTEX_ENTRY_TYPES::INPROCEEDINGS },
+   { "article", BIBTEX_ENTRY_TYPES::ARTICLE },
+   { "book", BIBTEX_ENTRY_TYPES::BOOK },
+   { "collection", BIBTEX_ENTRY_TYPES::COLLECTION }
+};
+
+
+void DetermineTypeOfRecord(const std::string &bibtex_description, MARC::Record::BibliographicLevel * type_of_record) {
+   const auto type_candidate(STRING_TO_BITEX_ENTRY_TYPE.find(bibtex_description));
+   if (type_candidate != STRING_TO_BITEX_ENTRY_TYPE.end()) {
+       switch (type_candidate->second) {
+           case BIBTEX_ENTRY_TYPES::BOOK:
+               *type_of_record = MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM;
+               return;
+           case BIBTEX_ENTRY_TYPES::ARTICLE:
+               *type_of_record = MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
+               return;
+           case BIBTEX_ENTRY_TYPES::COLLECTION:
+               *type_of_record = MARC::Record::BibliographicLevel::COLLECTION;
+                return;
+           case BIBTEX_ENTRY_TYPES::INPROCEEDINGS:
+               // FIXME: Find better type
+               *type_of_record = MARC::Record::BibliographicLevel::SUBUNIT;
+               return;
+       }
+   }
+   *type_of_record = MARC::Record::BibliographicLevel::UNDEFINED;
+}
+
+
 [[noreturn]] void Usage() {
     ::Usage("db_inifile map_file marc_output");
 }
@@ -67,7 +100,7 @@ void InsertField(const std::string &tag, const char subfield_code, MARC::Record 
 
 
 void IsReview(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
-    if (data.length())
+    if (data.length() and data != "0")
         record->insertField(tag, subfield_code, "Rezension");
 }
 
@@ -100,14 +133,16 @@ void ConvertCitations(DbConnection * const db_connection,
         ++i;
         std::ostringstream formatted_number;
         formatted_number << std::setfill('0') << std::setw(8) << i;
-        MARC::Record new_record(MARC::Record::TypeOfRecord::MIXED_MATERIALS, MARC::Record::BibliographicLevel::COLLECTION,
+        MARC::Record::BibliographicLevel type_of_record;
+        DetermineTypeOfRecord(row[bibtexEntryType_field], &type_of_record);
+        //MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::COLLECTION,
+        MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record,
                                 "KEI" + formatted_number.str());
         for (auto dbfield_to_marc_mapping(dbfield_to_marc_mappings.begin());
              dbfield_to_marc_mapping != dbfield_to_marc_mappings.end();
              ++dbfield_to_marc_mapping)
         {
             dbfield_to_marc_mapping->extraction_function_(&new_record, row[dbfield_to_marc_mapping->db_field_name_]);
-
         }
         // Dummy entries
         new_record.insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
