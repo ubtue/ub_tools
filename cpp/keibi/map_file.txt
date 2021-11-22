@@ -1,46 +1,46 @@
- volumeID               | 
- bibtexEntryType        | 
- bibtexCitation         | 
- author                 | 100a
- title                  | 264a
- booktitle              | 
- series                 | 
- journal                | 773a 
- institution            | 
- organization           | 
- address                | 
- editor                 | 
- edition                | 
- publisher              | 
- school                 | 
- type                   | 
- chapter                | 
- howpublished           | 
+ volumeID               | VOLa
+ bibtexEntryType        | BITa
+ bibtexCitation         | BIBa
+ author                 | 100a (InsertField)
+ title                  | 245a
+ booktitle              | 773t
+ series                 | SERa
+ journal                | 773a
+ institution            | INSa
+ organization           | ORGa
+ address                | ADDa
+ editor                 | 700a
+ edition                | EDNa
+ publisher              | 264b
+ school                 | SCHa
+ type                   | TYPa
+ chapter                | CHAa
+ howpublished           | HPBa
  keywords               | 650a
- volume                 | 
- number                 | 
- pages                  | 
- month                  | 
- year                   | 
- note                   | 
+ volume                 | 936d
+ number                 | 936e
+ pages                  | 936g
+ month                  | MONa
+ year                   | 936j
+ note                   | 520a
  url                    | 856u
  url_more               | 856u
- file                   | 
- confidential           | 
- is_review              | 
- has_review             | 
- reviews                | 
- more                   | 
- fs_key                 | 
- keibi_internal         | 
- keibi_internal_key     | 
- keibi_internal_key_sub | 
- keibi_internal_type    | 
- comments               | 
- user                   | 
- date                   | 
- status                 | 
- raw                    | 
- ref_more               | 
- semantic_keywords      | 
- ddc                    
+ file                   | FILa
+ confidential           | CONa
+ is_review              | 650a (IsReview)
+ has_review             | HRWa
+ reviews                | RWSa
+ more                   | MORa
+ fs_key                 |
+ keibi_internal         |
+ keibi_internal_key     |
+ keibi_internal_key_sub |
+ keibi_internal_type    |
+ comments               |
+ user                   | USRa
+ date                   | 008 (InsertCreationField)
+ status                 |
+ raw                    | RAWa
+ ref_more               |
+ semantic_keywords      | 600a
+ ddc                    | 082a

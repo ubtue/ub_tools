@@ -76,13 +76,16 @@ void InsertCreationField(const std::string &tag, const char, MARC::Record * cons
     if (data.length()) {
         static ThreadSafeRegexMatcher date_matcher("((\\d{4})-\\d{2}-\\d{2})[\\t\\s]+\\d{2}:\\d{2}:\\d{2}");
         if (const auto &match_result = date_matcher.match(data)) {
-            record->insertField(tag, StringUtil::Filter(match_result[1], "-").substr(2) + "s" + match_result[2] +"    xx |||||      00| ||ger c");
+            if (match_result[1] == "0000-00-00")
+                record->insertField(tag, "000101s2000    x |||||      00| ||ger c");
+            else
+                record->insertField(tag, StringUtil::Filter(match_result[1], "-").substr(2) + "s" + match_result[2] +"    xx |||||      00| ||ger c");
             return;
         } else
             LOG_ERROR("Invalid date format \"" + data + "\"");
     }
     // Fallback with dummy data
-    record->insertField(tag, "190606s2019    xx |||||      00| ||ger c");
+    record->insertField(tag, "000101s2000    xx |||||      00| ||ger c");
 
 }
 
