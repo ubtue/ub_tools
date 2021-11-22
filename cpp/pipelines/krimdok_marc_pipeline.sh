@@ -136,6 +136,13 @@ OADOI_URLS_FILE="/mnt/ZE020150/FID-Entwicklung/oadoi/oadoi_urls_krimdok.json"
 EndPhase || Abort) &
 wait
 
+# Note: in krimdok this phase is used to count titles for each coorporation / author, no subsytems at the moment
+StartPhase "Add Tags for subsystems"
+(add_subsystem_tags krimdok GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
+                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
 
 StartPhase "Tags Which Subsystems have Inferior Records in Superior Works Records"
 (add_is_superior_work_for_subsystems GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \

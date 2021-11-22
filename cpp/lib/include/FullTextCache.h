@@ -115,6 +115,8 @@ public:
     static TextType MapTextDescriptionToTextType(const std::string &text_description);
 
     bool hasUrlWithTextType(const std::string &id, const TextType &text_type);
+
+    bool hasEntryWithType(const std::string &id, const TextType &text_type) const;
 };
 
 

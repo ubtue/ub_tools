@@ -52,6 +52,7 @@ static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 5;
 static constexpr unsigned MAX_CRAWLING_TASKLETS        = 5;
 static constexpr unsigned MAX_RSS_TASKLETS             = 5;
 static constexpr unsigned MAX_APIQUERY_TASKLETS        = 1;
+static constexpr unsigned MAX_EMAILCRAWL_TASKLETS      = 5;
 // Set to 20 empirically. Larger numbers increase the incidence of the
 // translation server bug that returns an empty/broken response.
 static constexpr unsigned MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS = 15;
@@ -310,6 +311,57 @@ public:
 } // end namespace ApiQuery
 
 
+namespace EmailCrawl {
+
+struct Params {
+    Util::HarvestableItem download_item_;
+    std::string user_agent_;
+    unsigned per_crawl_url_time_limit_;
+    unsigned total_crawl_time_limit_;
+    bool ignore_robots_dot_txt_;
+    Util::HarvestableItemManager * const harvestable_manager_;
+    std::vector<std::string> emailcrawl_mboxes_;
+public:
+    explicit Params(const Util::HarvestableItem &download_item, const std::string user_agent, const unsigned per_crawl_url_time_limit,
+                    const unsigned total_crawl_time_limit, const bool ignore_robots_dot_txt,
+                    Util::HarvestableItemManager * const harvestable_manager, std::vector<std::string> emailcrawl_mboxes)
+        : download_item_(download_item), user_agent_(user_agent), per_crawl_url_time_limit_(per_crawl_url_time_limit),
+          total_crawl_time_limit_(total_crawl_time_limit), ignore_robots_dot_txt_(ignore_robots_dot_txt),
+          harvestable_manager_(harvestable_manager), emailcrawl_mboxes_(emailcrawl_mboxes) {}
+};
+
+
+struct Result {
+    unsigned num_email_crawled_successful_;
+    unsigned num_email_crawled_unsuccessful_;
+    unsigned num_email_crawled_cache_hits_;
+    unsigned num_email_queued_for_harvest_;
+    unsigned num_email_skipped_since_already_delivered_;
+    std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
+public:
+    explicit Result()
+        : num_email_crawled_successful_(0), num_email_crawled_unsuccessful_(0), num_email_crawled_cache_hits_(0),
+          num_email_queued_for_harvest_(0), num_email_skipped_since_already_delivered_(0) {}
+    Result(const Result &rhs) = delete;
+};
+
+
+class Tasklet : public Util::Tasklet<Params, Result> {
+    DownloadManager * const download_manager_;
+    const Util::UploadTracker &upload_tracker_;
+    bool force_downloads_;
+
+    void run(const Params &parameters, Result * const result);
+public:
+    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
+            DownloadManager * const download_manager, const Util::UploadTracker &upload_tracker,
+            std::unique_ptr<Params> parameters, const bool force_downloads);
+    virtual ~Tasklet() override = default;
+
+};
+}// end namespace EmailCrawl
+
+
 
 // Orchestrates all downloads and manages the relevant state. Consumers of this class can
 // queue downloads as if they were synchronous operations and await their results at a later
@@ -368,6 +420,8 @@ private:
         std::deque<std::shared_ptr<RSS::Tasklet>> queued_rss_feeds_;
         std::deque<std::shared_ptr<ApiQuery::Tasklet>> active_apiqueries_;
         std::deque<std::shared_ptr<ApiQuery::Tasklet>> queued_apiqueries_;
+        std::deque<std::shared_ptr<EmailCrawl::Tasklet>> active_emailcrawls_;
+        std::deque<std::shared_ptr<EmailCrawl::Tasklet>> queued_emailcrawls_;
     public:
         DomainData(const DelayParams &delay_params) : delay_params_(delay_params) {};
     };
@@ -383,6 +437,8 @@ private:
         ThreadUtil::ThreadSafeCounter<unsigned> rss_feeds_queue_counter_;
         ThreadUtil::ThreadSafeCounter<unsigned> apiquery_tasklet_execution_counter_;
         ThreadUtil::ThreadSafeCounter<unsigned> apiquery_queue_counter_;
+        ThreadUtil::ThreadSafeCounter<unsigned> emailcrawl_tasklet_execution_counter_;
+        ThreadUtil::ThreadSafeCounter<unsigned> emailcrawl_queue_counter_;
     };
 
 
@@ -403,12 +459,14 @@ private:
     std::deque<std::shared_ptr<Crawling::Tasklet>> crawling_queue_buffer_;
     std::deque<std::shared_ptr<RSS::Tasklet>> rss_queue_buffer_;
     std::deque<std::shared_ptr<ApiQuery::Tasklet>> apiquery_queue_buffer_;
+    std::deque<std::shared_ptr<EmailCrawl::Tasklet>> emailcrawl_queue_buffer_;
     mutable std::recursive_mutex cached_download_data_mutex_;
     mutable std::recursive_mutex ongoing_direct_downloads_mutex_;
     mutable std::recursive_mutex direct_download_queue_buffer_mutex_;
     mutable std::recursive_mutex crawling_queue_buffer_mutex_;
     mutable std::recursive_mutex rss_queue_buffer_mutex_;
     mutable std::recursive_mutex apiquery_queue_buffer_mutex_;
+    mutable std::recursive_mutex emailcrawl_queue_buffer_mutex_;
     Util::UploadTracker upload_tracker_;
     TaskletCounters tasklet_counters_;
 
@@ -437,6 +495,8 @@ public:
                                                                 const std::string &user_agent,
                                                                 const std::string &feed_contents = "");
     std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>> apiQuery(const Util::HarvestableItem &source);
+    std::unique_ptr<Util::Future<EmailCrawl::Params, EmailCrawl::Result>> emailCrawl(const Util::HarvestableItem &source,
+                                                                                     const std::vector<std::string> &mbox_files,                                                                                                                         const std::string &user_agent);
     void addToDownloadCache(const Util::HarvestableItem &source, const std::string &url, const std::string &response_body,
                             const DirectDownload::Operation operation);
     std::unique_ptr<DirectDownload::Result> fetchFromDownloadCache(const Util::HarvestableItem &source,

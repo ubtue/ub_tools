@@ -23,6 +23,7 @@
 #include <memory>
 #include <set>
 #include <unordered_map>
+#include <vector>
 #include "IniFile.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
@@ -142,6 +143,7 @@ struct GlobalParams {
     };
 
     std::string translation_server_url_;
+    std::vector<std::string> emailcrawl_mboxes_;
     std::string enhancement_maps_directory_;
     std::string group_names_;
     std::string strptime_format_string_;
@@ -163,7 +165,7 @@ private:
 };
 
 
-enum HarvesterOperation : unsigned { RSS, CRAWL, DIRECT, APIQUERY };
+enum HarvesterOperation : unsigned { RSS, CRAWL, DIRECT, APIQUERY, EMAIL };
 
 
 extern const std::map<int, std::string> HARVESTER_OPERATION_TO_STRING_MAP;
@@ -242,6 +244,7 @@ struct JournalParams {
         CRAWL_EXTRACTION_REGEX,
         CRAWL_URL_REGEX,
         PERSONALIZED_AUTHORS,
+        EMAILCRAWL_SUBJECT_REGEX,
     };
 
     unsigned zeder_id_;
@@ -274,6 +277,7 @@ struct JournalParams {
     MarcMetadataParams marc_metadata_params_;
     bool zeder_newly_synced_entry_;
     bool selective_evaluation_;
+    std::shared_ptr<ThreadSafeRegexMatcher> emailcrawl_subject_regex_;
 public:
     JournalParams(const GlobalParams &global_params);
     JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);

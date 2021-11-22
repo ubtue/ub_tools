@@ -122,6 +122,22 @@ bool FullTextCache::getEntry(const std::string &id, Entry * const entry) const {
 }
 
 
+bool FullTextCache::hasEntryWithType(const std::string &id, const TextType &text_type) const {
+    Entry entry;
+    if (not getEntry(id, &entry))
+        return false;
+    const auto results(full_text_cache_.simpleSelect({ "text_type" }, "id", id));
+    for (const auto &result : results) {
+        const auto result_type(result.find("text_type"));
+        if (result_type == result.cend())
+            continue;
+        if (result_type->second == std::to_string(text_type))
+            return true;
+    }
+    return false;
+}
+
+
 inline std::string GetValueOrEmptyString(const std::map<std::string, std::string> &map, const std::string &key) {
     const auto pair(map.find(key));
     return pair == map.cend() ? "" : pair->second;
