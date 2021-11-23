@@ -21,6 +21,7 @@
 */
 
 #include <iostream>
+#include <set>
 #include <unordered_map>
 #include "FileUtil.h"
 #include "JSON.h"
@@ -85,7 +86,7 @@ void LoadISSNsToJournalTitlesPPNsAndISSNsMap(
 
 
 // \return True if we found at least one author, else false.
-bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const record, std::vector<std::string> * const authors) {
+bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const record, std::set<std::string> * const authors) {
     const auto authors_node(entry_object.getArrayNode("authors"));
     if (authors_node == nullptr or authors_node->empty())
         return false;
@@ -95,10 +96,13 @@ bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const r
     for (const auto &author : *authors_node) {
         const auto author_object(JSON::JSONNode::CastToObjectNodeOrDie("author_object", author));
         const std::string author_name(author_object->getStringNode("name")->getValue());
+        if (authors->find(author_name) != authors->end())
+            continue; // Found a duplicate author!
+
         record->insertField(first_author ? "100" : "700",
                             { { 'a', MiscUtil::NormalizeName(author_name) },
                               { '4', "aut" } }, /*indicator1=*/'1');
-        authors->push_back(author_name);
+        authors->insert(author_name);
         if (first_author)
             first_author = false;
     }
@@ -107,7 +111,7 @@ bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const r
 }
 
 
-void ProcessContributors(const JSON::ObjectNode &entry_object, MARC::Record * const record, const std::vector<std::string> &authors) {
+void ProcessContributors(const JSON::ObjectNode &entry_object, MARC::Record * const record, const std::set<std::string> &authors) {
     const auto contributors(entry_object.getOptionalArrayNode("contributors"));
     if (contributors == nullptr)
         return;
@@ -284,7 +288,7 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
         else {
             MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                                     control_number);
-            std::vector<std::string> authors;
+            std::set<std::string> authors;
             if (not ProcessAuthors(*entry_object, &new_record, &authors)) {
                 ++skipped_incomplete_count;
                 continue;
