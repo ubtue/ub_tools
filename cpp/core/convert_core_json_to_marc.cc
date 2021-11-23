@@ -100,17 +100,20 @@ MARC::Record::BibliographicLevel MapTypeStringToBibliographicLevel(const std::st
 
 
 // \return True if we found at least one author, else false.
-bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
-    const auto authors(entry_object.getArrayNode("authors"));
-    if (authors == nullptr or authors->empty())
+bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const record, std::vector<std::string> * const authors) {
+    const auto authors_node(entry_object.getArrayNode("authors"));
+    if (authors_node == nullptr or authors_node->empty())
         return false;
 
+    authors->clear();
     bool first_author(true);
-    for (const auto &author : *authors) {
+    for (const auto &author : *authors_node) {
         const auto author_object(JSON::JSONNode::CastToObjectNodeOrDie("author_object", author));
+        const std::string author_name(author_object->getStringNode("name")->getValue());
         record->insertField(first_author ? "100" : "700",
-                            { { 'a', MiscUtil::NormalizeName(author_object->getStringNode("name")->getValue()) },
+                            { { 'a', MiscUtil::NormalizeName(author_name) },
                               { '4', "aut" } }, /*indicator1=*/'1');
+        authors->push_back(author_name);
         if (first_author)
             first_author = false;
     }
@@ -119,13 +122,17 @@ bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const r
 }
 
 
-void ProcessContributors(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
+void ProcessContributors(const JSON::ObjectNode &entry_object, MARC::Record * const record, const std::vector<std::string> &authors) {
     const auto contributors(entry_object.getOptionalArrayNode("contributors"));
     if (contributors == nullptr)
         return;
     for (const auto &contributor : *contributors) {
         const auto contributor_node(JSON::JSONNode::CastToStringNodeOrDie("contributor_node", contributor));
-        record->insertField("700", { { 'a', contributor_node->getValue() }, { '4', "ctb" } });
+        const std::string contributor_name(contributor_node->getValue());
+        if (std::find_if(authors.cbegin(), authors.cend(),
+                         [&contributor_name](const std::string &author){ return author.find(contributor_name) != std::string::npos; }) != authors.cend())
+            continue;
+        record->insertField("700", { { 'a', contributor_name }, { '4', "ctb" } });
     }
 }
 
@@ -292,11 +299,12 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
         else {
             MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MapTypeStringToBibliographicLevel(""),
                                     control_number);
-            if (not ProcessAuthors(*entry_object, &new_record)) {
+            std::vector<std::string> authors;
+            if (not ProcessAuthors(*entry_object, &new_record, &authors)) {
                 ++skipped_incomplete_count;
                 continue;
             }
-            ProcessContributors(*entry_object, &new_record);
+            ProcessContributors(*entry_object, &new_record, authors);
             if (not ProcessTitle(*entry_object, &new_record)) {
                 ++skipped_incomplete_count;
                 continue;
