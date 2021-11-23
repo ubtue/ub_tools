@@ -5,11 +5,6 @@
 
 -- Please always add names to your CONSTRAINTs! (for succeeding sql_updates)
 -- <table>_<field_names_with_"and"> (unless it's too long)
-CREATE TABLE database_versions (
-    version INT UNSIGNED NOT NULL,
-    database_name VARCHAR(64) NOT NULL,
-    CONSTRAINT database_versions_database_name UNIQUE (database_name)
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
 CREATE TABLE zeder_journals (
     id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,

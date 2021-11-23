@@ -403,6 +403,13 @@ bool RecordIsValid(DbConnection * const db_connection, const MARC::Record &recor
     std::set<std::string> present_tags, tags_for_which_rules_were_found;
     for (const auto &field : record) {
         const auto current_tag(field.getTag());
+
+        // Special case for notes - skip author tests
+        if (current_tag == "100" and record.hasFieldWithTag("NOT")) {
+            tags_for_which_rules_were_found.emplace(current_tag.toString());
+            continue;
+        }
+
         if (current_tag == last_tag and not field.isRepeatableField())
             reasons_for_being_invalid->emplace_back(current_tag.toString() + " is not a repeatable field");
         last_tag = current_tag;
