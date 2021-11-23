@@ -131,16 +131,16 @@ int Main(int argc, char *argv[]) {
 
     std::sort(script_names.begin(), script_names.end(), ScriptLessThan);
     std::string last_schema, current_schema;
-    int last_version_number = -1;
+    int previous_version_number = -1;
 
     for (const auto &script_name : script_names) {
         LOG_INFO("Running " + script_name);
         const unsigned version_number(GetVersionFromScriptName(script_name));
 
-        if (last_version_number == (int) version_number)
+        if (previous_version_number == (int) version_number)
             LOG_ERROR("the number " + std::to_string(version_number) + " was used multiple times.");
         else
-            last_version_number = version_number;
+            previous_version_number = version_number;
 
         if (StringUtil::EndsWith(script_name, ".sh", true)) {
             if (dry_run)
