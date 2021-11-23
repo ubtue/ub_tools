@@ -161,7 +161,7 @@ void ProcessDownloadURL(const JSON::ObjectNode &entry_object, MARC::Record * con
     const auto download_url_node(entry_object.getStringNode("downloadUrl"));
     const auto download_url(download_url_node->getValue());
     if (not download_url.empty())
-        record->insertField("856", 'u', download_url, '4', '0');
+        record->insertField("856", { { 'u', download_url }, { 'z', "LF" } }, '4', '0');
 }
 
 
