@@ -80,7 +80,6 @@
 /library_finder
 /log_rotate
 /mpi_stats
-/mysql_database_patcher
 /mysql_diff_schemas
 /mysql_list_tables
 /make_named_pipe

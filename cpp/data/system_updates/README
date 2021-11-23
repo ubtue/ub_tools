@@ -1,3 +1,12 @@
-The files in here need to be called n.sh where n
-has to be an unsigned number.  They will be executed
-in increasing numeric order by the system_updater tool.
+File names in this directory must match the following schema:
+- <update_version>.sh                       => Shell-Script to be executed
+- <update_version>.<database_name>.sql      => SQL statements to be executed on the database (skipped if database is missing on the current system)
+
+
+The <update_version> must be >= 100.
+Versions <= 99 have been reserved for the old schema, which was deprecated in november 2021.
+Examples for old updates can be found here: cpp/data/system_updates.old/*
+The old updates will no longer be processed.
+
+The version number will be stored in /usr/local/var/lib/tuelib/system_version,
+to ensure that updates aren't executed twice. (see system_updater.cc)
