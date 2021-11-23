@@ -301,6 +301,7 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
                 ++skipped_incomplete_count;
                 continue;
             }
+            new_record.insertControlField("007", "cr||||");
             new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
             new_record.insertField("852", 'a', project_sigil);
             ProcessYear(*entry_object, &new_record);

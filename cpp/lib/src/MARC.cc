@@ -1516,6 +1516,17 @@ Record::ConstantRange Record::getLocalTagRange(const Tag &local_field_tag, const
 }
 
 
+void Record::insertControlField(const Tag &new_field_tag, const std::string &new_field_value) {
+    if (unlikely(not new_field_tag.isTagOfControlField()))
+        LOG_ERROR(new_field_tag.toString() + " is not a control field tag!");
+
+    if (unlikely(findTag(new_field_tag) != end()))
+        LOG_ERROR(new_field_tag.toString() + " already exists in this record!");
+
+    insertField(new_field_tag, new_field_value);
+}
+
+
 bool Record::insertField(const Tag &new_field_tag, const std::string &new_field_value) {
     auto insertion_location(fields_.begin());
     while (insertion_location != fields_.end() and new_field_tag > insertion_location->getTag())
