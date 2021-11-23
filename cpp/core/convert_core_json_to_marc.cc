@@ -84,21 +84,6 @@ void LoadISSNsToJournalTitlesPPNsAndISSNsMap(
 }
 
 
-MARC::Record::BibliographicLevel MapTypeStringToBibliographicLevel(const std::string &item_type) {
-    if (item_type == "Book item")
-        return MARC::Record::MONOGRAPH_OR_ITEM;
-    else if (item_type == "Book chapter")
-        return MARC::Record::MONOGRAPHIC_COMPONENT_PART;
-    else if (item_type == "Article")
-        return MARC::Record::SERIAL_COMPONENT_PART;
-    else {
-        if (not item_type.empty())
-            LOG_WARNING("unknown item type: " + item_type);
-        return MARC::Record::SERIAL_COMPONENT_PART; // Yes, we're lying here! :-(
-    }
-}
-
-
 // \return True if we found at least one author, else false.
 bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const record, std::vector<std::string> * const authors) {
     const auto authors_node(entry_object.getArrayNode("authors"));
@@ -297,7 +282,7 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
         if (ignore_unique_id_dups and unique_id_to_date_map->keyIsPresent(control_number))
             ++skipped_dupe_count;
         else {
-            MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MapTypeStringToBibliographicLevel(""),
+            MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                                     control_number);
             std::vector<std::string> authors;
             if (not ProcessAuthors(*entry_object, &new_record, &authors)) {
@@ -310,7 +295,7 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
                 continue;
             }
             new_record.insertControlField("007", "cr||||");
-            new_record.insertField("026", { { 'a', id }, { '2', "CORE" } }, /*indicator1=*/'7'); // foreign ID
+            new_record.insertField("035", 'a', "(core)" + id);
             new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
             new_record.insertField("852", 'a', project_sigil);
             ProcessYear(*entry_object, &new_record);
