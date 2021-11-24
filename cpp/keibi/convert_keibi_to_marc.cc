@@ -35,7 +35,7 @@
 namespace {
 
 using ConversionFunctor = std::function<void(const std::string, const char, MARC::Record * const, const std::string)>;
-const std::string KEIBI_QUERY("SELECT * FROM citations where uid='131546'");
+const std::string KEIBI_QUERY("SELECT * FROM citations");
 const char SEPARATOR_CHAR('|');
 const std::string bibtexEntryType_field("bibtexEntryType");
 
@@ -65,26 +65,32 @@ const std::map<std::string, int> STRING_TO_BITEX_ENTRY_TYPE {
 };
 
 
-void DetermineTypeOfRecord(const std::string &bibtex_description, MARC::Record::BibliographicLevel * type_of_record) {
-   const auto type_candidate(STRING_TO_BITEX_ENTRY_TYPE.find(bibtex_description));
-   if (type_candidate != STRING_TO_BITEX_ENTRY_TYPE.end()) {
+MARC::Record * CreateNewRecord(const std::string &keibi_uid, const std::string &bibtex_description) {
+    std::ostringstream formatted_number;
+    formatted_number << std::setfill('0') << std::setw(8) << std::atoi(keibi_uid.c_str());
+    const std::string ppn("KEI" + formatted_number.str());
+
+    MARC::Record::BibliographicLevel type_of_record;
+    const auto type_candidate(STRING_TO_BITEX_ENTRY_TYPE.find(bibtex_description));
+    if (type_candidate != STRING_TO_BITEX_ENTRY_TYPE.end()) {
        switch (type_candidate->second) {
            case BIBTEX_ENTRY_TYPES::BOOK:
-               *type_of_record = MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM;
-               return;
+               type_of_record = MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM;
+               return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn);
            case BIBTEX_ENTRY_TYPES::ARTICLE:
-               *type_of_record = MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
-               return;
+               type_of_record = MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
+               return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn);
            case BIBTEX_ENTRY_TYPES::COLLECTION:
-               *type_of_record = MARC::Record::BibliographicLevel::COLLECTION;
-                return;
+               type_of_record = MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
+               return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn);
            case BIBTEX_ENTRY_TYPES::INPROCEEDINGS:
-               // FIXME: Find better type
-               *type_of_record = MARC::Record::BibliographicLevel::SUBUNIT;
-               return;
+               type_of_record = MARC::Record::BibliographicLevel::MONOGRAPHIC_COMPONENT_PART;
+               auto new_record(new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record, ppn));
+               new_record->insertField("655", 'a', "Konferenzschrift");
+               return new_record;
        }
    }
-   *type_of_record = MARC::Record::BibliographicLevel::UNDEFINED;
+   return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED, ppn);
 }
 
 
@@ -176,25 +182,18 @@ void ConvertCitations(DbConnection * const db_connection,
 {
     db_connection->queryOrDie(KEIBI_QUERY);
     DbResultSet result_set(db_connection->getLastResultSet());
-    unsigned i(0);
     while (const auto row = result_set.getNextRow()) {
-        ++i;
-        std::ostringstream formatted_number;
-        formatted_number << std::setfill('0') << std::setw(8) << std::atoi(row["uid"].c_str());
-        MARC::Record::BibliographicLevel type_of_record;
-        DetermineTypeOfRecord(row[bibtexEntryType_field], &type_of_record);
-        //MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::COLLECTION,
-        MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, type_of_record,
-                                "KEI" + formatted_number.str());
+        MARC::Record * const new_record(CreateNewRecord(row["uid"], row[bibtexEntryType_field]));
         for (auto dbfield_to_marc_mapping(dbfield_to_marc_mappings.begin());
              dbfield_to_marc_mapping != dbfield_to_marc_mappings.end();
              ++dbfield_to_marc_mapping)
         {
-            dbfield_to_marc_mapping->extraction_function_(&new_record, row[dbfield_to_marc_mapping->db_field_name_]);
+            dbfield_to_marc_mapping->extraction_function_(new_record, row[dbfield_to_marc_mapping->db_field_name_]);
         }
         // Dummy entries
-        new_record.insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
-        marc_writer->write(new_record);
+        new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
+        marc_writer->write(*new_record);
+        delete new_record;
     }
 }
 
