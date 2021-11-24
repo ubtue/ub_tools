@@ -25,7 +25,7 @@ import org.apache.solr.schema.FieldType;
 import org.apache.solr.schema.SchemaField;
 import org.apache.solr.schema.TrieField;
 import org.apache.solr.search.DocSet;
-import org.apache.solr.search.facet.FacetProcessor;
+import org.apache.solr.search.facet.FacetRequest;
 import org.apache.solr.util.RTimer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +34,7 @@ import de.uni_tuebingen.ub.ixTheo.common.params.FacetPrefixSortParams;
 
 public class SimplePrefixSortFacets extends SimpleFacets {
     private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+    protected java.util.concurrent.Executor facetExecutor;
 
 
     public SimplePrefixSortFacets(final SolrQueryRequest req, final DocSet docs, final SolrParams params, final ResponseBuilder rb) {
@@ -290,35 +291,24 @@ public class SimplePrefixSortFacets extends SimpleFacets {
                 default:
                     sortVal = sort;
                 }
-                jsonFacet.put(SORT, sortVal);
+                jsonFacet.put(SORT, sortVal );
 
-                Map<String, Object> topLevel = new HashMap<>();
-                topLevel.put(field, jsonFacet);
+                //TODO do we handle debug?  Should probably already be handled by the legacy code
 
-                topLevel.put("processEmpty", true);
+                Object resObj = FacetRequest.parseOneFacetReq(req, jsonFacet).process(req, docs);
+                //Go through the response to build the expected output for SimpleFacets
+                counts = new NamedList<>();
+                if(resObj != null) {
+                  NamedList<Object> res = (NamedList<Object>) resObj;
 
-                FacetProcessor fproc = FacetProcessor.createProcessor(rb.req, topLevel, // rb.getResults().docSet
-                        docs);
-                // TODO do we handle debug? Should probably already be handled
-                // by the legacy code
-                fproc.process();
-
-                // Go through the response to build the expected output for
-                // SimpleFacets
-                Object res = fproc.getResponse();
-                counts = new NamedList<Integer>();
-                if (res != null) {
-                    SimpleOrderedMap<Object> som = (SimpleOrderedMap<Object>) res;
-                    SimpleOrderedMap<Object> asdf = (SimpleOrderedMap<Object>) som.get(field);
-
-                    List<SimpleOrderedMap<Object>> buckets = (List<SimpleOrderedMap<Object>>) asdf.get("buckets");
-                    for (SimpleOrderedMap<Object> b : buckets) {
-                        counts.add(b.get("val").toString(), (Integer) b.get("count"));
-                    }
-                    if (missing) {
-                        SimpleOrderedMap<Object> missingCounts = (SimpleOrderedMap<Object>) asdf.get("missing");
-                        counts.add(null, (Integer) missingCounts.get("count"));
-                    }
+                  List<NamedList<Object>> buckets = (List<NamedList<Object>>)res.get("buckets");
+                  for(NamedList<Object> b : buckets) {
+                    counts.add(b.get("val").toString(), (Integer)b.get("count"));
+                  }
+                  if(missing) {
+                    NamedList<Object> missingCounts = (NamedList<Object>) res.get("missing");
+                    counts.add(null, (Integer)missingCounts.get("count"));
+                  }
                 }
                 break;
             case FC:

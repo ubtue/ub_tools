@@ -138,6 +138,7 @@ struct GlobalParams {
         DOWNLOAD_DELAY_DEFAULT,
         DOWNLOAD_DELAY_MAX,
         REVIEW_REGEX,
+        NOTES_REGEX,
         TIMEOUT_CRAWL_OPERATION,
         TIMEOUT_DOWNLOAD_REQUEST
     };
@@ -152,6 +153,7 @@ struct GlobalParams {
     unsigned timeout_crawl_operation_;
     unsigned timeout_download_request_;
     std::shared_ptr<ThreadSafeRegexMatcher> review_regex_;
+    std::shared_ptr<ThreadSafeRegexMatcher> notes_regex_;
     ZoteroMetadataParams zotero_metadata_params_;
     MarcMetadataParams marc_metadata_params_;
 public:
@@ -235,6 +237,7 @@ struct JournalParams {
         STRPTIME_FORMAT_STRING,
         UPDATE_WINDOW,
         REVIEW_REGEX,
+        NOTES_REGEX,
         EXPECTED_LANGUAGES,
         SSGN,
         LICENSE,
@@ -266,6 +269,7 @@ struct JournalParams {
     std::string ssgn_;
     std::string license_;
     std::shared_ptr<ThreadSafeRegexMatcher> review_regex_;
+    std::shared_ptr<ThreadSafeRegexMatcher> notes_regex_;
     LanguageParams language_params_;
     struct {
         unsigned max_crawl_depth_;
