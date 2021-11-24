@@ -12,12 +12,14 @@ ubuntu_prepare_deps:
 	if [ ! -d "mnt/ZE020150" ]; then \
 		mkdir -p mnt/ZE020150; \
 		mkdir -p mnt/ZE020150/FID-Entwicklung; \
-                cp /mnt/ZE020150/FID-Entwicklung/Makefile mnt/ZE020150/FID-Entwicklung; \
-                cp /mnt/ZE020150/FID-Entwicklung/github-robot mnt/ZE020150/FID-Entwicklung; \
-                cp /mnt/ZE020150/FID-Entwicklung/github-robot.pub mnt/ZE020150/FID-Entwicklung; \
+		cp /mnt/ZE020150/FID-Entwicklung/Makefile mnt/ZE020150/FID-Entwicklung; \
+		cp /mnt/ZE020150/FID-Entwicklung/github-robot mnt/ZE020150/FID-Entwicklung; \
+		cp /mnt/ZE020150/FID-Entwicklung/github-robot.pub mnt/ZE020150/FID-Entwicklung; \
 		cp -r /mnt/ZE020150/FID-Entwicklung/ub_tools mnt/ZE020150/FID-Entwicklung; \
 		cp -r /mnt/ZE020150/FID-Entwicklung/IxTheo mnt/ZE020150/FID-Entwicklung; \
 		cp -r /mnt/ZE020150/FID-Entwicklung/KrimDok mnt/ZE020150/FID-Entwicklung; \
+		mkdir -p mnt/ZE020150/FID-Entwicklung/fulltext; \
+		cp -r /mnt/ZE020150/FID-Entwicklung/fulltext/synonyms mnt/ZE020150/FID-Entwicklung/fulltext; \
 	fi
 	if [ ! -f ".smbcredentials" ]; then \
 		cp -f /root/.smbcredentials .smbcredentials; \
