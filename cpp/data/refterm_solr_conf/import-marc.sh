@@ -1,13 +1,10 @@
 #!/bin/bash
 # $Id: index_file.sh 17 2008-06-20 14:40:13Z wayne.graham $
-# Slight additions to adjust to ram disk instance (jr)
 #
 # Bash script to start the import of a binary marc file for Solr indexing.
 #
 # VUFIND_HOME
 #   Path to the vufind installation
-# SOLRMARC_HOME
-#   Path to the solrmarc installation
 # JAVA_HOME
 #   Path to the java
 # INDEX_OPTIONS
@@ -52,47 +49,35 @@ fi
 ##################################################
 if [ -z "$INDEX_OPTIONS" ]
 then
-  INDEX_OPTIONS='-Xms512m -Xmx512m -DentityExpansionLimit=0'
+  INDEX_OPTIONS='-Xms512m -Xmx4096m -DentityExpansionLimit=0 -Dsolrmarc.indexer.threadcount=4'
 fi
-
 
 ##################################################
 # Set SOLRCORE
 ##################################################
-if [ -z "$SOLRCORE" ]
+if [ ! -z "$SOLRCORE" ]
 then
-  SOLRCORE="biblio"
+  EXTRA_SOLRMARC_SETTINGS="$EXTRA_SOLRMARC_SETTINGS -Dsolr.core.name=$SOLRCORE"
 fi
-
 
 ##################################################
 # Set VUFIND_HOME
 ##################################################
 if [ -z "$VUFIND_HOME" ]
 then
-  VUFIND_HOME="/usr/local/vufind"
+  # set VUFIND_HOME to the absolute path of the directory containing this script
+  # https://stackoverflow.com/questions/4774054/reliable-way-for-a-bash-script-to-get-the-full-path-to-itself
+  export VUFIND_HOME="$(cd "$(dirname "$0")" && pwd -P)"
+  if [ -z "$VUFIND_HOME" ]
+  then
+    exit 1
+  fi
 fi
 
-
-##################################################
-# Use SOLR_HOME if set
-##################################################
-if [ ! -z "$SOLR_HOME" ]
+if [ -z "$VUFIND_LOCAL_DIR" ]
 then
-  EXTRA_SOLRMARC_SETTINGS="$EXTRA_SOLRMARC_SETTINGS  -Dsolr.solr.home=$SOLR_HOME" 
+  echo "WARNING: VUFIND_LOCAL_DIR environment variable is not set. Is this intentional?"
 fi
-
-
-##################################################
-# Set SOLRMARC_HOME
-##################################################
-if [ ! -z "$SOLRMARC_HOME" ]
-then
-  EXTRA_SOLRMARC_SETTINGS="$EXTRA_SOLRMARC_SETTINGS -Dsolrmarc.path=$SOLRMARC_HOME"
-else
-  EXTRA_SOLRMARC_SETTINGS="$EXTRA_SOLRMARC_SETTINGS -Dsolrmarc.path=$VUFIND_HOME/import"
-fi
-
 
 #####################################################
 # Build java command
@@ -114,6 +99,19 @@ then
     PROPERTIES_FILE="$VUFIND_LOCAL_DIR/import/import.properties"
   else
     PROPERTIES_FILE="$VUFIND_HOME/import/import.properties"
+  fi
+fi
+
+##################################################
+# Set log4j config file if not already provided
+##################################################
+if [ -z "$LOG4J_CONFIG" ]
+then
+  if [ -f "$VUFIND_LOCAL_DIR/import/log4j.properties" ]
+  then
+    LOG4J_CONFIG="$VUFIND_LOCAL_DIR/import/log4j.properties"
+  else
+    LOG4J_CONFIG="$VUFIND_HOME/import/log4j.properties"
   fi
 fi
 
@@ -142,7 +140,7 @@ MARC_FILE=`basename $1`
 # Execute Importer
 #####################################################
 
-RUN_CMD="$JAVA $INDEX_OPTIONS -Duser.timezone=UTC -Dsolr.core.name=$SOLRCORE $EXTRA_SOLRMARC_SETTINGS -jar $JAR_FILE $PROPERTIES_FILE -solrj $VUFIND_HOME/solr/vendor/dist/solrj-lib $MARC_PATH/$MARC_FILE"
+RUN_CMD="$JAVA $INDEX_OPTIONS -Duser.timezone=UTC -Dlog4j.configuration=file://$LOG4J_CONFIG $EXTRA_SOLRMARC_SETTINGS -jar $JAR_FILE $PROPERTIES_FILE -solrj $VUFIND_HOME/solr/vendor/dist/solrj-lib -lib_local "$VUFIND_HOME/import/lib_local\;$VUFIND_HOME/solr/vendor/contrib/analysis-extras/lib" $MARC_PATH/$MARC_FILE"
 echo "Now Importing $1 ..."
 # solrmarc writes log messages to stderr, write RUN_CMD to the same place
 echo "`date '+%h %d, %H:%M:%S'` $RUN_CMD" >&2
