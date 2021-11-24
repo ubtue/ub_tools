@@ -27,7 +27,7 @@
 
 
 void Usage() {
-    std::cerr << "usage: " << ::progname << " [--raw] mysql_user mysql_passwd mysql_db mysql_query\n";
+    std::cerr << "usage: " << ::progname << " [--raw] [host] mysql_user mysql_passwd mysql_db mysql_query\n";
     std::cerr << "       Please note that \"mysql_query\" has to be a query that produces a result set.\n";
     std::exit(EXIT_FAILURE);
 }
@@ -36,16 +36,21 @@ void Usage() {
 int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
-    if (argc != 5 and argc != 6)
+    if (argc < 5 or argc > 7)
         Usage();
 
     bool raw(false);
-    if (argc == 6) {
-        if (std::strcmp(argv[1], "--raw") != 0)
-            Usage();
+    if (std::strcmp(argv[1], "--raw") == 0) {
         raw = true;
-        ++argv;
+        --argc;++argv;
     }
+
+    std::string host("localhost");
+    if (argc == 6) {
+        host = argv[1];
+        --argc;++argv;
+    }
+
 
     const std::string user(argv[1]);
     const std::string passwd(argv[2]);
@@ -53,7 +58,7 @@ int main(int argc, char *argv[]) {
     const std::string query(argv[4]);
 
     try {
-        DbConnection connection(DbConnection::MySQLFactory(db, user, passwd));
+        DbConnection connection(DbConnection::MySQLFactory(db, user, passwd, host));
         connection.queryOrDie(query);
         DbResultSet result_set(connection.getLastResultSet());
         if (not raw)
