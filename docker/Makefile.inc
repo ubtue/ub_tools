@@ -7,7 +7,6 @@ ubuntu_prepare_deps:
 	if [ -z "$(docker images -q ub_tools-deps-ubuntu)" ]; then \
 		cd /usr/local/ub_tools/docker/ub_tools-deps-ubuntu; \
 		make ; \
-		cd /usr/local/ub_tools/docker/ixtheo-ubuntu; \
 	fi
 	if [ ! -d "mnt/ZE020150" ]; then \
 		mkdir -p mnt/ZE020150; \
