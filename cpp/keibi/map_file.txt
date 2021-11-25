@@ -4,7 +4,7 @@
  bibtexCitation         | BIBa
  author                 | XXXa (InsertAuthors)
  title                  | 245a
- booktitle              | 773t
+ booktitle              | 773a
  series                 | SERa
  journal                | 773a
  institution            | INSa
@@ -20,7 +20,7 @@
  keywords               | 650a
  volume                 | 936d
  number                 | 936e
- pages                  | 936g
+ pages                  | 936g, 936h
  month                  | MONa
  year                   | 936j, 264c (InsertOrForceSubfield)
  note                   | 520a
