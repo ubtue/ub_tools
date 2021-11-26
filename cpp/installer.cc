@@ -601,6 +601,8 @@ void InstallVuFindCronjobs(const bool production, const VuFindSystemType vufind_
     if (vufind_system_type == IXTHEO) {
         names_to_values_map.insertScalar("ixtheo_host", GetStringFromTerminal("IxTheo Hostname"));
         names_to_values_map.insertScalar("relbib_host", GetStringFromTerminal("RelBib Hostname"));
+        names_to_values_map.insertScalar("bibstudies_host", GetStringFromTerminal("BibStudies Hostname"));
+        names_to_values_map.insertScalar("churchlaw_host", GetStringFromTerminal("ChurchLaw Hostname"));
     }
 
     InstallCronjobs(production, (vufind_system_type == KRIMDOK ? "krimdok.cronjobs" : "ixtheo.cronjobs"),

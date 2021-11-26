@@ -1,5 +1,5 @@
 FROM centos:8
-MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
+LABEL maintainer="Mario Trojan <mario.trojan@uni-tuebingen.de>"
 
 # add needed configuration files
 # (+simulate mounted /mnt/ZE020150)

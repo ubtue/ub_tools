@@ -1,5 +1,5 @@
 FROM ubuntu:focal
-MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
+LABEL maintainer="Mario Trojan <mario.trojan@uni-tuebingen.de>"
 
 # add needed configuration files
 # (+simulate mounts)
