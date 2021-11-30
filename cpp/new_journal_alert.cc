@@ -53,7 +53,7 @@ namespace {
     ::Usage("[--debug] [solr_host_and_port] user_type hostname sender_email email_subject\n"
             "  Sends out notification emails for journal subscribers.\n"
             "  Should \"solr_host_and_port\" be missing \"" + Solr::DEFAULT_HOST + ":" + std::to_string(Solr::DEFAULT_PORT) + "\" will be used.\n"
-            "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm."
+            "  \"user_type\" must be \"ixtheo\", \"relbib\", \"bibstudies\" or \"churchlaw\"."
             "  \"hostname\" should be the symbolic hostname which will be used in constructing\n"
             "  URL's that a user might see.\n"
             "  If \"--debug\" is given, emails will not be sent and database will not be updated.\n");
@@ -186,7 +186,16 @@ bool NewIssueInfo::operator%(const NewIssueInfo &rhs) const {
 
 
 inline std::string CapitalizedUserType(const std::string &user_type) {
-    return user_type == "ixtheo" ? "IxTheo" : "RelBib";
+    if (user_type == "ixtheo")
+        return "IxTheo";
+    else if (user_type == "bibstudies")
+        return "BibStudies";
+    else if (user_type == "churchlaw")
+        return "ChurchLaw";
+    else if (user_type == "relbib")
+        return "RelBib";
+    else
+        LOG_ERROR("instance not valid: " + user_type);
 }
 
 } // unamed namespace
@@ -899,8 +908,8 @@ int Main(int argc, char **argv) {
         Usage();
 
     const std::string user_type(argv[1]);
-    if (user_type != "ixtheo" and user_type != "relbib")
-        LOG_ERROR("user_type parameter must be either \"ixtheo\" or \"relbib\"!");
+    if (user_type != "ixtheo" and user_type != "relbib" and user_type != "bibstudies" and user_type != "churchlaw")
+        LOG_ERROR("user_type parameter must be either \"ixtheo\", \"relbib\", \"bibstudies\" or \"churchlaw\"!");
 
     const std::string hostname(argv[2]);
     const std::string sender_email(argv[3]);

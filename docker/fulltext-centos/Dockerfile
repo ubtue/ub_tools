@@ -1,5 +1,5 @@
 FROM centos:8
-MAINTAINER Johannes Riedl <johannes.riedl@uni-tuebingen.de>
+LABEL maintainer="Johannes Riedl <johannes.riedl@uni-tuebingen.de>"
 
 # add needed configuration files
 # (+simulate mounts)

@@ -1,5 +1,5 @@
 FROM ub_tools-deps-ubuntu
-MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
+LABEL maintainer="Mario Trojan <mario.trojan@uni-tuebingen.de>"
 
 # install curl
 RUN apt --quiet --yes update && apt --quiet --yes upgrade
