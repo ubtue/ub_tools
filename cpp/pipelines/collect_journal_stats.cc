@@ -278,15 +278,15 @@ void UpdateDatabase(const std::string &system_type,
 
     DbConnection db_connection_insert(DbConnection::MySQLFactory(ini_file, "DatabaseInsert"));
     const unsigned SQL_INSERT_BATCH_SIZE(50);
-    const std::vector<std::string> COLUMN_NAMES{ "timestamp", "Quellrechner", "Systemtyp", "Zeder_ID", "PPN_Typ",
-                                                 "PPN", "Jahr", "Band", "Heft", "Seitenbereich" };
+    const std::vector<std::string> COLUMN_NAMES{ "timestamp", "Quellrechner", "Systemtyp", "Zeder_ID", "Zeitschrift_PPN_Typ",
+                                                 "Zeitschrift_PPN", "Jahr", "Band", "Heft", "Seitenbereich" };
     std::vector<std::vector<std::optional<std::string>>> column_values;
 
     for (const auto &[zeder_id_plus_ppn, articles] : zeder_ids_plus_ppns_to_articles_map) {
         const auto ppn(GetPNN(zeder_id_plus_ppn));
         const auto ppn_and_zeder_id_and_ppn_type(ppns_to_zeder_ids_and_types_map.find(ppn));
         if (unlikely(ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend()))
-            LOG_ERROR("no Zeder ID found for PPN \"" + ppn + "\"!");
+            LOG_ERROR("no Zeder ID found for Zeitschrift_PPN \"" + ppn + "\"!");
 
         const auto zeder_id(std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_));
         for (auto article(articles.cbegin());
@@ -295,16 +295,16 @@ void UpdateDatabase(const std::string &system_type,
              ++article)
         {
             const std::vector<std::optional<std::string>> new_column_values{
-                { /* timestamp */     JOB_START_TIME                                                  },
-                { /* Quellrechner */  HOSTNAME                                                        },
-                { /* Systemtyp */     system_type,                                                    },
-                { /* Zeder_ID */      zeder_id                                                        },
-                { /* PPN_Typ */       std::string(1, ppn_and_zeder_id_and_ppn_type->second.type_)     },
-                { /* PPN */           ppn                                                             },
-                { /* Jahr */          article->jahr_                                                  },
-                { /* Band */          article->band_                                                  },
-                { /* Heft */          article->heft_                                                  },
-                { /* Seitenbereich */ article->seitenbereich_                                         },
+                { /* timestamp */              JOB_START_TIME                                                  },
+                { /* Quellrechner */           HOSTNAME                                                        },
+                { /* Systemtyp */              system_type,                                                    },
+                { /* Zeder_ID */               zeder_id                                                        },
+                { /* Zeitschrift_PPN_Typ */    std::string(1, ppn_and_zeder_id_and_ppn_type->second.type_)     },
+                { /* Zeitschrift_PPN */        ppn                                                             },
+                { /* Jahr */                   article->jahr_                                                  },
+                { /* Band */                   article->band_                                                  },
+                { /* Heft */                   article->heft_                                                  },
+                { /* Seitenbereich */          article->seitenbereich_                                         },
             };
             column_values.emplace_back(new_column_values);
 
@@ -349,7 +349,7 @@ void GenerateJson(const std::string &system_type,
         const auto ppn(GetPNN(zeder_id_plus_ppn));
         const auto ppn_and_zeder_id_and_ppn_type(ppns_to_zeder_ids_and_types_map.find(ppn));
         if (unlikely(ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend()))
-            LOG_ERROR("no Zeder ID found for PPN \"" + ppn + "\"!");
+            LOG_ERROR("no Zeder ID found for Zeitschrift_PPN \"" + ppn + "\"!");
         const auto zeder_id(std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_));
         unsigned long inner_position = 0;
         for (auto &article : articles) {
@@ -359,9 +359,9 @@ void GenerateJson(const std::string &system_type,
                 {"Quellrechner", HOSTNAME},
                 {"Systemtyp", system_type},
                 {"Zeder_ID", zeder_id},
-                {"PPN_Typ", std::string(1, ppn_and_zeder_id_and_ppn_type->second.type_)},
-                {"PPN", ppn},
-                {"Art_PPN", article.id_},
+                {"Zeitschrift_PPN_Typ", std::string(1, ppn_and_zeder_id_and_ppn_type->second.type_)},
+                {"Zeitschrift_PPN", ppn},
+                {"Artikel_PPN", article.id_},
                 {"Jahr", article.jahr_},
                 {"Band", article.band_},
                 {"Heft", article.heft_},
@@ -392,9 +392,9 @@ void GenerateJson(const std::string &system_type,
         *raped_json_file << "\"Quellrechner\":[" << StringUtil::Join(quellrechner, ",") << "],";
         *raped_json_file << "\"Systemtyp\":[" << StringUtil::Join(systemtypen, ",") << "],";
         *raped_json_file << "\"Zeder_ID\":[" << StringUtil::Join(zeder_ids, ",") << "],";
-        *raped_json_file << "\"PPN_Typ\":[" << StringUtil::Join(ppn_typen, ",") << "],";
-        *raped_json_file << "\"PPN\":[" << StringUtil::Join(ppns, ",") << "],";
-        *raped_json_file << "\"Art_PPN\":[" << StringUtil::Join(art_ppns, ",") << "],";
+        *raped_json_file << "\"Zeitschrift_PPN_Typ\":[" << StringUtil::Join(ppn_typen, ",") << "],";
+        *raped_json_file << "\"Zeitschrift_PPN\":[" << StringUtil::Join(ppns, ",") << "],";
+        *raped_json_file << "\"Artikel_PPN\":[" << StringUtil::Join(art_ppns, ",") << "],";
         *raped_json_file << "\"Jahr\":[" << StringUtil::Join(jahre, ",") << "],";
         *raped_json_file << "\"Band\":[" << StringUtil::Join(baende, ",") << "],";
         *raped_json_file << "\"Heft\":[" << StringUtil::Join(hefte, ",") << "],";
