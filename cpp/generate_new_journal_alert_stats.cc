@@ -48,7 +48,7 @@ namespace {
             "  Generates a CSV report about journal subscription statistics.\n"
             "  Should \"solr_host_and_port\" be missing \"" + Solr::DEFAULT_HOST + ":"
             + std::to_string(Solr::DEFAULT_PORT) + "\" will be used.\n"
-            "  \"user_type\" must be \"ixtheo\", \"relbib\" or some other realm.\n"
+            "  \"user_type\" must be \"ixtheo\", \"relbib\", \"bibstudies\" or \"churchlaw\"\n"
             "  \"report_interval_in_days\" can be a number or the text \"days_in_last_month\n"
             "  \"email\" recipient email address.\n");
 }
@@ -197,8 +197,8 @@ int Main(int argc, char **argv) {
     }
 
     const std::string user_type(argv[1]);
-    if (user_type != "ixtheo" and user_type != "relbib")
-        LOG_ERROR("user_type parameter must be either \"ixtheo\" or \"relbib\"!");
+    if (user_type != "ixtheo" and user_type != "relbib" and user_type != "bibstudies" and user_type != "churchlaw")
+        LOG_ERROR("user_type parameter must be either \"ixtheo\", \"relbib\", \"bibstudies\" or \"churchlaw\"!");
 
     Stats stats;
     if (std::strcmp(argv[2], "days_in_last_month") != 0)

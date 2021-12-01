@@ -206,8 +206,8 @@ int Main(int argc, char **argv) {
         Usage();
 
     const std::string user_type(argv[1]);
-    if (user_type != "ixtheo" and user_type != "relbib")
-        LOG_ERROR("user_type parameter must be either \"ixtheo\" or \"relbib\"!");
+    if (user_type != "ixtheo" and user_type != "relbib" and user_type != "bibstudies" and user_type != "churchlaw")
+        LOG_ERROR("user_type parameter must be either \"ixtheo\", \"relbib\", \"bibstudies\" or \"churchlaw\"!");
 
     const std::string DB_FILENAME(UBTools::GetTuelibPath() + user_type + "_notified.db");
     std::unique_ptr<KeyValueDB> notified_db(OpenKeyValueDBOrDie(DB_FILENAME));
