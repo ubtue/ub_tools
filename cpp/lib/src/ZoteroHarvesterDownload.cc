@@ -584,7 +584,7 @@ void ExtractEmailsRelevantForJournal(const Params &parameters, std::vector<std::
                             if (StringUtil::ASCIIToLower(key) == "content-type" and StringUtil::StartsWith(value, "text/html")) {
                                 FileUtil::AutoTempFile file_page(page_file_tmp_dir_path + "/ZOT", "", false /* automatically remove */);
                                 const std::string file_page_path(file_page.getFilePath());
-                                FileUtil::WriteStringOrDie(file_page_path, body_part.getBody());
+                                FileUtil::WriteStringOrDie(file_page_path, MailUtil::DecodeBodyPart(body_part));
                                 file_pages_to_handle->emplace_back("file://" + file_page_path);
                             }
                         }
