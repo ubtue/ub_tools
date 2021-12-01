@@ -107,13 +107,14 @@ std::unordered_map<std::string, ZederIdAndPPNType> GetPPNsToZederIdsAndTypesMap(
 
 
 struct Article {
+    std::string id_;
     std::string jahr_;
     std::string band_;
     std::string heft_;
     std::string seitenbereich_;
 public:
-    Article(const std::string &jahr, const std::string &band, const std::string &heft, const std::string &seitenbereich)
-        : jahr_(jahr), band_(band), heft_(heft), seitenbereich_(seitenbereich) {
+    Article(const std::string &id, const std::string &jahr, const std::string &band, const std::string &heft, const std::string &seitenbereich)
+        : id_(id), jahr_(jahr), band_(band), heft_(heft), seitenbereich_(seitenbereich) {
                 std::size_t pos = heft_.find(" ("); // Strip e.g. 17 (October 2019)
                 if (pos != std::string::npos) {
                     heft_ = heft_.substr(0, pos);
@@ -205,7 +206,7 @@ void CollectZederArticles(MARC::Reader * const reader, MARC::Writer * const writ
 
         // Truncate in order to ensure that comparison with the database works:
         issue = issue.substr(0, MAX_ISSUE_DATABASE_LENGTH);
-        const Article new_article(year, volume, issue, pages);
+        const Article new_article(record.getControlNumber(), year, volume, issue, pages);
 
         const auto zeder_id_plus_ppn(zeder_id + "+" + superior_control_number);
         auto zeder_id_plus_ppn_and_articles(zeder_ids_plus_ppns_to_articles_map->find(zeder_id_plus_ppn));
@@ -229,7 +230,8 @@ size_t GetArticlesFromDatabase(const IniFile &ini_file, const std::string &syste
                                     + system_type + "' GROUP BY Zeder_ID,PPN,Jahr,Band,Heft,Seitenbereich");
     auto result_set(db_connection_select.getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
-        const Article db_entry(row["Jahr"], row["Band"], row["Heft"], row["Seitenbereich"]);
+        //n.a. can be replaced after the unique article id is created in the zeder data model
+        const Article db_entry("n.a.", row["Jahr"], row["Band"], row["Heft"], row["Seitenbereich"]);
         const auto key(row["Zeder_ID"] + "+" + row["PPN"]);
         auto key_and_article(existing_articles->find(key));
         if (key_and_article == existing_articles->end() or db_entry.isNewerThan(key_and_article->second))
@@ -335,6 +337,7 @@ void GenerateJson(const std::string &system_type,
     std::vector<std::string> zeder_ids;
     std::vector<std::string> ppn_typen;
     std::vector<std::string> ppns;
+    std::vector<std::string> art_ppns;
     std::vector<std::string> jahre;
     std::vector<std::string> baende;
     std::vector<std::string> hefte;
@@ -358,6 +361,7 @@ void GenerateJson(const std::string &system_type,
                 {"Zeder_ID", zeder_id},
                 {"PPN_Typ", std::string(1, ppn_and_zeder_id_and_ppn_type->second.type_)},
                 {"PPN", ppn},
+                {"Art_PPN", article.id_},
                 {"Jahr", article.jahr_},
                 {"Band", article.band_},
                 {"Heft", article.heft_},
@@ -370,6 +374,7 @@ void GenerateJson(const std::string &system_type,
                 zeder_ids.push_back(object_node.getStringValue("Zeder_ID"));
                 ppn_typen.push_back("\"" + object_node.getStringValue("PPN_Typ") + "\"");
                 ppns.push_back("\"" + object_node.getStringValue("PPN") + "\"");
+                art_ppns.push_back("\"" + object_node.getStringValue("Art_PPN") + "\"");
                 jahre.push_back("\"" + object_node.getStringValue("Jahr") + "\"");
                 baende.push_back("\"" + object_node.getStringValue("Band") + "\"");
                 hefte.push_back("\"" + object_node.getStringValue("Heft") + "\"");
@@ -389,6 +394,7 @@ void GenerateJson(const std::string &system_type,
         *raped_json_file << "\"Zeder_ID\":[" << StringUtil::Join(zeder_ids, ",") << "],";
         *raped_json_file << "\"PPN_Typ\":[" << StringUtil::Join(ppn_typen, ",") << "],";
         *raped_json_file << "\"PPN\":[" << StringUtil::Join(ppns, ",") << "],";
+        *raped_json_file << "\"Art_PPN\":[" << StringUtil::Join(art_ppns, ",") << "],";
         *raped_json_file << "\"Jahr\":[" << StringUtil::Join(jahre, ",") << "],";
         *raped_json_file << "\"Band\":[" << StringUtil::Join(baende, ",") << "],";
         *raped_json_file << "\"Heft\":[" << StringUtil::Join(hefte, ",") << "],";
