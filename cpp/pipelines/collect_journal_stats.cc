@@ -372,9 +372,9 @@ void GenerateJson(const std::string &system_type,
                 quellrechner.push_back("\"" + object_node.getStringValue("Quellrechner") + "\"");
                 systemtypen.push_back("\"" + object_node.getStringValue("Systemtyp") + "\"");
                 zeder_ids.push_back(object_node.getStringValue("Zeder_ID"));
-                ppn_typen.push_back("\"" + object_node.getStringValue("PPN_Typ") + "\"");
-                ppns.push_back("\"" + object_node.getStringValue("PPN") + "\"");
-                art_ppns.push_back("\"" + object_node.getStringValue("Art_PPN") + "\"");
+                ppn_typen.push_back("\"" + object_node.getStringValue("Zeitschrift_PPN_Typ") + "\"");
+                ppns.push_back("\"" + object_node.getStringValue("Zeitschrift_PPN") + "\"");
+                art_ppns.push_back("\"" + object_node.getStringValue("Artikel_PPN") + "\"");
                 jahre.push_back("\"" + object_node.getStringValue("Jahr") + "\"");
                 baende.push_back("\"" + object_node.getStringValue("Band") + "\"");
                 hefte.push_back("\"" + object_node.getStringValue("Heft") + "\"");
