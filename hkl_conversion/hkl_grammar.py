@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import re
+import regex
 import sys
 from lark import Lark, Transformer
 
@@ -27,9 +28,9 @@ def SplitToAuthorEntries(file):
     entry = []
     entries = []
     author = ''
-    author_match_regex = r'^[^,]+\s*,\s*[^,]+$'
+    author_match_regex = regex.compile(r'^\p{Lu}\p{Ll}+\s*,(\s+\p{Lu}([.]|\p{Ll})+)+$')
     for line in file:
-        if re.match(author_match_regex, line):
+        if author_match_regex.match(line):
             if author == '':
                 author = line
                 continue
