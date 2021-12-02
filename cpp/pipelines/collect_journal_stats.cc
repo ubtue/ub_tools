@@ -278,15 +278,15 @@ void UpdateDatabase(const std::string &system_type,
 
     DbConnection db_connection_insert(DbConnection::MySQLFactory(ini_file, "DatabaseInsert"));
     const unsigned SQL_INSERT_BATCH_SIZE(50);
-    const std::vector<std::string> COLUMN_NAMES{ "timestamp", "Quellrechner", "Systemtyp", "Zeder_ID", "Zeitschrift_PPN_Typ",
-                                                 "Zeitschrift_PPN", "Jahr", "Band", "Heft", "Seitenbereich" };
+    const std::vector<std::string> COLUMN_NAMES{ "timestamp", "Quellrechner", "Systemtyp", "Zeder_ID", "PPN_Typ",
+                                                 "PPN", "Jahr", "Band", "Heft", "Seitenbereich" };
     std::vector<std::vector<std::optional<std::string>>> column_values;
 
     for (const auto &[zeder_id_plus_ppn, articles] : zeder_ids_plus_ppns_to_articles_map) {
         const auto ppn(GetPNN(zeder_id_plus_ppn));
         const auto ppn_and_zeder_id_and_ppn_type(ppns_to_zeder_ids_and_types_map.find(ppn));
         if (unlikely(ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend()))
-            LOG_ERROR("no Zeder ID found for Zeitschrift_PPN \"" + ppn + "\"!");
+            LOG_ERROR("no Zeder ID found for (Zeitschrift_)PPN \"" + ppn + "\"!");
 
         const auto zeder_id(std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_));
         for (auto article(articles.cbegin());
@@ -349,7 +349,7 @@ void GenerateJson(const std::string &system_type,
         const auto ppn(GetPNN(zeder_id_plus_ppn));
         const auto ppn_and_zeder_id_and_ppn_type(ppns_to_zeder_ids_and_types_map.find(ppn));
         if (unlikely(ppn_and_zeder_id_and_ppn_type == ppns_to_zeder_ids_and_types_map.cend()))
-            LOG_ERROR("no Zeder ID found for Zeitschrift_PPN \"" + ppn + "\"!");
+            LOG_ERROR("no Zeder ID found for (Zeitschrift_)PPN \"" + ppn + "\"!");
         const auto zeder_id(std::to_string(ppn_and_zeder_id_and_ppn_type->second.zeder_id_));
         unsigned long inner_position = 0;
         for (auto &article : articles) {
