@@ -6,21 +6,36 @@ import sys
 from lark import Lark, Transformer
 
 hkl_parser = Lark(r"""
-    ?author_bibliography: sentence+ NL*
+//    ?author_bibliography: bibliographic_item+ NL*
+//    ?bibliographic_item: full_citation_with_short_title
+    ?bibliographic_item: full_citation_with_short_title
+    full_citation_with_short_title: short_title /\s*=\s*/ full_title place " " year END_OF_SENTENCE note
+    short_title: WORD (/\s+/ WORD)*
+    full_title: sentence
+//    place: WORD (/\s+/ WORD)*
+    place: WORD
+    note: (WORD|NUMBER) (IWS (WORD|NUMBER))* | sentence* (IWS sentence)*
+    year: /[12]\d{3}/
+    some_other_stuff: /[A-Z][a-z].*/
     non_empty_string: /[^\t\s\n\r,]+/
-    sentence.1: non_empty_string ((IWS|NL|COW) non_empty_string)* END_OF_SENTENCE
+    //sentence: non_empty_string ((IWS|NL|COW) non_empty_string)* END_OF_SENTENCE
+    sentence: (WORD|NUMBER|BRACKET_EXPRESSION) ((IWS|NL|COW|"=") (WORD|NUMBER|BRACKET_EXPRESSION))* END_OF_SENTENCE
+    BRACKET_EXPRESSION: /[(].*[)]/
     number: INT
     IWS : /[\s\t]+/
     NL : /\n/
-    END_OF_SENTENCE: "." NL
+    END_OF_SENTENCE: "." (IWS|NL)*
     EMPTY_LINE_SEPARATOR: "\n\n"
     COW : IWS* "," IWS* // Comma with optional whitespace
+    WORD: /\w+/
 
 
 //    %import common._STRING_INNER
     %import common.INT
+//    %import common.WORD
+    %import common.NUMBER
 //    %import common.WS
-    """, start='author_bibliography', ambiguity="explicit", debug=True)
+    """, start='bibliographic_item', ambiguity="explicit")
 
 
 
@@ -28,7 +43,7 @@ def SplitToAuthorEntries(file):
     entry = []
     entries = []
     author = ''
-    author_match_regex = regex.compile(r'^\p{Lu}\p{Ll}+\s*,(\s+\p{Lu}([.]|\p{Ll})+)+$')
+    author_match_regex = regex.compile(r'^\p{Lu}\p{Ll}+\s*,(\s*\p{Lu}([.]|\p{Ll})+)+$')
     for line in file:
         if author_match_regex.match(line):
             if author == '':
@@ -59,14 +74,18 @@ def Main():
              file = FilterPageHeadings(file)
              #print(file)
              entries = SplitToAuthorEntries(GetBufferLikeFile(file))
-             for author, entry in entries:
+#             for author, entry in entries[:4]:
+             for author, entry in [entries[0]]:
                  print("---------------------------------------\nAUTHOR: " + author + '\n')
-                 print(entry)
-                 #print("FOR AUTHOR: " + entry[0].rstrip())
-                 #hkl_parser.parse(''.join(entry[1:]))
-
-
-#             print(hkl_parser.parse(f.read()).pretty())
+                 normalized_separations = re.sub(r'-\n', '', ''.join(entry))
+                 normalized_newlines= re.sub(r'\n(?!\n)', ' ', normalized_separations)
+                 print(normalized_newlines)
+                 print("#################################")
+                 #print(normalized_newlines.split('\n')[0])
+                 to_parse = "Assyrian manual = An Assyrian manual for the use of beginners in the study of the Assyrian language. Chicago 1886. 2. Auflage Chicago 1892 (mir nicht zugänglich). Nicht berücksichtigt."
+                 print(to_parse + '\n#########################################\n')
+                 #hkl_parser.parse(normalized_newlines.split('\n')[0] + '\n')
+                 print(hkl_parser.parse(to_parse).pretty())
     except Exception as e:
         print("ERROR: " + e)
 
