@@ -146,17 +146,6 @@ void ProcessYear(const JSON::ObjectNode &entry_object, MARC::Record * const reco
 }
 
 
-void ProcessDOI(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
-    if (entry_object.getNode("doi")->getType() == JSON::JSONNode::NULL_NODE)
-        return;
-    const auto doi_node(entry_object.getStringNode("doi"));
-    record->insertField("856",
-                        { { 'u', "https://doi.org/" + doi_node->getValue() }, { 'x', "Resolving System" },
-                          { 'z', "Kostenfrei"}, { '3', "Volltext" } }, /*indicator1=*/'4', /*indicator2=*/'0');
-    record->insertField("024", { { 'a', doi_node->getValue() }, { '2', "doi" } }, '0','7');
-}
-
-
 void ProcessDownloadURL(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
     const auto download_url_node(entry_object.getStringNode("downloadUrl"));
     const auto download_url(download_url_node->getValue());
@@ -303,7 +292,6 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
             new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
             new_record.insertField("852", 'a', project_sigil);
             ProcessYear(*entry_object, &new_record);
-            ProcessDOI(*entry_object, &new_record);
             ProcessDownloadURL(*entry_object, &new_record);
             ProcessLanguage(*entry_object, &new_record);
             ProcessAbstract(*entry_object, &new_record);
