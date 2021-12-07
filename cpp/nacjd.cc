@@ -139,20 +139,20 @@ bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const boo
 }
 
 
-void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::string> &parsed_marc_ids) {
+void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::string>  * const parsed_marc_ids) {
     while (MARC::Record record = marc_reader->read()) {
         std::string ppn(record.getControlNumber());
         if (StringUtil::Contains(ppn, "[ICPSR]")) {
             StringUtil::ReplaceString("[ICPSR]", "", &ppn);
             StringUtil::TrimWhite(&ppn);
-            parsed_marc_ids.emplace(ppn);
+            parsed_marc_ids->emplace(ppn);
         }
 
         std::string id_035(record.getFirstSubfieldValue("035", 'a'));
         if (StringUtil::Contains(id_035, "[ICPSR]")) {
             StringUtil::ReplaceString("[ICPSR]", "", &id_035);
             StringUtil::TrimWhite(&id_035);
-            parsed_marc_ids.emplace(id_035);
+            parsed_marc_ids->emplace(id_035);
         }
     }
 }
@@ -342,7 +342,7 @@ int Main(int argc, char *argv[]) {
     // parse marc_file (later phase_x) and store ids in set
     std::set<std::string> parsed_marc_ids;
     LOG_INFO("Extracting existing ICPSR ids from marc input...");
-    ExtractExistingIDsFromMarc(marc_reader.get(), parsed_marc_ids);
+    ExtractExistingIDsFromMarc(marc_reader.get(), &parsed_marc_ids);
     LOG_INFO("Found: " + std::to_string(parsed_marc_ids.size()) + " records with ICPSR ids.");
 
     // Download possible new publications and store in json file
