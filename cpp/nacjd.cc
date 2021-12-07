@@ -1,5 +1,5 @@
 /** \file    nacjd.cc
-    \brief   Identifies URL's that we can use for further processing..
+    \brief   Identifies URLs that we can use for further processing.
     \author  andreas-ub
 
     \copyright 2021 Universitätsbibliothek Tübingen
@@ -20,7 +20,6 @@
 
 #include <algorithm>
 #include <fstream>
-#include <getopt.h>
 #include <iostream>
 #include <iterator>
 #include <sstream>
@@ -28,6 +27,7 @@
 #include <utility>
 #include <cerrno>
 #include <cstring>
+#include <getopt.h>
 #include "Downloader.h"
 #include "FileUtil.h"
 #include "HttpHeader.h"
@@ -49,7 +49,6 @@ namespace {
 }
 
 
-static int state(0);
 std::string current_id_website;
 std::vector<std::string> ids_website;
 const unsigned int timeout(15);
@@ -66,35 +65,39 @@ bool ContainsValue(const std::map<std::string,std::string> &map, const std::stri
 }
 
 
+enum PreviousChar { start, double_quote_first, cap_i, cap_d, double_quote_second, colon };
+
+
 void HandleChar(const char &c) {
-    if (state == 0) {
+    static PreviousChar state(start);
+    if (state == start) {
         if (c == '"')
-            state = 1;
-    } else if (state == 1) {
+            state = double_quote_first;
+    } else if (state == double_quote_first) {
         if (c == 'I')
-            state = 2;
+            state = cap_i;
         else
-            state = 0;
+            state = start;
     } else if (state == 2) {
         if (c == 'D')
-            state = 3;
+            state = cap_d;
         else
-            state = 0;
-    } else if (state == 3) {
+            state = start;
+    } else if (state == cap_d) {
         if (c == '"')
-            state = 4;
+            state = double_quote_second;
         else
-            state = 0;
-    } else if (state == 4) {
+            state = start;
+    } else if (state == double_quote_second) {
         if (c == ':')
-            state = 5;
+            state = colon;
         else
-            state = 0;
-    } else if (state == 5) {
+            state = start;
+    } else if (state == colon) {
         if (c == ',') {
             ids_website.push_back(current_id_website);
-            current_id_website = "";
-            state = 0;
+            current_id_website.clear();
+            state = start;
         }
         else
             current_id_website += c;
@@ -130,8 +133,8 @@ bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const boo
 
     const std::shared_ptr<const JSON::ObjectNode> top_node(JSON::JSONNode::CastToObjectNodeOrDie("full_tree", full_tree));
     if (use_separator)
-        json_new_titles << "," << "\n";
-    json_new_titles << top_node->toString() << "\n";
+        json_new_titles << "," << '\n';
+    json_new_titles << top_node->toString() << '\n';
 
     return true;
 }
@@ -139,7 +142,7 @@ bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const boo
 
 void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::string> &parsed_marc_ids) {
     while (MARC::Record record = marc_reader->read()) {
-        std::string ppn = record.getControlNumber();
+        std::string ppn(record.getControlNumber());
         if (StringUtil::Contains(ppn, "[ICPSR]")) {
             StringUtil::ReplaceString("[ICPSR]", "", &ppn);
             StringUtil::TrimWhite(&ppn);
@@ -171,15 +174,15 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
     else
         LOG_ERROR("couldn't open file: " + nacjd_titles);
     
-    if (FileUtil::Exists(nacjd_new_titles_json))
-        FileUtil::DeleteFile(nacjd_new_titles_json);
+    if (FileUtil::Exists(nacjd_new_titles_json) and not FileUtil::DeleteFile(nacjd_new_titles_json))
+        LOG_ERROR("Could not delete file: " + nacjd_new_titles_json);
     std::ofstream json_new_titles(nacjd_new_titles_json);
-    json_new_titles << "{ \"nacjd\" : [ " << "\n";
+    json_new_titles << "{ \"nacjd\" : [ " << '\n';
     bool first(true);
     for (const auto &id : ids_website) {
         if (parsed_marc_ids.contains(id))
             continue;
-        bool success = DownloadID(json_new_titles, id, /*use_separator*/ not first);
+        bool success(DownloadID(json_new_titles, id, /*use_separator*/ not first));
         if (first and success)
             first = false;
         if (success)
@@ -203,7 +206,7 @@ void ParseJsonAndWriteMarc(MARC::Writer * const title_writer) {
     std::shared_ptr<JSON::ArrayNode> nacjd_nodes(JSON::JSONNode::CastToArrayNodeOrDie("nacjd", root_node->getNode("nacjd")));
     for (const auto &internal_nacjd_node : *nacjd_nodes) {
         ++no_total;
-        bool complete = true;
+        bool complete(true);
         std::string description;
         std::string license;
         std::string initial_release_date;
@@ -325,7 +328,6 @@ void ParseJsonAndWriteMarc(MARC::Writer * const title_writer) {
     LOG_INFO("Processed: " + std::to_string(no_total) + "entries. " + std::to_string(no_initial_date) + " w/o initial date, " 
                     + std::to_string(no_title) + " w/o title, " + std::to_string(no_creators) + " w/o creator and " + std::to_string(no_license) + " w/o license.");
 }
-
 
 
 } // unnamed namespace
