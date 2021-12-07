@@ -18,24 +18,24 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <algorithm>
+#include <fstream>
+#include <getopt.h>
 #include <iostream>
+#include <iterator>
+#include <sstream>
 #include <unordered_set>
 #include <utility>
 #include <cerrno>
 #include <cstring>
-#include <getopt.h>
-#include <sstream>
-#include <iterator>
-#include <algorithm>
-#include <fstream>
-#include "util.h"
+#include "Downloader.h"
 #include "FileUtil.h"
 #include "HttpHeader.h"
-#include "UrlUtil.h"
 #include "JSON.h"
 #include "MARC.h"
+#include "UrlUtil.h"
+#include "util.h"
 #include "UBTools.h"
-#include "Downloader.h"
 
 
 namespace {
@@ -48,16 +48,17 @@ namespace {
             "new_marc_title_out_file contains all icpsr records not contained in input file.");
 }
 
-int state = 0;
-std::string currentId_website;
+
+static int state(0);
+std::string current_id_website;
 std::vector<std::string> ids_website;
-const unsigned int timeout = 15;
+const unsigned int timeout(15);
 const std::string nacjd_titles = UBTools::GetTuelibPath() + "nacjd_titles.html";
 const std::string nacjd_new_titles_json = UBTools::GetTuelibPath() + "nacjd_new_titles.json";
 
 
-bool containsValue(std::map<std::string,std::string> &map, std::string search_value) {
-    for (auto const& [key, val] : map) {
+bool ContainsValue(const std::map<std::string,std::string> &map, const std::string search_value) {
+    for (const auto &[key, val] : map) {
         if (val == search_value)
             return true;
     }
@@ -65,8 +66,7 @@ bool containsValue(std::map<std::string,std::string> &map, std::string search_va
 }
 
 
-void handleChar(const char& c)
-{
+void HandleChar(const char &c) {
     if (state == 0) {
         if (c == '"')
             state = 1;
@@ -92,24 +92,25 @@ void handleChar(const char& c)
             state = 0;
     } else if (state == 5) {
         if (c == ',') {
-            ids_website.push_back(currentId_website);
-            currentId_website = "";
+            ids_website.push_back(current_id_website);
+            current_id_website = "";
             state = 0;
         }
         else
-            currentId_website += c;
+            current_id_website += c;
     }
 }
 
 
-bool downloadID(std::ofstream &json_new_titles, std::string &id, bool use_separator) {
-    const std::string DOWNLOAD_URL = "https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id +"/versions/V1/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/37644/export&user=";
+bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const bool use_separator) {
+    const std::string DOWNLOAD_URL("https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id +"/versions/V1/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/37644/export&user=");
 
     Downloader downloader(DOWNLOAD_URL, Downloader::Params(), timeout * 1000);
     if (downloader.anErrorOccurred()) {
         LOG_WARNING("Error while downloading data for id " + id + ": " + downloader.getLastErrorMessage());
         return false;
     }
+
      // Check for rate limiting and error status codes:
     const HttpHeader http_header(downloader.getMessageHeader());
     if (http_header.getStatusCode() == 429)
@@ -118,6 +119,7 @@ bool downloadID(std::ofstream &json_new_titles, std::string &id, bool use_separa
         LOG_WARNING("NACJD returned HTTP status code " + std::to_string(http_header.getStatusCode()) + "! for NACJD id: " + id);
         return false;
     }
+
     const std::string &json_document(downloader.getMessageBody());
     std::shared_ptr<JSON::JSONNode> full_tree;
     JSON::Parser parser(json_document);
@@ -125,23 +127,26 @@ bool downloadID(std::ofstream &json_new_titles, std::string &id, bool use_separa
         LOG_ERROR("failed to parse JSON (" + parser.getErrorMessage() + "), download URL was: " + DOWNLOAD_URL);
         return false;
     }
+
     const std::shared_ptr<const JSON::ObjectNode> top_node(JSON::JSONNode::CastToObjectNodeOrDie("full_tree", full_tree));
     if (use_separator)
-        json_new_titles << "," << std::endl;
-    json_new_titles << top_node->toString() << std::endl;
+        json_new_titles << "," << "\n";
+    json_new_titles << top_node->toString() << "\n";
+
     return true;
 }
 
 
-void extractExistingIDsFromMarc(MARC::Reader *const marc_reader, std::set<std::string> &parsed_marc_ids) {
+void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::string> &parsed_marc_ids) {
     while (MARC::Record record = marc_reader->read()) {
         std::string ppn = record.getControlNumber();
-        std::string id_035 = record.getFirstSubfieldValue("035", 'a');
         if (StringUtil::Contains(ppn, "[ICPSR]")) {
             StringUtil::ReplaceString("[ICPSR]", "", &ppn);
             StringUtil::TrimWhite(&ppn);
             parsed_marc_ids.emplace(ppn);
         }
+
+        std::string id_035 = record.getFirstSubfieldValue("035", 'a');
         if (StringUtil::Contains(id_035, "[ICPSR]")) {
             StringUtil::ReplaceString("[ICPSR]", "", &id_035);
             StringUtil::TrimWhite(&id_035);
@@ -151,8 +156,8 @@ void extractExistingIDsFromMarc(MARC::Reader *const marc_reader, std::set<std::s
 }
 
 
-void extractIDsFromWebsite(std::set<std::string> &parsed_marc_ids, unsigned * const number_of_new_ids) {
-    const std::string DOWNLOAD_URL = "https://www.icpsr.umich.edu/web/NACJD/search/studies?start=0&ARCHIVE=NACJD&PUBLISH_STATUS=PUBLISHED&sort=DATEUPDATED%20desc&rows=9000";
+void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigned * const number_of_new_ids) {
+    const std::string DOWNLOAD_URL("https://www.icpsr.umich.edu/web/NACJD/search/studies?start=0&ARCHIVE=NACJD&PUBLISH_STATUS=PUBLISHED&sort=DATEUPDATED%20desc&rows=9000");
     if (FileUtil::Exists(nacjd_titles))
         FileUtil::DeleteFile(nacjd_titles);
     
@@ -162,48 +167,42 @@ void extractIDsFromWebsite(std::set<std::string> &parsed_marc_ids, unsigned * co
     if (file)
         std::for_each(std::istream_iterator<char>(file),
                       std::istream_iterator<char>(),
-                      handleChar);
-    else {
+                      HandleChar);
+    else
         LOG_ERROR("couldn't open file: " + nacjd_titles);
-    }
     
     if (FileUtil::Exists(nacjd_new_titles_json))
         FileUtil::DeleteFile(nacjd_new_titles_json);
-    std::ofstream json_new_titles;
-    json_new_titles.open(nacjd_new_titles_json);
-    json_new_titles << "{ \"nacjd\" : [ " << std::endl;
-    bool first = true;
-    for (std::string id : ids_website) {
+    std::ofstream json_new_titles(nacjd_new_titles_json);
+    json_new_titles << "{ \"nacjd\" : [ " << "\n";
+    bool first(true);
+    for (const auto &id : ids_website) {
         if (parsed_marc_ids.contains(id))
             continue;
-        bool success = downloadID(json_new_titles, id, /*use_separator*/ !first);
+        bool success = DownloadID(json_new_titles, id, /*use_separator*/ not first);
         if (first and success)
             first = false;
         if (success)
-            (*number_of_new_ids)++;
+            ++(*number_of_new_ids);
     }
     json_new_titles << " ] }";
-    json_new_titles.close();
 }
 
 
-void parseJsonAndWriteMarc(MARC::Writer * const title_writer) {
-
+void ParseJsonAndWriteMarc(MARC::Writer * const title_writer) {
     std::string json_document;
-    if (not FileUtil::ReadString(nacjd_new_titles_json, &json_document))
-        LOG_ERROR("Could not read in " + nacjd_new_titles_json);
-
+    FileUtil::ReadStringOrDie(nacjd_new_titles_json, &json_document);
     JSON::Parser json_parser(json_document);
     std::shared_ptr<JSON::JSONNode> internal_tree_root;
     if (not json_parser.parse(&internal_tree_root))
         LOG_ERROR("Could not properly parse \"" + nacjd_new_titles_json + ": " + json_parser.getErrorMessage());
 
     const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", internal_tree_root));
-    int no_total=0, no_title=0, no_description=0, no_license=0, no_initial_date=0, no_keywords=0, no_creators=0;
+    int no_total(0), no_title(0), no_description(0), no_license(0), no_initial_date(0), no_keywords(0), no_creators(0);
 
     std::shared_ptr<JSON::ArrayNode> nacjd_nodes(JSON::JSONNode::CastToArrayNodeOrDie("nacjd", root_node->getNode("nacjd")));
     for (const auto &internal_nacjd_node : *nacjd_nodes) {
-        no_total++;
+        ++no_total;
         bool complete = true;
         std::string description;
         std::string license;
@@ -223,9 +222,8 @@ void parseJsonAndWriteMarc(MARC::Writer * const title_writer) {
             description = description_node->getValue();
             if (description.empty()) {
                 complete = false;
-                no_description++;
-            }
-            else if (description.length() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH) {
+                ++no_description;
+            } else if (description.length() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH) {
                 StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - 7, &description);
                 description += "...";
             }
@@ -264,46 +262,43 @@ void parseJsonAndWriteMarc(MARC::Writer * const title_writer) {
                 if (not keyword_value_node->getValue().empty())
                     keywords.emplace(keyword_value_node->getValue());
             }
-        }
-        else
-            no_keywords++;
+        } else
+            ++no_keywords;
 
         for (const auto &internal_creator_node : *creators_node) {
             const auto creator_node(JSON::JSONNode::CastToObjectNodeOrDie("creator", internal_creator_node));
             const std::string type(creator_node->getStringNode("@type")->getValue());
             if (type == "Organization") {
-                std::string name = creator_node->getStringNode("name")->getValue();
+                const std::string name(creator_node->getStringNode("name")->getValue());
                 if (name.empty())
                     continue;
-                if (containsValue(creators, "110"))
+                if (ContainsValue(creators, "110"))
                     creators.emplace(name, "710");
                 else
                     creators.emplace(name, "110");
-            }
-            else if (type == "Person") {
+            } else if (type == "Person") {
                 const auto fullName_node(creator_node->getOptionalStringNode("fullName"));
                 if (fullName_node == nullptr)
                     continue;
                 std::string fullName = fullName_node->getValue();
                 if (fullName.empty())
                     continue;
-                if (containsValue(creators, "100"))
+                if (ContainsValue(creators, "100"))
                     creators.emplace(fullName, "700");
                 else
                     creators.emplace(fullName, "100");
-            }
-            else
+            } else
                 LOG_ERROR("unknown creator type: " + type);
         }
 
         if (creators.empty() or license.empty() or initial_release_date.empty()) {
             complete = false;
             if (creators.empty())
-                no_creators++;
+                ++no_creators;
             if (license.empty())
-                no_license++;
+                ++no_license;
             if (initial_release_date.empty())
-                no_initial_date++;
+                ++no_initial_date;
         }
 
         for (const auto &internal_alternateIdentifier : *alternateIdentifiers_node) {
@@ -318,7 +313,7 @@ void parseJsonAndWriteMarc(MARC::Writer * const title_writer) {
                 new_record.insertField("856", { { 'u', "https://www.icpsr.umich.edu/web/NACJD/studies/" + id } });
                 for (auto creator : creators)
                     new_record.insertField(creator.second, { { 'a', creator.first } });
-                for (auto keyword : keywords) {
+                for (const auto &keyword : keywords) {
                     const std::string normalized_keyword(TextUtil::CollapseAndTrimWhitespace(keyword));
                     new_record.insertField(MARC::GetIndexField(normalized_keyword));
                 }
@@ -336,36 +331,30 @@ void parseJsonAndWriteMarc(MARC::Writer * const title_writer) {
 } // unnamed namespace
 
 
-int main(int argc, char *argv[]) {
-    ::progname = argv[0];
-
+int Main(int argc, char *argv[]) {
     if (argc != 3)
         Usage();
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
     auto marc_writer(MARC::Writer::Factory(argv[2]));
 
-    try {
-        // parse marc_file (later phase_x) and store ids in set
-        std::set<std::string> parsed_marc_ids;
-        LOG_INFO("Extracting existing ICPSR ids from marc input...");
-        extractExistingIDsFromMarc(marc_reader.get(), parsed_marc_ids);
-        LOG_INFO("Found: " + std::to_string(parsed_marc_ids.size()) + " records with ICPSR ids.");
+    // parse marc_file (later phase_x) and store ids in set
+    std::set<std::string> parsed_marc_ids;
+    LOG_INFO("Extracting existing ICPSR ids from marc input...");
+    ExtractExistingIDsFromMarc(marc_reader.get(), parsed_marc_ids);
+    LOG_INFO("Found: " + std::to_string(parsed_marc_ids.size()) + " records with ICPSR ids.");
 
-        // Download possible new publications and store in json file
-        LOG_INFO("Extracting ICPSR ids from website...");
-        unsigned number_of_new_ids;
-        extractIDsFromWebsite(parsed_marc_ids, &number_of_new_ids);
-        LOG_INFO(std::to_string(number_of_new_ids) +  " new ids collected from website.");
+    // Download possible new publications and store in json file
+    LOG_INFO("Extracting ICPSR ids from website...");
+    unsigned number_of_new_ids;
+    ExtractIDsFromWebsite(parsed_marc_ids, &number_of_new_ids);
+    LOG_INFO(std::to_string(number_of_new_ids) + " new ids collected from website.");
 
-        // parse json file and store relevant information in variables
-        // write marc_records via marc_writer to marc_file
-        LOG_INFO("Parsing intermediate json file and save to marc output...");
-        parseJsonAndWriteMarc(marc_writer.get());
-        LOG_INFO("Finished.");
+    // parse json file and store relevant information in variables
+    // write marc_records via marc_writer to marc_file
+    LOG_INFO("Parsing intermediate json file and save to marc output...");
+    ParseJsonAndWriteMarc(marc_writer.get());
+    LOG_INFO("Finished.");
 
-        return EXIT_SUCCESS;
-    } catch (const std::exception &x) {
-
-    }
+    return EXIT_SUCCESS;
 }
