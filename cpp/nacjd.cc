@@ -68,7 +68,7 @@ enum PreviousChar { ID_START, FIRST_DOUBLE_QUOTE_SEEN, CAP_I_SEEN, CAP_D_SEEN, S
 
 
 void HandleChar(const char c) {
-    std::string current_id_website;
+    static std::string current_id_website;
     static PreviousChar state(ID_START);
     if (state == ID_START) {
         if (c == '"')
