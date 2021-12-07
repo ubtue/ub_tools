@@ -51,9 +51,9 @@ namespace {
 
 std::string current_id_website;
 std::vector<std::string> ids_website;
-const unsigned int timeout(15);
-const std::string nacjd_titles = UBTools::GetTuelibPath() + "nacjd_titles.html";
-const std::string nacjd_new_titles_json = UBTools::GetTuelibPath() + "nacjd_new_titles.json";
+const unsigned int TIMEOUT(15);
+const std::string NACJD_TITLES(UBTools::GetTuelibPath() + "nacjd_titles.html");
+const std::string NACJD_NEW_TITLES_JSON(UBTools::GetTuelibPath() + "nacjd_new_titles.json");
 
 
 bool ContainsValue(const std::map<std::string,std::string> &map, const std::string search_value) {
@@ -65,41 +65,40 @@ bool ContainsValue(const std::map<std::string,std::string> &map, const std::stri
 }
 
 
-enum PreviousChar { start, double_quote_first, cap_i, cap_d, double_quote_second, colon };
+enum PreviousChar { ID_START, FIRST_DOUBLE_QUOTE_SEEN, CAP_I_SEEN, CAP_D_SEEN, SECOND_DOUBLE_QUOTE_SEEN, COLON_SEEN };
 
 
-void HandleChar(const char &c) {
-    static PreviousChar state(start);
-    if (state == start) {
+void HandleChar(const char c) {
+    static PreviousChar state(ID_START);
+    if (state == ID_START) {
         if (c == '"')
-            state = double_quote_first;
-    } else if (state == double_quote_first) {
+            state = FIRST_DOUBLE_QUOTE_SEEN;
+    } else if (state == FIRST_DOUBLE_QUOTE_SEEN) {
         if (c == 'I')
-            state = cap_i;
+            state = CAP_I_SEEN;
         else
-            state = start;
+            state = ID_START;
     } else if (state == 2) {
         if (c == 'D')
-            state = cap_d;
+            state = CAP_D_SEEN;
         else
-            state = start;
-    } else if (state == cap_d) {
+            state = ID_START;
+    } else if (state == CAP_D_SEEN) {
         if (c == '"')
-            state = double_quote_second;
+            state = SECOND_DOUBLE_QUOTE_SEEN;
         else
-            state = start;
-    } else if (state == double_quote_second) {
+            state = ID_START;
+    } else if (state == SECOND_DOUBLE_QUOTE_SEEN) {
         if (c == ':')
-            state = colon;
+            state = COLON_SEEN;
         else
-            state = start;
-    } else if (state == colon) {
+            state = ID_START;
+    } else if (state == COLON_SEEN) {
         if (c == ',') {
             ids_website.push_back(current_id_website);
             current_id_website.clear();
-            state = start;
-        }
-        else
+            state = ID_START;
+        } else
             current_id_website += c;
     }
 }
@@ -108,7 +107,7 @@ void HandleChar(const char &c) {
 bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const bool use_separator) {
     const std::string DOWNLOAD_URL("https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id +"/versions/V1/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/37644/export&user=");
 
-    Downloader downloader(DOWNLOAD_URL, Downloader::Params(), timeout * 1000);
+    Downloader downloader(DOWNLOAD_URL, Downloader::Params(), TIMEOUT * 1000);
     if (downloader.anErrorOccurred()) {
         LOG_WARNING("Error while downloading data for id " + id + ": " + downloader.getLastErrorMessage());
         return false;
@@ -149,7 +148,7 @@ void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::
             parsed_marc_ids.emplace(ppn);
         }
 
-        std::string id_035 = record.getFirstSubfieldValue("035", 'a');
+        std::string id_035(record.getFirstSubfieldValue("035", 'a'));
         if (StringUtil::Contains(id_035, "[ICPSR]")) {
             StringUtil::ReplaceString("[ICPSR]", "", &id_035);
             StringUtil::TrimWhite(&id_035);
@@ -161,22 +160,22 @@ void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::
 
 void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigned * const number_of_new_ids) {
     const std::string DOWNLOAD_URL("https://www.icpsr.umich.edu/web/NACJD/search/studies?start=0&ARCHIVE=NACJD&PUBLISH_STATUS=PUBLISHED&sort=DATEUPDATED%20desc&rows=9000");
-    if (FileUtil::Exists(nacjd_titles))
-        FileUtil::DeleteFile(nacjd_titles);
+    if (FileUtil::Exists(NACJD_TITLES))
+        FileUtil::DeleteFile(NACJD_TITLES);
     
-    if (not Download(DOWNLOAD_URL, nacjd_titles, timeout * 1000))
+    if (not Download(DOWNLOAD_URL, NACJD_TITLES, TIMEOUT * 1000))
         LOG_ERROR("Could not download website with nacjd ids.");
-    std::ifstream file(nacjd_titles);
+    std::ifstream file(NACJD_TITLES);
     if (file)
         std::for_each(std::istream_iterator<char>(file),
                       std::istream_iterator<char>(),
                       HandleChar);
     else
-        LOG_ERROR("couldn't open file: " + nacjd_titles);
+        LOG_ERROR("couldn't open file: " + NACJD_TITLES);
     
-    if (FileUtil::Exists(nacjd_new_titles_json) and not FileUtil::DeleteFile(nacjd_new_titles_json))
-        LOG_ERROR("Could not delete file: " + nacjd_new_titles_json);
-    std::ofstream json_new_titles(nacjd_new_titles_json);
+    if (FileUtil::Exists(NACJD_NEW_TITLES_JSON) and not FileUtil::DeleteFile(NACJD_NEW_TITLES_JSON))
+        LOG_ERROR("Could not delete file: " + NACJD_NEW_TITLES_JSON);
+    std::ofstream json_new_titles(NACJD_NEW_TITLES_JSON);
     json_new_titles << "{ \"nacjd\" : [ " << '\n';
     bool first(true);
     for (const auto &id : ids_website) {
@@ -192,13 +191,13 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
 }
 
 
-void ParseJsonAndWriteMarc(MARC::Writer * const title_writer) {
+void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
     std::string json_document;
-    FileUtil::ReadStringOrDie(nacjd_new_titles_json, &json_document);
+    FileUtil::ReadStringOrDie(NACJD_NEW_TITLES_JSON, &json_document);
     JSON::Parser json_parser(json_document);
     std::shared_ptr<JSON::JSONNode> internal_tree_root;
     if (not json_parser.parse(&internal_tree_root))
-        LOG_ERROR("Could not properly parse \"" + nacjd_new_titles_json + ": " + json_parser.getErrorMessage());
+        LOG_ERROR("Could not properly parse \"" + NACJD_NEW_TITLES_JSON + ": " + json_parser.getErrorMessage());
 
     const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", internal_tree_root));
     int no_total(0), no_title(0), no_description(0), no_license(0), no_initial_date(0), no_keywords(0), no_creators(0);
@@ -355,7 +354,7 @@ int Main(int argc, char *argv[]) {
     // parse json file and store relevant information in variables
     // write marc_records via marc_writer to marc_file
     LOG_INFO("Parsing intermediate json file and save to marc output...");
-    ParseJsonAndWriteMarc(marc_writer.get());
+    ParseJSONAndWriteMARC(marc_writer.get());
     LOG_INFO("Finished.");
 
     return EXIT_SUCCESS;
