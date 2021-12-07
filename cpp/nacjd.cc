@@ -49,14 +49,13 @@ namespace {
 }
 
 
-std::string current_id_website;
 std::vector<std::string> ids_website;
 const unsigned int TIMEOUT(15);
 const std::string NACJD_TITLES(UBTools::GetTuelibPath() + "nacjd_titles.html");
 const std::string NACJD_NEW_TITLES_JSON(UBTools::GetTuelibPath() + "nacjd_new_titles.json");
 
 
-bool ContainsValue(const std::map<std::string,std::string> &map, const std::string search_value) {
+bool ContainsValue(const std::map<std::string, std::string> &map, const std::string &search_value) {
     for (const auto &[key, val] : map) {
         if (val == search_value)
             return true;
@@ -69,6 +68,7 @@ enum PreviousChar { ID_START, FIRST_DOUBLE_QUOTE_SEEN, CAP_I_SEEN, CAP_D_SEEN, S
 
 
 void HandleChar(const char c) {
+    std::string current_id_website;
     static PreviousChar state(ID_START);
     if (state == ID_START) {
         if (c == '"')
@@ -78,7 +78,7 @@ void HandleChar(const char c) {
             state = CAP_I_SEEN;
         else
             state = ID_START;
-    } else if (state == 2) {
+    } else if (state == CAP_I_SEEN) {
         if (c == 'D')
             state = CAP_D_SEEN;
         else
