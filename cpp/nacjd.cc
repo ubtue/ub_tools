@@ -50,7 +50,7 @@ namespace {
 
 
 std::vector<std::string> ids_website;
-const unsigned int TIMEOUT(15);
+const unsigned int TIMEOUT_IN_SECONDS(15);
 const std::string NACJD_TITLES(UBTools::GetTuelibPath() + "nacjd_titles.html");
 const std::string NACJD_NEW_TITLES_JSON(UBTools::GetTuelibPath() + "nacjd_new_titles.json");
 
@@ -107,7 +107,7 @@ void HandleChar(const char c) {
 bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const bool use_separator) {
     const std::string DOWNLOAD_URL("https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id + "/versions/V1/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/37644/export&user=");
 
-    Downloader downloader(DOWNLOAD_URL, Downloader::Params(), TIMEOUT * 1000);
+    Downloader downloader(DOWNLOAD_URL, Downloader::Params(), TIMEOUT_IN_SECONDS * 1000);
     if (downloader.anErrorOccurred()) {
         LOG_WARNING("Error while downloading data for id " + id + ": " + downloader.getLastErrorMessage());
         return false;
@@ -163,7 +163,7 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
     if (FileUtil::Exists(NACJD_TITLES))
         FileUtil::DeleteFile(NACJD_TITLES);
     
-    if (not Download(DOWNLOAD_URL, NACJD_TITLES, TIMEOUT * 1000))
+    if (not Download(DOWNLOAD_URL, NACJD_TITLES, TIMEOUT_IN_SECONDS * 1000))
         LOG_ERROR("Could not download website with nacjd ids.");
     std::ifstream file(NACJD_TITLES);
     if (file)
