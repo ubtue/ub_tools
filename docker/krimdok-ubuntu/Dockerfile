@@ -1,5 +1,5 @@
 FROM ub_tools-deps-ubuntu
-MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
+LABEL maintainer="Mario Trojan <mario.trojan@uni-tuebingen.de>"
 
 # add needed configuration files
 # (+simulate mounts)
@@ -27,10 +27,12 @@ COPY local_overrides/* /usr/local/vufind/local/tuefind/local_overrides/
 
 # expose solr & import example marc data
 EXPOSE 8983
-COPY data.mrc /usr/local/ub_tools/bsz_daten/data.mrc
+COPY biblio.mrc /usr/local/ub_tools/bsz_daten/biblio.mrc
+COPY auth.mrc /usr/local/ub_tools/bsz_daten/auth.mrc
 RUN . /etc/profile.d/vufind.sh \
     && sudo -u solr /usr/local/vufind/solr.sh start \
-    && /usr/local/vufind/import-marc.sh /usr/local/ub_tools/bsz_daten/data.mrc
+    && /usr/local/vufind/import-marc.sh /usr/local/ub_tools/bsz_daten/biblio.mrc \
+    && /usr/local/vufind/import-marc-auth.sh /usr/local/ub_tools/bsz_daten/auth.mrc
 
 # configure apache
 EXPOSE 80

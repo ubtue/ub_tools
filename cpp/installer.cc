@@ -601,6 +601,8 @@ void InstallVuFindCronjobs(const bool production, const VuFindSystemType vufind_
     if (vufind_system_type == IXTHEO) {
         names_to_values_map.insertScalar("ixtheo_host", GetStringFromTerminal("IxTheo Hostname"));
         names_to_values_map.insertScalar("relbib_host", GetStringFromTerminal("RelBib Hostname"));
+        names_to_values_map.insertScalar("bibstudies_host", GetStringFromTerminal("BibStudies Hostname"));
+        names_to_values_map.insertScalar("churchlaw_host", GetStringFromTerminal("ChurchLaw Hostname"));
     }
 
     InstallCronjobs(production, (vufind_system_type == KRIMDOK ? "krimdok.cronjobs" : "ixtheo.cronjobs"),
@@ -834,16 +836,20 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
 
     const std::string vufind_system_type_string(VuFindSystemTypeToString(vufind_system_type));
     Echo("Starting configuration for " + vufind_system_type_string);
-    const std::string dirname_solr_conf = VUFIND_DIRECTORY + "/solr/vufind/biblio/conf";
+    const std::string SOLR_BIBLIO_DIRECTORY = VUFIND_DIRECTORY + "/solr/vufind/biblio/conf";
+    const std::string SOLR_AUTHORITY_DIRECTORY = VUFIND_DIRECTORY + "/solr/vufind/authority/conf";
 
     Echo("SOLR Configuration (solrconfig.xml)");
-    ExecUtil::ExecOrDie(dirname_solr_conf + "/make_symlinks.sh", { vufind_system_type_string });
+    ExecUtil::ExecOrDie(SOLR_BIBLIO_DIRECTORY + "/make_symlinks.sh", { vufind_system_type_string });
 
-    Echo("SOLR Schema (schema_local_*.xml)");
-    ExecUtil::ExecOrDie(dirname_solr_conf + "/generate_xml.sh", { vufind_system_type_string });
+    Echo("SOLR Schema biblio (schema_local_*.xml)");
+    ExecUtil::ExecOrDie(SOLR_BIBLIO_DIRECTORY + "/generate_xml.sh", { vufind_system_type_string });
 
     Echo("Synonyms (synonyms_*.txt)");
-    ExecUtil::ExecOrDie(dirname_solr_conf + "/touch_synonyms.sh", { vufind_system_type_string });
+    ExecUtil::ExecOrDie(SOLR_BIBLIO_DIRECTORY + "/touch_synonyms.sh", { vufind_system_type_string });
+
+    Echo("SOLR Schema authority (schema_local_*.xml)");
+    ExecUtil::ExecOrDie(SOLR_AUTHORITY_DIRECTORY + "/generate_xml.sh", { vufind_system_type_string });
 
     Echo("solrmarc (marc_local.properties)");
     ExecUtil::ExecOrDie(VUFIND_DIRECTORY + "/import/make_marc_local_properties.sh", { vufind_system_type_string });

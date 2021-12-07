@@ -131,9 +131,17 @@ int Main(int argc, char *argv[]) {
 
     std::sort(script_names.begin(), script_names.end(), ScriptLessThan);
     std::string last_schema, current_schema;
+    int previous_version_number = -1;
 
     for (const auto &script_name : script_names) {
         LOG_INFO("Running " + script_name);
+        const unsigned version_number(GetVersionFromScriptName(script_name));
+
+        if (previous_version_number == (int) version_number)
+            LOG_ERROR("the number " + std::to_string(version_number) + " was used multiple times.");
+        else
+            previous_version_number = version_number;
+
         if (StringUtil::EndsWith(script_name, ".sh", true)) {
             if (dry_run)
                 std::cout << SYSTEM_UPDATES_DIR << "---" << script_name << std::endl;
@@ -155,7 +163,6 @@ int Main(int argc, char *argv[]) {
         // We want to write the version number after each script
         // in case anything goes wrong, to avoid double execution
         // of successfully run scripts
-        const unsigned version_number(GetVersionFromScriptName(script_name));
         FileUtil::WriteStringOrDie(VERSION_PATH, std::to_string(version_number));
     }
 

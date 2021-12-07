@@ -914,20 +914,44 @@ bool ConvertTextToTimeRange(std::string text, std::string * const range, const b
         return true;
     }
 
-    static const std::string MINUS_INFINITY("000000000000");
-    static auto matcher10(RegexMatcher::RegexMatcherFactoryOrDie("^-(\\d{1,4})$"));
+    static auto matcher10(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,2}).(\\d{1,2}).(\\d{1,4})$"));
     if (matcher10->matched(text)) {
-        unsigned year2(StringUtil::ToUnsigned((*matcher10)[1]));
+        unsigned day(StringUtil::ToUnsigned((*matcher10)[1]));
+        unsigned month(StringUtil::ToUnsigned((*matcher10)[2]));
+        unsigned year(StringUtil::ToUnsigned((*matcher10)[3]));
+        std::string s_day(StringUtil::ToString(day, /* radix = */10, /* width = */2, /* padding_char = */'0'));
+        std::string s_month(StringUtil::ToString(month, /* radix = */10, /* width = */2, /* padding_char = */'0'));
+        std::string s_year(StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0'));
+        *range = s_year + s_month + s_day + "_" + s_year + s_month + s_day;
+        return true;
+    }
+
+    static auto matcher11(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,4})-(\\d{1,2})-(\\d{1,2})$"));
+    if (matcher11->matched(text)) {
+        unsigned year(StringUtil::ToUnsigned((*matcher11)[1]));
+        unsigned month(StringUtil::ToUnsigned((*matcher11)[2]));
+        unsigned day(StringUtil::ToUnsigned((*matcher11)[3]));
+        std::string s_year(StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0'));
+        std::string s_month(StringUtil::ToString(month, /* radix = */10, /* width = */2, /* padding_char = */'0'));
+        std::string s_day(StringUtil::ToString(day, /* radix = */10, /* width = */2, /* padding_char = */'0'));
+        *range = s_year + s_month + s_day + "_" + s_year + s_month + s_day;
+        return true;
+    }
+
+    static const std::string MINUS_INFINITY("000000000000");
+    static auto matcher12(RegexMatcher::RegexMatcherFactoryOrDie("^-(\\d{1,4})$"));
+    if (matcher12->matched(text)) {
+        unsigned year2(StringUtil::ToUnsigned((*matcher12)[1]));
         *range = MINUS_INFINITY + "_"
                  + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
         return true;
     }
 
-    static auto matcher11(RegexMatcher::RegexMatcherFactoryOrDie("^-(\\d{1,2}).(\\d{1,2}).(\\d{1,4})$"));
-    if (matcher11->matched(text)) {
-        unsigned day2(StringUtil::ToUnsigned((*matcher11)[1]));
-        unsigned month2(StringUtil::ToUnsigned((*matcher11)[2]));
-        unsigned year2(StringUtil::ToUnsigned((*matcher11)[3]));
+    static auto matcher13(RegexMatcher::RegexMatcherFactoryOrDie("^-(\\d{1,2}).(\\d{1,2}).(\\d{1,4})$"));
+    if (matcher13->matched(text)) {
+        unsigned day2(StringUtil::ToUnsigned((*matcher13)[1]));
+        unsigned month2(StringUtil::ToUnsigned((*matcher13)[2]));
+        unsigned year2(StringUtil::ToUnsigned((*matcher13)[3]));
         *range = MINUS_INFINITY + "_"
                  + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
                  + StringUtil::ToString(month2, /* radix = */10, /* width = */2, /* padding_char = */'0')
