@@ -181,7 +181,7 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
     for (const auto &id : ids_website) {
         if (parsed_marc_ids.contains(id))
             continue;
-        bool success(DownloadID(json_new_titles, id, /*use_separator*/ not first));
+        const bool success(DownloadID(json_new_titles, id, /*use_separator*/ not first));
         if (first and success)
             first = false;
         if (success)
@@ -200,7 +200,7 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
         LOG_ERROR("Could not properly parse \"" + NACJD_NEW_TITLES_JSON + ": " + json_parser.getErrorMessage());
 
     const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", internal_tree_root));
-    int no_total(0), no_title(0), no_description(0), no_license(0), no_initial_date(0), no_keywords(0), no_creators(0);
+    unsigned no_total(0), no_title(0), no_description(0), no_license(0), no_initial_date(0), no_keywords(0), no_creators(0);
 
     std::shared_ptr<JSON::ArrayNode> nacjd_nodes(JSON::JSONNode::CastToArrayNodeOrDie("nacjd", root_node->getNode("nacjd")));
     for (const auto &internal_nacjd_node : *nacjd_nodes) {
@@ -212,7 +212,7 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
         std::set<std::string> keywords;
         std::map<std::string, std::string> creators;
         const auto nacjd_node(JSON::JSONNode::CastToObjectNodeOrDie("entry", internal_nacjd_node));
-        const auto alternateIdentifiers_node(nacjd_node->getArrayNode("alternateIdentifiers"));
+        const auto alternate_identifiers_node(nacjd_node->getArrayNode("alternateIdentifiers"));
         const auto distributions_node(nacjd_node->getArrayNode("distributions"));
         const auto keywords_node(nacjd_node->getOptionalArrayNode("keywords"));
         const auto creators_node(nacjd_node->getArrayNode("creators"));
@@ -226,7 +226,8 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
                 complete = false;
                 ++no_description;
             } else if (description.length() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH) {
-                StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - 7, &description);
+                const unsigned REDUCE_LENGTH_CHARS(7);
+                StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - REDUCE_LENGTH_CHARS, &description);
                 description += "...";
             }
         }
@@ -240,9 +241,8 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
                 const auto date_node(JSON::JSONNode::CastToObjectNodeOrDie("date", internal_date_node));
                 const auto date_type_node(date_node->getObjectNode("type"));
                 const auto date_date_node(date_node->getStringNode("date"));
-                if (date_type_node->getStringNode("value")->getValue() == "initial release date") {
+                if (date_type_node->getStringNode("value")->getValue() == "initial release date")
                     initial_release_date = date_date_node->getValue();
-                }
             }
 
             for (const auto &internal_license_node : *licenses_node) {
@@ -303,7 +303,7 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
                 ++no_initial_date;
         }
 
-        for (const auto &internal_alternateIdentifier : *alternateIdentifiers_node) {
+        for (const auto &internal_alternateIdentifier : *alternate_identifiers_node) {
             const auto alternateIdentifier_node(JSON::JSONNode::CastToObjectNodeOrDie("alternateIdentifier", internal_alternateIdentifier));
             const std::string id(alternateIdentifier_node->getStringNode("identifier")->getValue());
             if (complete) {
