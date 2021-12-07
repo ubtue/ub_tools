@@ -132,7 +132,7 @@ bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const boo
 
     const std::shared_ptr<const JSON::ObjectNode> top_node(JSON::JSONNode::CastToObjectNodeOrDie("full_tree", full_tree));
     if (use_separator)
-        json_new_titles << "," << '\n';
+        json_new_titles << ',' << '\n';
     json_new_titles << top_node->toString() << '\n';
 
     return true;
