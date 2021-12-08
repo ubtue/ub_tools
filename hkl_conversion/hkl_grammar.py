@@ -10,9 +10,10 @@ from nltk.corpus import state_union
 from nltk.tokenize.punkt import PunktSentenceTokenizer, PunktTrainer
 nltk.download('stopwords')
 import random
-#from nltk.tokenize import PunktTrainer
 from lark import Lark, Transformer
 from langdetect import detect
+from dicttoxml import dicttoxml
+import json
 
 hkl_parser = Lark(r"""
 //    ?author_bibliography: bibliographic_item+ NL*
@@ -147,22 +148,22 @@ def SetupWordFeatures(labeled):
     word_selection = GetFrequentlyUsedWordFeatures(all_trainsentences)
 
 
+SENTENCE_TYPES = { 'TITLE' : 'title', 'BIB_INFO' : 'bib_info', 'YEAR_AND_PLACE' : 'year_and_place', 'COMMENT' : 'comment' }
+
 def CreateClassifier():
     with open("./training/titles.txt") as titles:
-       titles = [ (title, 'title') for title in titles ]
+       titles = [ (title, SENTENCE_TYPES['TITLE']) for title in titles ]
     with open("./training/comments.txt") as comments:
-       comments = [ (comment, 'comment') for comment in comments ]
+       comments = [ (comment, SENTENCE_TYPES['COMMENT']) for comment in comments ]
     with open("./training/bib_infos.txt") as bib_infos:
-       bib_infos = [ (bib_info, 'bib_info') for bib_info in bib_infos ]
+       bib_infos = [ (bib_info, SENTENCE_TYPES['BIB_INFO']) for bib_info in bib_infos ]
     with open("./training/years_and_places.txt") as years_and_places:
-       years_and_places = [ (year_and_place, 'year_and_place') for year_and_place in years_and_places ]
+       years_and_places = [ (year_and_place, SENTENCE_TYPES['YEAR_AND_PLACE']) for year_and_place in years_and_places ]
     labeled = titles + comments + bib_infos + years_and_places
     SetupWordFeatures(labeled)
     random.shuffle(labeled)
     training = [(ExtractFeatures(example), sentence_type) for (example, sentence_type) in labeled]
-    classifier = nltk.NaiveBayesClassifier.train(training)
-
-    return classifier
+    return nltk.NaiveBayesClassifier.train(training)
 
 
 def Main():
@@ -176,10 +177,14 @@ def Main():
              entries = SplitToAuthorEntries(GetBufferLikeFile(file))
              punkt_sentence_tokenizer = GetPunktSentenceTokenizer(file)
              classifier = CreateClassifier()
+             authors = []
              for author, entry in [entries[0]]:
-                 print("---------------------------------------\nAUTHOR: " + author + '\n')
+#                 print("---------------------------------------\nAUTHOR: " + author + '\n')
                  normalized_separations = re.sub(r'-\n', '', ''.join(entry))
                  normalized_newlines= re.sub(r'\n(?!\n)', ' ', normalized_separations)
+                 author_tree = {}
+                 author_tree['author'] = author
+                 author_tree['titles'] = []
                  print("#################################")
                  to_parse = normalized_newlines.split('\n')[2]
                  print(to_parse + '\n#########################################\n')
@@ -187,9 +192,32 @@ def Main():
                  i = 0
                  for sentence in sentences:
                      print(sentence + " XXX " + classifier.classify(ExtractFeatures(sentence)))
+                     sentence_type = classifier.classify(ExtractFeatures(sentence))
+                     if sentence_type == SENTENCE_TYPES['TITLE']:
+                          title = sentence
+                          author_tree['titles'].append({ 'title' :  title, 'bib_infos' : [], 'comments' : [] })
+                     elif sentence_type == SENTENCE_TYPES['YEAR_AND_PLACE']:
+                          if not author_tree['titles']:
+                             raise Exception("Cannot insert year and place due to missing title")
+                          author_tree['titles'][-1]['year_and_place'] = sentence
+                     elif sentence_type == SENTENCE_TYPES['BIB_INFO']:
+                         if not author_tree['titles']:
+                             raise Exception("Cannot insert bib_info due to missing title for author " + author)
+                         author_tree['titles'][-1]['bib_infos'].append({'bib_info' : sentence, 'comments' : [] })
+                     elif sentence_type == SENTENCE_TYPES['COMMENT']:
+                         if not author_tree['titles']:
+                             raise Exception("Cannot insert comment due to missing title for author " + author)
+                         # We have a title comment if no bib_infos yet
+                         if not author_tree['titles'][-1]['bib_infos']:
+                              author_tree['titles'][-1]['comments'].append({ 'comment' : sentence })
+                         else:
+                             author_tree['titles'][-1]['bib_infos'][-1]['comments'].append( {'comment' : sentence })
                      #i += 1
                      #if i >= 10:
                      #    break
+                 authors.append(author_tree)
+             #xml = dicttoxml(authors, custom_root='authors', attr_type=False)
+             print(json.dumps(authors, indent=4))
     except Exception as e:
         print("ERROR: " + e)
 
