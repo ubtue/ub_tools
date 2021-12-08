@@ -105,7 +105,7 @@ void HandleChar(const char c) {
 
 
 bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const bool use_separator) {
-    const std::string DOWNLOAD_URL("https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id + "/versions/V1/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/37644/export&user=");
+    const std::string DOWNLOAD_URL("https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id + "/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
 
     Downloader downloader(DOWNLOAD_URL, Downloader::Params(), TIMEOUT_IN_SECONDS * 1000);
     if (downloader.anErrorOccurred()) {
