@@ -205,7 +205,8 @@ def Main():
                              if not author_tree['titles']:
                                  #raise Exception("Cannot insert bib_info due to missing title for author " + author)
                                  author_tree['bib_infos'].append({'bib_info' : sentence })
-                             author_tree['titles'][-1]['bib_infos'].append({'bib_info' : sentence, 'comments' : [] })
+                             else:
+                                 author_tree['titles'][-1]['bib_infos'].append({'bib_info' : sentence, 'comments' : [] })
                          elif sentence_type == SENTENCE_TYPES['COMMENT']:
                              if not author_tree['titles']:
                                  raise Exception("Cannot insert comment due to missing title for author " + author)
@@ -217,7 +218,8 @@ def Main():
                  drop_falsey = lambda path, key, value: bool(value)
                  authors.append(remap(author_tree, visit=drop_falsey))
              #xml = dicttoxml(authors, custom_root='authors', attr_type=False)
-             print(json.dumps(authors, indent=4))
+             with open('./output.json', 'w') as json_out:
+                 json.dump(authors, json_out)
     except Exception as e:
         print("ERROR: " + e)
 
