@@ -14,6 +14,7 @@ from lark import Lark, Transformer
 from langdetect import detect
 from dicttoxml import dicttoxml
 import json
+from boltons.iterutils import remap
 
 hkl_parser = Lark(r"""
 //    ?author_bibliography: bibliographic_item+ NL*
@@ -178,44 +179,43 @@ def Main():
              punkt_sentence_tokenizer = GetPunktSentenceTokenizer(file)
              classifier = CreateClassifier()
              authors = []
-             for author, entry in [entries[0]]:
+             for author, entry in entries:
 #                 print("---------------------------------------\nAUTHOR: " + author + '\n')
                  normalized_separations = re.sub(r'-\n', '', ''.join(entry))
                  normalized_newlines= re.sub(r'\n(?!\n)', ' ', normalized_separations)
                  author_tree = {}
                  author_tree['author'] = author
                  author_tree['titles'] = []
+                 author_tree['bib_infos'] = []
                  print("#################################")
-                 to_parse = normalized_newlines.split('\n')[2]
-                 print(to_parse + '\n#########################################\n')
-                 sentences = punkt_sentence_tokenizer.tokenize(to_parse)
-                 i = 0
-                 for sentence in sentences:
-                     print(sentence + " XXX " + classifier.classify(ExtractFeatures(sentence)))
-                     sentence_type = classifier.classify(ExtractFeatures(sentence))
-                     if sentence_type == SENTENCE_TYPES['TITLE']:
-                          title = sentence
-                          author_tree['titles'].append({ 'title' :  title, 'bib_infos' : [], 'comments' : [] })
-                     elif sentence_type == SENTENCE_TYPES['YEAR_AND_PLACE']:
-                          if not author_tree['titles']:
-                             raise Exception("Cannot insert year and place due to missing title")
-                          author_tree['titles'][-1]['year_and_place'] = sentence
-                     elif sentence_type == SENTENCE_TYPES['BIB_INFO']:
-                         if not author_tree['titles']:
-                             raise Exception("Cannot insert bib_info due to missing title for author " + author)
-                         author_tree['titles'][-1]['bib_infos'].append({'bib_info' : sentence, 'comments' : [] })
-                     elif sentence_type == SENTENCE_TYPES['COMMENT']:
-                         if not author_tree['titles']:
-                             raise Exception("Cannot insert comment due to missing title for author " + author)
-                         # We have a title comment if no bib_infos yet
-                         if not author_tree['titles'][-1]['bib_infos']:
-                              author_tree['titles'][-1]['comments'].append({ 'comment' : sentence })
-                         else:
-                             author_tree['titles'][-1]['bib_infos'][-1]['comments'].append( {'comment' : sentence })
-                     #i += 1
-                     #if i >= 10:
-                     #    break
-                 authors.append(author_tree)
+                 for to_parse in normalized_newlines.split('\n'):
+                     print(to_parse + '\n#########################################\n')
+                     sentences = punkt_sentence_tokenizer.tokenize(to_parse)
+                     for sentence in sentences:
+                         print(sentence + " XXX " + classifier.classify(ExtractFeatures(sentence)))
+                         sentence_type = classifier.classify(ExtractFeatures(sentence))
+                         if sentence_type == SENTENCE_TYPES['TITLE']:
+                              title = sentence
+                              author_tree['titles'].append({ 'title' :  title, 'bib_infos' : [], 'comments' : [] })
+                         elif sentence_type == SENTENCE_TYPES['YEAR_AND_PLACE']:
+                              if not author_tree['titles']:
+                                 raise Exception("Cannot insert year and place due to missing title")
+                              author_tree['titles'][-1]['year_and_place'] = sentence
+                         elif sentence_type == SENTENCE_TYPES['BIB_INFO']:
+                             if not author_tree['titles']:
+                                 #raise Exception("Cannot insert bib_info due to missing title for author " + author)
+                                 author_tree['bib_infos'].append({'bib_info' : sentence })
+                             author_tree['titles'][-1]['bib_infos'].append({'bib_info' : sentence, 'comments' : [] })
+                         elif sentence_type == SENTENCE_TYPES['COMMENT']:
+                             if not author_tree['titles']:
+                                 raise Exception("Cannot insert comment due to missing title for author " + author)
+                             # We have a title comment if no bib_infos yet
+                             if not author_tree['titles'][-1]['bib_infos']:
+                                  author_tree['titles'][-1]['comments'].append({ 'comment' : sentence })
+                             else:
+                                 author_tree['titles'][-1]['bib_infos'][-1]['comments'].append( {'comment' : sentence })
+                 drop_falsey = lambda path, key, value: bool(value)
+                 authors.append(remap(author_tree, visit=drop_falsey))
              #xml = dicttoxml(authors, custom_root='authors', attr_type=False)
              print(json.dumps(authors, indent=4))
     except Exception as e:
