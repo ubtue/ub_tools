@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta charset="UTF-8"/>
+    <title>Translator</title>
+    <style>
+        table {{ table-layout: fixed; width: 100%; }
+        table, td, th {{ border: 1px solid black; border-collapse:collapse;border-spacing:0; }
+        td, th {{ padding: 3px; margin: 0px; }
+        body {{ font-family: sans-serif;
+                -moz-hyphens: auto;
+                -o-hyphens: auto;
+                -webkit-hyphens: auto;
+                -ms-hyphens: auto;
+                hyphens: auto;
+             }
+        a, a:visited {{
+            text-decoration: none;
+            color: Blue; }
+        <!--see http://stackoverflow.com/questions/3915917/make-a-link-use-post-instead-of-get (20170221) -->
+        .inline {{ display: inline; }
+
+        .link-button {{
+            background: none;
+            border: none;
+            color: blue;
+            cursor: pointer;
+            font-size: 1em;
+          }
+          .link-button:focus {{ outline: none; }
+          .link-button:active {{ color:red; }
+          .no-border {{ border: none; }
+
+          .table.table-responsive td {{
+              white-space: normal !important;
+              word-wrap: break-word;
+            }
+            .table.table-responsive {{
+              table-layout: fixed;
+
+            }
+            .row > .lang-un-width {{
+              width: 120px;
+            }
+    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.13.0/themes/base/jquery-ui.css">
+
+    <script src="https://code.jquery.com/jquery-3.6.0.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.0/jquery-ui.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+    <script type="text/javascript">
+    $(document).ready(function () {{
+    }
+    </script>
+</head>
+
+<body>
+    <main>
+        <form class="row gx-3 gy-2 align-items-center justify-content-end" action="/cgi-bin/translator_statistics" method="POST">
+            <label for="start">Start:</label>
+            <input type="date" name="start_date" value={start_date} min="2018-01-01" max="2028-01-01">
+            <label for="start">Ende:</label>
+            <input type="date" name="end_date" value={end_date} min="2018-01-01" max="2028-12-31">
+            <input type="hidden" name="target" value="{target_translation_scope}">
+            <button type="submit" value="Submit">Aktualisieren</button>
+        </form>
+        <br>
+        <div>
+            <h2>Vufind Translation statistics</h2>
+            <table>
+                <tr>
+                    <th>Sprache</th>
+                    <th>Anzahl neu übersetzt</th>
+                </tr>
+                {LOOP vufind_rows}
+                     {vufind_rows}
+                {ENDLOOP}
+            </table>
+            Anzahl neuer Einträge: {number_new_entries_vufind}
+        </div>
+        <br><br>
+        <div>
+            <h2>Keywords Translation statistics</h2>
+            <table>
+                <tr>
+                    <th>Sprache</th>
+                    <th>Anzahl neu übersetzt</th>
+                </tr>
+                {LOOP keyword_rows}
+                     {keyword_rows}
+                {ENDLOOP}
+            </table>
+            Anzahl neuer Einträge: {number_new_entries_keyword}
+        </div>
+    </main>
+</body>
+
+</html>
