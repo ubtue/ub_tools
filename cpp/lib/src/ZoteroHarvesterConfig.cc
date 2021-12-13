@@ -77,6 +77,7 @@ std::vector<std::string> GetEmailCrawlMBoxes() {
 const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MAP {
     { ENHANCEMENT_MAPS_DIRECTORY,                 "enhancement_maps_directory" },
     { GROUP_NAMES,                                "groups" },
+    { SUBGROUP_NAMES,                             "subgroups" },
     { STRPTIME_FORMAT_STRING,                     "common_strptime_format" },
     { SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY, "skip_online_first_articles_unconditionally" },
     { DOWNLOAD_DELAY_DEFAULT,                     "default_download_delay_time" },
@@ -218,6 +219,7 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
     emailcrawl_mboxes_ = GetEmailCrawlMBoxes();
     enhancement_maps_directory_ = config_section.getString(GetIniKeyString(ENHANCEMENT_MAPS_DIRECTORY));
     group_names_ = config_section.getString(GetIniKeyString(GROUP_NAMES));
+    subgroup_names_ = config_section.getString(GetIniKeyString(SUBGROUP_NAMES));
     strptime_format_string_ = config_section.getString(GetIniKeyString(STRPTIME_FORMAT_STRING));
     skip_online_first_articles_unconditionally_ = config_section.getBool(GetIniKeyString(SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY));
     timeout_crawl_operation_ = config_section.getUnsigned(GetIniKeyString(TIMEOUT_CRAWL_OPERATION)) * 1000;
@@ -277,6 +279,19 @@ std::string GroupParams::GetIniKeyString(const IniKey ini_key) {
     return key_and_string->second;
 }
 
+
+SubgroupParams::SubgroupParams(const IniFile::Section &subgroup_section) {
+    name_ = subgroup_section.getSectionName();
+    user_agent_ = subgroup_section.getString(GetIniKeyString(USER_AGENT), "");
+    isil_ = subgroup_section.getString(GetIniKeyString(ISIL), "");
+    output_folder_ = subgroup_section.getString(GetIniKeyString(OUTPUT_FOLDER), "");
+    author_swb_lookup_url_ = subgroup_section.getString(GetIniKeyString(AUTHOR_SWB_LOOKUP_URL), "");
+    author_lobid_lookup_query_params_ = subgroup_section.getString(GetIniKeyString(AUTHOR_LOBID_LOOKUP_QUERY_PARAMS), "");
+    marc_metadata_params_ = MarcMetadataParams(subgroup_section);
+    CheckIniSection(subgroup_section, GroupParams::KEY_TO_STRING_MAP, { MarcMetadataParams::IsValidIniEntry });
+    std::string unused;
+    StringUtil::SplitOnStringThenTrimWhite(name_, "=>", &unused, &reference_group_);
+}
 
 JournalParams::JournalParams(const GlobalParams &global_params) {
     zeder_id_ = DEFAULT_ZEDER_ID;
@@ -435,6 +450,7 @@ JournalParams::IniKey JournalParams::GetIniKey(const std::string &ini_key_string
 
 void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
+                             std::vector<std::unique_ptr<SubgroupParams>> * const subgroup_params,
                              std::vector<std::unique_ptr<JournalParams>> * const journal_params,
                              std::unique_ptr<IniFile> * const config_file,
                              const IniFile::Section config_overrides_passed)
@@ -457,13 +473,24 @@ void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr
     std::set<std::string> group_names;
     StringUtil::Split((*global_params)->group_names_, ',', &group_names, /* suppress_empty_components = */ true);
 
+    std::set<std::string> subgroup_names;
+    StringUtil::Split((*global_params)->subgroup_names_, ',', &subgroup_names, /* suppress_empty_components = */ true);
+
     for (const auto &group_name : group_names)
         group_params->emplace_back(new Config::GroupParams(*ini->getSection(group_name)));
+
+    for (const auto &subgroup_name : subgroup_names) {
+        std::string subgroup;
+        std::string reference_group;
+        subgroup_params->emplace_back(new Config::SubgroupParams(*ini->getSection(subgroup_name)));
+    }
 
     for (const auto &section : *ini) {
         if (section.getSectionName().empty())
             continue;
         else if (group_names.find(section.getSectionName()) != group_names.end())
+            continue;
+        else if (subgroup_names.find(section.getSectionName()) != subgroup_names.end())
             continue;
 
         if (config_overrides.size() > 0) {

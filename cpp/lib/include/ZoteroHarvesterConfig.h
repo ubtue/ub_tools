@@ -133,6 +133,7 @@ struct GlobalParams {
     enum IniKey : unsigned {
         ENHANCEMENT_MAPS_DIRECTORY,
         GROUP_NAMES,
+        SUBGROUP_NAMES,
         STRPTIME_FORMAT_STRING,
         SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY,
         DOWNLOAD_DELAY_DEFAULT,
@@ -147,6 +148,7 @@ struct GlobalParams {
     std::vector<std::string> emailcrawl_mboxes_;
     std::string enhancement_maps_directory_;
     std::string group_names_;
+    std::string subgroup_names_;
     std::string strptime_format_string_;
     bool skip_online_first_articles_unconditionally_;
     DownloadDelayParams download_delay_params_;
@@ -199,13 +201,25 @@ struct GroupParams {
     std::string author_lobid_lookup_query_params_;
     MarcMetadataParams marc_metadata_params_;
 public:
+    GroupParams() {};
     GroupParams(const IniFile::Section &group_section);
     GroupParams(const GroupParams &rhs) = default;
     GroupParams &operator=(const GroupParams &rhs) = default;
 
     static std::string GetIniKeyString(const IniKey ini_key);
-private:
+protected:
     static const std::map<IniKey, std::string> KEY_TO_STRING_MAP;
+};
+
+
+struct SubgroupParams : public GroupParams {
+    std::string reference_group_;
+
+public:
+    SubgroupParams(const IniFile::Section &subgroup_section);
+    SubgroupParams(const SubgroupParams &rhs) = default;
+    SubgroupParams &operator=(const SubgroupParams &rhs) = default;
+    std::string getReferenceGroup() { return reference_group_; }
 };
 
 
@@ -298,6 +312,7 @@ private:
 
 void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
+                             std::vector<std::unique_ptr<SubgroupParams>> * const subgroup_params,
                              std::vector<std::unique_ptr<JournalParams>> * const journal_params,
                              std::unique_ptr<IniFile> * const config_file = nullptr,
                              const IniFile::Section config_overrides = IniFile::Section());

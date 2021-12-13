@@ -185,6 +185,7 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
 struct HarvesterConfigData {
     std::unique_ptr<Config::GlobalParams> global_params_;
     std::vector<std::unique_ptr<Config::GroupParams>> group_params_;
+    std::vector<std::unique_ptr<Config::SubgroupParams>> subgroup_params_;
     std::vector<std::unique_ptr<Config::JournalParams>> journal_params_;
     std::map<std::string, const std::reference_wrapper<Config::GroupParams>> group_name_to_group_params_map_;
     Config::JournalParams * default_journal_params_;
@@ -211,7 +212,8 @@ void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * c
                          const IniFile::Section &config_overrides)
 {
     Config::LoadHarvesterConfigFile(config_path, &harvester_config->global_params_,
-                                    &harvester_config->group_params_, &harvester_config->journal_params_,
+                                    &harvester_config->group_params_, &harvester_config->subgroup_params_,
+                                    &harvester_config->journal_params_,
                                     /* config_file = */ nullptr, config_overrides);
 
     for (const auto &group : harvester_config->group_params_)
