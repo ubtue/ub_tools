@@ -60,41 +60,66 @@
 
 <body>
     <main>
-        <form class="row gx-3 gy-2 align-items-center justify-content-end" action="/cgi-bin/translator_statistics" method="POST">
-            <label for="start">Start:</label>
-            <input type="date" name="start_date" value={start_date} min="2018-01-01" max="2028-01-01">
-            <label for="start">Ende:</label>
-            <input type="date" name="end_date" value={end_date} min="2018-01-01" max="2028-12-31">
-            <input type="hidden" name="target" value="{target_translation_scope}">
-            <button type="submit" value="Submit">Aktualisieren</button>
+        <div class="row row justify-content-center mt-3">
+            <div class="col-md-6 col-xs-11" align="left">
+                <h1>Translation statistics (vufind and keywords)</h1>
+            </div>
+        </div>
+        <form class="align-items-center justify-content-end" action="/cgi-bin/translator_statistics" method="POST">
+            <div class="row row justify-content-center">
+                <div class="col-md-3 col-xs-1"></div>
+                <div class="col-md-5 col-xs-6" align="right"><label>Start:</label></div>
+                <div class="col-md-1 col-xs-4"><input type="date" name="start_date" value={start_date} min="2018-01-01" max="2028-01-01"></div>
+                <div class="col-md-3 col-xs-1"></div>
+            </div>
+            <div class="row justify-content-center">
+                <div class="col-md-3 col-xs-1"></div>
+                <div class="col-md-5 col-xs-6" align="right"><label>End:  </label></div>
+                <div class="col-md-1 col-xs-4"><input type="date" name="end_date" value={end_date} min="2018-01-01" max="2028-12-31"></div>
+                <div class="col-md-3 col-xs-1"></div>
+            </div>
+            <div class="row justify-content-center">
+                <div class="col-md-3 col-xs-1"></div>
+                <div class="col-md-5 col-xs-6" align="right"></div>
+                <div class="col-md-1 col-xs-4"><button type="submit" value="Submit">Refresh</button></div>
+                <div class="col-md-3 col-xs-1"></div>
+            </div>
         </form>
         <br>
         <div>
-            <h2>Vufind Translation statistics</h2>
-            <table>
-                <tr>
-                    <th>Sprache</th>
-                    <th>Anzahl neu übersetzt</th>
-                </tr>
-                {LOOP vufind_rows}
-                     {vufind_rows}
-                {ENDLOOP}
-            </table>
-            Anzahl neuer Einträge: {number_new_entries_vufind}
+            <div class="row row justify-content-center">
+                <div class="col-md-6 col-xs-10" align="left">
+                    <h2>Vufind Translation statistics</h2>
+                    <table>
+                        <tr>
+                            <th>Language</th>
+                            <th>Recently translated</th>
+                        </tr>
+                        {LOOP vufind_rows}
+                            {vufind_rows}
+                        {ENDLOOP}
+                    </table>
+                    Recently imported: {number_new_entries_vufind}
+                </div>
+            </div>
         </div>
         <br><br>
         <div>
-            <h2>Keywords Translation statistics</h2>
-            <table>
-                <tr>
-                    <th>Sprache</th>
-                    <th>Anzahl neu übersetzt</th>
-                </tr>
-                {LOOP keyword_rows}
-                     {keyword_rows}
-                {ENDLOOP}
-            </table>
-            Anzahl neuer Einträge: {number_new_entries_keyword}
+            <div class="row row justify-content-center">
+                <div class="col-md-6 col-xs-11" align="left">
+                    <h2>Keywords Translation statistics</h2>
+                    <table>
+                        <tr>
+                            <th>Language</th>
+                            <th>Recently translated</th>
+                        </tr>
+                        {LOOP keyword_rows}
+                            {keyword_rows}
+                        {ENDLOOP}
+                    </table>
+                    Recently imported: {number_new_entries_keyword}
+                </div>
+            </div>
         </div>
     </main>
 </body>
