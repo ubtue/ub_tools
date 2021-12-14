@@ -216,6 +216,7 @@ struct SubgroupParams : public GroupParams {
     std::string reference_group_;
 
 public:
+    SubgroupParams() = default;
     SubgroupParams(const IniFile::Section &subgroup_section);
     SubgroupParams(const SubgroupParams &rhs) = default;
     SubgroupParams &operator=(const SubgroupParams &rhs) = default;
@@ -241,6 +242,7 @@ struct JournalParams {
         ZEDER_MODIFIED_TIME,
         ZEDER_NEWLY_SYNCED_ENTRY,
         GROUP,
+        SUBGROUP,
         ENTRY_POINT_URL,
         HARVESTER_OPERATION,
         UPLOAD_OPERATION,
@@ -267,6 +269,7 @@ struct JournalParams {
     unsigned zeder_id_;
     std::string name_;
     std::string group_;
+    std::string subgroup_;
     std::string entry_point_url_;
     HarvesterOperation harvester_operation_;
     UploadOperation upload_operation_;

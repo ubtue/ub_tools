@@ -201,14 +201,16 @@ std::string GetJournalHarvestStatus(const unsigned zeder_journal_id, const Zoter
 
 void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
                      std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> * const group_name_to_params_map,
+                     std::unordered_map<std::string, ZoteroHarvester::Config::SubgroupParams> * const subgroup_name_to_params_map,
                      std::unordered_map<std::string, std::string> * const journal_name_to_group_name_map,
                      DbConnection * const db_connection, ZoteroHarvester::Util::UploadTracker * const upload_tracker)
 {
     std::unique_ptr<ZoteroHarvester::Config::GlobalParams> global_params;
     std::vector<std::unique_ptr<ZoteroHarvester::Config::GroupParams>> group_params;
+    std::vector<std::unique_ptr<ZoteroHarvester::Config::SubgroupParams>> subgroup_params;
     std::vector<std::unique_ptr<ZoteroHarvester::Config::JournalParams>> journal_params;
 
-    ZoteroHarvester::Config::LoadHarvesterConfigFile(ZTS_HARVESTER_CONF_FILE, &global_params, &group_params, &journal_params);
+    ZoteroHarvester::Config::LoadHarvesterConfigFile(ZTS_HARVESTER_CONF_FILE, &global_params, &group_params, &subgroup_params, &journal_params);
     RegisterMissingJournals(journal_params, db_connection, upload_tracker);
 
     std::vector<std::string> all_journal_titles;
@@ -249,6 +251,9 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
     zts_client_maps_directory = global_params->enhancement_maps_directory_;
     for (const auto &group : group_params)
         group_name_to_params_map->emplace(group->name_, *group);
+
+    for (const auto &subgroup : subgroup_params)
+        subgroup_name_to_params_map->emplace(subgroup->name_, *subgroup);
 
     for (const auto &journal_param : journal_params) {
         const auto &title(journal_param->name_);
@@ -873,8 +878,9 @@ int Main(int argc, char *argv[]) {
                                              config_overrides);
 
         std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> group_name_to_params_map;
+        std::unordered_map<std::string, ZoteroHarvester::Config::SubgroupParams> subgroup_name_to_params_map;
         std::unordered_map<std::string, std::string>journal_name_to_group_name_map;
-        ParseConfigFile(cgi_args, &group_name_to_params_map, &journal_name_to_group_name_map, &db_connection, &upload_tracker);
+        ParseConfigFile(cgi_args, &group_name_to_params_map, &subgroup_name_to_params_map, &journal_name_to_group_name_map, &db_connection, &upload_tracker);
         RenderHtmlTemplate("index.html");
 
         std::string title, group_name;
