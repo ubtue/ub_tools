@@ -53,7 +53,7 @@ DbResultSet ExecSqlAndReturnResultsOrDie(const std::string &select_statement, Db
 
 void GetVuFindStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, std::vector<std::string> * const rows, const std::string &start_date, const std::string &end_date)
 {
-    std::string query("select language_code,count(distinct token) as number from vufind_translations where next_version_id is null and prev_version_id is not null and create_timestamp >= '" + start_date + "' and create_timestamp <= '" + end_date + "' group by language_code;");
+    std::string query("SELECT language_code,count(distinct token) AS number FROM vufind_translations WHERE next_version_id IS NULL AND prev_version_id IS NOT NULL AND create_timestamp >= '" + start_date + "' AND create_timestamp <= '" + end_date + "' GROUP BY language_code;");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     rows->clear();
     while (auto db_row = result_set.getNextRow()) {
@@ -65,7 +65,7 @@ void GetVuFindStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, std:
 
 void GetKeyWordStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, std::vector<std::string> * const rows, const std::string &start_date, const std::string &end_date)
 {
-    std::string query("select language_code,count(distinct ppn) as number from keyword_translations where next_version_id is null and prev_version_id is not null and create_timestamp >= '" + start_date + "' and create_timestamp <= '" + end_date + "' group by language_code;");
+    std::string query("SELECT language_code,COUNT(distinct ppn) AS number FROM keyword_translations WHERE next_version_id IS NULL AND prev_version_id IS NOT NULL AND create_timestamp >= '" + start_date + "' AND create_timestamp <= '" + end_date + "' GROUP BY language_code;");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     rows->clear();
     while (auto db_row = result_set.getNextRow()) {
@@ -77,7 +77,7 @@ void GetKeyWordStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, std
 
 void GetVuFindStatisticsNewEntriesFromDatabase(DbConnection &db_connection, std::string * const number_new_entries, const std::string &start_date, const std::string &end_date)
 {
-    std::string query("select token from vufind_translations where create_timestamp>='" + start_date + "' and create_timestamp<='" + end_date + "' and token in (select token from vufind_translations group by token having count(*)=1);");
+    std::string query("SELECT token FROM vufind_translations WHERE create_timestamp>='" + start_date + "' AND create_timestamp<='" + end_date + "' AND token IN (SELECT token FROM vufind_translations GROUP BY token HAVING COUNT(*)=1);");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     number_new_entries->clear();
     unsigned counter(0);
@@ -90,7 +90,7 @@ void GetVuFindStatisticsNewEntriesFromDatabase(DbConnection &db_connection, std:
 
 void GetKeyWordStatisticsNewEntriesFromDatabase(DbConnection &db_connection, std::string * const number_new_entries, const std::string &start_date, const std::string &end_date)
 {
-    std::string query("select ppn from keyword_translations where create_timestamp>='" + start_date + "' and create_timestamp<='" + end_date + "' and ppn in (select ppn from keyword_translations group by ppn having count(*)=1);");
+    std::string query("SELECT ppn FROM keyword_translations WHERE create_timestamp>='" + start_date + "' AND create_timestamp<='" + end_date + "' AND ppn IN (SELECT ppn FROM keyword_translations GROUP BY ppn HAVING COUNT(*)=1);");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     number_new_entries->clear();
     unsigned counter(0);
