@@ -19,6 +19,7 @@
 #include "Zeder.h"
 #include <cmath>
 #include "Downloader.h"
+#include "ExecUtil.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
 #include "UBTools.h"
@@ -688,7 +689,7 @@ bool FullDumpDownloader::download(EntryCollection *const collection, const bool 
 
     if (use_cache)
         use_cache = IsCacheUpToDate(zeder_cache_path, &json_cached_data, &cache_present);
-    
+
     if (not use_cache) {
         if (not downloadData(params->endpoint_url_, &json_data)) {
             if (not cache_present) {
@@ -748,7 +749,7 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
 
 
 SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter,
-                         const std::unordered_map<std::string, std::string>  &filter_regexps) 
+                         const std::unordered_map<std::string, std::string>  &filter_regexps)
     {
     const auto endpoint_url(GetFullDumpEndpointPath(flavour));
     const std::unordered_set<unsigned> entries_to_download; // empty means all entries
@@ -757,6 +758,21 @@ SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::st
 
     auto downloader(Zeder::FullDumpDownloader::Factory(FullDumpDownloader::Type::FULL_DUMP, std::move(downloader_params)));
     failed_to_connect_to_database_server_ = not downloader->download(&entries_);
+}
+
+
+void UploadArticleList(const std::string &json_path, const std::string &data_source) {
+    // The URL is shared by all instances.
+    static const std::string upload_url("http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/index.cgi/artikelliste_hochladen?s_stufe=2");
+
+    // POSTing a file via the Downloader is not yet supported, so we use a shell command instead.
+    const std::string curl(ExecUtil::Which("curl"));
+    ExecUtil::ExecOrDie(curl, { "--request", "POST",
+                                "--header", "Content-Type: multipart/form-data",
+                                "--form", "Datenquelle=" + data_source,
+                                "--form", "Datei=@" + json_path,
+                                //"--form", "Stamm=9999",
+                                upload_url });
 }
 
 
