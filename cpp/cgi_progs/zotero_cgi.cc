@@ -55,18 +55,6 @@ const std::string ZTS_HARVESTER_CONF_FILE(UBTools::GetTuelibPath() + "zotero-enh
 static Template::Map names_to_values_map;
 
 
-std::string GetCGIParameterOrDefault(const std::multimap<std::string, std::string> &cgi_args,
-                                     const std::string &parameter_name,
-                                     const std::string &default_value = "")
-{
-    const auto key_and_value(cgi_args.find(parameter_name));
-    if (key_and_value == cgi_args.cend())
-        return default_value;
-
-    return key_and_value->second;
-}
-
-
 std::string GetMinElementOrDefault(const std::vector<std::string> &elements, const std::string &default_value = "") {
     const auto min_element(std::min_element(elements.begin(), elements.end()));
     if (unlikely(min_element == elements.end()))
@@ -359,14 +347,14 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
     names_to_values_map.insertArray("crawling_strptime_formats", crawling_strptime_formats);
 
     const std::string first_crawling_journal_title(GetMinElementOrDefault(crawling_journal_titles));
-    names_to_values_map.insertScalar("selected_crawling_journal_title", GetCGIParameterOrDefault(cgi_args, "crawling_journal_title",
+    names_to_values_map.insertScalar("selected_crawling_journal_title", WebUtil::GetCGIParameterOrDefault(cgi_args, "crawling_journal_title",
                                                                                                   first_crawling_journal_title));
 
     const std::string first_rss_journal_title(GetMinElementOrDefault(rss_journal_titles));
-    names_to_values_map.insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault(cgi_args, "rss_journal_title",
+    names_to_values_map.insertScalar("selected_rss_journal_title", WebUtil::GetCGIParameterOrDefault(cgi_args, "rss_journal_title",
                                                                                              first_rss_journal_title));
 
-    names_to_values_map.insertScalar("selected_url_journal_title", GetCGIParameterOrDefault(cgi_args, "url_journal_title"));
+    names_to_values_map.insertScalar("selected_url_journal_title", WebUtil::GetCGIParameterOrDefault(cgi_args, "url_journal_title"));
 }
 
 
@@ -524,7 +512,7 @@ void AddStyleCSS(Template::Map * const template_map) {
 
 
 void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_args) {
-    const std::string path(GetCGIParameterOrDefault(cgi_args, "id"));
+    const std::string path(WebUtil::GetCGIParameterOrDefault(cgi_args, "id"));
 
     if (StringUtil::EndsWith(path, ".xml", /*ignore_case*/ true))
         std::cout << "Content-Type: application/xml; charset=utf-8\r\n\r\n";
@@ -556,17 +544,17 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
                                  ZoteroHarvester::Util::UploadTracker * const upload_tracker,
                                  DbConnection * const db_connection)
 {
-    const std::string journal_id(GetCGIParameterOrDefault(cgi_args, "id"));
+    const std::string journal_id(WebUtil::GetCGIParameterOrDefault(cgi_args, "id"));
     const Journal journal(GetJournalById(StringUtil::ToUnsigned(journal_id), db_connection));
     std::string at_least_one_action_done("false");
 
-    const std::string id_to_deliver_manually(GetCGIParameterOrDefault(cgi_args, "set_manually_delivered"));
+    const std::string id_to_deliver_manually(WebUtil::GetCGIParameterOrDefault(cgi_args, "set_manually_delivered"));
     if (not id_to_deliver_manually.empty()) {
         UpdateRecordDeliveryStateAndTimestamp(id_to_deliver_manually, ZoteroHarvester::Util::UploadTracker::DeliveryState::MANUAL, db_connection);
         at_least_one_action_done = "true";
     }
 
-    const std::string id_to_reset(GetCGIParameterOrDefault(cgi_args, "reset"));
+    const std::string id_to_reset(WebUtil::GetCGIParameterOrDefault(cgi_args, "reset"));
     if (not id_to_reset.empty()) {
         if (id_to_reset == "all")
             ResetDeliveredRecordsForJournal(journal.id_, db_connection);
@@ -622,12 +610,12 @@ bool ProcessShowQASubActionAdd(const std::multimap<std::string, std::string> &cg
                                const std::string &journal_id)
 {
     // sub-action "add"
-    const std::string add_type(GetCGIParameterOrDefault(cgi_args, "add_type"));
-    const std::string add_tag(GetCGIParameterOrDefault(cgi_args, "add_tag"));
-    const std::string add_subfield_code(GetCGIParameterOrDefault(cgi_args, "add_subfield_code"));
-    const std::string add_record_type(GetCGIParameterOrDefault(cgi_args, "add_record_type"));
-    const std::string add_regex(GetCGIParameterOrDefault(cgi_args, "add_regex"));
-    const std::string add_presence(GetCGIParameterOrDefault(cgi_args, "add_presence"));
+    const std::string add_type(WebUtil::GetCGIParameterOrDefault(cgi_args, "add_type"));
+    const std::string add_tag(WebUtil::GetCGIParameterOrDefault(cgi_args, "add_tag"));
+    const std::string add_subfield_code(WebUtil::GetCGIParameterOrDefault(cgi_args, "add_subfield_code"));
+    const std::string add_record_type(WebUtil::GetCGIParameterOrDefault(cgi_args, "add_record_type"));
+    const std::string add_regex(WebUtil::GetCGIParameterOrDefault(cgi_args, "add_regex"));
+    const std::string add_presence(WebUtil::GetCGIParameterOrDefault(cgi_args, "add_presence"));
     if (add_type.empty() or add_tag.empty() or add_presence.empty())
         return false;
 
@@ -648,13 +636,13 @@ bool ProcessShowQASubActionAdd(const std::multimap<std::string, std::string> &cg
 bool ProcessShowQASubActionDelete(const std::multimap<std::string, std::string> &cgi_args, DbConnection * const db_connection,
                                   const std::string &journal_id)
 {
-    const std::string delete_tag(GetCGIParameterOrDefault(cgi_args, "delete_tag"));
-    const std::string delete_type(GetCGIParameterOrDefault(cgi_args, "delete_type"));
+    const std::string delete_tag(WebUtil::GetCGIParameterOrDefault(cgi_args, "delete_tag"));
+    const std::string delete_type(WebUtil::GetCGIParameterOrDefault(cgi_args, "delete_type"));
     if (delete_type.empty() or delete_tag.empty())
         return false;
 
-    const std::string delete_subfield_code(GetCGIParameterOrDefault(cgi_args, "delete_subfield_code"));
-    const std::string delete_record_type(GetCGIParameterOrDefault(cgi_args, "delete_record_type"));
+    const std::string delete_subfield_code(WebUtil::GetCGIParameterOrDefault(cgi_args, "delete_subfield_code"));
+    const std::string delete_record_type(WebUtil::GetCGIParameterOrDefault(cgi_args, "delete_record_type"));
 
     std::string journal_id_to_delete(" = " + db_connection->escapeAndQuoteString(journal_id));
     if (delete_type == "global")
@@ -757,7 +745,7 @@ std::map<std::string,QAFieldProperties> GetQASettings(const std::string &journal
 
 
 void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args, DbConnection * const db_connection) {
-    const std::string journal_id(GetCGIParameterOrDefault(cgi_args, "id"));
+    const std::string journal_id(WebUtil::GetCGIParameterOrDefault(cgi_args, "id"));
     const Journal journal(GetJournalById(StringUtil::ToUnsigned(journal_id), db_connection));
     std::string submitted("false");
 
@@ -837,12 +825,12 @@ int Main(int argc, char *argv[]) {
     DbConnection db_connection(DbConnection::UBToolsFactory());
     ZoteroHarvester::Util::UploadTracker upload_tracker;
     const std::string default_action("list");
-    const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));
-    const std::string include_online_first(GetCGIParameterOrDefault(cgi_args, "include_online_first", ""));
-    std::string config_overrides(GetCGIParameterOrDefault(cgi_args, "config_overrides"));
+    const std::string action(WebUtil::GetCGIParameterOrDefault(cgi_args, "action", default_action));
+    const std::string include_online_first(WebUtil::GetCGIParameterOrDefault(cgi_args, "include_online_first", ""));
+    std::string config_overrides(WebUtil::GetCGIParameterOrDefault(cgi_args, "config_overrides"));
     if (include_online_first.empty())
          config_overrides.append((config_overrides.empty() ? "" : "\n") + SKIP_ONLINE_FIRST_TRUE_DIRECTIVE);
-    const std::string url(GetCGIParameterOrDefault(cgi_args, "url"));
+    const std::string url(WebUtil::GetCGIParameterOrDefault(cgi_args, "url"));
 
     if (action == "download")
         ProcessDownloadAction(cgi_args);
@@ -859,7 +847,7 @@ int Main(int argc, char *argv[]) {
         FileUtil::ReadString(TEMPLATE_DIRECTORY + "/" + "scripts.js", &scripts_js);
         names_to_values_map.insertScalar("scripts_js", scripts_js);
 
-        const std::string depth(GetCGIParameterOrDefault(cgi_args, "depth", "1"));
+        const std::string depth(WebUtil::GetCGIParameterOrDefault(cgi_args, "depth", "1"));
         names_to_values_map.insertScalar("depth", depth);
 
         names_to_values_map.insertScalar("running_processes_count", std::to_string(ExecUtil::FindActivePrograms("zotero_harvester").size()));
@@ -881,13 +869,13 @@ int Main(int argc, char *argv[]) {
 
         if (action != default_action) {
             if (action == "rss") {
-                title = GetCGIParameterOrDefault(cgi_args, "rss_journal_title");
+                title = WebUtil::GetCGIParameterOrDefault(cgi_args, "rss_journal_title");
                 group_name = journal_name_to_group_name_map.at(title);
             } else if (action == "crawling") {
-                title = GetCGIParameterOrDefault(cgi_args, "crawling_journal_title");
+                title = WebUtil::GetCGIParameterOrDefault(cgi_args, "crawling_journal_title");
                 group_name = journal_name_to_group_name_map.at(title);
             } else if (action == "url") {
-                title = GetCGIParameterOrDefault(cgi_args, "url_journal_title");
+                title = WebUtil::GetCGIParameterOrDefault(cgi_args, "url_journal_title");
                 if (title.empty())
                     group_name = "ixtheo";
                 else
