@@ -239,7 +239,6 @@ void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * c
     harvester_config->default_journal_params_ = harvester_config->journal_params_.back().get();
     harvester_config->group_name_to_group_params_map_.emplace(harvester_config->default_journal_params_->group_,
                                                               *harvester_config->group_params_.at(0));
-//    harvester_config->subgroup_name_to_subgroup_params_map_.emplace(harvester_config->subgroup_params_, subgroup_params_
 }
 
 
