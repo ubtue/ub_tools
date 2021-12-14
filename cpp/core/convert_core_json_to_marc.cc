@@ -67,7 +67,7 @@ public:
 void LoadISSNsToJournalTitlesPPNsAndISSNsMap(
     std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> * const issns_to_journal_titles_ppns_and_issns_map)
 {
-    const std::string MAP_FILE_PATH(UBTools::GetTuelibPath() + "print_issns_titles_online_ppns_and_online_issns.csv");
+    const std::string MAP_FILE_PATH(UBTools::GetTuelibPath() + "journals.csv");
     std::vector<std::vector<std::string>> lines;
     TextUtil::ParseCSVFileOrDie(MAP_FILE_PATH, &lines);
 
