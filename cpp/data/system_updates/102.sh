@@ -2,7 +2,7 @@
 set -o errexit
 
 
-if [[ $(hostname) != "ub16.uni-tuebingen.de" ]]; then
+if [[ $TUEFIND_FLAVOUR != "krimdok" ]]; then
     exit 0
 fi
 
