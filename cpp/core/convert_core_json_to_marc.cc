@@ -167,7 +167,7 @@ bool ProcessAbstract(const JSON::ObjectNode &entry_object, MARC::Record * const 
     if (not entry_object.hasNode("abstract") or entry_object.isNullNode("abstract"))
         return false;
     const auto abstract_node(entry_object.getStringNode("abstract"));
-    record->insertField("520", 'a', abstract_node->getValue());
+    record->insertField("520", 'a', StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH, abstract_node->getValue()));
     return true;
 }
 
@@ -320,7 +320,7 @@ void GenerateUnmappedISSNList(File * const unmatched_issns_file,
 }
 
 
-const std::string UNIQUE_ID_TO_DATE_MAP_PATH(UBTools::GetTuelibPath() + "convert_json_to_marc.db");
+const std::string UNIQUE_ID_TO_DATE_MAP_PATH(UBTools::GetTuelibPath() + "convert_core_json_to_marc.db");
 
 
 } // unnamed namespace
