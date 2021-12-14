@@ -18,6 +18,7 @@ LOG_DIR=/usr/local/var/log/tuefind
 30 0 * * * "$BIN/generate_new_journal_alert_stats" "churchlaw" "days_in_last_month" "$EMAIL"
 0 1 * * * php "$VUFIND_HOME/util/expire_searches.php" 30 > "$LOG_DIR/expire_searches.log" 2>&1
 0 1 * * * "$BIN/enable_pipeline_triggers.sh" > "$LOG_DIR/enable_pipeline_triggers.log" 2>&1
+0 1 1 * * "$BIN/update_print_issns_titles_online_ppns_and_online_issns_list.sh" > "$LOG_DIR/update_print_issns_titles_online_ppns_and_online_issns_list.log" 2>&1
 0 3 * * * cd "$BSZ_DATEN" && "$BIN/fetch_marc_updates.py" "$EMAIL" > "$LOG_DIR/fetch_marc_updates.log" 2>&1
 30 3 * * * cd "$BSZ_DATEN" && "$BIN/merge_differential_and_full_marc_updates.sh" "$EMAIL" > "$LOG_DIR/merge_differential_and_full_marc_updates.log" 2>&1
 0 5 * * * "$BIN/update_beacon_files.sh" > "$LOG_DIR/update_beacon_files.log" 2>&1
@@ -45,4 +46,3 @@ LOG_DIR=/usr/local/var/log/tuefind
 45 23 * * * "$BIN/rss_subset_aggregator" "--mode=email" "$EMAIL" "relbib" > "$LOG_DIR/rss_subset_aggregator_relbib.log" 2>&1
 30 22 * * 0 "$BIN/generate_kalliope_originators.py" > "${LOG_DIR}/generate_kalliope_originators.py" 2>&1'
 {IF DEFINED(production)}0 0 1 * * "$BIN/cologne.sh"{ENDIF}
-{IF DEFINED(production)}0 1 1 * * "$BIN/update_print_issns_titles_online_ppns_and_online_issns_list.sh"{ENDIF}
