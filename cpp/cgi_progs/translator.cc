@@ -202,7 +202,7 @@ void GetSynonymsForGNDCode(DbConnection &db_connection, const std::string &gnd_c
     if (result_set.empty())
         return;
 
-    while (auto db_row = result_set.getNextRow())
+    while (const auto db_row = result_set.getNextRow())
         synonyms->emplace_back(db_row["translation"]);
 }
 
@@ -217,7 +217,7 @@ void GetMACSTranslationsForGNDCode(DbConnection &db_connection, const std::strin
     if (result_set.empty())
         return;
 
-    while (auto db_row = result_set.getNextRow())
+    while (const auto db_row = result_set.getNextRow())
         translations->emplace_back(db_row["translation"]);
 }
 
@@ -364,7 +364,7 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
 
     std::vector<std::string> row_values(display_languages.size());
     std::string current_token;
-    while (auto db_row = result_set.getNextRow()) {
+    while (const auto db_row = result_set.getNextRow()) {
        std::string token(db_row["token"]);
        std::string translation(db_row["translation"]);
        std::string language_code(db_row["language_code"]);
@@ -484,7 +484,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
 
     std::vector<std::string> row_values(display_languages.size());
     std::string current_ppn;
-    while (auto db_row = result_set.getNextRow()) {
+    while (const auto db_row = result_set.getNextRow()) {
        // Add new entries as long as there is a single PPN
        std::string ppn(db_row["ppn"]);
        std::string translation(db_row["translation"]);

@@ -40,8 +40,8 @@
 
 namespace {
 
-const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 
+const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
 enum Category { VUFIND, KEYWORDS };
 
 
@@ -56,24 +56,26 @@ void GetVuFindStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, std:
     std::string query("SELECT language_code,count(distinct token) AS number FROM vufind_translations WHERE next_version_id IS NULL AND prev_version_id IS NOT NULL AND create_timestamp >= '" + start_date + "' AND create_timestamp <= '" + end_date + "' GROUP BY language_code;");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     rows->clear();
-    while (auto db_row = result_set.getNextRow()) {
+    while (const auto db_row = result_set.getNextRow()) {
        std::string language_code(db_row["language_code"]);
        std::string number(db_row["number"]);
        rows->emplace_back("<tr><td>" + language_code + "</td><td>" + number + "</td></tr>");   
     }
 }
 
+
 void GetKeyWordStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, std::vector<std::string> * const rows, const std::string &start_date, const std::string &end_date)
 {
     std::string query("SELECT language_code,COUNT(distinct ppn) AS number FROM keyword_translations WHERE next_version_id IS NULL AND prev_version_id IS NOT NULL AND create_timestamp >= '" + start_date + "' AND create_timestamp <= '" + end_date + "' GROUP BY language_code;");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     rows->clear();
-    while (auto db_row = result_set.getNextRow()) {
+    while (const auto db_row = result_set.getNextRow()) {
        std::string language_code(db_row["language_code"]);
        std::string number(db_row["number"]);
        rows->emplace_back("<tr><td>" + language_code + "</td><td>" + number + "</td></tr>");
     }
 }
+
 
 void GetVuFindStatisticsNewEntriesFromDatabase(DbConnection &db_connection, std::string * const number_new_entries, const std::string &start_date, const std::string &end_date)
 {
@@ -81,12 +83,13 @@ void GetVuFindStatisticsNewEntriesFromDatabase(DbConnection &db_connection, std:
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     number_new_entries->clear();
     unsigned counter(0);
-    while (auto db_row = result_set.getNextRow()) { //could use result_set.size(), but prob. more information requested in web gui
+    while (const auto db_row = result_set.getNextRow()) { //could use result_set.size(), but prob. more information requested in web gui
        std::string language_code(db_row["token"]);
        ++counter;
     }
     (*number_new_entries) = std::to_string(counter);
 }
+
 
 void GetKeyWordStatisticsNewEntriesFromDatabase(DbConnection &db_connection, std::string * const number_new_entries, const std::string &start_date, const std::string &end_date)
 {
@@ -94,12 +97,13 @@ void GetKeyWordStatisticsNewEntriesFromDatabase(DbConnection &db_connection, std
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     number_new_entries->clear();
     unsigned counter(0);
-    while (auto db_row = result_set.getNextRow()) { //could use result_set.size(), but prob. more information requested in web gui
+    while (const auto db_row = result_set.getNextRow()) { //could use result_set.size(), but prob. more information requested in web gui
        std::string language_code(db_row["ppn"]);
        ++counter;
     }
     (*number_new_entries) = std::to_string(counter);
 }
+
 
 void ShowFrontPage(DbConnection &db_connection, const std::string &target, const std::string &start_date, const std::string &end_date) {
     Template::Map names_to_values_map;
@@ -124,6 +128,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &target, const
     Template::ExpandTemplate(translator_statistics_html, std::cout, names_to_values_map);
 }
 
+
 // \return the current day as a range endpoint
 inline std::string Now(unsigned negative_month_offset=0) {
     unsigned year, month, day;
@@ -132,13 +137,14 @@ inline std::string Now(unsigned negative_month_offset=0) {
         month = month - negative_month_offset;
         if (month < 1) {
             --year;
-            month+=12;
+            month += 12;
         }
     }
     return StringUtil::ToString(year, /* radix = */10, /* width = */4, /* padding_char = */'0')
            + "-" + StringUtil::ToString(month, /* radix = */10, /* width = */2, /* padding_char = */'0')
            + "-" + StringUtil::ToString(day, /* radix = */10, /* width = */2, /* padding_char = */'0');
 }
+
 
 } // unnamed namespace
 
