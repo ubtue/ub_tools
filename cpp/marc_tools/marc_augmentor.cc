@@ -85,14 +85,14 @@ public:
     CompiledPattern(const std::string &tag, const char subfield_code,  const RegexMatcher &matcher)
         : tag_(tag), subfield_code_(subfield_code), matcher_(matcher) {}
     CompiledPattern(const CompiledPattern &other) = default;
-    bool matched(const MARC::Record &record);
+    bool matched(const MARC::Record &record, std::string * const value, size_t * const start_pos, size_t * const end_pos);
 };
 
 
 const char CompiledPattern::NO_SUBFIELD_CODE('\0');
 
 
-bool CompiledPattern::matched(const MARC::Record &record) {
+bool CompiledPattern::matched(const MARC::Record &record, std::string * const value = nullptr, size_t * const start_pos = nullptr, size_t * const end_pos = nullptr) {
     for (const auto &field : record.getTagRange(tag_)) {
         std::string err_msg;
         if (subfield_code_ == NO_SUBFIELD_CODE) { // Match a field.
@@ -103,8 +103,11 @@ bool CompiledPattern::matched(const MARC::Record &record) {
         } else { // Match a subfield.
             const MARC::Subfields subfields(field.getSubfields());
             for (const auto &subfield : subfields) {
-                if (subfield.code_ == subfield_code_ and matcher_.matched(subfield.value_, &err_msg))
+                if (subfield.code_ == subfield_code_ and matcher_.matched(subfield.value_, &err_msg, start_pos, end_pos)) {
+                    if (value != nullptr)
+                        *value=subfield.value_;
                     return true;
+                }
                 if (unlikely(not err_msg.empty()))
                     LOG_ERROR("Unexpected error while trying to match \"" + matcher_.getPattern() + "\" against a field: " + err_msg);
             }
@@ -116,7 +119,7 @@ bool CompiledPattern::matched(const MARC::Record &record) {
 
 
 enum class OutputFormat { MARC_XML, MARC_21, SAME_AS_INPUT };
-enum class AugmentorType { INSERT_FIELD, REPLACE_FIELD, ADD_SUBFIELD, INSERT_FIELD_IF, REPLACE_FIELD_IF, REPLACE_SUBFIELD_IF_REGEX, ADD_SUBFIELD_IF };
+enum class AugmentorType { INSERT_FIELD, REPLACE_FIELD, ADD_SUBFIELD, INSERT_FIELD_IF, REPLACE_FIELD_IF, REPLACE_SUBFIELD_IF_REGEX, ADD_SUBFIELD_IF, INSERT_FIELD_IF_REGEX };
 
 
 class AugmentorDescriptor {
@@ -170,6 +173,17 @@ public:
         descriptor.text_to_insert_ = TextUtil::CStyleUnescape(text_to_insert);
         return descriptor;
     }
+
+
+    inline static AugmentorDescriptor MakeInsertFieldIfRegexAugmentor(const MARC::Tag &tag, const char subfield_code,
+                                                                 CompiledPattern * const compiled_pattern,
+                                                                 const std::string &replace_regex)
+    {
+        AugmentorDescriptor descriptor(AugmentorType::INSERT_FIELD_IF_REGEX, tag, subfield_code, compiled_pattern);
+        descriptor.replace_regex_ = replace_regex;
+        return descriptor;
+    }
+
 
     inline static AugmentorDescriptor MakeReplaceFieldIfAugmentor(const MARC::Tag &tag, const char subfield_code,
                                                                   CompiledPattern * const compiled_pattern,
@@ -230,6 +244,38 @@ bool InsertField(MARC::Record * const record, const MARC::Tag &tag, const char s
         }
     }
 
+    return true;
+}
+
+
+
+bool InsertFieldRegex(MARC::Record * const record, const MARC::Tag &tag, const char subfield_code, const std::string &replacement_regex,
+                      std::string * const error_message, CompiledPattern * const condition = nullptr) {
+    if (subfield_code == CompiledPattern::NO_SUBFIELD_CODE)
+        LOG_ERROR("Insert Field Regex replacement without subfield not supported");
+
+    error_message->clear();
+    if (condition == nullptr)
+        LOG_ERROR("Condition required for InsertFieldRegex");
+
+    std::string subfield_value;
+    size_t start_pos, end_pos;
+    if (not condition->matched(*record, &subfield_value, &start_pos, &end_pos))
+            return false;
+
+    std::vector<std::string> pattern_and_replacement;
+    if (StringUtil::Split(replacement_regex, '/', &pattern_and_replacement, true /* suppress_empty_components */) != 2)
+        LOG_ERROR("Invalid replacement pattern :\"" + replacement_regex + "\"\nMust follow /pattern/replacement/ scheme");
+
+    ThreadSafeRegexMatcher replace_matcher(pattern_and_replacement[0]);
+    const std::string insertion_text(replace_matcher.replaceWithBackreferences(subfield_value, pattern_and_replacement[1]));
+
+
+    if (not record->insertField(tag, { { subfield_code, insertion_text } })) {
+        *error_message = "failed to insert " + tag.toString() + std::string(1, subfield_code)
+                         + " subfield! (Probably due to a duplicate non-repeatable field.)";
+        return false;
+    }
     return true;
 }
 
@@ -355,7 +401,7 @@ void Augment(std::vector<AugmentorDescriptor> &augmentors, MARC::Reader * const 
                     modified_record = true;
             } else if (augmentor.getAugmentorType() == AugmentorType::REPLACE_SUBFIELD_IF_REGEX) {
                 if (ReplaceSubfieldRegex(&record, augmentor.getTag(), augmentor.getSubfieldCode(), augmentor.getReplaceRegex(),
-                                 augmentor.getCompiledPattern()))
+                                         augmentor.getCompiledPattern()))
                     modified_record = true;
             } else if (augmentor.getAugmentorType() == AugmentorType::ADD_SUBFIELD) {
                 if (AddSubfield(&record, augmentor.getTag(), augmentor.getSubfieldCode(), augmentor.getInsertionText()))
@@ -364,6 +410,11 @@ void Augment(std::vector<AugmentorDescriptor> &augmentors, MARC::Reader * const 
                 if (AddSubfield(&record, augmentor.getTag(), augmentor.getSubfieldCode(), augmentor.getInsertionText(),
                                 augmentor.getCompiledPattern()))
                     modified_record = true;
+            } else if (augmentor.getAugmentorType() == AugmentorType::INSERT_FIELD_IF_REGEX) {
+                if (InsertFieldRegex(&record, augmentor.getTag(), augmentor.getSubfieldCode(), augmentor.getReplaceRegex(),
+                                     &error_message, augmentor.getCompiledPattern()))
+                    modified_record = true;
+
             } else
                 LOG_ERROR("unhandled Augmentor type!");
         }
@@ -460,6 +511,11 @@ void ProcessAugmentorArgs(char **argv, std::vector<AugmentorDescriptor> * const 
             ExtractCommandArgs(&argv, &tag, &subfield_code, &compiled_pattern, &field_or_subfield_contents);
             augmentors->emplace_back(AugmentorDescriptor::MakeInsertFieldIfAugmentor(tag, subfield_code, compiled_pattern,
                                                                                      field_or_subfield_contents));
+        } else if (std::strcmp(*argv, "--insert-field-if-regex") == 0) {
+            ExtractCommandArgs(&argv, &tag, &subfield_code, &compiled_pattern, &field_or_subfield_contents);
+            augmentors->emplace_back(AugmentorDescriptor::MakeInsertFieldIfRegexAugmentor(tag, subfield_code, compiled_pattern,
+                                                                                     field_or_subfield_contents));
+
         } else if (std::strcmp(*argv, "--replace-field-if") == 0) {
             ExtractCommandArgs(&argv, &tag, &subfield_code, &compiled_pattern, &field_or_subfield_contents);
             augmentors->emplace_back(AugmentorDescriptor::MakeReplaceFieldIfAugmentor(tag, subfield_code, compiled_pattern,
