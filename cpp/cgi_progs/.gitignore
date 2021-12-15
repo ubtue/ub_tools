@@ -7,4 +7,5 @@ restart_zts
 translator
 translator_ajax
 translate_chainer
+translator_statistics
 zotero_cgi

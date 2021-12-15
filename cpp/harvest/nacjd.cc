@@ -51,8 +51,8 @@ namespace {
 
 std::vector<std::string> ids_website;
 const unsigned int TIMEOUT_IN_SECONDS(15);
-const std::string NACJD_TITLES(UBTools::GetTuelibPath() + "nacjd_titles.html");
-const std::string NACJD_NEW_TITLES_JSON(UBTools::GetTuelibPath() + "nacjd_new_titles.json");
+const std::string NACJD_TITLES("/tmp/nacjd_titles.html");
+const std::string NACJD_NEW_TITLES_JSON("/tmp/nacjd_new_titles.json");
 
 
 bool ContainsValue(const std::map<std::string, std::string> &map, const std::string &search_value) {
@@ -115,9 +115,7 @@ bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const boo
 
      // Check for rate limiting and error status codes:
     const HttpHeader http_header(downloader.getMessageHeader());
-    if (http_header.getStatusCode() == 429)
-        LOG_ERROR("we got rate limited!");
-    else if (http_header.getStatusCode() != 200) {
+    if (http_header.getStatusCode() != 200) {
         LOG_WARNING("NACJD returned HTTP status code " + std::to_string(http_header.getStatusCode()) + "! for NACJD id: " + id);
         return false;
     }
