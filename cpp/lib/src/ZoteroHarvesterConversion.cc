@@ -602,6 +602,20 @@ void AdjustLanguages(MetadataRecord * const metadata_record, const Config::Journ
         return;
     }
 
+    // Override directly from translator (if corresponding mode is set)
+    if (journal_params.language_params_.mode_ == Config::LanguageParams::FORCE_FROM_TRANSLATOR) {
+        for (const auto &language : metadata_record->languages_) {
+            const auto &expected_languages(journal_params.language_params_.expected_languages_);
+            if (expected_languages.find(language) == expected_languages.end()) {
+                LOG_WARNING("Unexpected language " + language + " from Zotero - Leaving languages unset");
+                metadata_record->languages_.clear();
+                return;
+            }
+        }
+        LOG_INFO("Override language with values from Translator: " + StringUtil::Join(metadata_record->languages_, ","));
+        return;
+    }
+
     // automatic language detection
     std::string detected_language, configured_or_detected_info;
     if (journal_params.language_params_.expected_languages_.size() == 1) {

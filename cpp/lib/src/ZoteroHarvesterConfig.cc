@@ -542,11 +542,13 @@ bool ParseExpectedLanguages(const std::string &expected_languages_string, Langua
     std::string expected_languages(expected_languages_string);
     if (expected_languages[0] == '*')
         return false;
-    else if (expected_languages[0] == '!' or expected_languages[0] == '?') {
+    else if (expected_languages[0] == '!' or expected_languages[0] == '?' or expected_languages[0] == '=') {
         if (expected_languages[0] == '!')
             language_params->mode_ = Config::LanguageParams::FORCE_LANGUAGES;
         else if (expected_languages[0] == '?')
             language_params->mode_ = Config::LanguageParams::FORCE_DETECTION;
+        else if (expected_languages[0] == '=')
+            language_params->mode_ = Config::LanguageParams::FORCE_FROM_TRANSLATOR;
 
         expected_languages = expected_languages.substr(1);
     }
