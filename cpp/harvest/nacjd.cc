@@ -160,7 +160,7 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
     const std::string DOWNLOAD_URL("https://www.icpsr.umich.edu/web/NACJD/search/studies?start=0&ARCHIVE=NACJD&PUBLISH_STATUS=PUBLISHED&sort=DATEUPDATED%20desc&rows=9000");
     if (FileUtil::Exists(NACJD_TITLES))
         FileUtil::DeleteFile(NACJD_TITLES);
-    
+
     if (not Download(DOWNLOAD_URL, NACJD_TITLES, TIMEOUT_IN_SECONDS * 1000))
         LOG_ERROR("Could not download website with nacjd ids.");
     std::ifstream file(NACJD_TITLES);
@@ -170,14 +170,14 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
                       HandleChar);
     else
         LOG_ERROR("couldn't open file: " + NACJD_TITLES);
-    
+
     if (FileUtil::Exists(NACJD_NEW_TITLES_JSON) and not FileUtil::DeleteFile(NACJD_NEW_TITLES_JSON))
         LOG_ERROR("Could not delete file: " + NACJD_NEW_TITLES_JSON);
     std::ofstream json_new_titles(NACJD_NEW_TITLES_JSON);
     json_new_titles << "{ \"nacjd\" : [ " << '\n';
     bool first(true);
     for (const auto &id : ids_website) {
-        if (parsed_marc_ids.contains(id))
+        if (parsed_marc_ids.find(id) != parsed_marc_ids.end())
             continue;
         const bool success(DownloadID(json_new_titles, id, /*use_separator*/ not first));
         if (first and success)
@@ -322,7 +322,7 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
             }
         }
     }
-    LOG_INFO("Processed: " + std::to_string(no_total) + "entries. " + std::to_string(no_initial_date) + " w/o initial date, " 
+    LOG_INFO("Processed: " + std::to_string(no_total) + "entries. " + std::to_string(no_initial_date) + " w/o initial date, "
                     + std::to_string(no_title) + " w/o title, " + std::to_string(no_creators) + " w/o creator and " + std::to_string(no_license) + " w/o license.");
 }
 
