@@ -1439,7 +1439,7 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
             AugmentMetadataRecord(&new_metadata_record, parameters);
 
             LOG_DEBUG("Augmented metadata record: " + new_metadata_record.toString());
-            if (new_metadata_record.url_.empty())
+            if (new_metadata_record.url_.empty() and new_metadata_record.doi_.empty())
                 throw std::runtime_error("no URL set");
 
             if (ExcludeOnlineFirstRecord(new_metadata_record, parameters)) {
