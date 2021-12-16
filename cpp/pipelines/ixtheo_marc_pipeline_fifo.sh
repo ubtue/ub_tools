@@ -388,7 +388,7 @@ make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHA
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
                 --insert-field-if-regex  '856u:/(JSTOR#.*)/\1/' 'LOKx:JSTOR#' \
                 --add-subfield-if-matching '856x:JSTOR' '856u:JSTOR#' \
-                --add-subfield-if-matching '8563:Volltext' '856u:JSTOR#'
+                --add-subfield-if-matching '8563:Volltext' '856u:JSTOR#' \
                 --replace-subfield-if-regex '856u:/JSTOR#(.*)/\1/' '856u:JSTOR#.*' \
         >> "${log}" 2>&1 && \
 EndPhase || Abort) &
