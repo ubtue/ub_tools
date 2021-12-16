@@ -60,15 +60,6 @@ void ExpandTemplate(const std::string &template_name, std::string * const body, 
 }
 
 
-std::string GetCGIParameterOrDefault(const std::string &parameter_name, const std::string &default_value = "") {
-    const auto key_and_value(cgi_args.find(parameter_name));
-    if (key_and_value == cgi_args.cend())
-        return default_value;
-
-    return key_and_value->second;
-}
-
-
 void ShowError(const std::string &error_message, std::string * const body) {
     *body += "<h1 class=\"error\">Error</h1>";
     *body += "<h4 class=\"error\">" + error_message + "</h4>";
@@ -85,7 +76,7 @@ void ShowPageHeader(FullTextCache * const cache, std::string * const body) {
     }
 
     Template::Map template_variables;
-    std::string id(GetCGIParameterOrDefault("id"));
+    std::string id(WebUtil::GetCGIParameterOrDefault(cgi_args, "id"));
     template_variables.insertScalar("cache_size", std::to_string(cache_size));
     template_variables.insertScalar("error_count", std::to_string(error_count));
     template_variables.insertScalar("error_rate", error_rate_string);
@@ -95,7 +86,7 @@ void ShowPageHeader(FullTextCache * const cache, std::string * const body) {
 
 
 void ShowPageIdDetails(FullTextCache * const cache, std::string * const body) {
-    std::string id(GetCGIParameterOrDefault("id"));
+    std::string id(WebUtil::GetCGIParameterOrDefault(cgi_args, "id"));
     if (id.empty())
         throw PageException("parameter missing: no ID given");
 
@@ -165,8 +156,8 @@ void ShowPageErrorSummary(FullTextCache * const cache, std::string * const body)
 
 
 void ShowPageErrorList(FullTextCache * const cache, std::string * const body) {
-    std::string error_message(GetCGIParameterOrDefault("error_message"));
-    std::string domain(GetCGIParameterOrDefault("domain"));
+    std::string error_message(WebUtil::GetCGIParameterOrDefault(cgi_args, "error_message"));
+    std::string domain(WebUtil::GetCGIParameterOrDefault(cgi_args, "domain"));
 
     std::vector<std::string> ids;
     std::vector<std::string> urls;
@@ -198,7 +189,7 @@ int main(int argc, char *argv[]) {
         FullTextCache cache;
 
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
-        const std::string subpage(GetCGIParameterOrDefault("page"));
+        const std::string subpage(WebUtil::GetCGIParameterOrDefault(cgi_args, "page"));
 
         std::string body;
         ShowPageHeader(&cache, &body);
