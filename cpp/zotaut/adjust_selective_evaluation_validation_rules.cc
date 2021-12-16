@@ -68,9 +68,11 @@ void LoadHarvesterConfig(const std::string &config_path,
 {
     std::unique_ptr<Config::GlobalParams> global_params;
     std::vector<std::unique_ptr<Config::GroupParams>> group_params;
+    std::vector<std::unique_ptr<Config::SubgroupParams>> subgroup_params;
     Config::LoadHarvesterConfigFile(config_path,
                                     &global_params,
                                     &group_params,
+                                    &subgroup_params,
                                     journal_params);
 }
 

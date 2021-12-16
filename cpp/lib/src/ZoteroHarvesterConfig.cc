@@ -77,6 +77,7 @@ std::vector<std::string> GetEmailCrawlMBoxes() {
 const std::map<GlobalParams::IniKey, std::string> GlobalParams::KEY_TO_STRING_MAP {
     { ENHANCEMENT_MAPS_DIRECTORY,                 "enhancement_maps_directory" },
     { GROUP_NAMES,                                "groups" },
+    { SUBGROUP_NAMES,                             "subgroups" },
     { STRPTIME_FORMAT_STRING,                     "common_strptime_format" },
     { SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY, "skip_online_first_articles_unconditionally" },
     { DOWNLOAD_DELAY_DEFAULT,                     "default_download_delay_time" },
@@ -218,6 +219,7 @@ GlobalParams::GlobalParams(const IniFile::Section &config_section) {
     emailcrawl_mboxes_ = GetEmailCrawlMBoxes();
     enhancement_maps_directory_ = config_section.getString(GetIniKeyString(ENHANCEMENT_MAPS_DIRECTORY));
     group_names_ = config_section.getString(GetIniKeyString(GROUP_NAMES));
+    subgroup_names_ = config_section.getString(GetIniKeyString(SUBGROUP_NAMES), "");
     strptime_format_string_ = config_section.getString(GetIniKeyString(STRPTIME_FORMAT_STRING));
     skip_online_first_articles_unconditionally_ = config_section.getBool(GetIniKeyString(SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY));
     timeout_crawl_operation_ = config_section.getUnsigned(GetIniKeyString(TIMEOUT_CRAWL_OPERATION)) * 1000;
@@ -278,6 +280,16 @@ std::string GroupParams::GetIniKeyString(const IniKey ini_key) {
 }
 
 
+SubgroupParams::SubgroupParams(const IniFile::Section &subgroup_section) {
+    name_ = subgroup_section.getSectionName();
+    user_agent_ = subgroup_section.getString(GetIniKeyString(USER_AGENT), "");
+    isil_ = subgroup_section.getString(GetIniKeyString(ISIL), "");
+    output_folder_ = subgroup_section.getString(GetIniKeyString(OUTPUT_FOLDER), "");
+    author_swb_lookup_url_ = subgroup_section.getString(GetIniKeyString(AUTHOR_SWB_LOOKUP_URL), "");
+    author_lobid_lookup_query_params_ = subgroup_section.getString(GetIniKeyString(AUTHOR_LOBID_LOOKUP_QUERY_PARAMS), "");
+    marc_metadata_params_ = MarcMetadataParams(subgroup_section);
+}
+
 JournalParams::JournalParams(const GlobalParams &global_params) {
     zeder_id_ = DEFAULT_ZEDER_ID;
     zeder_newly_synced_entry_ = false;
@@ -300,6 +312,7 @@ const std::map<JournalParams::IniKey, std::string> JournalParams::KEY_TO_STRING_
     { ZEDER_MODIFIED_TIME,       "zeder_modified_time"       },
     { ZEDER_NEWLY_SYNCED_ENTRY,  "zeder_newly_synced_entry"  },
     { GROUP,                     "zotero_group"              },
+    { SUBGROUP,                  "zotero_subgroup"           },
     { ENTRY_POINT_URL,           "zotero_url"                },
     { HARVESTER_OPERATION,       "zotero_type"               },
     { UPLOAD_OPERATION,          "zotero_delivery_mode"      },
@@ -328,6 +341,7 @@ const std::map<std::string, JournalParams::IniKey> JournalParams::STRING_TO_KEY_
     { "zeder_modified_time",       ZEDER_MODIFIED_TIME      },
     { "zeder_newly_synced_entry",  ZEDER_NEWLY_SYNCED_ENTRY },
     { "zotero_group",              GROUP                    },
+    { "zotero_subgroup",           SUBGROUP                 },
     { "zotero_url",                ENTRY_POINT_URL          },
     { "zotero_type",               HARVESTER_OPERATION      },
     { "zotero_delivery_mode",      UPLOAD_OPERATION         },
@@ -357,6 +371,7 @@ JournalParams::JournalParams(const IniFile::Section &journal_section, const Glob
     zeder_newly_synced_entry_ = journal_section.getBool(GetIniKeyString(ZEDER_NEWLY_SYNCED_ENTRY), false);
     name_ = journal_section.getSectionName();
     group_ = journal_section.getString(GetIniKeyString(GROUP));
+    subgroup_ = journal_section.getString(GetIniKeyString(SUBGROUP), "");
     entry_point_url_ = journal_section.getString(GetIniKeyString(ENTRY_POINT_URL));
     harvester_operation_ = static_cast<HarvesterOperation>(journal_section.getEnum(GetIniKeyString(HARVESTER_OPERATION),
                                                            STRING_TO_HARVEST_OPERATION_MAP));
@@ -435,6 +450,7 @@ JournalParams::IniKey JournalParams::GetIniKey(const std::string &ini_key_string
 
 void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
+                             std::vector<std::unique_ptr<SubgroupParams>> * const subgroup_params,
                              std::vector<std::unique_ptr<JournalParams>> * const journal_params,
                              std::unique_ptr<IniFile> * const config_file,
                              const IniFile::Section config_overrides_passed)
@@ -457,14 +473,23 @@ void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr
     std::set<std::string> group_names;
     StringUtil::Split((*global_params)->group_names_, ',', &group_names, /* suppress_empty_components = */ true);
 
+    std::set<std::string> subgroup_names;
+    StringUtil::Split((*global_params)->subgroup_names_, ',', &subgroup_names, /* suppress_empty_components = */ true);
+
     for (const auto &group_name : group_names)
         group_params->emplace_back(new Config::GroupParams(*ini->getSection(group_name)));
+
+    for (const auto &subgroup_name : subgroup_names)
+        subgroup_params->emplace_back(new Config::SubgroupParams(*ini->getSection(subgroup_name)));
 
     for (const auto &section : *ini) {
         if (section.getSectionName().empty())
             continue;
         else if (group_names.find(section.getSectionName()) != group_names.end())
             continue;
+        else if (subgroup_names.find(section.getSectionName()) != subgroup_names.end())
+            continue;
+
 
         if (config_overrides.size() > 0) {
             IniFile::Section section2(section);

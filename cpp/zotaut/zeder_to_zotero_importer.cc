@@ -179,10 +179,11 @@ struct HarvesterConfig {
     std::unique_ptr<IniFile> config_file_;
     std::unique_ptr<Config::GlobalParams> global_params_;
     std::vector<std::unique_ptr<Config::GroupParams>> group_params_;
+    std::vector<std::unique_ptr<Config::SubgroupParams>> subgroup_params_;
     std::vector<std::unique_ptr<Config::JournalParams>> journal_params_;
 public:
     inline HarvesterConfig(const std::string &config_file_path) {
-        Config::LoadHarvesterConfigFile(config_file_path, &global_params_, &group_params_, &journal_params_, &config_file_);
+        Config::LoadHarvesterConfigFile(config_file_path, &global_params_, &group_params_, &subgroup_params_, &journal_params_, &config_file_);
     }
 
     IniFile::Section *lookupConfig(const unsigned zeder_id, const Zeder::Flavour zeder_flavour) const;

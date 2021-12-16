@@ -126,12 +126,15 @@ struct ConversionParams {
     std::string json_metadata_;
     const Config::GlobalParams &global_params_;
     const Config::GroupParams &group_params_;
+    const Config::GroupParams &subgroup_params_;
 public:
     ConversionParams(const Util::HarvestableItem &download_item, const std::string &json_metadata,
-                     const Config::GlobalParams &global_params, const Config::GroupParams &group_params)
+                     const Config::GlobalParams &global_params, const Config::GroupParams &group_params,
+                     const Config::SubgroupParams &subgroup_params)
      : download_item_(download_item), json_metadata_(json_metadata),
        global_params_(global_params),
-       group_params_(group_params) {}
+       group_params_(group_params),
+       subgroup_params_(subgroup_params) {}
 };
 
 
@@ -183,7 +186,8 @@ public:
 public:
     std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> convert(const Util::HarvestableItem &source,
                                                                               const std::string &json_metadata,
-                                                                              const Config::GroupParams &group_params);
+                                                                              const Config::GroupParams &group_params,
+                                                                              const Config::SubgroupParams &subgroup_params);
     inline unsigned numActiveConversions() const
         { return conversion_tasklet_execution_counter_; }
     inline unsigned numQueuedConversions() const {
