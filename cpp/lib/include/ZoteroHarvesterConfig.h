@@ -225,7 +225,7 @@ public:
 
 
 struct LanguageParams {
-    enum Mode : unsigned { DEFAULT, FORCE_LANGUAGES, FORCE_DETECTION };
+    enum Mode : unsigned { DEFAULT, FORCE_LANGUAGES, FORCE_DETECTION, FORCE_FROM_TRANSLATOR };
     std::set<std::string> expected_languages_;
     std::string source_text_fields_ = "title";
     Mode mode_;
