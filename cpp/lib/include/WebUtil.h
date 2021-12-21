@@ -230,6 +230,17 @@ inline bool ExecGetHTTPRequest(const Url &url, const TimeLimit &time_limit, cons
 }
 
 
+inline std::string GetCGIParameterOrDefault(const std::multimap<std::string, std::string> &cgi_args,
+                                     const std::string &parameter_name,
+                                     const std::string &default_value = "") {
+    const auto key_and_value(cgi_args.find(parameter_name));
+    if (key_and_value == cgi_args.cend())
+        return default_value;
+
+    return key_and_value->second;
+}
+
+
 /** \brief   Identify the "top" site that this page is part of
  *  \param   url  The URL whose site we want.
  *  \return  A string identifying the "major site" relevant to this URL.
