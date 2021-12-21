@@ -4,6 +4,7 @@
 # Blocks with single line content (without parentheses) will be merged
 # Similar issue for "SpacesInParentheses", that affects both round and curly brackets
 # BreakBeforeBraces (...), Custom (uses BraceWrapping flags) - use MultiLine (https://reviews.llvm.org/D68296)
+# Enum constants are spread out over many lines as clan-format puts each constant on its own line.
 ---
 Language:        Cpp
 # BasedOnStyle:  Google
@@ -20,6 +21,7 @@ AllowAllConstructorInitializersOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
 AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortLambdasOnASingleLine: All
 AllowShortIfStatementsOnASingleLine: false
