@@ -31,18 +31,6 @@
 namespace {
 
 
-std::string GetCGIParameterOrDefault(const std::multimap<std::string, std::string> &cgi_args,
-                                     const std::string &parameter_name,
-                                     const std::string &default_value = "")
-{
-    const auto key_and_value(cgi_args.find(parameter_name));
-    if (key_and_value == cgi_args.cend())
-        return default_value;
-
-    return key_and_value->second;
-}
-
-
 void ShowUploadForm() {
     std::cout << "<h1>INI validator</h1>\n"
               << "<p>Please paste the contents of the INI file here:</p>\n"
@@ -60,7 +48,7 @@ void Validate(const std::multimap<std::string, std::string> &cgi_args) {
     std::cout << "<h1>Validate</h1>\n";
 
     FileUtil::AutoTempFile temp_file;
-    std::string ini_content(GetCGIParameterOrDefault(cgi_args, "ini_content", ""));
+    std::string ini_content(WebUtil::GetCGIParameterOrDefault(cgi_args, "ini_content", ""));
     StringUtil::RemoveChars("\r", &ini_content);
     FileUtil::WriteStringOrDie(temp_file.getFilePath(), ini_content);
 
@@ -97,7 +85,7 @@ void Validate(const std::multimap<std::string, std::string> &cgi_args) {
 int Main(int argc, char *argv[]) {
     std::multimap<std::string, std::string> cgi_args;
     WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
-    const std::string action(GetCGIParameterOrDefault(cgi_args, "action", ""));
+    const std::string action(WebUtil::GetCGIParameterOrDefault(cgi_args, "action", ""));
 
     std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
     std::cout << "<html>";

@@ -22,8 +22,8 @@ $(PROGS): % : %.o ../lib/libubtue.a Makefile
 ../lib/libubtue.a: $(wildcard ../lib/src/*.cc) $(wildcard ../lib/include/*.h)
 	$(MAKE) -C ../lib
 
-install: $(PROGS) *sh
-	@echo "Installing executables and scripts..."
+install: $(PROGS)
+	@echo "Installing programs and scripts..."
 	cp $(INSTALL_PROGS) /usr/local/bin/
 
 clean:

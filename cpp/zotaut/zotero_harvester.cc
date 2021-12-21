@@ -185,12 +185,25 @@ void ParseCommandLineArgs(int * const argc, char *** const argv, CommandLineArgs
 struct HarvesterConfigData {
     std::unique_ptr<Config::GlobalParams> global_params_;
     std::vector<std::unique_ptr<Config::GroupParams>> group_params_;
+    std::vector<std::unique_ptr<Config::SubgroupParams>> subgroup_params_;
     std::vector<std::unique_ptr<Config::JournalParams>> journal_params_;
     std::map<std::string, const std::reference_wrapper<Config::GroupParams>> group_name_to_group_params_map_;
+    std::map<std::string, const std::reference_wrapper<Config::SubgroupParams>> subgroup_name_to_subgroup_params_map_;
     Config::JournalParams * default_journal_params_;
 
     inline const Config::GroupParams &lookupJournalGroup(const Config::JournalParams &journal_params) const {
         return group_name_to_group_params_map_.find(journal_params.group_)->second;
+    }
+
+    inline const Config::SubgroupParams &lookupJournalSubgroup(const Config::JournalParams &journal_params) const {
+        const auto subgroup_params(subgroup_name_to_subgroup_params_map_.find(journal_params.subgroup_));
+        if (journal_params.subgroup_.empty()) {
+            static const Config::SubgroupParams emptySubgroupParams;
+            return emptySubgroupParams;
+        }
+        if (subgroup_params == subgroup_name_to_subgroup_params_map_.end())
+            LOG_ERROR("Unknown subgroup name \"" + journal_params.subgroup_ + '"');
+        return subgroup_params->second;
     }
 
     Config::JournalParams *lookupJournal(const std::string &journal_name) const;
@@ -211,11 +224,15 @@ void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * c
                          const IniFile::Section &config_overrides)
 {
     Config::LoadHarvesterConfigFile(config_path, &harvester_config->global_params_,
-                                    &harvester_config->group_params_, &harvester_config->journal_params_,
+                                    &harvester_config->group_params_, &harvester_config->subgroup_params_,
+                                    &harvester_config->journal_params_,
                                     /* config_file = */ nullptr, config_overrides);
 
     for (const auto &group : harvester_config->group_params_)
         harvester_config->group_name_to_group_params_map_.emplace(group->name_, *group);
+
+    for (const auto &subgroup : harvester_config->subgroup_params_)
+        harvester_config->subgroup_name_to_subgroup_params_map_.emplace(subgroup->name_, *subgroup);
 
     // Initialize the default config data for debugging.
     harvester_config->journal_params_.emplace_back(new Config::JournalParams(*harvester_config->global_params_));
@@ -503,7 +520,8 @@ void EnqueueCompletedDownloadsForConversion(JournalDatastore * const journal_dat
                 } else {
                     auto conversion_result(conversion_manager->convert(download_result.source_,
                                            download_result.response_body_,
-                                           harvester_config.lookupJournalGroup(download_result.source_.journal_)));
+                                           harvester_config.lookupJournalGroup(download_result.source_.journal_),
+                                           harvester_config.lookupJournalSubgroup(download_result.source_.journal_)));
                     journal_datastore->queued_marc_records_.emplace_back(std::move(conversion_result));
                     ++metrics->num_downloads_harvested_successful_;
                 }

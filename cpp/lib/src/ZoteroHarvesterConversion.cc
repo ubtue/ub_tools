@@ -602,6 +602,20 @@ void AdjustLanguages(MetadataRecord * const metadata_record, const Config::Journ
         return;
     }
 
+    // Override directly from translator (if corresponding mode is set)
+    if (journal_params.language_params_.mode_ == Config::LanguageParams::FORCE_FROM_TRANSLATOR) {
+        for (const auto &language : metadata_record->languages_) {
+            const auto &expected_languages(journal_params.language_params_.expected_languages_);
+            if (expected_languages.find(language) == expected_languages.end()) {
+                LOG_WARNING("Unexpected language " + language + " from Zotero - Leaving languages unset");
+                metadata_record->languages_.clear();
+                return;
+            }
+        }
+        LOG_INFO("Override language with values from Translator: " + StringUtil::Join(metadata_record->languages_, ","));
+        return;
+    }
+
     // automatic language detection
     std::string detected_language, configured_or_detected_info;
     if (journal_params.language_params_.expected_languages_.size() == 1) {
@@ -707,10 +721,17 @@ bool IsProperLastName(const std::string &last_name) {
 }
 
 
+std::string GetSWBLookupURL(const ConversionParams &parameters) {
+    const auto &subgroup_params(parameters.subgroup_params_);
+    if (not subgroup_params.author_swb_lookup_url_.empty())
+        return subgroup_params.author_swb_lookup_url_;
+    return parameters.group_params_.author_swb_lookup_url_;
+}
+
+
 void AugmentMetadataRecord(MetadataRecord * const metadata_record, const ConversionParams &parameters)
 {
     const auto &journal_params(parameters.download_item_.journal_);
-    const auto &group_params(parameters.group_params_);
 
     // normalise date
     if (not metadata_record->date_.empty()) {
@@ -796,7 +817,8 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
                 combined_name += ", " + creator.first_name_;
 
             if (IsProperLastName(creator.last_name_)) {
-                creator.gnd_number_ = HtmlUtil::StripHtmlTags(BSZUtil::GetAuthorGNDNumber(combined_name, group_params.author_swb_lookup_url_));
+                const std::string author_swb_lookup_url(GetSWBLookupURL(parameters));
+                creator.gnd_number_ = HtmlUtil::StripHtmlTags(BSZUtil::GetAuthorGNDNumber(combined_name, author_swb_lookup_url));
                 if (not creator.gnd_number_.empty())
                     LOG_DEBUG("added GND number " + creator.gnd_number_ + " for author " + combined_name + " (SWB lookup)");
             }
@@ -1431,8 +1453,8 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
             AugmentMetadataRecord(&new_metadata_record, parameters);
 
             LOG_DEBUG("Augmented metadata record: " + new_metadata_record.toString());
-            if (new_metadata_record.url_.empty())
-                throw std::runtime_error("no URL set");
+            if (new_metadata_record.url_.empty() and new_metadata_record.doi_.empty())
+                throw std::runtime_error("no URL present (either directly or by DOI)");
 
             if (ExcludeOnlineFirstRecord(new_metadata_record, parameters)) {
                 ++result->num_skipped_since_online_first_;
@@ -1537,10 +1559,11 @@ ConversionManager::~ConversionManager() {
 
 std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> ConversionManager::convert(const Util::HarvestableItem &source,
                                                                                              const std::string &json_metadata,
-                                                                                             const Config::GroupParams &group_params)
+                                                                                             const Config::GroupParams &group_params,
+                                                                                             const Config::SubgroupParams &subgroup_params)
 {
     std::unique_ptr<ConversionParams> parameters(new ConversionParams(source, json_metadata,
-                                                 global_params_, group_params));
+                                                 global_params_, group_params, subgroup_params));
     std::shared_ptr<ConversionTasklet> new_tasklet(new ConversionTasklet(&conversion_tasklet_execution_counter_,
                                                    std::move(parameters)));
 

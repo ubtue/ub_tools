@@ -382,6 +382,18 @@ readonly field_match_pattern='610t:Codex (iuris canonici|canonum ecclesiarum ori
 EndPhase || Abort) &
 
 
+StartPhase "Copy local JSTOR Links to ordinary 856"
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
+(marc_augmentor GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                --insert-field-if-regex  '856u:/(JSTOR#.*)/\1/' 'LOKx:JSTOR#' \
+                --add-subfield-if-matching '856x:JSTOR' '856u:JSTOR#' \
+                --add-subfield-if-matching '8563:Volltext' '856u:JSTOR#' \
+                --replace-subfield-if-regex '856u:/JSTOR#(.*)/\1/' '856u:JSTOR#.*' \
+        >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
 StartPhase "Tag PDA candidates"
 # Use the most recent GVI PPN list.
 (augment_pda \
