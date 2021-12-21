@@ -2,8 +2,8 @@
 set -o errexit -o nounset
 
 
-forbidden_hosts=("ptah" "sobek" "nu" "ub16" "ub15" "ub27" "ub28")
-short_host=$(hostname --short)
+readonly forbidden_hosts=("ptah" "sobek" "nu" "ub16" "ub15" "ub27" "ub28")
+readonly short_host=$(hostname --short)
 
 
 for forbidden_host in "${forbidden_hosts[@]}"; do
@@ -16,6 +16,14 @@ done
 
 # python syntax check
 pyflakes3 /usr/local/ub_tools/cronjobs
+
+
+# Format C++ source files:
+readonly changed_files=$(git diff --cached --name-only --diff-filter=ACM)
+readonly GIT_ROOT=$(git rev-parse --show-toplevel)
+for changed_file in changed_files; do
+    clang-format -i "$GIT_ROOT/$changed_file"
+done
 
 
 exit 0
