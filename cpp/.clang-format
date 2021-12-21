@@ -76,24 +76,30 @@ ForEachMacros:
   - BOOST_FOREACH
 IncludeBlocks:   Merge
 IncludeCategories:
-  - Regex:           '^<c.*>'
-    Priority:        4
-    SortPriority:    4
-  - Regex:           '^<[^/+]/.*\.h>'
-    Priority:        2
-    SortPriority:    2
-  - Regex:           '^<.*\.h>'
+  - Regex:           '^<(algorithm|any|array|atomic|barrier|bitset|charconv|chrono|compare|complex|concept|condition_variable|coroutine|deque|excecution|exception|filesystem|format|forward_list|fstream|functional|future|initializer_list|iomanip|ios|iosfwd|iostream|istream|iterator|latch|limits|list|locale|map|memory|memory_resource|mutex|new|numbers|numeric|optional|ostream|queue|random|ranges|ratio|regex|scoped_allocator|semaphore|set|shared_mutex|span|spanstream|sstream|stack|stdexcept|stop_token|string|string_view|source_location|stacktrace|syncstream|thread|tuple|type_traits|typeindex|typeinfo|unordered_map|unordered_set|utility|valarry|variant|vector|version)>'
+    Priority:        0
+    SortPriority:    0
+  - Regex:           '^<(csetjmp|csignal|cstdarg|cstddef|cstdlib|ctime|cfloat|cinttypes|climits|cstdint|cassert|cerrno|cctype|cstring|cuchar|cwchar|cwctype|cfenv|cmath|clocale|cstdio)>'
     Priority:        1
     SortPriority:    1
-  - Regex:           '^<.*'
-    Priority:        3
-    SortPriority:    3
-  - Regex:           '".*"'
+  - Regex:           '^<c.*>'
     Priority:        5
     SortPriority:    5
-  - Regex:           '.*'
+  - Regex:           '^<[^/+]/.*\.h>'
+    Priority:        3
+    SortPriority:    3
+  - Regex:           '^<.*\.h>'
+    Priority:        2
+    SortPriority:    2
+  - Regex:           '^<.*'
+    Priority:        4
+    SortPriority:    4
+  - Regex:           '".*"'
     Priority:        6
     SortPriority:    6
+  - Regex:           '.*'
+    Priority:        7
+    SortPriority:    7
 IncludeIsMainRegex: '([-_](test|unittest))?$'
 IncludeIsMainSourceRegex: ''
 IndentCaseLabels: false
