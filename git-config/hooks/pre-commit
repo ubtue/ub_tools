@@ -22,7 +22,7 @@ pyflakes3 /usr/local/ub_tools/cronjobs
 readonly changed_files=$(git diff --cached --name-only --diff-filter=ACM)
 readonly GIT_ROOT=$(git rev-parse --show-toplevel)
 for changed_file in changed_files; do
-    clang-format -i "$GIT_ROOT/$changed_file"
+    clang-format-12 -i "$GIT_ROOT/$changed_file"
 done
 
 
