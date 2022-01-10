@@ -25,5 +25,5 @@ LOG_DIR=/usr/local/var/log/tuefind
 30 21 * * 7 "$BIN/collect_solr_stats_data.py" "$EMAIL" krimdok > "$LOG_DIR/collect_solr_stats_data.log" 2>&1
 0 20 * * * "$BIN/mail_krimdok_newsletter.sh" > "$LOG_DIR/mail_krimdok_newsletter.log" 2>&1
 {IF DEFINED(production)}0 0 1 * * "$BIN/download_krimdok_core.sh"{ENDIF}
-30 22 * * 4 "$BIN/generate_kalliope_originators.py" > "${LOG_DIR}/generate_kalliope_originators.py" 2>&1'
+30 22 * * 4 "$BIN/generate_kalliope_originators.py" > "${LOG_DIR}/generate_kalliope_originators.py" 2>&1
 0 22 * * 4 "$BIN/update_beacon_files.sh" > "$LOG_DIR/update_beacon_files.log" 2>&1
