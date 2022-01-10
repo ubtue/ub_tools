@@ -420,6 +420,11 @@ unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                 if (is_valid_value) {
                     LOG_DEBUG("\t" + ini_key_str + ": '" + ini_val_str + "'");
                     WriteIniEntry(existing_journal_section, ini_key_str, ini_val_str);
+                    // Adjust zotero_subgroup for RelBib jornals
+                    if (ini_key_to_import == Config::JournalParams::SSGN and ini_val_str == "FG_0") {
+                        LOG_INFO("Adding RelBib zotero_subgroup from SSGN FG_0");
+                        WriteIniEntry(existing_journal_section, "zotero_subgroup", "RelBib");
+                    }
                 } else
                     LOG_WARNING("invalid value for optional key '" + ini_key_str + "': '" + ini_val_str
                                 + "' in Zeder entry " + std::to_string(zeder_id) + " (" + title + ")");
@@ -497,7 +502,14 @@ unsigned UpdateZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                         LOG_INFO("\t" + ini_key_str + ": '" + ini_old_val_str + "' => '" + ini_new_val_str + "'");
                         at_least_one_field_updated = true;
                     }
+                } else if (field_to_update == Config::JournalParams::SSGN and ini_new_val_str == "FG_0") {
+                    LOG_INFO("Adding RelBib zotero_subgroup from SSGN FG_0");
+                    if (existing_journal_section->getString("zotero_subgroup", "").empty()) {
+                        WriteIniEntry(existing_journal_section, "zotero_subgroup", "RelBib");
+                        at_least_one_field_updated = true;
+                    }
                 }
+
             } else if (not ini_old_val_str.empty())
                 LOG_WARNING("\tinvalid empty new value for field '" + ini_key_str + "'. old value: '" + ini_old_val_str + "'");
         }
