@@ -311,6 +311,11 @@ void WriteIniEntry(IniFile::Section * const section, const std::string &name, co
 }
 
 
+void RemoveIniEntry(IniFile::Section * const section, const std::string &name) {
+     section->deleteEntry(name);
+}
+
+
 unsigned ImportZederEntries(const Zeder::EntryCollection &zeder_entries, HarvesterConfig * const harvester_config,
                             const Zeder::Flavour zeder_flavour, const bool overwrite, const bool autodetect_new_datasets)
 {
@@ -500,6 +505,10 @@ unsigned UpdateZederEntries(const Zeder::EntryCollection &zeder_entries, Harvest
                     } else {
                         WriteIniEntry(existing_journal_section, ini_key_str, ini_new_val_str);
                         LOG_INFO("\t" + ini_key_str + ": '" + ini_old_val_str + "' => '" + ini_new_val_str + "'");
+                        if (field_to_update == Config::JournalParams::SSGN and ini_new_val_str != "FG_0" and existing_journal_section->getString("zotero_subgroup") == "RelBib") {
+                            LOG_INFO("Remove RelBib zotero subgroup since SSGN is no longer only FG_0");
+                            RemoveIniEntry(existing_journal_section, "zotero_subgroup");
+                        }
                         at_least_one_field_updated = true;
                     }
                 } else if (field_to_update == Config::JournalParams::SSGN and ini_new_val_str == "FG_0") {
