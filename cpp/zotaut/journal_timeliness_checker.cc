@@ -93,7 +93,7 @@ int Main(int argc, char *argv[]) {
     for (const auto &section : ini_file) {
 	if (section.getSectionName().empty())
             continue; // global section
-        if (section.find("user_agent") != section.end())
+        if (section.find("user_agent") != section.end() or section.find("author_swb_lookup_url") != section.end())
             continue; // Not a journal section.
 
         const auto delivery_mode(static_cast<ZoteroHarvester::Config::UploadOperation>(
