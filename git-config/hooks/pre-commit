@@ -22,8 +22,11 @@ pyflakes3 /usr/local/ub_tools/cronjobs
 readonly changed_files=$(git diff --cached --name-only --diff-filter=ACM)
 readonly GIT_ROOT=$(git rev-parse --show-toplevel)
 for changed_file in changed_files; do
-    # "-style=file" has the effect of searching up the directory tree until a file named ".clang-format" is found and then using it.
-    clang-format-12 -style=file -i "$GIT_ROOT/$changed_file"
+    readonly extension="${changed_file##*.}"
+    if [[ $extension == "cc" || $extension == "h" ]]; then
+        # "-style=file" has the effect of searching up the directory tree until a file named ".clang-format" is found and then using it.
+        clang-format-12 -style=file -i "$GIT_ROOT/$changed_file"
+    fi
 done
 
 
