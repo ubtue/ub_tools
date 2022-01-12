@@ -160,6 +160,7 @@ void SetSubsystemCounter(MARC::Record &record, std::string subsystem_code, unsig
 
 
 void LoadAuthorGNDNumbersAndTagAuthors(
+    const bool no_subsystems,
     MARC::Reader * const authority_reader, MARC::Writer * const authority_writer,
     const std::unordered_map<std::string, TitleRecordCounter> &author_ppn_to_subsystem_titles_counters,
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> * const gnd_numbers_to_literary_remains_infos_map,
@@ -207,22 +208,24 @@ void LoadAuthorGNDNumbersAndTagAuthors(
         (*gnd_numbers_to_literary_remains_infos_map)[gnd_number] = literary_remains_infos;
         references_count += literary_remains_infos.size();
 
-        if (author_ppn_to_subsystem_titles_counters.find(record.getControlNumber()) != author_ppn_to_subsystem_titles_counters.cend()) {
-            auto subsystem_record_counter = author_ppn_to_subsystem_titles_counters.find(record.getControlNumber())->second;
-            if (subsystem_record_counter.religious_studies_count_ > 0) {
-                record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
-                SetSubsystemCounter(record, "REL", 1);
-                ++tagged_count;
-            }
-            if (subsystem_record_counter.bibstudies_count_ > 0) {
-                record.insertField("BIB", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
-                SetSubsystemCounter(record, "BIB", 1);
-                ++tagged_count;
-            }
-            if (subsystem_record_counter.canonlaw_count_ > 0) {
-                record.insertField("CAN", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
-                SetSubsystemCounter(record, "CAN", 1);
-                ++tagged_count;
+        if (not no_subsystems) {
+            if (author_ppn_to_subsystem_titles_counters.find(record.getControlNumber()) != author_ppn_to_subsystem_titles_counters.cend()) {
+                auto subsystem_record_counter = author_ppn_to_subsystem_titles_counters.find(record.getControlNumber())->second;
+                if (subsystem_record_counter.religious_studies_count_ > 0) {
+                    record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
+                    SetSubsystemCounter(record, "REL", 1);
+                    ++tagged_count;
+                }
+                if (subsystem_record_counter.bibstudies_count_ > 0) {
+                    record.insertField("BIB", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
+                    SetSubsystemCounter(record, "BIB", 1);
+                    ++tagged_count;
+                }
+                if (subsystem_record_counter.canonlaw_count_ > 0) {
+                    record.insertField("CAN", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
+                    SetSubsystemCounter(record, "CAN", 1);
+                    ++tagged_count;
+                }
             }
         }
 
@@ -271,6 +274,7 @@ std::string GetTitle(const std::string &author_name, const std::string &dates, c
 
 
 void AppendLiteraryRemainsRecords(
+    const bool no_subsystems,
     MARC::Writer * const title_writer,
     const std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> &gnd_numbers_to_literary_remains_infos_map,
     const std::unordered_map<std::string, std::string> &gnd_numbers_to_ppns_map,
@@ -302,23 +306,25 @@ void AppendLiteraryRemainsRecords(
                                        { '3', "Archivdatenbank (" + literary_remains_info.source_name_ + ")" } });
 
         // Do we have a religious studies author?
-        const auto gnd_number_and_author_ppn(gnd_numbers_to_ppns_map.find(gnd_numbers_and_literary_remains_infos.first));
-        if (unlikely(gnd_number_and_author_ppn == gnd_numbers_to_ppns_map.cend()))
-            LOG_ERROR("we should *always* find the GND number in gnd_numbers_to_ppns_map!");
-        const auto author_ppn_and_subsystem_titles_counter(
-            author_ppn_to_subsystem_titles_counters.find(gnd_number_and_author_ppn->second));
-        if (author_ppn_and_subsystem_titles_counter != author_ppn_to_subsystem_titles_counters.cend()) {
-            if (author_ppn_and_subsystem_titles_counter->second.hasReligiousStudies()) {
-                new_record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
-                new_record.addSubfieldCreateFieldUnique("SUB", 'a', "REL");
-            }
-            if (author_ppn_and_subsystem_titles_counter->second.hasBibStudies()) {
-                new_record.insertField("BIB", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
-                new_record.addSubfieldCreateFieldUnique("SUB", 'a', "BIB");
-            }
-            if (author_ppn_and_subsystem_titles_counter->second.hasCanonLaw()) {
-                new_record.insertField("CAN", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
-                new_record.addSubfieldCreateFieldUnique("SUB", 'a', "CAN");
+        if (not no_subsystems) {
+            const auto gnd_number_and_author_ppn(gnd_numbers_to_ppns_map.find(gnd_numbers_and_literary_remains_infos.first));
+            if (unlikely(gnd_number_and_author_ppn == gnd_numbers_to_ppns_map.cend()))
+                LOG_ERROR("we should *always* find the GND number in gnd_numbers_to_ppns_map!");
+            const auto author_ppn_and_subsystem_titles_counter(
+                author_ppn_to_subsystem_titles_counters.find(gnd_number_and_author_ppn->second));
+            if (author_ppn_and_subsystem_titles_counter != author_ppn_to_subsystem_titles_counters.cend()) {
+                if (author_ppn_and_subsystem_titles_counter->second.hasReligiousStudies()) {
+                    new_record.insertField("REL", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
+                    new_record.addSubfieldCreateFieldUnique("SUB", 'a', "REL");
+                }
+                if (author_ppn_and_subsystem_titles_counter->second.hasBibStudies()) {
+                    new_record.insertField("BIB", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
+                    new_record.addSubfieldCreateFieldUnique("SUB", 'a', "BIB");
+                }
+                if (author_ppn_and_subsystem_titles_counter->second.hasCanonLaw()) {
+                    new_record.insertField("CAN", { { 'a', "1" }, { 'o', FileUtil::GetBasename(::progname) } }); // remove after migration
+                    new_record.addSubfieldCreateFieldUnique("SUB", 'a', "CAN");
+                }
             }
         }
 
@@ -329,13 +335,23 @@ void AppendLiteraryRemainsRecords(
     LOG_INFO("Appended a total of " + std::to_string(creation_count) + " record(s).");
 }
 
+[[noreturn]] void Usage() {
+    ::Usage("marc_input [--no-subsystems] marc_output authority_records_input authority_records_output");
+}
+
 
 } // unnamed namespace
 
 
 int Main(int argc, char **argv) {
+    if (argc != 5 and argc != 6)
+        Usage();
+
+    bool no_subsystems(std::strcmp(argv[1], "--no-subsystems") == 0);
+    if (no_subsystems)
+        --argc, ++argv;
     if (argc != 5)
-        ::Usage("marc_input marc_output authority_records_input authority_records_output");
+        Usage();
 
     auto title_reader(MARC::Reader::Factory(argv[1]));
     auto title_writer(MARC::Writer::Factory(argv[2]));
@@ -348,9 +364,9 @@ int Main(int argc, char **argv) {
     auto authority_writer(MARC::Writer::Factory(argv[4]));
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> gnd_numbers_to_literary_remains_infos_map;
     std::unordered_map<std::string, std::string> gnd_numbers_to_ppns_map;
-    LoadAuthorGNDNumbersAndTagAuthors(authority_reader.get(), authority_writer.get(), author_ppn_to_subsystem_titles_counters,
+    LoadAuthorGNDNumbersAndTagAuthors(no_subsystems, authority_reader.get(), authority_writer.get(), author_ppn_to_subsystem_titles_counters,
                                       &gnd_numbers_to_literary_remains_infos_map, &gnd_numbers_to_ppns_map);
-    AppendLiteraryRemainsRecords(title_writer.get(), gnd_numbers_to_literary_remains_infos_map, gnd_numbers_to_ppns_map,
+    AppendLiteraryRemainsRecords(no_subsystems, title_writer.get(), gnd_numbers_to_literary_remains_infos_map, gnd_numbers_to_ppns_map,
                                  author_ppn_to_subsystem_titles_counters);
 
     return EXIT_SUCCESS;

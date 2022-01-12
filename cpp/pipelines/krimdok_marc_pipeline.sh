@@ -139,7 +139,7 @@ wait
 # Note: in krimdok this phase is used to count titles for each coorporation / author, no subsytems at the moment
 StartPhase "Add Tags for subsystems"
 (add_subsystem_tags krimdok GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc Normdaten-"${date}".mrc \
-                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
+                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc Normdaten-partially-augmented1-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
 
@@ -149,6 +149,25 @@ StartPhase "Tags Which Subsystems have Inferior Records in Superior Works Record
     GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
+
+
+StartPhase "Add BEACON Information to Authority Data"
+(add_authority_beacon_information Normdaten-partially-augmented1-"${date}".mrc \
+                                  Normdaten-partially-augmented2-"${date}".mrc kalliope.staatsbibliothek-berlin.beacon \
+                                  --type-file kalliope_originators.txt $(find . -name '*.beacon' ! -name "*kalliope.*") \
+                                  >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
+StartPhase "Appending Literary Remains Records"
+(create_literary_remains_records --no-subsystems \
+                                 GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                                 Normdaten-partially-augmented2-"${date}".mrc \
+                                 Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
 
 
 StartPhase "Check Record Integity at the End of the Pipeline"
