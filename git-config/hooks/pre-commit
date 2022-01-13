@@ -2,7 +2,7 @@
 set -o errexit -o nounset
 
 
-readonly forbidden_hosts=("ptah" "sobek" "nu" "ub16" "ub15" "ub27" "ub28")
+readonly forbidden_hosts=("ptah" "sobek" "nu" "ub16" "ub15" "ub28" "ub53" "ub54" "ub55")
 readonly short_host=$(hostname --short)
 
 
