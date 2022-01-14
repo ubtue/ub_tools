@@ -305,7 +305,7 @@ void CollectSuperiorOrParallelWorks(const MARC::Record &record, std::unordered_s
 bool IsCanonLawRecord(const MARC::Record &record, const std::unordered_set<std::string> &canon_law_gnd_numbers) {
     // 1. Abrufzeichen
     for (const auto &field : record.getTagRange("935")) {
-        if (field.hasSubfieldWithValue('a', "KALD"))
+        if (field.hasSubfieldWithValue('a', "KALD") or field.hasSubfieldWithValue('a', "DAKR"))
             return true;
     }
 
