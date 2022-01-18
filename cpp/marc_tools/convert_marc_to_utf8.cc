@@ -72,7 +72,7 @@ void ProcessRecords(const bool all_fields, TextUtil::EncodingConverter * const e
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 4)
+    if (argc != 5)
         Usage();
 
     bool all_fields;
