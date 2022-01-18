@@ -72,7 +72,7 @@ void LoadISSNsToJournalTitlesPPNsAndISSNsMap(
     TextUtil::ParseCSVFileOrDie(MAP_FILE_PATH, &lines);
 
     for (const auto &line : lines) {
-        if (lines[0].empty() or line[1].empty())
+        if (line[0].empty() or line[1].empty())
             continue; // ISSN and titles are required, PPN's and online ISSN's are optional.
 
         const std::string online_ppn(line.size() > 2 ? line[2] : "");
