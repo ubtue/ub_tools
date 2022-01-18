@@ -233,6 +233,11 @@ public:
         queryOrDie("GRANT ALL PRIVILEGES ON " + database_name + ".* TO '" + database_user + "'@'" + host + "';");
     }
 
+    void mySQLGrantGrantOption(const std::string &database_name, const std::string &database_user,
+                                 const std::string &host = "localhost") {
+        queryOrDie("GRANT GRANT OPTION ON " + database_name + ".* TO '" + database_user + "'@'" + host + "';");
+    }
+
     std::unordered_set<MYSQL_PRIVILEGE> mySQLGetUserPrivileges(const std::string &user, const std::string &database_name,
                                                                const std::string &host = "localhost");
 

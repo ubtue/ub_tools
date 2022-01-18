@@ -316,6 +316,7 @@ void CreateUbToolsDatabase(DbConnection * const db_connection_root) {
         db_connection_root->mySQLCreateDatabase(sql_database);
         db_connection_root->mySQLGrantAllPrivileges(sql_database, sql_username);
         db_connection_root->mySQLGrantAllPrivileges(sql_database + "_tmp", sql_username);
+        db_connection_root->mySQLGrantGrantOption(sql_database, sql_username);
         DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ub_tools.sql", sql_database, sql_username, sql_password);
     }
 }
@@ -326,16 +327,17 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
     const std::string sql_username("vufind");
     const std::string sql_password("vufind");
 
+    IniFile ub_tools_ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
+    const auto ub_tools_ini_section(ub_tools_ini_file.getSection("Database"));
+    const std::string ub_tools_username(ub_tools_ini_section->getString("sql_username"));
+
     db_connection_root->mySQLCreateUserIfNotExists(sql_username, sql_password);
     if (not db_connection_root->mySQLDatabaseExists(sql_database)) {
         Echo("creating " + sql_database + " database");
         db_connection_root->mySQLCreateDatabase(sql_database);
         db_connection_root->mySQLGrantAllPrivileges(sql_database, sql_username);
-
-        IniFile ub_tools_ini_file(DbConnection::DEFAULT_CONFIG_FILE_PATH);
-        const auto ub_tools_ini_section(ub_tools_ini_file.getSection("Database"));
-        const std::string ub_tools_username(ub_tools_ini_section->getString("sql_username"));
         db_connection_root->mySQLGrantAllPrivileges(sql_database, ub_tools_username);
+        db_connection_root->mySQLGrantGrantOption(sql_database, ub_tools_username);
 
         DbConnection::MySQLImportFile(VUFIND_DIRECTORY + "/module/VuFind/sql/mysql.sql", sql_database, sql_username, sql_password);
         MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/TueFind/sql/mysql.sql", sql_database, sql_username, sql_password);
@@ -361,7 +363,8 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
             db_connection_root->mySQLCreateDatabase(ixtheo_database);
             db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, ixtheo_username);
             db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, sql_username);
-            db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, "ub_tools");
+            db_connection_root->mySQLGrantAllPrivileges(ixtheo_database, ub_tools_username);
+            db_connection_root->mySQLGrantGrantOption(ixtheo_database, ub_tools_username);
             DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ixtheo.sql", ixtheo_database, ixtheo_username, ixtheo_password);
         }
     }
