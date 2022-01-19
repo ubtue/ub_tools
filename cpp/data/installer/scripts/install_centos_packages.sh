@@ -46,7 +46,7 @@ dnf --assumeyes install \
     ant bc cifs-utils clang crontabs ftp gawk gcc-c++ git glibc-all-langpacks ImageMagick incron java-1.8.0-openjdk-devel \
     jq libcurl-devel libdb-devel libsq3-devel libpq-devel libstemmer-devel libuuid-devel libwebp libxml2-devel libxml2 \
     libxslt lsof lz4 make mariadb mariadb-devel mariadb-server mariadb-server-utils mod_ssl mutt openssl-devel pcre-devel \
-    policycoreutils-python-utils poppler-utils postgresql python3 python3-pexpect python3-pyflakes \
+    policycoreutils-python-utils poppler-utils postgresql python3 python3-pexpect \
     rpmdevtools rsync sqlite sudo tidy unzip xerces-c-devel yaz
 
 dnf --assumeyes install \
