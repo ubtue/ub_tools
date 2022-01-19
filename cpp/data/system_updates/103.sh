@@ -13,7 +13,7 @@ else # CentOS
 fi
 
 if [ -r "$root_crontab" ]; then
-    if [ grep --quiet 'purge_old_data.py' "$root_crontab" ]; then
+    if grep --quiet 'purge_old_data.py' "$root_crontab"; then
         sed --in-place '/purge_old_data.py/i 0 1 1 * * "$BIN/update_print_issns_titles_online_ppns_and_online_issns_list.sh" > "$LOG_DIR/update_print_issns_titles_online_ppns_and_online_issns_list.log" 2>&1' \
             $root_crontab
     else
