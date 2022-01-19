@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2020 Library of the University of Tübingen
+    Copyright (C) 2020-2021 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -589,26 +589,6 @@ void UpdateISSNReferenceCount(const std::string &cleaned_up_json_value,
 }
 
 
-std::string NormalizeAuthorName(const std::string &author_name) {
-    static const auto author_with_trailing_initials_matcher(RegexMatcher::RegexMatcherFactoryOrDie("([\\p{L}-]+, ?)(\\p{L}\\.){2,}(.)"));
-    if (not author_with_trailing_initials_matcher->matched(author_name))
-        return author_name;
-
-    std::string modified_author_name;
-    modified_author_name.reserve(author_name.size() + 3);
-    bool insert_spaces_after_periods(false);
-    for (auto ch(author_name.cbegin()); ch != author_name.cend(); ++ch) {
-        if (*ch == ',')
-            insert_spaces_after_periods = true;
-        modified_author_name += *ch;
-        if (insert_spaces_after_periods and *ch == '.' and ch != author_name.cend() - 1 and *(ch + 1) != ' ')
-            modified_author_name += ' ';
-    }
-
-    return modified_author_name;
-}
-
-
 // Collection of ISSN's for which we found no entry in issns_to_journal_titles_ppns_and_issns_map.
 std::unordered_set<std::string> unmatched_issns;
 
@@ -691,7 +671,7 @@ bool ProcessSubfield(const MARC::Tag &marc_tag, const std::shared_ptr<const JSON
         if (MiscUtil::IsPossibleISSN(extracted_value) and MiscUtil::NormaliseISSN(extracted_value, &normalised_issn))
             extracted_value = normalised_issn;
     } else if (marc_tag == "100" or marc_tag == "700") // Author fields
-        extracted_value = NormalizeAuthorName(extracted_value);
+        extracted_value = MiscUtil::NormalizeName(extracted_value);
 
     // ISSN processing:
     if (StringUtil::FindCaseInsensitive(field_descriptor.name_, "ISSN") != std::string::npos) {

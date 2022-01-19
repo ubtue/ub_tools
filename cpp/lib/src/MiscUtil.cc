@@ -689,4 +689,25 @@ std::string ReadProcEntry(const std::string &path) {
 }
 
 
+std::string NormalizeName(const std::string &name) {
+    static const auto name_with_trailing_initials_matcher(
+        RegexMatcher::RegexMatcherFactoryOrDie("([\\p{L}-]+, ?)(\\p{L}\\.){2,}(.)"));
+    if (not name_with_trailing_initials_matcher->matched(name))
+        return name;
+
+    std::string modified_name;
+    modified_name.reserve(name.size() + 3);
+    bool insert_spaces_after_periods(false);
+    for (auto ch(name.cbegin()); ch != name.cend(); ++ch) {
+        if (*ch == ',')
+            insert_spaces_after_periods = true;
+        modified_name += *ch;
+        if (insert_spaces_after_periods and *ch == '.' and ch != name.cend() - 1 and *(ch + 1) != ' ')
+            modified_name += ' ';
+    }
+
+    return modified_name;
+}
+
+
 } // namespace MiscUtil

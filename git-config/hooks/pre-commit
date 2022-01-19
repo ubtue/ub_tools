@@ -2,20 +2,20 @@
 set -o errexit -o nounset
 
 
-forbidden_hosts=("ptah" "sobek" "nu" "ub16" "ub15" "ub27" "ub28")
-short_host=$(hostname --short)
-
-
-for forbidden_host in "${forbidden_hosts[@]}"; do
-    if [[ $short_host == "$forbidden_host" ]]; then
-        echo "You cannot commit files on $short_host"
-        exit 1
-    fi
-done
-
-
 # python syntax check
 pyflakes3 /usr/local/ub_tools/cronjobs
+
+
+# Format C++ source files:
+readonly changed_files=$(git diff --cached --name-only --diff-filter=ACM)
+readonly GIT_ROOT=$(git rev-parse --show-toplevel)
+for changed_file in changed_files; do
+    readonly extension="${changed_file##*.}"
+    if [[ $extension == "cc" || $extension == "h" ]]; then
+        # "-style=file" has the effect of searching up the directory tree until a file named ".clang-format" is found and then using it.
+#        clang-format-12 -style=file -i "$GIT_ROOT/$changed_file"
+    fi
+done
 
 
 exit 0

@@ -702,6 +702,9 @@ public:
     inline const Field &getField(const size_t field_index) const { return fields_[field_index]; }
     inline size_t getFieldIndex(const const_iterator &field) const { return field - fields_.begin(); }
 
+    /** \brief Inserts a 0XX field. */
+    void insertControlField(const Tag &new_field_tag, const std::string &new_field_value);
+
     /** Insert a new field at the beginning of the range for that field.
      *  \return True if we added the new field and false if it is a non-repeatable field and we already have this tag.
      *  \note   "new_field_value" includes the two indicators and any subfield structure if "new_field_tag" references a
