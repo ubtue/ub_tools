@@ -3,7 +3,7 @@ set -o errexit -o nounset
 
 
 # python syntax check
-pyflakes3 /usr/local/ub_tools/cronjobs
+python3 -m py_compile /usr/local/ub_tools/cronjobs/*.py
 
 
 # Format C++ source files:
