@@ -17,8 +17,8 @@ def IsResultPlausible(result_file):
         return False
     with open(result_file) as rfile:
         correct_line = re.compile('^[0-9\-X]+\s+-\s+.*')
-        for x in range(5):
-            line = next(rfile)
+        first_lines = [next(rfile) for x in range(5)]
+        for line in rfile:
             if not correct_line.match(line):
                 return False
     return True

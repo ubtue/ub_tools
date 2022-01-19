@@ -4,7 +4,6 @@ set -o errexit -o nounset
 
 # python syntax check
 python3 -m py_compile /usr/local/ub_tools/cronjobs/*.py
-rm /usr/local/ub_tools/cronjobs/*.pyc
 
 
 # Format C++ source files:
