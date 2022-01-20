@@ -1280,6 +1280,10 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     if (parameters.download_item_.journal_.selective_evaluation_)
         marc_record->insertFieldAtEnd("935", { { 'a', "NABZ" }, { '2', "LOK" } });
 
+    // Personalized Authors
+    if (parameters.download_item_.journal_.personalized_authors_ == "J")
+        marc_record->insertFieldAtEnd("935", { { 'a', "tiep" }, { '2', "LOK" } });
+
     // Book-keeping fields
     if (not metadata_record.url_.empty())
         marc_record->insertField("URL", { { 'a', metadata_record.url_ } });
