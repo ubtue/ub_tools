@@ -17,6 +17,9 @@ import util
 import xml.etree.ElementTree as ElementTree
 import zipfile
 
+dryrun = True
+dryrun_list_no = 3677
+number_of_runs = 2
 
 def ExtractRelevantIds(rdf_xml_document):
     numbers = []
@@ -165,64 +168,87 @@ def UploadToBSZFTPServer(remote_folder_path: str, marc_filename: str):
 
 
 def Main():
-    if len(sys.argv) != 2:
-         print("usage: " + sys.argv[0] + " <default email recipient>")
-         util.SendEmail("BNB Downloader Invocation Failure",
-                        "This script needs to be called with one argument, the email address!\n", priority=1)
-         sys.exit(-1)
+    if dryrun != True:
+        if len(sys.argv) != 2:
+            print("usage: " + sys.argv[0] + " <default email recipient>")
+            util.SendEmail("BNB Downloader Invocation Failure",
+                            "This script needs to be called with one argument, the email address!\n", priority=1)
+            sys.exit(-1)
 
-    util.default_email_recipient = sys.argv[1]
+        util.default_email_recipient = sys.argv[1]
+
     SetupWorkDirectory()
     OUTPUT_FILENAME_PREFIX: str = "bnb-" + datetime.datetime.now().strftime("%y%m%d") + "-"
     FTP_UPLOAD_DIRECTORY: str = "pub/UBTuebingen_BNB"
 
-    yaz_client = ConnectToYAZServer()
-    yaz_client.sendline("format marc21")
-    yaz_client.expect("\r\n")
+    if dryrun == True:
+        list_no = dryrun_list_no
+    else:
+        list_no = LoadStartListNumber()
 
-    list_no = LoadStartListNumber()
-    
-    total_count = 0
-    OUTPUT_FILENAME: str = None
-    while True:
-        util.Info("About to process list #" + str(list_no))
-        bnb_numbers = RetryGetNewBNBNumbers(list_no)
-        if bnb_numbers is None:
-            break
-        util.Info("Retrieved " + str(len(bnb_numbers)) + " BNB numbers for list #" + str(list_no))
-        if len(bnb_numbers) == 0:
-            list_no += 1
-            StoreStartListNumber(list_no)
-            continue
-
-        # Open new MARC dump file for the current list:
-        OUTPUT_FILENAME = OUTPUT_FILENAME_PREFIX + str(list_no) + ".mrc"
-        util.Remove(OUTPUT_FILENAME)
-        yaz_client.sendline("set_marcdump " + OUTPUT_FILENAME)
+    for run in range(number_of_runs):
+        last_run = (run == number_of_runs-1)
+        util.Info("Run " + str(run+1) + " out of " + str(number_of_runs) + " last run will be uploaded. Last run: " + str(last_run))
+        yaz_client = ConnectToYAZServer()
+        yaz_client.sendline("format marc21")
         yaz_client.expect("\r\n")
-        
-        ranges = CoalesceNumbers(bnb_numbers)
-        util.Info("The BNB numbers were coalesced into " + str(len(ranges)) + " ranges.")
 
-        count: int = DownloadRecordsRanges(yaz_client, ranges)
-        util.Info("Downloaded " + str(count) + " records for list #" + str(list_no) + ".")
-        if count > 0:
-            UploadToBSZFTPServer(FTP_UPLOAD_DIRECTORY, OUTPUT_FILENAME)
-        list_no += 1
-        StoreStartListNumber(list_no)
+        total_count = 0
+        OUTPUT_FILENAME: str = None
+        while True:
+            util.Info("About to process list #" + str(list_no))
+            bnb_numbers = RetryGetNewBNBNumbers(list_no)
+            if bnb_numbers is None:
+                break
+            util.Info("Retrieved " + str(len(bnb_numbers)) + " BNB numbers for list #" + str(list_no))
+            if len(bnb_numbers) == 0:
+                list_no += 1
+                if dryrun != True:
+                    StoreStartListNumber(list_no)
+                continue
+
+            # Open new MARC dump file for the current list:
+            OUTPUT_FILENAME = OUTPUT_FILENAME_PREFIX + str(list_no) + ".mrc"
+            util.Remove(OUTPUT_FILENAME)
+            yaz_client.sendline("set_marcdump " + OUTPUT_FILENAME)
+            yaz_client.expect("\r\n")
         
-        total_count += count
-    if OUTPUT_FILENAME is not None:
+            ranges = CoalesceNumbers(bnb_numbers)
+            util.Info("The BNB numbers were coalesced into " + str(len(ranges)) + " ranges.")
+
+            count: int = DownloadRecordsRanges(yaz_client, ranges)
+            util.Info("Downloaded " + str(count) + " records for list #" + str(list_no) + ".")
+            yaz_client.sendline("exit")
+            yaz_client.expect(pexpect.EOF)
+            #yaz_client.close()
+            if count > 0 and dryrun != True and last_run == True:
+                UploadToBSZFTPServer(FTP_UPLOAD_DIRECTORY, OUTPUT_FILENAME)
+            if last_run == True:
+                total_count += count
+            if dryrun == True:
+                break
+            elif last_run == True:
+                list_no += 1
+                StoreStartListNumber(list_no)
+
+        #end while true
+    #end multiple run loop
+
+    if OUTPUT_FILENAME is not None and dryrun != True:
         util.Remove(OUTPUT_FILENAME)
     util.Info("Downloaded a total of " + str(total_count) + " new record(s).")
-    if total_count > 0:
-        util.SendEmail("BNB Downloader", "Uploaded " + str(total_count) + " records to the BSZ FTP-server.")
-    else:
-        util.SendEmail("BNB Downloader", "No new records found.")
+    if dryrun != True:
+        if total_count > 0:
+            util.SendEmail("BNB Downloader", "Uploaded " + str(total_count) + " records to the BSZ FTP-server.")
+        else:
+            util.SendEmail("BNB Downloader", "No new records found.")
 
 
 try:
     Main()
 except Exception as e:
-    util.SendEmail("BNB Downloader", "An unexpected error occurred: "
-                   + str(e) + "\n\n" + traceback.format_exc(20), priority=1)
+    if dryrun != True:
+        util.SendEmail("BNB Downloader", "An unexpected error occurred: "
+                    + str(e) + "\n\n" + traceback.format_exc(20), priority=1)
+    else:
+        print(e)
