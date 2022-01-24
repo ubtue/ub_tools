@@ -125,6 +125,9 @@ def ConnectToYAZServer():
     yaz_client.sendline("open z3950cat.bl.uk:9909")
     yaz_client.expect(".*Connection accepted.*")
     yaz_client.sendline("base BNB03U")
+    yaz_client.expect("\r\n")
+    yaz_client.sendline("marccharset MARC8/UTF8")
+    yaz_client.expect("\r\n")
     return yaz_client
 
 
