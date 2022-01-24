@@ -17,7 +17,7 @@ import util
 import xml.etree.ElementTree as ElementTree
 import zipfile
 
-dryrun = True
+dryrun = False
 dryrun_list_no = 3677
 number_of_runs = 2
 
