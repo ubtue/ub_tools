@@ -34,13 +34,14 @@ namespace {
 }
 
 
-void ProcessRecords(const bool all_fields, TextUtil::EncodingConverter * const encoding_converter, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
+// \return True if all records were successfully converted and false o/w.
+bool ProcessRecords(const bool all_fields, TextUtil::EncodingConverter * const encoding_converter, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     unsigned total_count(0), patched_count(0), failure_count(0);
 
     while (MARC::Record record = marc_reader->read()) {
         ++total_count;
 
-        bool patched_at_least_one_field(false);
+        bool patched_at_least_one_field(false), all_output_fields_are_fine(true);
         for (auto &field : record) {
             if (field.isControlField())
                 continue;
@@ -49,9 +50,10 @@ void ProcessRecords(const bool all_fields, TextUtil::EncodingConverter * const e
             if (all_fields or not TextUtil::IsValidUTF8(field_contents)) {
                 patched_at_least_one_field = true;
                 std::string converted_field_contents;
-                if (not encoding_converter->convert(field_contents, &converted_field_contents))
+                if (not encoding_converter->convert(field_contents, &converted_field_contents)) {
+                    all_output_fields_are_fine = false;
                     ++failure_count;
-                else
+                } else
                     field.setContents(converted_field_contents);
             }
         }
@@ -59,12 +61,16 @@ void ProcessRecords(const bool all_fields, TextUtil::EncodingConverter * const e
         if (patched_at_least_one_field)
             ++patched_count;
 
-        marc_writer->write(record);
+        if (all_output_fields_are_fine)
+            marc_writer->write(record);
     }
 
     LOG_INFO("Converted at least one field in " + std::to_string(patched_count) + " record(s) out of " + std::to_string(total_count) + " record(s).");
-    if (failure_count > 0)
-        LOG_WARNING("failed to convert " + std::to_string(failure_count) + " field(s)!");
+    if (failure_count == 0)
+        return true;
+
+    LOG_WARNING("failed to convert " + std::to_string(failure_count) + " field(s)!");
+    return false;
 }
 
 
@@ -91,7 +97,5 @@ int Main(int argc, char *argv[]) {
     const auto marc_reader(MARC::Reader::Factory(argv[3]));
     const auto marc_writer(MARC::Writer::Factory(argv[4]));
 
-    ProcessRecords(all_fields, encoding_converter.get(), marc_reader.get(), marc_writer.get());
-
-    return EXIT_SUCCESS;
+    return ProcessRecords(all_fields, encoding_converter.get(), marc_reader.get(), marc_writer.get()) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
