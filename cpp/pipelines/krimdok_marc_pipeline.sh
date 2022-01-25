@@ -167,7 +167,7 @@ StartPhase "Appending Literary Remains Records"
                                  Normdaten-partially-augmented2-"${date}".mrc \
                                  Normdaten-fully-augmented-"${date}".mrc >> "${log}" 2>&1 && \
 EndPhase || Abort) &
-
+wait
 
 
 StartPhase "Check Record Integity at the End of the Pipeline"

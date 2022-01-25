@@ -65,7 +65,7 @@ bool ProcessRecords(const bool all_fields, TextUtil::EncodingConverter * const e
             marc_writer->write(record);
     }
 
-    LOG_INFO("Converted fields of " + std::to_string(patched_count) + " of " + std::to_string(total_count) + " record(s).");
+    LOG_INFO("Converted at least one field in " + std::to_string(patched_count) + " record(s) out of " + std::to_string(total_count) + " record(s).");
     if (failure_count == 0)
         return true;
 
