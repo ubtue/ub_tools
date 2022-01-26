@@ -1,4 +1,4 @@
-package de.uni_tuebingen.ub.ixTheo.conditionalInsertField;
+package de.uni_tuebingen.ub.tuefind.conditionalInsertField;
 
 import java.io.IOException;
 
