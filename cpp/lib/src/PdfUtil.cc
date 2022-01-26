@@ -104,7 +104,7 @@ bool GetTextFromImage(const std::string &img_path, const std::string &tesseract_
     if (not ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(
             tesseract_path, { img_path, "stdout" /*tesseract arg to redirect*/,
             "-l", tesseract_language_code,
-            "--oem", "0" /*use legacy extract to address problems with 4.0 default engine*/},
+            "--oem", "1" /*unlike beforehand use LSTM extract instead of legacy */},
             extracted_text, &stderr_output, 0 /* timeout */, SIGKILL,
             { {"OMP_THREAD_LIMIT", "1" } }, /* address tesseract 4 IPC problems */
             "" /* working dir */)
