@@ -134,10 +134,10 @@ inline std::string Now(unsigned negative_month_offset=0) {
     unsigned year, month, day;
     TimeUtil::GetCurrentDate(&year, &month, &day);
     if (negative_month_offset > 0) {
-        month = month - negative_month_offset;
-        if (month < 1) {
-            --year;
-            month += 12;
+        int signed_month = month - (negative_month_offset % 12);
+        if (signed_month < 1) {
+            year = year - ((negative_month_offset / 12) + 1);
+            month = (signed_month + 12);
         }
     }
     return StringUtil::ToString(year, /* radix = */10, /* width = */4, /* padding_char = */'0')
