@@ -2,7 +2,7 @@ add_additional_relbib_entries
 add_article_cross_links
 add_author_synonyms
 add_authority_beacon_information
-add_authority_wikidata_ids
+add_authority_external_ref
 add_cross_link_type
 add_is_superior_work_for_subsystems
 add_isbns_or_issns_to_articles
