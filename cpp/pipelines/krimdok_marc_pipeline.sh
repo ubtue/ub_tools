@@ -3,6 +3,14 @@
 source pipeline_functions.sh
 declare -r -i FIFO_BUFFER_SIZE=1000000 # in bytes
 
+TMP_NULL="/tmp/null"
+function CreateTemporaryNullDevice {
+    if [ ! -c ${TMP_NULL} ]; then
+        mknod ${TMP_NULL} c 1 3
+        chmod 666 ${TMP_NULL}
+    fi
+}
+
 
 if [ $# != 1 ]; then
     echo "usage: $0 GesamtTiteldaten-YYMMDD.mrc"
@@ -23,6 +31,7 @@ log="${logdir}/krimdok_marc_pipeline.log"
 rm -f "${log}"
 
 CleanUp
+CreateTemporaryNullDevice
 
 
 OVERALL_START=$(date +%s.%N)
@@ -87,14 +96,16 @@ StartPhase "Create Full-Text Database"
 create_full_text_db --process-count-low-and-high-watermarks \
                     $(get_config_file_entry.py krimdok_marc_pipeline.conf \
                     create_full_text_db process_count_low_and_high_watermarks) \
+                    --store-pdfs-as-html --use-separate-entries-per-url --include-all-tocs \
+                    --include-list-of-references --only-pdf-fulltexts \
                     GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
-                    GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
+                    ${TMP_NULL} >> "${log}" 2>&1
 EndPhase
 
 
 StartPhase "Fill in the \"in_tuebingen_available\" Field"
 populate_in_tuebingen_available --verbose \
-                                GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                                GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
                                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
 EndPhase
 

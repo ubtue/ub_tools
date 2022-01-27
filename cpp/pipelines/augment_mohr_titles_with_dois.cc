@@ -94,7 +94,7 @@ void ProcessRecords(MARC::Reader * const marc_reader,
                      if (std::find(record_dois.begin(), record_dois.end(), doi_for_isbn) == record_dois.end()) {
                          LOG_INFO("Inserting previously not existing DOI \"" + doi_for_isbn + "\" for electronic record " +
                                   "\"" + record.getControlNumber());
-                         record.insertField("024", { { 'a', doi_for_isbn }, { '2', "doi" } });
+                         record.insertField("024", { { 'a', doi_for_isbn }, { '2', "doi" } }, '7');
                          ++new_electronic_dois;
                      }
                      break;
@@ -111,7 +111,7 @@ void ProcessRecords(MARC::Reader * const marc_reader,
                      if (std::find(record_dois.begin(), record_dois.end(), doi_for_isbn) == record_dois.end()) {
                          LOG_INFO("Inserting previously not existing DOI \"" + doi_for_isbn + "\" for print record " +
                                   "\"" + record.getControlNumber());
-                         record.insertField("024", { { 'a', doi_for_isbn }, { '2', "doi" } });
+                         record.insertField("024", { { 'a', doi_for_isbn }, { '2', "doi" } }, '7');
                          ++new_print_dois;
                      }
                      break;
