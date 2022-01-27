@@ -53,7 +53,7 @@ DbResultSet ExecSqlAndReturnResultsOrDie(const std::string &select_statement, Db
 
 void GetVuFindStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, std::vector<std::string> * const rows, const std::string &start_date, const std::string &end_date)
 {
-    std::string query("SELECT language_code,count(distinct token) AS number FROM vufind_translations WHERE next_version_id IS NULL AND prev_version_id IS NOT NULL AND create_timestamp >= '" + start_date + "' AND create_timestamp <= '" + end_date + "' GROUP BY language_code;");
+    std::string query("SELECT language_code,count(distinct token) AS number FROM vufind_translations WHERE next_version_id IS NULL AND prev_version_id IS NOT NULL AND create_timestamp >= '" + start_date + "' AND create_timestamp <= '" + end_date + " 23:59:59" + "' GROUP BY language_code;");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     rows->clear();
     while (const auto db_row = result_set.getNextRow()) {
@@ -66,7 +66,7 @@ void GetVuFindStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, std:
 
 void GetKeyWordStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, std::vector<std::string> * const rows, const std::string &start_date, const std::string &end_date)
 {
-    std::string query("SELECT language_code,COUNT(distinct ppn) AS number FROM keyword_translations WHERE next_version_id IS NULL AND prev_version_id IS NOT NULL AND create_timestamp >= '" + start_date + "' AND create_timestamp <= '" + end_date + "' GROUP BY language_code;");
+    std::string query("SELECT language_code,COUNT(distinct ppn) AS number FROM keyword_translations WHERE next_version_id IS NULL AND prev_version_id IS NOT NULL AND create_timestamp >= '" + start_date + "' AND create_timestamp <= '" + end_date + " 23:59:59" + "' GROUP BY language_code;");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     rows->clear();
     while (const auto db_row = result_set.getNextRow()) {
@@ -79,7 +79,7 @@ void GetKeyWordStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, std
 
 void GetVuFindStatisticsNewEntriesFromDatabase(DbConnection &db_connection, std::string * const number_new_entries, const std::string &start_date, const std::string &end_date)
 {
-    std::string query("SELECT token FROM vufind_translations WHERE create_timestamp>='" + start_date + "' AND create_timestamp<='" + end_date + "' AND token IN (SELECT token FROM vufind_translations GROUP BY token HAVING COUNT(*)=1);");
+    std::string query("SELECT token FROM vufind_translations WHERE create_timestamp>='" + start_date + "' AND create_timestamp<='" + end_date + " 23:59:59" + "' AND token IN (SELECT token FROM vufind_translations GROUP BY token HAVING COUNT(*)=1);");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     number_new_entries->clear();
     unsigned counter(0);
@@ -93,7 +93,7 @@ void GetVuFindStatisticsNewEntriesFromDatabase(DbConnection &db_connection, std:
 
 void GetKeyWordStatisticsNewEntriesFromDatabase(DbConnection &db_connection, std::string * const number_new_entries, const std::string &start_date, const std::string &end_date)
 {
-    std::string query("SELECT ppn FROM keyword_translations WHERE create_timestamp>='" + start_date + "' AND create_timestamp<='" + end_date + "' AND ppn IN (SELECT ppn FROM keyword_translations GROUP BY ppn HAVING COUNT(*)=1);");
+    std::string query("SELECT ppn FROM keyword_translations WHERE create_timestamp>='" + start_date + "' AND create_timestamp<='" + end_date + " 23:59:59" + "' AND ppn IN (SELECT ppn FROM keyword_translations GROUP BY ppn HAVING COUNT(*)=1);");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     number_new_entries->clear();
     unsigned counter(0);
@@ -161,8 +161,12 @@ int Main(int argc, char *argv[]) {
 
     const std::string translation_target(WebUtil::GetCGIParameterOrDefault(cgi_args, "target", "keywords"));
     
-    const std::string start_date(WebUtil::GetCGIParameterOrDefault(cgi_args, "start_date", Now(6)));
-    const std::string end_date(WebUtil::GetCGIParameterOrDefault(cgi_args, "end_date", Now()));
+    std::string start_date(WebUtil::GetCGIParameterOrDefault(cgi_args, "start_date", Now(6)));
+    if (start_date.empty())
+        start_date = Now(6);
+    std::string end_date(WebUtil::GetCGIParameterOrDefault(cgi_args, "end_date", Now()));
+    if (end_date.empty())
+        end_date = Now();
 
     std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
 
