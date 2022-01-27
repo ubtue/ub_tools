@@ -290,6 +290,7 @@ void AppendLiteraryRemainsRecords(
         new_record.insertField("003", "PipeLineGenerated");
         new_record.insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
         new_record.insertField("008", "190606s2019    xx |||||      00| ||ger c");
+        new_record.insertField("ELC", { { 'a', "1" } });
         if (gnd_numbers_and_literary_remains_infos.second.front().dates_.empty())
             new_record.insertField("100", { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first }, { '0', "(DE-627)" + gnd_numbers_and_literary_remains_infos.second.front().author_id_ } });
         else
