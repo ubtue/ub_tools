@@ -21,6 +21,7 @@
 #include "util.h"
 #include "StringUtil.h"
 #include "MARC.h"
+#include "BeaconFile.h"
 #include <iostream>
 #include <fstream>
 #include <regex>
@@ -145,6 +146,10 @@ int Main(int argc, char * argv[]) {
 
     std::unordered_map<std::string, std::vector<std::string>> gnd_to_wikielements;
     ParseGndWikidataMappingFile(mapping_txt_filename, &gnd_to_wikielements);
+
+    //Parse ADB/NDB Beacon File
+    std::string beacon_downloaded_directory = "/usr/local/ub_tools/bsz_daten/beacon_downloads/";
+    std::map<std::string, BeaconFile> sites_to_beacon_files = { { "ADB/NDB", BeaconFile(beacon_downloaded_directory + "beacon_db_register.txt") } };
     
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename_or_create_flag));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename_or_dnb_input));
@@ -174,6 +179,20 @@ int Main(int argc, char * argv[]) {
                     wikidata_id = wiki_elements[0];
                 if (wiki_elements.size() > 1)
                     wikipedia_link = wiki_elements[1];
+            }
+            //write BEACON entries (e.g. ADB/NDB)
+            for (const auto &site_to_beacon_file : sites_to_beacon_files) {
+                const auto &beacon_file = site_to_beacon_file.second;
+                const auto beacon_entry(beacon_file.find(record_gnd));
+                if (beacon_entry == beacon_file.end())
+                    continue;
+
+                BeaconFile::Entry entry;
+                entry.gnd_number_ = record_gnd;
+                std::string url = beacon_file.getURL(entry);
+
+                if (not url.empty())
+                    record.insertField("BEA", { { 'b', site_to_beacon_file.first + "|" + url } });
             }
         }
 

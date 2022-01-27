@@ -59,7 +59,7 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
 
     do {
         std::string gnd_number;
-        unsigned count(0);
+        unsigned count(1);
         std::string id_or_url;
 
         const auto first_vertical_bar_pos(line.find('|'));
@@ -70,14 +70,13 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
             const auto second_vertical_bar_pos(line.find('|', first_vertical_bar_pos + 1));
             if (second_vertical_bar_pos == std::string::npos) {
                 const std::string count_str(StringUtil::TrimWhite(line.substr(first_vertical_bar_pos + 1)));
-                if (not count_str.empty() and not StringUtil::ToUnsigned(count_str, &count))
-                    LOG_ERROR("bad count \"" + count_str + "\" on line \"" + std::to_string(line_no) + "! (1)");
+                if (not count_str.empty())
+                    StringUtil::ToUnsigned(count_str, &count);
             } else {
                 const std::string count_str(StringUtil::TrimWhite(line.substr(first_vertical_bar_pos + 1,
                                                                               second_vertical_bar_pos - first_vertical_bar_pos - 1)));
-                if (not count_str.empty() and not StringUtil::ToUnsigned(count_str, &count))
-                    LOG_ERROR("bad count \"" + count_str + "\" on line \"" + std::to_string(line_no) + "! (2)");
-
+                if (not count_str.empty())
+                    StringUtil::ToUnsigned(count_str, &count);
                 id_or_url = StringUtil::TrimWhite(line.substr(second_vertical_bar_pos + 1));
             }
         }

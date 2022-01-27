@@ -8,6 +8,10 @@ function IsResultSuspicouslyShort() {
 }
 
 cd /usr/local/ub_tools/bsz_daten
+if [[ ! -e beacon_downloads ]]; then
+    mkdir beacon_downloads
+fi
+cd beacon_downloads
 
 error_message=""
 
@@ -37,6 +41,24 @@ if [ $? == 0 ]; then
 else
     error_message+=$'Failed to download the Beacon file from Kalliope.\n'
 fi
+
+# additional beacon files for external references like wikipedia, e.g. ADB/NDB
+declare -a beacon_files=("https://www.historische-kommission-muenchen-editionen.de/beacon_db_register.txt")
+for beacon_file in "${beacon_files[@]}"
+do
+    wget --no-use-server-timestamps $beacon_file -O `basename $beacon_file`.temp
+    if [ $? == 0 ]; then
+        if IsResultSuspicouslyShort `basename $beacon_file`.temp; then
+            error_message+=$'Obtained an empty or suspicously short file for `basename $beacon_file`.\n'
+        else
+            mv `basename $beacon_file`.temp `basename $beacon_file`
+            sed -i -e '1{/^$/d}' `basename $beacon_file` #replace first line if it is a blank line (e.g. ADB/NDB)
+        fi
+    else
+       error_message+=$'Failed to download the Beacon file for `basename $(beacon_file)`.\n'
+    fi
+done
+
 
 if [[ ! -z "$error_message" ]]; then
     send_email --recipients="ixtheo-team@ub.uni-tuebingen.de" --subject="Beacon Download Error $(hostname)" \

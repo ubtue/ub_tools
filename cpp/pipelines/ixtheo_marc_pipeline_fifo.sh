@@ -153,8 +153,8 @@ wait
 
 StartPhase "Add BEACON Information to Authority Data"
 (add_authority_beacon_information Normdaten-partially-augmented1-"${date}".mrc \
-                                  Normdaten-partially-augmented2-"${date}".mrc kalliope.staatsbibliothek-berlin.beacon \
-                                  --type-file kalliope_originators.txt $(find . -name '*.beacon' ! -name "*kalliope.*") \
+                                  Normdaten-partially-augmented2-"${date}".mrc beacon_downloads/kalliope.staatsbibliothek-berlin.beacon \
+                                  --type-file kalliope_originators.txt $(find beacon_downloads -name '*.beacon' ! -name "*kalliope.*") \
                                   >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
