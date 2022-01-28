@@ -149,7 +149,7 @@ int Main(int argc, char * argv[]) {
 
     //Parse ADB/NDB Beacon File
     std::string beacon_downloaded_directory = "/usr/local/ub_tools/bsz_daten/beacon_downloads/";
-    std::map<std::string, BeaconFile> sites_to_beacon_files = { { "ADB/NDB", BeaconFile(beacon_downloaded_directory + "beacon_db_register.txt") } };
+    std::map<std::string, BeaconFile> sites_to_beacon_files = { { "ADB/NDB", BeaconFile(beacon_downloaded_directory + "adb-ndb.beacon") } };
     
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename_or_create_flag));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename_or_dnb_input));

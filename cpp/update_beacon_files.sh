@@ -19,43 +19,26 @@ error_message=""
 # c.f. https://blog.buberel.org/2010/07/howto-random-sleep-duration-in-bash.html
 sleep $[ ( $RANDOM % 50 ) + 1 ]s
 
-wget https://labs.ddb.de/app/beagen/item/person/archive/latest -O archivportal-d.beacon.temp
-if [ $? == 0 ]; then
-    if IsResultSuspicouslyShort archivportal-d.beacon.temp; then
-        error_message+=$'Obtained an empty or suspicously short file from Archivportal-d.\n'
-    else
-        mv archivportal-d.beacon.temp archivportal-d.beacon
-    fi
-else
-    error_message+=$'Failed to download the Beacon file from Archivportal-D.\n'
-fi
-
-wget https://kalliope-verbund.info/beacon/beacon.txt -O kalliope.staatsbibliothek-berlin.beacon.temp
-if [ $? == 0 ]; then
-    if IsResultSuspicouslyShort kalliope.staatsbibliothek-berlin.beacon.temp; then
-        error_message .= $'"Obtained an empty or suspicously short file from Kalliope.\n'
-    else
-        mv kalliope.staatsbibliothek-berlin.beacon.temp kalliope.staatsbibliothek-berlin.beacon
-        sed -i -e 's/#FORMAT: GND-BEACON/#FORMAT: BEACON/g' kalliope.staatsbibliothek-berlin.beacon
-    fi
-else
-    error_message+=$'Failed to download the Beacon file from Kalliope.\n'
-fi
-
 # additional beacon files for external references like wikipedia, e.g. ADB/NDB
-declare -a beacon_files=("https://www.historische-kommission-muenchen-editionen.de/beacon_db_register.txt")
-for beacon_file in "${beacon_files[@]}"
+declare -A beacon_files
+beacon_files["archivportal-d.beacon"]="https://labs.ddb.de/app/beagen/item/person/archive/latest";
+beacon_files["kalliope.staatsbibliothek-berlin.beacon"]="https://kalliope-verbund.info/beacon/beacon.txt";
+beacon_files["adb-ndb.beacon"]="https://www.historische-kommission-muenchen-editionen.de/beacon_db_register.txt";
+for beacon_file_key in "${!beacon_files[@]}"
 do
-    wget --no-use-server-timestamps $beacon_file -O `basename $beacon_file`.temp
+    echo "processing beacon file: $beacon_file_key from ${beacon_files[$beacon_file_key]}"
+    beacon_file_key_temp="${beacon_file_key}.temp"
+    wget --no-use-server-timestamps ${beacon_files[$beacon_file_key]} -O $beacon_file_key_temp
     if [ $? == 0 ]; then
-        if IsResultSuspicouslyShort `basename $beacon_file`.temp; then
-            error_message+=$'Obtained an empty or suspicously short file for `basename $beacon_file`.\n'
+        if IsResultSuspicouslyShort $beacon_file_key_temp; then
+            error_message+=$'Obtained an empty or suspicously short file for $beacon_file_key`.\n'
         else
-            mv `basename $beacon_file`.temp `basename $beacon_file`
-            sed -i -e '1{/^$/d}' `basename $beacon_file` #replace first line if it is a blank line (e.g. ADB/NDB)
+            mv $beacon_file_key_temp $beacon_file_key
+            sed -i -e 's/#FORMAT: GND-BEACON/#FORMAT: BEACON/g' $beacon_file_key #kalliope.staatsbibliothek-berlin.beacon
+            sed -i -e '1{/^$/d}' $beacon_file_key #replace first line if it is a blank line (e.g. ADB/NDB)
         fi
     else
-       error_message+=$'Failed to download the Beacon file for `basename $(beacon_file)`.\n'
+       error_message+=$'Failed to download the Beacon file for $beacon_file_key.\n'
     fi
 done
 
