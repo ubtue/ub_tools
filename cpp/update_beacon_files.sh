@@ -21,8 +21,8 @@ sleep $[ ( $RANDOM % 50 ) + 1 ]s
 
 # additional beacon files for external references like wikipedia, e.g. ADB/NDB
 declare -A beacon_files
-beacon_files["archivportal-d.beacon"]="https://labs.ddb.de/app/beagen/item/person/archive/latest";
-beacon_files["kalliope.staatsbibliothek-berlin.beacon"]="https://kalliope-verbund.info/beacon/beacon.txt";
+beacon_files["archivportal-d.lr.beacon"]="https://labs.ddb.de/app/beagen/item/person/archive/latest";
+beacon_files["kalliope.staatsbibliothek-berlin.lr.beacon"]="https://kalliope-verbund.info/beacon/beacon.txt";
 beacon_files["adb-ndb.beacon"]="https://www.historische-kommission-muenchen-editionen.de/beacon_db_register.txt";
 for beacon_file_key in "${!beacon_files[@]}"
 do
