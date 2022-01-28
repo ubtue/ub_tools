@@ -21,6 +21,7 @@
 #include "util.h"
 #include "StringUtil.h"
 #include "MARC.h"
+#include "BeaconFile.h"
 #include <iostream>
 #include <fstream>
 #include <regex>
@@ -145,7 +146,7 @@ int Main(int argc, char * argv[]) {
 
     std::unordered_map<std::string, std::vector<std::string>> gnd_to_wikielements;
     ParseGndWikidataMappingFile(mapping_txt_filename, &gnd_to_wikielements);
-    
+
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename_or_create_flag));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename_or_dnb_input));
 

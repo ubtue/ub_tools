@@ -88,9 +88,13 @@ void ProcessAuthorityRecords(MARC::Reader * const authority_reader, MARC::Writer
                     continue;
 
                 ++gnd_tagged_count;
-                record.insertField("BEA", { { 'a', beacon_file.getName() }, { 'u', beacon_file.getURL(*beacon_entry) } });
+                std::string beacon_file_filename = beacon_file.getFileName();
+                if (beacon_file_filename.find(".lr.") != beacon_file_filename.npos)
+                    record.insertField("BEA", { { 'a', beacon_file.getName() }, { 'u', beacon_file.getURL(*beacon_entry) }, { '0', "lr" } });
+                else
+                    record.insertField("BEA", { { 'a', beacon_file.getName() }, { 'u', beacon_file.getURL(*beacon_entry) } });
                 if (beacon_to_type_files_map.find(beacon_file.getFileName()) != beacon_to_type_files_map.end()) {
-                    const TypeFile &type_file(beacon_to_type_files_map.at(beacon_file.getFileName()));
+                    const TypeFile &type_file(beacon_to_type_files_map.at(beacon_file_filename));
                     const auto &type_entry(type_file.find(gnd_number));
                     if (type_entry != type_file.end()) {
                         for (const auto &type : type_entry->types_)
