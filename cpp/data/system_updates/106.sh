@@ -8,3 +8,4 @@ if [[ -f /usr/local/ub_tools/bsz_daten/kalliope.staatsbibliothek-berlin.beacon ]
 fi
 if [[ -f /usr/local/ub_tools/bsz_daten/archivportal-d.beacon ]]; then
     mv /usr/local/ub_tools/bsz_daten/archivportal-d.beacon /usr/local/ub_tools/bsz_daten/beacon_downloads/archivportal-d.lr.beacon
+fi
