@@ -176,6 +176,12 @@ void LoadAuthorGNDNumbersAndTagAuthors(
             continue;
         }
 
+        auto beacon_subfields_0 = record.getSubfieldValues("BEA", "0");
+        if(std::find(beacon_subfields_0.begin(), beacon_subfields_0.end(), "lr") == beacon_subfields_0.end()) {
+            authority_writer->write(record);
+            continue;
+        }
+
         const auto _100_field(record.findTag("100"));
         if (_100_field == record.end() or not _100_field->hasSubfield('a')) {
             authority_writer->write(record);
@@ -201,8 +207,10 @@ void LoadAuthorGNDNumbersAndTagAuthors(
 
         std::vector<LiteraryRemainsInfo> literary_remains_infos;
         while (beacon_field != record.end() and beacon_field->getTag() == "BEA") {
-            literary_remains_infos.emplace_back(record.getControlNumber(), author_name, beacon_field->getFirstSubfieldWithCode('u'),
+            if (beacon_field->getFirstSubfieldWithCode('0') == "lr") {
+                literary_remains_infos.emplace_back(record.getControlNumber(), author_name, beacon_field->getFirstSubfieldWithCode('u'),
                                                 beacon_field->getFirstSubfieldWithCode('a'), dates, GetBEATypes(*beacon_field));
+            }
             ++beacon_field;
         }
         (*gnd_numbers_to_literary_remains_infos_map)[gnd_number] = literary_remains_infos;
