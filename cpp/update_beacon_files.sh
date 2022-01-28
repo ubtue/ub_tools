@@ -21,6 +21,7 @@ sleep $[ ( $RANDOM % 50 ) + 1 ]s
 
 # additional beacon files for external references like wikipedia, e.g. ADB/NDB
 declare -A beacon_files
+# all target names containing an .lr. will be treated as literary remains in later processing steps
 beacon_files["archivportal-d.lr.beacon"]="https://labs.ddb.de/app/beagen/item/person/archive/latest";
 beacon_files["kalliope.staatsbibliothek-berlin.lr.beacon"]="https://kalliope-verbund.info/beacon/beacon.txt";
 beacon_files["adb-ndb.beacon"]="https://www.historische-kommission-muenchen-editionen.de/beacon_db_register.txt";
