@@ -191,6 +191,7 @@ def Main():
         list_no = LoadStartListNumber()
 
     loop_counter = 0
+    total_count = 0
     while True:
         loop_counter += 1
         if loop_counter > max_download_lists:
@@ -202,7 +203,6 @@ def Main():
             yaz_client.sendline("format marc21")
             yaz_client.expect("\r\n")
 
-            total_count = 0
             OUTPUT_FILENAME: str = None
 
             util.Info("About to process list #" + str(list_no))
