@@ -35,7 +35,7 @@ do
             error_message+=$'Obtained an empty or suspicously short file for $beacon_file_key`.\n'
         else
             mv $beacon_file_key_temp $beacon_file_key
-            sed -i -e 's/#FORMAT: GND-BEACON/#FORMAT: BEACON/g' $beacon_file_key #kalliope.staatsbibliothek-berlin.beacon
+            sed -i -e 's/#FORMAT: GND-BEACON/#FORMAT: BEACON/g' $beacon_file_key #kalliope.staatsbibliothek-berlin.lr.beacon
             sed -i -e '1{/^$/d}' $beacon_file_key #replace first line if it is a blank line (e.g. ADB/NDB)
         fi
     else
