@@ -248,10 +248,7 @@ bool IsEmptyEntryWithoutTranslator(const std::string &entry) {
 
 
 bool IsMacsColumnVisible(const IniFile &ini_file) {
-    const std::string ini_macs_visible(ini_file.getString(CONFIGURATION_SECTION, "show_macs_col"));
-    if (ini_macs_visible.empty())
-        return false;
-    return StringUtil::FindCaseInsensitive(ini_macs_visible, "true") != std::string::npos;
+    return ini_file.getBool(CONFIGURATION_SECTION, "show_macs_col");
 }
 
 
@@ -549,8 +546,9 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                    row_values[index] = (german_updated == "1") ? CreateNonEditableUpdateHintEntry(translation, gnd_code)
                                                                : CreateNonEditableHintEntry(translation, gnd_code);
                // 20220131: for community version changes in "final" translations shall be possible
-               // else if (status == "reliable")
-               //     row_values[index] = CreateNonEditableRowEntry(translation);
+               else if (status == "reliable")
+                   row_values[index] = CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
+                                                              translator, gnd_code);
                else
                    row_values[index] = CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
                                                               translator, gnd_code);
