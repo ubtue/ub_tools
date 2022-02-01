@@ -50,6 +50,7 @@ const std::string TRANSLATION_LANGUAGES_SECTION("TranslationLanguages");
 const std::string ADDITIONAL_VIEW_LANGUAGES("AdditionalViewLanguages");
 const std::string USER_SECTION("Users");
 const std::string EMAIL_SECTION("Email");
+const std::string CONFIGURATION_SECTION("Configuration");
 const std::string ALL_SUPPORTED_LANGUAGES("all");
 const std::string SYNONYM_COLUMN_DESCRIPTOR("syn");
 const std::string TOKEN_COLUMN_DESCRIPTOR("token");
@@ -131,7 +132,7 @@ std::string CreateEditableRowEntry(const std::string &token, const std::string &
 
 
 void GetDisplayLanguages(std::vector<std::string> *const display_languages, const std::vector<std::string> &translation_languages,
-                         const std::vector<std::string> &additional_view_languages, enum Category category = KEYWORDS) {
+                         const std::vector<std::string> &additional_view_languages, enum Category category, const bool show_macs_col) {
 
     display_languages->clear();
 
@@ -147,7 +148,9 @@ void GetDisplayLanguages(std::vector<std::string> *const display_languages, cons
 
     // For Keywords show also MACS and the synonyms
     if (category == KEYWORDS){
-        display_languages->emplace_back(MACS_COLUMN_DESCRIPTOR);
+        if (show_macs_col)
+            display_languages->emplace_back(MACS_COLUMN_DESCRIPTOR);
+
         display_languages->emplace(std::find(display_languages->begin(), display_languages->end(), "ger") + 1, SYNONYM_COLUMN_DESCRIPTOR);
     }
 }
@@ -241,6 +244,11 @@ int GetColumnIndexForColumnHeading(const std::vector<std::string> &column_headin
 
 bool IsEmptyEntryWithoutTranslator(const std::string &entry) {
     return (StringUtil::EndsWith(entry, "></td>") and (entry.find("translator_exists") == std::string::npos));
+}
+
+
+bool IsMacsColumnVisible(const IniFile &ini_file) {
+    return ini_file.getBool(CONFIGURATION_SECTION, "show_macs_col");
 }
 
 
@@ -357,7 +365,7 @@ void GetVuFindTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, co
 
     std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
     std::vector<std::string> display_languages;
-    GetDisplayLanguages(&display_languages, translator_languages, additional_view_languages, VUFIND);
+    GetDisplayLanguages(&display_languages, translator_languages, additional_view_languages, VUFIND, false);
     *headline = "<th>" + StringUtil::Join(display_languages, "</th><th>") + "</th>";
     if (result_set.empty())
         return;
@@ -443,7 +451,8 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                                                   std::string *const headline,
                                                   const std::vector<std::string> &translator_languages,
                                                   const std::vector<std::string> &additional_view_languages,
-                                                  const bool use_untranslated_filter, const std::string &lang_untranslated)
+                                                  const bool use_untranslated_filter, const std::string &lang_untranslated,
+                                                  const bool show_macs_col)
 {
     rows->clear();
 
@@ -477,7 +486,7 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
     std::vector<std::string> language_codes(GetLanguageCodes(db_connection));
 
     std::vector<std::string> display_languages;
-    GetDisplayLanguages(&display_languages, translator_languages, additional_view_languages);
+    GetDisplayLanguages(&display_languages, translator_languages, additional_view_languages, KEYWORDS, show_macs_col);
     *headline = "<th>" + StringUtil::Join(display_languages, "</th><th>") + "</th>";
     if (result_set.empty())
         return;
@@ -516,12 +525,14 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
            row_values[synonym_index] = CreateNonEditableSynonymEntry(synonyms, "<br/>");
 
            // Insert MACS Translations display table
-           std::vector<std::string> macs_translations;
-           GetMACSTranslationsForGNDCode(db_connection, gnd_code, &macs_translations);
-           int macs_index(GetColumnIndexForColumnHeading(display_languages, row_values, MACS_COLUMN_DESCRIPTOR));
-           if (macs_index == NO_INDEX)
-               continue;
-           row_values[macs_index] = CreateNonEditableSynonymEntry(macs_translations, "<br/>");
+           if (show_macs_col) {
+               std::vector<std::string> macs_translations;
+               GetMACSTranslationsForGNDCode(db_connection, gnd_code, &macs_translations);
+               int macs_index(GetColumnIndexForColumnHeading(display_languages, row_values, MACS_COLUMN_DESCRIPTOR));
+               if (macs_index == NO_INDEX)
+                   continue;
+               row_values[macs_index] = CreateNonEditableSynonymEntry(macs_translations, "<br/>");
+           }
        }
 
        int index(GetColumnIndexForColumnHeading(display_languages, row_values, language_code));
@@ -534,8 +545,10 @@ void GetKeyWordTranslationsAsHTMLRowsFromDatabase(DbConnection &db_connection, c
                if (language_code == "ger")
                    row_values[index] = (german_updated == "1") ? CreateNonEditableUpdateHintEntry(translation, gnd_code)
                                                                : CreateNonEditableHintEntry(translation, gnd_code);
+               // 20220131: for community version changes in "final" translations shall be possible
                else if (status == "reliable")
-                   row_values[index] = CreateNonEditableRowEntry(translation);
+                   row_values[index] = CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
+                                                              translator, gnd_code);
                else
                    row_values[index] = CreateEditableRowEntry(current_ppn, translation, language_code, "keyword_translations",
                                                               translator, gnd_code);
@@ -654,7 +667,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
                    const std::string &target, const std::string translator,
                    const std::vector<std::string> &translator_languages,
                    const std::vector<std::string> &additional_view_languages, const bool filter_untranslated,
-                   const std::string &lang_untranslated)
+                   const std::string &lang_untranslated, const bool show_macs_col)
 {
     Template::Map names_to_values_map;
     std::vector<std::string> rows;
@@ -672,7 +685,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &lookfor, cons
                                                     translator_languages, additional_view_languages, filter_untranslated, lang_untranslated);
     else if (target == "keywords")
         GetKeyWordTranslationsAsHTMLRowsFromDatabase(db_connection, lookfor, offset, &rows, &headline,
-                                                     translator_languages, additional_view_languages, filter_untranslated, lang_untranslated);
+                                                     translator_languages, additional_view_languages, filter_untranslated, lang_untranslated, show_macs_col);
     else
         ShowErrorPageAndDie("Error - Invalid Target", "No valid target selected");
 
@@ -870,6 +883,8 @@ int Main(int argc, char *argv[]) {
         ShowErrorPageAndDie("Error - No Valid User", "No valid user selected");
     }
 
+    bool show_macs_col = IsMacsColumnVisible(ini_file);
+
     // Read in the views for the respective users
     std::vector<std::string> translator_languages;
     GetTranslatorLanguages(ini_file, translator, &translator_languages);
@@ -897,7 +912,7 @@ int Main(int argc, char *argv[]) {
     else if (save_action == "restore")
         RestoreUserState(db_connection, translator, translation_target, &lookfor, &offset, filter_untranslated);
     ShowFrontPage(db_connection, lookfor, offset, translation_target, translator, translator_languages,
-                  additional_view_languages, filter_untranslated, lang_untranslated);
+                  additional_view_languages, filter_untranslated, lang_untranslated, show_macs_col);
 
     return EXIT_SUCCESS;
 }

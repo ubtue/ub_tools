@@ -51,28 +51,35 @@ DbResultSet ExecSqlAndReturnResultsOrDie(const std::string &select_statement, Db
 }
 
 
-void GetVuFindStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, std::vector<std::string> * const rows, const std::string &start_date, const std::string &end_date)
+void GetSubsystemStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &target, std::vector<std::string> * const rows, const std::string &start_date, const std::string &end_date)
 {
-    std::string query("SELECT language_code,count(distinct token) AS number FROM vufind_translations WHERE next_version_id IS NULL AND prev_version_id IS NOT NULL AND create_timestamp >= '" + start_date + "' AND create_timestamp <= '" + end_date + " 23:59:59" + "' GROUP BY language_code;");
-    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
+    std::string id = (target == "vufind" ? "token" : "ppn");
+    std::string table_name = (target == "vufind" ? "vufind_translations" : "keyword_translations");
+
+    unsigned total_number;
+    std::string query_total_number("SELECT COUNT(DISTINCT(" + id + ")) AS total_number FROM " + table_name + ";");
+    DbResultSet result_set_total_number(ExecSqlAndReturnResultsOrDie(query_total_number, &db_connection));
+    while (const auto db_row = result_set_total_number.getNextRow())
+        total_number = std::stoi(db_row["total_number"]);
+
+    std::map<std::string, unsigned> map_translated;
+    std::string query_translated("SELECT language_code,COUNT(DISTINCT(" + id + ")) AS translated_number FROM " + table_name + " GROUP BY language_code;");
+    DbResultSet result_set_translated(ExecSqlAndReturnResultsOrDie(query_translated, &db_connection));
+    while (const auto db_row = result_set_translated.getNextRow())
+        map_translated.emplace(db_row["language_code"], std::stoi(db_row["translated_number"]));
+
     rows->clear();
+
+    std::string query("SELECT language_code,COUNT(distinct " + id + ") AS number FROM " + table_name + " WHERE next_version_id IS NULL AND prev_version_id IS NOT NULL AND create_timestamp >= '" + start_date + "' AND create_timestamp <= '" + end_date + " 23:59:59" + "' GROUP BY language_code;");
+    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     while (const auto db_row = result_set.getNextRow()) {
        std::string language_code(db_row["language_code"]);
-       std::string number(db_row["number"]);
-       rows->emplace_back("<tr><td>" + language_code + "</td><td>" + number + "</td></tr>");   
-    }
-}
-
-
-void GetKeyWordStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, std::vector<std::string> * const rows, const std::string &start_date, const std::string &end_date)
-{
-    std::string query("SELECT language_code,COUNT(distinct ppn) AS number FROM keyword_translations WHERE next_version_id IS NULL AND prev_version_id IS NOT NULL AND create_timestamp >= '" + start_date + "' AND create_timestamp <= '" + end_date + " 23:59:59" + "' GROUP BY language_code;");
-    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
-    rows->clear();
-    while (const auto db_row = result_set.getNextRow()) {
-       std::string language_code(db_row["language_code"]);
-       std::string number(db_row["number"]);
-       rows->emplace_back("<tr><td>" + language_code + "</td><td>" + number + "</td></tr>");
+       std::string recently_number(db_row["number"]);
+       std::string untranslated_number = "n.a.";
+       auto elem = map_translated.find(language_code);
+       if (elem != map_translated.end())
+           untranslated_number = std::to_string(total_number - elem->second);
+       rows->emplace_back("<tr><td>" + language_code + "</td><td>" + recently_number + "</td><td>" + untranslated_number + "</td></tr>");
     }
 }
 
@@ -111,9 +118,9 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &target, const
     std::vector<std::string> keyword_rows;
     std::string number_new_entries_vufind, number_new_entries_keyword;
     
-    GetVuFindStatisticsAsHTMLRowsFromDatabase(db_connection, &vufind_rows, start_date, end_date);
+    GetSubsystemStatisticsAsHTMLRowsFromDatabase(db_connection, "vufind", &vufind_rows, start_date, end_date);
     GetVuFindStatisticsNewEntriesFromDatabase(db_connection, &number_new_entries_vufind, start_date, end_date);
-    GetKeyWordStatisticsAsHTMLRowsFromDatabase(db_connection, &keyword_rows, start_date, end_date);
+    GetSubsystemStatisticsAsHTMLRowsFromDatabase(db_connection, "keywords", &keyword_rows, start_date, end_date);
     GetKeyWordStatisticsNewEntriesFromDatabase(db_connection, &number_new_entries_keyword, start_date, end_date);
     
     names_to_values_map.insertArray("vufind_rows", vufind_rows);
