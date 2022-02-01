@@ -20,6 +20,7 @@ import zipfile
 dryrun = False
 dryrun_list_no = 3677
 number_of_runs = 2
+max_download_lists = 50
 
 def ExtractRelevantIds(rdf_xml_document):
     numbers = []
@@ -189,26 +190,32 @@ def Main():
     else:
         list_no = LoadStartListNumber()
 
-    for run in range(number_of_runs):
-        last_run = (run == number_of_runs-1)
-        util.Info("Run " + str(run+1) + " out of " + str(number_of_runs) + " last run will be uploaded. Last run: " + str(last_run))
-        yaz_client = ConnectToYAZServer()
-        yaz_client.sendline("format marc21")
-        yaz_client.expect("\r\n")
+    loop_counter = 0
+    total_count = 0
+    while True:
+        loop_counter += 1
+        if loop_counter > max_download_lists:
+            break
+        for run in range(number_of_runs):
+            last_run = (run == number_of_runs-1)
+            util.Info("Run " + str(run+1) + " out of " + str(number_of_runs) + " last run will be uploaded. Last run: " + str(last_run))
+            yaz_client = ConnectToYAZServer()
+            yaz_client.sendline("format marc21")
+            yaz_client.expect("\r\n")
 
-        total_count = 0
-        OUTPUT_FILENAME: str = None
-        while True:
+            OUTPUT_FILENAME: str = None
+
             util.Info("About to process list #" + str(list_no))
             bnb_numbers = RetryGetNewBNBNumbers(list_no)
             if bnb_numbers is None:
+                loop_counter = max_download_lists
                 break
             util.Info("Retrieved " + str(len(bnb_numbers)) + " BNB numbers for list #" + str(list_no))
             if len(bnb_numbers) == 0:
                 list_no += 1
                 if dryrun != True:
                     StoreStartListNumber(list_no)
-                continue
+                break
 
             # Open new MARC dump file for the current list:
             OUTPUT_FILENAME = OUTPUT_FILENAME_PREFIX + str(list_no) + ".mrc"
@@ -228,14 +235,13 @@ def Main():
                 UploadToBSZFTPServer(FTP_UPLOAD_DIRECTORY, OUTPUT_FILENAME)
             if last_run == True:
                 total_count += count
-            if dryrun == True:
-                break
-            elif last_run == True:
-                list_no += 1
-                StoreStartListNumber(list_no)
-
-        #end while true
-    #end multiple run loop
+                if dryrun != True:
+                    list_no += 1
+                    StoreStartListNumber(list_no)
+        #end multiple run loop
+        if dryrun == True:
+            break
+    #end while true
 
     if OUTPUT_FILENAME is not None and dryrun != True:
         util.Remove(OUTPUT_FILENAME)
