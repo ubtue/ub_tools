@@ -53,26 +53,61 @@ DbResultSet ExecSqlAndReturnResultsOrDie(const std::string &select_statement, Db
 
 void GetVuFindStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, std::vector<std::string> * const rows, const std::string &start_date, const std::string &end_date)
 {
-    std::string query("SELECT language_code,count(distinct token) AS number FROM vufind_translations WHERE next_version_id IS NULL AND prev_version_id IS NOT NULL AND create_timestamp >= '" + start_date + "' AND create_timestamp <= '" + end_date + " 23:59:59" + "' GROUP BY language_code;");
-    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
+    unsigned total_number;
+    std::string query_total_number("SELECT COUNT(DISTINCT(token)) AS total_number FROM vufind_translations;");
+    DbResultSet result_set_total_number(ExecSqlAndReturnResultsOrDie(query_total_number, &db_connection));
+    while (const auto db_row = result_set_total_number.getNextRow())
+        total_number = std::stoi(db_row["total_number"]);
+
+    std::map<std::string, unsigned> map_translated;
+    std::string query_translated("SELECT language_code,COUNT(DISTINCT(token)) AS untranslated_number FROM vufind_translations GROUP BY language_code;");
+    DbResultSet result_set_translated(ExecSqlAndReturnResultsOrDie(query_translated, &db_connection));
+    while (const auto db_row = result_set_translated.getNextRow())
+        map_translated.emplace(db_row["language_code"], std::stoi(db_row["untranslated_number"]));
+
     rows->clear();
+
+    std::string query("SELECT language_code,COUNT(distinct token) AS number FROM vufind_translations WHERE next_version_id IS NULL AND prev_version_id IS NOT NULL AND create_timestamp >= '" + start_date + "' AND create_timestamp <= '" + end_date + " 23:59:59" + "' GROUP BY language_code;");
+    DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
     while (const auto db_row = result_set.getNextRow()) {
        std::string language_code(db_row["language_code"]);
-       std::string number(db_row["number"]);
-       rows->emplace_back("<tr><td>" + language_code + "</td><td>" + number + "</td></tr>");   
+       std::string recently_number(db_row["number"]);
+       std::string untranslated_number = "n.a.";
+       auto elem = map_translated.find(language_code);
+       if (elem != map_translated.end())
+           untranslated_number = std::to_string(total_number - elem->second);
+       rows->emplace_back("<tr><td>" + language_code + "</td><td>" + recently_number + "</td><td>" + untranslated_number + "</td></tr>");
     }
 }
 
 
 void GetKeyWordStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, std::vector<std::string> * const rows, const std::string &start_date, const std::string &end_date)
 {
+    unsigned total_number;
+    std::string query_total_number("SELECT COUNT(DISTINCT(ppn)) AS total_number FROM keyword_translations;");
+    DbResultSet result_set_total_number(ExecSqlAndReturnResultsOrDie(query_total_number, &db_connection));
+    while (const auto db_row = result_set_total_number.getNextRow())
+        total_number = std::stoi(db_row["total_number"]);
+
+    std::map<std::string, unsigned> map_translated;
+    std::string query_translated("SELECT language_code,COUNT(DISTINCT(ppn)) AS untranslated_number FROM keyword_translations GROUP BY language_code;");
+    DbResultSet result_set_translated(ExecSqlAndReturnResultsOrDie(query_translated, &db_connection));
+    while (const auto db_row = result_set_translated.getNextRow())
+        map_translated.emplace(db_row["language_code"], std::stoi(db_row["untranslated_number"]));
+
+    rows->clear();
+
     std::string query("SELECT language_code,COUNT(distinct ppn) AS number FROM keyword_translations WHERE next_version_id IS NULL AND prev_version_id IS NOT NULL AND create_timestamp >= '" + start_date + "' AND create_timestamp <= '" + end_date + " 23:59:59" + "' GROUP BY language_code;");
     DbResultSet result_set(ExecSqlAndReturnResultsOrDie(query, &db_connection));
-    rows->clear();
+
     while (const auto db_row = result_set.getNextRow()) {
        std::string language_code(db_row["language_code"]);
-       std::string number(db_row["number"]);
-       rows->emplace_back("<tr><td>" + language_code + "</td><td>" + number + "</td></tr>");
+       std::string recently_number(db_row["number"]);
+       std::string untranslated_number = "n.a.";
+       auto elem = map_translated.find(language_code);
+       if (elem != map_translated.end())
+           untranslated_number = std::to_string(total_number - elem->second);
+       rows->emplace_back("<tr><td>" + language_code + "</td><td>" + recently_number + "</td><td>" + untranslated_number + "</td></tr>");
     }
 }
 
