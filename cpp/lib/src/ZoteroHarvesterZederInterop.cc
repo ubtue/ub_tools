@@ -94,7 +94,7 @@ static std::string ResolveHarvesterOperation(const Zeder::Entry &zeder_entry, co
         return Config::HARVESTER_OPERATION_TO_STRING_MAP.at(Config::HarvesterOperation::EMAIL);
     else if (z_type == "api")
         return Config::HARVESTER_OPERATION_TO_STRING_MAP.at(Config::HarvesterOperation::APIQUERY);
-    else if (z_type == "") { /* Fall back to old approach if not set */
+    else if (z_type == "" or z_type == "-?-") { /* Fall back to old approach if not set */
         const auto &rss(zeder_entry.getAttribute("rss", ""));
         if (not rss.empty())
             return Config::HARVESTER_OPERATION_TO_STRING_MAP.at(Config::HarvesterOperation::RSS);
