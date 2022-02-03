@@ -67,24 +67,24 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
                     language_code = "hans";
                 if (language_code != UNDEFINED_LANGUAGE) {
                     new_750_entries.emplace_back(MARC::Subfields({
-                        {'a', GetSubfieldAValueFromIxTheoTranslationField(field) },
-                        {'2', "IxTheo" },
-                        {'9', "L:" + language_code },
-                        {'9', "Z:" + Get9ZValueFromIxTheoTranslationField(record, field) },
+                        { 'a', GetSubfieldAValueFromIxTheoTranslationField(field) },
+                        { '2', "IxTheo" },
+                        { '9', "L:" + language_code },
+                        { '9', "Z:" + Get9ZValueFromIxTheoTranslationField(record, field) },
                     }));
                 }
             }
         }
         if (not new_750_entries.empty()) {
-           for (const auto &new_750_subfields : new_750_entries) {
-               if (not record.insertFieldAtEnd("750", new_750_subfields, ' ', '7'))
-                   LOG_ERROR("Could not insert field for record " + record.getControlNumber());
-           }
-           ++modified;
+            for (const auto &new_750_subfields : new_750_entries) {
+                if (not record.insertFieldAtEnd("750", new_750_subfields, ' ', '7'))
+                    LOG_ERROR("Could not insert field for record " + record.getControlNumber());
+            }
+            ++modified;
         }
         marc_writer->write(record);
     }
-    LOG_INFO("Modified " +  std::to_string(modified)  + " records of " +  std::to_string(count) + " altogether");
+    LOG_INFO("Modified " + std::to_string(modified) + " records of " + std::to_string(count) + " altogether");
 }
 
 

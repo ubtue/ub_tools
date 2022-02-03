@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <unordered_map>
@@ -23,8 +23,8 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "StringUtil.h"
 #include "MARC.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -45,8 +45,7 @@ void CollectRecordTypes(MARC::Reader * const reader, std::unordered_map<std::str
 
 
 void TagCrossLinks(const bool generate_dangling_log, MARC::Reader * const reader, MARC::Writer * const writer,
-                   const std::unordered_map<std::string, bool> &ppn_to_is_electronic_map)
-{
+                   const std::unordered_map<std::string, bool> &ppn_to_is_electronic_map) {
     std::unique_ptr<File> dangling_log;
     if (generate_dangling_log)
         dangling_log = FileUtil::OpenOutputFileOrDie("dangling.log");
@@ -64,8 +63,8 @@ void TagCrossLinks(const bool generate_dangling_log, MARC::Reader * const reader
                     if (generate_dangling_log) {
                         const auto ddcs(record.getDDCs());
                         const auto rvks(record.getRVKs());
-                        *dangling_log << record.getControlNumber() << ',' << partner_control_number << ",DDCs:"
-                                      << StringUtil::Join(ddcs, ';') << ",RVKs:" << StringUtil::Join(rvks, ';') << ','
+                        *dangling_log << record.getControlNumber() << ',' << partner_control_number
+                                      << ",DDCs:" << StringUtil::Join(ddcs, ';') << ",RVKs:" << StringUtil::Join(rvks, ';') << ','
                                       << record.getLeader() << '\n';
                     }
                     continue;

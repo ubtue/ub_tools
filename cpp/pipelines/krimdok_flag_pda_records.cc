@@ -17,7 +17,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <cstdlib>
@@ -37,8 +37,7 @@ namespace {
 
 
 bool IsMatchingRecord(const MARC::Record &record, const std::vector<MARC::Record::iterator> &local_block_starts,
-                      std::vector<std::string> &matching_subfield_a_values)
-{
+                      std::vector<std::string> &matching_subfield_a_values) {
     for (const auto local_block_start : local_block_starts) {
         auto _852_fields(record.findFieldsInLocalBlock("852", local_block_start));
         if (_852_fields.empty())
@@ -71,8 +70,7 @@ bool IsUBOrIFKRecord(const MARC::Record &record, const std::vector<MARC::Record:
 
 
 void FindNonMPIInstitutions(const MARC::Record &record, const std::vector<MARC::Record::iterator> &local_block_starts,
-                            std::vector<std::string> * const non_mpi_institutions)
-{
+                            std::vector<std::string> * const non_mpi_institutions) {
     non_mpi_institutions->clear();
 
     for (const auto &local_block_start : local_block_starts) {
@@ -90,9 +88,7 @@ void FindNonMPIInstitutions(const MARC::Record &record, const std::vector<MARC::
 }
 
 
-void AddPDAFieldToRecords(const std::string &cutoff_year, MARC::Reader * const marc_reader,
-                          MARC::Writer * const marc_writer)
-{
+void AddPDAFieldToRecords(const std::string &cutoff_year, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
     unsigned pda_field_added_count(0);
     while (MARC::Record record = marc_reader->read()) {
         if (not record.isMonograph()) {

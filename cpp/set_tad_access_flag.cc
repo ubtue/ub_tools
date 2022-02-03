@@ -33,8 +33,8 @@
 #include "FileUtil.h"
 #include "StringUtil.h"
 #include "UBTools.h"
-#include "util.h"
 #include "VuFind.h"
+#include "util.h"
 
 
 namespace {
@@ -49,21 +49,36 @@ class PermissionParser {
     File * const input_;
     std::string last_string_constant_;
     unsigned current_line_number_;
+
 public:
-    enum TokenType { ALLOW, DENY, STRING_CONST, DASH, COLON, PIPE, COMMA, OPEN_SQUARE_BRACKET, CLOSE_SQUARE_BRACKET,
-                     QUESTION_MARK, OTHER, END_OF_INPUT };
+    enum TokenType {
+        ALLOW,
+        DENY,
+        STRING_CONST,
+        DASH,
+        COLON,
+        PIPE,
+        COMMA,
+        OPEN_SQUARE_BRACKET,
+        CLOSE_SQUARE_BRACKET,
+        QUESTION_MARK,
+        OTHER,
+        END_OF_INPUT
+    };
+
 private:
     TokenType pushed_back_token_;
     bool token_has_been_pushed_back_;
+
 public:
-    explicit PermissionParser(File * const input)
-        : input_(input), current_line_number_(1), token_has_been_pushed_back_(false) { }
+    explicit PermissionParser(File * const input): input_(input), current_line_number_(1), token_has_been_pushed_back_(false) { }
 
     TokenType getToken();
     void ungetToken(const TokenType token);
     const std::string &getLastStringConstant() const { return last_string_constant_; }
     unsigned getCurrentLineNumber() const { return current_line_number_; }
     static std::string ToString(const TokenType token);
+
 private:
     void skipToEndOfLine();
     void skipCommentsAndWhiteSpace();
@@ -182,8 +197,7 @@ PermissionParser::TokenType PermissionParser::parseKeyword() {
                 return ALLOW;
             if (keyword == "deny")
                 return DENY;
-            throw std::runtime_error("unknown keyword \"" + keyword + "\" on line "
-                                     + std::to_string(current_line_number_) + "!");
+            throw std::runtime_error("unknown keyword \"" + keyword + "\" on line " + std::to_string(current_line_number_) + "!");
         }
     }
 }
@@ -224,6 +238,7 @@ std::string PermissionParser::ToString(const TokenType token) {
 class Pattern {
     std::string pattern_;
     bool allow_;
+
 public:
     Pattern(const std::string &pattern, const bool allow): pattern_(pattern), allow_(allow) { }
     bool matched(const std::string &test_string) const;
@@ -266,13 +281,13 @@ void ParseRule(PermissionParser * const parser, std::vector<Pattern> * const pat
     } else if (token == PermissionParser::QUESTION_MARK) {
         token = parser->getToken();
         if (unlikely(token != PermissionParser::OPEN_SQUARE_BRACKET))
-            LOG_ERROR("on line "  + std::to_string(parser->getCurrentLineNumber()) + ": expected '[' but found "
-                  + PermissionParser::ToString(token) + "!");
+            LOG_ERROR("on line " + std::to_string(parser->getCurrentLineNumber()) + ": expected '[' but found "
+                      + PermissionParser::ToString(token) + "!");
         for (;;) { // Parse the comma-separated list.
             token = parser->getToken();
             if (unlikely(token != PermissionParser::STRING_CONST))
-                LOG_ERROR("on line "  + std::to_string(parser->getCurrentLineNumber())
-                          + ": expected a string constant but found " + PermissionParser::ToString(token) + "!");
+                LOG_ERROR("on line " + std::to_string(parser->getCurrentLineNumber()) + ": expected a string constant but found "
+                          + PermissionParser::ToString(token) + "!");
             patterns->emplace_back(parser->getLastStringConstant(), allow);
 
             token = parser->getToken();
@@ -280,12 +295,12 @@ void ParseRule(PermissionParser * const parser, std::vector<Pattern> * const pat
                 SkipToNextDashOrEndOfInput(parser);
                 return;
             } else if (unlikely(token != PermissionParser::COMMA))
-                LOG_ERROR("on line "  + std::to_string(parser->getCurrentLineNumber())
-                          + ": expected ']' or ',' but found " + PermissionParser::ToString(token) + "!");
+                LOG_ERROR("on line " + std::to_string(parser->getCurrentLineNumber()) + ": expected ']' or ',' but found "
+                          + PermissionParser::ToString(token) + "!");
         }
     } else
-        LOG_ERROR("on line " + std::to_string(parser->getCurrentLineNumber()) + " unexpected token "
-                  + PermissionParser::ToString(token) + "!");
+        LOG_ERROR("on line " + std::to_string(parser->getCurrentLineNumber()) + " unexpected token " + PermissionParser::ToString(token)
+                  + "!");
 }
 
 
@@ -299,8 +314,8 @@ void ParseEmailRules(File * const input, std::vector<Pattern> * const patterns) 
         if (token == PermissionParser::DASH)
             ParseRule(&parser, patterns);
         else
-            LOG_ERROR("unexpected token " + PermissionParser::ToString(token) + " on line "
-                      + std::to_string(parser.getCurrentLineNumber()) + "!");
+            LOG_ERROR("unexpected token " + PermissionParser::ToString(token) + " on line " + std::to_string(parser.getCurrentLineNumber())
+                      + "!");
     }
 }
 
@@ -326,8 +341,7 @@ std::string GetEmailAddress(DbConnection * const db_connection, const std::strin
 
 void UpdateSingleUser(DbConnection * const db_connection, const std::vector<Pattern> &patterns, const std::string &user_ID) {
     const std::string email_address(GetEmailAddress(db_connection, user_ID));
-    db_connection->queryOrDie("UPDATE user SET ixtheo_can_use_tad="
-                              + std::string(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE")
+    db_connection->queryOrDie("UPDATE user SET ixtheo_can_use_tad=" + std::string(CanUseTAD(email_address, patterns) ? "TRUE" : "FALSE")
                               + " WHERE id=" + user_ID);
 }
 

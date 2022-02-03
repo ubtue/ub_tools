@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #include <iostream>
 #include <string>
 #include <cstdlib>
@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
                     std::cout << '"' << subject << "\" was not matched!\n";
                     continue;
                 }
-                logger->error("match for subject \"" + subject +"\" failed! (" + err_msg + ")");
+                logger->error("match for subject \"" + subject + "\" failed! (" + err_msg + ")");
             }
             std::cout << subject << ":\n";
             for (unsigned group(0); group < matcher->getLastMatchCount(); ++group)

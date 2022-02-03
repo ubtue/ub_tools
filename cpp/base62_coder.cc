@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <iostream>
@@ -33,9 +33,10 @@ namespace {
 }
 
 
-const char BASE62_DIGITS[]("0123456789"
-                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                           "abcdefghijklmnopqrstuvwxyz");
+const char BASE62_DIGITS[](
+    "0123456789"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz");
 
 
 std::string EncodeBase10ToBase62(const std::string &base10_number) {

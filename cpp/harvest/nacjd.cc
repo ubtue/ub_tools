@@ -33,19 +33,20 @@
 #include "HttpHeader.h"
 #include "JSON.h"
 #include "MARC.h"
+#include "UBTools.h"
 #include "UrlUtil.h"
 #include "util.h"
-#include "UBTools.h"
 
 
 namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("marc_title_in_file new_marc_title_out_file\n"
-            "where marc_title_in_file contains also icpsr records (001 or 035a)\n"
-            "these records are not processed any more\n"
-            "new_marc_title_out_file contains all icpsr records not contained in input file.");
+    ::Usage(
+        "marc_title_in_file new_marc_title_out_file\n"
+        "where marc_title_in_file contains also icpsr records (001 or 035a)\n"
+        "these records are not processed any more\n"
+        "new_marc_title_out_file contains all icpsr records not contained in input file.");
 }
 
 
@@ -105,7 +106,8 @@ void HandleChar(const char c) {
 
 
 bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const bool use_separator) {
-    const std::string DOWNLOAD_URL("https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id + "/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
+    const std::string DOWNLOAD_URL("https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id
+                                   + "/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
 
     Downloader downloader(DOWNLOAD_URL, Downloader::Params(), TIMEOUT_IN_SECONDS * 1000);
     if (downloader.anErrorOccurred()) {
@@ -113,7 +115,7 @@ bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const boo
         return false;
     }
 
-     // Check for rate limiting and error status codes:
+    // Check for rate limiting and error status codes:
     const HttpHeader http_header(downloader.getMessageHeader());
     if (http_header.getStatusCode() != 200) {
         LOG_WARNING("NACJD returned HTTP status code " + std::to_string(http_header.getStatusCode()) + "! for NACJD id: " + id);
@@ -137,7 +139,7 @@ bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const boo
 }
 
 
-void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::string>  * const parsed_marc_ids) {
+void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::string> * const parsed_marc_ids) {
     while (MARC::Record record = marc_reader->read()) {
         std::string ppn(record.getControlNumber());
         if (StringUtil::Contains(ppn, "[ICPSR]")) {
@@ -157,7 +159,9 @@ void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::
 
 
 void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigned * const number_of_new_ids) {
-    const std::string DOWNLOAD_URL("https://www.icpsr.umich.edu/web/NACJD/search/studies?start=0&ARCHIVE=NACJD&PUBLISH_STATUS=PUBLISHED&sort=DATEUPDATED%20desc&rows=9000");
+    const std::string DOWNLOAD_URL(
+        "https://www.icpsr.umich.edu/web/NACJD/search/"
+        "studies?start=0&ARCHIVE=NACJD&PUBLISH_STATUS=PUBLISHED&sort=DATEUPDATED%20desc&rows=9000");
     if (FileUtil::Exists(NACJD_TITLES))
         FileUtil::DeleteFile(NACJD_TITLES);
 
@@ -165,9 +169,7 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
         LOG_ERROR("Could not download website with nacjd ids.");
     std::ifstream file(NACJD_TITLES);
     if (file)
-        std::for_each(std::istream_iterator<char>(file),
-                      std::istream_iterator<char>(),
-                      HandleChar);
+        std::for_each(std::istream_iterator<char>(file), std::istream_iterator<char>(), HandleChar);
     else
         LOG_ERROR("couldn't open file: " + NACJD_TITLES);
 
@@ -305,8 +307,9 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
             const auto alternateIdentifier_node(JSON::JSONNode::CastToObjectNodeOrDie("alternateIdentifier", internal_alternateIdentifier));
             const std::string id(alternateIdentifier_node->getStringNode("identifier")->getValue());
             if (complete) {
-                MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED, "[ICPSR]" + id);
-                new_record.insertField("245", { { 'a', title_node->getValue() } }, /* indicator 1 = */'0', /* indicator 2 = */'0');
+                MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED,
+                                        "[ICPSR]" + id);
+                new_record.insertField("245", { { 'a', title_node->getValue() } }, /* indicator 1 = */ '0', /* indicator 2 = */ '0');
                 new_record.insertField("520", { { 'a', description } });
                 new_record.insertField("540", { { 'a', license } });
                 new_record.insertField("264", { { 'c', initial_release_date } });
@@ -323,7 +326,8 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
         }
     }
     LOG_INFO("Processed: " + std::to_string(no_total) + "entries. " + std::to_string(no_initial_date) + " w/o initial date, "
-                    + std::to_string(no_title) + " w/o title, " + std::to_string(no_creators) + " w/o creator and " + std::to_string(no_license) + " w/o license.");
+             + std::to_string(no_title) + " w/o title, " + std::to_string(no_creators) + " w/o creator and " + std::to_string(no_license)
+             + " w/o license.");
 }
 
 

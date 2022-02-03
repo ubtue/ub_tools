@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <iostream>
@@ -36,8 +36,9 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("marc_data superior_ppn_list\n"
-            "\tsuperior_ppn_list will contain the journal PPN's for which publication years have to be adjusted.\n");
+    ::Usage(
+        "marc_data superior_ppn_list\n"
+        "\tsuperior_ppn_list will contain the journal PPN's for which publication years have to be adjusted.\n");
 }
 
 
@@ -55,9 +56,7 @@ void CollectMonoPPNs(MARC::Reader * const marc_reader, std::unordered_set<std::s
 }
 
 
-void ProcessRecords(MARC::Reader * const marc_reader, File * const output,
-                    const std::unordered_set<std::string> &monograph_ppns)
-{
+void ProcessRecords(MARC::Reader * const marc_reader, File * const output, const std::unordered_set<std::string> &monograph_ppns) {
     unsigned record_count(0), matched_articles_count(0);
     std::unordered_set<std::string> superior_ppns;
     while (const MARC::Record record = marc_reader->read()) {
@@ -112,8 +111,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, File * const output,
         }
     }
 
-    LOG_INFO("found " + std::to_string(matched_articles_count) + " matching articles in " + std::to_string(record_count)
-             + " records.");
+    LOG_INFO("found " + std::to_string(matched_articles_count) + " matching articles in " + std::to_string(record_count) + " records.");
 
     for (const auto &ppn : superior_ppns)
         (*output) << ppn << '\n';

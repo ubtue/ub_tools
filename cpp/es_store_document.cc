@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <stdexcept>
@@ -33,12 +33,14 @@ static void Usage() __attribute__((noreturn));
 
 static std::string DEFAULT_SERVER_URL("http://localhost:9200");
 
-    
+
 static void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--debug] [--server-url=url] --title=title_data (--text=document_contents|--text-from-file=path) other_fields_to_submit\n"
-              << "       If not specified with \"--server\" the default server URL is \"" << DEFAULT_SERVER_URL << "\".\n"     
-              << "       other_fields_to_submit must have the format --field-name=field_value.  \"field-name\" can be any\n"
-              << "       name except for \"title\", \"text\", or \"text-from-file\".\n\n";
+    std::cerr
+        << "Usage: " << ::progname
+        << " [--debug] [--server-url=url] --title=title_data (--text=document_contents|--text-from-file=path) other_fields_to_submit\n"
+        << "       If not specified with \"--server\" the default server URL is \"" << DEFAULT_SERVER_URL << "\".\n"
+        << "       other_fields_to_submit must have the format --field-name=field_value.  \"field-name\" can be any\n"
+        << "       name except for \"title\", \"text\", or \"text-from-file\".\n\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -60,7 +62,7 @@ int main(int argc, char *argv[]) {
         server_url = argv[1] + __builtin_strlen("--server-url=");
         --argc, ++argv;
     }
-    
+
     if (argc < 3)
         Usage();
 
@@ -93,7 +95,7 @@ int main(int argc, char *argv[]) {
             put_data += first_equal_sign + 1;
             put_data += '"';
         }
-        
+
         put_data += "\n}\n";
         if (debug)
             std::cout << put_data;

@@ -47,6 +47,7 @@ namespace {
 
 class CrossrefDate {
     unsigned year_, month_, day_;
+
 public:
     CrossrefDate(const JSON::ObjectNode &tree, const std::string &field);
     bool isValid() const { return year_ != 0; }
@@ -173,11 +174,13 @@ std::string CrossrefDate::toString() const {
 class MapDescriptor {
 public:
     enum FieldType { STRING, STRING_VECTOR, YEAR };
+
 protected:
     std::string json_field_;
     FieldType field_type_;
     std::string marc_subfield_;
     bool repeatable_;
+
 public:
     MapDescriptor(const std::string &json_field, const FieldType field_type, const std::string &marc_subfield,
                   const bool repeatable = false)
@@ -195,11 +198,11 @@ public:
 void MapDescriptor::insertMarcData(const std::string &subfield_value, MARC::Record * const record) {
     const std::string tag(marc_subfield_.substr(0, MARC::Record::TAG_LENGTH));
     const char subfield_code(marc_subfield_.back());
-    record->insertField(tag, { { subfield_code, subfield_value } } );
+    record->insertField(tag, { { subfield_code, subfield_value } });
 }
 
 
-class DOIMapDescriptor: public MapDescriptor {
+class DOIMapDescriptor : public MapDescriptor {
 public:
     DOIMapDescriptor(): MapDescriptor("DOI", MapDescriptor::STRING, "024a") { }
     virtual void insertMarcData(const std::string &subfield_value, MARC::Record * const record) override final;
@@ -214,8 +217,7 @@ inline std::string CreateSubfield(const char subfield_code, const std::string &s
 void DOIMapDescriptor::insertMarcData(const std::string &subfield_value, MARC::Record * const record) {
     const std::string tag(marc_subfield_.substr(0, MARC::Record::TAG_LENGTH));
     const char subfield_code(marc_subfield_.back());
-    record->insertField(tag, "7 " + CreateSubfield(subfield_code, subfield_value)
-                        + CreateSubfield('2', "doi"));
+    record->insertField(tag, "7 " + CreateSubfield(subfield_code, subfield_value) + CreateSubfield('2', "doi"));
 }
 
 
@@ -239,8 +241,7 @@ std::vector<std::string> ExtractString(const JSON::ObjectNode &object_node, cons
 
 
 std::vector<std::string> ExtractStringVector(const JSON::ObjectNode &object_node, const std::string &json_field_name,
-                                             const bool is_repeatable)
-{
+                                             const bool is_repeatable) {
     std::vector<std::string> extracted_values;
 
     std::shared_ptr<const JSON::ArrayNode> array_node(object_node.getOptionalArrayNode(json_field_name));
@@ -276,9 +277,7 @@ std::string ExtractName(const std::shared_ptr<const JSON::ObjectNode> object_nod
 }
 
 
-void AddAuthors(const std::string &DOI, const std::string &ISSN, const JSON::ObjectNode &message_tree,
-                MARC::Record * const marc_record)
-{
+void AddAuthors(const std::string &DOI, const std::string &ISSN, const JSON::ObjectNode &message_tree, MARC::Record * const marc_record) {
     std::shared_ptr<const JSON::ArrayNode> authors(message_tree.getOptionalArrayNode("author"));
     if (authors == nullptr) {
         LOG_WARNING("no author node found, DOI was \"" + DOI + "\", ISSN was \"" + ISSN + "\"!");
@@ -320,13 +319,13 @@ void AddEditors(const JSON::ObjectNode &message_tree, MARC::Record * const marc_
 void AddIssueInfo(const JSON::ObjectNode &message_tree, MARC::Record * const marc_record) {
     std::string field_data;
     const CrossrefDate issued_date(message_tree, "issued");
-    #ifndef __clang__
-    #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-    #endif
+#ifndef __clang__
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
     if (issued_date.isValid()) {
-    #ifndef __clang__
-    #pragma GCC diagnostic ignored "+Wmaybe-uninitialized"
-    #endif
+#ifndef __clang__
+#pragma GCC diagnostic ignored "+Wmaybe-uninitialized"
+#endif
         if (issued_date.getDay() != 0)
             field_data += CreateSubfield('b', std::to_string(issued_date.getDay()));
         if (issued_date.getMonth() != 0)
@@ -382,7 +381,7 @@ void AddISSN(const JSON::ObjectNode &message_tree, MARC::Record * const marc_rec
         }
 
         if (not issn.empty()) {
-            marc_record->insertField("022", { { 'a', issn }});
+            marc_record->insertField("022", { { 'a', issn } });
             return;
         }
     }
@@ -423,10 +422,9 @@ bool AddTitle(const JSON::ObjectNode &message_tree, MARC::Record * const marc_re
 
 
 /** \return True, if we wrote a record and false if we suppressed a duplicate. */
-bool CreateAndWriteMarcRecord(MARC::Writer * const marc_writer, KeyValueDB * const notified_db,
-                              const std::string &DOI, const std::string &ISSN, const JSON::ObjectNode &message_tree,
-                              const std::vector<MapDescriptor *> &map_descriptors)
-{
+bool CreateAndWriteMarcRecord(MARC::Writer * const marc_writer, KeyValueDB * const notified_db, const std::string &DOI,
+                              const std::string &ISSN, const JSON::ObjectNode &message_tree,
+                              const std::vector<MapDescriptor *> &map_descriptors) {
     MARC::Record record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART);
     static unsigned control_number(0);
     record.insertField("001", std::to_string(++control_number));
@@ -471,15 +469,14 @@ bool CreateAndWriteMarcRecord(MARC::Writer * const marc_writer, KeyValueDB * con
 
 // Expects "line" to look like "XXXX-XXXX,YYYY-YYYY,...ZZZZ-ZZZZ JJJ" where "XXXX-XXXX", "YYYY-YYYY" and "ZZZZ-ZZZZ"
 // are ISSN's and "JJJ" a journal title.
-bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * const issns, std::string * const journal_name)
-{
+bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * const issns, std::string * const journal_name) {
     const size_t first_space_pos(line.find(' '));
     if (unlikely(first_space_pos == std::string::npos or first_space_pos == 0)) {
         LOG_WARNING("No space found!");
         return false;
     }
 
-    if (StringUtil::Split(line.substr(0, first_space_pos), ',', issns, /* suppress_empty_components = */true) == 0) {
+    if (StringUtil::Split(line.substr(0, first_space_pos), ',', issns, /* suppress_empty_components = */ true) == 0) {
         LOG_WARNING("No ISSNS found!");
         return false;
     }
@@ -496,11 +493,9 @@ bool GetISSNsAndJournalName(const std::string &line, std::vector<std::string> * 
 }
 
 
-void ProcessISSN(const std::string &ISSN, const unsigned timeout, MARC::Writer * const marc_writer,
-                 KeyValueDB * const notified_db, const std::vector<MapDescriptor *> &map_descriptors,
-                 std::unordered_set<std::string> * const already_seen, unsigned * const written_count,
-                 unsigned * const suppressed_count)
-{
+void ProcessISSN(const std::string &ISSN, const unsigned timeout, MARC::Writer * const marc_writer, KeyValueDB * const notified_db,
+                 const std::vector<MapDescriptor *> &map_descriptors, std::unordered_set<std::string> * const already_seen,
+                 unsigned * const written_count, unsigned * const suppressed_count) {
     *written_count = *suppressed_count = 0;
 
     const std::string DOWNLOAD_URL("https://api.crossref.org/v1/journals/" + ISSN + "/works");
@@ -558,10 +553,9 @@ void ProcessISSN(const std::string &ISSN, const unsigned timeout, MARC::Writer *
 }
 
 
-void ProcessJournal(const unsigned timeout, const std::string &line, MARC::Writer * const marc_writer,
-                    KeyValueDB * const notified_db, const std::vector<MapDescriptor *> &map_descriptors,
-                    unsigned * const total_written_count, unsigned * const total_suppressed_count)
-{
+void ProcessJournal(const unsigned timeout, const std::string &line, MARC::Writer * const marc_writer, KeyValueDB * const notified_db,
+                    const std::vector<MapDescriptor *> &map_descriptors, unsigned * const total_written_count,
+                    unsigned * const total_suppressed_count) {
     std::vector<std::string> issns;
     std::string journal_name;
     if (unlikely(not GetISSNsAndJournalName(line, &issns, &journal_name)))
@@ -571,9 +565,8 @@ void ProcessJournal(const unsigned timeout, const std::string &line, MARC::Write
     std::unordered_set<std::string> already_seen;
     for (const auto &issn : issns) {
         unsigned written_count, suppressed_count;
-        ProcessISSN(issn, timeout, marc_writer, notified_db, map_descriptors, &already_seen, &written_count,
-                    &suppressed_count);
-        *total_written_count    += written_count;
+        ProcessISSN(issn, timeout, marc_writer, notified_db, map_descriptors, &already_seen, &written_count, &suppressed_count);
+        *total_written_count += written_count;
         *total_suppressed_count += suppressed_count;
     }
 }
@@ -625,16 +618,15 @@ int Main(int argc, char *argv[]) {
         StringUtil::Trim(&line);
         if (not line.empty()) {
             const unsigned old_total_written_count(total_written_count);
-            ProcessJournal(timeout, line, marc_writer.get(), notified_db.get(), map_descriptors,
-                           &total_written_count , &total_suppressed_count);
+            ProcessJournal(timeout, line, marc_writer.get(), notified_db.get(), map_descriptors, &total_written_count,
+                           &total_suppressed_count);
             if (old_total_written_count < total_written_count)
                 ++journal_success_count;
         }
     }
 
     std::cout << "Downloaded metadata for at least one article from " << journal_success_count << " journals.\n";
-    std::cout << "The total number of articles for which metadata was downloaded and written out is "
-              << total_written_count
+    std::cout << "The total number of articles for which metadata was downloaded and written out is " << total_written_count
               << ".\nAnd the number of articles that were identical to previous downloads and therefore "
               << "suppressed is " << total_suppressed_count << ".\n";
 

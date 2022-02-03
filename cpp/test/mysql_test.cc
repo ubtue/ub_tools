@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
@@ -42,13 +42,15 @@ int main(int argc, char *argv[]) {
     bool raw(false);
     if (std::strcmp(argv[1], "--raw") == 0) {
         raw = true;
-        --argc;++argv;
+        --argc;
+        ++argv;
     }
 
     std::string host("localhost");
     if (argc == 6) {
         host = argv[1];
-        --argc;++argv;
+        --argc;
+        ++argv;
     }
 
 
@@ -69,7 +71,7 @@ int main(int argc, char *argv[]) {
             const size_t field_count(row.size());
             if (not raw)
                 std::cout << "The current row has " << field_count << " fields.\n";
-            for (unsigned field_no(0); field_no < field_count; ++ field_no) {
+            for (unsigned field_no(0); field_no < field_count; ++field_no) {
                 const std::string column(row[field_no]);
                 if (raw)
                     std::cout.write(column.data(), column.size());

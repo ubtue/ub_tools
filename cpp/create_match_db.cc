@@ -71,7 +71,7 @@ void PopulateTables(ControlNumberGuesser * const control_number_guesser, MARC::R
         for (const auto &issn : record.getISSNs())
             control_number_guesser->insertISSN(issn, control_number);
 
-        for (const auto &superior_issn: record.getSuperiorISSNs())
+        for (const auto &superior_issn : record.getSuperiorISSNs())
             control_number_guesser->insertISSN(superior_issn, control_number);
 
         for (const auto &isbn : record.getISBNs())

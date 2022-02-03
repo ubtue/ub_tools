@@ -71,10 +71,10 @@ void FilterOutStopwords(const std::unordered_set<std::string> &stopwords, std::v
 
     bool removed_at_least_one_word(false);
     for (const auto &word : *words) {
-      if (stopwords.find(word) == stopwords.end())
-          filtered_words.emplace_back(word);
-      else
-          removed_at_least_one_word = true;
+        if (stopwords.find(word) == stopwords.end())
+            filtered_words.emplace_back(word);
+        else
+            removed_at_least_one_word = true;
     }
     if (removed_at_least_one_word)
         words->swap(filtered_words);
@@ -96,19 +96,16 @@ inline std::string FilterOutNonwordChars(const std::string &phrase) {
 // "stemmed_keyword_to_stemmed_keyphrases_map" and "stemmed_keyphrases_to_unstemmed_keyphrases_map".
 // The former maps from each individual stemmed word to the entire cleaned up and stemmed key phrase and the
 // latter maps from the cleaned up and stemmed key phrase to the original key phrase.
-void ProcessKeywordPhrase(
-    const std::string &keyword_phrase, const Stemmer * const stemmer,
-    std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
-    std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
-{
+void ProcessKeywordPhrase(const std::string &keyword_phrase, const Stemmer * const stemmer,
+                          std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
+                          std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map) {
     std::string cleaned_up_phrase(keyword_phrase);
 
     // Convert "surname, first_name" to "first_name surname" assuming we only have a comma if the keyphrase
     // consist of a name:
     const size_t comma_pos(keyword_phrase.find(','));
     if (comma_pos != std::string::npos)
-        cleaned_up_phrase = cleaned_up_phrase.substr(comma_pos + 1) + " "
-            + cleaned_up_phrase.substr(0, comma_pos);
+        cleaned_up_phrase = cleaned_up_phrase.substr(comma_pos + 1) + " " + cleaned_up_phrase.substr(0, comma_pos);
 
     cleaned_up_phrase = FilterOutNonwordChars(cleaned_up_phrase);
 
@@ -117,12 +114,13 @@ void ProcessKeywordPhrase(
     TextUtil::UTF8ToLower(stemmed_phrase, &lowercase_stemmed_phrase);
     (*stemmed_keyphrases_to_unstemmed_keyphrases_map)[lowercase_stemmed_phrase] = keyword_phrase;
     std::vector<std::string> stemmed_words;
-    StringUtil::Split(lowercase_stemmed_phrase, ' ', &stemmed_words, /* suppress_empty_components = */true);
+    StringUtil::Split(lowercase_stemmed_phrase, ' ', &stemmed_words, /* suppress_empty_components = */ true);
     for (const auto &stemmed_word : stemmed_words) {
         auto iter(stemmed_keyword_to_stemmed_keyphrases_map->find(stemmed_word));
         if (iter == stemmed_keyword_to_stemmed_keyphrases_map->end())
-            (*stemmed_keyword_to_stemmed_keyphrases_map)[stemmed_word] =
-                std::set<std::string>{ lowercase_stemmed_phrase, };
+            (*stemmed_keyword_to_stemmed_keyphrases_map)[stemmed_word] = std::set<std::string>{
+                lowercase_stemmed_phrase,
+            };
         else
             (*stemmed_keyword_to_stemmed_keyphrases_map)[stemmed_word].insert(lowercase_stemmed_phrase);
     }
@@ -145,11 +143,9 @@ std::string CanonizeCentury(const std::string &century_candidate) {
 
 
 size_t ExtractKeywordsFromKeywordChainFields(
-    const MARC::Record &record,
-    const Stemmer * const stemmer,
+    const MARC::Record &record, const Stemmer * const stemmer,
     std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
-    std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
-{
+    std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map) {
     size_t keyword_count(0);
 
     for (const auto &field : record.getTagRange("689")) {
@@ -170,26 +166,21 @@ size_t ExtractKeywordsFromKeywordChainFields(
 }
 
 
-size_t ExtractAllKeywords(
-    const MARC::Record &record,
-    std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
-    std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
-{
+size_t ExtractAllKeywords(const MARC::Record &record,
+                          std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
+                          std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map) {
     const std::string language_code(MARC::GetLanguageCode(record));
     const Stemmer * const stemmer(language_code.empty() ? nullptr : Stemmer::StemmerFactory(language_code));
 
-    size_t extracted_count(ExtractKeywordsFromKeywordChainFields(record, stemmer,
-                                                                 stemmed_keyword_to_stemmed_keyphrases_map,
+    size_t extracted_count(ExtractKeywordsFromKeywordChainFields(record, stemmer, stemmed_keyword_to_stemmed_keyphrases_map,
                                                                  stemmed_keyphrases_to_unstemmed_keyphrases_map));
     return extracted_count;
 }
 
 
-void ExtractStemmedKeywords(
-    MARC::Reader * const marc_reader,
-    std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
-    std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map)
-{
+void ExtractStemmedKeywords(MARC::Reader * const marc_reader,
+                            std::unordered_map<std::string, std::set<std::string>> * const stemmed_keyword_to_stemmed_keyphrases_map,
+                            std::unordered_map<std::string, std::string> * const stemmed_keyphrases_to_unstemmed_keyphrases_map) {
     LOG_INFO("Starting extraction and stemming of pre-existing keywords.");
 
     unsigned total_count(0), records_with_keywords_count(0), keywords_count(0);
@@ -197,8 +188,7 @@ void ExtractStemmedKeywords(
         ++total_count;
 
         const size_t extracted_count(
-            ExtractAllKeywords(record, stemmed_keyword_to_stemmed_keyphrases_map,
-                               stemmed_keyphrases_to_unstemmed_keyphrases_map));
+            ExtractAllKeywords(record, stemmed_keyword_to_stemmed_keyphrases_map, stemmed_keyphrases_to_unstemmed_keyphrases_map));
         if (extracted_count > 0) {
             ++records_with_keywords_count;
             keywords_count += extracted_count;
@@ -207,8 +197,8 @@ void ExtractStemmedKeywords(
 
     LOG_INFO(std::to_string(total_count) + " records processed.");
     LOG_INFO(std::to_string(records_with_keywords_count) + " records had keywords.");
-    LOG_INFO(std::to_string(keywords_count) + " keywords were extracted of which " +
-             std::to_string(stemmed_keyword_to_stemmed_keyphrases_map->size()) + " were unique.");
+    LOG_INFO(std::to_string(keywords_count) + " keywords were extracted of which "
+             + std::to_string(stemmed_keyword_to_stemmed_keyphrases_map->size()) + " were unique.");
 }
 
 
@@ -235,8 +225,7 @@ void AugmentRecordsWithTitleKeywords(
     MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
     const std::unordered_map<std::string, std::set<std::string>> &stemmed_keyword_to_stemmed_keyphrases_map,
     const std::unordered_map<std::string, std::string> &stemmed_keyphrases_to_unstemmed_keyphrases_map,
-    const std::map<std::string, std::unordered_set<std::string>> &language_codes_to_stopword_sets)
-{
+    const std::map<std::string, std::unordered_set<std::string>> &language_codes_to_stopword_sets) {
     LOG_INFO("Starting augmentation of stopwords.");
 
     unsigned total_count(0), augmented_record_count(0);
@@ -294,8 +283,7 @@ void AugmentRecordsWithTitleKeywords(
 
         std::unordered_map<std::string, std::set<std::string>> local_stemmed_keyword_to_stemmed_keyphrases_map;
         std::unordered_map<std::string, std::string> local_stemmed_keyphrases_to_unstemmed_keyphrases_map;
-        ExtractAllKeywords(record, &local_stemmed_keyword_to_stemmed_keyphrases_map,
-                           &local_stemmed_keyphrases_to_unstemmed_keyphrases_map);
+        ExtractAllKeywords(record, &local_stemmed_keyword_to_stemmed_keyphrases_map, &local_stemmed_keyphrases_to_unstemmed_keyphrases_map);
 
         // Find title phrases that match stemmed keyphrases:
         std::unordered_set<std::string> new_keyphrases;
@@ -309,14 +297,12 @@ void AugmentRecordsWithTitleKeywords(
                     continue; // We already have this in our MARC record.
 
                 std::vector<std::string> stemmed_phrase_as_vector;
-                StringUtil::Split(stemmed_phrase, ' ', &stemmed_phrase_as_vector, /* suppress_empty_components = */true);
-                if (stemmed_phrase_as_vector.size() == 1
-                    and stemmed_phrase_as_vector[0].length() < MIN_SINGLE_STEMMED_KEYWORD_LENGTH)
+                StringUtil::Split(stemmed_phrase, ' ', &stemmed_phrase_as_vector, /* suppress_empty_components = */ true);
+                if (stemmed_phrase_as_vector.size() == 1 and stemmed_phrase_as_vector[0].length() < MIN_SINGLE_STEMMED_KEYWORD_LENGTH)
                     continue;
 
                 if (TextUtil::FindSubstring(title_words, stemmed_phrase_as_vector) != title_words.end()) {
-                    const auto stemmed_and_unstemmed_keyphrase(
-                        stemmed_keyphrases_to_unstemmed_keyphrases_map.find(stemmed_phrase));
+                    const auto stemmed_and_unstemmed_keyphrase(stemmed_keyphrases_to_unstemmed_keyphrases_map.find(stemmed_phrase));
                     new_keyphrases.insert(stemmed_and_unstemmed_keyphrase->second);
                 }
             }
@@ -335,8 +321,8 @@ void AugmentRecordsWithTitleKeywords(
         ++augmented_record_count;
     }
 
-    LOG_INFO(std::to_string(augmented_record_count) + " records of " + std::to_string(total_count) +
-             " were augmented w/ additional keywords.");
+    LOG_INFO(std::to_string(augmented_record_count) + " records of " + std::to_string(total_count)
+             + " were augmented w/ additional keywords.");
 }
 
 
@@ -378,13 +364,10 @@ int Main(int argc, char **argv) {
 
     std::unordered_map<std::string, std::set<std::string>> stemmed_keyword_to_stemmed_keyphrases_map;
     std::unordered_map<std::string, std::string> stemmed_keyphrases_to_unstemmed_keyphrases_map;
-    ExtractStemmedKeywords(marc_reader.get(), &stemmed_keyword_to_stemmed_keyphrases_map,
-                            &stemmed_keyphrases_to_unstemmed_keyphrases_map);
+    ExtractStemmedKeywords(marc_reader.get(), &stemmed_keyword_to_stemmed_keyphrases_map, &stemmed_keyphrases_to_unstemmed_keyphrases_map);
     marc_reader->rewind();
-    AugmentRecordsWithTitleKeywords(marc_reader.get(), marc_writer.get(),
-                                    stemmed_keyword_to_stemmed_keyphrases_map,
-                                    stemmed_keyphrases_to_unstemmed_keyphrases_map,
-                                    language_codes_to_stopword_sets);
+    AugmentRecordsWithTitleKeywords(marc_reader.get(), marc_writer.get(), stemmed_keyword_to_stemmed_keyphrases_map,
+                                    stemmed_keyphrases_to_unstemmed_keyphrases_map, language_codes_to_stopword_sets);
 
     return EXIT_SUCCESS;
 }

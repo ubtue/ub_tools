@@ -15,13 +15,13 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 #include <cstdio>
 #include <cstdlib>
-#include <vector>
 #include "FileUtil.h"
 #include "FullTextImport.h"
 #include "MapUtil.h"
@@ -29,15 +29,16 @@
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "UBTools.h"
-#include "util.h"
 #include "XMLParser.h"
+#include "util.h"
 
 
 namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] [--normalise-only] [--full-text-encoding=encoding] xml_input full_text_output\n"
+    std::cerr << "Usage: " << ::progname
+              << " [--min-log-level=min_verbosity] [--normalise-only] [--full-text-encoding=encoding] xml_input full_text_output\n"
               << "       When specifying --normalise-only we only require the input filename!\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -76,7 +77,7 @@ void ExtractMetadata(XMLParser * const xml_parser, FullTextImport::FullTextData 
         else if (not in_series and (xml_part.isOpeningTag("Title") or xml_part.isOpeningTag("TitleElement"))) {
             std::string title_type;
             xml_parser->extractTextBetweenTags("TitleType", &title_type);
-            if (StringUtil::ToUnsigned(title_type) ==  static_cast<unsigned>(ONIX::TitleType::DISTINCTIVE_TITLE)) {
+            if (StringUtil::ToUnsigned(title_type) == static_cast<unsigned>(ONIX::TitleType::DISTINCTIVE_TITLE)) {
                 std::string title_text;
                 xml_parser->extractTextBetweenTags("TitleText", &title_text);
                 metadata->title_ = title_text;
@@ -93,8 +94,7 @@ void ExtractMetadata(XMLParser * const xml_parser, FullTextImport::FullTextData 
 
 
 void ProcessDocument(const bool normalise_only, const std::string &input_file_path, const std::string &full_text_encoding,
-                     XMLParser * const xml_parser, File * const plain_text_output)
-{
+                     XMLParser * const xml_parser, File * const plain_text_output) {
     FullTextImport::FullTextData full_text_metadata;
     ExtractMetadata(xml_parser, &full_text_metadata);
 
@@ -134,7 +134,9 @@ void ProcessDocument(const bool normalise_only, const std::string &input_file_pa
     }
 
     FullTextImport::WriteExtractedTextToDisk(full_text, full_text_metadata.title_, full_text_metadata.authors_, full_text_metadata.year_,
-                                             full_text_metadata.doi_, full_text_metadata.issn_, full_text_metadata.isbn_, full_text_metadata.text_type_, "" /* full_text_location currently not used */, plain_text_output);
+                                             full_text_metadata.doi_, full_text_metadata.issn_, full_text_metadata.isbn_,
+                                             full_text_metadata.text_type_, "" /* full_text_location currently not used */,
+                                             plain_text_output);
 }
 
 
@@ -162,9 +164,9 @@ int Main(int argc, char *argv[]) {
 
     std::unordered_map<std::string, std::string> onix_short_tags_to_reference_map;
     MapUtil::DeserialiseMap(UBTools::GetTuelibPath() + "onix_reference_to_short_tags.map", &onix_short_tags_to_reference_map,
-                            /* revert_keys_and_values = */true);
+                            /* revert_keys_and_values = */ true);
 
-    XMLParser xml_parser (argv[1], XMLParser::XML_FILE);
+    XMLParser xml_parser(argv[1], XMLParser::XML_FILE);
     xml_parser.setTagAliases(onix_short_tags_to_reference_map);
     const auto plain_text_output(normalise_only ? nullptr : FileUtil::OpenOutputFileOrDie(argv[2]));
 

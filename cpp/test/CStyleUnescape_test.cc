@@ -22,4 +22,3 @@ int main(int argc, char *argv[]) {
 
     std::cout << "Unescaped string: \"" << TextUtil::CStyleUnescape(argv[1]) << "\"\n";
 }
-

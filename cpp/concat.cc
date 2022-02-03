@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <cstring>
@@ -43,9 +43,10 @@ std::string EscapeDoubleQuotesAndBangs(const std::string &s) {
 
 int Main(int argc, char *argv[]) {
     if (argc == 1) {
-        ::Usage("[--emit-trailing-newline] [--cstyle-escape|--escape-double-quotes-and-bangs] [--] string1 [string2 .. stringN]\n"
-                "In the unlikely case that your first string is \"--cstyle-escape\" use -- to indicate the\n"
-                "end of flags, o/w if the first argument is --cstyle-escape we assume you mean the flag.\n\n");
+        ::Usage(
+            "[--emit-trailing-newline] [--cstyle-escape|--escape-double-quotes-and-bangs] [--] string1 [string2 .. stringN]\n"
+            "In the unlikely case that your first string is \"--cstyle-escape\" use -- to indicate the\n"
+            "end of flags, o/w if the first argument is --cstyle-escape we assume you mean the flag.\n\n");
         return EXIT_SUCCESS;
     }
 

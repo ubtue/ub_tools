@@ -66,8 +66,7 @@ void ExtractDDCsFromField(const std::string &tag, const MARC::Record &record, st
 
 
 void ExtractDDCsFromAuthorityData(MARC::Reader * const authority_reader,
-                                  std::unordered_map<std::string, std::set<std::string>> * const norm_ids_to_ddcs_map)
-{
+                                  std::unordered_map<std::string, std::set<std::string>> * const norm_ids_to_ddcs_map) {
     norm_ids_to_ddcs_map->clear();
     LOG_INFO("Starting loading of norm data.");
 
@@ -94,12 +93,11 @@ void ExtractDDCsFromAuthorityData(MARC::Reader * const authority_reader,
 
 
 void ExtractTopicIDs(const std::string &tags, const MARC::Record &record, const std::set<std::string> &existing_ddcs,
-                     std::set<std::string> * const topic_ids)
-{
+                     std::set<std::string> * const topic_ids) {
     topic_ids->clear();
 
     std::vector<std::string> individual_tags;
-    StringUtil::Split(tags, ':', &individual_tags, /* suppress_empty_components = */true);
+    StringUtil::Split(tags, ':', &individual_tags, /* suppress_empty_components = */ true);
 
     for (const auto &tag : individual_tags) {
         for (const auto &field : record.getTagRange(tag)) {
@@ -117,8 +115,7 @@ void ExtractTopicIDs(const std::string &tags, const MARC::Record &record, const 
 
 
 void AugmentRecordsWithDDCs(MARC::Reader * const title_reader, MARC::Writer * const title_writer,
-                            const std::unordered_map<std::string, std::set<std::string>> &norm_ids_to_ddcs_map)
-{
+                            const std::unordered_map<std::string, std::set<std::string>> &norm_ids_to_ddcs_map) {
     LOG_INFO("Starting augmenting of data.");
 
     unsigned count(0), augmented_count(0), already_had_ddcs(0), never_had_ddcs_and_now_have_ddcs(0);

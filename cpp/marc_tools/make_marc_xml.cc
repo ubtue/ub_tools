@@ -33,15 +33,9 @@ void Usage() {
 
 
 const std::unordered_map<std::string, std::string> from_to{
-    { "<record>", "<marc:record>" },
-    { "</record>", "</marc:record>" },
-    { "<leader>", "<marc:leader>" },
-    { "</leader>", "</marc:leader>" },
-    { "<controlfield", "<marc:controlfield" },
-    { "</controlfield>", "</marc:controlfield>" },
-    { "<datafield", "<marc:datafield" },
-    { "</datafield>", "</marc:datafield>" },
-    { "<subfield", "<marc:subfield" },
+    { "<record>", "<marc:record>" },       { "</record>", "</marc:record>" },         { "<leader>", "<marc:leader>" },
+    { "</leader>", "</marc:leader>" },     { "<controlfield", "<marc:controlfield" }, { "</controlfield>", "</marc:controlfield>" },
+    { "<datafield", "<marc:datafield" },   { "</datafield>", "</marc:datafield>" },   { "<subfield", "<marc:subfield" },
     { "</subfield>", "</marc:subfield>" },
 };
 
@@ -71,25 +65,23 @@ std::string GetNextToken(File * const input) {
 
 class XMLComponent {
     std::string text_;
+
 public:
     explicit XMLComponent(const std::string &text);
     std::string toString() const;
     bool operator<(const XMLComponent &rhs) const { return getTag() < rhs.getTag(); }
+
 private:
     std::string getTag() const;
 };
 
 
-XMLComponent::XMLComponent(const std::string &text)
-    : text_(text)
-{
+XMLComponent::XMLComponent(const std::string &text): text_(text) {
     if (StringUtil::StartsWith(text_, "<datafield")) {
-        static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-            "(tag=\"...\")( +ind1=\".\")?( +ind2=\".\")?"));
+        static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("(tag=\"...\")( +ind1=\".\")?( +ind2=\".\")?"));
         if (matcher->matched(text_) and matcher->getLastMatchCount() != 4) {
             const size_t first_closing_angle_bracket_pos(text_.find('>'));
-            text_ = "<datafield " + (*matcher)[1] + " ind1=\" \" ind2=\" \""
-                    + text_.substr(first_closing_angle_bracket_pos);
+            text_ = "<datafield " + (*matcher)[1] + " ind1=\" \" ind2=\" \"" + text_.substr(first_closing_angle_bracket_pos);
         }
     }
 }
@@ -123,8 +115,7 @@ std::string XMLComponent::toString() const {
     // 2. Process closing tags:
     for (const auto &original_and_replacement : from_to) {
         if (StringUtil::EndsWith(converted_text, original_and_replacement.first)) {
-            converted_text = converted_text.substr(0, converted_text.length()
-                                                   - original_and_replacement.first.length())
+            converted_text = converted_text.substr(0, converted_text.length() - original_and_replacement.first.length())
                              + original_and_replacement.second;
             break;
         }
@@ -146,8 +137,7 @@ void Convert(File * const input, File * const output) {
     bool leader_open_seen(false); // We only like to see one of these.
     std::string component_text;
     RegexMatcher * const open_tag_matcher(RegexMatcher::RegexMatcherFactory("^<controlfield|^<datafield"));
-    RegexMatcher * const close_tag_matcher(
-        RegexMatcher::RegexMatcherFactory("</controlfield>|</datafield>|</leader>"));
+    RegexMatcher * const close_tag_matcher(RegexMatcher::RegexMatcherFactory("</controlfield>|</datafield>|</leader>"));
     while (not token.empty()) {
         if (converting) {
             if (token == "</record>") {
@@ -200,8 +190,7 @@ int main(int argc, char *argv[]) {
         Usage();
 
     const std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(argv[1]));
-    const std::unique_ptr<File> output(append ? FileUtil::OpenForAppendingOrDie(argv[2])
-                                              : FileUtil::OpenOutputFileOrDie(argv[2]));
+    const std::unique_ptr<File> output(append ? FileUtil::OpenForAppendingOrDie(argv[2]) : FileUtil::OpenOutputFileOrDie(argv[2]));
 
     try {
         Convert(input.get(), output.get());
@@ -209,4 +198,3 @@ int main(int argc, char *argv[]) {
         logger->error("caught exception: " + std::string(x.what()));
     }
 }
-

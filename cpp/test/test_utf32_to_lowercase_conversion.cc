@@ -26,7 +26,6 @@ int main(int argc, char *argv[]) {
     std::string utf8_string;
     if (not TextUtil::WCharToUTF8String(utf32_chars, &utf8_string))
         LOG_ERROR("failed to convert wstring to UTF8!");
-    
+
     std::cout << utf8_string << '\n';
 }
-

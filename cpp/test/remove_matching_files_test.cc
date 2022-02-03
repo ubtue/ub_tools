@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
         if (count == -1)
             logger->error("failed to delete one or more matching files or directories!");
         std::cout << "Deleted " << count << " matching files and or directories.\n";
-    } catch(const std::exception &x) {
+    } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
-    }  
+    }
 }

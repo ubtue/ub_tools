@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
 
     if (argc != 3)
         Usage();
-    
+
     try {
         return FileUtil::FilesDiffer(argv[1], argv[2]) ? EXIT_SUCCESS : EXIT_FAILURE;
     } catch (const std::exception &x) {

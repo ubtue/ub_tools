@@ -32,27 +32,29 @@
 #include "DbRow.h"
 #include "FileUtil.h"
 #include "KeyValueDB.h"
-#include "MapUtil.h"
 #include "MARC.h"
+#include "MapUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
 #include "UBTools.h"
-#include "util.h"
 #include "VuFind.h"
+#include "util.h"
 
 
 namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--store-only|--report-only] marc_input1 [marc_input2 .. marc_inputN] [-- deletion_list]\n"
-            "If --store-only has been specified, no swapping will be performed and only the persistent map file will be overwritten.\n"
-            "If deletion lists should be processed, they need to be specified after a double-hyphen to indicate the end of the MARC files.");
+    ::Usage(
+        "[--store-only|--report-only] marc_input1 [marc_input2 .. marc_inputN] [-- deletion_list]\n"
+        "If --store-only has been specified, no swapping will be performed and only the persistent map file will be overwritten.\n"
+        "If deletion lists should be processed, they need to be specified after a double-hyphen to indicate the end of the MARC files.");
 }
 
 
 struct PPNsAndSigil {
     std::string old_ppn_, old_sigil_, new_ppn_;
+
 public:
     PPNsAndSigil(const std::string &old_ppn, const std::string &old_sigil, const std::string &new_ppn)
         : old_ppn_(old_ppn), old_sigil_(old_sigil), new_ppn_(new_ppn) { }
@@ -63,8 +65,7 @@ public:
 
 void LoadMappingByFieldSpec(const MARC::Record &record, const std::string &tag, const char subfield_code,
                             const std::unordered_multimap<std::string, std::string> &already_processed_ppns_and_sigils,
-                            std::vector<PPNsAndSigil> * const old_ppns_sigils_and_new_ppns)
-{
+                            std::vector<PPNsAndSigil> * const old_ppns_sigils_and_new_ppns) {
     static auto matcher(RegexMatcher::RegexMatcherFactoryOrDie("^\\((DE-627)\\)(.+)"));
 
     for (const auto &field : record.getTagRange(tag)) {
@@ -81,8 +82,7 @@ void LoadMappingByFieldSpec(const MARC::Record &record, const std::string &tag, 
 
 void LoadMapping(MARC::Reader * const marc_reader,
                  const std::unordered_multimap<std::string, std::string> &already_processed_ppns_and_sigils,
-                 std::vector<PPNsAndSigil> * const old_ppns_sigils_and_new_ppns)
-{
+                 std::vector<PPNsAndSigil> * const old_ppns_sigils_and_new_ppns) {
     while (const auto record = marc_reader->read()) {
         LoadMappingByFieldSpec(record, "035", 'a', already_processed_ppns_and_sigils, old_ppns_sigils_and_new_ppns);
         LoadMappingByFieldSpec(record, "889", 'w', already_processed_ppns_and_sigils, old_ppns_sigils_and_new_ppns);
@@ -94,8 +94,7 @@ void LoadMapping(MARC::Reader * const marc_reader,
 
 
 void PatchTable(DbConnection * const db_connection, const std::string &table, const std::string &column,
-                const std::vector<PPNsAndSigil> &old_ppns_sigils_and_new_ppns, const bool report_only)
-{
+                const std::vector<PPNsAndSigil> &old_ppns_sigils_and_new_ppns, const bool report_only) {
     const unsigned MAX_BATCH_SIZE(100);
 
     if (not report_only)
@@ -107,9 +106,11 @@ void PatchTable(DbConnection * const db_connection, const std::string &table, co
 
         const std::string where("WHERE " + column + "='" + old_ppn_sigil_and_new_ppn.old_ppn_ + "'");
         if (report_only)
-            replacement_count += db_connection->countOrDie("SELECT count(*) AS replacement_count FROM " + table + " " + where, "replacement_count");
+            replacement_count +=
+                db_connection->countOrDie("SELECT count(*) AS replacement_count FROM " + table + " " + where, "replacement_count");
         else {
-            db_connection->queryOrDie("UPDATE IGNORE " + table + " SET " + column + "='" + old_ppn_sigil_and_new_ppn.new_ppn_ + "' " + where);
+            db_connection->queryOrDie("UPDATE IGNORE " + table + " SET " + column + "='" + old_ppn_sigil_and_new_ppn.new_ppn_ + "' "
+                                      + where);
             replacement_count += db_connection->getNoOfAffectedRows();
             if (batch_size >= MAX_BATCH_SIZE) {
                 db_connection->queryOrDie("COMMIT");
@@ -125,13 +126,11 @@ void PatchTable(DbConnection * const db_connection, const std::string &table, co
         db_connection->queryOrDie("COMMIT");
         LOG_INFO("Replaced " + std::to_string(replacement_count) + " rows in " + table + ".");
     }
-
 }
 
 
 void DeleteFromTable(DbConnection * const db_connection, const std::string &table, const std::string &column,
-                     const std::unordered_set<std::string> &deletion_ppns, const bool report_only)
-{
+                     const std::unordered_set<std::string> &deletion_ppns, const bool report_only) {
     const unsigned MAX_BATCH_SIZE(100);
 
     if (not report_only)
@@ -143,8 +142,7 @@ void DeleteFromTable(DbConnection * const db_connection, const std::string &tabl
 
         const std::string where("WHERE " + column + "='" + deletion_ppn + "'");
         if (report_only)
-            deletion_count += db_connection->countOrDie("SELECT count(*) AS deletion_count FROM " + table
-                                                        + " " + where, "deletion_count");
+            deletion_count += db_connection->countOrDie("SELECT count(*) AS deletion_count FROM " + table + " " + where, "deletion_count");
         else {
             db_connection->queryOrDie("DELETE FROM '" + table + "' " + where);
             deletion_count += db_connection->getNoOfAffectedRows();
@@ -232,17 +230,16 @@ void CheckMySQLPermissions(DbConnection * const db_connection) {
 
 
 void AddPPNsAndSigilsToMultiMap(const std::vector<PPNsAndSigil> &old_ppns_sigils_and_new_ppns,
-                                std::unordered_multimap<std::string, std::string> * const already_processed_ppns_and_sigils)
-{
+                                std::unordered_multimap<std::string, std::string> * const already_processed_ppns_and_sigils) {
     for (const auto &old_ppn_sigil_and_new_ppn : old_ppns_sigils_and_new_ppns)
-        already_processed_ppns_and_sigils->emplace(std::make_pair(old_ppn_sigil_and_new_ppn.old_ppn_, old_ppn_sigil_and_new_ppn.old_sigil_));
+        already_processed_ppns_and_sigils->emplace(
+            std::make_pair(old_ppn_sigil_and_new_ppn.old_ppn_, old_ppn_sigil_and_new_ppn.old_sigil_));
 }
 
 
-template<class SetOrMap, typename ProcessNotifieldDBFunc, typename ProcessTableFunc>
+template <class SetOrMap, typename ProcessNotifieldDBFunc, typename ProcessTableFunc>
 void ProcessAllDatabases(DbConnection * const db_connection, const SetOrMap &set_or_map, const ProcessNotifieldDBFunc notified_db_func,
-                         const ProcessTableFunc table_func, const bool report_only)
-{
+                         const ProcessTableFunc table_func, const bool report_only) {
     notified_db_func("ixtheo", set_or_map, report_only);
     notified_db_func("relbib", set_or_map, report_only);
 
@@ -251,8 +248,7 @@ void ProcessAllDatabases(DbConnection * const db_connection, const SetOrMap &set
     table_func(db_connection, "vufind.change_tracker", "id", set_or_map, report_only);
     if (VuFind::GetTueFindFlavour() == "ixtheo") {
         table_func(db_connection, "ixtheo.keyword_translations", "ppn", set_or_map, report_only);
-        table_func(db_connection, "vufind.ixtheo_journal_subscriptions", "journal_control_number_or_bundle_name",
-                   set_or_map, report_only);
+        table_func(db_connection, "vufind.ixtheo_journal_subscriptions", "journal_control_number_or_bundle_name", set_or_map, report_only);
         table_func(db_connection, "vufind.ixtheo_pda_subscriptions", "book_ppn", set_or_map, report_only);
     }
 }
@@ -302,7 +298,7 @@ int Main(int argc, char **argv) {
         LoadMapping(marc_reader.get(), already_processed_ppns_and_sigils, &old_ppns_sigils_and_new_ppns);
     }
 
-    std::unordered_set <std::string> deletion_ppns;
+    std::unordered_set<std::string> deletion_ppns;
     if (arg_no < argc) {
         for (auto line : FileUtil::ReadLines((argv[arg_no]))) {
             StringUtil::TrimWhite(&line);

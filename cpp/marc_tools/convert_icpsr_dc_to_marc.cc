@@ -15,14 +15,14 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <cstdlib>
 #include "MARC.h"
 #include "StringUtil.h"
 #include "TimeUtil.h"
-#include "util.h"
 #include "XMLParser.h"
+#include "util.h"
 
 
 bool IsCriminologyRecord(const MARC::Record &record) {
@@ -58,8 +58,9 @@ bool ParseRecord(XMLParser * const xml_parser, MARC::Writer * const marc_writer)
     static unsigned record_number;
     ++record_number;
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED,
-                            "ICPSR" + StringUtil::ToString(record_number, /* radix = */10, /* width = */6,
-                                                           /* padding_char = */'0'));
+                            "ICPSR"
+                                + StringUtil::ToString(record_number, /* radix = */ 10, /* width = */ 6,
+                                                       /* padding_char = */ '0'));
     static const std::string today(TimeUtil::GetCurrentDateAndTime("%y%m%d"));
     static const std::string current_year(TimeUtil::GetCurrentYear());
     static const std::string _008_contents(today + 's' + current_year);
@@ -78,7 +79,7 @@ bool ParseRecord(XMLParser * const xml_parser, MARC::Writer * const marc_writer)
             else if (tag == "contributor")
                 new_record.insertField(MARC::Tag("720"), 'a', last_data);
             else if (tag == "creator")
-                new_record.insertField(MARC::Tag("720"), { { 'a', last_data}, { 'e', "author" } });
+                new_record.insertField(MARC::Tag("720"), { { 'a', last_data }, { 'e', "author" } });
             else if (tag == "description")
                 new_record.insertField(MARC::Tag("520"), 'a', last_data);
             else if (tag == "identifier") {
@@ -128,8 +129,8 @@ int Main(int argc, char *argv[]) {
             ++selected_record_count;
     }
 
-    LOG_INFO("Processed " + std::to_string(total_record_count) + " record(s) of which "
-             + std::to_string(selected_record_count) + " record(s) where selected and converted to MARC.");
+    LOG_INFO("Processed " + std::to_string(total_record_count) + " record(s) of which " + std::to_string(selected_record_count)
+             + " record(s) where selected and converted to MARC.");
 
     return EXIT_SUCCESS;
 }

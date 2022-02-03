@@ -72,9 +72,9 @@ void Convert(File * const input, File * const output) {
             output->put(static_cast<char>(ch));
         }
 
-        last_char_was_consonant       = IsConsonant(static_cast<char>(ch));
+        last_char_was_consonant = IsConsonant(static_cast<char>(ch));
         last_char_was_lowercase_vowel = IsLowercaseISO889_15Vowel(static_cast<char>(ch));
-        last_character_was_space      = (ch == ' ');
+        last_character_was_space = (ch == ' ');
     }
 }
 

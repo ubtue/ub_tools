@@ -39,38 +39,42 @@ struct TitleRecordCounter {
     unsigned religious_studies_count_;
     unsigned bibstudies_count_;
     unsigned canonlaw_count_;
+
 public:
     TitleRecordCounter(): total_count_(0), religious_studies_count_(0) { }
     TitleRecordCounter(const TitleRecordCounter &other) = default;
-    inline bool exceedsReligiousStudiesThreshold() const
-        { return 100.0 * static_cast<double>(religious_studies_count_) / static_cast<double>(total_count_) >= 10.0 /* percent */; }
-    inline bool exceedsBibStudiesThreshold() const
-        { return 100.0 * static_cast<double>(bibstudies_count_) / static_cast<double>(total_count_) >= 10.0 /* percent */; }
-    inline bool exceedsCanonLawThreshold() const
-        { return 100.0 * static_cast<double>(canonlaw_count_) / static_cast<double>(total_count_) >= 10.0 /* percent */; }
-    inline bool hasReligiousStudies() const
-        { return religious_studies_count_ > 0;}
-    inline bool hasBibStudies() const
-        { return bibstudies_count_ > 0; }
-    inline bool hasCanonLaw() const
-        { return canonlaw_count_ > 0; }
+    inline bool exceedsReligiousStudiesThreshold() const {
+        return 100.0 * static_cast<double>(religious_studies_count_) / static_cast<double>(total_count_) >= 10.0 /* percent */;
+    }
+    inline bool exceedsBibStudiesThreshold() const {
+        return 100.0 * static_cast<double>(bibstudies_count_) / static_cast<double>(total_count_) >= 10.0 /* percent */;
+    }
+    inline bool exceedsCanonLawThreshold() const {
+        return 100.0 * static_cast<double>(canonlaw_count_) / static_cast<double>(total_count_) >= 10.0 /* percent */;
+    }
+    inline bool hasReligiousStudies() const { return religious_studies_count_ > 0; }
+    inline bool hasBibStudies() const { return bibstudies_count_ > 0; }
+    inline bool hasCanonLaw() const { return canonlaw_count_ > 0; }
 };
 
 
 // Counts the number of subsystem title records for authors.
 void CopyMarcAndCollectSubsystemFrequencies(
     MARC::Reader * const title_reader, MARC::Writer * const title_writer,
-    std::unordered_map<std::string, TitleRecordCounter> * const author_ppn_to_subsystem_title_counters)
-{
+    std::unordered_map<std::string, TitleRecordCounter> * const author_ppn_to_subsystem_title_counters) {
     while (auto record = title_reader->read()) {
-        const bool rel_tag_found(record.findTag("REL") != record.end() /*remove after migration*/ or record.hasFieldWithSubfieldValue("SUB", 'a', "REL"));
-        const bool bib_tag_found(record.findTag("BIB") != record.end() /*remove after migration*/ or record.hasFieldWithSubfieldValue("SUB", 'a', "BIB"));
-        const bool can_tag_found(record.findTag("CAN") != record.end() /*remove after migration*/ or record.hasFieldWithSubfieldValue("SUB", 'a', "CAN"));
+        const bool rel_tag_found(
+            record.findTag("REL") != record.end() /*remove after migration*/ or record.hasFieldWithSubfieldValue("SUB", 'a', "REL"));
+        const bool bib_tag_found(
+            record.findTag("BIB") != record.end() /*remove after migration*/ or record.hasFieldWithSubfieldValue("SUB", 'a', "BIB"));
+        const bool can_tag_found(
+            record.findTag("CAN") != record.end() /*remove after migration*/ or record.hasFieldWithSubfieldValue("SUB", 'a', "CAN"));
 
         for (const auto &author_name_and_author_ppn : record.getAllAuthorsAndPPNs()) {
             auto author_ppn_and_counter(author_ppn_to_subsystem_title_counters->find(author_name_and_author_ppn.second));
             if (author_ppn_and_counter == author_ppn_to_subsystem_title_counters->end())
-                author_ppn_and_counter = author_ppn_to_subsystem_title_counters->emplace(author_name_and_author_ppn.second, TitleRecordCounter()).first;
+                author_ppn_and_counter =
+                    author_ppn_to_subsystem_title_counters->emplace(author_name_and_author_ppn.second, TitleRecordCounter()).first;
 
             ++(author_ppn_and_counter->second.total_count_);
             if (rel_tag_found)
@@ -93,10 +97,12 @@ struct LiteraryRemainsInfo {
     std::string source_name_;
     std::string dates_;
     std::vector<std::string> types_;
+
 public:
     LiteraryRemainsInfo() = default;
     LiteraryRemainsInfo(const LiteraryRemainsInfo &other) = default;
-    LiteraryRemainsInfo(const std::string &author_id, const std::string &author_name, const std::string &url, const std::string &source_name, const std::string &dates, const std::vector<std::string> &types = {})
+    LiteraryRemainsInfo(const std::string &author_id, const std::string &author_name, const std::string &url,
+                        const std::string &source_name, const std::string &dates, const std::vector<std::string> &types = {})
         : author_id_(author_id), author_name_(author_name), url_(url), source_name_(source_name), dates_(dates), types_(types) { }
 
     LiteraryRemainsInfo &operator=(const LiteraryRemainsInfo &rhs) = default;
@@ -105,16 +111,15 @@ public:
 
 std::vector<std::pair<RegexMatcher *, std::string>> CompileMatchers() {
     // Please note that the order in the following vector matters.  The first successful match will be used.
-    const std::vector<std::pair<std::string, std::string>> patterns_and_replacements {
+    const std::vector<std::pair<std::string, std::string>> patterns_and_replacements{
         { "v([0-9]+) ?- ?v([0-9]+)", "\\1 v. Chr. - \\2 v. Chr." },
-        { "v([0-9]+)"              , "\\1 v. Chr."               },
+        { "v([0-9]+)", "\\1 v. Chr." },
     };
 
     std::vector<std::pair<RegexMatcher *, std::string>> compiled_patterns_and_replacements;
     for (const auto &pattern_and_replacement : patterns_and_replacements)
-        compiled_patterns_and_replacements.push_back(
-            std::pair<RegexMatcher *, std::string>(RegexMatcher::RegexMatcherFactoryOrDie(pattern_and_replacement.first),
-                                                   pattern_and_replacement.second));
+        compiled_patterns_and_replacements.push_back(std::pair<RegexMatcher *, std::string>(
+            RegexMatcher::RegexMatcherFactoryOrDie(pattern_and_replacement.first), pattern_and_replacement.second));
     return compiled_patterns_and_replacements;
 }
 
@@ -134,13 +139,13 @@ std::string ReplaceNonStandardBCEDates(const std::string &dates) {
 }
 
 std::vector<std::string> GetBEATypes(const MARC::Record::Field &beacon_field) {
-   return beacon_field.getSubfields().extractSubfields("v");
+    return beacon_field.getSubfields().extractSubfields("v");
 }
 
 
 void SetSubsystemCounter(MARC::Record &record, std::string subsystem_code, unsigned int additional_value) {
     if (not record.hasFieldWithSubfieldValue("SUB", 'a', subsystem_code))
-        record.insertField("SUB", {{'a', subsystem_code}, {'b', std::to_string(additional_value)}});
+        record.insertField("SUB", { { 'a', subsystem_code }, { 'b', std::to_string(additional_value) } });
     else {
         for (auto &field : record.getTagRange("SUB")) {
             if (field.hasSubfieldWithValue('a', subsystem_code)) {
@@ -160,12 +165,10 @@ void SetSubsystemCounter(MARC::Record &record, std::string subsystem_code, unsig
 
 
 void LoadAuthorGNDNumbersAndTagAuthors(
-    const bool no_subsystems,
-    MARC::Reader * const authority_reader, MARC::Writer * const authority_writer,
+    const bool no_subsystems, MARC::Reader * const authority_reader, MARC::Writer * const authority_writer,
     const std::unordered_map<std::string, TitleRecordCounter> &author_ppn_to_subsystem_titles_counters,
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> * const gnd_numbers_to_literary_remains_infos_map,
-    std::unordered_map<std::string, std::string> * const gnd_numbers_to_ppns_map)
-{
+    std::unordered_map<std::string, std::string> * const gnd_numbers_to_ppns_map) {
     unsigned total_count(0), references_count(0), tagged_count(0);
     while (auto record = authority_reader->read()) {
         ++total_count;
@@ -177,7 +180,7 @@ void LoadAuthorGNDNumbersAndTagAuthors(
         }
 
         auto beacon_subfields_0 = record.getSubfieldValues("BEA", "0");
-        if(std::find(beacon_subfields_0.begin(), beacon_subfields_0.end(), "lr") == beacon_subfields_0.end()) {
+        if (std::find(beacon_subfields_0.begin(), beacon_subfields_0.end(), "lr") == beacon_subfields_0.end()) {
             authority_writer->write(record);
             continue;
         }
@@ -209,7 +212,7 @@ void LoadAuthorGNDNumbersAndTagAuthors(
         while (beacon_field != record.end() and beacon_field->getTag() == "BEA") {
             if (beacon_field->getFirstSubfieldWithCode('0') == "lr") {
                 literary_remains_infos.emplace_back(record.getControlNumber(), author_name, beacon_field->getFirstSubfieldWithCode('u'),
-                                                beacon_field->getFirstSubfieldWithCode('a'), dates, GetBEATypes(*beacon_field));
+                                                    beacon_field->getFirstSubfieldWithCode('a'), dates, GetBEATypes(*beacon_field));
             }
             ++beacon_field;
         }
@@ -267,52 +270,53 @@ std::string NormaliseAuthorName(std::string author_name) {
 
 
 std::string GetTitle(const std::string &author_name, const std::string &dates, const std::vector<std::string> &types) {
-        std::string introductory_clause;
-        if (std::find(types.begin(), types.end(), "Nachlass") != types.end())
-            introductory_clause = "Nachlass von ";
-        else if (std::find(types.begin(), types.end(), "Teilnachlass") != types.end())
-            introductory_clause = "Teilnachlass von ";
-        else
-            introductory_clause = "Archivmaterialien zu ";
-        std::string title(introductory_clause + author_name + ',' + dates);
-        if (types.size() > 1)
-            title += " ("  + StringUtil::Join(types, ", ") + ')';
-        return title;
+    std::string introductory_clause;
+    if (std::find(types.begin(), types.end(), "Nachlass") != types.end())
+        introductory_clause = "Nachlass von ";
+    else if (std::find(types.begin(), types.end(), "Teilnachlass") != types.end())
+        introductory_clause = "Teilnachlass von ";
+    else
+        introductory_clause = "Archivmaterialien zu ";
+    std::string title(introductory_clause + author_name + ',' + dates);
+    if (types.size() > 1)
+        title += " (" + StringUtil::Join(types, ", ") + ')';
+    return title;
 }
 
 
 void AppendLiteraryRemainsRecords(
-    const bool no_subsystems,
-    MARC::Writer * const title_writer,
+    const bool no_subsystems, MARC::Writer * const title_writer,
     const std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> &gnd_numbers_to_literary_remains_infos_map,
     const std::unordered_map<std::string, std::string> &gnd_numbers_to_ppns_map,
-    const std::unordered_map<std::string, TitleRecordCounter> &author_ppn_to_subsystem_titles_counters)
-{
+    const std::unordered_map<std::string, TitleRecordCounter> &author_ppn_to_subsystem_titles_counters) {
     unsigned creation_count(0);
     for (const auto &gnd_numbers_and_literary_remains_infos : gnd_numbers_to_literary_remains_infos_map) {
         MARC::Record new_record(MARC::Record::TypeOfRecord::MIXED_MATERIALS, MARC::Record::BibliographicLevel::COLLECTION,
                                 "LR" + gnd_numbers_and_literary_remains_infos.first);
         const std::string &author_name(gnd_numbers_and_literary_remains_infos.second.front().author_name_);
         std::string dates(gnd_numbers_and_literary_remains_infos.second.front().dates_.empty()
-                              ? "" : " " + gnd_numbers_and_literary_remains_infos.second.front().dates_);
+                              ? ""
+                              : " " + gnd_numbers_and_literary_remains_infos.second.front().dates_);
         new_record.insertField("003", "PipeLineGenerated");
         new_record.insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
         new_record.insertField("008", "190606s2019    xx |||||      00| ||ger c");
         new_record.insertField("ELC", { { 'a', "1" } });
         if (gnd_numbers_and_literary_remains_infos.second.front().dates_.empty())
-            new_record.insertField("100", { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first }, { '0', "(DE-627)" + gnd_numbers_and_literary_remains_infos.second.front().author_id_ } });
+            new_record.insertField("100", { { 'a', author_name },
+                                            { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first },
+                                            { '0', "(DE-627)" + gnd_numbers_and_literary_remains_infos.second.front().author_id_ } });
         else
-            new_record.insertField("100",
-                                   { { 'a', author_name }, { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first }, { '0', "(DE-627)" + gnd_numbers_and_literary_remains_infos.second.front().author_id_ },
-                                     { 'd', gnd_numbers_and_literary_remains_infos.second.front().dates_ } });
+            new_record.insertField("100", { { 'a', author_name },
+                                            { '0', "(DE-588)" + gnd_numbers_and_literary_remains_infos.first },
+                                            { '0', "(DE-627)" + gnd_numbers_and_literary_remains_infos.second.front().author_id_ },
+                                            { 'd', gnd_numbers_and_literary_remains_infos.second.front().dates_ } });
 
         const auto &title(GetTitle(NormaliseAuthorName(author_name), dates, gnd_numbers_and_literary_remains_infos.second.front().types_));
         new_record.insertField("245", { { 'a', title } });
 
         for (const auto &literary_remains_info : gnd_numbers_and_literary_remains_infos.second)
-            new_record.insertField("856",
-                                   { { 'u', literary_remains_info.url_ },
-                                       { '3', "Archivdatenbank (" + literary_remains_info.source_name_ + ")" } });
+            new_record.insertField(
+                "856", { { 'u', literary_remains_info.url_ }, { '3', "Archivdatenbank (" + literary_remains_info.source_name_ + ")" } });
 
         // Do we have a religious studies author?
         if (not no_subsystems) {
@@ -373,8 +377,9 @@ int Main(int argc, char **argv) {
     auto authority_writer(MARC::Writer::Factory(argv[4]));
     std::unordered_map<std::string, std::vector<LiteraryRemainsInfo>> gnd_numbers_to_literary_remains_infos_map;
     std::unordered_map<std::string, std::string> gnd_numbers_to_ppns_map;
-    LoadAuthorGNDNumbersAndTagAuthors(no_subsystems, authority_reader.get(), authority_writer.get(), author_ppn_to_subsystem_titles_counters,
-                                      &gnd_numbers_to_literary_remains_infos_map, &gnd_numbers_to_ppns_map);
+    LoadAuthorGNDNumbersAndTagAuthors(no_subsystems, authority_reader.get(), authority_writer.get(),
+                                      author_ppn_to_subsystem_titles_counters, &gnd_numbers_to_literary_remains_infos_map,
+                                      &gnd_numbers_to_ppns_map);
     AppendLiteraryRemainsRecords(no_subsystems, title_writer.get(), gnd_numbers_to_literary_remains_infos_map, gnd_numbers_to_ppns_map,
                                  author_ppn_to_subsystem_titles_counters);
 

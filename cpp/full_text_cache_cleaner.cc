@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -47,8 +47,7 @@ int main(int argc, char *argv[]) {
         cache.expireEntries();
         const unsigned size_after_deletion(cache.getSize());
 
-        std::cerr << "Deleted " << (size_before_deletion - size_after_deletion)
-                  << " records from the full-text cache.\n";
+        std::cerr << "Deleted " << (size_before_deletion - size_after_deletion) << " records from the full-text cache.\n";
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }

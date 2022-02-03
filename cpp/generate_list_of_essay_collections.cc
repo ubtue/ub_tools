@@ -30,8 +30,7 @@ namespace {
 
 
 void CollectArticleCollectionPPNs(MARC::Reader * const reader,
-                                  std::unordered_map<std::string, unsigned> * const article_collection_ppns_and_counts)
-{
+                                  std::unordered_map<std::string, unsigned> * const article_collection_ppns_and_counts) {
     article_collection_ppns_and_counts->clear();
     while (const MARC::Record record = reader->read()) {
         if (record.isArticle()) {
@@ -76,8 +75,7 @@ bool IsMonographOfInterest(const MARC::Record &record) {
 
     for (const auto &_655_field : record.getTagRange("655")) {
         const auto a_subfield(_655_field.getFirstSubfieldWithCode('a'));
-        if (::strcasecmp(a_subfield.c_str(), "Aufsatzsammlung") == 0
-            or ::strcasecmp(a_subfield.c_str(), "Festschrift") == 0
+        if (::strcasecmp(a_subfield.c_str(), "Aufsatzsammlung") == 0 or ::strcasecmp(a_subfield.c_str(), "Festschrift") == 0
             or ::strcasecmp(a_subfield.c_str(), "Konferenzschrift") == 0)
             return true;
     }
@@ -87,15 +85,15 @@ bool IsMonographOfInterest(const MARC::Record &record) {
 
 
 void MarkArticleCollections(MARC::Reader * const reader, File * const output,
-                            const std::unordered_map<std::string, unsigned> &article_collection_ppns_and_counts)
-{
+                            const std::unordered_map<std::string, unsigned> &article_collection_ppns_and_counts) {
     *output << Unicode::UTF8_BOM;
     unsigned count(0);
     while (MARC::Record record = reader->read()) {
         if (IsMonographOfInterest(record)) {
             const auto collection_ppn_and_article_count(article_collection_ppns_and_counts.find(record.getControlNumber()));
             const unsigned article_count((collection_ppn_and_article_count != article_collection_ppns_and_counts.cend())
-                                         ? collection_ppn_and_article_count->second : 0);
+                                             ? collection_ppn_and_article_count->second
+                                             : 0);
 
             const auto ssgns(record.getSSGNs());
             if (ssgns.find("0") != ssgns.cend()) {
@@ -103,8 +101,8 @@ void MarkArticleCollections(MARC::Reader * const reader, File * const output,
                 const auto publication_year(record.getMostRecentPublicationYear(/* fallback */ "????"));
                 *output << TextUtil::CSVEscape(record.getControlNumber()) << '\t'
                         << TextUtil::CSVEscape(ShortenTitle(record.getMainTitle(), 60)) << '\t'
-                        << TextUtil::CSVEscape((HasTOC(record) ? "Ja" : "Nein")) << '\t'
-                        << publication_year << '\t' << article_count << '\n';
+                        << TextUtil::CSVEscape((HasTOC(record) ? "Ja" : "Nein")) << '\t' << publication_year << '\t' << article_count
+                        << '\n';
             }
         }
     }

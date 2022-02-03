@@ -16,10 +16,10 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "SysLog.h"
 #include <cstdlib>
 #include <cstring>
 #include "StringUtil.h"
-#include "SysLog.h"
 #undef LOG_WARNING
 #undef LOG_INFO
 #undef LOG_DEBUG
@@ -30,9 +30,10 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--facility=facility] [--message-prefix=prefix [--also-log-to-stderr] log_level log_message\n"
-            "where \"facility\" must be one of AUTH, AUTHPRIV, DAEMON, LOCAL0..LOCAL7 or USER. (LOCAL0 is the default.) \n"
-            "and \"log_level\" must be be one of EMERG, ALERT, CRIT, ERR, WARNING, NOTICE, INFO or DEBUG.\n");
+    ::Usage(
+        "[--facility=facility] [--message-prefix=prefix [--also-log-to-stderr] log_level log_message\n"
+        "where \"facility\" must be one of AUTH, AUTHPRIV, DAEMON, LOCAL0..LOCAL7 or USER. (LOCAL0 is the default.) \n"
+        "and \"log_level\" must be be one of EMERG, ALERT, CRIT, ERR, WARNING, NOTICE, INFO or DEBUG.\n");
 }
 
 

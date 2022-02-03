@@ -15,18 +15,18 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #include <iostream>
 #include <memory>
 #include <unordered_map>
 #include <cstdlib>
 #include "FileUtil.h"
 #include "IniFile.h"
-#include "ZoteroHarvesterConfig.h"
-#include "ZoteroHarvesterDownload.h"
-#include "ZoteroHarvesterConversion.h"
-#include "ZoteroHarvesterUtil.h"
 #include "StringUtil.h"
+#include "ZoteroHarvesterConfig.h"
+#include "ZoteroHarvesterConversion.h"
+#include "ZoteroHarvesterDownload.h"
+#include "ZoteroHarvesterUtil.h"
 #include "util.h"
 
 
@@ -43,22 +43,28 @@ using namespace ZoteroHarvester;
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [options] config_file_path selection_mode selection_args\n"
-              << "\n"
-              << "\tOptions:\n"
-              << "\t[--min-log-level=log_level]         Possible log levels are ERROR, WARNING (default), INFO and DEBUG\n"
-              << "\t[--force-downloads]                 All URLs are unconditionally downloaded.\n"
-              << "\t[--ignore-robots-dot-txt]           Ignore crawling/rate-limiting parameters specified in robots.txt files and disable download restrictions globally\n"
-              << "\t[--output-directory=output_dir]     Generated files are saved to /tmp/zotero_harvester by default\n"
-              << "\t[--output-filename=output_filename] Overrides the automatically-generated filename based on the current date/time. Output format is always MARC-XML\n"
-              << "\t[--config-overrides=ini_overrides]  Overrides parts of all found journal sections in the config file (using ini syntax only with a global section).\n"
-              << "\n"
-              << "\tSelection modes: UPLOAD, URL, JOURNAL\n"
-              << "\t\tUPLOAD - Only those journals that have the specified upload operation (either LIVE or TEST) set will be processed.\n"
-              << "\t\tURL - Only the specified URL is processed as a DIRECT harvester operation. An optional journal name can be provided as a second argument to associate the URL with it (reqd. for config overrides)\n"
-              << "\t\tJOURNAL - If no arguments are provided, all journals are processed. Otherwise, only the specified journals are processed.\n"
-              << "\t\t          If mode is UPLOAD or JOURNAL (without specified journals), journals marked as \"" + Config::JournalParams::GetIniKeyString(Config::JournalParams::ZEDER_NEWLY_SYNCED_ENTRY) + "\" will be ignored."
-              << "\n";
+    std::cerr
+        << "Usage: " << ::progname << " [options] config_file_path selection_mode selection_args\n"
+        << "\n"
+        << "\tOptions:\n"
+        << "\t[--min-log-level=log_level]         Possible log levels are ERROR, WARNING (default), INFO and DEBUG\n"
+        << "\t[--force-downloads]                 All URLs are unconditionally downloaded.\n"
+        << "\t[--ignore-robots-dot-txt]           Ignore crawling/rate-limiting parameters specified in robots.txt files and disable "
+           "download restrictions globally\n"
+        << "\t[--output-directory=output_dir]     Generated files are saved to /tmp/zotero_harvester by default\n"
+        << "\t[--output-filename=output_filename] Overrides the automatically-generated filename based on the current date/time. Output "
+           "format is always MARC-XML\n"
+        << "\t[--config-overrides=ini_overrides]  Overrides parts of all found journal sections in the config file (using ini syntax only "
+           "with a global section).\n"
+        << "\n"
+        << "\tSelection modes: UPLOAD, URL, JOURNAL\n"
+        << "\t\tUPLOAD - Only those journals that have the specified upload operation (either LIVE or TEST) set will be processed.\n"
+        << "\t\tURL - Only the specified URL is processed as a DIRECT harvester operation. An optional journal name can be provided as a "
+           "second argument to associate the URL with it (reqd. for config overrides)\n"
+        << "\t\tJOURNAL - If no arguments are provided, all journals are processed. Otherwise, only the specified journals are processed.\n"
+        << "\t\t          If mode is UPLOAD or JOURNAL (without specified journals), journals marked as \""
+               + Config::JournalParams::GetIniKeyString(Config::JournalParams::ZEDER_NEWLY_SYNCED_ENTRY) + "\" will be ignored."
+        << "\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -77,15 +83,15 @@ struct CommandLineArgs {
     std::string selected_url_;
     std::string selected_url_parent_journal_;
     Config::UploadOperation selected_upload_operation_;
+
 public:
     explicit CommandLineArgs();
 };
 
 
 CommandLineArgs::CommandLineArgs()
- : force_downloads_(false), ignore_robots_dot_txt_(false), output_directory_("/tmp/zotero_harvester/"),
-   selection_mode_(INVALID), selected_upload_operation_(Config::UploadOperation::NONE)
-{
+    : force_downloads_(false), ignore_robots_dot_txt_(false), output_directory_("/tmp/zotero_harvester/"), selection_mode_(INVALID),
+      selected_upload_operation_(Config::UploadOperation::NONE) {
     const std::string TIME_FORMAT_STRING("%Y-%m-%d %T");
 
     char time_buffer[100]{};
@@ -189,7 +195,7 @@ struct HarvesterConfigData {
     std::vector<std::unique_ptr<Config::JournalParams>> journal_params_;
     std::map<std::string, const std::reference_wrapper<Config::GroupParams>> group_name_to_group_params_map_;
     std::map<std::string, const std::reference_wrapper<Config::SubgroupParams>> subgroup_name_to_subgroup_params_map_;
-    Config::JournalParams * default_journal_params_;
+    Config::JournalParams *default_journal_params_;
 
     inline const Config::GroupParams &lookupJournalGroup(const Config::JournalParams &journal_params) const {
         return group_name_to_group_params_map_.find(journal_params.group_)->second;
@@ -221,11 +227,9 @@ Config::JournalParams *HarvesterConfigData::lookupJournal(const std::string &jou
 
 
 void LoadHarvesterConfig(const std::string &config_path, HarvesterConfigData * const harvester_config,
-                         const IniFile::Section &config_overrides)
-{
-    Config::LoadHarvesterConfigFile(config_path, &harvester_config->global_params_,
-                                    &harvester_config->group_params_, &harvester_config->subgroup_params_,
-                                    &harvester_config->journal_params_,
+                         const IniFile::Section &config_overrides) {
+    Config::LoadHarvesterConfigFile(config_path, &harvester_config->global_params_, &harvester_config->group_params_,
+                                    &harvester_config->subgroup_params_, &harvester_config->journal_params_,
                                     /* config_file = */ nullptr, config_overrides);
 
     for (const auto &group : harvester_config->group_params_)
@@ -251,8 +255,9 @@ struct JournalDatastore {
     std::unique_ptr<Util::Future<Download::DirectDownload::Params, Download::DirectDownload::Result>> current_apiquery_;
     std::unique_ptr<Util::Future<Download::EmailCrawl::Params, Download::EmailCrawl::Result>> current_email_crawl_;
     std::deque<std::unique_ptr<Util::Future<Conversion::ConversionParams, Conversion::ConversionResult>>> queued_marc_records_;
+
 public:
-    JournalDatastore(const Config::JournalParams &journal_params) : journal_params_(journal_params) {}
+    JournalDatastore(const Config::JournalParams &journal_params): journal_params_(journal_params) { }
 };
 
 
@@ -284,49 +289,37 @@ struct Metrics {
     unsigned num_marc_conversions_skipped_since_exclusion_filters_;
     unsigned num_marc_conversions_skipped_since_already_delivered_;
     std::unordered_map<std::string, unsigned> group_name_to_num_generated_marc_records_map_;
+
 public:
     explicit Metrics();
+
 public:
     std::string toString() const;
 };
 
 
 Metrics::Metrics()
-      : num_journals_with_harvest_operation_direct_(0),
-        num_journals_with_harvest_operation_rss_(0),
-        num_journals_with_harvest_operation_crawl_(0),
-        num_journals_with_harvest_operation_apiquery_(0),
-        num_journals_with_harvest_operation_emailcrawl_(0),
-        num_downloads_crawled_successful_(0),
-        num_downloads_crawled_unsuccessful_(0),
-        num_downloads_crawled_cache_hits_(0),
-        num_downloads_harvested_successful_(0),
-        num_downloads_harvested_unsuccessful_(0),
-        num_downloads_harvested_cache_hits_(0),
-        num_downloads_skipped_since_already_harvested_(0),
-        num_downloads_skipped_since_already_delivered_(0),
-        num_downloads_apiquery_successful_(0),
-        num_downloads_apiquery_unsuccessful_(0),
-        num_downloads_apiquery_cache_hits_(0),
-        num_downloads_emailcrawl_successful_(0),
-        num_downloads_emailcrawl_unsuccessful_(0),
-        num_downloads_emailcrawl_cache_hits_(0),
-        num_marc_conversions_successful_(0),
-        num_marc_conversions_unsuccessful_(0),
-        num_marc_conversions_skipped_since_undesired_item_type_(0),
-        num_marc_conversions_skipped_since_online_first_(0),
-        num_marc_conversions_skipped_since_early_view_(0),
-        num_marc_conversions_skipped_since_exclusion_filters_(0),
-        num_marc_conversions_skipped_since_already_delivered_(0)
-      {}
+    : num_journals_with_harvest_operation_direct_(0), num_journals_with_harvest_operation_rss_(0),
+      num_journals_with_harvest_operation_crawl_(0), num_journals_with_harvest_operation_apiquery_(0),
+      num_journals_with_harvest_operation_emailcrawl_(0), num_downloads_crawled_successful_(0), num_downloads_crawled_unsuccessful_(0),
+      num_downloads_crawled_cache_hits_(0), num_downloads_harvested_successful_(0), num_downloads_harvested_unsuccessful_(0),
+      num_downloads_harvested_cache_hits_(0), num_downloads_skipped_since_already_harvested_(0),
+      num_downloads_skipped_since_already_delivered_(0), num_downloads_apiquery_successful_(0), num_downloads_apiquery_unsuccessful_(0),
+      num_downloads_apiquery_cache_hits_(0), num_downloads_emailcrawl_successful_(0), num_downloads_emailcrawl_unsuccessful_(0),
+      num_downloads_emailcrawl_cache_hits_(0), num_marc_conversions_successful_(0), num_marc_conversions_unsuccessful_(0),
+      num_marc_conversions_skipped_since_undesired_item_type_(0), num_marc_conversions_skipped_since_online_first_(0),
+      num_marc_conversions_skipped_since_early_view_(0), num_marc_conversions_skipped_since_exclusion_filters_(0),
+      num_marc_conversions_skipped_since_already_delivered_(0) {
+}
 
 
 std::string Metrics::toString() const {
     std::string out("\n\n\nZotero Harvester Metrics:\n");
 
-    out += "\tJournals: " + std::to_string(num_journals_with_harvest_operation_direct_
-                                           + num_journals_with_harvest_operation_rss_
-                                           + num_journals_with_harvest_operation_crawl_) + "\n";
+    out += "\tJournals: "
+           + std::to_string(num_journals_with_harvest_operation_direct_ + num_journals_with_harvest_operation_rss_
+                            + num_journals_with_harvest_operation_crawl_)
+           + "\n";
     out += "\t\tDirect: " + std::to_string(num_journals_with_harvest_operation_direct_) + "\n";
     out += "\t\tRSS: " + std::to_string(num_journals_with_harvest_operation_rss_) + "\n";
     out += "\t\tCrawl: " + std::to_string(num_journals_with_harvest_operation_crawl_) + "\n";
@@ -337,19 +330,21 @@ std::string Metrics::toString() const {
     out += "\t\tUnsuccessful : " + std::to_string(num_downloads_crawled_unsuccessful_) + "\n";
     out += "\t\tCache Hits : " + std::to_string(num_downloads_crawled_cache_hits_) + "\n";
 
-    out += "\tHarvests: " + std::to_string(num_downloads_harvested_successful_ + num_downloads_harvested_unsuccessful_
-                                           + num_downloads_skipped_since_already_harvested_
-                                           + num_downloads_skipped_since_already_delivered_) + "\n";
+    out += "\tHarvests: "
+           + std::to_string(num_downloads_harvested_successful_ + num_downloads_harvested_unsuccessful_
+                            + num_downloads_skipped_since_already_harvested_ + num_downloads_skipped_since_already_delivered_)
+           + "\n";
     out += "\t\tSuccessful: " + std::to_string(num_downloads_harvested_successful_) + "\n";
     out += "\t\tUnsuccessful : " + std::to_string(num_downloads_harvested_unsuccessful_) + "\n";
     out += "\t\tCache Hits : " + std::to_string(num_downloads_harvested_cache_hits_) + "\n";
     out += "\t\tSkipped (already harvested): " + std::to_string(num_downloads_skipped_since_already_harvested_) + "\n";
     out += "\t\tSkipped (already delivered): " + std::to_string(num_downloads_skipped_since_already_delivered_) + "\n";
 
-    out += "\tRecords: " + std::to_string(num_marc_conversions_successful_ + num_marc_conversions_skipped_since_online_first_
-                                          + num_marc_conversions_skipped_since_early_view_
-                                          + num_marc_conversions_skipped_since_exclusion_filters_
-                                          + num_marc_conversions_skipped_since_already_delivered_) + "\n";
+    out += "\tRecords: "
+           + std::to_string(num_marc_conversions_successful_ + num_marc_conversions_skipped_since_online_first_
+                            + num_marc_conversions_skipped_since_early_view_ + num_marc_conversions_skipped_since_exclusion_filters_
+                            + num_marc_conversions_skipped_since_already_delivered_)
+           + "\n";
     out += "\t\tSuccessful: " + std::to_string(num_marc_conversions_successful_) + "\n";
     out += "\t\tUnsuccessful: " + std::to_string(num_marc_conversions_unsuccessful_) + "\n";
     out += "\t\tSkipped (undesired item type): " + std::to_string(num_marc_conversions_skipped_since_undesired_item_type_) + "\n";
@@ -371,16 +366,12 @@ std::string Metrics::toString() const {
 std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::JournalParams &journal_params,
                                                            const HarvesterConfigData &harvester_config,
                                                            Util::HarvestableItemManager * const harvestable_manager,
-                                                           Download::DownloadManager * const download_manager,
-                                                           Metrics * const metrics)
-{
+                                                           Download::DownloadManager * const download_manager, Metrics * const metrics) {
     const auto &group_params(harvester_config.lookupJournalGroup(journal_params));
     std::unique_ptr<JournalDatastore> current_journal_datastore(new JournalDatastore(journal_params));
 
     switch (journal_params.harvester_operation_) {
-    case Config::HarvesterOperation::DIRECT:
-    {
-
+    case Config::HarvesterOperation::DIRECT: {
         const auto download_item(harvestable_manager->newHarvestableItem(journal_params.entry_point_url_, journal_params));
         auto future(download_manager->directDownload(download_item, group_params.user_agent_,
                                                      Download::DirectDownload::Operation::USE_TRANSLATION_SERVER));
@@ -388,41 +379,39 @@ std::unique_ptr<JournalDatastore> QueueDownloadsForJournal(const Config::Journal
         ++metrics->num_journals_with_harvest_operation_direct_;
         break;
     }
-    case Config::HarvesterOperation::RSS:
-    {
+    case Config::HarvesterOperation::RSS: {
         const auto download_item(harvestable_manager->newHarvestableItem(journal_params.entry_point_url_, journal_params));
         auto future(download_manager->rss(download_item, group_params.user_agent_));
         current_journal_datastore->current_rss_feed_.reset(future.release());
         ++metrics->num_journals_with_harvest_operation_rss_;
         break;
     }
-    case Config::HarvesterOperation::CRAWL:
-    {
+    case Config::HarvesterOperation::CRAWL: {
         const auto download_item(harvestable_manager->newHarvestableItem(journal_params.entry_point_url_, journal_params));
         auto future(download_manager->crawl(download_item, group_params.user_agent_));
         current_journal_datastore->current_crawl_.reset(future.release());
         ++metrics->num_journals_with_harvest_operation_crawl_;
         break;
     }
-    case Config::HarvesterOperation::APIQUERY:
-    {
+    case Config::HarvesterOperation::APIQUERY: {
         const auto download_item(harvestable_manager->newHarvestableItem(journal_params.issn_.online_, journal_params));
         auto future(download_manager->apiQuery(download_item));
         current_journal_datastore->current_apiquery_.reset(future.release());
         ++metrics->num_journals_with_harvest_operation_apiquery_;
         break;
     }
-    case Config::HarvesterOperation::EMAIL:
-    {
+    case Config::HarvesterOperation::EMAIL: {
         const auto download_item(harvestable_manager->newHarvestableItem("" /* we determine the entry points ourselves */, journal_params));
-        auto future(download_manager->emailCrawl(download_item, harvester_config.global_params_->emailcrawl_mboxes_, group_params.user_agent_));
+        auto future(
+            download_manager->emailCrawl(download_item, harvester_config.global_params_->emailcrawl_mboxes_, group_params.user_agent_));
         current_journal_datastore->current_email_crawl_.reset(future.release());
         ++metrics->num_journals_with_harvest_operation_emailcrawl_;
         break;
     }
     }
 
-    LOG_INFO("Queued journal '" + journal_params.name_ + "' | " + Config::HARVESTER_OPERATION_TO_STRING_MAP.at(journal_params.harvester_operation_) + " @ " + journal_params.entry_point_url_);
+    LOG_INFO("Queued journal '" + journal_params.name_ + "' | "
+             + Config::HARVESTER_OPERATION_TO_STRING_MAP.at(journal_params.harvester_operation_) + " @ " + journal_params.entry_point_url_);
     return current_journal_datastore;
 }
 
@@ -466,8 +455,7 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
             const auto &result(journal_datastore->current_apiquery_->getResult());
             metrics->num_downloads_skipped_since_already_delivered_ += result.items_skipped_since_already_delivered_;
             journal_datastore->queued_downloads_.emplace_back(journal_datastore->current_apiquery_.release());
-        }
-        else
+        } else
             *jobs_in_progress = true;
     }
 
@@ -484,8 +472,7 @@ void EnqueueCrawlAndRssResults(JournalDatastore * const journal_datastore, bool 
                 metrics->num_downloads_skipped_since_already_delivered_ += result.num_email_skipped_since_already_delivered_;
             }
             journal_datastore->current_email_crawl_.reset();
-        }
-        else
+        } else
             *jobs_in_progress = true;
     }
 }
@@ -495,8 +482,7 @@ void EnqueueCompletedDownloadsForConversion(JournalDatastore * const journal_dat
                                             Conversion::ConversionManager * const conversion_manager,
                                             const HarvesterConfigData &harvester_config,
                                             const std::unordered_set<std::string> &urls_harvested_during_current_session,
-                                            Metrics * const metrics)
-{
+                                            Metrics * const metrics) {
     for (auto iter(journal_datastore->queued_downloads_.begin()); iter != journal_datastore->queued_downloads_.end();) {
         if ((*iter)->isComplete()) {
             if ((*iter)->hasResult()) {
@@ -505,11 +491,11 @@ void EnqueueCompletedDownloadsForConversion(JournalDatastore * const journal_dat
                     ++metrics->num_downloads_harvested_cache_hits_;
 
                 if (not download_result.downloadSuccessful()) {
-                    LOG_INFO("Item " + download_result.source_.toString() + " download failed! error: "
-                             + download_result.error_message_ + " (response code = " + std::to_string(download_result.response_code_) + ")");
+                    LOG_INFO("Item " + download_result.source_.toString() + " download failed! error: " + download_result.error_message_
+                             + " (response code = " + std::to_string(download_result.response_code_) + ")");
                     ++metrics->num_downloads_harvested_unsuccessful_;
                 } else if (urls_harvested_during_current_session.find(download_result.source_.url_.toString())
-                    != urls_harvested_during_current_session.end())
+                           != urls_harvested_during_current_session.end())
                 {
                     LOG_INFO("Item " + download_result.source_.toString() + " already harvested during this session"
                              + (not download_result.fromCache() ? " (but not cached?!)" : ""));
@@ -518,10 +504,10 @@ void EnqueueCompletedDownloadsForConversion(JournalDatastore * const journal_dat
                     LOG_INFO("Item " + download_result.source_.toString() + " already delivered");
                     ++metrics->num_downloads_skipped_since_already_delivered_;
                 } else {
-                    auto conversion_result(conversion_manager->convert(download_result.source_,
-                                           download_result.response_body_,
-                                           harvester_config.lookupJournalGroup(download_result.source_.journal_),
-                                           harvester_config.lookupJournalSubgroup(download_result.source_.journal_)));
+                    auto conversion_result(
+                        conversion_manager->convert(download_result.source_, download_result.response_body_,
+                                                    harvester_config.lookupJournalGroup(download_result.source_.journal_),
+                                                    harvester_config.lookupJournalSubgroup(download_result.source_.journal_)));
                     journal_datastore->queued_marc_records_.emplace_back(std::move(conversion_result));
                     ++metrics->num_downloads_harvested_successful_;
                 }
@@ -541,8 +527,7 @@ void EnqueueCompletedDownloadsForConversion(JournalDatastore * const journal_dat
 
 
 bool ConversionResultsComparator(const std::unique_ptr<Util::Future<Conversion::ConversionParams, Conversion::ConversionResult>> &a,
-                                 const std::unique_ptr<Util::Future<Conversion::ConversionParams, Conversion::ConversionResult>> &b)
-{
+                                 const std::unique_ptr<Util::Future<Conversion::ConversionParams, Conversion::ConversionResult>> &b) {
     return a->getParameter().download_item_.id_ < b->getParameter().download_item_.id_;
 }
 
@@ -552,16 +537,17 @@ class OutputFileCache {
     std::string output_filename_;
     std::string output_directory_;
     std::map<const Config::GroupParams *, std::unique_ptr<MARC::Writer>> output_marc_writers_;
+
 public:
     OutputFileCache(const CommandLineArgs &commandline_args, const HarvesterConfigData &harvester_config);
+
 public:
     const std::unique_ptr<MARC::Writer> &getWriter(const Config::GroupParams &group_params);
 };
 
 
 OutputFileCache::OutputFileCache(const CommandLineArgs &commandline_args, const HarvesterConfigData &harvester_config)
- : output_filename_(commandline_args.output_filename_), output_directory_(commandline_args.output_directory_)
-{
+    : output_filename_(commandline_args.output_filename_), output_directory_(commandline_args.output_directory_) {
     for (const auto &group_param : harvester_config.group_params_)
         output_marc_writers_.emplace(group_param.get(), nullptr);
 }
@@ -586,12 +572,9 @@ const std::unique_ptr<MARC::Writer> &OutputFileCache::getWriter(const Config::Gr
 void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, OutputFileCache * const outputfile_cache,
                                   const Util::UploadTracker &upload_tracker, const Download::DownloadManager &download_manager,
                                   const bool force_downloads, Conversion::ConversionManager &conversion_manager,
-                                  std::unordered_set<std::string> * const urls_harvested_during_current_session,
-                                  Metrics * const metrics)
-{
+                                  std::unordered_set<std::string> * const urls_harvested_during_current_session, Metrics * const metrics) {
     // Sort the conversion results in the order in which they were queued.
-    std::sort(journal_datastore->queued_marc_records_.begin(), journal_datastore->queued_marc_records_.end(),
-              ConversionResultsComparator);
+    std::sort(journal_datastore->queued_marc_records_.begin(), journal_datastore->queued_marc_records_.end(), ConversionResultsComparator);
 
     // Iterate through the conversion results and write out consecutive successfully converted MARC records to disk.
     unsigned previous_converted_item_id(0);
@@ -613,11 +596,10 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
         // ID indicates a duplicate download which is ignored when new conversion tasks are queued.
         bool wait_for_next_item(false);
         if (ignore_wait_condition)
-            ;// Fall-through without checking.
+            ; // Fall-through without checking.
         else if (not current_conversion->isComplete())
             wait_for_next_item = true;
-        else if (previous_converted_item_id != current_converted_item_id and
-                 current_converted_item_id != previous_converted_item_id + 1)
+        else if (previous_converted_item_id != current_converted_item_id and current_converted_item_id != previous_converted_item_id + 1)
             wait_for_next_item = true;
 
         if (wait_for_next_item) {
@@ -646,7 +628,10 @@ void WriteConversionResultsToDisk(JournalDatastore * const journal_datastore, Ou
                 // by comparing its hash and URLs with the ones stored in our database.
                 const auto record_urls(Util::GetMarcRecordUrls(*record));
 
-                if (not force_downloads and upload_tracker.recordAlreadyInDatabase(*record, /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY)) {
+                if (not force_downloads
+                    and upload_tracker.recordAlreadyInDatabase(*record,
+                                                               /*delivery_states_to_ignore=*/Util::UploadTracker::DELIVERY_STATES_TO_RETRY))
+                {
                     ++metrics->num_marc_conversions_skipped_since_already_delivered_;
                     LOG_INFO("Item " + current_download_item.toString() + " already delivered");
                     continue;
@@ -736,12 +721,10 @@ int Main(int argc, char *argv[]) {
             }
 
             if (journal->zeder_id_ != Config::DEFAULT_ZEDER_ID)
-                upload_tracker.registerZederJournal(journal->zeder_id_,
-                                                    StringUtil::ASCIIToLower(journal->group_),
-                                                    journal->name_);
+                upload_tracker.registerZederJournal(journal->zeder_id_, StringUtil::ASCIIToLower(journal->group_), journal->name_);
 
-            auto current_journal_datastore(QueueDownloadsForJournal(*journal, harvester_config, &harvestable_manager,
-                                                                    &download_manager, &harvester_metrics));
+            auto current_journal_datastore(
+                QueueDownloadsForJournal(*journal, harvester_config, &harvestable_manager, &download_manager, &harvester_metrics));
             journal_datastores.emplace_back(std::move(current_journal_datastore));
         }
 
@@ -750,18 +733,16 @@ int Main(int argc, char *argv[]) {
         const auto parent_journal(harvester_config.lookupJournal(commandline_args.selected_url_parent_journal_));
         if (parent_journal == nullptr) {
             harvester_config.default_journal_params_->entry_point_url_ = commandline_args.selected_url_;
-            auto current_journal_datastore(QueueDownloadsForJournal(*harvester_config.default_journal_params_,
-                                                                    harvester_config, &harvestable_manager,
-                                                                    &download_manager, &harvester_metrics));
+            auto current_journal_datastore(QueueDownloadsForJournal(*harvester_config.default_journal_params_, harvester_config,
+                                                                    &harvestable_manager, &download_manager, &harvester_metrics));
             journal_datastores.emplace_back(std::move(current_journal_datastore));
         } else {
             // We are permanently modifying the JournalParams instance as it will not
             // be reused for the remainder of this session.
             parent_journal->harvester_operation_ = Config::HarvesterOperation::DIRECT;
             parent_journal->entry_point_url_ = commandline_args.selected_url_;
-            auto current_journal_datastore(QueueDownloadsForJournal(*parent_journal,
-                                                                    harvester_config, &harvestable_manager,
-                                                                    &download_manager, &harvester_metrics));
+            auto current_journal_datastore(
+                QueueDownloadsForJournal(*parent_journal, harvester_config, &harvestable_manager, &download_manager, &harvester_metrics));
             journal_datastores.emplace_back(std::move(current_journal_datastore));
         }
 
@@ -773,7 +754,7 @@ int Main(int argc, char *argv[]) {
 
     Util::ZoteroLogger::FlushBufferAndPrintProgress(0, 0);
 
-    static const unsigned WAIT_LOOP_THREAD_SLEEP_TIME(64 * 1000);   // ms -> us
+    static const unsigned WAIT_LOOP_THREAD_SLEEP_TIME(64 * 1000); // ms -> us
     // Wait on completed downloads, initiate MARC conversions and write converted records to disk.
     while (true) {
         bool jobs_running(false);
@@ -782,8 +763,9 @@ int Main(int argc, char *argv[]) {
             EnqueueCrawlAndRssResults(journal_datastore.get(), &jobs_running, &harvester_metrics);
             EnqueueCompletedDownloadsForConversion(journal_datastore.get(), &jobs_running, &conversion_manager, harvester_config,
                                                    urls_harvested_during_current_session, &harvester_metrics);
-            WriteConversionResultsToDisk(journal_datastore.get(), &output_file_cache, upload_tracker, download_manager, commandline_args.force_downloads_,
-                                         conversion_manager, &urls_harvested_during_current_session, &harvester_metrics);
+            WriteConversionResultsToDisk(journal_datastore.get(), &output_file_cache, upload_tracker, download_manager,
+                                         commandline_args.force_downloads_, conversion_manager, &urls_harvested_during_current_session,
+                                         &harvester_metrics);
 
             if (not jobs_running)
                 jobs_running = not journal_datastore->queued_downloads_.empty() or not journal_datastore->queued_marc_records_.empty();

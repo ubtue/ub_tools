@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <stdexcept>
@@ -68,10 +68,10 @@ size_t SplitOnColon(const std::string &s, std::vector<std::string> * const parts
             current_part += ch;
     }
     parts->emplace_back(current_part);
-    
+
     return parts->size();
 }
-    
+
 
 void DeleteEntry(IniFile * const ini_file, const std::string &section_name_and_entry_name) {
     std::vector<std::string> parts;
@@ -89,7 +89,7 @@ void InsertEntry(IniFile * const ini_file, const std::string &section_name_and_e
 
     if (ini_file->variableIsDefined(parts[0], parts[1]))
         LOG_ERROR("can't insert existing entry \"" + section_name_and_entry_name + "\"!");
-    
+
     auto section(ini_file->getSection(parts[0]));
     if (section == ini_file->end()) {
         ini_file->appendSection(parts[0]);
@@ -113,7 +113,7 @@ void ReplaceValue(IniFile * const ini_file, const std::string &section_name_and_
 
     if (not ini_file->variableIsDefined(parts[0], parts[1]))
         LOG_ERROR("can't replace a non-existing entry \"" + section_name_and_entry_name + "\"!");
-    
+
     auto section(ini_file->getSection(parts[0]));
     section->replace(parts[1], parts[2]);
 }

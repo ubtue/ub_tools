@@ -43,8 +43,7 @@ namespace {
 // See https://github.com/ubtue/tuefind/wiki/Daten-Abzugskriterien#abzugskriterien-bibelwissenschaften, both entries Nr. 6 in order
 // to understand this implementation.
 void CollectGNDNumbers(MARC::Reader * const authority_reader, std::unordered_set<std::string> * const bible_studies_gnd_numbers,
-                       std::unordered_set<std::string> * const canon_law_gnd_numbers)
-{
+                       std::unordered_set<std::string> * const canon_law_gnd_numbers) {
     unsigned record_count(0);
     while (MARC::Record record = authority_reader->read()) {
         ++record_count;
@@ -83,7 +82,7 @@ bool HasRelBibIxTheoNotation(const MARC::Record &record) {
     // Integrate IxTheo Notations A*.B*,T*,V*,X*,Z*
     static const std::string RELBIB_IXTHEO_NOTATION_PATTERN("^[ABTVXZ][A-Z].*|.*:[ABTVXZ][A-Z].*");
     static RegexMatcher * const relbib_ixtheo_notations_matcher(RegexMatcher::RegexMatcherFactory(RELBIB_IXTHEO_NOTATION_PATTERN));
-    for (const auto& field : record.getTagRange("652")) {
+    for (const auto &field : record.getTagRange("652")) {
         for (const auto &subfield_a : field.getSubfields().extractSubfields("a")) {
             if (relbib_ixtheo_notations_matcher->matched(subfield_a))
                 return true;
@@ -157,7 +156,7 @@ inline bool MatchesRelBibDDC(const MARC::Record &record) {
 
 
 inline bool IsDefinitelyRelBib(const MARC::Record &record) {
-   return HasRelBibSSGN(record) or HasRelBibIxTheoNotation(record) or MatchesRelBibDDC(record);
+    return HasRelBibSSGN(record) or HasRelBibIxTheoNotation(record) or MatchesRelBibDDC(record);
 }
 
 
@@ -195,7 +194,7 @@ bool IsTemporaryRelBibSuperior(const MARC::Record &record) {
 bool ExcludeBecauseOfRWEX(const MARC::Record &record) {
     for (const auto &field : record.getTagRange("LOK")) {
         const auto &subfields(field.getSubfields());
-        for (const auto &subfield0: subfields.extractSubfields('0')) {
+        for (const auto &subfield0 : subfields.extractSubfields('0')) {
             if (not StringUtil::StartsWith(subfield0, "935"))
                 continue;
             for (const auto &subfield_a : subfields.extractSubfields('a')) {
@@ -301,7 +300,8 @@ void CollectSuperiorOrParallelWorks(const MARC::Record &record, std::unordered_s
 }
 
 
-// See https://github.com/ubtue/tuefind/wiki/Daten-Abzugs--und-Selektionskriterien#selektionskriterium-f%C3%BCr-das-subsystem-kirchenrecht for the documentation.
+// See https://github.com/ubtue/tuefind/wiki/Daten-Abzugs--und-Selektionskriterien#selektionskriterium-f%C3%BCr-das-subsystem-kirchenrecht
+// for the documentation.
 bool IsCanonLawRecord(const MARC::Record &record, const std::unordered_set<std::string> &canon_law_gnd_numbers) {
     // 1. Abrufzeichen
     for (const auto &field : record.getTagRange("935")) {
@@ -367,11 +367,9 @@ enum SubSystem { RELBIB, BIBSTUDIES, CANON_LAW, NUM_OF_SUBSYSTEMS };
 
 
 // Get set of immediately belonging or superior or parallel records
-void GetSubsystemPPNSet(MARC::Reader * const title_reader,
-                        const std::unordered_set<std::string> &bible_studies_gnd_numbers,
+void GetSubsystemPPNSet(MARC::Reader * const title_reader, const std::unordered_set<std::string> &bible_studies_gnd_numbers,
                         const std::unordered_set<std::string> &canon_law_gnd_numbers,
-                        std::vector<std::unordered_set<std::string>> * const subsystem_sets)
-{
+                        std::vector<std::unordered_set<std::string>> * const subsystem_sets) {
     while (const MARC::Record record = title_reader->read()) {
         if (IsRelBibRecord(record)) {
             ((*subsystem_sets)[RELBIB]).emplace(record.getControlNumber());
@@ -401,8 +399,7 @@ const std::string KRIMDOK_TAG("KRI");
 
 
 void TagTitlesIxtheo(MARC::Reader * const title_reader, MARC::Writer * const title_writer,
-                      const std::vector<std::unordered_set<std::string>> &subsystem_sets)
-{
+                     const std::vector<std::unordered_set<std::string>> &subsystem_sets) {
     unsigned record_count(0), modified_count(0);
     while (MARC::Record record = title_reader->read()) {
         ++record_count;
@@ -430,8 +427,7 @@ void TagTitlesIxtheo(MARC::Reader * const title_reader, MARC::Writer * const tit
 }
 
 
-void TagTitlesKrimdok(MARC::Reader * const title_reader, MARC::Writer * const title_writer)
-{
+void TagTitlesKrimdok(MARC::Reader * const title_reader, MARC::Writer * const title_writer) {
     unsigned record_count(0), modified_count(0);
     while (MARC::Record record = title_reader->read()) {
         ++record_count;
@@ -447,8 +443,8 @@ void TagTitlesKrimdok(MARC::Reader * const title_reader, MARC::Writer * const ti
 
 
 void ExtractAuthorsIxtheo(MARC::Reader * const title_reader, std::unordered_map<std::string, std::map<std::string, int>> * const authors,
-                        const std::unordered_set<std::string> &bible_studies_gnd_numbers,
-                        const std::unordered_set<std::string> &canon_law_gnd_numbers) {
+                          const std::unordered_set<std::string> &bible_studies_gnd_numbers,
+                          const std::unordered_set<std::string> &canon_law_gnd_numbers) {
     static std::vector<std::string> tags_to_check{ "100", "110", "111", "700", "710", "711" };
     unsigned record_count(0);
     while (const MARC::Record record = title_reader->read()) {
@@ -507,7 +503,8 @@ void ExtractAuthorsKrimdok(MARC::Reader * const title_reader, std::unordered_map
 }
 
 
-void TagAuthorsIxtheo(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer, std::unordered_map<std::string, std::map<std::string, int>> &authors) {
+void TagAuthorsIxtheo(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer,
+                      std::unordered_map<std::string, std::map<std::string, int>> &authors) {
     while (MARC::Record record = authority_reader->read()) {
         auto it_authors = authors.find(record.getControlNumber());
         if (it_authors != authors.end()) {
@@ -532,14 +529,14 @@ void TagAuthorsIxtheo(MARC::Reader * const authority_reader, MARC::Writer * cons
                 record.insertField("SUB", { { 'a', CANON_LAW_TAG }, { 'b', std::to_string(instances.find("c")->second) } });
             if (instances.find("i") != instances.end())
                 record.insertField("SUB", { { 'a', IXTHEO_TAG }, { 'b', std::to_string(instances.find("i")->second) } });
-
         }
         authority_writer->write(record);
     }
 }
 
 
-void TagAuthorsKrimdok(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer, std::unordered_map<std::string, std::map<std::string, int>> &authors) {
+void TagAuthorsKrimdok(MARC::Reader * const authority_reader, MARC::Writer * const authority_writer,
+                       std::unordered_map<std::string, std::map<std::string, int>> &authors) {
     while (MARC::Record record = authority_reader->read()) {
         auto it_authors = authors.find(record.getControlNumber());
         if (it_authors != authors.end()) {
@@ -548,14 +545,13 @@ void TagAuthorsKrimdok(MARC::Reader * const authority_reader, MARC::Writer * con
             // New "SUB" to keep it similar to title records
             if (instances.find("k") != instances.end())
                 record.insertField("SUB", { { 'a', KRIMDOK_TAG }, { 'b', std::to_string(instances.find("k")->second) } });
-
         }
         authority_writer->write(record);
     }
 }
 
 
-} //unnamed namespace
+} // unnamed namespace
 
 
 int Main(int argc, char **argv) {

@@ -18,22 +18,23 @@
  */
 
 #include <map>
-#include <unordered_map>
 #include <set>
+#include <unordered_map>
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "StringUtil.h"
-#include "util.h"
 #include "Zeder.h"
+#include "util.h"
 
 
 namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("packet_definition_config_file packet_subscriptions_output\n"
-            "\tFor the documentation of the input config file, please see data/generate_subscription_packets.README.");
+    ::Usage(
+        "packet_definition_config_file packet_subscriptions_output\n"
+        "\tFor the documentation of the input config file, please see data/generate_subscription_packets.README.");
 }
 
 
@@ -47,7 +48,8 @@ bool FoundExpectedClassValue(const std::string &expected_values_str, const std::
 
     for (const auto &class_str : class_list) {
         if (std::find_if(expected_values.cbegin(), expected_values.cend(),
-                         [&class_str](auto &expected_value) { return ::strcasecmp(class_str.c_str(), expected_value.c_str()) == 0; }) != expected_values.cend())
+                         [&class_str](auto &expected_value) { return ::strcasecmp(class_str.c_str(), expected_value.c_str()) == 0; })
+            != expected_values.cend())
             return true;
     }
     return false;
@@ -61,11 +63,9 @@ bool IncludeJournal(const Zeder::Entry &journal, const IniFile::Section &filter_
 
         const std::string &zeder_column_name(entry.name_);
         const auto column_value(StringUtil::TrimWhite(journal.lookup(zeder_column_name == "except_class" ? "class" : zeder_column_name)));
-        if (column_value.empty())
-        {
+        if (column_value.empty()) {
             LOG_INFO("\tcolumn " + zeder_column_name + " was empty!");
             return false;
-
         }
 
         const bool found_it(FoundExpectedClassValue(entry.value_, column_value));
@@ -103,9 +103,8 @@ std::string EscapeDoubleQuotes(const std::string &s) {
 }
 
 
-void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string &bundle_instances,
-                              const IniFile::Section &section, File * const output_file)
-{
+void GenerateBundleDefinition(const Zeder::SimpleZeder &zeder, const std::string &bundle_instances, const IniFile::Section &section,
+                              File * const output_file) {
     unsigned included_journal_count(0);
     std::set<std::string> bundle_ppns; // We use a std::set because it is automatically being sorted for us.
     bool contains_print(false);
@@ -176,15 +175,15 @@ int Main(int argc, char *argv[]) {
     const IniFile packet_definitions_ini_file(argv[1]);
     const auto zeder_instance(packet_definitions_ini_file.getString("", "zeder_instance"));
     if (zeder_instance != "ixtheo" and zeder_instance != "relbib")
-        LOG_ERROR("zeder_instance in \"" + packet_definitions_ini_file.getFilename()
-                  + "\" must be either \"ixtheo\" or \"relbib\"!");
+        LOG_ERROR("zeder_instance in \"" + packet_definitions_ini_file.getFilename() + "\" must be either \"ixtheo\" or \"relbib\"!");
 
     const Zeder::SimpleZeder zeder(zeder_instance == "ixtheo" ? Zeder::IXTHEO : Zeder::KRIMDOK);
     if (not zeder)
         LOG_ERROR("can't connect to Zeder!");
     if (unlikely(zeder.empty()))
-        LOG_ERROR("found no Zeder entries matching any of our requested columns!"
-                  " (This *should* not happen as we included the column ID!)");
+        LOG_ERROR(
+            "found no Zeder entries matching any of our requested columns!"
+            " (This *should* not happen as we included the column ID!)");
 
     const auto bundle_instances(packet_definitions_ini_file.getString("", "bundle_instances"));
 

@@ -37,7 +37,7 @@ __attribute__((noreturn)) void Usage() {
 
 
 void Compress(const std::string &input_filename, const std::string &output_filename) {
-    File input(input_filename, "r");\
+    File input(input_filename, "r");
     File output(output_filename, "wc");
     int ch;
     while ((ch = input.get()) != EOF)
@@ -46,7 +46,7 @@ void Compress(const std::string &input_filename, const std::string &output_filen
 
 
 void Decompress(const std::string &input_filename, const std::string &output_filename) {
-    File input(input_filename, "ru");\
+    File input(input_filename, "ru");
     File output(output_filename, "w");
     int ch;
     while ((ch = input.get()) != EOF)

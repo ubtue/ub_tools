@@ -15,13 +15,13 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <cstdlib>
-#include "IniFile.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
+#include "IniFile.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -33,10 +33,12 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << " [--sender=sender] [-reply-to=reply_to] --recipients=recipients\n"
+    std::cerr << "Usage: "
+              << " [--sender=sender] [-reply-to=reply_to] --recipients=recipients\n"
               << "  [--cc-recipients=cc_recipients] [--bcc-recipients=bcc_recipients] [--expand-newline-escapes]\n"
               << "  --subject=subject (--message-body=message_body | --message-body-file=path) [--priority=priority] [--format=format]\n"
-              << "  [--attachment=file1 --attachment=file2 .. --inline-attachment=fileN|--inline-attachment=file1 --inline-attachment=file2 .. --inline-attachment=fileN]\n\n"
+              << "  [--attachment=file1 --attachment=file2 .. --inline-attachment=fileN|--inline-attachment=file1 "
+                 "--inline-attachment=file2 .. --inline-attachment=fileN]\n\n"
               << "       \"priority\" has to be one of \"very_low\", \"low\", \"medium\", \"high\", or\n"
               << "       \"very_high\".  \"format\" has to be one of \"plain_text\" or \"html\"  At least one\n"
               << "       of \"sender\" or \"reply-to\" has to be specified. If \"--expand-newline-escapes\" has\n"
@@ -91,8 +93,7 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
                       std::string * const cc_recipients, std::string * const bcc_recipients, std::string * const subject,
                       std::string * const message_body, std::string * const priority, std::string * const format,
                       bool * const expand_newline_escapes, AttachmentType * const attachment_type,
-                      std::vector<std::string> * const attachments)
-{
+                      std::vector<std::string> * const attachments) {
     *attachment_type = NONE;
     *expand_newline_escapes = false;
     std::string attachment, message_body_path;
@@ -101,8 +102,8 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
             *expand_newline_escapes = true;
             ++argv;
         } else if (ExtractArg(*argv, "attachment", &attachment) or ExtractArg(*argv, "inline-attachment", &attachment)) {
-            const AttachmentType current_attachment_type(StringUtil::StartsWith(*argv, "--attachment=")
-                                                         ? FILE_ATTACHMENT : INLINE_ATTACHMENT);
+            const AttachmentType current_attachment_type(StringUtil::StartsWith(*argv, "--attachment=") ? FILE_ATTACHMENT
+                                                                                                        : INLINE_ATTACHMENT);
             if (*attachment_type == NONE)
                 *attachment_type = current_attachment_type;
             else if (current_attachment_type != *attachment_type)
@@ -110,15 +111,13 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
             attachment = FileUtil::ExpandTildePath(attachment);
             if (not FileUtil::IsReadable(attachment))
                 LOG_ERROR("attachment \"" + attachment + "\" does not exist or isn't readable!");
-            attachments->emplace_back(current_attachment_type == INLINE_ATTACHMENT
-                                      ? FileUtil::ReadStringOrDie(attachment) : attachment);
+            attachments->emplace_back(current_attachment_type == INLINE_ATTACHMENT ? FileUtil::ReadStringOrDie(attachment) : attachment);
             ++argv;
         } else if (ExtractArg(*argv, "sender", sender) or ExtractArg(*argv, "reply-to", reply_to)
-            or ExtractArg(*argv, "recipients", recipients) or ExtractArg(*argv, "cc-recipients", cc_recipients)
-            or ExtractArg(*argv, "bcc-recipients", bcc_recipients) or ExtractArg(*argv, "subject", subject)
-            or ExtractArg(*argv, "message-body", message_body) or ExtractArg(*argv, "message-body-file", &message_body_path)
-            or ExtractArg(*argv, "priority", priority) or ExtractArg(*argv, "format", format)
-            or ExtractArg(*argv, "format", format))
+                   or ExtractArg(*argv, "recipients", recipients) or ExtractArg(*argv, "cc-recipients", cc_recipients)
+                   or ExtractArg(*argv, "bcc-recipients", bcc_recipients) or ExtractArg(*argv, "subject", subject)
+                   or ExtractArg(*argv, "message-body", message_body) or ExtractArg(*argv, "message-body-file", &message_body_path)
+                   or ExtractArg(*argv, "priority", priority) or ExtractArg(*argv, "format", format) or ExtractArg(*argv, "format", format))
             ++argv;
         else
             LOG_ERROR("unknown argument: " + std::string(*argv));
@@ -139,7 +138,7 @@ void ParseCommandLine(char **argv, std::string * const sender, std::string * con
 
 std::vector<std::string> SplitRecipients(const std::string &recipients) {
     std::vector<std::string> individual_recipients;
-    StringUtil::Split(recipients, ',', &individual_recipients, /* suppress_empty_components = */true);
+    StringUtil::Split(recipients, ',', &individual_recipients, /* suppress_empty_components = */ true);
     return individual_recipients;
 }
 
@@ -188,13 +187,12 @@ int Main(int argc, char *argv[]) {
     EmailSender::Priority priority(EmailSender::DO_NOT_SET_PRIORITY);
     EmailSender::Format format(EmailSender::PLAIN_TEXT);
 
-    std::string sender, reply_to, recipients, cc_recipients, bcc_recipients, subject, message_body, priority_as_string,
-        format_as_string;
+    std::string sender, reply_to, recipients, cc_recipients, bcc_recipients, subject, message_body, priority_as_string, format_as_string;
     bool expand_newline_escapes;
     AttachmentType attachment_type;
     std::vector<std::string> attachments;
-    ParseCommandLine(++argv, &sender, &reply_to, &recipients, &cc_recipients, &bcc_recipients, &subject, &message_body,
-                     &priority_as_string, &format_as_string, &expand_newline_escapes, &attachment_type, &attachments);
+    ParseCommandLine(++argv, &sender, &reply_to, &recipients, &cc_recipients, &bcc_recipients, &subject, &message_body, &priority_as_string,
+                     &format_as_string, &expand_newline_escapes, &attachment_type, &attachments);
 
     if (sender.empty() and reply_to.empty())
         sender = "no-reply@ub.uni-tuebingen.de";
@@ -207,11 +205,10 @@ int Main(int argc, char *argv[]) {
     if (expand_newline_escapes)
         message_body = ExpandNewlineEscapes(message_body);
 
-    const auto response_code(EmailSender::SendEmail(sender, SplitRecipients(recipients), SplitRecipients(cc_recipients),
-                                                    SplitRecipients(bcc_recipients), subject, message_body, priority, format,
-                                                    reply_to, attachments,
-                                                    (attachments.empty() or attachment_type == FILE_ATTACHMENT)
-                                                        ? EmailSender::AT_FILENAMES : EmailSender::AT_DATA));
+    const auto response_code(EmailSender::SendEmail(
+        sender, SplitRecipients(recipients), SplitRecipients(cc_recipients), SplitRecipients(bcc_recipients), subject, message_body,
+        priority, format, reply_to, attachments,
+        (attachments.empty() or attachment_type == FILE_ATTACHMENT) ? EmailSender::AT_FILENAMES : EmailSender::AT_DATA));
     if (response_code >= 300) {
         if (not MiscUtil::EnvironmentVariableExists("ENABLE_SMTP_CLIENT_PERFORM_LOGGING"))
             LOG_ERROR("failed to send your email, the response code was: " + std::to_string(response_code)

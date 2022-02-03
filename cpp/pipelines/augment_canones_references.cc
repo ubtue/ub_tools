@@ -95,8 +95,7 @@ std::string CodexToPrefix(const Codex codex) {
 
 
 void LoadAuthorityData(MARC::Reader * const reader,
-                       std::unordered_map<std::string, std::string> * const authority_ppns_to_canon_law_codes_map)
-{
+                       std::unordered_map<std::string, std::string> * const authority_ppns_to_canon_law_codes_map) {
     const auto aliases_file(FileUtil::OpenOutputFileOrDie(UBTools::GetTuelibPath() + "canon_law_aliases.map"));
 
     unsigned total_count(0);
@@ -108,13 +107,12 @@ void LoadAuthorityData(MARC::Reader * const reader,
             continue;
 
         const std::string t_subfield(_110_field->getFirstSubfieldWithCode('t'));
-        if (::strcasecmp(t_subfield.c_str(),"Codex Iuris Canonici") != 0
+        if (::strcasecmp(t_subfield.c_str(), "Codex Iuris Canonici") != 0
             and ::strcasecmp(t_subfield.c_str(), "Codex canonum ecclesiarum orientalium") != 0)
             continue;
 
         const Codex codex(DetermineCodex(t_subfield, _110_field->getFirstSubfieldWithCode('f'), record.getControlNumber()));
-        const auto canon_law_code(
-            FieldToCanonLawCode(record.getControlNumber(), codex, _110_field->getFirstSubfieldWithCode('p')));
+        const auto canon_law_code(FieldToCanonLawCode(record.getControlNumber(), codex, _110_field->getFirstSubfieldWithCode('p')));
         if (unlikely(canon_law_code.empty()))
             continue;
 
@@ -132,9 +130,7 @@ void LoadAuthorityData(MARC::Reader * const reader,
 }
 
 
-void CollectAuthorityPPNs(const MARC::Record &record, const MARC::Tag &linking_field,
-                          std::vector<std::string> * const authority_ppns)
-{
+void CollectAuthorityPPNs(const MARC::Record &record, const MARC::Tag &linking_field, std::vector<std::string> * const authority_ppns) {
     for (const auto &field : record.getTagRange(linking_field)) {
         const MARC::Subfields subfields(field.getSubfields());
         for (const auto &subfield : subfields) {
@@ -146,8 +142,7 @@ void CollectAuthorityPPNs(const MARC::Record &record, const MARC::Tag &linking_f
 
 
 void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
-                    const std::unordered_map<std::string, std::string> &authority_ppns_to_canon_law_codes_map)
-{
+                    const std::unordered_map<std::string, std::string> &authority_ppns_to_canon_law_codes_map) {
     static const std::vector<std::string> CANONES_GND_LINKING_TAGS{ "689", "655", "610" };
 
     unsigned total_count(0), augmented_count(0);

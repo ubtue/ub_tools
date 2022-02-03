@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #include <iostream>
 #include <cstdlib>
 #include "MARC.h"
@@ -33,14 +33,13 @@ namespace {
 
 
 bool IsMatchingRecord(const MARC::Record &record, const std::vector<MARC::Record::const_iterator> &local_block_starts,
-                      std::vector<std::string> &matching_subfield_a_values)
-{
+                      std::vector<std::string> &matching_subfield_a_values) {
     for (const auto &local_block_start : local_block_starts) {
         auto field(local_block_start);
         auto last_local_tag(field->getLocalTag());
         while (likely(field != record.end()) and field->getLocalTag() >= last_local_tag) {
             last_local_tag = field->getLocalTag();
-            if (last_local_tag ==  "852") {
+            if (last_local_tag == "852") {
                 const auto subfield_a_value(field->getFirstSubfieldWithCode('a'));
                 for (const auto &matching_subfield_a_value : matching_subfield_a_values) {
                     if (matching_subfield_a_value == subfield_a_value)
@@ -68,8 +67,7 @@ bool IsUBOrIFKRecord(const MARC::Record &record, const std::vector<MARC::Record:
 
 
 void FindNonMPIInstitutions(const MARC::Record &record, const std::vector<MARC::Record::const_iterator> &local_block_starts,
-                            std::vector<std::string> * const non_mpi_institutions)
-{
+                            std::vector<std::string> * const non_mpi_institutions) {
     non_mpi_institutions->clear();
 
     for (const auto &local_block_start : local_block_starts) {
@@ -112,8 +110,7 @@ void GenerateStats(MARC::Reader * const marc_reader) {
     }
 
     std::cout << "Counted " << recent_mpi_only_count << " records originating at the MPI and not found locally.\n";
-    std::cout << "Counted " << has_additional_non_mpi_institutions
-              << " records that have MPI and institutions other than UB or IFK.\n";
+    std::cout << "Counted " << has_additional_non_mpi_institutions << " records that have MPI and institutions other than UB or IFK.\n";
 }
 
 

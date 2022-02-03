@@ -15,11 +15,11 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-#include <cstdlib>
+ */
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
+#include <cstdlib>
 #include "Archive.h"
 #include "DbConnection.h"
 #include "EmailSender.h"
@@ -110,11 +110,9 @@ int Main(int argc, char *argv[]) {
 
         const auto status_code(EmailSender::SendEmailWithFileAttachments(
             "nobody@nowhere.com", { email_address }, "Missing PPN's",
-            "Attached is the new list of " + std::to_string(new_missing_ppns.size()) + " missing PPN('s).",
-            { ZIP_FILENAME }));
+            "Attached is the new list of " + std::to_string(new_missing_ppns.size()) + " missing PPN('s).", { ZIP_FILENAME }));
         if (status_code > 299)
-            LOG_ERROR("Failed to send an email to \"" + email_address + "\"!  The server returned "
-                      + std::to_string(status_code) + ".");
+            LOG_ERROR("Failed to send an email to \"" + email_address + "\"!  The server returned " + std::to_string(status_code) + ".");
 
         const unsigned BATCH_SIZE(20);
         std::string values;

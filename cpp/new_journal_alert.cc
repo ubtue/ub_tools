@@ -1,7 +1,8 @@
 /** \file    new_journal_alert.cc
  *  \brief   Detects new journal issues for subscribed users.
- *  \note    Additional documentation can be found at https://github.com/ubtue/ub_tools/wiki/Abonnementservice-f%C3%BCr-Zeitschriftenartikel-in-IxTheo-und-RelBib
- *  \author  Dr. Johannes Ruscheinski
+ *  \note    Additional documentation can be found at
+ * https://github.com/ubtue/ub_tools/wiki/Abonnementservice-f%C3%BCr-Zeitschriftenartikel-in-IxTheo-und-RelBib \author  Dr. Johannes
+ * Ruscheinski
  */
 
 /*
@@ -30,8 +31,8 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
-#include "Compiler.h"
 #include "BinaryIO.h"
+#include "Compiler.h"
 #include "DbConnection.h"
 #include "EmailSender.h"
 #include "FileUtil.h"
@@ -63,27 +64,24 @@ namespace {
 typedef enum journal_subscription_format { MEISTERTASK } journal_subscription_format;
 
 
-const std::map<journal_subscription_format, std::string> JOURNAL_SUBSCRIPTION_FORMAT_TO_STRING_MAP {
-    { MEISTERTASK, "meistertask"}
-};
+const std::map<journal_subscription_format, std::string> JOURNAL_SUBSCRIPTION_FORMAT_TO_STRING_MAP{ { MEISTERTASK, "meistertask" } };
 
 
-const std::map<std::string, journal_subscription_format> JOURNAL_SUBSCRIPTION_FORMAT_ENUM_MAP {
-    { "meistertask", MEISTERTASK }
-};
+const std::map<std::string, journal_subscription_format> JOURNAL_SUBSCRIPTION_FORMAT_ENUM_MAP{ { "meistertask", MEISTERTASK } };
 
 
 struct SerialControlNumberAndMaxLastModificationTime {
     std::string serial_control_number_;
     std::string last_modification_time_;
     bool changed_;
+
 public:
-    SerialControlNumberAndMaxLastModificationTime(const std::string &serial_control_number,
-                                                  const std::string &last_modification_time)
-        : serial_control_number_(serial_control_number), last_modification_time_(last_modification_time),
-          changed_(false) { }
-    inline void setMaxLastModificationTime(const std::string &new_last_modification_time)
-        { last_modification_time_ = new_last_modification_time; changed_ = true; }
+    SerialControlNumberAndMaxLastModificationTime(const std::string &serial_control_number, const std::string &last_modification_time)
+        : serial_control_number_(serial_control_number), last_modification_time_(last_modification_time), changed_(false) { }
+    inline void setMaxLastModificationTime(const std::string &new_last_modification_time) {
+        last_modification_time_ = new_last_modification_time;
+        changed_ = true;
+    }
     inline bool changed() const { return changed_; }
 };
 
@@ -95,12 +93,13 @@ struct NewIssueInfo {
     std::string issue_title_;
     std::string volume_, year_, issue_, start_page_;
     std::vector<std::string> authors_;
+
 public:
     NewIssueInfo(const std::string &control_number, const std::string &series_control_number, const std::string &series_title,
                  const std::string &issue_title, const std::string &volume, const std::string &year, const std::string &issue,
                  const std::string &start_page, const std::vector<std::string> &authors)
         : control_number_(control_number), series_control_number_(series_control_number), series_title_(series_title),
-          issue_title_(issue_title), volume_(volume), year_(year), issue_(issue), start_page_(start_page), authors_(authors) {}
+          issue_title_(issue_title), volume_(volume), year_(year), issue_(issue), start_page_(start_page), authors_(authors) { }
     bool operator<(const NewIssueInfo &rhs) const;
     bool operator==(const NewIssueInfo &rhs) const;
     bool operator%(const NewIssueInfo &rhs) const; // Has same year, volume and issue
@@ -110,14 +109,13 @@ public:
 
 std::ostream &operator<<(std::ostream &output, const NewIssueInfo &new_issue_info) {
     output << new_issue_info.control_number_
-           << (new_issue_info.series_control_number_.empty() ? "Missing series PPN*" : new_issue_info.series_control_number_)
-           << ' ' << (new_issue_info.series_title_.empty() ? "*Missing Series Title*" : new_issue_info.series_title_) << ' '
+           << (new_issue_info.series_control_number_.empty() ? "Missing series PPN*" : new_issue_info.series_control_number_) << ' '
+           << (new_issue_info.series_title_.empty() ? "*Missing Series Title*" : new_issue_info.series_title_) << ' '
            << (new_issue_info.issue_title_.empty() ? "*Missing Issue Title*" : new_issue_info.issue_title_) << ' '
            << (new_issue_info.volume_.empty() ? "*Missing Volume*" : new_issue_info.volume_) << ' '
            << (new_issue_info.year_.empty() ? "*Missing Year*" : new_issue_info.year_) << ' '
            << (new_issue_info.issue_.empty() ? "*Missing Issue*" : new_issue_info.issue_) << ' '
-           << (new_issue_info.start_page_.empty() ? "*Missing Start Page*" : new_issue_info.start_page_) << ' '
-           << "Authors: ";
+           << (new_issue_info.start_page_.empty() ? "*Missing Start Page*" : new_issue_info.start_page_) << ' ' << "Authors: ";
     for (const auto &author : new_issue_info.authors_)
         output << author << ' ';
 
@@ -158,30 +156,25 @@ bool NewIssueInfo::operator<(const NewIssueInfo &rhs) const {
 
 
 bool NewIssueInfo::operator==(const NewIssueInfo &rhs) const {
-    return control_number_ == rhs.control_number_ and
-           series_title_ == rhs.series_title_ and
-           issue_title_ == rhs.issue_title_ and
-           volume_ == rhs.volume_ and
-           issue_ == rhs.issue_ and
-           start_page_ == rhs.start_page_ and
-           authors_ == rhs.authors_;
+    return control_number_ == rhs.control_number_ and series_title_ == rhs.series_title_ and issue_title_ == rhs.issue_title_
+           and volume_ == rhs.volume_ and issue_ == rhs.issue_ and start_page_ == rhs.start_page_ and authors_ == rhs.authors_;
 }
 
 // Derive equality only in a certain respect
 bool NewIssueInfo::operator%(const NewIssueInfo &rhs) const {
-   if (year_ < rhs.year_)
-       return true;
-   if (rhs.year_ < year_)
-       return false;
-   if (volume_ < rhs.volume_)
-       return true;
-   if (rhs.volume_ < volume_)
-       return false;
-   if (issue_ < rhs.issue_)
-       return true;
-   if (rhs.issue_ < issue_)
-       return false;
-   return false;
+    if (year_ < rhs.year_)
+        return true;
+    if (rhs.year_ < year_)
+        return false;
+    if (volume_ < rhs.volume_)
+        return true;
+    if (rhs.volume_ < volume_)
+        return false;
+    if (issue_ < rhs.issue_)
+        return true;
+    if (rhs.issue_ < issue_)
+        return false;
+    return false;
 }
 
 
@@ -198,16 +191,16 @@ inline std::string CapitalizedUserType(const std::string &user_type) {
         LOG_ERROR("instance not valid: " + user_type);
 }
 
-} // unamed namespace
+} // namespace
 
 namespace std {
-    template <>
-    struct hash<NewIssueInfo> {
-        size_t operator()(const NewIssueInfo &i) const {
-            // hash method here
-            return hash<string>()(i.control_number_);
-        }
-    };
+template <>
+struct hash<NewIssueInfo> {
+    size_t operator()(const NewIssueInfo &i) const {
+        // hash method here
+        return hash<string>()(i.control_number_);
+    }
+};
 } // namespace std
 
 
@@ -216,146 +209,142 @@ namespace {
 
 class GenerateEmailContents {
 public:
-    ~GenerateEmailContents() {};
+    ~GenerateEmailContents(){};
     virtual std::string generateContent(const std::string &user_type, const std::string &name_of_user, const std::string &vufind_host,
-                           const std::vector<NewIssueInfo> &new_issue_infos) const = 0;
+                                        const std::vector<NewIssueInfo> &new_issue_infos) const = 0;
     virtual std::string generateContent(const std::string &vufind_host, const NewIssueInfo &new_issue_infos) const = 0;
-
 };
 
 
 class GenerateDefaultEmailContents : public GenerateEmailContents {
 public:
-     virtual std::string generateContent(const std::string &user_type, const std::string &name_of_user, const std::string &vufind_host,
-                                       const std::vector<NewIssueInfo> &new_issue_infos) const
-     {
-         std::string email_contents("Dear " + name_of_user + ",<br /><br />\n"
+    virtual std::string generateContent(const std::string &user_type, const std::string &name_of_user, const std::string &vufind_host,
+                                        const std::vector<NewIssueInfo> &new_issue_infos) const {
+        std::string email_contents("Dear " + name_of_user + ",<br /><br />\n"
                                     "An automated process has determined that new issues are available for\n"
                                     "serials that you are subscribed to.  The list is:\n"
                                     "<ul>\n"); // start journal list
 
-         std::string last_series_title, last_volume_year_and_issue;
-         for (const auto &new_issue_info : new_issue_infos) {
-             const bool new_serial(new_issue_info.series_title_ != last_series_title);
-             if (new_serial) {
-                 if (not last_series_title.empty()) { // Not first iteration!
-                     email_contents += "    </ul>\n"; // end items
-                     email_contents += "  </ul>\n"; // end volume/year/issue list
-                 }
-                 last_series_title = new_issue_info.series_title_;
-                 email_contents += "  <li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
-                 email_contents += "  <ul>\n"; // start volume/year/issue list
-                 last_volume_year_and_issue.clear();
-             }
+        std::string last_series_title, last_volume_year_and_issue;
+        for (const auto &new_issue_info : new_issue_infos) {
+            const bool new_serial(new_issue_info.series_title_ != last_series_title);
+            if (new_serial) {
+                if (not last_series_title.empty()) { // Not first iteration!
+                    email_contents += "    </ul>\n"; // end items
+                    email_contents += "  </ul>\n";   // end volume/year/issue list
+                }
+                last_series_title = new_issue_info.series_title_;
+                email_contents += "  <li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
+                email_contents += "  <ul>\n"; // start volume/year/issue list
+                last_volume_year_and_issue.clear();
+            }
 
-             // Generate "volume_year_and_issue":
-             std::string volume_year_and_issue;
-             if (not new_issue_info.volume_.empty())
-                 volume_year_and_issue += new_issue_info.volume_;
-             if (not new_issue_info.year_.empty()) {
-                 if (not volume_year_and_issue.empty())
-                     volume_year_and_issue += " ";
-                 volume_year_and_issue += "(" + new_issue_info.year_ + ")";
-             }
-             if (not new_issue_info.issue_.empty()) {
-                 if (not volume_year_and_issue.empty())
-                     volume_year_and_issue += ", ";
-                 volume_year_and_issue += new_issue_info.issue_;
-             }
+            // Generate "volume_year_and_issue":
+            std::string volume_year_and_issue;
+            if (not new_issue_info.volume_.empty())
+                volume_year_and_issue += new_issue_info.volume_;
+            if (not new_issue_info.year_.empty()) {
+                if (not volume_year_and_issue.empty())
+                    volume_year_and_issue += " ";
+                volume_year_and_issue += "(" + new_issue_info.year_ + ")";
+            }
+            if (not new_issue_info.issue_.empty()) {
+                if (not volume_year_and_issue.empty())
+                    volume_year_and_issue += ", ";
+                volume_year_and_issue += new_issue_info.issue_;
+            }
 
-             if (volume_year_and_issue != last_volume_year_and_issue) {
-                 if (not new_serial)
-                     email_contents += "    </ul>\n"; // end items
-                 email_contents += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
-                 last_volume_year_and_issue = volume_year_and_issue;
-                 email_contents += "    <ul>\n"; // start items
-             }
+            if (volume_year_and_issue != last_volume_year_and_issue) {
+                if (not new_serial)
+                    email_contents += "    </ul>\n"; // end items
+                email_contents += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
+                last_volume_year_and_issue = volume_year_and_issue;
+                email_contents += "    <ul>\n"; // start items
+            }
 
-             const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
-             std::string authors;
-             for (const auto &author : new_issue_info.authors_)
-                 authors += "&nbsp;&nbsp;&nbsp;" + HtmlUtil::HtmlEscape(author);
-             email_contents += "      <li><a href=\"" + URL + "\">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors
-                               + "</li>\n";
-         }
-         email_contents += "    </ul>\n"; // end items
-         email_contents += "  </ul>\n"; // end volume/year/issue list
-         email_contents += "</ul>\n"; // end journal list
-         email_contents += "<br />\n"
+            const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
+            std::string authors;
+            for (const auto &author : new_issue_info.authors_)
+                authors += "&nbsp;&nbsp;&nbsp;" + HtmlUtil::HtmlEscape(author);
+            email_contents +=
+                "      <li><a href=\"" + URL + "\">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors + "</li>\n";
+        }
+        email_contents += "    </ul>\n"; // end items
+        email_contents += "  </ul>\n";   // end volume/year/issue list
+        email_contents += "</ul>\n";     // end journal list
+        email_contents += "<br />\n"
                            "Sincerely,<br />\n"
                            "The " + CapitalizedUserType(user_type) + " Team\n"
                            "<br />--<br />\n"
                            "If you have questions regarding this service please contact\n"
                            "<a href=\"mailto:" + user_type + "@ub.uni-tuebingen.de\">" + user_type + "@ub.uni-tuebingen.de</a>.\n";
 
-         return email_contents;
-     }
+        return email_contents;
+    }
 
 
-     virtual std::string generateContent(__attribute__((unused)) const std::string &vufind_host,
-                                         __attribute__((unused)) const NewIssueInfo &new_issue_infos) const
-     {
-         LOG_ERROR(std::string(__FUNCTION__) +  " currently not implemented");
-     }
+    virtual std::string generateContent(__attribute__((unused)) const std::string &vufind_host,
+                                        __attribute__((unused)) const NewIssueInfo &new_issue_infos) const {
+        LOG_ERROR(std::string(__FUNCTION__) + " currently not implemented");
+    }
 };
 
 
-class GenerateMeistertaskEmailContents :  public GenerateEmailContents {
+class GenerateMeistertaskEmailContents : public GenerateEmailContents {
 public:
-     virtual std::string generateContent(const std::string &vufind_host, const NewIssueInfo &new_issue_info) const
-     {
-         std::string email_contents(HtmlUtil::HtmlEscape(new_issue_info.series_title_) + " ");
-         // Generate "volume_year_and_issue":
-         std::string volume_year_and_issue;
-         if (not new_issue_info.volume_.empty())
-             volume_year_and_issue += new_issue_info.volume_;
-         if (not new_issue_info.year_.empty()) {
-             if (not volume_year_and_issue.empty())
-                 volume_year_and_issue += " ";
-             volume_year_and_issue += "(" + new_issue_info.year_ + ")";
-         }
-         if (not new_issue_info.issue_.empty()) {
-             if (not volume_year_and_issue.empty())
-                 volume_year_and_issue += ", ";
-             volume_year_and_issue += new_issue_info.issue_;
-         }
+    virtual std::string generateContent(const std::string &vufind_host, const NewIssueInfo &new_issue_info) const {
+        std::string email_contents(HtmlUtil::HtmlEscape(new_issue_info.series_title_) + " ");
+        // Generate "volume_year_and_issue":
+        std::string volume_year_and_issue;
+        if (not new_issue_info.volume_.empty())
+            volume_year_and_issue += new_issue_info.volume_;
+        if (not new_issue_info.year_.empty()) {
+            if (not volume_year_and_issue.empty())
+                volume_year_and_issue += " ";
+            volume_year_and_issue += "(" + new_issue_info.year_ + ")";
+        }
+        if (not new_issue_info.issue_.empty()) {
+            if (not volume_year_and_issue.empty())
+                volume_year_and_issue += ", ";
+            volume_year_and_issue += new_issue_info.issue_;
+        }
 
-         email_contents += HtmlUtil::HtmlEscape(volume_year_and_issue) + "<br/>\n";
+        email_contents += HtmlUtil::HtmlEscape(volume_year_and_issue) + "<br/>\n";
 
-         const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.series_control_number_);
-         email_contents += "<a href=\"" + URL + "#details\">" +  URL + "</a><br/>\n";
-         return email_contents;
-     }
+        const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.series_control_number_);
+        email_contents += "<a href=\"" + URL + "#details\">" + URL + "</a><br/>\n";
+        return email_contents;
+    }
 
 
-     virtual std::string generateContent(__attribute__((unused)) const std::string &user_type,
-                                         __attribute__((unused)) const std::string &name_of_user,
-                                         __attribute__((unused)) const std::string &vufind_host,
-                                         __attribute__((unused)) const std::vector<NewIssueInfo> &new_issue_infos) const
-     {
-         LOG_ERROR(std::string(__FUNCTION__) +  " currently not implemented");
-     }
+    virtual std::string generateContent(__attribute__((unused)) const std::string &user_type,
+                                        __attribute__((unused)) const std::string &name_of_user,
+                                        __attribute__((unused)) const std::string &vufind_host,
+                                        __attribute__((unused)) const std::vector<NewIssueInfo> &new_issue_infos) const {
+        LOG_ERROR(std::string(__FUNCTION__) + " currently not implemented");
+    }
 };
 
 
 class SendNotificationEmail {
 public:
-    ~SendNotificationEmail() {};
-    virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user, const std::string &recipient_email,
-                      const std::string &vufind_host, const std::string &sender_email, const std::string &email_subject,
-                      const std::vector<NewIssueInfo> &new_issue_infos, const std::string &user_type) const = 0;
+    ~SendNotificationEmail(){};
+    virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user,
+                      const std::string &recipient_email, const std::string &vufind_host, const std::string &sender_email,
+                      const std::string &email_subject, const std::vector<NewIssueInfo> &new_issue_infos,
+                      const std::string &user_type) const = 0;
     virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &recipient_email,
-                      const std::string &vufind_host, const std::string &sender_email, const std::vector<NewIssueInfo> &new_issue_infos) const = 0;
-
+                      const std::string &vufind_host, const std::string &sender_email,
+                      const std::vector<NewIssueInfo> &new_issue_infos) const = 0;
 };
 
 
 class SendDefaultNotificationEmail : public SendNotificationEmail {
 public:
-    virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user, const std::string &recipient_email,
-                               const std::string &vufind_host, const std::string &sender_email, const std::string &email_subject,
-                               const std::vector<NewIssueInfo> &new_issue_infos, const std::string &user_type) const
-    {
+    virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user,
+                      const std::string &recipient_email, const std::string &vufind_host, const std::string &sender_email,
+                      const std::string &email_subject, const std::vector<NewIssueInfo> &new_issue_infos,
+                      const std::string &user_type) const {
         const std::string email_contents(mail_contents_generator.generateContent(user_type, name_of_user, vufind_host, new_issue_infos));
         if (debug)
             LOG_DEBUG("Debug mode, email address is " + sender_email + ", template expanded to: \"" + email_contents + "\"");
@@ -367,26 +356,27 @@ public:
                 if (response_code == 550)
                     LOG_WARNING("failed to send a notification email to \"" + recipient_email + "\", recipient may not exist!");
                 else
-                    LOG_ERROR("failed to send a notification email to \"" + recipient_email + "\"! (response code was: "
-                              + std::to_string(response_code) + ")");
+                    LOG_ERROR("failed to send a notification email to \"" + recipient_email
+                              + "\"! (response code was: " + std::to_string(response_code) + ")");
             }
         }
     }
 
-   virtual void send(__attribute__((unused)) const bool debug, __attribute__((unused)) const GenerateEmailContents &mail_contents_generator,
-                     __attribute__((unused)) const std::string &recipient_email, __attribute__((unused)) const std::string &vufind_host,
-                     __attribute__((unused)) const std::string &sender_email, __attribute__((unused)) const std::vector<NewIssueInfo> &new_issue_infos) const
-   {
-         LOG_ERROR(std::string(__FUNCTION__) +  " currently not implemented");
-   }
+    virtual void send(__attribute__((unused)) const bool debug,
+                      __attribute__((unused)) const GenerateEmailContents &mail_contents_generator,
+                      __attribute__((unused)) const std::string &recipient_email, __attribute__((unused)) const std::string &vufind_host,
+                      __attribute__((unused)) const std::string &sender_email,
+                      __attribute__((unused)) const std::vector<NewIssueInfo> &new_issue_infos) const {
+        LOG_ERROR(std::string(__FUNCTION__) + " currently not implemented");
+    }
 };
 
 
 class SendMeistertaskNotificationEmails : public SendNotificationEmail {
 public:
-    virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator,  const std::string &recipient_email,
-                      const std::string &vufind_host, const std::string &sender_email, const std::vector<NewIssueInfo> &new_issue_infos) const
-    {
+    virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &recipient_email,
+                      const std::string &vufind_host, const std::string &sender_email,
+                      const std::vector<NewIssueInfo> &new_issue_infos) const {
         std::vector<NewIssueInfo> unique_issues_infos;
         deduplicateIdenticalIssues(new_issue_infos, &unique_issues_infos);
         for (const auto &unique_issue_info : unique_issues_infos) {
@@ -394,33 +384,36 @@ public:
             if (debug)
                 LOG_DEBUG("Debug mode, email address is " + sender_email + ", template expanded to: \"" + email_contents + "\"");
             else {
-                const auto response_code(EmailSender::SimplerSendEmail(sender_email, { recipient_email }, unique_issue_info.series_title_, email_contents,
-                                                                       EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
+                const auto response_code(EmailSender::SimplerSendEmail(sender_email, { recipient_email }, unique_issue_info.series_title_,
+                                                                       email_contents, EmailSender::DO_NOT_SET_PRIORITY,
+                                                                       EmailSender::HTML));
 
                 if (response_code >= 300) {
                     if (response_code == 550)
                         LOG_WARNING("failed to send a notification email to \"" + recipient_email + "\", recipient may not exist!");
                     else
-                        LOG_ERROR("failed to send a notification email to \"" + recipient_email + "\"! (response code was: "
-                                  + std::to_string(response_code) + ")");
+                        LOG_ERROR("failed to send a notification email to \"" + recipient_email
+                                  + "\"! (response code was: " + std::to_string(response_code) + ")");
                 }
             }
         }
     }
 
 
-    virtual void  send(__attribute__((unused)) const bool debug, __attribute__((unused)) const GenerateEmailContents &mail_contents_generator,
-         __attribute__((unused)) const std::string &name_of_user, __attribute__((unused)) const std::string &recipient_email,
-         __attribute__((unused)) const std::string &vufind_host, __attribute__((unused)) const std::string &sender_email,
-         __attribute__((unused)) const std::string &email_subject, __attribute__((unused)) const std::vector<NewIssueInfo> &new_issue_infos,
-         __attribute__((unused)) const std::string &user_type) const
-    {
-         LOG_ERROR(std::string(__FUNCTION__) +  " currently not implemented");
+    virtual void send(__attribute__((unused)) const bool debug,
+                      __attribute__((unused)) const GenerateEmailContents &mail_contents_generator,
+                      __attribute__((unused)) const std::string &name_of_user, __attribute__((unused)) const std::string &recipient_email,
+                      __attribute__((unused)) const std::string &vufind_host, __attribute__((unused)) const std::string &sender_email,
+                      __attribute__((unused)) const std::string &email_subject,
+                      __attribute__((unused)) const std::vector<NewIssueInfo> &new_issue_infos,
+                      __attribute__((unused)) const std::string &user_type) const {
+        LOG_ERROR(std::string(__FUNCTION__) + " currently not implemented");
     }
 
 
-    void deduplicateIdenticalIssues(const std::vector<NewIssueInfo> new_issue_infos, std::vector<NewIssueInfo> * const deduplicated_new_issue_infos) const {
-        const auto one_per_issue_comparator = [](const NewIssueInfo &lhs,  const NewIssueInfo &rhs) { return lhs.operator%(rhs); };
+    void deduplicateIdenticalIssues(const std::vector<NewIssueInfo> new_issue_infos,
+                                    std::vector<NewIssueInfo> * const deduplicated_new_issue_infos) const {
+        const auto one_per_issue_comparator = [](const NewIssueInfo &lhs, const NewIssueInfo &rhs) { return lhs.operator%(rhs); };
         std::set<NewIssueInfo, decltype(one_per_issue_comparator)> new_issue_infos_one_per_issue(one_per_issue_comparator);
         new_issue_infos_one_per_issue.insert(new_issue_infos.begin(), new_issue_infos.end());
         deduplicated_new_issue_infos->assign(new_issue_infos_one_per_issue.begin(), new_issue_infos_one_per_issue.end());
@@ -501,7 +494,7 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
     std::string first_id_and_title_string_value(container_ids_and_titles_array->getStringNode(0)->getValue());
     StringUtil::ReplaceString("#31;", "\x1F", &first_id_and_title_string_value);
     std::vector<std::string> parts;
-    StringUtil::Split(first_id_and_title_string_value, '\x1F', &parts, /* suppress_empty_components = */true);
+    StringUtil::Split(first_id_and_title_string_value, '\x1F', &parts, /* suppress_empty_components = */ true);
     if (unlikely(parts.size() < 2))
         LOG_ERROR("strange id and title value \"" + first_id_and_title_string_value + "\"!");
 
@@ -524,8 +517,7 @@ std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode
 
     std::vector<std::string> authors;
     for (const auto &array_entry : *author_array) {
-        const std::shared_ptr<const JSON::StringNode> author_string(
-            JSON::JSONNode::CastToStringNodeOrDie("author string", array_entry));
+        const std::shared_ptr<const JSON::StringNode> author_string(JSON::JSONNode::CastToStringNodeOrDie("author string", array_entry));
         authors.emplace_back(author_string->getValue());
     }
 
@@ -535,10 +527,8 @@ std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode
 
 /** \return True if new issues were found, false o/w. */
 bool ExtractNewIssueInfos(const std::unique_ptr<KeyValueDB> &notified_db, const std::string &serial_control_number,
-                          std::unordered_set<std::string> * const new_notification_ids,
-                          const std::string &json_document, std::vector<NewIssueInfo> * const new_issue_infos,
-                          std::string * const max_last_modification_time)
-{
+                          std::unordered_set<std::string> * const new_notification_ids, const std::string &json_document,
+                          std::vector<NewIssueInfo> * const new_issue_infos, std::string * const max_last_modification_time) {
     bool found_at_least_one_new_issue(false);
 
     JSON::Parser parser(json_document);
@@ -554,7 +544,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<KeyValueDB> &notified_db, const 
         const std::shared_ptr<const JSON::ObjectNode> doc_obj(JSON::JSONNode::CastToObjectNodeOrDie("document object", doc));
 
         const std::string id(GetIssueId(doc_obj));
-        if (notified_db->keyIsPresent(id) )
+        if (notified_db->keyIsPresent(id))
             continue; // We already sent a notification for this issue.
         new_notification_ids->insert(id);
 
@@ -572,8 +562,7 @@ bool ExtractNewIssueInfos(const std::unique_ptr<KeyValueDB> &notified_db, const 
         const std::string issue(JSON::LookupString("/issue", doc_obj, /* default_value = */ ""));
         const std::string start_page(JSON::LookupString("/start_page", doc_obj, /* default_value = */ ""));
 
-        new_issue_infos->emplace_back(id, serial_control_number, series_title, issue_title, volume, year, issue,
-                                      start_page, authors);
+        new_issue_infos->emplace_back(id, serial_control_number, series_title, issue_title, volume, year, issue, start_page, authors);
 
         const std::string last_modification_time(GetLastModificationTime(doc_obj));
         if (last_modification_time > *max_last_modification_time) {
@@ -586,34 +575,28 @@ bool ExtractNewIssueInfos(const std::unique_ptr<KeyValueDB> &notified_db, const 
 }
 
 
-bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db,
-                  std::unordered_set<std::string> * const new_notification_ids, const std::string &solr_host_and_port,
-                  const std::string &serial_control_number, std::string last_modification_time,
-                  std::vector<NewIssueInfo> * const new_issue_infos, std::string * const max_last_modification_time)
-{
+bool GetNewIssues(const std::unique_ptr<KeyValueDB> &notified_db, std::unordered_set<std::string> * const new_notification_ids,
+                  const std::string &solr_host_and_port, const std::string &serial_control_number, std::string last_modification_time,
+                  std::vector<NewIssueInfo> * const new_issue_infos, std::string * const max_last_modification_time) {
     const unsigned year_current(StringUtil::ToUnsigned(TimeUtil::GetCurrentYear()));
     const unsigned year_min(year_current - 2);
-    const std::string QUERY("superior_ppn:" + serial_control_number
-                            + " AND last_modification_time:{" + last_modification_time + " TO *}"
-                            + " AND year:[" + std::to_string(year_min) + " TO " + std::to_string(year_current) + "]"
-    );
+    const std::string QUERY("superior_ppn:" + serial_control_number + " AND last_modification_time:{" + last_modification_time + " TO *}"
+                            + " AND year:[" + std::to_string(year_min) + " TO " + std::to_string(year_current) + "]");
 
     std::string json_result, err_msg;
     if (unlikely(not Solr::Query(QUERY,
                                  "id,title,title_sub,author,last_modification_time,container_ids_and_titles,volume,year,"
-                                 "issue,start_page", &json_result, &err_msg,
-                                 solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
+                                 "issue,start_page",
+                                 &json_result, &err_msg, solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
         LOG_ERROR("Solr query failed or timed-out: \"" + QUERY + "\". (" + err_msg + ")");
 
-    return ExtractNewIssueInfos(notified_db, serial_control_number, new_notification_ids, json_result,
-                                new_issue_infos, max_last_modification_time);
+    return ExtractNewIssueInfos(notified_db, serial_control_number, new_notification_ids, json_result, new_issue_infos,
+                                max_last_modification_time);
 }
 
 
-
 void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &bundle_name,
-                              std::vector<std::string> * const control_numbers)
-{
+                              std::vector<std::string> * const control_numbers) {
     const auto section(bundles_config.getSection(bundle_name));
     if (section == bundles_config.end()) {
         LOG_WARNING("can't find bundle \"" + bundle_name + "\" in \"" + bundles_config.getFilename() + "\"!");
@@ -622,30 +605,31 @@ void LoadBundleControlNumbers(const IniFile &bundles_config, const std::string &
 
     const std::string bundle_ppns_string(bundles_config.getString(bundle_name, "ppns", ""));
     std::vector<std::string> bundle_ppns;
-    StringUtil::SplitThenTrim(bundle_ppns_string, "," , " \t", &bundle_ppns);
+    StringUtil::SplitThenTrim(bundle_ppns_string, ",", " \t", &bundle_ppns);
     for (const auto &bundle_ppn : bundle_ppns)
         control_numbers->emplace_back(bundle_ppn);
 }
 
 
-inline std::string SingleQuote(const std::string &to_quote) { return "'" + to_quote + "'"; }
+inline std::string SingleQuote(const std::string &to_quote) {
+    return "'" + to_quote + "'";
+}
 
 
 void LoadBundleMaxLastModificationTimes(DbConnection * const db_connection, const std::string &bundle_name,
                                         std::vector<std::string> bundle_control_numbers,
-                                        std::map<std::string, std::string> * const bundle_journals_max_last_modification_times)
-{
+                                        std::map<std::string, std::string> * const bundle_journals_max_last_modification_times) {
     bundle_journals_max_last_modification_times->clear();
     std::vector<std::string> quoted_bundle_control_numbers;
-    std::transform(bundle_control_numbers.begin(), bundle_control_numbers.end(), std::back_inserter(quoted_bundle_control_numbers), SingleQuote);
+    std::transform(bundle_control_numbers.begin(), bundle_control_numbers.end(), std::back_inserter(quoted_bundle_control_numbers),
+                   SingleQuote);
     db_connection->queryOrDie("SELECT journal_control_number, max_last_modification_time FROM ixtheo_journal_bundles WHERE bundle_name='"
-                               + bundle_name + "' AND journal_control_number IN (" +
-                               StringUtil::Join(quoted_bundle_control_numbers, ',') +
-                               ')');
+                              + bundle_name + "' AND journal_control_number IN (" + StringUtil::Join(quoted_bundle_control_numbers, ',')
+                              + ')');
     DbResultSet result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow())
-        bundle_journals_max_last_modification_times->emplace(std::make_pair(row["journal_control_number"],
-                                                                            ConvertDateToZuluDate(row["max_last_modification_time"])));
+        bundle_journals_max_last_modification_times->emplace(
+            std::make_pair(row["journal_control_number"], ConvertDateToZuluDate(row["max_last_modification_time"])));
 }
 
 
@@ -657,16 +641,14 @@ bool IsBundle(const std::string &serial_control_number) {
 
 
 bool MinModificationTimeLessThan(const std::pair<std::string, std::string> &elem1, const std::pair<std::string, std::string> &elem2) {
-    return TimeUtil::Iso8601StringToTimeT(elem1.second, TimeUtil::UTC /* required by function */) <
-           TimeUtil::Iso8601StringToTimeT(elem2.second, TimeUtil::UTC /* required by function */);
+    return TimeUtil::Iso8601StringToTimeT(elem1.second, TimeUtil::UTC /* required by function */)
+           < TimeUtil::Iso8601StringToTimeT(elem2.second, TimeUtil::UTC /* required by function */);
 }
 
 
-std::string GetMinLastModificationTime(const std::map<std::string, std::string> &control_number_and_max_last_modification_times)
-{
+std::string GetMinLastModificationTime(const std::map<std::string, std::string> &control_number_and_max_last_modification_times) {
     const auto min(std::min_element(control_number_and_max_last_modification_times.begin(),
-                              control_number_and_max_last_modification_times.end(),
-                              MinModificationTimeLessThan));
+                                    control_number_and_max_last_modification_times.end(), MinModificationTimeLessThan));
     if (min == control_number_and_max_last_modification_times.end())
         return "1970-01-01T00:00:00Z";
     return min->second;
@@ -674,14 +656,12 @@ std::string GetMinLastModificationTime(const std::map<std::string, std::string> 
 
 
 void ProcessSingleUser(
-    const bool debug, DbConnection * const db_connection, const std::unique_ptr<KeyValueDB> &notified_db,
-    const IniFile &bundles_config, std::unordered_set<std::string> * const new_notification_ids,
+    const bool debug, DbConnection * const db_connection, const std::unique_ptr<KeyValueDB> &notified_db, const IniFile &bundles_config,
+    std::unordered_set<std::string> * const new_notification_ids,
     std::unordered_map<std::string, unsigned> * const journal_ppns_to_counts_map, const std::string &user_id,
-    const std::string &solr_host_and_port, const std::string &hostname, const std::string &sender_email,
-    const std::string &email_subject,
+    const std::string &solr_host_and_port, const std::string &hostname, const std::string &sender_email, const std::string &email_subject,
     std::vector<SerialControlNumberAndMaxLastModificationTime> &control_numbers_or_bundle_names_and_last_modification_times,
-    std::map<std::string, std::map<std::string, std::string>> * const bundle_journal_last_modification_times)
-{
+    std::map<std::string, std::map<std::string, std::string>> * const bundle_journal_last_modification_times) {
     db_connection->queryOrDie("SELECT * FROM user WHERE user.id=" + user_id);
     DbResultSet result_set(db_connection->getLastResultSet());
 
@@ -693,8 +673,8 @@ void ProcessSingleUser(
     const DbRow row(result_set.getNextRow());
     const std::string username(row["username"]);
 
-    LOG_INFO("Found " + std::to_string(control_numbers_or_bundle_names_and_last_modification_times.size())
-             + " subscriptions for \"" + username + "\".");
+    LOG_INFO("Found " + std::to_string(control_numbers_or_bundle_names_and_last_modification_times.size()) + " subscriptions for \""
+             + username + "\".");
 
     const std::string firstname(row["firstname"]);
     const std::string lastname(row["lastname"]);
@@ -705,13 +685,10 @@ void ProcessSingleUser(
 
     // Collect the dates for new issues.
     std::vector<NewIssueInfo> new_issue_infos;
-    for (auto &control_number_or_bundle_name_and_last_modification_time
-             : control_numbers_or_bundle_names_and_last_modification_times)
-    {
+    for (auto &control_number_or_bundle_name_and_last_modification_time : control_numbers_or_bundle_names_and_last_modification_times) {
         std::string max_last_modification_time(control_number_or_bundle_name_and_last_modification_time.last_modification_time_);
         if (IsBundle(control_number_or_bundle_name_and_last_modification_time.serial_control_number_)) {
-            const std::string bundle_name(
-                control_number_or_bundle_name_and_last_modification_time.serial_control_number_);
+            const std::string bundle_name(control_number_or_bundle_name_and_last_modification_time.serial_control_number_);
             std::vector<std::string> bundle_control_numbers;
             LoadBundleControlNumbers(bundles_config, bundle_name, &bundle_control_numbers);
             std::map<std::string, std::string> bundles_journal_control_number_and_last_modification_times;
@@ -719,16 +696,15 @@ void ProcessSingleUser(
                                                &bundles_journal_control_number_and_last_modification_times);
             for (const auto &bundle_control_number : bundle_control_numbers) {
                 const std::string bundle_journal_last_modification_time(
-                   bundles_journal_control_number_and_last_modification_times.count(bundle_control_number)
-                   and (TimeUtil::Iso8601StringToTimeT(
-                            bundles_journal_control_number_and_last_modification_times[bundle_control_number], TimeUtil::UTC)
-                        >= TimeUtil::Iso8601StringToTimeT(max_last_modification_time, TimeUtil::UTC))
-                   ? bundles_journal_control_number_and_last_modification_times[bundle_control_number]
-                   : max_last_modification_time);
+                    bundles_journal_control_number_and_last_modification_times.count(bundle_control_number)
+                            and (TimeUtil::Iso8601StringToTimeT(
+                                     bundles_journal_control_number_and_last_modification_times[bundle_control_number], TimeUtil::UTC)
+                                 >= TimeUtil::Iso8601StringToTimeT(max_last_modification_time, TimeUtil::UTC))
+                        ? bundles_journal_control_number_and_last_modification_times[bundle_control_number]
+                        : max_last_modification_time);
                 if (GetNewIssues(notified_db, new_notification_ids, solr_host_and_port, bundle_control_number,
                                  bundle_journal_last_modification_time, &new_issue_infos, &max_last_modification_time))
-                    bundles_journal_control_number_and_last_modification_times[bundle_control_number] =
-                        max_last_modification_time;
+                    bundles_journal_control_number_and_last_modification_times[bundle_control_number] = max_last_modification_time;
             }
             (*bundle_journal_last_modification_times)[bundle_name] = bundles_journal_control_number_and_last_modification_times;
             // Get the minimum of all candidates - if they were already sent the notified_db will come in
@@ -753,13 +729,16 @@ void ProcessSingleUser(
     if (not new_issue_infos.empty()) {
         db_connection->queryOrDie("SELECT ixtheo_journal_subscription_format FROM vufind.user WHERE id=" + user_id);
         DbResultSet journal_subscription_format_result_set(db_connection->getLastResultSet());
-        const std::string journal_subscription_format(journal_subscription_format_result_set.empty() ? "" :
-                                                      journal_subscription_format_result_set.getNextRow()["ixtheo_journal_subscription_format"]);
+        const std::string journal_subscription_format(
+            journal_subscription_format_result_set.empty()
+                ? ""
+                : journal_subscription_format_result_set.getNextRow()["ixtheo_journal_subscription_format"]);
         if (journal_subscription_format == JOURNAL_SUBSCRIPTION_FORMAT_TO_STRING_MAP.at(MEISTERTASK))
-            SendMeistertaskNotificationEmails().send(debug, GenerateMeistertaskEmailContents(), email, hostname, sender_email, new_issue_infos);
+            SendMeistertaskNotificationEmails().send(debug, GenerateMeistertaskEmailContents(), email, hostname, sender_email,
+                                                     new_issue_infos);
         else
-            SendDefaultNotificationEmail().send(debug, GenerateDefaultEmailContents(), name_of_user, email, hostname,
-                                                sender_email, email_subject, new_issue_infos, user_type);
+            SendDefaultNotificationEmail().send(debug, GenerateDefaultEmailContents(), name_of_user, email, hostname, sender_email,
+                                                email_subject, new_issue_infos, user_type);
     }
 
     // Update the database with the new last issue dates
@@ -779,32 +758,29 @@ void ProcessSingleUser(
         }
     }
 
-    for (const auto &control_number_or_bundle_name_and_last_modification_time
-             : control_numbers_or_bundle_names_and_last_modification_times)
+    for (const auto &control_number_or_bundle_name_and_last_modification_time : control_numbers_or_bundle_names_and_last_modification_times)
     {
         if (not control_number_or_bundle_name_and_last_modification_time.changed())
             continue;
 
         db_connection->queryOrDie(
             "UPDATE ixtheo_journal_subscriptions SET max_last_modification_time='"
-            + ConvertDateFromZuluDate(control_number_or_bundle_name_and_last_modification_time.last_modification_time_) + "' WHERE user_id="
-            + user_id + " AND journal_control_number_or_bundle_name='"
+            + ConvertDateFromZuluDate(control_number_or_bundle_name_and_last_modification_time.last_modification_time_)
+            + "' WHERE user_id=" + user_id + " AND journal_control_number_or_bundle_name='"
             + control_number_or_bundle_name_and_last_modification_time.serial_control_number_ + "'");
     }
 }
 
 
-void StoreBundleJournalsMaxModificationTimes(DbConnection * const db_connection,
-                                              const std::map<std::string, std::map<std::string, std::string>>
-                                              bundle_journals_last_modification_times)
-{
+void StoreBundleJournalsMaxModificationTimes(
+    DbConnection * const db_connection,
+    const std::map<std::string, std::map<std::string, std::string>> bundle_journals_last_modification_times) {
     for (auto const &[bundle_name, journal_control_number_and_max_last_modification_times] : bundle_journals_last_modification_times) {
         db_connection->queryOrDie("DELETE FROM ixtheo_journal_bundles WHERE bundle_name=\"" + bundle_name + "\"");
         for (const auto &journal_control_number_and_max_last_modification_time : journal_control_number_and_max_last_modification_times)
-             db_connection->queryOrDie("INSERT INTO ixtheo_journal_bundles VALUES('" +
-                                           bundle_name + "','" +
-                                           journal_control_number_and_max_last_modification_time.first + "','" +
-                                           ConvertDateFromZuluDate(journal_control_number_and_max_last_modification_time.second) + "')");
+            db_connection->queryOrDie("INSERT INTO ixtheo_journal_bundles VALUES('" + bundle_name + "','"
+                                      + journal_control_number_and_max_last_modification_time.first + "','"
+                                      + ConvertDateFromZuluDate(journal_control_number_and_max_last_modification_time.second) + "')");
     }
 }
 
@@ -813,10 +789,11 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
                           const IniFile &bundles_config, std::unordered_set<std::string> * const new_notification_ids,
                           std::unordered_map<std::string, unsigned> * const journal_ppns_to_counts_map,
                           const std::string &solr_host_and_port, const std::string &user_type, const std::string &hostname,
-                          const std::string &sender_email, const std::string &email_subject)
-{
-    db_connection->queryOrDie("SELECT DISTINCT user_id FROM ixtheo_journal_subscriptions WHERE user_id IN (SELECT id FROM "
-                              "user WHERE ixtheo_user_type = '" + user_type  + "')");
+                          const std::string &sender_email, const std::string &email_subject) {
+    db_connection->queryOrDie(
+        "SELECT DISTINCT user_id FROM ixtheo_journal_subscriptions WHERE user_id IN (SELECT id FROM "
+        "user WHERE ixtheo_user_type = '"
+        + user_type + "')");
 
     unsigned subscription_count(0);
     DbResultSet id_result_set(db_connection->getLastResultSet());
@@ -825,18 +802,19 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
     while (const DbRow id_row = id_result_set.getNextRow()) {
         const std::string user_id(id_row["user_id"]);
 
-        db_connection->queryOrDie("SELECT journal_control_number_or_bundle_name,max_last_modification_time FROM "
-                                  "ixtheo_journal_subscriptions WHERE user_id=" + user_id);
+        db_connection->queryOrDie(
+            "SELECT journal_control_number_or_bundle_name,max_last_modification_time FROM "
+            "ixtheo_journal_subscriptions WHERE user_id="
+            + user_id);
         DbResultSet result_set(db_connection->getLastResultSet());
         std::vector<SerialControlNumberAndMaxLastModificationTime> control_numbers_or_bundle_names_and_last_modification_times;
         while (const DbRow row = result_set.getNextRow()) {
-            control_numbers_or_bundle_names_and_last_modification_times.emplace_back(
-                SerialControlNumberAndMaxLastModificationTime(
-                    row["journal_control_number_or_bundle_name"], ConvertDateToZuluDate(row["max_last_modification_time"])));
+            control_numbers_or_bundle_names_and_last_modification_times.emplace_back(SerialControlNumberAndMaxLastModificationTime(
+                row["journal_control_number_or_bundle_name"], ConvertDateToZuluDate(row["max_last_modification_time"])));
             ++subscription_count;
         }
-        ProcessSingleUser(debug, db_connection, notified_db, bundles_config, new_notification_ids, journal_ppns_to_counts_map,
-                          user_id, solr_host_and_port, hostname, sender_email, email_subject,
+        ProcessSingleUser(debug, db_connection, notified_db, bundles_config, new_notification_ids, journal_ppns_to_counts_map, user_id,
+                          solr_host_and_port, hostname, sender_email, email_subject,
                           control_numbers_or_bundle_names_and_last_modification_times, &bundle_journals_last_modification_times);
     }
 
@@ -846,9 +824,7 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
 }
 
 
-void RecordNewlyNotifiedIds(const std::unique_ptr<KeyValueDB> &notified_db,
-                            const std::unordered_set<std::string> &new_notification_ids)
-{
+void RecordNewlyNotifiedIds(const std::unique_ptr<KeyValueDB> &notified_db, const std::unordered_set<std::string> &new_notification_ids) {
     const std::string now(TimeUtil::GetCurrentDateAndTime());
     for (const auto &id : new_notification_ids)
         notified_db->addOrReplace(id, now);
@@ -923,9 +899,8 @@ int Main(int argc, char **argv) {
 
     std::unordered_set<std::string> new_notification_ids;
     std::unordered_map<std::string, unsigned> journal_ppns_to_counts_map;
-    ProcessSubscriptions(debug, &db_connection, notified_db, bundles_config, &new_notification_ids,
-                         &journal_ppns_to_counts_map, solr_host_and_port, user_type, hostname, sender_email,
-                         email_subject);
+    ProcessSubscriptions(debug, &db_connection, notified_db, bundles_config, &new_notification_ids, &journal_ppns_to_counts_map,
+                         solr_host_and_port, user_type, hostname, sender_email, email_subject);
 
     if (not debug) {
         RecordNewlyNotifiedIds(notified_db, new_notification_ids);

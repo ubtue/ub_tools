@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <map>
@@ -98,8 +98,8 @@ std::string GetYear(const MARC::Record &record) {
 
 
 void ProcessRecords(MARC::Reader * const marc_reader, const unsigned pdf_limit_count) {
-    unsigned record_count(0), until1999_count(0), from2000_to_2009_count(0), after2009_count(0),
-             unhandled_url_count(0), good_count(0), download_failure_count(0), pdf_success_count(0);
+    unsigned record_count(0), until1999_count(0), from2000_to_2009_count(0), after2009_count(0), unhandled_url_count(0), good_count(0),
+        download_failure_count(0), pdf_success_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
 
@@ -163,11 +163,10 @@ void ProcessRecords(MARC::Reader * const marc_reader, const unsigned pdf_limit_c
     }
 
     std::cout << "Data set contains " << record_count << " MARC record(s).\n";
-    std::cout << good_count << " records survived all conditions and " << pdf_success_count
-              << " PDFs were sucessfully downloaded.\n";
+    std::cout << good_count << " records survived all conditions and " << pdf_success_count << " PDFs were sucessfully downloaded.\n";
     std::cout << "Didn't know how to handle " << unhandled_url_count << " URLs.\n";
-    std::cout << until1999_count << " came before 2000, " << after2009_count << " after 2009, and "
-              << from2000_to_2009_count << " inbetween.\n";
+    std::cout << until1999_count << " came before 2000, " << after2009_count << " after 2009, and " << from2000_to_2009_count
+              << " inbetween.\n";
 }
 
 

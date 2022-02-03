@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <iostream>
@@ -40,6 +40,7 @@ namespace {
 struct LibraryAndSymbols {
     std::string library_path_;
     std::unordered_set<std::string> provided_, needed_;
+
 public:
     LibraryAndSymbols() = default;
     LibraryAndSymbols(const LibraryAndSymbols &other) = default;
@@ -48,8 +49,7 @@ public:
 
 
 void ProcessLine(const bool debug, const std::string &line, LibraryAndSymbols * const library_and_symbols,
-                 std::unordered_set<std::string> * const all_provided)
-{
+                 std::unordered_set<std::string> * const all_provided) {
     std::vector<std::string> parts;
     StringUtil::SplitThenTrimWhite(line, ' ', &parts);
     if (parts.size() == 2 and parts[1] != "_GLOBAL_OFFSET_TABLE_")
@@ -65,7 +65,7 @@ void ProcessLine(const bool debug, const std::string &line, LibraryAndSymbols * 
 void ExtractSymbols(const bool debug, LibraryAndSymbols * const library_and_symbols) {
     std::string stdout;
     const std::string COMMAND("nm " + library_and_symbols->library_path_);
-    if (not ExecUtil::ExecSubcommandAndCaptureStdout(COMMAND, &stdout, /* suppress_stderr = */true))
+    if (not ExecUtil::ExecSubcommandAndCaptureStdout(COMMAND, &stdout, /* suppress_stderr = */ true))
         LOG_ERROR("failed to execute \"" + COMMAND + "\"!");
 
     std::unordered_set<std::string> all_provided;

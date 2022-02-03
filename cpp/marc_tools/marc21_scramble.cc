@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <iostream>
@@ -39,8 +39,7 @@ namespace {
 
 
 void WriteRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const std::vector<std::string> &control_numbers,
-                  const std::unordered_map<std::string, off_t>  &control_number_to_offset_map)
-{
+                  const std::unordered_map<std::string, off_t> &control_number_to_offset_map) {
     for (const auto &control_number : control_numbers) {
         const auto control_number_and_offset(control_number_to_offset_map.find(control_number));
         if (unlikely(control_number_and_offset == control_number_to_offset_map.cend()))

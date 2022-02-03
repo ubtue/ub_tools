@@ -22,6 +22,5 @@ int main(int argc, char *argv[]) {
     if (not TextUtil::WCharToUTF8String(static_cast<wchar_t>(code_point), &decoded_char))
         logger->error("failed to decode the code point!");
     else
-        std::cout << "The code point was decoded to \"" + decoded_char + "\". (Length was "
-                  << decoded_char.length() << ".)\n";
+        std::cout << "The code point was decoded to \"" + decoded_char + "\". (Length was " << decoded_char.length() << ".)\n";
 }

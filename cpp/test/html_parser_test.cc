@@ -13,7 +13,7 @@ void Usage() {
 }
 
 
-class Parser: public HtmlParser {
+class Parser : public HtmlParser {
 public:
     Parser(const std::string &document, const std::string &http_header_charset)
         : HtmlParser(document, http_header_charset,

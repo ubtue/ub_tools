@@ -53,13 +53,13 @@ int Main(int argc, char **argv) {
     std::string range;
 
     enum Codex { CIC1917, CIC1983, CCEO } codex;
-    if (StringUtil::StartsWith(canon_law_reference_candidate, "CCEO", /* ignore_case = */true)) {
+    if (StringUtil::StartsWith(canon_law_reference_candidate, "CCEO", /* ignore_case = */ true)) {
         codex = CCEO;
         range = StringUtil::TrimWhite(canon_law_reference_candidate.substr(__builtin_strlen("CCEO")));
-    } else if (StringUtil::StartsWith(canon_law_reference_candidate, "CIC1917", /* ignore_case = */true)) {
+    } else if (StringUtil::StartsWith(canon_law_reference_candidate, "CIC1917", /* ignore_case = */ true)) {
         codex = CIC1917;
         range = StringUtil::TrimWhite(canon_law_reference_candidate.substr(__builtin_strlen("CIC1917")));
-    } else if (StringUtil::StartsWith(canon_law_reference_candidate, "CIC1983", /* ignore_case = */true)) {
+    } else if (StringUtil::StartsWith(canon_law_reference_candidate, "CIC1983", /* ignore_case = */ true)) {
         codex = CIC1983;
         range = StringUtil::TrimWhite(canon_law_reference_candidate.substr(__builtin_strlen("CIC1983")));
     } else

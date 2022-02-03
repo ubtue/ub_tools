@@ -23,8 +23,9 @@
 
 
 [[noreturn]] void Usage() {
-    ::Usage("log_level message\n"
-            "Where \"log_level\" must be one of SEVERE, WARN, INFO or DEBUG.");
+    ::Usage(
+        "log_level message\n"
+        "Where \"log_level\" must be one of SEVERE, WARN, INFO or DEBUG.");
 }
 
 

@@ -20,8 +20,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -30,9 +30,9 @@
 #include "HtmlUtil.h"
 #include "StringUtil.h"
 #include "Template.h"
+#include "UBTools.h"
 #include "UrlUtil.h"
 #include "WebUtil.h"
-#include "UBTools.h"
 #include "util.h"
 
 
@@ -64,8 +64,7 @@ void ParseEscapedCommaSeparatedList(const std::string &escaped_text, std::vector
     }
 
     if (unlikely(last_char_was_backslash))
-        logger->error("in ParseEscapedCommaSeparatedList: weird escaped string ends in backslash \"" + escaped_text
-                      + "\"!");
+        logger->error("in ParseEscapedCommaSeparatedList: weird escaped string ends in backslash \"" + escaped_text + "\"!");
 
     list->emplace_back(StringUtil::RightTrim(&unescaped_text, '\n'));
 }
@@ -86,18 +85,18 @@ void ParseGetMissingLine(const std::string &line, Translation * const translatio
     if (unlikely(parts.size() != 5 and parts.size() != 6))
         logger->error("in ParseGetMissingLine: expected 5 or 6 parts, found \"" + line + "\"!");
 
-    translation->index_           = parts[0];
+    translation->index_ = parts[0];
     translation->remaining_count_ = parts[1];
-    translation->language_code_   = parts[2];
-    translation->text_            = parts[3];
-    translation->category_        = parts[4];
-    translation->gnd_code_        = (parts.size() != 6) ? NO_GND_CODE : parts[5];
+    translation->language_code_ = parts[2];
+    translation->text_ = parts[3];
+    translation->category_ = parts[4];
+    translation->gnd_code_ = (parts.size() != 6) ? NO_GND_CODE : parts[5];
 }
 
 
 void ParseTranslationsDbToolOutput(const std::string &output, std::vector<Translation> * const translations) {
     std::vector<std::string> lines;
-    StringUtil::Split(output, '\n', &lines, /* suppress_empty_components = */true);
+    StringUtil::Split(output, '\n', &lines, /* suppress_empty_components = */ true);
 
     for (const auto &line : lines) {
         Translation new_translation;
@@ -107,9 +106,7 @@ void ParseTranslationsDbToolOutput(const std::string &output, std::vector<Transl
 }
 
 
-std::string GetCGIParameterOrDie(const std::multimap<std::string, std::string> &cgi_args,
-                                 const std::string &parameter_name)
-{
+std::string GetCGIParameterOrDie(const std::multimap<std::string, std::string> &cgi_args, const std::string &parameter_name) {
     const auto key_and_value(cgi_args.find(parameter_name));
     if (key_and_value == cgi_args.cend())
         logger->error("expected a(n) \"" + parameter_name + "\" parameter!");
@@ -118,9 +115,7 @@ std::string GetCGIParameterOrDie(const std::multimap<std::string, std::string> &
 }
 
 
-std::string GetCGIParameterOrEmptyString(const std::multimap<std::string, std::string> &cgi_args,
-                                         const std::string &parameter_name)
-{
+std::string GetCGIParameterOrEmptyString(const std::multimap<std::string, std::string> &cgi_args, const std::string &parameter_name) {
     const auto key_and_value(cgi_args.find(parameter_name));
     if (key_and_value == cgi_args.cend())
         return "";
@@ -129,10 +124,7 @@ std::string GetCGIParameterOrEmptyString(const std::multimap<std::string, std::s
 }
 
 
-
-std::string GetEnvParameterOrEmptyString(const std::multimap<std::string, std::string> &env_args,
-                                         const std::string &parameter_name)
-{
+std::string GetEnvParameterOrEmptyString(const std::multimap<std::string, std::string> &env_args, const std::string &parameter_name) {
     const auto key_and_value(env_args.find(parameter_name));
     if (key_and_value == env_args.cend())
         return "";
@@ -141,15 +133,13 @@ std::string GetEnvParameterOrEmptyString(const std::multimap<std::string, std::s
 }
 
 
-void ParseTranslationsDbToolOutputAndGenerateNewDisplay(
-    const std::string &output, const std::string &language_code, const std::string &action,
-    const std::string &error_message = "", const std::string &user_translation = "")
-{
+void ParseTranslationsDbToolOutputAndGenerateNewDisplay(const std::string &output, const std::string &language_code,
+                                                        const std::string &action, const std::string &error_message = "",
+                                                        const std::string &user_translation = "") {
     std::vector<Translation> translations;
     ParseTranslationsDbToolOutput(output, &translations);
     if (translations.empty()) {
-        std::ifstream done_html(UBTools::GetTuelibPath() + "translate_chainer/done_translating.html",
-                                std::ios::binary);
+        std::ifstream done_html(UBTools::GetTuelibPath() + "translate_chainer/done_translating.html", std::ios::binary);
         std::cout << done_html.rdbuf();
     } else {
         std::string existing_translation("");
@@ -201,11 +191,9 @@ void GetMissing(const std::multimap<std::string, std::string> &cgi_args) {
 }
 
 
-void GetExisting(const std::string &language_code, const std::string &category, const std::string &index,
-                 std::string * const output)
-{
-    const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing \"" + language_code
-                                           + "\" \"" + category + "\" \"" + index + "\"");
+void GetExisting(const std::string &language_code, const std::string &category, const std::string &index, std::string * const output) {
+    const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing \"" + language_code + "\" \"" + category
+                                           + "\" \"" + index + "\"");
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(GET_EXISTING_COMMAND, output))
         LOG_ERROR("failed to execute \"" + GET_EXISTING_COMMAND + "\" or it returned a non-zero exit code!");
 }
@@ -215,26 +203,23 @@ void GetExisting(const std::multimap<std::string, std::string> &cgi_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string index(GetCGIParameterOrDie(cgi_args, "index"));
     const std::string category(GetCGIParameterOrDie(cgi_args, "category"));
-    const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing \"" + language_code
-                                           + "\" \"" + category + "\" \"" + index + "\"");
+    const std::string GET_EXISTING_COMMAND("/usr/local/bin/translation_db_tool get_existing \"" + language_code + "\" \"" + category
+                                           + "\" \"" + index + "\"");
     std::string output;
     GetExisting(language_code, category, index, &output);
     ParseTranslationsDbToolOutputAndGenerateNewDisplay(output, language_code, "update");
 }
 
 
-bool IsValidTranslation(const std::string &ppn, const std::string &new_translation, std::string *const error_message) {
-    std::string validate_command("/usr/local/bin/translation_db_tool validate_keyword " + ppn + " "
-                                 + new_translation);
+bool IsValidTranslation(const std::string &ppn, const std::string &new_translation, std::string * const error_message) {
+    std::string validate_command("/usr/local/bin/translation_db_tool validate_keyword " + ppn + " " + new_translation);
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(validate_command, error_message))
         LOG_ERROR("failed to execute \"" + validate_command + "\" or it returned a non-zero exit code!");
     return error_message->empty();
 }
 
 
-void Insert(const std::multimap<std::string, std::string> &cgi_args,
-            const std::multimap<std::string, std::string> &env_args)
-{
+void Insert(const std::multimap<std::string, std::string> &cgi_args, const std::multimap<std::string, std::string> &env_args) {
     const std::string language_code(GetCGIParameterOrDie(cgi_args, "language_code"));
     const std::string translation(GetCGIParameterOrDie(cgi_args, "translation"));
     const std::string index(GetCGIParameterOrDie(cgi_args, "index"));

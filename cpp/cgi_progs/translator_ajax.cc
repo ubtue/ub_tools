@@ -20,8 +20,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -48,9 +48,7 @@ void DumpCgiArgs(const std::multimap<std::string, std::string> &cgi_args) {
 }
 
 
-std::string GetCGIParameterOrDie(const std::multimap<std::string, std::string> &cgi_args,
-                                 const std::string &parameter_name)
-{
+std::string GetCGIParameterOrDie(const std::multimap<std::string, std::string> &cgi_args, const std::string &parameter_name) {
     const auto key_and_value(cgi_args.find(parameter_name));
     if (key_and_value == cgi_args.cend())
         LOG_ERROR("expected a(n) \"" + parameter_name + "\" parameter!");
@@ -59,9 +57,7 @@ std::string GetCGIParameterOrDie(const std::multimap<std::string, std::string> &
 }
 
 
-std::string GetCGIParameterOrEmptyString(const std::multimap<std::string, std::string> &cgi_args,
-                                         const std::string &parameter_name)
-{
+std::string GetCGIParameterOrEmptyString(const std::multimap<std::string, std::string> &cgi_args, const std::string &parameter_name) {
     const auto key_and_value(cgi_args.find(parameter_name));
     if (key_and_value == cgi_args.cend())
         return "";
@@ -70,9 +66,7 @@ std::string GetCGIParameterOrEmptyString(const std::multimap<std::string, std::s
 }
 
 
-std::string GetEnvParameterOrEmptyString(const std::multimap<std::string, std::string> &env_args,
-                                         const std::string &parameter_name)
-{
+std::string GetEnvParameterOrEmptyString(const std::multimap<std::string, std::string> &env_args, const std::string &parameter_name) {
     const auto key_and_value(env_args.find(parameter_name));
     if (key_and_value == env_args.cend())
         return "";
@@ -82,10 +76,8 @@ std::string GetEnvParameterOrEmptyString(const std::multimap<std::string, std::s
 
 
 void ExtractParams(const std::multimap<std::string, std::string> &cgi_args, const std::multimap<std::string, std::string> &env_args,
-                   std::string * const language_code, std::string * const translation,
-                   std::string * const index, std::string * const gnd_code,
-                   std::string * const translator)
-{
+                   std::string * const language_code, std::string * const translation, std::string * const index,
+                   std::string * const gnd_code, std::string * const translator) {
     *language_code = GetCGIParameterOrDie(cgi_args, "language_code");
     *translation = GetCGIParameterOrDie(cgi_args, "translation");
     *index = GetCGIParameterOrDie(cgi_args, "index");
@@ -94,9 +86,8 @@ void ExtractParams(const std::multimap<std::string, std::string> &cgi_args, cons
 }
 
 
-void broadcastToSDBus(const std::multimap<std::string, std::string> &cgi_args, const std::multimap<std::string, std::string> &env_args)
-{
-    #pragma GCC diagnostic ignored "-Wc99-extensions"
+void broadcastToSDBus(const std::multimap<std::string, std::string> &cgi_args, const std::multimap<std::string, std::string> &env_args) {
+#pragma GCC diagnostic ignored "-Wc99-extensions"
     sd_bus_error error = SD_BUS_ERROR_NULL;
     sd_bus_message *msg = NULL;
     sd_bus *bus = NULL;
@@ -104,30 +95,26 @@ void broadcastToSDBus(const std::multimap<std::string, std::string> &cgi_args, c
 
     std::string language_code, translation, index, gnd_code, translator;
     ExtractParams(cgi_args, env_args, &language_code, &translation, &index, &gnd_code, &translator);
-    std::string message = std::string("{\"gnd_code\" : \"") + gnd_code
-                          + "\", \"language_code\" : \"" + language_code
-                          + "\", \"index\" : \"" + index
-                          + "\", \"translation\" : \"" + translation
-                          + "\", \"translator\" : \"" + translator
-                          + "\"}";
+    std::string message = std::string("{\"gnd_code\" : \"") + gnd_code + "\", \"language_code\" : \"" + language_code + "\", \"index\" : \""
+                          + index + "\", \"translation\" : \"" + translation + "\", \"translator\" : \"" + translator + "\"}";
 
     // Connect to the bus
     rc = sd_bus_default(&bus);
     if (rc < 0) {
         std::cerr << "Failed to connect to system bus: " << strerror(-rc) << std::endl;
-	    goto finish;
+        goto finish;
     }
 
     rc = sd_bus_match_signal(bus, NULL, NULL, sd_path.c_str(), sd_interface.c_str(), sd_member.c_str(), NULL, NULL);
     if (rc < 0) {
-        std::cerr << "Failed to register match signal: " <<  error.message << std::endl;
-	    goto finish;
+        std::cerr << "Failed to register match signal: " << error.message << std::endl;
+        goto finish;
     }
 
     rc = sd_bus_emit_signal(bus, sd_path.c_str(), sd_interface.c_str(), sd_member.c_str(), "s", message.c_str());
     if (rc < 0) {
         std::cerr << "Failed to create new signal: " << strerror(-rc) << std::endl;
-	    goto finish;
+        goto finish;
     }
 
 finish:
@@ -143,7 +130,8 @@ void Update(const std::multimap<std::string, std::string> &cgi_args, const std::
     std::string update_command("/usr/local/bin/translation_db_tool update " + ExecUtil::EscapeAndQuoteArg(index));
     if (not gnd_code.empty())
         update_command += " " + ExecUtil::EscapeAndQuoteArg(gnd_code);
-    update_command += " " + ExecUtil::EscapeAndQuoteArg(language_code) + " " + ExecUtil::EscapeAndQuoteArg(translation) + " " + ExecUtil::EscapeAndQuoteArg(translator);
+    update_command += " " + ExecUtil::EscapeAndQuoteArg(language_code) + " " + ExecUtil::EscapeAndQuoteArg(translation) + " "
+                      + ExecUtil::EscapeAndQuoteArg(translator);
 
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(update_command, &output))
@@ -160,7 +148,8 @@ void Insert(const std::multimap<std::string, std::string> &cgi_args, const std::
     std::string insert_command("/usr/local/bin/translation_db_tool insert " + ExecUtil::EscapeAndQuoteArg(index));
     if (not gnd_code.empty())
         insert_command += " " + ExecUtil::EscapeAndQuoteArg(gnd_code);
-    insert_command += " " + ExecUtil::EscapeAndQuoteArg(language_code) + " " + ExecUtil::EscapeAndQuoteArg(translation) + " " + ExecUtil::EscapeAndQuoteArg(translator);
+    insert_command += " " + ExecUtil::EscapeAndQuoteArg(language_code) + " " + ExecUtil::EscapeAndQuoteArg(translation) + " "
+                      + ExecUtil::EscapeAndQuoteArg(translator);
 
     std::string output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout(insert_command, &output))
@@ -205,7 +194,7 @@ int main(int argc, char *argv[]) {
             } else if (action == "get_history_for_entry") {
                 std::string history_result;
                 GetHistory(cgi_args, &history_result);
-                status =  "Status: 200 OK\r\n\r\n\r\n" + history_result;
+                status = "Status: 200 OK\r\n\r\n\r\n" + history_result;
             } else
                 LOG_ERROR("Unknown action: " + action + "! Expecting 'insert' or 'update' or 'get_history_for_entry'.");
             std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";

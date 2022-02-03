@@ -101,11 +101,10 @@ TEST(deleteFields) {
 
     CHECK_EQ(record.getNumberOfFields(), 13);
 
-    const std::vector<size_t> indices{3, 5, 6};
+    const std::vector<size_t> indices{ 3, 5, 6 };
     record.deleteFields(indices);
 
     CHECK_EQ(record.getNumberOfFields(), 10);
-
 }
 
 

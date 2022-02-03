@@ -69,10 +69,8 @@ std::string StatusToString(const Status status) {
 using TextLanguageCodeStatusAndOriginTag = std::tuple<std::string, std::string, Status, std::string, bool>;
 
 
-void ExtractGermanTerms(
-    const MARC::Record &record,
-    std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags)
-{
+void ExtractGermanTerms(const MARC::Record &record,
+                        std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags) {
     bool updated_german(false);
     for (const auto &_150_field : record.getTagRange("150")) {
         const MARC::Subfields _150_subfields(_150_field.getSubfields());
@@ -97,25 +95,23 @@ void ExtractGermanTerms(
             }
 
             text_language_codes_statuses_and_origin_tags->emplace_back(
-                complete_keyword_phrase,
-                TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE, "150", updated_german);
+                complete_keyword_phrase, TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE, "150",
+                updated_german);
             ++german_term_count;
         }
     }
 }
 
 
-void ExtractGermanSynonyms(
-    const MARC::Record &record,
-    std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags)
-{
+void ExtractGermanSynonyms(const MARC::Record &record,
+                           std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags) {
     for (const auto &_450_field : record.getTagRange("450")) {
         const MARC::Subfields _450_subfields(_450_field.getSubfields());
         if (_450_subfields.hasSubfield('a')) {
             text_language_codes_statuses_and_origin_tags->emplace_back(
                 _450_subfields.getFirstSubfieldWithCode('a'),
-                TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE_SYNONYM,
-                "450", false /*updated_german*/);
+                TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes("deu"), RELIABLE_SYNONYM, "450",
+                false /*updated_german*/);
             ++synonym_count;
         }
     }
@@ -131,10 +127,8 @@ bool IsSynonym(const MARC::Subfields &_750_subfields) {
 }
 
 
-void ExtractNonGermanTranslations(
-    const MARC::Record &record,
-    std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags)
-{
+void ExtractNonGermanTranslations(const MARC::Record &record,
+                                  std::vector<TextLanguageCodeStatusAndOriginTag> * const text_language_codes_statuses_and_origin_tags) {
     for (const auto &_750_field : record.getTagRange("750")) {
         const MARC::Subfields _750_subfields(_750_field.getSubfields());
         std::vector<std::string> _9_subfields(_750_subfields.extractSubfields('9'));
@@ -164,8 +158,8 @@ void ExtractNonGermanTranslations(
             else
                 status = is_synonym ? UNRELIABLE_SYNONYM : UNRELIABLE;
             ++translation_count;
-            text_language_codes_statuses_and_origin_tags->emplace_back(
-                _750_subfields.getFirstSubfieldWithCode('a'), language_code, status, "750", false);
+            text_language_codes_statuses_and_origin_tags->emplace_back(_750_subfields.getFirstSubfieldWithCode('a'), language_code, status,
+                                                                       "750", false);
         }
     }
 }
@@ -183,8 +177,7 @@ void FlushToDatabase(std::string &insert_statement) {
 
 // Returns a string that looks like "(language_code='deu' OR language_code='eng')" etc.
 std::string GenerateLanguageCodeWhereClause(
-    const std::vector<TextLanguageCodeStatusAndOriginTag> &text_language_codes_statuses_and_origin_tags)
-{
+    const std::vector<TextLanguageCodeStatusAndOriginTag> &text_language_codes_statuses_and_origin_tags) {
     std::string partial_where_clause;
 
     partial_where_clause += '(';
@@ -243,8 +236,9 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
     }
     std::string gnd_system(StringUtil::Join(gnd_systems, ","));
 
-    const std::string INSERT_STATEMENT_START("INSERT IGNORE INTO keyword_translations (ppn,gnd_code,language_code,"
-                                             "translation,status,origin,gnd_system,german_updated) VALUES ");
+    const std::string INSERT_STATEMENT_START(
+        "INSERT IGNORE INTO keyword_translations (ppn,gnd_code,language_code,"
+        "translation,status,origin,gnd_system,german_updated) VALUES ");
     std::string insert_statement(INSERT_STATEMENT_START);
 
     size_t row_counter(0);
@@ -252,10 +246,8 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
 
     // Update the database:
     for (const auto &text_language_code_status_and_origin : text_language_codes_statuses_and_origin_tags) {
-        const std::string language_code(
-            shared_connection->escapeString(std::get<1>(text_language_code_status_and_origin)));
-        const std::string translation(
-            shared_connection->escapeString(std::get<0>(text_language_code_status_and_origin)));
+        const std::string language_code(shared_connection->escapeString(std::get<1>(text_language_code_status_and_origin)));
+        const std::string translation(shared_connection->escapeString(std::get<0>(text_language_code_status_and_origin)));
         const std::string status(StatusToString(std::get<2>(text_language_code_status_and_origin)));
         const std::string &origin(std::get<3>(text_language_code_status_and_origin));
         const bool updated_german(std::get<4>(text_language_code_status_and_origin));
@@ -263,18 +255,16 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
         // check if there is an existing entry, insert ignore does not work here
         // any longer due to the deleted unique key for the history functionality.
         // Unsure if it worked before due to translator=null not affecting a ukey in mysql
-        const std::string CHECK_EXISTING("SELECT ppn FROM keyword_translations WHERE ppn=\"" + ppn
-           + "\" AND language_code=\"" + language_code
-		   + "\" AND status=\"" + status + "); ");
+        const std::string CHECK_EXISTING("SELECT ppn FROM keyword_translations WHERE ppn=\"" + ppn + "\" AND language_code=\""
+                                         + language_code + "\" AND status=\"" + status + "); ");
         shared_connection->queryOrDie(CHECK_EXISTING);
         DbResultSet result(shared_connection->getLastResultSet());
         if (not result.empty()) {
             continue;
         }
 
-        insert_statement += "('" + ppn + "', '" + gnd_code + "', '" + language_code + "', '" + translation
-                            + "', '" + status + "', '" + origin + "', '" + gnd_system  + "', " + (updated_german ? "true" : "false")
-                            +  "), ";
+        insert_statement += "('" + ppn + "', '" + gnd_code + "', '" + language_code + "', '" + translation + "', '" + status + "', '"
+                            + origin + "', '" + gnd_system + "', " + (updated_german ? "true" : "false") + "), ";
         if (++row_counter > MAX_ROW_COUNT) {
             FlushToDatabase(insert_statement);
             insert_statement = INSERT_STATEMENT_START;

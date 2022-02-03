@@ -22,8 +22,8 @@
 */
 
 #include <iostream>
-#include <string>
 #include <map>
+#include <string>
 #include <unordered_map>
 #include <cstdlib>
 #include "Compiler.h"
@@ -46,10 +46,8 @@ namespace {
 }
 
 
-void InsertTranslations(
-    DbConnection * const connection, const std::string &language_code,
-    const std::unordered_map<std::string, std::pair<unsigned, std::string>> &keys_to_line_no_and_translation_map)
-{
+void InsertTranslations(DbConnection * const connection, const std::string &language_code,
+                        const std::unordered_map<std::string, std::pair<unsigned, std::string>> &keys_to_line_no_and_translation_map) {
     for (const auto &keys_to_line_no_and_translation : keys_to_line_no_and_translation_map) {
         const std::string key = connection->escapeString(keys_to_line_no_and_translation.first);
         const std::string translation = connection->escapeString(keys_to_line_no_and_translation.second.second);
@@ -58,8 +56,8 @@ void InsertTranslations(
         // to insert the translations into the database
         // successors get a prev_version_id value, successors should not be modified (if prev_version_id is not null)
         const std::string GET_TRANSLATOR("SELECT id, translator, next_version_id FROM vufind_translations WHERE language_code=\""
-           + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
-           + "\" AND token=\"" + key + "\" AND prev_version_id IS NULL");
+                                         + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
+                                         + "\" AND token=\"" + key + "\" AND prev_version_id IS NULL");
         connection->queryOrDie(GET_TRANSLATOR);
         DbResultSet result(connection->getLastResultSet());
         if (not result.empty()) {
@@ -78,15 +76,12 @@ void InsertTranslations(
                     continue;
             }
 
-            const std::string UPDATE_STMT(
-                "UPDATE vufind_translations SET translation=\"" + translation + "\" WHERE id=" + row["id"]);
+            const std::string UPDATE_STMT("UPDATE vufind_translations SET translation=\"" + translation + "\" WHERE id=" + row["id"]);
             connection->queryOrDie(UPDATE_STMT);
-        }
-        else {
-            const std::string INSERT_OTHER(
-                "INSERT INTO vufind_translations SET language_code=\""
-	            + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
-	            + "\", token=\"" + key + "\", translation=\"" + translation + "\"");
+        } else {
+            const std::string INSERT_OTHER("INSERT INTO vufind_translations SET language_code=\""
+                                           + TranslationUtil::MapGermanLanguageCodesToFake3LetterEnglishLanguagesCodes(language_code)
+                                           + "\", token=\"" + key + "\", translation=\"" + translation + "\"");
             connection->queryOrDie(INSERT_OTHER);
         }
     }
@@ -122,19 +117,17 @@ int Main(int argc, char **argv) {
             two_letter_code = ini_filename.substr(0, 2);
         else {
             const std::string::size_type last_slash_pos(ini_filename.rfind('/'));
-            if (unlikely(last_slash_pos == std::string::npos
-                         or (last_slash_pos + 6 + 1 != ini_filename.length())))
+            if (unlikely(last_slash_pos == std::string::npos or (last_slash_pos + 6 + 1 != ini_filename.length())))
                 logger->error("INI filename does not match expected pattern: \"" + ini_filename + "\"!");
             two_letter_code = ini_filename.substr(last_slash_pos + 1, 2);
         }
 
-        const std::string german_3letter_code(
-                                              TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(two_letter_code));
+        const std::string german_3letter_code(TranslationUtil::MapInternational2LetterCodeToGerman3Or4LetterCode(two_letter_code));
 
         std::unordered_map<std::string, std::pair<unsigned, std::string>> keys_to_line_no_and_translation_map;
         TranslationUtil::ReadIniFile(ini_filename, &keys_to_line_no_and_translation_map);
-        std::cout << "Read " << keys_to_line_no_and_translation_map.size()
-                  << " mappings from English to another language from \"" << ini_filename << "\".\n";
+        std::cout << "Read " << keys_to_line_no_and_translation_map.size() << " mappings from English to another language from \""
+                  << ini_filename << "\".\n";
 
         InsertTranslations(&db_connection, german_3letter_code, keys_to_line_no_and_translation_map);
     }

@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #include <iostream>
 #include <cstdlib>
 #include "Archive.h"
@@ -48,9 +48,8 @@ void ProcessTarball(const bool verbose, const std::string &input_filename, File 
         while ((n_read = reader.read(compressed_data, sizeof compressed_data)) > 0) {
             unsigned total_processed(0);
             do {
-                more = gunzip_streamer.decompress(compressed_data + total_processed,
-                                                  static_cast<unsigned>(n_read) - total_processed, decompressed_data,
-                                                  sizeof decompressed_data, &bytes_consumed, &bytes_produced);
+                more = gunzip_streamer.decompress(compressed_data + total_processed, static_cast<unsigned>(n_read) - total_processed,
+                                                  decompressed_data, sizeof decompressed_data, &bytes_consumed, &bytes_produced);
                 if (unlikely(output->write(decompressed_data, bytes_produced) != bytes_produced))
                     logger->error("unexpected error while writing to \"" + output->getPath() + "\"!");
                 total_processed += bytes_consumed;
@@ -61,8 +60,8 @@ void ProcessTarball(const bool verbose, const std::string &input_filename, File 
             logger->error("unexpected error while reading tar member data! (" + reader.getLastErrorMessage() + ")");
 
         while (more) {
-            more = gunzip_streamer.decompress(nullptr, n_read, decompressed_data, sizeof(decompressed_data),
-                                              &bytes_consumed, &bytes_produced);
+            more =
+                gunzip_streamer.decompress(nullptr, n_read, decompressed_data, sizeof(decompressed_data), &bytes_consumed, &bytes_produced);
             if (unlikely(output->write(decompressed_data, bytes_produced) != bytes_produced))
                 logger->error("unexpected error while writing to \"" + output->getPath() + "\"!");
         }

@@ -33,8 +33,9 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("marc_input marc_output dangling_references\n"
-            "propagates tagging of CHURCHLAW, BIBLESTUDIES or RELSTUDIES records via up- and crosslinks.");
+    ::Usage(
+        "marc_input marc_output dangling_references\n"
+        "propagates tagging of CHURCHLAW, BIBLESTUDIES or RELSTUDIES records via up- and crosslinks.");
 }
 
 
@@ -45,19 +46,19 @@ typedef bool (*RecordTypeOfInterestPredicate)(const MARC::Record &record);
 
 
 inline bool IsBibleStudiesRecord(const MARC::Record &record) {
-    //return record.hasSubfieldWithValue("SUB", 'a', "BIB");
+    // return record.hasSubfieldWithValue("SUB", 'a', "BIB");
     return record.findTag("BIB") != record.end(); // remove after migration
 }
 
 
 inline bool IsChurchLawRecord(const MARC::Record &record) {
-    //return record.hasSubfieldWithValue("SUB", 'a', "CAN");
+    // return record.hasSubfieldWithValue("SUB", 'a', "CAN");
     return record.findTag("CAN") != record.end(); // remove after migration
 }
 
 
 inline bool IsRelStudiesRecord(const MARC::Record &record) {
-    //return record.hasSubfieldWithValue("SUB", 'a', "REL");
+    // return record.hasSubfieldWithValue("SUB", 'a', "REL");
     return record.findTag("REL") != record.end(); // remove after migration
 }
 
@@ -89,11 +90,11 @@ std::set<std::string> GetReferencedPPNs(const MARC::Record &record) {
 struct NodeInfo {
     std::set<std::string> referenced_ppns_;
     std::set<RecordType> types_;
+
 public:
     NodeInfo() = default;
     NodeInfo(const NodeInfo &) = default;
-    NodeInfo(std::set<std::string> &&referenced_ppns, std::set<RecordType> &&types)
-        : referenced_ppns_(referenced_ppns), types_(types) { }
+    NodeInfo(std::set<std::string> &&referenced_ppns, std::set<RecordType> &&types): referenced_ppns_(referenced_ppns), types_(types) { }
 };
 
 
@@ -105,25 +106,25 @@ void GenerateGraph(MARC::Reader * const marc_reader, std::unordered_map<std::str
 
 std::map<RecordType, RecordTypeOfInterestPredicate> record_type_to_predicate_map{
     { BIBLESTUDIES, IsBibleStudiesRecord },
-    { CHURCHLAW,    IsChurchLawRecord    },
-    { RELSTUDIES,   IsRelStudiesRecord   },
+    { CHURCHLAW, IsChurchLawRecord },
+    { RELSTUDIES, IsRelStudiesRecord },
 };
 
 
-std::map<RecordType, MARC::Tag> record_type_to_tag_map{ // remove after migration
+std::map<RecordType, MARC::Tag> record_type_to_tag_map{
+    // remove after migration
     { BIBLESTUDIES, "BIB" },
-    { CHURCHLAW,    "CAN" },
-    { RELSTUDIES,   "REL" },
+    { CHURCHLAW, "CAN" },
+    { RELSTUDIES, "REL" },
 };
 std::map<RecordType, std::string> record_type_to_subfield_map{
     { BIBLESTUDIES, "BIB" },
-    { CHURCHLAW,    "CAN" },
-    { RELSTUDIES,   "REL" },
+    { CHURCHLAW, "CAN" },
+    { RELSTUDIES, "REL" },
 };
 
 unsigned PropagateTypes(File * const dangling_references_file, std::unordered_map<std::string, NodeInfo> * const ppns_to_node_infos,
-                        unsigned * const dangling_references_count)
-{
+                        unsigned * const dangling_references_count) {
     unsigned newly_tagged_count(0);
 
     for (auto &ppn_and_node_info : *ppns_to_node_infos) {
@@ -156,8 +157,7 @@ unsigned PropagateTypes(File * const dangling_references_file, std::unordered_ma
 
 
 void PatchRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                  const std::unordered_map<std::string, NodeInfo> &ppns_to_node_infos)
-{
+                  const std::unordered_map<std::string, NodeInfo> &ppns_to_node_infos) {
     unsigned patched_count(0);
     while (auto record = marc_reader->read()) {
         const auto ppn_and_node_info(ppns_to_node_infos.find(record.getControlNumber()));
