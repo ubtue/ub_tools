@@ -87,7 +87,7 @@ void InitializeKeepaliveTimer() {
     // c.f. example in man timer_create (2)
     const auto CLOCKID(CLOCK_REALTIME);
     const auto TIMER_SIGNAL(SIGRTMIN);
-    const unsigned KEEPALIVE_INTERVAL(3);
+    const unsigned KEEPALIVE_INTERVAL(30);
     timer_t timerid;
     struct sigevent sev;
     struct itimerspec its;
@@ -112,8 +112,6 @@ void InitializeKeepaliveTimer() {
          cleanup();
          std::exit(1);
      }
-
-     std::cerr << "TIMERID: " <<  timerid << '\n';
 
      /* Start the timer. */
      its.it_value.tv_sec = KEEPALIVE_INTERVAL;
