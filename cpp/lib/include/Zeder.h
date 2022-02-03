@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 
 
@@ -37,7 +37,7 @@ namespace Zeder {
 enum Flavour { IXTHEO, KRIMDOK };
 
 
-} // end Zeder namespace
+} // namespace Zeder
 
 
 namespace std {
@@ -58,10 +58,7 @@ struct hash<Zeder::Flavour> {
 namespace Zeder {
 
 
-const std::unordered_map<Flavour, std::string> FLAVOUR_TO_STRING_MAP{
-    { IXTHEO,   "IxTheo"  },
-    { KRIMDOK,  "KrimDok" }
-};
+const std::unordered_map<Flavour, std::string> FLAVOUR_TO_STRING_MAP{ { IXTHEO, "IxTheo" }, { KRIMDOK, "KrimDok" } };
 
 
 Flavour GetFlavourByString(const std::string &flavour);
@@ -79,12 +76,13 @@ class Entry {
 
     unsigned id_;
     tm last_modified_timestamp_;
-    AttributeMap attributes_;     // column name => content
+    AttributeMap attributes_; // column name => content
 public:
     using iterator = AttributeMap::iterator;
     using const_iterator = AttributeMap::const_iterator;
+
 public:
-    explicit Entry(const unsigned id = 0): id_(id), last_modified_timestamp_{}, attributes_() {}
+    explicit Entry(const unsigned id = 0): id_(id), last_modified_timestamp_{}, attributes_() { }
 
     unsigned getId() const { return id_; }
     void setId(unsigned id) { id_ = id; }
@@ -130,6 +128,7 @@ public:
         // Attribute => (old value, new value)
         // If the attribute was not present in the source revision, the old value is an empty string
         std::unordered_map<std::string, std::pair<std::string, std::string>> modified_attributes_;
+
     public:
         void prettyPrint(std::string * const print_buffer) const;
         std::string prettyPrint() const;
@@ -145,6 +144,7 @@ public:
 // A collection of related entries (from the same Zeder Instance)
 class EntryCollection {
     std::vector<Entry> entries_;
+
 public:
     using iterator = std::vector<Entry>::iterator;
     using const_iterator = std::vector<Entry>::const_iterator;
@@ -169,20 +169,17 @@ public:
 
 
 inline void EntryCollection::sortEntries() {
-    std::sort(entries_.begin(), entries_.end(),
-              [](const Entry &a, const Entry &b) { return a.getId() < b.getId(); });
+    std::sort(entries_.begin(), entries_.end(), [](const Entry &a, const Entry &b) { return a.getId() < b.getId(); });
 }
 
 
 inline EntryCollection::iterator EntryCollection::find(const unsigned id) {
-    return std::find_if(entries_.begin(), entries_.end(),
-                        [id] (const Entry &entry) { return entry.getId() == id; });
+    return std::find_if(entries_.begin(), entries_.end(), [id](const Entry &entry) { return entry.getId() == id; });
 }
 
 
 inline EntryCollection::const_iterator EntryCollection::find(const unsigned id) const {
-    return std::find_if(entries_.begin(), entries_.end(),
-                        [id] (const Entry &entry) { return entry.getId() == id; });
+    return std::find_if(entries_.begin(), entries_.end(), [id](const Entry &entry) { return entry.getId() == id; });
 }
 
 
@@ -203,22 +200,29 @@ public:
         friend class Importer;
         friend class CsvReader;
         friend class IniReader;
+
     protected:
         const std::string file_path_;
 
         // Callback to modify and/or validate entries after they are parsed.
         // If the callback returns true, the entry is added to the collection. If not, it's discarded.
         std::function<bool(Entry * const)> postprocessor_;
+
     public:
-        Params(const std::string &file_path, const std::function<bool(Entry * const)> &postprocessor): file_path_(file_path), postprocessor_(postprocessor) {}
+        Params(const std::string &file_path, const std::function<bool(Entry * const)> &postprocessor)
+            : file_path_(file_path), postprocessor_(postprocessor) { }
         virtual ~Params() = default;
     };
+
 protected:
     std::unique_ptr<Params> input_params_;
+
 protected:
-    explicit Importer(std::unique_ptr<Params> params): input_params_(std::move(params)) {}
+    explicit Importer(std::unique_ptr<Params> params): input_params_(std::move(params)) { }
+
 public:
     virtual ~Importer() = default;
+
 public:
     virtual void parse(EntryCollection * const collection) = 0;
 
@@ -231,10 +235,13 @@ class CsvReader : public Importer {
     friend class Importer;
 
     DSVReader reader_;
+
 private:
-    explicit CsvReader(std::unique_ptr<Params> params): Importer(std::move(params)), reader_(input_params_->file_path_, ',') {}
+    explicit CsvReader(std::unique_ptr<Params> params): Importer(std::move(params)), reader_(input_params_->file_path_, ',') { }
+
 public:
     virtual ~CsvReader() override = default;
+
 public:
     virtual void parse(EntryCollection * const collection) override;
 };
@@ -245,11 +252,14 @@ class IniReader : public Importer {
     friend class Importer;
 
     IniFile config_;
+
 private:
-    explicit IniReader(std::unique_ptr<Params> params): Importer(std::move(params)), config_(input_params_->file_path_) {}
+    explicit IniReader(std::unique_ptr<Params> params): Importer(std::move(params)), config_(input_params_->file_path_) { }
+
 public:
     class Params : public Importer::Params {
         friend class IniReader;
+
     protected:
         // Sections to process.
         std::vector<std::string> valid_section_names_;
@@ -258,19 +268,21 @@ public:
         std::string zeder_id_key_;
         std::string zeder_last_modified_timestamp_key_;
         std::unordered_map<std::string, std::string> key_to_attribute_map_;
+
     public:
         Params(const std::string &file_path, const std::function<bool(Entry * const)> &postprocessor,
-                    const std::vector<std::string> &valid_section_names, const std::string &section_name_attribute,
-                    const std::string &zeder_id_key, const std::string &zeder_last_modified_timestamp_key,
-                    const std::unordered_map<std::string, std::string> &key_to_attribute_map):
-                    Importer::Params(file_path, postprocessor),
-                    valid_section_names_(valid_section_names), section_name_attribute_(section_name_attribute),
-                    zeder_id_key_(zeder_id_key), zeder_last_modified_timestamp_key_(zeder_last_modified_timestamp_key),
-                    key_to_attribute_map_(key_to_attribute_map) {}
+               const std::vector<std::string> &valid_section_names, const std::string &section_name_attribute,
+               const std::string &zeder_id_key, const std::string &zeder_last_modified_timestamp_key,
+               const std::unordered_map<std::string, std::string> &key_to_attribute_map)
+            : Importer::Params(file_path, postprocessor), valid_section_names_(valid_section_names),
+              section_name_attribute_(section_name_attribute), zeder_id_key_(zeder_id_key),
+              zeder_last_modified_timestamp_key_(zeder_last_modified_timestamp_key), key_to_attribute_map_(key_to_attribute_map) { }
         virtual ~Params() = default;
     };
+
 public:
     virtual ~IniReader() override = default;
+
 public:
     virtual void parse(EntryCollection * const collection) override;
 };
@@ -283,18 +295,24 @@ public:
         friend class Exporter;
         friend class IniWriter;
         friend class CsvWriter;
+
     protected:
         const std::string file_path_;
+
     public:
-        Params(const std::string &file_path): file_path_(file_path) {}
+        Params(const std::string &file_path): file_path_(file_path) { }
         virtual ~Params() = default;
     };
+
 protected:
     std::unique_ptr<Params> input_params_;
+
 protected:
-    explicit Exporter(std::unique_ptr<Params> params): input_params_(std::move(params)) {}
+    explicit Exporter(std::unique_ptr<Params> params): input_params_(std::move(params)) { }
+
 public:
     virtual ~Exporter() = default;
+
 public:
     virtual void write(const EntryCollection &collection) = 0;
 
@@ -309,11 +327,14 @@ class IniWriter : public Exporter {
     std::unique_ptr<IniFile> config_;
 
     void writeEntry(IniFile::Section * const section, const std::string &name, const std::string &value) const;
+
 private:
     explicit IniWriter(std::unique_ptr<Params> params);
+
 public:
     class Params : public Exporter::Params {
         friend class IniWriter;
+
     protected:
         // Ordered list of attributes to export. The ID and the timestamp always go first.
         std::vector<std::string> attributes_to_export_;
@@ -332,18 +353,22 @@ public:
 
         // Callback to append extra data. Invoked after all the (exportable) attributes have been exported.
         std::function<void(IniFile::Section * const, const Entry &)> extra_keys_appender_;
+
     public:
         Params(const std::string &file_path, const std::vector<std::string> &attributes_to_export,
-               const std::string &section_name_attribute, const std::string &zeder_id_key, const std::string &zeder_last_modified_timestamp_key,
+               const std::string &section_name_attribute, const std::string &zeder_id_key,
+               const std::string &zeder_last_modified_timestamp_key,
                const std::unordered_map<std::string, std::string> &attribute_name_to_key_map,
-               const std::function<void(IniFile::Section * const, const Entry &)> &extra_keys_appender):
-               Exporter::Params(file_path), attributes_to_export_(attributes_to_export), section_name_attribute_(section_name_attribute),
-               zeder_id_key_(zeder_id_key), zeder_last_modified_timestamp_key_(zeder_last_modified_timestamp_key),
-               attribute_to_key_map_(attribute_name_to_key_map), extra_keys_appender_(extra_keys_appender) {}
+               const std::function<void(IniFile::Section * const, const Entry &)> &extra_keys_appender)
+            : Exporter::Params(file_path), attributes_to_export_(attributes_to_export), section_name_attribute_(section_name_attribute),
+              zeder_id_key_(zeder_id_key), zeder_last_modified_timestamp_key_(zeder_last_modified_timestamp_key),
+              attribute_to_key_map_(attribute_name_to_key_map), extra_keys_appender_(extra_keys_appender) { }
         virtual ~Params() = default;
     };
+
 public:
     virtual ~IniWriter() override = default;
+
 public:
     virtual void write(const EntryCollection &collection) override;
 };
@@ -354,12 +379,15 @@ class CsvWriter : public Exporter {
     friend class Exporter;
 
     File output_file_;
+
 private:
-    explicit CsvWriter(std::unique_ptr<Params> params):
-                       Exporter(std::move(params)), output_file_(this->input_params_->file_path_, "w", File::ThrowOnOpenBehaviour::THROW_ON_ERROR ) {};
+    explicit CsvWriter(std::unique_ptr<Params> params)
+        : Exporter(std::move(params)), output_file_(this->input_params_->file_path_, "w", File::ThrowOnOpenBehaviour::THROW_ON_ERROR){};
+
 public:
     class Params : public Exporter::Params {
         friend class CsvWriter;
+
     protected:
         // Ordered list of attributes to export. The ID and the timestamp always go first and last respectively.
         // If empty, all attributes are exported in an indeterminate order.
@@ -370,16 +398,20 @@ public:
 
         // Column name for the Zeder last modified timestamp.
         std::string zeder_last_modified_timestamp_column_;
+
     public:
         Params(const std::string &file_path, const std::vector<std::string> &attributes_to_export,
                const std::string &zeder_id_column = Importer::MANDATORY_FIELD_TO_STRING_MAP.at(Importer::MandatoryField::Z),
-               const std::string &zeder_last_modified_timestamp_column = Importer::MANDATORY_FIELD_TO_STRING_MAP.at(Importer::MandatoryField::MTIME)):
-               Exporter::Params(file_path), attributes_to_export_(attributes_to_export),
-               zeder_id_column_(zeder_id_column), zeder_last_modified_timestamp_column_(zeder_last_modified_timestamp_column) {}
+               const std::string &zeder_last_modified_timestamp_column =
+                   Importer::MANDATORY_FIELD_TO_STRING_MAP.at(Importer::MandatoryField::MTIME))
+            : Exporter::Params(file_path), attributes_to_export_(attributes_to_export), zeder_id_column_(zeder_id_column),
+              zeder_last_modified_timestamp_column_(zeder_last_modified_timestamp_column) { }
         virtual ~Params() = default;
     };
+
 public:
     virtual ~CsvWriter() override = default;
+
 public:
     virtual void write(const EntryCollection &collection) override;
 };
@@ -392,18 +424,24 @@ public:
 
     class Params {
         friend class EndpointDownloader;
+
     protected:
         const std::string endpoint_url_;
+
     public:
         explicit Params(const std::string &endpoint_url): endpoint_url_(endpoint_url) { }
         virtual ~Params() = default;
     };
+
 protected:
     std::unique_ptr<Params> downloader_params_;
+
 protected:
-    explicit EndpointDownloader(std::unique_ptr<Params> params): downloader_params_(std::move(params)) {}
+    explicit EndpointDownloader(std::unique_ptr<Params> params): downloader_params_(std::move(params)) { }
+
 public:
     virtual ~EndpointDownloader() = default;
+
 public:
     virtual bool download(EntryCollection * const collection, const bool disable_cache_mechanism = false) = 0;
 
@@ -414,11 +452,14 @@ public:
 // Downloads the entire database of a Zeder instance as a JSON file.
 class FullDumpDownloader : public EndpointDownloader {
     friend class EndpointDownloader;
+
 private:
-    explicit FullDumpDownloader(std::unique_ptr<Params> params): EndpointDownloader(std::move(params)) {};
+    explicit FullDumpDownloader(std::unique_ptr<Params> params): EndpointDownloader(std::move(params)){};
+
 public:
     class Params : public EndpointDownloader::Params {
         friend class FullDumpDownloader;
+
     protected:
         // Zeder IDs of entries to download. If empty, all entries are downloaded.
         std::unordered_set<unsigned> entries_to_download_;
@@ -427,11 +468,14 @@ public:
 
         // Filters applied to each row. Column name => Filter reg-ex.
         std::unordered_map<std::string, std::unique_ptr<RegexMatcher>> filter_regexps_;
+
     public:
         Params(const std::string &endpoint_path, const std::unordered_set<unsigned> &entries_to_download,
-               const std::unordered_set<std::string> &columns_to_download, const std::unordered_map<std::string, std::string> &filter_regexps);
+               const std::unordered_set<std::string> &columns_to_download,
+               const std::unordered_map<std::string, std::string> &filter_regexps);
         virtual ~Params() = default;
     };
+
 private:
     struct ColumnMetadata {
         std::string column_type_;
@@ -443,8 +487,10 @@ private:
                              std::unordered_map<std::string, ColumnMetadata> * const column_to_metadata_map);
     void parseRows(const Params &params, const std::shared_ptr<JSON::ObjectNode> &json_data,
                    const std::unordered_map<std::string, ColumnMetadata> &column_to_metadata_map, EntryCollection * const collection);
+
 public:
     virtual ~FullDumpDownloader() = default;
+
 public:
     virtual bool download(EntryCollection * const collection, const bool disable_cache_mechanism = false) override;
 };
@@ -457,9 +503,11 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive = fal
 
 class SimpleZeder {
     typedef EntryCollection::const_iterator const_iterator;
+
 private:
     bool failed_to_connect_to_database_server_;
     EntryCollection entries_;
+
 public:
     // \param "column_filter" If not empty, only the specified short column names will be accessible via the
     //        lookup member function of class Journal.  This is a performance and memory optimisation only.

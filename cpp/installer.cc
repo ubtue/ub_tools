@@ -24,12 +24,12 @@
 #include <set>
 #include <sstream>
 #include <stack>
+#include <unordered_map>
 #include <vector>
 #include <cassert>
 #include <climits>
 #include <cstdlib>
 #include <cstring>
-#include <unordered_map>
 #include <dirent.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -45,27 +45,26 @@
 #include "FileUtil.h"
 #include "IniFile.h"
 #include "MiscUtil.h"
-#include "Template.h"
 #include "RegexMatcher.h"
 #include "SELinuxUtil.h"
+#include "Solr.h"
 #include "StringUtil.h"
 #include "SystemdUtil.h"
 #include "Template.h"
-#include "VuFind.h"
 #include "UBTools.h"
+#include "VuFind.h"
 #include "util.h"
-#include "Solr.h"
 
 
-/* Somewhere in the middle of the GCC 2.96 development cycle, a mechanism was implemented by which the user can tag likely branch directions and
-   expect the blocks to be reordered appropriately.  Define __builtin_expect to nothing for earlier compilers.  */
+/* Somewhere in the middle of the GCC 2.96 development cycle, a mechanism was implemented by which the user can tag likely branch directions
+   and expect the blocks to be reordered appropriately.  Define __builtin_expect to nothing for earlier compilers.  */
 #if __GNUC__ == 2 && __GNUC_MINOR__ < 96
-#       define __builtin_expect(x, expected_value) (x)
+#define __builtin_expect(x, expected_value) (x)
 #endif
 
 
-#define likely(x)       __builtin_expect(!!(x), 1)
-#define unlikely(x)     __builtin_expect(!!(x), 0)
+#define likely(x) __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
 
 
 [[noreturn]] void Error(const std::string &msg) {
@@ -75,17 +74,20 @@
 
 
 [[noreturn]] void Usage() {
-    ::Usage("<system_type> [<options>]\n"
-            "    invocation modes:\n"
-            "        ub-tools-only\n"
-            "        fulltext-backend (--test|--production) [--omit-cronjobs] [--omit-systemctl]\n"
-            "        vufind (ixtheo|krimdok) (--test|--production) [--omit-cronjobs] [--omit-systemctl]\n");
+    ::Usage(
+        "<system_type> [<options>]\n"
+        "    invocation modes:\n"
+        "        ub-tools-only\n"
+        "        fulltext-backend (--test|--production) [--omit-cronjobs] [--omit-systemctl]\n"
+        "        vufind (ixtheo|krimdok) (--test|--production) [--omit-cronjobs] [--omit-systemctl]\n");
 }
 
 
 // Print a log message to the terminal with a bright green background.
 void Echo(const std::string &log_message) {
-    std::cout << "\x1B" << "[42m--- " << log_message << "\x1B" << "[0m\n";
+    std::cout << "\x1B"
+              << "[42m--- " << log_message << "\x1B"
+              << "[0m\n";
 }
 
 
@@ -133,22 +135,20 @@ const std::string INSTALLER_SCRIPTS_DIRECTORY(INSTALLER_DATA_DIRECTORY + "/scrip
 
 void ChangeDirectoryOrDie(const std::string &new_working_directory) {
     if (::chdir(new_working_directory.c_str()) != 0)
-        Error("failed to set the new working directory to \"" + new_working_directory + "\"! ("
-              + std::string(::strerror(errno)) + ")");
+        Error("failed to set the new working directory to \"" + new_working_directory + "\"! (" + std::string(::strerror(errno)) + ")");
 }
 
 
 class TemporaryChDir {
     std::string old_working_dir_;
+
 public:
     explicit TemporaryChDir(const std::string &new_working_dir);
     ~TemporaryChDir();
 };
 
 
-TemporaryChDir::TemporaryChDir(const std::string &new_working_dir)
-    : old_working_dir_(FileUtil::GetCurrentWorkingDirectory())
-{
+TemporaryChDir::TemporaryChDir(const std::string &new_working_dir): old_working_dir_(FileUtil::GetCurrentWorkingDirectory()) {
     ChangeDirectoryOrDie(new_working_dir);
 }
 
@@ -194,9 +194,10 @@ struct Mountpoint {
     std::string path_;
     std::string test_path_;
     std::string unc_path_;
+
 public:
-    explicit Mountpoint(const std::string &path, const std::string &test_path, const std::string &unc_path): path_(path),
-                        test_path_(test_path), unc_path_(unc_path) { }
+    explicit Mountpoint(const std::string &path, const std::string &test_path, const std::string &unc_path)
+        : path_(path), test_path_(test_path), unc_path_(unc_path) { }
 };
 
 
@@ -254,7 +255,7 @@ void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_t
 void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
     std::unordered_set<unsigned> running_pids;
     std::string mysql_sock_path;
-    switch(os_system_type) {
+    switch (os_system_type) {
     case UBUNTU:
         mysql_sock_path = "/var/run/mysqld/mysqld.sock";
         if (SystemdUtil::IsAvailable())
@@ -295,9 +296,8 @@ void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
 }
 
 
-void MySQLImportFileIfExists(const std::string &sql_file, const std::string &sql_database,
-                             const std::string &root_username, const std::string &root_password)
-{
+void MySQLImportFileIfExists(const std::string &sql_file, const std::string &sql_database, const std::string &root_username,
+                             const std::string &root_password) {
     if (FileUtil::Exists(sql_file))
         DbConnection::MySQLImportFile(sql_file, sql_database, root_username, root_password);
 }
@@ -341,7 +341,7 @@ void CreateVuFindDatabases(const VuFindSystemType vufind_system_type, DbConnecti
 
         DbConnection::MySQLImportFile(VUFIND_DIRECTORY + "/module/VuFind/sql/mysql.sql", sql_database, sql_username, sql_password);
         MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/TueFind/sql/mysql.sql", sql_database, sql_username, sql_password);
-        switch(vufind_system_type) {
+        switch (vufind_system_type) {
         case IXTHEO:
             MySQLImportFileIfExists(VUFIND_DIRECTORY + "/module/IxTheo/sql/mysql.sql", sql_database, sql_username, sql_password);
             break;
@@ -384,8 +384,7 @@ void SystemdEnableAndRunUnit(const std::string unit) {
 
 
 void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::string vufind_system_type_string,
-                                 const InstallationType installation_type, const bool install_systemctl)
-{
+                                 const InstallationType installation_type, const bool install_systemctl) {
     // install / update dependencies
     std::string script;
     if (os_system_type == UBUNTU)
@@ -403,7 +402,7 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
     // check systemd configuration
     if (install_systemctl) {
         std::string apache_unit_name, mysql_unit_name;
-        switch(os_system_type) {
+        switch (os_system_type) {
         case UBUNTU:
             apache_unit_name = "apache2";
             mysql_unit_name = "mysql";
@@ -447,9 +446,8 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
 
     Template::Map names_to_values_map;
     names_to_values_map.insertScalar("solr_heap", system_type == KRIMDOK ? "4G" : "8G");
-    const std::string vufind_service(
-        Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY
-                                                           + "/" + service_name + ".service.template"), names_to_values_map));
+    const std::string vufind_service(Template::ExpandTemplate(
+        FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + "/" + service_name + ".service.template"), names_to_values_map));
     const std::string service_file_path(temp_dir.getDirectoryPath() + "/" + service_name + ".service");
     FileUtil::WriteStringOrDie(service_file_path, vufind_service);
     SystemdUtil::InstallUnit(service_file_path);
@@ -498,19 +496,19 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type, 
     // ...then create /usr/local/var/lib/tuelib
     if (not FileUtil::Exists(UBTools::GetTuelibPath())) {
         Echo("creating " + UBTools::GetTuelibPath());
-        FileUtil::MakeDirectoryOrDie(UBTools::GetTuelibPath(), /* recursive = */true);
+        FileUtil::MakeDirectoryOrDie(UBTools::GetTuelibPath(), /* recursive = */ true);
     }
 
     // ..and /usr/local/var/log/tuefind
     if (not FileUtil::Exists(UBTools::GetTueFindLogPath())) {
         Echo("creating " + UBTools::GetTueFindLogPath());
-        FileUtil::MakeDirectoryOrDie(UBTools::GetTueFindLogPath(), /* recursive = */true);
+        FileUtil::MakeDirectoryOrDie(UBTools::GetTueFindLogPath(), /* recursive = */ true);
     }
 
     // ..and /usr/local/var/tmp
     if (not FileUtil::Exists(UBTools::GetTueLocalTmpPath())) {
         Echo("creating " + UBTools::GetTueLocalTmpPath());
-        FileUtil::MakeDirectoryOrDie(UBTools::GetTueLocalTmpPath(), /* recursive = */true);
+        FileUtil::MakeDirectoryOrDie(UBTools::GetTueLocalTmpPath(), /* recursive = */ true);
     }
 
     const std::string ZOTERO_ENHANCEMENT_MAPS_DIRECTORY(UBTools::GetTuelibPath() + "zotero-enhancement-maps");
@@ -564,15 +562,14 @@ std::string GetStringFromTerminal(const std::string &prompt) {
 
 
 void InstallCronjobs(const bool production, const std::string &cronjobs_template_file, const std::string &crontab_block_start,
-                     const std::string &crontab_block_end, Template::Map &names_to_values_map)
-{
+                     const std::string &crontab_block_end, Template::Map &names_to_values_map) {
     FileUtil::AutoTempFile crontab_temp_file_old;
     // crontab -l returns error code if crontab is empty, so dont use ExecUtil::ExecOrDie!!!
     ExecUtil::Exec(ExecUtil::LocateOrDie("crontab"), { "-l" }, "", crontab_temp_file_old.getFilePath());
     FileUtil::AutoTempFile crontab_temp_file_custom;
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
-              { "-e", "/" + crontab_block_start + "/,/" + crontab_block_end + "/d",
-                crontab_temp_file_old.getFilePath() }, "", crontab_temp_file_custom.getFilePath());
+                        { "-e", "/" + crontab_block_start + "/,/" + crontab_block_end + "/d", crontab_temp_file_old.getFilePath() }, "",
+                        crontab_temp_file_custom.getFilePath());
     const std::string cronjobs_custom(FileUtil::ReadStringOrDie(crontab_temp_file_custom.getFilePath()));
 
     if (production)
@@ -581,7 +578,7 @@ void InstallCronjobs(const bool production, const std::string &cronjobs_template
     if (names_to_values_map.empty())
         cronjobs_generated += FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + '/' + cronjobs_template_file);
     else
-        cronjobs_generated += Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + '/' +  cronjobs_template_file),
+        cronjobs_generated += Template::ExpandTemplate(FileUtil::ReadStringOrDie(INSTALLER_DATA_DIRECTORY + '/' + cronjobs_template_file),
                                                        names_to_values_map);
     if (not StringUtil::EndsWith(cronjobs_generated, '\n'))
         cronjobs_generated += '\n';
@@ -608,8 +605,8 @@ void InstallVuFindCronjobs(const bool production, const VuFindSystemType vufind_
         names_to_values_map.insertScalar("churchlaw_host", GetStringFromTerminal("ChurchLaw Hostname"));
     }
 
-    InstallCronjobs(production, (vufind_system_type == KRIMDOK ? "krimdok.cronjobs" : "ixtheo.cronjobs"),
-                    start_vufind_autogenerated, end_vufind_autogenerated, names_to_values_map);
+    InstallCronjobs(production, (vufind_system_type == KRIMDOK ? "krimdok.cronjobs" : "ixtheo.cronjobs"), start_vufind_autogenerated,
+                    end_vufind_autogenerated, names_to_values_map);
 }
 
 
@@ -624,7 +621,8 @@ void CreateUserIfNotExists(const std::string &username) {
     const int user_exists(ExecUtil::Exec(ExecUtil::LocateOrDie("id"), { "-u", username }));
     if (user_exists == 1) {
         Echo("Creating user " + username + "...");
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("useradd"), { "--system", "--user-group", "--no-create-home", "--shell", "/bin/bash", username });
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("useradd"),
+                            { "--system", "--user-group", "--no-create-home", "--shell", "/bin/bash", username });
     } else if (user_exists > 1)
         Error("Failed to check if user exists: " + username);
 }
@@ -693,62 +691,51 @@ void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_s
         AddUserToGroup(username, "www-data");
         config_filename = "/etc/apache2/envvars";
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
-            { "-i", "s/export APACHE_RUN_USER=www-data/export APACHE_RUN_USER=" + username + "/",
-              config_filename });
+                            { "-i", "s/export APACHE_RUN_USER=www-data/export APACHE_RUN_USER=" + username + "/", config_filename });
 
         ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
-            { "-i", "s/export APACHE_RUN_GROUP=www-data/export APACHE_RUN_GROUP=" + username + "/",
-              config_filename });
+                            { "-i", "s/export APACHE_RUN_GROUP=www-data/export APACHE_RUN_GROUP=" + username + "/", config_filename });
         break;
     case CENTOS:
         AddUserToGroup(username, "apache");
         config_filename = "/etc/httpd/conf/httpd.conf";
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
-            { "-i", "s/User apache/User " + username + "/", config_filename });
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/User apache/User " + username + "/", config_filename });
 
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
-            { "-i", "s/Group apache/Group " + username + "/", config_filename });
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/Group apache/Group " + username + "/", config_filename });
 
         const std::string php_config_filename("/etc/php-fpm.d/www.conf");
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
-            { "-i", "s/user = apache/user =  " + username + "/", php_config_filename });
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
-            { "-i", "s/group = apache/group =  " + username + "/", php_config_filename });
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/user = apache/user =  " + username + "/", php_config_filename });
+        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/group = apache/group =  " + username + "/", php_config_filename });
+        ExecUtil::ExecOrDie(
+            ExecUtil::LocateOrDie("sed"),
             { "-i", "s/listen.acl_users = apache,nginx/listen.acl_users = apache,nginx," + username + "/", php_config_filename });
 
         FileUtil::ChangeOwnerOrDie("/var/log/httpd", username, username, /*recursive=*/true);
         FileUtil::ChangeOwnerOrDie("/var/run/httpd", username, username, /*recursive=*/true);
         if (install_systemctl) {
-            ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
-                { "-i", "s/apache/" + username + "/g", "/usr/lib/tmpfiles.d/httpd.conf" });
+            ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/apache/" + username + "/g", "/usr/lib/tmpfiles.d/httpd.conf" });
         }
         break;
     }
 
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("find"),
-                        { VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}",
-                          "+" });
+                        { VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}", "+" });
     FileUtil::ChangeOwnerOrDie(UBTools::GetTueFindLogPath(), username, username, /*recursive=*/true);
     if (SELinuxUtil::IsEnabled()) {
-        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/ixtheo/cache",
-                                                     "httpd_sys_rw_content_t",
+        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/ixtheo/cache", "httpd_sys_rw_content_t",
                                                      VUFIND_DIRECTORY + "/local/tuefind/instances/ixtheo/cache(/.*)?");
 
-        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/relbib/cache",
-                                                     "httpd_sys_rw_content_t",
+        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/relbib/cache", "httpd_sys_rw_content_t",
                                                      VUFIND_DIRECTORY + "/local/tuefind/instances/relbib/cache(/.*)?");
 
         SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/bibstudies/cache",
                                                      "httpd_sys_rw_content_t",
                                                      VUFIND_DIRECTORY + "/local/tuefind/instances/bibstudies/cache(/.*)?");
 
-        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/krimdok/cache",
-                                                     "httpd_sys_rw_content_t",
+        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/krimdok/cache", "httpd_sys_rw_content_t",
                                                      VUFIND_DIRECTORY + "/local/tuefind/instances/krimdok/cache(/.*)?");
 
-        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/public",
-                                                     "httpd_sys_content_t",
+        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/public", "httpd_sys_content_t",
                                                      VUFIND_DIRECTORY + "/public/NewsletterUploadForm.html");
     }
 }
@@ -771,10 +758,11 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
     FileUtil::ChangeOwnerOrDie(VUFIND_DIRECTORY + "/solr", USER_AND_GROUP_NAME, USER_AND_GROUP_NAME, /*recursive=*/true);
     FileUtil::ChangeOwnerOrDie(VUFIND_DIRECTORY + "/import", USER_AND_GROUP_NAME, USER_AND_GROUP_NAME, /*recursive=*/true);
 
-    const std::string solr_security_settings("solr hard nofile 65535\n"
-                                             "solr soft nofile 65535\n"
-                                             "solr hard nproc 65535\n"
-                                             "solr soft nproc 65535\n");
+    const std::string solr_security_settings(
+        "solr hard nofile 65535\n"
+        "solr soft nofile 65535\n"
+        "solr hard nproc 65535\n"
+        "solr soft nproc 65535\n");
     FileUtil::WriteString("/etc/security/limits.d/20-solr.conf", solr_security_settings);
 
     if (SELinuxUtil::IsEnabled())
@@ -791,8 +779,7 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
 
 
 void PermanentlySetEnvironmentVariables(const std::vector<std::pair<std::string, std::string>> &keys_and_values,
-                                        const std::string &script_path)
-{
+                                        const std::string &script_path) {
     std::string variables;
     for (const auto &[key, value] : keys_and_values)
         variables += "export " + key + "=" + value + "\n";
@@ -802,7 +789,7 @@ void PermanentlySetEnvironmentVariables(const std::vector<std::pair<std::string,
 
 
 void SetVuFindEnvironmentVariables(const std::string &vufind_system_type_string) {
-    std::vector<std::pair<std::string, std::string>> keys_and_values {
+    std::vector<std::pair<std::string, std::string>> keys_and_values{
         { "VUFIND_HOME", VUFIND_DIRECTORY },
         { "VUFIND_LOCAL_DIR", VUFIND_DIRECTORY + "/local/tuefind/instances/" + vufind_system_type_string },
         { "TUEFIND_FLAVOUR", vufind_system_type_string },
@@ -812,9 +799,7 @@ void SetVuFindEnvironmentVariables(const std::string &vufind_system_type_string)
 
 void SetFulltextEnvironmentVariables() {
     // Currently only the IxTheo approach is supported
-    const std::vector<std::pair<std::string, std::string>> keys_and_values {
-        { "FULLTEXT_FLAVOUR", "fulltext_ixtheo" }
-    };
+    const std::vector<std::pair<std::string, std::string>> keys_and_values{ { "FULLTEXT_FLAVOUR", "fulltext_ixtheo" } };
     PermanentlySetEnvironmentVariables(keys_and_values, "/etc/profile.d/fulltext.sh");
 }
 
@@ -831,8 +816,7 @@ void SetFulltextEnvironmentVariables() {
  * Writes a file into vufind directory to save configured system type
  */
 void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system_type, const OSSystemType os_system_type,
-                     const bool install_cronjobs, const bool install_systemctl)
-{
+                     const bool install_cronjobs, const bool install_systemctl) {
     // We need to increase default_socket_timeout for big downloads on slow mirrors, especially Solr (default 60 seconds) .
     TemporaryChDir tmp2(VUFIND_DIRECTORY);
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { "-d", "default_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" });
@@ -871,8 +855,7 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     Echo("creating log directory");
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mkdir"), { "-p", UBTools::GetTueFindLogPath() });
     if (SELinuxUtil::IsEnabled()) {
-        SELinuxUtil::FileContext::AddRecordIfMissing(UBTools::GetTueFindLogPath(),
-                                                     "httpd_sys_rw_content_t",
+        SELinuxUtil::FileContext::AddRecordIfMissing(UBTools::GetTueFindLogPath(), "httpd_sys_rw_content_t",
                                                      UBTools::GetTueFindLogPath() + "(.*)?");
     }
 
@@ -897,7 +880,8 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     Echo("generating HMAC hash");
     const std::string HMAC_FILE_PATH(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/hmac.conf");
     if (not FileUtil::Exists(HMAC_FILE_PATH))
-        FileUtil::WriteStringOrDie(HMAC_FILE_PATH, StringUtil::GenerateRandom(/*length=*/32, /*alphabet=*/"abcdefghijklmnopqrstuvwxyz0123456789"));
+        FileUtil::WriteStringOrDie(HMAC_FILE_PATH,
+                                   StringUtil::GenerateRandom(/*length=*/32, /*alphabet=*/"abcdefghijklmnopqrstuvwxyz0123456789"));
 
     // We need to create empty local_overrides files so that basic programs like cssBuilder can run
     FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/database.conf");
@@ -927,18 +911,18 @@ void InstallFullTextBackendCronjobs(const bool production) {
 
 
 void WaitForElasticsearchReady() {
-     const std::string host("127.0.0.1"); // avoid docker address assign problem
-     const std::string base_url("http://" + host + ":9200/");
-     const unsigned MAX_ITERATIONS(5);
-     const unsigned SLEEP_TIME_SECS(5);
+    const std::string host("127.0.0.1"); // avoid docker address assign problem
+    const std::string base_url("http://" + host + ":9200/");
+    const unsigned MAX_ITERATIONS(5);
+    const unsigned SLEEP_TIME_SECS(5);
 
-     for (unsigned iteration(1); iteration <= MAX_ITERATIONS; ++iteration) {
-         Downloader downloader(base_url);
-         if (downloader.getResponseCode() == 200)
-             break;
-         ::sleep(SLEEP_TIME_SECS);
-         if (iteration == MAX_ITERATIONS)
-             LOG_ERROR("ES apparently down [1]");
+    for (unsigned iteration(1); iteration <= MAX_ITERATIONS; ++iteration) {
+        Downloader downloader(base_url);
+        if (downloader.getResponseCode() == 200)
+            break;
+        ::sleep(SLEEP_TIME_SECS);
+        if (iteration == MAX_ITERATIONS)
+            LOG_ERROR("ES apparently down [1]");
     }
 
     const unsigned TIMEOUT_MS(5 * 1000);
@@ -964,14 +948,14 @@ void ConfigureFullTextBackend(const bool production, const bool install_cronjobs
     if (SystemdUtil::IsAvailable()) {
         SystemdUtil::EnableUnit("elasticsearch");
         if (not SystemdUtil::IsUnitRunning("elasticsearch"))
-             SystemdUtil::StartUnit("elasticsearch");
+            SystemdUtil::StartUnit("elasticsearch");
         else
             es_was_already_running = true;
     } else {
         running_pids = ExecUtil::FindActivePrograms("elasticsearch");
         if (running_pids.size() == 0) {
             es_install_pid = ExecUtil::Spawn(ExecUtil::LocateOrDie("su"), { "--command", "/usr/share/elasticsearch/bin/elasticsearch",
-                                             "--shell", "/bin/bash", "elasticsearch" });
+                                                                            "--shell", "/bin/bash", "elasticsearch" });
             WaitForElasticsearchReady();
         } else
             es_was_already_running = true;
@@ -1043,7 +1027,7 @@ int Main(int argc, char **argv) {
         else
             LOG_ERROR("argument " + std::to_string(argv_additional_params_start) + " must be --production or --test!");
 
-        for (int i(argv_additional_params_start+1); i < argc; ++i) {
+        for (int i(argv_additional_params_start + 1); i < argc; ++i) {
             if (std::strcmp("--omit-cronjobs", argv[i]) == 0)
                 omit_cronjobs = true;
             else if (std::strcmp("--omit-systemctl", argv[i]) == 0)
@@ -1054,8 +1038,9 @@ int Main(int argc, char **argv) {
     }
 
     if (not omit_systemctl and not SystemdUtil::IsAvailable())
-        Error("Systemd is not available in this environment."
-              "Please use --omit-systemctl explicitly if you want to skip service installations.");
+        Error(
+            "Systemd is not available in this environment."
+            "Please use --omit-systemctl explicitly if you want to skip service installations.");
     const bool install_systemctl(not omit_systemctl and SystemdUtil::IsAvailable());
 
     if (::geteuid() != 0)
@@ -1082,13 +1067,13 @@ int Main(int argc, char **argv) {
     if (installation_type == VUFIND) {
         FileUtil::MakeDirectoryOrDie("/mnt/zram");
         DownloadVuFind();
-        #ifndef __clang__
-        #   pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-        #endif
+#ifndef __clang__
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
         ConfigureVuFind(production, vufind_system_type, os_system_type, not omit_cronjobs, install_systemctl);
-        #ifndef __clang__
-        #   pragma GCC diagnostic error "-Wmaybe-uninitialized"
-        #endif
+#ifndef __clang__
+#pragma GCC diagnostic error "-Wmaybe-uninitialized"
+#endif
     }
     InstallUBTools(/* make_install = */ true, os_system_type, &db_connection_root);
     if (installation_type == FULLTEXT_BACKEND)

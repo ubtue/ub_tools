@@ -15,8 +15,9 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
+#include "ZoteroHarvesterConversion.h"
 #include "BSZUtil.h"
 #include "Downloader.h"
 #include "FileUtil.h"
@@ -29,7 +30,6 @@
 #include "TranslationUtil.h"
 #include "UBTools.h"
 #include "UrlUtil.h"
-#include "ZoteroHarvesterConversion.h"
 #include "ZoteroHarvesterZederInterop.h"
 #include "util.h"
 
@@ -115,9 +115,9 @@ std::string MetadataRecord::toString() const {
 
 
 MetadataRecord::SSGType MetadataRecord::GetSSGTypeFromString(const std::string &ssg_string) {
-    const std::map<std::string, SSGType> ZEDER_STRINGS {
-        { "FG_0",   SSGType::FG_0 },
-        { "FG_1",   SSGType::FG_1 },
+    const std::map<std::string, SSGType> ZEDER_STRINGS{
+        { "FG_0", SSGType::FG_0 },
+        { "FG_1", SSGType::FG_1 },
         { "FG_0/1", SSGType::FG_01 },
         { "FG_2,1", SSGType::FG_21 },
     };
@@ -130,8 +130,7 @@ MetadataRecord::SSGType MetadataRecord::GetSSGTypeFromString(const std::string &
 
 
 void SuppressJsonMetadataForParams(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                                   const Config::ZoteroMetadataParams &zotero_metadata_params)
-{
+                                   const Config::ZoteroMetadataParams &zotero_metadata_params) {
     const auto suppression_regex(zotero_metadata_params.fields_to_suppress_.find(node_name));
     if (suppression_regex != zotero_metadata_params.fields_to_suppress_.end()) {
         if (node->getType() != JSON::JSONNode::STRING_NODE)
@@ -139,25 +138,22 @@ void SuppressJsonMetadataForParams(const std::string &node_name, const std::shar
 
         const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
         if (suppression_regex->second->match(string_node->getValue())) {
-            LOG_DEBUG("suppression regex '" + suppression_regex->second->getPattern() +
-                      "' matched metadata field '" + node_name + "' value '" + string_node->getValue() + "'");
+            LOG_DEBUG("suppression regex '" + suppression_regex->second->getPattern() + "' matched metadata field '" + node_name
+                      + "' value '" + string_node->getValue() + "'");
             string_node->setValue("");
         }
     }
 }
 
 
-void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                          const ConversionParams &parameters)
-{
+void SuppressJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node, const ConversionParams &parameters) {
     SuppressJsonMetadataForParams(node_name, node, parameters.global_params_.zotero_metadata_params_);
     SuppressJsonMetadataForParams(node_name, node, parameters.download_item_.journal_.zotero_metadata_params_);
 }
 
 
 void OverrideJsonMetadataForParams(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                                   const Config::ZoteroMetadataParams &zotero_metadata_params)
-{
+                                   const Config::ZoteroMetadataParams &zotero_metadata_params) {
     const std::string ORIGINAL_VALUE_SPECIFIER("%org%");
     const auto override_pattern(zotero_metadata_params.fields_to_override_.find(node_name));
 
@@ -167,7 +163,7 @@ void OverrideJsonMetadataForParams(const std::string &node_name, const std::shar
 
         const auto string_node(JSON::JSONNode::CastToStringNodeOrDie(node_name, node));
         const auto string_value(string_node->getValue());
-        const auto override_string(StringUtil::ReplaceString(ORIGINAL_VALUE_SPECIFIER, string_value,override_pattern->second));
+        const auto override_string(StringUtil::ReplaceString(ORIGINAL_VALUE_SPECIFIER, string_value, override_pattern->second));
 
         LOG_DEBUG("metadata field '" + node_name + "' value changed from '" + string_value + "' to '" + override_string + "'");
         string_node->setValue(override_string);
@@ -175,17 +171,14 @@ void OverrideJsonMetadataForParams(const std::string &node_name, const std::shar
 }
 
 
-void OverrideJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                          const ConversionParams &parameters)
-{
+void OverrideJsonMetadata(const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node, const ConversionParams &parameters) {
     OverrideJsonMetadataForParams(node_name, node, parameters.global_params_.zotero_metadata_params_);
     OverrideJsonMetadataForParams(node_name, node, parameters.download_item_.journal_.zotero_metadata_params_);
 }
 
 
 void PostprocessTranslationServerResponse(const ConversionParams &parameters,
-                                          std::shared_ptr<JSON::ArrayNode> * const response_json_array)
-{
+                                          std::shared_ptr<JSON::ArrayNode> * const response_json_array) {
     // 'response_json_array' is a JSON array of metadata objects pertaining to individual URLs
 
     // firstly, we need to process item notes. they are encoded as separate objects
@@ -227,18 +220,16 @@ void PostprocessTranslationServerResponse(const ConversionParams &parameters,
 
 
 bool ZoteroItemMatchesExclusionFiltersForParams(const std::shared_ptr<JSON::ObjectNode> &zotero_item,
-                                             const Util::HarvestableItem &download_item,
-                                             const Config::ZoteroMetadataParams &zotero_metadata_params)
-{
+                                                const Util::HarvestableItem &download_item,
+                                                const Config::ZoteroMetadataParams &zotero_metadata_params) {
     if (zotero_metadata_params.exclusion_filters_.empty())
         return false;
 
     bool found_match(false);
     std::string exclusion_string;
-    auto metadata_exclusion_predicate = [&found_match, &exclusion_string]
-                                        (const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
-                                         const Config::ZoteroMetadataParams &zotero_metadata_params) -> void
-    {
+    auto metadata_exclusion_predicate = [&found_match, &exclusion_string](
+                                            const std::string &node_name, const std::shared_ptr<JSON::JSONNode> &node,
+                                            const Config::ZoteroMetadataParams &zotero_metadata_params) -> void {
         const auto filter_regex(zotero_metadata_params.exclusion_filters_.find(node_name));
         if (filter_regex != zotero_metadata_params.exclusion_filters_.end()) {
             if (node->getType() != JSON::JSONNode::STRING_NODE)
@@ -260,22 +251,21 @@ bool ZoteroItemMatchesExclusionFiltersForParams(const std::shared_ptr<JSON::Obje
 }
 
 
-bool ZoteroItemMatchesExclusionFilters(const std::shared_ptr<JSON::ObjectNode> &zotero_item,
-                                       const ConversionParams &parameters)
-{
-    return (ZoteroItemMatchesExclusionFiltersForParams(zotero_item, parameters.download_item_, parameters.global_params_.zotero_metadata_params_)
-            or ZoteroItemMatchesExclusionFiltersForParams(zotero_item, parameters.download_item_, parameters.download_item_.journal_.zotero_metadata_params_));
+bool ZoteroItemMatchesExclusionFilters(const std::shared_ptr<JSON::ObjectNode> &zotero_item, const ConversionParams &parameters) {
+    return (ZoteroItemMatchesExclusionFiltersForParams(zotero_item, parameters.download_item_,
+                                                       parameters.global_params_.zotero_metadata_params_)
+            or ZoteroItemMatchesExclusionFiltersForParams(zotero_item, parameters.download_item_,
+                                                          parameters.download_item_.journal_.zotero_metadata_params_));
 }
 
 
 static inline std::string GetStrippedHTMLStringFromJSON(const std::shared_ptr<JSON::ObjectNode> &json_object,
-                                                        const std::string &field_name)
-{ return HtmlUtil::StripHtmlTags(json_object->getOptionalStringValue(field_name)); }
+                                                        const std::string &field_name) {
+    return HtmlUtil::StripHtmlTags(json_object->getOptionalStringValue(field_name));
+}
 
 
-void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &zotero_item,
-                                       MetadataRecord * const metadata_record)
-{
+void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &zotero_item, MetadataRecord * const metadata_record) {
     metadata_record->item_type_ = GetStrippedHTMLStringFromJSON(zotero_item, "itemType");
     metadata_record->title_ = GetStrippedHTMLStringFromJSON(zotero_item, "title");
     metadata_record->short_title_ = GetStrippedHTMLStringFromJSON(zotero_item, "shortTitle");
@@ -296,15 +286,14 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
 
     const auto creators_array(zotero_item->getOptionalArrayNode("creators"));
     if (creators_array and not creators_array->empty()) {
-        for (const auto &entry :*creators_array) {
+        for (const auto &entry : *creators_array) {
             const auto creator_object(JSON::JSONNode::CastToObjectNodeOrDie("array_element", entry));
             if (creator_object->hasNode("firstName") or creator_object->hasNode("lastName")) {
                 metadata_record->creators_.emplace_back(GetStrippedHTMLStringFromJSON(creator_object, "firstName"),
                                                         GetStrippedHTMLStringFromJSON(creator_object, "lastName"),
                                                         GetStrippedHTMLStringFromJSON(creator_object, "creatorType"));
             } else if (creator_object->hasNode("name")) {
-                metadata_record->creators_.emplace_back("",
-                                                        GetStrippedHTMLStringFromJSON(creator_object, "name"),
+                metadata_record->creators_.emplace_back("", GetStrippedHTMLStringFromJSON(creator_object, "name"),
                                                         GetStrippedHTMLStringFromJSON(creator_object, "creatorType"));
             } else {
                 LOG_WARNING("Don't know how to handle authors in non-empty creator_object " + creator_object->toString());
@@ -314,7 +303,7 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
 
     const auto tags_array(zotero_item->getOptionalArrayNode("tags"));
     if (tags_array) {
-        for (const auto &entry :*tags_array) {
+        for (const auto &entry : *tags_array) {
             const auto tag_object(JSON::JSONNode::CastToObjectNodeOrDie("array_element", entry));
             const auto tag(GetStrippedHTMLStringFromJSON(tag_object, "tag"));
             if (not tag.empty())
@@ -324,14 +313,14 @@ void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &
 
     const auto notes_array(zotero_item->getOptionalArrayNode("notes"));
     if (notes_array) {
-        for (const auto &entry :*notes_array) {
+        for (const auto &entry : *notes_array) {
             const auto note_object(JSON::JSONNode::CastToObjectNodeOrDie("array_element", entry));
             const auto note(note_object->getOptionalStringValue("note"));
             if (not note.empty()) {
                 const auto first_colon_pos(note.find(':'));
                 if (unlikely(first_colon_pos == std::string::npos)) {
                     LOG_WARNING("additional metadata in \"notes\" is missing a colon! data: '" + note + "'");
-                    continue;   // could be a valid note added by the translator
+                    continue; // could be a valid note added by the translator
                 }
 
                 metadata_record->custom_metadata_.emplace(note.substr(0, first_colon_pos), note.substr(first_colon_pos + 1));
@@ -366,7 +355,7 @@ const std::string AUTHOR_NAME_BLACKLIST(UBTools::GetTuelibPath() + "zotero-enhan
 ThreadSafeRegexMatcher InitializeBlacklistedAuthorTokenMatcher() {
     std::unordered_set<std::string> blacklisted_tokens, filtered_blacklisted_tokens;
     auto string_data(FileUtil::ReadStringOrDie(AUTHOR_NAME_BLACKLIST));
-    StringUtil::Split(string_data, '\n', &blacklisted_tokens, /* suppress_empty_components = */true);
+    StringUtil::Split(string_data, '\n', &blacklisted_tokens, /* suppress_empty_components = */ true);
 
     StlHelpers::Functional::Filter(blacklisted_tokens.begin(), blacklisted_tokens.end(), filtered_blacklisted_tokens,
                                    FilterEmptyAndCommentLines);
@@ -382,7 +371,8 @@ ThreadSafeRegexMatcher InitializeBlacklistedAuthorTokenMatcher() {
     }
     match_pattern += ")\\b";
 
-   return ThreadSafeRegexMatcher(match_pattern, ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE);
+    return ThreadSafeRegexMatcher(
+        match_pattern, ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE);
 }
 
 
@@ -391,7 +381,7 @@ const ThreadSafeRegexMatcher BLACKLISTED_AUTHOR_TOKEN_MATCHER(InitializeBlacklis
 
 void StripBlacklistedTokensFromAuthorName(std::string * const first_name, std::string * const last_name) {
     std::string first_name_buffer(BLACKLISTED_AUTHOR_TOKEN_MATCHER.replaceAll(*first_name, "")),
-                last_name_buffer(BLACKLISTED_AUTHOR_TOKEN_MATCHER.replaceAll(*last_name, ""));
+        last_name_buffer(BLACKLISTED_AUTHOR_TOKEN_MATCHER.replaceAll(*last_name, ""));
 
     StringUtil::TrimWhite(&first_name_buffer);
     StringUtil::TrimWhite(&last_name_buffer);
@@ -409,9 +399,7 @@ bool Is655Keyword(const std::string &keyword) {
 }
 
 
-static const std::set<std::string> VALID_TITLES {
-    "jr", "sr", "sj", "s.j", "s.j.", "fr", "hr", "dr", "prof", "em"
-};
+static const std::set<std::string> VALID_TITLES{ "jr", "sr", "sj", "s.j", "s.j.", "fr", "hr", "dr", "prof", "em" };
 
 
 bool IsAuthorNameTokenTitle(std::string token) {
@@ -424,9 +412,7 @@ bool IsAuthorNameTokenTitle(std::string token) {
 }
 
 
-static const std::set<std::string> VALID_AFFIXES {
-    "i", "ii", "iii", "iv", "v"
-};
+static const std::set<std::string> VALID_AFFIXES{ "i", "ii", "iii", "iv", "v" };
 
 
 bool IsAuthorNameTokenAffix(std::string token) {
@@ -437,17 +423,19 @@ bool IsAuthorNameTokenAffix(std::string token) {
 
 void JoinAuthorTokens(const std::vector<std::string> &tokens_first, std::string * const first_name,
                       const std::vector<std::string> &tokens_last, std::string * const last_name) {
-        StringUtil::Join(tokens_first, ' ', first_name);
-        StringUtil::Join(tokens_last, ' ', last_name);
+    StringUtil::Join(tokens_first, ' ', first_name);
+    StringUtil::Join(tokens_last, ' ', last_name);
 }
 
 
-void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::string * const last_name, const std::set<std::string> &languages) {
+void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::string * const last_name,
+                                      const std::set<std::string> &languages) {
     // In Spanish we have two last name components, so move over if appropriate
     if (languages.find("spa") != languages.end()) {
         // Skip transformation if the first name/last name association already seems reasonable
-        static const auto first_name_end_preposition(ThreadSafeRegexMatcher("(des?\\s+las?|del|\\p{Lu}[.])$",
-             ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE));
+        static const auto first_name_end_preposition(ThreadSafeRegexMatcher(
+            "(des?\\s+las?|del|\\p{Lu}[.])$",
+            ThreadSafeRegexMatcher::ENABLE_UTF8 | ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE));
         if (first_name_end_preposition.match(*first_name))
             return;
 
@@ -463,9 +451,9 @@ void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::strin
         const auto y_iterator(std::find(first_name_tokens.begin(), first_name_tokens.end(), "y"));
         if (y_iterator != first_name_tokens.end()) {
             const auto offset(std::distance(first_name_tokens.begin(), y_iterator));
-            if (offset >=1) {
+            if (offset >= 1) {
                 last_name_tokens.insert(last_name_tokens.begin(), std::make_move_iterator(last_name_tokens.begin() + (offset - 1)),
-                                                                  std::make_move_iterator(last_name_tokens.end()));
+                                        std::make_move_iterator(last_name_tokens.end()));
                 first_name_tokens.erase(first_name_tokens.begin() + (offset - 1));
                 JoinAuthorTokens(first_name_tokens, first_name, last_name_tokens, last_name);
                 return;
@@ -479,14 +467,13 @@ void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::strin
 
 
 void PostProcessAuthorName(std::string * const first_name, std::string * const last_name, std::string * const title,
-                           std::string * const affix, const std::set<std::string> &languages)
-{
+                           std::string * const affix, const std::set<std::string> &languages) {
     std::string first_name_buffer, title_buffer;
     std::vector<std::string> tokens;
 
     AdjustFirstAndLastNameByLanguage(first_name, last_name, languages);
 
-    StringUtil::Split(*first_name, ' ', &tokens, /* suppress_empty_components = */true);
+    StringUtil::Split(*first_name, ' ', &tokens, /* suppress_empty_components = */ true);
     for (const auto &token : tokens) {
         if (IsAuthorNameTokenTitle(token))
             title_buffer += token + " ";
@@ -495,7 +482,7 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
     }
 
     std::string last_name_buffer, affix_buffer;
-    StringUtil::Split(*last_name, ' ', &tokens, /* suppress_empty_components = */true);
+    StringUtil::Split(*last_name, ' ', &tokens, /* suppress_empty_components = */ true);
     for (const auto &token : tokens) {
         if (IsAuthorNameTokenTitle(token))
             title_buffer += token + " ";
@@ -524,8 +511,8 @@ void PostProcessAuthorName(std::string * const first_name, std::string * const l
         *last_name = last_name_buffer;
     }
 
-    LOG_DEBUG("post-processed author first name = '" + *first_name + "', last name = '" + *last_name +
-              "', title = '" + *title + "', affix = '" + *affix + "'");
+    LOG_DEBUG("post-processed author first name = '" + *first_name + "', last name = '" + *last_name + "', title = '" + *title
+              + "', affix = '" + *affix + "'");
 }
 
 
@@ -564,9 +551,7 @@ void NormalizeGivenLanguages(MetadataRecord * const metadata_record) {
 
 std::string DetectLanguage(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params) {
     std::string record_text;
-    if (journal_params.language_params_.source_text_fields_.empty()
-        or journal_params.language_params_.source_text_fields_ == "title")
-    {
+    if (journal_params.language_params_.source_text_fields_.empty() or journal_params.language_params_.source_text_fields_ == "title") {
         record_text = metadata_record->title_;
     } else if (journal_params.language_params_.source_text_fields_ == "abstract")
         record_text = metadata_record->abstract_note_;
@@ -580,7 +565,7 @@ std::string DetectLanguage(MetadataRecord * const metadata_record, const Config:
     if (detected_language.empty()) {
         std::vector<NGram::DetectedLanguage> detected_languages;
         NGram::ClassifyLanguage(record_text, &detected_languages, journal_params.language_params_.expected_languages_,
-                             /*alternative_cutoff_factor = */ 0);
+                                /*alternative_cutoff_factor = */ 0);
         const auto top_language(detected_languages.front());
         detected_language = top_language.language_;
     }
@@ -597,7 +582,8 @@ void AdjustLanguages(MetadataRecord * const metadata_record, const Config::Journ
 
     // Override directly via configuration (if corresponding mode is set)
     if (journal_params.language_params_.mode_ == Config::LanguageParams::FORCE_LANGUAGES) {
-        LOG_INFO("Override languages with configuration value: " + StringUtil::Join(journal_params.language_params_.expected_languages_, ","));
+        LOG_INFO("Override languages with configuration value: "
+                 + StringUtil::Join(journal_params.language_params_.expected_languages_, ","));
         metadata_record->languages_ = journal_params.language_params_.expected_languages_;
         return;
     }
@@ -629,8 +615,10 @@ void AdjustLanguages(MetadataRecord * const metadata_record, const Config::Journ
     // compare language from zotero to detected language
     if (not detected_language.empty()) {
         if (journal_params.language_params_.mode_ == Config::LanguageParams::FORCE_DETECTION) {
-            LOG_INFO ("Force language detection active - " + configured_or_detected_info + " language: " + detected_language);
-            if (journal_params.language_params_.expected_languages_.find(detected_language) == journal_params.language_params_.expected_languages_.end()) {
+            LOG_INFO("Force language detection active - " + configured_or_detected_info + " language: " + detected_language);
+            if (journal_params.language_params_.expected_languages_.find(detected_language)
+                == journal_params.language_params_.expected_languages_.end())
+            {
                 LOG_INFO("Detected language : " + detected_language + " is not in the given set of admissible languages. "
                          "No language will be set");
                 metadata_record->languages_.clear();
@@ -709,7 +697,6 @@ void DetectNotes(MetadataRecord * const metadata_record, const ConversionParams 
 }
 
 
-
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
 const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
@@ -729,15 +716,13 @@ std::string GetSWBLookupURL(const ConversionParams &parameters) {
 }
 
 
-void AugmentMetadataRecord(MetadataRecord * const metadata_record, const ConversionParams &parameters)
-{
+void AugmentMetadataRecord(MetadataRecord * const metadata_record, const ConversionParams &parameters) {
     const auto &journal_params(parameters.download_item_.journal_);
 
     // normalise date
     if (not metadata_record->date_.empty()) {
         struct tm tm(TimeUtil::StringToStructTm(metadata_record->date_, journal_params.strptime_format_string_));
-        const std::string date_normalized(std::to_string(tm.tm_year + 1900) + "-"
-                                          + StringUtil::ToString(tm.tm_mon + 1, 10, 2, '0') + "-"
+        const std::string date_normalized(std::to_string(tm.tm_year + 1900) + "-" + StringUtil::ToString(tm.tm_mon + 1, 10, 2, '0') + "-"
                                           + StringUtil::ToString(tm.tm_mday, 10, 2, '0'));
         metadata_record->date_ = date_normalized;
     }
@@ -765,8 +750,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
             converted_pages += page_match[2];
 
         if (converted_pages != pages) {
-            LOG_DEBUG("converted roman numeral page range '" + pages + "' to decimal page range '"
-                      + converted_pages + "'");
+            LOG_DEBUG("converted roman numeral page range '" + pages + "' to decimal page range '" + converted_pages + "'");
             metadata_record->pages_ = converted_pages;
         }
     }
@@ -798,9 +782,9 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
 
         LOG_DEBUG("use print ISSN \"" + issn.print_ + "\" with print PPN \"" + ppn.print_ + "\"");
     } else {
-        throw std::runtime_error("ISSN and PPN could not be chosen! ISSN online: \"" + issn.online_ + "\""
-                                 + ", ISSN print: \"" + issn.print_ + "\", ISSN zotero: \"" + metadata_record->issn_ + "\""
-                                 + ", PPN online: \"" + ppn.online_ + "\", PPN print: \"" + ppn.print_ + "\"");
+        throw std::runtime_error("ISSN and PPN could not be chosen! ISSN online: \"" + issn.online_ + "\"" + ", ISSN print: \""
+                                 + issn.print_ + "\", ISSN zotero: \"" + metadata_record->issn_ + "\"" + ", PPN online: \"" + ppn.online_
+                                 + "\", PPN print: \"" + ppn.print_ + "\"");
     }
 
     // autodetect or map language
@@ -808,8 +792,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
 
     // fetch creator GNDs and postprocess names
     for (auto &creator : metadata_record->creators_) {
-        PostProcessAuthorName(&creator.first_name_, &creator.last_name_, &creator.title_, &creator.affix_,
-                              metadata_record->languages_);
+        PostProcessAuthorName(&creator.first_name_, &creator.last_name_, &creator.title_, &creator.affix_, metadata_record->languages_);
 
         if (not creator.last_name_.empty()) {
             std::string combined_name(creator.last_name_);
@@ -845,8 +828,7 @@ const ThreadSafeRegexMatcher CUSTOM_MARC_FIELD_PLACEHOLDER_MATCHER("%([^%]+)%");
 
 
 void InsertCustomMarcFieldsForParams(const MetadataRecord &metadata_record, MARC::Record * const marc_record,
-                                     const Config::MarcMetadataParams &marc_metadata_params)
-{
+                                     const Config::MarcMetadataParams &marc_metadata_params) {
     for (const auto &custom_field : marc_metadata_params.fields_to_add_) {
         if (unlikely(custom_field.length() < MARC::Record::TAG_LENGTH))
             LOG_ERROR("custom field's tag is too short: '" + custom_field + "'");
@@ -864,18 +846,17 @@ void InsertCustomMarcFieldsForParams(const MetadataRecord &metadata_record, MARC
             const std::string placeholder_id(placeholder_match[1]);
             const auto substitutions(metadata_record.custom_metadata_.equal_range(placeholder_id));
             if (substitutions.first == metadata_record.custom_metadata_.end()) {
-                LOG_DEBUG("custom field '" + custom_field + "' has missing values for placeholder '"
-                          + placeholder_full + "'");
+                LOG_DEBUG("custom field '" + custom_field + "' has missing values for placeholder '" + placeholder_full + "'");
                 continue;
             }
 
             for (auto iter(substitutions.first); iter != substitutions.second; ++iter) {
                 // Make sure we fit into MARC binary field
-                const unsigned max_content_length(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH -
-                                         (custom_field.length() - (placeholder_id.length() + 2 /* for 2*'%' */)));
+                const unsigned max_content_length(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH
+                                                  - (custom_field.length() - (placeholder_id.length() + 2 /* for 2*'%' */)));
                 if (iter->second.length() > max_content_length) {
                     std::string content_truncated(iter->second);
-                    StringUtil::Truncate(max_content_length,  &content_truncated);
+                    StringUtil::Truncate(max_content_length, &content_truncated);
                     fields_to_add.emplace_back(StringUtil::ReplaceString(placeholder_full, content_truncated, custom_field));
                 } else
                     fields_to_add.emplace_back(StringUtil::ReplaceString(placeholder_full, iter->second, custom_field));
@@ -889,7 +870,7 @@ void InsertCustomMarcFieldsForParams(const MetadataRecord &metadata_record, MARC
         for (const auto &field_to_add : fields_to_add) {
             const MARC::Tag tag(field_to_add.substr(0, MARC::Record::TAG_LENGTH));
             if ((tag.isTagOfControlField() and field_to_add.length() < MARC::Record::TAG_LENGTH + MIN_CONTROL_FIELD_LENGTH)
-               or (not tag.isTagOfControlField() and field_to_add.length() < MARC::Record::TAG_LENGTH + MIN_DATA_FIELD_LENGTH))
+                or (not tag.isTagOfControlField() and field_to_add.length() < MARC::Record::TAG_LENGTH + MIN_DATA_FIELD_LENGTH))
             {
                 LOG_ERROR("custom field '" + field_to_add + "' is too short");
             }
@@ -900,30 +881,27 @@ void InsertCustomMarcFieldsForParams(const MetadataRecord &metadata_record, MARC
 }
 
 
-void InsertCustomMarcFields(const MetadataRecord &metadata_record, const ConversionParams &parameters,
-                            MARC::Record * const marc_record)
-{
+void InsertCustomMarcFields(const MetadataRecord &metadata_record, const ConversionParams &parameters, MARC::Record * const marc_record) {
     InsertCustomMarcFieldsForParams(metadata_record, marc_record, parameters.global_params_.marc_metadata_params_);
     InsertCustomMarcFieldsForParams(metadata_record, marc_record, parameters.group_params_.marc_metadata_params_);
     InsertCustomMarcFieldsForParams(metadata_record, marc_record, parameters.download_item_.journal_.marc_metadata_params_);
 }
 
 
-bool GetMatchedMARCFields(MARC::Record * marc_record, const std::string &field_or_field_and_subfield_code,
-                          const ThreadSafeRegexMatcher &matcher, std::vector<MARC::Record::iterator> * const matched_fields)
-{
+bool GetMatchedMARCFields(MARC::Record *marc_record, const std::string &field_or_field_and_subfield_code,
+                          const ThreadSafeRegexMatcher &matcher, std::vector<MARC::Record::iterator> * const matched_fields) {
     if (unlikely(field_or_field_and_subfield_code.length() < MARC::Record::TAG_LENGTH
                  or field_or_field_and_subfield_code.length() > MARC::Record::TAG_LENGTH + 1))
     {
         LOG_ERROR("\"field_or_field_and_subfield_code\" must be a tag or a tag plus a subfield code!");
     }
 
-    const char subfield_code((field_or_field_and_subfield_code.length() == MARC::Record::TAG_LENGTH + 1) ?
-                             field_or_field_and_subfield_code[MARC::Record::TAG_LENGTH] : '\0');
+    const char subfield_code((field_or_field_and_subfield_code.length() == MARC::Record::TAG_LENGTH + 1)
+                                 ? field_or_field_and_subfield_code[MARC::Record::TAG_LENGTH]
+                                 : '\0');
 
     matched_fields->clear();
-    const MARC::Record::Range field_range(marc_record->getTagRange(field_or_field_and_subfield_code.substr(0,
-                                          MARC::Record::TAG_LENGTH)));
+    const MARC::Record::Range field_range(marc_record->getTagRange(field_or_field_and_subfield_code.substr(0, MARC::Record::TAG_LENGTH)));
 
     for (auto field_itr(field_range.begin()); field_itr != field_range.end(); ++field_itr) {
         const auto &field(*field_itr);
@@ -942,8 +920,8 @@ void RemoveCustomMarcFieldsForParams(MARC::Record * const marc_record, const Con
     std::vector<MARC::Record::iterator> matched_fields;
     for (const auto &filter : marc_metadata_params.fields_to_remove_) {
         const auto &tag_and_subfield_code(filter.first);
-        if (marc_record->deleteFieldWithSubfieldCodeMatching(tag_and_subfield_code.substr(0,3),
-                                                             tag_and_subfield_code[3], *filter.second.get()))
+        if (marc_record->deleteFieldWithSubfieldCodeMatching(tag_and_subfield_code.substr(0, 3), tag_and_subfield_code[3],
+                                                             *filter.second.get()))
             LOG_DEBUG("erased field '" + tag_and_subfield_code + "' due to removal filter '" + filter.second->getPattern() + "'");
     }
 }
@@ -990,14 +968,12 @@ void RewriteMarcFieldsForParams(MARC::Record * const marc_record, const Config::
                 const std::string replacement(filter.second.second);
                 const std::string new_subfield_value(matcher.replaceWithBackreferences(old_subfield_value, replacement));
                 matched_field->insertOrReplaceSubfield(subfield_code, new_subfield_value);
-                LOG_DEBUG("Rewrote '" + tag_and_subfield_code + "' with content '" + old_subfield_value +
-                          "' due to filter '" + matcher.getPattern() + "', replacement string '" + replacement
-                          + "' and result '" + new_subfield_value + "'");
+                LOG_DEBUG("Rewrote '" + tag_and_subfield_code + "' with content '" + old_subfield_value + "' due to filter '"
+                          + matcher.getPattern() + "', replacement string '" + replacement + "' and result '" + new_subfield_value + "'");
             }
         }
     }
 }
-
 
 
 void RewriteMarcFields(MARC::Record * const marc_record, const ConversionParams &parameters) {
@@ -1008,51 +984,28 @@ void RewriteMarcFields(MARC::Record * const marc_record, const ConversionParams 
 
 // Zotero values see https://raw.githubusercontent.com/zotero/zotero/master/test/tests/data/allTypesAndFields.js
 // MARC21 values see https://www.loc.gov/marc/relators/relaterm.html
-const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP {
-    { "artist",             "art" },
-    { "attorneyAgent",      "csl" },
-    { "author",             "aut" },
-    { "bookAuthor",         "edc" },
-    { "cartographer",       "ctg" },
-    { "castMember",         "act" },
-    { "commenter",          "cwt" },
-    { "composer",           "cmp" },
-    { "contributor",        "ctb" },
-    { "cosponsor",          "spn" },
-    { "director",           "drt" },
-    { "editor",             "edt" },
-    { "guest",              "pan" },
-    { "interviewee",        "ive" },
-    { "inventor",           "inv" },
-    { "performer",          "prf" },
-    { "podcaster",          "brd" },
-    { "presenter",          "pre" },
-    { "producer",           "pro" },
-    { "programmer",         "prg" },
-    { "recipient",          "rcp" },
-    { "reviewedAuthor",     "aut" },
-    { "scriptwriter",       "aus" },
-    { "seriesEditor",       "edt" },
-    { "sponsor",            "spn" },
-    { "translator",         "trl" },
-    { "wordsBy",            "wam" },
+const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP{
+    { "artist", "art" },     { "attorneyAgent", "csl" },  { "author", "aut" },       { "bookAuthor", "edc" },   { "cartographer", "ctg" },
+    { "castMember", "act" }, { "commenter", "cwt" },      { "composer", "cmp" },     { "contributor", "ctb" },  { "cosponsor", "spn" },
+    { "director", "drt" },   { "editor", "edt" },         { "guest", "pan" },        { "interviewee", "ive" },  { "inventor", "inv" },
+    { "performer", "prf" },  { "podcaster", "brd" },      { "presenter", "pre" },    { "producer", "pro" },     { "programmer", "prg" },
+    { "recipient", "rcp" },  { "reviewedAuthor", "aut" }, { "scriptwriter", "aus" }, { "seriesEditor", "edt" }, { "sponsor", "spn" },
+    { "translator", "trl" }, { "wordsBy", "wam" },
 };
 
 
 std::string TruncateAbstractField(const std::string &abstract_field) {
-   const unsigned max_admissible_content_length(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH -
-                                               (2 /* indicators */ + 1 /* separator */ + 1 /* subfield code */));
-   return abstract_field.length() > max_admissible_content_length ?
-          TextUtil::UTF8ByteTruncate(abstract_field, max_admissible_content_length - 3 /* trailing dots */) + "..." :
-          abstract_field;
+    const unsigned max_admissible_content_length(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH
+                                                 - (2 /* indicators */ + 1 /* separator */ + 1 /* subfield code */));
+    return abstract_field.length() > max_admissible_content_length
+               ? TextUtil::UTF8ByteTruncate(abstract_field, max_admissible_content_length - 3 /* trailing dots */) + "..."
+               : abstract_field;
 }
 
 
 void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record, const ConversionParams &parameters,
-                                          MARC::Record * const marc_record, std::string * const marc_record_hash)
-{
-    *marc_record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,
-                                MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART);
+                                          MARC::Record * const marc_record, std::string * const marc_record_hash) {
+    *marc_record = MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART);
 
     // Control fields (001 depends on the hash of the record, so it's generated towards the end)
     marc_record->insertField("003", parameters.group_params_.isil_);
@@ -1080,8 +1033,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
             subfields.appendSubfield('4', creator_type_marc21->second);
         }
 
-        subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({ creator.last_name_, creator.first_name_ }),
-                                 ", "));
+        subfields.appendSubfield('a', StringUtil::Join(std::vector<std::string>({ creator.last_name_, creator.first_name_ }), ", "));
 
         if (not creator.affix_.empty())
             subfields.appendSubfield('b', creator.affix_ + ".");
@@ -1090,13 +1042,13 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         subfields.appendSubfield('e', "VerfasserIn");
 
         if (num_creators_left == metadata_record.creators_.size())
-            marc_record->insertFieldAtEnd("100", subfields, /* indicator 1 = */'1');
+            marc_record->insertFieldAtEnd("100", subfields, /* indicator 1 = */ '1');
         else
-            marc_record->insertFieldAtEnd("700", subfields, /* indicator 1 = */'1');
+            marc_record->insertFieldAtEnd("700", subfields, /* indicator 1 = */ '1');
 
         if (not creator.ppn_.empty() or not creator.gnd_number_.empty()) {
-            const std::string _887_data("Autor in der Zoterovorlage [" + creator.last_name_ + ", "
-                                        + creator.first_name_ + "] maschinell zugeordnet");
+            const std::string _887_data("Autor in der Zoterovorlage [" + creator.last_name_ + ", " + creator.first_name_
+                                        + "] maschinell zugeordnet");
             const std::string _subfield2_value(zeder_instance == Zeder::Flavour::IXTHEO ? "ixzom" : "krzom");
             marc_record->insertFieldAtEnd("887", { { 'a', _887_data }, { '2', _subfield2_value } });
         }
@@ -1105,13 +1057,18 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     }
 
     // RDA
-    marc_record->insertField("040", { { 'a', "DE-627" }, { 'b', "ger" }, { 'c', "DE-627" }, { 'e', "rda" }, });
+    marc_record->insertField("040", {
+                                        { 'a', "DE-627" },
+                                        { 'b', "ger" },
+                                        { 'c', "DE-627" },
+                                        { 'e', "rda" },
+                                    });
 
     // Title
     if (metadata_record.title_.empty())
         throw std::runtime_error("no title provided for download item from URL " + parameters.download_item_.url_.toString());
     else
-        marc_record->insertField("245", { { 'a', metadata_record.title_ } }, /* indicator 1 = */'0', /* indicator 2 = */'0');
+        marc_record->insertField("245", { { 'a', metadata_record.title_ } }, /* indicator 1 = */ '0', /* indicator 2 = */ '0');
 
     // Languages
     for (const auto &language : metadata_record.languages_)
@@ -1141,7 +1098,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         MARC::Subfields subfields({ { 'u', metadata_record.url_ } });
         if (not metadata_record.license_.empty())
             subfields.appendSubfield('z', metadata_record.license_);
-        marc_record->insertField("856", subfields, /* indicator1 = */'4', /* indicator2 = */'0');
+        marc_record->insertField("856", subfields, /* indicator1 = */ '4', /* indicator2 = */ '0');
     }
 
     // DOI
@@ -1153,15 +1110,15 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
             MARC::Subfields subfields({ { 'u', doi_url } });
             if (not metadata_record.license_.empty())
                 subfields.appendSubfield('z', metadata_record.license_);
-            marc_record->insertField("856", subfields, /* indicator1 = */'4', /* indicator2 = */'0');
+            marc_record->insertField("856", subfields, /* indicator1 = */ '4', /* indicator2 = */ '0');
         }
     }
 
     // Review-specific modifications
     if (item_type == "review") {
-        marc_record->insertField("655", { { 'a', "Rezension" }, { '0', "(DE-588)4049712-4" },
-                                 { '0', "(DE-627)106186019" }, { '2', "gnd-content" } },
-                                 /* indicator1 = */' ', /* indicator2 = */'7');
+        marc_record->insertField(
+            "655", { { 'a', "Rezension" }, { '0', "(DE-588)4049712-4" }, { '0', "(DE-627)106186019" }, { '2', "gnd-content" } },
+            /* indicator1 = */ ' ', /* indicator2 = */ '7');
     }
 
     if (item_type == "note")
@@ -1185,7 +1142,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR)) {
             _936_subfields.appendSubfield('i', StringUtil::TrimWhite(pages.substr(ARTICLE_NUM_INDICATOR.length())));
         } else
-           _936_subfields.appendSubfield('h', pages);
+            _936_subfields.appendSubfield('h', pages);
     }
 
     _936_subfields.appendSubfield('j', year);
@@ -1241,7 +1198,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     // SSG numbers
     if (metadata_record.ssg_ != MetadataRecord::SSGType::INVALID) {
         MARC::Subfields _084_subfields;
-        switch(metadata_record.ssg_) {
+        switch (metadata_record.ssg_) {
         case MetadataRecord::SSGType::FG_0:
             _084_subfields.appendSubfield('a', "0");
             break;
@@ -1307,14 +1264,13 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
 
     // Has to be generated in the very end as it contains the hash of the record
     *marc_record_hash = CalculateMarcRecordHash(*marc_record);
-    marc_record->insertField("001", parameters.group_params_.name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d")
-                             + "#" + *marc_record_hash);
+    marc_record->insertField("001",
+                             parameters.group_params_.name_ + "#" + TimeUtil::GetCurrentDateAndTime("%Y-%m-%d") + "#" + *marc_record_hash);
 }
 
 
 bool MarcRecordMatchesExclusionFiltersForParams(MARC::Record * const marc_record, const Util::HarvestableItem &download_item,
-                                                const Config::MarcMetadataParams &marc_metadata_params)
-{
+                                                const Config::MarcMetadataParams &marc_metadata_params) {
     bool found_match(false);
     std::string exclusion_string;
 
@@ -1334,15 +1290,17 @@ bool MarcRecordMatchesExclusionFiltersForParams(MARC::Record * const marc_record
 
 
 bool MarcRecordMatchesExclusionFilters(const Util::HarvestableItem &download_item, const Config::GlobalParams &global_params,
-                                       MARC::Record * const marc_record)
-{
-    return (MarcRecordMatchesExclusionFiltersForParams(marc_record, download_item, global_params.marc_metadata_params_) or
-            MarcRecordMatchesExclusionFiltersForParams(marc_record, download_item, download_item.journal_.marc_metadata_params_));
+                                       MARC::Record * const marc_record) {
+    return (MarcRecordMatchesExclusionFiltersForParams(marc_record, download_item, global_params.marc_metadata_params_)
+            or MarcRecordMatchesExclusionFiltersForParams(marc_record, download_item, download_item.journal_.marc_metadata_params_));
 }
 
 
 const std::set<MARC::Tag> EXCLUDED_FIELDS_DURING_CHECKSUM_CALC{
-    "001", "URL", "ZID", "JOU",
+    "001",
+    "URL",
+    "ZID",
+    "JOU",
 };
 
 
@@ -1351,16 +1309,11 @@ std::string CalculateMarcRecordHash(const MARC::Record &marc_record) {
 }
 
 
-const std::vector<std::string> UNDESIRED_ITEM_TYPES{
-    "webpage"
-};
+const std::vector<std::string> UNDESIRED_ITEM_TYPES{ "webpage" };
 
 
 static bool ExcludeUndesiredItemTypes(const MetadataRecord &metadata_record) {
-    if (std::find(UNDESIRED_ITEM_TYPES.begin(),
-                  UNDESIRED_ITEM_TYPES.end(),
-                  metadata_record.item_type_) != UNDESIRED_ITEM_TYPES.end())
-    {
+    if (std::find(UNDESIRED_ITEM_TYPES.begin(), UNDESIRED_ITEM_TYPES.end(), metadata_record.item_type_) != UNDESIRED_ITEM_TYPES.end()) {
         LOG_DEBUG("Skipping: undesired item type \"" + metadata_record.item_type_ + "\"");
         return true;
     }
@@ -1369,15 +1322,12 @@ static bool ExcludeUndesiredItemTypes(const MetadataRecord &metadata_record) {
 }
 
 
-const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST{
-    "journalArticle", "magazineArticle", "review"
-};
+const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST{ "journalArticle", "magazineArticle", "review" };
 
 
 bool ExcludeOnlineFirstRecord(const MetadataRecord &metadata_record, const ConversionParams &parameters) {
-    if (std::find(VALID_ITEM_TYPES_FOR_ONLINE_FIRST.begin(),
-                  VALID_ITEM_TYPES_FOR_ONLINE_FIRST.end(),
-                  metadata_record.item_type_) == VALID_ITEM_TYPES_FOR_ONLINE_FIRST.end())
+    if (std::find(VALID_ITEM_TYPES_FOR_ONLINE_FIRST.begin(), VALID_ITEM_TYPES_FOR_ONLINE_FIRST.end(), metadata_record.item_type_)
+        == VALID_ITEM_TYPES_FOR_ONLINE_FIRST.end())
     {
         return false;
     }
@@ -1396,10 +1346,9 @@ bool ExcludeOnlineFirstRecord(const MetadataRecord &metadata_record, const Conve
 }
 
 
-bool ExcludeEarlyViewRecord(const MetadataRecord &metadata_record, const ConversionParams &/*unused*/) {
-    if (std::find(VALID_ITEM_TYPES_FOR_ONLINE_FIRST.begin(),
-                  VALID_ITEM_TYPES_FOR_ONLINE_FIRST.end(),
-                  metadata_record.item_type_) == VALID_ITEM_TYPES_FOR_ONLINE_FIRST.end())
+bool ExcludeEarlyViewRecord(const MetadataRecord &metadata_record, const ConversionParams & /*unused*/) {
+    if (std::find(VALID_ITEM_TYPES_FOR_ONLINE_FIRST.begin(), VALID_ITEM_TYPES_FOR_ONLINE_FIRST.end(), metadata_record.item_type_)
+        == VALID_ITEM_TYPES_FOR_ONLINE_FIRST.end())
     {
         return false;
     }
@@ -1447,9 +1396,8 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
             ConvertZoteroItemToMetadataRecord(json_object, &new_metadata_record);
 
             if (ExcludeUndesiredItemTypes(new_metadata_record)) {
-                LOG_WARNING("Skipping record with URL " +
-                            (new_metadata_record.url_.empty() ? new_metadata_record.url_ : "[Unknown]") +
-                            " because it is an undesired item type");
+                LOG_WARNING("Skipping record with URL " + (new_metadata_record.url_.empty() ? new_metadata_record.url_ : "[Unknown]")
+                            + " because it is an undesired item type");
                 ++result->num_skipped_since_undesired_item_type_;
                 continue;
             }
@@ -1491,16 +1439,15 @@ void ConversionTasklet::run(const ConversionParams &parameters, ConversionResult
 
 ConversionTasklet::ConversionTasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
                                      std::unique_ptr<ConversionParams> parameters)
- : Util::Tasklet<ConversionParams, ConversionResult>(instance_counter, parameters->download_item_,
-                                                     "Conversion: " + parameters->download_item_.url_.toString(),
-                                                     std::bind(&ConversionTasklet::run, this, std::placeholders::_1, std::placeholders::_2),
-                                                     std::unique_ptr<ConversionResult>(new ConversionResult()),
-                                                     std::move(parameters), ResultPolicy::YIELD) {}
+    : Util::Tasklet<ConversionParams, ConversionResult>(
+        instance_counter, parameters->download_item_, "Conversion: " + parameters->download_item_.url_.toString(),
+        std::bind(&ConversionTasklet::run, this, std::placeholders::_1, std::placeholders::_2),
+        std::unique_ptr<ConversionResult>(new ConversionResult()), std::move(parameters), ResultPolicy::YIELD) {
+}
 
 
-
-void *ConversionManager::BackgroundThreadRoutine(void * parameter) {
-    static const unsigned BACKGROUND_THREAD_SLEEP_TIME(16 * 1000);   // ms -> us
+void *ConversionManager::BackgroundThreadRoutine(void *parameter) {
+    static const unsigned BACKGROUND_THREAD_SLEEP_TIME(16 * 1000); // ms -> us
 
     ConversionManager * const conversion_manager(reinterpret_cast<ConversionManager *>(parameter));
 
@@ -1520,9 +1467,7 @@ void ConversionManager::processQueue() {
         return;
 
     std::lock_guard<std::mutex> conversion_queue_lock(conversion_queue_mutex_);
-    while (not conversion_queue_.empty()
-           and conversion_tasklet_execution_counter_ < MAX_CONVERSION_TASKLETS)
-    {
+    while (not conversion_queue_.empty() and conversion_tasklet_execution_counter_ < MAX_CONVERSION_TASKLETS) {
         std::shared_ptr<ConversionTasklet> tasklet(conversion_queue_.front());
         active_conversions_.emplace_back(tasklet);
         conversion_queue_.pop_front();
@@ -1543,8 +1488,7 @@ void ConversionManager::cleanupCompletedTasklets() {
 
 
 ConversionManager::ConversionManager(const Config::GlobalParams &global_params)
- : global_params_(global_params), stop_background_thread_(false)
-{
+    : global_params_(global_params), stop_background_thread_(false) {
     if (::pthread_create(&background_thread_, nullptr, BackgroundThreadRoutine, this) != 0)
         LOG_ERROR("background conversion manager thread creation failed!");
 }
@@ -1561,23 +1505,20 @@ ConversionManager::~ConversionManager() {
 }
 
 
-std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> ConversionManager::convert(const Util::HarvestableItem &source,
-                                                                                             const std::string &json_metadata,
-                                                                                             const Config::GroupParams &group_params,
-                                                                                             const Config::SubgroupParams &subgroup_params)
-{
-    std::unique_ptr<ConversionParams> parameters(new ConversionParams(source, json_metadata,
-                                                 global_params_, group_params, subgroup_params));
-    std::shared_ptr<ConversionTasklet> new_tasklet(new ConversionTasklet(&conversion_tasklet_execution_counter_,
-                                                   std::move(parameters)));
+std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> ConversionManager::convert(
+    const Util::HarvestableItem &source, const std::string &json_metadata, const Config::GroupParams &group_params,
+    const Config::SubgroupParams &subgroup_params) {
+    std::unique_ptr<ConversionParams> parameters(
+        new ConversionParams(source, json_metadata, global_params_, group_params, subgroup_params));
+    std::shared_ptr<ConversionTasklet> new_tasklet(new ConversionTasklet(&conversion_tasklet_execution_counter_, std::move(parameters)));
 
     {
         std::lock_guard<std::mutex> conversion_queue_lock(conversion_queue_mutex_);
         conversion_queue_.emplace_back(new_tasklet);
     }
 
-    std::unique_ptr<Util::Future<ConversionParams, ConversionResult>>
-        conversion_result(new Util::Future<ConversionParams, ConversionResult>(new_tasklet));
+    std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> conversion_result(
+        new Util::Future<ConversionParams, ConversionResult>(new_tasklet));
     return conversion_result;
 }
 

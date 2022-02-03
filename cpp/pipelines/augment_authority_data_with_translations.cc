@@ -22,11 +22,11 @@
 
 #include <iostream>
 #include <string>
-#include <vector>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 #include <cstdlib>
 #include "Compiler.h"
 #include "DbConnection.h"
@@ -68,14 +68,15 @@ std::string ReplaceAngleBracketsWithParentheses(const std::string &value) {
 
 
 void ExtractTranslations(DbConnection * const db_connection,
-                         std::unordered_map<std::string, std::vector<Translation>> * const all_translations)
-{
+                         std::unordered_map<std::string, std::vector<Translation>> * const all_translations) {
     db_connection->queryOrDie("SELECT DISTINCT ppn FROM keyword_translations");
     DbResultSet ppn_result_set(db_connection->getLastResultSet());
     while (const DbRow ppn_row = ppn_result_set.getNextRow()) {
         std::string ppn = ppn_row["ppn"];
-        db_connection->queryOrDie("SELECT ppn, language_code, translation, origin, status FROM keyword_translations "
-                                  "WHERE ppn='" + ppn + "' AND next_version_id IS NULL");
+        db_connection->queryOrDie(
+            "SELECT ppn, language_code, translation, origin, status FROM keyword_translations "
+            "WHERE ppn='"
+            + ppn + "' AND next_version_id IS NULL");
         DbResultSet result_set(db_connection->getLastResultSet());
         std::vector<Translation> translations;
         while (const DbRow row = result_set.getNextRow()) {
@@ -86,22 +87,20 @@ void ExtractTranslations(DbConnection * const db_connection,
                 std::string translation(row["translation"]);
                 // Handle '#'-separated synonyms appropriately
                 if (translation.find('#') == std::string::npos and not translation.empty())
-                    translations.emplace_back(
-                        ReplaceAngleBracketsWithParentheses(TextUtil::CollapseAndTrimWhitespace(translation)),
-                        row["language_code"], row["origin"], row["status"]);
+                    translations.emplace_back(ReplaceAngleBracketsWithParentheses(TextUtil::CollapseAndTrimWhitespace(translation)),
+                                              row["language_code"], row["origin"], row["status"]);
                 else {
                     std::vector<std::string> primary_and_synonyms;
                     StringUtil::SplitThenTrim(translation, "#", " \t\n\r", &primary_and_synonyms);
-		    // Use the first translation as non-synonmym
+                    // Use the first translation as non-synonmym
                     if (primary_and_synonyms.size() > 0) {
-                        translations.emplace_back(TextUtil::CollapseAndTrimWhitespace(primary_and_synonyms[0]),
-                                                  row["language_code"], row["origin"], row["status"]);
+                        translations.emplace_back(TextUtil::CollapseAndTrimWhitespace(primary_and_synonyms[0]), row["language_code"],
+                                                  row["origin"], row["status"]);
                         // Add further synonyms as derived synonyms
-                        for (auto synonyms(std::next(primary_and_synonyms.cbegin()));
-                            synonyms != primary_and_synonyms.cend(); ++synonyms) {
-                                const std::string synonym(TextUtil::CollapseAndTrimWhitespace(*synonyms));
-                                translations.emplace_back(ReplaceAngleBracketsWithParentheses(synonym),
-                                                          row["language_code"], row["origin"], "derived_synonym");
+                        for (auto synonyms(std::next(primary_and_synonyms.cbegin())); synonyms != primary_and_synonyms.cend(); ++synonyms) {
+                            const std::string synonym(TextUtil::CollapseAndTrimWhitespace(*synonyms));
+                            translations.emplace_back(ReplaceAngleBracketsWithParentheses(synonym), row["language_code"], row["origin"],
+                                                      "derived_synonym");
                         }
                     }
                 }
@@ -112,9 +111,8 @@ void ExtractTranslations(DbConnection * const db_connection,
 }
 
 
-void InsertTranslation(MARC::Record * const record, const char indicator1, const char indicator2,
-                       const std::string &term, const std::string &language_code, const std::string &status)
-{
+void InsertTranslation(MARC::Record * const record, const char indicator1, const char indicator2, const std::string &term,
+                       const std::string &language_code, const std::string &status) {
     MARC::Subfields subfields;
     subfields.addSubfield('a', term);
     subfields.addSubfield('9', "L:" + language_code);
@@ -131,17 +129,15 @@ bool HasExistingTranslation(const MARC::Record &record, const std::string &langu
 
     for (const auto &field : record.getTagRange("750")) {
         MARC::Subfields subfields(field.getSubfields());
-        if (subfields.hasSubfieldWithValue('2', "IxTheo") and
-            subfields.hasSubfieldWithValue('9', "L:" + language_code) and
-            subfields.hasSubfieldWithValue('9', "Z:AF"))
-                return true;
+        if (subfields.hasSubfieldWithValue('2', "IxTheo") and subfields.hasSubfieldWithValue('9', "L:" + language_code)
+            and subfields.hasSubfieldWithValue('9', "Z:AF"))
+            return true;
     }
     return false;
 }
 
 
-void ProcessRecord(MARC::Record * const record, const std::unordered_map<std::string, std::vector<Translation> > &all_translations)
-{
+void ProcessRecord(MARC::Record * const record, const std::unordered_map<std::string, std::vector<Translation>> &all_translations) {
     const std::string ppn(record->getControlNumber());
     auto one_translation(all_translations.find(ppn));
 
@@ -168,8 +164,7 @@ void ProcessRecord(MARC::Record * const record, const std::unordered_map<std::st
 
 
 void AugmentNormdata(MARC::Reader * const marc_reader, MARC::Writer *marc_writer,
-                     const std::unordered_map<std::string, std::vector<Translation> > &all_translations)
-{
+                     const std::unordered_map<std::string, std::vector<Translation>> &all_translations) {
     // Read in all PPNs from authority data
     while (MARC::Record record = marc_reader->read()) {
         ProcessRecord(&record, all_translations);
@@ -181,7 +176,7 @@ void AugmentNormdata(MARC::Reader * const marc_reader, MARC::Writer *marc_writer
 }
 
 
-} //unnamed namespace
+} // unnamed namespace
 
 
 const std::string CONF_FILE_PATH(UBTools::GetTuelibPath() + "translations.conf");
@@ -206,7 +201,7 @@ int Main(int argc, char **argv) {
     const std::string sql_password(ini_file.getString("Database", "sql_password"));
     DbConnection db_connection(DbConnection::MySQLFactory(sql_database, sql_username, sql_password));
 
-    std::unordered_map<std::string, std::vector<Translation> > all_translations;
+    std::unordered_map<std::string, std::vector<Translation>> all_translations;
     ExtractTranslations(&db_connection, &all_translations);
 
     AugmentNormdata(marc_reader.get(), marc_writer.get(), all_translations);

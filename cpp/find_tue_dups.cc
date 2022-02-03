@@ -28,22 +28,22 @@
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "JSON.h"
+#include "MARC.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
-#include "MARC.h"
 #include "util.h"
 
 
 void Usage() {
-    ::Usage("marc_input\n"
-            "Please note that this program requires an input MARC format as provided by\n"
-            "the team at the University of Freiburg!");
+    ::Usage(
+        "marc_input\n"
+        "Please note that this program requires an input MARC format as provided by\n"
+        "the team at the University of Freiburg!");
 }
 
 
 void ExtractSubfield(const MARC::Record &record, const std::string &tag, const char subfield_code,
-                     std::set<std::string> * const extracted_values)
-{
+                     std::set<std::string> * const extracted_values) {
     std::vector<std::string> subfield_a_values(record.getSubfieldValues(tag, subfield_code));
     if (not subfield_a_values.empty())
         extracted_values->emplace(subfield_a_values[0]);
@@ -74,9 +74,9 @@ std::string ExtractInventory(const std::string &_910_subfield_a, const bool is_m
 
     std::shared_ptr<JSON::JSONNode> tree_root(nullptr);
     JSON::Parser json_parser(_910_subfield_a);
-    if (not (json_parser.parse(&tree_root)))
-       LOG_ERROR("failed to parse returned JSON: " + json_parser.getErrorMessage() + "(input was: "
-             + StringUtil::CStyleEscape(_910_subfield_a) + ")");
+    if (not(json_parser.parse(&tree_root)))
+        LOG_ERROR("failed to parse returned JSON: " + json_parser.getErrorMessage()
+                  + "(input was: " + StringUtil::CStyleEscape(_910_subfield_a) + ")");
 
     if (tree_root->getType() != JSON::JSONNode::OBJECT_NODE)
         LOG_ERROR("expected an object node!");
@@ -106,11 +106,9 @@ const std::set<std::string> SIGILS_OF_INTEREST{ "21", "21-24", "21-108", "21-31"
 
 
 // \return The number of occurrences of an object in Tübingen.
-unsigned FindTueSigilsAndSignaturesOrInventory(const MARC::Record &record,
-                                               const SupplementaryInfoType supplementary_info_type,
+unsigned FindTueSigilsAndSignaturesOrInventory(const MARC::Record &record, const SupplementaryInfoType supplementary_info_type,
                                                std::string * const ub_signatures_or_inventory,
-                                               std::string * const non_ub_sigils_and_inventory)
-{
+                                               std::string * const non_ub_sigils_and_inventory) {
     unsigned occurrence_count(0);
     for (const auto &field : record.getTagRange("910")) {
         const MARC::Subfields subfields(field.getSubfields());
@@ -176,11 +174,10 @@ std::string ExtractDDCGroups(const MARC::Record &record) {
 }
 
 
-void WriteSerialEntry(File * const output, const std::string &target_sigil, const std::string &ppn,
-                      const std::string &main_title, const std::set<std::string> &issns_and_isbns,
-                      const std::string &area_or_zdb_number, const std::string &ub_signatures_or_inventory,
-                      const std::string &non_ub_sigils_and_inventory, const std::string &ddc_groups)
-{
+void WriteSerialEntry(File * const output, const std::string &target_sigil, const std::string &ppn, const std::string &main_title,
+                      const std::set<std::string> &issns_and_isbns, const std::string &area_or_zdb_number,
+                      const std::string &ub_signatures_or_inventory, const std::string &non_ub_sigils_and_inventory,
+                      const std::string &ddc_groups) {
     std::set<std::string> sigils_and_inventory_info;
     StringUtil::SplitThenTrimWhite(non_ub_sigils_and_inventory, ',', &sigils_and_inventory_info);
     std::set<std::string> target_sigils_and_inventory_info;
@@ -191,31 +188,29 @@ void WriteSerialEntry(File * const output, const std::string &target_sigil, cons
     if (target_sigils_and_inventory_info.empty())
         return;
 
-    (*output) << '"' << ppn << "\"," << TextUtil::CSVEscape(main_title)
-              << ',' << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
-              << ',' << TextUtil::CSVEscape(area_or_zdb_number)
-              << ',' << TextUtil::CSVEscape(ub_signatures_or_inventory)
-              << ',' << TextUtil::CSVEscape(StringUtil::Join(target_sigils_and_inventory_info, ','))
-              << ',' << TextUtil::CSVEscape(ddc_groups) << '\n';
+    (*output) << '"' << ppn << "\"," << TextUtil::CSVEscape(main_title) << ','
+              << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ',')) << ',' << TextUtil::CSVEscape(area_or_zdb_number) << ','
+              << TextUtil::CSVEscape(ub_signatures_or_inventory) << ','
+              << TextUtil::CSVEscape(StringUtil::Join(target_sigils_and_inventory_info, ',')) << ',' << TextUtil::CSVEscape(ddc_groups)
+              << '\n';
 }
 
 
 bool IsProbablyAYear(const std::string &year_candidate) {
     if (year_candidate.length() != 4)
         return false;
-    return StringUtil::IsDigit(year_candidate[0]) and StringUtil::IsDigit(year_candidate[1])
-           and StringUtil::IsDigit(year_candidate[2]) and StringUtil::IsDigit(year_candidate[3]);
+    return StringUtil::IsDigit(year_candidate[0]) and StringUtil::IsDigit(year_candidate[1]) and StringUtil::IsDigit(year_candidate[2])
+           and StringUtil::IsDigit(year_candidate[3]);
 }
 
 
 bool FindTueDups(const MARC::Record &record, File * const monos_csv, File * const juristisches_seminar_csv,
-                 File * const brechtbau_bibliothek_csv, File * const evangelische_theologie_csv,
-                 File * const katholische_theologie_csv)
-{
+                 File * const brechtbau_bibliothek_csv, File * const evangelische_theologie_csv, File * const katholische_theologie_csv) {
     const bool is_monograph(record.isMonograph());
     std::string ub_signatures_or_inventory, non_ub_sigils_and_inventory;
-    if (FindTueSigilsAndSignaturesOrInventory(record, (is_monograph ? SIGNATURE : INVENTORY),
-                                              &ub_signatures_or_inventory, &non_ub_sigils_and_inventory) < 2)
+    if (FindTueSigilsAndSignaturesOrInventory(record, (is_monograph ? SIGNATURE : INVENTORY), &ub_signatures_or_inventory,
+                                              &non_ub_sigils_and_inventory)
+        < 2)
         return false; // Not a dupe.
 
     if (is_monograph) {
@@ -254,21 +249,19 @@ bool FindTueDups(const MARC::Record &record, File * const monos_csv, File * cons
     const std::string ddc_groups(ExtractDDCGroups(record));
 
     if (is_monograph) {
-        (*monos_csv) << '"' << record.getControlNumber() << "\"," << TextUtil::CSVEscape(main_title)
-                     << ',' << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ','))
-                     << ',' << TextUtil::CSVEscape(publication_year)
-                     << ',' << TextUtil::CSVEscape(area_or_zdb_number)
-                     << ',' << TextUtil::CSVEscape(ub_signatures_or_inventory)
-                     << ',' << TextUtil::CSVEscape(non_ub_sigils_and_inventory) << '\n';
+        (*monos_csv) << '"' << record.getControlNumber() << "\"," << TextUtil::CSVEscape(main_title) << ','
+                     << TextUtil::CSVEscape(StringUtil::Join(issns_and_isbns, ',')) << ',' << TextUtil::CSVEscape(publication_year) << ','
+                     << TextUtil::CSVEscape(area_or_zdb_number) << ',' << TextUtil::CSVEscape(ub_signatures_or_inventory) << ','
+                     << TextUtil::CSVEscape(non_ub_sigils_and_inventory) << '\n';
     } else {
-        WriteSerialEntry(juristisches_seminar_csv, "21-24", record.getControlNumber(), main_title, issns_and_isbns,
-                         area_or_zdb_number, ub_signatures_or_inventory, non_ub_sigils_and_inventory, ddc_groups);
-        WriteSerialEntry(brechtbau_bibliothek_csv, "21-108", record.getControlNumber(), main_title, issns_and_isbns,
-                         area_or_zdb_number, ub_signatures_or_inventory, non_ub_sigils_and_inventory, ddc_groups);
-        WriteSerialEntry(evangelische_theologie_csv, "21-31", record.getControlNumber(), main_title, issns_and_isbns,
-                         area_or_zdb_number, ub_signatures_or_inventory, non_ub_sigils_and_inventory, ddc_groups);
-        WriteSerialEntry(katholische_theologie_csv, "21-35", record.getControlNumber(), main_title, issns_and_isbns,
-                         area_or_zdb_number, ub_signatures_or_inventory, non_ub_sigils_and_inventory, ddc_groups);
+        WriteSerialEntry(juristisches_seminar_csv, "21-24", record.getControlNumber(), main_title, issns_and_isbns, area_or_zdb_number,
+                         ub_signatures_or_inventory, non_ub_sigils_and_inventory, ddc_groups);
+        WriteSerialEntry(brechtbau_bibliothek_csv, "21-108", record.getControlNumber(), main_title, issns_and_isbns, area_or_zdb_number,
+                         ub_signatures_or_inventory, non_ub_sigils_and_inventory, ddc_groups);
+        WriteSerialEntry(evangelische_theologie_csv, "21-31", record.getControlNumber(), main_title, issns_and_isbns, area_or_zdb_number,
+                         ub_signatures_or_inventory, non_ub_sigils_and_inventory, ddc_groups);
+        WriteSerialEntry(katholische_theologie_csv, "21-35", record.getControlNumber(), main_title, issns_and_isbns, area_or_zdb_number,
+                         ub_signatures_or_inventory, non_ub_sigils_and_inventory, ddc_groups);
     }
 
     return true;
@@ -279,7 +272,8 @@ enum OutputSet { MONOGRAPHS, SERIALS };
 
 
 void WriteHeader(File * const output, const OutputSet output_set) {
-    (*output) << "\"PPN\"" << ",\"Titel\"" << (output_set == MONOGRAPHS ? ",\"ISBN\"" : ",\"ISSN\"")
+    (*output) << "\"PPN\""
+              << ",\"Titel\"" << (output_set == MONOGRAPHS ? ",\"ISBN\"" : ",\"ISSN\"")
               << (output_set == MONOGRAPHS ? ",\"Erscheinungsjahr\"" : "")
               << (output_set == MONOGRAPHS ? ",\"Fachgebiet\"" : ",\"ZDB-ID-Nummer\"")
               << (output_set == MONOGRAPHS ? ",\"UB - Signatur\"" : ",\"UB - Bestandsangabe\"")
@@ -302,8 +296,7 @@ void FindTueDups(MARC::Reader * const marc_reader) {
     WriteHeader(evangelische_theologie_csv.get(), SERIALS);
     WriteHeader(katholische_theologie_csv.get(), SERIALS);
 
-    unsigned count(0), control_number_dups_count(0), dups_count(0), monograph_count(0), serial_count(0),
-             linked_ppn_count(0);
+    unsigned count(0), control_number_dups_count(0), dups_count(0), monograph_count(0), serial_count(0), linked_ppn_count(0);
     std::unordered_set<std::string> previously_seen_ppns;
     while (const MARC::Record record = marc_reader->read()) {
         ++count;
@@ -324,7 +317,7 @@ void FindTueDups(MARC::Reader * const marc_reader) {
         }
 
         // Only consider monographs and serials:
-        if (not (record.isMonograph() or record.isSerial()))
+        if (not(record.isMonograph() or record.isSerial()))
             continue;
 
         if (FindTueDups(record, monos_csv.get(), juristisches_seminar_csv.get(), brechtbau_bibliothek_csv.get(),
@@ -337,8 +330,8 @@ void FindTueDups(MARC::Reader * const marc_reader) {
                 ++serial_count;
         }
     }
-    std::cerr << "Processed " << count << " records and found " << dups_count << " dups (" << monograph_count
-              << " monographs and " << serial_count << " serials).\n";
+    std::cerr << "Processed " << count << " records and found " << dups_count << " dups (" << monograph_count << " monographs and "
+              << serial_count << " serials).\n";
     std::cerr << "Found " << control_number_dups_count << " records w/ duplicate control numbers!\n";
     std::cerr << "Ignored " << linked_ppn_count << " records that have a control numbers w/ an underscore.\n";
 }

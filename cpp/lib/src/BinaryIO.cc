@@ -162,10 +162,9 @@ bool Write(std::ostream &output, const uint8_t u8) {
 }
 
 
-bool Read(std::istream &input, uint8_t * const u8)
-{
-	input.read(reinterpret_cast<char *>(u8), sizeof *u8);
-	return not input.fail();
+bool Read(std::istream &input, uint8_t * const u8) {
+    input.read(reinterpret_cast<char *>(u8), sizeof *u8);
+    return not input.fail();
 }
 
 
@@ -213,12 +212,11 @@ bool Read(std::istream &input, int16_t * const i16) {
 }
 
 
-bool Write(std::ostream &output, const uint32_t u32)
-{
-	uint32_t be_u32;
-	be_u32 = htonl(u32);
-	output.write(reinterpret_cast<const char *>(&be_u32), sizeof be_u32);
-	return not output.fail();
+bool Write(std::ostream &output, const uint32_t u32) {
+    uint32_t be_u32;
+    be_u32 = htonl(u32);
+    output.write(reinterpret_cast<const char *>(&be_u32), sizeof be_u32);
+    return not output.fail();
 }
 
 
@@ -479,12 +477,11 @@ bool Read(File &input, int16_t * const i16) {
 }
 
 
-bool Write(File &output, const uint32_t u32)
-{
-	uint32_t be_u32;
-	be_u32 = htonl(u32);
-	output.write(reinterpret_cast<const char *>(&be_u32), sizeof be_u32);
-	return not output.fail();
+bool Write(File &output, const uint32_t u32) {
+    uint32_t be_u32;
+    be_u32 = htonl(u32);
+    output.write(reinterpret_cast<const char *>(&be_u32), sizeof be_u32);
+    return not output.fail();
 }
 
 

@@ -24,8 +24,8 @@
 #include "HtmlUtil.h"
 #include "IniFile.h"
 #include "StringUtil.h"
-#include "util.h"
 #include "WebUtil.h"
+#include "util.h"
 
 
 namespace {
@@ -44,7 +44,6 @@ void ShowUploadForm() {
 
 
 void Validate(const std::multimap<std::string, std::string> &cgi_args) {
-
     std::cout << "<h1>Validate</h1>\n";
 
     FileUtil::AutoTempFile temp_file;
@@ -67,15 +66,13 @@ void Validate(const std::multimap<std::string, std::string> &cgi_args) {
         IniFile ini_file(temp_file.getFilePath());
         std::cout << "</font>\n";
         std::cout << "<font color=\"green\">Validation successful</font>\n";
-    }
-    catch(const std::runtime_error &e) {
+    } catch (const std::runtime_error &e) {
         std::cout << e.what();
     }
 
     logger->redirectOutput(STDERR_FILENO);
     logger->setLogNoDecorations(log_no_decorations_old);
     logger->setLogStripCallSite(log_strip_call_site_old);
-
 }
 
 

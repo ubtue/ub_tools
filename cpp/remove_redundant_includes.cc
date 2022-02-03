@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <cstdlib>
@@ -31,9 +31,7 @@
 }
 
 
-enum TokenType {
-    STRING_CONSTANT, IDENT, OTHER_CHAR, CHARACTER_CONSTANT, END_OF_INPUT
-};
+enum TokenType { STRING_CONSTANT, IDENT, OTHER_CHAR, CHARACTER_CONSTANT, END_OF_INPUT };
 
 
 class Scanner {
@@ -44,6 +42,7 @@ class Scanner {
     char last_other_char_;
     std::string last_string_constant_;
     unsigned line_no_;
+
 public:
     explicit Scanner(File * const input): input_(*input), pushed_back_char_count_(0), line_no_(1) { }
     TokenType getToken();
@@ -51,7 +50,12 @@ public:
     inline char getLastOtherChar() const { return last_other_char_; }
     inline const std::string &getLastStringConstant() const { return last_string_constant_; }
     inline unsigned getCurrentLineNo() const { return line_no_; }
-    inline void rewind() { input_.rewind(); line_no_ = 1; pushed_back_char_count_ = 0; }
+    inline void rewind() {
+        input_.rewind();
+        line_no_ = 1;
+        pushed_back_char_count_ = 0;
+    }
+
 private:
     void error(const std::string &msg) const;
     int get();
@@ -140,8 +144,9 @@ skip_white_space:
             for (;;) {
                 ch = get();
                 if (unlikely(ch == EOF))
-                    logger->error("in Scanner::skipWhiteSpaceAndComments: unexpected EOF while looking for the end "
-                                  "of a C-style comment!");
+                    logger->error(
+                        "in Scanner::skipWhiteSpaceAndComments: unexpected EOF while looking for the end "
+                        "of a C-style comment!");
                 if (star_seen) {
                     if (ch == '/')
                         break; // End of comment.
@@ -199,8 +204,7 @@ void Scanner::skipCharacterConstant() {
     if (unlikely(ch == EOF))
         error("unexpected EOF while parsing a character constant! (5)");
     if (unlikely(ch != '\''))
-        error("expected closing quote at end of a character constant, found '"
-              + std::string(1, static_cast<char>(ch)) + "' instead!");
+        error("expected closing quote at end of a character constant, found '" + std::string(1, static_cast<char>(ch)) + "' instead!");
 }
 
 
@@ -257,9 +261,7 @@ void ExtractIncludes(Scanner * const scanner, std::vector<std::string> * const i
 }
 
 
-void RemoveUsedNamespacesAndClassNames(Scanner * const scanner,
-                                       std::set<std::string> * const namespaces_and_class_names)
-{
+void RemoveUsedNamespacesAndClassNames(Scanner * const scanner, std::set<std::string> * const namespaces_and_class_names) {
     bool last_token_was_less_than(false);
     for (;;) {
         TokenType token(scanner->getToken());
@@ -302,9 +304,7 @@ bool ShouldRemove(const std::string &line, std::set<std::string> * const namespa
 
 
 // \return True if at least one include was removed, otherwise false.
-bool RemoveIncludes(File * const input, File * const output,
-                    std::set<std::string> * const namespaces_and_class_names)
-{
+bool RemoveIncludes(File * const input, File * const output, std::set<std::string> * const namespaces_and_class_names) {
     bool removed_at_least_one(false);
     while (not input->eof()) {
         std::string line;
@@ -316,8 +316,7 @@ bool RemoveIncludes(File * const input, File * const output,
     }
 
     if (not namespaces_and_class_names->empty()) {
-        std::cerr << "Failed to remove all the following unnecessary includes from \"" << input->getPath()
-                  << "\":\n";
+        std::cerr << "Failed to remove all the following unnecessary includes from \"" << input->getPath() << "\":\n";
         for (const auto &namespace_or_class_name : *namespaces_and_class_names)
             std::cerr << '\t' << namespace_or_class_name << ".h\n";
         std::exit(EXIT_FAILURE);
@@ -342,7 +341,8 @@ bool ProcessFile(const bool report_only, File * const input) {
     const std::string input_filename_without_extension(FileUtil::GetFilenameWithoutExtensionOrDie(FileUtil::GetBasename(input->getPath())));
     std::set<std::string> namespaces_and_class_names;
     for (const auto &include : includes) {
-        if (StringUtil::EndsWith(include, ".h") and include != "util.h" and include != "Compiler.h" and include != input_filename_without_extension + ".h")
+        if (StringUtil::EndsWith(include, ".h") and include != "util.h" and include != "Compiler.h"
+            and include != input_filename_without_extension + ".h")
             namespaces_and_class_names.emplace(include.substr(0, include.length() - 2));
     }
 
@@ -389,11 +389,9 @@ int Main(int argc, char *argv[]) {
             input->close();
             if (not report_only) {
                 if (not FileUtil::RenameFile(source_filename, source_filename + ".bak"))
-                    logger->error("failed to rename \"" + source_filename + "\" to \"" + source_filename
-                                  + ".bak\"!");
+                    logger->error("failed to rename \"" + source_filename + "\" to \"" + source_filename + ".bak\"!");
                 if (not FileUtil::RenameFile(source_filename + ".tmp", source_filename))
-                    logger->error("failed to rename \"" + source_filename + ".tmp\" to \"" + source_filename
-                                  + "\"!");
+                    logger->error("failed to rename \"" + source_filename + ".tmp\" to \"" + source_filename + "\"!");
             }
         }
     } catch (const std::exception &e) {

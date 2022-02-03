@@ -34,38 +34,33 @@ void Assert(const std::string &test_name, const std::string &condition_as_string
         logger->error("in RegessionTest::Assert:  condition failed: \"" + condition_as_string + "\"!");
     }
 }
-    
 
-bool CompareStrings(const std::string &test_name, const std::string &actual_string,
-                    const std::string &expected_string)
-{
+
+bool CompareStrings(const std::string &test_name, const std::string &actual_string, const std::string &expected_string) {
     if (actual_string == expected_string) {
         logger->info(test_name + ": strings matched as expected.");
         return true;
     } else {
-        logger->info(test_name + ": strings \"" + actual_string + "\" and \"" + expected_string
-                     + "\" did not match!");
+        logger->info(test_name + ": strings \"" + actual_string + "\" and \"" + expected_string + "\" did not match!");
         return false;
     }
 }
 
-    
+
 bool CompareFiles(const std::string &test_name, const std::string &actual_file, const std::string &expected_file,
-                  const bool delete_actual)
-{
+                  const bool delete_actual) {
     if (FileUtil::FilesDiffer(actual_file, expected_file)) {
         logger->info(test_name + ": files \"" + actual_file + "\" and \"" + expected_file + "\" differ!.");
         return false;
     } else {
-        logger->info(test_name + ": files \"" + actual_file + "\" and \"" + expected_file
-                     + "\" matched as expected.");
+        logger->info(test_name + ": files \"" + actual_file + "\" and \"" + expected_file + "\" matched as expected.");
 
         if (delete_actual and ::unlink(actual_file.c_str()) != 0)
             logger->error("in RegessionTest::CompareFiles: failed to unlink(2) \"" + actual_file + "\"!");
-        
+
         return true;
     }
 }
-    
+
 
 } // namespace RegressionTest

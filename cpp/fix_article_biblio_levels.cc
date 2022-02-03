@@ -47,8 +47,7 @@ namespace {
 
 
 void CollectMonographs(const std::vector<std::unique_ptr<MARC::Reader>> &marc_readers,
-                       std::unordered_set<std::string> * const monograph_control_numbers)
-{
+                       std::unordered_set<std::string> * const monograph_control_numbers) {
     for (auto &marc_reader : marc_readers) {
         LOG_INFO("Extracting serial control numbers from \"" + marc_reader->getPath() + "\".");
         while (const auto record = marc_reader->read()) {
@@ -57,13 +56,12 @@ void CollectMonographs(const std::vector<std::unique_ptr<MARC::Reader>> &marc_re
         }
     }
 
-   LOG_INFO("Found " + std::to_string(monograph_control_numbers->size()) + " serial records.");
+    LOG_INFO("Found " + std::to_string(monograph_control_numbers->size()) + " serial records.");
 }
 
 
 bool HasMonographParent(const std::string &subfield, const MARC::Record &record,
-                        std::unordered_set<std::string> * const monograph_control_numbers)
-{
+                        std::unordered_set<std::string> * const monograph_control_numbers) {
     const std::string tag(subfield.substr(0, 3));
     const char subfield_code(subfield[3]);
     const auto field(record.findTag(tag));
@@ -84,10 +82,9 @@ bool HasMonographParent(const std::string &subfield, const MARC::Record &record,
 
 
 bool HasAtLeastOneMonographParent(const std::string &subfield_list, const MARC::Record &record,
-                                  std::unordered_set<std::string> * const monograph_control_numbers)
-{
+                                  std::unordered_set<std::string> * const monograph_control_numbers) {
     std::vector<std::string> subfields;
-    StringUtil::Split(subfield_list, ':', &subfields, /* suppress_empty_components = */true);
+    StringUtil::Split(subfield_list, ':', &subfields, /* suppress_empty_components = */ true);
     for (const auto &subfield : subfields) {
         if (HasMonographParent(subfield, record, monograph_control_numbers))
             return true;
@@ -102,8 +99,7 @@ bool HasAtLeastOneMonographParent(const std::string &subfield_list, const MARC::
 // Changes the bibliographic level of a record from 'a' to 'b' (= serial component part) if the parent is not a
 // monograph.  Also writes all records to "output_ptr".
 void PatchUpBookComponentParts(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                               std::unordered_set<std::string> * const monograph_control_numbers)
-{
+                               std::unordered_set<std::string> * const monograph_control_numbers) {
     unsigned patch_count(0);
     while (auto record = marc_reader->read()) {
         if (record.isArticle() and not HasAtLeastOneMonographParent("800w:810w:830w:773w", record, monograph_control_numbers)) {
@@ -125,7 +121,7 @@ int Main(int argc, char **argv) {
         Usage();
 
     std::vector<std::unique_ptr<MARC::Reader>> marc_readers;
-    for (int arg_no(1); arg_no < (argc - 1) ; ++arg_no)
+    for (int arg_no(1); arg_no < (argc - 1); ++arg_no)
         marc_readers.emplace_back(MARC::Reader::Factory(argv[arg_no]));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[argc - 1]));
 

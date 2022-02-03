@@ -21,16 +21,15 @@
 #include "FileUtil.h"
 #include "TextUtil.h"
 #include "UBTools.h"
-#include "util.h"
 #include "Zeder.h"
+#include "util.h"
 
 
 namespace {
 
 
 void ProcessZederAndWriteCSVFile(File * const csv_file, const Zeder::SimpleZeder &zeder,
-                                 const std::vector<std::string> &requested_columns)
-{
+                                 const std::vector<std::string> &requested_columns) {
     unsigned journal_count(0), bad_count(0);
     for (const auto &journal : zeder) {
         ++journal_count;
@@ -54,8 +53,7 @@ void ProcessZederAndWriteCSVFile(File * const csv_file, const Zeder::SimpleZeder
         *csv_file << '\n';
     }
 
-    LOG_INFO("Processed " + std::to_string(journal_count) + " journal entries of which " + std::to_string(bad_count)
-             + " was/were bad.");
+    LOG_INFO("Processed " + std::to_string(journal_count) + " journal entries of which " + std::to_string(bad_count) + " was/were bad.");
 }
 
 
@@ -64,9 +62,10 @@ void ProcessZederAndWriteCSVFile(File * const csv_file, const Zeder::SimpleZeder
 
 int Main(int argc, char *argv[]) {
     if (argc < 4)
-        ::Usage("[--min-log-level=min_verbosity] csv_filename zeder_favour zeder_column1 [zeder_column2 .. zeder_columnN]\n"
-                "Writes the values of the selected Zeder columns in the CSV file \"csv_filename\".\n"
-                "Please note that rows that are missing a title are always skipped!\n");
+        ::Usage(
+            "[--min-log-level=min_verbosity] csv_filename zeder_favour zeder_column1 [zeder_column2 .. zeder_columnN]\n"
+            "Writes the values of the selected Zeder columns in the CSV file \"csv_filename\".\n"
+            "Please note that rows that are missing a title are always skipped!\n");
 
     const auto csv_file(FileUtil::OpenOutputFileOrDie(argv[1]));
 

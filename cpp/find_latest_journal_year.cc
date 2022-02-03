@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <iostream>
@@ -27,9 +27,9 @@
 #include <cstdlib>
 #include "FileUtil.h"
 #include "MARC.h"
+#include "StringUtil.h"
 #include "TextUtil.h"
 #include "TimeUtil.h"
-#include "StringUtil.h"
 #include "util.h"
 
 
@@ -51,13 +51,14 @@ constexpr unsigned INVALID_YEAR(0);
 class JournalDescriptor {
 public:
     enum Type { PRINT, ELECTRONIC };
+
 private:
     std::string title_, ppn_;
     Type type_;
     unsigned most_recent_year_;
+
 public:
-    JournalDescriptor(const std::string &ppn, const Type type)
-        : ppn_(ppn), type_(type), most_recent_year_(INVALID_YEAR) { }
+    JournalDescriptor(const std::string &ppn, const Type type): ppn_(ppn), type_(type), most_recent_year_(INVALID_YEAR) { }
     JournalDescriptor() = default;
     JournalDescriptor(const JournalDescriptor &rhs) = default;
 
@@ -82,9 +83,7 @@ void JournalDescriptor::updateMostRecentYear(const unsigned year) {
 }
 
 
-void LoadJournalPPNs(const std::string &path,
-                     std::unordered_map<std::string, JournalDescriptor> * const ppn_to_journal_desc_map)
-{
+void LoadJournalPPNs(const std::string &path, std::unordered_map<std::string, JournalDescriptor> * const ppn_to_journal_desc_map) {
     std::vector<std::vector<std::string>> lines;
     TextUtil::ParseCSVFileOrDie(path, &lines);
     LOG_INFO("Found " + std::to_string(lines.size() - 1) + " journal entries.");
@@ -96,15 +95,15 @@ void LoadJournalPPNs(const std::string &path,
     for (++line /* Skip over header. */; line != lines.cend(); ++line) {
         if (line->size() != 3)
             LOG_ERROR("logical line #" + std::to_string(line - lines.cbegin()) + " does not contain 3 values! (Instead we have "
-                  + std::to_string(line->size()) + " values.)");
+                      + std::to_string(line->size()) + " values.)");
         if (unlikely((*line)[0].empty()))
             LOG_ERROR("logical line #" + std::to_string(line - lines.cbegin()) + " is missing the ID!");
         if (unlikely((*line)[1].empty() and (*line)[2].empty()))
             LOG_ERROR("logical line #" + std::to_string(line - lines.cbegin()) + " is missing a PPN!");
-        if (not (*line)[1].empty())
+        if (not(*line)[1].empty())
             ppn_to_journal_desc_map->emplace((*line)[1], JournalDescriptor((*line)[1], JournalDescriptor::PRINT));
-        if (not (*line)[2].empty())
-           ppn_to_journal_desc_map->emplace((*line)[2], JournalDescriptor((*line)[2], JournalDescriptor::PRINT));
+        if (not(*line)[2].empty())
+            ppn_to_journal_desc_map->emplace((*line)[2], JournalDescriptor((*line)[2], JournalDescriptor::PRINT));
     }
 
     LOG_INFO("Found " + std::to_string(ppn_to_journal_desc_map->size()) + " journal PPN's.");
@@ -143,9 +142,7 @@ std::string GetSecondYearOfRange(const std::string &year_candidate) {
 }
 
 
-void ProcessRecords(MARC::Reader * const marc_reader,
-                    std::unordered_map<std::string, JournalDescriptor> * const ppn_to_journal_desc_map)
-{
+void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::string, JournalDescriptor> * const ppn_to_journal_desc_map) {
     unsigned record_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
@@ -187,9 +184,7 @@ void ProcessRecords(MARC::Reader * const marc_reader,
 }
 
 
-void GenerateReport(const std::string &report_filename,
-                    const std::unordered_map<std::string, JournalDescriptor> &ppn_to_journal_desc_map)
-{
+void GenerateReport(const std::string &report_filename, const std::unordered_map<std::string, JournalDescriptor> &ppn_to_journal_desc_map) {
     std::unique_ptr<File> report(FileUtil::OpenOutputFileOrDie(report_filename));
     unsigned count(0);
     for (const auto &ppn_and_journal_desc : ppn_to_journal_desc_map) {

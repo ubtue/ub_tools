@@ -40,10 +40,8 @@ namespace {
 }
 
 
-void PopulateResourceIdToRecordIdMap(
-    DbConnection * const connection,
-    std::unordered_map<std::string, std::string> * const resource_id_to_record_id_map)
-{
+void PopulateResourceIdToRecordIdMap(DbConnection * const connection,
+                                     std::unordered_map<std::string, std::string> * const resource_id_to_record_id_map) {
     resource_id_to_record_id_map->clear();
 
     connection->queryOrDie("SELECT id,record_id FROM resource");
@@ -56,10 +54,8 @@ void PopulateResourceIdToRecordIdMap(
 }
 
 
-void PopulateTagIdToResourceIdMap(
-    DbConnection * const connection,
-    std::unordered_map<std::string, std::string> * const tag_id_to_resource_id_map)
-{
+void PopulateTagIdToResourceIdMap(DbConnection * const connection,
+                                  std::unordered_map<std::string, std::string> * const tag_id_to_resource_id_map) {
     tag_id_to_resource_id_map->clear();
 
     connection->queryOrDie("SELECT tag_id,resource_id FROM resource_tags");
@@ -72,11 +68,9 @@ void PopulateTagIdToResourceIdMap(
 }
 
 
-void ExtractTags(DbConnection * const connection,
-                 const std::unordered_map<std::string, std::string> &tag_id_to_resource_id_map,
+void ExtractTags(DbConnection * const connection, const std::unordered_map<std::string, std::string> &tag_id_to_resource_id_map,
                  const std::unordered_map<std::string, std::string> &resource_id_to_record_id_map,
-                 std::unordered_map<std::string, std::set<std::string>> * const record_id_to_tags_map)
-{
+                 std::unordered_map<std::string, std::set<std::string>> * const record_id_to_tags_map) {
     record_id_to_tags_map->clear();
 
     connection->queryOrDie("SELECT id,tag FROM tags");
@@ -110,8 +104,7 @@ void ExtractTags(DbConnection * const connection,
 
 
 void AddTagsToRecords(MARC::Reader * const reader, MARC::Writer * const writer,
-                      const std::unordered_map<std::string, std::set<std::string>> &record_id_to_tags_map)
-{
+                      const std::unordered_map<std::string, std::set<std::string>> &record_id_to_tags_map) {
     unsigned total_count(0), modified_count(0);
     while (MARC::Record record = reader->read()) {
         ++total_count;

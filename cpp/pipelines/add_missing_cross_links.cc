@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <stdexcept>
@@ -32,10 +32,11 @@ namespace {
 
 struct RecordInfo {
     std::vector<std::pair<std::string, std::string>> ppns_and_titles_;
+
 public:
     RecordInfo() = default;
     RecordInfo(const RecordInfo &other) = default;
-    RecordInfo(const std::string &ppn, const std::string &title): ppns_and_titles_ { { ppn, title } } { }
+    RecordInfo(const std::string &ppn, const std::string &title): ppns_and_titles_{ { ppn, title } } { }
     void addPPNAndTitle(const std::string &ppn, const std::string &title) { ppns_and_titles_.emplace_back(ppn, title); }
     RecordInfo &operator=(const RecordInfo &rhs) = default;
 };
@@ -84,8 +85,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_map<std::st
 
 
 void AddMissingBackLinks(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                         const std::unordered_map<std::string, RecordInfo> &ppn_to_description_map)
-{
+                         const std::unordered_map<std::string, RecordInfo> &ppn_to_description_map) {
     unsigned added_count(0);
     while (MARC::Record record = marc_reader->read()) {
         const auto ppn_and_record(ppn_to_description_map.find(record.getControlNumber()));
@@ -93,7 +93,7 @@ void AddMissingBackLinks(MARC::Reader * const marc_reader, MARC::Writer * const 
             const auto referenced_ppns(GetReferencedPPNs(record));
             for (const auto &ppn_and_title : ppn_and_record->second.ppns_and_titles_) {
                 if (std::find_if(referenced_ppns.cbegin(), referenced_ppns.cend(),
-                                 [ppn_and_record](const std::string &referenced_ppn){ return ppn_and_record->first == referenced_ppn; })
+                                 [ppn_and_record](const std::string &referenced_ppn) { return ppn_and_record->first == referenced_ppn; })
                     != referenced_ppns.cend())
                 {
                     record.insertField("799", { { 'a', ppn_and_title.second }, { 'w', "(DE-627)" + ppn_and_title.first } });

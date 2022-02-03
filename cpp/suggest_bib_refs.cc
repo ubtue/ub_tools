@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <stdexcept>
@@ -56,7 +56,7 @@ void LoadPericopes(std::unordered_map<std::string, std::string> * const pericope
         const auto last_equal_pos(line.rfind('='));
         if (unlikely(last_equal_pos == std::string::npos))
             LOG_ERROR("in LoadPericopes: line # " + std::to_string(line_no) + " in \"" + PERIOCPES_FILE
-                  + "\" does not contain an equal sign!");
+                      + "\" does not contain an equal sign!");
         (*pericopes_to_codes_map)[line.substr(0, last_equal_pos)] = line.substr(last_equal_pos + 1);
     }
 
@@ -75,9 +75,7 @@ std::string NormaliseTitle(std::string title) {
 }
 
 
-std::string GetPericope(const std::string &normalised_title,
-                        const std::unordered_map<std::string, std::string> &pericopes_to_codes_map)
-{
+std::string GetPericope(const std::string &normalised_title, const std::unordered_map<std::string, std::string> &pericopes_to_codes_map) {
     for (const auto &pericope_and_codes : pericopes_to_codes_map) {
         if (normalised_title.find(pericope_and_codes.first) != std::string::npos)
             return pericope_and_codes.first;
@@ -87,13 +85,11 @@ std::string GetPericope(const std::string &normalised_title,
 }
 
 
-std::string GetPossibleBibleReference(const std::string &normalised_title,
-                                      const RangeUtil::BibleBookCanoniser &bible_book_canoniser,
-                                      const RangeUtil::BibleBookToCodeMapper &bible_book_to_code_mapper)
-{
+std::string GetPossibleBibleReference(const std::string &normalised_title, const RangeUtil::BibleBookCanoniser &bible_book_canoniser,
+                                      const RangeUtil::BibleBookToCodeMapper &bible_book_to_code_mapper) {
     // Regex taken from https://stackoverflow.com/questions/22254746/bible-verse-regex
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-        "(\\d*)\\s*([a-z]+)\\s*(\\d+)(:(\\d+))?(\\s*-\\s*(\\d+)(\\s*([a-z]+)\\s*(\\d+))?(:(\\d+))?)?"));
+    static RegexMatcher * const matcher(
+        RegexMatcher::RegexMatcherFactory("(\\d*)\\s*([a-z]+)\\s*(\\d+)(:(\\d+))?(\\s*-\\s*(\\d+)(\\s*([a-z]+)\\s*(\\d+))?(:(\\d+))?)?"));
     if (not matcher->matched(normalised_title))
         return "";
 
@@ -103,8 +99,8 @@ std::string GetPossibleBibleReference(const std::string &normalised_title,
     if (book_candidates.empty())
         return "";
 
-    std::string book_candidate(bible_book_canoniser.canonise(book_candidates.front(), /* verbose = */false));
-    const std::string book_code(bible_book_to_code_mapper.mapToCode(book_candidate, /* verbose = */false));
+    std::string book_candidate(bible_book_canoniser.canonise(book_candidates.front(), /* verbose = */ false));
+    const std::string book_code(bible_book_to_code_mapper.mapToCode(book_candidate, /* verbose = */ false));
     if (book_code.empty())
         return "";
 
@@ -116,8 +112,7 @@ std::string GetPossibleBibleReference(const std::string &normalised_title,
 void ProcessRecords(const bool verbose, MARC::Reader * const marc_reader, File * const ppn_candidate_list,
                     const std::unordered_map<std::string, std::string> &pericopes_to_codes_map,
                     const RangeUtil::BibleBookCanoniser &bible_book_canoniser,
-                    const RangeUtil::BibleBookToCodeMapper &bible_book_to_code_mapper)
-{
+                    const RangeUtil::BibleBookToCodeMapper &bible_book_to_code_mapper) {
     unsigned record_count(0), ppn_candidate_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
@@ -176,7 +171,8 @@ int Main(int argc, char *argv[]) {
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(argv[1]));
     std::unique_ptr<File> ppn_candidate_list(FileUtil::OpenOutputFileOrDie(argv[2]));
 
-    const RangeUtil::BibleBookCanoniser bible_book_canoniser(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_canonical_form.map");
+    const RangeUtil::BibleBookCanoniser bible_book_canoniser(UBTools::GetTuelibPath()
+                                                             + "bibleRef/books_of_the_bible_to_canonical_form.map");
     const RangeUtil::BibleBookToCodeMapper bible_book_to_code_mapper(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_code.map");
 
     std::unordered_map<std::string, std::string> pericopes_to_codes_map;

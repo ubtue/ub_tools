@@ -29,7 +29,7 @@
 
 namespace {
 
-    
+
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " marc_input marc_output pattern1 [pattern2 .. patternN]\n";
     std::cerr << "  where each pattern must look like TTTa=b where TTT is a tag and \"a\" and \"b\"\n";
@@ -41,9 +41,9 @@ namespace {
 struct Replacement {
     std::string tag_;
     char old_code_, new_code_;
+
 public:
-    Replacement(const std::string &tag, const char old_code, const char new_code)
-        : tag_(tag), old_code_(old_code), new_code_(new_code) { }
+    Replacement(const std::string &tag, const char old_code, const char new_code): tag_(tag), old_code_(old_code), new_code_(new_code) { }
 };
 
 
@@ -89,7 +89,7 @@ void CollectReplacements(int argc, char **argv, std::vector<Replacement> * const
 }
 
 
-} // unnmaed namespace
+} // namespace
 
 
 int Main(int argc, char **argv) {

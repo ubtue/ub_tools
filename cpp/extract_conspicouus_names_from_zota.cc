@@ -43,10 +43,10 @@ namespace {
 bool isZota(const MARC::Record &record) {
     const auto local_block_starts(record.findStartOfAllLocalDataBlocks());
     for (const auto &local_block_start : local_block_starts) {
-         for (const auto &LOK935_field : record.getLocalTagRange("935", local_block_start)) {
-             if (LOK935_field.hasSubfieldWithValue('a', "zota"))
-                 return true;
-         }
+        for (const auto &LOK935_field : record.getLocalTagRange("935", local_block_start)) {
+            if (LOK935_field.hasSubfieldWithValue('a', "zota"))
+                return true;
+        }
     }
     return false;
 }
@@ -67,14 +67,13 @@ bool HasHasConspicuousName(const std::string &candidate) {
 void ProcessRecords(MARC::Reader * const marc_reader) {
     while (MARC::Record record = marc_reader->read()) {
         if (isZota(record)) {
-            static const std::vector<std::string> tags_to_check({"100", "700"});
+            static const std::vector<std::string> tags_to_check({ "100", "700" });
             for (auto tag_to_check : tags_to_check) {
                 for (auto &field : record.getTagRange(tag_to_check)) {
-                     const auto &author(field.getFirstSubfieldWithCode('a'));
-                     if (HasHasConspicuousName(author)) {
-                         std::cout << record.getControlNumber() + " | " + author + '\n';
-
-                     }
+                    const auto &author(field.getFirstSubfieldWithCode('a'));
+                    if (HasHasConspicuousName(author)) {
+                        std::cout << record.getControlNumber() + " | " + author + '\n';
+                    }
                 }
             }
         }
@@ -95,5 +94,3 @@ int Main(int argc, char **argv) {
     ProcessRecords(marc_reader.get());
     return EXIT_SUCCESS;
 }
-
-

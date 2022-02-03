@@ -33,7 +33,7 @@
 #include <linux/limits.h>
 #include <pwd.h>
 #ifdef HAS_SELINUX_HEADERS
-#   include <selinux/selinux.h>
+#include <selinux/selinux.h>
 #endif
 #include <sys/mman.h>
 #include <sys/sendfile.h>
@@ -88,14 +88,14 @@ void ReadLines::const_iterator::operator++() {
 }
 
 
-ReadLines::ReadLines(const std::string &path, const TrimMode trim_mode, const CaseMode case_mode): trim_mode_(trim_mode), case_mode_(case_mode) {
+ReadLines::ReadLines(const std::string &path, const TrimMode trim_mode, const CaseMode case_mode)
+    : trim_mode_(trim_mode), case_mode_(case_mode) {
     file_ = OpenInputFileOrDie(path).release();
 }
 
 
 std::vector<std::string> ReadLines::ReadOrDie(const std::string &path, const ReadLines::TrimMode trim_mode,
-                                              const ReadLines::CaseMode case_mode)
-{
+                                              const ReadLines::CaseMode case_mode) {
     ReadLines readlines(path, trim_mode, case_mode);
     std::vector<std::string> lines;
     for (const auto line : readlines) {
@@ -107,8 +107,7 @@ std::vector<std::string> ReadLines::ReadOrDie(const std::string &path, const Rea
 
 
 AutoTempFile::AutoTempFile(const std::string &path_prefix, const std::string &path_suffix, bool automatically_remove)
-    : automatically_remove_(automatically_remove)
-{
+    : automatically_remove_(automatically_remove) {
     std::string path_template(path_prefix + "XXXXXX" + path_suffix);
     const int fd(::mkstemps(const_cast<char *>(path_template.c_str()), path_suffix.length()));
     if (fd == -1)
@@ -127,8 +126,7 @@ SELinuxFileContext::SELinuxFileContext(const std::string &path) {
     if (::getfilecon(path.c_str(), &file_context) == -1) {
         if (errno == ENODATA or errno == ENOTSUP)
             return;
-        throw std::runtime_error("in SELinuxFileContext::SELinuxFileContext: failed to get file context for \""
-                                 + path + "\"!");
+        throw std::runtime_error("in SELinuxFileContext::SELinuxFileContext: failed to get file context for \"" + path + "\"!");
     }
     if (file_context == nullptr)
         return;
@@ -138,12 +136,11 @@ SELinuxFileContext::SELinuxFileContext(const std::string &path) {
                                                       /* suppress_empty_components = */ false));
     if (unlikely(no_of_components != 4))
         throw std::runtime_error("in SELinuxFileContext::SELinuxFileContext: context \"" + std::string(file_context)
-                                 + "\"has unexpected no. of components (" + std::to_string(no_of_components)
-                                 + ")!");
+                                 + "\"has unexpected no. of components (" + std::to_string(no_of_components) + ")!");
 
-    user_  = context_as_vector[0];
-    role_  = context_as_vector[1];
-    type_  = context_as_vector[2];
+    user_ = context_as_vector[0];
+    role_ = context_as_vector[1];
+    type_ = context_as_vector[2];
     range_ = context_as_vector[3];
 
     ::freecon(file_context);
@@ -151,25 +148,21 @@ SELinuxFileContext::SELinuxFileContext(const std::string &path) {
 }
 
 
-Directory::Entry::Entry(const Directory::Entry &other)
-    : dirname_(other.dirname_), name_(other.name_), statbuf_(other.statbuf_)
-{
+Directory::Entry::Entry(const Directory::Entry &other): dirname_(other.dirname_), name_(other.name_), statbuf_(other.statbuf_) {
 }
 
 
 Directory::const_iterator::const_iterator(const std::string &path, const std::string &regex, const bool end)
-    : path_(path), regex_matcher_(nullptr), entry_(path_)
-{
+    : path_(path), regex_matcher_(nullptr), entry_(path_) {
     if (end)
         dir_handle_ = nullptr;
     else {
         std::string err_msg;
         if ((regex_matcher_ = RegexMatcher::RegexMatcherFactory(regex, &err_msg)) == nullptr)
-            throw std::runtime_error("in Directory::const_iterator::const_iterator: bad PCRE \"" + regex + "\"! ("
-                                     + err_msg + ")");
+            throw std::runtime_error("in Directory::const_iterator::const_iterator: bad PCRE \"" + regex + "\"! (" + err_msg + ")");
         if ((dir_handle_ = ::opendir(path.c_str())) == nullptr)
-            throw std::runtime_error("in Directory::const_iterator::const_iterator: opendir(3) on \"" + path
-                                     + "\" failed! (" + std::string(std::strerror(errno)) + ")");
+            throw std::runtime_error("in Directory::const_iterator::const_iterator: opendir(3) on \"" + path + "\" failed! ("
+                                     + std::string(std::strerror(errno)) + ")");
 
         advance();
     }
@@ -207,9 +200,8 @@ void Directory::const_iterator::advance() {
             else if (errno == ENOENT)
                 errno = 0;
             else
-                throw std::runtime_error("in FileUtil::Directory::const_iterator::advance: stat(2) on \""
-                                         + entry_.dirname_ + "/" + entry_.name_ + " \"failed! ("
-                                         + std::string(std::strerror(errno)) + ")");
+                throw std::runtime_error("in FileUtil::Directory::const_iterator::advance: stat(2) on \"" + entry_.dirname_ + "/"
+                                         + entry_.name_ + " \"failed! (" + std::string(std::strerror(errno)) + ")");
         }
     }
 }
@@ -217,8 +209,9 @@ void Directory::const_iterator::advance() {
 
 Directory::Entry Directory::const_iterator::operator*() {
     if (dir_handle_ == nullptr)
-        throw std::runtime_error("in Directory::const_iterator::operator*: can't dereference an iterator pointing"
-                                 " to the end!");
+        throw std::runtime_error(
+            "in Directory::const_iterator::operator*: can't dereference an iterator pointing"
+            " to the end!");
     return entry_;
 }
 
@@ -231,8 +224,7 @@ void Directory::const_iterator::operator++() {
 bool Directory::const_iterator::operator==(const const_iterator &rhs) const {
     if (rhs.dir_handle_ == nullptr and dir_handle_ == nullptr)
         return true;
-    if ((rhs.dir_handle_ == nullptr and dir_handle_ != nullptr)
-        or (rhs.dir_handle_ != nullptr and dir_handle_ == nullptr))
+    if ((rhs.dir_handle_ == nullptr and dir_handle_ != nullptr) or (rhs.dir_handle_ != nullptr and dir_handle_ == nullptr))
         return false;
 
     return rhs.entry_.name_ == entry_.name_;
@@ -347,7 +339,8 @@ std::string AccessErrnoToString(int errno_to_convert, const std::string &pathnam
         return "OK";
     case EACCES:
         return "The requested access would be denied to the file or search"
-            " permission is denied to one of the directories in '" + pathname + "'";
+               " permission is denied to one of the directories in '"
+               + pathname + "'";
     case EROFS:
         return "Write permission was requested for a file on a read-only filesystem.";
     case EFAULT:
@@ -411,8 +404,7 @@ std::string GetCurrentWorkingDirectory() {
     char buf[PATH_MAX];
     const char * const current_working_dir(::getcwd(buf, sizeof buf));
     if (unlikely(current_working_dir == nullptr))
-        throw std::runtime_error("in FileUtil::GetCurrentWorkingDirectory: getcwd(3) failed ("
-                                 + std::string(::strerror(errno)) + ")!");
+        throw std::runtime_error("in FileUtil::GetCurrentWorkingDirectory: getcwd(3) failed (" + std::string(::strerror(errno)) + ")!");
     return current_working_dir;
 }
 
@@ -442,8 +434,7 @@ void MakeCanonicalPathList(const char * const path, std::list<std::string> * con
         if (directory == ".." and not canonical_path_list->empty()) {
             if (canonical_path_list->size() != 1 or canonical_path_list->front() != "/")
                 canonical_path_list->pop_back();
-        }
-        else
+        } else
             canonical_path_list->push_back(directory);
     }
 }
@@ -452,14 +443,13 @@ void MakeCanonicalPathList(const char * const path, std::list<std::string> * con
 } // unnamed namespace
 
 
-std::string CanonisePath(const std::string &path)
-{
+std::string CanonisePath(const std::string &path) {
     std::list<std::string> canonical_path_list;
     MakeCanonicalPathList(path.c_str(), &canonical_path_list);
 
     std::string canonised_path;
-    for (std::list<std::string>::const_iterator path_component(canonical_path_list.begin());
-         path_component != canonical_path_list.end(); ++path_component)
+    for (std::list<std::string>::const_iterator path_component(canonical_path_list.begin()); path_component != canonical_path_list.end();
+         ++path_component)
     {
         if (not canonised_path.empty() and canonised_path != "/")
             canonised_path += '/';
@@ -491,8 +481,7 @@ std::string MakeAbsolutePath(const std::string &reference_path, const std::strin
     for (std::list<std::string>::const_iterator component(relative_dirname_components.begin());
          component != relative_dirname_components.end(); ++component)
     {
-        if (*component == ".." and (resultant_dirname_components.size() > 1 or
-                                    resultant_dirname_components.front() != "/"))
+        if (*component == ".." and (resultant_dirname_components.size() > 1 or resultant_dirname_components.front() != "/"))
             resultant_dirname_components.pop_back();
         else
             resultant_dirname_components.push_back(*component);
@@ -515,7 +504,7 @@ std::string MakeAbsolutePath(const std::string &reference_path, const std::strin
 
 bool MakeEmpty(const std::string &path) {
     int fd;
-    if ((fd = ::open(path.c_str(), O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1)
+    if ((fd = ::open(path.c_str(), O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR)) == -1)
         return false;
 
     ::close(fd);
@@ -606,10 +595,10 @@ void DirnameAndBasename(const std::string &path, std::string * const dirname, st
 
     const auto last_slash_pos(path.rfind('/'));
     if (last_slash_pos == std::string::npos) {
-        *dirname  = "";
+        *dirname = "";
         *basename = path;
     } else {
-        *dirname  = path.substr(0, last_slash_pos);
+        *dirname = path.substr(0, last_slash_pos);
         *basename = path.substr(last_slash_pos + 1);
     }
 }
@@ -671,13 +660,13 @@ bool MakeDirectory(const std::string &path, const bool recursive, const mode_t m
     }
 
     std::vector<std::string> path_components;
-    StringUtil::Split(path, '/', &path_components, /* suppress_empty_components = */true);
+    StringUtil::Split(path, '/', &path_components, /* suppress_empty_components = */ true);
 
     std::string path_so_far;
     if (absolute)
         path_so_far += "/";
-    for (std::vector<std::string>::const_iterator path_component(path_components.begin());
-         path_component != path_components.end(); ++path_component)
+    for (std::vector<std::string>::const_iterator path_component(path_components.begin()); path_component != path_components.end();
+         ++path_component)
     {
         path_so_far += *path_component;
         path_so_far += '/';
@@ -745,12 +734,9 @@ bool RemoveDirectory(const std::string &dir_name) {
 }
 
 
-AutoTempDirectory::AutoTempDirectory(const std::string &path_prefix,
-                                     const bool cleanup_if_exception_is_active,
+AutoTempDirectory::AutoTempDirectory(const std::string &path_prefix, const bool cleanup_if_exception_is_active,
                                      const bool remove_when_out_of_scope)
-    : cleanup_if_exception_is_active_(cleanup_if_exception_is_active),
-      remove_when_out_of_scope_(remove_when_out_of_scope)
-{
+    : cleanup_if_exception_is_active_(cleanup_if_exception_is_active), remove_when_out_of_scope_(remove_when_out_of_scope) {
     std::string path_template(path_prefix + "XXXXXX");
     const char * const path(::mkdtemp(const_cast<char *>(path_template.c_str())));
     if (path == nullptr)
@@ -771,17 +757,15 @@ AutoTempDirectory::~AutoTempDirectory() {
 }
 
 
-ssize_t RemoveMatchingFiles(const std::string &filename_regex, const bool include_directories,
-                            const std::string &directory_to_scan)
-{
+ssize_t RemoveMatchingFiles(const std::string &filename_regex, const bool include_directories, const std::string &directory_to_scan) {
     if (unlikely(filename_regex.find('/') != std::string::npos))
         throw std::runtime_error("in FileUtil::RemoveMatchingFiles: filename regex contained a slash!");
 
     std::string err_msg;
     std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(filename_regex, &err_msg));
     if (unlikely(not err_msg.empty()))
-        throw std::runtime_error("in FileUtil::RemoveMatchingFiles: failed to compile regular expression \"" + filename_regex
-                                 + "\"! (" + err_msg + ")");
+        throw std::runtime_error("in FileUtil::RemoveMatchingFiles: failed to compile regular expression \"" + filename_regex + "\"! ("
+                                 + err_msg + ")");
 
     DIR *dir_handle(::opendir(directory_to_scan.c_str()));
     if (unlikely(dir_handle == nullptr))
@@ -845,8 +829,7 @@ FileUtil::FileType GuessFileType(const std::string &filename) {
     FileUtil::FileType file_type = FILE_TYPE_UNKNOWN;
     switch (file_extension[0]) {
     case 'c':
-        if (file_extension == "c" or file_extension == "cc" or file_extension == "cpp"
-            or file_extension == "cxx")
+        if (file_extension == "c" or file_extension == "cc" or file_extension == "cpp" or file_extension == "cxx")
             file_type = FILE_TYPE_CODE;
         else if (file_extension == "cgi")
             file_type = FILE_TYPE_HTML;
@@ -994,8 +977,7 @@ std::string FileTypeToString(const FileType file_type) {
 
 
 size_t GetFileNameList(const std::string &filename_regex, std::vector<std::string> * const matched_filenames,
-                       const std::string &directory_to_scan)
-{
+                       const std::string &directory_to_scan) {
     if (unlikely(filename_regex.find('/') != std::string::npos))
         throw std::runtime_error("in FileUtil::GetFileNameList: filename regex contained a slash!");
 
@@ -1007,9 +989,7 @@ size_t GetFileNameList(const std::string &filename_regex, std::vector<std::strin
 }
 
 
-bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target,
-                const bool copy_if_cross_device)
-{
+bool RenameFile(const std::string &old_name, const std::string &new_name, const bool remove_target, const bool copy_if_cross_device) {
     struct stat stat_buf;
     if (::stat(new_name.c_str(), &stat_buf) == -1) {
         if (errno != ENOENT)
@@ -1038,9 +1018,7 @@ bool RenameFile(const std::string &old_name, const std::string &new_name, const 
 }
 
 
-void RenameFileOrDie(const std::string &old_name, const std::string &new_name, const bool remove_target,
-                     const bool copy_if_cross_device)
-{
+void RenameFileOrDie(const std::string &old_name, const std::string &new_name, const bool remove_target, const bool copy_if_cross_device) {
     if (not RenameFile(old_name, new_name, remove_target, copy_if_cross_device))
         LOG_ERROR("failed to rename \"" + old_name + "\" to \"" + new_name + "\"!");
 }
@@ -1127,8 +1105,7 @@ bool Copy(File * const from, File * const to, const size_t no_of_bytes) {
 
 
 bool Copy(const std::string &from_path, const std::string &to_path, const bool truncate_target, const size_t no_of_bytes_to_copy,
-          const loff_t offset, const int whence)
-{
+          const loff_t offset, const int whence) {
     const int from_fd(::open(from_path.c_str(), O_RDONLY));
     if (unlikely(from_fd == -1))
         return false;
@@ -1218,14 +1195,12 @@ bool FilesDiffer(const std::string &path1, const std::string &path2) {
         char buf1[BUFSIZ];
         const size_t read_count1(input1.read(reinterpret_cast<void *>(buf1), BUFSIZ));
         if (unlikely(read_count1 < BUFSIZ) and input1.anErrorOccurred())
-            throw std::runtime_error("in FileUtil::FilesDiffer: an error occurred while trying to read \"" + path1
-                                     + "\"!");
+            throw std::runtime_error("in FileUtil::FilesDiffer: an error occurred while trying to read \"" + path1 + "\"!");
 
         char buf2[BUFSIZ];
         const size_t read_count2(input2.read(reinterpret_cast<void *>(buf2), BUFSIZ));
         if (unlikely(read_count2 < BUFSIZ) and input2.anErrorOccurred())
-            throw std::runtime_error("in FileUtil::FilesDiffer: an error occurred while trying to read \"" + path2
-                                     + "\"!");
+            throw std::runtime_error("in FileUtil::FilesDiffer: an error occurred while trying to read \"" + path2 + "\"!");
 
         if (read_count1 != read_count2 or std::memcmp(buf1, buf2, BUFSIZ) != 0)
             return true;
@@ -1246,17 +1221,15 @@ void AppendStringToFile(const std::string &path, const std::string &text) {
 // Creates a symlink called "link_filename" pointing to "target_filename".
 void CreateSymlink(const std::string &target_filename, const std::string &link_filename) {
     if (unlikely(::unlink(link_filename.c_str()) == -1 and errno != ENOENT /* "No such file or directory." */))
-        throw std::runtime_error("in FileUtil::CreateSymlink: unlink(2) of \"" + link_filename + "\" failed: "
-				 + std::string(::strerror(errno)));
+        throw std::runtime_error("in FileUtil::CreateSymlink: unlink(2) of \"" + link_filename
+                                 + "\" failed: " + std::string(::strerror(errno)));
     if (unlikely(::symlink(target_filename.c_str(), link_filename.c_str()) != 0))
-        throw std::runtime_error("in FileUtil::CreateSymlink: failed to create symlink \"" + link_filename + "\" => \""
-				 + target_filename + "\"! (" + std::string(::strerror(errno)) + ")");
+        throw std::runtime_error("in FileUtil::CreateSymlink: failed to create symlink \"" + link_filename + "\" => \"" + target_filename
+                                 + "\"! (" + std::string(::strerror(errno)) + ")");
 }
 
 
-size_t ConcatFiles(const std::string &target_path, const std::vector<std::string> &filenames,
-                   const mode_t target_mode)
-{
+size_t ConcatFiles(const std::string &target_path, const std::vector<std::string> &filenames, const mode_t target_mode) {
     if (filenames.empty())
         LOG_ERROR("no files to concatenate!");
 
@@ -1281,14 +1254,13 @@ size_t ConcatFiles(const std::string &target_path, const std::vector<std::string
         while (static_cast<size_t>(offset) != static_cast<size_t>(statbuf.st_size)) {
             off_t offset_arg(offset); // New variable needed since on first call (i.e. offset == 0) offset would be
                                       // modified
-            count = ::sendfile(target_fd, source_fd, &offset_arg, std::min(static_cast<size_t>(statbuf.st_size - offset),
-                               sendfile_max_chunk));
+            count =
+                ::sendfile(target_fd, source_fd, &offset_arg, std::min(static_cast<size_t>(statbuf.st_size - offset), sendfile_max_chunk));
             if (count == -1)
                 LOG_ERROR("failed to append \"" + filename + "\" to \"" + target_path + "\"!");
             offset += static_cast<size_t>(count);
             total_size += static_cast<size_t>(count);
         }
-
     }
 
     return total_size;
@@ -1342,13 +1314,12 @@ std::string GetExtension(const std::string &filename, const bool to_lowercase) {
         return filename.substr(last_dot_pos + 1);
     else
         return TextUtil::UTF8ToLower(filename.substr(last_dot_pos + 1));
-
 }
 
 
 std::string StripLastPathComponent(const std::string &path) {
     std::vector<std::string> path_components;
-    if (StringUtil::Split(path, '/', &path_components, /* suppress_empty_components = */true) < 1)
+    if (StringUtil::Split(path, '/', &path_components, /* suppress_empty_components = */ true) < 1)
         LOG_ERROR("\"" + path + "\" has no path components");
     path_components.pop_back();
     return (path[0] == '/' ? "/" : "") + StringUtil::Join(path_components, '/');
@@ -1498,11 +1469,11 @@ void RemoveLeadingBytes(const std::string &path, const loff_t no_of_bytes) {
         return;
     }
 
-    const int fd(::open(path.c_str(), O_LARGEFILE|O_RDWR));
+    const int fd(::open(path.c_str(), O_LARGEFILE | O_RDWR));
     if (fd == -1)
         LOG_ERROR("failed to open(2) \"" + path + "\"!");
 
-    void * const map_start(::mmap(nullptr, original_file_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0));
+    void * const map_start(::mmap(nullptr, original_file_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
     if (map_start == MAP_FAILED or map_start == nullptr)
         LOG_ERROR("Failed to mmap(2) \"" + path + "\"!");
 
@@ -1522,7 +1493,7 @@ void RemoveLeadingBytes(const std::string &path, const loff_t no_of_bytes) {
 void OnlyKeepLastNLines(const std::string &path, const unsigned n) {
     const auto file_size(GetFileSize(path));
 
-    const int fd(::open(path.c_str(), O_LARGEFILE|O_RDONLY));
+    const int fd(::open(path.c_str(), O_LARGEFILE | O_RDONLY));
     if (fd == -1)
         LOG_ERROR("failed to open(2) \"" + path + "\"!");
 

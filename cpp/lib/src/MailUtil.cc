@@ -55,8 +55,7 @@ std::string DecodeBodyPart(const MBox::BodyPart &body_part) {
     if (::strcasecmp(charset.c_str(), "utf-8") != 0) {
         std::string error_message;
         const auto encoding_converter(
-            TextUtil::EncodingConverter::Factory(charset, TextUtil::EncodingConverter::CANONICAL_UTF8_NAME,
-                                                 &error_message));
+            TextUtil::EncodingConverter::Factory(charset, TextUtil::EncodingConverter::CANONICAL_UTF8_NAME, &error_message));
         if (unlikely(not error_message.empty()))
             LOG_ERROR("failed to create an encoding converter from \"" + charset + "\" to UTF-8!");
 

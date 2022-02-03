@@ -24,8 +24,8 @@
 #include "MapUtil.h"
 #include "TextUtil.h"
 #include "UBTools.h"
-#include "util.h"
 #include "Zeder.h"
+#include "util.h"
 
 
 namespace {
@@ -70,7 +70,7 @@ void ProcessZederAndWriteMapFile(File * const map_file, const Zeder::SimpleZeder
 } // unnamed namespace
 
 
-int Main(int argc, char */*argv*/[]) {
+int Main(int argc, char * /*argv*/[]) {
     if (argc != 1)
         ::Usage("[--min-log-level=min_verbosity]");
 
@@ -83,7 +83,7 @@ int Main(int argc, char */*argv*/[]) {
     const auto temp_file(FileUtil::OpenTempFileOrDie("/tmp/XXXXXX"));
     ProcessZederAndWriteMapFile(temp_file.get(), zeder);
 
-    FileUtil::RenameFileOrDie(temp_file->getPath(), UBTools::GetTuelibPath() + "zeder_ppn_to_title.map", /* remove_target = */true);
+    FileUtil::RenameFileOrDie(temp_file->getPath(), UBTools::GetTuelibPath() + "zeder_ppn_to_title.map", /* remove_target = */ true);
 
     return EXIT_SUCCESS;
 }

@@ -23,9 +23,9 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
-#include <unordered_map>
 
 
 namespace PHPUtil {
@@ -38,8 +38,10 @@ class DataType {
 protected:
     Type type_;
     std::string name_;
+
 protected:
     DataType(const Type type, const std::string &name): type_(type), name_(name) { }
+
 public:
     DataType(DataType &&other): type_(other.type_), name_(std::move(other.name_)) { }
     virtual ~DataType() { }
@@ -49,9 +51,10 @@ public:
 };
 
 
-class Array: public DataType {
+class Array : public DataType {
     using StringToDataTypePtrMap = std::unordered_map<std::string, std::shared_ptr<DataType>>;
     mutable StringToDataTypePtrMap map_;
+
 public:
     explicit Array(const std::string &name): DataType(Type::ARRAY, name) { }
     Array(Array &&other): DataType(std::move(other)), map_(std::move(other.map_)) { }
@@ -59,9 +62,7 @@ public:
     size_t size() const { return map_.size(); }
     const DataType &operator[](const size_t index) const { return *map_[std::to_string(index)]; }
     const DataType &operator[](const std::string &index) const { return *map_[index]; }
-    void addEntry(const std::string &key, DataType * const value) {
-        map_[key] = std::shared_ptr<DataType>(value);
-    }
+    void addEntry(const std::string &key, DataType * const value) { map_[key] = std::shared_ptr<DataType>(value); }
 
     // Iterate over entries:
     StringToDataTypePtrMap::const_iterator cbegin() const { return map_.cbegin(); }
@@ -69,8 +70,9 @@ public:
 };
 
 
-class Object: public Array {
+class Object : public Array {
     std::string class_;
+
 public:
     Object(const std::string &name, const std::string &cls): Array(name), class_(cls) { type_ = Type::OBJECT; }
     Object(Object &&other): Array(std::move(other)), class_(std::move(other.class_)) { }
@@ -79,8 +81,9 @@ public:
 };
 
 
-class String: public DataType {
+class String : public DataType {
     std::string value_;
+
 public:
     String(const std::string &name, const std::string &value): DataType(Type::STRING, name), value_(value) { }
     String(String &&other): DataType(std::move(other)), value_(std::move(other.value_)) { }
@@ -89,8 +92,9 @@ public:
 };
 
 
-class Integer: public DataType {
+class Integer : public DataType {
     long value_;
+
 public:
     Integer(const std::string &name, const long value): DataType(Type::INTEGER, name), value_(value) { }
     Integer(Integer &&other): DataType(std::move(other)), value_(other.value_) { }
@@ -99,8 +103,9 @@ public:
 };
 
 
-class Float: public DataType {
+class Float : public DataType {
     double value_;
+
 public:
     explicit Float(const std::string &name, const double value): DataType(Type::FLOAT, name), value_(value) { }
     Float(Float &&other): DataType(std::move(other)), value_(other.value_) { }
@@ -109,7 +114,7 @@ public:
 };
 
 
-class ParseException: public std::runtime_error {
+class ParseException : public std::runtime_error {
 public:
     explicit ParseException(const std::string &err_msg): std::runtime_error(err_msg) { }
 };

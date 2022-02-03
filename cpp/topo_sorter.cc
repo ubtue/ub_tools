@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <unordered_map>
@@ -29,8 +29,7 @@ namespace {
 
 
 inline unsigned MapVertexNameToVertexID(const std::string &vertex_name,
-                                        std::unordered_map<unsigned, std::string> * const vertex_id_to_vertex_name_map)
-{
+                                        std::unordered_map<unsigned, std::string> * const vertex_id_to_vertex_name_map) {
     static unsigned next_id;
     static std::unordered_map<std::string, unsigned> vertex_name_to_vertex_id_map;
 
@@ -46,8 +45,7 @@ inline unsigned MapVertexNameToVertexID(const std::string &vertex_name,
 
 
 void LoadVertices(File * const input, std::vector<std::pair<unsigned, unsigned>> * const &vertices,
-                  std::unordered_map<unsigned, std::string> * const vertex_id_to_vertex_name_map)
-{
+                  std::unordered_map<unsigned, std::string> * const vertex_id_to_vertex_name_map) {
     unsigned line_no(0);
     while (not input->eof()) {
         const auto line(input->getline());

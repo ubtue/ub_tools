@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <unordered_map>
@@ -37,9 +37,7 @@ std::string NormalizeKeyword(std::string keyword) {
 }
 
 
-void CollectNormalizedKeywordsAndTranslations(MARC::Reader * const reader,
-                                              std::unordered_set<std::string> * const normalized_keywords)
-{
+void CollectNormalizedKeywordsAndTranslations(MARC::Reader * const reader, std::unordered_set<std::string> * const normalized_keywords) {
     unsigned authority_record_count(0);
     while (const auto record = reader->read()) {
         if (record.getRecordType() != MARC::Record::RecordType::AUTHORITY)
@@ -64,9 +62,8 @@ const std::vector<std::string> non_normalized_keyword_tags{ "650" };
 
 
 void ProcessField(const MARC::Record::Field &field, const std::unordered_set<std::string> &normalized_keywords,
-                  std::unordered_map<std::string, unsigned> * const unmatched_keywords_to_counts_map,
-                  unsigned * const matched_count, unsigned * const not_matched_count)
-{
+                  std::unordered_map<std::string, unsigned> * const unmatched_keywords_to_counts_map, unsigned * const matched_count,
+                  unsigned * const not_matched_count) {
     const auto subfields(field.getSubfields());
     for (const auto &subfield_and_code : subfields) {
         if (subfield_and_code.code_ != 'a')
@@ -91,9 +88,8 @@ void ProcessField(const MARC::Record::Field &field, const std::unordered_set<std
 
 
 void ProcessTitleRecords(MARC::Reader * const marc_reader, const std::unordered_set<std::string> &normalized_keywords,
-                         std::unordered_map<std::string, unsigned> * const unmatched_keywords_to_counts_map,
-                         unsigned * const matched_count, unsigned * const not_matched_count)
-{
+                         std::unordered_map<std::string, unsigned> * const unmatched_keywords_to_counts_map, unsigned * const matched_count,
+                         unsigned * const not_matched_count) {
     unsigned record_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
@@ -107,13 +103,11 @@ void ProcessTitleRecords(MARC::Reader * const marc_reader, const std::unordered_
 }
 
 
-void ListUnmatchedKeywords(File * const output,
-                           const std::unordered_map<std::string, unsigned> &unmatched_keywords_to_counts_map)
-{
+void ListUnmatchedKeywords(File * const output, const std::unordered_map<std::string, unsigned> &unmatched_keywords_to_counts_map) {
     std::vector<std::pair<std::string, unsigned>> unmatched_keywords_and_counts(unmatched_keywords_to_counts_map.cbegin(),
                                                                                 unmatched_keywords_to_counts_map.cend());
     std::sort(unmatched_keywords_and_counts.begin(), unmatched_keywords_and_counts.end(),
-              [](const auto &a, const auto &b){ return a.second > b.second; });// Sort in descending order of counts.
+              [](const auto &a, const auto &b) { return a.second > b.second; }); // Sort in descending order of counts.
 
     for (const auto &[keyword, count] : unmatched_keywords_and_counts)
         (*output) << keyword << " -> " << count << '\n';
@@ -134,11 +128,9 @@ int Main(int argc, char *argv[]) {
     const auto title_reader(MARC::Reader::Factory(argv[2]));
     std::unordered_map<std::string, unsigned> unmatched_keywords_to_counts_map;
     unsigned matched_count, not_matched_count;
-    ProcessTitleRecords(title_reader.get(), normalized_keywords, &unmatched_keywords_to_counts_map,
-                        &matched_count, &not_matched_count);
+    ProcessTitleRecords(title_reader.get(), normalized_keywords, &unmatched_keywords_to_counts_map, &matched_count, &not_matched_count);
     const double matched_percentage(100.0 * double(matched_count) / double(matched_count + not_matched_count));
-    LOG_INFO("Found " + std::to_string(matched_percentage)
-             + "% of the non-standardized keywords matched known, standardized keywords.");
+    LOG_INFO("Found " + std::to_string(matched_percentage) + "% of the non-standardized keywords matched known, standardized keywords.");
 
     const auto output(FileUtil::OpenOutputFileOrDie(argv[3]));
     ListUnmatchedKeywords(output.get(), unmatched_keywords_to_counts_map);

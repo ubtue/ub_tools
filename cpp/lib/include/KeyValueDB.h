@@ -29,6 +29,7 @@
 
 class KeyValueDB {
     struct __db *db_;
+
 public:
     explicit KeyValueDB(const std::string &path);
     ~KeyValueDB();

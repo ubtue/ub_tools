@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <memory>
@@ -37,9 +37,8 @@ namespace {
 }
 
 
-void ProcessTag(MARC::Record * const record, const std::string &tag, const std::unordered_set <std::string> &title_deletion_ids,
-                unsigned * const deleted_reference_count)
-{
+void ProcessTag(MARC::Record * const record, const std::string &tag, const std::unordered_set<std::string> &title_deletion_ids,
+                unsigned * const deleted_reference_count) {
     for (auto &field : record->getTagRange(tag)) {
         auto subfields(field.getSubfields());
 
@@ -71,9 +70,8 @@ void ProcessTag(MARC::Record * const record, const std::string &tag, const std::
 }
 
 
-void ProcessRecords(const std::unordered_set <std::string> &title_deletion_ids,
-                    MARC::Reader * const marc_reader, MARC::Writer * const marc_writer)
-{
+void ProcessRecords(const std::unordered_set<std::string> &title_deletion_ids, MARC::Reader * const marc_reader,
+                    MARC::Writer * const marc_writer) {
     const std::vector<std::string> tags{ "100", "110", "111", "700", "710", "711" };
 
     unsigned total_record_count(0), deleted_reference_count(0);

@@ -66,11 +66,9 @@ int main(int argc, char *argv[]) {
         const auto fd(::open(filename.c_str(), O_RDWR));
         const int actual_buffer_size(::fcntl(fd, F_SETPIPE_SZ, buffer_size));
         if (actual_buffer_size < buffer_size)
-            LOG_ERROR("failed to set the FIFO buffer size to at least \"" + std::to_string(buffer_size)
-                      + " on \"" + filename + "\"!");
+            LOG_ERROR("failed to set the FIFO buffer size to at least \"" + std::to_string(buffer_size) + " on \"" + filename + "\"!");
         else if (actual_buffer_size > buffer_size)
-            LOG_INFO("actually set the FIFO buffer size to \"" + std::to_string(actual_buffer_size)
-                     + " on \"" + filename + "\"!");
+            LOG_INFO("actually set the FIFO buffer size to \"" + std::to_string(actual_buffer_size) + " on \"" + filename + "\"!");
     }
 
     return EXIT_SUCCESS;

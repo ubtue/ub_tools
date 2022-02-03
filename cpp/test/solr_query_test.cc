@@ -25,8 +25,8 @@
 #include <cstdlib>
 #include <cstring>
 #include "Solr.h"
-#include "util.h"
 #include "StringUtil.h"
+#include "util.h"
 
 
 [[noreturn]] void Usage() {
@@ -68,8 +68,7 @@ int main(int argc, char *argv[]) {
 
     try {
         std::string xml_or_json_result, err_msg;
-        if (not Solr::Query(query, fields, &xml_or_json_result, &err_msg, host, port, timeout, result_format, max_no_of_rows))
-        {
+        if (not Solr::Query(query, fields, &xml_or_json_result, &err_msg, host, port, timeout, result_format, max_no_of_rows)) {
             std::cerr << xml_or_json_result << '\n';
             LOG_ERROR("Query failed! (" + err_msg + ")");
         }

@@ -40,7 +40,7 @@
 
 
 #ifndef DIM
-#       define DIM(array)       (sizeof(array) / sizeof(array[0]))
+#define DIM(array) (sizeof(array) / sizeof(array[0]))
 #endif
 
 
@@ -97,10 +97,8 @@ bool NetworkAddressToString(const in_addr_t network_address, std::string * const
     uint32_t network_address_in_host_byte_order(network_address);
     network_address_in_host_byte_order = ntohl(network_address_in_host_byte_order);
     char buf[3 + 1 + 3 + 1 + 3 + 1 + 3 + 1];
-    std::sprintf(buf, "%0u.%0u.%0u.%0u", (network_address_in_host_byte_order >> 24u),
-                 (network_address_in_host_byte_order >> 16u) & 0xFF,
-                 (network_address_in_host_byte_order >> 8u) & 0xFF,
-                 network_address_in_host_byte_order & 0xFF);
+    std::sprintf(buf, "%0u.%0u.%0u.%0u", (network_address_in_host_byte_order >> 24u), (network_address_in_host_byte_order >> 16u) & 0xFF,
+                 (network_address_in_host_byte_order >> 8u) & 0xFF, network_address_in_host_byte_order & 0xFF);
     *s = buf;
 
     return true;
@@ -184,8 +182,8 @@ std::string NetmaskToIpPrefix(const in_addr_t netmask) {
 std::string NetworkAddressAndMaskToString(const in_addr_t network_address, const in_addr_t netmask) {
     std::string address, ip_prefix;
     if (not NetworkAddressToString(network_address, &address))
-        throw std::runtime_error("in NetUtil::NetworkAddressAndMaskToString: invalid network address("
-                                 + std::to_string(network_address) + ")");
+        throw std::runtime_error("in NetUtil::NetworkAddressAndMaskToString: invalid network address(" + std::to_string(network_address)
+                                 + ")");
 
     if (netmask == 0)
         ip_prefix = "/0";
@@ -193,8 +191,7 @@ std::string NetworkAddressAndMaskToString(const in_addr_t network_address, const
         ip_prefix = NetmaskToIpPrefix(netmask);
 
     if (ip_prefix == "")
-        throw std::runtime_error("in NetUtil::NetworkAddressAndMaskToString: invalid netmask(" + StringUtil::ToString(netmask)
-                                 + ")");
+        throw std::runtime_error("in NetUtil::NetworkAddressAndMaskToString: invalid netmask(" + StringUtil::ToString(netmask) + ")");
 
     return address + ip_prefix;
 }
@@ -204,7 +201,7 @@ namespace {
 
 
 #ifndef __linux__
-#      error "You need to implement a new method of finding the list of network interfaces!"
+#error "You need to implement a new method of finding the list of network interfaces!"
 #endif
 
 
@@ -224,12 +221,12 @@ void GetInterfaces(std::list<ifreq> * const interface_requests) {
         ifc.ifc_buf = new char[bufsize];
 
         if (::ioctl(sock_fd, SIOCGIFCONF, &ifc) != 0) {
-            delete [] ifc.ifc_buf;
+            delete[] ifc.ifc_buf;
             throw std::runtime_error("in GetInterfaces: ioctl(2) failed (" + std::to_string(errno) + ")!");
         }
 
         if (ifc.ifc_len == bufsize) { // We possibly need room for more ifreq's.
-            delete [] ifc.ifc_buf;
+            delete[] ifc.ifc_buf;
             no_of_interface_requests *= 2; // Double the number of request buffers:
             continue;
         }
@@ -243,7 +240,7 @@ void GetInterfaces(std::list<ifreq> * const interface_requests) {
         interface_request++;
     }
 
-    delete [] ifc.ifc_buf;
+    delete[] ifc.ifc_buf;
 }
 
 
@@ -266,30 +263,15 @@ namespace {
 
 // The table of gTLD's and ".arpa".
 const char * const g_tlds[] = {
-    "com",
-    "edu",
-    "gov",
-    "int",
-    "mil",
-    "net",
-    "org",
-    "biz",
-    "info",
-    "name",
-    "pro",
-    "aero",
-    "coop",
-    "museum",
-    "museum",
-    "arpa",
+    "com", "edu", "gov", "int", "mil", "net", "org", "biz", "info", "name", "pro", "aero", "coop", "museum", "museum", "arpa",
 };
 
 
 const struct {
-        char country_code_[2 + 1];
-        unsigned pseudo_tld_label_count_;
+    char country_code_[2 + 1];
+    unsigned pseudo_tld_label_count_;
 } cc_tld_exceptions[] = {
-        { "de", 1 },  // Germany dosn't use ".com." or ".co." or anything like GB (".co.uk" or ".ac.uk") or similar.
+    { "de", 1 }, // Germany dosn't use ".com." or ".co." or anything like GB (".co.uk" or ".ac.uk") or similar.
 };
 
 

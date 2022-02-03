@@ -37,9 +37,8 @@ int main(int argc, char *argv[]) {
         Usage();
     if (std::strcmp(argv[1], "--encode") == 0)
         std::cout << TextUtil::Base64Encode(argv[2]) << '\n';
-    else     if (std::strcmp(argv[1], "--decode") == 0)
+    else if (std::strcmp(argv[1], "--decode") == 0)
         std::cout << TextUtil::Base64Decode(argv[2]) << '\n';
     else
         Usage();
 }
-

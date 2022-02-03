@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #include <algorithm>
 #include <iostream>
 #include <map>
@@ -96,10 +96,8 @@ inline bool TriggerLineIsLessThan(const std::string &line1, const std::string &l
 }
 
 
-void LoadSchema(const std::string &filename,
-                std::map<std::string, std::vector<std::string>> * const table_or_view_name_to_schema_map,
-                std::vector<std::string> * const triggers, std::vector<std::string> * const procedures)
-{
+void LoadSchema(const std::string &filename, std::map<std::string, std::vector<std::string>> * const table_or_view_name_to_schema_map,
+                std::vector<std::string> * const triggers, std::vector<std::string> * const procedures) {
     std::string current_table_or_view;
     std::vector<std::string> current_schema;
     for (auto line : FileUtil::ReadLines(filename)) {
@@ -114,9 +112,8 @@ void LoadSchema(const std::string &filename,
                 std::sort(current_schema.begin(), current_schema.end(), SchemaLineIsLessThan);
                 (*table_or_view_name_to_schema_map)[current_table_or_view] = current_schema;
             }
-            current_table_or_view = ExtractBackQuotedString(line_starts_with_create_table
-                                                            ? line.substr(__builtin_strlen("CREATE TABLE "))
-                                                            : line.substr(__builtin_strlen("CREATE VIEW ")));
+            current_table_or_view = ExtractBackQuotedString(line_starts_with_create_table ? line.substr(__builtin_strlen("CREATE TABLE "))
+                                                                                          : line.substr(__builtin_strlen("CREATE VIEW ")));
             current_schema.clear();
         } else if (line_starts_with_create_trigger) {
             if (not current_schema.empty()) {
@@ -154,7 +151,7 @@ void LoadSchema(const std::string &filename,
 
 void CleanupSchema(std::map<std::string, std::vector<std::string>> * const table_or_view_name_to_schema_map) {
     const std::string default_char_set = "DEFAULT CHARSET=";
-    const std::string char_set = "CHARACTER SET "; //incl. space at the end
+    const std::string char_set = "CHARACTER SET "; // incl. space at the end
     std::string table_char_set;
     for (auto &[table_name, table_definitions] : *table_or_view_name_to_schema_map) {
         for (const std::string &table_definition : table_definitions) {
@@ -195,10 +192,8 @@ std::vector<std::string> FindLinesStartingWithPrefix(const std::vector<std::stri
 
 
 // Reports differences for lines that start w/ "prefix" for tables w/ the identical names.
-void CompareTables(const std::string &prefix,
-                   const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map1,
-                   const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map2)
-{
+void CompareTables(const std::string &prefix, const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map1,
+                   const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map2) {
     for (const auto &table_name1_and_schema1 : table_or_view_name_to_schema_map1) {
         const auto &table_name1(table_name1_and_schema1.first);
         const auto table_name2_and_schema2(table_or_view_name_to_schema_map2.find(table_name1));
@@ -215,7 +210,7 @@ void CompareTables(const std::string &prefix,
         for (const auto &line_in_table2 : schema2) {
             if (StringUtil::StartsWith(line_in_table2, prefix)
                 and std::find(matching_lines_in_table1.cbegin(), matching_lines_in_table1.cend(), line_in_table2)
-                    == matching_lines_in_table1.cend())
+                        == matching_lines_in_table1.cend())
                 std::cout << line_in_table2 << " is missing in 1st schema for table " << table_name1 << '\n';
         }
     }
@@ -224,21 +219,21 @@ void CompareTables(const std::string &prefix,
 
 class StartsWith {
     std::string prefix_;
+
 public:
     explicit StartsWith(const std::string &prefix): prefix_(prefix) { }
-    bool operator ()(const std::string &line) const { return StringUtil::StartsWith(line, prefix_); }
+    bool operator()(const std::string &line) const { return StringUtil::StartsWith(line, prefix_); }
 };
 
 
-class StartsWithColumnName: public StartsWith {
+class StartsWithColumnName : public StartsWith {
 public:
     explicit StartsWithColumnName(const std::string &reference_column_name): StartsWith("`" + reference_column_name + "`") { }
 };
 
 
 void CompareTableOptions(const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map1,
-                         const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map2)
-{
+                         const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map2) {
     for (const auto &table_name1_and_schema1 : table_or_view_name_to_schema_map1) {
         const auto &table_name1(table_name1_and_schema1.first);
         const auto table_name2_and_schema2(table_or_view_name_to_schema_map2.find(table_name1));
@@ -260,15 +255,14 @@ void CompareTableOptions(const std::map<std::string, std::vector<std::string>> &
         const std::string cleaned_table_options2(auto_increment_matcher->replaceAll(table_options2->substr(2), ""));
 
         if (cleaned_table_options1 != cleaned_table_options2)
-            std::cerr << "Table options differ for " << table_name1 << ": " << cleaned_table_options1 << " -> "
-                      << cleaned_table_options2 << '\n';
+            std::cerr << "Table options differ for " << table_name1 << ": " << cleaned_table_options1 << " -> " << cleaned_table_options2
+                      << '\n';
     }
 }
 
 
 void ReportUnknownLines(const std::string &schema,
-                        const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map)
-{
+                        const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map) {
     static const std::vector<std::string> KNOWN_LINE_PREFIXES{
         "KEY", "PRIMARY KEY", "UNIQUE KEY", "CONSTRAINT", "PROCEDURE NAME", ") ", "`"
     };
@@ -291,8 +285,7 @@ void ReportUnknownLines(const std::string &schema,
 
 
 void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map1,
-                 const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map2)
-{
+                 const std::map<std::string, std::vector<std::string>> &table_or_view_name_to_schema_map2) {
     std::set<std::string> already_processed_table_or_view_names;
     for (const auto &table_or_view_name1_and_schema1 : table_or_view_name_to_schema_map1) {
         const auto &table_or_view_name1(table_or_view_name1_and_schema1.first);
@@ -307,10 +300,10 @@ void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_or
         const auto &schema2(table_or_view_name2_and_schema2->second);
 
         // Compare column definitions first:
-        const auto last_column_def1(std::find_if(schema1.crbegin(), schema1.crend(),
-                                                 [](const std::string &line){ return not line.empty() and line[0] == '`'; }));
-        const auto last_column_def2(std::find_if(schema2.crbegin(), schema2.crend(),
-                                                 [](const std::string &line){ return not line.empty() and line[0] == '`'; }));
+        const auto last_column_def1(
+            std::find_if(schema1.crbegin(), schema1.crend(), [](const std::string &line) { return not line.empty() and line[0] == '`'; }));
+        const auto last_column_def2(
+            std::find_if(schema2.crbegin(), schema2.crend(), [](const std::string &line) { return not line.empty() and line[0] == '`'; }));
 
         std::set<std::string> already_processed_column_names;
         for (auto column_def1(schema1.cbegin()); column_def1 != last_column_def1.base(); ++column_def1) {
@@ -320,8 +313,8 @@ void DiffSchemas(const std::map<std::string, std::vector<std::string>> &table_or
             if (column_def2 == last_column_def2.base())
                 std::cout << "Column does not exist in 1st schema: " << table_or_view_name1 << '.' << column_name1 << '\n';
             else if (*column_def1 != *column_def2)
-                std::cout << "Column definition differs between the 1st and 2nd schemas (" << table_or_view_name1 << "): "
-                          << *column_def1 << " -> " << *column_def2 << '\n';
+                std::cout << "Column definition differs between the 1st and 2nd schemas (" << table_or_view_name1 << "): " << *column_def1
+                          << " -> " << *column_def2 << '\n';
         }
 
         for (auto column_def2(schema2.cbegin()); column_def2 != last_column_def2.base(); ++column_def2) {
@@ -366,9 +359,7 @@ void DiffTriggers(const std::vector<std::string> &triggers1, const std::vector<s
 
         if (name1 == name2 and table1 == table2) {
             if (*trigger1 != *trigger2) {
-                std::cout << "Triggers w/ same name and same tables differ:\n"
-                          << '\t' << *trigger1 << '\n'
-                          << '\t' << *trigger2 << '\n';
+                std::cout << "Triggers w/ same name and same tables differ:\n" << '\t' << *trigger1 << '\n' << '\t' << *trigger2 << '\n';
             }
             ++trigger1, ++trigger2;
         } else if (name1 + table1 < name2 + table2) {
@@ -411,8 +402,9 @@ void DiffProcedures(const std::vector<std::string> &procedures1, const std::vect
 
 int Main(int argc, char *argv[]) {
     if (argc != 3)
-        ::Usage("schema1 schema2\n"
-                "Please note that this tool may not work particularly well if you do not use output from mysql_list_tables");
+        ::Usage(
+            "schema1 schema2\n"
+            "Please note that this tool may not work particularly well if you do not use output from mysql_list_tables");
 
     std::map<std::string, std::vector<std::string>> table_or_view_name_to_schema_map1;
     std::vector<std::string> triggers1, procedures1;

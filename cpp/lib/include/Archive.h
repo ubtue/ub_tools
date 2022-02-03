@@ -20,11 +20,10 @@
 #pragma once
 
 
-#include <archive.h>
-#include <archive_entry.h>
-#include <unordered_set>
 #include <string>
 #include <unordered_set>
+#include <archive.h>
+#include <archive_entry.h>
 
 
 namespace Archive {
@@ -32,10 +31,12 @@ namespace Archive {
 
 class Reader {
     archive *archive_handle_;
+
 public:
     class EntryInfo {
         friend class Reader;
         archive_entry *archive_entry_;
+
     public:
         EntryInfo(): archive_entry_(nullptr) { }
 
@@ -45,6 +46,7 @@ public:
         bool isRegularFile() const;
         bool isDirectory() const;
     };
+
 public:
     explicit Reader(const std::string &archive_file_name);
     ~Reader();
@@ -76,9 +78,11 @@ class Writer {
     archive_entry *archive_entry_;
     std::unordered_set<std::string> already_seen_archive_names_;
     bool closed_;
+
 public:
     enum class FileType { AUTO, TAR, GZIPPED_TAR, ZIP };
     enum class EntryType { REGULAR_FILE };
+
 public:
     // \param archive_write_options  Currently supported is only "compression-level" for gzipped archives!
     explicit Writer(const std::string &archive_file_name, const std::string &archive_write_options,

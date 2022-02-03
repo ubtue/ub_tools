@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <stdexcept>
@@ -70,18 +70,13 @@ int Main(int argc, char *argv[]) {
 
     unsigned max_rotations(DEFAULT_MAX_ROTATIONS), max_line_count(0);
     if (StringUtil::StartsWith(argv[1], "--max-rotations=")) {
-        if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--max-rotations="), &max_rotations)
-            or max_rotations == 0)
-            LOG_ERROR("\"" + std::string(argv[1] + std::strlen("--max-rotations="))
-                      + "\" is not a valid maximum rotation count!");
+        if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--max-rotations="), &max_rotations) or max_rotations == 0)
+            LOG_ERROR("\"" + std::string(argv[1] + std::strlen("--max-rotations=")) + "\" is not a valid maximum rotation count!");
         --argc, ++argv;
     } else if (StringUtil::StartsWith(argv[1], "--no-of-lines-to-keep=")) {
-        if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--no-of-lines-to-keep="), &max_line_count)
-            or max_line_count == 0)
-            if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--no-of-lines-to-keep="), &max_line_count)
-                or max_line_count == 0)
-                LOG_ERROR("\"" + std::string(argv[1] + std::strlen("--no-of-lines-to-keep="))
-                          + "\" is not a valid line count!");
+        if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--no-of-lines-to-keep="), &max_line_count) or max_line_count == 0)
+            if (not StringUtil::ToUnsigned(argv[1] + std::strlen("--no-of-lines-to-keep="), &max_line_count) or max_line_count == 0)
+                LOG_ERROR("\"" + std::string(argv[1] + std::strlen("--no-of-lines-to-keep=")) + "\" is not a valid line count!");
         --argc, ++argv;
     }
 
@@ -111,7 +106,7 @@ int Main(int argc, char *argv[]) {
                 }
                 ::close(fd);
             } else {
-                const auto pids(ProcessUtil::GetProcessIdsForPath(filename, /* exclude_self = */true));
+                const auto pids(ProcessUtil::GetProcessIdsForPath(filename, /* exclude_self = */ true));
                 MiscUtil::LogRotate(filename, max_rotations);
                 if (recreate) {
                     FileUtil::TouchFileOrDie(filename);
@@ -123,8 +118,7 @@ int Main(int argc, char *argv[]) {
                     uid_t uid;
                     gid_t gid;
                     entry.getUidAndGid(&uid, &gid);
-                    FileUtil::ChangeOwnerOrDie(filename, FileUtil::UsernameFromUID(uid),
-                                               FileUtil::GroupnameFromGID(gid));
+                    FileUtil::ChangeOwnerOrDie(filename, FileUtil::UsernameFromUID(uid), FileUtil::GroupnameFromGID(gid));
                     if (SELinuxUtil::IsEnabled())
                         SELinuxUtil::FileContext::ApplyChanges(filename);
 

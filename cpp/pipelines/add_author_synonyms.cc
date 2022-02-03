@@ -54,10 +54,9 @@ std::string ExtractNameFromSubfields(const MARC::Record::Field &field, const std
 
 void ExtractSynonyms(MARC::Reader * const marc_reader,
                      std::unordered_map<std::string, std::unordered_set<std::string>> * const author_to_synonyms_map,
-                     const std::string &field_list)
-{
+                     const std::string &field_list) {
     std::vector<std::string> tags_and_subfield_codes;
-    if (unlikely(StringUtil::Split(field_list, ':', &tags_and_subfield_codes, /* suppress_empty_components = */true) < 2))
+    if (unlikely(StringUtil::Split(field_list, ':', &tags_and_subfield_codes, /* suppress_empty_components = */ true) < 2))
         LOG_ERROR("need at least two fields!");
     unsigned count(0);
     while (const MARC::Record record = marc_reader->read()) {
@@ -67,8 +66,7 @@ void ExtractSynonyms(MARC::Reader * const marc_reader,
         if (primary_name_field == record.end())
             continue;
 
-        const std::string primary_name(ExtractNameFromSubfields(*primary_name_field,
-                                                                tags_and_subfield_codes[0].substr(3)));
+        const std::string primary_name(ExtractNameFromSubfields(*primary_name_field, tags_and_subfield_codes[0].substr(3)));
         if (unlikely(primary_name.empty()))
             continue;
 
@@ -80,8 +78,7 @@ void ExtractSynonyms(MARC::Reader * const marc_reader,
             const std::string tag(tag_and_subfield_codes.substr(0, MARC::Record::TAG_LENGTH));
             const std::string secondary_field_subfield_codes(tag_and_subfield_codes.substr(MARC::Record::TAG_LENGTH));
             for (const auto &secondary_name_field : record.getTagRange(tag)) {
-                const std::string secondary_name(ExtractNameFromSubfields(secondary_name_field,
-                                                                          secondary_field_subfield_codes));
+                const std::string secondary_name(ExtractNameFromSubfields(secondary_name_field, secondary_field_subfield_codes));
                 if (not secondary_name.empty())
                     synonyms.emplace(secondary_name);
             }
@@ -101,8 +98,7 @@ const std::string SYNOMYM_FIELD("109"); // This must be an o/w unused field!
 
 void ProcessRecord(MARC::Record * const record,
                    const std::unordered_map<std::string, std::unordered_set<std::string>> &author_to_synonyms_map,
-                   const std::string &primary_author_field)
-{
+                   const std::string &primary_author_field) {
     if (unlikely(record->findTag(SYNOMYM_FIELD) != record->end()))
         LOG_ERROR("field " + SYNOMYM_FIELD + " is apparently already in use in at least some title records!");
 
@@ -110,8 +106,7 @@ void ProcessRecord(MARC::Record * const record,
     if (primary_name_field == record->end())
         return;
 
-    const std::string primary_name(ExtractNameFromSubfields(*primary_name_field,
-                                                            primary_author_field.substr(3)));
+    const std::string primary_name(ExtractNameFromSubfields(*primary_name_field, primary_author_field.substr(3)));
     if (unlikely(primary_name.empty()))
         return;
 
@@ -124,8 +119,7 @@ void ProcessRecord(MARC::Record * const record,
     for (const auto &synonym : author_and_synonyms->second) {
         if (target_field_size + 2 /* delimiter + subfield code */ + synonym.length() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH) {
             if (not record->insertField(SYNOMYM_FIELD, subfields)) {
-                LOG_WARNING("Not enough room to add a " + SYNOMYM_FIELD + " field! (Control number: "
-                            + record->getControlNumber() + ")");
+                LOG_WARNING("Not enough room to add a " + SYNOMYM_FIELD + " field! (Control number: " + record->getControlNumber() + ")");
                 return;
             }
             subfields.clear();
@@ -135,18 +129,16 @@ void ProcessRecord(MARC::Record * const record,
         target_field_size += 2 /* delimiter + subfield code */ + synonym.length();
     }
     if (not subfields.empty() and not record->insertField(SYNOMYM_FIELD, subfields)) {
-        LOG_WARNING("Not enough room to add a " + SYNOMYM_FIELD + " field! (Control number: "
-                    + record->getControlNumber() + ")");
+        LOG_WARNING("Not enough room to add a " + SYNOMYM_FIELD + " field! (Control number: " + record->getControlNumber() + ")");
     }
 
     ++modified_count;
 }
 
 
-void AddAuthorSynonyms(MARC::Reader * const marc_reader, MARC::Writer * marc_writer,
+void AddAuthorSynonyms(MARC::Reader * const marc_reader, MARC::Writer *marc_writer,
                        const std::unordered_map<std::string, std::unordered_set<std::string>> &author_to_synonyms_map,
-                       const std::string &primary_author_field)
-{
+                       const std::string &primary_author_field) {
     while (MARC::Record record = marc_reader->read()) {
         ProcessRecord(&record, author_to_synonyms_map, primary_author_field);
         marc_writer->write(record);

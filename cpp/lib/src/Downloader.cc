@@ -83,9 +83,13 @@ static curl_slist *RemoveAllWithMatchingPrefix(curl_slist * const slist, const c
 class UploadBuffer {
     std::string data_;
     std::string::const_iterator start_;
+
 public:
     UploadBuffer(const std::string &data): data_(data), start_(data_.cbegin()) { }
-    inline void reset(const std::string &data) { data_ = data; start_ = data_.cbegin(); }
+    inline void reset(const std::string &data) {
+        data_ = data;
+        start_ = data_.cbegin();
+    }
     size_t read(char * const buffer, const size_t size);
 };
 
@@ -125,41 +129,36 @@ const std::string Downloader::DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG("Disallowed by 
 std::string Downloader::default_user_agent_string_;
 
 
-Downloader::Params::Params(const std::string &user_agent, const std::string &acceptable_languages,
-                           const long max_redirect_count, const long dns_cache_timeout,
-                           const bool honour_robots_dot_txt, const TextTranslationMode text_translation_mode,
-                           const PerlCompatRegExps &banned_reg_exps, const bool debugging,
-                           const bool follow_redirects, const unsigned meta_redirect_threshold, const bool ignore_ssl_certificates,
+Downloader::Params::Params(const std::string &user_agent, const std::string &acceptable_languages, const long max_redirect_count,
+                           const long dns_cache_timeout, const bool honour_robots_dot_txt, const TextTranslationMode text_translation_mode,
+                           const PerlCompatRegExps &banned_reg_exps, const bool debugging, const bool follow_redirects,
+                           const unsigned meta_redirect_threshold, const bool ignore_ssl_certificates,
                            const std::string &proxy_host_and_port, const std::vector<std::string> &additional_headers,
-                           const std::string &post_data,
-                           const std::string &authentication_username, const std::string &authentication_password)
+                           const std::string &post_data, const std::string &authentication_username,
+                           const std::string &authentication_password)
     : user_agent_(user_agent), acceptable_languages_(acceptable_languages), max_redirect_count_(max_redirect_count),
-      dns_cache_timeout_(dns_cache_timeout), honour_robots_dot_txt_(honour_robots_dot_txt),
-      text_translation_mode_(text_translation_mode), banned_reg_exps_(banned_reg_exps), debugging_(debugging),
-      follow_redirects_(follow_redirects), meta_redirect_threshold_(meta_redirect_threshold), ignore_ssl_certificates_(ignore_ssl_certificates),
-      proxy_host_and_port_(proxy_host_and_port), additional_headers_(additional_headers),
-      post_data_(post_data), authentication_username_(authentication_username), authentication_password_(authentication_password)
-{
-    max_redirect_count_ = follow_redirects_ ? max_redirect_count_ : 0 ;
+      dns_cache_timeout_(dns_cache_timeout), honour_robots_dot_txt_(honour_robots_dot_txt), text_translation_mode_(text_translation_mode),
+      banned_reg_exps_(banned_reg_exps), debugging_(debugging), follow_redirects_(follow_redirects),
+      meta_redirect_threshold_(meta_redirect_threshold), ignore_ssl_certificates_(ignore_ssl_certificates),
+      proxy_host_and_port_(proxy_host_and_port), additional_headers_(additional_headers), post_data_(post_data),
+      authentication_username_(authentication_username), authentication_password_(authentication_password) {
+    max_redirect_count_ = follow_redirects_ ? max_redirect_count_ : 0;
 
     if (unlikely(max_redirect_count_ < 0 or max_redirect_count_ > MAX_MAX_REDIRECT_COUNT))
-        throw std::runtime_error("in Downloader::Params::Params: max_redirect_count (= "
-                                 + StringUtil::ToString(max_redirect_count) + " must be between 1 and "
-                                 + StringUtil::ToString(MAX_MAX_REDIRECT_COUNT) + "!");
+        throw std::runtime_error("in Downloader::Params::Params: max_redirect_count (= " + StringUtil::ToString(max_redirect_count)
+                                 + " must be between 1 and " + StringUtil::ToString(MAX_MAX_REDIRECT_COUNT) + "!");
 }
 
 
 Downloader::Downloader(const Url &url, const Params &params, const TimeLimit &time_limit)
-    : multi_mode_(false), additional_http_headers_(nullptr), upload_buffer_(nullptr), params_(params)
-{
+    : multi_mode_(false), additional_http_headers_(nullptr), upload_buffer_(nullptr), params_(params) {
     init();
     newUrl(url, time_limit);
 }
 
 
 Downloader::Downloader(const std::string &url, const Params &params, const TimeLimit &time_limit, bool multimode)
-    : multi_mode_(multimode), additional_http_headers_(nullptr), upload_buffer_(nullptr), params_(params)
-{
+    : multi_mode_(multimode), additional_http_headers_(nullptr), upload_buffer_(nullptr), params_(params) {
     init();
     newUrl(url, time_limit);
 }
@@ -188,7 +187,7 @@ void SplitHttpHeaders(std::string possible_combo_headers, std::vector<std::strin
     StringUtil::ReplaceString("\r\n", "\n", &possible_combo_headers);
     StringUtil::ReplaceString("\n", "\r\n", &possible_combo_headers);
 
-    StringUtil::Split(possible_combo_headers, std::string("\r\n\r\n"), individual_headers, /* suppress_empty_components = */true);
+    StringUtil::Split(possible_combo_headers, std::string("\r\n\r\n"), individual_headers, /* suppress_empty_components = */ true);
     for (auto &individual_header : *individual_headers)
         individual_header += "\r\n\r\n";
 }
@@ -227,7 +226,7 @@ bool Downloader::newUrl(const Url &url, const TimeLimit &time_limit) {
             return false;
 
         std::string redirect_url;
-        if (current_url_.isValidWebUrl() ) {
+        if (current_url_.isValidWebUrl()) {
             if (getHttpEquivRedirect(&redirect_url)) {
                 current_url_ = Url(redirect_url, current_url_);
                 continue;
@@ -316,7 +315,7 @@ unsigned Downloader::getResponseCode() {
             LOG_INFO("Read from local file - return dummy response code 200");
             return 200;
         } else
-           LOG_ERROR("Failed to get HTTP response code from header: " + header);
+            LOG_ERROR("Failed to get HTTP response code from header: " + header);
     }
 
     return StringUtil::ToUnsigned((*matcher)[1]);
@@ -333,7 +332,7 @@ void Downloader::init() {
         throw std::runtime_error("in Downloader::init: curl_easy_init() failed!");
 
     if (share_handle_ == nullptr) {
-        share_handle_ = ::curl_share_init( );
+        share_handle_ = ::curl_share_init();
         if (unlikely(share_handle_ == nullptr))
             throw std::runtime_error("in Downloader::init: curl_share_init() failed!");
         if (unlikely(::curl_share_setopt(share_handle_, CURLSHOPT_LOCKFUNC, LockFunction) != 0))
@@ -360,7 +359,7 @@ void Downloader::init() {
     curlEasySetopt(CURLOPT_WRITEFUNCTION, WriteFunction, "Downloader::init:CURLOPT_WRITEFUNCTION");
 
     // Enabling the following option seems to greatly slow down the downloading of Web pages!
-    //curlEasySetopt(CURLOPT_IGNORE_CONTENT_LENGTH, 1L, "Downloader::init:CURLOPT_IGNORE_CONTENT_LENGTH");
+    // curlEasySetopt(CURLOPT_IGNORE_CONTENT_LENGTH, 1L, "Downloader::init:CURLOPT_IGNORE_CONTENT_LENGTH");
 
     const long should_follow(params_.follow_redirects_ ? 1L : 0L);
     curlEasySetopt(CURLOPT_FOLLOWLOCATION, should_follow, "Downloader::init:CURLOPT_FOLLOWLOCATION");
@@ -374,8 +373,8 @@ void Downloader::init() {
     curlEasySetopt(CURLOPT_AUTOREFERER, 1L, "Downloader::init:CURLOPT_AUTOREFERER");
 
     if (not params_.acceptable_languages_.empty())
-        additional_http_headers_ = curl_slist_append(additional_http_headers_,
-                                                     ("Accept-Language: " + params_.acceptable_languages_).c_str());
+        additional_http_headers_ =
+            curl_slist_append(additional_http_headers_, ("Accept-Language: " + params_.acceptable_languages_).c_str());
 
     for (const auto &additional_header : params_.additional_headers_)
         additional_http_headers_ = curl_slist_append(additional_http_headers_, additional_header.c_str());
@@ -397,7 +396,6 @@ void Downloader::init() {
         curlEasySetopt(CURLOPT_USERNAME, params_.authentication_username_.c_str(), "Downloader::init:CURLOPT_USERNAME");
         curlEasySetopt(CURLOPT_PASSWORD, params_.authentication_password_.c_str(), "Downloader::init:CURLOPT_PASSWORD");
     }
-
 }
 
 
@@ -439,9 +437,7 @@ size_t Downloader::WriteFunction(void *data, size_t size, size_t nmemb, void *th
 }
 
 
-void Downloader::LockFunction(CURL */* handle */, curl_lock_data data, curl_lock_access /* access */,
-                              void */* unused */)
-{
+void Downloader::LockFunction(CURL * /* handle */, curl_lock_data data, curl_lock_access /* access */, void * /* unused */) {
     if (data == CURL_LOCK_DATA_DNS)
         Downloader::dns_mutex_.lock();
     else if (data == CURL_LOCK_DATA_COOKIE)
@@ -449,7 +445,7 @@ void Downloader::LockFunction(CURL */* handle */, curl_lock_data data, curl_lock
 }
 
 
-void Downloader::UnlockFunction(CURL */* handle */, curl_lock_data data, void */* unused */) {
+void Downloader::UnlockFunction(CURL * /* handle */, curl_lock_data data, void * /* unused */) {
     if (data == CURL_LOCK_DATA_DNS)
         Downloader::dns_mutex_.unlock();
     else if (data == CURL_LOCK_DATA_COOKIE)
@@ -484,7 +480,7 @@ size_t Downloader::HeaderFunction(void *data, size_t size, size_t nmemb, void *t
 }
 
 
-void Downloader::debugFunction(CURL */* handle */, curl_infotype infotype, char *data, size_t size) {
+void Downloader::debugFunction(CURL * /* handle */, curl_infotype infotype, char *data, size_t size) {
     switch (infotype) {
     case CURLINFO_TEXT:
         LOG_INFO("informational text: " + std::string(data, size));
@@ -530,8 +526,8 @@ bool Downloader::allowedByRobotsDotTxt(const Url &url, const TimeLimit &time_lim
     {
         // Check to see if we already have a robots.txt object for the current URL:
         std::lock_guard<std::mutex> mutex_locker(robots_dot_txt_mutex_);
-        const std::unordered_map<std::string, RobotsDotTxt>::const_iterator
-            url_and_robots_dot_txt(url_to_robots_dot_txt_map_.find(robots_txt_url));
+        const std::unordered_map<std::string, RobotsDotTxt>::const_iterator url_and_robots_dot_txt(
+            url_to_robots_dot_txt_map_.find(robots_txt_url));
         if (url_and_robots_dot_txt != url_to_robots_dot_txt_map_.end())
             return url_and_robots_dot_txt->second.accessAllowed(getUserAgent(), url);
     }
@@ -607,15 +603,14 @@ bool Downloader::getHttpEquivRedirect(std::string * const redirect_url) const {
         return false;
 
     // Look for HTTP-EQUIV "Refresh" meta tags:
-    std::list< std::pair<std::string, std::string> > refresh_meta_tags;
+    std::list<std::pair<std::string, std::string> > refresh_meta_tags;
     HttpEquivExtractor http_equiv_extractor(body_, "refresh", &refresh_meta_tags);
     http_equiv_extractor.parse();
     if (refresh_meta_tags.empty())
         return false;
 
     std::string delay, url_and_possible_junk;
-    if (not StringUtil::SplitOnStringThenTrimWhite(refresh_meta_tags.front().second, ";", &delay,
-                                                   &url_and_possible_junk))
+    if (not StringUtil::SplitOnStringThenTrimWhite(refresh_meta_tags.front().second, ";", &delay, &url_and_possible_junk))
         return false;
 
     unsigned delay_unsigned;
@@ -636,8 +631,7 @@ bool Downloader::getHttpEquivRedirect(std::string * const redirect_url) const {
 void Downloader::setAcceptableLanguages(const std::string &acceptable_languages) {
     params_.acceptable_languages_ = acceptable_languages;
     RemoveAllWithMatchingPrefix(additional_http_headers_, "Accept-Language:");
-    additional_http_headers_ = curl_slist_append(additional_http_headers_,
-                                                 ("Accept-Language: " + params_.acceptable_languages_).c_str());
+    additional_http_headers_ = curl_slist_append(additional_http_headers_, ("Accept-Language: " + params_.acceptable_languages_).c_str());
 }
 
 
@@ -667,14 +661,14 @@ void Downloader::setUserAgent(const std::string &user_agent) {
 bool Downloader::getHttpRedirectedUrl(std::string * const redirected_url) {
     if (params_.follow_redirects_)
         throw std::runtime_error(__FUNCTION__ + std::string(" Cannot determine redirect url if automatic redirection is enabled"));
-    //We only address 3XX HTTP codes
+    // We only address 3XX HTTP codes
     if (getResponseCode() / 100 != 3)
         return false;
-    char *location(nullptr); //c.f. https://curl.haxx.se/libcurl/c/curl_easy_getinfo.html
+    char *location(nullptr); // c.f. https://curl.haxx.se/libcurl/c/curl_easy_getinfo.html
     curl_error_code_ = ::curl_easy_getinfo(getEasyHandle(), CURLINFO_REDIRECT_URL, &location);
     *redirected_url = location;
     if (curl_error_code_ != CURLE_OK)
-       throw std::runtime_error(__FUNCTION__ + std::string(" Could not determine redirect URL"));
+        throw std::runtime_error(__FUNCTION__ + std::string(" Could not determine redirect URL"));
     return true;
 }
 

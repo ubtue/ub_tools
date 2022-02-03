@@ -16,32 +16,33 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
-#include "util.h"
-#include "StringUtil.h"
-#include "MARC.h"
-#include "BeaconFile.h"
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <regex>
+#include "BeaconFile.h"
+#include "MARC.h"
+#include "StringUtil.h"
+#include "util.h"
 
-//Scenario 1:
-// use --create_mapping_file parameter <filepath> to generate the mapping file 
+// Scenario 1:
+// use --create_mapping_file parameter <filepath> to generate the mapping file
 //  of the downloaded dnb authoriy dump (must bei unzipped first)
-//  Download from:  https://data.dnb.de/opendata/authorities-person_lds.jsonld.gz 
+//  Download from:  https://data.dnb.de/opendata/authorities-person_lds.jsonld.gz
 //  and unzip to e.g. authorities-person_lds_20210613.jsonld
 //  output is stdout
-//Scenario 2:
-// use converted file from scenario 1 from cpp/data to create a map during 
+// Scenario 2:
+// use converted file from scenario 1 from cpp/data to create a map during
 //  pipeline processing. The norm_data_input is extended by wikidata ids where possible
 //  and saved to 024 field indicator1:7 where wikidata id is not yet present
 //  file can be taken from /mnt/ZE020150/FID-Entwicklung/ub_tools (gnd_to_wiki.txt)
 [[noreturn]] void Usage() {
-    ::Usage("    :\n"
-            "     invocation modes:\n"
-            "     1.)   norm_data_marc_input norm_data_marc_output mapping_txt_file\n"
-            "     2.)   --create_mapping_file dnb_input_unzipped_file mapping_txt_file\n");
+    ::Usage(
+        "    :\n"
+        "     invocation modes:\n"
+        "     1.)   norm_data_marc_input norm_data_marc_output mapping_txt_file\n"
+        "     2.)   --create_mapping_file dnb_input_unzipped_file mapping_txt_file\n");
 }
 
 
@@ -59,8 +60,9 @@ void ParseDataDnbFile(std::string input_filename, std::string output_filename) {
         bool read_gnd_id(false);
         while (std::getline(input_file, line)) {
             if (line == "}, {") {
-                if (not act_gnd.empty() and not act_name.empty() and not act_wikidata.empty() ) {
-                    output_file << "Name: " << act_name << " GND: " << act_gnd << " Wikidata: " << act_wikidata << " Wikipedia: " << act_wikipedia << "\n";
+                if (not act_gnd.empty() and not act_name.empty() and not act_wikidata.empty()) {
+                    output_file << "Name: " << act_name << " GND: " << act_gnd << " Wikidata: " << act_wikidata
+                                << " Wikipedia: " << act_wikipedia << "\n";
                 }
                 act_gnd = "";
                 act_name = "";
@@ -93,14 +95,13 @@ void ParseDataDnbFile(std::string input_filename, std::string output_filename) {
         }
         input_file.close();
         output_file.close();
-    }
-    else 
+    } else
         LOG_ERROR("input or output files could not be opened");
 }
 
 
-void ParseGndWikidataMappingFile(std::string filename, std::unordered_map<std::string, std::vector<std::string>> * const gnd_to_wikidataid_and_wikipedia_link) 
-{
+void ParseGndWikidataMappingFile(std::string filename,
+                                 std::unordered_map<std::string, std::vector<std::string>>* const gnd_to_wikidataid_and_wikipedia_link) {
     std::ifstream file(filename);
     if (file.is_open()) {
         std::string line;
@@ -112,7 +113,9 @@ void ParseGndWikidataMappingFile(std::string filename, std::unordered_map<std::s
             const std::string GND = "GND:";
             const std::string WIKIDATA = "Wikidata:";
             const std::string WIKIPEDIA = "Wikipedia:";
-            if (StringUtil::StartsWith(line, NAME) and StringUtil::Contains(line, GND) and StringUtil::Contains(line, WIKIDATA) and StringUtil::Contains(line, WIKIPEDIA)) {
+            if (StringUtil::StartsWith(line, NAME) and StringUtil::Contains(line, GND) and StringUtil::Contains(line, WIKIDATA)
+                and StringUtil::Contains(line, WIKIPEDIA))
+            {
                 act_gnd = line.substr(line.find(GND) + GND.length());
                 act_gnd = act_gnd.substr(0, act_gnd.find(WIKIDATA));
                 act_wikidata = line.substr(line.find(WIKIDATA) + WIKIDATA.length());
@@ -123,15 +126,13 @@ void ParseGndWikidataMappingFile(std::string filename, std::unordered_map<std::s
             }
         }
         file.close();
-    }
-    else 
+    } else
         LOG_ERROR("input or output files could not be opened");
 }
 
 
-int Main(int argc, char * argv[]) {
-
-     if (argc != 4)
+int Main(int argc, char* argv[]) {
+    if (argc != 4)
         Usage();
 
     const std::string marc_input_filename_or_create_flag(argv[1]);
@@ -139,7 +140,7 @@ int Main(int argc, char * argv[]) {
     const std::string mapping_txt_filename(argv[3]);
 
     if (marc_input_filename_or_create_flag == "--create_mapping_file") {
-        //e.g. "/..../authorities-person_lds_20210613.jsonld" and /usr/local/ub_tools/cpp/data/gnd_to_wiki.txt
+        // e.g. "/..../authorities-person_lds_20210613.jsonld" and /usr/local/ub_tools/cpp/data/gnd_to_wiki.txt
         ParseDataDnbFile(marc_output_filename_or_dnb_input, mapping_txt_filename);
         return EXIT_SUCCESS;
     }
@@ -166,7 +167,7 @@ int Main(int argc, char * argv[]) {
         MARC::GetWikidataId(record, &wikidata_id_orig);
         MARC::GetWikipediaLink(record, &wikipedia_link_orig);
 
-        //record lookup
+        // record lookup
         if (not record_gnd.empty()) {
             auto gnd_to_wikielements_iter = gnd_to_wikielements.find(record_gnd);
             if (gnd_to_wikielements_iter != gnd_to_wikielements.end()) {
@@ -182,7 +183,7 @@ int Main(int argc, char * argv[]) {
             record.insertField("024", { { 'a', wikidata_id }, { '2', "wikidata" }, { '9', "PipeLineGenerated" } }, /*indicator 1*/ '7');
         if (not wikipedia_link.empty() and wikipedia_link != wikipedia_link_orig)
             record.insertField("670", { { 'a', "Wikipedia" }, { 'u', wikipedia_link }, { '9', "PipeLineGenerated" } });
-        
+
         marc_writer.get()->write(record);
     }
 

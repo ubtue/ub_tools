@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 
 
@@ -52,6 +52,7 @@ class Tag {
         uint32_t as_int_;
         char as_cstring_[4];
     } tag_;
+
 public:
     inline Tag() { tag_.as_int_ = 0; }
     inline Tag(const char raw_tag[4]) {
@@ -75,19 +76,22 @@ public:
     /** Copy constructor. */
     Tag(const Tag &other_tag): tag_(other_tag.tag_) { }
 
-    Tag &operator=(const Tag &rhs) { tag_ = rhs.tag_; return *this; }
+    Tag &operator=(const Tag &rhs) {
+        tag_ = rhs.tag_;
+        return *this;
+    }
     bool operator==(const Tag &rhs) const { return to_int() == rhs.to_int(); }
     bool operator!=(const Tag &rhs) const { return to_int() != rhs.to_int(); }
-    bool operator>(const Tag &rhs) const  { return to_int() >  rhs.to_int(); }
+    bool operator>(const Tag &rhs) const { return to_int() > rhs.to_int(); }
     bool operator>=(const Tag &rhs) const { return to_int() >= rhs.to_int(); }
-    bool operator<(const Tag &rhs) const  { return to_int() <  rhs.to_int(); }
+    bool operator<(const Tag &rhs) const { return to_int() < rhs.to_int(); }
     bool operator<=(const Tag &rhs) const { return to_int() <= rhs.to_int(); }
 
     bool operator==(const std::string &rhs) const { return ::strcmp(c_str(), rhs.c_str()) == 0; }
     bool operator==(const char rhs[4]) const { return ::strcmp(c_str(), rhs) == 0; }
 
-    std::ostream& operator<<(std::ostream& os) const { return os << toString(); }
-    friend std::ostream &operator<<(std::ostream &output,  const Tag &tag) { return output << tag.toString(); }
+    std::ostream &operator<<(std::ostream &os) const { return os << toString(); }
+    friend std::ostream &operator<<(std::ostream &output, const Tag &tag) { return output << tag.toString(); }
 
     inline const char *c_str() const { return tag_.as_cstring_; }
     inline const std::string toString() const { return std::string(c_str(), 3); }
@@ -115,13 +119,13 @@ bool IsStandardTag(const Tag &tag);
 
 
 namespace std {
-    template <>
-    struct hash<MARC::Tag> {
-        size_t operator()(const MARC::Tag &m) const {
-            // hash method here.
-            return hash<int>()(m.to_int());
-        }
-    };
+template <>
+struct hash<MARC::Tag> {
+    size_t operator()(const MARC::Tag &m) const {
+        // hash method here.
+        return hash<int>()(m.to_int());
+    }
+};
 } // namespace std
 
 
@@ -131,6 +135,7 @@ namespace MARC {
 struct Subfield {
     char code_;
     std::string value_;
+
 public:
     Subfield(const char code, const std::string &value): code_(code), value_(value) { }
     Subfield(const Subfield &other) = default;
@@ -150,9 +155,11 @@ public:
 
 class Subfields {
     std::vector<Subfield> subfields_;
+
 public:
     typedef std::vector<Subfield>::const_iterator const_iterator;
     typedef std::vector<Subfield>::iterator iterator;
+
 public:
     Subfields() = default;
     inline Subfields(std::vector<Subfield> &&subfields): subfields_(subfields) { }
@@ -171,17 +178,18 @@ public:
 
     inline bool hasSubfield(const char subfield_code) const {
         return std::find_if(subfields_.cbegin(), subfields_.cend(),
-                            [subfield_code](const Subfield subfield) -> bool
-                                { return subfield.code_ == subfield_code; }) != subfields_.cend();
+                            [subfield_code](const Subfield subfield) -> bool { return subfield.code_ == subfield_code; })
+               != subfields_.cend();
     }
 
     inline bool hasSubfieldWithValue(const char subfield_code, const std::string &value, const bool case_insensitive = false) const {
         return std::find_if(subfields_.cbegin(), subfields_.cend(),
-                            [subfield_code, value, case_insensitive](const Subfield subfield) -> bool
-                                { return subfield.code_ == subfield_code and
-                                  (case_insensitive ? StringUtil::ASCIIToUpper(subfield.value_) == StringUtil::ASCIIToUpper(value) :
-                                                      subfield.value_ == value);
-                                }) != subfields_.cend();
+                            [subfield_code, value, case_insensitive](const Subfield subfield) -> bool {
+                                return subfield.code_ == subfield_code
+                                       and (case_insensitive ? StringUtil::ASCIIToUpper(subfield.value_) == StringUtil::ASCIIToUpper(value)
+                                                             : subfield.value_ == value);
+                            })
+               != subfields_.cend();
     }
 
     // Inserts the new subfield after all leading subfields that have a code that preceeds "subfield_code" when using an
@@ -189,11 +197,11 @@ public:
     void addSubfield(const char subfield_code, const std::string &subfield_value);
 
     // Appends the new subfield at the end of any existing subfields.
-    inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
-        { subfields_.emplace_back(subfield_code, subfield_value); }
+    inline void appendSubfield(const char subfield_code, const std::string &subfield_value) {
+        subfields_.emplace_back(subfield_code, subfield_value);
+    }
 
-    inline void appendSubfield(const Subfield &subfield)
-        { subfields_.emplace_back(subfield.code_, subfield.value_); }
+    inline void appendSubfield(const Subfield &subfield) { subfields_.emplace_back(subfield.code_, subfield.value_); }
 
     /** \brief Replaces the contents of the first subfield w/ the specified subfield code.
      *  \return True if we replaced the subfield contents and false if a subfield w/ the given code was not found.
@@ -203,8 +211,7 @@ public:
     /** \brief Replaces the contents of all subfields w/ the specified subfield code and given content.
      *  \return True if we replaced the contents of at least one subfield.
      */
-    bool replaceAllSubfields(const char subfield_code, const std::string &old_subfield_value,
-                             const std::string &new_subfield_value);
+    bool replaceAllSubfields(const char subfield_code, const std::string &old_subfield_value, const std::string &new_subfield_value);
 
     /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes".
      *  \return The values of the subfields with matching codes.
@@ -218,7 +225,7 @@ public:
         return extracted_values;
     }
 
-   /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes".
+    /** \brief Extracts all values from subfields with codes in the "list" of codes in "subfield_codes".
      * \note In the case of numeric subfield codes the following character in "subfield_codes" will also be considered and
      *       only subfield values starting with this character followed by a colon will be extracted (w/o the character and
      *       colon).
@@ -232,8 +239,7 @@ public:
     /** \return Either the contents of the subfield or the empty string if no corresponding subfield was found. */
     inline std::string getFirstSubfieldWithCode(const char subfield_code) const {
         const auto iter(std::find_if(subfields_.cbegin(), subfields_.cend(),
-                                     [subfield_code](const Subfield subfield) -> bool
-                                         { return subfield.code_ == subfield_code; }));
+                                     [subfield_code](const Subfield subfield) -> bool { return subfield.code_ == subfield_code; }));
         return (iter == subfields_.cend()) ? "" : iter->value_;
     }
 
@@ -251,23 +257,24 @@ public:
 
     inline void deleteFirstSubfieldWithCode(const char subfield_code) {
         auto location(std::find_if(subfields_.begin(), subfields_.end(),
-                                   [subfield_code](const Subfield subfield) -> bool
-                                       { return subfield.code_ == subfield_code; }));
+                                   [subfield_code](const Subfield subfield) -> bool { return subfield.code_ == subfield_code; }));
         if (location != subfields_.end())
             subfields_.erase(location);
     }
 
     inline void deleteAllSubfieldsWithCode(const char subfield_code) {
         subfields_.erase(std::remove_if(subfields_.begin(), subfields_.end(),
-                         [subfield_code](const Subfield subfield) -> bool
-                         { return subfield.code_ == subfield_code; }), subfields_.end());
+                                        [subfield_code](const Subfield subfield) -> bool { return subfield.code_ == subfield_code; }),
+                         subfields_.end());
     }
 
 
     inline void deleteAllSubfieldsWithCodeMatching(const char subfield_code, const ThreadSafeRegexMatcher &regex) {
         subfields_.erase(std::remove_if(subfields_.begin(), subfields_.end(),
-                         [subfield_code, regex](const Subfield subfield) -> bool
-                         { return (subfield.code_ == subfield_code) and regex.match(subfield.value_); }), subfields_.end());
+                                        [subfield_code, regex](const Subfield subfield) -> bool {
+                                            return (subfield.code_ == subfield_code) and regex.match(subfield.value_);
+                                        }),
+                         subfields_.end());
     }
 
     inline bool replaceSubfieldCode(const char old_code, const char new_code) {
@@ -310,17 +317,22 @@ struct EditInstruction {
     char subfield_code_;
     std::string field_or_subfield_contents_;
     char indicator1_, indicator2_;
+
 public:
     inline static EditInstruction CreateInsertFieldInstruction(const Tag &tag, const std::string &field_contents,
-                                                               const char indicator1 = ' ', const char indicator2 = ' ')
-        { return EditInstruction(INSERT_FIELD, tag, '\0', field_contents, indicator1, indicator2); }
+                                                               const char indicator1 = ' ', const char indicator2 = ' ') {
+        return EditInstruction(INSERT_FIELD, tag, '\0', field_contents, indicator1, indicator2);
+    }
     inline static EditInstruction CreateInsertSubfieldInstruction(const Tag &tag, const char subfield_code,
                                                                   const std::string &subfield_contents, const char indicator1 = ' ',
-                                                                  const char indicator2 = ' ')
-        { return EditInstruction(INSERT_SUBFIELD, tag, subfield_code, subfield_contents, indicator1, indicator2); }
+                                                                  const char indicator2 = ' ') {
+        return EditInstruction(INSERT_SUBFIELD, tag, subfield_code, subfield_contents, indicator1, indicator2);
+    }
     inline static EditInstruction CreateAddSubfieldInstruction(const Tag &tag, const char subfield_code,
-                                                               const std::string &subfield_contents)
-        { return EditInstruction(ADD_SUBFIELD, tag, subfield_code, subfield_contents, '\0', '\0'); }
+                                                               const std::string &subfield_contents) {
+        return EditInstruction(ADD_SUBFIELD, tag, subfield_code, subfield_contents, '\0', '\0');
+    }
+
 private:
     EditInstruction(const EditInstructionType type, const Tag &tag, const char subfield_code, const std::string &field_or_subfield_contents,
                     const char indicator1, const char indicator2)
@@ -335,6 +347,7 @@ public:
         friend class Record;
         Tag tag_;
         std::string contents_;
+
     public:
         Field(const Field &other): tag_(other.tag_), contents_(other.contents_) { }
         Field(const std::string &tag, const std::string &contents): tag_(tag), contents_(contents) { }
@@ -346,8 +359,7 @@ public:
         Field(const Tag &tag, const Subfields &subfields, const char indicator1 = ' ', const char indicator2 = ' ')
             : Field(tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString()) { }
 
-        inline bool empty() const
-            { return isControlField() ? contents_.empty() : contents_.size() == 2 /* indicators */; }
+        inline bool empty() const { return isControlField() ? contents_.empty() : contents_.size() == 2 /* indicators */; }
         Field &operator=(const Field &rhs) = default;
         inline bool operator==(const Field &rhs) const { return tag_ == rhs.tag_ and contents_ == rhs.contents_; }
         inline bool operator!=(const Field &rhs) const { return not operator==(rhs); }
@@ -360,31 +372,35 @@ public:
         inline void setContents(const Subfields &subfields, const char indicator1 = ' ', const char indicator2 = ' ') {
             setContents(std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString());
         }
-        inline bool isControlField() const __attribute__ ((pure)) { return tag_ <= "009"; }
-        inline bool isDataField() const __attribute__ ((pure)) { return tag_ > "009"; }
+        inline bool isControlField() const __attribute__((pure)) { return tag_ <= "009"; }
+        inline bool isDataField() const __attribute__((pure)) { return tag_ > "009"; }
         inline bool isRepeatableField() const { return MARC::IsRepeatableField(tag_); };
         inline bool isCrossLinkField() const {
             return std::find_if(CROSS_LINK_FIELD_TAGS.cbegin(), CROSS_LINK_FIELD_TAGS.cend(),
                                 [this](const Tag &cross_link_field_tag) -> bool { return this->tag_ == cross_link_field_tag; })
-                != CROSS_LINK_FIELD_TAGS.cend();
+                   != CROSS_LINK_FIELD_TAGS.cend();
         }
         inline char getIndicator1() const { return unlikely(contents_.empty()) ? '\0' : contents_[0]; }
         inline char getIndicator2() const { return unlikely(contents_.size() < 2) ? '\0' : contents_[1]; }
-        inline void setIndicator1(const char new_indicator1)
-            { if (likely(not contents_.empty())) contents_[0] = new_indicator1; }
-        inline void setIndicator2(const char new_indicator2)
-            { if (likely(not contents_.empty())) contents_[1] = new_indicator2; }
-        inline Subfields getSubfields() const { return Subfields(contents_); }
-        inline void setSubfields(const Subfields &subfields) {
-            setContents(subfields, getIndicator1(), getIndicator2());
+        inline void setIndicator1(const char new_indicator1) {
+            if (likely(not contents_.empty()))
+                contents_[0] = new_indicator1;
         }
+        inline void setIndicator2(const char new_indicator2) {
+            if (likely(not contents_.empty()))
+                contents_[1] = new_indicator2;
+        }
+        inline Subfields getSubfields() const { return Subfields(contents_); }
+        inline void setSubfields(const Subfields &subfields) { setContents(subfields, getIndicator1(), getIndicator2()); }
         inline bool isLocal() const { return tag_.isLocal(); }
         Tag getLocalTag() const;
 
         /** \warning Do not call the following two functions on local control fields! */
-        inline char getLocalIndicator1() const { return contents_[2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/]; }
+        inline char getLocalIndicator1() const {
+            return contents_[2 /*indicators*/ + 2 /*delimiter and subfield code*/ + 3 /*pseudo tag*/];
+        }
         inline char getLocalIndicator2() const {
-            return contents_[2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/] + 1;
+            return contents_[2 /*indicators*/ + 2 /*delimiter and subfield code*/ + 3 /*pseudo tag*/] + 1;
         }
 
         /** \brief  Filter out all subfields that do not have subfield codes found in "codes_to_keep".
@@ -408,8 +424,9 @@ public:
 
         bool removeSubfieldWithPattern(const char subfield_code, const ThreadSafeRegexMatcher &regex);
 
-        inline void appendSubfield(const char subfield_code, const std::string &subfield_value)
-            { contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value; }
+        inline void appendSubfield(const char subfield_code, const std::string &subfield_value) {
+            contents_ += std::string(1, '\x1F') + std::string(1, subfield_code) + subfield_value;
+        }
 
         void insertOrReplaceSubfield(const char subfield_code, const std::string &subfield_contents);
 
@@ -423,18 +440,39 @@ public:
 
         std::string getHash() const { return StringUtil::Sha1(toString()); }
 
-        inline void swap(Field &other) { tag_.swap(other.tag_); contents_.swap(other.contents_); }
+        inline void swap(Field &other) {
+            tag_.swap(other.tag_);
+            contents_.swap(other.contents_);
+        }
     };
 
     enum class RecordType { AUTHORITY, UNKNOWN, BIBLIOGRAPHIC, CLASSIFICATION };
     enum class TypeOfRecord {
-        LANGUAGE_MATERIAL, NOTATED_MUSIC, MANUSCRIPT_NOTATED_MUSIC, CARTOGRAPHIC_MATERIAL, MANUSCRIPT_CARTOGRAPHIC_MATERIAL,
-        PROJECTED_MEDIUM, NONMUSICAL_SOUND_RECORDING, MUSICAL_SOUND_RECORDING, TWO_DIMENSIONAL_NONPROJECTABLE_GRAPHIC,
-        COMPUTER_FILE, KIT, MIXED_MATERIALS, THREE_DIMENSIONAL_ARTIFACT_OR_NATURALLY_OCCURRING_OBJECT,
-        MANUSCRIPT_LANGUAGE_MATERIAL, AUTHORITY
+        LANGUAGE_MATERIAL,
+        NOTATED_MUSIC,
+        MANUSCRIPT_NOTATED_MUSIC,
+        CARTOGRAPHIC_MATERIAL,
+        MANUSCRIPT_CARTOGRAPHIC_MATERIAL,
+        PROJECTED_MEDIUM,
+        NONMUSICAL_SOUND_RECORDING,
+        MUSICAL_SOUND_RECORDING,
+        TWO_DIMENSIONAL_NONPROJECTABLE_GRAPHIC,
+        COMPUTER_FILE,
+        KIT,
+        MIXED_MATERIALS,
+        THREE_DIMENSIONAL_ARTIFACT_OR_NATURALLY_OCCURRING_OBJECT,
+        MANUSCRIPT_LANGUAGE_MATERIAL,
+        AUTHORITY
     };
     enum BibliographicLevel {
-        MONOGRAPHIC_COMPONENT_PART, SERIAL_COMPONENT_PART, COLLECTION, SUBUNIT, INTEGRATING_RESOURCE, MONOGRAPH_OR_ITEM, SERIAL, UNDEFINED
+        MONOGRAPHIC_COMPONENT_PART,
+        SERIAL_COMPONENT_PART,
+        COLLECTION,
+        SUBUNIT,
+        INTEGRATING_RESOURCE,
+        MONOGRAPH_OR_ITEM,
+        SERIAL,
+        UNDEFINED
     };
     typedef std::vector<Field>::iterator iterator;
     typedef std::vector<Field>::const_iterator const_iterator;
@@ -445,6 +483,7 @@ public:
     class ConstantRange {
         const_iterator begin_;
         const_iterator end_;
+
     public:
         inline ConstantRange(const_iterator begin, const_iterator end): begin_(begin), end_(end) { }
         inline size_t size() const { return end_ - begin_; }
@@ -463,6 +502,7 @@ public:
     class Range {
         iterator begin_;
         iterator end_;
+
     public:
         inline Range(iterator begin, iterator end): begin_(begin), end_(end) { }
         inline size_t size() const { return end_ - begin_; }
@@ -479,6 +519,7 @@ public:
         Tag tag_;
         std::string keyword_;
         std::vector<std::string> synonyms_;
+
     public:
         KeywordAndSynonyms() = default;
         KeywordAndSynonyms(const KeywordAndSynonyms &other) = default;
@@ -492,6 +533,7 @@ public:
         inline std::vector<std::string>::const_iterator end() const { return synonyms_.end(); }
         KeywordAndSynonyms &swap(KeywordAndSynonyms &other);
     };
+
 private:
     friend class BinaryReader;
     friend class XmlReader;
@@ -502,21 +544,23 @@ private:
     size_t record_size_; // in bytes
     std::string leader_;
     std::vector<Field> fields_;
+
 public:
-    static constexpr unsigned MAX_RECORD_LENGTH                        = 99999;
-    static constexpr unsigned MAX_VARIABLE_FIELD_DATA_LENGTH           = 9998; // Max length without trailing terminator
-    static constexpr unsigned DIRECTORY_ENTRY_LENGTH                   = 12;
-    static constexpr unsigned RECORD_LENGTH_FIELD_LENGTH               = 5;
-    static constexpr unsigned TAG_LENGTH                               = 3;
-    static constexpr unsigned LEADER_LENGTH                            = 24;
+    static constexpr unsigned MAX_RECORD_LENGTH = 99999;
+    static constexpr unsigned MAX_VARIABLE_FIELD_DATA_LENGTH = 9998; // Max length without trailing terminator
+    static constexpr unsigned DIRECTORY_ENTRY_LENGTH = 12;
+    static constexpr unsigned RECORD_LENGTH_FIELD_LENGTH = 5;
+    static constexpr unsigned TAG_LENGTH = 3;
+    static constexpr unsigned LEADER_LENGTH = 24;
+
 private:
     Record(): record_size_(LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */) { }
+
 public:
     explicit Record(const std::string &leader); // Make an empty record that only has a leader and sets the record size to
                                                 // LEADER_LENGTH + 1 /* end-of-directory */ + 1 /* end-of-record */
     explicit Record(const size_t record_size, const char * const record_start);
-    Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
-           const std::string &control_number = "");
+    Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level, const std::string &control_number = "");
     Record(const Record &other) = default;
 
     inline Record(Record &&other) { this->swap(other); }
@@ -531,10 +575,10 @@ public:
         leader_.swap(other.leader_);
         fields_.swap(other.fields_);
     }
-    operator bool () const { return not fields_.empty(); }
+    operator bool() const { return not fields_.empty(); }
     inline size_t size() const { return record_size_; }
     inline void clear() {
-        record_size_  = 0;
+        record_size_ = 0;
         leader_.clear();
         fields_.clear();
     }
@@ -589,12 +633,12 @@ public:
      *          Use this if you would like to consider all UP_LINK_FIELD_TAGS. Else use getSuperiorControlNumber().
      *          If you want to consider additional tags (e.g. 776), pass them as optional parameter.
      */
-    std::string getParentControlNumber(const std::vector<Tag> &additional_tags={}) const;
+    std::string getParentControlNumber(const std::vector<Tag> &additional_tags = {}) const;
 
     /** \return The PPNs of all parents, if found. (see UP_LINK_FIELD_TAGS).
      *          If you want to consider additional tags (e.g. 776), pass them as optional parameter.
      */
-    std::unordered_set<std::string> getParentControlNumbers(const std::vector<Tag> &additional_tags={}) const;
+    std::unordered_set<std::string> getParentControlNumbers(const std::vector<Tag> &additional_tags = {}) const;
 
     /** \return The control number of the superior work, if found, else the empty string.
      *          Use this if you want to consider 773 only. Else use getParentControlNumber().
@@ -658,14 +702,12 @@ public:
 
     /** \return An iterator pointing to the first field w/ tag "field_tag" or end() if no such field was found. */
     inline const_iterator getFirstField(const Tag &field_tag) const {
-        return std::find_if(fields_.cbegin(), fields_.cend(),
-                            [&field_tag](const Field &field){ return field.getTag() == field_tag; });
+        return std::find_if(fields_.cbegin(), fields_.cend(), [&field_tag](const Field &field) { return field.getTag() == field_tag; });
     }
 
     /** \return An iterator pointing to the first field w/ tag "field_tag" or end() if no such field was found. */
     inline iterator getFirstField(const Tag &field_tag) {
-        return std::find_if(fields_.begin(), fields_.end(),
-                            [&field_tag](const Field &field){ return field.getTag() == field_tag; });
+        return std::find_if(fields_.begin(), fields_.end(), [&field_tag](const Field &field) { return field.getTag() == field_tag; });
     }
 
     /** \return Returns the content of the first field with given tag or an empty string if the tag is not present. */
@@ -713,14 +755,14 @@ public:
     bool insertField(const Tag &new_field_tag, const std::string &new_field_value);
 
     inline bool insertField(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
-                            const char indicator2 = ' ')
-        { return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString()); }
+                            const char indicator2 = ' ') {
+        return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString());
+    }
 
     inline bool insertField(const Field &field) { return insertField(field.getTag(), field.getContents()); }
 
     inline bool insertField(const Tag &new_field_tag, const std::vector<Subfield> &subfields, const char indicator1 = ' ',
-                            const char indicator2 = ' ')
-    {
+                            const char indicator2 = ' ') {
         std::string new_field_value;
         new_field_value += indicator1;
         new_field_value += indicator2;
@@ -730,10 +772,9 @@ public:
     }
 
     inline bool insertField(const Tag &new_field_tag, const char subfield_code, const std::string &new_subfield_value,
-                            const char indicator1 = ' ', const char indicator2 = ' ')
-    {
-        return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + "\x1F"
-                           + std::string(1, subfield_code) + new_subfield_value);
+                            const char indicator1 = ' ', const char indicator2 = ' ') {
+        return insertField(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + "\x1F" + std::string(1, subfield_code)
+                                              + new_subfield_value);
     }
 
     /** Insert a new field at the end of the range for that field.
@@ -744,14 +785,14 @@ public:
     bool insertFieldAtEnd(const Tag &new_field_tag, const std::string &new_field_value);
 
     inline bool insertFieldAtEnd(const Tag &new_field_tag, const Subfields &subfields, const char indicator1 = ' ',
-                                 const char indicator2 = ' ')
-        { return insertFieldAtEnd(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString()); }
+                                 const char indicator2 = ' ') {
+        return insertFieldAtEnd(new_field_tag, std::string(1, indicator1) + std::string(1, indicator2) + subfields.toString());
+    }
 
     inline bool insertFieldAtEnd(const Field &field) { return insertFieldAtEnd(field.getTag(), field.getContents()); }
 
     inline bool insertFieldAtEnd(const Tag &new_field_tag, const std::vector<Subfield> &subfields, const char indicator1 = ' ',
-                                 const char indicator2 = ' ')
-    {
+                                 const char indicator2 = ' ') {
         std::string new_field_value;
         new_field_value += indicator1;
         new_field_value += indicator2;
@@ -823,8 +864,8 @@ public:
 
     // Alphanumerically sorts the fields in the range [begin_field, end_field).
     inline void sortFields(const iterator &begin_field, const iterator &end_field) { std::stable_sort(begin_field, end_field); }
-    inline void sortFieldTags(const iterator &begin_field, const iterator &end_field)  {
-        std::stable_sort(begin_field, end_field, [](const Field &lhs, const Field &rhs){ return lhs.tag_ < rhs.tag_; });
+    inline void sortFieldTags(const iterator &begin_field, const iterator &end_field) {
+        std::stable_sort(begin_field, end_field, [](const Field &lhs, const Field &rhs) { return lhs.tag_ < rhs.tag_; });
     }
 
     ConstantRange getTagRange(const std::vector<Tag> &tags) const;
@@ -863,20 +904,15 @@ public:
     }
 
     /** \return An iterator that references the first fields w/ tag "tag" or end() if no such fields exist. */
-    inline iterator findTag(const Tag &tag) {
-        return findTag(tag, begin());
-    }
+    inline iterator findTag(const Tag &tag) { return findTag(tag, begin()); }
 
     /** \return An iterator that references the first fields w/ tag "tag" or end() if no such fields exist. */
     const_iterator findTag(const Tag &tag, const_iterator start_iterator) const {
-        return std::find_if(start_iterator, fields_.cend(),
-                            [&tag](const Field &field) -> bool { return field.getTag() == tag; });
+        return std::find_if(start_iterator, fields_.cend(), [&tag](const Field &field) -> bool { return field.getTag() == tag; });
     }
 
     /** \return An iterator that references the first fields w/ tag "tag" or end() if no such fields exist. */
-    const_iterator findTag(const Tag &tag) const {
-        return findTag(tag, begin());
-    }
+    const_iterator findTag(const Tag &tag) const { return findTag(tag, begin()); }
 
     /** \brief  Changes all from-tags to to-tags.
      *  \return The number of fields whose tags were changed.
@@ -884,7 +920,7 @@ public:
     size_t reTag(const Tag &from_tag, const Tag &to_tag);
 
     /** \return The list of tags in the record, including duplicates. */
-    inline std::vector<std::string> getTags()  {
+    inline std::vector<std::string> getTags() {
         std::vector<std::string> tags;
         tags.reserve(fields_.size());
         for (const auto &field : fields_)
@@ -918,7 +954,8 @@ public:
     /** \return Values for all fields with tag "tag" and subfield codes "subfield_codes". */
     std::vector<std::string> getSubfieldValues(const Tag &tag, const std::string &subfield_codes) const;
 
-    /** \return Values for all fields with tag "tag" and subfield codes "subfield_codes". Handle subfields of numeric subfields like 9v appropriately*/
+    /** \return Values for all fields with tag "tag" and subfield codes "subfield_codes". Handle subfields of numeric subfields like 9v
+     * appropriately*/
     std::vector<std::string> getSubfieldAndNumericSubfieldValues(const Tag &tag, const std::string &subfield_spec) const;
 
     /** \return Iterators pointing to the first field of each local data block, i.e. blocks of LOK fields.
@@ -1008,6 +1045,7 @@ class Reader {
 protected:
     File *input_;
     Reader(File * const input): input_(input) { }
+
 public:
     virtual ~Reader() { delete input_; }
 
@@ -1036,8 +1074,10 @@ class BinaryReader final : public Reader {
     off_t next_record_start_;
     const char *mmap_;
     size_t offset_, input_file_size_;
+
 private:
     explicit BinaryReader(File * const input);
+
 public:
     virtual ~BinaryReader() final;
 
@@ -1049,15 +1089,17 @@ public:
     virtual off_t tell() const override final { return next_record_start_; }
 
     virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) override final;
+
 private:
     Record actualRead();
 };
 
 
-class XmlReader: public Reader {
+class XmlReader : public Reader {
     friend class Reader;
     XMLSubsetParser<File> *xml_parser_;
     std::string namespace_prefix_;
+
 private:
     /** \brief Initialise a XmlReader instance.
      *  \param input                        Where to read from.
@@ -1065,11 +1107,11 @@ private:
      *                                      to seek to an offset on \"input\" before calling this constructor.
      */
     explicit XmlReader(File * const input, const bool skip_over_start_of_document = true)
-        : Reader(input), xml_parser_(new XMLSubsetParser<File>(input))
-    {
+        : Reader(input), xml_parser_(new XMLSubsetParser<File>(input)) {
         if (skip_over_start_of_document)
             skipOverStartOfDocument();
     }
+
 public:
     virtual ~XmlReader() { delete xml_parser_; }
 
@@ -1081,25 +1123,27 @@ public:
     virtual inline off_t tell() const override final { return xml_parser_->tell(); }
 
     virtual inline bool seek(const off_t offset, const int whence = SEEK_SET) override final { return xml_parser_->seek(offset, whence); }
+
 private:
     void parseLeader(const std::string &input_filename, Record * const new_record);
     void parseControlfield(const std::string &input_filename, const std::string &tag, Record * const record);
-    void parseDatafield(const std::string &input_filename,
-                        const std::map<std::string, std::string> &datafield_attrib_map,
+    void parseDatafield(const std::string &input_filename, const std::map<std::string, std::string> &datafield_attrib_map,
                         const std::string &tag, Record * const record);
     void skipOverStartOfDocument();
-    bool getNext(XMLSubsetParser<File>::Type * const type, std::map<std::string, std::string> * const attrib_map,
-                 std::string * const data);
+    bool getNext(XMLSubsetParser<File>::Type * const type, std::map<std::string, std::string> * const attrib_map, std::string * const data);
 };
 
 
 class Writer {
 protected:
     std::unique_ptr<File> output_;
+
 protected:
     explicit Writer(File * const output): output_(output) { }
+
 public:
     enum WriterMode { OVERWRITE, APPEND };
+
 public:
     virtual ~Writer() = default;
 
@@ -1121,8 +1165,10 @@ public:
 
 class BinaryWriter final : public Writer {
     friend class Writer;
+
 private:
     BinaryWriter(File * const output): Writer(output) { }
+
 public:
     virtual ~BinaryWriter() override final = default;
 
@@ -1133,10 +1179,12 @@ public:
 class XmlWriter final : public Writer {
     friend class Writer;
     MarcXmlWriter xml_writer_;
+
 private:
     explicit XmlWriter(File * const output, const unsigned indent_amount = 0,
                        const MarcXmlWriter::TextConversionType text_conversion_type = MarcXmlWriter::NoConversion)
-        : Writer(output), xml_writer_(output, /* suppress_header_and_tailer = */false, indent_amount, text_conversion_type) { }
+        : Writer(output), xml_writer_(output, /* suppress_header_and_tailer = */ false, indent_amount, text_conversion_type) { }
+
 public:
     virtual ~XmlWriter() override final;
 
@@ -1231,7 +1279,8 @@ FileType GetOptionalWriterType(int * const argc, char *** const argv, const int 
 
 /** \return True if field "field" contains a reference to another MARC record that is not a link to a superior work and false, if not. */
 extern const std::vector<Tag> CROSS_LINK_FIELDS;
-bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const partner_control_number, const std::vector<MARC::Tag> &cross_link_fields = CROSS_LINK_FIELDS);
+bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const partner_control_number,
+                      const std::vector<MARC::Tag> &cross_link_fields = CROSS_LINK_FIELDS);
 
 
 /** \return partner PPN's or the empty set if none were found. */

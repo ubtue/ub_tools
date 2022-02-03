@@ -37,6 +37,7 @@ namespace {
 struct CapitalizationAndCount {
     std::string capitalization_;
     unsigned count_;
+
 public:
     CapitalizationAndCount() = default;
     CapitalizationAndCount(const CapitalizationAndCount &other) = default;
@@ -44,12 +45,9 @@ public:
 };
 
 
-
-
 unsigned ProcessJSON(
     const std::string &json_result, const std::string &solr_field, std::string * const cursor_mark,
-    std::unordered_map<std::string, std::vector<CapitalizationAndCount>> * const lowercase_form_to_capitalizations_and_counts_map)
-{
+    std::unordered_map<std::string, std::vector<CapitalizationAndCount>> * const lowercase_form_to_capitalizations_and_counts_map) {
     JSON::Parser parser(json_result);
     std::shared_ptr<JSON::JSONNode> tree_root;
     if (not parser.parse(&tree_root))
@@ -59,7 +57,7 @@ unsigned ProcessJSON(
     const auto response_node(root_object_node->getObjectNode("response"));
     const auto docs_node(response_node->getArrayNode("docs"));
     const auto cursorNode(root_object_node->getStringNode("nextCursorMark"));
-    *cursor_mark  = cursorNode->getValue();
+    *cursor_mark = cursorNode->getValue();
 
 
     unsigned item_count(0);
@@ -77,10 +75,11 @@ unsigned ProcessJSON(
                     std::vector<CapitalizationAndCount>{ CapitalizationAndCount(single_topic_string->getValue()) };
             else {
                 auto &capitalizations_and_counts_vector(lowercase_form_and_capitalizations->second);
-                auto capitalization_and_count(
-                    std::find_if(capitalizations_and_counts_vector.begin(), capitalizations_and_counts_vector.end(),
-                                 [&single_topic_string](CapitalizationAndCount &entry)
-                                     { return entry.capitalization_ == single_topic_string->getValue(); }));
+                auto capitalization_and_count(std::find_if(capitalizations_and_counts_vector.begin(),
+                                                           capitalizations_and_counts_vector.end(),
+                                                           [&single_topic_string](CapitalizationAndCount &entry) {
+                                                               return entry.capitalization_ == single_topic_string->getValue();
+                                                           }));
                 if (capitalization_and_count != capitalizations_and_counts_vector.end())
                     ++(capitalization_and_count->count_);
                 else
@@ -95,15 +94,13 @@ unsigned ProcessJSON(
 
 void CollectStats(
     const std::string &solr_host_and_port, const std::string &solr_field,
-    std::unordered_map<std::string, std::vector<CapitalizationAndCount>> * const lowercase_form_to_capitalizations_and_counts_map)
-{
-
+    std::unordered_map<std::string, std::vector<CapitalizationAndCount>> * const lowercase_form_to_capitalizations_and_counts_map) {
     unsigned total_item_count(0);
     std::string cursor_mark("*");
     for (;;) {
         std::string json_result, err_msg;
-        if (unlikely(not Solr::Query(solr_field + ":*", solr_field, &json_result, &err_msg,
-                                     solr_host_and_port, /* timeout = */ 600, Solr::JSON,  "cursorMark=" + cursor_mark + "&sort=id+asc&rows=100000")))
+        if (unlikely(not Solr::Query(solr_field + ":*", solr_field, &json_result, &err_msg, solr_host_and_port, /* timeout = */ 600,
+                                     Solr::JSON, "cursorMark=" + cursor_mark + "&sort=id+asc&rows=100000")))
             LOG_ERROR("Solr query failed or timed-out: " + err_msg);
 
         std::string new_cursor_mark;
@@ -134,8 +131,7 @@ bool IsInitialCapsVersion(const std::string &keyphrase) {
 
 void GenerateCanonizationMap(
     File * const output,
-    const std::unordered_map<std::string, std::vector<CapitalizationAndCount>> &lowercase_form_to_capitalizations_and_counts_map)
-{
+    const std::unordered_map<std::string, std::vector<CapitalizationAndCount>> &lowercase_form_to_capitalizations_and_counts_map) {
     for (const auto &lowercase_form_and_capitalizations : lowercase_form_to_capitalizations_and_counts_map) {
         const auto &capitalizations(lowercase_form_and_capitalizations.second);
         if (capitalizations.size() == 1)

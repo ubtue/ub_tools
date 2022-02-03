@@ -55,10 +55,13 @@ class EncodingConverter {
     friend class IdentityConverter;
     const std::string from_encoding_;
     const std::string to_encoding_;
+
 protected:
     const iconv_t iconv_handle_;
+
 public:
     static const std::string CANONICAL_UTF8_NAME;
+
 public:
     virtual ~EncodingConverter();
 
@@ -76,21 +79,25 @@ public:
      */
     static std::unique_ptr<EncodingConverter> Factory(const std::string &from_encoding, const std::string &to_encoding,
                                                       std::string * const error_message);
+
 private:
     explicit EncodingConverter(const std::string &from_encoding, const std::string to_encoding, const iconv_t iconv_handle)
         : from_encoding_(from_encoding), to_encoding_(to_encoding), iconv_handle_(iconv_handle) { }
 };
 
 
-class IdentityConverter: public EncodingConverter {
+class IdentityConverter : public EncodingConverter {
     friend std::unique_ptr<EncodingConverter> EncodingConverter::Factory(const std::string &from_encoding, const std::string &to_encoding,
                                                                          std::string * const error_message);
-    IdentityConverter(): EncodingConverter(/* from_encoding = */"", /* to_encoding = */"", (iconv_t)-1) { }
-public:
-    virtual bool convert(const std::string &input, std::string * const output) final override { *output = input; return true; }
+    IdentityConverter(): EncodingConverter(/* from_encoding = */ "", /* to_encoding = */ "", (iconv_t)-1) { }
 
-    static std::unique_ptr<EncodingConverter> Factory()
-        { return std::unique_ptr<EncodingConverter>(new IdentityConverter()); }
+public:
+    virtual bool convert(const std::string &input, std::string * const output) final override {
+        *output = input;
+        return true;
+    }
+
+    static std::unique_ptr<EncodingConverter> Factory() { return std::unique_ptr<EncodingConverter>(new IdentityConverter()); }
 };
 
 
@@ -119,16 +126,16 @@ bool IsUnsignedInteger(const std::string &s);
 
 
 /** \brief Convert UTF8 to wide characters. */
-bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_string);
+bool UTF8ToWCharString(const std::string &utf8_string, std::wstring *wchar_string);
 
 
 /** \brief Convert wide characters to UTF8. */
-bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string);
+bool WCharToUTF8String(const std::wstring &wchar_string, std::string *utf8_string);
 std::string WCharToUTF8StringOrDie(const std::wstring &wchar_string);
 
 
 /** \brief Convert a wide character to UTF8. */
-bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string);
+bool WCharToUTF8String(const wchar_t wchar, std::string *utf8_string);
 
 
 /** \brief Converts a UTF8 string to lowercase.
@@ -142,7 +149,9 @@ bool UTF8ToLower(const std::string &utf8_string, std::string * const lowercase_u
  *  \note Throws an exception if an error occurred.
  */
 std::string UTF8ToLower(std::string * const utf8_string);
-inline std::string UTF8ToLower(std::string utf8_string) { return UTF8ToLower(&utf8_string); }
+inline std::string UTF8ToLower(std::string utf8_string) {
+    return UTF8ToLower(&utf8_string);
+}
 
 
 /** \brief Converts a UTF8 string to uppercase.
@@ -169,7 +178,7 @@ std::string UTF32ToUTF8(const uint32_t code_point);
 /** \brief Attempts to convert "utf8_string" to a sequence of UTF32 code points.
  *  \return True if the conversion succeeded and false if "utf8_string" was an invalid UTF8 sequence.
  */
-bool UTF8ToUTF32(const std::string &utf8_string, std::vector<uint32_t> * utf32_chars);
+bool UTF8ToUTF32(const std::string &utf8_string, std::vector<uint32_t> *utf32_chars);
 
 
 /** \brief Converts a UTF8 string to lowercase.
@@ -221,7 +230,9 @@ inline bool IsStartOfUTF8CodePoint(const char ch) {
 }
 
 
-inline bool IsUFT8ContinuationByte(const char ch) { return not IsStartOfUTF8CodePoint(ch); }
+inline bool IsUFT8ContinuationByte(const char ch) {
+    return not IsStartOfUTF8CodePoint(ch);
+}
 
 
 bool IsValidUTF8(const std::string &utf8_candidate);
@@ -249,8 +260,7 @@ bool ChopIntoWords(const std::string &text, std::vector<std::string> * const wor
 
 /** \return The position at which "needle" starts in "haystack" or "haystack.cend()" if "needle"
     is not in "haystack". */
-std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::string> &haystack,
-                                                       const std::vector<std::string> &needle);
+std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::string> &haystack, const std::vector<std::string> &needle);
 
 
 /** \brief  Base64 encodes a string.
@@ -260,8 +270,7 @@ std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::st
  *  \param  use_output_padding  Nomen est omen.
  *  \return The encoded string.
  */
-std::string Base64Encode(const std::string &s, const char symbol63 = '+', const char symbol64 = '/',
-                         const bool use_output_padding = true);
+std::string Base64Encode(const std::string &s, const char symbol63 = '+', const char symbol64 = '/', const bool use_output_padding = true);
 
 
 /** \brief  Base64 decodes a string.
@@ -288,8 +297,9 @@ std::string EscapeString(const std::string &original_string, const bool also_esc
  */
 std::string CSVEscape(const std::string &value, const bool add_quotes = true);
 
-inline std::string CSVEscape(const unsigned value, const bool add_quotes = true)
-    { return CSVEscape(std::to_string(value), add_quotes); }
+inline std::string CSVEscape(const unsigned value, const bool add_quotes = true) {
+    return CSVEscape(std::to_string(value), add_quotes);
+}
 
 
 /** Parses a CSV file that follows the standard specified by RFC 4180 (when "separator," and "quote" have their default values)
@@ -313,6 +323,7 @@ class ToUTF32Decoder {
 protected:
     static const std::string CANONICAL_UTF32_NAME;
     static const uint32_t NULL_CHARACTER;
+
 public:
     enum State {
         NO_CHARACTER_PENDING, //< getUTF32Char() should not be called.
@@ -333,7 +344,7 @@ public:
 
     virtual State getState() const = 0;
 
-     /** Returns the UTF-32 character converted from the input sequence. Can only be called after
+    /** Returns the UTF-32 character converted from the input sequence. Can only be called after
      *  addByte() returns false.
      *
      * \throw std::runtime_error if the character is yet to be fully decoded
@@ -344,13 +355,14 @@ public:
 };
 
 
-class AnythingToUTF32Decoder final: public ToUTF32Decoder {
+class AnythingToUTF32Decoder final : public ToUTF32Decoder {
     iconv_t converter_handle_;
     const std::string input_encoding_;
     uint32_t utf32_char_;
     std::vector<char> accum_buffer_;
     State current_state_;
     bool permissive_;
+
 public:
     /** \param permissive  If false, we throw a std::runtime_error on encoding errors,
      *                     when attempting to accumulate before consuming a pending codepoint and
@@ -367,6 +379,7 @@ public:
     virtual uint32_t getUTF32Char() override final;
 
     virtual const std::string &getInputEncoding() const override final;
+
 private:
     uint32_t consumeAndReset();
 };
@@ -376,6 +389,7 @@ class UTF8ToUTF32Decoder : public ToUTF32Decoder {
     int required_count_;
     uint32_t utf32_char_;
     bool permissive_;
+
 public:
     /** \param permissive  If false, we throw a std::runtime_error on encoding errors, if true we return Unicode replacement
      *                     characters.
@@ -386,11 +400,13 @@ public:
     virtual bool addByte(const char ch) override final;
 
     virtual State getState() const override final {
-        return (required_count_ == -1) ? NO_CHARACTER_PENDING
-                                       : ((required_count_  > 0) ? CHARACTER_INCOMPLETE : CHARACTER_PENDING);
+        return (required_count_ == -1) ? NO_CHARACTER_PENDING : ((required_count_ > 0) ? CHARACTER_INCOMPLETE : CHARACTER_PENDING);
     }
 
-    virtual uint32_t getUTF32Char() override final { required_count_ = -1; return utf32_char_; }
+    virtual uint32_t getUTF32Char() override final {
+        required_count_ = -1;
+        return utf32_char_;
+    }
 
     virtual const std::string &getInputEncoding() const override final { return EncodingConverter::CANONICAL_UTF8_NAME; }
 };
@@ -412,7 +428,9 @@ inline bool IsWhitespace(const uint32_t utf32_char) {
 
 
 /** \return True if "ch" is an ASCII character, i.e. if the high bit is not set, else false. */
-inline bool IsASCIIChar(const char ch) { return (static_cast<unsigned char>(ch) & 0x80u) == 0; }
+inline bool IsASCIIChar(const char ch) {
+    return (static_cast<unsigned char>(ch) & 0x80u) == 0;
+}
 
 
 /** \brief Replaces any sequence of "whitespace" characters listed here: https://en.wikipedia.org/wiki/Whitespace_character
@@ -503,8 +521,9 @@ std::string &UTF8ByteTruncate(std::string * const utf8_string, const size_t max_
 std::string UTF8ByteTruncate(const std::string &utf8_string, const size_t max_length);
 
 
-
-inline bool IsGeneralPunctuationCharacter(const wchar_t ch) { return ch >= 0x2000 and ch <= 0x206F; }
+inline bool IsGeneralPunctuationCharacter(const wchar_t ch) {
+    return ch >= 0x2000 and ch <= 0x206F;
+}
 bool IsSpaceSeparatorCharacter(const wchar_t ch);
 
 
@@ -513,7 +532,8 @@ bool IsSpace(const wchar_t ch);
 
 
 inline bool IsPunctuationCharacter(const wchar_t ch) {
-    if (IsGeneralPunctuationCharacter(ch)) return true;
+    if (IsGeneralPunctuationCharacter(ch))
+        return true;
     return ch == '.' or ch == ',' or ch == ';' or ch == ':' or ch == '?' or ch == '!';
 }
 
@@ -623,9 +643,7 @@ inline std::string &PadTrailing(std::string * const utf8_string, const std::stri
  *  \param end  If cp is an iterator into a std::string then this must be whatever cend() for
  *              this std::string returns.
  */
-inline std::string::const_iterator GetEndOfCurrentUTF8CodePoint(std::string::const_iterator cp,
-                                                                const std::string::const_iterator end)
-{
+inline std::string::const_iterator GetEndOfCurrentUTF8CodePoint(std::string::const_iterator cp, const std::string::const_iterator end) {
     if (unlikely(cp == end))
         return cp;
     ++cp;

@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 
 
@@ -37,12 +37,12 @@ public:
         std::string id_;
         time_t pub_date_;
         std::unordered_map<std::string, std::string> dc_and_prism_data_;
+
     public:
-        Item(const std::string &title, const std::string &description, const std::string &link, const std::string &id, const time_t pub_date,
+        Item(const std::string &title, const std::string &description, const std::string &link, const std::string &id,
+             const time_t pub_date,
              const std::unordered_map<std::string, std::string> &dc_and_prism_data = std::unordered_map<std::string, std::string>())
-            : title_(title), description_(description), link_(link), id_(id), pub_date_(pub_date),
-              dc_and_prism_data_(dc_and_prism_data)
-        {
+            : title_(title), description_(description), link_(link), id_(id), pub_date_(pub_date), dc_and_prism_data_(dc_and_prism_data) {
             TextUtil::CollapseAndTrimWhitespace(&title_);
             TextUtil::CollapseAndTrimWhitespace(&link_);
             TextUtil::CollapseAndTrimWhitespace(&id_);
@@ -66,13 +66,16 @@ public:
         friend class SyndicationFormat;
         mutable const SyndicationFormat *syndication_format_;
         std::unique_ptr<const Item> item_;
+
     private:
         explicit const_iterator(const SyndicationFormat * const syndication_format)
             : syndication_format_(syndication_format), item_(syndication_format_->getNextItem()) { }
         const_iterator(): syndication_format_(nullptr) { }
+
     public:
-        const_iterator(const_iterator &&rhs): syndication_format_(rhs.syndication_format_), item_(rhs.item_.release())
-            { rhs.syndication_format_ = nullptr; }
+        const_iterator(const_iterator &&rhs): syndication_format_(rhs.syndication_format_), item_(rhs.item_.release()) {
+            rhs.syndication_format_ = nullptr;
+        }
 
         void operator++();
         inline const Item &operator*() const { return *item_; }
@@ -84,13 +87,16 @@ public:
         friend class SyndicationFormat;
         SyndicationFormat *syndication_format_;
         std::unique_ptr<Item> item_;
+
     private:
         explicit iterator(SyndicationFormat *syndication_format)
             : syndication_format_(syndication_format), item_(syndication_format_->getNextItem()) { }
         iterator(): syndication_format_(nullptr) { }
+
     public:
-        iterator(iterator &&rhs): syndication_format_(rhs.syndication_format_), item_(rhs.item_.release())
-            { rhs.syndication_format_ = nullptr; }
+        iterator(iterator &&rhs): syndication_format_(rhs.syndication_format_), item_(rhs.item_.release()) {
+            rhs.syndication_format_ = nullptr;
+        }
 
         void operator++();
         inline Item &operator*() { return *item_; }
@@ -101,14 +107,17 @@ public:
     struct AugmentParams {
         std::string strptime_format_; // If empty we use the standard format based on the syndication format type.
     };
+
 protected:
     friend class const_iterator;
     mutable XMLParser xml_parser_;
     std::string title_, link_, description_, id_;
     time_t last_build_date_;
     AugmentParams augment_params_;
+
 protected:
     SyndicationFormat(const std::string &xml_document, const AugmentParams &augment_params);
+
 public:
     virtual ~SyndicationFormat() = default;
 
@@ -129,10 +138,12 @@ public:
     // \return an instance of a subclass of SyndicationFormat on success or a nullptr upon failure.
     static std::unique_ptr<SyndicationFormat> Factory(const std::string &xml_document, const AugmentParams &augment_params,
                                                       std::string * const err_msg);
+
 protected:
     virtual std::unique_ptr<Item> getNextItem() = 0;
-    inline std::unique_ptr<const Item> getNextItem() const
-        { return (std::unique_ptr<const Item>)const_cast<SyndicationFormat *>(this)->getNextItem(); }
+    inline std::unique_ptr<const Item> getNextItem() const {
+        return (std::unique_ptr<const Item>)const_cast<SyndicationFormat *>(this)->getNextItem();
+    }
 };
 
 
@@ -142,6 +153,7 @@ public:
     virtual ~RSS20() final { }
 
     virtual std::string getFormatName() const override { return "RSS 2.0"; }
+
 protected:
     virtual std::unique_ptr<Item> getNextItem() override;
 };
@@ -153,6 +165,7 @@ public:
     virtual ~RSS091() final { }
 
     virtual std::string getFormatName() const override { return "RSS 0.91"; }
+
 protected:
     virtual std::unique_ptr<Item> getNextItem() override;
 };
@@ -171,11 +184,13 @@ public:
 
 class RDF final : public SyndicationFormat {
     std::string rss_namespace_, dc_namespace_, prism_namespace_;
+
 public:
     explicit RDF(const std::string &xml_document, const AugmentParams &augment_params);
     virtual ~RDF() final { }
 
     virtual std::string getFormatName() const override { return "RDF"; }
+
 protected:
     virtual std::unique_ptr<Item> getNextItem() override;
 };

@@ -3,8 +3,8 @@
 
 #include <string>
 #ifndef LIBSTEMMER_H
-#       include "libstemmer.h"
-#       define LIBSTEMMER_H
+#include "libstemmer.h"
+#define LIBSTEMMER_H
 #endif
 
 
@@ -13,8 +13,12 @@ class Stemmer {
     sb_stemmer *stemmer_;
 
     explicit Stemmer(const std::string &language_name_or_code);
+
 public:
-    virtual ~Stemmer() { if (stemmer_) ::sb_stemmer_delete(stemmer_); }
+    virtual ~Stemmer() {
+        if (stemmer_)
+            ::sb_stemmer_delete(stemmer_);
+    }
 
     std::string stem(const std::string &word) const;
 

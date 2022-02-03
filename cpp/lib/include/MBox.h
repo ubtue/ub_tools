@@ -35,6 +35,7 @@ public:
     class BodyPart {
         std::vector<std::pair<std::string, std::string>> mime_headers_;
         std::string body_;
+
     public:
         BodyPart() = default;
         BodyPart(const BodyPart &other) = default;
@@ -50,6 +51,7 @@ public:
     class Message {
     public:
         typedef std::vector<BodyPart>::const_iterator const_iterator;
+
     private:
         friend class MBox;
         friend class MBox::const_iterator;
@@ -60,6 +62,7 @@ public:
         int priority_;
         std::string message_body_;
         std::vector<BodyPart> body_parts_;
+
     public:
         inline time_t getReceptionTime() const { return reception_time_; }
         inline const std::string &getOriginalHost() const { return original_host_; }
@@ -78,30 +81,30 @@ public:
 
         /** \brief Returns a string representation of a Message */
         std::string toString() const;
+
     private:
         Message() = default;
         Message(const Message &rhs) = default;
-        Message(const time_t reception_time, const std::string &original_host, const std::string &sender,
-                const std::string &subject, const int priority, const std::string &message_body,
-                const std::vector<BodyPart> &body_parts)
-            : reception_time_(reception_time), original_host_(original_host), sender_(sender), subject_(subject),
-              priority_(priority), message_body_(message_body), body_parts_(body_parts) { }
+        Message(const time_t reception_time, const std::string &original_host, const std::string &sender, const std::string &subject,
+                const int priority, const std::string &message_body, const std::vector<BodyPart> &body_parts)
+            : reception_time_(reception_time), original_host_(original_host), sender_(sender), subject_(subject), priority_(priority),
+              message_body_(message_body), body_parts_(body_parts) { }
 
         Message &swap(Message &other_message);
-        inline bool empty() const {
-            return original_host_.empty() and sender_.empty() and subject_.empty() and message_body_.empty();
-        }
+        inline bool empty() const { return original_host_.empty() and sender_.empty() and subject_.empty() and message_body_.empty(); }
     };
 
     class const_iterator {
         friend class MBox;
         const MBox * const mbox_;
         Message message_;
+
     public:
         inline const Message &operator*() { return message_; }
         void operator++();
         inline bool operator==(const const_iterator &rhs) const { return message_.empty() and rhs.message_.empty(); }
         inline bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
+
     private:
         const_iterator(const const_iterator &rhs) = default;
         const_iterator(Message * const message, const MBox * const mbox): mbox_(mbox) { message->swap(message_); }
@@ -112,11 +115,18 @@ private:
     mutable time_t last_reception_time_; // local time
 public:
     explicit MBox(const std::string &filename);
-    ~MBox(){ delete input_; }
+    ~MBox() { delete input_; }
 
     const std::string &getPath() const { return input_->getPath(); }
-    inline const_iterator begin() const { Message first_message(getNextMessage()); return const_iterator(&first_message, this); }
-    inline const_iterator end() const { Message empty_message; return const_iterator(&empty_message, this); }
+    inline const_iterator begin() const {
+        Message first_message(getNextMessage());
+        return const_iterator(&first_message, this);
+    }
+    inline const_iterator end() const {
+        Message empty_message;
+        return const_iterator(&empty_message, this);
+    }
+
 private:
     Message getNextMessage() const;
     std::string getNextLogicalHeaderLine() const;

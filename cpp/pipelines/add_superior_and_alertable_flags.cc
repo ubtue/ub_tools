@@ -33,8 +33,8 @@
 #include "MARC.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
-#include "util.h"
 #include "Zeder.h"
+#include "util.h"
 
 
 namespace {
@@ -65,9 +65,8 @@ bool SeriesHasNotBeenCompleted(const MARC::Record &record) {
 }
 
 
-void ProcessRecord(MARC::Writer * const marc_writer, const std::unordered_set<std::string> &superior_ppns,
-                   MARC::Record * const record, unsigned * const modified_count, const std::set<std::string> &ppns_in_kat)
-{
+void ProcessRecord(MARC::Writer * const marc_writer, const std::unordered_set<std::string> &superior_ppns, MARC::Record * const record,
+                   unsigned * const modified_count, const std::set<std::string> &ppns_in_kat) {
     // Don't add the flag twice:
     if (record->getFirstField("SPR") != record->end()) {
         marc_writer->write(*record);
@@ -95,8 +94,7 @@ void ProcessRecord(MARC::Writer * const marc_writer, const std::unordered_set<st
 
 
 void AddSuperiorFlag(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                     const std::unordered_set<std::string> &superior_ppns, const std::string &flavour)
-{
+                     const std::unordered_set<std::string> &superior_ppns, const std::string &flavour) {
     unsigned modified_count(0);
 
     Zeder::SimpleZeder zeder(Zeder::IXTHEO, { "eppn", "pppn", "kat" }, { { "kat", flavour } });
@@ -126,7 +124,7 @@ int main(int argc, char **argv) {
     if (__builtin_strcmp(argv[1], "ixtheo") == 0)
         flavour = "IxTheo";
     else if (__builtin_strcmp(argv[1], "krimdok") == 0)
-        flavour = "KrimDok"; //KrimDok is not used in Zeder, if used in the future, check naming
+        flavour = "KrimDok"; // KrimDok is not used in Zeder, if used in the future, check naming
     else
         LOG_ERROR("zeder_flavour must be one of (ixtheo,krimdok)!");
 

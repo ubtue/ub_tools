@@ -36,7 +36,7 @@ bool SystemdUtil::IsAvailable() {
 
 
 void SystemdUtil::Reload() {
-    ExecUtil::ExecOrDie(ExecUtil::Which(SYSTEMCTL_EXECUTABLE), { "daemon-reload"});
+    ExecUtil::ExecOrDie(ExecUtil::Which(SYSTEMCTL_EXECUTABLE), { "daemon-reload" });
 }
 
 

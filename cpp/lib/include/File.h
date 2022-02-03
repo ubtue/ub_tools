@@ -34,16 +34,20 @@
 
 class File {
 public:
-    template<typename ArgType> struct SingleArgManipulator {
+    template <typename ArgType>
+    struct SingleArgManipulator {
         File &(*func_)(File &file, ArgType arg);
         ArgType arg_;
+
     public:
         SingleArgManipulator(File &(*func)(File &file, ArgType arg), ArgType arg): func_(func), arg_(arg) { }
     };
 
     enum ThrowOnOpenBehaviour { THROW_ON_ERROR, DO_NOT_THROW_ON_ERROR };
+
 private:
     enum OpenMode { READING, WRITING, READING_AND_WRITING };
+
 private:
     std::string filename_;
     char buffer_[81920];
@@ -54,6 +58,7 @@ private:
     char pushed_back_chars_[2];
     int precision_;
     OpenMode open_mode_;
+
 public:
     /** \brief  Creates and initalises a File object.
      *  \param  path                      The pathname for the file (see fopen(3) for details).
@@ -64,8 +69,7 @@ public:
      *  \param  throw_on_error_behaviour  If true, any open failure will cause an exception to be thrown.  If not true
      *                                    you must use the fail() member function.
      */
-    File(const std::string &filename, const std::string &mode,
-         const ThrowOnOpenBehaviour throw_on_error_behaviour = DO_NOT_THROW_ON_ERROR);
+    File(const std::string &filename, const std::string &mode, const ThrowOnOpenBehaviour throw_on_error_behaviour = DO_NOT_THROW_ON_ERROR);
 
     /** \brief  Create a File object from a file descriptor.
      *  \param  fd    A valid (open) file descriptor for the current process.
@@ -74,7 +78,10 @@ public:
      */
     explicit File(const int fd, const std::string &mode = "");
 
-    ~File() { if (file_ != nullptr) std::fclose(file_); }
+    ~File() {
+        if (file_ != nullptr)
+            std::fclose(file_);
+    }
 
     /** Closes this File.  If this fails you may consult the global "errno" for the reason. */
     bool close();
@@ -228,9 +235,11 @@ public:
      */
     bool truncate(const off_t new_length = 0);
 
-    static File &endl(File &f) { f.put('\n'), f.flush(); return f; }
-    static SingleArgManipulator<int> setprecision(int new_precision) {
-        return SingleArgManipulator<int>(SetPrecision, new_precision); }
+    static File &endl(File &f) {
+        f.put('\n'), f.flush();
+        return f;
+    }
+    static SingleArgManipulator<int> setprecision(int new_precision) { return SingleArgManipulator<int>(SetPrecision, new_precision); }
 
     /** \brief Sets the buffer size if the file references a pipe or FIFO.
      *  \param new_buffer_size  If 0, we attempt to set the buffer size to the contents of /proc/sys/fs/pipe-max-size
@@ -240,7 +249,11 @@ public:
      *  \note  If this function fails you can consult errno for the reason.
      */
     bool setPipeBufferSize(int new_buffer_size = 0);
+
 private:
     void fillBuffer();
-    static File &SetPrecision(File &f, int new_precision) { f.precision_ = new_precision; return f; }
+    static File &SetPrecision(File &f, int new_precision) {
+        f.precision_ = new_precision;
+        return f;
+    }
 };

@@ -37,9 +37,7 @@ void Usage() {
 
 
 /** Returns true if we match at least one subject in "subjects". */
-inline bool Matched(const std::vector<std::string> &subjects,
-                    const std::unordered_set<std::string> &loc_subject_headings)
-{
+inline bool Matched(const std::vector<std::string> &subjects, const std::unordered_set<std::string> &loc_subject_headings) {
     for (const auto &subject : subjects) {
         if (loc_subject_headings.find(subject) != loc_subject_headings.cend())
             return true;
@@ -66,9 +64,7 @@ size_t RemoveEmptyEntries(std::vector<std::string> * const entries) {
 
 
 void CollectStats(MARC::Reader * const marc_reader, const std::unordered_set<std::string> &loc_subject_headings,
-                  std::unordered_map<std::string, unsigned> * const subjects_to_counts_map,
-                  unsigned * const match_count)
-{
+                  std::unordered_map<std::string, unsigned> * const subjects_to_counts_map, unsigned * const match_count) {
     *match_count = 0;
     unsigned total_count(0), duplicate_count(0), empty_count(0);
     while (const MARC::Record record = marc_reader->read()) {
@@ -113,15 +109,12 @@ void CollectStats(MARC::Reader * const marc_reader, const std::unordered_set<std
 
 
 inline bool CompSubjectsAndSizes(const std::pair<std::string, unsigned> &subject_and_size1,
-                                 const std::pair<std::string, unsigned> &subject_and_size2)
-{
+                                 const std::pair<std::string, unsigned> &subject_and_size2) {
     return subject_and_size1.second > subject_and_size2.second;
 }
 
 
-void DisplayStats(const std::unordered_map<std::string, unsigned> &subjects_to_counts_map,
-                  const unsigned total_count)
-{
+void DisplayStats(const std::unordered_map<std::string, unsigned> &subjects_to_counts_map, const unsigned total_count) {
     std::vector<std::pair<std::string, unsigned>> subjects_and_counts;
     subjects_and_counts.reserve(subjects_to_counts_map.size());
     for (const auto &subject_and_count : subjects_to_counts_map)
@@ -130,8 +123,7 @@ void DisplayStats(const std::unordered_map<std::string, unsigned> &subjects_to_c
     std::sort(subjects_and_counts.begin(), subjects_and_counts.end(), CompSubjectsAndSizes);
 
     for (const auto &subject_and_count : subjects_and_counts)
-        std::cout << subject_and_count.first << ' '
-                  << StringUtil::ToString(subject_and_count.second * 100.0 / total_count, 5) << "%\n";
+        std::cout << subject_and_count.first << ' ' << StringUtil::ToString(subject_and_count.second * 100.0 / total_count, 5) << "%\n";
 }
 
 

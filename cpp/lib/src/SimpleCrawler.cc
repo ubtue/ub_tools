@@ -23,21 +23,17 @@
 #include "WebUtil.h"
 
 
-SimpleCrawler::Params::Params(const std::string &acceptable_languages, const unsigned timeout,
-                              const unsigned min_url_processing_time, const bool print_all_http_headers,
-                              const bool print_last_http_header, const bool ignore_robots_dot_txt,
-                              const bool print_redirects, const std::string &user_agent,
-                              const std::string &url_ignore_pattern, const bool ignore_ssl_certificates,
-                              const std::string &proxy_host_and_port,
-                              const bool print_queued_urls,
+SimpleCrawler::Params::Params(const std::string &acceptable_languages, const unsigned timeout, const unsigned min_url_processing_time,
+                              const bool print_all_http_headers, const bool print_last_http_header, const bool ignore_robots_dot_txt,
+                              const bool print_redirects, const std::string &user_agent, const std::string &url_ignore_pattern,
+                              const bool ignore_ssl_certificates, const std::string &proxy_host_and_port, const bool print_queued_urls,
                               const bool print_skipped_urls)
-    : acceptable_languages_(acceptable_languages), timeout_(timeout),
-      min_url_processing_time_(min_url_processing_time), print_all_http_headers_(print_all_http_headers),
-      print_last_http_header_(print_last_http_header), ignore_robots_dot_txt_(ignore_robots_dot_txt),
-      print_redirects_(print_redirects), user_agent_(user_agent),
-      url_ignore_pattern_(url_ignore_pattern), ignore_ssl_certificates_(ignore_ssl_certificates),
-      proxy_host_and_port_(proxy_host_and_port), print_queued_urls_(print_queued_urls),
-      print_skipped_urls_(print_skipped_urls) {}
+    : acceptable_languages_(acceptable_languages), timeout_(timeout), min_url_processing_time_(min_url_processing_time),
+      print_all_http_headers_(print_all_http_headers), print_last_http_header_(print_last_http_header),
+      ignore_robots_dot_txt_(ignore_robots_dot_txt), print_redirects_(print_redirects), user_agent_(user_agent),
+      url_ignore_pattern_(url_ignore_pattern), ignore_ssl_certificates_(ignore_ssl_certificates), proxy_host_and_port_(proxy_host_and_port),
+      print_queued_urls_(print_queued_urls), print_skipped_urls_(print_skipped_urls) {
+}
 
 
 void SimpleCrawler::extractLocationUrls(const std::string &header_blob, std::list<std::string> * const location_urls) {
@@ -74,19 +70,18 @@ void SimpleCrawler::ParseConfigFile(const std::string &config_path, std::vector<
         std::vector<std::string> line_parts;
         const unsigned no_of_parts(StringUtil::SplitThenTrimWhite(line, ' ', &line_parts));
         if (no_of_parts != 3 and no_of_parts != 4)
-            LOG_ERROR("bad input line #" + std::to_string(line_no) + " in \""
-                   + input->getPath() + "\"!");
+            LOG_ERROR("bad input line #" + std::to_string(line_no) + " in \"" + input->getPath() + "\"!");
 
         unsigned max_crawl_depth;
         if (not StringUtil::ToUnsigned(line_parts[1], &max_crawl_depth))
-            LOG_ERROR("bad input line #" + std::to_string(line_no) + " in \""
-                   + input->getPath() + "\"! (Invalid max. crawl depth: \"" + line_parts[1] + "\")");
+            LOG_ERROR("bad input line #" + std::to_string(line_no) + " in \"" + input->getPath() + "\"! (Invalid max. crawl depth: \""
+                      + line_parts[1] + "\")");
 
         std::string err_msg;
         RegexMatcher * const url_regex_matcher(RegexMatcher::RegexMatcherFactory(line_parts[2], &err_msg));
         if (url_regex_matcher == nullptr)
-            LOG_ERROR("bad input line #" + std::to_string(line_no) + " in \""
-                   + input->getPath() + "\", regex is faulty! (" + err_msg + ")");
+            LOG_ERROR("bad input line #" + std::to_string(line_no) + " in \"" + input->getPath() + "\", regex is faulty! (" + err_msg
+                      + ")");
 
         site_descs->emplace_back(line_parts[0], max_crawl_depth, url_regex_matcher);
     }
@@ -95,12 +90,12 @@ void SimpleCrawler::ParseConfigFile(const std::string &config_path, std::vector<
 
 SimpleCrawler::SimpleCrawler(const SiteDesc &site_desc, const Params &params)
     : remaining_crawl_depth_(site_desc.max_crawl_depth_), url_regex_matcher_(site_desc.url_regex_matcher_),
-      min_url_processing_time_(params.min_url_processing_time_), params_(params)
-{
+      min_url_processing_time_(params.min_url_processing_time_), params_(params) {
     url_queue_current_depth_.push(site_desc.start_url_);
 
     std::string err_msg;
-    url_ignore_regex_matcher_.reset(RegexMatcher::RegexMatcherFactory(params.url_ignore_pattern_, &err_msg, RegexMatcher::Option::CASE_INSENSITIVE));
+    url_ignore_regex_matcher_.reset(
+        RegexMatcher::RegexMatcherFactory(params.url_ignore_pattern_, &err_msg, RegexMatcher::Option::CASE_INSENSITIVE));
     if (url_ignore_regex_matcher_ == nullptr)
         LOG_ERROR("could not initialize URL ignore regex matcher: " + err_msg);
 
@@ -152,8 +147,7 @@ bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
     min_url_processing_time_.restart();
     if (downloader_.anErrorOccurred()) {
         page_details->error_message_ = "Download failed: " + downloader_.getLastErrorMessage();
-        logger->warning("Failed to retrieve a Web page (" + url + "):\n"
-                        + downloader_.getLastErrorMessage());
+        logger->warning("Failed to retrieve a Web page (" + url + "):\n" + downloader_.getLastErrorMessage());
         return SimpleCrawler::continueCrawling();
     }
 
@@ -176,10 +170,8 @@ bool SimpleCrawler::getNextPage(PageDetails * const page_details) {
     // extract deeper level URL's
     if (remaining_crawl_depth_ > 0) {
         constexpr unsigned EXTRACT_URL_FLAGS(WebUtil::IGNORE_DUPLICATE_URLS | WebUtil::IGNORE_LINKS_IN_IMG_TAGS
-                                           | WebUtil::REMOVE_DOCUMENT_RELATIVE_ANCHORS
-                                           | WebUtil::CLEAN_UP_ANCHOR_TEXT
-                                           | WebUtil::KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY
-                                           | WebUtil::ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS);
+                                             | WebUtil::REMOVE_DOCUMENT_RELATIVE_ANCHORS | WebUtil::CLEAN_UP_ANCHOR_TEXT
+                                             | WebUtil::KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY | WebUtil::ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS);
 
         std::vector<WebUtil::UrlAndAnchorTexts> urls_and_anchor_texts;
         WebUtil::ExtractURLs(message_body, url, WebUtil::ABSOLUTE_URLS, &urls_and_anchor_texts, EXTRACT_URL_FLAGS);
@@ -208,7 +200,8 @@ void SimpleCrawler::ProcessSite(const SiteDesc &site_desc, const Params &params,
 }
 
 
-void SimpleCrawler::ProcessSites(const std::string &config_path, const SimpleCrawler::Params &params, std::vector<std::string> * const extracted_urls) {
+void SimpleCrawler::ProcessSites(const std::string &config_path, const SimpleCrawler::Params &params,
+                                 std::vector<std::string> * const extracted_urls) {
     std::vector<SimpleCrawler::SiteDesc> site_descs;
     SimpleCrawler::ParseConfigFile(config_path, &site_descs);
     for (const auto &site_desc : site_descs)

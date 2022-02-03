@@ -28,6 +28,7 @@
 
 class FullTextCache {
     Elasticsearch full_text_cache_, full_text_cache_urls_, full_text_cache_html_;
+
 public:
     struct Entry {
         std::string id_;
@@ -38,6 +39,7 @@ public:
         std::string url_;
         std::string domain_;
         std::string error_message_;
+
     public:
         EntryUrl() = default;
         EntryUrl(const std::string &id, const std::string &url, const std::string &domain, const std::string &error_message)
@@ -48,15 +50,18 @@ public:
         std::string domain_;
         std::string error_message_;
         EntryUrl example_entry_;
+
     public:
         EntryGroup() = default;
-        EntryGroup(const unsigned count, const std::string &domain, const std::string &error_message,
-                   const std::string &id, const std::string &url)
+        EntryGroup(const unsigned count, const std::string &domain, const std::string &error_message, const std::string &id,
+                   const std::string &url)
             : count_(count), domain_(domain), error_message_(error_message), example_entry_(id, url, domain, error_message) { }
     };
+
 public:
-    FullTextCache(): full_text_cache_("full_text_cache"), full_text_cache_urls_("full_text_cache_urls"),
-                     full_text_cache_html_("full_text_cache_html") { }
+    FullTextCache()
+        : full_text_cache_("full_text_cache"), full_text_cache_urls_("full_text_cache_urls"),
+          full_text_cache_html_("full_text_cache_html") { }
 
     /** \brief Test whether an entry in the cache has expired or not.
      *  \return True if we don't find "id" in the database, or the entry is older than now-CACHE_EXPIRE_TIME_DELTA,
@@ -66,7 +71,14 @@ public:
     bool entryExpired(const std::string &key, std::vector<std::string> urls);
     bool singleUrlExpired(const std::string &key, const std::string &url);
     bool dummyEntryExists(const std::string &key);
-    enum TextType { FULLTEXT = 1, TOC = 2, ABSTRACT = 4, SUMMARY = 8, LIST_OF_REFERENCES = 16, UNKNOWN = 0 }; // Must match constants in TuelibMixin.java
+    enum TextType {
+        FULLTEXT = 1,
+        TOC = 2,
+        ABSTRACT = 4,
+        SUMMARY = 8,
+        LIST_OF_REFERENCES = 16,
+        UNKNOWN = 0
+    }; // Must match constants in TuelibMixin.java
     static constexpr auto DUMMY_URL = "DUMMY URL";
     static constexpr auto DUMMY_DOMAIN = "DUMMY DOMAIN";
     static constexpr auto DUMMY_ERROR = "DUMMY ERROR";
@@ -101,8 +113,7 @@ public:
 
 
     /** \brief Extract and Import Page oriented Full Text */
-    void extractAndImportHTMLPages(const std::string &id, const std::string &full_text_location,
-                                   const TextType &text_type = FULLTEXT);
+    void extractAndImportHTMLPages(const std::string &id, const std::string &full_text_location, const TextType &text_type = FULLTEXT);
 
     /* \note If "data" is empty only an entry will be made in the SQL database but not in the key/value store.  Also
      *       either "data" must be non-empty or "error_message" must be non-empty.
@@ -121,12 +132,11 @@ public:
 
 
 inline FullTextCache::TextType operator|(const FullTextCache::TextType &lhs, const FullTextCache::TextType &rhs) {
-    return static_cast<FullTextCache::TextType>(static_cast<std::underlying_type_t<FullTextCache::TextType>>(lhs) |
-                                                static_cast<std::underlying_type_t<FullTextCache::TextType>>(rhs));
+    return static_cast<FullTextCache::TextType>(static_cast<std::underlying_type_t<FullTextCache::TextType>>(lhs)
+                                                | static_cast<std::underlying_type_t<FullTextCache::TextType>>(rhs));
 }
 
 
 inline FullTextCache::TextType operator|=(FullTextCache::TextType &lhs, const FullTextCache::TextType &rhs) {
     return lhs = lhs | rhs;
 }
-

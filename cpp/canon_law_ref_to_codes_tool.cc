@@ -37,11 +37,12 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--debug|--query] canon_law_reference_candidate\n"
-            "When --debug has been specified additional tracing output will be generated.\n"
-            "When --query has been specified SOLR search queries will be output.\n"
-            "If --map-file-directory=... has been specified, the provided path will be prefixed to all\n"
-            "map-file arguments and, if the map arguments are left off, the default names will be used.");
+    ::Usage(
+        "[--debug|--query] canon_law_reference_candidate\n"
+        "When --debug has been specified additional tracing output will be generated.\n"
+        "When --query has been specified SOLR search queries will be output.\n"
+        "If --map-file-directory=... has been specified, the provided path will be prefixed to all\n"
+        "map-file arguments and, if the map arguments are left off, the default names will be used.");
 }
 
 
@@ -120,19 +121,17 @@ int Main(int argc, char **argv) {
         if (first_comma_pos != std::string::npos) {
             unsigned paragraph;
             if (not StringUtil::ToUnsigned(rest.substr(0, first_comma_pos), &paragraph) or paragraph > 9999)
-                 LOG_ERROR("invalid paragraph in \"" + rest + "\"!");
+                LOG_ERROR("invalid paragraph in \"" + rest + "\"!");
 
             const auto dash_pos(rest.find('-', first_comma_pos + 1));
             const auto second_comma_pos(rest.find(',', first_comma_pos + 1));
             if (dash_pos != std::string::npos) { // Example: CIC83 790,1-2
                 unsigned part1;
-                if (not StringUtil::ToUnsigned(rest.substr(first_comma_pos + 1, dash_pos - first_comma_pos - 1), &part1)
-                    or part1 > 99)
+                if (not StringUtil::ToUnsigned(rest.substr(first_comma_pos + 1, dash_pos - first_comma_pos - 1), &part1) or part1 > 99)
                     LOG_ERROR("can't convert \"" + rest + "\" to a valid reference! (1)");
 
                 unsigned part2;
-                if (not StringUtil::ToUnsigned(rest.substr(dash_pos + 1), &part2)
-                    or part2 > 99)
+                if (not StringUtil::ToUnsigned(rest.substr(dash_pos + 1), &part2) or part2 > 99)
                     LOG_ERROR("can't convert \"" + rest + "\" to a valid reference! (2)");
 
                 lower += paragraph * 10000 + part1 * 100;
@@ -144,16 +143,14 @@ int Main(int argc, char **argv) {
                     LOG_ERROR("can't convert \"" + rest + "\" to a valid reference! (3)");
 
                 unsigned part2;
-                if (not StringUtil::ToUnsigned(rest.substr(second_comma_pos + 1), &part2)
-                    or part2 > 99)
+                if (not StringUtil::ToUnsigned(rest.substr(second_comma_pos + 1), &part2) or part2 > 99)
                     LOG_ERROR("can't convert \"" + rest + "\" to a valid reference! (4)");
 
                 lower += paragraph * 10000 + part1 * 100 + part2;
                 upper += paragraph * 10000 + part1 * 100 + part2;
             } else { // Example: CCEO 1087,2
                 unsigned part;
-                if (not StringUtil::ToUnsigned(rest.substr(first_comma_pos + 1), &part)
-                    or part > 99)
+                if (not StringUtil::ToUnsigned(rest.substr(first_comma_pos + 1), &part) or part > 99)
                     LOG_ERROR("can't convert \"" + rest + "\" to a valid reference! (5)");
 
                 lower += paragraph * 10000 + part * 100;

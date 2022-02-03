@@ -45,15 +45,15 @@ namespace NGram {
 
 // Language extraction parameters.  These defaults are the same as the reference
 // implementation (i.e. the perl "text_cat" program) except where noted.
-const unsigned DEFAULT_NGRAM_NUMBER_THRESHOLD  =   0; // 0 means no threshold.
-const unsigned DEFAULT_TOPMOST_USE_COUNT       = 400;
+const unsigned DEFAULT_NGRAM_NUMBER_THRESHOLD = 0; // 0 means no threshold.
+const unsigned DEFAULT_TOPMOST_USE_COUNT = 400;
 const double DEFAULT_ALTERNATIVE_CUTOFF_FACTOR = 1.0; // textcat = 1.05
 
 
 typedef std::vector<std::pair<std::wstring, double>> NGramCounts;
 
 
-class UnitVector: public NGramCounts {
+class UnitVector : public NGramCounts {
 public:
     UnitVector() = default;
     explicit UnitVector(const NGramCounts &ngram_counts);
@@ -62,8 +62,9 @@ public:
 };
 
 
-class LanguageModel: public UnitVector {
+class LanguageModel : public UnitVector {
     std::string language_;
+
 public:
     LanguageModel() = default;
     LanguageModel(const std::string &language, const NGramCounts &ngram_counts): UnitVector(ngram_counts), language_(language) { }
@@ -102,9 +103,8 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
  *  \param  topmost_use_count       The topmost number of ngrams that should be used.
  */
 inline void CreateLanguageModel(const std::string &input_text, LanguageModel * const language_model,
-				const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
-				const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT)
-{
+                                const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
+                                const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT) {
     std::istringstream input(input_text);
     CreateLanguageModel(input, language_model, ngram_number_threshold, topmost_use_count);
 }
@@ -113,9 +113,10 @@ inline void CreateLanguageModel(const std::string &input_text, LanguageModel * c
 struct DetectedLanguage {
     std::string language_;
     double score_;
+
 public:
     DetectedLanguage() = default;
-    DetectedLanguage(const std::string &language, const double score): language_(language), score_(score) {};
+    DetectedLanguage(const std::string &language, const double score): language_(language), score_(score){};
 };
 
 
@@ -132,7 +133,7 @@ public:
  *  \note    By default, the language models are located in the libiViCore share/language_models directory.
  */
 void ClassifyLanguage(std::istream &input, std::vector<DetectedLanguage> * const top_languages,
-                      const std::set<std::string> &considered_languages = { },
+                      const std::set<std::string> &considered_languages = {},
                       const double alternative_cutoff_factor = DEFAULT_ALTERNATIVE_CUTOFF_FACTOR,
                       const std::string &override_language_models_directory = "");
 
@@ -150,10 +151,9 @@ void ClassifyLanguage(std::istream &input, std::vector<DetectedLanguage> * const
  *  \note   By default, the language models are located in the libiViaCore share/language_models directory.
  */
 inline void ClassifyLanguage(const std::string &input_text, std::vector<DetectedLanguage> * const top_languages,
-                             const std::set<std::string> &considered_languages = { },
+                             const std::set<std::string> &considered_languages = {},
                              const double alternative_cutoff_factor = DEFAULT_ALTERNATIVE_CUTOFF_FACTOR,
-                             const std::string &override_language_models_directory = "")
-{
+                             const std::string &override_language_models_directory = "") {
     std::istringstream input(input_text);
     ClassifyLanguage(input, top_languages, considered_languages, alternative_cutoff_factor, override_language_models_directory);
 }
@@ -180,8 +180,7 @@ void CreateAndWriteLanguageModel(std::istream &input, const std::string &output_
  */
 inline void CreateAndWriteLanguageModel(const std::string &input_text, const std::string &output_path,
                                         const unsigned ngram_number_threshold = DEFAULT_NGRAM_NUMBER_THRESHOLD,
-                                        const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT)
-{
+                                        const unsigned topmost_use_count = DEFAULT_TOPMOST_USE_COUNT) {
     std::istringstream input(input_text);
     CreateAndWriteLanguageModel(input, output_path, ngram_number_threshold, topmost_use_count);
 }

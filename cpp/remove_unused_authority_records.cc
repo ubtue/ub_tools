@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <stdexcept>
@@ -41,8 +41,11 @@ namespace {
 
 void CollectGNDReferences(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const gnd_numbers) {
     std::string err_msg;
-    RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\x1F""0\\(DE-588\\)([^\x1F]+).*\x1F""2gnd",
-                                                                   &err_msg));
+    RegexMatcher * const matcher(
+        RegexMatcher::RegexMatcherFactory("\x1F"
+                                          "0\\(DE-588\\)([^\x1F]+).*\x1F"
+                                          "2gnd",
+                                          &err_msg));
     if (matcher == nullptr)
         logger->error("failed to compile a regex in CollectGNDReferences: " + err_msg);
 
@@ -56,8 +59,7 @@ void CollectGNDReferences(MARC::Reader * const marc_reader, std::unordered_set<s
         }
     }
 
-    std::cout << "Extracted " << gnd_numbers->size() << " GND number(s) from " <<  record_count
-              << " title record(s).\n";
+    std::cout << "Extracted " << gnd_numbers->size() << " GND number(s) from " << record_count << " title record(s).\n";
 }
 
 
@@ -77,8 +79,7 @@ const std::string DROPPED_GND_LIST_FILE("/usr/local/var/log/tuefind/dropped_gnd_
 
 
 void FilterAuthorityData(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                         const std::unordered_set<std::string> &gnd_numbers)
-{
+                         const std::unordered_set<std::string> &gnd_numbers) {
     std::unique_ptr<File> gnd_list_file(FileUtil::OpenOutputFileOrDie(DROPPED_GND_LIST_FILE));
     unsigned record_count(0), dropped_count(0), authority_records_without_gnd_numbers_count(0);
     while (const MARC::Record record = marc_reader->read()) {
@@ -97,8 +98,7 @@ void FilterAuthorityData(MARC::Reader * const marc_reader, MARC::Writer * const 
     }
 
     std::cerr << "Read " << record_count << " authority record(s) of which " << dropped_count << " were dropped.\n";
-    std::cerr << "Found and kept " << authority_records_without_gnd_numbers_count
-              << " authority records w/o a GND number.\n";
+    std::cerr << "Found and kept " << authority_records_without_gnd_numbers_count << " authority records w/o a GND number.\n";
 }
 
 

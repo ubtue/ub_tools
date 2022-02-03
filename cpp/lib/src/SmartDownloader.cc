@@ -30,10 +30,8 @@
 namespace {
 
 
-bool DownloadHelper(const std::string &url, const TimeLimit &time_limit,
-                    std::string * const document, std::string * const http_header_charset,
-                    std::string * const error_message)
-{
+bool DownloadHelper(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                    std::string * const http_header_charset, std::string * const error_message) {
     Downloader downloader(url, Downloader::Params(), time_limit);
     if (downloader.anErrorOccurred()) {
         *error_message = downloader.getLastErrorMessage();
@@ -61,8 +59,7 @@ bool SmartDownloader::canHandleThis(const std::string &url) const {
     std::string err_msg;
     if (matcher_->matched(url, &err_msg)) {
         if (not err_msg.empty())
-            LOG_ERROR("an error occurred while trying to match \"" + url + "\" with \""
-                  + matcher_->getPattern() + "\"! (" + err_msg + ")");
+            LOG_ERROR("an error occurred while trying to match \"" + url + "\" with \"" + matcher_->getPattern() + "\"! (" + err_msg + ")");
 
         return true;
     }
@@ -72,8 +69,7 @@ bool SmartDownloader::canHandleThis(const std::string &url) const {
 
 
 bool SmartDownloader::downloadDoc(const std::string &url, const TimeLimit &time_limit, std::string * const document,
-                                  std::string * const http_header_charset, std::string * const error_message)
-{
+                                  std::string * const http_header_charset, std::string * const error_message) {
     if (downloadDocImpl(url, time_limit, document, http_header_charset, error_message)) {
         ++success_count_;
         return true;
@@ -83,16 +79,12 @@ bool SmartDownloader::downloadDoc(const std::string &url, const TimeLimit &time_
 
 
 bool DSpaceDownloader::canHandleThis(const std::string &url) const {
-    return url.find("dspace") != std::string::npos or
-           url.find("xmlui") != std::string::npos or
-           url.find("jspui") != std::string::npos;
+    return url.find("dspace") != std::string::npos or url.find("xmlui") != std::string::npos or url.find("jspui") != std::string::npos;
 }
 
 
-bool DSpaceDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
-                                       std::string * const document, std::string * const http_header_charset,
-                                       std::string * const error_message)
-{
+bool DSpaceDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                       std::string * const http_header_charset, std::string * const error_message) {
     document->clear();
 
     if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message))
@@ -129,10 +121,8 @@ bool SimpleSuffixDownloader::canHandleThis(const std::string &url) const {
 }
 
 
-bool SimpleSuffixDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
-                                             std::string * const document, std::string * const http_header_charset,
-                                             std::string * const error_message)
-{
+bool SimpleSuffixDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                             std::string * const http_header_charset, std::string * const error_message) {
     if (trace_)
         LOG_INFO("about to download \"" + url + "\".");
     return (DownloadHelper(url, time_limit, document, http_header_charset, error_message));
@@ -149,20 +139,16 @@ bool SimplePrefixDownloader::canHandleThis(const std::string &url) const {
 }
 
 
-bool SimplePrefixDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
-                                             std::string * const document, std::string * const http_header_charset,
-                                             std::string * const error_message)
-{
+bool SimplePrefixDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                             std::string * const http_header_charset, std::string * const error_message) {
     if (trace_)
         LOG_INFO("about to download \"" + url + "\".");
     return (DownloadHelper(url, time_limit, document, http_header_charset, error_message));
 }
 
 
-bool DigiToolSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
-                                              std::string * const document, std::string * const http_header_charset,
-                                              std::string * const error_message)
-{
+bool DigiToolSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                              std::string * const http_header_charset, std::string * const error_message) {
     static RegexMatcher * const matcher(
         RegexMatcher::RegexMatcherFactory("http://digitool.hbz-nrw.de:1801/webclient/DeliveryManager\\?pid=\\d+"));
 
@@ -179,25 +165,22 @@ bool DigiToolSmartDownloader::downloadDocImpl(const std::string &url, const Time
         return false;
 
     static const std::string ocr_text("ocr-text:\n");
-    if (MediaTypeUtil::GetMediaType(*document) == "text/plain"
-        and StringUtil::StartsWith(*document, ocr_text))
+    if (MediaTypeUtil::GetMediaType(*document) == "text/plain" and StringUtil::StartsWith(*document, ocr_text))
         *document = StringUtil::ISO8859_15ToUTF8(document->substr(ocr_text.length()));
 
     return true;
 }
 
 
-bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
-                                            std::string * const document, std::string * const http_header_charset,
-                                            std::string * const error_message)
-{
+bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                            std::string * const http_header_charset, std::string * const error_message) {
     std::string improved_url(url);
     if (RegexMatcher::Matched("/diglit/", url))
         improved_url = StringUtil::ReplaceString("/diglit/", "/opendigi/", &improved_url);
     if (RegexMatcher::Matched("/opendigi/", improved_url)) {
         /* Since we currently cannot appropriately associate the text on an article level
         / we completely omit OpenDigi documents */
-        //improved_url += "/ocr";
+        // improved_url += "/ocr";
         document->clear();
         return true;
     }
@@ -217,10 +200,8 @@ bool DiglitSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
 }
 
 
-bool BszSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
-                                         std::string * const document, std::string * const http_header_charset,
-                                         std::string * const error_message)
-{
+bool BszSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                         std::string * const http_header_charset, std::string * const error_message) {
     const std::string doc_url(url.substr(0, url.size() - 3) + "pdf");
     if (trace_)
         LOG_INFO("about to download \"" + doc_url + "\".");
@@ -228,10 +209,8 @@ bool BszSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit
 }
 
 
-bool BvbrSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
-                                          std::string * const document, std::string * const http_header_charset,
-                                          std::string * const error_message)
-{
+bool BvbrSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                          std::string * const http_header_charset, std::string * const error_message) {
     if (trace_)
         LOG_INFO("about to download \"" + url + "\".");
     if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message))
@@ -255,10 +234,8 @@ bool BvbrSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimi
 }
 
 
-bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
-                                           std::string * const document, std::string * const http_header_charset,
-                                           std::string * const error_message)
-{
+bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                           std::string * const http_header_charset, std::string * const error_message) {
     if (trace_)
         LOG_INFO("about to download \"" + url + "\".");
     if (not DownloadHelper(url, time_limit, document, http_header_charset, error_message))
@@ -283,8 +260,7 @@ bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const TimeLim
             *error_message = "no matching Bsz2l structure found! (part 2)";
             return false;
         }
-        doc_url = "http://idb.ub.uni-tuebingen.de/cgi-bin/digi-downloadPdf.fcgi?projectname="
-                  + pers_url.substr(last_slash_pos + 1);
+        doc_url = "http://idb.ub.uni-tuebingen.de/cgi-bin/digi-downloadPdf.fcgi?projectname=" + pers_url.substr(last_slash_pos + 1);
     } else {
         start_pos = document->find("name=\"citation_pdf_url\"");
         if (start_pos == std::string::npos)
@@ -310,10 +286,8 @@ bool Bsz21SmartDownloader::downloadDocImpl(const std::string &url, const TimeLim
 }
 
 
-bool LocGovSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
-                                            std::string * const document, std::string * const http_header_charset,
-                                            std::string * const error_message)
-{
+bool LocGovSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                            std::string * const http_header_charset, std::string * const error_message) {
     if (url.length() < 11) {
         *error_message = "LocGov URL too short!";
         return false;
@@ -326,33 +300,28 @@ bool LocGovSmartDownloader::downloadDocImpl(const std::string &url, const TimeLi
 }
 
 
-bool OJSSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
-                                        std::string * const document, std::string * const http_header_charset,
-                                        std::string * const error_message)
-{
-     // Try to extract the PDF URL from embedded metadata
-     std::string html_page;
-     if (not DownloadHelper(url, time_limit, &html_page, http_header_charset, error_message))
-         return false;
-     std::list<std::pair<std::string, std::string>> citation_pdf_urls;
-     MetaTagExtractor meta_tag_extractor(html_page, "citation_pdf_url", &citation_pdf_urls);
-     meta_tag_extractor.parse();
-     if (citation_pdf_urls.empty()) {
-         *error_message = "Could not extract citation_pdf_url metatag for \"" + url + '"';
-         return false;
-     }
-     const auto &[name, pdf_url] = citation_pdf_urls.front();
-     if (not DownloadHelper(pdf_url, time_limit, document, http_header_charset, error_message))
-         return false;
-     return true;
+bool OJSSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                         std::string * const http_header_charset, std::string * const error_message) {
+    // Try to extract the PDF URL from embedded metadata
+    std::string html_page;
+    if (not DownloadHelper(url, time_limit, &html_page, http_header_charset, error_message))
+        return false;
+    std::list<std::pair<std::string, std::string>> citation_pdf_urls;
+    MetaTagExtractor meta_tag_extractor(html_page, "citation_pdf_url", &citation_pdf_urls);
+    meta_tag_extractor.parse();
+    if (citation_pdf_urls.empty()) {
+        *error_message = "Could not extract citation_pdf_url metatag for \"" + url + '"';
+        return false;
+    }
+    const auto &[name, pdf_url] = citation_pdf_urls.front();
+    if (not DownloadHelper(pdf_url, time_limit, document, http_header_charset, error_message))
+        return false;
+    return true;
 }
 
 
-
-bool DefaultDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
-                                        std::string * const document, std::string * const http_header_charset,
-                                        std::string * const error_message)
-{
+bool DefaultDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                        std::string * const http_header_charset, std::string * const error_message) {
     return DownloadHelper(url, time_limit, document, http_header_charset, error_message);
 }
 
@@ -366,27 +335,24 @@ bool GetRedirectedUrl(const std::string &url, const TimeLimit &time_limit, std::
 
 
 bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::string * const document,
-                   std::string * const http_header_charset, std::string * const error_message,
-                   const bool trace)
-{
+                   std::string * const http_header_charset, std::string * const error_message, const bool trace) {
     document->clear();
-    static std::vector<SmartDownloader *> smart_downloaders{
-        new DSpaceDownloader(trace),
-        new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }, trace),
-        new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }, trace),
-        new SimplePrefixDownloader({ "http://deposit.d-nb.de/cgi-bin/dokserv?" }, trace),
-        new SimplePrefixDownloader({ "http://media.obvsg.at/" }, trace),
-        new SimplePrefixDownloader({ "http://d-nb.info/" }, trace),
-        new DigiToolSmartDownloader(trace),
-        new DiglitSmartDownloader(trace),
-        new BszSmartDownloader(trace),
-        new BvbrSmartDownloader(trace),
-        new Bsz21SmartDownloader(trace),
-        new LocGovSmartDownloader(trace),
-        new PublicationsTueSmartDownloader(trace),
-        new OJSSmartDownloader(trace),
-        new DefaultDownloader(trace)
-    };
+    static std::vector<SmartDownloader *> smart_downloaders{ new DSpaceDownloader(trace),
+                                                             new SimpleSuffixDownloader({ ".pdf", ".jpg", ".jpeg", ".txt" }, trace),
+                                                             new SimplePrefixDownloader({ "http://www.bsz-bw.de/cgi-bin/ekz.cgi?" }, trace),
+                                                             new SimplePrefixDownloader({ "http://deposit.d-nb.de/cgi-bin/dokserv?" },
+                                                                                        trace),
+                                                             new SimplePrefixDownloader({ "http://media.obvsg.at/" }, trace),
+                                                             new SimplePrefixDownloader({ "http://d-nb.info/" }, trace),
+                                                             new DigiToolSmartDownloader(trace),
+                                                             new DiglitSmartDownloader(trace),
+                                                             new BszSmartDownloader(trace),
+                                                             new BvbrSmartDownloader(trace),
+                                                             new Bsz21SmartDownloader(trace),
+                                                             new LocGovSmartDownloader(trace),
+                                                             new PublicationsTueSmartDownloader(trace),
+                                                             new OJSSmartDownloader(trace),
+                                                             new DefaultDownloader(trace) };
 
     for (auto &smart_downloader : smart_downloaders) {
         if (smart_downloader->canHandleThis(url)) {
@@ -400,16 +366,14 @@ bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::str
 }
 
 bool SmartDownloadResolveFirstRedirectHop(const std::string &url, const TimeLimit &time_limit, std::string * const document,
-                   std::string * const http_header_charset, std::string * const error_message,
-                   const bool trace)
-{
+                                          std::string * const http_header_charset, std::string * const error_message, const bool trace) {
     std::string redirected_url(url);
     if (not GetRedirectedUrl(url, time_limit, &redirected_url))
         redirected_url = url; // Make sure redirected_url was not changed internally
     // If the redirection was just from http to https make another try (occurs e.g. with doi.dx requests)
     if (UrlUtil::URLIdenticalButDifferentScheme(url, redirected_url)) {
         if (not GetRedirectedUrl(redirected_url, time_limit, &redirected_url))
-           LOG_WARNING("Could not resolve redirection for " + redirected_url);
+            LOG_WARNING("Could not resolve redirection for " + redirected_url);
     }
     return SmartDownload(redirected_url, time_limit, document, http_header_charset, error_message, trace);
 }

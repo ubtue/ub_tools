@@ -43,15 +43,17 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--create-unique-id-db|--ignore-unique-id-dups|--extract-and-count-issns-only] config_file json_input [unmapped_issn_list marc_output]\n"
-            "\t--create-unique-id-db: This flag has to be specified the first time this program will be executed only.\n"
-            "\t--ignore-unique-id-dups: If specified MARC records will be created for unique ID's which we have encountered\n"
-            "\t                         before.  The unique ID database will still be updated.\n"
-            "\t--extract-and-count-issns-only: Generates stats on the frequency of ISSN's in the JSON input and does not generate any \n"
-            "\t                                MARC output files.  This requires the existence of the \"magic\" \"ISSN\" config file entry!\n"
-            "\tunmapped_issn_list (output): Here we list the ISSN's for which we have no entry in issns_to_journaltitles_and_ppns.map,\n"
-            "\t                             required unless --extract-and-count-issns-only was specified!\n"
-            "\tmarc_outpt: required unless --extract-and-count-issns-only was specified!\n\n");
+    ::Usage(
+        "[--create-unique-id-db|--ignore-unique-id-dups|--extract-and-count-issns-only] config_file json_input [unmapped_issn_list "
+        "marc_output]\n"
+        "\t--create-unique-id-db: This flag has to be specified the first time this program will be executed only.\n"
+        "\t--ignore-unique-id-dups: If specified MARC records will be created for unique ID's which we have encountered\n"
+        "\t                         before.  The unique ID database will still be updated.\n"
+        "\t--extract-and-count-issns-only: Generates stats on the frequency of ISSN's in the JSON input and does not generate any \n"
+        "\t                                MARC output files.  This requires the existence of the \"magic\" \"ISSN\" config file entry!\n"
+        "\tunmapped_issn_list (output): Here we list the ISSN's for which we have no entry in issns_to_journaltitles_and_ppns.map,\n"
+        "\t                             required unless --extract-and-count-issns-only was specified!\n"
+        "\tmarc_outpt: required unless --extract-and-count-issns-only was specified!\n\n");
 }
 
 
@@ -59,6 +61,7 @@ struct JournalTitlePPNAndOnlineISSN {
     std::string journal_title_;
     std::string ppn_;
     std::string online_issn_;
+
 public:
     JournalTitlePPNAndOnlineISSN(const std::string &journal_title, const std::string &ppn, const std::string &online_issn)
         : journal_title_(journal_title), ppn_(ppn), online_issn_(online_issn) { }
@@ -90,7 +93,8 @@ std::vector<std::string> SplitLineOnColons(const std::string &line) {
 
 // Parses an input file that has three (the last component may be empty) parts per line that are colon-separated.  Embedded colons may
 // be backslash escaped.
-void LoadISSNsToJournalTitlesPPNsAndISSNsMap(std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> * const issns_to_journal_titles_ppns_and_issns_map) {
+void LoadISSNsToJournalTitlesPPNsAndISSNsMap(
+    std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> * const issns_to_journal_titles_ppns_and_issns_map) {
     const std::string MAP_FILE_PATH(UBTools::GetTuelibPath() + "issns_to_journaltitles_and_ppns.map");
     const auto input(FileUtil::OpenInputFileOrDie(MAP_FILE_PATH));
 
@@ -101,7 +105,8 @@ void LoadISSNsToJournalTitlesPPNsAndISSNsMap(std::unordered_map<std::string, Jou
         if (line.empty())
             continue;
         std::vector<std::string> parts(SplitLineOnColons(line));
-        if (parts.size() != 4 or parts[0].empty() or parts[1].empty()) // ISSN and titles are required, PPN's and online ISSN's are optional.
+        if (parts.size() != 4 or parts[0].empty()
+            or parts[1].empty()) // ISSN and titles are required, PPN's and online ISSN's are optional.
             LOG_ERROR("malformed line #" + std::to_string(line_no) + " in \"" + MAP_FILE_PATH + "\"!");
         issns_to_journal_titles_ppns_and_issns_map->emplace(parts[0], JournalTitlePPNAndOnlineISSN(parts[1], parts[2], parts[3]));
     }
@@ -115,6 +120,7 @@ struct DependentSubfield {
     char subfield_code_;
     char depends_on_subfield_code_;
     std::string json_path_;
+
 public:
     DependentSubfield(const char subfield_code, const char depends_on_subfield_code, const std::string &json_path)
         : subfield_code_(subfield_code), depends_on_subfield_code_(depends_on_subfield_code), json_path_(json_path) { }
@@ -130,11 +136,12 @@ struct FieldDescriptor {
         subfield_codes_to_fixed_subfields_; // For mapping to variable fields
     std::map<char, std::shared_ptr<RegexMatcher>> subfield_codes_to_extraction_regexes_map_;
     std::vector<DependentSubfield> dependent_subfields_; // For mapping to variable fields
-    std::string json_tag_; // For mapping to control fields
-    std::string field_contents_prefix_; // For mapping to control fields
+    std::string json_tag_;                               // For mapping to control fields
+    std::string field_contents_prefix_;                  // For mapping to control fields
     bool map_to_marc_language_code_;
     bool normalise_issn_;
     bool required_;
+
 public:
     explicit FieldDescriptor(const std::string &name, const std::string &tag, const std::string &overflow_tag, const char indicator1,
                              const char indicator2, const bool repeat_field,
@@ -142,9 +149,9 @@ public:
                              const std::vector<std::pair<char, std::string>> &subfield_codes_to_prefixes,
                              const std::vector<std::pair<char, std::string>> &subfield_codes_to_fixed_subfields,
                              const std::map<char, std::shared_ptr<RegexMatcher>> subfield_codes_to_extraction_regexes_map,
-                             const std::vector<DependentSubfield> &dependent_subfields,
-                             const std::string &json_tag, const std::string &field_contents_prefix, const bool map_to_marc_language_code,
-                             const bool normalise_issn, const bool required);
+                             const std::vector<DependentSubfield> &dependent_subfields, const std::string &json_tag,
+                             const std::string &field_contents_prefix, const bool map_to_marc_language_code, const bool normalise_issn,
+                             const bool required);
     bool operator<(const FieldDescriptor &other) const { return tag_ < other.tag_; }
 };
 
@@ -155,23 +162,20 @@ FieldDescriptor::FieldDescriptor(const std::string &name, const std::string &tag
                                  const std::vector<std::pair<char, std::string>> &subfield_codes_to_prefixes,
                                  const std::vector<std::pair<char, std::string>> &subfield_codes_to_fixed_subfields,
                                  const std::map<char, std::shared_ptr<RegexMatcher>> subfield_codes_to_extraction_regexes_map,
-                                 const std::vector<DependentSubfield> &dependent_subfields,
-                                 const std::string &json_tag, const std::string &field_contents_prefix,
-                                 const bool map_to_marc_language_code, const bool normalise_issn, const bool required)
+                                 const std::vector<DependentSubfield> &dependent_subfields, const std::string &json_tag,
+                                 const std::string &field_contents_prefix, const bool map_to_marc_language_code, const bool normalise_issn,
+                                 const bool required)
     : name_(name), tag_(tag), overflow_tag_(overflow_tag), indicator1_(indicator1), indicator2_(indicator2), repeat_field_(repeat_field),
       subfield_codes_to_json_paths_(subfield_codes_to_json_paths), subfield_codes_to_prefixes_(subfield_codes_to_prefixes),
       subfield_codes_to_fixed_subfields_(subfield_codes_to_fixed_subfields),
-      subfield_codes_to_extraction_regexes_map_(subfield_codes_to_extraction_regexes_map),
-      dependent_subfields_(dependent_subfields), json_tag_(json_tag),
-      field_contents_prefix_(field_contents_prefix), map_to_marc_language_code_(map_to_marc_language_code),
-      normalise_issn_(normalise_issn), required_(required)
-{
+      subfield_codes_to_extraction_regexes_map_(subfield_codes_to_extraction_regexes_map), dependent_subfields_(dependent_subfields),
+      json_tag_(json_tag), field_contents_prefix_(field_contents_prefix), map_to_marc_language_code_(map_to_marc_language_code),
+      normalise_issn_(normalise_issn), required_(required) {
     if (not overflow_tag_.empty() and repeat_field_)
         LOG_ERROR("field \"" + name_ + "\" can't have both, an over flow tag and being a repeat field!");
 
     if (subfield_codes_to_json_paths_.empty() and json_tag_.empty())
-        LOG_ERROR("field \"" + name_
-                  + "\" is missing a mapping to the contents of a control field or to the contents of data subfields!");
+        LOG_ERROR("field \"" + name_ + "\" is missing a mapping to the contents of a control field or to the contents of data subfields!");
 }
 
 
@@ -179,6 +183,7 @@ class JSONNodeToBibliographicLevelMapper {
     std::string json_tag_;
     MARC::Record::BibliographicLevel default_;
     std::vector<std::pair<RegexMatcher *, MARC::Record::BibliographicLevel>> regex_to_bibliographic_level_map;
+
 public:
     JSONNodeToBibliographicLevelMapper(const std::string &item_type_tag, const std::string &item_type_map);
     ~JSONNodeToBibliographicLevelMapper();
@@ -235,8 +240,7 @@ bool SplitPatternsAndTypes(const std::string &patterns_and_types, std::vector<st
 
 
 JSONNodeToBibliographicLevelMapper::JSONNodeToBibliographicLevelMapper(const std::string &item_type_tag, const std::string &item_type_map)
-    : json_tag_(item_type_tag)
-{
+    : json_tag_(item_type_tag) {
     default_ = MARC::Record::UNDEFINED;
 
     std::vector<std::pair<std::string, std::string>> patterns_and_types;
@@ -251,7 +255,8 @@ JSONNodeToBibliographicLevelMapper::JSONNodeToBibliographicLevelMapper(const std
         }
 
         std::string err_msg;
-        const auto regex(RegexMatcher::RegexMatcherFactory(pattern_and_type->first, &err_msg, RegexMatcher::ENABLE_UTF8 | RegexMatcher::CASE_INSENSITIVE));
+        const auto regex(RegexMatcher::RegexMatcherFactory(pattern_and_type->first, &err_msg,
+                                                           RegexMatcher::ENABLE_UTF8 | RegexMatcher::CASE_INSENSITIVE));
         if (regex == nullptr)
             LOG_ERROR("bad regex pattern in pattern to item type mapping: \"" + pattern_and_type->first + "\"! (" + err_msg + ")");
 
@@ -294,7 +299,8 @@ MARC::Record::BibliographicLevel JSONNodeToBibliographicLevelMapper::getBibliogr
 
     const auto array_node(JSON::JSONNode::CastToArrayNodeOrDie("string_or_array_node", string_or_array_node));
     for (const auto &element_node : *array_node) {
-        const auto bibliographic_level(getBibliographicLevel(JSON::JSONNode::CastToStringNodeOrDie("element_node", element_node)->getValue()));
+        const auto bibliographic_level(
+            getBibliographicLevel(JSON::JSONNode::CastToStringNodeOrDie("element_node", element_node)->getValue()));
         if (bibliographic_level != default_)
             return bibliographic_level;
     }
@@ -304,8 +310,7 @@ MARC::Record::BibliographicLevel JSONNodeToBibliographicLevelMapper::getBibliogr
 
 
 void ProcessGlobalSection(const IniFile::Section &global_section, std::string * const root_path,
-                          std::unique_ptr<JSONNodeToBibliographicLevelMapper> * const json_node_to_bibliographic_level_mapper)
-{
+                          std::unique_ptr<JSONNodeToBibliographicLevelMapper> * const json_node_to_bibliographic_level_mapper) {
     *root_path = global_section.getString("root_path");
 
     if (global_section.hasEntry("item_type_tag") and not global_section.hasEntry("item_type_map"))
@@ -324,9 +329,9 @@ void ProcessGlobalSection(const IniFile::Section &global_section, std::string * 
 }
 
 
-std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_path, std::string * const root_path,
-                                                  std::unique_ptr<JSONNodeToBibliographicLevelMapper> * const json_node_to_bibliographic_level_mapper)
-{
+std::vector<FieldDescriptor> LoadFieldDescriptors(
+    const std::string &inifile_path, std::string * const root_path,
+    std::unique_ptr<JSONNodeToBibliographicLevelMapper> * const json_node_to_bibliographic_level_mapper) {
     std::vector<FieldDescriptor> field_descriptors;
 
     const IniFile ini_file(inifile_path);
@@ -344,12 +349,14 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
             if (tag.length() != MARC::Record::TAG_LENGTH)
                 LOG_ERROR("invalid tag \"" + tag + "\" in section \"" + section_name + "\" in \"" + ini_file.getFilename() + "\"!");
 
-            std::vector<std::pair<char, std::string>> subfield_codes_to_json_paths, subfield_codes_to_prefixes, subfield_codes_to_fixed_subfields;
+            std::vector<std::pair<char, std::string>> subfield_codes_to_json_paths, subfield_codes_to_prefixes,
+                subfield_codes_to_fixed_subfields;
             std::map<char, std::shared_ptr<RegexMatcher>> subfield_codes_to_extraction_regexes_map;
             std::vector<DependentSubfield> dependent_subfields;
             for (const auto &section_entry : section) {
                 if (StringUtil::StartsWith(section_entry.name_, "add_fixed_subfield_")) {
-                    if (section_entry.name_.length() != __builtin_strlen("add_fixed_subfield_?")) // Note: ? used as a placeholder for a subfield code
+                    if (section_entry.name_.length()
+                        != __builtin_strlen("add_fixed_subfield_?")) // Note: ? used as a placeholder for a subfield code
                         LOG_ERROR("invalid section entry in section \"" + section_name + "\": \"" + section_entry.name_ + "\"!");
                     const char subfield_code(section_entry.name_.back());
                     const auto fixed_subfield_value(section_entry.value_);
@@ -357,7 +364,8 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
                     continue;
                 }
 
-                if (StringUtil::Match("dependent_on_?_subfield_?", section_entry.name_)) { // Note: ? used as a placeholder for subfield codes
+                if (StringUtil::Match("dependent_on_?_subfield_?", section_entry.name_))
+                { // Note: ? used as a placeholder for subfield codes
                     const char dependent_subfield_code(section_entry.name_[__builtin_strlen("dependent_on_")]);
                     const char subfield_code(section_entry.name_[__builtin_strlen("dependent_on_?_subfield_")]);
                     const auto &json_path(section_entry.value_);
@@ -369,7 +377,8 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
                     continue;
 
                 if (StringUtil::EndsWith(section_entry.name_, "_prefix")) {
-                    if (section_entry.name_.length() != __builtin_strlen("subfield_?_prefix")) // Note: ? used as a placeholder for a subfield code
+                    if (section_entry.name_.length()
+                        != __builtin_strlen("subfield_?_prefix")) // Note: ? used as a placeholder for a subfield code
                         LOG_ERROR("invalid section entry in section \"" + section_name + "\": \"" + section_entry.name_ + "\"!");
                     const char subfield_code(section_entry.name_[__builtin_strlen("subfield_")]);
                     const auto subfield_prefix(section_entry.value_);
@@ -378,15 +387,16 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
                 }
 
                 if (StringUtil::EndsWith(section_entry.name_, "_extraction_regex")) {
-                    if (section_entry.name_.length() != __builtin_strlen("subfield_?_extraction_regex")) // Note: ? used as a placeholder for a subfield code
+                    if (section_entry.name_.length()
+                        != __builtin_strlen("subfield_?_extraction_regex")) // Note: ? used as a placeholder for a subfield code
                         LOG_ERROR("invalid section entry in section \"" + section_name + "\": \"" + section_entry.name_ + "\"!");
                     const char subfield_code(section_entry.name_[__builtin_strlen("subfield_")]);
                     const auto extraction_regex(section_entry.value_);
                     std::string error_message;
                     const auto regex_matcher(RegexMatcher::RegexMatcherFactory(extraction_regex, &error_message));
                     if (regex_matcher == nullptr)
-                        LOG_ERROR("bad regex for \"" + section_entry.name_ + "\" in section \"" + section_name + "\"! ("
-                                  + error_message + ")");
+                        LOG_ERROR("bad regex for \"" + section_entry.name_ + "\" in section \"" + section_name + "\"! (" + error_message
+                                  + ")");
                     subfield_codes_to_extraction_regexes_map.emplace(subfield_code, regex_matcher);
                     continue;
                 }
@@ -401,12 +411,12 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
             if (subfield_codes_to_json_paths.empty() and json_tag.empty())
                 LOG_ERROR("missing JSON source tag(s) for MARC field tag \"" + tag + "\" in section \"" + section_name + "\"!");
             if (not subfield_codes_to_json_paths.empty() and not json_tag.empty())
-                 LOG_ERROR("can't have subfield and non-subfield contents for MARC field tag \"" + tag + "\" in section \""
-                           + section_name + "\"!");
+                LOG_ERROR("can't have subfield and non-subfield contents for MARC field tag \"" + tag + "\" in section \"" + section_name
+                          + "\"!");
             const auto field_contents_prefix(section.getString("field_contents_prefix", ""));
             if (not field_contents_prefix.empty() and not subfield_codes_to_json_paths.empty())
-                LOG_ERROR("can't specify a field contents prefix when subfields have been specified for MARC field tag \""
-                          + tag + "\" in section \"" + section_name + "\"!");
+                LOG_ERROR("can't specify a field contents prefix when subfields have been specified for MARC field tag \"" + tag
+                          + "\" in section \"" + section_name + "\"!");
 
             field_descriptors.emplace_back(section_name, tag, section.getString("overflow_tag", ""), section.getChar("indicator1", ' '),
                                            section.getChar("indicator2", ' '), section.getBool("repeat_field", false),
@@ -422,8 +432,14 @@ std::vector<FieldDescriptor> LoadFieldDescriptors(const std::string &inifile_pat
 }
 
 
-enum ReferencedJSONDataState { NO_DATA_FOUND, ONLY_SCALAR_DATA_FOUND, ONLY_ARRAY_DATA_FOUND, SCALAR_AND_ARRAY_DATA_FOUND,
-                               FOUND_AT_LEAST_ONE_OBJECT, INCONSISTENT_ARRAY_LENGTHS };
+enum ReferencedJSONDataState {
+    NO_DATA_FOUND,
+    ONLY_SCALAR_DATA_FOUND,
+    ONLY_ARRAY_DATA_FOUND,
+    SCALAR_AND_ARRAY_DATA_FOUND,
+    FOUND_AT_LEAST_ONE_OBJECT,
+    INCONSISTENT_ARRAY_LENGTHS
+};
 
 
 std::string ReferencedJSONDataStateToString(const ReferencedJSONDataState referenced_json_data_state) {
@@ -447,10 +463,8 @@ std::string ReferencedJSONDataStateToString(const ReferencedJSONDataState refere
 
 
 // Expects references of the form "map:map_name{json_path}map_key" followed by an optional ",first".
-bool SplitMapReference(std::string reference, std::string * const map_name,
-                       std::string * const json_path, std::string * const map_key, bool * const first,
-                       bool * const fallback_passthrough)
-{
+bool SplitMapReference(std::string reference, std::string * const map_name, std::string * const json_path, std::string * const map_key,
+                       bool * const first, bool * const fallback_passthrough) {
     // It is imperative that *first and *fallback_passthrough, will be set, even if we bail out early!
     *fallback_passthrough = StringUtil::EndsWith(reference, ",fallback_passthrough");
     if (*fallback_passthrough)
@@ -493,8 +507,7 @@ bool SplitMapReference(std::string reference, std::string * const map_name,
 
 ReferencedJSONDataState CategorizeJSONReferences(const std::shared_ptr<const JSON::ObjectNode> &object,
                                                  const std::vector<std::pair<char, std::string>> &subfield_codes_to_json_paths,
-                                                 size_t * const common_array_length)
-{
+                                                 size_t * const common_array_length) {
     unsigned array_references_count(0), subfield_data_found_count(0);
     size_t last_array_length(std::numeric_limits<size_t>::max());
     for (const auto &subfield_code_and_json_path : subfield_codes_to_json_paths) {
@@ -504,8 +517,8 @@ ReferencedJSONDataState CategorizeJSONReferences(const std::shared_ptr<const JSO
         // 2) one nested within a "map:" expression.
         std::string map_name, json_path, map_key;
         bool use_first_array_element_only, fallback_passthrough;
-        if (SplitMapReference(subfield_code_and_json_path.second, &map_name, &json_path, &map_key,
-                              &use_first_array_element_only, &fallback_passthrough))
+        if (SplitMapReference(subfield_code_and_json_path.second, &map_name, &json_path, &map_key, &use_first_array_element_only,
+                              &fallback_passthrough))
             relative_json_path = json_path;
 
         const auto node(object->deepResolveNode(relative_json_path));
@@ -561,17 +574,17 @@ std::string GetScalarJSONStringValueWithoutQuotes(std::shared_ptr<const JSON::JS
 
 
 // Returns the empty string if an entry for "subfield_code" was not found.
-std::string FindMapEntryForSubfieldCode(const char subfield_code, const std::vector<std::pair<char, std::string>> &subfield_codes_to_values_map) {
-    const auto subfield_code_and_value(std::find_if(subfield_codes_to_values_map.cbegin(), subfield_codes_to_values_map.cend(),
-                                                    [&](const std::pair<char, std::string> &subfield_code_and_prefix)
-                                                        { return subfield_code_and_prefix.first == subfield_code; }));
+std::string FindMapEntryForSubfieldCode(const char subfield_code,
+                                        const std::vector<std::pair<char, std::string>> &subfield_codes_to_values_map) {
+    const auto subfield_code_and_value(std::find_if(
+        subfield_codes_to_values_map.cbegin(), subfield_codes_to_values_map.cend(),
+        [&](const std::pair<char, std::string> &subfield_code_and_prefix) { return subfield_code_and_prefix.first == subfield_code; }));
     return (subfield_code_and_value == subfield_codes_to_values_map.cend()) ? "" : subfield_code_and_value->second;
 }
 
 
 RegexMatcher *GetRegexMatcherOrNULL(const char subfield_code,
-                                    const std::map<char, std::shared_ptr<RegexMatcher>> &subfield_codes_to_regex_matchers_map)
-{
+                                    const std::map<char, std::shared_ptr<RegexMatcher>> &subfield_codes_to_regex_matchers_map) {
     const auto subfield_code_and_regex_matcher(subfield_codes_to_regex_matchers_map.find(subfield_code));
     return (subfield_code_and_regex_matcher == subfield_codes_to_regex_matchers_map.cend()) ? nullptr
                                                                                             : subfield_code_and_regex_matcher->second.get();
@@ -579,8 +592,7 @@ RegexMatcher *GetRegexMatcherOrNULL(const char subfield_code,
 
 
 void UpdateISSNReferenceCount(const std::string &cleaned_up_json_value,
-                              std::unordered_map<std::string, unsigned> * const issns_to_counts_map)
-{
+                              std::unordered_map<std::string, unsigned> * const issns_to_counts_map) {
     auto issn_and_count(issns_to_counts_map->find(cleaned_up_json_value));
     if (issn_and_count == issns_to_counts_map->end())
         (*issns_to_counts_map)[cleaned_up_json_value] = 1;
@@ -595,8 +607,7 @@ std::unordered_set<std::string> unmatched_issns;
 
 std::string MapJSONValue(const std::string &value, const std::string &map_name, const std::string &map_key,
                          const bool fallback_passthrough, // Return the original "value" if the mapping failed, if this is true.
-                         const std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> &issns_to_journal_titles_ppns_and_issns_map)
-{
+                         const std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> &issns_to_journal_titles_ppns_and_issns_map) {
     if (map_name != "journal_titles_and_ppns_map")
         LOG_ERROR("unknown map name \"" + map_name + "\"!");
 
@@ -627,10 +638,8 @@ bool ProcessSubfield(const MARC::Tag &marc_tag, const std::shared_ptr<const JSON
                      const FieldDescriptor &field_descriptor, const char subfield_code, const std::string &json_path,
                      const std::string &map_name, const std::string &map_key,
                      const std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> &issns_to_journal_titles_ppns_and_issns_map,
-                     MARC::Record::Field * const new_field, const size_t json_array_index,
-                     const bool fallback_passthrough,
-                     std::unordered_map<std::string, unsigned> * const issns_to_counts_map)
-{
+                     MARC::Record::Field * const new_field, const size_t json_array_index, const bool fallback_passthrough,
+                     std::unordered_map<std::string, unsigned> * const issns_to_counts_map) {
     auto scalar_or_array_node(object->deepResolveNode(json_path));
     if (scalar_or_array_node == nullptr)
         return false;
@@ -651,8 +660,8 @@ bool ProcessSubfield(const MARC::Tag &marc_tag, const std::shared_ptr<const JSON
         extracted_value = (*regex_matcher)[0];
     }
     if (not map_name.empty())
-        extracted_value = MapJSONValue(extracted_value, map_name, map_key, fallback_passthrough,
-                                       issns_to_journal_titles_ppns_and_issns_map);
+        extracted_value =
+            MapJSONValue(extracted_value, map_name, map_key, fallback_passthrough, issns_to_journal_titles_ppns_and_issns_map);
     if (extracted_value.empty())
         return false;
 
@@ -660,7 +669,7 @@ bool ProcessSubfield(const MARC::Tag &marc_tag, const std::shared_ptr<const JSON
         const std::string original_value(extracted_value);
         extracted_value = MARC::MapToMARCLanguageCode(extracted_value);
         if (extracted_value.empty()) {
-            if (original_value == "zz"/* Unknown or unspecified country. */ or original_value == "zy" /* Junk? */)
+            if (original_value == "zz" /* Unknown or unspecified country. */ or original_value == "zy" /* Junk? */)
                 return false;
             LOG_ERROR("can't map \"" + original_value + "\" to a MARC language code!");
         }
@@ -691,11 +700,11 @@ bool ProcessSubfield(const MARC::Tag &marc_tag, const std::shared_ptr<const JSON
 
 // \return True if a subfield was inserted into "record" and false o/w.
 // \note   "array_index" is only used if the node lookup in this function results in a JSON array.
-bool ExtractJSONAndGenerateSubfields(MARC::Record * const record, const MARC::Tag &tag, const FieldDescriptor &field_descriptor,
-                                     const std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> &issns_to_journal_titles_ppns_and_issns_map,
-                                     const std::shared_ptr<const JSON::ObjectNode> &object, const size_t json_array_index,
-                                     std::unordered_map<std::string, unsigned> * const issns_to_counts_map)
-{
+bool ExtractJSONAndGenerateSubfields(
+    MARC::Record * const record, const MARC::Tag &tag, const FieldDescriptor &field_descriptor,
+    const std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> &issns_to_journal_titles_ppns_and_issns_map,
+    const std::shared_ptr<const JSON::ObjectNode> &object, const size_t json_array_index,
+    std::unordered_map<std::string, unsigned> * const issns_to_counts_map) {
     MARC::Record::Field new_field(tag, field_descriptor.indicator1_, field_descriptor.indicator2_);
     bool created_at_least_one_subfield(false);
 
@@ -703,12 +712,12 @@ bool ExtractJSONAndGenerateSubfields(MARC::Record * const record, const MARC::Ta
         std::string relative_json_path(subfield_code_and_json_path.second);
         std::string map_name, json_path, map_key;
         bool use_first_array_element_only, fallback_passthrough;
-        if (SplitMapReference(subfield_code_and_json_path.second, &map_name, &json_path, &map_key,
-                              &use_first_array_element_only, &fallback_passthrough))
+        if (SplitMapReference(subfield_code_and_json_path.second, &map_name, &json_path, &map_key, &use_first_array_element_only,
+                              &fallback_passthrough))
             relative_json_path = json_path;
-        if (ProcessSubfield(tag, object, field_descriptor, subfield_code_and_json_path.first,
-                            relative_json_path, map_name, map_key, issns_to_journal_titles_ppns_and_issns_map, &new_field,
-                            use_first_array_element_only ? 0 : json_array_index, fallback_passthrough, issns_to_counts_map))
+        if (ProcessSubfield(tag, object, field_descriptor, subfield_code_and_json_path.first, relative_json_path, map_name, map_key,
+                            issns_to_journal_titles_ppns_and_issns_map, &new_field, use_first_array_element_only ? 0 : json_array_index,
+                            fallback_passthrough, issns_to_counts_map))
             created_at_least_one_subfield = true;
     }
     if (not created_at_least_one_subfield)
@@ -723,12 +732,12 @@ bool ExtractJSONAndGenerateSubfields(MARC::Record * const record, const MARC::Ta
         std::string relative_json_path(dependent_subfield.json_path_);
         std::string map_name, json_path, map_key;
         bool use_first_array_element_only, fallback_passthrough;
-        if (SplitMapReference(dependent_subfield.json_path_, &map_name, &json_path, &map_key,
-                              &use_first_array_element_only, &fallback_passthrough))
+        if (SplitMapReference(dependent_subfield.json_path_, &map_name, &json_path, &map_key, &use_first_array_element_only,
+                              &fallback_passthrough))
             relative_json_path = json_path;
-        ProcessSubfield(tag, object, field_descriptor, dependent_subfield.subfield_code_,
-                        relative_json_path, map_name, map_key, issns_to_journal_titles_ppns_and_issns_map, &new_field,
-                        use_first_array_element_only ? 0 : json_array_index, fallback_passthrough, issns_to_counts_map);
+        ProcessSubfield(tag, object, field_descriptor, dependent_subfield.subfield_code_, relative_json_path, map_name, map_key,
+                        issns_to_journal_titles_ppns_and_issns_map, &new_field, use_first_array_element_only ? 0 : json_array_index,
+                        fallback_passthrough, issns_to_counts_map);
     }
     for (const auto &subfield_code_and_fixed_subfield : field_descriptor.subfield_codes_to_fixed_subfields_)
         new_field.appendSubfield(subfield_code_and_fixed_subfield.first, subfield_code_and_fixed_subfield.second);
@@ -741,9 +750,7 @@ bool ExtractJSONAndGenerateSubfields(MARC::Record * const record, const MARC::Ta
 void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor,
                             const std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> &issns_to_journal_titles_ppns_and_issns_map,
                             const std::shared_ptr<const JSON::ObjectNode> &object,
-                            std::unordered_map<std::string, unsigned> * const issns_to_counts_map,
-                            MARC::Record * const record)
-{
+                            std::unordered_map<std::string, unsigned> * const issns_to_counts_map, MARC::Record * const record) {
     LOG_DEBUG("Processing " + field_descriptor.name_);
     bool created_at_least_one_field(false);
     if (not field_descriptor.json_tag_.empty()) { // Control field
@@ -758,7 +765,8 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor,
             LOG_ERROR("missing JSON tag \"" + field_descriptor.json_tag_ + "\" for required field \"" + field_descriptor.name_ + "\"!");
     } else { // Data field
         size_t array_length(0);
-        const auto referenced_json_data_state(CategorizeJSONReferences(object, field_descriptor.subfield_codes_to_json_paths_, &array_length));
+        const auto referenced_json_data_state(
+            CategorizeJSONReferences(object, field_descriptor.subfield_codes_to_json_paths_, &array_length));
         LOG_DEBUG("\t" + ReferencedJSONDataStateToString(referenced_json_data_state));
         if (referenced_json_data_state == NO_DATA_FOUND)
             goto final_processing;
@@ -773,14 +781,14 @@ void ProcessFieldDescriptor(const FieldDescriptor &field_descriptor,
         if (referenced_json_data_state == ONLY_SCALAR_DATA_FOUND)
             created_at_least_one_field = ExtractJSONAndGenerateSubfields(record, field_descriptor.tag_, field_descriptor,
                                                                          issns_to_journal_titles_ppns_and_issns_map, object,
-                                                                         /* json_array_index = */-1, issns_to_counts_map);
+                                                                         /* json_array_index = */ -1, issns_to_counts_map);
         else { // All our data resides in JSON arrays.
             for (unsigned json_array_index(0); json_array_index < array_length; ++json_array_index) {
                 std::string tag(field_descriptor.tag_);
                 if (json_array_index > 0 and not field_descriptor.overflow_tag_.empty())
                     tag = field_descriptor.overflow_tag_;
-                if (ExtractJSONAndGenerateSubfields(record, tag, field_descriptor, issns_to_journal_titles_ppns_and_issns_map,
-                                                    object, json_array_index, issns_to_counts_map))
+                if (ExtractJSONAndGenerateSubfields(record, tag, field_descriptor, issns_to_journal_titles_ppns_and_issns_map, object,
+                                                    json_array_index, issns_to_counts_map))
                     created_at_least_one_field = true;
             }
         }
@@ -793,17 +801,17 @@ final_processing:
 
 
 // \return True if we generated a MARC record or false if we suppressed the generation due to a duplicate unique ID.
-bool GenerateSingleMARCRecordFromJSON(const std::shared_ptr<const JSON::ObjectNode> &object,
-                                      const JSONNodeToBibliographicLevelMapper &json_node_to_bibliographic_level_mapper,
-                                      const std::vector<FieldDescriptor> &field_descriptors,
-                                      const std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> &issns_to_journal_titles_ppns_and_issns_map,
-                                      MARC::Writer * const marc_writer, const bool extract_and_count_issns_only,
-                                      std::unordered_map<std::string, unsigned> * const issns_to_counts_map,
-                                      const bool ignore_unique_id_dups, KeyValueDB * const unique_id_to_date_map)
-{
+bool GenerateSingleMARCRecordFromJSON(
+    const std::shared_ptr<const JSON::ObjectNode> &object,
+    const JSONNodeToBibliographicLevelMapper &json_node_to_bibliographic_level_mapper,
+    const std::vector<FieldDescriptor> &field_descriptors,
+    const std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> &issns_to_journal_titles_ppns_and_issns_map,
+    MARC::Writer * const marc_writer, const bool extract_and_count_issns_only,
+    std::unordered_map<std::string, unsigned> * const issns_to_counts_map, const bool ignore_unique_id_dups,
+    KeyValueDB * const unique_id_to_date_map) {
     std::string control_number;
     const auto descriptor_for_field_001(std::find_if(field_descriptors.begin(), field_descriptors.end(),
-                                                     [](const FieldDescriptor &descriptor){ return descriptor.tag_ == "001"; }));
+                                                     [](const FieldDescriptor &descriptor) { return descriptor.tag_ == "001"; }));
     if (descriptor_for_field_001 != field_descriptors.end()) {
         control_number = object->getOptionalStringValue(descriptor_for_field_001->json_tag_);
         if (not control_number.empty())
@@ -819,8 +827,7 @@ bool GenerateSingleMARCRecordFromJSON(const std::shared_ptr<const JSON::ObjectNo
     MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, bibliographic_level, control_number);
     for (const auto &field_descriptor : field_descriptors) {
         if (field_descriptor.tag_ != "001")
-            ProcessFieldDescriptor(field_descriptor, issns_to_journal_titles_ppns_and_issns_map, object,
-                                   issns_to_counts_map, &new_record);
+            ProcessFieldDescriptor(field_descriptor, issns_to_journal_titles_ppns_and_issns_map, object, issns_to_counts_map, &new_record);
     }
     if (not extract_and_count_issns_only)
         marc_writer->write(new_record);
@@ -834,20 +841,17 @@ void GenerateMARCFromJSON(const std::shared_ptr<const JSON::JSONNode> &object_or
                           const JSONNodeToBibliographicLevelMapper &json_node_to_bibliographic_level_mapper,
                           const std::vector<FieldDescriptor> &field_descriptors,
                           const std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> &issns_to_journal_titles_ppns_and_issns_map,
-                          MARC::Writer * const marc_writer,
-                          const bool extract_and_count_issns_only,
-                          std::unordered_map<std::string, unsigned> * const issns_to_counts_map,
-                          const bool ignore_unique_id_dups, KeyValueDB * const unique_id_to_date_map)
-{
+                          MARC::Writer * const marc_writer, const bool extract_and_count_issns_only,
+                          std::unordered_map<std::string, unsigned> * const issns_to_counts_map, const bool ignore_unique_id_dups,
+                          KeyValueDB * const unique_id_to_date_map) {
     unsigned created_count(0), duplicate_skipped_count(0);
 
     switch (object_or_array_root->getType()) {
     case JSON::JSONNode::OBJECT_NODE:
         if (GenerateSingleMARCRecordFromJSON(JSON::JSONNode::CastToObjectNodeOrDie("object_or_array_root", object_or_array_root),
                                              json_node_to_bibliographic_level_mapper, field_descriptors,
-                                             issns_to_journal_titles_ppns_and_issns_map, marc_writer,
-                                             extract_and_count_issns_only, issns_to_counts_map,
-                                             ignore_unique_id_dups, unique_id_to_date_map))
+                                             issns_to_journal_titles_ppns_and_issns_map, marc_writer, extract_and_count_issns_only,
+                                             issns_to_counts_map, ignore_unique_id_dups, unique_id_to_date_map))
             ++created_count;
         else
             ++duplicate_skipped_count;
@@ -857,9 +861,8 @@ void GenerateMARCFromJSON(const std::shared_ptr<const JSON::JSONNode> &object_or
         for (const auto &array_element : *array_node) {
             if (GenerateSingleMARCRecordFromJSON(JSON::JSONNode::CastToObjectNodeOrDie("array_element", array_element),
                                                  json_node_to_bibliographic_level_mapper, field_descriptors,
-                                                 issns_to_journal_titles_ppns_and_issns_map, marc_writer,
-                                                 extract_and_count_issns_only, issns_to_counts_map,
-                                                 ignore_unique_id_dups, unique_id_to_date_map))
+                                                 issns_to_journal_titles_ppns_and_issns_map, marc_writer, extract_and_count_issns_only,
+                                                 issns_to_counts_map, ignore_unique_id_dups, unique_id_to_date_map))
                 ++created_count;
             else
                 ++duplicate_skipped_count;
@@ -870,7 +873,8 @@ void GenerateMARCFromJSON(const std::shared_ptr<const JSON::JSONNode> &object_or
         LOG_ERROR("\"root_path\" in section \"Gobal\" does not reference a JSON object or array!");
     }
 
-    LOG_INFO("created " + std::to_string(created_count) + " MARC record(s) and skipped "  + std::to_string(duplicate_skipped_count) + " duplicate(s).");
+    LOG_INFO("created " + std::to_string(created_count) + " MARC record(s) and skipped " + std::to_string(duplicate_skipped_count)
+             + " duplicate(s).");
     LOG_INFO(std::to_string(matched_issn_count) + " of " + std::to_string(matched_issn_count + not_matched_issn_count)
              + " encountered ISSN's were resolved and those records were linked to their respective serials.");
 }
@@ -881,8 +885,8 @@ void GenerateUnmappedISSNList(File * const unmatched_issns_file) {
     std::sort(sorted_unmatched_issns.begin(), sorted_unmatched_issns.end());
     for (const auto &issn : sorted_unmatched_issns)
         (*unmatched_issns_file) << issn << '\n';
-    LOG_INFO("Wrote a list of " + std::to_string(sorted_unmatched_issns.size()) + " unmapped ISSN's to \""
-             + unmatched_issns_file->getPath() + "\".");
+    LOG_INFO("Wrote a list of " + std::to_string(sorted_unmatched_issns.size()) + " unmapped ISSN's to \"" + unmatched_issns_file->getPath()
+             + "\".");
 }
 
 
@@ -937,16 +941,15 @@ int Main(int argc, char **argv) {
     std::unordered_map<std::string, unsigned> issns_to_counts_map;
     const std::unique_ptr<MARC::Writer> marc_writer(extract_and_count_issns_only ? nullptr : MARC::Writer::Factory(argv[4]));
     GenerateMARCFromJSON(object_or_array_root, *json_node_to_bibliographic_level_mapper, field_descriptors,
-                         issns_to_journal_titles_ppns_and_issns_map, marc_writer.get(), extract_and_count_issns_only,
-                         &issns_to_counts_map, ignore_unique_id_dups, &unique_id_to_date_map);
+                         issns_to_journal_titles_ppns_and_issns_map, marc_writer.get(), extract_and_count_issns_only, &issns_to_counts_map,
+                         ignore_unique_id_dups, &unique_id_to_date_map);
 
     if (extract_and_count_issns_only) {
         std::vector<std::pair<std::string, unsigned>> issns_and_counts;
         issns_and_counts.reserve(issns_to_counts_map.size());
         for (const auto &issn_and_count : issns_to_counts_map)
             issns_and_counts.emplace_back(issn_and_count);
-        std::sort(issns_and_counts.begin(), issns_and_counts.end(),
-                  [](const auto &a, const auto &b) { return a.second > b.second; });
+        std::sort(issns_and_counts.begin(), issns_and_counts.end(), [](const auto &a, const auto &b) { return a.second > b.second; });
         for (const auto &issn_and_count : issns_and_counts) {
             if (issns_to_journal_titles_ppns_and_issns_map.find(issn_and_count.first) == issns_to_journal_titles_ppns_and_issns_map.end())
                 std::cout << issn_and_count.first << '\t' << issn_and_count.second << '\n';

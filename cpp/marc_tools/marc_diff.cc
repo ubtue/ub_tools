@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <iostream>
@@ -108,9 +108,8 @@ bool RecordsDiffer(const MARC::Record &record1, const MARC::Record &record2, std
 
 
 void EmitDifferenceReport(const bool verbose, const std::unordered_map<std::string, off_t> &control_number_to_offset_map1,
-                          const std::unordered_map<std::string, off_t> &control_number_to_offset_map2,
-                          MARC::Reader * const reader1, MARC::Reader * const reader2)
-{
+                          const std::unordered_map<std::string, off_t> &control_number_to_offset_map2, MARC::Reader * const reader1,
+                          MARC::Reader * const reader2) {
     if (verbose)
         std::cout << "Records w/ identical control numbers but differing contents:\n";
 
@@ -141,8 +140,7 @@ void EmitDifferenceReport(const bool verbose, const std::unordered_map<std::stri
 
 
 inline void InitSortedControlNumbersList(const std::unordered_map<std::string, off_t> &control_number_to_offset_map,
-                                         std::vector<std::string> * const sorted_control_numbers)
-{
+                                         std::vector<std::string> * const sorted_control_numbers) {
     sorted_control_numbers->clear();
     sorted_control_numbers->reserve(control_number_to_offset_map.size());
     for (const auto &control_number_and_offset : control_number_to_offset_map)
@@ -154,8 +152,7 @@ inline void InitSortedControlNumbersList(const std::unordered_map<std::string, o
 void EmitStandardReport(const bool verbose, const std::string &collection1_name, const std::string &collection2_name,
                         const unsigned collection1_size, const unsigned collection2_size,
                         const std::unordered_map<std::string, off_t> &control_number_to_offset_map1,
-                        const std::unordered_map<std::string, off_t> &control_number_to_offset_map2)
-{
+                        const std::unordered_map<std::string, off_t> &control_number_to_offset_map2) {
     std::vector<std::string> sorted_control_numbers1;
     InitSortedControlNumbersList(control_number_to_offset_map1, &sorted_control_numbers1);
 
@@ -184,14 +181,14 @@ void EmitStandardReport(const bool verbose, const std::string &collection1_name,
 
     std::cout << '"' << collection1_name << "\" contains " << collection1_size << " record(s).\n";
     std::cout << '"' << collection2_name << "\" contains " << collection2_size << " record(s).\n";
-    std::cout << in_map1_only_count << " control number(s) are only in \"" << collection1_name << "\" but not in \""
-              << collection2_name << "\".\n";
+    std::cout << in_map1_only_count << " control number(s) are only in \"" << collection1_name << "\" but not in \"" << collection2_name
+              << "\".\n";
     if (verbose) {
         for (const auto &control_number : in_map1_only)
             std::cout << '\t' << control_number << '\n';
     }
-    std::cout << in_map2_only_count << " control number(s) are only in \"" << collection2_name << "\" but not in \""
-              << collection1_name << "\".\n";
+    std::cout << in_map2_only_count << " control number(s) are only in \"" << collection2_name << "\" but not in \"" << collection1_name
+              << "\".\n";
     if (verbose) {
         for (const auto &control_number : in_map2_only)
             std::cout << '\t' << control_number << '\n';
@@ -227,11 +224,10 @@ int Main(int argc, char *argv[]) {
     std::unordered_map<std::string, off_t> control_number_to_offset_map2;
     const unsigned collection2_size(MARC::CollectRecordOffsets(marc_reader2.get(), &control_number_to_offset_map2));
 
-    EmitDifferenceReport(verbose, control_number_to_offset_map1, control_number_to_offset_map2, marc_reader1.get(),
-                         marc_reader2.get());
+    EmitDifferenceReport(verbose, control_number_to_offset_map1, control_number_to_offset_map2, marc_reader1.get(), marc_reader2.get());
 
-    EmitStandardReport(verbose, collection1_name, collection2_name, collection1_size, collection2_size,
-                       control_number_to_offset_map1, control_number_to_offset_map2);
+    EmitStandardReport(verbose, collection1_name, collection2_name, collection1_size, collection2_size, control_number_to_offset_map1,
+                       control_number_to_offset_map2);
 
     return EXIT_SUCCESS;
 }

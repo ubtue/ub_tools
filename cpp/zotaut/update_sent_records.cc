@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #include <iostream>
 #include <unordered_set>
 #include <cstdio>
@@ -23,11 +23,11 @@
 #include "DbConnection.h"
 #include "GzStream.h"
 #include "MARC.h"
-#include "util.h"
 #include "Zeder.h"
 #include "ZoteroHarvesterConversion.h"
 #include "ZoteroHarvesterUtil.h"
 #include "ZoteroHarvesterZederInterop.h"
+#include "util.h"
 
 
 namespace {
@@ -40,12 +40,11 @@ MARC::Record ReconstructRecord(const std::string &compressed_record_blob) {
 
 
 bool UpdateRecordHash(const std::string &record_id, const std::string &saved_hash, MARC::Record * const record,
-                      DbConnection * const db_connection)
-{
+                      DbConnection * const db_connection) {
     const auto recalculated_hash(ZoteroHarvester::Conversion::CalculateMarcRecordHash(*record));
     if (saved_hash == recalculated_hash) {
         LOG_DEBUG("record " + record_id + " has the same hash. skipping...");
-       return false;
+        return false;
     }
 
     // Update the hash in the control field
@@ -56,8 +55,7 @@ bool UpdateRecordHash(const std::string &record_id, const std::string &saved_has
 
     const auto updated_blob(GzStream::CompressString(record->toBinaryString(), GzStream::GZIP));
     db_connection->queryOrDie("UPDATE delivered_marc_records SET record=" + db_connection->escapeAndQuoteString(updated_blob)
-                              + ", hash=" + db_connection->escapeAndQuoteString(recalculated_hash)
-                              + " WHERE id=" + record_id);
+                              + ", hash=" + db_connection->escapeAndQuoteString(recalculated_hash) + " WHERE id=" + record_id);
     return true;
 }
 
@@ -68,8 +66,7 @@ void SaveRecordUrls(const std::string &record_id, const MARC::Record &record, Db
         // This call will fail at least once for each record that has multiple URLs due to duplicates.
         // Failures of this kind are benign.
         db_connection->query("INSERT INTO delivered_marc_records_urls SET record_id=" + record_id
-                             + ", url="
-                             + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(url)));
+                             + ", url=" + db_connection->escapeAndQuoteString(SqlUtil::TruncateToVarCharMaxIndexLength(url)));
     }
 }
 

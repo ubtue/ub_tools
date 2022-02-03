@@ -41,8 +41,7 @@ std::string Escape(const std::string &s) {
 
 
 void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::string, std::string> * const map,
-                    const bool revert_keys_and_values)
-{
+                    const bool revert_keys_and_values) {
     map->clear();
 
     std::ifstream input(input_filename, std::ofstream::in);
@@ -79,7 +78,7 @@ void DeserialiseMap(const std::string &input_filename, std::unordered_map<std::s
                     LOG_ERROR("Unescaped equal-sign in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
                 in_key = false;
             } else if (in_key)
-                  key += ch;
+                key += ch;
             else
                 value += ch;
         }
@@ -151,7 +150,7 @@ void DeserialiseMap(const std::string &input_filename, std::unordered_multimap<s
                     LOG_ERROR("Unescaped equal-sign in \"" + input_filename + "\" on line " + std::to_string(line_no) + "!");
                 in_key = false;
             } else if (in_key)
-                  key += ch;
+                key += ch;
             else
                 value += ch;
         }

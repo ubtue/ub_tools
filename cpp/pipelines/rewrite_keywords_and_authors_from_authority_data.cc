@@ -37,7 +37,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     std::cerr << "Usage: " << ::progname << " master_marc_input authority_data_marc_input.mrc marc_output\n"
-                           << "The Authority data must be in the MARC-21 binary format.\n";
+              << "The Authority data must be in the MARC-21 binary format.\n";
     std::exit(EXIT_FAILURE);
 }
 
@@ -45,36 +45,34 @@ namespace {
 // Return the first matching primary field (Vorzugsbenennung) from authority data
 // This implicitly assumes that the correct tag can be uniquely identified from the PPN
 MARC::Record::const_iterator GetFirstPrimaryField(const MARC::Record &authority_record) {
-     static const std::vector<std::string> tags_to_check{ "100", "151", "150", "110", "111", "130", "153" };
-     for (const auto &tag_to_check : tags_to_check) {
-         MARC::Record::const_iterator primary_field(authority_record.findTag(tag_to_check));
-         if (primary_field != authority_record.end())
-             return primary_field;
-     }
-     return authority_record.end();
+    static const std::vector<std::string> tags_to_check{ "100", "151", "150", "110", "111", "130", "153" };
+    for (const auto &tag_to_check : tags_to_check) {
+        MARC::Record::const_iterator primary_field(authority_record.findTag(tag_to_check));
+        if (primary_field != authority_record.end())
+            return primary_field;
+    }
+    return authority_record.end();
 }
 
 
 bool GetAuthorityRecordFromPPN(const std::string &bsz_authority_ppn, MARC::Record * const authority_record,
                                MARC::Reader * const authority_reader, const std::unordered_map<std::string, off_t> &authority_offsets,
-                               const MARC::Record &record)
-{
+                               const MARC::Record &record) {
     auto authority_offset(authority_offsets.find(bsz_authority_ppn));
     if (authority_offset != authority_offsets.end()) {
         off_t authority_record_offset(authority_offset->second);
         if (authority_reader->seek(authority_record_offset)) {
             *authority_record = authority_reader->read();
             if (authority_record->getControlNumber() != bsz_authority_ppn)
-                LOG_ERROR("We got a wrong PPN " + authority_record->getControlNumber() +
-                          " instead of " + bsz_authority_ppn);
+                LOG_ERROR("We got a wrong PPN " + authority_record->getControlNumber() + " instead of " + bsz_authority_ppn);
             else
                 return true;
         } else
-            LOG_ERROR("Unable to seek to record for authority PPN " + bsz_authority_ppn
-                      + " referenced in title PPN " + record.getControlNumber());
+            LOG_ERROR("Unable to seek to record for authority PPN " + bsz_authority_ppn + " referenced in title PPN "
+                      + record.getControlNumber());
     } else {
-        LOG_WARNING("Unable to find offset for authority PPN " + bsz_authority_ppn
-                    + " referenced in title PPN " + record.getControlNumber());
+        LOG_WARNING("Unable to find offset for authority PPN " + bsz_authority_ppn + " referenced in title PPN "
+                    + record.getControlNumber());
         return false;
     }
 
@@ -116,9 +114,8 @@ bool UpdateTitleDataField(MARC::Record::Field * const field, const MARC::Record 
 
 
 void AugmentAuthors(MARC::Record * const record, MARC::Reader * const authority_reader,
-                    const std::unordered_map<std::string, off_t> &authority_offsets,
-                    RegexMatcher * const matcher, bool * const modified_record)
-{
+                    const std::unordered_map<std::string, off_t> &authority_offsets, RegexMatcher * const matcher,
+                    bool * const modified_record) {
     static std::vector<std::string> tags_to_check{ "100", "110", "111", "700", "710", "711" };
     for (auto tag_to_check : tags_to_check) {
         for (auto &field : record->getTagRange(tag_to_check)) {
@@ -136,27 +133,28 @@ void AugmentAuthors(MARC::Record * const record, MARC::Reader * const authority_
 
 
 void AugmentKeywords(MARC::Record * const record, MARC::Reader * const authority_reader,
-                     const std::unordered_map<std::string, off_t> &authority_offsets,
-                     RegexMatcher * const matcher, bool * const modified_record)
-{
+                     const std::unordered_map<std::string, off_t> &authority_offsets, RegexMatcher * const matcher,
+                     bool * const modified_record) {
     for (auto &field : record->getTagRange("689")) {
         std::string _689_content(field.getContents());
         if (matcher->matched(_689_content)) {
-             MARC::Record authority_record(std::string(MARC::Record::LEADER_LENGTH, ' '));
-             if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets, *record)) {
-                 UpdateTitleDataField(&field, authority_record);
-                 *modified_record = true;
-             }
+            MARC::Record authority_record(std::string(MARC::Record::LEADER_LENGTH, ' '));
+            if (GetAuthorityRecordFromPPN((*matcher)[1], &authority_record, authority_reader, authority_offsets, *record)) {
+                UpdateTitleDataField(&field, authority_record);
+                *modified_record = true;
+            }
         }
     }
 }
 
 
 void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * const authority_reader, MARC::Writer * const marc_writer,
-                               const std::unordered_map<std::string, off_t>& authority_offsets)
-{
+                               const std::unordered_map<std::string, off_t> &authority_offsets) {
     std::string err_msg;
-    RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\x1F""0\\(DE-627\\)([^\x1F]+).*\x1F?", &err_msg));
+    RegexMatcher * const matcher(
+        RegexMatcher::RegexMatcherFactory("\x1F"
+                                          "0\\(DE-627\\)([^\x1F]+).*\x1F?",
+                                          &err_msg));
 
     if (matcher == nullptr)
         LOG_ERROR("Failed to compile standardized keywords regex matcher: " + err_msg);
@@ -164,13 +162,13 @@ void AugmentKeywordsAndAuthors(MARC::Reader * const marc_reader, MARC::Reader * 
 
     unsigned record_count(0), modified_count(0);
     while (MARC::Record record = marc_reader->read()) {
-       ++record_count;
-       bool modified_record(false);
-       AugmentAuthors(&record, authority_reader, authority_offsets, matcher, &modified_record);
-       AugmentKeywords(&record, authority_reader, authority_offsets, matcher, &modified_record);
-       if (modified_record)
-           ++modified_count;
-       marc_writer->write(record);
+        ++record_count;
+        bool modified_record(false);
+        AugmentAuthors(&record, authority_reader, authority_offsets, matcher, &modified_record);
+        AugmentKeywords(&record, authority_reader, authority_offsets, matcher, &modified_record);
+        if (modified_record)
+            ++modified_count;
+        marc_writer->write(record);
     }
 
     LOG_INFO("Modified " + std::to_string(modified_count) + " of " + std::to_string(record_count) + " records.");
@@ -193,8 +191,7 @@ int Main(int argc, char **argv) {
         LOG_ERROR("Authority data input file name equals output file name!");
 
     std::unique_ptr<MARC::Reader> marc_reader(MARC::Reader::Factory(marc_input_filename));
-    std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_data_marc_input_filename,
-                                                                         MARC::FileType::BINARY));
+    std::unique_ptr<MARC::Reader> authority_reader(MARC::Reader::Factory(authority_data_marc_input_filename, MARC::FileType::BINARY));
     std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
     std::unordered_map<std::string, off_t> authority_offsets;
 

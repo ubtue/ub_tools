@@ -44,6 +44,7 @@ namespace {
 // a Boolean predicate class
 class StartsWith {
     std::string prefix_;
+
 public:
     StartsWith(const std::string &prefix): prefix_(prefix) { }
     bool operator()(const std::string &s) const { return ::strncasecmp(prefix_.c_str(), s.c_str(), prefix_.length()) == 0; }
@@ -63,13 +64,13 @@ HttpHeader::HttpHeader(const std::string &header) {
 
     // Split the header into several lines:
     std::list<std::string> lines;
-    StringUtil::Split(header, std::string("\r\n"), &lines, /* suppress_empty_components = */true);
+    StringUtil::Split(header, std::string("\r\n"), &lines, /* suppress_empty_components = */ true);
 
     // Some Web servers incorrectly use '\n' instead of '\r\n'.
     // Detect (and compensate for) this behaviour:
     if (lines.size() == 1) {
         lines.clear();
-        StringUtil::Split(header, '\n', &lines, /* suppress_empty_components = */true);
+        StringUtil::Split(header, '\n', &lines, /* suppress_empty_components = */ true);
     }
 
     // If we couldn't split the headers, then it was probably trivially small:
@@ -77,8 +78,7 @@ HttpHeader::HttpHeader(const std::string &header) {
         return;
 
     // Parse each of the lines:
-    if ((lines.front().length() > 5 and lines.front().substr(0, 5) == "HTTP/")
-        or StringUtil::Match("[A-Za-z][A-Za-z]*: *", lines.front()))
+    if ((lines.front().length() > 5 and lines.front().substr(0, 5) == "HTTP/") or StringUtil::Match("[A-Za-z][A-Za-z]*: *", lines.front()))
     {
         // Okay, we're happy the header is valid:
         is_valid_ = true;
@@ -205,8 +205,7 @@ HttpHeader::HttpHeader(const std::string &header) {
         // Attempt to extract all "Set-Cookie:" headers:
         std::list<std::string>::const_iterator search_start(lines.begin());
         while (search_start != lines.end()) {
-            server_header = std::find_if(search_start, std::list<std::string>::const_iterator(lines.end()),
-                                         StartsWith("Set-Cookie:"));
+            server_header = std::find_if(search_start, std::list<std::string>::const_iterator(lines.end()), StartsWith("Set-Cookie:"));
             if (server_header != lines.end() and server_header->length() > 12)
                 cookies_.push_back(server_header->substr(12));
             search_start = server_header;
@@ -215,16 +214,16 @@ HttpHeader::HttpHeader(const std::string &header) {
         }
     } else {
         // Set some default values.  Note that "is_valid_" is false.  We do something really crazy:
-        status_code_    = 200;
-        content_type_   = "text/html"; // Yeah, right!?
-        date_           = TimeUtil::BAD_TIME_T;
-        last_modified_  = TimeUtil::BAD_TIME_T;
+        status_code_ = 200;
+        content_type_ = "text/html"; // Yeah, right!?
+        date_ = TimeUtil::BAD_TIME_T;
+        last_modified_ = TimeUtil::BAD_TIME_T;
         content_length_ = header.length();
-        location_       = "";
-        etag_           = "";
-        cache_control_  = "";
-        pragma_         = "";
-        server_         = "";
+        location_ = "";
+        etag_ = "";
+        cache_control_ = "";
+        pragma_ = "";
+        server_ = "";
     }
 }
 
@@ -297,8 +296,9 @@ std::string HttpHeader::getMediaType() const {
 namespace {
 
 
-class LanguageMatch: public std::unary_function<const std::string &, bool> {
+class LanguageMatch : public std::unary_function<const std::string &, bool> {
     std::string language_to_match_;
+
 public:
     explicit LanguageMatch(const std::string &language_to_match);
     bool operator()(const std::string &acceptable_language) const;
@@ -374,24 +374,15 @@ bool HttpHeader::IsProbablyNotEnglish(const std::string &charset, const std::str
         return false;
 
     const std::string lc_charset(StringUtil::ASCIIToLower(charset));
-    if (std::strcmp(lc_charset.c_str(), "us-ascii") == 0
-        or std::strcmp(lc_charset.c_str(), "usascii") == 0
-        or std::strcmp(lc_charset.c_str(), "iso-8859-1") == 0
-        or std::strcmp(lc_charset.c_str(), "iso8859-1") == 0
-        or std::strcmp(lc_charset.c_str(), "iso8859_1") == 0
-        or std::strcmp(lc_charset.c_str(), "iso88591") == 0
-        or std::strcmp(lc_charset.c_str(), "iso-8859-15") == 0
-        or std::strcmp(lc_charset.c_str(), "iso8859-15") == 0
-        or ::strncmp(lc_charset.c_str(), "windows-125", 11) == 0
-        or ::strncmp(lc_charset.c_str(), "windows125", 10) == 0
-        or std::strcmp(lc_charset.c_str(), "utf-8") == 0
-        or std::strcmp(lc_charset.c_str(), "utf8") == 0
-        or std::strcmp(lc_charset.c_str(), "latin1") == 0
-        or std::strcmp(lc_charset.c_str(), "latin-1") == 0
-        or std::strcmp(lc_charset.c_str(), "latin9") == 0
-        or std::strcmp(lc_charset.c_str(), "latin-9") == 0
-        or std::strcmp(lc_charset.c_str(), "x-mac-roman") == 0
-        or std::strcmp(lc_charset.c_str(), "macintosh") == 0
+    if (std::strcmp(lc_charset.c_str(), "us-ascii") == 0 or std::strcmp(lc_charset.c_str(), "usascii") == 0
+        or std::strcmp(lc_charset.c_str(), "iso-8859-1") == 0 or std::strcmp(lc_charset.c_str(), "iso8859-1") == 0
+        or std::strcmp(lc_charset.c_str(), "iso8859_1") == 0 or std::strcmp(lc_charset.c_str(), "iso88591") == 0
+        or std::strcmp(lc_charset.c_str(), "iso-8859-15") == 0 or std::strcmp(lc_charset.c_str(), "iso8859-15") == 0
+        or ::strncmp(lc_charset.c_str(), "windows-125", 11) == 0 or ::strncmp(lc_charset.c_str(), "windows125", 10) == 0
+        or std::strcmp(lc_charset.c_str(), "utf-8") == 0 or std::strcmp(lc_charset.c_str(), "utf8") == 0
+        or std::strcmp(lc_charset.c_str(), "latin1") == 0 or std::strcmp(lc_charset.c_str(), "latin-1") == 0
+        or std::strcmp(lc_charset.c_str(), "latin9") == 0 or std::strcmp(lc_charset.c_str(), "latin-9") == 0
+        or std::strcmp(lc_charset.c_str(), "x-mac-roman") == 0 or std::strcmp(lc_charset.c_str(), "macintosh") == 0
         or std::strcmp(lc_charset.c_str(), "iso/iec10646-1") == 0)
         return false;
 

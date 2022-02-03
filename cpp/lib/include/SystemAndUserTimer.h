@@ -27,15 +27,15 @@
 
 
 #ifndef STRING
-#   include <string>
-#   define STRING
+#include <string>
+#define STRING
 #endif
 #ifndef CMATH
-#   include <cmath>
-#   define CMATH
+#include <cmath>
+#define CMATH
 #endif
 #ifndef TIMER_UTIL_H
-#   include "TimerUtil.h"
+#include "TimerUtil.h"
 #endif
 
 
@@ -55,18 +55,20 @@ class SystemAndUserTimer {
     struct timeval user_time_stop_, system_time_stop_;
     double user_time_, system_time_;
     std::string name_;
+
 public:
     enum SystemAndUserTimerType {
-        CUMULATIVE,  			///< Time spent between multiple start/stop pairs gets accumulated.
-        NON_CUMULATIVE, 		///< Each call to start() resets the timer to zero.
-        CUMULATIVE_WITH_AUTO_STOP, 	///< Like "CUMULATIVE" and destructor automatically calls stop() if neccessary.
-        NON_CUMULATIVE_WITH_AUTO_STOP 	///< Like "NON_CUMULATIVE" and destructor automatically calls stop() if neccessary.
+        CUMULATIVE,                   ///< Time spent between multiple start/stop pairs gets accumulated.
+        NON_CUMULATIVE,               ///< Each call to start() resets the timer to zero.
+        CUMULATIVE_WITH_AUTO_STOP,    ///< Like "CUMULATIVE" and destructor automatically calls stop() if neccessary.
+        NON_CUMULATIVE_WITH_AUTO_STOP ///< Like "NON_CUMULATIVE" and destructor automatically calls stop() if neccessary.
     };
+
 private:
     SystemAndUserTimerType timer_type_;
+
 public:
-    explicit SystemAndUserTimer(const SystemAndUserTimerType timer_type = NON_CUMULATIVE,
-                                const std::string &name = "");
+    explicit SystemAndUserTimer(const SystemAndUserTimerType timer_type = NON_CUMULATIVE, const std::string &name = "");
     ~SystemAndUserTimer();
     void start();
     void stop();
@@ -116,6 +118,7 @@ public:
     void reset() { user_time_ = system_time_ = 0.0; }
 
     bool isRunning() const { return is_running_; }
+
 private:
     SystemAndUserTimer(const SystemAndUserTimer &rhs);                  // Intentionally unimplemented!
     const SystemAndUserTimer &operator=(const SystemAndUserTimer &rhs); // Intentionally unimplemented!

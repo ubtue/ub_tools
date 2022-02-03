@@ -24,16 +24,11 @@ namespace ONIX {
 
 
 // https://onix-codelists.io/codelist/5
-enum class ProductIDType {
-    DOI     =  6,
-    ISBN_13 = 15
-};
+enum class ProductIDType { DOI = 6, ISBN_13 = 15 };
 
 
 // https://onix-codelists.io/codelist/15
-enum class TitleType {
-    DISTINCTIVE_TITLE = 1
-};
+enum class TitleType { DISTINCTIVE_TITLE = 1 };
 
 
 } // namespace ONIX

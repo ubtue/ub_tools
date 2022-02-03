@@ -71,13 +71,11 @@ void CreateTemporaryUnreferencedPPNTable(DbConnection * const db_connection, con
 
     // Only transmit a limited number of values in a bunch
     const long MAX_ROW_COUNT(100);
-    for (size_t row_count(0) ; row_count < unreferenced_ppns.size(); row_count+=MAX_ROW_COUNT) {
+    for (size_t row_count(0); row_count < unreferenced_ppns.size(); row_count += MAX_ROW_COUNT) {
         std::vector<std::string> values;
         std::vector<std::string> formatted_values;
         const auto copy_start(unreferenced_ppns.cbegin() + std::min(row_count, unreferenced_ppns.size()));
-        std::copy_n(copy_start,
-                    std::min(MAX_ROW_COUNT, std::distance(copy_start, unreferenced_ppns.cend())),
-                    std::back_inserter(values));
+        std::copy_n(copy_start, std::min(MAX_ROW_COUNT, std::distance(copy_start, unreferenced_ppns.cend())), std::back_inserter(values));
         std::transform(values.begin(), values.end(), std::back_inserter(formatted_values), FormatSQLValue);
         db_connection->queryOrDie(INSERT_STATEMENT_START + StringUtil::Join(formatted_values, ","));
     }
@@ -86,17 +84,15 @@ void CreateTemporaryUnreferencedPPNTable(DbConnection * const db_connection, con
 
 void RemoveUnreferencedEntries(DbConnection * const db_connection) {
     // Delete the unreferenced IDs from the resource tags;
-    const std::string GET_UNREFERENCED_IDS_STATEMENT(
-        "SELECT id FROM resource where record_id IN (SELECT * FROM unreferenced_ppns)");
+    const std::string GET_UNREFERENCED_IDS_STATEMENT("SELECT id FROM resource where record_id IN (SELECT * FROM unreferenced_ppns)");
 
-    const std::string DELETE_UNREFERENCED_RESOURCE_TAGS_ENTRIES(
-        "DELETE FROM resource_tags WHERE resource_id IN (" + GET_UNREFERENCED_IDS_STATEMENT + ")");
+    const std::string DELETE_UNREFERENCED_RESOURCE_TAGS_ENTRIES("DELETE FROM resource_tags WHERE resource_id IN ("
+                                                                + GET_UNREFERENCED_IDS_STATEMENT + ")");
 
     db_connection->queryOrDie(DELETE_UNREFERENCED_RESOURCE_TAGS_ENTRIES);
 
     // Delete the unused tags
-    const std::string DELETE_UNREFERENCED_TAG_ENTRIES(
-        "DELETE FROM tags WHERE id NOT IN (SELECT DISTINCT tag_id FROM resource_tags)");
+    const std::string DELETE_UNREFERENCED_TAG_ENTRIES("DELETE FROM tags WHERE id NOT IN (SELECT DISTINCT tag_id FROM resource_tags)");
 
     db_connection->queryOrDie(DELETE_UNREFERENCED_TAG_ENTRIES);
 
@@ -126,7 +122,7 @@ int Main(int argc, char **argv) {
     GetUnreferencedPPNsFromDB(&db_connection, all_record_ids, &unreferenced_ppns);
     CreateTemporaryUnreferencedPPNTable(&db_connection, unreferenced_ppns);
     RemoveUnreferencedEntries(&db_connection);
-    LOG_INFO("Removed superfluous references for " + std::to_string(unreferenced_ppns.size()) +  " PPN(s)");
+    LOG_INFO("Removed superfluous references for " + std::to_string(unreferenced_ppns.size()) + " PPN(s)");
 
     return EXIT_SUCCESS;
 }

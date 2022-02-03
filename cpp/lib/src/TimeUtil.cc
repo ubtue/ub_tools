@@ -148,17 +148,15 @@ void GetCurrentDate(unsigned * const year, unsigned * const month, unsigned * co
     if (unlikely((time_zone == LOCAL ? ::localtime_r(&now, &tm) : ::gmtime_r(&now, &tm)) == nullptr))
         LOG_ERROR("time conversion error!");
 
-    *year  = tm.tm_year + 1900;
+    *year = tm.tm_year + 1900;
     *month = tm.tm_mon + 1;
-    *day   = tm.tm_mday;
+    *day = tm.tm_mday;
 }
 
 
 // TimeTToLocalTimeString -- Convert a time from a time_t to a string.
 //
-std::string TimeTToString(const time_t &the_time, const std::string &format, const TimeZone time_zone,
-                          const std::string &time_locale)
-{
+std::string TimeTToString(const time_t &the_time, const std::string &format, const TimeZone time_zone, const std::string &time_locale) {
     Locale locale(time_locale, LC_TIME);
 
     struct tm tm;
@@ -197,7 +195,7 @@ time_t TimeGm(const struct tm &tm) {
     const char * const saved_time_zone(::getenv("TZ"));
 
     // Set the time zone to UTC:
-    ::setenv("TZ", "UTC", /* overwrite = */true);
+    ::setenv("TZ", "UTC", /* overwrite = */ true);
     ::tzset();
 
     struct tm temp_tm(tm);
@@ -229,13 +227,13 @@ static void NormalizeTimeZoneOffset(std::string * const date_str) {
 
 
 // If "format_string" ends with "%Z", we remove it and extract the corresponding time zone name into "*time_zone_name".
-static void ExtractOptionalTimeZoneName(std::string * const date_str, std::string * const format_string, std::string * const time_zone_name) {
+static void ExtractOptionalTimeZoneName(std::string * const date_str, std::string * const format_string,
+                                        std::string * const time_zone_name) {
     if (StringUtil::EndsWith(*format_string, "%Z")) {
         *format_string = StringUtil::RightTrim(format_string->substr(0, format_string->length() - 2));
         auto ch(date_str->rbegin());
-        while (ch != date_str->rend() and
-               (StringUtil::IsAsciiLetter(*ch)
-                or *ch == ' ' and (ch + 1) != date_str->rend() and StringUtil::IsAsciiLetter(*(ch + 1))))
+        while (ch != date_str->rend()
+               and (StringUtil::IsAsciiLetter(*ch) or *ch == ' ' and (ch + 1) != date_str->rend() and StringUtil::IsAsciiLetter(*(ch + 1))))
         {
             *time_zone_name += *ch;
             ++ch;
@@ -252,8 +250,7 @@ static void ExtractOptionalTimeZoneName(std::string * const date_str, std::strin
 // O/w we set *date_time to BAD_TIME_T and return false.
 static bool AdjustForTimeOffset(time_t * const date_time, const char * const time_offset) {
     if (std::strlen(time_offset) != 6 /* sign + mm:ss */ or time_offset[3] != ':' or not StringUtil::IsDigit(time_offset[1])
-        or not StringUtil::IsDigit(time_offset[2]) or not StringUtil::IsDigit(time_offset[4])
-        or not StringUtil::IsDigit(time_offset[5]))
+        or not StringUtil::IsDigit(time_offset[2]) or not StringUtil::IsDigit(time_offset[4]) or not StringUtil::IsDigit(time_offset[5]))
     {
         *date_time = BAD_TIME_T;
         return false;
@@ -261,9 +258,9 @@ static bool AdjustForTimeOffset(time_t * const date_time, const char * const tim
 
     int offset(0);
     offset += (time_offset[1] - '0') * 36000; // tens of hours
-    offset += (time_offset[2] - '0') *  3600; // hours
-    offset += (time_offset[4] - '0') *   600; // tens of minutes
-    offset += (time_offset[5] - '0') *    60; // minutes
+    offset += (time_offset[2] - '0') * 3600;  // hours
+    offset += (time_offset[4] - '0') * 600;   // tens of minutes
+    offset += (time_offset[5] - '0') * 60;    // minutes
 
     if (time_offset[0] == '+')
         *date_time -= offset;
@@ -275,11 +272,7 @@ static bool AdjustForTimeOffset(time_t * const date_time, const char * const tim
 
 
 const std::unordered_map<std::string, std::string> time_zone_names_to_offsets_map{
-    { "GMT",                    "+00:00" },
-    { "Hora de verano romance", "+01:00" },
-    { "PDT",                    "-07:00" },
-    { "PST",                    "-08:00" },
-    { "UTC",                    "+00:00" },
+    { "GMT", "+00:00" }, { "Hora de verano romance", "+01:00" }, { "PDT", "-07:00" }, { "PST", "-08:00" }, { "UTC", "+00:00" },
 };
 
 
@@ -320,7 +313,7 @@ static bool StringToStructTmHelper(std::string date_str, std::string optional_st
         if (unlikely(closing_paren_pos == std::string::npos or closing_paren_pos == 1))
             LOG_ERROR("bad locale specification \"" + optional_strptime_format + "\"!");
         const std::string locale_specifications(optional_strptime_format.substr(1, closing_paren_pos - 1));
-        StringUtil::Split(locale_specifications, '|', &locales, /* suppress_empty_components = */true);
+        StringUtil::Split(locale_specifications, '|', &locales, /* suppress_empty_components = */ true);
         if (unlikely(locales.empty()))
             LOG_ERROR("no locales found between the paretheses \"" + locale_specifications + "\"!");
         optional_strptime_format = optional_strptime_format.substr(closing_paren_pos + 1);
@@ -375,30 +368,28 @@ bool ConvertFormat(const std::string &from_format, const std::string &to_format,
 }
 
 
-unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * const year, unsigned * const month,
-                                unsigned * const day, unsigned * const hour, unsigned * const minute,
-                                unsigned * const second, int * const hour_offset, int * const minute_offset,
-                                bool * const is_definitely_zulu_time)
-{
+unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * const year, unsigned * const month, unsigned * const day,
+                                unsigned * const hour, unsigned * const minute, unsigned * const second, int * const hour_offset,
+                                int * const minute_offset, bool * const is_definitely_zulu_time) {
     *hour_offset = *minute_offset = 0;
     char plus_or_minus[1 + 1];
     char space_or_t[1 + 1];
 
     // First check for a simple time and date (can be local or UTC):
     if (possible_date.length() == 19
-        and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u%[Tt ]%2u:%2u:%2u",
-                        year, month, day, space_or_t, hour, minute, second) == 7)
+        and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u%[Tt ]%2u:%2u:%2u", year, month, day, space_or_t, hour, minute, second) == 7)
     {
         *is_definitely_zulu_time = false;
         return 7;
     }
     // Check for ISO 8601 w/ offset:
     else if (possible_date.length() == 25
-             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u%*[Tt]%2u:%2u:%2u%[+-]%2d:%2d",
-                             year, month, day, hour, minute, second, plus_or_minus, hour_offset, minute_offset) == 9)
+             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u%*[Tt]%2u:%2u:%2u%[+-]%2d:%2d", year, month, day, hour, minute, second,
+                             plus_or_minus, hour_offset, minute_offset)
+                     == 9)
     {
         if (plus_or_minus[0] == '-') {
-            *hour_offset   = -*hour_offset;
+            *hour_offset = -*hour_offset;
             *minute_offset = -*minute_offset;
         }
 
@@ -407,15 +398,13 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
     }
     // Check for Zulu time format (must be UTC)
     else if (possible_date.length() == 20
-             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u%*[Tt]%2u:%2u:%2u%*[Zz]",
-                             year, month, day, hour, minute, second) == 6)
+             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u%*[Tt]%2u:%2u:%2u%*[Zz]", year, month, day, hour, minute, second) == 6)
     {
         *is_definitely_zulu_time = true;
         return 6;
     }
     // Next check a simple date
-    else if (possible_date.length() == 10
-             and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u", year, month, day) == 3)
+    else if (possible_date.length() == 10 and std::sscanf(possible_date.c_str(), "%4u-%2u-%2u", year, month, day) == 3)
     {
         *hour = *minute = *second = 0;
         *is_definitely_zulu_time = false;
@@ -429,22 +418,22 @@ bool StringToYear(const std::string &possible_date, unsigned * const year) {
     unsigned month, day, hour, minute, second;
     int hour_offset, minute_offset;
     bool is_definitely_zulu_time;
-    return (StringToBrokenDownTime(possible_date, year, &month, &day, &hour, &minute, &second,
-                                   &hour_offset, &minute_offset, &is_definitely_zulu_time) > 0);
+    return (StringToBrokenDownTime(possible_date, year, &month, &day, &hour, &minute, &second, &hour_offset, &minute_offset,
+                                   &is_definitely_zulu_time)
+            > 0);
 }
 
 
 bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_time, std::string * const err_msg,
-                          const TimeZone time_zone)
-{
+                          const TimeZone time_zone) {
     tm tm_struct;
     std::memset(&tm_struct, '\0', sizeof tm_struct);
 
     unsigned year, month, day, hour, minute, second;
     int hour_offset, minute_offset;
     bool is_definitely_zulu_time;
-    const unsigned match_count = StringToBrokenDownTime(iso_time, &year, &month, &day, &hour, &minute, &second,
-                                                        &hour_offset, &minute_offset, &is_definitely_zulu_time);
+    const unsigned match_count = StringToBrokenDownTime(iso_time, &year, &month, &day, &hour, &minute, &second, &hour_offset,
+                                                        &minute_offset, &is_definitely_zulu_time);
     // First check for Zulu time format w/ an offset
     if (match_count == 9) {
         if (time_zone == LOCAL) {
@@ -452,12 +441,12 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
             return false;
         }
 
-        tm_struct.tm_year  = year - 1900;
-        tm_struct.tm_mon   = month - 1;
-        tm_struct.tm_mday  = day;
-        tm_struct.tm_hour  = hour - hour_offset;
-        tm_struct.tm_min   = minute - minute_offset;
-        tm_struct.tm_sec   = second;
+        tm_struct.tm_year = year - 1900;
+        tm_struct.tm_mon = month - 1;
+        tm_struct.tm_mday = day;
+        tm_struct.tm_hour = hour - hour_offset;
+        tm_struct.tm_min = minute - minute_offset;
+        tm_struct.tm_sec = second;
         *converted_time = ::timegm(&tm_struct);
         if (*converted_time == static_cast<time_t>(-1)) {
             *err_msg = "cannot convert '" + iso_time + "' to a time_t!";
@@ -466,18 +455,19 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
     }
 
     // Now check for Zulu time format w/o an offset (must be UTC)
-    else if (match_count == 6 and is_definitely_zulu_time) {
+    else if (match_count == 6 and is_definitely_zulu_time)
+    {
         if (time_zone == LOCAL) {
             *err_msg = "local time requested in Zulu time format!";
             return false;
         }
 
-        tm_struct.tm_year  = year - 1900;
-        tm_struct.tm_mon   = month - 1;
-        tm_struct.tm_mday  = day;
-        tm_struct.tm_hour  = hour;
-        tm_struct.tm_min   = minute;
-        tm_struct.tm_sec   = second;
+        tm_struct.tm_year = year - 1900;
+        tm_struct.tm_mon = month - 1;
+        tm_struct.tm_mday = day;
+        tm_struct.tm_hour = hour;
+        tm_struct.tm_min = minute;
+        tm_struct.tm_sec = second;
         *converted_time = ::timegm(&tm_struct);
         if (*converted_time == static_cast<time_t>(-1)) {
             *err_msg = "cannot convert '" + iso_time + "' to a time_t!";
@@ -486,13 +476,14 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
     }
 
     // Check for a simple time and date (can be local or UTC):
-    else if (match_count == 7) {
-        tm_struct.tm_year  = year - 1900;
-        tm_struct.tm_mon   = month - 1;
-        tm_struct.tm_mday  = day;
-        tm_struct.tm_hour  = hour;
-        tm_struct.tm_min   = minute;
-        tm_struct.tm_sec   = second;
+    else if (match_count == 7)
+    {
+        tm_struct.tm_year = year - 1900;
+        tm_struct.tm_mon = month - 1;
+        tm_struct.tm_mday = day;
+        tm_struct.tm_hour = hour;
+        tm_struct.tm_min = minute;
+        tm_struct.tm_sec = second;
         if (time_zone == LOCAL) {
             ::tzset();
             tm_struct.tm_isdst = -1;
@@ -501,8 +492,7 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
             *converted_time = std::mktime(&tm_struct);
             if (unlikely(errno != 0))
                 LOG_ERROR("bad time conversion! (2)");
-        }
-        else
+        } else
             *converted_time = TimeGm(tm_struct);
         if (*converted_time == static_cast<time_t>(-1)) {
             *err_msg = "cannot convert '" + iso_time + "' to a time_t!";
@@ -511,10 +501,11 @@ bool Iso8601StringToTimeT(const std::string &iso_time, time_t * const converted_
     }
 
     // Next check a simple date
-    else if (match_count == 3) {
-        tm_struct.tm_year  = year - 1900;
-        tm_struct.tm_mon   = month - 1;
-        tm_struct.tm_mday  = day;
+    else if (match_count == 3)
+    {
+        tm_struct.tm_year = year - 1900;
+        tm_struct.tm_mon = month - 1;
+        tm_struct.tm_mday = day;
         if (time_zone == LOCAL) {
             ::tzset();
             tm_struct.tm_isdst = -1;
@@ -577,14 +568,14 @@ constexpr auto jdiff() {
 
 
 struct jdate_clock {
-    using rep        = double;
-    using period     = std::ratio<86400>;
-    using duration   = std::chrono::duration<rep, period>;
+    using rep = double;
+    using period = std::ratio<86400>;
+    using duration = std::chrono::duration<rep, period>;
     using time_point = std::chrono::time_point<jdate_clock>;
 
     static time_point now() noexcept {
         using namespace std::chrono;
-        return time_point{duration{system_clock::now().time_since_epoch()} + jdiff()};
+        return time_point{ duration{ system_clock::now().time_since_epoch() } + jdiff() };
     }
 };
 
@@ -599,15 +590,13 @@ double GetJulianDayNumber() {
 
 // JulianDayNumberToYearMonthAndDay -- based on http://quasar.as.utexas.edu/BillInfo/JulianDatesG.html.
 //
-void JulianDayNumberToYearMonthAndDay(const double julian_day_number, unsigned * const year, unsigned * const month,
-                                      unsigned * const day)
-{
+void JulianDayNumberToYearMonthAndDay(const double julian_day_number, unsigned * const year, unsigned * const month, unsigned * const day) {
     const unsigned Z = static_cast<unsigned>(julian_day_number + 0.5);
     const unsigned W = static_cast<unsigned>((Z - 1867216.25) / 36524.25);
     const unsigned X = static_cast<unsigned>(W / 4);
     const unsigned A = Z + 1 + W - X;
     const unsigned B = A + 1524;
-    const unsigned C = static_cast<unsigned>((B -122.1) / 365.25);
+    const unsigned C = static_cast<unsigned>((B - 122.1) / 365.25);
     const unsigned D = static_cast<unsigned>(365.25 * C);
     const unsigned E = static_cast<unsigned>((B - D) / 30.6001);
     const unsigned F = static_cast<unsigned>(30.6001 * E);
@@ -619,9 +608,7 @@ void JulianDayNumberToYearMonthAndDay(const double julian_day_number, unsigned *
     if (*month == 1 or *month == 2)
         *year = C - 4715;
     else
-        * year = C - 4716;
-
-
+        *year = C - 4716;
 }
 
 
@@ -633,7 +620,7 @@ time_t AddDays(const time_t &start_time, const int days) {
     JulianDayNumberToYearMonthAndDay(julian_day_number, &year, &month, &day);
     struct tm end_tm(*start_tm);
     end_tm.tm_year = year - 1900;
-    end_tm.tm_mon  = month - 1;
+    end_tm.tm_mon = month - 1;
     end_tm.tm_mday = day;
 
     return TimeGm(end_tm);
@@ -641,7 +628,7 @@ time_t AddDays(const time_t &start_time, const int days) {
 
 
 time_t ConvertHumanDateTimeToTimeT(const std::string &human_date) {
-    typedef std::multimap<std::string,PerlCompatRegExp> RegExpMap;
+    typedef std::multimap<std::string, PerlCompatRegExp> RegExpMap;
     // Using function static (initialised once per program) syntax, load up a std::map with time extraction patterns
     // (see standard function ::strptime) and regular expressions that correspond to various human date/time formats.
     // The human_date will be searched for a matching regular expression, and then the time will extracted with
@@ -649,33 +636,23 @@ time_t ConvertHumanDateTimeToTimeT(const std::string &human_date) {
     static RegExpMap expressions;
     if (expressions.empty()) {
         expressions.insert(
-            RegExpMap::value_type(
-                "%Y %m %d %H %M %S",
-                PerlCompatRegExp("[12][0-9]{3}[01][0-9][012][0-9][0-6][0-9][0-6][0-9][0-6][0-9]")));
+            RegExpMap::value_type("%Y %m %d %H %M %S", PerlCompatRegExp("[12][0-9]{3}[01][0-9][012][0-9][0-6][0-9][0-6][0-9][0-6][0-9]")));
         expressions.insert(
-            RegExpMap::value_type(
-                "%Y-%m-%d %T",
-                PerlCompatRegExp("[12][0-9]{3}-[01][0-9]-[0123][0-9] [012][0-9]:[0-6][0-9]:[0-6][0-9]")));
-        expressions.insert(
-            RegExpMap::value_type(
-                "%Y-%m-%dT%TZ",
-                PerlCompatRegExp("[12][0-9]{3}-[01][0-9]-[0123][0-9]T[012][0-9]:[0-6][0-9]:[0-6][0-9]Z")));
-        expressions.insert(
-            RegExpMap::value_type(
-                "%A %b %d, %Y %I:%M%p",
-                PerlCompatRegExp("[[:alpha:]]+ [ 0123][0-9], [12][0-9]{3} [ 012][0-9]:[0-6][0-9][AP]M")));
-        expressions.insert(
-            RegExpMap::value_type(
-                "%a %b %e %T %Y",
-                PerlCompatRegExp("[[:alpha:]]+ [ 123][0-9] [012][0-9]:[0-6][0-9]:[0-6][0-9] [12][0-9]{3}")));
+            RegExpMap::value_type("%Y-%m-%d %T", PerlCompatRegExp("[12][0-9]{3}-[01][0-9]-[0123][0-9] [012][0-9]:[0-6][0-9]:[0-6][0-9]")));
+        expressions.insert(RegExpMap::value_type("%Y-%m-%dT%TZ",
+                                                 PerlCompatRegExp("[12][0-9]{3}-[01][0-9]-[0123][0-9]T[012][0-9]:[0-6][0-9]:[0-6][0-9]Z")));
+        expressions.insert(RegExpMap::value_type("%A %b %d, %Y %I:%M%p",
+                                                 PerlCompatRegExp("[[:alpha:]]+ [ 0123][0-9], [12][0-9]{3} [ 012][0-9]:[0-6][0-9][AP]M")));
+        expressions.insert(RegExpMap::value_type(
+            "%a %b %e %T %Y", PerlCompatRegExp("[[:alpha:]]+ [ 123][0-9] [012][0-9]:[0-6][0-9]:[0-6][0-9] [12][0-9]{3}")));
     }
 
     struct tm time_elements;
     bool found(false);
     for (RegExpMap::const_iterator expression = expressions.begin(); expression != expressions.end(); ++expression) {
         // Debugging statements
-        //std::cout << std::string(expression->first) << "\n";
-        //std::cout << std::string(expression->second.getPattern()) << std::endl;
+        // std::cout << std::string(expression->first) << "\n";
+        // std::cout << std::string(expression->second.getPattern()) << std::endl;
         if (expression->second.match(human_date)) {
             found = true;
             if (::strptime(human_date.c_str(), expression->first.c_str(), &time_elements) == 0)
@@ -723,7 +700,7 @@ time_t _mkgmtime(const struct tm &tm) {
     // Most of the calculation is easy; leap years are the main difficulty.
     int month = tm.tm_mon % 12;
     int year = tm.tm_year + tm.tm_mon / 12;
-    if (month < 0) {   // Negative values % 12 are still negative.
+    if (month < 0) { // Negative values % 12 are still negative.
         month += 12;
         --year;
     }
@@ -731,14 +708,17 @@ time_t _mkgmtime(const struct tm &tm) {
     // This is the number of Februaries since 1900.
     const int year_for_leap = (month > 1) ? year + 1 : year;
 
-    const time_t rt(tm.tm_sec                                  // Seconds
-                    + 60 * (tm.tm_min                          // Minute = 60 seconds
-                    + 60 * (tm.tm_hour                         // Hour = 60 minutes
-                    + 24 * (month_day[month] + tm.tm_mday - 1  // Day = 24 hours
-                    + 365 * (year - 70)                        // Year = 365 days
-                    + (year_for_leap - 69) / 4                 // Every 4 years is     leap...
-                    - (year_for_leap - 1) / 100                // Except centuries...
-                    + (year_for_leap + 299) / 400))));         // Except 400s.
+    const time_t rt(tm.tm_sec // Seconds
+                    + 60
+                          * (tm.tm_min // Minute = 60 seconds
+                             + 60
+                                   * (tm.tm_hour // Hour = 60 minutes
+                                      + 24
+                                            * (month_day[month] + tm.tm_mday - 1  // Day = 24 hours
+                                               + 365 * (year - 70)                // Year = 365 days
+                                               + (year_for_leap - 69) / 4         // Every 4 years is     leap...
+                                               - (year_for_leap - 1) / 100        // Except centuries...
+                                               + (year_for_leap + 299) / 400)))); // Except 400s.
     return rt < 0 ? -1 : rt;
 }
 
@@ -758,14 +738,17 @@ time_t UTCStructTmToTimeT(const struct tm &tm) {
     // This is the number of Februaries since 1900.
     const time_t year_for_leap((month > 1) ? year + 1 : year);
 
-    const time_t retval_candidate(tm.tm_sec        // Seconds
-        + 60 * (tm.tm_min                          // Minute = 60 seconds
-        + 60 * (tm.tm_hour                         // Hour = 60 minutes
-        + 24 * (month_day[month] + tm.tm_mday - 1  // Day = 24 hours
-        + 365 * (year - 70)                        // Year = 365 days
-        + (year_for_leap - 69) / 4                 // Every 4 years is     leap...
-        - (year_for_leap - 1) / 100                // Except centuries...
-        + (year_for_leap + 299) / 400))));         // Except 400s.
+    const time_t retval_candidate(tm.tm_sec // Seconds
+                                  + 60
+                                        * (tm.tm_min // Minute = 60 seconds
+                                           + 60
+                                                 * (tm.tm_hour // Hour = 60 minutes
+                                                    + 24
+                                                          * (month_day[month] + tm.tm_mday - 1  // Day = 24 hours
+                                                             + 365 * (year - 70)                // Year = 365 days
+                                                             + (year_for_leap - 69) / 4         // Every 4 years is     leap...
+                                                             - (year_for_leap - 1) / 100        // Except centuries...
+                                                             + (year_for_leap + 299) / 400)))); // Except 400s.
     return retval_candidate < 0 ? BAD_TIME_T : retval_candidate;
 }
 
@@ -812,8 +795,7 @@ bool ParseRFC1123DateTime(const std::string &date_time_candidate, time_t * const
     const std::string::size_type start_pos(first_comma_pos == std::string::npos ? 0 : first_comma_pos + 1);
     std::string simplified_candidate(StringUtil::TrimWhite(date_time_candidate.substr(start_pos)));
 
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-        "^(\\d{1,2}) (...) (\\d{2}|\\d{4}) (\\d{2}:\\d{2}(:\\d{2})?)"));
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^(\\d{1,2}) (...) (\\d{2}|\\d{4}) (\\d{2}:\\d{2}(:\\d{2})?)"));
     if (not matcher->matched(simplified_candidate)) {
         *date_time = BAD_TIME_T;
         return false;

@@ -54,9 +54,8 @@ std::string NormaliseSubfieldContents(std::string subfield_contents) {
 }
 
 
-void LoadTagAndSubfieldCodesGroupsFromGlobalSection(const IniFile &ini_file,
-                                                    std::map<std::string, std::vector<std::string>> * const subfields_name_to_subfields_map)
-{
+void LoadTagAndSubfieldCodesGroupsFromGlobalSection(
+    const IniFile &ini_file, std::map<std::string, std::vector<std::string>> * const subfields_name_to_subfields_map) {
     const auto global_section(ini_file.getSection(""));
     if (global_section == ini_file.end())
         LOG_ERROR("missing gobal section!");
@@ -68,7 +67,7 @@ void LoadTagAndSubfieldCodesGroupsFromGlobalSection(const IniFile &ini_file,
             LOG_ERROR("missing subfields spec for \"" + entry.name_ + "\"!");
 
         std::vector<std::string> tags_and_subfield_codes;
-        StringUtil::Split(entry.value_, ':', &tags_and_subfield_codes, /* suppress_empty_components */true);
+        StringUtil::Split(entry.value_, ':', &tags_and_subfield_codes, /* suppress_empty_components */ true);
         for (const auto &tag_and_subfield_code : tags_and_subfield_codes) {
             if (unlikely(tag_and_subfield_code.length() != MARC::Record::TAG_LENGTH + 1))
                 LOG_ERROR("bad subfields spec for \"" + entry.name_ + "\"!");
@@ -80,13 +79,14 @@ void LoadTagAndSubfieldCodesGroupsFromGlobalSection(const IniFile &ini_file,
 
 
 void InsertVariantsIntoMap(const std::vector<std::string> &subfield_specs, const std::unordered_set<std::string> &variants,
-                           const std::string &canonical_name, std::vector<std::pair<std::string, VariantsToCanonicalNameMap>> * const maps)
-{
+                           const std::string &canonical_name,
+                           std::vector<std::pair<std::string, VariantsToCanonicalNameMap>> * const maps) {
     for (const auto &subfield_spec : subfield_specs) {
         auto subfield_spec_and_replacement_map(
             std::find_if(maps->begin(), maps->end(),
-                         [&subfield_spec](std::pair<std::string, VariantsToCanonicalNameMap> &subfield_spec_and_replacement_map1)
-                             { return subfield_spec == subfield_spec_and_replacement_map1.first; }));
+                         [&subfield_spec](std::pair<std::string, VariantsToCanonicalNameMap> &subfield_spec_and_replacement_map1) {
+                             return subfield_spec == subfield_spec_and_replacement_map1.first;
+                         }));
         if (subfield_spec_and_replacement_map == maps->end()) {
             maps->emplace_back(subfield_spec, VariantsToCanonicalNameMap{});
             subfield_spec_and_replacement_map = maps->end() - 1;
@@ -150,16 +150,16 @@ void LoadConfigFile(std::vector<std::pair<std::string, VariantsToCanonicalNameMa
 
     // Sort into ascending order of subfield specs:
     std::sort(maps->begin(), maps->end(),
-              [](const std::pair<std::string, VariantsToCanonicalNameMap> &a, const std::pair<std::string, VariantsToCanonicalNameMap> &b)
-                  { return a.first < b.first; });
+              [](const std::pair<std::string, VariantsToCanonicalNameMap> &a, const std::pair<std::string, VariantsToCanonicalNameMap> &b) {
+                  return a.first < b.first;
+              });
 
     LOG_INFO("loaded " + std::to_string(maps->size()) + " substitution maps.");
 }
 
 
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    const std::vector<std::pair<std::string, VariantsToCanonicalNameMap>> &maps)
-{
+                    const std::vector<std::pair<std::string, VariantsToCanonicalNameMap>> &maps) {
     unsigned total_count(0), modified_count(0);
     while (MARC::Record record = marc_reader->read()) {
         bool replaced_at_least_one_field(false);
@@ -167,7 +167,8 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 
         auto subfield_spec_and_replacement_map(maps.cbegin());
         for (auto &field : record) {
-            while (subfield_spec_and_replacement_map != maps.cend() and subfield_spec_and_replacement_map->first < field.getTag().toString())
+            while (subfield_spec_and_replacement_map != maps.cend()
+                   and subfield_spec_and_replacement_map->first < field.getTag().toString())
                 ++subfield_spec_and_replacement_map;
             if (subfield_spec_and_replacement_map == maps.cend())
                 break;

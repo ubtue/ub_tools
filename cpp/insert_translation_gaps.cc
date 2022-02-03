@@ -75,8 +75,7 @@ void ReadIniFile(File * const input, std::vector<std::pair<std::string, std::str
 
         std::string lhs, rhs;
         if (unlikely(not SplitLine(line, &lhs, &rhs)))
-            logger->error("line with a confusing structure in \"" + input->getPath() + "\", line #"
-                          + std::to_string(line_no) + "!");
+            logger->error("line with a confusing structure in \"" + input->getPath() + "\", line #" + std::to_string(line_no) + "!");
 
         language_mapping->emplace_back(lhs, rhs);
     }
@@ -95,8 +94,7 @@ struct StringPairHash {
 /** An equality functor for pairs of strings which uses only the first string of a pair to determine equality. */
 struct StringPairEqual {
     inline bool operator()(const std::pair<std::string, std::string> &lhs_string_pair,
-                           const std::pair<std::string, std::string> &rhs_string_pair) const
-    {
+                           const std::pair<std::string, std::string> &rhs_string_pair) const {
         return lhs_string_pair.first == rhs_string_pair.first;
     }
 };
@@ -122,8 +120,7 @@ void ReadIniFileAndCollectEntries(File * const input, StringPairSet * const lhs_
 
         std::string lhs, rhs;
         if (unlikely(not SplitLine(line, &lhs, &rhs)))
-            logger->error("line with a confusing structure in \"" + input->getPath() + "\", line #"
-                          + std::to_string(line_no) + "!");
+            logger->error("line with a confusing structure in \"" + input->getPath() + "\", line #" + std::to_string(line_no) + "!");
 
         lhs_entries->insert(std::make_pair(lhs, rhs));
     }
@@ -131,10 +128,8 @@ void ReadIniFileAndCollectEntries(File * const input, StringPairSet * const lhs_
 
 
 // Reports keys that exist in the other language file but not in the reference file.
-void ReportMissingEntriesInTheReferenceFile(
-    const std::vector<std::pair<std::string, std::string>> &reference_language_mapping,
-    const StringPairSet &lhs_entries)
-{
+void ReportMissingEntriesInTheReferenceFile(const std::vector<std::pair<std::string, std::string>> &reference_language_mapping,
+                                            const StringPairSet &lhs_entries) {
     std::unordered_set<std::string> reference_keys;
     for (const auto &ref_pair : reference_language_mapping)
         reference_keys.insert(ref_pair.first);
@@ -150,10 +145,8 @@ void ReportMissingEntriesInTheReferenceFile(
 }
 
 
-void InsertMissingTranslations(File * const output,
-                               const std::vector<std::pair<std::string, std::string>> &reference_language_mapping,
-                               const StringPairSet &lhs_entries)
-{
+void InsertMissingTranslations(File * const output, const std::vector<std::pair<std::string, std::string>> &reference_language_mapping,
+                               const StringPairSet &lhs_entries) {
     unsigned total_count(0), missing_count(0), comment_count(0);
 
     std::set<std::string> already_seen;
@@ -168,7 +161,8 @@ void InsertMissingTranslations(File * const output,
         if (set_entry != lhs_entries.cend()) {
             *output << set_entry->first << " = " << '"' << set_entry->second << "\"\n";
         } else {
-            *output << ref_pair.first << " = " << "\"\"";
+            *output << ref_pair.first << " = "
+                    << "\"\"";
             if (ref_pair.first != ref_pair.second) {
                 *output << "  //** " << ref_pair.second;
             }

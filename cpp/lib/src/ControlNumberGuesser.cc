@@ -32,8 +32,7 @@
 
 const std::set<std::string> ControlNumberGuesser::EMPTY_SET;
 const std::string ControlNumberGuesser::DATABASE_PATH(UBTools::GetTuelibPath() + "control_number_guesser.sq3");
-const std::string ControlNumberGuesser::INSTALLER_SCRIPT_PATH(
-    "/usr/local/ub_tools/cpp/data/installer/control_number_guesser.sql");
+const std::string ControlNumberGuesser::INSTALLER_SCRIPT_PATH("/usr/local/ub_tools/cpp/data/installer/control_number_guesser.sql");
 
 
 ControlNumberGuesser::~ControlNumberGuesser() {
@@ -143,11 +142,10 @@ void ControlNumberGuesser::insertISBN(const std::string &isbn, const std::string
 }
 
 
-std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(
-    const std::string &title, const std::set<std::string> &authors,
-    const std::string &year, const std::set<std::string> &dois,
-    const std::set<std::string> &issns, const std::set<std::string> &isbns) const
-{
+std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::string &title, const std::set<std::string> &authors,
+                                                                     const std::string &year, const std::set<std::string> &dois,
+                                                                     const std::set<std::string> &issns,
+                                                                     const std::set<std::string> &isbns) const {
     std::set<std::string> control_numbers;
 
     for (const auto &doi : dois) {
@@ -181,7 +179,7 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(
     lookupTitle(normalised_title, &title_control_numbers);
     if (title_control_numbers.empty()) {
         LOG_DEBUG("no entries found for normalised title \"" + normalised_title + "\"");
-        return { };
+        return {};
     }
 
     std::set<std::string> normalised_authors;
@@ -196,7 +194,7 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(
 
     if (all_author_control_numbers.empty()) {
         LOG_DEBUG("no entries found for normalised authors \"" + StringUtil::Join(normalised_authors, ',') + "\"");
-        return { };
+        return {};
     }
 
     control_numbers = MiscUtil::Intersect(title_control_numbers, all_author_control_numbers);
@@ -219,7 +217,7 @@ bool ControlNumberGuesser::getNextTitle(std::string * const title, std::set<std:
     if (next_row) {
         *title = next_row["title"];
         const auto concatenated_control_numbers(next_row["control_numbers"]);
-        StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */true);
+        StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */ true);
         return true;
     } else {
         title_cursor_.reset();
@@ -238,7 +236,7 @@ bool ControlNumberGuesser::getNextAuthor(std::string * const author_name, std::s
     if (next_row) {
         *author_name = next_row["author"];
         const auto concatenated_control_numbers(next_row["control_numbers"]);
-        StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */true);
+        StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */ true);
         return true;
     } else {
         author_cursor_.reset();
@@ -272,7 +270,7 @@ void ControlNumberGuesser::lookupTitle(const std::string &title, std::set<std::s
     const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(title)));
     std::string concatenated_control_numbers;
     lookupControlNumber("normalised_titles", "title", normalised_title, &concatenated_control_numbers);
-    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */true);
+    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */ true);
 }
 
 
@@ -282,7 +280,7 @@ void ControlNumberGuesser::lookupAuthor(const std::string &author_name, std::set
     const auto normalised_author_name(TextUtil::UTF8ToLower(NormaliseAuthorName(author_name)));
     std::string concatenated_control_numbers;
     lookupControlNumber("normalised_authors", "author", normalised_author_name, &concatenated_control_numbers);
-    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */true);
+    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */ true);
 }
 
 
@@ -302,7 +300,7 @@ void ControlNumberGuesser::lookupDOI(const std::string &doi, std::set<std::strin
     MiscUtil::NormaliseDOI(doi, &normalised_doi);
     std::string concatenated_control_numbers;
     lookupControlNumber("doi", "doi", normalised_doi, &concatenated_control_numbers);
-    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */true);
+    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */ true);
 }
 
 
@@ -313,7 +311,7 @@ void ControlNumberGuesser::lookupISSN(const std::string &issn, std::set<std::str
     MiscUtil::NormaliseISSN(issn, &normalised_issn);
     std::string concatenated_control_numbers;
     lookupControlNumber("issn", "issn", normalised_issn, &concatenated_control_numbers);
-    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */true);
+    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */ true);
 }
 
 
@@ -324,7 +322,7 @@ void ControlNumberGuesser::lookupISBN(const std::string &isbn, std::set<std::str
     MiscUtil::NormaliseISBN(isbn, &normalised_isbn);
     std::string concatenated_control_numbers;
     lookupControlNumber("isbn", "isbn", normalised_isbn, &concatenated_control_numbers);
-    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */true);
+    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */ true);
 }
 
 
@@ -365,8 +363,8 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
     auto trimmed_author_name(StringUtil::TrimWhite(author_name));
     const auto comma_pos(trimmed_author_name.find(','));
     if (comma_pos != std::string::npos)
-        trimmed_author_name = StringUtil::TrimWhite(trimmed_author_name.substr(comma_pos + 1) + " "
-                                                    + trimmed_author_name.substr(0, comma_pos));
+        trimmed_author_name =
+            StringUtil::TrimWhite(trimmed_author_name.substr(comma_pos + 1) + " " + trimmed_author_name.substr(0, comma_pos));
     std::wstring wtrimmed_author_name;
     if (unlikely(not TextUtil::UTF8ToWCharString(trimmed_author_name, &wtrimmed_author_name)))
         LOG_ERROR("failed to convert trimmed_author_name to a wstring!");
@@ -403,7 +401,7 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
 
     // Only keep the first name and the last name:
     std::vector<std::wstring> parts;
-    StringUtil::Split(normalised_author_name, ' ', &parts, /* suppress_empty_components = */true);
+    StringUtil::Split(normalised_author_name, ' ', &parts, /* suppress_empty_components = */ true);
     if (unlikely(parts.empty()))
         return "";
     normalised_author_name = parts.front();
@@ -420,24 +418,22 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
 }
 
 
-void ControlNumberGuesser::insertNewControlNumber(const std::string &table, const std::string &column_name,
-                                                  const std::string &column_value, const std::string &control_number)
-{
+void ControlNumberGuesser::insertNewControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
+                                                  const std::string &control_number) {
     std::string control_numbers;
     if (lookupControlNumber(table, column_name, column_value, &control_numbers)) {
         control_numbers += '|' + control_number;
-        db_connection_.queryOrDie("UPDATE " + table + " SET control_numbers='" + control_numbers +
-                                  "' WHERE " + column_name + "='" + db_connection_.escapeString(column_value) + "'");
+        db_connection_.queryOrDie("UPDATE " + table + " SET control_numbers='" + control_numbers + "' WHERE " + column_name + "='"
+                                  + db_connection_.escapeString(column_value) + "'");
     } else {
-        db_connection_.queryOrDie("INSERT INTO " + table + " VALUES('" + db_connection_.escapeString(column_value)
-                                  + "', '" + control_number + "')");
+        db_connection_.queryOrDie("INSERT INTO " + table + " VALUES('" + db_connection_.escapeString(column_value) + "', '" + control_number
+                                  + "')");
     }
 }
 
 
-bool ControlNumberGuesser::lookupControlNumber(const std::string &table, const std::string &column_name,
-                                               const std::string &column_value, std::string * const control_numbers) const
-{
+bool ControlNumberGuesser::lookupControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
+                                               std::string * const control_numbers) const {
     db_connection_.queryOrDie("SELECT control_numbers FROM " + table + " WHERE " + column_name + "='"
                               + db_connection_.escapeString(column_value) + "'");
     auto query_result(db_connection_.getLastResultSet());
@@ -452,8 +448,7 @@ bool ControlNumberGuesser::lookupControlNumber(const std::string &table, const s
 
 
 void ControlNumberGuesser::splitControlNumbers(const std::string &concatenated_control_numbers,
-                                               std::unordered_set<std::string> * const control_numbers) const
-{
+                                               std::unordered_set<std::string> * const control_numbers) const {
     size_t count(concatenated_control_numbers.size() / (MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating pipe char */));
     control_numbers->reserve(count);
     for (unsigned i(0); i < count; ++i) {
@@ -465,8 +460,7 @@ void ControlNumberGuesser::splitControlNumbers(const std::string &concatenated_c
 
 
 unsigned ControlNumberGuesser::swapControlNumbers(const std::string &table_name, const std::string &primary_key,
-                                                  const std::unordered_map<std::string, std::string> &old_to_new_map)
-{
+                                                  const std::unordered_map<std::string, std::string> &old_to_new_map) {
     unsigned changed_row_count(0);
     db_connection_.queryOrDie("SELECT " + primary_key + ", control_numbers FROM " + table_name);
     DbResultSet result_set(db_connection_.getLastResultSet());
@@ -490,9 +484,8 @@ unsigned ControlNumberGuesser::swapControlNumbers(const std::string &table_name,
             control_numbers.emplace(replacement.second);
         }
 
-        db_connection_.queryOrDie("UPDATE " + table_name + " SET control_numbers='"
-                                  + StringUtil::Join(control_numbers, '|') + "' WHERE " + primary_key + "="
-                                  + db_connection_.escapeAndQuoteString(row[primary_key]));
+        db_connection_.queryOrDie("UPDATE " + table_name + " SET control_numbers='" + StringUtil::Join(control_numbers, '|') + "' WHERE "
+                                  + primary_key + "=" + db_connection_.escapeAndQuoteString(row[primary_key]));
 
         ++changed_row_count;
     }

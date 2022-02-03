@@ -51,9 +51,9 @@ struct RecordInfo {
 };
 
 
-void PopulateParentIdToISBNAndISSNMap(MARC::Reader * const marc_reader,
-                                      std::unordered_map<std::string, RecordInfo> * const parent_id_to_isbn_issn_and_open_access_status_map)
-{
+void PopulateParentIdToISBNAndISSNMap(
+    MARC::Reader * const marc_reader,
+    std::unordered_map<std::string, RecordInfo> * const parent_id_to_isbn_issn_and_open_access_status_map) {
     LOG_INFO("Starting extraction of ISBN's and ISSN's.");
 
     unsigned count(0), extracted_isbn_count(0), extracted_issn_count(0);
@@ -89,8 +89,7 @@ void PopulateParentIdToISBNAndISSNMap(MARC::Reader * const marc_reader,
 
 void AddMissingISBNsOrISSNsToArticleEntries(
     MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-    const std::unordered_map<std::string, RecordInfo> &parent_id_to_isbn_issn_and_open_access_status_map)
-{
+    const std::unordered_map<std::string, RecordInfo> &parent_id_to_isbn_issn_and_open_access_status_map) {
     LOG_INFO("Starting augmentation of article entries.");
 
     unsigned count(0), isbns_added(0), issns_added(0), missing_host_record_ctrl_num_count(0), missing_isbn_or_issn_count(0);

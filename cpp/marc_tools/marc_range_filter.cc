@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "MARC.h"
 #include "StringUtil.h"
@@ -27,6 +27,7 @@ namespace {
 
 struct Range {
     std::string start_, end_;
+
 public:
     Range() = default;
     Range(const Range &other) = default;
@@ -53,8 +54,7 @@ void ParseRanges(const std::string &raw_ranges, std::vector<Range> * const parse
 
 
 void ProcessRecords(const std::string &field_and_subfield_code, const std::vector<Range> &ranges, MARC::Reader * const marc_reader,
-                    MARC::Writer * const marc_writer)
-{
+                    MARC::Writer * const marc_writer) {
     unsigned record_count(0), dropped_record_count(0);
 
 next_record:
@@ -78,7 +78,8 @@ next_record:
         marc_writer->write(record);
     }
 
-    LOG_INFO("Processed " + std::to_string(record_count) + " record(s) and dropped " + std::to_string(dropped_record_count) + " record(s).");
+    LOG_INFO("Processed " + std::to_string(record_count) + " record(s) and dropped " + std::to_string(dropped_record_count)
+             + " record(s).");
 }
 
 
@@ -87,9 +88,10 @@ next_record:
 
 int Main(int argc, char *argv[]) {
     if (argc != 5)
-        ::Usage("ranges field_and_subfield_code marc_input marc_output\n"
-                "ranges is a list of ranges separated by vertical bars.  An example range would be A123-A297, an example\n"
-                "field_and_subfield_code might be \"015a\" indicating field 015 and subfield code a.");
+        ::Usage(
+            "ranges field_and_subfield_code marc_input marc_output\n"
+            "ranges is a list of ranges separated by vertical bars.  An example range would be A123-A297, an example\n"
+            "field_and_subfield_code might be \"015a\" indicating field 015 and subfield code a.");
 
     std::vector<Range> ranges;
     ParseRanges(argv[1], &ranges);

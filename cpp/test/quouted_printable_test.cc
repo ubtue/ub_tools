@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
 
     if (argc != 3)
         Usage();
-    
+
     try {
         if (std::strcmp("--encode", argv[1]) == 0)
             std::cout << TextUtil::EncodeQuotedPrintable(argv[2]) << '\n';

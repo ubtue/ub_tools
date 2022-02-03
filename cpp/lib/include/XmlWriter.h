@@ -43,13 +43,16 @@ class XmlWriter {
     std::string *output_string_;
     std::stack<std::string> active_tags_;
     unsigned indent_amount_, nesting_level_;
+
 public:
     enum TextConversionType { NoConversion, ConvertFromIso8859_15 };
     enum XmlDeclarationWriteBehaviour { WriteTheXmlDeclaration, DoNotWriteTheXmlDeclaration };
-    typedef std::list< std::pair<std::string, std::string> > Attributes;
+    typedef std::list<std::pair<std::string, std::string> > Attributes;
+
 private:
     const TextConversionType text_conversion_type_;
     Attributes next_attributes_;
+
 public:
     /** \brief  Instantiate an XmlWriter object.
      *  \param  output_file                      Where to write the generated XML to. Assumes ownership of the pointer.
@@ -59,8 +62,7 @@ public:
      */
     explicit XmlWriter(File * const output_file,
                        const XmlDeclarationWriteBehaviour xml_declaration_write_behaviour = WriteTheXmlDeclaration,
-                       const unsigned indent_amount = 0,
-                       const TextConversionType text_conversion_type = NoConversion);
+                       const unsigned indent_amount = 0, const TextConversionType text_conversion_type = NoConversion);
 
     /** \brief  Instantiate an XmlWriter object.
      *  \param  output_string                    Where to write the generated XML to.
@@ -70,8 +72,7 @@ public:
      */
     explicit XmlWriter(std::string * const output_string,
                        const XmlDeclarationWriteBehaviour xml_declaration_write_behaviour = WriteTheXmlDeclaration,
-                       const unsigned indent_amount = 0,
-                       const TextConversionType text_conversion_type = NoConversion);
+                       const unsigned indent_amount = 0, const TextConversionType text_conversion_type = NoConversion);
 
     /** Destroyes an XmlWriter object, closing any still open tags. */
     virtual ~XmlWriter() { closeAllTags(), delete output_file_; }
@@ -82,8 +83,7 @@ public:
      *  \warning  If the two-argument version of openTag() gets called all prior calls to this function will be
      *            ignored!
      */
-    void addAttribute(const std::string &name, const std::string &value = "")
-        { next_attributes_.push_back(std::make_pair(name, value) ); }
+    void addAttribute(const std::string &name, const std::string &value = "") { next_attributes_.push_back(std::make_pair(name, value)); }
 
     /** Writes an open tag at the current indentation level. Uses the attributes queued up by calls to addAttribute(),
         if any. */
@@ -116,8 +116,7 @@ public:
 
     /** Write character data between an opening and closing tag pair. */
     void writeTagsWithData(const std::string &tag_name, const Attributes &attribs, const std::string &characters,
-                           const bool suppress_indent = false)
-    {
+                           const bool suppress_indent = false) {
         openTag(tag_name, attribs, suppress_indent);
         write(characters);
         closeTag(tag_name, suppress_indent);
@@ -153,6 +152,7 @@ public:
      */
     static std::string XmlEscape(const std::string &unescaped_text, const XmlWriter::TextConversionType text_conversion_type,
                                  const std::string &additional_escapes = "");
+
 private:
     XmlWriter();                                // intentionally unimplemented
     XmlWriter(const XmlWriter &rhs);            // intentionally unimplemented

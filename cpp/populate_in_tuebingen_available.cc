@@ -46,9 +46,10 @@ namespace {
 
 class Range {
 public:
-    static const unsigned ISSUE_WILDCARD  = std::numeric_limits<unsigned>::max();
+    static const unsigned ISSUE_WILDCARD = std::numeric_limits<unsigned>::max();
     static const unsigned VOLUME_WILDCARD = std::numeric_limits<unsigned>::max();
-    static const unsigned YEAR_WILDCARD   = std::numeric_limits<unsigned>::max();
+    static const unsigned YEAR_WILDCARD = std::numeric_limits<unsigned>::max();
+
 public:
     unsigned start_issue_;
     unsigned start_volume_;
@@ -56,6 +57,7 @@ public:
     unsigned end_issue_;
     unsigned end_volume_;
     unsigned end_year_;
+
 public:
     Range(const unsigned start_volume, const unsigned start_year, const unsigned end_volume, const unsigned end_year)
         : start_volume_(start_volume), start_year_(start_year), end_volume_(end_volume), end_year_(end_year) { }
@@ -66,7 +68,7 @@ public:
 
     inline void setStartAndEndIssues(const unsigned start_issue, const unsigned end_issue) {
         start_issue_ = start_issue;
-        end_issue_   = end_issue;
+        end_issue_ = end_issue;
     }
 
     bool matched(const unsigned issue, const unsigned year, const unsigned volume) const;
@@ -106,7 +108,7 @@ static unsigned bad_match_count;
 
 // Returns UB and criminology sigils or the empty string.
 std::string FindSigil(MARC::Record * const record, const MARC::Record::const_iterator &block_start) {
-    for (const auto &field : record->findFieldsInLocalBlock("852", block_start, /*indicator1*/' ', /*indicator2*/' ')) {
+    for (const auto &field : record->findFieldsInLocalBlock("852", block_start, /*indicator1*/ ' ', /*indicator2*/ ' ')) {
         const std::string _852a_contents(field.getFirstSubfieldWithCode('a'));
         if (StringUtil::StartsWith(_852a_contents, "DE-21"))
             return _852a_contents;
@@ -118,8 +120,7 @@ std::string FindSigil(MARC::Record * const record, const MARC::Record::const_ite
 
 // Collects matching pairs of opening and closing symbols in "range".
 inline void CleanupHelper(const char open_symbol, const char close_symbol, const std::string &range,
-                          std::vector<std::pair<size_t, size_t>> * const matching_positions)
-{
+                          std::vector<std::pair<size_t, size_t>> * const matching_positions) {
     size_t open_pos, seach_start_pos(0);
     while ((open_pos = range.find(open_symbol, seach_start_pos)) != std::string::npos) {
         const size_t close_pos(range.find(close_symbol, open_pos + 1));
@@ -184,8 +185,7 @@ void CleanupRange(std::string * const range, unsigned * const trailing_issue1, u
             const std::string trailing_issue2_candidate((*trailing_issue_matcher)[2].substr(1));
             if (not trailing_issue2_candidate.empty()) {
                 if (unlikely(not StringUtil::ToUnsigned(trailing_issue2_candidate, trailing_issue2)))
-                    logger->error("can't convert \"" + (*trailing_issue_matcher)[2].substr(1)
-                                  + "\" to an unsigned trailing issue!");
+                    logger->error("can't convert \"" + (*trailing_issue_matcher)[2].substr(1) + "\" to an unsigned trailing issue!");
             }
             trailing_length += (*trailing_issue_matcher)[2].length();
         }
@@ -195,8 +195,7 @@ void CleanupRange(std::string * const range, unsigned * const trailing_issue1, u
     // Throw away everything after the last equal sign, including the equal sign but only if we have at least one
     // period, hyphen or comma before the equal sign.
     const size_t last_equal_pos(range->rfind('='));
-    if (last_equal_pos != std::string::npos
-        and range->substr(0, last_equal_pos).find_first_of(".-,") != std::string::npos)
+    if (last_equal_pos != std::string::npos and range->substr(0, last_equal_pos).find_first_of(".-,") != std::string::npos)
         range->resize(last_equal_pos);
 
     // Handle year equivalencies that look like YYYY=yyyy:
@@ -215,8 +214,7 @@ void CleanupRange(std::string * const range, unsigned * const trailing_issue1, u
 
 
 bool ParseRanges1(const std::vector<std::string> &individual_ranges, std::vector<Range> * const ranges) {
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-        "^(\\d+)\\.(\\d{4})(?:/\\d+)?-(?:\\d+/)?(\\d+)\\.(\\d{4})$"));
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^(\\d+)\\.(\\d{4})(?:/\\d+)?-(?:\\d+/)?(\\d+)\\.(\\d{4})$"));
     bool found_at_least_one_match(false);
     for (const auto &individual_range : individual_ranges) {
         if (not matcher->matched(individual_range))
@@ -446,8 +444,7 @@ bool ParseRanges8(const std::vector<std::string> &individual_ranges, std::vector
 
 
 bool ParseRanges9(const std::vector<std::string> &individual_ranges, std::vector<Range> * const ranges) {
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-        "^(\\d+)\\.(\\d{4})(?:/\\d+)?-(\\d+)\\.(\\d{4})/(\\d{2})$"));
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^(\\d+)\\.(\\d{4})(?:/\\d+)?-(\\d+)\\.(\\d{4})/(\\d{2})$"));
     bool found_at_least_one_match(false);
     for (const auto &individual_range : individual_ranges) {
         if (not matcher->matched(individual_range))
@@ -487,8 +484,7 @@ bool ParseRanges9(const std::vector<std::string> &individual_ranges, std::vector
 
 
 bool ParseRanges10(const std::vector<std::string> &individual_ranges, std::vector<Range> * const ranges) {
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-        "^(\\d{4})(?:/\\d+)?-(\\d{4})/(\\d{2})$"));
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^(\\d{4})(?:/\\d+)?-(\\d{4})/(\\d{2})$"));
     bool found_at_least_one_match(false);
     for (const auto &individual_range : individual_ranges) {
         if (not matcher->matched(individual_range))
@@ -676,8 +672,7 @@ bool ParseRanges15(const std::vector<std::string> &individual_ranges, std::vecto
 
 
 bool ParseRanges16(const std::vector<std::string> &individual_ranges, std::vector<Range> * const ranges) {
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-        "^(\\d+).(\\d{4})-(?:\\d+/)(\\d+).(\\d{4})$"));
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^(\\d+).(\\d{4})-(?:\\d+/)(\\d+).(\\d{4})$"));
     bool found_at_least_one_match(false);
     for (const auto &individual_range : individual_ranges) {
         if (not matcher->matched(individual_range))
@@ -750,8 +745,7 @@ bool ParseRanges17(const std::vector<std::string> &individual_ranges, std::vecto
 
 // Match cases like 1.1972-1995/96
 bool ParseRanges18(const std::vector<std::string> &individual_ranges, std::vector<Range> * const ranges) {
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-        "^(\\d+)\\.(\\d{4})-(\\d{4})/(\\d{2})$"));
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^(\\d+)\\.(\\d{4})-(\\d{4})/(\\d{2})$"));
     bool found_at_least_one_match(false);
     for (const auto &individual_range : individual_ranges) {
         if (not matcher->matched(individual_range))
@@ -786,8 +780,7 @@ bool ParseRanges18(const std::vector<std::string> &individual_ranges, std::vecto
 
 // Match cases like 1.1985-6/7.1990/91
 bool ParseRanges19(const std::vector<std::string> &individual_ranges, std::vector<Range> * const ranges) {
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-        "^(\\d+)\\.(\\d{4})-(?:\\d+/)(\\d+)(\\d{4})/(\\d{2})$"));
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^(\\d+)\\.(\\d{4})-(?:\\d+/)(\\d+)(\\d{4})/(\\d{2})$"));
     bool found_at_least_one_match(false);
     for (const auto &individual_range : individual_ranges) {
         if (not matcher->matched(individual_range))
@@ -856,8 +849,7 @@ bool ParseRanges20(const std::vector<std::string> &individual_ranges, std::vecto
 
 // Match cases like 1/8.1947/55-
 bool ParseRanges21(const std::vector<std::string> &individual_ranges, std::vector<Range> * const ranges) {
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-        "^(\\d+)(?:/\\d+)\\.(\\d{4})/(\\d{2})-$"));
+    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^(\\d+)(?:/\\d+)\\.(\\d{4})/(\\d{2})-$"));
     bool found_at_least_one_match(false);
     for (const auto &individual_range : individual_ranges) {
         if (not matcher->matched(individual_range))
@@ -892,8 +884,8 @@ bool ParseRanges21(const std::vector<std::string> &individual_ranges, std::vecto
 
 // Match cases like 1.1953-70/71.1984/85
 bool ParseRanges22(const std::vector<std::string> &individual_ranges, std::vector<Range> * const ranges) {
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(
-        "^(\\d+)(?:/\\d+)?\\.(\\d{4})-(?:\\d+/)?(\\d+)\\.(\\d{4})/(\\d{2})$"));
+    static RegexMatcher * const matcher(
+        RegexMatcher::RegexMatcherFactory("^(\\d+)(?:/\\d+)?\\.(\\d{4})-(?:\\d+/)?(\\d+)\\.(\\d{4})/(\\d{2})$"));
     bool found_at_least_one_match(false);
     for (const auto &individual_range : individual_ranges) {
         if (not matcher->matched(individual_range))
@@ -1010,7 +1002,7 @@ bool ProcessSerialRecord(MARC::Record * const record, MARC::Writer * const /*out
         if (sigil != "DE-21" and sigil != "DE-21-110")
             continue;
 
-        for (auto &_866_field : record->findFieldsInLocalBlock("866", local_block_start, /*indicator1*/'3', /*indicator2*/'0')) {
+        for (auto &_866_field : record->findFieldsInLocalBlock("866", local_block_start, /*indicator1*/ '3', /*indicator2*/ '0')) {
             const std::string _866a_contents(_866_field.getFirstSubfieldWithCode('a'));
             if (unlikely(_866a_contents.empty()))
                 continue;
@@ -1040,9 +1032,9 @@ bool ElectronicArticleIsAvailableInTuebingen(const MARC::Record &record) {
         const auto _936_field(record.getFirstField("936"));
         if (_936_field != record.end()) {
             const MARC::Subfields _936_subfields(_936_field->getSubfields());
-            issue_string  = _936_subfields.getFirstSubfieldWithCode('e');
-            year_string   = _936_subfields.getFirstSubfieldWithCode('j');
-            volume_string =  _936_subfields.getFirstSubfieldWithCode('d');
+            issue_string = _936_subfields.getFirstSubfieldWithCode('e');
+            year_string = _936_subfields.getFirstSubfieldWithCode('j');
+            volume_string = _936_subfields.getFirstSubfieldWithCode('d');
         }
 
         if (issue_string.empty() and year_string.empty() and volume_string.empty())
@@ -1111,7 +1103,7 @@ bool ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer
             continue;
 
         std::string detailed_availability;
-        for (const auto &_866_field : record->findFieldsInLocalBlock("866", block_start, /*indicator1*/'3', /*indicator2*/'0')) {
+        for (const auto &_866_field : record->findFieldsInLocalBlock("866", block_start, /*indicator1*/ '3', /*indicator2*/ '0')) {
             const std::string subfield_a(_866_field.getFirstSubfieldWithCode('a'));
             if (not subfield_a.empty()) {
                 if (not detailed_availability.empty())
@@ -1127,23 +1119,21 @@ bool ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer
 
         // Process item locations:
         for (++_852_field; _852_field != record->end() and _852_field->getTag() == "LOK" and _852_field->getLocalTag() == "852";
-             ++_852_field)
-        {
+             ++_852_field) {
             const MARC::Subfields subfields2(_852_field->getSubfields());
             const std::string call_number_subfield(subfields2.getFirstSubfieldWithCode('c'));
             if (not call_number_subfield.empty()) {
                 const std::string institution_and_call_number(institution + call_number_subfield);
                 ++add_sig_count;
-                signature_field_contents.emplace_back(MARC::Subfields(
-                                    { { 'a', institution_and_call_number + (detailed_availability.empty()
-                                                                            ? ""
-                                                                            : "(" + detailed_availability + ")") } }).toString());
+                signature_field_contents.emplace_back(
+                    MARC::Subfields(
+                        { { 'a', institution_and_call_number + (detailed_availability.empty() ? "" : "(" + detailed_availability + ")") } })
+                        .toString());
             } else { // Look for URL's.
-                for (const auto &_856_field : record->getLocalTagRange("856", block_start, /*indicator1*/'4', /*indicator2*/' ')) {
+                for (const auto &_856_field : record->getLocalTagRange("856", block_start, /*indicator1*/ '4', /*indicator2*/ ' ')) {
                     std::string url, anchor;
                     if (Get856URLAndAnchor(_856_field.getContents(), &url, &anchor)
-                        and alread_seen_urls.find(url) == alread_seen_urls.cend())
-                    {
+                        and alread_seen_urls.find(url) == alread_seen_urls.cend()) {
                         alread_seen_urls.insert(url);
                         signature_field_contents.emplace_back(
                             MARC::Subfields({ { 'a', "<a href=\"" + url + "\">" + anchor + "</a>" } }).toString());
@@ -1157,7 +1147,7 @@ bool ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer
 final_processing:
     if (not signature_field_contents.empty()) {
         for (const auto &signature_field_content : signature_field_contents)
-            record->insertField("SIG", /* indicators */"  " + signature_field_content);
+            record->insertField("SIG", /* indicators */ "  " + signature_field_content);
         ++modified_record_count;
     } else if (ElectronicArticleIsAvailableInTuebingen(*record)) {
         std::string url, anchor;
@@ -1195,10 +1185,10 @@ void PopulateTheInTuebingenAvailableField(const bool verbose, MARC::Reader * con
     }
 
     if (verbose) {
-        std::cout << "Successfully matched " << Percentage(good_match_count, good_match_count + bad_match_count)
-                  << " (" << good_match_count << ") publication ranges.\n";
-        std::cout << "Failed to match " << Percentage(bad_match_count, good_match_count + bad_match_count)
-                  << " (" << bad_match_count << ") publication ranges.\n";
+        std::cout << "Successfully matched " << Percentage(good_match_count, good_match_count + bad_match_count) << " (" << good_match_count
+                  << ") publication ranges.\n";
+        std::cout << "Failed to match " << Percentage(bad_match_count, good_match_count + bad_match_count) << " (" << bad_match_count
+                  << ") publication ranges.\n";
     }
 
     marc_reader->rewind();

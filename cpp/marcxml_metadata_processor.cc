@@ -16,13 +16,13 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 #include <cstdio>
 #include <cstdlib>
-#include <vector>
 #include "FileUtil.h"
 #include "FullTextImport.h"
 #include "MARC.h"
@@ -35,7 +35,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--min-log-level=min_verbosity] [--normalize only] [--force-ocr] marcxml_metadata [fulltext_pdf full_text_output]\n"
+    std::cerr << "Usage: " << ::progname
+              << " [--min-log-level=min_verbosity] [--normalize only] [--force-ocr] marcxml_metadata [fulltext_pdf full_text_output]\n"
               << "       When specifying --normalise-only we only require the input filename!\n\n";
     std::exit(EXIT_FAILURE);
 }
@@ -53,13 +54,12 @@ void ExtractAuthors(MARC::Record record, std::set<std::string> * const authors) 
 
 void ExtractDOI(const MARC::Record &record, std::string * const doi) {
     const auto dois = record.getDOIs();
-    if (dois.size() < 1)  {
+    if (dois.size() < 1) {
         LOG_WARNING("Could not extract DOI for title \"" + record.getCompleteTitle() + "\"");
         return;
     }
     if (dois.size() > 1)
-        LOG_WARNING("Could not uniquely determine DOI for \"" + record.getCompleteTitle() + "\":" +
-                    " using arbitrary result");
+        LOG_WARNING("Could not uniquely determine DOI for \"" + record.getCompleteTitle() + "\":" + " using arbitrary result");
     *doi = *dois.begin();
 }
 
@@ -99,8 +99,7 @@ void ExtractPDFFulltext(const bool force_ocr, const std::string &fulltext_locati
 
 
 void ProcessDocument(const bool normalise_only, const bool force_ocr, MARC::Reader * const marc_reader, const std::string &pdf_file_path,
-                     File * const plain_text_output)
-{
+                     File * const plain_text_output) {
     FullTextImport::FullTextData full_text_metadata;
     ExtractMetadata(marc_reader, &full_text_metadata);
     full_text_metadata.full_text_location_ = pdf_file_path;
@@ -126,16 +125,16 @@ void ProcessDocument(const bool normalise_only, const bool force_ocr, MARC::Read
 
     std::string full_text;
     if (not full_text_metadata.full_text_location_.empty())
-            ExtractPDFFulltext(force_ocr, full_text_metadata.full_text_location_, &full_text);
-        else
-            LOG_ERROR("No fulltext location given");
+        ExtractPDFFulltext(force_ocr, full_text_metadata.full_text_location_, &full_text);
+    else
+        LOG_ERROR("No fulltext location given");
 
     if (full_text.empty())
         LOG_ERROR("Could not extract fulltext for '" + full_text_metadata.full_text_location_ + "'");
 
-    FullTextImport::WriteExtractedTextToDisk(full_text, full_text_metadata.title_, full_text_metadata.authors_,
-                                             full_text_metadata.year_, full_text_metadata.doi_,
-                                             /* ISSN */"", /* ISBN */"", full_text_metadata.text_type_,
+    FullTextImport::WriteExtractedTextToDisk(full_text, full_text_metadata.title_, full_text_metadata.authors_, full_text_metadata.year_,
+                                             full_text_metadata.doi_,
+                                             /* ISSN */ "", /* ISBN */ "", full_text_metadata.text_type_,
                                              FileUtil::MakeAbsolutePath(full_text_metadata.full_text_location_), plain_text_output);
 }
 

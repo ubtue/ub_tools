@@ -36,11 +36,11 @@ namespace {
 }
 
 
-void Split(MARC::Reader * const marc_reader, std::vector<std::unique_ptr<MARC::Writer>> &marc_writers) {
+void Split(MARC::Reader* const marc_reader, std::vector<std::unique_ptr<MARC::Writer>>& marc_writers) {
     unsigned index(0);
     while (const MARC::Record record = marc_reader->read()) {
         marc_writers[index % marc_writers.size()]->write(record);
-        ++index ;
+        ++index;
     }
     std::cout << "~" << (index / marc_writers.size()) << " records per file.\n";
 }

@@ -21,8 +21,8 @@
 //#include <cstdlib>
 #include "FileUtil.h"
 #include "RegexMatcher.h"
-#include "UrlUtil.h"
 #include "UBTools.h"
+#include "UrlUtil.h"
 #include "util.h"
 
 
@@ -53,7 +53,7 @@ int PostgresDbConnection::getLastErrorCode() const {
 bool PostgresDbConnection::query(const std::string &query_statement) {
     if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") == "true")
         FileUtil::AppendString(UBTools::GetTueFindLogPath() + "sql_debug.log",
-                               std::string(::program_invocation_name) + ": " +  query_statement + '\n');
+                               std::string(::program_invocation_name) + ": " + query_statement + '\n');
 
     pg_result_ = ::PQexec(pg_conn_, query_statement.c_str());
     if (pg_result_ == nullptr)
@@ -107,8 +107,7 @@ DbResultSet PostgresDbConnection::getLastResultSet() {
 
 
 std::string PostgresDbConnection::escapeString(const std::string &unescaped_string, const bool add_quotes,
-                                               const bool return_null_on_empty_string)
-{
+                                               const bool return_null_on_empty_string) {
     if (unescaped_string.empty() and return_null_on_empty_string)
         return "NULL";
 
@@ -128,8 +127,7 @@ std::string PostgresDbConnection::escapeString(const std::string &unescaped_stri
 
 
 bool PostgresDbConnection::tableExists(const std::string &database_name, const std::string &table_name) {
-    queryOrDie("SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = '" + database_name
-               + "' AND tablename = '" + table_name + "'");
+    queryOrDie("SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = '" + database_name + "' AND tablename = '" + table_name + "'");
     DbResultSet result_set(getLastResultSet());
     return result_set.getNextRow()[0] == "t";
 }

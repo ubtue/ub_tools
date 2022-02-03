@@ -41,6 +41,7 @@ namespace {
 
 struct ChecksumAndControlNumber {
     std::string checksum_, control_number_;
+
 public:
     ChecksumAndControlNumber(const std::string &checksum, const std::string &control_number)
         : checksum_(checksum), control_number_(control_number) { }
@@ -58,7 +59,8 @@ public:
 namespace std {
 
 
-template <> struct hash<ChecksumAndControlNumber> {
+template <>
+struct hash<ChecksumAndControlNumber> {
     inline size_t operator()(const ChecksumAndControlNumber &checksum_and_control_number) const {
         return hash<std::string>()(checksum_and_control_number.control_number_);
     }
@@ -72,15 +74,14 @@ namespace {
 
 
 void DropDups(const bool use_checksums, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-              std::unordered_set<ChecksumAndControlNumber> * const previously_seen)
-{
+              std::unordered_set<ChecksumAndControlNumber> * const previously_seen) {
     unsigned total_count(0), dropped_count(0);
 
     while (const MARC::Record record = marc_reader->read()) {
         ++total_count;
 
         const std::string checksum(
-            use_checksums ? CalcChecksum(record, /* excluded_fields = */{ "001" }, /* suppress_local_fields = */false) : "");
+            use_checksums ? CalcChecksum(record, /* excluded_fields = */ { "001" }, /* suppress_local_fields = */ false) : "");
 
         ChecksumAndControlNumber new_checksum_and_control_number(checksum, record.getControlNumber());
         const auto iter(previously_seen->find(new_checksum_and_control_number));

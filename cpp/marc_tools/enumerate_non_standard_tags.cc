@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <iostream>
@@ -42,7 +42,7 @@ void ProcessRecords(MARC::Reader * const marc_reader) {
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
 
-        for (const auto &field: record) {
+        for (const auto &field : record) {
             const auto &tag(field.getTag());
             if (not MARC::IsStandardTag(tag))
                 non_standard_tags.emplace(tag.toString());

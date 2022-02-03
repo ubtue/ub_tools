@@ -27,7 +27,7 @@ namespace XmlUtil {
 
 
 // Replaces entities in-place and resizes "data", if necessary.
-bool DecodeEntities(std::string * const data);
+bool DecodeEntities(std::string* const data);
 
 
 /** \brief  Replaces entities in "data".
@@ -39,7 +39,7 @@ std::string DecodeEntities(std::string data);
 
 
 // Escapes the 5 special XML characters.
-void XmlEscape(std::string * const data);
+void XmlEscape(std::string* const data);
 
 
 // Escapes the 5 special XML characters.

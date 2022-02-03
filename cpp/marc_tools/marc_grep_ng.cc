@@ -15,12 +15,12 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <iostream>
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
 #include "Compiler.h"
 #include "MARC.h"
 #include "RegexMatcher.h"
@@ -32,22 +32,21 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("--query=query --output=field_and_or_subfield_list [--output-format=output_format] marc_file1 [marc_file2 .. marc_fileN]\n"
-            "Queries have the following syntax:\n"
-            "expression → term {OR term}\n"
-            "term       → factor {AND factor}\n"
-            "factor     → field_or_subfield_reference (== | !=) string_constant_or_regex\n"
-            "factor     → NOT factor\n"
-            "factor     → '(' expression ')'\n"
-            "\'field_and_or_subfield_list\" is a semicolon-separated list of field or subfield references.  The special \"list\" is\n"
-            "the assterisk which implies that an entire record will be output."
-            );
+    ::Usage(
+        "--query=query --output=field_and_or_subfield_list [--output-format=output_format] marc_file1 [marc_file2 .. marc_fileN]\n"
+        "Queries have the following syntax:\n"
+        "expression → term {OR term}\n"
+        "term       → factor {AND factor}\n"
+        "factor     → field_or_subfield_reference (== | !=) string_constant_or_regex\n"
+        "factor     → NOT factor\n"
+        "factor     → '(' expression ')'\n"
+        "\'field_and_or_subfield_list\" is a semicolon-separated list of field or subfield references.  The special \"list\" is\n"
+        "the assterisk which implies that an entire record will be output.");
     std::exit(EXIT_FAILURE);
 }
 
 
-enum TokenType { AND, OR, NOT, STRING_CONST, FUNC_CALL, OPEN_PAREN, CLOSE_PAREN, REGEX, EQUALS, NOT_EQUALS,
-                 COMMA, ERROR, END_OF_QUERY };
+enum TokenType { AND, OR, NOT, STRING_CONST, FUNC_CALL, OPEN_PAREN, CLOSE_PAREN, REGEX, EQUALS, NOT_EQUALS, COMMA, ERROR, END_OF_QUERY };
 
 
 class FunctionDesc {
@@ -68,8 +67,9 @@ class Tokenizer {
     std::string last_string_;
     const FunctionDesc *last_function_desc_;
     std::vector<FunctionDesc *> function_descriptions_;
+
 public:
-    explicit Tokenizer(const std:: string &query): next_ch_(query.cbegin()), end_(query.cend()), pushed_back_(false) { }
+    explicit Tokenizer(const std::string &query): next_ch_(query.cbegin()), end_(query.cend()), pushed_back_(false) { }
     ~Tokenizer();
     TokenType getNextToken();
     void ungetLastToken();
@@ -78,6 +78,7 @@ public:
     inline const FunctionDesc &getLastFunctionDescriptor() const { return *last_function_desc_; }
     inline void registerFunction(FunctionDesc * const new_function) { function_descriptions_.emplace_back(new_function); }
     static std::string TokenTypeToString(const TokenType token);
+
 private:
     TokenType parseStringConstantOrRegex();
     FunctionDesc *getFuncDescMatchingName(const std::string &name_candidate) const;
@@ -248,8 +249,10 @@ class Query {
     class Node {
     protected:
         bool invert_;
+
     protected:
-        Node(): invert_(false) {}
+        Node(): invert_(false) { }
+
     public:
         virtual ~Node() = 0;
         virtual NodeType getNodeType() const = 0;
@@ -259,6 +262,7 @@ class Query {
 
     class AndNode final : public Node {
         std::vector<Node *> children_;
+
     public:
         explicit AndNode(std::vector<Node *> &children) { children.swap(children_); }
         virtual ~AndNode() override final {
@@ -271,6 +275,7 @@ class Query {
 
     class OrNode final : public Node {
         std::vector<Node *> children_;
+
     public:
         explicit OrNode(std::vector<Node *> &children) { children.swap(children_); }
         ~OrNode() {
@@ -285,12 +290,16 @@ class Query {
         MARC::Tag field_tag_;
         char subfield_code_;
         std::string string_const_;
+
     public:
         StringComparisonNode(const std::string &field_or_subfield_reference, const std::string &string_const, const bool invert)
             : field_tag_(field_or_subfield_reference.substr(0, MARC::Record::TAG_LENGTH)),
               subfield_code_(field_or_subfield_reference.length() > MARC::Record::TAG_LENGTH
-                             ? field_or_subfield_reference[MARC::Record::TAG_LENGTH] : '\0'),
-              string_const_(string_const) { invert_ = invert; }
+                                 ? field_or_subfield_reference[MARC::Record::TAG_LENGTH]
+                                 : '\0'),
+              string_const_(string_const) {
+            invert_ = invert;
+        }
         virtual ~StringComparisonNode() override final = default;
         virtual NodeType getNodeType() const override { return STRING_COMPARISON_NODE; }
         virtual bool eval(const MARC::Record &record) const override;
@@ -300,12 +309,16 @@ class Query {
         MARC::Tag field_tag_;
         char subfield_code_;
         RegexMatcher *regex_;
+
     public:
         RegexComparisonNode(const std::string &field_or_subfield_reference, RegexMatcher * const regex, const bool invert)
             : field_tag_(field_or_subfield_reference.substr(0, MARC::Record::TAG_LENGTH)),
               subfield_code_(field_or_subfield_reference.length() > MARC::Record::TAG_LENGTH
-                             ? field_or_subfield_reference[MARC::Record::TAG_LENGTH] : '\0'),
-              regex_(regex) { invert_ = invert; }
+                                 ? field_or_subfield_reference[MARC::Record::TAG_LENGTH]
+                                 : '\0'),
+              regex_(regex) {
+            invert_ = invert;
+        }
         virtual ~RegexComparisonNode() override final { delete regex_; }
         virtual NodeType getNodeType() const override { return STRING_COMPARISON_NODE; }
         virtual bool eval(const MARC::Record &record) const override;
@@ -314,6 +327,7 @@ class Query {
     class FunctionCallNode final : public Node {
         const FunctionDesc * const function_desc_;
         const std::vector<std::string> args_;
+
     public:
         FunctionCallNode(const FunctionDesc * const function_desc, const std::vector<std::string> &args)
             : function_desc_(function_desc), args_(args) { }
@@ -323,11 +337,13 @@ class Query {
 
     Tokenizer tokenizer_;
     Node *root_;
+
 public:
-    explicit Query(const std:: string &query, const std::vector<FunctionDesc *> &function_descriptors);
+    explicit Query(const std::string &query, const std::vector<FunctionDesc *> &function_descriptors);
     ~Query() { delete root_; }
 
     bool matched(const MARC::Record &record) const;
+
 private:
     Node *parseExpression();
     Node *parseTerm();
@@ -402,9 +418,7 @@ bool Query::FunctionCallNode::eval(const MARC::Record &record) const {
 }
 
 
-Query::Query(const std:: string &query, const std::vector<FunctionDesc *> &function_descriptors)
-    : tokenizer_(query)
-{
+Query::Query(const std::string &query, const std::vector<FunctionDesc *> &function_descriptors): tokenizer_(query) {
     for (const auto function_descriptor : function_descriptors)
         tokenizer_.registerFunction(function_descriptor);
 
@@ -470,15 +484,15 @@ Query::Node *Query::parseFactor() {
 
         token = tokenizer_.getNextToken();
         if (token != EQUALS and token != NOT_EQUALS)
-            throw std::runtime_error("expected == or != after field or subfield reference, found "
-                                     + Tokenizer::TokenTypeToString(token) + " instead!");
+            throw std::runtime_error("expected == or != after field or subfield reference, found " + Tokenizer::TokenTypeToString(token)
+                                     + " instead!");
 
         const TokenType equality_operator(token);
         token = tokenizer_.getNextToken();
         if (token != STRING_CONST and token != REGEX)
             throw std::runtime_error("expected a string constant or a regex after " + Tokenizer::TokenTypeToString(equality_operator)
-                                     + ", found " + Tokenizer::TokenTypeToString(token) + " instead! ("
-                                     + tokenizer_.getLastErrorMessage() + ")");
+                                     + ", found " + Tokenizer::TokenTypeToString(token) + " instead! (" + tokenizer_.getLastErrorMessage()
+                                     + ")");
         if (token == REGEX) {
             RegexMatcher * const regex_matcher(RegexMatcher::RegexMatcherFactoryOrDie(tokenizer_.getLastString()));
             return new RegexComparisonNode(field_or_subfield_reference, regex_matcher, equality_operator == NOT_EQUALS);
@@ -488,7 +502,7 @@ Query::Node *Query::parseFactor() {
 
     if (token == FUNC_CALL) {
         token = tokenizer_.getNextToken();
-        if (token !=  OPEN_PAREN)
+        if (token != OPEN_PAREN)
             throw std::runtime_error("opening parenthesis expected after function name, found " + Tokenizer::TokenTypeToString(token)
                                      + " instead!");
         const FunctionDesc &function_descriptor(tokenizer_.getLastFunctionDescriptor());
@@ -497,9 +511,9 @@ Query::Node *Query::parseFactor() {
         while (token != CLOSE_PAREN) {
             if (token != STRING_CONST)
                 throw std::runtime_error("expected a string constant as part of the argument list in a call to "
-                                         + function_descriptor.getName() + ", instead we found " + Tokenizer::TokenTypeToString(token)
-                                         + "!" + std::string(token == ERROR ? " (" + tokenizer_.getLastErrorMessage() + ")" : ""));
-            args.emplace_back(tokenizer_.getLastString ());
+                                         + function_descriptor.getName() + ", instead we found " + Tokenizer::TokenTypeToString(token) + "!"
+                                         + std::string(token == ERROR ? " (" + tokenizer_.getLastErrorMessage() + ")" : ""));
+            args.emplace_back(tokenizer_.getLastString());
         }
 
         return new FunctionCallNode(&function_descriptor, args);
@@ -536,8 +550,7 @@ void Query::DeletePointerVector(std::vector<Query::Node *> &nodes) {
 
 inline void ExtractRefsToSingleField(std::vector<std::string>::const_iterator &range_start,
                                      std::vector<std::string>::const_iterator &range_end,
-                                     const std::vector<std::string>::const_iterator &list_end)
-{
+                                     const std::vector<std::string>::const_iterator &list_end) {
     range_end = range_start;
     while (range_end + 1 != list_end and std::memcmp(range_start->c_str(), (range_end + 1)->c_str(), MARC::Record::TAG_LENGTH) == 0)
         ++range_end;
@@ -545,9 +558,9 @@ inline void ExtractRefsToSingleField(std::vector<std::string>::const_iterator &r
 }
 
 
-void GenerateOutput(const std::string &prefix, const MARC::Record::Field &field, const std::vector<std::string>::const_iterator &range_start,
-                    const std::vector<std::string>::const_iterator &range_end)
-{
+void GenerateOutput(const std::string &prefix, const MARC::Record::Field &field,
+                    const std::vector<std::string>::const_iterator &range_start,
+                    const std::vector<std::string>::const_iterator &range_end) {
     std::cout << prefix;
     if (*range_start == "*" or range_start->length() == MARC::Record::TAG_LENGTH)
         std::cout << StringUtil::Map(field.getContents(), '\x1F', '$') << '\n';
@@ -612,7 +625,7 @@ void ProcessRecords(const Query &query, MARC::Reader * const marc_reader, const 
 
 
 bool ParseOutputList(const std::string &output_list_candidate, std::vector<std::string> * const field_and_subfield_output_list) {
-    if (StringUtil::SplitThenTrimWhite(output_list_candidate, ';', field_and_subfield_output_list, /* suppress_empty_components = */true)
+    if (StringUtil::SplitThenTrimWhite(output_list_candidate, ';', field_and_subfield_output_list, /* suppress_empty_components = */ true)
         == 0)
         return false;
 
@@ -620,8 +633,8 @@ bool ParseOutputList(const std::string &output_list_candidate, std::vector<std::
         return true;
 
     for (const auto &field_or_subfield_reference_candidate : *field_and_subfield_output_list) {
-        if (field_or_subfield_reference_candidate.length() != MARC::Record::TAG_LENGTH and
-            field_or_subfield_reference_candidate.length() != MARC::Record::TAG_LENGTH + 1)
+        if (field_or_subfield_reference_candidate.length() != MARC::Record::TAG_LENGTH
+            and field_or_subfield_reference_candidate.length() != MARC::Record::TAG_LENGTH + 1)
             return false;
     }
     std::sort(field_and_subfield_output_list->begin(), field_and_subfield_output_list->end());
@@ -638,8 +651,9 @@ public:
     IsArticleFunctionDesc() = default;
     virtual size_t getArity() const override final { return 0; }
     virtual std::string getName() const override final { return "IsArticle"; }
-    virtual bool eval(const MARC::Record &record, const std::vector<std::string> &/*args*/) const override final
-        { return record.isArticle(); }
+    virtual bool eval(const MARC::Record &record, const std::vector<std::string> & /*args*/) const override final {
+        return record.isArticle();
+    }
 };
 
 

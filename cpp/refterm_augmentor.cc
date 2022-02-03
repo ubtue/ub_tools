@@ -15,11 +15,11 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
-#include <stdexcept>
 #include <set>
+#include <stdexcept>
 #include <tuple>
 #include <vector>
 #include <cstdio>
@@ -41,8 +41,7 @@ namespace {
 
 
 void LoadReftermMap(const std::string &refterm_filename,
-                    std::vector<std::tuple<std::string, std::vector<std::string>>> * const combined_and_separated_terms)
-{
+                    std::vector<std::tuple<std::string, std::vector<std::string>>> * const combined_and_separated_terms) {
     auto input(FileUtil::OpenInputFileOrDie(refterm_filename));
     unsigned line_no(0);
     while (not input->eof()) {
@@ -199,7 +198,8 @@ void ProcessGermanKeywordField(const MARC::Record::Field &field, std::map<char, 
                     continue;
                 }
                 // We need quite a bunch of special logic here to group consecutive d and c fields
-                else if (subfield.code_ == 'c') {
+                else if (subfield.code_ == 'c')
+                {
                     if (IsSubfieldPrecededBySubfield(subfields, 'c', 'd')) {
                         keyword += " : " + subfield.value_ + ")";
                         continue;
@@ -220,13 +220,12 @@ void ProcessGermanKeywordField(const MARC::Record::Field &field, std::map<char, 
                     keyword += ". ";
                 else
                     keyword += ", ";
-
             }
         } else if (subfield.code_ == '9' and not keyword.empty() and StringUtil::StartsWith(subfield.value_, "g:")) {
             // For Ixtheo-translations the specification in the g:-Subfield is appended in angle
             auto subfield_a_contents(field.getFirstSubfieldWithCode('a'));
             if (subfield_a_contents.empty())
-                keyword += " (" + subfield.value_.substr(/* skip the "g:" */2) + ")";
+                keyword += " (" + subfield.value_.substr(/* skip the "g:" */ 2) + ")";
             else
                 LOG_ERROR("missing subfield a!");
         }

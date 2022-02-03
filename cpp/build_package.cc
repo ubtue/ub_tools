@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <vector>
@@ -40,6 +40,7 @@ struct Library {
     std::string full_name_;
     std::string name_;
     std::string version_;
+
 public:
     Library() = default;
     Library(const Library &other) = default;
@@ -102,9 +103,8 @@ inline std::set<std::string> FilterPackages(const std::set<std::string> &unfilte
 }
 
 
-bool GetPackageAndVersion(const std::string &full_library_name, const std::set<std::string> &blacklist,
-                          std::string * const package_name, std::string * const package_version)
-{
+bool GetPackageAndVersion(const std::string &full_library_name, const std::set<std::string> &blacklist, std::string * const package_name,
+                          std::string * const package_version) {
     std::string dpkg_output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout("dpkg -S " + full_library_name, &dpkg_output))
         LOG_ERROR("failed to execute dpkg!");
@@ -142,8 +142,7 @@ bool GetPackageAndVersion(const std::string &full_library_name, const std::set<s
 
 
 void GetLibraries(const bool build_deb, const std::string &binary_path, const std::set<std::string> &blacklist,
-                  std::vector<Library> * const libraries)
-{
+                  std::vector<Library> * const libraries) {
     std::string ldd_output;
     if (not ExecUtil::ExecSubcommandAndCaptureStdout("ldd " + binary_path, &ldd_output))
         LOG_ERROR("failed to execute ldd!");
@@ -175,8 +174,7 @@ void GetLibraries(const bool build_deb, const std::string &binary_path, const st
 
 
 void GenerateControl(File * const output, const std::string &package, const std::string &version, const std::string &description,
-                     const std::vector<Library> &libraries)
-{
+                     const std::vector<Library> &libraries) {
     (*output) << "Package: " << StringUtil::Map(package, '_', '-') << '\n';
     (*output) << "Version: " << version << '\n';
     (*output) << "Section: ub_tools\n";
@@ -211,13 +209,12 @@ void GeneratePostInst(const std::string &path) {
 
 
 void BuildDebPackage(const std::string &binary_path, const std::string &package_version, const std::string &description,
-                     const std::vector<Library> &libraries, const std::string &output_directory)
-{
+                     const std::vector<Library> &libraries, const std::string &output_directory) {
     const std::string PACKAGE_NAME(FileUtil::GetBasename(binary_path));
     const std::string WORKING_DIR(PACKAGE_NAME + "_" + package_version);
 
     const std::string TARGET_DIRECTORY(WORKING_DIR + "/usr/local/bin");
-    FileUtil::MakeDirectoryOrDie(TARGET_DIRECTORY, /* recursive = */true);
+    FileUtil::MakeDirectoryOrDie(TARGET_DIRECTORY, /* recursive = */ true);
     const std::string target_binary(TARGET_DIRECTORY + "/" + PACKAGE_NAME);
     FileUtil::CopyOrDie(binary_path, target_binary);
     if (::chmod(target_binary.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) == -1)
@@ -237,14 +234,13 @@ void BuildDebPackage(const std::string &binary_path, const std::string &package_
 
     if (not output_directory.empty()) {
         const std::string DEB_NAME(PACKAGE_NAME + "_" + package_version + ".deb");
-        FileUtil::RenameFileOrDie(DEB_NAME, output_directory + "/" + DEB_NAME, /* remove_target = */true);
+        FileUtil::RenameFileOrDie(DEB_NAME, output_directory + "/" + DEB_NAME, /* remove_target = */ true);
     }
 }
 
 
 void GenerateSpecs(File * const output, const std::string &package, const std::string &version, const std::string &description,
-                   const std::vector<Library> &libraries)
-{
+                   const std::vector<Library> &libraries) {
     (*output) << "Name:           " << package << '\n';
     (*output) << "Version:        " << version << '\n';
     (*output) << "License:        AGPL 3";
@@ -262,8 +258,7 @@ void GenerateSpecs(File * const output, const std::string &package, const std::s
 
 
 void BuildRPMPackage(const std::string &binary_path, const std::string &package_version, const std::string &description,
-                     const std::vector<Library> &libraries, const std::string &/*output_directory*/)
-{
+                     const std::vector<Library> &libraries, const std::string & /*output_directory*/) {
     // Create rpmbuild directory tree in our home directory:
     ExecUtil::ExecOrDie(ExecUtil::Which("rpmdev-setuptree"));
 
@@ -273,7 +268,7 @@ void BuildRPMPackage(const std::string &binary_path, const std::string &package_
     GenerateSpecs(specs.get(), PACKAGE_NAME, package_version, description, libraries);
     specs->close();
 
-    ExecUtil::ExecOrDie("/bin/rm", { "--recursive", WORKING_DIR});
+    ExecUtil::ExecOrDie("/bin/rm", { "--recursive", WORKING_DIR });
 }
 
 

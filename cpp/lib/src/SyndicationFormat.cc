@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "SyndicationFormat.h"
 #include <set>
@@ -58,9 +58,7 @@ bool SyndicationFormat::iterator::operator==(const SyndicationFormat::iterator &
 
 
 SyndicationFormat::SyndicationFormat(const std::string &xml_document, const AugmentParams &augment_params)
-    : xml_parser_(XMLParser(xml_document, XMLParser::XML_STRING)),
-      last_build_date_(TimeUtil::BAD_TIME_T), augment_params_(augment_params)
-{
+    : xml_parser_(XMLParser(xml_document, XMLParser::XML_STRING)), last_build_date_(TimeUtil::BAD_TIME_T), augment_params_(augment_params) {
 }
 
 
@@ -99,8 +97,8 @@ SyndicationFormatType GetFormatType(const std::string &xml_document) {
 static std::string ExtractText(XMLParser &parser, const std::string &closing_tag, const std::string &extra = "") {
     XMLParser::XMLPart part;
     if (unlikely(not parser.getNext(&part)))
-        throw std::runtime_error("in ExtractText(SyndicationFormat.cc): parse error while looking for characters for \""
-                                 + closing_tag + "\" tag!" + extra);
+        throw std::runtime_error("in ExtractText(SyndicationFormat.cc): parse error while looking for characters for \"" + closing_tag
+                                 + "\" tag!" + extra);
     std::string extracted_text;
     if (part.type_ == XMLParser::XMLPart::CHARACTERS)
         extracted_text = part.data_;
@@ -110,11 +108,9 @@ static std::string ExtractText(XMLParser &parser, const std::string &closing_tag
                                      + "\" while looking for the \"" + closing_tag + "\" closing tag!" + extra);
         return "";
     } else
-        throw std::runtime_error("in ExtractText(SyndicationFormat.cc): unexpected "
-                                 + XMLParser::XMLPart::TypeToString(part.type_) + " while looking for a closing \""
-                                 + closing_tag + "\" tag!" + extra);
-    if (not parser.getNext(&part)
-        or part.type_ != XMLParser::XMLPart::CLOSING_TAG or part.data_ != closing_tag)
+        throw std::runtime_error("in ExtractText(SyndicationFormat.cc): unexpected " + XMLParser::XMLPart::TypeToString(part.type_)
+                                 + " while looking for a closing \"" + closing_tag + "\" tag!" + extra);
+    if (not parser.getNext(&part) or part.type_ != XMLParser::XMLPart::CLOSING_TAG or part.data_ != closing_tag)
         throw std::runtime_error("in ExtractText(SyndicationFormat.cc): " + closing_tag + " closing tag not found!" + extra
                                  + " found instead: " + XMLParser::XMLPart::TypeToString(part.type_) + " '" + part.data_ + "'");
 
@@ -129,13 +125,13 @@ bool ParseRFC1123DateTimeAndPrefixes(const std::string &datetime_candidate, time
 
     struct tm tm;
     const char *last_char(::strptime(datetime_candidate.c_str(), "%Y-%m-%d", &tm));
-    if (last_char != nullptr and *last_char == '\0')  {
+    if (last_char != nullptr and *last_char == '\0') {
         *converted_time = TimeUtil::TimeGm(tm);
         return *converted_time != TimeUtil::BAD_TIME_T;
     }
 
     last_char = ::strptime(datetime_candidate.c_str(), "%Y", &tm);
-    if (last_char != nullptr and *last_char == '\0')  {
+    if (last_char != nullptr and *last_char == '\0') {
         *converted_time = TimeUtil::TimeGm(tm);
         return *converted_time != TimeUtil::BAD_TIME_T;
     }
@@ -148,8 +144,7 @@ bool ParseRFC1123DateTimeAndPrefixes(const std::string &datetime_candidate, time
 
 
 std::unique_ptr<SyndicationFormat> SyndicationFormat::Factory(const std::string &xml_document, const AugmentParams &augment_params,
-                                                              std::string * const err_msg)
-{
+                                                              std::string * const err_msg) {
     try {
         switch (GetFormatType(xml_document)) {
         case TYPE_UNKNOWN:
@@ -186,20 +181,22 @@ RSS20::RSS20(const std::string &xml_document, const AugmentParams &augment_param
             title_ = ExtractText(xml_parser_, "title", " (RSS20::RSS20)");
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "link")
             link_ = ExtractText(xml_parser_, "link", " (RSS20::RSS20)");
-        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "enclosure" and part.attributes_.find("url") != part.attributes_.end() and link_.empty())
+        if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "enclosure"
+            and part.attributes_.find("url") != part.attributes_.end() and link_.empty())
             link_ = part.attributes_["url"];
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
             description_ = ExtractText(xml_parser_, "description", " (RSS20::RSS20)");
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "lastBuildDate") {
-            const std::string last_build_date(TextUtil::CollapseAndTrimWhitespace(ExtractText(xml_parser_,
-                                              "lastBuildDate", " (RSS20::RSS20)")));
+            const std::string last_build_date(
+                TextUtil::CollapseAndTrimWhitespace(ExtractText(xml_parser_, "lastBuildDate", " (RSS20::RSS20)")));
             if (augment_params_.strptime_format_.empty()) {
                 if (not ParseRFC1123DateTimeAndPrefixes(last_build_date, &last_build_date_))
                     LOG_ERROR("failed to parse \"" + last_build_date + "\" as an RFC1123 datetime!");
             } else {
                 struct tm parsed_date;
                 if (not TimeUtil::StringToStructTm(&parsed_date, last_build_date, augment_params_.strptime_format_))
-                    LOG_ERROR("failed to parse \"" + last_build_date + "\" with the given strptime_format \"" + augment_params_.strptime_format_ + "\"");
+                    LOG_ERROR("failed to parse \"" + last_build_date + "\" with the given strptime_format \""
+                              + augment_params_.strptime_format_ + "\"");
                 last_build_date_ = TimeUtil::TimeGm(parsed_date);
             }
         }
@@ -235,7 +232,8 @@ std::unique_ptr<SyndicationFormat::Item> RSS20::getNextItem() {
             } else {
                 struct tm parsed_date;
                 if (not TimeUtil::StringToStructTm(&parsed_date, pub_date_string, augment_params_.strptime_format_))
-                    LOG_ERROR("failed to parse \"" + pub_date_string + "\" with the given strptime_format \"" + augment_params_.strptime_format_ + "\"");
+                    LOG_ERROR("failed to parse \"" + pub_date_string + "\" with the given strptime_format \""
+                              + augment_params_.strptime_format_ + "\"");
                 pub_date = TimeUtil::TimeGm(parsed_date);
             }
         }
@@ -256,15 +254,16 @@ RSS091::RSS091(const std::string &xml_document, const AugmentParams &augment_par
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
             description_ = ExtractText(xml_parser_, "description", " (RSS091::RSS091)");
         if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "lastBuildDate") {
-            const std::string last_build_date(TextUtil::CollapseAndTrimWhitespace(ExtractText(xml_parser_,
-                                              "lastBuildDate", " (RSS091::RSS091)")));
+            const std::string last_build_date(
+                TextUtil::CollapseAndTrimWhitespace(ExtractText(xml_parser_, "lastBuildDate", " (RSS091::RSS091)")));
             if (augment_params_.strptime_format_.empty()) {
                 if (not ParseRFC1123DateTimeAndPrefixes(last_build_date, &last_build_date_))
                     LOG_ERROR("failed to parse \"" + last_build_date + "\" as an RFC1123 datetime!");
             } else {
                 struct tm parsed_date;
                 if (not TimeUtil::StringToStructTm(&parsed_date, last_build_date, augment_params_.strptime_format_))
-                    LOG_ERROR("failed to parse \"" + last_build_date + "\" with the given strptime_format \"" + augment_params_.strptime_format_ + "\"");
+                    LOG_ERROR("failed to parse \"" + last_build_date + "\" with the given strptime_format \""
+                              + augment_params_.strptime_format_ + "\"");
                 last_build_date_ = TimeUtil::TimeGm(parsed_date);
             }
         }
@@ -277,7 +276,7 @@ std::unique_ptr<SyndicationFormat::Item> RSS091::getNextItem() {
     XMLParser::XMLPart part;
     while (xml_parser_.getNext(&part)) {
         if (part.type_ == XMLParser::XMLPart::CLOSING_TAG and part.data_ == "item")
-            return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, /* id = */"", TimeUtil::BAD_TIME_T));
+            return std::unique_ptr<SyndicationFormat::Item>(new Item(title, description, link, /* id = */ "", TimeUtil::BAD_TIME_T));
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "title")
             title = ExtractText(xml_parser_, "title");
         else if (part.type_ == XMLParser::XMLPart::OPENING_TAG and part.data_ == "description")
@@ -315,7 +314,8 @@ Atom::Atom(const std::string &xml_document, const AugmentParams &augment_params)
             } else {
                 struct tm parsed_date;
                 if (not TimeUtil::StringToStructTm(&parsed_date, last_build_date, augment_params_.strptime_format_))
-                    LOG_ERROR("failed to parse \"" + last_build_date + "\" with the given strptime_format \"" + augment_params_.strptime_format_ + "\"");
+                    LOG_ERROR("failed to parse \"" + last_build_date + "\" with the given strptime_format \""
+                              + augment_params_.strptime_format_ + "\"");
                 last_build_date_ = TimeUtil::TimeGm(parsed_date);
             }
         }
@@ -348,7 +348,8 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
             } else {
                 struct tm parsed_date;
                 if (not TimeUtil::StringToStructTm(&parsed_date, updated_string, augment_params_.strptime_format_))
-                    LOG_ERROR("failed to parse \"" + updated_string + "\" with the given strptime_format \"" + augment_params_.strptime_format_ + "\"");
+                    LOG_ERROR("failed to parse \"" + updated_string + "\" with the given strptime_format \""
+                              + augment_params_.strptime_format_ + "\"");
                 updated = TimeUtil::TimeGm(parsed_date);
             }
         }
@@ -360,21 +361,19 @@ std::unique_ptr<SyndicationFormat::Item> Atom::getNextItem() {
 
 static std::string ExtractNamespacePrefix(const std::string &xmlns_string) {
     if (not StringUtil::StartsWith(xmlns_string, "xmlns"))
-        throw std::runtime_error("in ExtractNamespacePrefix(SyndicationFormat.cc): unexpected attribute key: \""
-                                 + xmlns_string + "\"! (1)");
+        throw std::runtime_error("in ExtractNamespacePrefix(SyndicationFormat.cc): unexpected attribute key: \"" + xmlns_string
+                                 + "\"! (1)");
     if (xmlns_string == "xmlns")
         return "";
     if (xmlns_string[__builtin_strlen("xmlns")] != ':')
-        throw std::runtime_error("in ExtractRSSNamespace(SyndicationFormat.cc): unexpected attribute key: \""
-                                 + xmlns_string + "\"! (2)");
+        throw std::runtime_error("in ExtractRSSNamespace(SyndicationFormat.cc): unexpected attribute key: \"" + xmlns_string + "\"! (2)");
     return xmlns_string.substr(__builtin_strlen("xmlns") + 1) + ":";
 }
 
 
 // Helper for RDF::RDF.
-static void ExtractNamespaces(XMLParser &parser, std::string * const rss_namespace,
-                              std::string * const dc_namespace, std::string * const prism_namespace)
-{
+static void ExtractNamespaces(XMLParser &parser, std::string * const rss_namespace, std::string * const dc_namespace,
+                              std::string * const prism_namespace) {
     XMLParser::XMLPart part;
     if (not parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "rdf:RDF", &part)) {
         parser.rewind();
@@ -419,26 +418,14 @@ RDF::RDF(const std::string &xml_document, const AugmentParams &augment_params): 
 
 // The following, hopefully exhaustive list of XML tag names lists all tags that are part of the PRISM standard that have no
 // character data but instead a single attribute named "rdf:resource".
-static const std::unordered_set<std::string> PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIBS{
-    "hasAlternative",
-    "hasCorrection",
-    "hasFormat",
-    "hasPart",
-    "hasPreviousVersion",
-    "hasTranslation",
-    "industry",
-    "isCorrectionOf",
-    "isFormatOf",
-    "isPartOf",
-    "isReferencedBy",
-    "isRequiredBy"
-};
+static const std::unordered_set<std::string> PRISM_TAGS_WITH_RDF_RESOURCE_ATTRIBS{ "hasAlternative", "hasCorrection",      "hasFormat",
+                                                                                   "hasPart",        "hasPreviousVersion", "hasTranslation",
+                                                                                   "industry",       "isCorrectionOf",     "isFormatOf",
+                                                                                   "isPartOf",       "isReferencedBy",     "isRequiredBy" };
 
 
-void ExtractPrismData(XMLParser &xml_parser, const std::string &tag,
-                      const std::map<std::string, std::string> &attrib_map, const std::string &prism_namespace,
-                      std::unordered_map<std::string, std::string> * const dc_and_prism_data)
-{
+void ExtractPrismData(XMLParser &xml_parser, const std::string &tag, const std::map<std::string, std::string> &attrib_map,
+                      const std::string &prism_namespace, std::unordered_map<std::string, std::string> * const dc_and_prism_data) {
     const std::string tag_suffix(tag.substr(prism_namespace.length()));
     if (attrib_map.size() != 1)
         (*dc_and_prism_data)["prism:" + tag_suffix] = ExtractText(xml_parser, tag);
@@ -480,14 +467,16 @@ std::unique_ptr<SyndicationFormat::Item> RDF::getNextItem() {
                 if (link.empty() and part.attributes_.find("href") != part.attributes_.cend())
                     link = part.attributes_["href"];
             } else if (part.data_ == rss_namespace_ + "pubDate") {
-                const std::string pub_date_string(TextUtil::CollapseAndTrimWhitespace(ExtractText(xml_parser_, rss_namespace_ + "pubDate")));
+                const std::string pub_date_string(
+                    TextUtil::CollapseAndTrimWhitespace(ExtractText(xml_parser_, rss_namespace_ + "pubDate")));
                 if (augment_params_.strptime_format_.empty()) {
                     if (unlikely(not ParseRFC1123DateTimeAndPrefixes(pub_date_string, &pub_date)))
                         LOG_WARNING("couldn't parse \"" + pub_date_string + "\"!");
                 } else {
                     struct tm parsed_date;
                     if (not TimeUtil::StringToStructTm(&parsed_date, pub_date_string, augment_params_.strptime_format_))
-                        LOG_ERROR("failed to parse \"" + pub_date_string + "\" with the given strptime_format \"" + augment_params_.strptime_format_ + "\"");
+                        LOG_ERROR("failed to parse \"" + pub_date_string + "\" with the given strptime_format \""
+                                  + augment_params_.strptime_format_ + "\"");
                     pub_date = TimeUtil::TimeGm(parsed_date);
                 }
             } else if (not dc_namespace_.empty() and StringUtil::StartsWith(part.data_, dc_namespace_)) {

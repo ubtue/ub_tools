@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <cstdlib>
 #include "MARC.h"
@@ -27,15 +27,17 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("(--all-fields|--non-utf8-fields-only) from_encoding marc_input marc_output\n"
-            "\tIf --non-utf8-fields-only has been specified then only fields that would not be possibly valid UTF8 will be converted.\n"
-            "\tIf --all-fields has been specified all fields will be unconditionally converted.\n"
-            "\tTo get a list off all possible values for \"from_encoding\", run \"iconv --list\".\n");
+    ::Usage(
+        "(--all-fields|--non-utf8-fields-only) from_encoding marc_input marc_output\n"
+        "\tIf --non-utf8-fields-only has been specified then only fields that would not be possibly valid UTF8 will be converted.\n"
+        "\tIf --all-fields has been specified all fields will be unconditionally converted.\n"
+        "\tTo get a list off all possible values for \"from_encoding\", run \"iconv --list\".\n");
 }
 
 
 // \return True if all records were successfully converted and false o/w.
-bool ProcessRecords(const bool all_fields, TextUtil::EncodingConverter * const encoding_converter, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer) {
+bool ProcessRecords(const bool all_fields, TextUtil::EncodingConverter * const encoding_converter, MARC::Reader * const marc_reader,
+                    MARC::Writer * const marc_writer) {
     unsigned total_count(0), patched_count(0), failure_count(0);
 
     while (MARC::Record record = marc_reader->read()) {
@@ -65,7 +67,8 @@ bool ProcessRecords(const bool all_fields, TextUtil::EncodingConverter * const e
             marc_writer->write(record);
     }
 
-    LOG_INFO("Converted at least one field in " + std::to_string(patched_count) + " record(s) out of " + std::to_string(total_count) + " record(s).");
+    LOG_INFO("Converted at least one field in " + std::to_string(patched_count) + " record(s) out of " + std::to_string(total_count)
+             + " record(s).");
     if (failure_count == 0)
         return true;
 
@@ -90,7 +93,8 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     std::string error_message;
-    const std::unique_ptr<TextUtil::EncodingConverter> encoding_converter(TextUtil::EncodingConverter::Factory(argv[2], "utf8", &error_message));
+    const std::unique_ptr<TextUtil::EncodingConverter> encoding_converter(
+        TextUtil::EncodingConverter::Factory(argv[2], "utf8", &error_message));
     if (encoding_converter == nullptr)
         LOG_ERROR("failed to create an encoding converter: " + error_message);
 

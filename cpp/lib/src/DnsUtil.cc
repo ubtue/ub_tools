@@ -31,11 +31,11 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <cerrno>
+#include <arpa/inet.h>
 #include <signal.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <arpa/inet.h>
 #include "DnsServerAndPool.h"
 #include "NetUtil.h"
 #include "RegexMatcher.h"
@@ -54,8 +54,8 @@ bool IsValidIPv4Address(const std::string &address) {
 
 
 bool IsValidIPv6Address(const std::string &address) {
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie("^(?:[A-F0-9]{1,4}:){7}(?:[A-F0-9]{1,4})$",
-                                                                               RegexMatcher::CASE_INSENSITIVE));
+    static RegexMatcher * const matcher(
+        RegexMatcher::RegexMatcherFactoryOrDie("^(?:[A-F0-9]{1,4}:){7}(?:[A-F0-9]{1,4})$", RegexMatcher::CASE_INSENSITIVE));
     return matcher->matched(address);
 }
 
@@ -72,15 +72,13 @@ bool IsValidLabel(const std::string &label, const LabelOption label_option) {
 
     // Examine first character:
     std::string::const_iterator ch(label.begin());
-    if (not (StringUtil::IsAsciiLetter(*ch)
-             or (label_option == ALLOW_UNDERSCORES_AND_LEADING_DIGITS and StringUtil::IsDigit(*ch))))
+    if (not(StringUtil::IsAsciiLetter(*ch) or (label_option == ALLOW_UNDERSCORES_AND_LEADING_DIGITS and StringUtil::IsDigit(*ch))))
         return false;
 
     // Look at the characters in the middle:
     while (ch != label.end() - 1) {
         ++ch;
-        if (not (StringUtil::IsAlphanumeric(*ch) or *ch == '-'
-                 or (label_option == ALLOW_UNDERSCORES_AND_LEADING_DIGITS and *ch == '_')))
+        if (not(StringUtil::IsAlphanumeric(*ch) or *ch == '-' or (label_option == ALLOW_UNDERSCORES_AND_LEADING_DIGITS and *ch == '_')))
             return false;
     }
 
@@ -121,7 +119,7 @@ bool IsValidHostName(const std::string &host_name) {
 
 bool IsDottedQuad(const std::string &possible_dotted_quad) {
     std::list<std::string> octets;
-    StringUtil::Split(possible_dotted_quad, '.', &octets, /* suppress_empty_components = */true);
+    StringUtil::Split(possible_dotted_quad, '.', &octets, /* suppress_empty_components = */ true);
     if (octets.size() != 4)
         return false;
     for (std::list<std::string>::const_iterator octet(octets.begin()); octet != octets.end(); ++octet) {
@@ -129,7 +127,6 @@ bool IsDottedQuad(const std::string &possible_dotted_quad) {
             return false;
         if (StringUtil::ToUnsigned(*octet) > 255)
             return false;
-
     }
 
     return true;
@@ -161,8 +158,7 @@ bool IpAddrToHostnames(const std::string &dotted_quad, std::list<std::string> * 
         return false;
 
     h_errno = 0;
-    struct hostent *entry = ::gethostbyaddr(reinterpret_cast<const char *>(&in_addr),
-                                            sizeof(in_addr), AF_INET);
+    struct hostent *entry = ::gethostbyaddr(reinterpret_cast<const char *>(&in_addr), sizeof(in_addr), AF_INET);
     if (h_errno != 0)
         return false;
 
@@ -175,8 +171,7 @@ bool IpAddrToHostnames(const std::string &dotted_quad, std::list<std::string> * 
 
 
 bool TimedGetHostByName(const std::string &hostname, const TimeLimit &time_limit, in_addr_t * const ip_address,
-                        std::string * const error_message)
-{
+                        std::string * const error_message) {
     // Make sure we *never* take more than 20 seconds:
     const TimeLimit local_time_limit(time_limit.getRemainingTime() < 20000 ? time_limit.getRemainingTime() : 20000);
 
@@ -206,8 +201,7 @@ static std::mutex cache_guard;
 
 
 bool CachedTimedGetHostByName(const std::string &hostname, const TimeLimit &time_limit, in_addr_t * const ip_address,
-                              std::string * const error_message)
-{
+                              std::string * const error_message) {
     {
         std::lock_guard<std::mutex> mutex_locker(cache_guard);
         const auto hostname_and_IP_address(hostname_to_IP_address_map.find(hostname));
@@ -235,9 +229,9 @@ bool CachedTimedGetHostByName(const std::string &hostname, const TimeLimit &time
 
 std::string GetHostname(const bool fully_qualified) {
     const size_t max_hostname_length(::sysconf(_SC_HOST_NAME_MAX));
-    #pragma GCC diagnostic ignored "-Wvla"
+#pragma GCC diagnostic ignored "-Wvla"
     char hostname[max_hostname_length + 1];
-    #pragma GCC diagnostic warning "-Wvla"
+#pragma GCC diagnostic warning "-Wvla"
     ::gethostname(hostname, max_hostname_length);
 
     if (not fully_qualified)
@@ -261,7 +255,7 @@ std::string GetHostname(const bool fully_qualified) {
 in_addr_t GetIPAddress(const std::string &url, unsigned dns_timeout) {
     const unsigned CACHE_FLUSH_SIZE(200000U);
 
-    const uint32_t ARBITRARY_TTL(7200000);// No TTL info available so just wing it.
+    const uint32_t ARBITRARY_TTL(7200000); // No TTL info available so just wing it.
 
     static DnsCache cache(CACHE_FLUSH_SIZE);
     in_addr_t ip;

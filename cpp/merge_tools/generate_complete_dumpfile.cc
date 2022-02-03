@@ -26,18 +26,16 @@
 #include "Archive.h"
 #include "BSZUtil.h"
 #include "FileUtil.h"
-#include "StringUtil.h"
 #include "MARC.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
 namespace {
 
 
-void CreateNewArchiveEntry(const std::string &input_filename, Archive::Writer * const archive_writer,
-                           const std::string &new_entry_name, const size_t new_entry_size,
-                           const std::set<BSZUtil::ArchiveType> &desirable_archive_types)
-{
+void CreateNewArchiveEntry(const std::string &input_filename, Archive::Writer * const archive_writer, const std::string &new_entry_name,
+                           const size_t new_entry_size, const std::set<BSZUtil::ArchiveType> &desirable_archive_types) {
     Archive::Reader archive_reader(input_filename);
     archive_writer->addEntry(new_entry_name, new_entry_size);
 

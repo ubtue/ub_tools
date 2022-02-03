@@ -49,13 +49,12 @@ void Compare(MARC::Reader * const lhs_reader, MARC::Reader * const rhs_reader) {
             LOG_ERROR("PPN mismatch:\nLHS: " + lhs.getControlNumber() + "\nRHS: " + rhs.getControlNumber());
 
         if (lhs.getNumberOfFields() != rhs.getNumberOfFields()) {
-            LOG_ERROR("Number of fields (" + lhs.getControlNumber() + "):\nLHS: "
-                      + std::to_string(lhs.getNumberOfFields()) + "\nRHS: " + std::to_string(rhs.getNumberOfFields()));
+            LOG_ERROR("Number of fields (" + lhs.getControlNumber() + "):\nLHS: " + std::to_string(lhs.getNumberOfFields())
+                      + "\nRHS: " + std::to_string(rhs.getNumberOfFields()));
         }
 
         for (auto lhs_field(lhs.begin()), rhs_field(rhs.begin()); lhs_field != lhs.end() and rhs_field != rhs.end();
-             ++lhs_field, ++rhs_field)
-        {
+             ++lhs_field, ++rhs_field) {
             if (lhs_field->getTag() != lhs_field->getTag()) {
                 LOG_ERROR("Tag mismatch (" + lhs.getControlNumber() + "):\nLHS: " + lhs_field->getTag().toString()
                           + "\nRHS: " + rhs_field->getTag().toString());
@@ -68,8 +67,8 @@ void Compare(MARC::Reader * const lhs_reader, MARC::Reader * const rhs_reader) {
             while (rhs_data.find("\x1F") != std::string::npos)
                 rhs_data.replace(rhs_data.find("\x1F"), 1, " $");
             if (lhs_data.compare(rhs_data)) {
-                LOG_ERROR("Subfield mismatch (" + lhs.getControlNumber() + ", Tag: "
-                          + lhs_field->getTag().toString() + "): \nLHS:" + lhs_data + "\nRHS:" + rhs_data);
+                LOG_ERROR("Subfield mismatch (" + lhs.getControlNumber() + ", Tag: " + lhs_field->getTag().toString()
+                          + "): \nLHS:" + lhs_data + "\nRHS:" + rhs_data);
             }
         }
     }

@@ -53,9 +53,8 @@ int main(int argc, char *argv[]) {
         if (FileUtil::RenameFile(old_name, new_name, remove_target))
             std::cout << "Successfully renamed \"" << old_name << "\" to \"" << new_name << "\".\n";
         else
-            std::cout << "Failed to rename \"" << old_name << "\" to \"" << new_name << "\". (" << ::strerror(errno)
-                      << ")\n";
-    } catch(const std::exception &x) {
+            std::cout << "Failed to rename \"" << old_name << "\" to \"" << new_name << "\". (" << ::strerror(errno) << ")\n";
+    } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
-    }  
+    }
 }

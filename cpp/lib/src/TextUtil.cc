@@ -46,9 +46,10 @@
 namespace {
 
 
-class TextExtractor: public HtmlParser {
+class TextExtractor : public HtmlParser {
     std::string &extracted_text_;
     std::string charset_;
+
 public:
     TextExtractor(const std::string &html, const std::string &initial_charset, std::string * const extracted_text)
         : HtmlParser(html, initial_charset, HtmlParser::TEXT | HtmlParser::OPENING_TAG | HtmlParser::END_OF_STREAM),
@@ -62,15 +63,13 @@ void TextExtractor::notify(const HtmlParser::Chunk &chunk) {
         if (not StringUtil::EndsWith(chunk.text_, " ") and not StringUtil::EndsWith(chunk.text_, "\n"))
             extracted_text_ += " ";
         extracted_text_ += chunk.text_;
-    } else if (charset_.empty() and chunk.type_ == HtmlParser::OPENING_TAG
-             and StringUtil::ASCIIToLower(chunk.text_) == "meta") {
-
+    } else if (charset_.empty() and chunk.type_ == HtmlParser::OPENING_TAG and StringUtil::ASCIIToLower(chunk.text_) == "meta") {
         auto key_and_value(chunk.attribute_map_->find("charset"));
         if (key_and_value != chunk.attribute_map_->end()) {
             charset_ = key_and_value->second;
         } else if (((key_and_value = chunk.attribute_map_->find("http-equiv")) != chunk.attribute_map_->end())
-                     and (StringUtil::ASCIIToLower(key_and_value->second) == "content-type")
-                     and ((key_and_value = chunk.attribute_map_->find("content")) != chunk.attribute_map_->end()))
+                   and (StringUtil::ASCIIToLower(key_and_value->second) == "content-type")
+                   and ((key_and_value = chunk.attribute_map_->find("content")) != chunk.attribute_map_->end()))
         {
             static RegexMatcher *matcher(nullptr);
             if (unlikely(matcher == nullptr)) {
@@ -99,15 +98,13 @@ const std::string EncodingConverter::CANONICAL_UTF8_NAME("utf8");
 
 
 std::unique_ptr<EncodingConverter> EncodingConverter::Factory(const std::string &from_encoding, const std::string &to_encoding,
-                                                              std::string * const error_message)
-{
+                                                              std::string * const error_message) {
     if (CanonizeCharset(from_encoding) == CanonizeCharset(to_encoding))
         return std::unique_ptr<IdentityConverter>(new IdentityConverter());
 
     const iconv_t iconv_handle(::iconv_open(to_encoding.c_str(), from_encoding.c_str()));
     if (unlikely(iconv_handle == (iconv_t)-1)) {
-        *error_message = "can't create an encoding converter for conversion from \"" + from_encoding + "\" to \"" + to_encoding
-                         + "\"!";
+        *error_message = "can't create an encoding converter for conversion from \"" + from_encoding + "\" to \"" + to_encoding + "\"!";
         return std::unique_ptr<EncodingConverter>(nullptr);
     }
 
@@ -126,21 +123,20 @@ bool EncodingConverter::convert(const std::string &input, std::string * const ou
     const char *out_bytes_start(out_bytes);
 
     size_t inbytes_left(input.length()), outbytes_left(OUTBYTE_COUNT);
-    const ssize_t converted_count(
-        static_cast<ssize_t>(::iconv(iconv_handle_, &in_bytes, &inbytes_left, &out_bytes, &outbytes_left)));
-    if (unlikely((converted_count == -1) and (getToEncoding().find("//TRANSLIT") == std::string::npos) and
-                 (getToEncoding().find("//IGNORE") == std::string::npos or errno == E2BIG)))
+    const ssize_t converted_count(static_cast<ssize_t>(::iconv(iconv_handle_, &in_bytes, &inbytes_left, &out_bytes, &outbytes_left)));
+    if (unlikely((converted_count == -1) and (getToEncoding().find("//TRANSLIT") == std::string::npos)
+                 and (getToEncoding().find("//IGNORE") == std::string::npos or errno == E2BIG)))
     {
         LOG_WARNING("iconv(3) failed! (Trying to convert \"" + from_encoding_ + "\" to \"" + to_encoding_ + "\"!");
-        delete [] in_bytes_start;
-        delete [] out_bytes_start;
+        delete[] in_bytes_start;
+        delete[] out_bytes_start;
         *output = input;
         return false;
     }
 
     output->assign(out_bytes_start, OUTBYTE_COUNT - outbytes_left);
-    delete [] in_bytes_start;
-    delete [] out_bytes_start;
+    delete[] in_bytes_start;
+    delete[] out_bytes_start;
 
     return true;
 }
@@ -199,8 +195,7 @@ bool IsRomanNumeral(const std::string &s) {
         const std::string pattern("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
         matcher = RegexMatcher::RegexMatcherFactory(pattern, &err_msg);
         if (unlikely(matcher == nullptr))
-            throw std::runtime_error("Failed to construct a RegexMatcher for \"" + pattern
-                                     + "\" in TextUtil::IsRomanNumeral: " + err_msg);
+            throw std::runtime_error("Failed to construct a RegexMatcher for \"" + pattern + "\" in TextUtil::IsRomanNumeral: " + err_msg);
     }
 
     const bool retcode(matcher->matched(s, &err_msg));
@@ -232,7 +227,7 @@ bool IsUnsignedInteger(const std::string &s) {
 }
 
 
-bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_string) {
+bool UTF8ToWCharString(const std::string &utf8_string, std::wstring *wchar_string) {
     wchar_string->clear();
     wchar_string->reserve(utf8_string.length());
 
@@ -255,7 +250,7 @@ bool UTF8ToWCharString(const std::string &utf8_string, std::wstring * wchar_stri
 }
 
 
-bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_string) {
+bool WCharToUTF8String(const std::wstring &wchar_string, std::string *utf8_string) {
     iconv_t iconv_handle(::iconv_open("UTF-8", "WCHAR_T"));
     if (unlikely(iconv_handle == (iconv_t)-1))
         LOG_ERROR("iconv_open(3) failed!");
@@ -272,15 +267,15 @@ bool WCharToUTF8String(const std::wstring &wchar_string, std::string * utf8_stri
     size_t inbytes_left(INBYTE_COUNT), outbytes_left(OUTBYTE_COUNT);
     const ssize_t converted_count(static_cast<ssize_t>(::iconv(iconv_handle, &in_bytes, &inbytes_left, &out_bytes, &outbytes_left)));
 
-    delete [] in_bytes_start;
+    delete[] in_bytes_start;
     if (unlikely(converted_count == -1)) {
         LOG_WARNING("iconv(3) failed!");
-        delete [] out_bytes_start;
+        delete[] out_bytes_start;
         return false;
     }
 
     utf8_string->assign(out_bytes_start, OUTBYTE_COUNT - outbytes_left);
-    delete [] out_bytes_start;
+    delete[] out_bytes_start;
     ::iconv_close(iconv_handle);
 
     return true;
@@ -295,7 +290,7 @@ std::string WCharToUTF8StringOrDie(const std::wstring &wchar_string) {
 }
 
 
-bool WCharToUTF8String(const wchar_t wchar, std::string * utf8_string) {
+bool WCharToUTF8String(const wchar_t wchar, std::string *utf8_string) {
     const std::wstring wchar_string(1, wchar);
     return WCharToUTF8String(wchar_string, utf8_string);
 }
@@ -412,21 +407,20 @@ std::string UTF32ToUTF8(const uint32_t code_point) {
         utf8 += static_cast<char>(0b10000000u | ((code_point >> 6u) & 0b00111111u));
         utf8 += static_cast<char>(0b10000000u | (code_point & 0b00111111u));
     } else
-        throw std::runtime_error("in TextUtil::UTF32ToUTF8: invalid Unicode code point 0x"
-                                 + StringUtil::ToHexString(code_point) + "!");
+        throw std::runtime_error("in TextUtil::UTF32ToUTF8: invalid Unicode code point 0x" + StringUtil::ToHexString(code_point) + "!");
 
     return utf8;
 }
 
 
-bool UTF8ToUTF32(const std::string &utf8_string, std::vector<uint32_t> * utf32_chars) {
+bool UTF8ToUTF32(const std::string &utf8_string, std::vector<uint32_t> *utf32_chars) {
     utf32_chars->clear();
 
     UTF8ToUTF32Decoder decoder;
     try {
         bool last_addByte_retval(false);
         for (const char ch : utf8_string) {
-            if (not (last_addByte_retval = decoder.addByte(ch)))
+            if (not(last_addByte_retval = decoder.addByte(ch)))
                 utf32_chars->emplace_back(decoder.getUTF32Char());
         }
 
@@ -449,11 +443,9 @@ std::wstring &ToLower(std::wstring * const s) {
 }
 
 
-
 uint32_t UTF32ToUpper(const uint32_t code_point) {
     return static_cast<uint32_t>(std::toupper(static_cast<wchar_t>(code_point), DEFAULT_LOCALE));
 }
-
 
 
 namespace {
@@ -475,7 +467,8 @@ bool IsNumber(const std::wstring &number_candidate) {
 }
 
 
-template<typename ContainerType> bool ChopIntoWords(const std::string &text, ContainerType * const words, const unsigned min_word_length) {
+template <typename ContainerType>
+bool ChopIntoWords(const std::string &text, ContainerType * const words, const unsigned min_word_length) {
     words->clear();
 
     std::wstring wide_text;
@@ -531,12 +524,12 @@ template<typename ContainerType> bool ChopIntoWords(const std::string &text, Con
 
 
 bool ChopIntoWords(const std::string &text, std::unordered_set<std::string> * const words, const unsigned min_word_length) {
-    return ChopIntoWords<std::unordered_set<std::string>> (text, words, min_word_length);
+    return ChopIntoWords<std::unordered_set<std::string>>(text, words, min_word_length);
 }
 
 
 bool ChopIntoWords(const std::string &text, std::vector<std::string> * const words, const unsigned min_word_length) {
-    return ChopIntoWords<std::vector<std::string>> (text, words, min_word_length);
+    return ChopIntoWords<std::vector<std::string>>(text, words, min_word_length);
 }
 
 
@@ -581,8 +574,7 @@ std::vector<std::string>::const_iterator FindSubstring(const std::vector<std::st
 
     std::vector<std::string>::const_iterator search_start(haystack.cbegin());
     while (search_start != haystack.cend()) {
-        const std::vector<std::string>::const_iterator haystack_start(
-            std::find(search_start, haystack.cend(), needle[0]));
+        const std::vector<std::string>::const_iterator haystack_start(std::find(search_start, haystack.cend(), needle[0]));
         if ((haystack.cend() - haystack_start) < static_cast<ssize_t>(needle.size()))
             return haystack.cend();
 
@@ -630,8 +622,7 @@ std::string Base64Encode(const std::string &s, const char symbol63, const char s
         if (ch != s.end()) {
             buf |= static_cast<unsigned char>(*ch);
             ++ch;
-        }
-        else
+        } else
             ++ignore_count;
 
         // Now grab 6 bits at a time and encode them starting with the 4th character:
@@ -722,7 +713,7 @@ std::string EscapeString(const std::string &original_string, const bool also_esc
 
     for (char ch : original_string) {
         if (std::iscntrl(ch) or (not also_escape_whitespace or IsWhiteSpace(ch)))
-            escaped_string += StringUtil::ToString(static_cast<unsigned char>(ch), /* radix */8, /* width */3, /* padding_char */'0');
+            escaped_string += StringUtil::ToString(static_cast<unsigned char>(ch), /* radix */ 8, /* width */ 3, /* padding_char */ '0');
         else
             escaped_string += ch;
     }
@@ -768,6 +759,7 @@ class CSVTokenizer {
     std::string value_;
     unsigned line_no_;
     std::string err_msg_;
+
 public:
     CSVTokenizer(File * const input, const char separator, const char quote)
         : input_(input), separator_(separator), quote_(quote), line_no_(1) { }
@@ -839,8 +831,7 @@ CSVTokenType CSVTokenizer::getToken() {
 
 
 void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::string>> * const lines, const char separator,
-                       const char quote)
-{
+                       const char quote) {
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(path));
     CSVTokenizer scanner(input.get(), separator, quote);
     std::vector<std::string> current_line;
@@ -848,12 +839,10 @@ void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::str
     for (;;) {
         const CSVTokenType token(scanner.getToken());
         if (unlikely(token == SYNTAX_ERROR))
-            LOG_ERROR("on line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath() + "\": "
-                  + scanner.getErrMsg());
+            LOG_ERROR("on line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath() + "\": " + scanner.getErrMsg());
         else if (token == LINE_END) {
             if (unlikely(last_token == SEPARATOR))
-                LOG_ERROR("line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath()
-                      + "\" ending in separator!");
+                LOG_ERROR("line #" + std::to_string(scanner.getLineNo() - 1) + " in \"" + input->getPath() + "\" ending in separator!");
             lines->emplace_back(current_line);
             current_line.clear();
             last_token = SEPARATOR;
@@ -868,7 +857,6 @@ void ParseCSVFileOrDie(const std::string &path, std::vector<std::vector<std::str
         }
         last_token = token;
     }
-
 }
 
 
@@ -878,7 +866,7 @@ bool TrimLastCharFromUTF8Sequence(std::string * const s) {
         return false;
 
     int i(s->length() - 1);
-    while (i >=0 and ((*s)[i] & 0b11000000) == 0b10000000)
+    while (i >= 0 and ((*s)[i] & 0b11000000) == 0b10000000)
         --i;
     if (unlikely(i == -1))
         return false;
@@ -925,21 +913,21 @@ bool UTF32CharIsAsciiDigit(const uint32_t ch) {
 
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-    const std::string ToUTF32Decoder::CANONICAL_UTF32_NAME("UTF32LE");
+const std::string ToUTF32Decoder::CANONICAL_UTF32_NAME("UTF32LE");
 #else
-    const std::string ToUTF32Decoder::CANONICAL_UTF32_NAME("UTF32BE");
+const std::string ToUTF32Decoder::CANONICAL_UTF32_NAME("UTF32BE");
 #endif
 const uint32_t ToUTF32Decoder::NULL_CHARACTER(0);
 const size_t MAX_UTF32_CODEPOINT_LENGTH(4);
 
 
 AnythingToUTF32Decoder::AnythingToUTF32Decoder(const std::string &input_encoding, const bool permissive)
-    : converter_handle_(nullptr), input_encoding_(input_encoding), utf32_char_(0), accum_buffer_(), current_state_(NO_CHARACTER_PENDING), permissive_(permissive)
-{
+    : converter_handle_(nullptr), input_encoding_(input_encoding), utf32_char_(0), accum_buffer_(), current_state_(NO_CHARACTER_PENDING),
+      permissive_(permissive) {
     converter_handle_ = ::iconv_open(CANONICAL_UTF32_NAME.c_str(), input_encoding_.c_str());
     if (converter_handle_ == reinterpret_cast<iconv_t>(-1)) {
-        LOG_ERROR("Couldn't init iconv for the following conversion: " +
-                  input_encoding_ + " -> " + CANONICAL_UTF32_NAME + ". Errno: " + std::to_string(errno));
+        LOG_ERROR("Couldn't init iconv for the following conversion: " + input_encoding_ + " -> " + CANONICAL_UTF32_NAME
+                  + ". Errno: " + std::to_string(errno));
     }
 
     accum_buffer_.reserve(50);
@@ -949,8 +937,8 @@ AnythingToUTF32Decoder::AnythingToUTF32Decoder(const std::string &input_encoding
 AnythingToUTF32Decoder::~AnythingToUTF32Decoder() {
     if (converter_handle_ != reinterpret_cast<iconv_t>(-1)) {
         if (::iconv_close(converter_handle_) == -1) {
-            LOG_ERROR("Couldn't deinit iconv for the following conversion: " +
-                      input_encoding_ + " -> " + CANONICAL_UTF32_NAME + ". Errno: " + std::to_string(errno));
+            LOG_ERROR("Couldn't deinit iconv for the following conversion: " + input_encoding_ + " -> " + CANONICAL_UTF32_NAME
+                      + ". Errno: " + std::to_string(errno));
         }
     }
 }
@@ -962,17 +950,16 @@ bool AnythingToUTF32Decoder::addByte(const char ch) {
 
     if (current_state_ == CHARACTER_PENDING) {
         if (not permissive_) {
-            throw std::runtime_error("AnythingToUTF32Decoder::addByte: Pending character "
-                                     + std::to_string(utf32_char_) + " hast not been consumed.");
-        }
-        else
+            throw std::runtime_error("AnythingToUTF32Decoder::addByte: Pending character " + std::to_string(utf32_char_)
+                                     + " hast not been consumed.");
+        } else
             consumeAndReset();
     }
 
     // accumulate input and convert until we have a valid codepoint
     // kinda hacky, thanks to the brain-dead iconv API
     accum_buffer_.emplace_back(ch);
-    size_t in_len(accum_buffer_.size()), out_len(MAX_UTF32_CODEPOINT_LENGTH * (in_len + 1));    // extra codepoint for the BOM
+    size_t in_len(accum_buffer_.size()), out_len(MAX_UTF32_CODEPOINT_LENGTH * (in_len + 1)); // extra codepoint for the BOM
     std::unique_ptr<char[]> in_buf(new char[in_len]), out_buf(new char[out_len]);
     std::memcpy(in_buf.get(), accum_buffer_.data(), accum_buffer_.size());
     auto in_buf_start(in_buf.get()), out_buf_start(out_buf.get());
@@ -982,15 +969,15 @@ bool AnythingToUTF32Decoder::addByte(const char ch) {
         switch (errno) {
         case E2BIG:
             // shouldn't happen
-            LOG_ERROR("Couldn't perform for the following encoding conversion: " +
-                      input_encoding_ + " -> " + CANONICAL_UTF32_NAME + " as the output buffer was too small");
+            LOG_ERROR("Couldn't perform for the following encoding conversion: " + input_encoding_ + " -> " + CANONICAL_UTF32_NAME
+                      + " as the output buffer was too small");
             break;
         case EILSEQ:
             // invalid multi-byte sequence
             if (not permissive_) {
                 throw std::runtime_error("AnythingToUTF32Decoder::addByte: Invalid multi-byte sequence. Current byte: "
-                                         + std::to_string(static_cast<unsigned>(ch)) + ", consumed bytes: "
-                                         + std::to_string(accum_buffer_.size()));
+                                         + std::to_string(static_cast<unsigned>(ch))
+                                         + ", consumed bytes: " + std::to_string(accum_buffer_.size()));
             } else {
                 // return the replacement character
                 utf32_char_ = REPLACEMENT_CHARACTER;
@@ -1060,16 +1047,17 @@ bool UTF8ToUTF32Decoder::addByte(const char ch) {
             utf32_char_ = REPLACEMENT_CHARACTER;
             required_count_ = 0;
         } else
-            #ifndef __clang__
-            #    pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-            #endif
-            throw std::runtime_error("in TextUtil::UTF8ToUTF32Decoder::addByte: bad UTF-8 byte "
-                                     "sequence! (partial utf32_char: 0x" + StringUtil::ToHexString(utf32_char_)
-                                     + ", current char 0x" + StringUtil::ToHexString(static_cast<unsigned char>(ch))
-                                     + ")");
-            #ifndef __clang__
-            #    pragma GCC diagnostic warning "-Wmaybe-uninitialized"
-            #endif
+#ifndef __clang__
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+            throw std::runtime_error(
+                "in TextUtil::UTF8ToUTF32Decoder::addByte: bad UTF-8 byte "
+                "sequence! (partial utf32_char: 0x"
+                + StringUtil::ToHexString(utf32_char_) + ", current char 0x" + StringUtil::ToHexString(static_cast<unsigned char>(ch))
+                + ")");
+#ifndef __clang__
+#pragma GCC diagnostic warning "-Wmaybe-uninitialized"
+#endif
     } else if (required_count_ > 0) {
         --required_count_;
         utf32_char_ <<= 6u;
@@ -1152,17 +1140,13 @@ std::string DecodeQuotedPrintable(const std::string &s) {
 
 
 // See https://en.wikipedia.org/wiki/Whitespace_character for the original list.
-const std::unordered_set<uint32_t> UNICODE_WHITESPACE {
-    0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x0020, 0x0085, 0x00A0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005,
-    0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0x180E, 0x200B, 0x200C, 0x200D, 0x2060,
-    0xFEFF
-};
+const std::unordered_set<uint32_t> UNICODE_WHITESPACE{ 0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x0020, 0x0085, 0x00A0,
+                                                       0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006,
+                                                       0x2007, 0x2008, 0x2009, 0x200A, 0x2028, 0x2029, 0x202F, 0x205F,
+                                                       0x3000, 0x180E, 0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF };
 
 
-
-static std::string &CollapseWhitespaceHelper(std::string * const utf8_string,
-                                             const bool last_char_was_whitespace_initial_state)
-{
+static std::string &CollapseWhitespaceHelper(std::string * const utf8_string, const bool last_char_was_whitespace_initial_state) {
     std::string collapsed_string;
 
     UTF8ToUTF32Decoder utf8_to_utf32_decoder;
@@ -1264,8 +1248,7 @@ bool FromHex(const char ch, unsigned * const u) {
 
 // Helper function for CStyleUnescape().
 static std::string DecodeUnicodeEscapeSequence(std::string::const_iterator &ch, const std::string::const_iterator &end,
-                                               const unsigned width)
-{
+                                               const unsigned width) {
     wchar_t wchar(0);
     for (unsigned i(0); i < width; ++i) {
         ++ch;
@@ -1280,8 +1263,8 @@ static std::string DecodeUnicodeEscapeSequence(std::string::const_iterator &ch, 
     }
     std::string utf8_sequence;
     if (unlikely(not WCharToUTF8String(wchar, &utf8_sequence)))
-        throw std::runtime_error("in TextUtil::DecodeUnicodeEscapeSequence: invalid Unicode escape \\u"
-                                 + StringUtil::ToString(wchar, 16) + "!");
+        throw std::runtime_error("in TextUtil::DecodeUnicodeEscapeSequence: invalid Unicode escape \\u" + StringUtil::ToString(wchar, 16)
+                                 + "!");
 
     return utf8_sequence;
 }
@@ -1446,8 +1429,8 @@ std::string &CStyleEscape(std::string * const s) {
                     escaped_string += *ch;
                 else
                     escaped_string += "\\"
-                                      + StringUtil::ToString(static_cast<unsigned char>(*ch), /* radix */8, /* width */3,
-                                                             /* padding_char */'0');
+                                      + StringUtil::ToString(static_cast<unsigned char>(*ch), /* radix */ 8, /* width */ 3,
+                                                             /* padding_char */ '0');
             }
             }
         } else { // We found the first byte of a UTF8 byte sequence.
@@ -1600,7 +1583,6 @@ double CalcTextSimilarity(const std::string &text1, const std::string &text2, co
 bool IsSomeKindOfDash(const uint32_t ch) {
     return ch == '-' /*ordinary minus */ or ch == EN_DASH or ch == EM_DASH or ch == TWO_EM_DASH or ch == THREE_EM_DASH
            or ch == SMALL_EM_DASH or ch == NON_BREAKING_HYPHEN;
-
 }
 
 
@@ -1609,13 +1591,13 @@ std::string &NormaliseDashes(std::string * const s) {
     if (unlikely(not UTF8ToUTF32(*s, &utf32_string)))
         LOG_ERROR("can't convert from UTF-8 to UTF-32!");
 
-    for (auto &utf32_char :  utf32_string) {
+    for (auto &utf32_char : utf32_string) {
         if (IsSomeKindOfDash(utf32_char))
             utf32_char = '-'; // ASCII minus sign.
     }
 
     s->clear();
-    for (const auto utf32_char :  utf32_string)
+    for (const auto utf32_char : utf32_string)
         s->append(UTF32ToUTF8(utf32_char));
 
     return *s;
@@ -1623,10 +1605,10 @@ std::string &NormaliseDashes(std::string * const s) {
 
 
 static const std::map<wchar_t, std::pair<wchar_t, wchar_t>> ligature_to_expansion_map{
-    {L'æ', { 'a', 'e' }},
-    {L'Æ', { 'A', 'E' }},
-    {L'œ', { 'o', 'e' }},
-    {L'Œ', { 'O', 'E' }},
+    { L'æ', { 'a', 'e' } },
+    { L'Æ', { 'A', 'E' } },
+    { L'œ', { 'o', 'e' } },
+    { L'Œ', { 'O', 'E' } },
 };
 
 
@@ -1662,83 +1644,16 @@ std::string ExpandLigatures(const std::string &utf8_string) {
 
 // Please note that this list is incomplete!
 static const std::map<wchar_t, wchar_t> char_with_diacritics_to_char_without_diarcritics_map{
-    { L'ẚ', L'a' },
-    { L'À', L'A' },
-    { L'à', L'a' },
-    { L'Á', L'A' },
-    { L'á', L'a' },
-    { L'Â', L'A' },
-    { L'â', L'a' },
-    { L'Ầ', L'A' },
-    { L'ầ', L'a' },
-    { L'Ấ', L'A' },
-    { L'ấ', L'a' },
-    { L'Ẫ', L'A' },
-    { L'ẫ', L'a' },
-    { L'Ấ', L'A' },
-    { L'ấ', L'a' },
-    { L'Ẫ', L'A' },
-    { L'ẫ', L'a' },
-    { L'Ẩ', L'A' },
-    { L'ẩ', L'a' },
-    { L'Ã', L'A' },
-    { L'ã', L'a' },
-    { L'ā', L'a' },
-    { L'Ä', L'A' },
-    { L'ä', L'a' },
-    { L'Å', L'A' },
-    { L'À', L'A' },
-    { L'Á', L'A' },
-    { L'Â', L'A' },
-    { L'Ã', L'A' },
-    { L'Ç', L'C' },
-    { L'È', L'E' },
-    { L'É', L'E' },
-    { L'Ê', L'E' },
-    { L'Ë', L'E' },
-    { L'Ì', L'I' },
-    { L'Í', L'I' },
-    { L'Î', L'I' },
-    { L'Ï', L'I' },
-    { L'Ñ', L'N' },
-    { L'Ò', L'O' },
-    { L'Ó', L'O' },
-    { L'Ô', L'O' },
-    { L'Õ', L'O' },
-    { L'Ö', L'O' },
-    { L'Ø', L'O' },
-    { L'Ù', L'U' },
-    { L'Ú', L'U' },
-    { L'Û', L'U' },
-    { L'Ü', L'U' },
-    { L'Ý', L'Y' },
-    { L'à', L'a' },
-    { L'á', L'a' },
-    { L'â', L'a' },
-    { L'å', L'a' },
-    { L'ç', L'c' },
-    { L'è', L'e' },
-    { L'é', L'e' },
-    { L'ê', L'e' },
-    { L'ë', L'e' },
-    { L'ì', L'i' },
-    { L'í', L'i' },
-    { L'î', L'i' },
-    { L'ï', L'i' },
-    { L'ñ', L'n' },
-    { L'ò', L'o' },
-    { L'ó', L'o' },
-    { L'ô', L'o' },
-    { L'õ', L'o' },
-    { L'ö', L'o' },
-    { L'ø', L'o' },
-    { L'ù', L'u' },
-    { L'ú', L'u' },
-    { L'ú', L'u' },
-    { L'û', L'u' },
-    { L'ü', L'u' },
-    { L'ý', L'y' },
-    { L'ÿ', L'y' },
+    { L'ẚ', L'a' }, { L'À', L'A' }, { L'à', L'a' }, { L'Á', L'A' }, { L'á', L'a' }, { L'Â', L'A' }, { L'â', L'a' }, { L'Ầ', L'A' },
+    { L'ầ', L'a' }, { L'Ấ', L'A' }, { L'ấ', L'a' }, { L'Ẫ', L'A' }, { L'ẫ', L'a' }, { L'Ấ', L'A' }, { L'ấ', L'a' }, { L'Ẫ', L'A' },
+    { L'ẫ', L'a' }, { L'Ẩ', L'A' }, { L'ẩ', L'a' }, { L'Ã', L'A' }, { L'ã', L'a' }, { L'ā', L'a' }, { L'Ä', L'A' }, { L'ä', L'a' },
+    { L'Å', L'A' }, { L'À', L'A' }, { L'Á', L'A' }, { L'Â', L'A' }, { L'Ã', L'A' }, { L'Ç', L'C' }, { L'È', L'E' }, { L'É', L'E' },
+    { L'Ê', L'E' }, { L'Ë', L'E' }, { L'Ì', L'I' }, { L'Í', L'I' }, { L'Î', L'I' }, { L'Ï', L'I' }, { L'Ñ', L'N' }, { L'Ò', L'O' },
+    { L'Ó', L'O' }, { L'Ô', L'O' }, { L'Õ', L'O' }, { L'Ö', L'O' }, { L'Ø', L'O' }, { L'Ù', L'U' }, { L'Ú', L'U' }, { L'Û', L'U' },
+    { L'Ü', L'U' }, { L'Ý', L'Y' }, { L'à', L'a' }, { L'á', L'a' }, { L'â', L'a' }, { L'å', L'a' }, { L'ç', L'c' }, { L'è', L'e' },
+    { L'é', L'e' }, { L'ê', L'e' }, { L'ë', L'e' }, { L'ì', L'i' }, { L'í', L'i' }, { L'î', L'i' }, { L'ï', L'i' }, { L'ñ', L'n' },
+    { L'ò', L'o' }, { L'ó', L'o' }, { L'ô', L'o' }, { L'õ', L'o' }, { L'ö', L'o' }, { L'ø', L'o' }, { L'ù', L'u' }, { L'ú', L'u' },
+    { L'ú', L'u' }, { L'û', L'u' }, { L'ü', L'u' }, { L'ý', L'y' }, { L'ÿ', L'y' },
 };
 
 
@@ -1770,22 +1685,22 @@ std::string RemoveDiacritics(const std::string &utf8_string) {
 }
 
 
-static const std::vector<wchar_t> quotation_marks_to_normalise {
-L'«',  L'‹',  L'»',  L'›',  L'„',  L'‚',  L'“',  L'‟',  L'‘',  L'‛',  L'”',  L'’',  L'"',  L'❛',  L'❜',  L'❟',  L'❝',  L'❞',  L'❮',  L'❯',  L'⹂',  L'〝',  L'〞',  L'〟',  L'＂'
-};
+static const std::vector<wchar_t> quotation_marks_to_normalise{ L'«', L'‹', L'»',   L'›',  L'„',  L'‚',  L'“', L'‟', L'‘',
+                                                                L'‛', L'”', L'’',   L'"',  L'❛',  L'❜',  L'❟', L'❝', L'❞',
+                                                                L'❮', L'❯', L'⹂', L'〝', L'〞', L'〟', L'＂' };
 
 
 std::wstring NormaliseQuotationMarks(const std::wstring &string) {
-   std::wstring string_with_normalised_quotes;
-   for (const auto wchar : string) {
-       if (likely(std::find(quotation_marks_to_normalise.cbegin(), quotation_marks_to_normalise.cend(), wchar) ==
-                  quotation_marks_to_normalise.cend()))
-           string_with_normalised_quotes += wchar;
-       else
-           string_with_normalised_quotes += '"';
-   }
+    std::wstring string_with_normalised_quotes;
+    for (const auto wchar : string) {
+        if (likely(std::find(quotation_marks_to_normalise.cbegin(), quotation_marks_to_normalise.cend(), wchar)
+                   == quotation_marks_to_normalise.cend()))
+            string_with_normalised_quotes += wchar;
+        else
+            string_with_normalised_quotes += '"';
+    }
 
-   return string_with_normalised_quotes;
+    return string_with_normalised_quotes;
 }
 
 
@@ -1841,8 +1756,7 @@ size_t CodePointCount(const std::string &utf8_string) {
 
 
 static std::string ExtractUTF8Substring(const std::string::const_iterator start, const std::string::const_iterator end,
-                                        const size_t max_length)
-{
+                                        const size_t max_length) {
     std::string substring;
     size_t substring_length(0);
     for (auto ch(start); ch != end; ++ch) {
