@@ -6,6 +6,7 @@ import java.util.Arrays;
 
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Weight;
 
 import de.uni_tuebingen.ub.ixTheo.rangeSearch.Range;
@@ -18,9 +19,9 @@ class TimeAspectDateRangeQuery extends RangeQuery {
     }
 
     @Override
-    public Weight createWeight(final IndexSearcher searcher, final boolean needsScores, final float boost) throws IOException {
+    public Weight createWeight(final IndexSearcher searcher, final ScoreMode scoreMode, final float boost) throws IOException {
         return new TimeAspectDateRangeWeight(this, Arrays.copyOf(ranges, ranges.length, TimeAspectDateRange[].class),
-                                             super.createWeight(searcher, needsScores, boost));
+                                             super.createWeight(searcher, scoreMode, boost));
     }
 
     @Override

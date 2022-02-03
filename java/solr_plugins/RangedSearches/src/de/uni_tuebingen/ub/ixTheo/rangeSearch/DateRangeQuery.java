@@ -7,6 +7,7 @@ import java.time.Instant;
 
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Weight;
 
 
@@ -21,7 +22,7 @@ public class DateRangeQuery extends Query {
     }
 
     @Override
-    public Weight createWeight(final IndexSearcher searcher, final boolean needsScores, final float boost) throws IOException {
+    public Weight createWeight(final IndexSearcher searcher, final ScoreMode scoreMode, final float boost) throws IOException {
         // query rewriting is necessary before createWeight delivers any usable result.
         // rewrite needs to be called multiple times, until the derived Query class no longer changes.
         // see https://issues.apache.org/jira/browse/LUCENE-6785?jql=text%20~%20%22createWeight%22
@@ -32,7 +33,7 @@ public class DateRangeQuery extends Query {
             rewritten_query = rewrite_query.rewrite(searcher.getIndexReader());
         } while (rewrite_query.getClass() != rewritten_query.getClass());
 
-        return rewritten_query.createWeight(searcher, needsScores, boost);
+        return rewritten_query.createWeight(searcher, scoreMode, boost);
     }
 
     @Override
