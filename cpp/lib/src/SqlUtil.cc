@@ -37,6 +37,7 @@
 #include "DbResultSet.h"
 #include "DbRow.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "TimeUtil.h"
 #include "util.h"
 
@@ -90,7 +91,7 @@ TransactionGuard::~TransactionGuard() {
 std::string TruncateToVarCharMaxIndexLength(const std::string &s) {
     auto truncated(s);
     if (truncated.length() > VARCHAR_UTF8_MAX_INDEX_LENGTH)
-        truncated.erase(VARCHAR_UTF8_MAX_INDEX_LENGTH);
+        TextUtil::UTF8ByteTruncate(&truncated, VARCHAR_UTF8_MAX_INDEX_LENGTH);
 
     return truncated;
 }

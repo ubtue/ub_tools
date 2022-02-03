@@ -23,11 +23,14 @@
 
 #include <algorithm>
 #include <iostream>
+#include <mutex>
 #include <set>
+#include <signal.h>
 #include <sstream>
 #include <string>
 #include <stdlib.h>
 #include <systemd/sd-bus.h>
+#include <time.h>
 #include "Template.h"
 #include "UBTools.h"
 #include "UrlUtil.h"
@@ -42,6 +45,8 @@ sd_bus_error error = SD_BUS_ERROR_NULL;
 sd_bus_message *m = NULL;
 sd_bus *bus = NULL;
 
+std::mutex stdout_mutex;
+
 
 void cleanup() {
     sd_bus_error_free(&error);
@@ -50,17 +55,17 @@ void cleanup() {
 }
 
 
-extern "C" void InterruptCgi(int /*signal_no*/) {
-    std::cerr << "Translator timeout reached - stopping cgi (will be reinitialized by sse  client)" << std::endl;
+extern "C" void InterruptCGIHandler(int /*signal_no*/) {
+    std::cerr << "Translator timeout reached - stopping cgi (will be reinitialized by sse client)" << std::endl;
     cleanup();
     std::exit(0);
 }
 
 
-void InitializeTimer() {
+void InitializeTimeoutTimer() {
     TimerUtil::malarm(0);
     struct sigaction new_action;
-    new_action.sa_handler = InterruptCgi;
+    new_action.sa_handler = InterruptCGIHandler;
     sigemptyset(&new_action.sa_mask);
     new_action.sa_flags = 0;
     if (::sigaction(SIGALRM, &new_action, nullptr) < 0) {
@@ -69,6 +74,58 @@ void InitializeTimer() {
     }
     TimerUtil::malarm(TIMEOUT);
 }
+
+
+extern "C" void KeepAliveHandler(int sig, siginfo_t *si __attribute__((unused)), void *uc __attribute__((unused))) {
+    std::lock_guard<std::mutex> stdout_guard(stdout_mutex);
+    std::cout << "data: SERVER_KEEPALIVE\n\n" << std::flush;
+    signal(sig, SIG_IGN);
+}
+
+
+void InitializeKeepaliveTimer() {
+    // c.f. example in man timer_create (2)
+    const auto CLOCKID(CLOCK_REALTIME);
+    const auto TIMER_SIGNAL(SIGRTMIN);
+    const unsigned KEEPALIVE_INTERVAL(30);
+    timer_t timerid;
+    struct sigevent sev;
+    struct itimerspec its;
+    struct sigaction sa;
+
+     /* Establish handler for timer signal. */
+     sa.sa_flags = SA_SIGINFO;
+     sa.sa_sigaction = KeepAliveHandler;
+     sigemptyset(&sa.sa_mask);
+     if (sigaction(TIMER_SIGNAL, &sa, NULL) == -1) {
+         std::cerr << "Problem with sigaction\n";
+         cleanup();
+         std::exit(1);
+     }
+
+     /* Create the timer. */
+     sev.sigev_notify = SIGEV_SIGNAL;
+     sev.sigev_signo = TIMER_SIGNAL;
+     sev.sigev_value.sival_ptr = &timerid;
+     if (timer_create(CLOCKID, &sev, &timerid) == -1) {
+         std::cerr << "Error with timer_create\n";
+         cleanup();
+         std::exit(1);
+     }
+
+     /* Start the timer. */
+     its.it_value.tv_sec = KEEPALIVE_INTERVAL;
+     its.it_value.tv_nsec = 0;
+     its.it_interval.tv_sec = its.it_value.tv_sec;
+     its.it_interval.tv_nsec = its.it_value.tv_nsec;
+
+     if (timer_settime(timerid, 0, &its, NULL) == -1) {
+         std::cerr << "Error with set_timer\n";
+         cleanup();
+         std::exit(1);
+     }
+}
+
 
 
 int Main(int argc, char *argv[]) {
@@ -96,19 +153,23 @@ int Main(int argc, char *argv[]) {
     std::cout << "Content-Type: text/event-stream; charset=utf-8\r\n";
     std::cout << "Cache-Control: no-cache\r\n\r\n" << std::flush;
 
-    InitializeTimer();
+    InitializeTimeoutTimer();
+    InitializeKeepaliveTimer();
 
     // Wait for incoming message 
     while(true) {
        sd_bus_wait(bus, UINT64_MAX);
-       InitializeTimer();
+       InitializeTimeoutTimer();
        r = sd_bus_process(bus, &m);
        if (r == 0)
            continue;
        else if ( r > 0) {
            char *message;
            sd_bus_message_read(m, "s", &message);
-           std::cout << "data: " << message << "\n\n" << std::flush;
+           {
+               std::lock_guard<std::mutex> stdout_guard(stdout_mutex);
+               std::cout << "data: " << message << "\n\n" << std::flush;
+           }
            sd_bus_message_unref(m);
        } else {
            std::cerr << "Error processing sd-bus message " << strerror(-r);
@@ -120,6 +181,5 @@ int Main(int argc, char *argv[]) {
 
 finish:
     cleanup();
-
     return r < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 }

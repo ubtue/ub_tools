@@ -88,11 +88,11 @@ void ProcessAuthorityRecords(MARC::Reader * const authority_reader, MARC::Writer
                     continue;
 
                 ++gnd_tagged_count;
-                std::string beacon_file_filename = beacon_file.getFileName();
-                std::string beacon_url = beacon_file.getURL(*beacon_entry);
+                std::string beacon_file_filename(beacon_file.getFileName());
+                std::string beacon_url(beacon_file.getURL(*beacon_entry));
 
                 // special substiutions due to individual beacon configurations
-                StringUtil::ReplaceString("deutsche-biographie.de/pnd", "deutsche-biographie.de/", beacon_url);
+                StringUtil::ReplaceString("deutsche-biographie.de/pnd", "deutsche-biographie.de/", &beacon_url);
 
                 if (beacon_file_filename.find(".lr.") != beacon_file_filename.npos)
                     record.insertField("BEA", { { 'a', beacon_file.getName() }, { 'u', beacon_url }, { '0', "lr" } });

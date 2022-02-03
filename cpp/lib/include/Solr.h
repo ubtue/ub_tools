@@ -34,6 +34,13 @@ const unsigned DEFAULT_PORT(8983);
 
 enum QueryResultFormat { XML, JSON };
 
+/** brief Sends a query to a Solr instance
+ *  \param url        Complete query url
+ *  \param  xml_or_json_result  Here the returned XML will be stored
+ *  \param  err_msg             An error message will be stored here if anything goes.
+ */
+bool Query(const std::string &url, std::string * const xml_or_json_result, std::string * const err_msg,
+           const unsigned timeout = DEFAULT_TIMEOUT, const QueryResultFormat query_result_format = XML);
 
 /** \brief Sends a query to a Solr instance.
  *  \param  query               The search query.
@@ -73,9 +80,8 @@ inline bool Query(const std::string &query, const std::string &fields, std::stri
 
 
 bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
-                  std::string * const err_msg, const std::string &host_and_port,
-                  const unsigned timeout, const QueryResultFormat query_result_format = XML,
-                  const unsigned max_no_of_rows = JAVA_INT_MAX);
-
+           std::string * const err_msg, const std::string &host_and_port,
+           const unsigned timeout, const QueryResultFormat query_result_format = XML,
+           const std::string &additional_raw_parameters = "");
 
 } // namespace Solr
