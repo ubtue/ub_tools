@@ -34,10 +34,11 @@ def GetNewKeywordNumberFromDB(database, user, password, days_diff):
     return [result_keyword, result_vufind]
 
 
-def NotifyMailingList(user, server, content):
-    util.SendEmail("New IxTheo keywords ready for translation",
+def NotifyMailingList(recipient, server, content):
+    util.SendEmailBase("New IxTheo keywords ready for translation",
             content + "\nplease have a look at:\nhttps://" + server + "/" +
-                    "cgi-bin/translator" + "\n\n" + "Kind regards")
+                    "cgi-bin/translator" + "\n\n" + "Kind regards",
+                    None, recipient)
 
 
 def DetermineServerName():
