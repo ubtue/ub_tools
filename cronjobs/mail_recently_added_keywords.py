@@ -20,14 +20,18 @@ sql_password = "XXXXX"
 
 
 util.default_email_recipient = "andreas.nutz@uni-tuebingen.de"
-date = datetime.datetime.today().strftime("%y%m%d")
+period_of_days = 7
 
-def GetNewKeywordNumberFromDB(database, user, password):
+def GetNewKeywordNumberFromDB(database, user, password, days_diff):
+    end_date = (datetime.datetime.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    start_date = (datetime.datetime.today() - datetime.timedelta(days=days_diff)).strftime("%Y-%m-%d")
     result_keyword = subprocess.getoutput("/usr/bin/mysql --database " + database + " --user=" + user + " --password=" + password + 
-            " -sN --execute='SELECT COUNT(*) FROM keyword_translations;'")
+            " -sN --execute='SELECT COUNT(*) FROM keyword_translations WHERE create_timestamp>=\"" + start_date + "\" AND create_timestamp<\"" + 
+            end_date + "\" AND ppn IN (SELECT ppn FROM keyword_translations GROUP BY ppn HAVING COUNT(*)=1);' 2>/dev/null")
     result_vufind = subprocess.getoutput("/usr/bin/mysql --database " + database + " --user=" + user + " --password=" + password + 
-            " -sN --execute='SELECT COUNT(*) FROM vufind_translations;'")
-    return result_keyword + " new keywords and " + result_vufind + " new vufind strings found in the last period"
+            " -sN --execute='SELECT COUNT(*) FROM vufind_translations WHERE create_timestamp>=\"" + start_date + "\" AND create_timestamp<\"" +
+            end_date + "\" AND token IN (SELECT token FROM vufind_translations GROUP BY token HAVING COUNT(*)=1);' 2>/dev/null")
+    return [result_keyword, result_vufind]
 
 
 def NotifyMailingList(user, server, content):
@@ -54,9 +58,11 @@ def Main():
     except Exception as e:
         util.Error("Failed to read sql_config file (" + str(e) + ")")
 
-    result = GetNewKeywordNumberFromDB(sql_database, sql_username, sql_password)
+    [result_keyword, result_vufind] = GetNewKeywordNumberFromDB(sql_database, sql_username, sql_password, period_of_days)
+    result = result_keyword + " new keywords and " + result_vufind + " new vufind strings found in the last " + str(period_of_days) + " days"
     servername = DetermineServerName()
-    NotifyMailingList(mailing_list_recipient, servername, result)
+    if result_keyword != "0" or result_vufind != "0":
+        NotifyMailingList(mailing_list_recipient, servername, result)
 
 
 try:
