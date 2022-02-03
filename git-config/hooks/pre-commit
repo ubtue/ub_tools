@@ -13,8 +13,7 @@ for changed_file in changed_files; do
     readonly extension="${changed_file##*.}"
     if [[ $extension == "cc" || $extension == "h" ]]; then
         # "-style=file" has the effect of searching up the directory tree until a file named ".clang-format" is found and then using it.
-        #clang-format-12 -style=file -i "$GIT_ROOT/$changed_file"
-        echo "clang-format will be enabled soon, please check the rules!"
+        clang-format-12 -style=file -i "$GIT_ROOT/$changed_file"
     fi
 done
 
