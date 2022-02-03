@@ -38,6 +38,7 @@ class Locale {
     std::string new_locale_string_;
     const int new_locale_category_;
     const bool restore_;
+
 public:
     /** \brief  Constructs a new locale setting object.
      *  \param  new_locale  The new locale to switch to.

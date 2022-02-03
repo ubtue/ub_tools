@@ -37,9 +37,8 @@ enum ParseState { NORMAL, IN_DOUBLE_DASH_COMMENT, IN_C_STYLE_COMMENT, IN_STRING_
 // CREATE TRIGGER statements end with a semicolon followed by END.  As we usually treat semicolons as statement
 // separators we need special handling for this case.
 void AddStatement(const std::string &statement_candidate, std::vector<std::string> * const individual_statements) {
-    static RegexMatcher *create_trigger_matcher(
-        RegexMatcher::RegexMatcherFactoryOrDie("^CREATE\\s+(TEMP|TEMPORARY)?\\s+TRIGGER",
-                                               RegexMatcher::ENABLE_UTF8 | RegexMatcher::CASE_INSENSITIVE));
+    static RegexMatcher *create_trigger_matcher(RegexMatcher::RegexMatcherFactoryOrDie(
+        "^CREATE\\s+(TEMP|TEMPORARY)?\\s+TRIGGER", RegexMatcher::ENABLE_UTF8 | RegexMatcher::CASE_INSENSITIVE));
 
     if (individual_statements->empty())
         individual_statements->emplace_back(statement_candidate);
@@ -111,8 +110,7 @@ void SplitSqliteStatements(const std::string &compound_statement, std::vector<st
 
 
 Sqlite3DbConnection::Sqlite3DbConnection(const std::string &database_path, const OpenMode open_mode)
-    : stmt_handle_(nullptr), database_path_(database_path)
-{
+    : stmt_handle_(nullptr), database_path_(database_path) {
     int flags(0);
     switch (open_mode) {
     case READONLY:
@@ -138,8 +136,8 @@ Sqlite3DbConnection::~Sqlite3DbConnection() {
         if (stmt_handle_ != nullptr) {
             const int result_code(::sqlite3_finalize(stmt_handle_));
             if (result_code != SQLITE_OK)
-                LOG_ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was "
-                          + std::to_string(result_code) + ")");
+                LOG_ERROR("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was " + std::to_string(result_code)
+                          + ")");
         }
         if (::sqlite3_close(sqlite3_) != SQLITE_OK)
             LOG_ERROR("failed to cleanly close an Sqlite3 database!");
@@ -150,13 +148,13 @@ Sqlite3DbConnection::~Sqlite3DbConnection() {
 bool Sqlite3DbConnection::query(const std::string &query_statement) {
     if (MiscUtil::SafeGetEnv("UTIL_LOG_DEBUG") == "true")
         FileUtil::AppendString(UBTools::GetTueFindLogPath() + "sql_debug.log",
-                               std::string(::program_invocation_name) + ": " +  query_statement + '\n');
+                               std::string(::program_invocation_name) + ": " + query_statement + '\n');
 
     if (stmt_handle_ != nullptr) {
         const int result_code(::sqlite3_finalize(stmt_handle_));
         if (result_code != SQLITE_OK) {
-            LOG_WARNING("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was "
-                        + std::to_string(result_code) + ")");
+            LOG_WARNING("failed to finalise an Sqlite3 statement! (" + getLastErrorMessage() + ", code was " + std::to_string(result_code)
+                        + ")");
             return false;
         }
     }
@@ -207,8 +205,7 @@ DbResultSet Sqlite3DbConnection::getLastResultSet() {
 
 
 std::string Sqlite3DbConnection::escapeString(const std::string &unescaped_string, const bool add_quotes,
-                                              const bool return_null_on_empty_string)
-{
+                                              const bool return_null_on_empty_string) {
     if (unescaped_string.empty() and return_null_on_empty_string)
         return "NULL";
 
@@ -240,8 +237,7 @@ std::string Sqlite3DbConnection::escapeString(const std::string &unescaped_strin
 
 bool Sqlite3DbConnection::tableExists(const std::string &database_name, const std::string &table_name) {
     Sqlite3DbConnection connection(database_name, READONLY);
-    connection.queryOrDie("SELECT name FROM sqlite_master WHERE type='table' AND name='"
-                          + connection.escapeString(table_name) + "'");
+    connection.queryOrDie("SELECT name FROM sqlite_master WHERE type='table' AND name='" + connection.escapeString(table_name) + "'");
     return not connection.getLastResultSet().empty();
 }
 
@@ -250,8 +246,7 @@ bool Sqlite3DbConnection::backup(const std::string &output_filename, std::string
     sqlite3 *sqlite3_backup_file;
     int return_code;
     if ((return_code = ::sqlite3_open(output_filename.c_str(), &sqlite3_backup_file)) != SQLITE_OK) {
-        *err_msg = "failed to create backup to \"" + output_filename + "\": "
-                   + std::string(::sqlite3_errmsg(sqlite3_backup_file));
+        *err_msg = "failed to create backup to \"" + output_filename + "\": " + std::string(::sqlite3_errmsg(sqlite3_backup_file));
         return false;
     }
 
@@ -277,8 +272,8 @@ bool Sqlite3DbConnection::backup(const std::string &output_filename, std::string
     return_code = ::sqlite3_errcode(sqlite3_backup_file);
     ::sqlite3_close(sqlite3_backup_file);
     if (return_code != SQLITE_OK) {
-        *err_msg = "an error occurred during the backup to \"" + output_filename + "\": "
-                   + std::string(::sqlite3_errmsg(sqlite3_backup_file));
+        *err_msg =
+            "an error occurred during the backup to \"" + output_filename + "\": " + std::string(::sqlite3_errmsg(sqlite3_backup_file));
         return false;
     }
 

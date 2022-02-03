@@ -33,6 +33,7 @@
 #include "StringUtil.h"
 #include <algorithm>
 #include <functional>
+#include <iomanip>
 #include <map>
 #include <random>
 #include <set>
@@ -44,7 +45,6 @@
 #include <cstdarg>
 #include <cstdio>
 #include <alloca.h>
-#include <iomanip>
 #include <openssl/md5.h>
 #include <openssl/sha.h>
 #include <unistd.h>
@@ -54,9 +54,9 @@
 
 
 #ifdef DIM
-#      undef DIM
+#undef DIM
 #endif
-#define DIM(array)      (sizeof(array)/sizeof(array[0]))
+#define DIM(array) (sizeof(array) / sizeof(array[0]))
 
 
 namespace {
@@ -190,21 +190,20 @@ bool IsAllASCIILowercase(const std::string &s) {
 }
 
 
-bool IsInitialCapsString(const std::string &s)
-{
-        if (s.length() < 2)
-                return false;
+bool IsInitialCapsString(const std::string &s) {
+    if (s.length() < 2)
+        return false;
 
-        std::string::const_iterator ch(s.begin());
-        if (not IsUppercaseAsciiLetter(*ch))
-                return false;
+    std::string::const_iterator ch(s.begin());
+    if (not IsUppercaseAsciiLetter(*ch))
+        return false;
 
-        for (++ch; ch != s.end(); ++ch) {
-                if (not IsLowercaseAsciiLetter(*ch))
-                        return false;
-        }
+    for (++ch; ch != s.end(); ++ch) {
+        if (not IsLowercaseAsciiLetter(*ch))
+            return false;
+    }
 
-        return true;
+    return true;
 }
 
 
@@ -264,7 +263,7 @@ std::string RightTrim(std::string * const s, char trim_char) {
         return *s;
 
     size_t trimmed_length = original_length;
-    while (trimmed_length > 0 and (*s)[trimmed_length-1] == trim_char)
+    while (trimmed_length > 0 and (*s)[trimmed_length - 1] == trim_char)
         --trimmed_length;
 
     if (trimmed_length < original_length)
@@ -287,7 +286,7 @@ std::string RightTrim(const std::string &trim_set, std::string * const s) {
 
     size_t trimmed_length = original_length;
     const char * const set = trim_set.c_str();
-    while (trimmed_length > 0 and ::strchr(set, (*s)[trimmed_length-1]) != nullptr)
+    while (trimmed_length > 0 and ::strchr(set, (*s)[trimmed_length - 1]) != nullptr)
         --trimmed_length;
 
     if (trimmed_length < original_length)
@@ -372,14 +371,14 @@ std::string Trim(const std::string &s, char trim_char) {
 
 
 std::string Trim(const std::string &trim_set, std::string * const s) {
-        RightTrim(trim_set, s);
-        return LeftTrim(trim_set, s);
+    RightTrim(trim_set, s);
+    return LeftTrim(trim_set, s);
 }
 
 
 std::string Trim(const std::string &s, const std::string &trim_set) {
-        std::string temp_s(s);
-        return Trim(trim_set, &temp_s);
+    std::string temp_s(s);
+    return Trim(trim_set, &temp_s);
 }
 
 
@@ -636,7 +635,7 @@ int ToInt(const std::string &s, const unsigned base) {
 //
 unsigned long ToUnsignedLong(const std::string &s, const unsigned base) {
     unsigned long n;
-    if (unlikely(not ToUnsignedLong(s,  &n, base)))
+    if (unlikely(not ToUnsignedLong(s, &n, base)))
         throw std::runtime_error("in StringUtil::ToUnsignedLong: can't convert " + s);
 
     return n;
@@ -803,15 +802,15 @@ float ToFloat(const std::string &s) {
 
 
 bool ToBool(const std::string &value, bool * const b) {
-    if (::strcasecmp(value.c_str(), "true") == 0 or ::strcasecmp(value.c_str(), "yes") == 0
-        or ::strcasecmp(value.c_str(), "on") == 0 or ::strcasecmp(value.c_str(), "1") == 0)
+    if (::strcasecmp(value.c_str(), "true") == 0 or ::strcasecmp(value.c_str(), "yes") == 0 or ::strcasecmp(value.c_str(), "on") == 0
+        or ::strcasecmp(value.c_str(), "1") == 0)
     {
         *b = true;
         return true;
     }
 
-    if (::strcasecmp(value.c_str(), "false") == 0 or ::strcasecmp(value.c_str(), "off") == 0
-        or ::strcasecmp(value.c_str(), "no") == 0 or ::strcasecmp(value.c_str(), "0") == 0)
+    if (::strcasecmp(value.c_str(), "false") == 0 or ::strcasecmp(value.c_str(), "off") == 0 or ::strcasecmp(value.c_str(), "no") == 0
+        or ::strcasecmp(value.c_str(), "0") == 0)
     {
         *b = false;
         return true;
@@ -835,8 +834,7 @@ bool ToBool(const std::string &value) {
 //
 int AlphaCompare(const char *lhs, const char *rhs) {
     // Notice the single trailing spaces!
-    static const char *articles[] = { "the ", "a ", "an ", "le ", "les ", "la ", "der ",
-                                      "die ", "das ", "el " };
+    static const char *articles[] = { "the ", "a ", "an ", "le ", "les ", "la ", "der ", "die ", "das ", "el " };
 
     // skip over leading spaces:
     while (*lhs == ' ')
@@ -845,12 +843,10 @@ int AlphaCompare(const char *lhs, const char *rhs) {
     // skip over an LHS article:
     for (unsigned article_no = 0; article_no < DIM(articles); ++article_no) {
         size_t len = std::strlen(articles[article_no]);
-        if (::strncasecmp(lhs, articles[article_no], len) == 0 and
-            ::strncasecmp("a capella", lhs, 9) != 0)
-            {
-                lhs += len;
-                break;
-            }
+        if (::strncasecmp(lhs, articles[article_no], len) == 0 and ::strncasecmp("a capella", lhs, 9) != 0) {
+            lhs += len;
+            break;
+        }
     }
 
     while (*lhs == ' ')
@@ -864,12 +860,10 @@ int AlphaCompare(const char *lhs, const char *rhs) {
     // skip over an RHS article:
     for (unsigned article_no = 0; article_no < DIM(articles); ++article_no) {
         size_t len = std::strlen(articles[article_no]);
-        if (::strncasecmp(rhs, articles[article_no], len) == 0 and
-            ::strncasecmp("a capella", rhs, 9) != 0)
-            {
-                rhs += len;
-                break;
-            }
+        if (::strncasecmp(rhs, articles[article_no], len) == 0 and ::strncasecmp("a capella", rhs, 9) != 0) {
+            rhs += len;
+            break;
+        }
     }
 
     while (*rhs == ' ')
@@ -925,13 +919,13 @@ void RemoveTrailingLineEnd(std::string * const line) {
     unsigned line_length = line->length();
     if (line_length >= 1) {
         if (line_length >= 2) {
-            std::string last_chars = line->substr(line->length()-2, 2);
+            std::string last_chars = line->substr(line->length() - 2, 2);
             if ((last_chars == "\n\r") or (last_chars == "\r\n"))
-                line->erase(line->length()-2);
+                line->erase(line->length() - 2);
             else if (line->substr(line_length - 1) == "\n" or line->substr(line_length - 1) == "\r")
-                line->erase(line->length()-1);
+                line->erase(line->length() - 1);
         } else if (line->substr(line_length - 1) == "\n" or line->substr(line_length - 1) == "\r")
-            line->erase(line->length()-1);
+            line->erase(line->length() - 1);
     }
 }
 
@@ -939,8 +933,8 @@ void RemoveTrailingLineEnd(std::string * const line) {
 char *RemoveTrailingLineEnds(char * const line) {
     // we want to remove "\n", "\r\n", or \n\r", but not "\n\n" or "\r\r"
     size_t length = std::strlen(line);
-    while (length > 0 and line[length-1] == '\n')
-        line[length-1] = '\0';
+    while (length > 0 and line[length - 1] == '\n')
+        line[length - 1] = '\0';
 
     return line;
 }
@@ -948,7 +942,7 @@ char *RemoveTrailingLineEnds(char * const line) {
 
 std::string &RemoveTrailingLineEnds(std::string * const line) {
     size_t new_length = line->length();
-    if (new_length > 0 and (*line)[new_length-1] == '\n')
+    if (new_length > 0 and (*line)[new_length - 1] == '\n')
         --new_length;
 
     if (new_length < line->length())
@@ -1027,8 +1021,7 @@ std::string &Collapse(std::string * const s, char scan_ch) {
                 continue;
             *current++ = *leading;
             skipping = true;
-        }
-        else {
+        } else {
             skipping = false;
             *current++ = *leading;
         }
@@ -1081,7 +1074,7 @@ bool Match(const char *pattern, const char *s, bool ignore_case) {
             ++asterisk_index;
             ++pattern;
             continue;
-        goback:
+goback:
             --asterisk_index;
             while (asterisk_index >= 0 and *back[asterisk_index][1] == '\0')
                 --asterisk_index;
@@ -1123,24 +1116,23 @@ bool Match(const char *pattern, const char *s, bool ignore_case) {
                     char ch(*s);
 
                     if (ignore_case) {
-                        ch          = tolower(ch);
+                        ch = tolower(ch);
                         range_start = tolower(range_start);
-                        range_end   = tolower(range_end);
+                        range_end = tolower(range_end);
                     }
 
                     if (range_start > range_end) {
-                        char msg[100+1];
+                        char msg[100 + 1];
                         std::sprintf(msg, "in StringUtil::Match:: invalid character range %c-%c!", range_start, range_end);
                         throw std::runtime_error(msg);
                     }
 
                     if (ch >= range_start and ch <= range_end)
                         matched = true;
-                }
-                else { // Regular single character match.
+                } else { // Regular single character match.
                     char ch(*s), pattern_ch(*pattern);
                     if (ignore_case) {
-                        ch        = tolower(ch);
+                        ch = tolower(ch);
                         pattern_ch = tolower(pattern_ch);
                     }
 
@@ -1161,9 +1153,9 @@ bool Match(const char *pattern, const char *s, bool ignore_case) {
         }
         case '\\': // take next character literally!
             ++pattern;
-            #if __GNUC__ >= 7
+#if __GNUC__ >= 7
             [[fallthrough]];
-            #endif
+#endif
         default: {
             int c1, c2;
             if (ignore_case) {
@@ -1192,9 +1184,7 @@ bool Match(const char *pattern, const char *s, bool ignore_case) {
 }
 
 
-std::string &ReplaceString(const std::string &old_text, const std::string &new_text, std::string * const s,
-                           const bool global)
-{
+std::string &ReplaceString(const std::string &old_text, const std::string &new_text, std::string * const s, const bool global) {
     const std::string::size_type old_text_length(old_text.length());
     if (old_text_length == 0)
         return *s;
@@ -1282,7 +1272,7 @@ bool IsUnsignedDecimalNumber(const std::string &s) {
 //
 std::string ISO8859_15ToUTF8(const std::string &text) {
     std::string result;
-    result.reserve(2*text.length());
+    result.reserve(2 * text.length());
     for (std::string::const_iterator ch(text.begin()); ch != text.end(); ++ch) {
         if (unlikely(*ch == '\xA4')) // Euro sign.
             result += "\xE2\x82\xAC";
@@ -1382,10 +1372,8 @@ char CombineLetterAndDiacriticalMark(const char letter, const char diacritical_m
 // ExtractDiacriticalMark -- attempts to extract a diacritical mark starting at "ch."  If this function fails, it
 // returns "end", otherwise it returns "ch + 1".
 //
-std::string::const_iterator ExtractDiacriticalMark(std::string::const_iterator ch,
-                                                   const std::string::const_iterator &end,
-                                                   char * const diacritical_mark)
-{
+std::string::const_iterator ExtractDiacriticalMark(std::string::const_iterator ch, const std::string::const_iterator &end,
+                                                   char * const diacritical_mark) {
     if (unlikely(*ch != '\xC2'))
         return end;
 
@@ -1405,8 +1393,7 @@ std::string::const_iterator ExtractDiacriticalMark(std::string::const_iterator c
 
 
 std::string UTF8ToISO8859_15(const std::string &text, const char unknown_char, const bool use_overlap_tokens,
-                             const unsigned char overlap_token)
-{
+                             const unsigned char overlap_token) {
     std::string result;
     result.reserve(text.length());
     bool last_code_was_an_overlap_token(false);
@@ -1414,8 +1401,9 @@ std::string UTF8ToISO8859_15(const std::string &text, const char unknown_char, c
         if (use_overlap_tokens and unlikely(static_cast<unsigned char>(*ch) == overlap_token)) {
             // No string must start with an overlap token!
             if (unlikely(ch == text.begin()))
-                throw std::runtime_error("in StringUtil::UTF8ToISO8859_15: found an overlap token at the start of a "
-                                         "UTF-8 string!");
+                throw std::runtime_error(
+                    "in StringUtil::UTF8ToISO8859_15: found an overlap token at the start of a "
+                    "UTF-8 string!");
 
             last_code_was_an_overlap_token = true;
             continue;
@@ -1674,7 +1662,8 @@ bool IsPossiblyUTF8(const std::string &text) {
             }
 
             // Tripplebyte character?
-            else if ((static_cast<unsigned char>(*ch) & 0xF0u) == 0xE0u) {
+            else if ((static_cast<unsigned char>(*ch) & 0xF0u) == 0xE0u)
+            {
                 ++ch;
                 if (unlikely(ch == text.end()))
                     return false;
@@ -1689,7 +1678,8 @@ bool IsPossiblyUTF8(const std::string &text) {
             }
 
             // Quadruplebyte character?
-            else if ((static_cast<unsigned char>(*ch) & 0xF8u) == 0xF0u) {
+            else if ((static_cast<unsigned char>(*ch) & 0xF8u) == 0xF0u)
+            {
                 ++ch;
                 if (unlikely(ch == text.end()))
                     return false;
@@ -1725,26 +1715,266 @@ bool IsPossiblyUTF8(const std::string &text) {
 // Windows 1250 character set and it attempts to map as many as possible to similar ISO 8859-15
 // (a.k.a. Latin-9) characters.
 const char CHAR_MAP[] = {
-    '\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', '\x08', '\x09', '\x0A', '\x0B', '\x0C', '\x0D', '\x0E', '\x0F',
-    '\x10', '\x11', '\x12', '\x13', '\x14', '\x15', '\x16', '\x17', '\x18', '\x19', '\x1A', '\x1B', '\x1C', '\x1D', '\x1E', '\x1F',
-    '\x20', '\x21', '\x22', '\x23', '\x24', '\x25', '\x26', '\x27', '\x28', '\x29', '\x2A', '\x2B', '\x2C', '\x2D', '\x2E', '\x2F',
-    '\x30', '\x31', '\x32', '\x33', '\x34', '\x35', '\x36', '\x37', '\x38', '\x39', '\x3A', '\x3B', '\x3C', '\x3D', '\x3E', '\x3F',
-    '\x40', '\x41', '\x42', '\x43', '\x44', '\x45', '\x46', '\x47', '\x48', '\x49', '\x4A', '\x4B', '\x4C', '\x4D', '\x4E', '\x4F',
-    '\x50', '\x51', '\x52', '\x53', '\x54', '\x55', '\x56', '\x57', '\x58', '\x59', '\x5A', '\x5B', '\x5C', '\x5D', '\x5E', '\x5F',
-    '\x60', '\x61', '\x62', '\x63', '\x64', '\x65', '\x66', '\x67', '\x68', '\x69', '\x6A', '\x6B', '\x6C', '\x6D', '\x6E', '\x6F',
-    '\x70', '\x71', '\x72', '\x73', '\x74', '\x75', '\x76', '\x77', '\x78', '\x79', '\x7A', '\x7B', '\x7C', '\x7D', '\x7E', '\x7F',
+    '\x00',
+    '\x01',
+    '\x02',
+    '\x03',
+    '\x04',
+    '\x05',
+    '\x06',
+    '\x07',
+    '\x08',
+    '\x09',
+    '\x0A',
+    '\x0B',
+    '\x0C',
+    '\x0D',
+    '\x0E',
+    '\x0F',
+    '\x10',
+    '\x11',
+    '\x12',
+    '\x13',
+    '\x14',
+    '\x15',
+    '\x16',
+    '\x17',
+    '\x18',
+    '\x19',
+    '\x1A',
+    '\x1B',
+    '\x1C',
+    '\x1D',
+    '\x1E',
+    '\x1F',
+    '\x20',
+    '\x21',
+    '\x22',
+    '\x23',
+    '\x24',
+    '\x25',
+    '\x26',
+    '\x27',
+    '\x28',
+    '\x29',
+    '\x2A',
+    '\x2B',
+    '\x2C',
+    '\x2D',
+    '\x2E',
+    '\x2F',
+    '\x30',
+    '\x31',
+    '\x32',
+    '\x33',
+    '\x34',
+    '\x35',
+    '\x36',
+    '\x37',
+    '\x38',
+    '\x39',
+    '\x3A',
+    '\x3B',
+    '\x3C',
+    '\x3D',
+    '\x3E',
+    '\x3F',
+    '\x40',
+    '\x41',
+    '\x42',
+    '\x43',
+    '\x44',
+    '\x45',
+    '\x46',
+    '\x47',
+    '\x48',
+    '\x49',
+    '\x4A',
+    '\x4B',
+    '\x4C',
+    '\x4D',
+    '\x4E',
+    '\x4F',
+    '\x50',
+    '\x51',
+    '\x52',
+    '\x53',
+    '\x54',
+    '\x55',
+    '\x56',
+    '\x57',
+    '\x58',
+    '\x59',
+    '\x5A',
+    '\x5B',
+    '\x5C',
+    '\x5D',
+    '\x5E',
+    '\x5F',
+    '\x60',
+    '\x61',
+    '\x62',
+    '\x63',
+    '\x64',
+    '\x65',
+    '\x66',
+    '\x67',
+    '\x68',
+    '\x69',
+    '\x6A',
+    '\x6B',
+    '\x6C',
+    '\x6D',
+    '\x6E',
+    '\x6F',
+    '\x70',
+    '\x71',
+    '\x72',
+    '\x73',
+    '\x74',
+    '\x75',
+    '\x76',
+    '\x77',
+    '\x78',
+    '\x79',
+    '\x7A',
+    '\x7B',
+    '\x7C',
+    '\x7D',
+    '\x7E',
+    '\x7F',
 
     // Mappings from Windows 1250 start.
-    '\xA4', '\x00', '\x27', '\x00', '\x22', '\x00', '\x00', '\x00', '\x00', '\x00', '\xA6', '\x3C', '\x53', '\x54', '\xB4', '\x5A',
-    '\x00', '\x60', '\x27', '\x22', '\x22', '\x00', '\x2D', '\x2D', '\x00', '\x00', '\xA8', '\x3E', '\x73', '\x74', '\xB8', '\x7A',
+    '\xA4',
+    '\x00',
+    '\x27',
+    '\x00',
+    '\x22',
+    '\x00',
+    '\x00',
+    '\x00',
+    '\x00',
+    '\x00',
+    '\xA6',
+    '\x3C',
+    '\x53',
+    '\x54',
+    '\xB4',
+    '\x5A',
+    '\x00',
+    '\x60',
+    '\x27',
+    '\x22',
+    '\x22',
+    '\x00',
+    '\x2D',
+    '\x2D',
+    '\x00',
+    '\x00',
+    '\xA8',
+    '\x3E',
+    '\x73',
+    '\x74',
+    '\xB8',
+    '\x7A',
     // Mappings from Windows 1250 end.
 
-    '\x20', '\xA1', '\xA2', '\xA3', '\xA4', '\xA5', '\xA6', '\xA7', '\xA8', '\xA9', '\xAA', '\xAB', '\xAC', '\xAD', '\xAE', '\xAF',
-    '\xB0', '\xB1', '\xB2', '\xB3', '\xB4', '\xB5', '\xB6', '\xB7', '\xB8', '\xB9', '\xBA', '\xBB', '\xBC', '\xBD', '\xBE', '\xBF',
-    '\xC0', '\xC1', '\xC2', '\xC3', '\xC4', '\xC5', '\xC6', '\xC7', '\xC8', '\xC9', '\xCA', '\xCB', '\xCC', '\xCD', '\xCE', '\xCF',
-    '\xD0', '\xD1', '\xD2', '\xD3', '\xD4', '\xD5', '\xD6', '\xD7', '\xD8', '\xD9', '\xDA', '\xDB', '\xDC', '\xDD', '\xDE', '\xDF',
-    '\xE0', '\xE1', '\xE2', '\xE3', '\xE4', '\xE5', '\xE6', '\xE7', '\xE8', '\xE9', '\xEA', '\xEB', '\xEC', '\xED', '\xEE', '\xEF',
-    '\xF0', '\xF1', '\xF2', '\xF3', '\xF4', '\xF5', '\xF6', '\xF7', '\xF8', '\xF9', '\xFA', '\xFB', '\xFC', '\xFD', '\xFE', '\xFF',
+    '\x20',
+    '\xA1',
+    '\xA2',
+    '\xA3',
+    '\xA4',
+    '\xA5',
+    '\xA6',
+    '\xA7',
+    '\xA8',
+    '\xA9',
+    '\xAA',
+    '\xAB',
+    '\xAC',
+    '\xAD',
+    '\xAE',
+    '\xAF',
+    '\xB0',
+    '\xB1',
+    '\xB2',
+    '\xB3',
+    '\xB4',
+    '\xB5',
+    '\xB6',
+    '\xB7',
+    '\xB8',
+    '\xB9',
+    '\xBA',
+    '\xBB',
+    '\xBC',
+    '\xBD',
+    '\xBE',
+    '\xBF',
+    '\xC0',
+    '\xC1',
+    '\xC2',
+    '\xC3',
+    '\xC4',
+    '\xC5',
+    '\xC6',
+    '\xC7',
+    '\xC8',
+    '\xC9',
+    '\xCA',
+    '\xCB',
+    '\xCC',
+    '\xCD',
+    '\xCE',
+    '\xCF',
+    '\xD0',
+    '\xD1',
+    '\xD2',
+    '\xD3',
+    '\xD4',
+    '\xD5',
+    '\xD6',
+    '\xD7',
+    '\xD8',
+    '\xD9',
+    '\xDA',
+    '\xDB',
+    '\xDC',
+    '\xDD',
+    '\xDE',
+    '\xDF',
+    '\xE0',
+    '\xE1',
+    '\xE2',
+    '\xE3',
+    '\xE4',
+    '\xE5',
+    '\xE6',
+    '\xE7',
+    '\xE8',
+    '\xE9',
+    '\xEA',
+    '\xEB',
+    '\xEC',
+    '\xED',
+    '\xEE',
+    '\xEF',
+    '\xF0',
+    '\xF1',
+    '\xF2',
+    '\xF3',
+    '\xF4',
+    '\xF5',
+    '\xF6',
+    '\xF7',
+    '\xF8',
+    '\xF9',
+    '\xFA',
+    '\xFB',
+    '\xFC',
+    '\xFD',
+    '\xFE',
+    '\xFF',
 };
 
 
@@ -1776,7 +2006,7 @@ std::string WordWrap(const std::string &text, const unsigned target_length) {
     std::string new_text("");
     std::string::size_type line_start(0), line_end, spaceAt;
 
-    while(line_start != std::string::npos and line_start < text.length()) {
+    while (line_start != std::string::npos and line_start < text.length()) {
         line_end = text.find("\n", line_start);
 
         // If this was the last line, we're done
@@ -1801,7 +2031,6 @@ std::string WordWrap(const std::string &text, const unsigned target_length) {
             new_text += text.substr(line_start, line_end - line_start + 1);
 
         line_start = line_end + 1;
-
     }
     return new_text;
 }
@@ -1864,7 +2093,7 @@ unsigned EditDistance(const std::string &s1, const std::string &s2) {
     std::string::size_type distance(0);
 
     if (TABLEAU_SIZE > MAX_STACK_TABLEAU_SIZE)
-        delete [] distances;
+        delete[] distances;
 
     return distance;
 }
@@ -1890,7 +2119,7 @@ std::string LongestCommonSubstring(const std::string &s1, const std::string &s2)
                         break;
                 }
 
-                if(current_length > longest_common_substring.length())
+                if (current_length > longest_common_substring.length())
                     longest_common_substring = s2.substr(j, current_length);
 
                 current_length = 0;
@@ -1904,8 +2133,7 @@ std::string LongestCommonSubstring(const std::string &s1, const std::string &s2)
 
 std::string Md5(const std::string &s) {
     char cryptographic_hash[MD5_DIGEST_LENGTH];
-    MD5(reinterpret_cast<const unsigned char *>(s.c_str()), s.length(),
-        reinterpret_cast<unsigned char *>(cryptographic_hash));
+    MD5(reinterpret_cast<const unsigned char *>(s.c_str()), s.length(), reinterpret_cast<unsigned char *>(cryptographic_hash));
 
     return std::string(cryptographic_hash, MD5_DIGEST_LENGTH);
 }
@@ -1913,8 +2141,7 @@ std::string Md5(const std::string &s) {
 
 uint64_t Md5As64Bits(const std::string &s) {
     uint64_t cryptographic_hash[MD5_DIGEST_LENGTH / sizeof(uint64_t)];
-    MD5(reinterpret_cast<const unsigned char *>(s.c_str()), s.length(),
-        reinterpret_cast<unsigned char *>(cryptographic_hash));
+    MD5(reinterpret_cast<const unsigned char *>(s.c_str()), s.length(), reinterpret_cast<unsigned char *>(cryptographic_hash));
 
     uint64_t folded_hash(cryptographic_hash[0]);
     for (unsigned i(1); i < (MD5_DIGEST_LENGTH / sizeof(uint64_t)); ++i)
@@ -1925,8 +2152,7 @@ uint64_t Md5As64Bits(const std::string &s) {
 
 std::string Sha1(const std::string &s) {
     char cryptographic_hash[SHA_DIGEST_LENGTH];
-    ::SHA1(reinterpret_cast<const unsigned char *>(s.c_str()), s.length(),
-           reinterpret_cast<unsigned char *>(cryptographic_hash));
+    ::SHA1(reinterpret_cast<const unsigned char *>(s.c_str()), s.length(), reinterpret_cast<unsigned char *>(cryptographic_hash));
 
     return std::string(cryptographic_hash, SHA_DIGEST_LENGTH);
 }
@@ -1937,13 +2163,10 @@ size_t Sha1Hash(const std::string &s) {
     char cryptographic_hash[SHA_DIGEST_LENGTH + (remainder == 0 ? 0 : sizeof(size_t) - remainder)];
     if (remainder != 0)
         __builtin_memset(cryptographic_hash + SHA_DIGEST_LENGTH, '\0', remainder);
-    ::SHA1(reinterpret_cast<const unsigned char *>(s.c_str()), s.length(),
-           reinterpret_cast<unsigned char *>(cryptographic_hash));
+    ::SHA1(reinterpret_cast<const unsigned char *>(s.c_str()), s.length(), reinterpret_cast<unsigned char *>(cryptographic_hash));
 
     size_t hash(0);
-    for (const char *cp = cryptographic_hash; cp < cryptographic_hash + SHA_DIGEST_LENGTH + remainder;
-         cp += sizeof(size_t))
-    {
+    for (const char *cp = cryptographic_hash; cp < cryptographic_hash + SHA_DIGEST_LENGTH + remainder; cp += sizeof(size_t)) {
         size_t temp;
         __builtin_memcpy(&temp, cp, sizeof temp);
         hash ^= temp;
@@ -1956,7 +2179,7 @@ size_t Sha1Hash(const std::string &s) {
 #define get16bits(d) ((((uint32_t)(((const uint8_t *)(d))[1])) << 8) + (uint32_t)(((const uint8_t *)(d))[0]))
 
 
-uint32_t SuperFastHash(const char * data, unsigned len) {
+uint32_t SuperFastHash(const char *data, unsigned len) {
     uint32_t hash = len, tmp;
     int rem;
 
@@ -1968,25 +2191,28 @@ uint32_t SuperFastHash(const char * data, unsigned len) {
 
     /* Main loop */
     for (; len > 0; len--) {
-        hash  += get16bits (data);
-        tmp    = (get16bits (data+2) << 11) ^ hash;
-        hash   = (hash << 16) ^ tmp;
-        data  += 2*sizeof (uint16_t);
-        hash  += hash >> 11;
+        hash += get16bits(data);
+        tmp = (get16bits(data + 2) << 11) ^ hash;
+        hash = (hash << 16) ^ tmp;
+        data += 2 * sizeof(uint16_t);
+        hash += hash >> 11;
     }
 
     /* Handle end cases */
     switch (rem) {
-    case 3: hash += get16bits (data);
+    case 3:
+        hash += get16bits(data);
         hash ^= hash << 16;
-        hash ^= data[sizeof (uint16_t)] << 18;
+        hash ^= data[sizeof(uint16_t)] << 18;
         hash += hash >> 11;
         break;
-    case 2: hash += get16bits (data);
+    case 2:
+        hash += get16bits(data);
         hash ^= hash << 11;
         hash += hash >> 17;
         break;
-    case 1: hash += *data;
+    case 1:
+        hash += *data;
         hash ^= hash << 10;
         hash += hash >> 1;
     }
@@ -2006,7 +2232,7 @@ uint32_t SuperFastHash(const char * data, unsigned len) {
 uint32_t Adler32(const char * const s, const size_t s_length) {
     const uint32_t MOD_ADLER(65521u);
     const uint8_t *data(reinterpret_cast<const uint8_t *>(s)); // Pointer to the data to be summed.
-    size_t len(s_length);                                            // Length in bytes.
+    size_t len(s_length);                                      // Length in bytes.
     uint32_t low(1), high(0);
 
     while (len) {
@@ -2016,7 +2242,7 @@ uint32_t Adler32(const char * const s, const size_t s_length) {
             low += *data++;
             high += low;
         } while (--tlen);
-        low  = (low & 0xffffu)  + (low >> 16)  * (65536u - MOD_ADLER);
+        low = (low & 0xffffu) + (low >> 16) * (65536u - MOD_ADLER);
         high = (high & 0xffffu) + (high >> 16) * (65536u - MOD_ADLER);
     }
 
@@ -2068,10 +2294,8 @@ std::string &Escape(const char escape_char, const char char_to_escape, std::stri
 }
 
 
-bool SplitOnString(const std::string &s, const std::string &separator, std::string * const part1,
-                   std::string * const part2,
-                   const bool allow_empty_parts)
-{
+bool SplitOnString(const std::string &s, const std::string &separator, std::string * const part1, std::string * const part2,
+                   const bool allow_empty_parts) {
     const std::string::size_type separator_pos(s.find(separator));
     if (separator_pos == std::string::npos)
         return false;
@@ -2088,9 +2312,8 @@ bool SplitOnString(const std::string &s, const std::string &separator, std::stri
 }
 
 
-bool SplitOnStringThenTrim(const std::string &s, const std::string &separator, const std::string &trim_chars,
-                           std::string * const part1, std::string * const part2, const bool allow_empty_parts)
-{
+bool SplitOnStringThenTrim(const std::string &s, const std::string &separator, const std::string &trim_chars, std::string * const part1,
+                           std::string * const part2, const bool allow_empty_parts) {
     const std::string::size_type separator_pos(s.find(separator));
     if (separator_pos == std::string::npos)
         return false;
@@ -2242,9 +2465,8 @@ inline bool IsInitialWordChar(const char ch) {
 // IsWordChar -- returns true if "ch" is considered to be a character of a "word".  ("Words" in this context include
 //               numbers).  Helper function for StringUtil::InitialCapsWords.
 //
-inline bool IsWordChar(const char ch)
-{
-        return StringUtil::IsAlphanumeric(ch) or ch == '-' or ch == '\'';
+inline bool IsWordChar(const char ch) {
+    return StringUtil::IsAlphanumeric(ch) or ch == '-' or ch == '\'';
 }
 
 
@@ -2330,11 +2552,10 @@ char *FastFormat(void *buffer, const size_t max_length, const char *format, ...)
 }
 
 
-std::string Format(const char *format, ...){
+std::string Format(const char *format, ...) {
     size_t bufsize(1024);
 
     for (;;) {
-
         char * const buffer(reinterpret_cast<char *>(::alloca(bufsize)));
 
         va_list args;
@@ -2382,21 +2603,18 @@ std::string::size_type FindAnyOf(const std::string &test_string, const std::stri
 }
 
 
-std::string::size_type RFindAnyOf(const std::string &test_string, const std::string &match_set)
-{
-        for (std::string::const_reverse_iterator ch(test_string.rbegin()); ch != test_string.rend(); ++ch) {
-                const std::string::size_type match_pos(match_set.find(*ch));
-                if (match_pos != std::string::npos)
-                        return test_string.rend() - ch - 1;
-        }
+std::string::size_type RFindAnyOf(const std::string &test_string, const std::string &match_set) {
+    for (std::string::const_reverse_iterator ch(test_string.rbegin()); ch != test_string.rend(); ++ch) {
+        const std::string::size_type match_pos(match_set.find(*ch));
+        if (match_pos != std::string::npos)
+            return test_string.rend() - ch - 1;
+    }
 
-        return std::string::npos;
+    return std::string::npos;
 }
 
 
-std::string::size_type NthWordByteOffset(const std::string &target, const size_t nth,
-                                         const std::string &word_separator_characters)
-{
+std::string::size_type NthWordByteOffset(const std::string &target, const size_t nth, const std::string &word_separator_characters) {
     std::string::size_type word_offset(0);
 
     for (std::string::const_iterator index(target.begin()); index != target.end(); ++index) {
@@ -2416,7 +2634,6 @@ std::string::size_type NthWordByteOffset(const std::string &target, const size_t
         // Aha, found a word separator.  Increment our word_offset and check if we are done:
         if (word_offset >= nth)
             return index - target.begin();
-
     }
 
     return std::string::npos;
@@ -2431,9 +2648,8 @@ std::string Context(const std::string &text, const std::string::size_type offset
 }
 
 
-std::string ExtractSensibleSubphrase(const std::string &source_text, const std::string &delimiters,
-                                     const unsigned minimum, const unsigned maximum)
-{
+std::string ExtractSensibleSubphrase(const std::string &source_text, const std::string &delimiters, const unsigned minimum,
+                                     const unsigned maximum) {
     // If the source_text is smaller than our minimum requirement, consider that as one of the conditions for a "good phrase".
     if (minimum > source_text.size())
         return source_text;
@@ -2629,8 +2845,7 @@ std::string CStyleUnescape(const std::string &escaped_text) {
                 octal_digits += *ch;
                 unsigned char_value;
                 if (unlikely(not StringUtil::ToUnsigned(octal_digits, &char_value, 8)))
-                    throw std::runtime_error("in StringUtil::CStyleUnescape: bad octal escape (\\0" + octal_digits
-                                             + ")!");
+                    throw std::runtime_error("in StringUtil::CStyleUnescape: bad octal escape (\\0" + octal_digits + ")!");
                 unescaped_text += static_cast<char>(char_value);
             } else {
                 switch (*ch) {
@@ -2665,12 +2880,10 @@ std::string CStyleUnescape(const std::string &escaped_text) {
                     unescaped_text += '"';
                     break;
                 default:
-                    throw std::runtime_error("in StringUtil::CStyleUnescape: unknown escape '\\" + CStyleEscape(*ch)
-                                             + "' (2)!");
+                    throw std::runtime_error("in StringUtil::CStyleUnescape: unknown escape '\\" + CStyleEscape(*ch) + "' (2)!");
                 }
             }
-        }
-        else
+        } else
             unescaped_text += *ch;
     }
 
@@ -2721,8 +2934,7 @@ static inline bool CaseInsensitiveEqual(const char ch1, const char ch2) {
 
 
 size_t FindCaseInsensitive(const std::string &haystack, const std::string &needle, const size_t search_start_pos) {
-    const auto iter(std::search(haystack.begin() + search_start_pos, haystack.end(), needle.begin(), needle.end(),
-                                CaseInsensitiveEqual));
+    const auto iter(std::search(haystack.begin() + search_start_pos, haystack.end(), needle.begin(), needle.end(), CaseInsensitiveEqual));
     return iter == haystack.end() ? std::string::npos : iter - haystack.begin();
 }
 
@@ -2740,9 +2952,7 @@ std::string Filter(const std::string &source, const std::string &remove_set) {
 }
 
 
-std::string &ReplaceSection(std::string * const s, const size_t start_index, const size_t section_length,
-                            const std::string &replacement)
-{
+std::string &ReplaceSection(std::string * const s, const size_t start_index, const size_t section_length, const std::string &replacement) {
     if (unlikely(start_index + section_length > s->length()))
         throw std::out_of_range("in StringUtil::ReplaceSection: impossible replacement request!");
 
@@ -2799,21 +3009,10 @@ std::string ShortenText(const std::string &text, const size_t max_length) {
 }
 
 
-static const std::map<std::string, unsigned> ROMAN_NUMERAL_TO_DECIMAL_MAP {
-    { "I" , 1    },
-    { "IV", 4    },
-    { "V" , 5    },
-    { "IX", 9    },
-    { "X" , 10   },
-    { "XL", 40   },
-    { "L" , 50   },
-    { "XC", 90   },
-    { "C" , 100  },
-    { "CD", 400  },
-    { "D" , 500  },
-    { "CM", 900  },
-    { "M",  1000 }
-};
+static const std::map<std::string, unsigned> ROMAN_NUMERAL_TO_DECIMAL_MAP{ { "I", 1 },   { "IV", 4 },   { "V", 5 },   { "IX", 9 },
+                                                                           { "X", 10 },  { "XL", 40 },  { "L", 50 },  { "XC", 90 },
+                                                                           { "C", 100 }, { "CD", 400 }, { "D", 500 }, { "CM", 900 },
+                                                                           { "M", 1000 } };
 
 
 unsigned RomanNumeralToDecimal(const std::string &s) {
@@ -2842,9 +3041,7 @@ unsigned RomanNumeralToDecimal(const std::string &s) {
 std::string GenerateRandom(const size_t length, const std::string &alphabet) {
     std::default_random_engine random_engine(std::random_device{}());
     std::uniform_int_distribution<> distribution(0, alphabet.size() - 1);
-    const auto get_random_character = [ alphabet, &distribution, &random_engine ](){
-        return alphabet[distribution(random_engine)];
-    };
+    const auto get_random_character = [alphabet, &distribution, &random_engine]() { return alphabet[distribution(random_engine)]; };
     std::string generated_string(length, '\0');
     std::generate_n(generated_string.begin(), length, get_random_character);
     return generated_string;

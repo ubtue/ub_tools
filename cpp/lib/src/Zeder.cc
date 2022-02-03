@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #include "Zeder.h"
 #include <cmath>
 #include "Downloader.h"
@@ -58,7 +58,8 @@ const std::string &Entry::getAttribute(const std::string &name, const std::strin
 
 void Entry::setAttribute(const std::string &name, const std::string &value, bool overwrite) {
     if (attributes_.find(name) == attributes_.end() or overwrite)
-        attributes_[name] = StringUtil::Map(value, Zeder::ATTRIBUTE_INVALID_CHARS, std::string(Zeder::ATTRIBUTE_INVALID_CHARS.length(), '_'));
+        attributes_[name] =
+            StringUtil::Map(value, Zeder::ATTRIBUTE_INVALID_CHARS, std::string(Zeder::ATTRIBUTE_INVALID_CHARS.length(), '_'));
     else
         LOG_ERROR("Attribute '" + name + "' already exists in entry " + std::to_string(id_));
 }
@@ -103,10 +104,11 @@ std::string Entry::prettyPrint() const {
 void Entry::DiffResult::prettyPrint(std::string * const print_buffer) const {
     *print_buffer = "Diff " + std::to_string(id_) + ":\n";
 
-    char time_string_buffer[19 + 1]{};  // YYYY-MM-DD hh:mm:ss
+    char time_string_buffer[19 + 1]{}; // YYYY-MM-DD hh:mm:ss
     std::strftime(time_string_buffer, sizeof(time_string_buffer), MODIFIED_TIMESTAMP_FORMAT_STRING, &last_modified_timestamp_);
-    *print_buffer += "\tTimestamp: " + std::string(time_string_buffer) + " (" + (timestamp_is_newer_ ? "newer than the current revision by " :
-                     "older than the current revision by ") + std::to_string(std::fabs(timestamp_time_difference_)) + " days)\n\n";
+    *print_buffer += "\tTimestamp: " + std::string(time_string_buffer) + " ("
+                     + (timestamp_is_newer_ ? "newer than the current revision by " : "older than the current revision by ")
+                     + std::to_string(std::fabs(timestamp_time_difference_)) + " days)\n\n";
 
     for (const auto &attribute : modified_attributes_) {
         if (not attribute.second.first.empty())
@@ -126,8 +128,8 @@ std::string Entry::DiffResult::prettyPrint() const {
 
 Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool skip_timestamp_check) {
     if (lhs.getId() != rhs.getId())
-        LOG_ERROR("Can only diff revisions of the same entry! LHS = " + std::to_string(lhs.getId()) + ", RHS = "
-                  + std::to_string(rhs.getId()));
+        LOG_ERROR("Can only diff revisions of the same entry! LHS = " + std::to_string(lhs.getId())
+                  + ", RHS = " + std::to_string(rhs.getId()));
 
     DiffResult delta;
     delta.id_ = rhs.getId();
@@ -166,14 +168,14 @@ Entry::DiffResult Entry::Diff(const Entry &lhs, const Entry &rhs, const bool ski
 
 void Entry::Merge(const DiffResult &delta, Entry * const merge_into) {
     if (delta.id_ != merge_into->getId()) {
-        LOG_ERROR("ID mismatch between diff and entry. Diff  = " + std::to_string(delta.id_) +
-                  ", Entry = " + std::to_string(merge_into->getId()));
+        LOG_ERROR("ID mismatch between diff and entry. Diff  = " + std::to_string(delta.id_)
+                  + ", Entry = " + std::to_string(merge_into->getId()));
     }
 
     if (not delta.timestamp_is_newer_) {
         const auto time_difference(TimeUtil::DiffStructTm(delta.last_modified_timestamp_, merge_into->getLastModifiedTimestamp()));
-        LOG_WARNING("Diff of entry " + std::to_string(delta.id_) + " is not newer than the source revision. " +
-                    "Timestamp difference: " + std::to_string(std::abs(time_difference)) + " days");
+        LOG_WARNING("Diff of entry " + std::to_string(delta.id_) + " is not newer than the source revision. "
+                    + "Timestamp difference: " + std::to_string(std::abs(time_difference)) + " days");
     }
 
     merge_into->setModifiedTimestamp(delta.last_modified_timestamp_);
@@ -198,20 +200,19 @@ FileType GetFileTypeFromPath(const std::string &path, bool check_if_file_exists)
     if (check_if_file_exists and not FileUtil::Exists(path))
         LOG_ERROR("file '" + path + "' not found");
 
-    if (StringUtil::EndsWith(path, ".csv", /* ignore_case = */true))
+    if (StringUtil::EndsWith(path, ".csv", /* ignore_case = */ true))
         return FileType::CSV;
-    if (StringUtil::EndsWith(path, ".json", /* ignore_case = */true))
+    if (StringUtil::EndsWith(path, ".json", /* ignore_case = */ true))
         return FileType::JSON;
-    if (StringUtil::EndsWith(path, ".conf", /* ignore_case = */true) or StringUtil::EndsWith(path, ".ini", /* ignore_case = */true) )
+    if (StringUtil::EndsWith(path, ".conf", /* ignore_case = */ true) or StringUtil::EndsWith(path, ".ini", /* ignore_case = */ true))
         return FileType::INI;
 
     LOG_ERROR("can't guess the file type of \"" + path + "\"!");
 }
 
 
-const std::map<Importer::MandatoryField, std::string> Importer::MANDATORY_FIELD_TO_STRING_MAP {
-    { Importer::MandatoryField::Z,     "Z"     },
-    { Importer::MandatoryField::MTIME, "Mtime" }
+const std::map<Importer::MandatoryField, std::string> Importer::MANDATORY_FIELD_TO_STRING_MAP{
+    { Importer::MandatoryField::Z, "Z" }, { Importer::MandatoryField::MTIME, "Mtime" }
 };
 
 
@@ -249,9 +250,8 @@ void CsvReader::parse(EntryCollection * const collection) {
             for (unsigned i(0); i < columns.size(); ++i)
                 debug_data += columns.at(i) + "\t" + (i < splits.size() ? splits.at(i) : "<MISSING>") + "\n";
 
-            LOG_ERROR("column length mismatch on line " + std::to_string(line) + "! expected " +
-                      std::to_string(columns.size()) + ", found " + std::to_string(splits.size()) +
-                      ". debug data:\n" + debug_data);
+            LOG_ERROR("column length mismatch on line " + std::to_string(line) + "! expected " + std::to_string(columns.size()) + ", found "
+                      + std::to_string(splits.size()) + ". debug data:\n" + debug_data);
         }
 
         // the first and last columns are Z and Mtime respectively
@@ -266,7 +266,7 @@ void CsvReader::parse(EntryCollection * const collection) {
 
         for (size_t i(1); i < splits.size() - 1; ++i) {
             const auto &attribute_name(columns[i]);
-            const auto &attribute_value (splits[i]);
+            const auto &attribute_value(splits[i]);
             new_entry.setAttribute(attribute_name, attribute_value);
         }
 
@@ -308,8 +308,8 @@ void IniReader::parse(EntryCollection * const collection) {
             } else {
                 const auto attribute_name(params->key_to_attribute_map_.find(entry.name_));
                 if (attribute_name == params->key_to_attribute_map_.end()) {
-                    LOG_DEBUG("Key '" + entry.name_ + "' has no corresponding Zeder attribute. Section: '" +
-                              section_name + "', value: '" + entry.value_ + "'");
+                    LOG_DEBUG("Key '" + entry.name_ + "' has no corresponding Zeder attribute. Section: '" + section_name + "', value: '"
+                              + entry.value_ + "'");
                 } else
                     new_entry.setAttribute(attribute_name->second, entry.value_);
             }
@@ -440,7 +440,7 @@ std::unique_ptr<EndpointDownloader> EndpointDownloader::Factory(Type downloader_
     switch (downloader_type) {
     case FULL_DUMP:
         return std::unique_ptr<EndpointDownloader>(new FullDumpDownloader(std::move(params)));
-     default:
+    default:
         LOG_ERROR("Endpoint downloader not implemented for type " + std::to_string(downloader_type));
     }
 }
@@ -449,9 +449,7 @@ std::unique_ptr<EndpointDownloader> EndpointDownloader::Factory(Type downloader_
 FullDumpDownloader::Params::Params(const std::string &endpoint_path, const std::unordered_set<unsigned> &entries_to_download,
                                    const std::unordered_set<std::string> &columns_to_download,
                                    const std::unordered_map<std::string, std::string> &filter_regexps)
-    : EndpointDownloader::Params(endpoint_path), entries_to_download_(entries_to_download),
-      columns_to_download_(columns_to_download)
-{
+    : EndpointDownloader::Params(endpoint_path), entries_to_download_(entries_to_download), columns_to_download_(columns_to_download) {
     for (const auto &filter_pair : filter_regexps) {
         std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactoryOrDie(filter_pair.second));
         filter_regexps_.insert(std::make_pair(filter_pair.first, std::move(matcher)));
@@ -480,16 +478,15 @@ bool FullDumpDownloader::downloadData(const std::string &endpoint_url, std::shar
     case 4:
     case 5:
     case 9:
-        LOG_WARNING("Couldn't download full from endpoint '" + endpoint_url + "'! Error Code: "
-                    + std::to_string(downloader.getResponseCode()));
+        LOG_WARNING("Couldn't download full from endpoint '" + endpoint_url
+                    + "'! Error Code: " + std::to_string(downloader.getResponseCode()));
         return false;
     }
 
     JSON::Parser json_parser(downloader.getMessageBody());
     std::shared_ptr<JSON::JSONNode> tree_root;
     if (not json_parser.parse(&tree_root)) {
-        LOG_WARNING("Couldn't parse JSON response from endpoint '" + endpoint_url + "'! Error: "
-                    + json_parser.getErrorMessage());
+        LOG_WARNING("Couldn't parse JSON response from endpoint '" + endpoint_url + "'! Error: " + json_parser.getErrorMessage());
         return false;
     }
 
@@ -501,7 +498,8 @@ bool FullDumpDownloader::downloadData(const std::string &endpoint_url, std::shar
             return false;
         }
     } else {
-        LOG_WARNING("root not of type Object_Node in JSON response from endpoint '" + endpoint_url + "'! Error: " + tree_root.get()->toString());
+        LOG_WARNING("root not of type Object_Node in JSON response from endpoint '" + endpoint_url
+                    + "'! Error: " + tree_root.get()->toString());
         return false;
     }
 
@@ -510,8 +508,7 @@ bool FullDumpDownloader::downloadData(const std::string &endpoint_url, std::shar
 
 
 void FullDumpDownloader::parseColumnMetadata(const std::shared_ptr<JSON::ObjectNode> &json_data,
-                                             std::unordered_map<std::string, ColumnMetadata> * const column_to_metadata_map)
-{
+                                             std::unordered_map<std::string, ColumnMetadata> * const column_to_metadata_map) {
     static const std::unordered_set<std::string> valid_column_types{ "text", "multi", "dropdown" };
 
     for (const auto &metadata : *(json_data->getArrayNode("meta"))) {
@@ -536,8 +533,7 @@ void FullDumpDownloader::parseColumnMetadata(const std::shared_ptr<JSON::ObjectN
 
 void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<JSON::ObjectNode> &json_data,
                                    const std::unordered_map<std::string, ColumnMetadata> &column_to_metadata_map,
-                                   EntryCollection * const collection)
-{
+                                   EntryCollection * const collection) {
     // Validate short column names:
     for (const auto &short_column_name : params.columns_to_download_) {
         if (column_to_metadata_map.find(short_column_name) == column_to_metadata_map.cend())
@@ -561,7 +557,8 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
 
         for (const auto &field : *data_wrapper) {
             std::string column_name(field.first);
-            if (not params.columns_to_download_.empty() and params.columns_to_download_.find(column_name) == params.columns_to_download_.end())
+            if (not params.columns_to_download_.empty()
+                and params.columns_to_download_.find(column_name) == params.columns_to_download_.end())
                 continue;
             else if (column_name == "DT_RowId" || column_name == "Mtime")
                 continue;
@@ -632,8 +629,8 @@ void FullDumpDownloader::parseRows(const Params &params, const std::shared_ptr<J
 }
 
 
-bool IsCacheUpToDate(const std::string &zeder_cache_path, std::shared_ptr<JSON::ObjectNode> *const json_cached_data,
-                     bool *const cache_present) {
+bool IsCacheUpToDate(const std::string &zeder_cache_path, std::shared_ptr<JSON::ObjectNode> * const json_cached_data,
+                     bool * const cache_present) {
     timespec mtim, now;
     clock_gettime(CLOCK_REALTIME, &now);
     std::string json_document;
@@ -668,8 +665,8 @@ bool IsCacheUpToDate(const std::string &zeder_cache_path, std::shared_ptr<JSON::
 }
 
 
-bool FullDumpDownloader::download(EntryCollection *const collection, const bool disable_cache_mechanism) {
-    const auto params(dynamic_cast<FullDumpDownloader::Params *const>(downloader_params_.get()));
+bool FullDumpDownloader::download(EntryCollection * const collection, const bool disable_cache_mechanism) {
+    const auto params(dynamic_cast<FullDumpDownloader::Params * const>(downloader_params_.get()));
     if (unlikely(params == nullptr))
         LOG_ERROR("dynamic_cast failed!");
 
@@ -713,9 +710,10 @@ bool FullDumpDownloader::download(EntryCollection *const collection, const bool 
 
 
 std::string GetFullDumpEndpointPath(Flavour zeder_flavour) {
-    //if the URL changes FullDumpDownloader::download might also be changed
-    static const std::string endpoint_base_url("http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?"
-                                               "action=get&Dimension=wert&Bearbeiter=&Instanz=");
+    // if the URL changes FullDumpDownloader::download might also be changed
+    static const std::string endpoint_base_url(
+        "http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?"
+        "action=get&Dimension=wert&Bearbeiter=&Instanz=");
     switch (zeder_flavour) {
     case IXTHEO:
         return endpoint_base_url + "ixtheo";
@@ -749,8 +747,7 @@ Flavour ParseFlavour(const std::string &flavour, const bool case_sensitive) {
 
 
 SimpleZeder::SimpleZeder(const Flavour flavour, const std::unordered_set<std::string> &column_filter,
-                         const std::unordered_map<std::string, std::string>  &filter_regexps)
-    {
+                         const std::unordered_map<std::string, std::string> &filter_regexps) {
     const auto endpoint_url(GetFullDumpEndpointPath(flavour));
     const std::unordered_set<unsigned> entries_to_download; // empty means all entries
     std::unique_ptr<FullDumpDownloader::Params> downloader_params(
@@ -770,12 +767,8 @@ void UploadArticleList(const std::string &json_path, const std::string &data_sou
     // - The "Stamm" parameter which is shown in the frontend can be ignored completely.
     // - Therefore, we must add "s_stufe=2", which triggers the processing of the uploaded file (can't be added to the URL.)
     const std::string curl(ExecUtil::Which("curl"));
-    ExecUtil::ExecOrDie(curl, { "--request", "POST",
-                                "--header", "Content-Type: multipart/form-data",
-                                "--form", "s_stufe=2",
-                                "--form", "Datenquelle=" + data_source,
-                                "--form", "Datei=@" + json_path,
-                                upload_url });
+    ExecUtil::ExecOrDie(curl, { "--request", "POST", "--header", "Content-Type: multipart/form-data", "--form", "s_stufe=2", "--form",
+                                "Datenquelle=" + data_source, "--form", "Datei=@" + json_path, upload_url });
 }
 
 

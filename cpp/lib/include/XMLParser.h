@@ -20,14 +20,13 @@
 #pragma once
 
 
+#include <deque>
 #include <exception>
 #include <map>
 #include <memory>
-#include <deque>
 #include <set>
 #include <string>
 #include <unordered_map>
-
 #include <xercesc/framework/XMLPScanToken.hpp>
 #include <xercesc/parsers/SAXParser.hpp>
 #include <xercesc/sax/HandlerBase.hpp>
@@ -45,6 +44,7 @@ class XMLParser final {
     bool body_has_more_contents_;
     unsigned open_elements_;
     std::unordered_map<std::string, std::string> tag_aliases_to_canonical_tags_map_;
+
 public:
     class Error : public std::runtime_error {
     public:
@@ -82,6 +82,7 @@ public:
         inline bool isClosingTag(const std::string &tag) const { return type_ == CLOSING_TAG and data_ == tag; }
         inline bool isCharacters() const { return type_ == CHARACTERS; }
     };
+
 private:
     Type type_;
     Options options_;
@@ -94,6 +95,7 @@ private:
         friend class XMLParser;
         XMLParser *parser_;
         inline off_t getOffset() { return static_cast<off_t>(parser_->parser_->getSrcOffset()); }
+
     public:
         void characters(const XMLCh * const chars, const XMLSize_t length);
         void endElement(const XMLCh * const name);
@@ -110,11 +112,12 @@ private:
             message += ": " + XMLParser::ToStdString(exc.getMessage());
             return message;
         }
+
     public:
         void warning(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToStdString(exc.getMessage())); }
         void error(const xercesc::SAXParseException &exc) { LOG_WARNING(XMLParser::ToStdString(exc.getMessage())); }
         void fatalError(const xercesc::SAXParseException &exc) { XMLParser::ConvertAndThrowException(exc); }
-        void resetErrors() {}
+        void resetErrors() { }
     };
 
     Handler *handler_;
@@ -129,6 +132,7 @@ private:
 
     /** \brief  converts xerces' internal string type to std::string. */
     static std::string ToStdString(const XMLCh * const xmlch);
+
 public:
     explicit XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options = DEFAULT_OPTIONS);
     ~XMLParser();
@@ -155,8 +159,9 @@ public:
      *  \note After a call to this function, keys and values in "tag_aliases_to_canonical_tags_map" will be considered as equivalent.
      *        All returned tag names will be the canonical names.
      */
-    inline void setTagAliases(const std::unordered_map<std::string, std::string> &tag_aliases_to_canonical_tags_map)
-        { tag_aliases_to_canonical_tags_map_ = tag_aliases_to_canonical_tags_map; }
+    inline void setTagAliases(const std::unordered_map<std::string, std::string> &tag_aliases_to_canonical_tags_map) {
+        tag_aliases_to_canonical_tags_map_ = tag_aliases_to_canonical_tags_map;
+    }
 
     /** \return true if there are more elements to parse, o/w false.
      *  \param  guard_opening_tags  Contains a set of opening tags.  If any of these tags is encountered, parsing will stop and this
@@ -169,8 +174,9 @@ public:
                  const std::set<std::string> &guard_opening_tags = {});
 
     inline bool getNext(XMLPart * const next, const std::set<std::string> &guard_opening_tags,
-                        const bool combine_consecutive_characters = true)
-        { return getNext(next, combine_consecutive_characters, guard_opening_tags); }
+                        const bool combine_consecutive_characters = true) {
+        return getNext(next, combine_consecutive_characters, guard_opening_tags);
+    }
 
 
     /** \brief Skip forward until we encounter a certain element.
@@ -182,8 +188,8 @@ public:
      *  \param skipped_data   If not NULL, the skipped over XML data will be appended here.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
-    bool skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags = {},
-                XMLPart * const part = nullptr, std::string * const skipped_data = nullptr);
+    bool skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags = {}, XMLPart * const part = nullptr,
+                std::string * const skipped_data = nullptr);
 
     /** \brief Skip forward until we encounter a certain element.
      *  \param expected_type  The type of element we're looking for.
@@ -193,9 +199,8 @@ public:
      *  \param skipped_data   If not NULL, the skipped over XML data will be appended here.
      *  \return False if we encountered END_OF_DOCUMENT before finding what we're looking for, else true.
      */
-    inline bool skipTo(const XMLPart::Type expected_type, const std::string &expected_tag = "",
-                       XMLPart * const part = nullptr, std::string * const skipped_data = nullptr)
-    {
+    inline bool skipTo(const XMLPart::Type expected_type, const std::string &expected_tag = "", XMLPart * const part = nullptr,
+                       std::string * const skipped_data = nullptr) {
         if (expected_tag.empty())
             return skipTo(expected_type, std::set<std::string>{}, part, skipped_data);
         else

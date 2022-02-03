@@ -39,7 +39,7 @@ namespace MapUtil {
 std::string Escape(const std::string &s);
 
 
-template<typename KeyType, typename ValueType>
+template <typename KeyType, typename ValueType>
 inline bool Contains(const std::unordered_multimap<KeyType, ValueType> &multimap, const KeyType &key, const ValueType &value) {
     const auto range(multimap.equal_range(key));
     for (auto key_and_value(range.first); key_and_value != range.second; ++key_and_value) {
@@ -51,7 +51,8 @@ inline bool Contains(const std::unordered_multimap<KeyType, ValueType> &multimap
 
 
 /** \brief Writes "map" to "output_filename" in a format that can be red in by DeserialiseMap(). */
-template<typename MapType> void SerialiseMap(const std::string &output_filename, const MapType &map) {
+template <typename MapType>
+void SerialiseMap(const std::string &output_filename, const MapType &map) {
     std::ofstream output(output_filename, std::ofstream::out | std::ofstream::trunc);
     if (output.fail())
         LOG_ERROR("Failed to open \"" + output_filename + "\" for writing!");
@@ -81,7 +82,8 @@ void WriteEntry(File * const map_file, const std::string &key, const std::string
 
 
 // Useful for debugging..
-template<typename MapType> std::string MapToString(const MapType &map) {
+template <typename MapType>
+std::string MapToString(const MapType &map) {
     std::string map_as_string;
 
     for (const auto &key_and_value : map) {

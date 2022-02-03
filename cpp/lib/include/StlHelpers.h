@@ -62,7 +62,8 @@ namespace StlHelpers {
  *         Most of the algorithms in this file take an PtrOrRef as a parameter. This makes it so that you can pass
  *         either a reference, an instance or a pointer to any of the functions and they will work just the same.
  */
-template <typename Class> class PtrOrRef {
+template <typename Class>
+class PtrOrRef {
 public:
     const Class *item_;
 
@@ -72,11 +73,17 @@ public:
     inline PtrOrRef(const PtrOrRef<Class> &ref) { operator=(ref.item_); };
 
     // Turn a refrence to Class into an PtrOrRef<Class>
-    inline const Class &operator=(const Class &rhs) { item_ = &rhs; return *item_;}
+    inline const Class &operator=(const Class &rhs) {
+        item_ = &rhs;
+        return *item_;
+    }
     inline PtrOrRef(const Class &item) { operator=(item); };
 
     // Turn a pointer to Class into an PtrOrRef<Class>
-    inline const Class &operator=(const Class *rhs) { item_ = rhs; 	return *item_; }
+    inline const Class &operator=(const Class *rhs) {
+        item_ = rhs;
+        return *item_;
+    }
     inline PtrOrRef(const Class *item = NULL) { operator=(item); }
 
     inline operator const Class &() const {
@@ -88,7 +95,8 @@ public:
     inline const Class &operator*() const {
         if (item_ == NULL)
             throw std::runtime_error("in PtrOrRef::operator*: PtrOrRef has NULL item!");
-        return *item_;}
+        return *item_;
+    }
 
     inline const Class *operator->() const {
         if (item_ == NULL)
@@ -103,19 +111,25 @@ public:
  *  Example: return MakePtrOrRef(aString); Because the PtrOrRef contains only a pointer, construction and copying are
  *  virtually CPU free (the cost of assigning a pointer).
  */
-template <typename Class> const PtrOrRef<Class> MakePtrOrRef(const Class &item) {
+template <typename Class>
+const PtrOrRef<Class> MakePtrOrRef(const Class &item) {
     return PtrOrRef<Class>(item);
 }
 
 
-template <typename Class> const PtrOrRef<Class> MakePtrOrRef(const PtrOrRef<Class> &item) {
+template <typename Class>
+const PtrOrRef<Class> MakePtrOrRef(const PtrOrRef<Class> &item) {
     return PtrOrRef<Class>(item.item_);
 }
 
 
-template <typename Type> class MakeFunctorFromConstructor {
+template <typename Type>
+class MakeFunctorFromConstructor {
 public:
-    template <typename FromType> Type operator()(const FromType& from_type) { return Type(from_type); }
+    template <typename FromType>
+    Type operator()(const FromType &from_type) {
+        return Type(from_type);
+    }
 };
 
 
@@ -124,8 +138,9 @@ public:
  *         components of the pairs and "second" should not be taken into consideration. Sometimes pair::second doesn't
  *         have an operator< and it's a hassle to write one.
  */
-template<typename PairType> bool CompareFirstOnly(const PairType &lhs, const PairType &rhs) {
-    if (lhs.first < rhs.first )
+template <typename PairType>
+bool CompareFirstOnly(const PairType &lhs, const PairType &rhs) {
+    if (lhs.first < rhs.first)
         return true;
 
     return false;
@@ -136,14 +151,15 @@ template<typename PairType> bool CompareFirstOnly(const PairType &lhs, const Pai
  *  \note Useful in STL searches and where comparsions of pairs should be based solely on operator< for the "first"
  *        components of the pairs and "second" should not be taken into consideration.
  */
-template<typename PairType> bool CompareBySecondThenFirst(const PairType &lhs, const PairType &rhs) {
-    if (lhs.second < rhs.second )
+template <typename PairType>
+bool CompareBySecondThenFirst(const PairType &lhs, const PairType &rhs) {
+    if (lhs.second < rhs.second)
         return true;
 
-    if (lhs.second > rhs.second )
+    if (lhs.second > rhs.second)
         return false;
 
-    if (lhs.first < rhs.first )
+    if (lhs.first < rhs.first)
         return true;
 
     return false;
@@ -155,42 +171,50 @@ template<typename PairType> bool CompareBySecondThenFirst(const PairType &lhs, c
  * return the value, but if passed an std::pair, will return the second element.  This is to help you write predicates
  * that can work on both elements of associate containers and containers of pairs
  */
-template<typename Type> inline const Type &Value(const Type &value) {
+template <typename Type>
+inline const Type &Value(const Type &value) {
     return value;
 }
 
 
-template<typename Type> inline Type &Value(Type &value) {
+template <typename Type>
+inline Type &Value(Type &value) {
     return value;
 }
 
 
-template<typename First, typename Second> inline const Second &Value(const std::pair<First, Second> &pair) {
+template <typename First, typename Second>
+inline const Second &Value(const std::pair<First, Second> &pair) {
     return pair.second;
 }
 
 
-template<typename First, typename Second> inline Second &Value(std::pair<First, Second> &pair) {
+template <typename First, typename Second>
+inline Second &Value(std::pair<First, Second> &pair) {
     return pair.second;
 }
 
 
-template<typename Type> inline const Type &Key(const Type &key) {
+template <typename Type>
+inline const Type &Key(const Type &key) {
     return key;
 }
 
 
-template<typename First, typename Second> inline const First &Key(const std::pair<First, Second> &pair) {
+template <typename First, typename Second>
+inline const First &Key(const std::pair<First, Second> &pair) {
     return pair.first;
 }
 
 
-template<typename Type> inline Type &Key(Type &key) {
+template <typename Type>
+inline Type &Key(Type &key) {
     return key;
 }
 
 
-template<typename First, typename Second> inline First &Key(std::pair<First, Second> &pair) {
+template <typename First, typename Second>
+inline First &Key(std::pair<First, Second> &pair) {
     return pair.first;
 }
 
@@ -199,22 +223,23 @@ template<typename First, typename Second> inline First &Key(std::pair<First, Sec
  *  These simulate "template typedefs". Value<aType> will create a member typedef. Value::Type will be the element
  *  type for normal containers. Value::Type will be the type of the second member of pair for containers of pairs.
  */
-template <typename Class> class ValueType {
+template <typename Class>
+class ValueType {
 public:
-	typedef Class Type;
+    typedef Class Type;
 };
 
 
-template <typename First, typename Second> class ValueType<std::pair<First, Second> > {
+template <typename First, typename Second>
+class ValueType<std::pair<First, Second> > {
 public:
     typedef Second Type;
 };
 
 
 /** Bring std::operator<(const std::pair<> &, const std::pair<> &) into the global namespace. */
-template <typename First, typename Second> inline bool operator<(const std::pair<First, Second> &lhs,
-                                                                 const std::pair<First, Second> &rhs)
-{
+template <typename First, typename Second>
+inline bool operator<(const std::pair<First, Second> &lhs, const std::pair<First, Second> &rhs) {
     return std::operator<(lhs, rhs);
 }
 
@@ -232,11 +257,11 @@ template <typename First, typename Second> inline bool operator<(const std::pair
  *  the types that go into your PairFromString. For an example, see the AutoConvertPair() above which is the default
  *  Converter.
  */
-template <typename FirstType = std::string, typename SecondType = std::string,
-          typename Converter = AutoConvertPair<FirstType, SecondType> >
-class PairFromString: public std::pair<FirstType, SecondType> {
+template <typename FirstType = std::string, typename SecondType = std::string, typename Converter = AutoConvertPair<FirstType, SecondType> >
+class PairFromString : public std::pair<FirstType, SecondType> {
     Converter converter_;
     typedef std::pair<const char *, const char *> CstringPair;
+
 public:
     /** \brief  Creates from a string broken on delimiting characters using std::strtok_r
      *  \param  source            The string to be broken.
@@ -251,8 +276,8 @@ public:
 
         // No delimiter? return an empty pair
         if (unlikely(first_delimiter == NULL))
-            throw std::runtime_error("in PairFromString::PairFromString: No delimiters \"" + delimiting_chars
-                                     + "\" found in \"" + source + "\"!");
+            throw std::runtime_error("in PairFromString::PairFromString: No delimiters \"" + delimiting_chars + "\" found in \"" + source
+                                     + "\"!");
 
         const char * const first_string = first_delimiter;
 
@@ -271,16 +296,17 @@ public:
      */
     PairFromString(const std::string &source, const PerlCompatRegExp &splitter) {
         if (not splitter.match(source))
-            throw std::runtime_error("in PairFromString::PairFromString: Pattern " + splitter.getPattern()
-                                     + " not found in string " + source + "!");
+            throw std::runtime_error("in PairFromString::PairFromString: Pattern " + splitter.getPattern() + " not found in string "
+                                     + source + "!");
 
         unsigned substring_count(splitter.getSubstringMatchCount());
         if (substring_count < 2)
-            throw std::runtime_error("PairFromString::PairFromString: Not enough substrings found matching pattern "
-                                     + splitter.getPattern() + " to string " + source + "!");
+            throw std::runtime_error("PairFromString::PairFromString: Not enough substrings found matching pattern " + splitter.getPattern()
+                                     + " to string " + source + "!");
 
         set_pair(splitter.getMatchedSubstring(1).c_str(), splitter.getMatchedSubstring(2).c_str());
     }
+
 private:
     void set_pair(const char * const first_string, const char * const second_string) {
         const std::pair<FirstType, SecondType> new_pair(converter_(CstringPair(first_string, second_string)));
@@ -295,18 +321,25 @@ private:
 /**
  *  Make a pointer, look like a reference. Needed to make "containers of pointers" which look and act like containers of the actual objects.
  */
-template <typename Type> class InstanceOrPointer
-{
+template <typename Type>
+class InstanceOrPointer {
 protected:
-	const Type *referent_;
+    const Type *referent_;
+
 public:
-	InstanceOrPointer &operator=(const Type *rhs) { referent_ = rhs; return *this; }
-	InstanceOrPointer &operator=(const Type &rhs) { referent_ = &rhs; return *this; }
-	InstanceOrPointer(const Type *referent = NULL) { operator=(referent); }
-	InstanceOrPointer(const Type &referent) { operator=(&referent); }
-	operator const Type &() const { return *referent_; }
-	const Type &operator->() { return *referent_; }
-	const Type &operator*() { return *referent_; }
+    InstanceOrPointer &operator=(const Type *rhs) {
+        referent_ = rhs;
+        return *this;
+    }
+    InstanceOrPointer &operator=(const Type &rhs) {
+        referent_ = &rhs;
+        return *this;
+    }
+    InstanceOrPointer(const Type *referent = NULL) { operator=(referent); }
+    InstanceOrPointer(const Type &referent) { operator=(&referent); }
+    operator const Type &() const { return *referent_; }
+    const Type &operator->() { return *referent_; }
+    const Type &operator*() { return *referent_; }
 };
 
 
@@ -329,58 +362,52 @@ public:
  *
  *         The Keys() functions do the same thing but take the key value of the map element (pair::first)
  */
-template<typename OutputIterator, typename ForwardIterator>
-void Values(const ForwardIterator &first, const ForwardIterator &last, OutputIterator output)
-{
-	for (ForwardIterator member(first); member != last; ++member)
-		*output = Value(*member);
+template <typename OutputIterator, typename ForwardIterator>
+void Values(const ForwardIterator &first, const ForwardIterator &last, OutputIterator output) {
+    for (ForwardIterator member(first); member != last; ++member)
+        *output = Value(*member);
 }
 
 
-template<typename ForwardIterator>
-std::vector<typename ForwardIterator::value_type::second_type> Values(const ForwardIterator &first, const ForwardIterator &last)
-{
-	typedef std::vector<typename ForwardIterator::value_type::second_type> OutputContainer;
-	OutputContainer output;
-	Values(first, last, std::inserter(output, output.end()));
-	return output;
+template <typename ForwardIterator>
+std::vector<typename ForwardIterator::value_type::second_type> Values(const ForwardIterator &first, const ForwardIterator &last) {
+    typedef std::vector<typename ForwardIterator::value_type::second_type> OutputContainer;
+    OutputContainer output;
+    Values(first, last, std::inserter(output, output.end()));
+    return output;
 }
 
 
-template<typename MapStyleContainer>
-std::vector<typename MapStyleContainer::value_type::second_type> Values(const MapStyleContainer &container)
-{
-	typename MapStyleContainer::const_iterator first(container.begin());
-	typename MapStyleContainer::const_iterator last(container.end());
+template <typename MapStyleContainer>
+std::vector<typename MapStyleContainer::value_type::second_type> Values(const MapStyleContainer &container) {
+    typename MapStyleContainer::const_iterator first(container.begin());
+    typename MapStyleContainer::const_iterator last(container.end());
 
-	return Values(first, last);
+    return Values(first, last);
 }
 
 
-template<typename OutputIterator, typename ForwardIterator>
-void ValuesPointers(const ForwardIterator &first, const ForwardIterator &last, OutputIterator output)
-{
-	for (ForwardIterator member(first); member != last; ++member)
-		*output = &Value(*member);
+template <typename OutputIterator, typename ForwardIterator>
+void ValuesPointers(const ForwardIterator &first, const ForwardIterator &last, OutputIterator output) {
+    for (ForwardIterator member(first); member != last; ++member)
+        *output = &Value(*member);
 }
 
-template<typename ForwardIterator>
-std::vector<typename ForwardIterator::value_type::second_type *> ValuesPointers(const ForwardIterator &first, const ForwardIterator &last)
-{
-	typedef std::vector<typename ForwardIterator::value_type::second_type *> OutputContainer;
-	OutputContainer output;
-	ValuesPointers(first, last, std::inserter(output, output.end()));
-	return output;
+template <typename ForwardIterator>
+std::vector<typename ForwardIterator::value_type::second_type *> ValuesPointers(const ForwardIterator &first, const ForwardIterator &last) {
+    typedef std::vector<typename ForwardIterator::value_type::second_type *> OutputContainer;
+    OutputContainer output;
+    ValuesPointers(first, last, std::inserter(output, output.end()));
+    return output;
 }
 
 
-template<typename MapStyleContainer>
-std::vector<const typename MapStyleContainer::value_type::second_type *> ValuesPointers(const MapStyleContainer &container)
-{
-	typename MapStyleContainer::const_iterator first(container.begin());
-	typename MapStyleContainer::const_iterator last(container.end());
+template <typename MapStyleContainer>
+std::vector<const typename MapStyleContainer::value_type::second_type *> ValuesPointers(const MapStyleContainer &container) {
+    typename MapStyleContainer::const_iterator first(container.begin());
+    typename MapStyleContainer::const_iterator last(container.end());
 
-	return ValuesPointers(first, last);
+    return ValuesPointers(first, last);
 }
 
 
@@ -394,48 +421,47 @@ std::vector<const typename MapStyleContainer::value_type::second_type *> ValuesP
    typedef const int ConstNumber; // A const type
    typedef Unconst(ConstNumber) UnconstNumber;  // Take that type and make an unconst version of it.
 */
-template <typename UnconstMe> class UnconstMaker {
-	template <typename U>
-	struct UnConst {
-		typedef U Unconsted;
-	};
-	template <typename U>
-	struct UnConst <const U> {
-		typedef U Unconsted;
-	};
+template <typename UnconstMe>
+class UnconstMaker {
+    template <typename U>
+    struct UnConst {
+        typedef U Unconsted;
+    };
+    template <typename U>
+    struct UnConst<const U> {
+        typedef U Unconsted;
+    };
+
 public:
-	typedef typename UnConst<UnconstMe>::Unconsted NonConst;
+    typedef typename UnConst<UnconstMe>::Unconsted NonConst;
 };
 
 
 #define Unconst(CONST_TYPE) UnconstMaker<CONST_TYPE>::NonConst
 
 
-template<typename OutputIterator, typename ForwardIterator>
-void Keys(const ForwardIterator &first, const ForwardIterator &last, OutputIterator output)
-{
-	std::copy(first, last, output);
+template <typename OutputIterator, typename ForwardIterator>
+void Keys(const ForwardIterator &first, const ForwardIterator &last, OutputIterator output) {
+    std::copy(first, last, output);
 }
 
 
-template<typename ForwardIterator>
-std::vector<typename ForwardIterator::value_type::first_type> Keys(const ForwardIterator &first, const ForwardIterator &last)
-{
-	typedef typename ForwardIterator::value_type::first_type ElementType;
-	typedef std::vector< typename UnconstMaker<ElementType>::NonConst > OutputContainer;
-	OutputContainer output;
-	Keys(first, last, std::inserter(output, output.end()));
-	return output;
+template <typename ForwardIterator>
+std::vector<typename ForwardIterator::value_type::first_type> Keys(const ForwardIterator &first, const ForwardIterator &last) {
+    typedef typename ForwardIterator::value_type::first_type ElementType;
+    typedef std::vector<typename UnconstMaker<ElementType>::NonConst> OutputContainer;
+    OutputContainer output;
+    Keys(first, last, std::inserter(output, output.end()));
+    return output;
 }
 
 
-template<typename MapStyleContainer>
-const std::vector<typename MapStyleContainer::value_type::first_type> Keys(const MapStyleContainer &container)
-{
-	typename MapStyleContainer::const_iterator first(container.begin());
-	typename MapStyleContainer::const_iterator last(container.end());
+template <typename MapStyleContainer>
+const std::vector<typename MapStyleContainer::value_type::first_type> Keys(const MapStyleContainer &container) {
+    typename MapStyleContainer::const_iterator first(container.begin());
+    typename MapStyleContainer::const_iterator last(container.end());
 
-	return Keys(first, last);
+    return Keys(first, last);
 }
 
 
@@ -444,67 +470,68 @@ const std::vector<typename MapStyleContainer::value_type::first_type> Keys(const
  * \note  Example: return StlHelpers::Totalizer total; return for_each(container.begin(), container.end(), total); the operator NumberType()
  *        lets you return the total value as the result of the STL algorithm you used, in the example above for_each.
  */
-template <typename ContainerElement> class Totalizer: public std::unary_function<void, typename ValueType<ContainerElement>::Type> {
-	typedef typename ValueType<ContainerElement>::Type NumberType;
-	NumberType total_;
+template <typename ContainerElement>
+class Totalizer : public std::unary_function<void, typename ValueType<ContainerElement>::Type> {
+    typedef typename ValueType<ContainerElement>::Type NumberType;
+    NumberType total_;
+
 public:
-	Totalizer() : total_(NumberType()) { }
-	void operator()(const ContainerElement &item)
-	{
-		NumberType val = StlHelpers::Value(item);
-		total_ += val;
-	}
-	operator NumberType &() { return total_; } // Allows interpreting a Totalizer as a NumberType
+    Totalizer(): total_(NumberType()) { }
+    void operator()(const ContainerElement &item) {
+        NumberType val = StlHelpers::Value(item);
+        total_ += val;
+    }
+    operator NumberType &() { return total_; } // Allows interpreting a Totalizer as a NumberType
 };
 
 
-template<typename IteratorType> typename ValueType<typename IteratorType::value_type>::Type Total(const IteratorType &first, const IteratorType &last)
-{
-	Totalizer<typename IteratorType::value_type> totalizer;
-	return std::for_each(first, last, totalizer);
+template <typename IteratorType>
+typename ValueType<typename IteratorType::value_type>::Type Total(const IteratorType &first, const IteratorType &last) {
+    Totalizer<typename IteratorType::value_type> totalizer;
+    return std::for_each(first, last, totalizer);
 }
 
 
-template<typename StlContainer> typename ValueType<typename StlContainer::value_type>::Type Total(const StlContainer &container)
-{
-	Totalizer<typename StlContainer::value_type> totalizer;
-	return std::for_each(container.begin(), container.end(), totalizer);
+template <typename StlContainer>
+typename ValueType<typename StlContainer::value_type>::Type Total(const StlContainer &container) {
+    Totalizer<typename StlContainer::value_type> totalizer;
+    return std::for_each(container.begin(), container.end(), totalizer);
 }
 
 
 /** Turn a reference to a pointer into just the pointer. */
-template<typename ItemType> class Deref {
-	ItemType *item_;
+template <typename ItemType>
+class Deref {
+    ItemType *item_;
+
 public:
-	explicit Deref(const ItemType *item): item_(item) { }
-	operator ItemType *() const { return item_; }
+    explicit Deref(const ItemType *item): item_(item) { }
+    operator ItemType *() const { return item_; }
 };
 
 
-template<typename ForwardIterator, typename ValueType, typename Comparator>
-ForwardIterator BinarySearch(const ForwardIterator &first, const ForwardIterator &last, const ValueType &value_to_match, const Comparator &comp)
-{
-	const ForwardIterator result(std::lower_bound(first, last, value_to_match, comp));
-	if (result == last)
-		return last;
+template <typename ForwardIterator, typename ValueType, typename Comparator>
+ForwardIterator BinarySearch(const ForwardIterator &first, const ForwardIterator &last, const ValueType &value_to_match,
+                             const Comparator &comp) {
+    const ForwardIterator result(std::lower_bound(first, last, value_to_match, comp));
+    if (result == last)
+        return last;
 
-	// (not a < b) and (not b < a) => a == b:
-	const bool equal(not comp(*result, value_to_match) and not comp(value_to_match, *result));
-	return equal ? result : last;
+    // (not a < b) and (not b < a) => a == b:
+    const bool equal(not comp(*result, value_to_match) and not comp(value_to_match, *result));
+    return equal ? result : last;
 }
 
 
-template<typename ForwardIterator, typename ValueType>
-inline ForwardIterator BinarySearch(const ForwardIterator &first, const ForwardIterator &last, const ValueType &value_to_match)
-{
-	return BinarySearch(first, last, value_to_match, std::less<ValueType>());
+template <typename ForwardIterator, typename ValueType>
+inline ForwardIterator BinarySearch(const ForwardIterator &first, const ForwardIterator &last, const ValueType &value_to_match) {
+    return BinarySearch(first, last, value_to_match, std::less<ValueType>());
 }
 
 
-template<typename Container, typename ValueType>
-inline typename Container::const_iterator BinarySearch(const Container &container, const ValueType &value_to_match)
-{
-	return BinarySearch(container.begin(), container.end(), value_to_match, std::less<ValueType>());
+template <typename Container, typename ValueType>
+inline typename Container::const_iterator BinarySearch(const Container &container, const ValueType &value_to_match) {
+    return BinarySearch(container.begin(), container.end(), value_to_match, std::less<ValueType>());
 }
 
 
@@ -526,32 +553,30 @@ inline typename Container::const_iterator BinarySearch(const Container &containe
 /** \brief  Converts a function like "ReturnType Function(OutputType * output)" into "OutputType Function()".
  */
 template <typename ResultType, typename OldReturnType>
-inline ResultType OutToReturn(OldReturnType (*function)(ResultType * const))
-{
-	ResultType temp;
-	function(&temp);
-	return temp;
+inline ResultType OutToReturn(OldReturnType (*function)(ResultType * const)) {
+    ResultType temp;
+    function(&temp);
+    return temp;
 }
 
 /** \brief  Converts a function like "ReturnType Function(Argument, OutputType * output)" into "OutputType Function(Argument)".
  */
 template <typename Arg1, typename ResultType, typename OldReturnType>
-inline ResultType OutToReturn(OldReturnType (*function)(Arg1, ResultType * const), Arg1 arg)
-{
-	ResultType temp;
-	function(arg, &temp);
-	return temp;
+inline ResultType OutToReturn(OldReturnType (*function)(Arg1, ResultType * const), Arg1 arg) {
+    ResultType temp;
+    function(arg, &temp);
+    return temp;
 }
 
 
-/** \brief  Converts a function like "ReturnType Function(Argument1, Argument2, OutputType * output)" into "OutputType Function(Argument1, Argument2)".
+/** \brief  Converts a function like "ReturnType Function(Argument1, Argument2, OutputType * output)" into "OutputType Function(Argument1,
+ * Argument2)".
  */
 template <typename Arg1, typename Arg2, typename ResultType, typename OldReturnType>
-inline ResultType OutToReturn(OldReturnType (*function)(Arg1, Arg2, ResultType * const), Arg1 arg1, Arg2 arg2)
-{
-	ResultType temp;
-	function(arg1, arg2, &temp);
-	return temp;
+inline ResultType OutToReturn(OldReturnType (*function)(Arg1, Arg2, ResultType * const), Arg1 arg1, Arg2 arg2) {
+    ResultType temp;
+    function(arg1, arg2, &temp);
+    return temp;
 }
 
 
@@ -561,9 +586,8 @@ inline ResultType OutToReturn(OldReturnType (*function)(Arg1, Arg2, ResultType *
  *  \param  member_delimiter  The string to put between each container element during out.
  */
 template <typename ItemType, typename OutputStream, typename MemberDelimiter>
-inline void ItemToStream(const ItemType &item, OutputStream &output, MemberDelimiter member_delimiter, const std::string & = "")
-{
-	output << member_delimiter << item;
+inline void ItemToStream(const ItemType &item, OutputStream &output, MemberDelimiter member_delimiter, const std::string & = "") {
+    output << member_delimiter << item;
 }
 
 
@@ -573,9 +597,8 @@ inline void ItemToStream(const ItemType &item, OutputStream &output, MemberDelim
  *  \param  member_delimiter  The string to put between each container element during out.
  */
 template <typename ItemType, typename OutputStream, typename MemberDelimiter>
-inline void ItemToStream(const PtrOrRef<ItemType> item, OutputStream &output, MemberDelimiter &member_delimiter, const std::string & = "")
-{
-	ItemToStream(*item, output, member_delimiter);
+inline void ItemToStream(const PtrOrRef<ItemType> item, OutputStream &output, MemberDelimiter &member_delimiter, const std::string & = "") {
+    ItemToStream(*item, output, member_delimiter);
 }
 
 
@@ -587,11 +610,10 @@ inline void ItemToStream(const PtrOrRef<ItemType> item, OutputStream &output, Me
  */
 template <typename FirstType, typename SecondType, typename OutputStream, typename MemberDelimiter>
 void ItemToStream(const PtrOrRef<std::pair<FirstType, SecondType> > item, OutputStream &output, MemberDelimiter &member_delimiter,
-		  const std::string &pair_delimiter = "")
-{
-	ItemToStream(item->first, output, member_delimiter);
-	output << pair_delimiter;
-	ItemToStream(item->second, output, "");
+                  const std::string &pair_delimiter = "") {
+    ItemToStream(item->first, output, member_delimiter);
+    output << pair_delimiter;
+    ItemToStream(item->second, output, "");
 }
 
 
@@ -603,23 +625,20 @@ void ItemToStream(const PtrOrRef<std::pair<FirstType, SecondType> > item, Output
  */
 template <typename ContainerType, typename OutputStream, typename MemberDelimiter>
 unsigned ContainerToStream(const ContainerType &container, OutputStream &output, MemberDelimiter &member_delimiter,
-			   const std::string &pair_delimiter = ":")
-{
-	for (typename ContainerType::const_iterator item(container.begin()); item != container.end(); ++item) {
-		if (item == container.begin())
-			ItemToStream(MakePtrOrRef(*item), output, "", pair_delimiter);
-		else
-			ItemToStream(MakePtrOrRef(*item), output, member_delimiter, pair_delimiter);
-	}
-	return container.size();
+                           const std::string &pair_delimiter = ":") {
+    for (typename ContainerType::const_iterator item(container.begin()); item != container.end(); ++item) {
+        if (item == container.begin())
+            ItemToStream(MakePtrOrRef(*item), output, "", pair_delimiter);
+        else
+            ItemToStream(MakePtrOrRef(*item), output, member_delimiter, pair_delimiter);
+    }
+    return container.size();
 }
 
 
 /** \brief copy from one container to another performing a conversion */
 template <typename SourceContainerType, typename DestinationContainerType, typename Converter>
-void ConvertCopy(const SourceContainerType &source, DestinationContainerType * const destination,
-                 Converter converter = AutoConvertNull())
-{
+void ConvertCopy(const SourceContainerType &source, DestinationContainerType * const destination, Converter converter = AutoConvertNull()) {
     for (typename SourceContainerType::const_iterator item(source.begin()); item != source.end(); ++item)
         destination->insert(destination->end(), converter(*item));
 }
@@ -627,16 +646,15 @@ void ConvertCopy(const SourceContainerType &source, DestinationContainerType * c
 
 /** \brief Finds a map element or returns a default value_type. Can be used where operator[] is not usable because operator[] only works for
  *  non-const maps.
-*/
+ */
 template <typename MapContainerType, typename SearchItemType>
-const typename MapContainerType::value_type::second_type
-&FindOrDefault(const SearchItemType &find_this, const MapContainerType &container) {
+const typename MapContainerType::value_type::second_type &FindOrDefault(const SearchItemType &find_this,
+                                                                        const MapContainerType &container) {
     /**
      * This long winded initialization is needed. The shorter syntax static typename value() doesn't work because the compiler then
      * thinks you are declaring a function.
      */
-    static typename MapContainerType::value_type::second_type default_value =
-        typename MapContainerType::value_type::second_type();
+    static typename MapContainerType::value_type::second_type default_value = typename MapContainerType::value_type::second_type();
 
     typename MapContainerType::const_iterator item = container.find(find_this);
     if (item == container.end())
@@ -647,9 +665,7 @@ const typename MapContainerType::value_type::second_type
 
 /** \brief Finds a map element or throws  */
 template <typename MapContainerType, typename SearchItemType>
-const typename MapContainerType::value_type::second_type &FindOrThrow(const SearchItemType &find_this,
-                                                                      const MapContainerType &container)
-{
+const typename MapContainerType::value_type::second_type &FindOrThrow(const SearchItemType &find_this, const MapContainerType &container) {
     typename MapContainerType::const_iterator item = container.find(find_this);
     if (item == container.end())
         throw std::runtime_error("in StlHelpers::FindOrThrow: Unable to find item in container!");
@@ -658,8 +674,8 @@ const typename MapContainerType::value_type::second_type &FindOrThrow(const Sear
 
 
 /** \brief Finds a map element or throws  */
-template <typename MapContainerType, typename SearchItemType> bool
-FindOrFalse(const SearchItemType &find_this, const MapContainerType &container) {
+template <typename MapContainerType, typename SearchItemType>
+bool FindOrFalse(const SearchItemType &find_this, const MapContainerType &container) {
     typename MapContainerType::const_iterator item = container.find(find_this);
     if (item == container.end())
         return false;
@@ -668,12 +684,14 @@ FindOrFalse(const SearchItemType &find_this, const MapContainerType &container) 
 
 
 /** Convert an element to a string */
-template <typename Element> inline std::string ElementToString(const Element &element) {
+template <typename Element>
+inline std::string ElementToString(const Element &element) {
     return AutoConvert(element);
 }
 
 
-template <typename First, typename Second> std::string ElementToString(const std::pair<First, Second> &element) {
+template <typename First, typename Second>
+std::string ElementToString(const std::pair<First, Second> &element) {
     std::string rval(ElementToString(element.first));
     rval += ':';
     rval += ElementToString(element.second);
@@ -685,25 +703,25 @@ template <typename First, typename Second> std::string ElementToString(const std
  *  Return a vector of PtrOrRefs to elements of StlContainer that match regex. Converts elements to strings to perform the match (separate
  *  variable doesn't alter the original).
  */
-template <typename StlContainer> std::vector<PtrOrRef<typename StlContainer::value_type> >
-GrepContainerPtr(const StlContainer &source, const PerlCompatRegExp &regex) {
+template <typename StlContainer>
+std::vector<PtrOrRef<typename StlContainer::value_type> > GrepContainerPtr(const StlContainer &source, const PerlCompatRegExp &regex) {
     std::vector<PtrOrRef<typename StlContainer::value_type> > matches;
 
     for (typename StlContainer::const_iterator item(source.begin()); item != source.end(); ++item)
         if (regex.match(ElementToString(*item)))
-            matches.insert(matches.end(),  &*item);
+            matches.insert(matches.end(), &*item);
 
     return matches;
 }
 
 
-template <typename StlContainer> std::vector<PtrOrRef<typename StlContainer::value_type> >
-GrepContainerPtrNot(const StlContainer &source, const PerlCompatRegExp &regex) {
+template <typename StlContainer>
+std::vector<PtrOrRef<typename StlContainer::value_type> > GrepContainerPtrNot(const StlContainer &source, const PerlCompatRegExp &regex) {
     std::vector<PtrOrRef<typename StlContainer::value_type> > matches;
 
     for (typename StlContainer::const_iterator item(source.begin()); item != source.end(); ++item)
         if (not regex.match(ElementToString(*item)))
-            matches.insert(matches.end(),  &*item);
+            matches.insert(matches.end(), &*item);
 
     return matches;
 }
@@ -713,27 +731,26 @@ GrepContainerPtrNot(const StlContainer &source, const PerlCompatRegExp &regex) {
  *          Converts elements to strings to perform the match (does not alter the original). If the element is a pair, it will join the
  *          string versions of each element with a : between, like population:23431. This allows you to match the regex on the entire pair.
  */
-template <typename StlContainer> StlContainer GrepContainer(const StlContainer &source, const PerlCompatRegExp &regex)
-{
+template <typename StlContainer>
+StlContainer GrepContainer(const StlContainer &source, const PerlCompatRegExp &regex) {
     StlContainer matches;
 
     for (typename StlContainer::const_iterator item(source.begin()); item != source.end(); ++item) {
         if (regex.match(ElementToString(*item)))
-            matches.insert(matches.end(),  *item);
+            matches.insert(matches.end(), *item);
     }
 
     return matches;
 }
 
 
-template <typename StlContainer> StlContainer GrepContainerNot(const StlContainer &source,
-                                                               const PerlCompatRegExp &regex)
-{
+template <typename StlContainer>
+StlContainer GrepContainerNot(const StlContainer &source, const PerlCompatRegExp &regex) {
     StlContainer matches;
 
     for (typename StlContainer::const_iterator item(source.begin()); item != source.end(); ++item)
         if (not regex.match(ElementToString(*item)))
-            matches.insert(matches.end(),  *item);
+            matches.insert(matches.end(), *item);
 
     return matches;
 }
@@ -745,13 +762,9 @@ template <typename StlContainer> StlContainer GrepContainerNot(const StlContaine
  *          allows you to match the regex on the entire pair.
  */
 template <typename First, typename Second>
-std::unordered_map<First, Second> GrepContainer(const std::unordered_map<First, Second> &source,
-                                                const PerlCompatRegExp &regex)
-{
+std::unordered_map<First, Second> GrepContainer(const std::unordered_map<First, Second> &source, const PerlCompatRegExp &regex) {
     std::unordered_map<First, Second> matches;
-    for (typename std::unordered_map<First, Second>::const_iterator item(source.begin()); item != source.end();
-         ++item)
-    {
+    for (typename std::unordered_map<First, Second>::const_iterator item(source.begin()); item != source.end(); ++item) {
         if (regex.match(ElementToString(*item)))
             matches.insert(*item);
     }
@@ -770,9 +783,8 @@ std::unordered_map<First, Second> GrepContainer(const std::unordered_map<First, 
  *  string. Because it uses AutoConvert it will also work on iterators to other primitive types, turning them
  *  into strings before joining them.
  */
-template <typename ForwardIterator> std::string ContainerToString(ForwardIterator first, ForwardIterator last,
-                                                                  const std::string &separator = "")
-{
+template <typename ForwardIterator>
+std::string ContainerToString(ForwardIterator first, ForwardIterator last, const std::string &separator = "") {
     std::string resultant_string;
     while (first != last) {
         const std::string first_string = AutoConvert(*first);
@@ -789,16 +801,14 @@ template <typename ForwardIterator> std::string ContainerToString(ForwardIterato
  *  \note   Convenience wrapper for std::sort()
  */
 template <typename StlContainer, typename CompareFunction>
-inline StlContainer &SortContainer(StlContainer &container,
-                                   CompareFunction compare = std::less<typename StlContainer::value_type>())
-{
+inline StlContainer &SortContainer(StlContainer &container, CompareFunction compare = std::less<typename StlContainer::value_type>()) {
     std::sort(container.begin(), container.end(), compare);
     return container;
 }
 
 
-template <typename StlContainer> StlContainer &SortContainer(StlContainer &container)
-{
+template <typename StlContainer>
+StlContainer &SortContainer(StlContainer &container) {
     std::sort(container.begin(), container.end());
     return container;
 }
@@ -807,119 +817,112 @@ template <typename StlContainer> StlContainer &SortContainer(StlContainer &conta
 /** \brief  A functor that returns whether a container's size is less than a given cutoff size or not. */
 class SmallerThan {
     size_t cutoff_size_;
+
 public:
     SmallerThan(const size_t &cutoff_size): cutoff_size_(cutoff_size) { }
-    template <typename Container> bool operator()(const Container &comparee) const
-        { return comparee.size() < cutoff_size_; }
+    template <typename Container>
+    bool operator()(const Container &comparee) const {
+        return comparee.size() < cutoff_size_;
+    }
 };
 
 
 /** \brief  Determines membership in a container. */
-template<typename Container> inline bool Contains(const Container &container,
-                                                  const typename Container::value_type entry_candidate)
-{
+template <typename Container>
+inline bool Contains(const Container &container, const typename Container::value_type entry_candidate) {
     return std::find(container.begin(), container.end(), entry_candidate) != container.end();
 }
 
 
 /** \brief some very rudimentary functional-programming inspired templates */
 namespace Functional {
-    /** \brief wrapper for function pointers in foreach */
-    template<typename ArgumentType> class ForEachFunctionPointer {
-        void (*function_)(ArgumentType);
-    public:
-        ForEachFunctionPointer(void (*function_pointer)(ArgumentType)) : function_(function_pointer) { }
-        void operator()(ArgumentType argument) {
-            function_(argument);
-        }
-    };
+/** \brief wrapper for function pointers in foreach */
+template <typename ArgumentType>
+class ForEachFunctionPointer {
+    void (*function_)(ArgumentType);
 
-    template<typename Container, typename ArgumentType>
-    inline void ForEachFunction(const Container &container, void (*function)(ArgumentType)) {
-        std::for_each(container.begin(), container.end(), ForEachFunctionPointer<ArgumentType>(function));
-    }
+public:
+    ForEachFunctionPointer(void (*function_pointer)(ArgumentType)): function_(function_pointer) { }
+    void operator()(ArgumentType argument) { function_(argument); }
+};
 
-    /** \brief wrapper for function pointers in apply */
-    template<typename ArgumentType, typename ReturnType>
-    class Applicator {
-	ReturnType (*function_)(ArgumentType);
-    public:
-	Applicator(ReturnType (*function_pointer)(ArgumentType)) : function_(function_pointer) { }
-	ReturnType operator()(ArgumentType argument) {
-            return function_(argument);
-	}
-    };
+template <typename Container, typename ArgumentType>
+inline void ForEachFunction(const Container &container, void (*function)(ArgumentType)) {
+    std::for_each(container.begin(), container.end(), ForEachFunctionPointer<ArgumentType>(function));
+}
 
-    /** \brief Inserts ApplyFunction(element) to new_container for each element in original container */
-    template<typename ContainerIterator, typename ValueType, typename InsertableContainer, typename ApplyFunction>
-    inline void Apply(const ContainerIterator &start, const ContainerIterator &end,
-                      InsertableContainer &new_container, ApplyFunction &apply)
-    {
-        for (ContainerIterator iterator(start); iterator != end; ++iterator)
-            new_container.insert(apply(*iterator));
-    }
+/** \brief wrapper for function pointers in apply */
+template <typename ArgumentType, typename ReturnType>
+class Applicator {
+    ReturnType (*function_)(ArgumentType);
 
-    template<typename Container, typename NewContainer, typename OriginalType, typename ReturnType>
-    inline void ApplyFunction(const Container &container, NewContainer &new_container,
-                              ReturnType (*function)(OriginalType))
-    {
-        Apply(container.begin(), container.end(), new_container, Applicator<OriginalType, ReturnType>(function));
-    }
+public:
+    Applicator(ReturnType (*function_pointer)(ArgumentType)): function_(function_pointer) { }
+    ReturnType operator()(ArgumentType argument) { return function_(argument); }
+};
 
-    template<typename ArgumentType>
-    class Filterer : public Applicator<ArgumentType, bool> { };
+/** \brief Inserts ApplyFunction(element) to new_container for each element in original container */
+template <typename ContainerIterator, typename ValueType, typename InsertableContainer, typename ApplyFunction>
+inline void Apply(const ContainerIterator &start, const ContainerIterator &end, InsertableContainer &new_container, ApplyFunction &apply) {
+    for (ContainerIterator iterator(start); iterator != end; ++iterator)
+        new_container.insert(apply(*iterator));
+}
 
-    /** \brief Inserts a copy of every element in the original container into the new container
-        if FilterFunction(element) returns true for it. */
-    template<typename ContainerIterator, typename InsertableContainer, typename FilterFunction>
-    inline void Filter(const ContainerIterator &start, const ContainerIterator &end,
-                       InsertableContainer &new_container, FilterFunction &filter)
-    {
-        for (ContainerIterator iterator(start); iterator != end; ++iterator) {
-            if (filter(*iterator))
-                new_container.insert(*iterator);
-        }
-    }
+template <typename Container, typename NewContainer, typename OriginalType, typename ReturnType>
+inline void ApplyFunction(const Container &container, NewContainer &new_container, ReturnType (*function)(OriginalType)) {
+    Apply(container.begin(), container.end(), new_container, Applicator<OriginalType, ReturnType>(function));
+}
 
-    template<typename Container, typename NewContainer, typename OriginalType>
-    inline void FilterFunction(const Container &container, NewContainer &new_container,
-                               bool (*function)(OriginalType))
-    {
-        Filter(container.begin(), container.end(), new_container, Filterer<OriginalType>(function));
-    }
+template <typename ArgumentType>
+class Filterer : public Applicator<ArgumentType, bool> { };
 
-    /** \brief wrapper for function pointers in collect*/
-    template<typename ReturnType> class Collector {
-        ReturnType (*function_)(ReturnType, ReturnType);
-    public:
-        Collector(ReturnType *(function_pointer)(ReturnType, ReturnType)) : function_(function_pointer) { }
-        ReturnType operator()(ReturnType A, ReturnType B) {
-            return function_(A, B);
-        }
-    };
-
-    /** \brief Curries elements with the provided binary function */
-    template<typename ContainerIterator, typename ValueType, typename CollectFunction>
-    inline ValueType Collect(const ContainerIterator &start, const ContainerIterator &end, CollectFunction &collect) {
-        ValueType return_value(*start);
-        if (start == end)
-            return *return_value;
-        ContainerIterator iterator(start);
-        for (++iterator; iterator != end; ++iterator)
-            return_value = collect(return_value, *iterator);
-        return return_value;
-    }
-
-    template<typename Container, typename OriginalType>
-    inline OriginalType CollectFunction(const Container &container,
-                                        OriginalType (*function)(OriginalType, OriginalType))
-    {
-        Collect(container.begin(), container.end(), Collector<OriginalType>(function));
+/** \brief Inserts a copy of every element in the original container into the new container
+    if FilterFunction(element) returns true for it. */
+template <typename ContainerIterator, typename InsertableContainer, typename FilterFunction>
+inline void Filter(const ContainerIterator &start, const ContainerIterator &end, InsertableContainer &new_container,
+                   FilterFunction &filter) {
+    for (ContainerIterator iterator(start); iterator != end; ++iterator) {
+        if (filter(*iterator))
+            new_container.insert(*iterator);
     }
 }
 
+template <typename Container, typename NewContainer, typename OriginalType>
+inline void FilterFunction(const Container &container, NewContainer &new_container, bool (*function)(OriginalType)) {
+    Filter(container.begin(), container.end(), new_container, Filterer<OriginalType>(function));
+}
 
-template<typename In, typename Out, typename Predicate> inline Out CopyIf(In first, In last, Out result, Predicate predicate) {
+/** \brief wrapper for function pointers in collect*/
+template <typename ReturnType>
+class Collector {
+    ReturnType (*function_)(ReturnType, ReturnType);
+
+public:
+    Collector(ReturnType *(function_pointer)(ReturnType, ReturnType)): function_(function_pointer) { }
+    ReturnType operator()(ReturnType A, ReturnType B) { return function_(A, B); }
+};
+
+/** \brief Curries elements with the provided binary function */
+template <typename ContainerIterator, typename ValueType, typename CollectFunction>
+inline ValueType Collect(const ContainerIterator &start, const ContainerIterator &end, CollectFunction &collect) {
+    ValueType return_value(*start);
+    if (start == end)
+        return *return_value;
+    ContainerIterator iterator(start);
+    for (++iterator; iterator != end; ++iterator)
+        return_value = collect(return_value, *iterator);
+    return return_value;
+}
+
+template <typename Container, typename OriginalType>
+inline OriginalType CollectFunction(const Container &container, OriginalType (*function)(OriginalType, OriginalType)) {
+    Collect(container.begin(), container.end(), Collector<OriginalType>(function));
+}
+} // namespace Functional
+
+
+template <typename In, typename Out, typename Predicate>
+inline Out CopyIf(In first, In last, Out result, Predicate predicate) {
     while (first != last) {
         if (predicate(*first))
             *result++ = *first;
@@ -930,21 +933,24 @@ template<typename In, typename Out, typename Predicate> inline Out CopyIf(In fir
 }
 
 
-template<typename T> std::set<T> SetIntersection(const std::set<T> &set1, const std::set<T> &set2) {
+template <typename T>
+std::set<T> SetIntersection(const std::set<T> &set1, const std::set<T> &set2) {
     std::set<T> intersection;
     std::set_intersection(set1.cbegin(), set1.cend(), set2.cbegin(), set2.cend(), std::inserter(intersection, intersection.begin()));
     return intersection;
 }
 
 
-template<typename T> std::unordered_set<T> SetIntersection(const std::unordered_set<T> &set1, const std::unordered_set<T> &set2) {
+template <typename T>
+std::unordered_set<T> SetIntersection(const std::unordered_set<T> &set1, const std::unordered_set<T> &set2) {
     std::unordered_set<T> intersection;
     std::set_intersection(set1.cbegin(), set1.cend(), set2.cbegin(), set2.cend(), std::inserter(intersection, intersection.begin()));
     return intersection;
 }
 
 
-template<typename T> std::set<T> SetUnion(const std::set<T> &set1, const std::set<T> &set2) {
+template <typename T>
+std::set<T> SetUnion(const std::set<T> &set1, const std::set<T> &set2) {
     std::set<T> set_union(set1);
     for (const auto &element : set2)
         set_union.emplace(element);
@@ -952,7 +958,8 @@ template<typename T> std::set<T> SetUnion(const std::set<T> &set1, const std::se
 }
 
 
-template<typename T> std::unordered_set<T> SetUnion(const std::unordered_set<T> &set1, const std::unordered_set<T> &set2) {
+template <typename T>
+std::unordered_set<T> SetUnion(const std::unordered_set<T> &set1, const std::unordered_set<T> &set2) {
     const std::unordered_set<T> *larger_set, *smaller_set;
     if (set1.size() > set2.size()) {
         larger_set = &set1;
@@ -970,12 +977,14 @@ template<typename T> std::unordered_set<T> SetUnion(const std::unordered_set<T> 
 }
 
 
-template<typename T> std::set<T> VectorToSet(const std::vector<T> &v) {
+template <typename T>
+std::set<T> VectorToSet(const std::vector<T> &v) {
     return std::set<T>(v.cbegin(), v.cend());
 }
 
 
-template<typename T> std::unordered_set<T> VectorToUnorderedSet(const std::vector<T> &v) {
+template <typename T>
+std::unordered_set<T> VectorToUnorderedSet(const std::vector<T> &v) {
     return std::unordered_set<T>(v.cbegin(), v.cend());
 }
 

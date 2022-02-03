@@ -30,14 +30,12 @@
 #include "Compiler.h"
 
 
-GzStream::GzStream(const Type type, const unsigned compression_level,
-                   void *(*_zalloc)(void *, unsigned int, unsigned int),
+GzStream::GzStream(const Type type, const unsigned compression_level, void *(*_zalloc)(void *, unsigned int, unsigned int),
                    void (*_zfree)(void *, void *))
-    : type_(type)
-{
+    : type_(type) {
     std::memset(&stream_, '\0', sizeof stream_);
     stream_.zalloc = _zalloc;
-    stream_.zfree  = _zfree;
+    stream_.zfree = _zfree;
 
     if (type_ == COMPRESS or type == GZIP) {
         const int retcode(::deflateInit2(&stream_, compression_level, Z_DEFLATED,
@@ -57,8 +55,7 @@ GzStream::GzStream(const Type type, const unsigned compression_level,
         case Z_OK:
             return;
         default:
-            throw std::runtime_error("in GzStream::GzStream: unknown error code " + std::to_string(retcode)
-                                     + " for deflateInit2()!");
+            throw std::runtime_error("in GzStream::GzStream: unknown error code " + std::to_string(retcode) + " for deflateInit2()!");
         }
     } else { // assume type_ == DECOMPRESS or type == GUNZIP
         const int retcode(::inflateInit2(&stream_, /* windowBits = */ type == DECOMPRESS ? 15 : (15 + 16)));
@@ -74,8 +71,7 @@ GzStream::GzStream(const Type type, const unsigned compression_level,
         case Z_OK:
             return;
         default:
-            throw std::runtime_error("in GzStream::GzStream: unknown error code " + std::to_string(retcode)
-                                     + " for deflateInit2()!");
+            throw std::runtime_error("in GzStream::GzStream: unknown error code " + std::to_string(retcode) + " for deflateInit2()!");
         }
     }
 }
@@ -89,16 +85,15 @@ GzStream::~GzStream() {
 }
 
 
-bool GzStream::compress(const char * const input_data, unsigned input_data_size, char * const output_data,
-                        unsigned output_data_size, unsigned * const bytes_consumed, unsigned * const bytes_produced)
-{
-    stream_.next_in   = reinterpret_cast<Bytef *>(const_cast<char *>(input_data));
-    stream_.avail_in  = input_data_size;
-    stream_.next_out  = reinterpret_cast<Bytef *>(output_data);
+bool GzStream::compress(const char * const input_data, unsigned input_data_size, char * const output_data, unsigned output_data_size,
+                        unsigned * const bytes_consumed, unsigned * const bytes_produced) {
+    stream_.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(input_data));
+    stream_.avail_in = input_data_size;
+    stream_.next_out = reinterpret_cast<Bytef *>(output_data);
     stream_.avail_out = output_data_size;
     int flush = (input_data == nullptr) ? Z_FINISH : 0;
     int retval = ::deflate(&stream_, flush);
-    *bytes_consumed = input_data_size  - stream_.avail_in;
+    *bytes_consumed = input_data_size - stream_.avail_in;
     *bytes_produced = output_data_size - stream_.avail_out;
 
     switch (retval) {
@@ -112,22 +107,19 @@ bool GzStream::compress(const char * const input_data, unsigned input_data_size,
         throw std::runtime_error("in GzStream::compress: no progress possible!");
     }
 
-    throw std::runtime_error("in GzStream::compress: we should *never* get here (return code = "
-                             + std::to_string(retval) + ")!");
+    throw std::runtime_error("in GzStream::compress: we should *never* get here (return code = " + std::to_string(retval) + ")!");
 }
 
 
-bool GzStream::decompress(const char * const input_data, unsigned input_data_size, char * const output_data,
-                          unsigned output_data_size, unsigned * const bytes_consumed,
-                          unsigned * const bytes_produced)
-{
-    stream_.next_in   = reinterpret_cast<Bytef *>(const_cast<char *>(input_data));
-    stream_.avail_in  = (input_data == nullptr) ? 0 : input_data_size;
-    stream_.next_out  = reinterpret_cast<Bytef *>(output_data);
+bool GzStream::decompress(const char * const input_data, unsigned input_data_size, char * const output_data, unsigned output_data_size,
+                          unsigned * const bytes_consumed, unsigned * const bytes_produced) {
+    stream_.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(input_data));
+    stream_.avail_in = (input_data == nullptr) ? 0 : input_data_size;
+    stream_.next_out = reinterpret_cast<Bytef *>(output_data);
     stream_.avail_out = output_data_size;
     int flush = (input_data == nullptr) ? Z_FINISH : 0;
     int retval = ::inflate(&stream_, flush);
-    *bytes_consumed = input_data_size  - stream_.avail_in;
+    *bytes_consumed = input_data_size - stream_.avail_in;
     *bytes_produced = output_data_size - stream_.avail_out;
     switch (retval) {
     case Z_OK:
@@ -140,17 +132,15 @@ bool GzStream::decompress(const char * const input_data, unsigned input_data_siz
         throw std::runtime_error("in GzStream::decompress: no progress possible!");
     }
 
-    throw std::runtime_error("in GzStream::decompress: we should *never* get here (return code = "
-                             + std::to_string(retval) + ")!");
+    throw std::runtime_error("in GzStream::decompress: we should *never* get here (return code = " + std::to_string(retval) + ")!");
 }
 
 
-void GzStream::Decompress(const char * const compressed_data, const size_t compressed_data_size,
-                          std::string * const s, const Type type)
-{
+void GzStream::Decompress(const char * const compressed_data, const size_t compressed_data_size, std::string * const s, const Type type) {
     if (unlikely(type != GzStream::DECOMPRESS and type != GzStream::GUNZIP))
-        throw std::runtime_error("in GzStream::Decompress: type must be either GzStream::DECOMPRESS or "
-                                 "GzStream::GUNZIP!");
+        throw std::runtime_error(
+            "in GzStream::Decompress: type must be either GzStream::DECOMPRESS or "
+            "GzStream::GUNZIP!");
 
     GzStream stream(type);
 
@@ -158,16 +148,14 @@ void GzStream::Decompress(const char * const compressed_data, const size_t compr
     unsigned bytes_consumed, bytes_produced, total_processed = 0;
     bool more = false;
     do {
-        more = stream.decompress(compressed_data + total_processed,
-                                 static_cast<unsigned>(compressed_data_size - total_processed),
+        more = stream.decompress(compressed_data + total_processed, static_cast<unsigned>(compressed_data_size - total_processed),
                                  uncompressed_data, sizeof(uncompressed_data) - 1, &bytes_consumed, &bytes_produced);
         s->append(uncompressed_data, bytes_produced);
         total_processed += bytes_consumed;
     } while (total_processed < compressed_data_size);
 
     while (more and bytes_produced > 0) {
-        more = stream.decompress(nullptr, 0, uncompressed_data, sizeof(uncompressed_data) - 1, &bytes_consumed,
-                                 &bytes_produced);
+        more = stream.decompress(nullptr, 0, uncompressed_data, sizeof(uncompressed_data) - 1, &bytes_consumed, &bytes_produced);
         s->append(uncompressed_data, bytes_produced);
     }
 }
@@ -177,8 +165,9 @@ void GzStream::Decompress(const char * const compressed_data, const size_t compr
 //
 std::string GzStream::CompressString(const std::string &input, const Type type) {
     if (unlikely(type != GzStream::COMPRESS and type != GzStream::GZIP))
-        throw std::runtime_error("in GzStream::CompressString: type must be either GzStream::COMPRESS or "
-                                 "GzStream::GZIP!");
+        throw std::runtime_error(
+            "in GzStream::CompressString: type must be either GzStream::COMPRESS or "
+            "GzStream::GZIP!");
 
     // The compressed string to output
     std::string compressed_output;
@@ -193,8 +182,7 @@ std::string GzStream::CompressString(const std::string &input, const Type type) 
 
     // While there is more input, compress it
     do {
-        more = stream.compress(input.c_str() + total_processed,
-                               static_cast<unsigned>(input_length - total_processed), compressed_data,
+        more = stream.compress(input.c_str() + total_processed, static_cast<unsigned>(input_length - total_processed), compressed_data,
                                sizeof(compressed_data), &bytes_consumed, &bytes_produced);
         compressed_output.append(compressed_data, bytes_produced);
         total_processed += bytes_consumed;
@@ -214,8 +202,9 @@ std::string GzStream::CompressString(const std::string &input, const Type type) 
 //
 std::string GzStream::DecompressString(const std::string &input, const Type type) {
     if (unlikely(type != GzStream::DECOMPRESS and type != GzStream::GUNZIP))
-        throw std::runtime_error("in GzStream::DecompressString: type must be either GzStream::DECOMPRESS or "
-                                 "GzStream::GUNZIP!");
+        throw std::runtime_error(
+            "in GzStream::DecompressString: type must be either GzStream::DECOMPRESS or "
+            "GzStream::GUNZIP!");
 
     // The string to return
     std::string decompressed_output;
@@ -230,8 +219,7 @@ std::string GzStream::DecompressString(const std::string &input, const Type type
 
     // While there is more data to decompress, decompress it
     do {
-        more = stream.decompress(input.c_str() + total_processed,
-                                 static_cast<unsigned>(input_length - total_processed), decompressed_data,
+        more = stream.decompress(input.c_str() + total_processed, static_cast<unsigned>(input_length - total_processed), decompressed_data,
                                  sizeof(decompressed_data), &bytes_consumed, &bytes_produced);
         decompressed_output.append(decompressed_data, bytes_produced);
         total_processed += bytes_consumed;

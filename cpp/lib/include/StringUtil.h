@@ -35,8 +35,8 @@
 #include <algorithm>
 #include <list>
 #include <set>
-#include <string>
 #include <stdexcept>
+#include <string>
 #include <type_traits>
 #include <vector>
 #include <cassert>
@@ -51,7 +51,7 @@
 
 
 #ifndef BITSPERBYTE
-    #define BITSPERBYTE      8
+#define BITSPERBYTE 8
 #endif
 
 
@@ -155,7 +155,9 @@ bool IsInitialCapsString(const std::string &s);
 /** \brief  Returns true if "ch" is a whitespace character.
  *  \note   Whether a character is considered to be a whitespace character is determined by isspace()
  */
-inline bool IsWhitespace(const char ch) { return isspace(ch); }
+inline bool IsWhitespace(const char ch) {
+    return isspace(ch);
+}
 
 
 /** \brief  Returns true if every character in "s" is a whitespace character.
@@ -177,7 +179,7 @@ char ToHex(const unsigned nibble);
  *  \param   trim_char  The character to remove.
  *  \return  The trimmed string.
  */
-std::string RightTrim(std::string * const s, char trim_char=' ');
+std::string RightTrim(std::string * const s, char trim_char = ' ');
 
 
 /** \brief   Remove all occurences of a character from the end of a string.
@@ -185,7 +187,7 @@ std::string RightTrim(std::string * const s, char trim_char=' ');
  *  \param   trim_char  The character to remove.
  *  \return  The trimmed string.
  */
-std::string RightTrim(const std::string &s, char trim_char=' ');
+std::string RightTrim(const std::string &s, char trim_char = ' ');
 
 
 /** \brief   Remove all occurences of a set of characters from the end of a string.
@@ -205,7 +207,7 @@ std::string RightTrim(const std::string &s, const std::string &trim_set);
 
 
 /** \brief   Remove all occurences of a character from the end of a string. */
-char *strrtrim(char *s, char trim_char=' ');
+char *strrtrim(char *s, char trim_char = ' ');
 
 
 /** \brief   Remove all occurences of a character from the beginning of a string.
@@ -213,7 +215,7 @@ char *strrtrim(char *s, char trim_char=' ');
  *  \param   trim_char  The character to remove.
  *  \return  The trimmed string.
  */
-std::string LeftTrim(std::string * const s, char trim_char=' ');
+std::string LeftTrim(std::string * const s, char trim_char = ' ');
 
 
 /** \brief   Remove all occurences of a character from the beginning of a string.
@@ -221,7 +223,7 @@ std::string LeftTrim(std::string * const s, char trim_char=' ');
  *  \param   trim_char  The character to remove.
  *  \return  The trimmed string.
  */
-std::string LeftTrim(const std::string &s, char trim_char=' ');
+std::string LeftTrim(const std::string &s, char trim_char = ' ');
 
 
 /** \brief   Remove all occurences of a set of characters from the beginning of a string.
@@ -245,7 +247,7 @@ std::string LeftTrim(const std::string &trim_set, const std::string &s);
  *  \param   trim_char  The character to remove.
  *  \return  The trimmed string.
  */
-std::string Trim(std::string * const s, char trim_char=' ');
+std::string Trim(std::string * const s, char trim_char = ' ');
 
 
 /** \brief   Remove all occurences of a character from either end of a string.
@@ -253,7 +255,7 @@ std::string Trim(std::string * const s, char trim_char=' ');
  *  \param   trim_char  The character to remove.
  *  \return  The trimmed string.
  */
-std::string Trim(const std::string &s, char trim_char=' ');
+std::string Trim(const std::string &s, char trim_char = ' ');
 
 
 /** \brief   Remove all occurences of a set of characters from either end of a string.
@@ -276,7 +278,9 @@ std::string Trim(const std::string &trim_set, const std::string &s);
  *  \param   s         The string to trim.
  *  \return  The trimmed string.
  */
-inline std::string TrimWhite(std::string * const s) { return Trim(WHITE_SPACE, s); }
+inline std::string TrimWhite(std::string * const s) {
+    return Trim(WHITE_SPACE, s);
+}
 
 
 /** \brief   Remove all occurences of whitespace characters from either end of a string.
@@ -293,7 +297,9 @@ inline std::string TrimWhite(const std::string &s) {
  *  \param   s         The string to trim.
  *  \return  The trimmed string.
  */
-inline std::string TrimWhite(const char * const s) { return TrimWhite(std::string(s)); }
+inline std::string TrimWhite(const char * const s) {
+    return TrimWhite(std::string(s));
+}
 
 
 inline std::string LeftTrimWhite(std::string * const s) {
@@ -331,10 +337,9 @@ inline std::string RightTrimWhite(const std::string &s) {
  *                         are separated by "grouping_char's."
  *  \return A string representation for "n."
  */
-template <typename IntegerType> std::string ToString(IntegerType n, const unsigned radix = 10, const int width = 0,
-                                                     const char padding_char = ' ', const char grouping_char = '\0',
-                                                     const unsigned grouping_size = 3)
-{
+template <typename IntegerType>
+std::string ToString(IntegerType n, const unsigned radix = 10, const int width = 0, const char padding_char = ' ',
+                     const char grouping_char = '\0', const unsigned grouping_size = 3) {
     assert(radix >= 2 and radix <= 62);
 
     static const char DIGITS[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -356,7 +361,7 @@ template <typename IntegerType> std::string ToString(IntegerType n, const unsign
         n /= radix;
         ++count;
         if (grouping_char != '\0' and count % grouping_size == 0)
-        *--cp = grouping_char;
+            *--cp = grouping_char;
     } while (n != 0);
 
     // Remove a leading "grouping_char" if necessary and update "count":
@@ -376,7 +381,7 @@ template <typename IntegerType> std::string ToString(IntegerType n, const unsign
         else
             return std::string(abs_width - count, padding_char) + cp;
     } else
-            return cp;
+        return cp;
 }
 
 
@@ -407,8 +412,9 @@ std::string ToHexString(const uint8_t u8);
 
 
 /** Converts "data" to a string consisting of hexadecimal numbers (one per nibble). */
-inline std::string ToHexString(const void * const data, size_t data_size)
-    { return ToHexString(std::string(reinterpret_cast<const char *>(data), data_size)); }
+inline std::string ToHexString(const void * const data, size_t data_size) {
+    return ToHexString(std::string(reinterpret_cast<const char *>(data), data_size));
+}
 
 
 /** Returns a binary nibble corresponding to "ch". */
@@ -723,8 +729,7 @@ std::string &Escape(const char escape_char, const char char_to_escape, std::stri
  *  \return   A copy of the modified "s" after the call.
  *  \warning  The escape character itself will always be escaped!
  */
-inline std::string Escape(const char escape_char, const char char_to_escape, const std::string &s)
-{
+inline std::string Escape(const char escape_char, const char char_to_escape, const std::string &s) {
     std::string modified_s(s);
     return Escape(escape_char, char_to_escape, &modified_s);
 }
@@ -747,8 +752,9 @@ std::string &Escape(const char escape_char, const char * const chars_to_escape, 
  *  \return  A reference to the modified "s" after the call.
  *  \note    The escape character itself will always be escaped!
  */
-inline std::string &Escape(const char escape_char, const std::string &chars_to_escape, std::string * const s)
-        { return Escape(escape_char, chars_to_escape.c_str(), s); }
+inline std::string &Escape(const char escape_char, const std::string &chars_to_escape, std::string * const s) {
+    return Escape(escape_char, chars_to_escape.c_str(), s);
+}
 
 
 /** \brief    Escape a specified set of characters.
@@ -758,8 +764,7 @@ inline std::string &Escape(const char escape_char, const std::string &chars_to_e
  *  \return   A copy of the modified "s" after the call.
  *  \warning  The escape character itself will always be escaped!
  */
-inline std::string Escape(const char escape_char, const char * const chars_to_escape, const std::string &s)
-{
+inline std::string Escape(const char escape_char, const char * const chars_to_escape, const std::string &s) {
     std::string modified_s(s);
     return Escape(escape_char, chars_to_escape, &modified_s);
 }
@@ -772,8 +777,7 @@ inline std::string Escape(const char escape_char, const char * const chars_to_es
  *  \return   A copy of the modified "s" after the call.
  *  \warning  The escape character itself will always be escaped!
  */
-inline std::string Escape(const char escape_char, const std::string &chars_to_escape, const std::string &s)
-{
+inline std::string Escape(const char escape_char, const std::string &chars_to_escape, const std::string &s) {
     std::string modified_s(s);
     return Escape(escape_char, chars_to_escape, &modified_s);
 }
@@ -785,8 +789,9 @@ inline std::string Escape(const char escape_char, const std::string &chars_to_es
  *  \return  A reference to the modified "s" after the call.
  *  \note    The backslash character itself will always be escaped.
  */
-inline std::string &BackslashEscape(const char char_to_escape, std::string * const s)
-    { return Escape('\\', char_to_escape, s); }
+inline std::string &BackslashEscape(const char char_to_escape, std::string * const s) {
+    return Escape('\\', char_to_escape, s);
+}
 
 
 /** \brief   Escape a specified character with a backslash.
@@ -795,8 +800,7 @@ inline std::string &BackslashEscape(const char char_to_escape, std::string * con
  *  \return  A copy of the modified "s" after the call.
  *  \note    The backslash character itself will always be escaped!
  */
-inline std::string BackslashEscape(const char char_to_escape, const std::string &s)
-{
+inline std::string BackslashEscape(const char char_to_escape, const std::string &s) {
     std::string modified_s(s);
     return Escape('\\', char_to_escape, &modified_s);
 }
@@ -808,8 +812,9 @@ inline std::string BackslashEscape(const char char_to_escape, const std::string 
  *  \return  A reference to the modified "s" after the call.
  *  \note    The backslash character itself will always be escaped!
  */
-inline std::string &BackslashEscape(const char * const chars_to_escape, std::string * const s)
-    { return Escape('\\', chars_to_escape, s); }
+inline std::string &BackslashEscape(const char * const chars_to_escape, std::string * const s) {
+    return Escape('\\', chars_to_escape, s);
+}
 
 
 /** \brief   Escape a specified set of characters with a backslash.
@@ -818,8 +823,9 @@ inline std::string &BackslashEscape(const char * const chars_to_escape, std::str
  *  \return  A reference to the modified "s" after the call.
  *  \note    The backslash character itself will always be escaped!
  */
-inline std::string &BackslashEscape(const std::string &chars_to_escape, std::string * const s)
-    { return Escape('\\', chars_to_escape, s); }
+inline std::string &BackslashEscape(const std::string &chars_to_escape, std::string * const s) {
+    return Escape('\\', chars_to_escape, s);
+}
 
 
 /** \brief   Escape a specified set of characters with a backslash.
@@ -828,8 +834,9 @@ inline std::string &BackslashEscape(const std::string &chars_to_escape, std::str
  *  \return  A reference to the modified "s" after the call.
  *  \note    The backslash character itself will always be escaped!
  */
-inline std::string BackslashEscape(const char * const chars_to_escape, const std::string &s)
-    { return Escape('\\', chars_to_escape, s); }
+inline std::string BackslashEscape(const char * const chars_to_escape, const std::string &s) {
+    return Escape('\\', chars_to_escape, s);
+}
 
 
 /** \brief   Escape a specified set of characters with a backslash.
@@ -838,8 +845,9 @@ inline std::string BackslashEscape(const char * const chars_to_escape, const std
  *  \return  A reference to the modified "s" after the call.
  *  \note    The backslash character itself will always be escaped!
  */
-inline std::string BackslashEscape(const std::string &chars_to_escape, const std::string &s)
-    { return Escape('\\', chars_to_escape, s); }
+inline std::string BackslashEscape(const std::string &chars_to_escape, const std::string &s) {
+    return Escape('\\', chars_to_escape, s);
+}
 
 
 /** \brief  Remove and return the first part of a string. "delimiter_string" tells where the split is to occur. "target"
@@ -866,10 +874,9 @@ std::string ExtractHead(std::string * const target, const std::string &delimiter
  *
  *  \return The number of extracted "fields".
  */
-template<typename StringType, typename InsertableContainer> unsigned Split(
-    const StringType &source, const StringType &delimiter_string, InsertableContainer * const container,
-    const bool suppress_empty_components = false)
-{
+template <typename StringType, typename InsertableContainer>
+unsigned Split(const StringType &source, const StringType &delimiter_string, InsertableContainer * const container,
+               const bool suppress_empty_components = false) {
     if (unlikely(delimiter_string.empty()))
         throw std::runtime_error("in StringUtil::Split: empty delimited string!");
 
@@ -926,10 +933,9 @@ bool SplitOnString(const std::string &s, const std::string &separator, std::stri
  *  Splits "source" around the character in "delimiter" and return the resulting list of fields in "fields."
  *  Empty fields are returned in the list.
  */
-template<typename StringType, typename InsertableContainer> unsigned Split(const StringType &source, const char delimiter,
-                                                                           InsertableContainer * const container,
-                                                                           const bool suppress_empty_components = false)
-{
+template <typename StringType, typename InsertableContainer>
+unsigned Split(const StringType &source, const char delimiter, InsertableContainer * const container,
+               const bool suppress_empty_components = false) {
     container->clear();
     if (source.empty())
         return 0;
@@ -968,10 +974,9 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
  *  \param  suppress_empty_components  If true we will not return empty components.
  *  \return The individual components.
  */
-template<typename StringType> std::vector<StringType> Split(const StringType &source, const char delimiter,
-                                                            const char escape_char = '\\',
-                                                            const bool suppress_empty_components = false)
-{
+template <typename StringType>
+std::vector<StringType> Split(const StringType &source, const char delimiter, const char escape_char = '\\',
+                              const bool suppress_empty_components = false) {
     if (unlikely(delimiter == escape_char))
         LOG_ERROR("the delimiter and escape character cannot be the same!");
 
@@ -1013,10 +1018,9 @@ template<typename StringType> std::vector<StringType> Split(const StringType &so
  *  Splits "source" around the character in "delimiter" and return the resulting list of fields in "fields."
  *  Empty fields are returned in the list.
  */
-template<typename StringType, typename InsertableContainer> unsigned Split(const StringType &source, const std::set<char> &delimiters,
-                                                                           InsertableContainer * const container,
-                                                                           const bool suppress_empty_components = false)
-{
+template <typename StringType, typename InsertableContainer>
+unsigned Split(const StringType &source, const std::set<char> &delimiters, InsertableContainer * const container,
+               const bool suppress_empty_components = false) {
     container->clear();
     if (source.empty())
         return 0;
@@ -1037,8 +1041,7 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
         if (next_delimiter == StringType::npos) {
             if (not suppress_empty_components or start < source.length())
                 container->insert(container->end(), source.substr(start));
-        }
-        else if (next_delimiter > start) {
+        } else if (next_delimiter > start) {
             if (not suppress_empty_components or start < next_delimiter)
                 container->insert(container->end(), source.substr(start, next_delimiter - start));
         }
@@ -1063,10 +1066,9 @@ template<typename StringType, typename InsertableContainer> unsigned Split(const
  *  Splits "source" around the character in "delimiter" and return the resulting list of fields in "fields."
  *  Empty fields are returned in the list.
  */
-template<typename InsertableContainer> inline unsigned WhiteSpaceSplit(const std::string &source,
-                                                                       InsertableContainer * const container,
-                                                                       const bool suppress_empty_components = false)
-{
+template <typename InsertableContainer>
+inline unsigned WhiteSpaceSplit(const std::string &source, InsertableContainer * const container,
+                                const bool suppress_empty_components = false) {
     return Split(source, MiscUtil::GetWhiteSpaceSet(), container, suppress_empty_components);
 }
 
@@ -1082,14 +1084,13 @@ template<typename InsertableContainer> inline unsigned WhiteSpaceSplit(const std
  *  Splits "s" using any of the character in "field_separator" and then trims the resulting words.
  *
  *  \note
- *  The container must contain std::string objects.  It can have any container type that has the STL insert(interator, object) interface.  In other words, it can
- *  be std::list<std::string>, std::vector<std::string>, std::deque<std::string>, or if you require sorting std::set<std::string>. For non ordered containers
- *  the individual parts will be inserted at the end of the container.
+ *  The container must contain std::string objects.  It can have any container type that has the STL insert(interator, object) interface. In
+ * other words, it can be std::list<std::string>, std::vector<std::string>, std::deque<std::string>, or if you require sorting
+ * std::set<std::string>. For non ordered containers the individual parts will be inserted at the end of the container.
  */
-template<typename InsertableContainer> inline unsigned SplitThenTrim(const std::string &s, const std::string &field_separators,
-                                                                     const std::string &trim_chars, InsertableContainer * const container,
-                                                                     const bool suppress_empty_words = true)
-{
+template <typename InsertableContainer>
+inline unsigned SplitThenTrim(const std::string &s, const std::string &field_separators, const std::string &trim_chars,
+                              InsertableContainer * const container, const bool suppress_empty_words = true) {
     if (unlikely(field_separators.empty()))
         throw std::runtime_error("in StringUtil::SplitThenTrim: empty field separators string!");
 
@@ -1139,9 +1140,9 @@ template<typename InsertableContainer> inline unsigned SplitThenTrim(const std::
  *
  *  \return  The number of extracted "words".
  */
-template<typename InsertableContainer> inline unsigned SplitThenTrim(const std::string &s, const char field_separator, const std::string &trim_chars,
-                                                                     InsertableContainer * const container, const bool suppress_empty_words = true)
-{
+template <typename InsertableContainer>
+inline unsigned SplitThenTrim(const std::string &s, const char field_separator, const std::string &trim_chars,
+                              InsertableContainer * const container, const bool suppress_empty_words = true) {
     container->clear();
     unsigned count = 0;
     std::string::const_iterator ch(s.begin());
@@ -1184,9 +1185,9 @@ template<typename InsertableContainer> inline unsigned SplitThenTrim(const std::
  *  \param  suppress_empty_words  If true, we skip empty "words", otherwise we keep them.
  *  \return The number of extracted "words".
  */
-template<typename InsertableContainer> inline unsigned SplitThenTrimWhite(const std::string &s, const std::string &field_separators,
-                                                                          InsertableContainer * const container, const bool suppress_empty_words = true)
-{
+template <typename InsertableContainer>
+inline unsigned SplitThenTrimWhite(const std::string &s, const std::string &field_separators, InsertableContainer * const container,
+                                   const bool suppress_empty_words = true) {
     return SplitThenTrim(s, field_separators, WHITE_SPACE, container, suppress_empty_words);
 }
 
@@ -1198,9 +1199,9 @@ template<typename InsertableContainer> inline unsigned SplitThenTrimWhite(const 
  *  \param  suppress_empty_words  If true, we skip empty "words", otherwise we keep them.
  *  \return The number of extracted "words".
  */
-template<typename InsertableContainer> inline unsigned SplitThenTrimWhite(const std::string &s, const char field_separator,
-                                                                          InsertableContainer * const container, const bool suppress_empty_words = true)
-{
+template <typename InsertableContainer>
+inline unsigned SplitThenTrimWhite(const std::string &s, const char field_separator, InsertableContainer * const container,
+                                   const bool suppress_empty_words = true) {
     return SplitThenTrim(s, field_separator, WHITE_SPACE, container, suppress_empty_words);
 }
 
@@ -1222,9 +1223,9 @@ template<typename InsertableContainer> inline unsigned SplitThenTrimWhite(const 
  *
  *  \return  The number of extracted "substrings" (empty substrings are not returned).
  */
-template<typename InsertableContainer> unsigned SplitOnStringThenTrim(const std::string &s, const std::string &separator, const std::string &trim_chars,
-                                                                      InsertableContainer * const container, const bool suppress_empty_words = true)
-{
+template <typename InsertableContainer>
+unsigned SplitOnStringThenTrim(const std::string &s, const std::string &separator, const std::string &trim_chars,
+                               InsertableContainer * const container, const bool suppress_empty_words = true) {
     container->clear();
     const std::string::size_type SEPARATOR_LENGTH(separator.length());
     unsigned count(0);
@@ -1232,12 +1233,11 @@ template<typename InsertableContainer> unsigned SplitOnStringThenTrim(const std:
     // Split the string around the seperator, and trim each component:
     std::string::size_type old_start_pos(0), next_separator_start_pos;
     while ((next_separator_start_pos = s.find(separator, old_start_pos)) != std::string::npos) {
-
         // Get the next element and trim it:
         std::string new_substr(s.substr(old_start_pos, next_separator_start_pos - old_start_pos));
         StringUtil::Trim(trim_chars, &new_substr);
 
-        if (not (new_substr.empty() and suppress_empty_words)) {
+        if (not(new_substr.empty() and suppress_empty_words)) {
             // The element is non-empty, keep it:
             container->insert(container->end(), new_substr);
             ++count;
@@ -1253,7 +1253,7 @@ template<typename InsertableContainer> unsigned SplitOnStringThenTrim(const std:
         StringUtil::Trim(trim_chars, &new_substr);
 
         // Skip empty word?
-        if (not (new_substr.empty() and suppress_empty_words)) {
+        if (not(new_substr.empty() and suppress_empty_words)) {
             container->insert(container->end(), new_substr);
             ++count;
         }
@@ -1284,10 +1284,9 @@ bool SplitOnStringThenTrim(const std::string &s, const std::string &separator, c
  *  \param  allow_empty_parts  If true, "part1" and/or "part2" may be empty, otherwise not.
  *  \return True if we found the separator and successfully extracted the two parts, otherwise false.
  */
-inline bool SplitOnStringThenTrimWhite(const std::string &s, const std::string &separator, std::string * const part1, std::string * const part2,
-                                       const bool allow_empty_parts = false)
-{
-        return SplitOnStringThenTrim(s, separator, WHITE_SPACE, part1, part2, allow_empty_parts);
+inline bool SplitOnStringThenTrimWhite(const std::string &s, const std::string &separator, std::string * const part1,
+                                       std::string * const part2, const bool allow_empty_parts = false) {
+    return SplitOnStringThenTrim(s, separator, WHITE_SPACE, part1, part2, allow_empty_parts);
 }
 
 
@@ -1299,9 +1298,9 @@ inline bool SplitOnStringThenTrimWhite(const std::string &s, const std::string &
  *  \param  container       A template container that supports the push_back member function.
  *  \return The number of fields extracted from source.
  */
-template<typename InsertableContainer> unsigned UnescapeAndSplitThenTrim(const std::string &source, const char separator, const char escape_char,
-                                                                         const std::string &trim_chars, InsertableContainer * const container)
-{
+template <typename InsertableContainer>
+unsigned UnescapeAndSplitThenTrim(const std::string &source, const char separator, const char escape_char, const std::string &trim_chars,
+                                  InsertableContainer * const container) {
     container->clear();
     if (source.empty())
         return 0;
@@ -1312,16 +1311,14 @@ template<typename InsertableContainer> unsigned UnescapeAndSplitThenTrim(const s
         if (escaped) {
             escaped = false;
             current_field += *ch;
-        }
-        else if (*ch == escape_char)
+        } else if (*ch == escape_char)
             escaped = true;
         else if (*ch == separator) {
             StringUtil::Trim(trim_chars, &current_field);
             container->insert(container->end(), current_field);
             current_field.clear();
             ++count;
-        }
-        else
+        } else
             current_field += *ch;
     }
     StringUtil::Trim(trim_chars, &current_field);
@@ -1342,12 +1339,12 @@ template<typename InsertableContainer> unsigned UnescapeAndSplitThenTrim(const s
  *  of strings, and will typically be std::list<std::string> or std::vector<std::string>.  The string "separator" will be
  *  inserted between the elements.
  */
-template<typename StringContainer> unsigned Join(const StringContainer &source, const std::string &separator, std::string * const dest)
-{
+template <typename StringContainer>
+unsigned Join(const StringContainer &source, const std::string &separator, std::string * const dest) {
     dest->clear();
     unsigned word_count(0);
     const unsigned SOURCE_SIZE(static_cast<unsigned>(source.size()));
-    for (typename StringContainer::const_iterator i(source.begin()); i !=  source.end(); ++i) {
+    for (typename StringContainer::const_iterator i(source.begin()); i != source.end(); ++i) {
         *dest += *i;
         ++word_count;
         if (word_count < SOURCE_SIZE)
@@ -1364,8 +1361,8 @@ template<typename StringContainer> unsigned Join(const StringContainer &source, 
  *  \param  separator  Stick this between each word
  *  \return The resulting string.
  */
-template <typename ForwardIterator> std::string Join(ForwardIterator first, ForwardIterator last, const std::string &separator)
-{
+template <typename ForwardIterator>
+std::string Join(ForwardIterator first, ForwardIterator last, const std::string &separator) {
     std::string resultant_string;
     while (first != last) {
         resultant_string += *first;
@@ -1387,8 +1384,8 @@ template <typename ForwardIterator> std::string Join(ForwardIterator first, Forw
  *  of strings, and will typically be std::list<std::string> or std::vector<std::string>.  The "separator" character will
  *  be inserted between the elements.
  */
-template<typename StringContainer> inline unsigned Join(const StringContainer &source, const char separator, std::string * const dest)
-{
+template <typename StringContainer>
+inline unsigned Join(const StringContainer &source, const char separator, std::string * const dest) {
     std::string string_separator(1, separator);
     return Join(source, string_separator, dest);
 }
@@ -1406,13 +1403,12 @@ template<typename StringContainer> inline unsigned Join(const StringContainer &s
  *  std::vector<std::string>.  The string "separator" is inserted
  *  between the elements.
  */
-template<typename StringContainer> void Join(const StringContainer &source_begin, const StringContainer &source_end, const std::string &separator,
-                                             std::string * const dest)
-{
-        *dest = "";
+template <typename StringContainer>
+void Join(const StringContainer &source_begin, const StringContainer &source_end, const std::string &separator, std::string * const dest) {
+    *dest = "";
     unsigned word_count = 0;
 
-    for (StringContainer i = source_begin; i !=  source_end; ++i) {
+    for (StringContainer i = source_begin; i != source_end; ++i) {
         *dest += *i;
         ++word_count;
         if (i != source_end)
@@ -1427,8 +1423,8 @@ template<typename StringContainer> void Join(const StringContainer &source_begin
  *
  *  Joins a list of strings from "source" into a single long string and returns it.
  */
-template<typename StringContainer> inline std::string Join(const StringContainer &source, const char separator)
-{
+template <typename StringContainer>
+inline std::string Join(const StringContainer &source, const char separator) {
     std::string dest;
     Join(source, separator, &dest);
 
@@ -1442,8 +1438,8 @@ template<typename StringContainer> inline std::string Join(const StringContainer
  *
  *  Joins a list of strings from "source" into a single long string and returns it.
  */
-template<typename StringContainer> inline std::string Join(const StringContainer &source, const std::string &separator)
-{
+template <typename StringContainer>
+inline std::string Join(const StringContainer &source, const std::string &separator) {
     std::string dest;
     Join(source, separator, &dest);
 
@@ -1459,19 +1455,18 @@ template<typename StringContainer> inline std::string Join(const StringContainer
  *  \return The number of strings that were joined.
  *  \note   The escape character itself and the separator will always be escaped!
  *
- *  Joins a list of strings from "source" into a single long string, "dest".  The source can be pretty much any container of strings, and will usually be
- *  std::list<std::string> or std::vector<std::string>.  The string "separator" is inserted between the elements.
+ *  Joins a list of strings from "source" into a single long string, "dest".  The source can be pretty much any container of strings, and
+ * will usually be std::list<std::string> or std::vector<std::string>.  The string "separator" is inserted between the elements.
  */
-template<typename StringContainer> unsigned EscapeAndJoin(const StringContainer &source, const char separator, const char escape_char,
-                                                          std::string * const dest)
-{
+template <typename StringContainer>
+unsigned EscapeAndJoin(const StringContainer &source, const char separator, const char escape_char, std::string * const dest) {
     std::string chars_to_escape;
     chars_to_escape += separator;
 
     dest->clear();
     unsigned word_count = 0;
     const unsigned SOURCE_SIZE(source.size());
-    for (typename StringContainer::const_iterator i = source.begin(); i !=  source.end(); ++i) {
+    for (typename StringContainer::const_iterator i = source.begin(); i != source.end(); ++i) {
         *dest += Escape(escape_char, chars_to_escape, *i);
         ++word_count;
         if (word_count < SOURCE_SIZE)
@@ -1493,8 +1488,8 @@ template<typename StringContainer> unsigned EscapeAndJoin(const StringContainer 
  *  container of strings, and will usually be std::list<std::string> or std::vector<std::string>.  The string "separator"
  *  is inserted between the elements.
  */
-template<typename StringContainer> std::string EscapeAndJoin(const StringContainer &source, const char separator, const char escape_char)
-{
+template <typename StringContainer>
+std::string EscapeAndJoin(const StringContainer &source, const char separator, const char escape_char) {
     std::string dest;
     EscapeAndJoin(source, separator, escape_char, &dest);
 
@@ -1502,11 +1497,9 @@ template<typename StringContainer> std::string EscapeAndJoin(const StringContain
 }
 
 
-template<typename StringContainer> unsigned UnescapeAndSplit(const std::string &mushed_data, const char separator,
-                                                             StringContainer * const container,
-                                                             const bool suppress_empty_elements = true,
-                                                             const char escape_char = '\\')
-{
+template <typename StringContainer>
+unsigned UnescapeAndSplit(const std::string &mushed_data, const char separator, StringContainer * const container,
+                          const bool suppress_empty_elements = true, const char escape_char = '\\') {
     unsigned element_count(0);
 
     std::string element;
@@ -1515,8 +1508,7 @@ template<typename StringContainer> unsigned UnescapeAndSplit(const std::string &
         if (escaped) {
             element += *ch;
             escaped = false;
-        }
-        else if (*ch == escape_char)
+        } else if (*ch == escape_char)
             escaped = true;
         else if (*ch == separator) {
             if (element.empty()) {
@@ -1524,22 +1516,19 @@ template<typename StringContainer> unsigned UnescapeAndSplit(const std::string &
                     container->insert(container->end(), element);
                     ++element_count;
                 }
-            }
-            else {
+            } else {
                 container->insert(container->end(), element);
                 element.clear();
                 ++element_count;
             }
-        }
-        else
+        } else
             element += *ch;
-}
+    }
 
     if (not element.empty()) {
         container->insert(container->end(), element);
         ++element_count;
-    }
-    else if (not mushed_data.empty() and not suppress_empty_elements) {
+    } else if (not mushed_data.empty() and not suppress_empty_elements) {
         container->insert(container->end(), element);
         ++element_count;
     }
@@ -1583,16 +1572,16 @@ const char *SkipNonAlphanumericChars(const char *text);
  *  \return An int analogous to strcmp(3).
  */
 inline int AlphaWordCompare(const char *lhs, const char *rhs) {
-    return ::strcasecmp(SkipNonAlphanumericChars(SkipLeadingArticle(lhs)),
-                        SkipNonAlphanumericChars(SkipLeadingArticle(rhs)));
+    return ::strcasecmp(SkipNonAlphanumericChars(SkipLeadingArticle(lhs)), SkipNonAlphanumericChars(SkipLeadingArticle(rhs)));
 }
 
 
 /** \fn     AlphaWordCompare(const std::string &lhs, const std::string &rhs)
  *  \brief  See AlphaWordCompare(const char *lhs, const char *rhs)
  */
-inline int AlphaWordCompare(const std::string &lhs, const std::string &rhs)
-    { return AlphaWordCompare(SkipLeadingArticle(lhs.c_str()), SkipLeadingArticle(rhs.c_str())); }
+inline int AlphaWordCompare(const std::string &lhs, const std::string &rhs) {
+    return AlphaWordCompare(SkipLeadingArticle(lhs.c_str()), SkipLeadingArticle(rhs.c_str()));
+}
 
 
 /** \brief  Erase the newline and carriage return characters from the end of the line.
@@ -1736,8 +1725,9 @@ bool Match(const char *pattern, const char *s, bool ignore_case = false);
  *  \param  ignore_case  Whether to perform the scanning in a case-sensitive manner or not.
  *  \return Whether we had a successful match or not.
  */
-inline bool Match(const std::string &pattern, const std::string &s, bool ignore_case = false)
-    { return Match(pattern.c_str(), s.c_str(), ignore_case); }
+inline bool Match(const std::string &pattern, const std::string &s, bool ignore_case = false) {
+    return Match(pattern.c_str(), s.c_str(), ignore_case);
+}
 
 
 /** \brief  Allocate and return a new duplicate of a char* array.
@@ -1748,7 +1738,7 @@ inline char *strnewdup(const char * const s) {
         return nullptr;
 
     size_t len = std::strlen(s);
-    char *new_s = new char[len+1];
+    char *new_s = new char[len + 1];
     return std::strcpy(new_s, s);
 }
 
@@ -1756,8 +1746,8 @@ inline char *strnewdup(const char * const s) {
  *  \note This is potentially unsafe due to risk of stack overflow. However, all code compiled without stack checking enabled has the same
  *  issue.  In the future I'd like to add a stack available function to check for enough room before doing this. That function would be
  *  virtually instantaneous. All it has to do is subtract pointers.
-*/
-#define StrdupLocal(source) std::strcpy(static_cast<char*>(::alloca(std::strlen(source) + 1)), source)
+ */
+#define StrdupLocal(source) std::strcpy(static_cast<char *>(::alloca(std::strlen(source) + 1)), source)
 
 
 /** \brief   Replaces one or all occurrences of "old_text" in "*s" with "new_text".
@@ -1768,8 +1758,7 @@ inline char *strnewdup(const char * const s) {
  *                     only the first occurrence will be replaced.
  *  \return  A reference to the modified string.
  */
-std::string &ReplaceString(const std::string &old_text, const std::string &new_text, std::string * const s,
-                           const bool global = true);
+std::string &ReplaceString(const std::string &old_text, const std::string &new_text, std::string * const s, const bool global = true);
 
 
 /** \brief   Replaces one or all occurrences of "old_text" in "s" with "new_text".
@@ -1780,11 +1769,9 @@ std::string &ReplaceString(const std::string &old_text, const std::string &new_t
  *                     only the first occurrence will be replaced.
  *  \return  The modified string.
  */
-inline std::string ReplaceString(const std::string &old_text, const std::string &new_text, const std::string &s,
-                                 const bool global = true)
-{
-        std::string temp_s(s);
-        return ReplaceString(old_text, new_text, &temp_s, global);
+inline std::string ReplaceString(const std::string &old_text, const std::string &new_text, const std::string &s, const bool global = true) {
+    std::string temp_s(s);
+    return ReplaceString(old_text, new_text, &temp_s, global);
 }
 
 
@@ -1853,8 +1840,7 @@ std::string ISO8859_15ToUTF8(const std::string &text);
  *                              least 5 1-bits.  Beware of confusion with byte-order markers!
  *  \return The converted string (in ISO8859-15).
  */
-std::string UTF8ToISO8859_15(const std::string &text, const char unknown_char = '?',
-                             const bool use_overlap_tokens = false,
+std::string UTF8ToISO8859_15(const std::string &text, const char unknown_char = '?', const bool use_overlap_tokens = false,
                              const unsigned char overlap_token = 0xFFu);
 
 
@@ -1921,8 +1907,7 @@ size_t strlcat(char * const dest, const char * const src, const size_t dest_size
  *  \param  text The string whose alphanumeric length we'd like to claculate.
  *  \return The alphanumeric length of "text".
  */
-inline size_t AlphanumericLength(const std::string &text)
-{
+inline size_t AlphanumericLength(const std::string &text) {
     size_t length = 0;
     for (std::string::const_iterator ch(text.begin()); ch != text.end(); ++ch)
         if (likely(isalnum(*ch)))
@@ -1937,8 +1922,7 @@ inline size_t AlphanumericLength(const std::string &text)
  *  \param  text The string whose nonwhitespace length we'd like to claculate.
  *  \return The nonwhitespace length of "text".
  */
-inline size_t NonWhitespaceLength(const std::string &text)
-{
+inline size_t NonWhitespaceLength(const std::string &text) {
     size_t length = 0;
     for (std::string::const_iterator ch(text.begin()); ch != text.end(); ++ch)
         if (likely(not isspace(*ch)))
@@ -1952,10 +1936,9 @@ inline size_t NonWhitespaceLength(const std::string &text)
  *  \param  ch  The character to test.
  *  \return True if "ch" is a lowercase ASCII letter, else returns false.
  */
-inline bool IsLowercaseAsciiLetter(const char ch)
-{
-        // Caution: the following code assumes a character set where a-z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
-        return ch >= 'a' and ch <= 'z';
+inline bool IsLowercaseAsciiLetter(const char ch) {
+    // Caution: the following code assumes a character set where a-z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
+    return ch >= 'a' and ch <= 'z';
 }
 
 
@@ -1963,8 +1946,7 @@ inline bool IsLowercaseAsciiLetter(const char ch)
  *  \param  ch  The character to test.
  *  \return True if "ch" is a lowercase ASCII letter, else returns false.
  */
-inline bool IsLowercaseAsciiLetter(const int ch)
-{
+inline bool IsLowercaseAsciiLetter(const int ch) {
     // Caution: the following code assumes a character set where a-z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
     return ch >= 'a' and ch <= 'z';
 }
@@ -1974,8 +1956,7 @@ inline bool IsLowercaseAsciiLetter(const int ch)
  *  \param  ch  The character to test.
  *  \return True if "ch" is an alphabetic character in the "C" locale, else false.
  */
-inline bool IsAsciiLetter(const char ch)
-{
+inline bool IsAsciiLetter(const char ch) {
     // Caution: the following code assumes a character set where a-z, A-Z are consecutive, e.g. ANSI or ASCII
     //          but not EBCDIC etc.
     return (ch >= 'a' and ch <= 'z') or (ch >= 'A' and ch <= 'Z');
@@ -1986,8 +1967,7 @@ inline bool IsAsciiLetter(const char ch)
  *  \param  ch  The character to test.
  *  \return True if "ch" is an alphabetic character in the "C" locale, else false.
  */
-inline bool IsAsciiLetter(const int ch)
-{
+inline bool IsAsciiLetter(const int ch) {
     // Caution: the following code assumes a character set where a-z, A-Z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
     return (ch >= 'a' and ch <= 'z') or (ch >= 'A' and ch <= 'Z');
 }
@@ -1997,8 +1977,7 @@ inline bool IsAsciiLetter(const int ch)
  *  \param  ch  The character to test.
  *  \return True if "ch" is an alphabetic character in the "C" locale, else false.
  */
-inline bool IsUppercaseAsciiLetter(const char ch)
-{
+inline bool IsUppercaseAsciiLetter(const char ch) {
     // Caution: the following code assumes a character set where A-Z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
     return ch >= 'A' and ch <= 'Z';
 }
@@ -2008,8 +1987,7 @@ inline bool IsUppercaseAsciiLetter(const char ch)
  *  \param  ch  The character to test.
  *  \return True if "ch" is an alphabetic character in the "C" locale, else false.
  */
-inline bool IsUppercaseAsciiLetter(const int ch)
-{
+inline bool IsUppercaseAsciiLetter(const int ch) {
     // Caution: the following code assumes a character set where A-Z are consecutive, e.g. ANSI or ASCII but not EBCDIC etc.
     return ch >= 'A' and ch <= 'Z';
 }
@@ -2019,8 +1997,7 @@ inline bool IsUppercaseAsciiLetter(const int ch)
  *  \param  ch  The character to test.
  *  \return True if "ch" is an numeric character in the "C" locale, else false.
  */
-inline bool IsDigit(const char ch)
-{
+inline bool IsDigit(const char ch) {
     // Caution: the following code assumes a character set where 0-9 are consecutive, e.g. ANSI, ASCII
     //          or EBCDIC etc.
     return ch >= '0' and ch <= '9';
@@ -2031,8 +2008,7 @@ inline bool IsDigit(const char ch)
  *  \param  ch  The character to test.
  *  \return True if "ch" is an numeric character in the "C" locale, else false.
  */
-inline bool IsDigit(const int ch)
-{
+inline bool IsDigit(const int ch) {
     // Caution: the following code assumes a character set where 0-9 are consecutive, e.g. ANSI, ASCII
     //          or EBCDIC etc.
     return ch >= '0' and ch <= '9';
@@ -2060,14 +2036,18 @@ inline bool IsPrintableASCIICharacter(const char ch) {
  *  \param  ch  The character to test.
  *  \return True if "ch" is an alphanumeric character in the "C" locale, else false.
  */
-inline bool IsAlphanumeric(const char ch) { return IsAsciiLetter(ch) or IsDigit(ch); }
+inline bool IsAlphanumeric(const char ch) {
+    return IsAsciiLetter(ch) or IsDigit(ch);
+}
 
 
 /** \brief  Returns what isalnum would return in the "C" locale.
  *  \param  ch  The character to test.
  *  \return True if "ch" is an alphanumeric character in the "C" locale, else false.
  */
-inline bool IsAlphanumeric(const int ch) { return IsAsciiLetter(ch) or IsDigit(ch); }
+inline bool IsAlphanumeric(const int ch) {
+    return IsAsciiLetter(ch) or IsDigit(ch);
+}
 
 
 /** \brief   Test "s" for consisting entirely of alphanumeric characters or not.
@@ -2085,9 +2065,10 @@ bool IsAlphanumeric(const std::string &s);
  *  \return  True if the string "s" equals or starts with the prefix "prefix."
  */
 inline bool StartsWith(const std::string &s, const std::string &prefix, const bool ignore_case = false) {
-    return prefix.empty() or (s.length() >= prefix.length()
-           and (ignore_case ? (::strncasecmp(s.c_str(), prefix.c_str(), prefix.length()) == 0)
-                            : (std::strncmp(s.c_str(), prefix.c_str(), prefix.length()) == 0)));
+    return prefix.empty()
+           or (s.length() >= prefix.length()
+               and (ignore_case ? (::strncasecmp(s.c_str(), prefix.c_str(), prefix.length()) == 0)
+                                : (std::strncmp(s.c_str(), prefix.c_str(), prefix.length()) == 0)));
 }
 inline bool StartsWith(const std::string &s, const std::vector<std::string> &prefixes, const bool ignore_case = false) {
     for (const auto &prefix : prefixes) {
@@ -2105,11 +2086,10 @@ inline bool StartsWith(const std::string &s, const std::vector<std::string> &pre
  *  \return  True if the string "s" equals or ends with the suffix "suffix."
  */
 inline bool EndsWith(const std::string &s, const std::string &suffix, const bool ignore_case = false) {
-    return suffix.empty() or (s.length() >= suffix.length()
-           and (ignore_case ? (::strncasecmp(s.c_str() + (s.length() - suffix.length()), suffix.c_str(),
-                                             suffix.length()) == 0)
-                            : (std::strncmp(s.c_str() + (s.length() - suffix.length()), suffix.c_str(),
-                                            suffix.length()) == 0)));
+    return suffix.empty()
+           or (s.length() >= suffix.length()
+               and (ignore_case ? (::strncasecmp(s.c_str() + (s.length() - suffix.length()), suffix.c_str(), suffix.length()) == 0)
+                                : (std::strncmp(s.c_str() + (s.length() - suffix.length()), suffix.c_str(), suffix.length()) == 0)));
 }
 
 
@@ -2164,8 +2144,10 @@ std::string Sha1(const std::string &s);
 size_t Sha1Hash(const std::string &s);
 
 
-uint32_t SuperFastHash(const char * data, unsigned len);
-inline size_t SuperFastHash(const std::string &s) { return SuperFastHash(s.data(), static_cast<unsigned>(s.size())); }
+uint32_t SuperFastHash(const char *data, unsigned len);
+inline size_t SuperFastHash(const std::string &s) {
+    return SuperFastHash(s.data(), static_cast<unsigned>(s.size()));
+}
 
 
 /** \brief    Calculates the Adler-32 checksum for "s".
@@ -2180,7 +2162,9 @@ inline size_t SuperFastHash(const std::string &s) { return SuperFastHash(s.data(
 uint32_t Adler32(const char * const s, const size_t s_length);
 
 
-inline uint32_t Adler32(const std::string &s) { return Adler32(s.c_str(), s.size()); }
+inline uint32_t Adler32(const std::string &s) {
+    return Adler32(s.c_str(), s.size());
+}
 
 
 /** Returns the string of all chars that pass isprint(). */
@@ -2201,8 +2185,7 @@ std::string GetPunctuationChars();
 std::string &CapitalizeWord(std::string * const word);
 
 
-inline std::string CapitalizeWord(const std::string &word)
-{
+inline std::string CapitalizeWord(const std::string &word) {
     std::string temp(word);
     return CapitalizeWord(&temp);
 }
@@ -2225,24 +2208,25 @@ size_t CharCount(const char *s, const char count_char);
 
 
 /** Returns the number of occurrences of "count_char" in "s."  Please note that "s" is allowed to contain embedded NULs! */
-inline size_t CharCount(const std::string &s, const char count_char) { return std::count(s.begin(), s.end(), count_char); }
+inline size_t CharCount(const std::string &s, const char count_char) {
+    return std::count(s.begin(), s.end(), count_char);
+}
 
 
 /** Safely converts a C-style string to an std::string taking into account the possibility that the C-style string may
     be nullptr. */
-inline std::string CStringToNonNullString(const char * const c_string)
-{
-        if (c_string == nullptr)
-            return "";
-        else
-            return c_string;
+inline std::string CStringToNonNullString(const char * const c_string) {
+    if (c_string == nullptr)
+        return "";
+    else
+        return c_string;
 }
 
 
 /**
  * Create an std::string using printf style format string.  "format" cannot be std::string because gcc
  * __attribute__ checking does not understand std::string
-*/
+ */
 std::string Format(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
 
@@ -2251,7 +2235,7 @@ std::string Format(const char *format, ...) __attribute__((format(printf, 1, 2))
  * example: Format(::alloca(200), 200, "File %s could not be opened", filename); Needed where speed is
  * important or where a mutable char* is necessary and ::strdup is not useful because it is not exception safe
  * and is a potential memory leak.
-*/
+ */
 char *FastFormat(void *buffer, const size_t max_length, const char *format, ...) __attribute__((format(printf, 3, 4)));
 
 
@@ -2272,7 +2256,8 @@ std::string::size_type RFindAnyOf(const std::string &test_string, const std::str
 
 /** Returns the offset of the "nth" word in "target" using "word_separator_characters" to determine what separates words,
     or npos if such doesn't exist. */
-std::string::size_type NthWordByteOffset(const std::string &target, const size_t nth, const std::string &word_separator_characters = WHITE_SPACE);
+std::string::size_type NthWordByteOffset(const std::string &target, const size_t nth,
+                                         const std::string &word_separator_characters = WHITE_SPACE);
 
 
 /** Returns an excerpt from "text", centered on "offset", of "length" characters. */
@@ -2282,42 +2267,53 @@ std::string Context(const std::string &text, const std::string::size_type offset
 /** \brief   Tries to determine the best place to truncate a line of text, given that you want the result to be
  *           somewhat logical, sensible, a complete thought.
  *  \param   source_text   The text we want to extract from.
- *  \param   delimiters    The characters that delimit complete thoughts in the text. They will be tried in the order given, the first one found
- *                         will be used as the break point, with the text to the left of it being returned as the sensible subphrase. The characters .?!
-                           if they are the delimiter which split the text, will be returned along with the subphrase.
+ *  \param   delimiters    The characters that delimit complete thoughts in the text. They will be tried in the order given, the first one
+ found
+ *                         will be used as the break point, with the text to the left of it being returned as the sensible subphrase. The
+ characters .?! if they are the delimiter which split the text, will be returned along with the subphrase.
  *  \param   minimum       Don't look in anything less than this offset in the source text.
  *  \param   maximum       Don't look any further than this offset in the text.
  *  \return  Returns the string determined to be the best subphrase.
- *  \note    This code assumes periods, commas, semicolons, !, ?, newlines and some other characters break on clauses that are complete thoughts. It
- *  starts at the "minimum" offset in the "source_text" and takes each delimiter in the order specified. If that delimiter occurs in the text, we are
+ *  \note    This code assumes periods, commas, semicolons, !, ?, newlines and some other characters break on clauses that are complete
+ thoughts. It
+ *  starts at the "minimum" offset in the "source_text" and takes each delimiter in the order specified. If that delimiter occurs in the
+ text, we are
  *  done and we return all the text up to that delimiter, less the delimiter. If the source_text is shorter than minimum, the entire text is
- *  returned.  The logic here is that a phrase shorter than "minimum" is the complete text, and thus likely to be a complete thought. If no breakpoint
+ *  returned.  The logic here is that a phrase shorter than "minimum" is the complete text, and thus likely to be a complete thought. If no
+ breakpoint
  *  is found (highly unlikely if ' ' is one of the characters in "delimiters") the entire source_text up to "maximum" is returned.
 */
 std::string ExtractSensibleSubphrase(const std::string &source_text, const std::string &delimiters = "!?.;,|\n\r\t ",
                                      const unsigned minimum = 20, const unsigned maximum = 200);
 
 
-/** A predicate for comparing the relative ordering of two C-style strings lexicographically.  Returns true if "s1" preceeds "s2", otherwise false. */
-inline bool strless(const char * const s1, const char * s2) { return std::strcmp(s1, s2) < 0; }
+/** A predicate for comparing the relative ordering of two C-style strings lexicographically.  Returns true if "s1" preceeds "s2", otherwise
+ * false. */
+inline bool strless(const char * const s1, const char *s2) {
+    return std::strcmp(s1, s2) < 0;
+}
 
 
-inline bool IsSpace(char ch) { return isspace(ch); }
+inline bool IsSpace(char ch) {
+    return isspace(ch);
+}
 
 
 /** Creates a C-style escape sequence, e.g. turns a newline into "\n" (that's a literal backslash followed by an "n")
  *  etc. and other non-printable characters that have no standard C backslash escape into octal sequences starting
  *  with "\0".  Backslashes get turned into double backslashes.
-*/
+ */
 std::string CStyleEscape(const char ch);
 
 
 /** Creates a C-style string, e.g. turns a newline into "\n" (that's a literal backslash followed by an "n") etc. and other non-printable
-    characters that have no standard C backslash escape into octal sequences starting with "\0".  Backslashes get turned into double backslashes. */
+    characters that have no standard C backslash escape into octal sequences starting with "\0".  Backslashes get turned into double
+   backslashes. */
 std::string CStyleEscape(const std::string &unescaped_text);
 
 
-/** Returns the character code for a sequence "\c" where "c" has to be one of "ntbrfva\".  For any other symbol "c" itself will be returned. */
+/** Returns the character code for a sequence "\c" where "c" has to be one of "ntbrfva\".  For any other symbol "c" itself will be returned.
+ */
 char CStyleUnescape(const char c);
 
 
@@ -2325,7 +2321,9 @@ char CStyleUnescape(const char c);
 std::string CStyleUnescape(const std::string &escaped_text);
 
 
-inline bool IsLatin9Whitespace(const char ch) { return std::strchr(WHITE_SPACE.c_str(), ch) != nullptr; }
+inline bool IsLatin9Whitespace(const char ch) {
+    return std::strchr(WHITE_SPACE.c_str(), ch) != nullptr;
+}
 
 
 /** \brief  Determines if a given string is a suffix of another given string.
@@ -2415,7 +2413,7 @@ inline bool IsProperPrefixOfIgnoreCase(const std::string &prefix_candidate, cons
 /** \class StringEqual
  *  \brief Binary functor that returns true if two std::strings are equal.
  */
-class StringEqual: public std::binary_function<std::string, std::string, bool> {
+class StringEqual : public std::binary_function<std::string, std::string, bool> {
 public:
     bool operator()(const std::string &s1, const std::string &s2) const { return s1 == s2; }
 };
@@ -2424,7 +2422,7 @@ public:
 /** \class StringCaseEqual
  *  \brief Binary functor that returns true if two std::strings are equal independent of case.
  */
-class StringCaseEqual: public std::binary_function<std::string, std::string, bool> {
+class StringCaseEqual : public std::binary_function<std::string, std::string, bool> {
 public:
     bool operator()(const std::string &s1, const std::string &s2) const { return ::strcasecmp(s1.c_str(), s2.c_str()) == 0; }
 };
@@ -2438,7 +2436,8 @@ std::string Chomp(std::string * const line);
 bool ConsistsOf(const std::string &s, const std::set<char> &set);
 
 
-template<typename Number> inline std::string BinaryToString(Number n) {
+template <typename Number>
+inline std::string BinaryToString(Number n) {
     std::string n_as_string;
     for (unsigned bit(0); bit < sizeof(n) * BITSPERBYTE; ++bit, n >>= 1u)
         n_as_string += (n & 1u) ? '1' : '0';
@@ -2448,7 +2447,8 @@ template<typename Number> inline std::string BinaryToString(Number n) {
 }
 
 
-template<typename Number> inline Number StringToBinary(const std::string &bits) {
+template <typename Number>
+inline Number StringToBinary(const std::string &bits) {
     errno = 0;
     char *end_ptr;
     unsigned long long binary(::strtoull(bits.c_str(), &end_ptr, 2));
@@ -2465,7 +2465,8 @@ inline bool Contains(const std::string &haystack, const std::string &needle) {
 
 
 /** \brief   Predicate to determine whether a string "s" contains at least a single lowercase letter or not.
- *  \warning This function is locale dependent in that its notion of what consitutes a lowercase letter depends on the current locale setting!
+ *  \warning This function is locale dependent in that its notion of what consitutes a lowercase letter depends on the current locale
+ * setting!
  */
 bool ContainsAtLeastOneLowercaseLetter(const std::string &s);
 
@@ -2523,9 +2524,7 @@ std::string Filter(const std::string &source, const std::string &remove_set);
  *  \return The modified string.
  *  \throws std::out_of_range if "start_index+section_length >= s.size()".
  */
-std::string &ReplaceSection(std::string * const s, const size_t start_index, const size_t section_length,
-                            const std::string &replacement);
-
+std::string &ReplaceSection(std::string * const s, const size_t start_index, const size_t section_length, const std::string &replacement);
 
 
 /** \brief   Converts ISO8859-15 (a.k.a. Latin-9) characters to Unicode (UTF-8) strings.
@@ -2565,10 +2564,11 @@ unsigned RomanNumeralToDecimal(const std::string &s);
 
 // Converts scalar types and std::strings to std::strings.
 // Better than std::to_string because it can also handle std::strings and chars!
-template<typename Type> std::string AnyToString(const Type value) {
-    if constexpr(std::is_same_v<Type, std::string>)
+template <typename Type>
+std::string AnyToString(const Type value) {
+    if constexpr (std::is_same_v<Type, std::string>)
         return value;
-    else if constexpr(std::is_same_v<Type, char>)
+    else if constexpr (std::is_same_v<Type, char>)
         return std::string(1, value);
     else
         return std::to_string(value);

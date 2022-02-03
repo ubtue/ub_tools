@@ -27,10 +27,12 @@
 class Semaphore {
 public:
     enum OpenMode { CREATE, ATTACH };
+
 private:
     sem_t *semaphore_;
     std::string name_;
     OpenMode open_mode_;
+
 public:
     /** \param name           The name of the semaphore.  Must not be just a slash and can't exceed NAME_MAX-4.
      *  \param open_mode      Use CREATE to make a new semaphore and ATTACH to attach to an existing one.

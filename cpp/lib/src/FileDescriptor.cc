@@ -28,8 +28,8 @@
 #include "FileDescriptor.h"
 #include <stdexcept>
 #include <string>
-#include <cstring>
 #include <cerrno>
+#include <cstring>
 #include <unistd.h>
 #include "Compiler.h"
 
@@ -40,8 +40,7 @@ FileDescriptor::FileDescriptor(const FileDescriptor &rhs) {
     else {
         fd_ = ::dup(rhs.fd_);
         if (unlikely(fd_ == -1))
-            throw std::runtime_error("in FileDescriptor::FileDescriptor: dup(2) failed ("
-                                     + std::string(::strerror(errno)) + ")!");
+            throw std::runtime_error("in FileDescriptor::FileDescriptor: dup(2) failed (" + std::string(::strerror(errno)) + ")!");
     }
 }
 
@@ -62,8 +61,7 @@ const FileDescriptor &FileDescriptor::operator=(const FileDescriptor &rhs) {
 
         fd_ = ::dup(rhs.fd_);
         if (unlikely(fd_ == -1))
-            throw std::runtime_error("in FileDescriptor::operator=: dup(2) failed ("
-                                     + std::string(::strerror(errno)) + ")!");
+            throw std::runtime_error("in FileDescriptor::operator=: dup(2) failed (" + std::string(::strerror(errno)) + ")!");
     }
 
     return *this;

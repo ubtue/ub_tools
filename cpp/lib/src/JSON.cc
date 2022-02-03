@@ -84,9 +84,9 @@ TokenType Scanner::getToken() {
         return parseNumber();
     default:
         const std::string bad_char(::isprint(*ch_) ? std::string(1, *ch_)
-                                   : "\\x" + StringUtil::ToHexString(static_cast<unsigned char>(*ch_)));
-        last_error_message_ = "unexpected character '" + bad_char + "', offset into the input is " + std::to_string(ch_ - begin_)
-                              + " bytes!";
+                                                   : "\\x" + StringUtil::ToHexString(static_cast<unsigned char>(*ch_)));
+        last_error_message_ =
+            "unexpected character '" + bad_char + "', offset into the input is " + std::to_string(ch_ - begin_) + " bytes!";
         return ERROR;
     }
 }
@@ -155,7 +155,7 @@ TokenType Scanner::parseNumber() {
             number_as_string += *ch_;
     }
 
-    if (ch_ == end_ or (*ch_ != 'e' and  *ch_ != 'E')) {
+    if (ch_ == end_ or (*ch_ != 'e' and *ch_ != 'E')) {
         double value;
         if (unlikely(not StringUtil::ToDouble(number_as_string, &value))) {
             last_error_message_ = "failed to convert \"" + number_as_string + "\" to a floating point value!";
@@ -230,8 +230,9 @@ bool Scanner::UTF16EscapeToUTF8(std::string * const utf8) {
     hex_codes.clear();
     for (unsigned i(0); i < 4; ++i) {
         if (unlikely(ch_ == end_)) {
-            last_error_message_ = "unexpected end of input while attempting to read the 2nd half of a surrogate "
-                                  "pair!";
+            last_error_message_ =
+                "unexpected end of input while attempting to read the 2nd half of a surrogate "
+                "pair!";
             return false;
         }
         hex_codes += *ch_++;
@@ -283,8 +284,8 @@ TokenType Scanner::parseStringConstant() {
             UTF8Advance(ch_, &string_value);
         else { // Deal w/ an escape sequence.
             if (unlikely(ch_ + 1 == end_)) {
-                last_error_message_ = "end-of-input encountered while parsing a string constant, starting on line "
-                                      + std::to_string(start_line_no) + "!";
+                last_error_message_ =
+                    "end-of-input encountered while parsing a string constant, starting on line " + std::to_string(start_line_no) + "!";
                 return ERROR;
             }
             ++ch_;
@@ -330,8 +331,8 @@ TokenType Scanner::parseStringConstant() {
     }
 
     if (unlikely(ch_ == end_)) {
-        last_error_message_ = "end-of-input encountered while parsing a string constant, starting on line "
-                              + std::to_string(start_line_no) + "!";
+        last_error_message_ =
+            "end-of-input encountered while parsing a string constant, starting on line " + std::to_string(start_line_no) + "!";
         return ERROR;
     }
     ++ch_; // Skip over closing double quote.
@@ -514,7 +515,7 @@ static size_t ParsePath(const std::string &path, std::deque<std::string> * const
 
 std::shared_ptr<const JSONNode> ObjectNode::deepResolveNode(const std::string &path) const {
     std::deque<std::string> path_components;
-    if (unlikely(ParsePath(path, &path_components, /* path_is_absolute = */false) == 0))
+    if (unlikely(ParsePath(path, &path_components, /* path_is_absolute = */ false) == 0))
         throw std::runtime_error("in JSON::ObjectNode::deepResolveNode: an empty path is invalid!");
 
     std::shared_ptr<const JSONNode> next_node(this->getNode(path_components.front()));
@@ -526,15 +527,15 @@ std::shared_ptr<const JSONNode> ObjectNode::deepResolveNode(const std::string &p
         switch (next_node->getType()) {
         case JSONNode::OBJECT_NODE:
             if ((next_node = JSONNode::CastToObjectNodeOrDie("next_node", next_node)->getNode(path_component)) == nullptr) {
-                    throw std::runtime_error("in JSON::ObjectNode::deepResolveNode: path component \"" + path_component
-                                             + " is not a key in an object node! (path: " + path+ ")");
+                throw std::runtime_error("in JSON::ObjectNode::deepResolveNode: path component \"" + path_component
+                                         + " is not a key in an object node! (path: " + path + ")");
             }
             break;
         case JSONNode::ARRAY_NODE: {
             unsigned index;
             if (unlikely(not StringUtil::ToUnsigned(path_component, &index))) {
-                throw std::runtime_error("in JSON::ObjectNode::deepResolveNode: path component \"" + path_component
-                                         + "\" in path \"" + path + "\" can't be converted to an array index!");
+                throw std::runtime_error("in JSON::ObjectNode::deepResolveNode: path component \"" + path_component + "\" in path \"" + path
+                                         + "\" can't be converted to an array index!");
             }
             const std::shared_ptr<const ArrayNode> array_node(JSONNode::CastToArrayNodeOrDie("next_node", next_node));
             if (unlikely(index >= array_node->size()))
@@ -545,8 +546,7 @@ std::shared_ptr<const JSONNode> ObjectNode::deepResolveNode(const std::string &p
         case JSONNode::NULL_NODE:
             return nullptr;
         default:
-            throw std::runtime_error("in JSON::ObjectNode::deepResolveNode: can't descend into a scalar node! (path: "
-                                     + path + ")");
+            throw std::runtime_error("in JSON::ObjectNode::deepResolveNode: can't descend into a scalar node! (path: " + path + ")");
             return nullptr;
         }
     }
@@ -590,8 +590,7 @@ std::string ArrayNode::toString() const {
 
 std::shared_ptr<const JSONNode> ArrayNode::getNode(const size_t index) const {
     if (unlikely(index >= values_.size()))
-        LOG_ERROR("index (" + std::to_string(index) + ") exceeds size of ArrayNode ("
-                  + std::to_string(values_.size()) + ")!");
+        LOG_ERROR("index (" + std::to_string(index) + ") exceeds size of ArrayNode (" + std::to_string(values_.size()) + ")!");
 
     return values_[index];
 }
@@ -599,8 +598,7 @@ std::shared_ptr<const JSONNode> ArrayNode::getNode(const size_t index) const {
 
 std::shared_ptr<JSONNode> ArrayNode::getNode(const size_t index) {
     if (unlikely(index >= values_.size()))
-        LOG_ERROR("index (" + std::to_string(index) + ") exceeds size of ArrayNode ("
-                  + std::to_string(values_.size()) + ")!");
+        LOG_ERROR("index (" + std::to_string(index) + ") exceeds size of ArrayNode (" + std::to_string(values_.size()) + ")!");
 
     return values_[index];
 }
@@ -621,16 +619,16 @@ bool Parser::parseObject(std::shared_ptr<JSONNode> * const new_object_node) {
 
     for (;;) {
         if (unlikely(token != STRING_CONST)) {
-            error_message_ = "label expected on line " + std::to_string(scanner_.getLineNumber())
-                             + " found '" + TokenTypeToString(token) + "' instead!";
+            error_message_ =
+                "label expected on line " + std::to_string(scanner_.getLineNumber()) + " found '" + TokenTypeToString(token) + "' instead!";
             return false;
         }
         const std::string label(scanner_.getLastStringConstant());
 
         token = scanner_.getToken();
         if (unlikely(token != COLON)) {
-            error_message_ = "colon expected after label on line " + std::to_string(scanner_.getLineNumber())
-                + " found '" + TokenTypeToString(token) + "' instead!";
+            error_message_ = "colon expected after label on line " + std::to_string(scanner_.getLineNumber()) + " found '"
+                             + TokenTypeToString(token) + "' instead!";
             return false;
         }
 
@@ -646,8 +644,8 @@ bool Parser::parseObject(std::shared_ptr<JSONNode> * const new_object_node) {
         else if (token == CLOSE_BRACE)
             return true;
         else {
-            error_message_ = "expected ',' or '}' on line " + std::to_string(scanner_.getLineNumber())
-                             + " but found '" + TokenTypeToString(token) + "!";
+            error_message_ =
+                "expected ',' or '}' on line " + std::to_string(scanner_.getLineNumber()) + " but found '" + TokenTypeToString(token) + "!";
             return false;
         }
     }
@@ -674,8 +672,8 @@ bool Parser::parseArray(std::shared_ptr<JSONNode> * const new_array_node) {
         else if (token == CLOSE_BRACKET)
             return true;
         else {
-            error_message_ = "expected ',' or ']' on line " + std::to_string(scanner_.getLineNumber())
-                             + " but found '" + TokenTypeToString(token) + "!";
+            error_message_ =
+                "expected ',' or ']' on line " + std::to_string(scanner_.getLineNumber()) + " but found '" + TokenTypeToString(token) + "!";
             return false;
         }
     }
@@ -712,16 +710,14 @@ bool Parser::parseAny(std::shared_ptr<JSONNode> * const new_node) {
         *new_node = std::make_shared<NullNode>();
         return true;
     case ERROR:
-        error_message_ = scanner_.getLastErrorMessage() + "(line: " + std::to_string(scanner_.getLineNumber())
-                         + ")";
+        error_message_ = scanner_.getLastErrorMessage() + "(line: " + std::to_string(scanner_.getLineNumber()) + ")";
         return false;
     case END_OF_INPUT:
         error_message_ = "unexpected end of input!";
         return false;
     default:
-        error_message_ = "syntax error, found '" + TokenTypeToString(token)
-                         + "' but expected some kind of object on line " + std::to_string(scanner_.getLineNumber())
-                         + "!";
+        error_message_ = "syntax error, found '" + TokenTypeToString(token) + "' but expected some kind of object on line "
+                         + std::to_string(scanner_.getLineNumber()) + "!";
         return false;
     }
 }
@@ -735,8 +731,7 @@ bool Parser::parse(std::shared_ptr<JSONNode> * const tree_root) {
     if (likely(token == END_OF_INPUT))
         return true;
 
-    error_message_ = "found trailing garbage " + TokenTypeToString(token) + " on line "
-                     + std::to_string(scanner_.getLineNumber()) + "!";
+    error_message_ = "found trailing garbage " + TokenTypeToString(token) + " on line " + std::to_string(scanner_.getLineNumber()) + "!";
     return false;
 }
 
@@ -779,11 +774,11 @@ std::string TokenTypeToString(const TokenType token) {
 
 // N.B. If "throw_if_not_found" is true an exception will be thrown if "path" can't be resolved o/w NULL will be returned.
 // Please note that a syntactically incorrect "path" will trigger an exception irrespective of the value of "throw_if_not_found."
-template<class JSONNode> static std::shared_ptr<JSONNode> GetLastPathComponent(
-    const std::string &path, const std::shared_ptr<JSONNode> &tree, const bool throw_if_not_found)
-{
+template <class JSONNode>
+static std::shared_ptr<JSONNode> GetLastPathComponent(const std::string &path, const std::shared_ptr<JSONNode> &tree,
+                                                      const bool throw_if_not_found) {
     std::deque<std::string> path_components;
-    if (unlikely(ParsePath(path, &path_components, /* path_is_absolute = */true) == 0))
+    if (unlikely(ParsePath(path, &path_components, /* path_is_absolute = */ true) == 0))
         throw std::runtime_error("in JSON::GetLastPathComponent: an empty path is invalid!");
 
     std::shared_ptr<JSONNode> next_node(tree);
@@ -806,15 +801,15 @@ template<class JSONNode> static std::shared_ptr<JSONNode> GetLastPathComponent(
             unsigned index;
             if (unlikely(not StringUtil::ToUnsigned(path_component, &index))) {
                 if (throw_if_not_found)
-                    throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
-                                             + "\" in path \"" + path + "\" can't be converted to an array index!");
+                    throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component + "\" in path \"" + path
+                                             + "\" can't be converted to an array index!");
                 return nullptr;
             }
             const std::shared_ptr<const ArrayNode> array_node(JSONNode::CastToArrayNodeOrDie("next_node", next_node));
             if (unlikely(index >= array_node->size())) {
                 if (throw_if_not_found)
-                    throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component
-                                             + "\" in path \"" + path + "\" is too large as an array index!");
+                    throw std::runtime_error("in JSON::GetLastPathComponent: path component \"" + path_component + "\" in path \"" + path
+                                             + "\" is too large as an array index!");
                 return nullptr;
             }
             next_node = array_node->getNode(index);
@@ -822,8 +817,7 @@ template<class JSONNode> static std::shared_ptr<JSONNode> GetLastPathComponent(
         }
         default:
             if (throw_if_not_found)
-                throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node! (path: "
-                                         + path + ")");
+                throw std::runtime_error("in JSON::GetLastPathComponent: can't descend into a scalar node! (path: " + path + ")");
             return nullptr;
         }
     }
@@ -833,14 +827,14 @@ template<class JSONNode> static std::shared_ptr<JSONNode> GetLastPathComponent(
 
 
 std::shared_ptr<const JSONNode> LookupNode(const std::string &path, const std::shared_ptr<const JSONNode> &tree) {
-    return GetLastPathComponent(path, tree, /* throw_if_not_found = */true);
+    return GetLastPathComponent(path, tree, /* throw_if_not_found = */ true);
 }
 
 
-static std::string LookupString(const std::string &path, const std::shared_ptr<const JSONNode> &tree,
-                                const std::string &default_value, const bool use_default_value)
-{
-    const std::shared_ptr<const JSONNode> bottommost_node(GetLastPathComponent(path, tree, /* throw_if_not_found = */not use_default_value));
+static std::string LookupString(const std::string &path, const std::shared_ptr<const JSONNode> &tree, const std::string &default_value,
+                                const bool use_default_value) {
+    const std::shared_ptr<const JSONNode> bottommost_node(
+        GetLastPathComponent(path, tree, /* throw_if_not_found = */ not use_default_value));
     if (bottommost_node == nullptr) {
         if (use_default_value)
             return default_value;
@@ -879,8 +873,7 @@ std::string LookupString(const std::string &path, const std::shared_ptr<const JS
 
 
 static bool LookupStringsHelper(std::deque<std::string> path_components, const std::shared_ptr<const JSONNode> &tree,
-                                std::vector<std::string> * const results)
-{
+                                std::vector<std::string> * const results) {
     std::shared_ptr<const JSONNode> next_node(tree);
     while (not path_components.empty()) {
         if (next_node == nullptr)
@@ -929,7 +922,7 @@ static bool LookupStringsHelper(std::deque<std::string> path_components, const s
 
 std::vector<std::string> LookupStrings(const std::string &path, const std::shared_ptr<const JSONNode> &tree) {
     std::deque<std::string> path_components;
-    if (unlikely(ParsePath(path, &path_components, /* path_is_absolute = */true) == 0))
+    if (unlikely(ParsePath(path, &path_components, /* path_is_absolute = */ true) == 0))
         throw std::runtime_error("in JSON::LookupStringsHelper: an empty path is invalid!");
 
     std::vector<std::string> results;
@@ -938,9 +931,9 @@ std::vector<std::string> LookupStrings(const std::string &path, const std::share
 
 
 static int64_t LookupInteger(const std::string &path, const std::shared_ptr<const JSONNode> &tree, const int64_t default_value,
-                             const bool use_default_value)
-{
-    const std::shared_ptr<const JSONNode> bottommost_node(GetLastPathComponent(path, tree, /* throw_if_not_found = */not use_default_value));
+                             const bool use_default_value) {
+    const std::shared_ptr<const JSONNode> bottommost_node(
+        GetLastPathComponent(path, tree, /* throw_if_not_found = */ not use_default_value));
     if (bottommost_node == nullptr)
         return default_value;
 
@@ -1024,10 +1017,9 @@ bool IsValidUTF8(const JSONNode &node) {
     case JSONNode::OBJECT_NODE: {
         for (const auto &key_and_node : reinterpret_cast<const ObjectNode &>(node)) {
             if (unlikely(not TextUtil::IsValidUTF8(key_and_node.first) or not IsValidUTF8(*key_and_node.second)))
-                 return false;
+                return false;
         }
         return true;
-
     }
     case JSONNode::ARRAY_NODE: {
         for (const auto &entry : reinterpret_cast<const ArrayNode &>(node)) {

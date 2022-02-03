@@ -30,8 +30,7 @@
  *  \param language_codes        A list of one or more 3-character ISO 639-2 language codes separated by plus signs.
  *  \return Exit code of the child process.  0 upon success.
  */
-int OCR(const std::string &input_document_path, const std::string &output_document_path,
-        const std::string &language_codes = "deu");
+int OCR(const std::string &input_document_path, const std::string &output_document_path, const std::string &language_codes = "deu");
 
 
 /** \brief OCR the input document, assumed to be in language or languages "language_codes".

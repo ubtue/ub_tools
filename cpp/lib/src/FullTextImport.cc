@@ -54,8 +54,7 @@ const std::string PARAGRAPH_DELIMITER("\n\n");
 
 void WriteExtractedTextToDisk(const std::string &full_text, const std::string &title, const std::set<std::string> &authors,
                               const std::string &year, const std::string &doi, const std::string &issn, const std::string &isbn,
-                              const std::string &text_type, const std::string &full_text_location, File * const output_file)
-{
+                              const std::string &text_type, const std::string &full_text_location, File * const output_file) {
     output_file->writeln(title);
     output_file->writeln(StringUtil::Join(authors, '|'));
     output_file->writeln(year);
@@ -78,7 +77,7 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
             full_text_data->title_ = line;
             break;
         case 2:
-            StringUtil::Split(line, '|', &full_text_data->authors_, /* suppress_empty_components = */true);
+            StringUtil::Split(line, '|', &full_text_data->authors_, /* suppress_empty_components = */ true);
             break;
         case 3:
             full_text_data->year_ = line;
@@ -109,9 +108,9 @@ void ReadExtractedTextFromDisk(File * const input_file, FullTextData * const ful
 
 bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, const FullTextData &full_text_data,
                            std::set<std::string> * const control_numbers) {
-    *control_numbers = control_number_guesser.getGuessedControlNumbers(full_text_data.title_, full_text_data.authors_,
-                                                                       full_text_data.year_, { full_text_data.doi_ },
-                                                                       { full_text_data.issn_ }, { full_text_data.isbn_ });
+    *control_numbers =
+        control_number_guesser.getGuessedControlNumbers(full_text_data.title_, full_text_data.authors_, full_text_data.year_,
+                                                        { full_text_data.doi_ }, { full_text_data.issn_ }, { full_text_data.isbn_ });
     if (control_numbers->empty())
         return false;
 
@@ -120,8 +119,7 @@ bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, c
 
 
 bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, const FullTextData &full_text_data,
-                           std::string * const control_number)
-{
+                           std::string * const control_number) {
     std::set<std::string> matching_ppns;
     if (unlikely(not CorrelateFullTextData(control_number_guesser, full_text_data, &matching_ppns)))
         return false;
@@ -132,9 +130,6 @@ bool CorrelateFullTextData(const ControlNumberGuesser &control_number_guesser, c
     *control_number = *matching_ppns.cbegin();
     return true;
 }
-
-
-
 
 
 } // namespace FullTextImport

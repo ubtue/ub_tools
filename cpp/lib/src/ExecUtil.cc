@@ -27,6 +27,7 @@
  */
 #include "ExecUtil.h"
 #include <stdexcept>
+#include <unordered_map>
 #include <cassert>
 #include <cerrno>
 #include <cstdio>
@@ -39,7 +40,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <unordered_map>
 #include "FileUtil.h"
 #include "MiscUtil.h"
 #include "StringUtil.h"
@@ -75,8 +75,7 @@ enum class ExecMode {
 
 int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin, const std::string &new_stdout,
          const std::string &new_stderr, const ExecMode exec_mode, unsigned timeout_in_seconds, const int tardy_child_signal,
-         const std::unordered_map<std::string, std::string> &envs, const std::string &working_directory)
-{
+         const std::unordered_map<std::string, std::string> &envs, const std::string &working_directory) {
     errno = 0;
     if (::access(command.c_str(), X_OK) != 0)
         throw std::runtime_error("in ExecUtil::Exec: can't execute \"" + command + "\"!");
@@ -133,12 +132,12 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
                 throw std::runtime_error("in ExecUtil::Exec: ::chdir() failed: " + std::to_string(errno));
         }
 
-        // Build the argument list for execve(2):
-        #pragma GCC diagnostic ignored "-Wvla"
+// Build the argument list for execve(2):
+#pragma GCC diagnostic ignored "-Wvla"
         char *argv[1 + args.size() + 1];
-        #ifndef __clang__
-        #pragma GCC diagnostic ignored "+Wvla"
-        #endif
+#ifndef __clang__
+#pragma GCC diagnostic ignored "+Wvla"
+#endif
         unsigned arg_no(0);
         argv[arg_no++] = ::strdup(command.c_str());
         for (const auto &arg : args)
@@ -150,7 +149,8 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
     }
 
     // The parent of the fork:
-    else {
+    else
+    {
         if (exec_mode == ExecMode::DETACH)
             return pid;
 
@@ -199,8 +199,7 @@ int Exec(const std::string &command, const std::vector<std::string> &args, const
                 return WEXITSTATUS(child_exit_status);
             }
         } else if (WIFSIGNALED(child_exit_status))
-            throw std::runtime_error("in Exec: \"" + command + "\" killed by signal "
-                                     + std::to_string(WTERMSIG(child_exit_status)) + "!");
+            throw std::runtime_error("in Exec: \"" + command + "\" killed by signal " + std::to_string(WTERMSIG(child_exit_status)) + "!");
         else // I have no idea how we got here!
             logger->error("in Exec: dazed and confused!");
     }
@@ -232,20 +231,20 @@ SignalBlocker::~SignalBlocker() {
 
 int Exec(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin, const std::string &new_stdout,
          const std::string &new_stderr, const unsigned timeout_in_seconds, const int tardy_child_signal,
-         const std::unordered_map<std::string, std::string> &envs, const std::string &working_directory)
-{
-    return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::WAIT, timeout_in_seconds,
-                  tardy_child_signal, envs, working_directory);
+         const std::unordered_map<std::string, std::string> &envs, const std::string &working_directory) {
+    return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::WAIT, timeout_in_seconds, tardy_child_signal, envs,
+                  working_directory);
 }
 
 
-void ExecOrDie(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin, const std::string &new_stdout,
-               const std::string &new_stderr, const unsigned timeout_in_seconds, const int tardy_child_signal,
-               const std::unordered_map<std::string, std::string> &envs, const std::string &working_directory)
-{
+void ExecOrDie(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin,
+               const std::string &new_stdout, const std::string &new_stderr, const unsigned timeout_in_seconds,
+               const int tardy_child_signal, const std::unordered_map<std::string, std::string> &envs,
+               const std::string &working_directory) {
     int exit_code;
-    if ((exit_code = Exec(command, args, new_stdin, new_stdout, new_stderr, timeout_in_seconds,
-                          tardy_child_signal, envs, working_directory)) != 0)
+    if ((exit_code =
+             Exec(command, args, new_stdin, new_stdout, new_stderr, timeout_in_seconds, tardy_child_signal, envs, working_directory))
+        != 0)
     {
         LOG_ERROR("Failed to execute \"" + command + "\""
                   " with args \"" + StringUtil::Join(args, ";") + "\"!"
@@ -255,11 +254,9 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &args,
 
 
 pid_t Spawn(const std::string &command, const std::vector<std::string> &args, const std::string &new_stdin, const std::string &new_stdout,
-            const std::string &new_stderr, const std::unordered_map<std::string, std::string> &envs,
-            const std::string &working_directory)
-{
-    return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::DETACH, 0,
-                  SIGKILL /* Not used because the timeout is 0. */, envs, working_directory);
+            const std::string &new_stderr, const std::unordered_map<std::string, std::string> &envs, const std::string &working_directory) {
+    return ::Exec(command, args, new_stdin, new_stdout, new_stderr, ExecMode::DETACH, 0, SIGKILL /* Not used because the timeout is 0. */,
+                  envs, working_directory);
 }
 
 
@@ -286,7 +283,7 @@ std::string Which(const std::string &executable_candidate) {
             return "";
 
         std::vector<std::string> path_compoments;
-        StringUtil::Split(PATH, ':', &path_compoments, /* suppress_empty_components = */true);
+        StringUtil::Split(PATH, ':', &path_compoments, /* suppress_empty_components = */ true);
         for (const auto &path_compoment : path_compoments) {
             const std::string full_path(path_compoment + "/" + executable_candidate);
             if (IsExecutableFile(full_path)) {
@@ -308,11 +305,9 @@ std::string Which(const std::string &executable_candidate) {
 std::string LocateOrDie(const std::string &executable_candidate) {
     const std::string path(ExecUtil::Which(executable_candidate));
     if (path.empty())
-        logger->error("in ExecUtil::LocateOrDie: can't find \"" + executable_candidate
-                      + "\" in our PATH environment!");
+        logger->error("in ExecUtil::LocateOrDie: can't find \"" + executable_candidate + "\" in our PATH environment!");
     return path;
 }
-
 
 
 bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output, const bool suppress_stderr) {
@@ -338,13 +333,12 @@ bool ExecSubcommandAndCaptureStdoutAndStderr(const std::string &command, const s
                                              std::string * const stdout_output, std::string * const stderr_output,
                                              const unsigned timeout_in_seconds, const int tardy_child_signal,
                                              const std::unordered_map<std::string, std::string> &envs,
-                                             const std::string &working_directory)
-{
+                                             const std::string &working_directory) {
     FileUtil::AutoTempFile stdout_temp;
     FileUtil::AutoTempFile stderr_temp;
 
-    const int retcode(Exec(command, args, /* new_stdin = */ "", stdout_temp.getFilePath(), stderr_temp.getFilePath(),
-                           timeout_in_seconds, tardy_child_signal, envs, working_directory));
+    const int retcode(Exec(command, args, /* new_stdin = */ "", stdout_temp.getFilePath(), stderr_temp.getFilePath(), timeout_in_seconds,
+                           tardy_child_signal, envs, working_directory));
 
     if (not FileUtil::ReadString(stdout_temp.getFilePath(), stdout_output))
         LOG_ERROR("failed to read temporary file w/ stdout contents!");
@@ -369,7 +363,10 @@ void FindActivePrograms(const std::string &program_name, std::unordered_set<unsi
 
     FILE * const subcommand_stdout(::popen(("pgrep " + program_name + " 2>/dev/null").c_str(), "r"));
     if (subcommand_stdout == nullptr)
-        LOG_ERROR("failed to execute \"" "pgrep " + program_name + "\"!");
+        LOG_ERROR(
+            "failed to execute \""
+            "pgrep "
+            + program_name + "\"!");
 
     std::string stdout;
     int ch;
@@ -394,7 +391,7 @@ void FindActivePrograms(const std::string &program_name, std::unordered_set<unsi
     }
 
     std::unordered_set<std::string> pids_strings;
-    StringUtil::Split(stdout, '\n', &pids_strings, /* suppress_empty_components = */true);
+    StringUtil::Split(stdout, '\n', &pids_strings, /* suppress_empty_components = */ true);
 
     for (const auto &pid : pids_strings)
         pids->emplace(StringUtil::ToUnsigned(pid));
@@ -431,8 +428,8 @@ std::string GetOriginalCommandNameFromPID(const pid_t pid) {
         LOG_ERROR("Neither /bin/ps nor /usr/bin/ps can be found!");
 
     std::string stdout_output;
-    if (not ExecSubcommandAndCaptureStdout(ps_path + " --pid " + std::to_string(pid) + " --no-headers -o comm",
-                                           &stdout_output, /* suppress_stderr = */true))
+    if (not ExecSubcommandAndCaptureStdout(ps_path + " --pid " + std::to_string(pid) + " --no-headers -o comm", &stdout_output,
+                                           /* suppress_stderr = */ true))
         return "";
     else
         return StringUtil::EndsWith(stdout_output, "\n") ? stdout_output.substr(0, stdout_output.length() - 1) : stdout_output;

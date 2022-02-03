@@ -92,19 +92,19 @@ std::string SockAddrToString(const struct sockaddr * const sockaddr);
 std::string NetworkAddressAndMaskToString(const in_addr_t network_address, const in_addr_t netmask);
 
 
-template<typename Data> struct NetAddrBlockAndData {
+template <typename Data>
+struct NetAddrBlockAndData {
     in_addr_t network_address_, mask_;
     Data data_;
+
 public:
     NetAddrBlockAndData(const in_addr_t network_address, const in_addr_t mask, const Data &data)
-        : network_address_(network_address & mask), mask_(mask), data_(data)
-    { }
+        : network_address_(network_address & mask), mask_(mask), data_(data) { }
 };
 
 
-template<typename Data> std::ostream &operator<<(std::ostream &output,
-                                                 const NetAddrBlockAndData<Data> &net_addr_block_and_data)
-{
+template <typename Data>
+std::ostream &operator<<(std::ostream &output, const NetAddrBlockAndData<Data> &net_addr_block_and_data) {
     std::string temp;
     NetworkAddressToString(net_addr_block_and_data.network_address_, &temp);
     output << "[" << temp << ',';
@@ -114,17 +114,19 @@ template<typename Data> std::ostream &operator<<(std::ostream &output,
 }
 
 
-template<typename Data> class NetAddrBlocksAndData {
+template <typename Data>
+class NetAddrBlocksAndData {
     std::vector<NetAddrBlockAndData<Data>> net_addr_blocks_and_data_;
+
 public:
     Data getSelection(const in_addr_t address, const Data &default_data) const;
 };
 
 
-template<typename Data> Data NetAddrBlocksAndData<Data>::getSelection(const in_addr_t address, const Data &default_data) const {
+template <typename Data>
+Data NetAddrBlocksAndData<Data>::getSelection(const in_addr_t address, const Data &default_data) const {
     for (const auto &net_addr_block_and_data : *this) {
-        if ((address & net_addr_block_and_data.mask_) ==
-            (net_addr_block_and_data.network_address_ & net_addr_block_and_data.mask_))
+        if ((address & net_addr_block_and_data.mask_) == (net_addr_block_and_data.network_address_ & net_addr_block_and_data.mask_))
             return net_addr_block_and_data.data_;
     }
 
@@ -132,9 +134,8 @@ template<typename Data> Data NetAddrBlocksAndData<Data>::getSelection(const in_a
 }
 
 
-template<typename Data> std::ostream &operator<<(std::ostream &output,
-                                                 const NetAddrBlocksAndData<Data> &net_addr_blocks_and_data)
-{
+template <typename Data>
+std::ostream &operator<<(std::ostream &output, const NetAddrBlocksAndData<Data> &net_addr_blocks_and_data) {
     for (const auto &netaddr_block_and_data : net_addr_blocks_and_data)
         output << netaddr_block_and_data << '\n';
 
@@ -149,9 +150,9 @@ void GetLocalIPv4Addrs(std::list<in_addr_t> * const ip_addresses);
 /** \brief  Given a domain name, returns the quasi top-level domain name.
  *  \param  domain_name  The domain name whose quasi top-level domain name we want.
  *  \return The quasi top-level domain name if we can determine it, otherwise false.
- *  \note   For all gTLD's like ".mil", ".com" or ".int" and ".arpa", we return the gTLD or ".arpa".  For ccTLD's we special case based on country.  An
- *          example would be ".com.br" as a quasi top-level domain for Brazil.  Since we don't have the resources we only handle very few countries.  You
- *          can easily add more.
+ *  \note   For all gTLD's like ".mil", ".com" or ".int" and ".arpa", we return the gTLD or ".arpa".  For ccTLD's we special case based on
+ * country.  An example would be ".com.br" as a quasi top-level domain for Brazil.  Since we don't have the resources we only handle very
+ * few countries.  You can easily add more.
  */
 std::string GetQuasiTopLevelDomainName(const std::string &domain_name);
 

@@ -26,12 +26,12 @@
 #pragma once
 
 
-#include <string>
 #include <list>
+#include <string>
 #include <unordered_map>
 #include <vector>
-#include <inttypes.h>
 #include <arpa/inet.h>
+#include <inttypes.h>
 #include <unistd.h>
 
 
@@ -41,22 +41,26 @@
 class DnsServer {
     const in_addr_t server_ip_address_;
     const unsigned max_outstanding_request_count_;
-    int socket_fd_; // File descriptor.
+    int socket_fd_;             // File descriptor.
     unsigned request_lifetime_; // in milliseconds
     static uint16_t next_query_id_;
+
 public:
     struct OutstandingRequest {
         uint16_t query_id_;
         std::string hostname_;
         uint64_t expiration_time_;
+
     public:
         OutstandingRequest(const uint16_t query_id, const std::string &hostname, const uint64_t expiration_time)
             : query_id_(query_id), hostname_(hostname), expiration_time_(expiration_time) { }
     };
+
 private:
-    class OutstandingRequests: private std::list<OutstandingRequest> {
+    class OutstandingRequests : private std::list<OutstandingRequest> {
         const unsigned max_count_; // Store no more than this many requests!
         unsigned count_;
+
     public:
         OutstandingRequests(const unsigned max_count): max_count_(max_count), count_(0) { }
         using std::list<OutstandingRequest>::empty;
@@ -64,11 +68,13 @@ private:
         void addRequest(const uint16_t query_id, const std::string &hostname, const uint64_t expiration_time);
         bool removeRequest(const uint16_t query_id, std::string * const hostname);
         void expireOldRequests();
+
     private:
         OutstandingRequests(const OutstandingRequests &rhs) = delete;
         const OutstandingRequests &operator=(const OutstandingRequests &rhs) = delete;
     };
     mutable OutstandingRequests outstanding_requests_;
+
 public:
     /** \brief  Creates a new instance of a DnsServer object.
      *  \param  server_ip_address              The IP address of our associated DNS server.
@@ -78,7 +84,10 @@ public:
      */
     DnsServer(const in_addr_t &server_ip_address, const unsigned max_outstanding_request_count, const unsigned request_lifetime = 5000);
 
-    ~DnsServer() { if (socket_fd_ != -1 ) ::close(socket_fd_); }
+    ~DnsServer() {
+        if (socket_fd_ != -1)
+            ::close(socket_fd_);
+    }
 
     /** Returns the socket file descriptor used to communicate with our associated DNS server. */
     int getFileDescriptor() const { return socket_fd_; }
@@ -104,17 +113,16 @@ public:
 
     /** \brief  Call this function if our socket file descriptor is ready for reading.
      *  \param  resolved_ip_addresses  List of IP address for an earlier submitted lookup request.  May be incomplete!
-     *  \param  resolved_domainnames   List of hostnames for "resolved_ip_addresses".  May be incomplete!  We do guarantee that the first hostname is
-     *                                 the one that was submitted with the original lookup request that led to the currently processed server reply.
-     *  \param  ttl                    Time-to-live for the information received by our DNS server.  Typically used to implement a cache on top of this
-     *                                 class.
-     *  \param  query_id               Unique ID of the query for which we provide a resolution.
-     *  \return True if we got a reply from a DNS server that resulted in us returning a useful result, otherwise false.
-     *  \note   If the lookup failed "resolved_ip_addresses" will be empty and "ttl" will be unset.  But "resolved_domainnames" will have at least one
-     *          entry.
+     *  \param  resolved_domainnames   List of hostnames for "resolved_ip_addresses".  May be incomplete!  We do guarantee that the first
+     * hostname is the one that was submitted with the original lookup request that led to the currently processed server reply. \param  ttl
+     * Time-to-live for the information received by our DNS server.  Typically used to implement a cache on top of this class. \param
+     * query_id               Unique ID of the query for which we provide a resolution. \return True if we got a reply from a DNS server
+     * that resulted in us returning a useful result, otherwise false. \note   If the lookup failed "resolved_ip_addresses" will be empty
+     * and "ttl" will be unset.  But "resolved_domainnames" will have at least one entry.
      */
     bool processServerReply(std::vector<in_addr_t> * const resolved_ip_addresses, std::vector<std::string> * const resolved_domainnames,
                             uint32_t * const ttl, uint16_t * const query_id);
+
 private:
     DnsServer(const DnsServer &rhs) = delete;
     const DnsServer &operator=(const DnsServer &rhs) = delete;
@@ -129,14 +137,16 @@ class DnsCache {
     struct DnsCacheEntry {
         time_t expire_time_;
         in_addr_t ip_address_;
+
     public:
-        DnsCacheEntry(const uint64_t expire_time, const in_addr_t &ip_address)
-            : expire_time_(expire_time), ip_address_(ip_address) { }
+        DnsCacheEntry(const uint64_t expire_time, const in_addr_t &ip_address): expire_time_(expire_time), ip_address_(ip_address) { }
     };
     std::unordered_map<std::string, DnsCacheEntry> resolved_hostnames_cache_;
     unsigned bad_dns_expire_time_;
+
 public:
     static const in_addr_t BAD_ENTRY;
+
 public:
     /** \brief  Create a DnsCache instance.
      *  \param  cache_flush_size     The amount of entries that trigger a complete cache flush.
@@ -155,6 +165,7 @@ public:
     void insert(const std::string &hostname, const in_addr_t &ip_address, const uint32_t ttl);
 
     void insertUnresolvableEntry(const std::string &hostname) { insert(hostname, BAD_ENTRY, bad_dns_expire_time_ * 1000); }
+
 private:
     DnsCache(const DnsCache &rhs) = delete;
     const DnsCache &operator=(const DnsCache &rhs) = delete;
@@ -164,25 +175,24 @@ private:
 /**  \class  DnsServerPool
  *   \brief  Implements DNS lookup using a DNS server pool.
  *
- *   This class internally manages a set of DNS servers.  Requests are submitted via addLookupRequest(), which may return an IP address immediately if a
- *   translation has been cached.  It not, an external mechanism, e.g. select(2) will have to be used to determine when a server reply has occurred.  Then
- *   processServerReply() should be called.
+ *   This class internally manages a set of DNS servers.  Requests are submitted via addLookupRequest(), which may return an IP address
+ * immediately if a translation has been cached.  It not, an external mechanism, e.g. select(2) will have to be used to determine when a
+ * server reply has occurred.  Then processServerReply() should be called.
  */
 class DnsServerPool {
     DnsCache cache_;
     const unsigned max_queue_length_per_server_;
     std::vector<DnsServer *> servers_;
+
 public:
     /** \brief  Initialises a DnsServerPool object.
      *  \param  dns_server_ip_addresses         A list of IP addresses for valid DNS servers.
      *  \param  server_socket_file_descriptors  The file descriptors that need to be monitored for read-readiness before a call to
-     *                                          processServerReply().  Note: These descriptors will not have to be cleaned up.  The DnsServerPool
-     *                                          destructor takes care of this!
-     *  \param  request_lifetime                How long we wait for a DNS server reply without an answer before discarding a request.  (In
-     *                                          milliseconds.)
-     *  \param  max_queue_length_per_server     The maximum number of outstanding requests per DNS server before we consider the entire server pool to
-     *                                          be busy.
-     *  \param  max_cache_size                  Up to how many translations we're willing to cache.
+     *                                          processServerReply().  Note: These descriptors will not have to be cleaned up.  The
+     * DnsServerPool destructor takes care of this! \param  request_lifetime                How long we wait for a DNS server reply without
+     * an answer before discarding a request.  (In milliseconds.) \param  max_queue_length_per_server     The maximum number of outstanding
+     * requests per DNS server before we consider the entire server pool to be busy. \param  max_cache_size                  Up to how many
+     * translations we're willing to cache.
      */
     explicit DnsServerPool(const std::vector<in_addr_t> &dns_server_ip_addresses, std::vector<int> * const server_socket_file_descriptors,
                            const unsigned request_lifetime = 5000, const unsigned max_queue_length_per_server = 10,
@@ -201,8 +211,8 @@ public:
      *  \param   resolved_ip_address  If this function returns true, will contain the reolved address.
      *  \note    If all servers were busy and we were unable to send a request we set "*socket_fd" to -1.
      *  \return  "True" if we were able to immediately resolve the hostname, otherwise "false".
-     *  \note    When we return true "resolved_ip_address" may be DnsCache::BAD_ENTRY!  This indicates that a DNS server indicated that no record
-     *           was found for "valid_hostname."
+     *  \note    When we return true "resolved_ip_address" may be DnsCache::BAD_ENTRY!  This indicates that a DNS server indicated that no
+     * record was found for "valid_hostname."
      */
     bool addLookupRequest(const std::string &valid_hostname, in_addr_t * const resolved_ip_address);
 
@@ -216,6 +226,7 @@ public:
 
     /** Returns the number of outstanding requests with our DNS servers. */
     unsigned getQueueLength() const;
+
 private:
     DnsServerPool(const DnsServerPool &rhs) = delete;
     const DnsServerPool &operator=(const DnsServerPool &rhs) = delete;

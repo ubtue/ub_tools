@@ -42,8 +42,9 @@ class SimpleCrawler {
     std::shared_ptr<RegexMatcher> url_regex_matcher_;
     std::shared_ptr<RegexMatcher> url_ignore_regex_matcher_;
     TimeLimit min_url_processing_time_;
+
 public:
-    static const unsigned DEFAULT_TIMEOUT = 5000; // ms
+    static const unsigned DEFAULT_TIMEOUT = 5000;                // ms
     static const unsigned DEFAULT_MIN_URL_PROCESSING_TIME = 200; // ms
 
     struct Params {
@@ -60,21 +61,15 @@ public:
         std::string proxy_host_and_port_;
         bool print_queued_urls_;
         bool print_skipped_urls_;
+
     public:
-        explicit Params(const std::string &acceptable_languages = "",
-                        const unsigned timeout = DEFAULT_TIMEOUT,
-                        const unsigned min_url_processing_time = DEFAULT_MIN_URL_PROCESSING_TIME,
-                        const bool print_all_http_headers = false,
-                        const bool print_last_http_header = false,
-                        const bool ignore_robots_dot_txt = false,
-                        const bool print_redirects = false,
-                        const std::string &user_agent = "ub_tools (https://ixtheo.de/docs/user_agents)",
+        explicit Params(const std::string &acceptable_languages = "", const unsigned timeout = DEFAULT_TIMEOUT,
+                        const unsigned min_url_processing_time = DEFAULT_MIN_URL_PROCESSING_TIME, const bool print_all_http_headers = false,
+                        const bool print_last_http_header = false, const bool ignore_robots_dot_txt = false,
+                        const bool print_redirects = false, const std::string &user_agent = "ub_tools (https://ixtheo.de/docs/user_agents)",
                         const std::string &url_ignore_pattern = "(?i)\\.(js|css|bmp|pdf|jpg|gif|png|tif|tiff)(\\?[^?]*)?$",
-                        const bool ignore_ssl_certificates_ = false,
-                        const std::string &proxy_host_and_port = "",
-                        const bool print_queued_urls = false,
-                        const bool print_skipped_urls = false
-                        );
+                        const bool ignore_ssl_certificates_ = false, const std::string &proxy_host_and_port = "",
+                        const bool print_queued_urls = false, const bool print_skipped_urls = false);
         ~Params() = default;
     } params_;
 
@@ -115,6 +110,7 @@ public:
     static void ProcessSite(const SiteDesc &site_desc, const Params &params, std::vector<std::string> * const extracted_urls);
 
     static void ProcessSites(const std::string &config_path, const Params &params, std::vector<std::string> * const extracted_urls);
+
 private:
     /** \brief  try to continue with the next url at the current depth
      *          if all is done at the current depth, switch to next depth

@@ -26,30 +26,29 @@
 
 #include <SystemAndUserTimer.h>
 #ifndef STDEXCEPT
-#   include <stdexcept>
-#   define STDEXCEPT
+#include <stdexcept>
+#define STDEXCEPT
 #endif
 #ifndef CERRNO
-#   include <cerrno>
-#   define CERRNO
+#include <cerrno>
+#define CERRNO
 #endif
 #ifndef CSTRING
-#   include <cstring>
-#   define CSTRING
+#include <cstring>
+#define CSTRING
 #endif
 #ifndef SYS_RESOURCE_H
-#   include <sys/resource.h>
-#   define SYS_RESOURCE_H
+#include <sys/resource.h>
+#define SYS_RESOURCE_H
 #endif
 #ifndef COMPILER_H
-#   include "Compiler.h"
+#include "Compiler.h"
 #endif
 #include "util.h"
 
 
 SystemAndUserTimer::SystemAndUserTimer(const SystemAndUserTimerType timer_type, const std::string &name)
-    : is_running_(false), user_time_(0.0), system_time_(0.0), name_(name), timer_type_(timer_type)
-{
+    : is_running_(false), user_time_(0.0), system_time_(0.0), name_(name), timer_type_(timer_type) {
     timerclear(&user_time_start_);
     timerclear(&system_time_start_);
 }
@@ -74,18 +73,16 @@ SystemAndUserTimer::~SystemAndUserTimer() {
 void SystemAndUserTimer::start() {
     if (unlikely(is_running_)) {
         if (not name_.empty())
-            throw std::runtime_error("in SystemAndUserTimer::start: \"" + name_
-                                     + "\" is running!");
+            throw std::runtime_error("in SystemAndUserTimer::start: \"" + name_ + "\" is running!");
         else
             throw std::runtime_error("in SystemAndUserTimer::start: timer is running!");
     }
 
     struct rusage ru;
     if (::getrusage(RUSAGE_SELF, &ru) == -1)
-        throw std::runtime_error("in SystemAndUserTimer::start: getrusage(2) failed ("
-                                 + std::string(std::strerror(errno)) + ")!");
+        throw std::runtime_error("in SystemAndUserTimer::start: getrusage(2) failed (" + std::string(std::strerror(errno)) + ")!");
 
-    user_time_start_   = ru.ru_utime;
+    user_time_start_ = ru.ru_utime;
     system_time_start_ = ru.ru_stime;
     is_running_ = true;
 }
@@ -101,16 +98,15 @@ void SystemAndUserTimer::stop() {
 
     struct rusage ru;
     if (::getrusage(RUSAGE_SELF, &ru) == -1)
-        throw std::runtime_error("in SystemAndUserTimer::stop: getrusage(2) failed ("
-                                 + std::string(std::strerror(errno)) + ")!");
-    user_time_stop_   = ru.ru_utime;
+        throw std::runtime_error("in SystemAndUserTimer::stop: getrusage(2) failed (" + std::string(std::strerror(errno)) + ")!");
+    user_time_stop_ = ru.ru_utime;
     system_time_stop_ = ru.ru_stime;
 
     if (timer_type_ == NON_CUMULATIVE) {
-        user_time_   = TimevalToDouble(user_time_stop_)   - TimevalToDouble(user_time_start_);
+        user_time_ = TimevalToDouble(user_time_stop_) - TimevalToDouble(user_time_start_);
         system_time_ = TimevalToDouble(system_time_stop_) - TimevalToDouble(system_time_start_);
     } else { // Assume cumulative timing.
-        user_time_   += TimevalToDouble(user_time_stop_)   - TimevalToDouble(user_time_start_);
+        user_time_ += TimevalToDouble(user_time_stop_) - TimevalToDouble(user_time_start_);
         system_time_ += TimevalToDouble(system_time_stop_) - TimevalToDouble(system_time_start_);
     }
 

@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "ZoteroHarvesterZederInterop.h"
 #include <cmath>
@@ -28,26 +28,26 @@ namespace ZoteroHarvester {
 namespace ZederInterop {
 
 
-const std::map<Config::JournalParams::IniKey, std::string> INI_KEY_TO_ZEDER_COLUMN_MAP {
-    { Config::JournalParams::IniKey::NAME,                 "tit"  },
-    { Config::JournalParams::IniKey::ONLINE_PPN,           "eppn" },
-    { Config::JournalParams::IniKey::PRINT_PPN,            "pppn" },
-    { Config::JournalParams::IniKey::ONLINE_ISSN,          "essn" },
-    { Config::JournalParams::IniKey::PRINT_ISSN,           "issn" },
-    { Config::JournalParams::IniKey::EXPECTED_LANGUAGES,   "sprz" },
-    { Config::JournalParams::IniKey::SSGN,                 "ber"  },
-    { Config::JournalParams::IniKey::LICENSE,              "oacc" },
-    { Config::JournalParams::IniKey::PERSONALIZED_AUTHORS, "tiefp"},
-//  The following two columns/INI keys are intentionally excluded as they are special cases.
-//  Even though there is a one-to-one correspondence for each to the two columns,
-//  they are stored differently in memory (in the Zeder::Entry class) than all other
-//  columns. Therefore, they can't be trivially mapped to each other.
-//  { Config::JournalParams::IniKey::ZEDER_ID, "Z" },
-//  { Config::JournalParams::IniKey::ZEDER_MODIFIED_TIME, "Mtime" },
+const std::map<Config::JournalParams::IniKey, std::string> INI_KEY_TO_ZEDER_COLUMN_MAP{
+    { Config::JournalParams::IniKey::NAME, "tit" },
+    { Config::JournalParams::IniKey::ONLINE_PPN, "eppn" },
+    { Config::JournalParams::IniKey::PRINT_PPN, "pppn" },
+    { Config::JournalParams::IniKey::ONLINE_ISSN, "essn" },
+    { Config::JournalParams::IniKey::PRINT_ISSN, "issn" },
+    { Config::JournalParams::IniKey::EXPECTED_LANGUAGES, "sprz" },
+    { Config::JournalParams::IniKey::SSGN, "ber" },
+    { Config::JournalParams::IniKey::LICENSE, "oacc" },
+    { Config::JournalParams::IniKey::PERSONALIZED_AUTHORS, "tiefp" },
+    //  The following two columns/INI keys are intentionally excluded as they are special cases.
+    //  Even though there is a one-to-one correspondence for each to the two columns,
+    //  they are stored differently in memory (in the Zeder::Entry class) than all other
+    //  columns. Therefore, they can't be trivially mapped to each other.
+    //  { Config::JournalParams::IniKey::ZEDER_ID, "Z" },
+    //  { Config::JournalParams::IniKey::ZEDER_MODIFIED_TIME, "Mtime" },
 };
 
 
-static std::string ResolveGroup(const Zeder::Entry &/*unused*/, const Zeder::Flavour zeder_flavour) {
+static std::string ResolveGroup(const Zeder::Entry & /*unused*/, const Zeder::Flavour zeder_flavour) {
     return Zeder::FLAVOUR_TO_STRING_MAP.at(zeder_flavour);
 }
 
@@ -103,7 +103,6 @@ static std::string ResolveHarvesterOperation(const Zeder::Entry &zeder_entry, co
 
     } else
         LOG_ERROR("Invalid Harvester operation value \"" + z_type + "\" for in field z_type");
-
 }
 
 
@@ -138,14 +137,15 @@ static std::string ResolveSelectiveEvaluation(const Zeder::Entry &zeder_entry, c
 }
 
 
-const std::map<Config::JournalParams::IniKey, std::function<std::string(const Zeder::Entry &, const Zeder::Flavour)>> INI_KEY_TO_ZEDER_RESOLVER_MAP {
-    { Config::JournalParams::IniKey::GROUP, ResolveGroup },
-    { Config::JournalParams::IniKey::ENTRY_POINT_URL, ResolveEntryPointURL },
-    { Config::JournalParams::IniKey::HARVESTER_OPERATION, ResolveHarvesterOperation },
-    { Config::JournalParams::IniKey::UPLOAD_OPERATION, ResolveUploadOperation },
-    { Config::JournalParams::IniKey::UPDATE_WINDOW, ResolveUpdateWindow },
-    { Config::JournalParams::IniKey::SELECTIVE_EVALUATION, ResolveSelectiveEvaluation },
-};
+const std::map<Config::JournalParams::IniKey, std::function<std::string(const Zeder::Entry &, const Zeder::Flavour)>>
+    INI_KEY_TO_ZEDER_RESOLVER_MAP{
+        { Config::JournalParams::IniKey::GROUP, ResolveGroup },
+        { Config::JournalParams::IniKey::ENTRY_POINT_URL, ResolveEntryPointURL },
+        { Config::JournalParams::IniKey::HARVESTER_OPERATION, ResolveHarvesterOperation },
+        { Config::JournalParams::IniKey::UPLOAD_OPERATION, ResolveUploadOperation },
+        { Config::JournalParams::IniKey::UPDATE_WINDOW, ResolveUpdateWindow },
+        { Config::JournalParams::IniKey::SELECTIVE_EVALUATION, ResolveSelectiveEvaluation },
+    };
 
 
 static inline bool IsValidZederValue(const std::string &zeder_value) {
@@ -154,8 +154,7 @@ static inline bool IsValidZederValue(const std::string &zeder_value) {
 
 
 std::string GetJournalParamsIniValueFromZederEntry(const Zeder::Entry &zeder_entry, const Zeder::Flavour zeder_flavour,
-                                                   const Config::JournalParams::IniKey ini_key)
-{
+                                                   const Config::JournalParams::IniKey ini_key) {
     std::string zeder_value;
     if (INI_KEY_TO_ZEDER_COLUMN_MAP.find(ini_key) != INI_KEY_TO_ZEDER_COLUMN_MAP.end())
         zeder_value = zeder_entry.getAttribute(INI_KEY_TO_ZEDER_COLUMN_MAP.at(ini_key), "");

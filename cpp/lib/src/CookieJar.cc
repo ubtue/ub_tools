@@ -108,8 +108,7 @@ bool CookieJar::Cookie::setDomain(const std::string &domain, const std::string &
     if (domain.empty())
         return true;
 
-    if ((domain[0] != '.') or DomainContainsNoEmbeddedDots(domain)
-        or RequestHostHasMoreDotsThanDomain(domain, request_host))
+    if ((domain[0] != '.') or DomainContainsNoEmbeddedDots(domain) or RequestHostHasMoreDotsThanDomain(domain, request_host))
         return false;
 
     domain_ = domain;
@@ -120,8 +119,9 @@ bool CookieJar::Cookie::setDomain(const std::string &domain, const std::string &
 namespace {
 
 
-class MatchCookieAttributeName: public std::unary_function<std::string, bool> {
+class MatchCookieAttributeName : public std::unary_function<std::string, bool> {
     std::string attribute_name_;
+
 public:
     explicit MatchCookieAttributeName(const std::string &attribute_name): attribute_name_(attribute_name) { }
     bool operator()(const std::string &attribute_name_and_value) const;
@@ -138,8 +138,7 @@ inline bool DomainMatch(const std::string &domain_pattern, const std::string &do
 
 void CookieJar::addCookies(const HttpHeader &http_header, const std::string &default_domain) {
     if (unlikely(not DnsUtil::IsValidHostName(default_domain)))
-        throw std::runtime_error("in CookieJar::addCookies: default domain \"" + default_domain
-                                 + "\" must be a valid hostname!");
+        throw std::runtime_error("in CookieJar::addCookies: default domain \"" + default_domain + "\" must be a valid hostname!");
 
     const std::string lowercase_default_domain(TextUtil::UTF8ToLower(default_domain));
 
@@ -160,9 +159,7 @@ bool PathMatch(const std::string &path_pattern, const std::string &path) {
 } // unnamed namespace
 
 
-void CookieJar::getCookieHeaders(const std::string &domain_name, const std::string &path,
-                                 std::string * const cookie_headers) const
-{
+void CookieJar::getCookieHeaders(const std::string &domain_name, const std::string &path, std::string * const cookie_headers) const {
     cookie_headers->clear();
     const std::string lowercase_domain_name(TextUtil::UTF8ToLower(domain_name));
     const std::string normalised_path(path.empty() ? "/" : path);
@@ -187,8 +184,8 @@ void CookieJar::getCookieHeaders(const std::string &domain_name, const std::stri
     std::sort(matching_cookies.begin(), matching_cookies.end(), PathCompare);
 
     // Now generate the "Cookie:" headers:
-    for (std::vector<Cookie>::const_iterator matching_cookie(matching_cookies.begin());
-         matching_cookie != matching_cookies.end(); ++matching_cookie)
+    for (std::vector<Cookie>::const_iterator matching_cookie(matching_cookies.begin()); matching_cookie != matching_cookies.end();
+         ++matching_cookie)
         *cookie_headers += matching_cookie->getCookieHeader();
 }
 
@@ -196,9 +193,8 @@ void CookieJar::getCookieHeaders(const std::string &domain_name, const std::stri
 namespace {
 
 
-bool ExtractAttribAndValue(std::string::const_iterator &ch, const std::string::const_iterator &end,
-                           std::string * attrib_name, std::string * attrib_value)
-{
+bool ExtractAttribAndValue(std::string::const_iterator &ch, const std::string::const_iterator &end, std::string *attrib_name,
+                           std::string *attrib_value) {
     attrib_name->clear();
     attrib_value->clear();
 
@@ -391,8 +387,7 @@ bool UpdateKnownAttrib(const std::string &attrib_name, const std::string &attrib
         return true;
     }
 
-    throw std::runtime_error("in UpdateKnownAttrib (CookieJar.cc): unknown \"known\" attribute name \"" + attrib_name
-                             + "\"!");
+    throw std::runtime_error("in UpdateKnownAttrib (CookieJar.cc): unknown \"known\" attribute name \"" + attrib_name + "\"!");
 }
 
 

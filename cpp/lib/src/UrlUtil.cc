@@ -59,12 +59,10 @@ std::string PrivoxyDomainToPerlRegExp(const std::string &privoxy_domain_pattern)
             perl_domain_pattern += privoxy_domain_pattern[pos];
             if (privoxy_domain_pattern[pos] == ']')
                 in_character_class = false;
-        }
-        else if (privoxy_domain_pattern[pos] == '[') {
+        } else if (privoxy_domain_pattern[pos] == '[') {
             in_character_class = true;
             perl_domain_pattern += '[';
-        }
-        else if (privoxy_domain_pattern[pos] == '.')
+        } else if (privoxy_domain_pattern[pos] == '.')
             perl_domain_pattern += "\\.";
         else if (privoxy_domain_pattern[pos] == '?')
             perl_domain_pattern += ".?";
@@ -93,7 +91,7 @@ std::string PrivoxyToPerlRegExpPattern(const std::string &privoxy_pattern) {
         domain = privoxy_pattern;
     else {
         domain = privoxy_pattern.substr(0, slash_pos);
-        path   = privoxy_pattern.substr(slash_pos);
+        path = privoxy_pattern.substr(slash_pos);
     }
 
     if (unlikely(not(path.empty() or path[0] == '/')))
@@ -131,18 +129,15 @@ bool Blacklister::UrlRegExpList::block(const std::string &url, std::string * con
 }
 
 
-Blacklister::ReferenceCountedPerlCompatRegExp::ReferenceCountedPerlCompatRegExp(const std::string &pattern,
-                                                                                const bool initial_block)
+Blacklister::ReferenceCountedPerlCompatRegExp::ReferenceCountedPerlCompatRegExp(const std::string &pattern, const bool initial_block)
     : pattern_(new std::string(PrivoxyToPerlRegExpPattern(pattern))),
-      reg_exp_(new PerlCompatRegExp(*pattern_, PerlCompatRegExp::OPTIMIZE_FOR_MULTIPLE_USE, PCRE_ANCHORED)),
-      count_(new unsigned(1)), block_(initial_block)
-{
+      reg_exp_(new PerlCompatRegExp(*pattern_, PerlCompatRegExp::OPTIMIZE_FOR_MULTIPLE_USE, PCRE_ANCHORED)), count_(new unsigned(1)),
+      block_(initial_block) {
 }
 
 
 const Blacklister::ReferenceCountedPerlCompatRegExp &Blacklister::ReferenceCountedPerlCompatRegExp::operator=(
-    const ReferenceCountedPerlCompatRegExp &rhs)
-{
+    const ReferenceCountedPerlCompatRegExp &rhs) {
     // Avoid self-assignment:
     if (this != &rhs) {
         this->~ReferenceCountedPerlCompatRegExp();
@@ -151,7 +146,7 @@ const Blacklister::ReferenceCountedPerlCompatRegExp &Blacklister::ReferenceCount
         ++*count_;
         pattern_ = rhs.pattern_;
         reg_exp_ = rhs.reg_exp_;
-        block_   = rhs.block_;
+        block_ = rhs.block_;
     }
 
     return *this;
@@ -213,8 +208,7 @@ bool Blacklister::blocked(const std::string &url, std::string * const reason) co
 void Blacklister::processPrivoxyActionFile(const std::string &action_filename) {
     std::ifstream input(action_filename.c_str());
     if (input.fail())
-        throw std::runtime_error("in Blacklister::processPrivoxyActionFile: can't open \"" + action_filename
-                                 + "\" for reading!");
+        throw std::runtime_error("in Blacklister::processPrivoxyActionFile: can't open \"" + action_filename + "\" for reading!");
 
     enum { BLOCK, UNBLOCK, SOMETHING_ELSE } state = SOMETHING_ELSE;
     while (input) {
@@ -264,8 +258,8 @@ std::string UrlEncode(std::string * const s) {
     std::string result;
     result.reserve(2 * s->length());
     for (std::string::const_iterator ch(s->begin()); ch != s->end(); ++ch) {
-        if (StringUtil::IsAlphanumeric(*ch) or *ch == '-' or *ch == '_' or *ch == '.'
-            or *ch == '!' or *ch == '~' or *ch == '*' or *ch == '\'' or *ch == '(' or *ch == ')')
+        if (StringUtil::IsAlphanumeric(*ch) or *ch == '-' or *ch == '_' or *ch == '.' or *ch == '!' or *ch == '~' or *ch == '*'
+            or *ch == '\'' or *ch == '(' or *ch == ')')
             result += *ch;
         else
             result += UrlEncodeChar(*ch);
@@ -394,11 +388,9 @@ int UrlCompare(const Url &lhs, const Url &rhs) {
 }
 
 
-bool ParseUrl(const std::string &url, std::string * const scheme, std::string * const username_password,
-              std::string * const authority, std::string * const port, std::string * const path,
-              std::string * const params, std::string * const query, std::string * const fragment,
-              std::string * const relative_url)
-{
+bool ParseUrl(const std::string &url, std::string * const scheme, std::string * const username_password, std::string * const authority,
+              std::string * const port, std::string * const path, std::string * const params, std::string * const query,
+              std::string * const fragment, std::string * const relative_url) {
     scheme->clear();
     username_password->clear();
     authority->clear();
@@ -464,8 +456,7 @@ bool ParseUrl(const std::string &url, std::string * const scheme, std::string * 
         first_colon_after_authority = url.find(':', authority_start);
 
     // Extract the hostname or IP address and the optional port number:
-    if (first_colon_after_authority != std::string::npos
-        and (path_start == std::string::npos or path_start > first_colon_after_authority))
+    if (first_colon_after_authority != std::string::npos and (path_start == std::string::npos or path_start > first_colon_after_authority))
     {
         // We have a port number!
         *authority = url.substr(authority_start, first_colon_after_authority - authority_start);
@@ -493,26 +484,26 @@ bool ParseUrl(const std::string &url, std::string * const scheme, std::string * 
         std::string::size_type questionmark_pos = path->find('?');
         if (questionmark_pos != std::string::npos) {
             *query = path->substr(questionmark_pos + 1);
-            *path  = path->substr(0, questionmark_pos);
+            *path = path->substr(0, questionmark_pos);
 
             // Check for a fragment on the tail end of our query:
             std::string::size_type hash_pos = query->find('#');
             if (hash_pos != std::string::npos) {
                 *fragment = query->substr(hash_pos + 1);
-                *query    = query->substr(0, hash_pos);
+                *query = query->substr(0, hash_pos);
             }
         } else { // Check for a fragment on the tail end of our path:
             std::string::size_type hash_pos = path->find('#');
             if (hash_pos != std::string::npos) {
                 *fragment = path->substr(hash_pos + 1);
-                *path     = path->substr(0, hash_pos);
+                *path = path->substr(0, hash_pos);
             }
         }
     } else if (*scheme == "ftp") {
         std::string::size_type semicolon_pos = path->find(';');
         if (unlikely(semicolon_pos != std::string::npos)) {
             *params = path->substr(semicolon_pos + 1);
-            *path   = path->substr(0, semicolon_pos);
+            *path = path->substr(0, semicolon_pos);
         }
     } else if (*scheme == "telnet") {
         if (*path == "/")
@@ -575,11 +566,9 @@ bool URLContainsOnlyValidChars(const std::string &url) {
 
 bool URLIdenticalButDifferentScheme(const std::string &url1, const std::string &url2) {
     std::string scheme1, username_password1, authority1, port1, path1, params1, query1, fragment1, relative_url1;
-    ParseUrl(url1, &scheme1, &username_password1, &authority1, &port1,
-             &path1, &params1, &query1, &fragment1, &relative_url1);
+    ParseUrl(url1, &scheme1, &username_password1, &authority1, &port1, &path1, &params1, &query1, &fragment1, &relative_url1);
     std::string scheme2, username_password2, authority2, port2, path2, params2, query2, fragment2, relative_url2;
-    ParseUrl(url2, &scheme2, &username_password2, &authority2, &port2,
-             &path2, &params2, &query2, &fragment2, &relative_url2);
+    ParseUrl(url2, &scheme2, &username_password2, &authority2, &port2, &path2, &params2, &query2, &fragment2, &relative_url2);
     return (scheme1 != scheme2) and (UrlCompare(url1, url2) == 0);
 }
 

@@ -36,8 +36,10 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
 
     line = input->getLineAny();
     if (line != "#PREFIX: http://d-nb.info/gnd/" and line != "#PREFIX: https://d-nb.info/gnd/")
-        LOG_ERROR("expected \"#PREFIX: http://d-nb.info/gnd/\" or "
-                  "line != #PREFIX: https://d-nb.info/gnd/ as the second line in \"" + filename + "\"!");
+        LOG_ERROR(
+            "expected \"#PREFIX: http://d-nb.info/gnd/\" or "
+            "line != #PREFIX: https://d-nb.info/gnd/ as the second line in \""
+            + filename + "\"!");
     ++line_no;
 
     do {
@@ -73,8 +75,8 @@ BeaconFile::BeaconFile(const std::string &filename): filename_(filename) {
                 if (not count_str.empty())
                     StringUtil::ToUnsigned(count_str, &count);
             } else {
-                const std::string count_str(StringUtil::TrimWhite(line.substr(first_vertical_bar_pos + 1,
-                                                                              second_vertical_bar_pos - first_vertical_bar_pos - 1)));
+                const std::string count_str(
+                    StringUtil::TrimWhite(line.substr(first_vertical_bar_pos + 1, second_vertical_bar_pos - first_vertical_bar_pos - 1)));
                 if (not count_str.empty())
                     StringUtil::ToUnsigned(count_str, &count);
                 id_or_url = StringUtil::TrimWhite(line.substr(second_vertical_bar_pos + 1));
@@ -102,7 +104,7 @@ std::string BeaconFile::getURL(const Entry &entry) const {
 static std::string NameFromURL(const std::string &url_string) {
     const Url url(url_string);
     std::string name(url.getAuthority());
-    if (StringUtil::StartsWith(name, "www.", /* ignore_case = */true))
+    if (StringUtil::StartsWith(name, "www.", /* ignore_case = */ true))
         name = name.substr(__builtin_strlen("www."));
     const auto last_dot_pos(name.rfind('.'));
     if (last_dot_pos != std::string::npos)

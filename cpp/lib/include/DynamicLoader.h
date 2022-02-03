@@ -20,12 +20,13 @@
 #pragma once
 
 
-#include <dlfcn.h>
 #include <string>
+#include <dlfcn.h>
 
 
 class DynamicLoader {
     void *handle_;
+
 public:
     /** Initialise a DynamicLoader.  If you wish to only load symbols from a specific shared-object library,
         pass in the library's name, e.g. "libssl.o". */

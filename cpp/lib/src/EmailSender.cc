@@ -19,8 +19,8 @@
  */
 #include "EmailSender.h"
 #include <iostream>
-#include <memory>
 #include <list>
+#include <memory>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -150,6 +150,7 @@ std::string GetServerPassword() {
 class SMTPException {
     unsigned short response_code_;
     std::string description_;
+
 public:
     SMTPException(const unsigned short response_code, const std::string &description)
         : response_code_(response_code), description_(description) { }
@@ -172,28 +173,24 @@ void CheckResponse(const std::string &command, const std::string &server_respons
     if (not StringUtil::Match(expected, server_response))
         throw SMTPException(ServerResponseToUnsignedShort(server_response),
                             "in EmailSender.cc: did not receive expected server response to \"" + command + "\" but instead got \""
-                            + server_response + "\"!");
+                                + server_response + "\"!");
 }
 
 
 std::string PerformExchange(const int socket_fd, const TimeLimit &time_limit, const std::string &command,
-                            const std::string &expected_response_pattern,
-                            SslConnection * const ssl_connection = nullptr)
-{
+                            const std::string &expected_response_pattern, SslConnection * const ssl_connection = nullptr) {
     if (perform_logging)
         std::clog << "In PerformExchange: sending: " << command << '\n';
     if (unlikely(SocketUtil::TimedWrite(socket_fd, time_limit, command + "\r\n", ssl_connection) == -1))
-        throw SMTPException(523,
-                            "in PerformExchange(EmailSender.cc) SocketUtil::TimedWrite failed! (sent: " + command + ", error: "
-                            + std::string(strerror(errno)) + ")");
+        throw SMTPException(523, "in PerformExchange(EmailSender.cc) SocketUtil::TimedWrite failed! (sent: " + command
+                                     + ", error: " + std::string(strerror(errno)) + ")");
 
     // Read the response:
     ssize_t response_size;
     char buf[1000];
     if ((response_size = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf), ssl_connection)) <= 0)
-        throw SMTPException(524,
-                            "in PerformExchange(EmailSender.cc): Can't read SMTP server's response to \"" + command + "\"! ("
-                            + std::string(strerror(errno)) + ")");
+        throw SMTPException(524, "in PerformExchange(EmailSender.cc): Can't read SMTP server's response to \"" + command + "\"! ("
+                                     + std::string(strerror(errno)) + ")");
     buf[std::min(static_cast<size_t>(response_size), sizeof(buf) - 1)] = NUL;
     if (perform_logging)
         std::clog << "In PerformExchange: received: " << buf << '\n';
@@ -234,9 +231,7 @@ std::string GetDotStuffedMessage(const std::string &message) {
 }
 
 
-void  AppendRecipientHeaders(std::string * const message, const std::string &recipient_type,
-                             const std::vector<std::string> &recipients)
-{
+void AppendRecipientHeaders(std::string * const message, const std::string &recipient_type, const std::vector<std::string> &recipients) {
     for (const auto &recipient : recipients) {
         const std::string tag(TextUtil::InitialCaps(recipient_type) + ": ");
         if (perform_logging)
@@ -247,8 +242,7 @@ void  AppendRecipientHeaders(std::string * const message, const std::string &rec
 
 
 std::string &CreateSinglePartEmail(const EmailSender::Priority priority, const EmailSender::Format format, const std::string &message_body,
-                                   std::string * const message)
-{
+                                   std::string * const message) {
     if (format == EmailSender::PLAIN_TEXT)
         message->append("Content-Type: text/plain; charset=\"utf-8\"\r\n");
     else
@@ -263,11 +257,9 @@ std::string &CreateSinglePartEmail(const EmailSender::Priority priority, const E
 }
 
 
-std::string &CreateMultiPartEmail(const EmailSender::Priority priority, const EmailSender::Format format,
-                                  const std::string &message_body,
+std::string &CreateMultiPartEmail(const EmailSender::Priority priority, const EmailSender::Format format, const std::string &message_body,
                                   const std::vector<std::pair<std::string, std::string>> &content_dispositions_and_contents,
-                                  std::string * const message)
-{
+                                  std::string * const message) {
     if (priority != EmailSender::DO_NOT_SET_PRIORITY)
         message->append("X-Priority: " + std::to_string(priority) + "\r\n");
     message->append("MIME-Version: 1.0\r\n");
@@ -311,12 +303,10 @@ std::string &CreateMultiPartEmail(const EmailSender::Priority priority, const Em
 
 std::string CreateEmailMessage(const EmailSender::Priority priority, const EmailSender::Format format, const std::string &sender,
                                const std::vector<std::string> &recipients, const std::vector<std::string> &cc_recipients,
-                               const std::vector<std::string> &bcc_recipients, const std::string &subject,
-                               const std::string &message_body,
-                               const std::vector<std::pair<std::string, std::string>> &content_dispositions_and_contents)
-{
+                               const std::vector<std::string> &bcc_recipients, const std::string &subject, const std::string &message_body,
+                               const std::vector<std::pair<std::string, std::string>> &content_dispositions_and_contents) {
     std::string message;
-    message  = "Date: " + GetDateInRFC822Format() + "\r\n";
+    message = "Date: " + GetDateInRFC822Format() + "\r\n";
     message += "From: " + sender + "\r\n";
     message += "X-Mailer: ub_tools mailer\r\n";
     AppendRecipientHeaders(&message, "to", recipients);
@@ -344,15 +334,13 @@ bool CleanAddress(const std::string &email_address, std::string * const cleaned_
     if (unlikely(close_angle_bracket_pos == std::string::npos))
         return false;
 
-    *cleaned_up_email_address = email_address.substr(close_angle_bracket_pos + 1,
-                                                     close_angle_bracket_pos - open_angle_bracket_pos - 1);
+    *cleaned_up_email_address = email_address.substr(close_angle_bracket_pos + 1, close_angle_bracket_pos - open_angle_bracket_pos - 1);
     return true;
 }
 
 
 bool ProcessRecipients(const int socket_fd, const TimeLimit &time_limit, const std::vector<std::string> &recipients,
-                       SslConnection * const ssl_connection)
-{
+                       SslConnection * const ssl_connection) {
     for (const auto &recipient : recipients) {
         std::string cleaned_up_email_address;
         if (unlikely(not CleanAddress(recipient, &cleaned_up_email_address)))
@@ -365,12 +353,12 @@ bool ProcessRecipients(const int socket_fd, const TimeLimit &time_limit, const s
 
 
 void InitContentdispositions(const std::vector<std::string> &attachments, const EmailSender::AttachmentType attachment_type,
-                             std::vector<std::pair<std::string, std::string>> * const content_dispositions_and_contents)
-{
+                             std::vector<std::pair<std::string, std::string>> * const content_dispositions_and_contents) {
     if (attachment_type == EmailSender::AT_INVALID) {
         if (unlikely(not attachments.empty()))
-            LOG_ERROR("you must specify a corresponding attachment type (AT_FILENAMES or AT_DATA) when providing email "
-                      "attachments!");
+            LOG_ERROR(
+                "you must specify a corresponding attachment type (AT_FILENAMES or AT_DATA) when providing email "
+                "attachments!");
     }
 
     content_dispositions_and_contents->reserve(attachments.size());
@@ -394,41 +382,34 @@ void InitContentdispositions(const std::vector<std::string> &attachments, const 
 namespace EmailSender {
 
 
-unsigned short SimplerSendEmail(const std::string &sender, const std::vector<std::string> &recipients,
-                                const std::string &subject, const std::string &message_body, const Priority priority,
-                                const Format format)
-{
-    return SendEmail(sender, recipients, /* cc_recipients = */{}, /* bcc_recipients = */{}, subject, message_body,
-                     priority, format);
+unsigned short SimplerSendEmail(const std::string &sender, const std::vector<std::string> &recipients, const std::string &subject,
+                                const std::string &message_body, const Priority priority, const Format format) {
+    return SendEmail(sender, recipients, /* cc_recipients = */ {}, /* bcc_recipients = */ {}, subject, message_body, priority, format);
 }
 
 
 unsigned short SendEmailWithFileAttachments(const std::string &sender, const std::vector<std::string> &recipients,
                                             const std::string &subject, const std::string &message_body,
-                                            const std::vector<std::string> &attachment_filenames,
-                                            const Priority priority, const Format format)
-{
-    return SendEmail(sender, recipients, /* cc_recipients = */{}, /* bcc_recipients = */{}, subject, message_body,
-                     priority, format, /* reply_to = */"", attachment_filenames, AT_FILENAMES);
+                                            const std::vector<std::string> &attachment_filenames, const Priority priority,
+                                            const Format format) {
+    return SendEmail(sender, recipients, /* cc_recipients = */ {}, /* bcc_recipients = */ {}, subject, message_body, priority, format,
+                     /* reply_to = */ "", attachment_filenames, AT_FILENAMES);
 }
 
 
 unsigned short SendEmailWithInlineAttachments(const std::string &sender, const std::vector<std::string> &recipients,
                                               const std::string &subject, const std::string &message_body,
-                                              const std::vector<std::string> &attachments, const Priority priority,
-                                              const Format format)
-{
-    return SendEmail(sender, recipients, /* cc_recipients = */{}, /* bcc_recipients = */{}, subject, message_body,
-                     priority, format, /* reply_to = */"", attachments, AT_DATA);
+                                              const std::vector<std::string> &attachments, const Priority priority, const Format format) {
+    return SendEmail(sender, recipients, /* cc_recipients = */ {}, /* bcc_recipients = */ {}, subject, message_body, priority, format,
+                     /* reply_to = */ "", attachments, AT_DATA);
 }
 
 
 unsigned short SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
                          const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
-                         const std::string &subject, const std::string &message_body, const Priority priority,
-                         const Format format, const std::string &reply_to, const std::vector<std::string> &attachments,
-                         const AttachmentType attachment_type, const bool use_ssl, const bool use_authentication)
-{
+                         const std::string &subject, const std::string &message_body, const Priority priority, const Format format,
+                         const std::string &reply_to, const std::vector<std::string> &attachments, const AttachmentType attachment_type,
+                         const bool use_ssl, const bool use_authentication) {
     if (unlikely(sender.empty() and reply_to.empty()))
         LOG_ERROR("both \"sender\" and \"reply_to\" can't be empty!");
 
@@ -442,11 +423,9 @@ unsigned short SendEmail(const std::string &sender, const std::vector<std::strin
     // Open connection:
     const unsigned short PORT(587);
     std::string error_message;
-    const FileDescriptor socket_fd(
-        SocketUtil::TcpConnect(GetSmtpServer(), PORT, time_limit, &error_message, SocketUtil::DISABLE_NAGLE));
+    const FileDescriptor socket_fd(SocketUtil::TcpConnect(GetSmtpServer(), PORT, time_limit, &error_message, SocketUtil::DISABLE_NAGLE));
     if (socket_fd == -1) {
-        LOG_WARNING("can't connect to SMTP server \"" + GetSmtpServer() + ":" + std::to_string(PORT) + " ("
-                    + error_message + ")!");
+        LOG_WARNING("can't connect to SMTP server \"" + GetSmtpServer() + ":" + std::to_string(PORT) + " (" + error_message + ")!");
         return 521;
     }
 
@@ -490,8 +469,8 @@ unsigned short SendEmail(const std::string &sender, const std::vector<std::strin
 
         PerformExchange(socket_fd, time_limit, "DATA", "3[0-9][0-9]*", ssl_connection.get());
         PerformExchange(socket_fd, time_limit,
-                        CreateEmailMessage(priority, format, sender, recipients, cc_recipients, bcc_recipients, subject,
-                                           message_body, content_dispositions_and_contents),
+                        CreateEmailMessage(priority, format, sender, recipients, cc_recipients, bcc_recipients, subject, message_body,
+                                           content_dispositions_and_contents),
                         "2[0-9][0-9]*", ssl_connection.get());
         PerformExchange(socket_fd, time_limit, "QUIT", "2[0-9][0-9]*", ssl_connection.get());
     } catch (const SMTPException &smtp_exception) {

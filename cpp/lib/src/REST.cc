@@ -27,7 +27,7 @@ namespace REST {
 std::string Query(const Url &url, const QueryType query_type, const std::string &data, const Downloader::Params &params) {
     Downloader downloader(params);
 
-    switch(query_type) {
+    switch (query_type) {
     case QueryType::GET:
         downloader.newUrl(url);
         break;
@@ -50,8 +50,7 @@ std::string Query(const Url &url, const QueryType query_type, const std::string 
 
 
 std::shared_ptr<JSON::JSONNode> QueryJSON(const Url &url, const QueryType query_type, const JSON::JSONNode * const data,
-                                          const Downloader::Params &params)
-{
+                                          const Downloader::Params &params) {
     std::string json_in;
     if (data != nullptr)
         json_in = data->toString();

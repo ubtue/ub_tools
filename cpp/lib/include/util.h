@@ -46,6 +46,7 @@ class Logger {
 public:
     enum LogLevel { LL_ERROR = 1, LL_WARNING = 2, LL_INFO = 3, LL_DEBUG = 4 };
     friend Logger *LoggerInstantiator();
+
 protected:
     static const std::string FUNCTION_NAME_SEPARATOR;
 
@@ -54,9 +55,11 @@ protected:
     LogLevel min_log_level_;
 
     void formatMessage(const std::string &level, std::string * const msg);
+
 public:
     Logger();
     virtual ~Logger() = default;
+
 public:
     void redirectOutput(const int new_fd);
 
@@ -71,29 +74,35 @@ public:
 
     //* Emits "msg" and then calls exit(3), also generates a call stack trace if the environment variable BACKTRACE has been set.
     [[noreturn]] virtual void error(const std::string &msg) __attribute__((noreturn));
-    [[noreturn]] virtual void error(const std::string &function_name, const std::string &msg) __attribute__((noreturn))
-        { error("in " + function_name + FUNCTION_NAME_SEPARATOR + msg); __builtin_unreachable(); }
+    [[noreturn]] virtual void error(const std::string &function_name, const std::string &msg) __attribute__((noreturn)) {
+        error("in " + function_name + FUNCTION_NAME_SEPARATOR + msg);
+        __builtin_unreachable();
+    }
 
     virtual void warning(const std::string &msg);
-    inline void warning(const std::string &function_name, const std::string &msg)
-        { warning("in " + function_name + FUNCTION_NAME_SEPARATOR + msg); }
+    inline void warning(const std::string &function_name, const std::string &msg) {
+        warning("in " + function_name + FUNCTION_NAME_SEPARATOR + msg);
+    }
 
     virtual void info(const std::string &msg);
-    inline void info(const std::string &function_name, const std::string &msg)
-        { info("in " + function_name + FUNCTION_NAME_SEPARATOR + msg); }
+    inline void info(const std::string &function_name, const std::string &msg) {
+        info("in " + function_name + FUNCTION_NAME_SEPARATOR + msg);
+    }
 
     /** \note Only writes actual log messages if the environment variable "UTIL_LOG_DEBUG" exists and is set
      *  to "true"!
      */
     virtual void debug(const std::string &msg);
-    inline void debug(const std::string &function_name, const std::string &msg)
-        { debug("in " + function_name + FUNCTION_NAME_SEPARATOR + msg); }
+    inline void debug(const std::string &function_name, const std::string &msg) {
+        debug("in " + function_name + FUNCTION_NAME_SEPARATOR + msg);
+    }
 
     //* \note Aborts if ""level_candidate" is not one of "ERROR", "WARNING", "INFO" or "DEBUG".
     static LogLevel StringToLogLevel(const std::string &level_candidate);
 
     // \brief Returns a string representation of "log_level".
     static std::string LogLevelToString(const LogLevel log_level);
+
 protected:
     virtual void writeString(const std::string &level, std::string msg, const bool format_message = true);
     int getFileDescriptor() const;
@@ -101,27 +110,26 @@ protected:
 extern Logger *logger;
 
 
-#define LOG_ERROR(message)   logger->error(__PRETTY_FUNCTION__, message), __builtin_unreachable()
+#define LOG_ERROR(message) logger->error(__PRETTY_FUNCTION__, message), __builtin_unreachable()
 #define LOG_WARNING(message) logger->warning(__PRETTY_FUNCTION__, message)
-#define LOG_INFO(message)    logger->info(__PRETTY_FUNCTION__, message)
-#define LOG_DEBUG(message)   logger->debug(__PRETTY_FUNCTION__, message)
+#define LOG_INFO(message) logger->info(__PRETTY_FUNCTION__, message)
+#define LOG_DEBUG(message) logger->debug(__PRETTY_FUNCTION__, message)
 
 
 // TestAndThrowOrReturn -- tests condition "cond" and, if it evaluates to "true", throws an exception unless another
 //                         exception is already in progress.  In the latter case, TestAndThrowOrReturn() simply
 //                         returns.
 //
-#define TestAndThrowOrReturn(cond, err_text)                                                                       \
-    do {                                                                                                           \
-        if (unlikely(cond)) {                                                                                      \
-            if (unlikely(std::uncaught_exception()))                                                               \
-                return;                                                                                            \
-            else                                                                                                   \
-                throw std::runtime_error(std::string("in ") + __PRETTY_FUNCTION__ + "(" __FILE__ ":"               \
-                                         Stringize(__LINE__) "): " + std::string(err_text)                         \
-                                         + std::string(errno != 0 ? " (" + std::string(std::strerror(errno)) + ")" \
-                                                                         : std::string("")));                      \
-            }                                                                                                      \
+#define TestAndThrowOrReturn(cond, err_text)                                                                                            \
+    do {                                                                                                                                \
+        if (unlikely(cond)) {                                                                                                           \
+            if (unlikely(std::uncaught_exception()))                                                                                    \
+                return;                                                                                                                 \
+            else                                                                                                                        \
+                throw std::runtime_error(std::string("in ") + __PRETTY_FUNCTION__                                                       \
+                                         + "(" __FILE__ ":" Stringize(__LINE__) "): " + std::string(err_text)                           \
+                                         + std::string(errno != 0 ? " (" + std::string(std::strerror(errno)) + ")" : std::string(""))); \
+        }                                                                                                                               \
     } while (false)
 
 
@@ -138,14 +146,16 @@ class DSVReader {
     unsigned line_no_;
     std::string filename_;
     FILE *input_;
+
 public:
-    explicit DSVReader(const std::string &filename, const char field_separator=',', const char field_delimiter='"');
+    explicit DSVReader(const std::string &filename, const char field_separator = ',', const char field_delimiter = '"');
     ~DSVReader();
     bool readLine(std::vector<std::string> * const values);
 };
 
 
-template <typename T> std::string ArrayToString(T* array, size_t count) {
+template <typename T>
+std::string ArrayToString(T *array, size_t count) {
     std::string buffer("[");
     for (size_t i(0); i < count; ++i)
         buffer.append(std::to_string(array[i])).append(",");

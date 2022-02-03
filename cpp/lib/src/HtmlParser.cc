@@ -27,9 +27,9 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <cctype>
+#include <cerrno>
 #include <cstdarg>
 #include <cstdio>
-#include <cerrno>
 #include "Compiler.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
@@ -41,221 +41,53 @@
 
 
 #ifdef DIM
-#      undef DIM
+#undef DIM
 #endif
-#define DIM(array)      (sizeof(array) / sizeof(array[0]))
+#define DIM(array) (sizeof(array) / sizeof(array[0]))
 
 
 namespace {
 
 
 const std::unordered_map<std::string, std::string> entity_map_ansi = {
-    { "quot",   "\""   },
-    { "apos",   "'"    },
-    { "amp",    "&"    },
-    { "lt",     "<"    },
-    { "gt",     ">"    },
-    { "nbsp",   "\xA0" },
-    { "iexcl",  "\xA1" },
-    { "cent",   "\xA2"    },
-    { "pound",  "\xA3"    },
-    { "curren", "\xA4"    },
-    { "yen",    "\xA5"    },
-    { "brvbar", "\xA6"    },
-    { "sect",   "\xA7"    },
-    { "uml",    "\xA8"    },
-    { "copy",   "\xA9"    },
-    { "ordf",   "\xAA"    },
-    { "laquo",  "\xAB"    },
-    { "not",    "\xAC"    },
-    { "shy",    "\xAD"    },
-    { "reg",    "\xAE"    },
-    { "macr",   "\xAF"    },
-    { "deg",    "\xB0"    },
-    { "plusmn", "\xB1"    },
-    { "sup2",   "\xB2"    },
-    { "sup3",   "\xB3"    },
-    { "acute",  "\xB4"    },
-    { "micro",  "\xB5"    },
-    { "para",   "\xB6"    },
-    { "middot", "\xB7"    },
-    { "cedil",  "\xB8"    },
-    { "sup1",   "\xB9"    },
-    { "ordm",   "\xBA"    },
-    { "raquo",  "\xBB"    },
-    { "fraq14", "\xBC"    },
-    { "fraq12", "\xBD"    },
-    { "fraq34", "\xBE"    },
-    { "iquest", "\xBF"    },
-    { "Agrave", "\xC0"    },
-    { "Aacute", "\xC1"    },
-    { "Acirc",  "\xC2"    },
-    { "Atilde", "\xC3"    },
-    { "Auml",   "\xC4"    },
-    { "Aring",  "\xC5"    },
-    { "AElig",  "\xC6"    },
-    { "Ccedil", "\xC7"    },
-    { "Egrave", "\xC8"    },
-    { "Eacute", "\xC9"    },
-    { "Ecirc",  "\xCA"    },
-    { "Euml",   "\xCB"    },
-    { "Igrave", "\xCC"    },
-    { "Iacute", "\xCD"    },
-    { "Icirc",  "\xCE"    },
-    { "Iuml",   "\xCF"    },
-    { "ETH",    "\xD0"    },
-    { "Ntilde", "\xD1"    },
-    { "Ograve", "\xD2"    },
-    { "Oacute", "\xD3"    },
-    { "Ocirc",  "\xD4"    },
-    { "Otilde", "\xD5"    },
-    { "Ouml",   "\xD6"    },
-    { "times",  "\xD7"    },
-    { "Oslash", "\xD8"    },
-    { "Ugrave", "\xD9"    },
-    { "Uacute", "\xDA"    },
-    { "Ucirc",  "\xDB"    },
-    { "Uuml",   "\xDC"    },
-    { "Yacute", "\xDD"    },
-    { "THORN",  "\xDE"    },
-    { "szlig",  "\xDF"    },
-    { "agrave", "\xE0"    },
-    { "aacute", "\xE1"    },
-    { "acirc",  "\xE2"    },
-    { "atilde", "\xE3"    },
-    { "auml",   "\xE4"    },
-    { "aring",  "\xE5"    },
-    { "aelig",  "\xE6"    },
-    { "ccedil", "\xE7"    },
-    { "egrave", "\xE8"    },
-    { "eacute", "\xE9"    },
-    { "ecirc",  "\xEA"    },
-    { "euml",   "\xEB"    },
-    { "igrave", "\xEC"    },
-    { "iacute", "\xED"    },
-    { "icirc",  "\xEE"    },
-    { "iuml",   "\xEF"    },
-    { "eth",    "\xF0"    },
-    { "ntilde", "\xF1"    },
-    { "ograve", "\xF2"    },
-    { "oacute", "\xF3"    },
-    { "ocirc",  "\xF4"    },
-    { "otilde", "\xF5"    },
-    { "ouml",   "\xF6"    },
-    { "divide", "\xF7"    },
-    { "oslash", "\xF8"    },
-    { "ugrave", "\xF9"    },
-    { "uacute", "\xFA"    },
-    { "ucirc",  "\xFB"    },
-    { "uuml",   "\xFC"    },
-    { "yacute", "\xFD"    },
-    { "thorn",  "\xFE"    },
-    { "yuml",   "\xFF"    },
+    { "quot", "\"" },     { "apos", "'" },      { "amp", "&" },       { "lt", "<" },        { "gt", ">" },        { "nbsp", "\xA0" },
+    { "iexcl", "\xA1" },  { "cent", "\xA2" },   { "pound", "\xA3" },  { "curren", "\xA4" }, { "yen", "\xA5" },    { "brvbar", "\xA6" },
+    { "sect", "\xA7" },   { "uml", "\xA8" },    { "copy", "\xA9" },   { "ordf", "\xAA" },   { "laquo", "\xAB" },  { "not", "\xAC" },
+    { "shy", "\xAD" },    { "reg", "\xAE" },    { "macr", "\xAF" },   { "deg", "\xB0" },    { "plusmn", "\xB1" }, { "sup2", "\xB2" },
+    { "sup3", "\xB3" },   { "acute", "\xB4" },  { "micro", "\xB5" },  { "para", "\xB6" },   { "middot", "\xB7" }, { "cedil", "\xB8" },
+    { "sup1", "\xB9" },   { "ordm", "\xBA" },   { "raquo", "\xBB" },  { "fraq14", "\xBC" }, { "fraq12", "\xBD" }, { "fraq34", "\xBE" },
+    { "iquest", "\xBF" }, { "Agrave", "\xC0" }, { "Aacute", "\xC1" }, { "Acirc", "\xC2" },  { "Atilde", "\xC3" }, { "Auml", "\xC4" },
+    { "Aring", "\xC5" },  { "AElig", "\xC6" },  { "Ccedil", "\xC7" }, { "Egrave", "\xC8" }, { "Eacute", "\xC9" }, { "Ecirc", "\xCA" },
+    { "Euml", "\xCB" },   { "Igrave", "\xCC" }, { "Iacute", "\xCD" }, { "Icirc", "\xCE" },  { "Iuml", "\xCF" },   { "ETH", "\xD0" },
+    { "Ntilde", "\xD1" }, { "Ograve", "\xD2" }, { "Oacute", "\xD3" }, { "Ocirc", "\xD4" },  { "Otilde", "\xD5" }, { "Ouml", "\xD6" },
+    { "times", "\xD7" },  { "Oslash", "\xD8" }, { "Ugrave", "\xD9" }, { "Uacute", "\xDA" }, { "Ucirc", "\xDB" },  { "Uuml", "\xDC" },
+    { "Yacute", "\xDD" }, { "THORN", "\xDE" },  { "szlig", "\xDF" },  { "agrave", "\xE0" }, { "aacute", "\xE1" }, { "acirc", "\xE2" },
+    { "atilde", "\xE3" }, { "auml", "\xE4" },   { "aring", "\xE5" },  { "aelig", "\xE6" },  { "ccedil", "\xE7" }, { "egrave", "\xE8" },
+    { "eacute", "\xE9" }, { "ecirc", "\xEA" },  { "euml", "\xEB" },   { "igrave", "\xEC" }, { "iacute", "\xED" }, { "icirc", "\xEE" },
+    { "iuml", "\xEF" },   { "eth", "\xF0" },    { "ntilde", "\xF1" }, { "ograve", "\xF2" }, { "oacute", "\xF3" }, { "ocirc", "\xF4" },
+    { "otilde", "\xF5" }, { "ouml", "\xF6" },   { "divide", "\xF7" }, { "oslash", "\xF8" }, { "ugrave", "\xF9" }, { "uacute", "\xFA" },
+    { "ucirc", "\xFB" },  { "uuml", "\xFC" },   { "yacute", "\xFD" }, { "thorn", "\xFE" },  { "yuml", "\xFF" },
 };
 
 
 const std::unordered_map<std::string, std::string> entity_map_utf8 = {
-    { "quot",   "\""   },
-    { "apos",   "'"    },
-    { "amp",    "&"    },
-    { "lt",     "<"    },
-    { "gt",     ">"    },
-    { "nbsp",   "\u00A0" },
-    { "iexcl",  "¡"    },
-    { "cent",   "¢"    },
-    { "pound",  "£"    },
-    { "curren", "¤"    },
-    { "yen",    "¥"    },
-    { "brvbar", "¦"    },
-    { "sect",   "§"    },
-    { "uml",    "¨"    },
-    { "copy",   "©"    },
-    { "ordf",   "ª"    },
-    { "laquo",  "«"    },
-    { "not",    "¬"    },
-    { "shy",    "\u00AD" },
-    { "reg",    "®"    },
-    { "macr",   "¯"    },
-    { "deg",    "°"    },
-    { "plusmn", "±"    },
-    { "sup2",   "²"    },
-    { "sup3",   "³"    },
-    { "acute",  "´"    },
-    { "micro",  "µ"    },
-    { "para",   "¶"    },
-    { "middot", "·"    },
-    { "cedil",  "¸"    },
-    { "sup1",   "¹"    },
-    { "ordm",   "º"    },
-    { "raquo",  "»"    },
-    { "fraq14", "¼"    },
-    { "fraq12", "½"    },
-    { "fraq34", "¾"    },
-    { "iquest", "¿"    },
-    { "Agrave", "À"    },
-    { "Aacute", "Á"    },
-    { "Acirc",  "Â"    },
-    { "Atilde", "Ã"    },
-    { "Auml",   "Ä"    },
-    { "Aring",  "Å"    },
-    { "AElig",  "Æ"    },
-    { "Ccedil", "Ç"    },
-    { "Egrave", "È"    },
-    { "Eacute", "É"    },
-    { "Ecirc",  "Ê"    },
-    { "Euml",   "Ë"    },
-    { "Igrave", "Ì"    },
-    { "Iacute", "Í"    },
-    { "Icirc",  "Î"    },
-    { "Iuml",   "Ï"    },
-    { "ETH",    "Ð"    },
-    { "Ntilde", "Ñ"    },
-    { "Ograve", "Ò"    },
-    { "Oacute", "Ó"    },
-    { "Ocirc",  "Ô"    },
-    { "Otilde", "Õ"    },
-    { "Ouml",   "Ö"    },
-    { "times",  "×"    },
-    { "Oslash", "Ø"    },
-    { "Ugrave", "Ù"    },
-    { "Uacute", "Ú"    },
-    { "Ucirc",  "Û"    },
-    { "Uuml",   "Ü"    },
-    { "Yacute", "Ý"    },
-    { "THORN",  "Þ"    },
-    { "szlig",  "ß"    },
-    { "agrave", "à"    },
-    { "aacute", "á"    },
-    { "acirc",  "â"    },
-    { "atilde", "ã"    },
-    { "auml",   "ä"    },
-    { "aring",  "å"    },
-    { "aelig",  "æ"    },
-    { "ccedil", "ç"    },
-    { "egrave", "è"    },
-    { "eacute", "é"    },
-    { "ecirc",  "ê"    },
-    { "euml",   "ë"    },
-    { "igrave", "ì"    },
-    { "iacute", "í"    },
-    { "icirc",  "î"    },
-    { "iuml",   "ï"    },
-    { "eth",    "ð"    },
-    { "ntilde", "ñ"    },
-    { "ograve", "ò"    },
-    { "oacute", "ó"    },
-    { "ocirc",  "ô"    },
-    { "otilde", "õ"    },
-    { "ouml",   "ö"    },
-    { "divide", "÷"    },
-    { "oslash", "ø"    },
-    { "ugrave", "ù"    },
-    { "uacute", "ú"    },
-    { "ucirc",  "û"    },
-    { "uuml",   "ü"    },
-    { "yacute", "ý"    },
-    { "thorn",  "þ"    },
-    { "yuml",   "ÿ"    },
+    { "quot", "\"" },    { "apos", "'" },   { "amp", "&" },    { "lt", "<" },     { "gt", ">" },     { "nbsp", "\u00A0" },
+    { "iexcl", "¡" },    { "cent", "¢" },   { "pound", "£" },  { "curren", "¤" }, { "yen", "¥" },    { "brvbar", "¦" },
+    { "sect", "§" },     { "uml", "¨" },    { "copy", "©" },   { "ordf", "ª" },   { "laquo", "«" },  { "not", "¬" },
+    { "shy", "\u00AD" }, { "reg", "®" },    { "macr", "¯" },   { "deg", "°" },    { "plusmn", "±" }, { "sup2", "²" },
+    { "sup3", "³" },     { "acute", "´" },  { "micro", "µ" },  { "para", "¶" },   { "middot", "·" }, { "cedil", "¸" },
+    { "sup1", "¹" },     { "ordm", "º" },   { "raquo", "»" },  { "fraq14", "¼" }, { "fraq12", "½" }, { "fraq34", "¾" },
+    { "iquest", "¿" },   { "Agrave", "À" }, { "Aacute", "Á" }, { "Acirc", "Â" },  { "Atilde", "Ã" }, { "Auml", "Ä" },
+    { "Aring", "Å" },    { "AElig", "Æ" },  { "Ccedil", "Ç" }, { "Egrave", "È" }, { "Eacute", "É" }, { "Ecirc", "Ê" },
+    { "Euml", "Ë" },     { "Igrave", "Ì" }, { "Iacute", "Í" }, { "Icirc", "Î" },  { "Iuml", "Ï" },   { "ETH", "Ð" },
+    { "Ntilde", "Ñ" },   { "Ograve", "Ò" }, { "Oacute", "Ó" }, { "Ocirc", "Ô" },  { "Otilde", "Õ" }, { "Ouml", "Ö" },
+    { "times", "×" },    { "Oslash", "Ø" }, { "Ugrave", "Ù" }, { "Uacute", "Ú" }, { "Ucirc", "Û" },  { "Uuml", "Ü" },
+    { "Yacute", "Ý" },   { "THORN", "Þ" },  { "szlig", "ß" },  { "agrave", "à" }, { "aacute", "á" }, { "acirc", "â" },
+    { "atilde", "ã" },   { "auml", "ä" },   { "aring", "å" },  { "aelig", "æ" },  { "ccedil", "ç" }, { "egrave", "è" },
+    { "eacute", "é" },   { "ecirc", "ê" },  { "euml", "ë" },   { "igrave", "ì" }, { "iacute", "í" }, { "icirc", "î" },
+    { "iuml", "ï" },     { "eth", "ð" },    { "ntilde", "ñ" }, { "ograve", "ò" }, { "oacute", "ó" }, { "ocirc", "ô" },
+    { "otilde", "õ" },   { "ouml", "ö" },   { "divide", "÷" }, { "oslash", "ø" }, { "ugrave", "ù" }, { "uacute", "ú" },
+    { "ucirc", "û" },    { "uuml", "ü" },   { "yacute", "ý" }, { "thorn", "þ" },  { "yuml", "ÿ" },
 };
 
 
@@ -285,8 +117,8 @@ bool DecodeEntity(const char * const entity_string, std::string * const ch, cons
             static std::unique_ptr<TextUtil::EncodingConverter> to_ansi_converter;
             if (to_ansi_converter.get() == nullptr) {
                 std::string err_msg;
-                to_ansi_converter = TextUtil::EncodingConverter::Factory(TextUtil::EncodingConverter::CANONICAL_UTF8_NAME,
-                                                                         "MS-ANSI", &err_msg);
+                to_ansi_converter =
+                    TextUtil::EncodingConverter::Factory(TextUtil::EncodingConverter::CANONICAL_UTF8_NAME, "MS-ANSI", &err_msg);
                 if (not err_msg.empty())
                     LOG_ERROR(err_msg);
             }
@@ -308,14 +140,14 @@ bool DecodeEntity(const char * const entity_string, std::string * const ch, cons
 }
 
 
-void __attribute__((__format__(printf,1,2),noreturn)) Throw(const char * const fmt, ...) {
-    char msg_buffer[1024+1];
+void __attribute__((__format__(printf, 1, 2), noreturn)) Throw(const char * const fmt, ...) {
+    char msg_buffer[1024 + 1];
     std::strcpy(msg_buffer, "HtmlParser: ");
     size_t len = std::strlen(msg_buffer);
 
     va_list args;
     va_start(args, fmt);
-    ::vsnprintf(msg_buffer+len, sizeof(msg_buffer)-len, fmt, args);
+    ::vsnprintf(msg_buffer + len, sizeof(msg_buffer) - len, fmt, args);
     va_end(args);
 
     throw std::runtime_error(msg_buffer);
@@ -393,9 +225,8 @@ std::string HtmlParser::Chunk::toPlainText() const {
 
 HtmlParser::HtmlParser(const std::string &input_string, const std::string &http_header_charset, const unsigned chunk_mask,
                        const bool header_only)
-    : input_string_(handleBOM(input_string)), http_header_charset_(http_header_charset), lineno_(1),
-      chunk_mask_(chunk_mask), header_only_(header_only), is_xhtml_(false)
-{
+    : input_string_(handleBOM(input_string)), http_header_charset_(http_header_charset), lineno_(1), chunk_mask_(chunk_mask),
+      header_only_(header_only), is_xhtml_(false) {
     if ((chunk_mask_ & TEXT) and (chunk_mask_ & (WORD | PUNCTUATION | WHITESPACE)))
         LOG_ERROR("TEXT cannot be set simultaneously with any of WORD, PUNCTUATION or WHITESPACE!");
 
@@ -410,9 +241,8 @@ HtmlParser::HtmlParser(const std::string &input_string, const std::string &http_
 
     if (not http_header_charset.empty()) {
         std::string error_message;
-        encoding_converter_ = TextUtil::EncodingConverter::Factory(http_header_charset,
-                                                                   TextUtil::EncodingConverter::CANONICAL_UTF8_NAME + "//TRANSLIT",
-                                                                   &error_message);
+        encoding_converter_ = TextUtil::EncodingConverter::Factory(
+            http_header_charset, TextUtil::EncodingConverter::CANONICAL_UTF8_NAME + "//TRANSLIT", &error_message);
         if (encoding_converter_.get() == nullptr)
             LOG_WARNING(error_message);
     }
@@ -426,7 +256,7 @@ char *HtmlParser::handleBOM(const std::string &input_string) {
     std::string BOM_type;
     if (StringUtil::StartsWith(input_string, "\xFE\xFF")) // Big-endian
         BOM_type = "UCS-2BE";
-    else if(StringUtil::StartsWith(input_string, "\xFF\xFE")) // Little-endian
+    else if (StringUtil::StartsWith(input_string, "\xFF\xFE")) // Little-endian
         BOM_type = "UCS-2LE";
     else if (StringUtil::StartsWith(input_string, "\xEF\xBB\xBF")) // UTF-8
         BOM_type = "UTF-8";
@@ -441,11 +271,11 @@ char *HtmlParser::handleBOM(const std::string &input_string) {
     std::string error_message;
     auto text_converter(TextUtil::EncodingConverter::Factory(BOM_type, "UTF-8", &error_message));
     if (not error_message.empty())
-        LOG_ERROR("failed to create a text converter for conversion from " + BOM_type +" to UTF-8!");
+        LOG_ERROR("failed to create a text converter for conversion from " + BOM_type + " to UTF-8!");
 
     std::string utf8_string;
     if (not text_converter->convert(input_string, &utf8_string))
-        LOG_ERROR("failed to convert from " + BOM_type +" to UTF-8!");
+        LOG_ERROR("failed to convert from " + BOM_type + " to UTF-8!");
     encoding_converter_ = TextUtil::IdentityConverter::Factory();
 
     return StringUtil::strnewdup(utf8_string.c_str());
@@ -516,7 +346,7 @@ void HtmlParser::replaceEntitiesInString() {
         if (likely(DecodeEntity(entity, &expanded_entity, using_utf8))) {
             for (const char &ch : expanded_entity)
                 *write_ptr++ = ch;
-             --write_ptr;
+            --write_ptr;
             read_ptr += entity_length + 2; // 2 for '&' and ';'
             if (expanded_entity == "<" or expanded_entity == ">")
                 angle_bracket_entity_positions_.insert(write_ptr);
@@ -544,8 +374,7 @@ int HtmlParser::getChar(bool * const is_entity) {
         ++lineno_;
     else if (c == '<' or c == '>') {
         if (unlikely(is_entity != nullptr))
-            *is_entity = angle_bracket_entity_positions_.find(const_cast<char *>(cp_))
-                != angle_bracket_entity_positions_.end();
+            *is_entity = angle_bracket_entity_positions_.find(const_cast<char *>(cp_)) != angle_bracket_entity_positions_.end();
     }
     ++cp_;
 
@@ -569,9 +398,9 @@ void HtmlParser::skipJavaScriptStringConstant(const int start_quote) {
     for (;;) {
         int ch = getChar();
         if (unlikely(endOfStream())) {
-            Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
-                                       "unexpected EOF within JavaScript string literal (started on line "
-                                       + std::to_string(start_lineno) + ")");
+            Chunk unexpected_eof_chunk(
+                UNEXPECTED_END_OF_STREAM, lineno_,
+                "unexpected EOF within JavaScript string literal (started on line " + std::to_string(start_lineno) + ")");
             preNotify(&unexpected_eof_chunk);
             return;
         }
@@ -612,7 +441,8 @@ void HtmlParser::skipJavaScriptCStyleComment() {
             if (unlikely(endOfStream())) {
                 Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
                                            "unxepected EOF in JavaScript C-style comment (started "
-                                           "on line " + std::to_string(start_lineno) + ")");
+                                           "on line "
+                                               + std::to_string(start_lineno) + ")");
                 preNotify(&unexpected_eof_chunk);
                 return;
             }
@@ -622,7 +452,8 @@ void HtmlParser::skipJavaScriptCStyleComment() {
             if (unlikely(endOfStream())) {
                 Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
                                            "unxepected EOF in JavaScript C-style comment (started on "
-                                           "line " + std::to_string(start_lineno) + ")");
+                                           "line "
+                                               + std::to_string(start_lineno) + ")");
                 preNotify(&unexpected_eof_chunk);
                 return;
             }
@@ -669,9 +500,7 @@ bool IsHTML4Doctype(const std::string &doctype) {
 }
 
 
-const std::vector<std::string> HTML2_DOCTYPES = {
-    "HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\""
-};
+const std::vector<std::string> HTML2_DOCTYPES = { "HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\"" };
 
 
 bool IsHTML2Doctype(const std::string &doctype) {
@@ -693,8 +522,7 @@ void HtmlParser::processDoctype() {
         doctype += static_cast<char>(ch = getChar());
     while (ch != '>' and ch != EOF);
     if (unlikely(ch == EOF)) {
-        Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
-                                   "unexpected end of HTML while skipping over a DOCTYPE");
+        Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_, "unexpected end of HTML while skipping over a DOCTYPE");
         preNotify(&unexpected_eof_chunk);
     }
 
@@ -728,8 +556,7 @@ void HtmlParser::skipComment() {
         int ch = getChar();
         if (unlikely(ch == EOF)) {
             Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
-                                       "unexpected EOF within HTML comment (started on line "
-                                       + std::to_string(start_lineno) + ")");
+                                       "unexpected EOF within HTML comment (started on line " + std::to_string(start_lineno) + ")");
             preNotify(&unexpected_eof_chunk);
             return;
         }
@@ -748,7 +575,7 @@ void HtmlParser::skipComment() {
 
     if (chunk_mask_ & COMMENT) {
         // report the contents of the comments without the "--" at the end:
-        Chunk comment_chunk(COMMENT, comment_text.substr(0, comment_text.length()-2), start_lineno);
+        Chunk comment_chunk(COMMENT, comment_text.substr(0, comment_text.length() - 2), start_lineno);
         preNotify(&comment_chunk);
     }
 }
@@ -762,9 +589,9 @@ void HtmlParser::skipToEndOfTag(const std::string &tag_name, const unsigned tag_
     do {
         ch = getChar(&is_entity);
         if (ch == EOF) {
-            Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
-                                       "unexpected end-of-stream while skipping tag \"" + tag_name
-                                       + "\" opened on line " + std::to_string(tag_start_lineno));
+            Chunk unexpected_eof_chunk(
+                UNEXPECTED_END_OF_STREAM, lineno_,
+                "unexpected end-of-stream while skipping tag \"" + tag_name + "\" opened on line " + std::to_string(tag_start_lineno));
             preNotify(&unexpected_eof_chunk);
             return;
         }
@@ -783,9 +610,9 @@ bool HtmlParser::skipToEndOfScriptOrStyle(const std::string &tag_name, const uns
     for (;;) {
         ch = getChar();
         if (ch == EOF) {
-            Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
-                                       "unexpected end-of-stream while skipping tag \"" + tag_name
-                                       + "\" opened on line " + std::to_string(lineno_));
+            Chunk unexpected_eof_chunk(
+                UNEXPECTED_END_OF_STREAM, lineno_,
+                "unexpected end-of-stream while skipping tag \"" + tag_name + "\" opened on line " + std::to_string(lineno_));
             preNotify(&unexpected_eof_chunk);
             return false;
         }
@@ -795,9 +622,9 @@ bool HtmlParser::skipToEndOfScriptOrStyle(const std::string &tag_name, const uns
 
         ch = getChar();
         if (ch == EOF) {
-            Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
-                                       "unexpected end-of-stream while skipping tag \"" + tag_name
-                                       + "\" opened on line " + std::to_string(lineno_));
+            Chunk unexpected_eof_chunk(
+                UNEXPECTED_END_OF_STREAM, lineno_,
+                "unexpected end-of-stream while skipping tag \"" + tag_name + "\" opened on line " + std::to_string(lineno_));
             preNotify(&unexpected_eof_chunk);
             return false;
         }
@@ -856,7 +683,7 @@ void HtmlParser::parseWord() {
     }
 
     // Remove a possible trailing hyphen:
-    if (unlikely(word[word.length() - 1] == '-') ) {
+    if (unlikely(word[word.length() - 1] == '-')) {
         word.resize(word.length() - 1);
         ungetChar();
     }
@@ -914,9 +741,7 @@ std::string HtmlParser::extractTagName() {
 
 // HtmlParser::extractAttribute -- returns true if an attribute was found, else false.
 //
-bool HtmlParser::extractAttribute(const std::string &tag_name, std::string * const attribute_name,
-                                  std::string * const attribute_value)
-{
+bool HtmlParser::extractAttribute(const std::string &tag_name, std::string * const attribute_name, std::string * const attribute_value) {
     attribute_name->clear();
     attribute_value->clear();
 
@@ -933,9 +758,9 @@ bool HtmlParser::extractAttribute(const std::string &tag_name, std::string * con
         ch = getChar();
     }
     if (unlikely(endOfStream())) {
-        Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
-                                   "unexpected end-of-stream while parsing an attribute name in a \"" + tag_name
-                                   + "\" tag on line " + std::to_string(lineno_));
+        Chunk unexpected_eof_chunk(
+            UNEXPECTED_END_OF_STREAM, lineno_,
+            "unexpected end-of-stream while parsing an attribute name in a \"" + tag_name + "\" tag on line " + std::to_string(lineno_));
         preNotify(&unexpected_eof_chunk);
         return false;
     }
@@ -954,8 +779,8 @@ bool HtmlParser::extractAttribute(const std::string &tag_name, std::string * con
         if (unlikely(endOfStream())) {
             Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
                                        "unexpected end-of-stream while looking for an equal sign following "
-                                       "the attribute name \"" + *attribute_name + "\" in tag \"" + tag_name
-                                       + "\" on line " + std::to_string(lineno_));
+                                       "the attribute name \""
+                                           + *attribute_name + "\" in tag \"" + tag_name + "\" on line " + std::to_string(lineno_));
             preNotify(&unexpected_eof_chunk);
             return false;
         }
@@ -977,8 +802,8 @@ bool HtmlParser::extractAttribute(const std::string &tag_name, std::string * con
         if (ch == EOF) {
             Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
                                        "unexpected end-of-stream while reading attribute value for "
-                                       "attribute \"" + *attribute_name + "\" in tag \"" + tag_name
-                                       + "\" on line " + std::to_string(lineno_));
+                                       "attribute \""
+                                           + *attribute_name + "\" in tag \"" + tag_name + "\" on line " + std::to_string(lineno_));
             preNotify(&unexpected_eof_chunk);
             return false;
         }
@@ -992,8 +817,8 @@ bool HtmlParser::extractAttribute(const std::string &tag_name, std::string * con
     if (unlikely(endOfStream())) {
         Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
                                    "unexpected end-of-stream while parsing an attribute value for "
-                                   "attribute \"" + *attribute_name + "\" in tag \"" + tag_name
-                                   + "\" on line " + std::to_string(lineno_));
+                                   "attribute \""
+                                       + *attribute_name + "\" in tag \"" + tag_name + "\" on line " + std::to_string(lineno_));
         preNotify(&unexpected_eof_chunk);
         return false;
     }
@@ -1003,11 +828,7 @@ bool HtmlParser::extractAttribute(const std::string &tag_name, std::string * con
 }
 
 
-static const std::vector<std::string> LATIN1_CHARSETS {
-    "Latin-1",
-    "Latin1",
-    "ISO-8859-1"
-};
+static const std::vector<std::string> LATIN1_CHARSETS{ "Latin-1", "Latin1", "ISO-8859-1" };
 
 
 bool IsLatin1Charset(const std::string &charset) {
@@ -1045,8 +866,7 @@ bool HtmlParser::parseTag() {
     }
     if (unlikely(endOfStream())) {
         Chunk unexpected_eof_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
-                                   "tag \"" + tag_name + "\" opened on line " + std::to_string(lineno_)
-                                   + " was never closed");
+                                   "tag \"" + tag_name + "\" opened on line " + std::to_string(lineno_) + " was never closed");
         preNotify(&unexpected_eof_chunk);
         return false;
     }
@@ -1201,8 +1021,7 @@ void HtmlParser::parse() {
                         } while (not endOfStream() and ch != '>' and doctype.length() < 7);
                         if (unlikely(endOfStream())) {
                             Chunk unexpected_end_of_stream_chunk(UNEXPECTED_END_OF_STREAM, lineno_,
-                                                                 "unexpected end-of-stream while skipping \"!" + doctype
-                                                                 + "...\"");
+                                                                 "unexpected end-of-stream while skipping \"!" + doctype + "...\"");
                             preNotify(&unexpected_end_of_stream_chunk);
                             return;
                         }
@@ -1350,8 +1169,7 @@ void UrlExtractorParser::notify(const Chunk &chunk) {
                 StringUtil::TrimWhite(&last_url_and_anchor_text_.url_);
                 opening_a_tag_seen_ = true;
             }
-        }
-        else if (chunk.type_ == HtmlParser::CLOSING_TAG and opening_a_tag_seen_) {
+        } else if (chunk.type_ == HtmlParser::CLOSING_TAG and opening_a_tag_seen_) {
             opening_a_tag_seen_ = false;
             if (not last_url_and_anchor_text_.url_.empty()) {
                 if (clean_up_anchor_text_)
@@ -1362,7 +1180,8 @@ void UrlExtractorParser::notify(const Chunk &chunk) {
         }
     }
     // Handle the "area" tag:
-    else if (chunk.text_ == "area") {
+    else if (chunk.text_ == "area")
+    {
         if (chunk.type_ == HtmlParser::OPENING_TAG) {
             const AttributeMap::const_iterator href_attrib(chunk.attribute_map_->find("href"));
             if (href_attrib != chunk.attribute_map_->end()) {
@@ -1394,18 +1213,20 @@ void UrlExtractorParser::notify(const Chunk &chunk) {
         }
     }
     // Image tags:
-    else if (chunk.type_ == HtmlParser::OPENING_TAG and chunk.text_ == "img" and ignore_image_tags_) {
+    else if (chunk.type_ == HtmlParser::OPENING_TAG and chunk.text_ == "img" and ignore_image_tags_)
+    {
         last_url_and_anchor_text_.clear();
         opening_a_tag_seen_ = false;
     }
     // Base tag:
-    else if (chunk.type_ == HtmlParser::OPENING_TAG and chunk.text_ == "base") {
+    else if (chunk.type_ == HtmlParser::OPENING_TAG and chunk.text_ == "base")
+    {
         AttributeMap::const_iterator href_attrib = chunk.attribute_map_->find("href");
         if (href_attrib != chunk.attribute_map_->end())
             base_url_ = href_attrib->second;
     }
     // Anchor text:
-    else if ((chunk.type_ == HtmlParser::WORD or chunk.type_ == HtmlParser::PUNCTUATION or chunk.type_ ==  HtmlParser::WHITESPACE)
+    else if ((chunk.type_ == HtmlParser::WORD or chunk.type_ == HtmlParser::PUNCTUATION or chunk.type_ == HtmlParser::WHITESPACE)
              and opening_a_tag_seen_)
         last_url_and_anchor_text_.anchor_text_ += chunk.text_;
 }
@@ -1415,11 +1236,12 @@ void UrlExtractorParser::notify(const Chunk &chunk) {
 #include <iostream>
 
 
-class SentenceCounter: public HtmlParser {
+class SentenceCounter : public HtmlParser {
     static const unsigned MAX_SENTENCE_LENGTH = 50;
     unsigned no_of_sentences_;
     unsigned count_[MAX_SENTENCE_LENGTH];
     unsigned current_sentence_word_count_;
+
 public:
     explicit SentenceCounter(std::istream &input);
     virtual void notify(const Chunk &chunk);
@@ -1428,15 +1250,13 @@ public:
 
 
 SentenceCounter::SentenceCounter(std::istream &input)
-    : HtmlParser(input, HtmlParser::PUNCTUATION | HtmlParser::WORD), no_of_sentences_(0), current_sentence_word_count_(0)
-{
+    : HtmlParser(input, HtmlParser::PUNCTUATION | HtmlParser::WORD), no_of_sentences_(0), current_sentence_word_count_(0) {
     for (unsigned i = 0; i < MAX_SENTENCE_LENGTH; ++i)
         count_[i] = 0;
 }
 
 
-void SentenceCounter::notify(const Chunk &chunk)
-{
+void SentenceCounter::notify(const Chunk &chunk) {
     if (chunk.type_ == HtmlParser::PUNCTUATION and (chunk.text_[0] == '.' or chunk.text_[0] == '?' or chunk.text_[0] == '!')) {
         ++no_of_sentences_;
         if (current_sentence_word_count_ >= MAX_SENTENCE_LENGTH)
@@ -1446,8 +1266,7 @@ void SentenceCounter::notify(const Chunk &chunk)
 
 
         current_sentence_word_count_ = 0;
-    }
-    else if (chunk.type_ == HtmlParser::WORD)
+    } else if (chunk.type_ == HtmlParser::WORD)
         ++current_sentence_word_count_;
 }
 
@@ -1463,10 +1282,9 @@ void SentenceCounter::report(std::ostream &output) const {
 }
 
 
-class TestParser: public HtmlParser {
+class TestParser : public HtmlParser {
 public:
-    explicit TestParser(std::istream &input)
-        : HtmlParser(input) { }
+    explicit TestParser(std::istream &input): HtmlParser(input) { }
     virtual void notify(const Chunk &chunk);
 };
 
@@ -1494,8 +1312,7 @@ int main() {
         TestParser test_parser(std::cin);
         test_parser.parse();
 #endif
-    }
-    catch (const std::exception &x) {
+    } catch (const std::exception &x) {
         std::cerr << "Caught exception: " << x.what() << '\n';
         return EXIT_FAILURE;
     }

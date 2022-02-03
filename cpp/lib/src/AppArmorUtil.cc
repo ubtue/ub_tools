@@ -58,7 +58,8 @@ std::vector<std::pair<std::string, ProfileMode>> GetProfiles() {
     const auto json_profiles(json_root->getObjectNode("profiles"));
     std::vector<std::pair<std::string, ProfileMode>> profiles;
     for (auto &profile_and_mode : *json_profiles) {
-        const std::shared_ptr<const JSON::StringNode> profile_mode_node(JSON::JSONNode::CastToStringNodeOrDie("profile", profile_and_mode.second));
+        const std::shared_ptr<const JSON::StringNode> profile_mode_node(
+            JSON::JSONNode::CastToStringNodeOrDie("profile", profile_and_mode.second));
         profiles.emplace_back(std::make_pair(profile_and_mode.first, ParseProfileMode(profile_mode_node->getValue())));
     }
     return profiles;

@@ -37,7 +37,7 @@ std::string GetDefaultDatabaseConf() {
     if (VUFIND_HOME.empty())
         return "";
     const std::string database_conf(VUFIND_HOME + "/" + VuFind::DATABASE_CONF);
-    return FileUtil::Exists(database_conf)  ? database_conf : VUFIND_HOME + "/" + VuFind::DATABASE_CONF_ALTERNATIVE;
+    return FileUtil::Exists(database_conf) ? database_conf : VUFIND_HOME + "/" + VuFind::DATABASE_CONF_ALTERNATIVE;
 }
 
 
@@ -50,8 +50,7 @@ std::string GetDefaultDatabaseConfOrDie() {
 
 
 std::string GetMysqlURLOrDie(const std::string &vufind_config_file_path) {
-    const std::string database_conf_filename(vufind_config_file_path.empty()
-                                             ? GetDefaultDatabaseConfOrDie() : vufind_config_file_path);
+    const std::string database_conf_filename(vufind_config_file_path.empty() ? GetDefaultDatabaseConfOrDie() : vufind_config_file_path);
     File database_conf(database_conf_filename, "r", File::THROW_ON_ERROR);
     const std::string line(database_conf.getline());
     const size_t schema_pos(line.find("mysql://"));
@@ -71,7 +70,7 @@ std::string GetTueFindFlavour() {
 std::string GetTueFindFlavourOrDie() {
     try {
         return MiscUtil::GetEnv("TUEFIND_FLAVOUR");
-    } catch(...) {
+    } catch (...) {
         LOG_ERROR("TUEFIND_FLAVOUR has not been set!");
     }
 }

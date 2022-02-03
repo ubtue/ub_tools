@@ -32,8 +32,8 @@
 
 
 Locale::Locale(const std::string &new_locale, const int category, const bool restore)
-    : old_locale_(0), new_locale_(0), category_(category), new_locale_string_(new_locale), new_locale_category_(category), restore_(restore)
-{
+    : old_locale_(0), new_locale_(0), category_(category), new_locale_string_(new_locale), new_locale_category_(category),
+      restore_(restore) {
     // Fetch the calling thread's active locale
     old_locale_ = ::uselocale(0);
 

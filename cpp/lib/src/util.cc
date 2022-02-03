@@ -44,7 +44,7 @@ static int log_fd;
 
 void HUPHandler(int /* signal_number*/) {
     ::close(log_fd);
-    const int new_fd(::open(log_path.c_str(), O_WRONLY|O_APPEND));
+    const int new_fd(::open(log_path.c_str(), O_WRONLY | O_APPEND));
     if (new_fd == -1) { // We're screwed!
         const std::string error_message("in HUPHandler(util.cc): can't open(2) \"" + log_path + "\"!\n");
         ::write(STDERR_FILENO, error_message.c_str(), error_message.size());
@@ -69,10 +69,7 @@ char *progname; // Must be set in main() with "progname = argv[0];";
 const std::string Logger::FUNCTION_NAME_SEPARATOR(" --> ");
 
 
-Logger::Logger()
-    : log_process_pids_(false), log_no_decorations_(false), log_strip_call_site_(false),
-      min_log_level_(LL_INFO)
-{
+Logger::Logger(): log_process_pids_(false), log_no_decorations_(false), log_strip_call_site_(false), min_log_level_(LL_INFO) {
     log_fd = STDERR_FILENO;
     log_path = FileUtil::GetPathFromFileDescriptor(log_fd);
     SignalUtil::InstallHandler(SIGHUP, HUPHandler);
@@ -182,8 +179,8 @@ std::string Logger::LogLevelToString(const LogLevel log_level) {
 
 void Logger::formatMessage(const std::string &level, std::string * const msg) {
     if (not log_no_decorations_) {
-        *msg = TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " " + level + " " + std::string(::program_invocation_name) + ": "
-              + *msg;
+        *msg = TimeUtil::GetCurrentDateAndTime(TimeUtil::ISO_8601_FORMAT) + " " + level + " " + std::string(::program_invocation_name)
+               + ": " + *msg;
         if (log_process_pids_)
             *msg += " (PID: " + std::to_string(::getpid()) + ")";
     }
@@ -207,9 +204,9 @@ void Logger::writeString(const std::string &level, std::string msg, const bool f
     if (unlikely(::write(log_fd, reinterpret_cast<const void *>(msg.data()), msg.size()) == -1)) {
         const std::string error_message("in Logger::writeString(util.cc): write to file descriptor " + std::to_string(log_fd)
                                         + " failed! (errno = " + std::to_string(errno) + ")");
-        #pragma GCC diagnostic ignored "-Wunused-result"
+#pragma GCC diagnostic ignored "-Wunused-result"
         ::write(STDERR_FILENO, error_message.data(), error_message.size());
-        #pragma GCC diagnostic warning "-Wunused-result"
+#pragma GCC diagnostic warning "-Wunused-result"
         _exit(EXIT_FAILURE);
     }
 }
@@ -221,8 +218,7 @@ int Logger::getFileDescriptor() const {
 
 
 DSVReader::DSVReader(const std::string &filename, const char field_separator, const char field_delimiter)
-    : field_separator_(field_separator), field_delimiter_(field_delimiter), line_no_(0), filename_(filename)
-{
+    : field_separator_(field_separator), field_delimiter_(field_delimiter), line_no_(0), filename_(filename) {
     input_ = std::fopen(filename.c_str(), "rm");
     if (input_ == nullptr)
         throw std::runtime_error("in DSVReader::DSVReader: can't open \"" + filename + "\" for reading!");
@@ -247,7 +243,7 @@ void SkipFieldPadding(FILE * const input) {
 
 
 /** \brief Remove trailing spaces and tabs from "s". */
-std::string TrimBlanks(std::string * s) {
+std::string TrimBlanks(std::string *s) {
     std::string::const_reverse_iterator it(s->crbegin());
     for (/* Empty! */; it != s->crend() and std::isblank(*it); ++it)
         /* Intentionally Empty! */;
@@ -284,8 +280,6 @@ std::string ReadQuotedValue(FILE * const input, const char field_delimiter, cons
         }
     }
 }
-
-
 
 
 std::string ReadNonQuotedValue(FILE * const input, const char field_separator) {
@@ -346,8 +340,7 @@ bool DSVReader::readLine(std::vector<std::string> * const values) {
                 return true;
             if (ch != field_separator_)
                 throw std::runtime_error("in DSVReader::readLine: on line " + std::to_string(line_no_)
-                                         + ": field separator expected, found '"
-                                         + std::string(1, static_cast<char>(ch)) + "' instead!");
+                                         + ": field separator expected, found '" + std::string(1, static_cast<char>(ch)) + "' instead!");
         }
 
         SkipFieldPadding(input_);

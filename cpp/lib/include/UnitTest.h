@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 
 
@@ -45,39 +45,91 @@ static unsigned success_count, failure_count;
         return (failure_count > 0) ? EXIT_FAILURE : EXIT_SUCCESS;              \
     }
 
-#define TEST(test_name) static void test_name();                                                 \
-    static int register_ ## test_name() { tests.emplace_back(test_name, #test_name); return 0; } \
-    int dummy_ ## test_name = register_ ## test_name();                                          \
+#define TEST(test_name)                             \
+    static void test_name();                        \
+    static int register_##test_name() {             \
+        tests.emplace_back(test_name, #test_name);  \
+        return 0;                                   \
+    }                                               \
+    int dummy_##test_name = register_##test_name(); \
     void test_name()
 
-#define CHECK_TRUE(a) do { if ((a)) ++success_count;                                         \
-        else { ++failure_count; std::cerr << "\tTest failed: " << #a << " is not true!\n"; } \
+#define CHECK_TRUE(a)                                                  \
+    do {                                                               \
+        if ((a))                                                       \
+            ++success_count;                                           \
+        else {                                                         \
+            ++failure_count;                                           \
+            std::cerr << "\tTest failed: " << #a << " is not true!\n"; \
+        }                                                              \
     } while (0)
 
-#define CHECK_FALSE(a) do { if (not (a)) ++success_count;                                     \
-        else { ++failure_count; std::cerr << "\tTest failed: " << #a << " is not false!\n"; } \
+#define CHECK_FALSE(a)                                                  \
+    do {                                                                \
+        if (not(a))                                                     \
+            ++success_count;                                            \
+        else {                                                          \
+            ++failure_count;                                            \
+            std::cerr << "\tTest failed: " << #a << " is not false!\n"; \
+        }                                                               \
     } while (0)
 
-#define CHECK_LT(a, b) do { if ((a) < (b)) ++success_count;                                 \
-        else { ++failure_count; std::cerr << "\tTest failed: " << #a " < " << #b << '\n'; } \
+#define CHECK_LT(a, b)                                                \
+    do {                                                              \
+        if ((a) < (b))                                                \
+            ++success_count;                                          \
+        else {                                                        \
+            ++failure_count;                                          \
+            std::cerr << "\tTest failed: " << #a " < " << #b << '\n'; \
+        }                                                             \
     } while (0)
 
-#define CHECK_GT(a, b) do { if ((a) > (b)) ++success_count;                                 \
-        else { ++failure_count; std::cerr << "\tTest failed: " << #a " > " << #b << '\n'; } \
+#define CHECK_GT(a, b)                                                \
+    do {                                                              \
+        if ((a) > (b))                                                \
+            ++success_count;                                          \
+        else {                                                        \
+            ++failure_count;                                          \
+            std::cerr << "\tTest failed: " << #a " > " << #b << '\n'; \
+        }                                                             \
     } while (0)
 
-#define CHECK_LE(a, b) do { if ((a) <= (b)) ++success_count;                                 \
-        else { ++failure_count; std::cerr << "\tTest failed: " << #a " <= " << #b << '\n'; } \
+#define CHECK_LE(a, b)                                                 \
+    do {                                                               \
+        if ((a) <= (b))                                                \
+            ++success_count;                                           \
+        else {                                                         \
+            ++failure_count;                                           \
+            std::cerr << "\tTest failed: " << #a " <= " << #b << '\n'; \
+        }                                                              \
     } while (0)
 
-#define CHECK_GE(a, b) do { if ((a) >= (b)) ++success_count;                                 \
-        else { ++failure_count; std::cerr << "\tTest failed: " << #a " >= " << #b << '\n'; } \
+#define CHECK_GE(a, b)                                                 \
+    do {                                                               \
+        if ((a) >= (b))                                                \
+            ++success_count;                                           \
+        else {                                                         \
+            ++failure_count;                                           \
+            std::cerr << "\tTest failed: " << #a " >= " << #b << '\n'; \
+        }                                                              \
     } while (0)
 
-#define CHECK_EQ(a, b) do { if ((a) == (b)) ++success_count;                                 \
-        else { ++failure_count; std::cerr << "\tTest failed: " << #a " == " << #b << '\n'; } \
+#define CHECK_EQ(a, b)                                                 \
+    do {                                                               \
+        if ((a) == (b))                                                \
+            ++success_count;                                           \
+        else {                                                         \
+            ++failure_count;                                           \
+            std::cerr << "\tTest failed: " << #a " == " << #b << '\n'; \
+        }                                                              \
     } while (0)
 
-#define CHECK_NE(a, b) do { if ((a) != (b)) ++success_count;                                 \
-        else { ++failure_count; std::cerr << "\tTest failed: " << #a " != " << #b << '\n'; } \
+#define CHECK_NE(a, b)                                                 \
+    do {                                                               \
+        if ((a) != (b))                                                \
+            ++success_count;                                           \
+        else {                                                         \
+            ++failure_count;                                           \
+            std::cerr << "\tTest failed: " << #a " != " << #b << '\n'; \
+        }                                                              \
     } while (0)

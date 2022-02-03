@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "ZoteroHarvesterUtil.h"
 #include <csignal>
@@ -25,9 +25,9 @@
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "TimeUtil.h"
-#include "util.h"
 #include "ZoteroHarvesterConversion.h"
 #include "ZoteroHarvesterZederInterop.h"
+#include "util.h"
 
 
 namespace ZoteroHarvester {
@@ -46,8 +46,7 @@ std::string HarvestableItem::toString() const {
     std::string journal_name(TextUtil::CollapseAndTrimWhitespace(journal_.name_));
     TextUtil::UTF8Truncate(&journal_name, 20);
 
-    as_string += " [" + journal_name + "...] | " + url_.toString() + " {"
-                 + std::to_string(std::hash<HarvestableItem>()(*this)) + "}";
+    as_string += " [" + journal_name + "...] | " + url_.toString() + " {" + std::to_string(std::hash<HarvestableItem>()(*this)) + "}";
     return as_string;
 }
 
@@ -67,15 +66,14 @@ HarvestableItem HarvestableItemManager::newHarvestableItem(const std::string &ur
 }
 
 
-ZoteroLogger::ContextData::ContextData(const Util::HarvestableItem &item)
-    : item_(item)
-{
+ZoteroLogger::ContextData::ContextData(const Util::HarvestableItem &item): item_(item) {
     buffer_.reserve(static_cast<size_t>(BUFFER_SIZE));
     buffer_ = "\n\n";
 }
 
 
-void ZoteroLogger::queueContextMessage(const std::string &level, std::string msg, const ::pthread_t tasklet_thread_id, const TaskletContext &tasklet_context) {
+void ZoteroLogger::queueContextMessage(const std::string &level, std::string msg, const ::pthread_t tasklet_thread_id,
+                                       const TaskletContext &tasklet_context) {
     std::lock_guard<std::recursive_mutex> locker(active_context_mutex_);
     if (fatal_error_all_stop_.load())
         return;
@@ -121,8 +119,8 @@ void ZoteroLogger::flushBufferAndPrintProgressImpl(const unsigned num_active_tas
 
     if (::isatty(getFileDescriptor()) == 1) {
         // update progress bar
-        progress_bar_buffer_ = "TASKS: ACTIVE = " + std::to_string(num_active_tasks) + ", QUEUED = "
-                               + std::to_string(num_queued_tasks) + "\r";
+        progress_bar_buffer_ =
+            "TASKS: ACTIVE = " + std::to_string(num_active_tasks) + ", QUEUED = " + std::to_string(num_queued_tasks) + "\r";
         writeToBackingLog(progress_bar_buffer_);
     }
 }
@@ -180,7 +178,7 @@ void ZoteroLogger::error(const std::string &msg) {
 
     if (context == nullptr) {
         writeToBackingLog("Fatal error in main thread:\n");
-        ::Logger::error(msg);       // pass-through
+        ::Logger::error(msg); // pass-through
     }
 
     // Flush the tasklet's buffer
@@ -335,36 +333,26 @@ ThreadUtil::ThreadSafeCounter<unsigned> future_instance_counter;
 
 class WaitOnSemaphore {
     ThreadUtil::Semaphore * const semaphore_;
+
 public:
-    explicit WaitOnSemaphore(ThreadUtil::Semaphore * const semaphore)
-        : semaphore_(semaphore) { semaphore_->wait(); }
+    explicit WaitOnSemaphore(ThreadUtil::Semaphore * const semaphore): semaphore_(semaphore) { semaphore_->wait(); }
     ~WaitOnSemaphore() { semaphore_->post(); }
 };
 
 
-const std::map<UploadTracker::DeliveryState, std::string> UploadTracker::DELIVERY_STATE_TO_STRING_MAP {
-    { AUTOMATIC,    "automatic" },
-    { MANUAL,       "manual" },
-    { ERROR,        "error" },
-    { IGNORE,       "ignore" },
-    { RESET,        "reset" },
-    { ONLINE_FIRST, "online_first" },
+const std::map<UploadTracker::DeliveryState, std::string> UploadTracker::DELIVERY_STATE_TO_STRING_MAP{
+    { AUTOMATIC, "automatic" }, { MANUAL, "manual" }, { ERROR, "error" },
+    { IGNORE, "ignore" },       { RESET, "reset" },   { ONLINE_FIRST, "online_first" },
 };
 
 
-const std::map<std::string, UploadTracker::DeliveryState> UploadTracker::STRING_TO_DELIVERY_STATE_MAP {
-    { "automatic",    AUTOMATIC },
-    { "manual",       MANUAL },
-    { "error",        ERROR },
-    { "ignore",       IGNORE },
-    { "reset",        RESET },
-    { "online_first", ONLINE_FIRST },
+const std::map<std::string, UploadTracker::DeliveryState> UploadTracker::STRING_TO_DELIVERY_STATE_MAP{
+    { "automatic", AUTOMATIC }, { "manual", MANUAL }, { "error", ERROR },
+    { "ignore", IGNORE },       { "reset", RESET },   { "online_first", ONLINE_FIRST },
 };
 
 
-const std::set<UploadTracker::DeliveryState> UploadTracker::DELIVERY_STATES_TO_RETRY {
-    ERROR, RESET
-};
+const std::set<UploadTracker::DeliveryState> UploadTracker::DELIVERY_STATES_TO_RETRY{ ERROR, RESET };
 
 
 std::string UploadTracker::Entry::toString() const {
@@ -375,7 +363,7 @@ std::string UploadTracker::Entry::toString() const {
     out += "\terror_message: " + error_message_ + "\n";
     out += "\tdelivered_at: " + delivered_at_str_ + "\n";
     out += "\tzeder id: " + std::to_string(zeder_id_) + "\n";
-    out += "\tzeder instance: "  + zeder_instance_ + "\n";
+    out += "\tzeder instance: " + zeder_instance_ + "\n";
     out += "\tmain_title: " + main_title_ + "\n";
     out += "\thash: " + hash_ + "\n";
     return out;
@@ -409,20 +397,20 @@ std::string GetDeliveryStatesSubquery(const std::set<UploadTracker::DeliveryStat
 
 
 bool UploadTracker::urlAlreadyInDatabase(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore,
-                                         Entry * const entry, DbConnection * const db_connection) const
-{
-    std::string query("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.error_message, dmr.id AS entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
-                      "FROM delivered_marc_records_urls AS dmru "
-                      "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
-                      "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id ");
+                                         Entry * const entry, DbConnection * const db_connection) const {
+    std::string query(
+        "SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.error_message, dmr.id AS entry_id, zj.zeder_id, zj.zeder_instance, "
+        "dmr.main_title, dmr.hash "
+        "FROM delivered_marc_records_urls AS dmru "
+        "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
+        "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id ");
 
     // We use the content of 856 for tracking which is not necessarily the same url that has been used for downloading
     // Thus if detect a DOI scheme in the URL we relax the precise match to a DOI match
     if (MiscUtil::ContainsDOI(url))
         query += "WHERE dmru.url LIKE '%" + MiscUtil::extractDOI(url) + "%'";
     else
-        query += "WHERE dmru.url = '"
-                 + db_connection->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'";
+        query += "WHERE dmru.url = '" + db_connection->escapeString(SqlUtil::TruncateToVarCharMaxIndexLength(url)) + "'";
 
     if (not delivery_states_to_ignore.empty())
         query += " AND dmr.delivery_state NOT IN (" + GetDeliveryStatesSubquery(delivery_states_to_ignore, db_connection) + ")";
@@ -440,13 +428,15 @@ bool UploadTracker::urlAlreadyInDatabase(const std::string &url, const std::set<
 
 
 bool UploadTracker::hashAlreadyInDatabase(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore,
-                                         std::vector<Entry> * const entries, DbConnection * const db_connection) const
-{
-    std::string query("SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.error_message, dmr.id AS entry_id, zj.zeder_id, zj.zeder_instance, dmr.main_title, dmr.hash "
-                      "FROM delivered_marc_records_urls AS dmru "
-                      "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
-                      "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
-                      "WHERE dmr.hash =" + db_connection->escapeAndQuoteString(hash));
+                                          std::vector<Entry> * const entries, DbConnection * const db_connection) const {
+    std::string query(
+        "SELECT dmru.url, dmr.delivered_at, dmr.delivery_state, dmr.error_message, dmr.id AS entry_id, zj.zeder_id, zj.zeder_instance, "
+        "dmr.main_title, dmr.hash "
+        "FROM delivered_marc_records_urls AS dmru "
+        "LEFT JOIN delivered_marc_records AS dmr ON dmru.record_id = dmr.id "
+        "LEFT JOIN zeder_journals AS zj ON dmr.zeder_journal_id = zj.id "
+        "WHERE dmr.hash ="
+        + db_connection->escapeAndQuoteString(hash));
 
     if (not delivery_states_to_ignore.empty())
         query += " AND dmr.delivery_state NOT IN (" + GetDeliveryStatesSubquery(delivery_states_to_ignore, db_connection) + ")";
@@ -471,8 +461,7 @@ bool UploadTracker::hashAlreadyInDatabase(const std::string &hash, const std::se
 
 bool UploadTracker::recordAlreadyInDatabase(const std::string &record_hash, const std::set<std::string> &record_urls,
                                             const std::set<DeliveryState> &delivery_states_to_ignore, std::vector<Entry> * const entries,
-                                            DbConnection * const db_connection) const
-{
+                                            DbConnection * const db_connection) const {
     Entry buffer;
     bool already_in_database(false);
     for (const auto &url : record_urls) {
@@ -535,8 +524,7 @@ bool UploadTracker::journalHasRecordToRetry(const unsigned zeder_id, const Zeder
 
 
 bool UploadTracker::urlAlreadyInDatabase(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore,
-                                         Entry * const entry) const
-{
+                                         Entry * const entry) const {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection(DbConnection::UBToolsFactory());
 
@@ -545,8 +533,7 @@ bool UploadTracker::urlAlreadyInDatabase(const std::string &url, const std::set<
 
 
 bool UploadTracker::hashAlreadyInDatabase(const std::string &hash, const std::set<DeliveryState> &delivery_states_to_ignore,
-                                          std::vector<Entry> * const entries) const
-{
+                                          std::vector<Entry> * const entries) const {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection(DbConnection::UBToolsFactory());
 
@@ -555,8 +542,7 @@ bool UploadTracker::hashAlreadyInDatabase(const std::string &hash, const std::se
 
 
 bool UploadTracker::recordAlreadyInDatabase(const MARC::Record &record, const std::set<DeliveryState> &delivery_states_to_ignore,
-                                            std::vector<Entry> * const entries) const
-{
+                                            std::vector<Entry> * const entries) const {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection(DbConnection::UBToolsFactory());
 
@@ -601,8 +587,7 @@ std::vector<UploadTracker::Entry> GetEntriesFromLastResultSet(DbConnection * con
 
 
 std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(const unsigned zeder_id,
-                                                                               const Zeder::Flavour zeder_flavour)
-{
+                                                                               const Zeder::Flavour zeder_flavour) {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection(DbConnection::UBToolsFactory());
 
@@ -620,9 +605,7 @@ std::vector<UploadTracker::Entry> UploadTracker::getEntriesByZederIdAndFlavour(c
 }
 
 
-bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryState delivery_state,
-                                  const std::string &error_message)
-{
+bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryState delivery_state, const std::string &error_message) {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection(DbConnection::UBToolsFactory());
 
@@ -651,9 +634,9 @@ bool UploadTracker::archiveRecord(const MARC::Record &record, const DeliveryStat
                                      "AND url NOT IN (" + db_connection.joinAndEscapeAndQuoteStrings(urls) + ")");
 
             for (const auto &url : urls) {
-                db_connection.queryOrDie("INSERT IGNORE INTO delivered_marc_records_urls (record_id, url) VALUES (" +
-                                         db_connection.escapeAndQuoteString(db_connection.escapeAndQuoteString(std::to_string(entry.id_))) + "," +
-                                         db_connection.escapeAndQuoteString(url) + ")");
+                db_connection.queryOrDie("INSERT IGNORE INTO delivered_marc_records_urls (record_id, url) VALUES ("
+                                         + db_connection.escapeAndQuoteString(db_connection.escapeAndQuoteString(std::to_string(entry.id_)))
+                                         + "," + db_connection.escapeAndQuoteString(url) + ")");
             }
             return true;
         }
@@ -709,9 +692,7 @@ std::string UploadTracker::GetZederInstanceString(const std::string &group) {
 }
 
 
-void UploadTracker::registerZederJournal(const unsigned zeder_id, const std::string &zeder_instance,
-                                         const std::string &journal_name)
-{
+void UploadTracker::registerZederJournal(const unsigned zeder_id, const std::string &zeder_instance, const std::string &journal_name) {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection(DbConnection::UBToolsFactory());
 
@@ -719,29 +700,21 @@ void UploadTracker::registerZederJournal(const unsigned zeder_id, const std::str
     // (we do NOT want the auto increment index to change if title hasn't changed)
     db_connection.queryOrDie("INSERT INTO zeder_journals (zeder_id, zeder_instance, journal_name) VALUES ("
                              + db_connection.escapeAndQuoteString(std::to_string(zeder_id)) + ", "
-                             + db_connection.escapeAndQuoteString(zeder_instance) + ", "
-                             + db_connection.escapeAndQuoteString(journal_name) + ") "
-                             + "ON DUPLICATE KEY UPDATE journal_name=" + db_connection.escapeAndQuoteString(journal_name));
+                             + db_connection.escapeAndQuoteString(zeder_instance) + ", " + db_connection.escapeAndQuoteString(journal_name)
+                             + ") " + "ON DUPLICATE KEY UPDATE journal_name=" + db_connection.escapeAndQuoteString(journal_name));
 }
 
 
 void UploadTracker::deleteOnlineFirstEntriesOlderThan(const unsigned zeder_id, const std::string &zeder_instance,
-                                                      const unsigned &update_window)
-{
+                                                      const unsigned &update_window) {
     WaitOnSemaphore lock(&connection_pool_semaphore_);
     DbConnection db_connection(DbConnection::UBToolsFactory());
     db_connection.queryOrDie(std::string("DELETE FROM delivered_marc_records WHERE zeder_journal_id=")
                              + "(SELECT id FROM zeder_journals WHERE zeder_id="
-                                 + db_connection.escapeAndQuoteString(std::to_string(zeder_id))
-                                 + " AND zeder_instance="
-                                 + db_connection.escapeAndQuoteString(zeder_instance)
-                             + ')'
-                             + " AND delivery_state="
-                                 + db_connection.escapeAndQuoteString("online_first")
-                             + " AND delivered_at < (SUBDATE(NOW(), "
-                                 + std::to_string(update_window)
-                             + "))"
-                            );
+                             + db_connection.escapeAndQuoteString(std::to_string(zeder_id))
+                             + " AND zeder_instance=" + db_connection.escapeAndQuoteString(zeder_instance) + ')'
+                             + " AND delivery_state=" + db_connection.escapeAndQuoteString("online_first")
+                             + " AND delivered_at < (SUBDATE(NOW(), " + std::to_string(update_window) + "))");
 }
 
 

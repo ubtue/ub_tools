@@ -69,19 +69,15 @@ bool Query(const std::string &query, const std::string &fields, const unsigned s
  *  \param  timeout             Up to how long, in seconds, we're willing to wait for a response.
  *  \return True if we got a valid response, else false.
  */
-inline bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
-                  std::string * const err_msg, const std::string &host = DEFAULT_HOST, const unsigned port = DEFAULT_PORT,
-                  const unsigned timeout = DEFAULT_TIMEOUT, const QueryResultFormat query_result_format = XML,
-                  const unsigned max_no_of_rows = JAVA_INT_MAX)
-{
-    return Query(query, fields, /* start_row = */0, max_no_of_rows, xml_or_json_result, err_msg, host, port, timeout,
-                 query_result_format);
+inline bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result, std::string * const err_msg,
+                  const std::string &host = DEFAULT_HOST, const unsigned port = DEFAULT_PORT, const unsigned timeout = DEFAULT_TIMEOUT,
+                  const QueryResultFormat query_result_format = XML, const unsigned max_no_of_rows = JAVA_INT_MAX) {
+    return Query(query, fields, /* start_row = */ 0, max_no_of_rows, xml_or_json_result, err_msg, host, port, timeout, query_result_format);
 }
 
 
-bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
-           std::string * const err_msg, const std::string &host_and_port,
-           const unsigned timeout, const QueryResultFormat query_result_format = XML,
+bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result, std::string * const err_msg,
+           const std::string &host_and_port, const unsigned timeout, const QueryResultFormat query_result_format = XML,
            const std::string &additional_raw_parameters = "");
 
 } // namespace Solr

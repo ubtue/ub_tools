@@ -26,10 +26,10 @@
 
 
 #include <istream>
-#include <unordered_map>
 #include <memory>
 #include <ostream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 
@@ -38,6 +38,7 @@ namespace Template {
 
 class Value {
     std::string name_;
+
 public:
     explicit Value(const std::string &name): name_(name) { }
     virtual ~Value() { }
@@ -48,39 +49,42 @@ public:
 
 class ScalarValue final : public Value {
     std::string value_;
+
 public:
     ScalarValue(const std::string &name, const std::string &value): Value(name), value_(value) { }
     virtual ~ScalarValue() { }
     virtual size_t size() const final { return 1; }
     inline const std::string &getValue() const { return value_; }
-    static std::shared_ptr<Value> Factory(const std::string &name, const std::string &value)
-        { return std::shared_ptr<Value>(new ScalarValue(name, value)); }
+    static std::shared_ptr<Value> Factory(const std::string &name, const std::string &value) {
+        return std::shared_ptr<Value>(new ScalarValue(name, value));
+    }
 };
 
 
 class ArrayValue final : public Value {
     std::vector<std::shared_ptr<Value>> values_;
+
 public:
-    ArrayValue(const std::string &name, const std::vector<std::shared_ptr<Value>> &values)
-        : Value(name), values_(values) { }
+    ArrayValue(const std::string &name, const std::vector<std::shared_ptr<Value>> &values): Value(name), values_(values) { }
     explicit ArrayValue(const std::string &name): Value(name) { }
     ArrayValue(const std::string &name, const std::vector<std::string> &values);
     virtual ~ArrayValue() { }
     virtual inline size_t size() const final { return values_.size(); }
     void appendValue(const std::shared_ptr<Value> &new_value) { values_.emplace_back(new_value); }
     void appendValue(const std::string &new_value) {
-        values_.emplace_back(std::shared_ptr<Value>(new ScalarValue(getName() + "[" + std::to_string(values_.size()) + "]",
-                                                                    new_value)));
+        values_.emplace_back(std::shared_ptr<Value>(new ScalarValue(getName() + "[" + std::to_string(values_.size()) + "]", new_value)));
     }
     const std::shared_ptr<Value> &operator[](const size_t index) const;
 
     // \return NULL if index is out of range, else the value at the index.
     const Value *getValueAt(const size_t index) const;
 
-    static std::shared_ptr<Value> Factory(const std::string &name, const std::vector<std::shared_ptr<Value>> &values)
-        { return std::shared_ptr<Value>(new ArrayValue(name, values)); }
-    static std::shared_ptr<Value> Factory(const std::string &name, const std::vector<std::string> &values)
-        { return std::shared_ptr<Value>(new ArrayValue(name, values)); }
+    static std::shared_ptr<Value> Factory(const std::string &name, const std::vector<std::shared_ptr<Value>> &values) {
+        return std::shared_ptr<Value>(new ArrayValue(name, values));
+    }
+    static std::shared_ptr<Value> Factory(const std::string &name, const std::vector<std::string> &values) {
+        return std::shared_ptr<Value>(new ArrayValue(name, values));
+    }
 };
 
 
@@ -89,13 +93,16 @@ public:
     class ArgDesc {
     private:
         std::string description_;
+
     public:
         ArgDesc(const std::string &description): description_(description) { }
         inline const std::string &getDescription() const { return description_; }
     };
+
 protected:
     std::string name_;
     std::vector<ArgDesc> argument_descriptors_;
+
 public:
     Function(const std::string &name, const std::vector<ArgDesc> &argument_descriptors)
         : name_(name), argument_descriptors_(argument_descriptors) { }
@@ -106,30 +113,43 @@ public:
 
 class Map {
     std::unordered_map<std::string, std::shared_ptr<Value>> map_;
+
 public:
     typedef std::unordered_map<std::string, std::shared_ptr<Value>>::const_iterator const_iterator;
+
 public:
-    template<typename T> void insertScalar(const std::string &name, T t) = delete;
-    inline void insertScalar(const std::string &name, const std::string &value)
-        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, value))); }
-    inline void insertScalar(const std::string &name, const char * const value)
-        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, value))); }
-    inline void insertScalar(const std::string &name, const char &value)
-        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::string(1, value)))); }
-    inline void insertScalar(const std::string &name, const bool &value)
-        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, value ? "true" : "false"))); }
-    inline void insertScalar(const std::string &name, const unsigned &value)
-        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::to_string(value)))); }
-    inline void insertScalar(const std::string &name, const int &value)
-        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::to_string(value)))); }
-    inline void insertScalar(const std::string &name, const float &value)
-        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::to_string(value)))); }
-    inline void insertScalar(const std::string &name, const double &value)
-        { map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::to_string(value)))); }
-    inline void insertArray(const std::string &name, const std::vector<std::string> &values)
-        { map_.emplace(name, std::shared_ptr<Value>(new ArrayValue(name, values))); }
-    inline void insertArray(const std::string &name, const std::vector<std::shared_ptr<Value>> &values)
-        { map_.emplace(name, std::shared_ptr<Value>(new ArrayValue(name, values))); }
+    template <typename T>
+    void insertScalar(const std::string &name, T t) = delete;
+    inline void insertScalar(const std::string &name, const std::string &value) {
+        map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, value)));
+    }
+    inline void insertScalar(const std::string &name, const char * const value) {
+        map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, value)));
+    }
+    inline void insertScalar(const std::string &name, const char &value) {
+        map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::string(1, value))));
+    }
+    inline void insertScalar(const std::string &name, const bool &value) {
+        map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, value ? "true" : "false")));
+    }
+    inline void insertScalar(const std::string &name, const unsigned &value) {
+        map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::to_string(value))));
+    }
+    inline void insertScalar(const std::string &name, const int &value) {
+        map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::to_string(value))));
+    }
+    inline void insertScalar(const std::string &name, const float &value) {
+        map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::to_string(value))));
+    }
+    inline void insertScalar(const std::string &name, const double &value) {
+        map_.emplace(name, std::shared_ptr<Value>(new ScalarValue(name, std::to_string(value))));
+    }
+    inline void insertArray(const std::string &name, const std::vector<std::string> &values) {
+        map_.emplace(name, std::shared_ptr<Value>(new ArrayValue(name, values)));
+    }
+    inline void insertArray(const std::string &name, const std::vector<std::shared_ptr<Value>> &values) {
+        map_.emplace(name, std::shared_ptr<Value>(new ArrayValue(name, values)));
+    }
     inline const_iterator begin() const { return map_.begin(); }
     inline const_iterator end() const { return map_.end(); }
     inline std::shared_ptr<Value> operator[](const std::string &key) { return map_[key]; }
@@ -164,4 +184,4 @@ std::string ExpandTemplate(const std::string &template_string, const Map &names_
                            const std::vector<Function *> &functions = {});
 
 
-} // namespace MiscUtil
+} // namespace Template

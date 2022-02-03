@@ -36,8 +36,7 @@ std::string JSONError(const std::string &json_response) {
         std::shared_ptr<JSON::JSONNode> tree_root;
         if (not parser.parse(&tree_root) or tree_root->getType() != JSON::JSONNode::OBJECT_NODE)
             return "";
-        const std::shared_ptr<const JSON::ObjectNode> top_level_object(JSON::JSONNode::CastToObjectNodeOrDie("tree_root",
-                                                                                                             tree_root));
+        const std::shared_ptr<const JSON::ObjectNode> top_level_object(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root));
         const std::shared_ptr<const JSON::ObjectNode> error_object(top_level_object->getOptionalObjectNode("error"));
         return (error_object == nullptr) ? "" : error_object->toString();
     } catch (...) {
@@ -61,9 +60,8 @@ void SplitHostAndPort(const std::string host_and_port, std::string * const host,
 }
 
 
-bool Query(const std::string &url, std::string * const xml_or_json_result, std::string * const err_msg,
-           const unsigned timeout, QueryResultFormat query_result_format)
-{
+bool Query(const std::string &url, std::string * const xml_or_json_result, std::string * const err_msg, const unsigned timeout,
+           QueryResultFormat query_result_format) {
     err_msg->clear();
     Downloader downloader(url, Downloader::Params(), timeout * 1000);
     if (downloader.anErrorOccurred()) {
@@ -74,7 +72,7 @@ bool Query(const std::string &url, std::string * const xml_or_json_result, std::
 
     const HttpHeader header(downloader.getMessageHeader());
     if (header.getStatusCode() >= 200 and header.getStatusCode() <= 299)
-        return  true;
+        return true;
 
     if (not xml_or_json_result->empty())
         *err_msg = (query_result_format == JSON) ? JSONError(*xml_or_json_result) : XMLError(*xml_or_json_result);
@@ -84,41 +82,33 @@ bool Query(const std::string &url, std::string * const xml_or_json_result, std::
 
 bool Query(const std::string &query, const std::string &fields, const unsigned start_row, const unsigned no_of_rows,
            std::string * const xml_or_json_result, std::string * const err_msg, const std::string &host, const unsigned port,
-           const unsigned timeout, const QueryResultFormat query_result_format)
-{
+           const unsigned timeout, const QueryResultFormat query_result_format) {
     const std::string url("http://" + host + ":" + std::to_string(port) + "/solr/biblio/select?q=" + UrlUtil::UrlEncode(query)
-                          + "&wt=" + std::string(query_result_format == XML ? "xml" : "json")
-                          + (fields.empty() ? "" : "&fl=" + fields) + "&rows=" + std::to_string(no_of_rows)
-                          + (start_row == 0 ? "" : "&start=" + std::to_string(start_row)));
+                          + "&wt=" + std::string(query_result_format == XML ? "xml" : "json") + (fields.empty() ? "" : "&fl=" + fields)
+                          + "&rows=" + std::to_string(no_of_rows) + (start_row == 0 ? "" : "&start=" + std::to_string(start_row)));
     return Query(url, xml_or_json_result, err_msg, timeout);
-
 }
 
 
-bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
-                  std::string * const err_msg, const std::string &host_and_port,
-                  const unsigned timeout, const QueryResultFormat query_result_format,
-                  const unsigned max_no_of_rows)
-{
+bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result, std::string * const err_msg,
+           const std::string &host_and_port, const unsigned timeout, const QueryResultFormat query_result_format,
+           const unsigned max_no_of_rows) {
     std::string host;
     int port;
     SplitHostAndPort(host_and_port, &host, &port);
-    return Query(query, fields, /* start_row = */0, max_no_of_rows, xml_or_json_result, err_msg,
-                 host, port, timeout, query_result_format);
+    return Query(query, fields, /* start_row = */ 0, max_no_of_rows, xml_or_json_result, err_msg, host, port, timeout, query_result_format);
 }
 
 
-bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result,
-           std::string * const err_msg, const std::string &host_and_port, const unsigned timeout,
-           const QueryResultFormat query_result_format, const std::string &additional_raw_parameters)
-{
+bool Query(const std::string &query, const std::string &fields, std::string * const xml_or_json_result, std::string * const err_msg,
+           const std::string &host_and_port, const unsigned timeout, const QueryResultFormat query_result_format,
+           const std::string &additional_raw_parameters) {
     std::string host;
     int port;
     SplitHostAndPort(host_and_port, &host, &port);
     const std::string url("http://" + host + ":" + std::to_string(port) + "/solr/biblio/select?q=" + UrlUtil::UrlEncode(query)
-                          + "&wt=" + std::string(query_result_format == XML ? "xml" : "json")
-                          + (fields.empty() ? "" : "&fl=" + fields) +
-                          (additional_raw_parameters.empty() ? "" : '&' + additional_raw_parameters));
+                          + "&wt=" + std::string(query_result_format == XML ? "xml" : "json") + (fields.empty() ? "" : "&fl=" + fields)
+                          + (additional_raw_parameters.empty() ? "" : '&' + additional_raw_parameters));
     return Query(url, xml_or_json_result, err_msg, timeout, query_result_format);
 }
 

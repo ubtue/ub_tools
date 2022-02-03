@@ -30,8 +30,10 @@
 class SmartDownloader {
     std::unique_ptr<RegexMatcher> matcher_;
     unsigned success_count_;
+
 protected:
     bool trace_;
+
 public:
     explicit SmartDownloader(const std::string &regex, const bool trace = false);
     virtual ~SmartDownloader() { }
@@ -53,22 +55,23 @@ public:
 
     /** \return How often downloadDoc() returned true. */
     unsigned getSuccessCount() const { return success_count_; }
+
 protected:
-    virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit,
-                                 std::string * const document, std::string * const http_header_charset,
-                                 std::string * const error_message) = 0;
+    virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                 std::string * const http_header_charset, std::string * const error_message) = 0;
 };
 
 
 /** \class DSpaceDownloader
  *  \brief Handles DSpace documents
  */
-class DSpaceDownloader: public SmartDownloader {
+class DSpaceDownloader : public SmartDownloader {
 public:
     explicit DSpaceDownloader(const bool trace = false): SmartDownloader("", trace) { }
 
     virtual std::string getName() const { return "DSpaceDownloader"; }
     virtual bool canHandleThis(const std::string &url) const;
+
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                  std::string * const http_header_charset, std::string * const error_message);
@@ -78,14 +81,16 @@ protected:
 /** \class SimpleSuffixDownloader
  *  \brief Accepts all URLs that case-insensitively end in one of the suffixes passed into the constructor.
  */
-class SimpleSuffixDownloader: public SmartDownloader {
+class SimpleSuffixDownloader : public SmartDownloader {
     const std::vector<std::string> suffixes_;
+
 public:
     explicit SimpleSuffixDownloader(std::vector<std::string> &&suffixes, const bool trace = false)
         : SmartDownloader("", trace), suffixes_(suffixes) { }
 
     virtual std::string getName() const { return "SimpleSuffixDownloader"; }
     virtual bool canHandleThis(const std::string &url) const;
+
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                  std::string * const http_header_charset, std::string * const error_message);
@@ -95,78 +100,84 @@ protected:
 /** \class SimplePrefixDownloader
  *  \brief Accepts all URLs that case-insensitively start with one of the prefixes passed into the constructor.
  */
-class SimplePrefixDownloader: public SmartDownloader {
+class SimplePrefixDownloader : public SmartDownloader {
     const std::vector<std::string> prefixes_;
+
 public:
     explicit SimplePrefixDownloader(std::vector<std::string> &&prefixes, const bool trace = false)
         : SmartDownloader("", trace), prefixes_(prefixes) { }
 
     virtual std::string getName() const { return "SimplePrefixDownloader"; }
     virtual bool canHandleThis(const std::string &url) const;
+
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                  std::string * const http_header_charset, std::string * const error_message);
 };
 
 
-class DigiToolSmartDownloader: public SmartDownloader {
+class DigiToolSmartDownloader : public SmartDownloader {
 public:
     explicit DigiToolSmartDownloader(const bool trace = false)
         : SmartDownloader("^http://digitool.hbz-nrw.de:1801/webclient/DeliveryManager\\?pid=\\d+.*$", trace) { }
     virtual std::string getName() const { return "DigiToolSmartDownloader"; }
+
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                  std::string * const http_header_charset, std::string * const error_message);
 };
 
 
-class DiglitSmartDownloader: public SmartDownloader {
+class DiglitSmartDownloader : public SmartDownloader {
 public:
     explicit DiglitSmartDownloader(const bool trace = false)
-        : SmartDownloader("^http://idb.ub.uni-tuebingen.de/diglit/.+$|^http://nbn-resolving.de/urn:nbn:de:bsz:21-dt-\\d+$",
-                          trace) { }
+        : SmartDownloader("^http://idb.ub.uni-tuebingen.de/diglit/.+$|^http://nbn-resolving.de/urn:nbn:de:bsz:21-dt-\\d+$", trace) { }
     virtual std::string getName() const { return "DiglitSmartDownloader"; }
+
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                  std::string * const http_header_charset, std::string * const error_message);
 };
 
 
-class BszSmartDownloader: public SmartDownloader {
+class BszSmartDownloader : public SmartDownloader {
 public:
     explicit BszSmartDownloader(const bool trace = false): SmartDownloader("http://swbplus.bsz-bw.de/bsz.*\\.htm", trace) { }
     virtual std::string getName() const { return "BszSmartDownloader"; }
+
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                  std::string * const http_header_charset, std::string * const error_message);
 };
 
 
-class BvbrSmartDownloader: public SmartDownloader {
+class BvbrSmartDownloader : public SmartDownloader {
 public:
     explicit BvbrSmartDownloader(const bool trace = false): SmartDownloader("http://bvbr.bib-bvb.de:8991/.+", trace) { }
     virtual std::string getName() const { return "BvbrSmartDownloader"; }
+
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                  std::string * const http_header_charset, std::string * const error_message);
 };
 
 
-class Bsz21SmartDownloader: public SmartDownloader {
+class Bsz21SmartDownloader : public SmartDownloader {
 public:
-    explicit Bsz21SmartDownloader(const bool trace = false)
-        : SmartDownloader("http://nbn-resolving.de/urn:nbn:de:bsz:21.+", trace) { }
+    explicit Bsz21SmartDownloader(const bool trace = false): SmartDownloader("http://nbn-resolving.de/urn:nbn:de:bsz:21.+", trace) { }
     virtual std::string getName() const { return "Bsz21SmartDownloader"; }
+
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                  std::string * const http_header_charset, std::string * const error_message);
 };
 
 
-class LocGovSmartDownloader: public SmartDownloader {
+class LocGovSmartDownloader : public SmartDownloader {
 public:
     explicit LocGovSmartDownloader(const bool trace = false): SmartDownloader("http://www.loc.gov/catdir/.+", trace) { }
     virtual std::string getName() const { return "LocGovSmartDownloader"; }
+
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                  std::string * const http_header_charset, std::string * const error_message);
@@ -175,31 +186,31 @@ protected:
 
 class PublicationsTueSmartDownloader : public DSpaceDownloader {
 public:
-    explicit PublicationsTueSmartDownloader(const bool trace = false) : DSpaceDownloader(trace) { }
+    explicit PublicationsTueSmartDownloader(const bool trace = false): DSpaceDownloader(trace) { }
     virtual std::string getName() const { return "PublicationsTueSmartDownloader"; }
-    virtual bool canHandleThis(const std::string &url) const {
-        return url.find("publikationen.uni-tuebingen.de") != std::string::npos;
-    }
+    virtual bool canHandleThis(const std::string &url) const { return url.find("publikationen.uni-tuebingen.de") != std::string::npos; }
 };
 
 
 class OJSSmartDownloader : public SmartDownloader {
 public:
-    explicit OJSSmartDownloader(const bool trace = false) : SmartDownloader("", trace) { }
+    explicit OJSSmartDownloader(const bool trace = false): SmartDownloader("", trace) { }
     virtual std::string getName() const { return "OJSSmartDownloader"; }
+
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                  std::string * const http_header_charset, std::string * const error_message);
     virtual bool canHandleThis(const std::string &url) const {
-         return RegexMatcher::Matched("/ojs/", url) or RegexMatcher::Matched("/jcsw/", url);
+        return RegexMatcher::Matched("/ojs/", url) or RegexMatcher::Matched("/jcsw/", url);
     }
 };
 
 
-class DefaultDownloader: public SmartDownloader {
+class DefaultDownloader : public SmartDownloader {
 public:
     explicit DefaultDownloader(const bool trace = false): SmartDownloader(".*", trace) { }
     virtual std::string getName() const { return "DefaultDownloader"; }
+
 protected:
     virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                  std::string * const http_header_charset, std::string * const error_message);
@@ -208,10 +219,9 @@ protected:
 
 /** \brief Tries to download "document" from "url".  Returns if the download succeeded or not. */
 bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::string * const document,
-                   std::string * const http_header_charset, std::string * const error_message,
-                   const bool trace = false);
+                   std::string * const http_header_charset, std::string * const error_message, const bool trace = false);
 
 /** \brief Like SmartDownload but trigger downloading with the first redirect hop resolved */
 bool SmartDownloadResolveFirstRedirectHop(const std::string &url, const TimeLimit &time_limit, std::string * const document,
-                   std::string * const http_header_charset, std::string * const error_message,
-                   const bool trace = false);
+                                          std::string * const http_header_charset, std::string * const error_message,
+                                          const bool trace = false);

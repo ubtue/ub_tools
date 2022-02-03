@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 
 
@@ -59,9 +59,10 @@ struct MetadataRecord {
         std::string type_;
         std::string ppn_;
         std::string gnd_number_;
+
     public:
         Creator(const std::string &first_name, const std::string &last_name, const std::string &type)
-         : first_name_(first_name), last_name_(last_name), type_(type) {}
+            : first_name_(first_name), last_name_(last_name), type_(type) { }
     };
 
 
@@ -85,8 +86,10 @@ struct MetadataRecord {
     SSGType ssg_;
     std::vector<std::string> keywords_;
     std::multimap<std::string, std::string> custom_metadata_;
+
 public:
-    explicit MetadataRecord() : superior_type_(SuperiorType::INVALID), ssg_(SSGType::INVALID) {}
+    explicit MetadataRecord(): superior_type_(SuperiorType::INVALID), ssg_(SSGType::INVALID) { }
+
 public:
     std::string toString() const;
 
@@ -98,12 +101,10 @@ void PostprocessTranslationServerResponse(const Util::HarvestableItem &download_
                                           std::shared_ptr<JSON::ArrayNode> * const response_json_array);
 
 
-bool ZoteroItemMatchesExclusionFilters(const Util::HarvestableItem &download_item,
-                                       const std::shared_ptr<JSON::ObjectNode> &zotero_item);
+bool ZoteroItemMatchesExclusionFilters(const Util::HarvestableItem &download_item, const std::shared_ptr<JSON::ObjectNode> &zotero_item);
 
 
-void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &zotero_item,
-                                       MetadataRecord * const metadata_record);
+void ConvertZoteroItemToMetadataRecord(const std::shared_ptr<JSON::ObjectNode> &zotero_item, MetadataRecord * const metadata_record);
 
 
 void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Config::JournalParams &journal_params,
@@ -127,14 +128,13 @@ struct ConversionParams {
     const Config::GlobalParams &global_params_;
     const Config::GroupParams &group_params_;
     const Config::GroupParams &subgroup_params_;
+
 public:
     ConversionParams(const Util::HarvestableItem &download_item, const std::string &json_metadata,
                      const Config::GlobalParams &global_params, const Config::GroupParams &group_params,
                      const Config::SubgroupParams &subgroup_params)
-     : download_item_(download_item), json_metadata_(json_metadata),
-       global_params_(global_params),
-       group_params_(group_params),
-       subgroup_params_(subgroup_params) {}
+        : download_item_(download_item), json_metadata_(json_metadata), global_params_(global_params), group_params_(group_params),
+          subgroup_params_(subgroup_params) { }
 };
 
 
@@ -144,19 +144,20 @@ struct ConversionResult {
     unsigned num_skipped_since_online_first_;
     unsigned num_skipped_since_early_view_;
     unsigned num_skipped_since_exclusion_filters_;
+
 public:
     explicit ConversionResult()
-     : num_skipped_since_undesired_item_type_(0), num_skipped_since_online_first_(0), num_skipped_since_early_view_(0),
-       num_skipped_since_exclusion_filters_(0) {}
-     ConversionResult(const ConversionResult &rhs) = delete;
+        : num_skipped_since_undesired_item_type_(0), num_skipped_since_online_first_(0), num_skipped_since_early_view_(0),
+          num_skipped_since_exclusion_filters_(0) { }
+    ConversionResult(const ConversionResult &rhs) = delete;
 };
 
 
 class ConversionTasklet : public Util::Tasklet<ConversionParams, ConversionResult> {
     void run(const ConversionParams &parameters, ConversionResult * const result);
+
 public:
-    ConversionTasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
-                      std::unique_ptr<ConversionParams> parameters);
+    ConversionTasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, std::unique_ptr<ConversionParams> parameters);
     virtual ~ConversionTasklet() override = default;
 };
 
@@ -176,26 +177,26 @@ private:
     std::deque<std::shared_ptr<ConversionTasklet>> conversion_queue_;
     mutable std::mutex conversion_queue_mutex_;
 
-    static void *BackgroundThreadRoutine(void * parameter);
+    static void *BackgroundThreadRoutine(void *parameter);
 
     void processQueue();
     void cleanupCompletedTasklets();
+
 public:
     ConversionManager(const Config::GlobalParams &global_params);
     ~ConversionManager();
+
 public:
     std::unique_ptr<Util::Future<ConversionParams, ConversionResult>> convert(const Util::HarvestableItem &source,
                                                                               const std::string &json_metadata,
                                                                               const Config::GroupParams &group_params,
                                                                               const Config::SubgroupParams &subgroup_params);
-    inline unsigned numActiveConversions() const
-        { return conversion_tasklet_execution_counter_; }
+    inline unsigned numActiveConversions() const { return conversion_tasklet_execution_counter_; }
     inline unsigned numQueuedConversions() const {
         std::lock_guard<decltype(conversion_queue_mutex_)> lock(conversion_queue_mutex_);
         return conversion_queue_.size();
     }
-    inline bool conversionInProgress() const
-        { return numActiveConversions() + numQueuedConversions() != 0; }
+    inline bool conversionInProgress() const { return numActiveConversions() + numQueuedConversions() != 0; }
 };
 
 

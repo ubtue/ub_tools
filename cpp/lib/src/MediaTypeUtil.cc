@@ -40,9 +40,9 @@
 #include "StringUtil.h"
 #include "UBTools.h"
 #include "Url.h"
-#include "util.h"
 #include "WebUtil.h"
 #include "XMLParser.h"
+#include "util.h"
 
 
 namespace MediaTypeUtil {
@@ -93,16 +93,14 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
     // Load the default "magic" definitions file:
     if (unlikely(::magic_load(cookie, nullptr /* use default magic file */) != 0)) {
         ::magic_close(cookie);
-        throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not load libmagic ("
-                                 + std::string(::magic_error(cookie)) + ").");
+        throw std::runtime_error("in MediaTypeUtil::GetMediaType: could not load libmagic (" + std::string(::magic_error(cookie)) + ").");
     }
 
     // Use magic to get the mime type of the buffer:
     const char *magic_mime_type = ::magic_buffer(cookie, document.c_str(), document.length());
     if (unlikely(magic_mime_type == nullptr)) {
         ::magic_close(cookie);
-        throw std::runtime_error("in MediaTypeUtil::GetMediaType: error in libmagic ("
-                                 + std::string(::magic_error(cookie)) + ").");
+        throw std::runtime_error("in MediaTypeUtil::GetMediaType: error in libmagic (" + std::string(::magic_error(cookie)) + ").");
     }
 
     // Attempt to remove possible leading junk (no idea why libmagic behaves in this manner every now and then):
@@ -127,7 +125,7 @@ std::string GetMediaType(const std::string &document, const bool auto_simplify) 
 std::string GetMediaType(const std::string &document, std::string * const subtype, const bool auto_simplify) {
     std::string media_type(GetMediaType(document, auto_simplify));
     // also include "text/html" which is reported by libmagic if xml prolog is missing
-    if (media_type == "text/xml" or (media_type == "text/html" and not (GetHtmlMediaType(document) == "text/html"))) {
+    if (media_type == "text/xml" or (media_type == "text/html" and not(GetHtmlMediaType(document) == "text/html"))) {
         XMLParser parser(document, XMLParser::XML_STRING);
         XMLParser::XMLPart part;
         if (parser.skipTo(XMLParser::XMLPart::OPENING_TAG, "", &part)) {
@@ -207,9 +205,8 @@ std::string GetMediaType(const std::string &page_header, const std::string &page
 
 // GetMediaType -- Get the MediaType of the page.  Returns true if "media_type" is known and set.
 //
-bool GetMediaType(const Url &url, const HttpHeader &http_header, const std::string &page_content,
-                  std::string * const media_type, const bool auto_simplify)
-{
+bool GetMediaType(const Url &url, const HttpHeader &http_header, const std::string &page_content, std::string * const media_type,
+                  const bool auto_simplify) {
     // First, attempt to find the media type in the header:
     if (http_header.isValid()) {
         *media_type = http_header.getMediaType();
@@ -257,9 +254,8 @@ std::string GetMediaType(const HttpHeader &http_header, const std::string &page_
 }
 
 
-bool GetMediaType(const std::string &url, const HttpHeader &http_header, const std::string &page_content,
-                  std::string * const media_type, const bool auto_simplify)
-{
+bool GetMediaType(const std::string &url, const HttpHeader &http_header, const std::string &page_content, std::string * const media_type,
+                  const bool auto_simplify) {
     return GetMediaType(Url(url), http_header, page_content, media_type, auto_simplify);
 }
 

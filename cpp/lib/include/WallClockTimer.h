@@ -54,30 +54,33 @@ class WallClockTimer {
 
     static const unsigned char CUMULATIVE_FLAG = 1u << 0;
     static const unsigned char AUTO_START_FLAG = 1u << 1;
-    static const unsigned char AUTO_STOP_FLAG  = 1u << 2;
+    static const unsigned char AUTO_STOP_FLAG = 1u << 2;
+
 public:
     enum WallClockTimerType {
         /** Time spent between multiple start/stop pairs gets accumulated. */
-        CUMULATIVE                                   = CUMULATIVE_FLAG,
+        CUMULATIVE = CUMULATIVE_FLAG,
         /** Each call to start() resets the timer to zero. */
-        NON_CUMULATIVE                               = 0,
+        NON_CUMULATIVE = 0,
         /** Like "CUMULATIVE" and constructor automatically calls start(). */
-        CUMULATIVE_WITH_AUTO_START                   = CUMULATIVE_FLAG | AUTO_START_FLAG,
+        CUMULATIVE_WITH_AUTO_START = CUMULATIVE_FLAG | AUTO_START_FLAG,
         /** Like "NON_CUMULATIVE" and constructor automatically calls start(). */
-        NON_CUMULATIVE_WITH_AUTO_START               = AUTO_START_FLAG,
+        NON_CUMULATIVE_WITH_AUTO_START = AUTO_START_FLAG,
         /** Like "CUMULATIVE" and destructor automatically calls stop() if neccessary. */
-        CUMULATIVE_WITH_AUTO_STOP                    = CUMULATIVE_FLAG | AUTO_STOP_FLAG,
+        CUMULATIVE_WITH_AUTO_STOP = CUMULATIVE_FLAG | AUTO_STOP_FLAG,
         /** Like "NON_CUMULATIVE" and destructor automatically calls stop() if neccessary. */
-        NON_CUMULATIVE_WITH_AUTO_STOP                = AUTO_STOP_FLAG,
+        NON_CUMULATIVE_WITH_AUTO_STOP = AUTO_STOP_FLAG,
         /** Like "CUMULATIVE", constructor automatically calls start() and destructor automatically calls stop()
             if neccessary. */
-        CUMULATIVE_WITH_AUTO_START_AND_AUTO_STOP     = CUMULATIVE_FLAG | AUTO_START_FLAG | AUTO_STOP_FLAG,
+        CUMULATIVE_WITH_AUTO_START_AND_AUTO_STOP = CUMULATIVE_FLAG | AUTO_START_FLAG | AUTO_STOP_FLAG,
         /** Like "NON_CUMULATIVE", constructor automatically calls start() and destructor automatically calls stop()
             if neccessary. */
         NON_CUMULATIVE_WITH_AUTO_START_AND_AUTO_STOP = AUTO_START_FLAG | AUTO_STOP_FLAG,
     };
+
 private:
     WallClockTimerType timer_type_;
+
 public:
     /** \brief  Constructs and initialises an object of type WallClockTimer.
      *  \param  timer_type  Specifies the desired behaviour of the timer.
@@ -110,6 +113,7 @@ public:
     bool isRunning() const { return is_running_; }
 
     std::string getName() const { return name_; }
+
 private:
     WallClockTimer(const WallClockTimer &rhs) = delete;                  // Intentionally unimplemented!
     const WallClockTimer &operator=(const WallClockTimer &rhs) = delete; // Intentionally unimplemented!

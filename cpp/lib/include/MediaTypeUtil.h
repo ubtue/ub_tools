@@ -116,9 +116,9 @@ std::string GetMediaType(const std::string &page_header, const std::string &page
  *  \param  url            The URL for the Web page.
  *  \param  http_header    The HTTP header for the Web page.
  *  \param  page_content   The document content (a.k.a. page body) for the Web page.
- *  \param  media_type     On success this will hold the media type of the Web page or at least a good guess as to what the media type might be.
- *  \param  auto_simplify  If "true", calls SimplifyMediaType() before returning the type.
- *  \return True if "media_type" has been determined, else false.
+ *  \param  media_type     On success this will hold the media type of the Web page or at least a good guess as to what the media type might
+ * be. \param  auto_simplify  If "true", calls SimplifyMediaType() before returning the type. \return True if "media_type" has been
+ * determined, else false.
  */
 bool GetMediaType(const Url &url, const HttpHeader &http_header, const std::string &page_content, std::string * const media_type,
                   const bool auto_simplify = true);
@@ -128,12 +128,12 @@ bool GetMediaType(const Url &url, const HttpHeader &http_header, const std::stri
  *  \param  url            The URL for the Web page.
  *  \param  http_header    The HTTP header for the Web page.
  *  \param  page_content   The document content (a.k.a. page body) for the Web page.
- *  \param  media_type     On success this will hold the media type of the Web page or at least a good guess as to what the media type might be.
- *  \param  auto_simplify  If "true", calls SimplifyMediaType() before returning the type.
- *  \return True if "media_type" has been determined, else false.
+ *  \param  media_type     On success this will hold the media type of the Web page or at least a good guess as to what the media type might
+ * be. \param  auto_simplify  If "true", calls SimplifyMediaType() before returning the type. \return True if "media_type" has been
+ * determined, else false.
  */
-bool GetMediaType(const std::string &url, const HttpHeader &http_header, const std::string &page_content,
-                  std::string * const media_type, const bool auto_simplify = true);
+bool GetMediaType(const std::string &url, const HttpHeader &http_header, const std::string &page_content, std::string * const media_type,
+                  const bool auto_simplify = true);
 
 
 /** \brief  Cleans up a media type by trimming parameters.

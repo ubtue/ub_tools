@@ -28,14 +28,14 @@
  */
 
 #include "IniFile.h"
-#include <cctype>
-#include <cstdio>
-#include <cerrno>
-#include <cstring>
-#include <unistd.h>
 #include <fstream>
 #include <stdexcept>
 #include <unordered_map>
+#include <cctype>
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
+#include <unistd.h>
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
@@ -45,8 +45,7 @@
 
 
 void IniFile::Section::insert(const std::string &variable_name, const std::string &value, const std::string &comment,
-                              const DupeInsertionBehaviour dupe_insertion_behaviour)
-{
+                              const DupeInsertionBehaviour dupe_insertion_behaviour) {
     // Handle comment-only lines first:
     if (variable_name.empty() and value.empty()) {
         entries_.emplace_back("", "", comment);
@@ -66,8 +65,8 @@ void IniFile::Section::replace(const std::string &variable_name, const std::stri
     if (existing_entry == entries_.end())
         entries_.emplace_back(variable_name, value, comment);
     else {
-        existing_entry->name_    = variable_name;
-        existing_entry->value_   = value;
+        existing_entry->name_ = variable_name;
+        existing_entry->value_ = value;
         existing_entry->comment_ = comment;
     }
 }
@@ -148,8 +147,8 @@ char IniFile::Section::getChar(const std::string &variable_name) const {
         LOG_ERROR("can't find \"" + variable_name + "\" in section \"" + section_name_ + "\"!");
 
     if (existing_entry->value_.length() != 1)
-        throw std::runtime_error("invalid character variable value \"" + variable_name + "\" in section \""
-                                 + section_name_ + "\" (must be exactly one character in length)!");
+        throw std::runtime_error("invalid character variable value \"" + variable_name + "\" in section \"" + section_name_
+                                 + "\" (must be exactly one character in length)!");
 
     return existing_entry->value_[0];
 }
@@ -161,8 +160,8 @@ char IniFile::Section::getChar(const std::string &variable_name, const char defa
         return default_value;
 
     if (existing_entry->value_.length() != 1)
-        throw std::runtime_error("invalid character variable value \"" + variable_name + "\" in section \""
-                                 + section_name_ + "\" (must be exactly one character in length)!");
+        throw std::runtime_error("invalid character variable value \"" + variable_name + "\" in section \"" + section_name_
+                                 + "\" (must be exactly one character in length)!");
 
     return existing_entry->value_[0];
 }
@@ -261,9 +260,8 @@ int IniFile::Section::getEnum(const std::string &variable_name, const std::map<s
 }
 
 
-int IniFile::Section::getEnum(const std::string &variable_name,
-                              const std::map<std::string, int> &string_to_value_map, const int default_value) const
-{
+int IniFile::Section::getEnum(const std::string &variable_name, const std::map<std::string, int> &string_to_value_map,
+                              const int default_value) const {
     const auto existing_entry(find(variable_name));
     if (unlikely(existing_entry == end()))
         return default_value;
@@ -367,17 +365,14 @@ void IniFile::Section::write(File * const output, const bool pretty_print, const
 }
 
 
-IniFile::IniFile()
-    : ini_file_name_(FileUtil::MakeAbsolutePath(DefaultIniFileName())), ignore_failed_includes_(false)
-{
+IniFile::IniFile(): ini_file_name_(FileUtil::MakeAbsolutePath(DefaultIniFileName())), ignore_failed_includes_(false) {
     processFile(ini_file_name_);
 }
 
 
 IniFile::IniFile(const std::string &ini_file_name, const bool ignore_failed_includes, const bool create_empty)
     : ini_file_name_(FileUtil::MakeAbsolutePath(ini_file_name.empty() ? DefaultIniFileName() : ini_file_name)),
-      ignore_failed_includes_(ignore_failed_includes)
-{
+      ignore_failed_includes_(ignore_failed_includes) {
     // Allow creation of empty IniFile
     if (create_empty)
         return;
@@ -393,26 +388,24 @@ std::string IniFile::DefaultIniFileName() {
 
 void IniFile::processSectionHeader(const std::string &line) {
     if (line[line.length() - 1] != ']')
-        throw std::runtime_error("in IniFile::processSectionHeader: "
-                                 "garbled section header on line " +
-                                 std::to_string(getCurrentLineNo()) + " in file \""
-                                 + getCurrentFile() + "\"!");
+        throw std::runtime_error(
+            "in IniFile::processSectionHeader: "
+            "garbled section header on line "
+            + std::to_string(getCurrentLineNo()) + " in file \"" + getCurrentFile() + "\"!");
 
     current_section_name_ = line.substr(1, line.length() - 2);
     StringUtil::Trim(" \t", &current_section_name_);
     if (current_section_name_.empty())
-        throw std::runtime_error("In IniFile::processSectionHeader: "
-                                 "empty section name on line " +
-                                 std::to_string(getCurrentLineNo()) + " in file \""
-                                 + getCurrentFile() + "\"!");
+        throw std::runtime_error(
+            "In IniFile::processSectionHeader: "
+            "empty section name on line "
+            + std::to_string(getCurrentLineNo()) + " in file \"" + getCurrentFile() + "\"!");
 
     // if the current section
     const auto section(std::find(sections_.cbegin(), sections_.cend(), current_section_name_));
     if (section != sections_.end())
-        throw std::runtime_error("in IniFile::processSectionHeader: duplicate section \""
-                                 + current_section_name_  + "\" on line "
-                                 + std::to_string(getCurrentLineNo()) + " in file \""
-                                 + getCurrentFile() + "\"!");
+        throw std::runtime_error("in IniFile::processSectionHeader: duplicate section \"" + current_section_name_ + "\" on line "
+                                 + std::to_string(getCurrentLineNo()) + " in file \"" + getCurrentFile() + "\"!");
     sections_.emplace_back(current_section_name_);
 }
 
@@ -420,16 +413,14 @@ void IniFile::processSectionHeader(const std::string &line) {
 void IniFile::processInclude(const std::string &line) {
     const size_t equal_sign(line.find('='));
     if (unlikely(equal_sign != std::string::npos))
-        throw std::runtime_error("in IniFile::processInclude: unexpected '=' on line "
-                                 + std::to_string(getCurrentLineNo()) + " in file \""
+        throw std::runtime_error("in IniFile::processInclude: unexpected '=' on line " + std::to_string(getCurrentLineNo()) + " in file \""
                                  + getCurrentFile() + "\"!");
 
     std::string include_filename(line.substr(8));
     StringUtil::Trim(" \t", &include_filename);
     if (include_filename[0] == '"') {
         if (include_filename.length() < 3 or include_filename[include_filename.length() - 1] != '"')
-            throw std::runtime_error("in IniFile::processInclude: garbled include file name on line "
-                                     + std::to_string(getCurrentLineNo())
+            throw std::runtime_error("in IniFile::processInclude: garbled include file name on line " + std::to_string(getCurrentLineNo())
                                      + " in file \"" + getCurrentFile() + "\"!");
         include_filename = include_filename.substr(1, include_filename.length() - 2);
     }
@@ -440,32 +431,29 @@ void IniFile::processInclude(const std::string &line) {
 
 void IniFile::processInherit(const std::string &line, Section * const current_section) {
     if (not StringUtil::StartsWith(line, "@inherit "))
-        throw std::runtime_error("in IniFile::processInherit: malformed @inherit statement on line "
-                                 + std::to_string(getCurrentLineNo()) + " in file \""
-                                 + getCurrentFile() + "\"!");
+        throw std::runtime_error("in IniFile::processInherit: malformed @inherit statement on line " + std::to_string(getCurrentLineNo())
+                                 + " in file \"" + getCurrentFile() + "\"!");
 
     auto quoted_section_name(StringUtil::TrimWhite(line.substr(__builtin_strlen("@inherit "))));
     if (quoted_section_name.length() < 3 or quoted_section_name.front() != '"' or quoted_section_name.back() != '"') {
-        throw std::runtime_error("in IniFile::processInherit: malformed @inherit statement on line "
-                                 + std::to_string(getCurrentLineNo()) + " in file \""
-                                 + getCurrentFile() + "\"! (2)");
+        throw std::runtime_error("in IniFile::processInherit: malformed @inherit statement on line " + std::to_string(getCurrentLineNo())
+                                 + " in file \"" + getCurrentFile() + "\"! (2)");
     }
 
     try {
         const auto section_name(StringUtil::CStyleUnescape(quoted_section_name.substr(1, quoted_section_name.length() - 2)));
         const auto section(std::find_if(sections_.begin(), sections_.end(),
-                                        [&section_name](const Section &section){ return section.section_name_ == section_name; }));
+                                        [&section_name](const Section &section) { return section.section_name_ == section_name; }));
         if (unlikely(section == sections_.end())) {
             throw std::runtime_error("in IniFile::processInherit: unknown section name \"" + section_name
-                                     + "\" in @inherit statement on line "+  std::to_string(getCurrentLineNo())
-                                     + " in file \"" + getCurrentFile() + "\"!");
+                                     + "\" in @inherit statement on line " + std::to_string(getCurrentLineNo()) + " in file \""
+                                     + getCurrentFile() + "\"!");
         }
-        for (const auto &entry: *section)
+        for (const auto &entry : *section)
             current_section->insert(entry.name_, entry.value_, entry.comment_);
     } catch (...) {
-        throw std::runtime_error("in IniFile::processInherit: malformed @inherit statement on line "
-                                 + std::to_string(getCurrentLineNo()) + " in file \""
-                                 + getCurrentFile() + "\"! (3)");
+        throw std::runtime_error("in IniFile::processInherit: malformed @inherit statement on line " + std::to_string(getCurrentLineNo())
+                                 + " in file \"" + getCurrentFile() + "\"! (3)");
     }
 }
 
@@ -505,46 +493,38 @@ void IniFile::processSectionEntry(const std::string &line, const std::string &co
         std::string trimmed_line(line);
         StringUtil::Trim(&trimmed_line);
         if (unlikely(not IsValidVariableName(trimmed_line)))
-            throw std::runtime_error("in IniFile::processSectionEntry: invalid variable name \""
-                                     + trimmed_line + "\" on line "
-                                     + std::to_string(getCurrentLineNo()) + " in file \""
-                                     + getCurrentFile() + "\"!");
+            throw std::runtime_error("in IniFile::processSectionEntry: invalid variable name \"" + trimmed_line + "\" on line "
+                                     + std::to_string(getCurrentLineNo()) + " in file \"" + getCurrentFile() + "\"!");
 
         sections_.back().insert(trimmed_line, "true");
     } else {
         std::string variable_name(line.substr(0, equal_sign));
         StringUtil::Trim(" \t", &variable_name);
         if (variable_name.empty())
-            throw std::runtime_error("in IniFile::processSectionEntry: missing variable name on line "
-                                     + std::to_string(getCurrentLineNo())
+            throw std::runtime_error("in IniFile::processSectionEntry: missing variable name on line " + std::to_string(getCurrentLineNo())
                                      + " in file \"" + getCurrentFile() + "\"!");
 
         if (not IsValidVariableName(variable_name))
-            throw std::runtime_error("in IniFile::processSectionEntry: invalid variable name \""
-                                     + variable_name + "\" on line "
-                                     + std::to_string(getCurrentLineNo()) + " in file \""
-                                     + getCurrentFile() + "\"!");
+            throw std::runtime_error("in IniFile::processSectionEntry: invalid variable name \"" + variable_name + "\" on line "
+                                     + std::to_string(getCurrentLineNo()) + " in file \"" + getCurrentFile() + "\"!");
 
         std::string value = line.substr(equal_sign + 1);
         StringUtil::Trim(" \t", &value);
         if (value.empty())
-            throw std::runtime_error("in IniFile::processSectionEntry: missing variable value on line "
-                                     + std::to_string(getCurrentLineNo()) + " in file \""
-                                     + getCurrentFile() + "\"!");
+            throw std::runtime_error("in IniFile::processSectionEntry: missing variable value on line " + std::to_string(getCurrentLineNo())
+                                     + " in file \"" + getCurrentFile() + "\"!");
 
         if (value[0] == '"') { // double-quoted string
             if (value.length() == 1 or value[value.length() - 1] != '"')
                 throw std::runtime_error("in IniFile::processSectionEntry: improperly quoted value on line "
-                                         + std::to_string(getCurrentLineNo()) + " in file \""
-                                         + getCurrentFile() + "!");
+                                         + std::to_string(getCurrentLineNo()) + " in file \"" + getCurrentFile() + "!");
 
             value = value.substr(1, value.length() - 2);
             try {
                 TextUtil::CStyleUnescape(&value);
             } catch (const std::runtime_error &x) {
-                throw std::runtime_error("in IniFile::processSectionEntry: bad escape on line "
-                                         + std::to_string(getCurrentLineNo()) + " in file \""
-                                         + getCurrentFile() + "! (" + std::string(x.what()) + ")");
+                throw std::runtime_error("in IniFile::processSectionEntry: bad escape on line " + std::to_string(getCurrentLineNo())
+                                         + " in file \"" + getCurrentFile() + "! (" + std::string(x.what()) + ")");
             }
         }
 
@@ -563,7 +543,7 @@ static std::string StripComment(std::string * const line, std::string * const co
             inside_string_literal = inside_string_literal == false;
         else if (*character == '#') {
             if (character != line->begin() and *(character - 1) == '\\')
-                continue;       // skip escaped hash characters
+                continue; // skip escaped hash characters
             else if (inside_string_literal)
                 continue;
             else {
@@ -602,8 +582,7 @@ void IniFile::processFile(const std::string &external_filename) {
     }
     std::ifstream ini_file(filename.c_str());
     if (ini_file.fail())
-        throw std::runtime_error("in IniFile::processFile: can't open \"" + filename + "\"! ("
-                                 + std::string(::strerror(errno)) + ")");
+        throw std::runtime_error("in IniFile::processFile: can't open \"" + filename + "\"! (" + std::string(::strerror(errno)) + ")");
 
     include_file_infos_.push(IncludeFileInfo(filename));
 
@@ -648,7 +627,7 @@ void IniFile::processFile(const std::string &external_filename) {
             if (unlikely(sections_.empty()))
                 throw std::runtime_error("in IniFile::processFile: file \"" + filename + " @inherit in global section!");
             processInherit(line, &(sections_.back()));
-        } else {// should be a new setting!
+        } else { // should be a new setting!
             if (sections_.empty())
                 sections_.emplace_back(Section(""));
             processSectionEntry(line, comment);
@@ -666,7 +645,7 @@ void IniFile::assign(const IniFile &rhs, const bool clear) {
 
     ignore_failed_includes_ = rhs.ignore_failed_includes_;
     if (clear) {
-        sections_      = rhs.sections_;
+        sections_ = rhs.sections_;
         ini_file_name_ = rhs.ini_file_name_;
     } else {
         for (auto &rhs_section : rhs.sections_) {
@@ -719,9 +698,7 @@ unsigned IniFile::getUnsigned(const std::string &section_name, const std::string
 }
 
 
-unsigned IniFile::getUnsigned(const std::string &section_name, const std::string &variable_name,
-                              const unsigned &default_value) const
-{
+unsigned IniFile::getUnsigned(const std::string &section_name, const std::string &variable_name, const unsigned &default_value) const {
     return variableIsDefined(section_name, variable_name) ? getUnsigned(section_name, variable_name) : default_value;
 }
 
@@ -824,15 +801,14 @@ bool IniFile::getBool(const std::string &section_name, const std::string &variab
 bool IniFile::getBool(const std::string &section_name, const std::string &variable_name, const bool default_value) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.cend() or not section->hasEntry(variable_name))
-         return default_value;
+        return default_value;
 
     return section->getBool(variable_name);
 }
 
 
 int IniFile::getEnum(const std::string &section_name, const std::string &variable_name,
-                     const std::map<std::string, int> &string_to_value_map) const
-{
+                     const std::map<std::string, int> &string_to_value_map) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.cend())
         LOG_ERROR("no such section: \"" + section_name + "\"! (variable: \"" + variable_name + "\")");
@@ -842,8 +818,7 @@ int IniFile::getEnum(const std::string &section_name, const std::string &variabl
 
 
 int IniFile::getEnum(const std::string &section_name, const std::string &variable_name,
-                     const std::map<std::string, int> &string_to_value_map, const int default_value) const
-{
+                     const std::map<std::string, int> &string_to_value_map, const int default_value) const {
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.cend() or not section->hasEntry(variable_name))
         return default_value;
@@ -895,18 +870,18 @@ std::vector<std::string> IniFile::getSectionEntryNames(const std::string &sectio
 
 namespace {
 
-    class StartsWith: public std::unary_function<std::string, bool> {
-        std::string start_text_;
-    public:
-        StartsWith(const std::string &start_text = "") : start_text_(start_text) {}
-        bool operator()(const std::string &test) { return test.find(start_text_) != 0; }
-    };
-}
+class StartsWith : public std::unary_function<std::string, bool> {
+    std::string start_text_;
+
+public:
+    StartsWith(const std::string &start_text = ""): start_text_(start_text) { }
+    bool operator()(const std::string &test) { return test.find(start_text_) != 0; }
+};
+} // namespace
 
 
 std::vector<std::string> IniFile::getSectionEntryNamesThatStartWith(const std::string &section_name,
-                                                                    const std::string &starting_with) const
-{
+                                                                    const std::string &starting_with) const {
     std::vector<std::string> work_list(getSectionEntryNames(section_name));
     work_list.erase(std::remove_if(work_list.begin(), work_list.end(), StartsWith(starting_with)), work_list.end());
     return work_list;
@@ -914,8 +889,7 @@ std::vector<std::string> IniFile::getSectionEntryNamesThatStartWith(const std::s
 
 
 std::vector<std::string> IniFile::getSectionEntryValuesHavingNamesStartingWith(const std::string &section_name,
-                                                                               const std::string &starting_with) const
-{
+                                                                               const std::string &starting_with) const {
     std::vector<std::string> entry_values;
     const auto section(std::find(sections_.cbegin(), sections_.cend(), section_name));
     if (section == sections_.cend())

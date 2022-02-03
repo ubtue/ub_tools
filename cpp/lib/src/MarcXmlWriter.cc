@@ -21,29 +21,25 @@
 #include "MarcXmlWriter.h"
 
 
-MarcXmlWriter::MarcXmlWriter(File * const output_file, const bool suppress_header_and_tailer, const unsigned indent_amount,
+MarcXmlWriter::MarcXmlWriter(File* const output_file, const bool suppress_header_and_tailer, const unsigned indent_amount,
                              const TextConversionType text_conversion_type)
     : XmlWriter(output_file, XmlWriter::WriteTheXmlDeclaration, indent_amount, text_conversion_type),
-      suppress_header_and_tailer_(suppress_header_and_tailer)
-{
+      suppress_header_and_tailer_(suppress_header_and_tailer) {
     if (not suppress_header_and_tailer_)
-        openTag("collection",
-                { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim"),
-                  std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                  std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
+        openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim"),
+                                std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                                std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd") });
 }
 
 
-MarcXmlWriter::MarcXmlWriter(std::string * const output_string, const bool suppress_header_and_tailer, const unsigned indent_amount,
+MarcXmlWriter::MarcXmlWriter(std::string* const output_string, const bool suppress_header_and_tailer, const unsigned indent_amount,
                              const TextConversionType text_conversion_type)
     : XmlWriter(output_string, XmlWriter::WriteTheXmlDeclaration, indent_amount, text_conversion_type),
-      suppress_header_and_tailer_(suppress_header_and_tailer)
-{
+      suppress_header_and_tailer_(suppress_header_and_tailer) {
     if (not suppress_header_and_tailer_)
-        openTag("collection",
-                { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim"),
-                  std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                  std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd")});
+        openTag("collection", { std::make_pair("xmlns", "http://www.loc.gov/MARC21/slim"),
+                                std::make_pair("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance"),
+                                std::make_pair("xsi:schemaLocation", "http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd") });
 }
 
 

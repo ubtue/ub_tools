@@ -74,15 +74,14 @@ std::string CanonizePath(const std::string &non_canonical_path) {
                 continue;
             }
 
-            first_hex_char  = static_cast<char>(toupper(first_hex_char));
+            first_hex_char = static_cast<char>(toupper(first_hex_char));
             second_hex_char = static_cast<char>(toupper(second_hex_char));
 
             // Don't replace the escaped slash with an actual slash!
             if (unlikely(first_hex_char == '2' and first_hex_char == 'F'))
                 canonical_path += "%2F";
             else
-                canonical_path += static_cast<char>((StringUtil::FromHex(first_hex_char) << 4)
-                                  | StringUtil::FromHex(second_hex_char));
+                canonical_path += static_cast<char>((StringUtil::FromHex(first_hex_char) << 4) | StringUtil::FromHex(second_hex_char));
         } else
             canonical_path += *ch;
     }
@@ -95,7 +94,8 @@ std::string CanonizePath(const std::string &non_canonical_path) {
 
 
 RobotsDotTxt::Rule::Rule(const RuleType rule_type, const std::string &path_prefix)
-    : rule_type_(rule_type), path_prefix_(CanonizePath(path_prefix)) { }
+    : rule_type_(rule_type), path_prefix_(CanonizePath(path_prefix)) {
+}
 
 
 bool RobotsDotTxt::Rule::match(const std::string &path) const {
@@ -122,7 +122,7 @@ void RobotsDotTxt::UserAgentDescriptor::addRule(const RuleType rule_type, const 
             return;
         default:
             throw std::runtime_error("in RobotsDotTxt::UserAgentDescriptor::addRule: don't know how to handle rule type ("
-                            + StringUtil::ToString(static_cast<unsigned int>(rule_type)) + ")!");
+                                     + StringUtil::ToString(static_cast<unsigned int>(rule_type)) + ")!");
         }
     }
 
@@ -369,8 +369,7 @@ std::string RobotsDotTxt::toString() const {
 
 
 RobotsMetaTagExtractor::RobotsMetaTagExtractor(const std::string &html_document)
-    : HtmlParser(html_document, /* http_header_charset = */"", HtmlParser::OPENING_TAG, true /* = header_only */)
-{
+    : HtmlParser(html_document, /* http_header_charset = */ "", HtmlParser::OPENING_TAG, true /* = header_only */) {
     parse();
 }
 
@@ -420,19 +419,20 @@ void RobotsDotTxtCache::insert(const std::string &new_hostname, const std::strin
     if (unlikely(hostname_to_robots_dot_txt_map_.size() == max_cache_size_))
         nonThreadSafeClear();
 
-    hostname_to_robots_dot_txt_map_.insert(std::make_pair<std::string, RobotsDotTxt *>(TextUtil::UTF8ToLower(new_hostname),
-                                                                                       new RobotsDotTxt(new_robots_dot_txt)));
+    hostname_to_robots_dot_txt_map_.insert(
+        std::make_pair<std::string, RobotsDotTxt *>(TextUtil::UTF8ToLower(new_hostname), new RobotsDotTxt(new_robots_dot_txt)));
 }
 
 
 void RobotsDotTxtCache::addAlias(const std::string &original_hostname, const std::string &new_hostname) {
-    std::lock_guard<std::mutex>mutex_locker(mutex_);
+    std::lock_guard<std::mutex> mutex_locker(mutex_);
 
     std::unordered_map<std::string, RobotsDotTxt *>::const_iterator entry(
         hostname_to_robots_dot_txt_map_.find(TextUtil::UTF8ToLower(original_hostname)));
     if (unlikely(entry == hostname_to_robots_dot_txt_map_.end()))
-        throw std::runtime_error("in RobotsDotTxtCache::addAlias: can't add an additional hostname reference for a "
-                                 "non-existent entry!");
+        throw std::runtime_error(
+            "in RobotsDotTxtCache::addAlias: can't add an additional hostname reference for a "
+            "non-existent entry!");
     hostname_to_robots_dot_txt_map_.insert(std::make_pair(TextUtil::UTF8ToLower(new_hostname), entry->second));
 }
 

@@ -27,8 +27,8 @@
 #include "TimerUtil.h"
 #include <stdexcept>
 #ifndef SYS_TIME_H
-#       include <sys/time.h>
-#       define SYS_TIME_H
+#include <sys/time.h>
+#define SYS_TIME_H
 #endif
 #include "Compiler.h"
 #include "util.h"
@@ -39,8 +39,9 @@ namespace TimerUtil {
 
 SaveAndRestorePendingTimer::SaveAndRestorePendingTimer() {
     if (::gettimeofday(&start_time_, nullptr) == -1)
-        throw std::runtime_error("in SaveAndRestorePendingTimer::SaveAndRestorePendingTimer: "
-                                 "gettimeofday(2) failed!");
+        throw std::runtime_error(
+            "in SaveAndRestorePendingTimer::SaveAndRestorePendingTimer: "
+            "gettimeofday(2) failed!");
     if (::getitimer(ITIMER_REAL, &saved_itimerval_) == -1)
         throw std::runtime_error("in SaveAndRestorePendingTimer::SaveAndRestorePendingTimer: getitimer(2) failed!");
     if (::sigaction(SIGALRM, nullptr, &old_sigaction_) == -1)
@@ -75,8 +76,7 @@ SaveAndRestorePendingTimer::~SaveAndRestorePendingTimer() {
 
 
 unsigned long SaveAndRestorePendingTimer::getRemainingTimeOnPendingTimer() const {
-    const unsigned long remaining_time(saved_itimerval_.it_value.tv_sec * 1000000UL
-                                       + saved_itimerval_.it_value.tv_usec);
+    const unsigned long remaining_time(saved_itimerval_.it_value.tv_sec * 1000000UL + saved_itimerval_.it_value.tv_usec);
     return remaining_time == 0 ? ULONG_MAX : remaining_time;
 }
 
@@ -102,9 +102,7 @@ unsigned LeftOverTime(const struct timeval &start_time, const struct timeval &en
 }
 
 
-void SubtractLeftOverTime(const struct timeval &start_time, const struct timeval &end_time,
-                          unsigned * const timeout)
-{
+void SubtractLeftOverTime(const struct timeval &start_time, const struct timeval &end_time, unsigned * const timeout) {
     const unsigned difference = LeftOverTime(start_time, end_time);
     if (difference < *timeout)
         *timeout -= difference;
