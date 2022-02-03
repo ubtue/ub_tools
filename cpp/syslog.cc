@@ -16,14 +16,17 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "SysLog.h"
+// clang-format off
+// if the following order gets changed, #undef might not have the desired effect
 #include <cstdlib>
 #include <cstring>
 #include "StringUtil.h"
+#include "SysLog.h"
 #undef LOG_WARNING
 #undef LOG_INFO
 #undef LOG_DEBUG
 #include "util.h"
+// clang-format on
 
 
 namespace {

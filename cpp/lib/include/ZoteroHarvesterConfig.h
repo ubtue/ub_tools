@@ -30,6 +30,11 @@
 #include "Zeder.h"
 
 
+#ifdef LICENSE
+#undef LICENSE
+#endif
+
+
 namespace ZoteroHarvester {
 
 

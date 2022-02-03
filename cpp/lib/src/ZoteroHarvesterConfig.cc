@@ -16,14 +16,16 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#include "ZoteroHarvesterConfig.h"
+// clang-format off
+// include order needs to stay like this to avoid problems with LICENSE.
 #include "MARC.h"
 #include "MapUtil.h"
 #include "StringUtil.h"
 #include "TranslationUtil.h"
 #include "UBTools.h"
+#include "ZoteroHarvesterConfig.h"
 #include "util.h"
+// clang-format on
 
 
 namespace ZoteroHarvester {
