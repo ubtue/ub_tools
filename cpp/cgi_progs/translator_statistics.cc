@@ -51,6 +51,43 @@ DbResultSet ExecSqlAndReturnResultsOrDie(const std::string &select_statement, Db
 }
 
 
+void GetTranslatorFullNames(const IniFile &ini_file, std::vector<std::string> * const rows) {
+
+    rows->clear();
+    std::map<std::string, std::set<std::string>> languages_to_translators;
+    std::map<std::string, std::string> translator_ids_to_fullnames;
+    std::string section_translator_languages = "TranslationLanguages";
+    std::string section_translator_full_names = "FullName";
+    std::vector<std::string> translator_ids = ini_file.getSectionEntryNames(section_translator_languages);
+    std::vector<std::string> translator_fullname_ids = ini_file.getSectionEntryNames(section_translator_full_names);
+
+    for (auto translator_fullname_id : translator_fullname_ids)
+        translator_ids_to_fullnames.emplace(translator_fullname_id, ini_file.getString(section_translator_full_names, translator_fullname_id));
+
+    for (auto translator_id : translator_ids) {
+        std::string translator_languages_value = ini_file.getString(section_translator_languages, translator_id);
+        std::vector<std::string> translator_languages;
+        StringUtil::SplitThenTrimWhite(translator_languages_value, ",", &translator_languages);
+
+        std::string translator_id_and_name = translator_id;
+        if (translator_ids_to_fullnames.find(translator_id) != translator_ids_to_fullnames.end())
+            translator_id_and_name += " (" + translator_ids_to_fullnames.find(translator_id)->second + ")";
+
+        for (auto translator_language : translator_languages) {
+            if (languages_to_translators.find(translator_language) == languages_to_translators.end()) {
+                std::set<std::string> set_translator_id_and_name = { translator_id_and_name };
+                languages_to_translators.emplace(translator_language, set_translator_id_and_name);
+            }
+            else
+                languages_to_translators.find(translator_language)->second.emplace(translator_id_and_name);
+        }
+    }
+
+    for (auto language_to_translator : languages_to_translators)
+        rows->emplace_back("<tr><td>" + language_to_translator.first + "</td><td>" + StringUtil::Join(language_to_translator.second, ", ") + "</td></tr>");
+}
+
+
 void GetSubsystemStatisticsAsHTMLRowsFromDatabase(DbConnection &db_connection, const std::string &target, std::vector<std::string> * const rows, const std::string &start_date, const std::string &end_date)
 {
     std::string id = (target == "vufind" ? "token" : "ppn");
@@ -112,16 +149,18 @@ void GetKeyWordStatisticsNewEntriesFromDatabase(DbConnection &db_connection, std
 }
 
 
-void ShowFrontPage(DbConnection &db_connection, const std::string &target, const std::string &start_date, const std::string &end_date) {
+void ShowFrontPage(DbConnection &db_connection, const IniFile &ini_file, const std::string &target, const std::string &start_date, const std::string &end_date) {
     Template::Map names_to_values_map;
     std::vector<std::string> vufind_rows;
     std::vector<std::string> keyword_rows;
+    std::vector<std::string> assigned_translator_fullnames;
     std::string number_new_entries_vufind, number_new_entries_keyword;
     
     GetSubsystemStatisticsAsHTMLRowsFromDatabase(db_connection, "vufind", &vufind_rows, start_date, end_date);
     GetVuFindStatisticsNewEntriesFromDatabase(db_connection, &number_new_entries_vufind, start_date, end_date);
     GetSubsystemStatisticsAsHTMLRowsFromDatabase(db_connection, "keywords", &keyword_rows, start_date, end_date);
     GetKeyWordStatisticsNewEntriesFromDatabase(db_connection, &number_new_entries_keyword, start_date, end_date);
+    GetTranslatorFullNames(ini_file, &assigned_translator_fullnames);
     
     names_to_values_map.insertArray("vufind_rows", vufind_rows);
     names_to_values_map.insertArray("keyword_rows", keyword_rows);
@@ -130,6 +169,7 @@ void ShowFrontPage(DbConnection &db_connection, const std::string &target, const
     names_to_values_map.insertScalar("number_new_entries_keyword", number_new_entries_keyword);
     names_to_values_map.insertScalar("start_date", start_date);
     names_to_values_map.insertScalar("end_date", end_date);
+    names_to_values_map.insertArray("assigned_translator_fullnames", assigned_translator_fullnames);
 
     std::ifstream translator_statistics_html(UBTools::GetTuelibPath() + "translate_chainer/translator_statistics.html", std::ios::binary);
     Template::ExpandTemplate(translator_statistics_html, std::cout, names_to_values_map);
@@ -177,6 +217,6 @@ int Main(int argc, char *argv[]) {
 
     std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n";
 
-    ShowFrontPage(db_connection, translation_target, start_date, end_date);
+    ShowFrontPage(db_connection, ini_file, translation_target, start_date, end_date);
     return EXIT_SUCCESS;
 }
