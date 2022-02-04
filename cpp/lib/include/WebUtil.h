@@ -73,10 +73,10 @@ std::string WwwFormUrlEncode(const StringMap &post_args, const bool generate_con
  *  \param  include_http_header  Prepend the HTTP header to the document source if this is "true".
  *  \return True if no error occurred, otherwise false.
  */
-bool ProcessPOST(const std::string &username_password, const std::string &address, const unsigned short port,
-                 const TimeLimit &time_limit, const std::string &path, const StringMap &post_args,
-                 std::string * const document_source, std::string * const error_message,
-                 const std::string &accept = "text/html,text/xhtml,text/plain,www/source", const bool include_http_header = false);
+bool ProcessPOST(const std::string &username_password, const std::string &address, const unsigned short port, const TimeLimit &time_limit,
+                 const std::string &path, const StringMap &post_args, std::string * const document_source,
+                 std::string * const error_message, const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
+                 const bool include_http_header = false);
 
 
 /** \brief  Excutes a CGI script via POST.
@@ -91,14 +91,10 @@ bool ProcessPOST(const std::string &username_password, const std::string &addres
  *  \param  include_http_header  Prepend the HTTP header to the document source if this is "true".
  *  \return True if no error occurred, otherwise false.
  */
-inline bool ProcessPOST(const std::string &address, const unsigned short port, const TimeLimit &time_limit,
-                        const std::string &path, const StringMap &post_args, std::string * const document_source,
-                        std::string * const error_message,
-                        const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
-                        const bool include_http_header = false)
-{
-        return ProcessPOST("", address, port, time_limit, path, post_args, document_source, error_message, accept,
-                           include_http_header);
+inline bool ProcessPOST(const std::string &address, const unsigned short port, const TimeLimit &time_limit, const std::string &path,
+                        const StringMap &post_args, std::string * const document_source, std::string * const error_message,
+                        const std::string &accept = "text/html,text/xhtml,text/plain,www/source", const bool include_http_header = false) {
+    return ProcessPOST("", address, port, time_limit, path, post_args, document_source, error_message, accept, include_http_header);
 }
 
 
@@ -142,7 +138,7 @@ void GetGetArgs(std::multimap<std::string, std::string> * const get_args);
 
 
 /** \brief  Parse all arguments from the command line into a multimap. */
-void GetArgvArgs(const int argc, char * argv[], std::multimap<std::string, std::string> * const argv_args);
+void GetArgvArgs(const int argc, char *argv[], std::multimap<std::string, std::string> * const argv_args);
 
 
 /** \brief  Obtains all arguments from CGI (submitted in GET or POST methods or provided on the command line).
@@ -150,7 +146,7 @@ void GetArgvArgs(const int argc, char * argv[], std::multimap<std::string, std::
  *  \param  argc      The argument count as provided to the main function.
  *  \param  argv      The argument list as provided to the main function.
  *  \note   If "argc" and "argv" are set to their default values only HTTP GET and POST arguments will be extracted!
-*/
+ */
 void GetAllCgiArgs(std::multimap<std::string, std::string> * const cgi_args, int argc = 1, char *argv[] = NULL);
 
 
@@ -166,11 +162,9 @@ void GetAllCgiArgs(std::multimap<std::string, std::string> * const cgi_args, int
  *  \param  include_http_header  Prepend the HTTP header to the document source if this is "true".
  *  \return True if no error occurred, otherwise false.
  */
-bool ExecPostHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit,
-                         const StringMap &post_args, std::string * const document_source,
-                         std::string * const error_message,
-                         const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
-                         const bool include_http_header = false);
+bool ExecPostHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit, const StringMap &post_args,
+                         std::string * const document_source, std::string * const error_message,
+                         const std::string &accept = "text/html,text/xhtml,text/plain,www/source", const bool include_http_header = false);
 
 
 /** \brief  Excutes a CGI script via POST.
@@ -186,10 +180,8 @@ bool ExecPostHTTPRequest(const std::string &username_password, const Url &url, c
 inline bool ExecPostHTTPRequest(const Url &url, const TimeLimit &time_limit, const StringMap &post_args,
                                 std::string * const document_source, std::string * const error_message,
                                 const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
-                                const bool include_http_header = false)
-{
-    return ExecPostHTTPRequest("", url, time_limit, post_args, document_source, error_message, accept,
-                               include_http_header);
+                                const bool include_http_header = false) {
+    return ExecPostHTTPRequest("", url, time_limit, post_args, document_source, error_message, accept, include_http_header);
 }
 
 
@@ -205,10 +197,9 @@ inline bool ExecPostHTTPRequest(const Url &url, const TimeLimit &time_limit, con
  *  \param  include_http_header  Prepend the HTTP header to the document source if this is "true".
  *  \return True if no error occurred, otherwise false.
  */
-bool ExecGetHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit,
-                        const StringMap &args, std::string * const document_source, std::string * const error_message,
-                        const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
-                        const bool include_http_header = false);
+bool ExecGetHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit, const StringMap &args,
+                        std::string * const document_source, std::string * const error_message,
+                        const std::string &accept = "text/html,text/xhtml,text/plain,www/source", const bool include_http_header = false);
 
 
 /** \brief  Excutes a CGI script via GET.
@@ -221,12 +212,20 @@ bool ExecGetHTTPRequest(const std::string &username_password, const Url &url, co
  *  \param  include_http_header  Prepend the HTTP header to the document source if this is "true".
  *  \return True if no error occurred, otherwise false.
  */
-inline bool ExecGetHTTPRequest(const Url &url, const TimeLimit &time_limit, const StringMap &args,
-                               std::string * const document_source, std::string * const error_message,
-                               const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
-                               const bool include_http_header = false)
-{
+inline bool ExecGetHTTPRequest(const Url &url, const TimeLimit &time_limit, const StringMap &args, std::string * const document_source,
+                               std::string * const error_message, const std::string &accept = "text/html,text/xhtml,text/plain,www/source",
+                               const bool include_http_header = false) {
     return ExecGetHTTPRequest("", url, time_limit, args, document_source, error_message, accept, include_http_header);
+}
+
+
+inline std::string GetCGIParameterOrDefault(const std::multimap<std::string, std::string> &cgi_args, const std::string &parameter_name,
+                                            const std::string &default_value = "") {
+    const auto key_and_value(cgi_args.find(parameter_name));
+    if (key_and_value == cgi_args.cend())
+        return default_value;
+
+    return key_and_value->second;
 }
 
 
@@ -245,54 +244,54 @@ std::string GetMajorSite(const Url &url);
  *  \brief  The form of the URLs to be extracted with ExtractURLs
  */
 enum ExtractedUrlForm {
-    RAW_URLS,        //< The URL's as they appear in the document.
-    ABSOLUTE_URLS,   //< The raw URL's converted to absolute form.
-    CLEAN_URLS,      //< The absolute URL's "cleaned up".
-    CANONIZED_URLS   //< The absolute URL's in Canonical form (will cause all URL's to be pre-cached).
+    RAW_URLS,      //< The URL's as they appear in the document.
+    ABSOLUTE_URLS, //< The raw URL's converted to absolute form.
+    CLEAN_URLS,    //< The absolute URL's "cleaned up".
+    CANONIZED_URLS //< The absolute URL's in Canonical form (will cause all URL's to be pre-cached).
 };
 
 
 /** ExtractURLs flag: Do no report blacklisted URL's. */
-const unsigned IGNORE_BLACKLISTED_URLS                  = 1u << 1u;
+const unsigned IGNORE_BLACKLISTED_URLS = 1u << 1u;
 /** ExtractURLs flag: Do no report any URL more than once. */
-const unsigned IGNORE_DUPLICATE_URLS                    = 1u << 2u;
+const unsigned IGNORE_DUPLICATE_URLS = 1u << 2u;
 /** ExtractURLs flag: Do no report URL's that are anchored by IMG tags. */
-const unsigned IGNORE_LINKS_IN_IMG_TAGS                 = 1u << 3u;
+const unsigned IGNORE_LINKS_IN_IMG_TAGS = 1u << 3u;
 /** ExtractURLs flag: Do no report URL's on the same conceptual site, as reported by Url::getSite(). */
-const unsigned IGNORE_LINKS_TO_SAME_SITE                = 1u << 4u;
+const unsigned IGNORE_LINKS_TO_SAME_SITE = 1u << 4u;
 /** ExtractURLs flag: Do no report URL's on the same conceptual site, as reported by WebUtil::getMajorSite(). */
-const unsigned IGNORE_LINKS_TO_SAME_MAJOR_SITE          = 1u << 5u;
+const unsigned IGNORE_LINKS_TO_SAME_MAJOR_SITE = 1u << 5u;
 /** ExtractURLs flag: Remove page anchors froom URL's (i.e. anything after the final '#' character). */
-const unsigned REMOVE_DOCUMENT_RELATIVE_ANCHORS         = 1u << 6u;
+const unsigned REMOVE_DOCUMENT_RELATIVE_ANCHORS = 1u << 6u;
 /** ExtractURLs flag: Ignore robots.txt files when downloading pages for the purpose of canonization (this is usually very impolite).*/
-const unsigned IGNORE_ROBOTS_DOT_TXT                    = 1u << 7u;
+const unsigned IGNORE_ROBOTS_DOT_TXT = 1u << 7u;
 /** ExtractURLs flag: Only return URL's whose pages can actually be downloaded (requires CANONIZED_URLS form).*/
 const unsigned REQUIRE_URLS_FOR_DOWNLOADABLE_PAGES_ONLY = 1u << 8u;
 /** ExtractURLs flag: Clean up the anchor text. */
-const unsigned CLEAN_UP_ANCHOR_TEXT                     = 1u << 9u;
+const unsigned CLEAN_UP_ANCHOR_TEXT = 1u << 9u;
 /** ExtractURLs flag: Ignore https. */
-const unsigned IGNORE_PROTOCOL_HTTPS                    = 1u << 10u;
+const unsigned IGNORE_PROTOCOL_HTTPS = 1u << 10u;
 /** ExtractURLs flag: Only return onsite links. */
-const unsigned KEEP_LINKS_TO_SAME_SITE_ONLY             = 1u << 11u;
+const unsigned KEEP_LINKS_TO_SAME_SITE_ONLY = 1u << 11u;
 /** ExtractURLs flag: Only return links pointing to the same major site. */
-const unsigned KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY       = 1u << 12u;
+const unsigned KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY = 1u << 12u;
 /** ExtractURLs flag: Do our best to get URL's hidden in JavaScript code. */
-const unsigned ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS       = 1u << 13u;
+const unsigned ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS = 1u << 13u;
 
 /** The default flags for the ExtractUrls function. */
-const unsigned DEFAULT_EXTRACT_URL_FLAGS(IGNORE_DUPLICATE_URLS | IGNORE_LINKS_IN_IMG_TAGS
-                                         | REMOVE_DOCUMENT_RELATIVE_ANCHORS | CLEAN_UP_ANCHOR_TEXT
-                                         | IGNORE_PROTOCOL_HTTPS | ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS);
+const unsigned DEFAULT_EXTRACT_URL_FLAGS(IGNORE_DUPLICATE_URLS | IGNORE_LINKS_IN_IMG_TAGS | REMOVE_DOCUMENT_RELATIVE_ANCHORS
+                                         | CLEAN_UP_ANCHOR_TEXT | IGNORE_PROTOCOL_HTTPS | ATTEMPT_TO_EXTRACT_JAVASCRIPT_URLS);
 
 class UrlAndAnchorTexts {
     std::string url_;
     std::set<std::string> anchor_texts_;
+
 public:
     typedef std::set<std::string>::const_iterator const_iterator;
+
 public:
     explicit UrlAndAnchorTexts(const std::string &url): url_(url) { }
-    UrlAndAnchorTexts(const std::string &url, const std::string &anchor_text)
-        : url_(url) { anchor_texts_.insert(anchor_text); }
+    UrlAndAnchorTexts(const std::string &url, const std::string &anchor_text): url_(url) { anchor_texts_.insert(anchor_text); }
     const std::string &getUrl() const { return url_; }
     void setUrl(const std::string &new_url) { url_ = new_url; }
     void addAnchorText(const std::string &new_anchor_text) { anchor_texts_.insert(new_anchor_text); }
@@ -324,10 +323,9 @@ public:
  *  \note  If the requested URL form is CLEAN_URLS or CANONIZED_URLS and an extracted URL cannot be converted to this
  *         format, the URL will be ignored.
  */
-void ExtractURLs(const std::string &document_source, std::string default_base_url,
-                 const ExtractedUrlForm extracted_url_form,
-                 std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts,
-                 const unsigned flags = DEFAULT_EXTRACT_URL_FLAGS, unsigned long * const overall_timeout = nullptr);
+void ExtractURLs(const std::string &document_source, std::string default_base_url, const ExtractedUrlForm extracted_url_form,
+                 std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts, const unsigned flags = DEFAULT_EXTRACT_URL_FLAGS,
+                 unsigned long * const overall_timeout = nullptr);
 
 
 } // namespace WebUtil

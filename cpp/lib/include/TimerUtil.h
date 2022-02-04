@@ -72,16 +72,15 @@ inline long TimeValToMicroseconds(const struct timeval &tv) {
 
 
 /** Converts milliseconds "ms" to a struct timeval "tv". */
-inline void MillisecondsToTimeVal(const int ms, struct timeval * const tv)
-{
-    tv->tv_sec  = ms / 1000;
+inline void MillisecondsToTimeVal(const int ms, struct timeval * const tv) {
+    tv->tv_sec = ms / 1000;
     tv->tv_usec = (ms % 1000) * 1000;
 }
 
 
 /** Converts milliseconds "ms" to a struct timespec "ts". */
 inline void MillisecondsToTimeSpec(const int ms, struct timespec * const ts) {
-    ts->tv_sec  = ms / 1000;
+    ts->tv_sec = ms / 1000;
     ts->tv_nsec = (ms % 1000) * 1000000L;
 }
 
@@ -103,7 +102,7 @@ inline timeval &operator+=(timeval &lhs, const unsigned milliseconds) {
     else { // No, more than 1 second.
         const time_t additional_seconds(milliseconds / 1000);
         lhs.tv_sec += additional_seconds;
-        lhs.tv_usec += (milliseconds - additional_seconds * 1000)  * static_cast<suseconds_t>(1000);
+        lhs.tv_usec += (milliseconds - additional_seconds * 1000) * static_cast<suseconds_t>(1000);
     }
 
     // Make sure "lhs" is in normalised form:
@@ -151,22 +150,31 @@ inline long operator-(const timeval &lhs, const long &rhs_usec) {
  *          member functions rather than the managed timer class' "start()" and "stop()"
  *          member functions!
  */
-template<class SomeTimer> class TimerStartStopper {
+template <class SomeTimer>
+class TimerStartStopper {
     SomeTimer &some_timer_;
     bool is_stopped_;
+
 public:
-    explicit TimerStartStopper(SomeTimer * const some_timer)
-        : some_timer_(*some_timer), is_stopped_(false)
-    { some_timer_.start(); }
+    explicit TimerStartStopper(SomeTimer * const some_timer): some_timer_(*some_timer), is_stopped_(false) { some_timer_.start(); }
 
     /** Use this in tandem with the "restart()" member function. */
-    void stop() { some_timer_.stop(); is_stopped_ = true; }
+    void stop() {
+        some_timer_.stop();
+        is_stopped_ = true;
+    }
 
     /** Use this in tandem with the "stop()" member function. */
-    void restart() { some_timer_.start(); is_stopped_ = false; }
+    void restart() {
+        some_timer_.start();
+        is_stopped_ = false;
+    }
 
-    ~TimerStartStopper()
-    { if (not is_stopped_) some_timer_.stop(); }
+    ~TimerStartStopper() {
+        if (not is_stopped_)
+            some_timer_.stop();
+    }
+
 private:
     TimerStartStopper(const TimerStartStopper &rhs) = delete;
     const TimerStartStopper &operator=(const TimerStartStopper &rhs) = delete;
@@ -189,8 +197,9 @@ public:
 
     /** Returns the remaining time in microseconds on a pending timer if any or ULONG_MAX. */
     unsigned long getRemainingTimeOnPendingTimer() const;
+
 private:
-    SaveAndRestorePendingTimer(const SaveAndRestorePendingTimer &rhs)= delete;
+    SaveAndRestorePendingTimer(const SaveAndRestorePendingTimer &rhs) = delete;
     const SaveAndRestorePendingTimer operator=(const SaveAndRestorePendingTimer &rhs) = delete;
 };
 
@@ -212,8 +221,7 @@ unsigned LeftOverTime(const struct timeval &start_time, const struct timeval &en
  *  \note   If the difference between "start_time" and "end_time" would be negative, nothing will be subtracted from
  *          "*timeout"!
  */
-void SubtractLeftOverTime(const struct timeval &start_time, const struct timeval &end_time,
-                          unsigned * const timeout);
+void SubtractLeftOverTime(const struct timeval &start_time, const struct timeval &end_time, unsigned * const timeout);
 
 
 /** \brief  Millisecond resolution alarm function.

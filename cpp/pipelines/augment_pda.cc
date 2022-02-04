@@ -24,8 +24,8 @@
 #include <unordered_map>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "StringUtil.h"
 #include "MARC.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -50,9 +50,7 @@ namespace {
 }
 
 
-void ExtractILLPPNs(const bool verbose, const std::unique_ptr<File>& ill_list,
-                    std::unordered_set<std::string> * const ill_set)
-{
+void ExtractILLPPNs(const bool verbose, const std::unique_ptr<File> &ill_list, std::unordered_set<std::string> * const ill_set) {
     std::string line;
     int line_size;
     while ((line_size = ill_list->getline(&line))) {
@@ -63,7 +61,7 @@ void ExtractILLPPNs(const bool verbose, const std::unique_ptr<File>& ill_list,
                 return;
         }
         if (verbose)
-           LOG_INFO("Adding " + line + " to ill set");
+            LOG_INFO("Adding " + line + " to ill set");
         ill_set->emplace(line);
     }
 }
@@ -88,15 +86,14 @@ void ProcessRecord(const bool verbose, MARC::Record * const record, const std::u
             return;
     } else {
         if (verbose)
-            LOG_INFO("Could not determine publication year for record " + record->getControlNumber()
-                     + " [ " + _008_contents.substr(7, 4) + " given ]");
+            LOG_INFO("Could not determine publication year for record " + record->getControlNumber() + " [ " + _008_contents.substr(7, 4)
+                     + " given ]");
         return;
     }
 
     if (ill_set.find(record->getControlNumber()) == ill_set.cend()) {
         if (record->hasTag(POTENTIALLY_PDA_TAG))
-            logger->error("Field " + POTENTIALLY_PDA_TAG + " already populated for PPN "
-                          + record->getControlNumber());
+            logger->error("Field " + POTENTIALLY_PDA_TAG + " already populated for PPN " + record->getControlNumber());
         record->insertField(POTENTIALLY_PDA_TAG, { { POTENTIALLY_PDA_SUBFIELD, "1" } });
         ++modified_count;
     }
@@ -104,8 +101,7 @@ void ProcessRecord(const bool verbose, MARC::Record * const record, const std::u
 
 
 void TagRelevantRecords(const bool verbose, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                        const std::unordered_set<std::string> * ill_set)
-{
+                        const std::unordered_set<std::string> *ill_set) {
     while (MARC::Record record = marc_reader->read()) {
         ProcessRecord(verbose, &record, *ill_set);
         marc_writer->write(record);

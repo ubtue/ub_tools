@@ -15,14 +15,14 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #include <iostream>
 #include <unordered_set>
 #include <cstdio>
 #include <cstdlib>
 #include "MARC.h"
-#include "util.h"
 #include "ZoteroHarvesterUtil.h"
+#include "util.h"
 
 
 namespace {

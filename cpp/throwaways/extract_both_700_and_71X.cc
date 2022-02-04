@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <stdexcept>
@@ -30,12 +30,13 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("title_data list.txt\n"
-            "Extracts list of PPN that contain both 700 and 710 and 711 fields\n");
+    ::Usage(
+        "title_data list.txt\n"
+        "Extracts list of PPN that contain both 700 and 710 and 711 fields\n");
 }
 
 
-void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const target_ppns, unsigned * record_count) {
+void ProcessRecords(MARC::Reader * const marc_reader, std::unordered_set<std::string> * const target_ppns, unsigned *record_count) {
     while (const MARC::Record &record = marc_reader->read()) {
         ++(*record_count);
         if (record.hasTag("710") and (record.hasTag("710") or record.hasTag("711")))
@@ -56,10 +57,7 @@ int Main(int argc, char *argv[]) {
     unsigned record_count(0);
     ProcessRecords(marc_reader.get(), &target_ppns, &record_count);
     for (const auto &ppn : target_ppns)
-         (*output) << ppn << '\n';
-    LOG_INFO("Found " + std::to_string(target_ppns.size()) + " records of " +  std::to_string(record_count) + '\n'); 
+        (*output) << ppn << '\n';
+    LOG_INFO("Found " + std::to_string(target_ppns.size()) + " records of " + std::to_string(record_count) + '\n');
     return EXIT_SUCCESS;
 }
-
-
-

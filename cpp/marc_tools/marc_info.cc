@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <iostream>
@@ -40,8 +40,8 @@ namespace {
 
 
 void ProcessRecords(const bool verbose, const bool summarize_tags, MARC::Reader * const marc_reader) {
-    unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0),
-             max_subfield_count(0), cumulative_field_count(0), duplicate_control_number_count(0);
+    unsigned record_count(0), max_record_length(0), max_local_block_count(0), oversized_record_count(0), max_subfield_count(0),
+        cumulative_field_count(0), duplicate_control_number_count(0);
     std::unordered_set<std::string> control_numbers;
     std::map<MARC::Record::RecordType, unsigned> record_types_and_counts;
     std::map<std::string, std::set<char>> tag_to_subfield_codes_map;
@@ -63,8 +63,7 @@ void ProcessRecords(const bool verbose, const bool summarize_tags, MARC::Reader 
         const MARC::Record::RecordType record_type(record.getRecordType());
         ++record_types_and_counts[record_type];
         if (verbose and record_type == MARC::Record::RecordType::UNKNOWN)
-            std::cerr << "Unknown record type '" << record.getLeader()[6] << "' for PPN " << control_number
-                      << ".\n";
+            std::cerr << "Unknown record type '" << record.getLeader()[6] << "' for PPN " << control_number << ".\n";
 
         const unsigned record_length(record.size());
         if (record_length > max_record_length)
@@ -106,25 +105,22 @@ void ProcessRecords(const bool verbose, const bool summarize_tags, MARC::Reader 
         for (const auto local_block_start : local_block_starts) {
             ++local_block_number;
             if (record.findFieldsInLocalBlock("001", local_block_start).size() != 1)
-                LOG_ERROR("The " + MiscUtil::MakeOrdinal(local_block_number) + " local data block is missing a  001 field. (Record: "
-                          + record.getControlNumber() + ")");
+                LOG_ERROR("The " + MiscUtil::MakeOrdinal(local_block_number)
+                          + " local data block is missing a  001 field. (Record: " + record.getControlNumber() + ")");
         }
     }
 
     std::cout << "Data set contains " << record_count << " MARC record(s) of which " << duplicate_control_number_count
               << " record(s) is a/are duplicate(s).\n";
     std::cout << "Largest record contains " << max_record_length << " bytes.\n";
-    std::cout << "The record with the largest number of \"local\" blocks has " << max_local_block_count
-              << " local blocks.\n";
-    std::cout << "Counted " << record_types_and_counts[MARC::Record::RecordType::BIBLIOGRAPHIC]
-              << " bibliographic record(s), " << record_types_and_counts[MARC::Record::RecordType::AUTHORITY]
-              << " authority record(s), " << record_types_and_counts[MARC::Record::RecordType::CLASSIFICATION]
-              << " classification record(s), and " << record_types_and_counts[MARC::Record::RecordType::UNKNOWN]
-              << " record(s) of unknown record type.\n";
+    std::cout << "The record with the largest number of \"local\" blocks has " << max_local_block_count << " local blocks.\n";
+    std::cout << "Counted " << record_types_and_counts[MARC::Record::RecordType::BIBLIOGRAPHIC] << " bibliographic record(s), "
+              << record_types_and_counts[MARC::Record::RecordType::AUTHORITY] << " authority record(s), "
+              << record_types_and_counts[MARC::Record::RecordType::CLASSIFICATION] << " classification record(s), and "
+              << record_types_and_counts[MARC::Record::RecordType::UNKNOWN] << " record(s) of unknown record type.\n";
     std::cout << "Found " << oversized_record_count << " oversized records.\n";
     std::cout << "The field with the most subfields has " << max_subfield_count << " subfield(s).\n";
-    std::cout << "The average no. of fields per record is "
-              << (static_cast<double>(cumulative_field_count) / record_count) << ".\n";
+    std::cout << "The average no. of fields per record is " << (static_cast<double>(cumulative_field_count) / record_count) << ".\n";
     std::cout << "The average record size in bytes is "
               << (static_cast<double>(FileUtil::GetFileSize(marc_reader->getPath())) / record_count) << ".\n";
 

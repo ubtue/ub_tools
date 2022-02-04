@@ -16,11 +16,11 @@ def IsResultPlausible(result_file):
     if os.path.getsize(result_file) == 0:
         return False
     with open(result_file) as rfile:
-        first_lines = [next(rfile) for x in range(5)]
         correct_line = re.compile('^[0-9\-X]+\s+-\s+.*')
+        first_lines = [next(rfile) for x in range(5)]
         for line in rfile:
             if not correct_line.match(line):
-              return False
+                return False
     return True
 
 

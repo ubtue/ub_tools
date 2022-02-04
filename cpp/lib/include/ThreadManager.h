@@ -33,6 +33,7 @@
  */
 class ThreadManager {
     std::vector<pthread_t> thread_ids_;
+
 public:
     ThreadManager(const unsigned no_of_threads, void *ThreadFunc(void *), void *thread_data = nullptr);
     ~ThreadManager();

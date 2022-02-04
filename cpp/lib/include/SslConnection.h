@@ -39,11 +39,12 @@
 class SslConnection {
 public:
     enum Method {
-        ALL_STREAM_METHODS, /* Meaning SSLv3, TLSv1, TLSv1.1, and TLSv1.2. */
+        ALL_STREAM_METHODS,  /* Meaning SSLv3, TLSv1, TLSv1.1, and TLSv1.2. */
         ALL_DATAGRAM_METHODS /* Meaning DTLSv1, and DTLSv1.2. */
     };
     enum ClientServerMode { CLIENT, SERVER, CLIENT_AND_SERVER };
     enum ThreadingSupportMode { SUPPORT_MULTITHREADING, DO_NOT_SUPPORT_MULTITHREADING };
+
 private:
     ThreadingSupportMode threading_support_mode_;
     SSL_CTX *ssl_context_;
@@ -52,26 +53,30 @@ private:
 
     static std::mutex mutex_;
     static bool ssl_libraries_have_been_initialised_;
+
 public:
     struct ContextInfo {
         Method method_;
         ClientServerMode client_server_mode_;
         SSL_CTX *ssl_context_;
         unsigned usage_count_;
+
     public:
         ContextInfo(const Method method, const ClientServerMode client_server_mode)
             : method_(method), client_server_mode_(client_server_mode), ssl_context_(nullptr), usage_count_(1) { }
     };
+
 private:
     static std::list<ContextInfo> context_infos_;
+
 public:
-    explicit SslConnection(const int fd, const Method method = ALL_STREAM_METHODS,
-                           const ClientServerMode client_server_mode = CLIENT,
-                           const ThreadingSupportMode threading_support_mode = DO_NOT_SUPPORT_MULTITHREADING );
+    explicit SslConnection(const int fd, const Method method = ALL_STREAM_METHODS, const ClientServerMode client_server_mode = CLIENT,
+                           const ThreadingSupportMode threading_support_mode = DO_NOT_SUPPORT_MULTITHREADING);
     ~SslConnection();
     ssize_t read(void * const data, size_t data_size);
     ssize_t write(const void * const data, size_t data_size);
     int getLastErrorCode() const;
+
 private:
     SslConnection(const SslConnection &rhs) = delete;
     const SslConnection &operator=(const SslConnection &rhs) = delete;

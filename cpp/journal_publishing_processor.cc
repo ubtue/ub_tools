@@ -15,19 +15,19 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 #include <cstdio>
 #include <cstdlib>
-#include <vector>
 #include "FileUtil.h"
 #include "FullTextImport.h"
 #include "PdfUtil.h"
 #include "StringUtil.h"
-#include "util.h"
 #include "XMLParser.h"
+#include "util.h"
 
 
 namespace {
@@ -148,8 +148,7 @@ void ExtractPDFFulltext(const bool force_ocr, const std::string &fulltext_locati
 
 
 void ProcessDocument(const bool normalise_only, const bool force_ocr, const std::string &input_file_path, XMLParser * const xml_parser,
-                     File * const plain_text_output)
-{
+                     File * const plain_text_output) {
     FullTextImport::FullTextData full_text_metadata;
     ExtractMetadata(xml_parser, &full_text_metadata);
 
@@ -189,7 +188,8 @@ void ProcessDocument(const bool normalise_only, const bool force_ocr, const std:
 
     FullTextImport::WriteExtractedTextToDisk(not full_text.empty() ? full_text : abstract, full_text_metadata.title_,
                                              full_text_metadata.authors_, full_text_metadata.year_, full_text_metadata.doi_,
-                                             /* ISSN */"", /* ISBN */"", full_text_metadata.text_type_,  FileUtil::MakeAbsolutePath(full_text_metadata.full_text_location_), plain_text_output);
+                                             /* ISSN */ "", /* ISBN */ "", full_text_metadata.text_type_,
+                                             FileUtil::MakeAbsolutePath(full_text_metadata.full_text_location_), plain_text_output);
 }
 
 
@@ -214,7 +214,7 @@ int Main(int argc, char *argv[]) {
     if ((normalise_only and argc != 2) or (not normalise_only and not force_ocr and argc != 3))
         Usage();
 
-    XMLParser xml_parser (argv[1], XMLParser::XML_FILE);
+    XMLParser xml_parser(argv[1], XMLParser::XML_FILE);
     auto plain_text_output(normalise_only ? nullptr : FileUtil::OpenOutputFileOrDie(argv[2]));
     ProcessDocument(normalise_only, force_ocr, argv[1], &xml_parser, plain_text_output.get());
 

@@ -18,8 +18,7 @@ int Main(int argc, char *argv[]) {
         Usage();
 
     const struct tm tm(TimeUtil::StringToStructTm(argv[1], argv[2]));
-    std::cout << TimeUtil::TimeTToString(TimeUtil::TimeGm(tm)) << '\n'
-              << TimeUtil::StructTmToString(tm) << "\n";
+    std::cout << TimeUtil::TimeTToString(TimeUtil::TimeGm(tm)) << '\n' << TimeUtil::StructTmToString(tm) << "\n";
 
     return EXIT_SUCCESS;
 }

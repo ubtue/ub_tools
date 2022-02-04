@@ -61,7 +61,7 @@ void Lookup(const std::string &id) {
 } // unnamed namespace
 
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     ::progname = argv[0];
 
     std::string id;

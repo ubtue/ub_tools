@@ -27,10 +27,10 @@
 #include "RegexMatcher.h"
 #include "Sqlite3DbConnection.h"
 #include "StringUtil.h"
-#include "UrlUtil.h"
 #include "UBTools.h"
-#include "util.h"
+#include "UrlUtil.h"
 #include "VuFind.h"
+#include "util.h"
 
 
 DbConnection::DbConnection(DbConnection &&other) {
@@ -39,7 +39,7 @@ DbConnection::DbConnection(DbConnection &&other) {
 
     delete db_connection_;
     db_connection_ = other.db_connection_;
-    initialised_   = other.initialised_;
+    initialised_ = other.initialised_;
     other.db_connection_ = nullptr;
     other.initialised_ = false;
 }
@@ -51,9 +51,7 @@ DbConnection DbConnection::UBToolsFactory(const TimeZone time_zone) {
 
 
 DbConnection DbConnection::MySQLFactory(const std::string &database_name, const std::string &user, const std::string &passwd,
-                                        const std::string &host, const unsigned port, const Charset charset,
-                                        const TimeZone time_zone)
-{
+                                        const std::string &host, const unsigned port, const Charset charset, const TimeZone time_zone) {
     return DbConnection(new MySQLDbConnection(database_name, user, passwd, host, port, charset, time_zone));
 }
 
@@ -79,12 +77,10 @@ DbConnection DbConnection::Sqlite3Factory(const std::string &database_path, cons
 
 
 DbConnection DbConnection::PostgresFactory(std::string * const error_message, const std::string &database_name,
-                                           const std::string &user_name, const std::string &password,
-                                           const std::string &hostname, const unsigned port,
-                                           const std::string &options)
-{
+                                           const std::string &user_name, const std::string &password, const std::string &hostname,
+                                           const unsigned port, const std::string &options) {
     const auto port_as_string(StringUtil::ToString(port));
-    const auto pg_conn(::PQsetdbLogin(hostname.c_str(), port_as_string.c_str(), options.c_str(), /* pgtty = */options.c_str(),
+    const auto pg_conn(::PQsetdbLogin(hostname.c_str(), port_as_string.c_str(), options.c_str(), /* pgtty = */ options.c_str(),
                                       database_name.c_str(), user_name.c_str(), password.c_str()));
 
     if (PQstatus(pg_conn) == CONNECTION_OK) {
@@ -111,7 +107,7 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
 
     std::string statement;
     char current_quote('\0'); // NUL means not currently in a string constant.
-    bool escaped(false); // backslash not yet seen
+    bool escaped(false);      // backslash not yet seen
     bool do_not_split_on_semicolons(false);
     CommentFlavour comment_flavour(NO_COMMENT);
     for (auto ch(query.cbegin()); ch != query.cend(); ++ch) {
@@ -162,7 +158,8 @@ std::vector<std::string> DbConnection::SplitMySQLStatements(const std::string &q
             statement += *ch;
             ++ch;
             comment_flavour = C_STYLE_COMMENT;
-        } else if (*ch == '-' and ch + 2 < query.cend() and *(ch + 1) == '-' and *(ch + 2) == ' ') { // Check for comments starting with "-- ".
+        } else if (*ch == '-' and ch + 2 < query.cend() and *(ch + 1) == '-' and *(ch + 2) == ' ')
+        { // Check for comments starting with "-- ".
             statement += *ch;
             ++ch;
             statement += *ch;
@@ -239,11 +236,8 @@ void DbConnection::sqlite3BackupOrDie(const std::string &output_filename) {
 }
 
 
-void DbConnection::insertIntoTableOrDie(const std::string &table_name,
-                                        const std::map<std::string, std::string> &column_names_to_values_map,
-                                        const DuplicateKeyBehaviour duplicate_key_behaviour,
-                                        const std::string &where_clause)
-{
+void DbConnection::insertIntoTableOrDie(const std::string &table_name, const std::map<std::string, std::string> &column_names_to_values_map,
+                                        const DuplicateKeyBehaviour duplicate_key_behaviour, const std::string &where_clause) {
     if (not where_clause.empty() and duplicate_key_behaviour != DKB_REPLACE)
         LOG_ERROR("\"where_clause\" is only valid when using the DKB_REPLACE mode!");
 
@@ -287,8 +281,7 @@ void DbConnection::insertIntoTableOrDie(const std::string &table_name,
 
 void DbConnection::insertIntoTableOrDie(const std::string &table_name, const std::vector<std::string> &column_names,
                                         const std::vector<std::vector<std::optional<std::string>>> &values,
-                                        const DuplicateKeyBehaviour duplicate_key_behaviour, const std::string &where_clause)
-{
+                                        const DuplicateKeyBehaviour duplicate_key_behaviour, const std::string &where_clause) {
     if (column_names.empty())
         LOG_ERROR("at least one column name must be provided!");
 
@@ -467,81 +460,67 @@ std::vector<std::string> DbConnection::mySQLGetTableList() {
 }
 
 
-void DbConnection::MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user,
-                                       const std::string &admin_passwd, const std::string &host,
-                                       const unsigned port, const Charset charset, const Collation collation)
-{
+void DbConnection::MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
+                                       const std::string &host, const unsigned port, const Charset charset, const Collation collation) {
     MySQLDbConnection db_connection(admin_user, admin_passwd, host, port, charset);
     db_connection.mySQLCreateDatabase(database_name, charset, collation);
 }
 
 
 void DbConnection::MySQLCreateUser(const std::string &new_user, const std::string &new_passwd, const std::string &admin_user,
-                                   const std::string &admin_passwd, const std::string &host, const unsigned port,
-                                   const Charset charset)
-{
-        MySQLDbConnection db_connection(admin_user, admin_passwd, host, port, charset);
-        db_connection.mySQLCreateUser(new_user, new_passwd, host);
+                                   const std::string &admin_passwd, const std::string &host, const unsigned port, const Charset charset) {
+    MySQLDbConnection db_connection(admin_user, admin_passwd, host, port, charset);
+    db_connection.mySQLCreateUser(new_user, new_passwd, host);
 }
 
 
-void DbConnection::MySQLCreateUserIfNotExists(const std::string &new_user, const std::string &new_passwd,
-                                              const std::string &admin_user, const std::string &admin_passwd,
-                                              const std::string &host, const unsigned port, const Charset charset)
-{
+void DbConnection::MySQLCreateUserIfNotExists(const std::string &new_user, const std::string &new_passwd, const std::string &admin_user,
+                                              const std::string &admin_passwd, const std::string &host, const unsigned port,
+                                              const Charset charset) {
     MySQLDbConnection db_connection(admin_user, admin_passwd, host, port, charset);
     db_connection.mySQLCreateUserIfNotExists(new_user, new_passwd, host);
 }
 
 
-bool DbConnection::MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user,
-                                       const std::string &admin_passwd, const std::string &host, const unsigned port,
-                                       const Charset charset)
-{
+bool DbConnection::MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
+                                       const std::string &host, const unsigned port, const Charset charset) {
     MySQLDbConnection db_connection(admin_user, admin_passwd, host, port, charset);
     return db_connection.mySQLDatabaseExists(database_name);
 }
 
 
-bool DbConnection::MySQLDropDatabase(const std::string &database_name, const std::string &admin_user,
-                                     const std::string &admin_passwd, const std::string &host, const unsigned port,
-                                     const Charset charset)
-{
+bool DbConnection::MySQLDropDatabase(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
+                                     const std::string &host, const unsigned port, const Charset charset) {
     MySQLDbConnection db_connection(admin_user, admin_passwd, host, port, charset);
     return db_connection.mySQLDropDatabase(database_name);
 }
 
 
 std::vector<std::string> DbConnection::MySQLGetDatabaseList(const std::string &admin_user, const std::string &admin_passwd,
-                                                            const std::string &host, const unsigned port, const Charset charset)
-{
+                                                            const std::string &host, const unsigned port, const Charset charset) {
     MySQLDbConnection db_connection(admin_user, admin_passwd, host, port, charset);
     return db_connection.mySQLGetDatabaseList();
 }
 
 
 void DbConnection::MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user,
-                                           const std::string &admin_user, const std::string &admin_passwd,
-                                           const std::string &host, const unsigned port, const Charset charset)
-{
+                                           const std::string &admin_user, const std::string &admin_passwd, const std::string &host,
+                                           const unsigned port, const Charset charset) {
     MySQLDbConnection db_connection(admin_user, admin_passwd, host, port, charset);
     return db_connection.mySQLGrantAllPrivileges(database_name, database_user, host);
 }
 
 
-bool DbConnection::MySQLUserExists(const std::string &database_user, const std::string &admin_user,
-                                   const std::string &admin_passwd, const std::string &host, const unsigned port,
-                                   const Charset charset)
-{
+bool DbConnection::MySQLUserExists(const std::string &database_user, const std::string &admin_user, const std::string &admin_passwd,
+                                   const std::string &host, const unsigned port, const Charset charset) {
     MySQLDbConnection db_connection(admin_user, admin_passwd, host, port, charset);
     return db_connection.mySQLUserExists(database_user, host);
 }
 
 
 void DbConnection::MySQLImportFile(const std::string &sql_file, const std::string &database_name, const std::string &user,
-                                   const std::string &passwd, const std::string &host, const unsigned port,
-                                   const Charset charset, const TimeZone time_zone)
-{
+                                   const std::string &passwd, const std::string &host, const unsigned port, const Charset charset,
+                                   const TimeZone time_zone) {
     MySQLDbConnection db_connection(database_name, user, passwd, host, port, charset, time_zone);
     db_connection.queryFileOrDie(sql_file);
 }
@@ -638,29 +617,15 @@ std::string DbConnection::TypeToString(const Type type) {
 }
 
 
-const std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::MYSQL_ALL_PRIVILEGES {
-    P_SELECT,
-    P_INSERT,
-    P_UPDATE,
-    P_DELETE,
-    P_CREATE,
-    P_DROP,
-    P_REFERENCES,
-    P_INDEX,
-    P_ALTER,
-    P_CREATE_TEMPORARY_TABLES,
-    P_LOCK_TABLES,
-    P_EXECUTE,
-    P_CREATE_VIEW,
-    P_SHOW_VIEW,
-    P_CREATE_ROUTINE,
-    P_ALTER_ROUTINE,
-    P_EVENT,
-    P_TRIGGER
+const std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::MYSQL_ALL_PRIVILEGES{
+    P_SELECT,        P_INSERT,     P_UPDATE,      P_DELETE,    P_CREATE,
+    P_DROP,          P_REFERENCES, P_INDEX,       P_ALTER,     P_CREATE_TEMPORARY_TABLES,
+    P_LOCK_TABLES,   P_EXECUTE,    P_CREATE_VIEW, P_SHOW_VIEW, P_CREATE_ROUTINE,
+    P_ALTER_ROUTINE, P_EVENT,      P_TRIGGER
 };
 
 
-static const std::unordered_map<std::string, DbConnection::MYSQL_PRIVILEGE> string_to_privilege_map {
+static const std::unordered_map<std::string, DbConnection::MYSQL_PRIVILEGE> string_to_privilege_map{
     { "SELECT", DbConnection::P_SELECT },
     { "INSERT", DbConnection::P_INSERT },
     { "UPDATE", DbConnection::P_UPDATE },
@@ -670,14 +635,14 @@ static const std::unordered_map<std::string, DbConnection::MYSQL_PRIVILEGE> stri
     { "REFERENCES", DbConnection::P_REFERENCES },
     { "INDEX", DbConnection::P_INDEX },
     { "ALTER", DbConnection::P_ALTER },
-    { "CREATE TEMPORARY TABLES", DbConnection::P_CREATE_TEMPORARY_TABLES},
+    { "CREATE TEMPORARY TABLES", DbConnection::P_CREATE_TEMPORARY_TABLES },
     { "LOCK TABLES", DbConnection::P_LOCK_TABLES },
     { "EXECUTE", DbConnection::P_EXECUTE },
     { "CREATE VIEW", DbConnection::P_CREATE_VIEW },
     { "SHOW VIEW", DbConnection::P_SHOW_VIEW },
     { "CREATE ROUTINE", DbConnection::P_CREATE_ROUTINE },
     { "ALTER ROUTINE", DbConnection::P_ALTER_ROUTINE },
-    { "EVENT", DbConnection::P_EVENT},
+    { "EVENT", DbConnection::P_EVENT },
     { "TRIGGER", DbConnection::P_TRIGGER },
 };
 
@@ -702,8 +667,7 @@ std::string MySQLPrivilegeEnumToString(const DbConnection::MYSQL_PRIVILEGE privi
 
 std::unordered_set<DbConnection::MYSQL_PRIVILEGE> DbConnection::mySQLGetUserPrivileges(const std::string &user,
                                                                                        const std::string &database_name,
-                                                                                       const std::string &host)
-{
+                                                                                       const std::string &host) {
     const std::string QUERY("SHOW GRANTS FOR " + user + "@" + host + ";");
     if (not query(QUERY)) {
         // catch "No such privileges defined" error and return empty set
@@ -751,8 +715,7 @@ unsigned DbTransaction::active_count_;
 
 DbTransaction::DbTransaction(DbConnection * const db_connection, const bool rollback_when_exceptions_are_in_flight)
     : db_connection_(*db_connection), rollback_when_exceptions_are_in_flight_(rollback_when_exceptions_are_in_flight),
-      explicit_commit_or_rollback_has_happened_(false)
-{
+      explicit_commit_or_rollback_has_happened_(false) {
     if (active_count_ > 0)
         LOG_ERROR("no nested transactions are allowed!");
     ++active_count_;

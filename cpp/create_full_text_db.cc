@@ -90,8 +90,7 @@ bool FoundAtLeastOneNonReviewOrCoverLink(const MARC::Record &record, std::string
 
 
 void ProcessNoDownloadRecords(const bool only_open_access, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-        std::vector<std::pair<off_t, std::string>> * const download_record_offsets_and_urls)
-{
+                              std::vector<std::pair<off_t, std::string>> * const download_record_offsets_and_urls) {
     unsigned total_record_count(0);
     off_t record_start(marc_reader->tell());
 
@@ -100,8 +99,7 @@ void ProcessNoDownloadRecords(const bool only_open_access, MARC::Reader * const 
 
         std::string first_non_review_link;
         const bool insert_in_cache(FoundAtLeastOneNonReviewOrCoverLink(record, &first_non_review_link)
-                                   or (record.getSubfieldValues("856", 'u').empty()
-                                   and not record.getSubfieldValues("520", 'a').empty()));
+                                   or (record.getSubfieldValues("856", 'u').empty() and not record.getSubfieldValues("520", 'a').empty()));
         if (insert_in_cache and (not only_open_access or MARC::IsOpenAccess(record)))
             download_record_offsets_and_urls->emplace_back(record_start, first_non_review_link);
         else
@@ -114,8 +112,8 @@ void ProcessNoDownloadRecords(const bool only_open_access, MARC::Reader * const 
         LOG_ERROR("flush to \"" + marc_writer->getFile().getPath() + "\" failed!");
 
     LOG_INFO("Read " + std::to_string(total_record_count) + " records.\n");
-    LOG_INFO("Wrote " + std::to_string(total_record_count - download_record_offsets_and_urls->size()) +
-             " records that did not require any downloads.\n");
+    LOG_INFO("Wrote " + std::to_string(total_record_count - download_record_offsets_and_urls->size())
+             + " records that did not require any downloads.\n");
 }
 
 
@@ -123,17 +121,15 @@ void ProcessNoDownloadRecords(const bool only_open_access, MARC::Reader * const 
 void CleanUpZombies(const unsigned no_of_zombies_to_collect,
                     std::map<std::string, unsigned> * const hostname_to_outstanding_request_count_map,
                     std::map<int, std::string> * const process_id_to_hostname_map,
-                    std::map<int, off_t> * const process_id_to_record_start_map,
-                    MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    unsigned * const child_reported_failure_count, unsigned * const active_child_count)
-{
+                    std::map<int, off_t> * const process_id_to_record_start_map, MARC::Reader * const marc_reader,
+                    MARC::Writer * const marc_writer, unsigned * const child_reported_failure_count, unsigned * const active_child_count) {
     for (unsigned zombie_no(0); zombie_no < no_of_zombies_to_collect; ++zombie_no) {
         int exit_code;
         const pid_t zombie_pid(::wait(&exit_code));
         if (exit_code != 0) {
             const auto process_id_and_record_start(process_id_to_record_start_map->find(zombie_pid));
             if (process_id_and_record_start != process_id_to_record_start_map->end()) {
-                LOG_WARNING("Child process for PID "+ std::to_string(zombie_pid) + " failed: Writing out record anyway");
+                LOG_WARNING("Child process for PID " + std::to_string(zombie_pid) + " failed: Writing out record anyway");
                 if (unlikely(not marc_reader->seek(process_id_and_record_start->second)))
                     LOG_ERROR("seek failed!");
                 const MARC::Record record = marc_reader->read();
@@ -160,10 +156,10 @@ const std::string UPDATE_FULL_TEXT_DB_PATH("/usr/local/bin/update_full_text_db")
 void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_record_start, const unsigned pdf_extraction_timeout,
                         const std::string &marc_input_filename, const std::string &marc_output_filename,
                         std::map<std::string, unsigned> * const hostname_to_outstanding_request_count_map,
-                        std::map<int, std::string> * const process_id_to_hostname_map, std::map<int, off_t> * const process_id_to_record_start_map,
-                        MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                        unsigned * const child_reported_failure_count, unsigned * const active_child_count,
-                        const bool store_pdfs_as_html, const bool use_separate_entries_per_url,
+                        std::map<int, std::string> * const process_id_to_hostname_map,
+                        std::map<int, off_t> * const process_id_to_record_start_map, MARC::Reader * const marc_reader,
+                        MARC::Writer * const marc_writer, unsigned * const child_reported_failure_count,
+                        unsigned * const active_child_count, const bool store_pdfs_as_html, const bool use_separate_entries_per_url,
                         const bool include_all_tocs, const bool include_list_of_references, const bool only_pdf_fulltexts)
 
 {
@@ -181,8 +177,7 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
         }
 
         CleanUpZombies(/*no_of_zombies*/ 1, hostname_to_outstanding_request_count_map, process_id_to_hostname_map,
-                       process_id_to_record_start_map, marc_reader, marc_writer,
-                       child_reported_failure_count, active_child_count);
+                       process_id_to_record_start_map, marc_reader, marc_writer, child_reported_failure_count, active_child_count);
     }
 
     std::vector<std::string> args;
@@ -203,9 +198,8 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
     args.emplace_back(marc_input_filename);
     args.emplace_back(marc_output_filename);
 
-    const int child_pid(ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH, args, "" /* no new stdin */,
-                                        "" /* no new stdout */, "" /* no new stderr */,
-                                        { std::pair("OMP_THREAD_LIMIT", "1") }));
+    const int child_pid(ExecUtil::Spawn(UPDATE_FULL_TEXT_DB_PATH, args, "" /* no new stdin */, "" /* no new stdout */,
+                                        "" /* no new stderr */, { std::pair("OMP_THREAD_LIMIT", "1") }));
     if (unlikely(child_pid == -1))
         LOG_ERROR("ExecUtil::Spawn failed! (no more resources?)");
 
@@ -215,16 +209,11 @@ void ScheduleSubprocess(const std::string &server_hostname, const off_t marc_rec
 }
 
 
-void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                            const unsigned pdf_extraction_timeout,
+void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const unsigned pdf_extraction_timeout,
                             const std::vector<std::pair<off_t, std::string>> &download_record_offsets_and_urls,
                             const unsigned process_count_low_watermark, const unsigned process_count_high_watermark,
-                            const bool store_pdfs_as_html,
-                            const bool use_separate_entries_per_url,
-                            const bool include_all_tocs,
-                            const bool include_list_of_references,
-                            const bool only_pdf_fulltexts)
-{
+                            const bool store_pdfs_as_html, const bool use_separate_entries_per_url, const bool include_all_tocs,
+                            const bool include_list_of_references, const bool only_pdf_fulltexts) {
     Semaphore semaphore("full_text_cached_counter", Semaphore::CREATE);
     unsigned active_child_count(0), child_reported_failure_count(0);
 
@@ -236,8 +225,8 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
         const std::string &url(offset_and_url.second);
         std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
         if (not url.empty()
-            and not UrlUtil::ParseUrl(url, &scheme, &username_password, &authority, &port, &path, &params,
-                                      &query, &fragment, &relative_url))
+            and not UrlUtil::ParseUrl(url, &scheme, &username_password, &authority, &port, &path, &params, &query, &fragment,
+                                      &relative_url))
         {
             LOG_WARNING("failed to parse URL: " + url);
 
@@ -251,11 +240,10 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
         }
 
         ScheduleSubprocess(authority, offset_and_url.first, pdf_extraction_timeout, marc_reader->getPath(),
-                           marc_writer->getFile().getPath(), &hostname_to_outstanding_request_count_map,
-                           &process_id_to_hostname_map, &process_id_to_record_start_map,
-                           marc_reader, marc_writer,
-                           &child_reported_failure_count, &active_child_count,
-                           store_pdfs_as_html, use_separate_entries_per_url, include_all_tocs, include_list_of_references, only_pdf_fulltexts);
+                           marc_writer->getFile().getPath(), &hostname_to_outstanding_request_count_map, &process_id_to_hostname_map,
+                           &process_id_to_record_start_map, marc_reader, marc_writer, &child_reported_failure_count, &active_child_count,
+                           store_pdfs_as_html, use_separate_entries_per_url, include_all_tocs, include_list_of_references,
+                           only_pdf_fulltexts);
 
         if (active_child_count > process_count_high_watermark)
             CleanUpZombies(active_child_count - process_count_low_watermark, &hostname_to_outstanding_request_count_map,
@@ -265,12 +253,10 @@ void ProcessDownloadRecords(MARC::Reader * const marc_reader, MARC::Writer * con
 
     // Wait for stragglers:
     CleanUpZombies(active_child_count, &hostname_to_outstanding_request_count_map, &process_id_to_hostname_map,
-                   &process_id_to_record_start_map, marc_reader, marc_writer,
-                   &child_reported_failure_count, &active_child_count);
+                   &process_id_to_record_start_map, marc_reader, marc_writer, &child_reported_failure_count, &active_child_count);
 
     std::cerr << "Spawned " << download_record_offsets_and_urls.size() << " subprocesses.\n";
-    std::cerr << semaphore.getValue()
-              << " documents were not downloaded because their cached values had not yet expired.\n";
+    std::cerr << semaphore.getValue() << " documents were not downloaded because their cached values had not yet expired.\n";
     std::cerr << child_reported_failure_count << " children reported a failure!\n";
 }
 
@@ -280,15 +266,14 @@ constexpr unsigned PROCESS_COUNT_DEFAULT_LOW_WATERMARK(5);
 
 
 void ExtractLowAndHighWatermarks(const std::string &arg, unsigned * const process_count_low_watermark,
-                                 unsigned * const process_count_high_watermark)
-{
+                                 unsigned * const process_count_high_watermark) {
     const auto colon_pos(arg.find(':'));
     if (colon_pos == std::string::npos or not StringUtil::ToNumber(arg.substr(0, colon_pos), process_count_low_watermark)
         or not StringUtil::ToNumber(arg.substr(colon_pos + 1), process_count_high_watermark) or *process_count_low_watermark == 0
         or *process_count_high_watermark == 0)
         LOG_ERROR("bad low or high watermarks!");
 
-    if (not (*process_count_low_watermark < *process_count_high_watermark))
+    if (not(*process_count_low_watermark < *process_count_high_watermark))
         LOG_ERROR("the low water mark must be less than the high water mark!");
 }
 
@@ -304,7 +289,7 @@ int Main(int argc, char **argv) {
 
     // Process optional args:
     unsigned process_count_low_watermark(PROCESS_COUNT_DEFAULT_LOW_WATERMARK),
-             process_count_high_watermark(PROCESS_COUNT_DEFAULT_HIGH_WATERMARK);
+        process_count_high_watermark(PROCESS_COUNT_DEFAULT_HIGH_WATERMARK);
     if (std::strcmp(argv[1], "--process-count-low-and-high-watermarks") == 0) {
         ExtractLowAndHighWatermarks(argv[2], &process_count_low_watermark, &process_count_high_watermark);
         argv += 2;
@@ -315,7 +300,7 @@ int Main(int argc, char **argv) {
     if (argc > 1 and StringUtil::StartsWith(argv[1], "--pdf-extraction-timeout=")) {
         if (not StringUtil::ToNumber(argv[1] + __builtin_strlen("--pdf-extraction-timeout="), &pdf_extraction_timeout)
             or pdf_extraction_timeout == 0)
-                LOG_ERROR("bad value for --pdf-extraction-timeout!");
+            LOG_ERROR("bad value for --pdf-extraction-timeout!");
         ++argv, --argc;
     }
 
@@ -374,10 +359,9 @@ int Main(int argc, char **argv) {
         // Try to prevent clumps of URL's from the same server:
         std::random_shuffle(download_record_offsets_and_urls.begin(), download_record_offsets_and_urls.end());
 
-        ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), pdf_extraction_timeout,
-                               download_record_offsets_and_urls, process_count_low_watermark, process_count_high_watermark,
-                               store_pdfs_as_html, use_separate_entries_per_url, include_all_tocs,
-                               include_list_of_references, only_pdf_fulltexts);
+        ProcessDownloadRecords(marc_reader.get(), marc_writer.get(), pdf_extraction_timeout, download_record_offsets_and_urls,
+                               process_count_low_watermark, process_count_high_watermark, store_pdfs_as_html, use_separate_entries_per_url,
+                               include_all_tocs, include_list_of_references, only_pdf_fulltexts);
     } catch (const std::exception &e) {
         LOG_ERROR("Caught exception: " + std::string(e.what()));
     }

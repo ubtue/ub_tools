@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <stdexcept>
@@ -53,9 +53,9 @@ const std::string YEAR_WILDCARD("????"), VOLUME_WILDCARD("?"), ISSUE_WILDCARD("?
 
 
 void ExtractYearVolumeIssue(const MARC::Record &record, RecordInfo * const record_info) {
-    record_info->year_   = YEAR_WILDCARD;
+    record_info->year_ = YEAR_WILDCARD;
     record_info->volume_ = VOLUME_WILDCARD;
-    record_info->issue_  = ISSUE_WILDCARD;
+    record_info->issue_ = ISSUE_WILDCARD;
 
     for (const auto &field : record.getTagRange("936")) {
         if (field.getIndicator1() != 'u' or field.getIndicator2() != 'w')
@@ -105,7 +105,7 @@ bool SetContainsOnlyArticlePPNs(const std::set<std::string> &ppns, const std::un
     for (const auto &ppn : ppns) {
         const auto ppn_and_record_info(ppns_to_infos_map.find(ppn));
         if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend())) {
-            LOG_WARNING("PPN "+ ppn + " is missing in ppns_to_infos_map! (1)");
+            LOG_WARNING("PPN " + ppn + " is missing in ppns_to_infos_map! (1)");
             continue;
         }
         if (ppn_and_record_info->second.type_ != RecordInfo::ARTICLE)
@@ -117,12 +117,11 @@ bool SetContainsOnlyArticlePPNs(const std::set<std::string> &ppns, const std::un
 
 
 bool ContainsAtLeastOnePossibleReview(const std::set<std::string> &ppns,
-                                      const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map)
-{
+                                      const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map) {
     for (const auto &ppn : ppns) {
         const auto ppn_and_record_info(ppns_to_infos_map.find(ppn));
         if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN "+ ppn + " is missing in ppns_to_infos_map! (2)");
+            LOG_ERROR("PPN " + ppn + " is missing in ppns_to_infos_map! (2)");
         if (ppn_and_record_info->second.may_be_a_review_)
             return true;
     }
@@ -138,13 +137,13 @@ bool HasAtLeastOneCommonDOI(const std::set<std::string> &ppns, const std::unorde
     auto ppn(ppns.cbegin());
     auto ppn_and_record_info(ppns_to_infos_map.find(*ppn));
     if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-        LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map! (3)");
+        LOG_ERROR("PPN " + *ppn + " is missing in ppns_to_infos_map! (3)");
     std::set<std::string> shared_dois(ppn_and_record_info->second.dois_);
 
     for (++ppn; ppn != ppns.cend(); ++ppn) {
         ppn_and_record_info = ppns_to_infos_map.find(*ppn);
         if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map! (4)");
+            LOG_ERROR("PPN " + *ppn + " is missing in ppns_to_infos_map! (4)");
         shared_dois = MiscUtil::Intersect(shared_dois, ppn_and_record_info->second.dois_);
     }
 
@@ -159,14 +158,14 @@ bool IsConsistentSet(const std::set<std::string> &ppns, const std::unordered_map
     auto ppn(ppns.cbegin());
     auto ppn_and_record_info(ppns_to_infos_map.find(*ppn));
     if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-        LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map! (5)");
+        LOG_ERROR("PPN " + *ppn + " is missing in ppns_to_infos_map! (5)");
     std::string year(ppn_and_record_info->second.year_), volume(ppn_and_record_info->second.volume_),
-                issue(ppn_and_record_info->second.issue_);
+        issue(ppn_and_record_info->second.issue_);
 
     for (++ppn; ppn != ppns.cend(); ++ppn) {
         ppn_and_record_info = ppns_to_infos_map.find(*ppn);
         if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
-            LOG_ERROR("PPN "+ *ppn + " is missing in ppns_to_infos_map! (6)");
+            LOG_ERROR("PPN " + *ppn + " is missing in ppns_to_infos_map! (6)");
         if (ppn_and_record_info->second.year_ != year or ppn_and_record_info->second.volume_ != volume
             or ppn_and_record_info->second.issue_ != issue)
             return false;
@@ -180,20 +179,17 @@ const std::string IXTHEO_PREFIX("https://ixtheo.de/Record/");
 
 
 void InsertSingleSet(const std::set<std::string> &dups,
-                     std::unordered_map<std::string, std::set<std::string> *> * const control_number_to_dups_set_map)
-{
+                     std::unordered_map<std::string, std::set<std::string> *> * const control_number_to_dups_set_map) {
     auto dups_set(new std::set<std::string>(dups));
     for (const auto &control_number : dups)
         (*control_number_to_dups_set_map)[control_number] = dups_set;
 }
 
 
-void FindDups(File * const matches_list_output,
-              const std::unordered_map<std::string, std::set<std::string>> &title_to_control_numbers_map,
+void FindDups(File * const matches_list_output, const std::unordered_map<std::string, std::set<std::string>> &title_to_control_numbers_map,
               const std::unordered_map<std::string, std::set<std::string>> &control_number_to_authors_map,
               const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map,
-              std::unordered_map<std::string, std::set<std::string> *> * const control_number_to_dups_set_map)
-{
+              std::unordered_map<std::string, std::set<std::string> *> * const control_number_to_dups_set_map) {
     unsigned doi_match_count(0), non_doi_match_count(0);
     for (const auto &title_and_control_numbers : title_to_control_numbers_map) {
         if (title_and_control_numbers.second.size() < 2
@@ -247,7 +243,7 @@ void FindDups(File * const matches_list_output,
                 (*matches_list_output) << "\r\n";
                 ++non_doi_match_count;
 skip_author:
-                /* Intentionally empty! */;
+    /* Intentionally empty! */;
             }
         }
     }
@@ -257,22 +253,20 @@ skip_author:
 
 
 bool AugmentRecord(MARC::Record * const record, const std::set<std::string> &dups_set,
-                   const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map)
-{
+                   const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map) {
     const auto existing_cross_references(MARC::ExtractCrossReferencePPNs(*record));
 
     bool added_at_least_one_new_cross_link(false);
     for (const auto &cross_link_ppn : dups_set) {
         if (cross_link_ppn != record->getControlNumber()
-            and existing_cross_references.find(cross_link_ppn) == existing_cross_references.cend())
-        {
+            and existing_cross_references.find(cross_link_ppn) == existing_cross_references.cend()) {
             const auto ppn_and_record_info(ppns_to_infos_map.find(cross_link_ppn));
             if (unlikely(ppn_and_record_info == ppns_to_infos_map.cend()))
                 LOG_ERROR("did not find a record info record for PPN \"" + cross_link_ppn + "\"!");
             const bool is_electronic(ppn_and_record_info->second.is_electronic_);
-            record->insertField("776",
-                                { { 'i', "Erscheint auch als" }, { 'n', (is_electronic ? "elektronische Ausgabe" : "Druckausgabe") },
-                                  { 'w', "(DE-627)" + cross_link_ppn } });
+            record->insertField("776", { { 'i', "Erscheint auch als" },
+                                         { 'n', (is_electronic ? "elektronische Ausgabe" : "Druckausgabe") },
+                                         { 'w', "(DE-627)" + cross_link_ppn } });
             added_at_least_one_new_cross_link = true;
         }
     }
@@ -283,8 +277,7 @@ bool AugmentRecord(MARC::Record * const record, const std::set<std::string> &dup
 
 void AddCrossLinks(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
                    const std::unordered_map<std::string, std::set<std::string> *> &control_number_to_dups_set_map,
-                   const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map)
-{
+                   const std::unordered_map<std::string, RecordInfo> &ppns_to_infos_map) {
     unsigned augmentation_count(0);
     while (auto record = marc_reader->read()) {
         const auto control_number_and_dups_set(control_number_to_dups_set_map.find(record.getControlNumber()));

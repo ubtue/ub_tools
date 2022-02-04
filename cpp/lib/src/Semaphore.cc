@@ -26,17 +26,14 @@
 #include "util.h"
 
 
-Semaphore::Semaphore(const std::string &name, const OpenMode open_mode, const int initial_value)
-    : name_(name), open_mode_(open_mode)
-{
+Semaphore::Semaphore(const std::string &name, const OpenMode open_mode, const int initial_value): name_(name), open_mode_(open_mode) {
     if (open_mode == ATTACH)
         semaphore_ = ::sem_open(name.c_str(), O_RDWR);
     else
         semaphore_ = ::sem_open(name.c_str(), O_CREAT, 0600, initial_value);
 
     if (unlikely(semaphore_ == SEM_FAILED))
-        throw std::runtime_error("in Semaphore::Semaphore: sem_open(3) failed! ("
-                                 + std::string(std::strerror(errno)) + ")");
+        throw std::runtime_error("in Semaphore::Semaphore: sem_open(3) failed! (" + std::string(std::strerror(errno)) + ")");
 }
 
 
@@ -52,15 +49,13 @@ Semaphore::~Semaphore() {
 
 void Semaphore::operator++() {
     if (unlikely(::sem_post(semaphore_)))
-        throw std::runtime_error("in Semaphore:::operator++: sem_post(3) failed! ("
-                                 + std::string(std::strerror(errno)) + ")");
+        throw std::runtime_error("in Semaphore:::operator++: sem_post(3) failed! (" + std::string(std::strerror(errno)) + ")");
 }
 
 
 int Semaphore::getValue() const {
     int value;
     if (unlikely(::sem_getvalue(semaphore_, &value) == -1))
-        throw std::runtime_error("in Semaphore::getValue: sem_getvalue(3) failed! ("
-                                 + std::string(std::strerror(errno)) + ")");
+        throw std::runtime_error("in Semaphore::getValue: sem_getvalue(3) failed! (" + std::string(std::strerror(errno)) + ")");
     return value;
 }

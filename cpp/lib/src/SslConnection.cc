@@ -41,8 +41,7 @@ std::list<SslConnection::ContextInfo> SslConnection::context_infos_;
 
 SslConnection::SslConnection(const int fd, const Method method, const ClientServerMode client_server_mode,
                              const ThreadingSupportMode threading_support_mode)
-        : threading_support_mode_(threading_support_mode), ssl_connection_(nullptr), last_ret_val_(0)
-{
+    : threading_support_mode_(threading_support_mode), ssl_connection_(nullptr), last_ret_val_(0) {
     std::unique_ptr<std::lock_guard<std::mutex>> mutex_locker;
     if (threading_support_mode == SUPPORT_MULTITHREADING)
         mutex_locker.reset(new std::lock_guard<std::mutex>(SslConnection::mutex_));
@@ -60,16 +59,16 @@ SslConnection::SslConnection(const int fd, const Method method, const ClientServ
     for (unsigned try_no(0); try_no < NO_OF_TRIES; ++try_no) {
         const int ret_val(::SSL_connect(ssl_connection_));
         if (unlikely(ret_val == 0))
-            throw std::runtime_error("in SslConnection::SslConnection: ::SSL_connect() failed with return "
-                                     "value (0)!");
+            throw std::runtime_error(
+                "in SslConnection::SslConnection: ::SSL_connect() failed with return "
+                "value (0)!");
         if (ret_val == 1) // We succeeded.
             return;
 
         TimeUtil::Millisleep(300);
     }
 
-    throw std::runtime_error("in SslConnection::SslConnection: ::SSL_connect() failed after "
-                             + std::to_string(NO_OF_TRIES) + " tries!");
+    throw std::runtime_error("in SslConnection::SslConnection: ::SSL_connect() failed after " + std::to_string(NO_OF_TRIES) + " tries!");
 }
 
 
@@ -121,9 +120,9 @@ namespace {
 class ContextInfoMatch {
     const SslConnection::Method method_;
     const SslConnection::ClientServerMode client_server_mode_;
+
 public:
-    explicit ContextInfoMatch(const SslConnection::Method method,
-                              const SslConnection::ClientServerMode client_server_mode)
+    explicit ContextInfoMatch(const SslConnection::Method method, const SslConnection::ClientServerMode client_server_mode)
         : method_(method), client_server_mode_(client_server_mode) { }
     bool operator()(const SslConnection::ContextInfo &rhs) const;
 };
@@ -151,9 +150,8 @@ SSL_CTX *SslConnection::InitContext(const Method method, const ClientServerMode 
     }
 
     // First check to see if we already have a context with the correct options:
-    std::list<ContextInfo>::iterator matching_context_info(std::find_if(context_infos_.begin(), context_infos_.end(),
-                                                                        ContextInfoMatch(method,
-                                                                                         client_server_mode)));
+    std::list<ContextInfo>::iterator matching_context_info(
+        std::find_if(context_infos_.begin(), context_infos_.end(), ContextInfoMatch(method, client_server_mode)));
     if (matching_context_info != context_infos_.end()) {
         ++matching_context_info->usage_count_;
         return matching_context_info->ssl_context_;
@@ -184,6 +182,7 @@ namespace {
 
 class ContextMatch {
     const SSL_CTX * const ssl_context_to_match_;
+
 public:
     explicit ContextMatch(const SSL_CTX * const ssl_context_to_match): ssl_context_to_match_(ssl_context_to_match) { }
     bool operator()(const SslConnection::ContextInfo &rhs) const { return rhs.ssl_context_ == ssl_context_to_match_; }
@@ -213,17 +212,15 @@ typedef SSL_METHOD *(*SslMethod)(void);
 // Tries to load "preferred_function", if that fails, tries to load "fallback_function".  If we can load neither
 // we return abort.
 SslMethod LoadSslMethodFunction(DynamicLoader * const dynamic_loader, const std::string &preferred_function,
-                                const std::string &fallback_function)
-{
+                                const std::string &fallback_function) {
     SslMethod ssl_method_function = (SslMethod)(dynamic_loader->loadSymbol(preferred_function));
     if (ssl_method_function == nullptr)
         ssl_method_function = (SslMethod)dynamic_loader->loadSymbol(fallback_function);
     if (ssl_method_function != nullptr)
         return ssl_method_function;
-    throw std::runtime_error("in SslConnection::LoadSslMethodFunction: can't load " + preferred_function + " nor "
-                             + fallback_function + " from libssl.so!");
+    throw std::runtime_error("in SslConnection::LoadSslMethodFunction: can't load " + preferred_function + " nor " + fallback_function
+                             + " from libssl.so!");
 }
-
 
 
 SSL_CTX *SslConnection::InitClient(const Method method) {

@@ -33,6 +33,7 @@
  */
 class FileDescriptor {
     int fd_;
+
 public:
     FileDescriptor(): fd_(-1) { }
     explicit FileDescriptor(const int fd): fd_(fd) { }
@@ -40,7 +41,7 @@ public:
     /** Creates a duplicate file descriptor using dup(2). */
     FileDescriptor(const FileDescriptor &rhs);
 
-    ~FileDescriptor() { close();}
+    ~FileDescriptor() { close(); }
 
     void close();
 

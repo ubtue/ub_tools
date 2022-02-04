@@ -38,9 +38,10 @@ struct MainHandler {
     HandlerType type_;
     unsigned priority_;
     std::function<void()> handler_;
+
 public:
     MainHandler(const HandlerType type, const unsigned priority, const std::function<void()> &handler)
-        : type_(type), priority_(priority), handler_(handler) {}
+        : type_(type), priority_(priority), handler_(handler) { }
 };
 
 
@@ -49,7 +50,7 @@ bool MainHandlerComparator(const MainHandler &a, const MainHandler &b) {
 }
 
 
-std::vector<MainHandler> * GetHandlers(const MainHandler::HandlerType type) {
+std::vector<MainHandler> *GetHandlers(const MainHandler::HandlerType type) {
     static std::vector<MainHandler> prologue_handlers;
     static std::vector<MainHandler> epilogue_handlers;
 

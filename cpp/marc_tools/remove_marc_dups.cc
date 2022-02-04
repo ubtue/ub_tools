@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <stdexcept>
 #include <cstdio>
@@ -36,8 +36,8 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
     while (const MARC::Record record = marc_reader->read()) {
         ++record_count;
         const auto guessed_control_numbers(control_number_guesser.getGuessedControlNumbers(
-            record.getCompleteTitle(), record.getAllAuthors(), record.getMostRecentPublicationYear(), record.getDOIs(),
-            record.getISSNs(), record.getISBNs()));
+            record.getCompleteTitle(), record.getAllAuthors(), record.getMostRecentPublicationYear(), record.getDOIs(), record.getISSNs(),
+            record.getISBNs()));
         if (guessed_control_numbers.empty())
             marc_writer->write(record);
         else

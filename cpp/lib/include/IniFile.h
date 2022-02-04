@@ -31,9 +31,9 @@
 
 #include <algorithm>
 #include <map>
-#include <unordered_map>
 #include <stack>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include <cassert>
 
@@ -57,21 +57,24 @@ class IniFile {
 public:
     struct Entry {
         std::string name_, value_, comment_;
+
     public:
         Entry(const std::string &name, const std::string &value, const std::string &comment)
             : name_(name), value_(value), comment_(comment) { }
-        inline bool empty() const
-            { return name_.empty() and value_.empty() and comment_.empty(); }
+        inline bool empty() const { return name_.empty() and value_.empty() and comment_.empty(); }
     };
+
 public:
     class Section {
         friend class IniFile;
         std::string section_name_;
         std::vector<Entry> entries_;
+
     public:
         enum DupeInsertionBehaviour { OVERWRITE_EXISTING_VALUE, ABORT_ON_DUPLICATE_NAME };
         typedef std::vector<Entry>::const_iterator const_iterator;
         typedef std::vector<Entry>::iterator iterator;
+
     public:
         explicit Section(const std::string &section_name): section_name_(section_name) { }
         Section() = default;
@@ -222,8 +225,7 @@ public:
          *           static_cast to convert the int-encoded enum to a variable of the approriate enumumerated
          *           type.  Any unknown value results in an exception being thrown.
          */
-        int getEnum(const std::string &variable_name, const std::map<std::string, int> &string_to_value_map,
-                    const int default_value) const;
+        int getEnum(const std::string &variable_name, const std::map<std::string, int> &string_to_value_map, const int default_value) const;
 
         std::vector<std::string> getEntryNames() const;
 
@@ -231,27 +233,30 @@ public:
 
         // \return An iterator referencing the found entry or end() if no matching enmtry was found.
         inline const_iterator find(const std::string &variable_name) const {
-            return std::find_if(entries_.cbegin(), entries_.cend(), [&variable_name](const Entry &entry)
-                             { return entry.name_ == variable_name; });
+            return std::find_if(entries_.cbegin(), entries_.cend(),
+                                [&variable_name](const Entry &entry) { return entry.name_ == variable_name; });
         }
 
         // \return An iterator referencing the found entry or end() if no matching enmtry was found.
         inline iterator find(const std::string &variable_name) {
-            return std::find_if(entries_.begin(), entries_.end(), [&variable_name](const Entry &entry)
-                             { return entry.name_ == variable_name; });
+            return std::find_if(entries_.begin(), entries_.end(),
+                                [&variable_name](const Entry &entry) { return entry.name_ == variable_name; });
         }
 
         inline bool hasEntry(const std::string &variable_name) const { return find(variable_name) != end(); }
 
         bool deleteEntry(const std::string &entry_name);
         const std::string &getComment(const std::string &entry_name) const;
+
     private:
         void write(File * const output, const bool pretty_print, const bool compact) const;
     };
+
 public:
     typedef std::vector<Section> Sections;
     typedef Sections::iterator iterator;
     typedef Sections::const_iterator const_iterator;
+
 protected:
     Sections sections_;
     std::string ini_file_name_;
@@ -260,12 +265,14 @@ protected:
     struct IncludeFileInfo {
         std::string filename_;
         unsigned current_lineno_;
+
     public:
         explicit IncludeFileInfo(const std::string &filename): filename_(filename), current_lineno_(0) { }
     };
     std::stack<IncludeFileInfo> include_file_infos_;
 
     bool ignore_failed_includes_;
+
 public:
     /** \brief  Construct an IniFile based on the named file.
      *  \param  ini_file_name           The name of the .ini file. (We first look for the basename of this in a subdirectory whose
@@ -273,8 +280,7 @@ public:
      *  \param  ignore_failed_includes  If "true", don't throw an exception if an "include" directive can't be honoured.
      *  \param  create_empty            Creates an empty INI file if none is found.
      */
-    explicit IniFile(const std::string &ini_file_name, const bool ignore_failed_includes = false,
-                     const bool create_empty = false);
+    explicit IniFile(const std::string &ini_file_name, const bool ignore_failed_includes = false, const bool create_empty = false);
 
     /**  \brief  Construct an IniFile based on the program's configuration file.
      *
@@ -301,7 +307,10 @@ public:
         assign(new_ini_file);
     }
 
-    const IniFile &operator=(const IniFile &rhs) { assign(rhs); return *this; }
+    const IniFile &operator=(const IniFile &rhs) {
+        assign(rhs);
+        return *this;
+    }
 
     /** \brief   Get the name of the file used to construct the object.
      *  \return  The file name.
@@ -342,8 +351,7 @@ public:
      *  \return  The value of the string in the specified section.
      *  \throws  A std::runtime_error if the value was found but cannot be converted to a double.
      */
-    double getDouble(const std::string &section_name, const std::string &variable_name,
-                     const double &default_value) const;
+    double getDouble(const std::string &section_name, const std::string &variable_name, const double &default_value) const;
 
     /** \brief   Retrieves a string value from a configuration file.
      *  \param   section_name   The name of the section to search.
@@ -361,8 +369,7 @@ public:
      *  \return  The value of the specified variable in the specified section, or "default_value" if it is not
      *           defined.
      */
-    std::string getString(const std::string &section_name, const std::string &variable_name,
-                          const std::string &default_value) const;
+    std::string getString(const std::string &section_name, const std::string &variable_name, const std::string &default_value) const;
 
     /** \brief   Retrieves a single character value from a configuration file.
      *  \param   section_name   The name of the section to search.
@@ -396,8 +403,7 @@ public:
      *  \return  The value of the specified variable in the specified section, or "default_value" if it is not
      *           defined.
      */
-    unsigned getUnsigned(const std::string &section_name, const std::string &variable_name,
-                         const unsigned &default_value) const;
+    unsigned getUnsigned(const std::string &section_name, const std::string &variable_name, const unsigned &default_value) const;
 
     /** \brief   Retrieves a uint64_t value from a configuration file.
      *  \param   section_name   The name of the section to search.
@@ -414,8 +420,7 @@ public:
      *  \return  The value of the specified variable in the specified section, or "default_value" if it is not
      *           defined.
      */
-    uint64_t getUint64T(const std::string &section_name, const std::string &variable_name,
-                        const uint64_t &default_value) const;
+    uint64_t getUint64T(const std::string &section_name, const std::string &variable_name, const uint64_t &default_value) const;
 
     /** \brief   Retrieves a boolean value from a configuration file.
      *  \param   section_name   The name of the configuration file section to search for the entry.
@@ -438,9 +443,7 @@ public:
      *           values for the variable are case insensitive and can be any of "true", "yes", "on" "false", "no" or
      *           "off".  Any unknown value results in an exception being thrown.
      */
-    bool getBool(const std::string &section_name, const std::string &variable_name,
-                 const bool default_value) const;
-
+    bool getBool(const std::string &section_name, const std::string &variable_name, const bool default_value) const;
 
 
     /** \brief   Retrieves an enum value from a configuration file.
@@ -470,8 +473,8 @@ public:
      *           static_cast to convert the int-encoded enum to a variable of the approriate enumumerated
      *           type.  Any unknown value results in an exception being thrown.
      */
-    int getEnum(const std::string &section_name, const std::string &variable_name,
-                const std::map<std::string, int> &string_to_value_map, const int default_value) const;
+    int getEnum(const std::string &section_name, const std::string &variable_name, const std::map<std::string, int> &string_to_value_map,
+                const int default_value) const;
 
     std::vector<std::string> getSections() const;
     std::vector<std::string> getSectionEntryNames(const std::string &section_name) const;
@@ -497,8 +500,7 @@ public:
      *                    you must call them something like entry1, entry2, entry_last and
      *                    then use this function like this: getSectionEntryNamesThatStartWith("init", "entry");
      */
-    std::vector<std::string> getSectionEntryNamesThatStartWith(const std::string &section_name,
-                                                               const std::string &starting_with) const;
+    std::vector<std::string> getSectionEntryNamesThatStartWith(const std::string &section_name, const std::string &starting_with) const;
 
     /** \brief  Generates a map from a sections' entries to it's values.
      *  \param  section_name  The name of the section whose map will be returned.
@@ -512,9 +514,7 @@ public:
      *  \param  section_name  The name of the section whose map will be returned.
      *  \return An iterator referencing the foloung section or end() if it doesn't exist.
      */
-    inline iterator getSection(const std::string &section_name) {
-        return std::find(sections_.begin(), sections_.end(), section_name);
-    }
+    inline iterator getSection(const std::string &section_name) { return std::find(sections_.begin(), sections_.end(), section_name); }
 
     bool deleteSection(const std::string &section_name);
 
@@ -535,6 +535,7 @@ public:
 
     /** \brief  Generate an ini file name based upon the program name, i.e, /usr/local/var/lib/tuelib/programname.conf */
     static std::string DefaultIniFileName();
+
 private:
     inline unsigned &getCurrentLineNo() {
         assert(not include_file_infos_.empty());
@@ -554,5 +555,6 @@ private:
 };
 
 
-inline bool operator==(const std::string &section_name, const IniFile::Section &section)
-    { return section_name == section.getSectionName(); }
+inline bool operator==(const std::string &section_name, const IniFile::Section &section) {
+    return section_name == section.getSectionName();
+}

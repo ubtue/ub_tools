@@ -33,8 +33,9 @@
 namespace {
 
 static const std::vector<std::string> TIME_ASPECT_GND_LINKING_TAGS{ "689" };
-static const std::vector<std::string> KEYWORD_PREFIXES{ "Geschichte ", "Geistesgeschichte ", "Ideengeschichte ", "Kirchengeschichte ",
-                                                         "Sozialgeschichte ", "Vor- und Frühgeschichte ", "Weltgeschichte ", "Prognose " };
+static const std::vector<std::string> KEYWORD_PREFIXES{ "Geschichte ",        "Geistesgeschichte ", "Ideengeschichte ",
+                                                        "Kirchengeschichte ", "Sozialgeschichte ",  "Vor- und Frühgeschichte ",
+                                                        "Weltgeschichte ",    "Prognose " };
 
 
 inline std::vector<std::string>::const_iterator FindFirstPrefixMatch(const std::string &s, const std::vector<std::string> &prefixes) {
@@ -47,10 +48,8 @@ inline std::vector<std::string>::const_iterator FindFirstPrefixMatch(const std::
 }
 
 
-void LoadAuthorityData(MARC::Reader * const reader,
-                       std::unordered_map<std::string, std::string> * const authority_ppns_to_time_codes_map,
-                       std::unordered_map<std::string, std::string> * const authority_ppns_to_time_categories_map)
-{
+void LoadAuthorityData(MARC::Reader * const reader, std::unordered_map<std::string, std::string> * const authority_ppns_to_time_codes_map,
+                       std::unordered_map<std::string, std::string> * const authority_ppns_to_time_categories_map) {
     unsigned total_count(0);
     while (auto record = reader->read()) {
         ++total_count;
@@ -73,8 +72,8 @@ void LoadAuthorityData(MARC::Reader * const reader,
                     }
                     break;
                 } else
-                    LOG_WARNING("can't convert \"" + free_form_range_candidate + "\" to a time range! (PPN: "
-                                + record.getControlNumber() + ")");
+                    LOG_WARNING("can't convert \"" + free_form_range_candidate + "\" to a time range! (PPN: " + record.getControlNumber()
+                                + ")");
             }
             _548_field++;
         }
@@ -103,9 +102,7 @@ void LoadAuthorityData(MARC::Reader * const reader,
 }
 
 
-void CollectAuthorityPPNs(const MARC::Record &record, const MARC::Tag &linking_field,
-                          std::vector<std::string> * const authority_ppns)
-{
+void CollectAuthorityPPNs(const MARC::Record &record, const MARC::Tag &linking_field, std::vector<std::string> * const authority_ppns) {
     for (const auto &field : record.getTagRange(linking_field)) {
         const MARC::Subfields subfields(field.getSubfields());
         for (const auto &subfield : subfields) {
@@ -118,8 +115,7 @@ void CollectAuthorityPPNs(const MARC::Record &record, const MARC::Tag &linking_f
 
 void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
                     const std::unordered_map<std::string, std::string> &authority_ppns_to_time_codes_map,
-                    const std::unordered_map<std::string, std::string> &authority_ppns_to_time_categories_map)
-{
+                    const std::unordered_map<std::string, std::string> &authority_ppns_to_time_categories_map) {
     unsigned total_count(0), augmented_count(0);
     while (auto record = reader->read()) {
         ++total_count;
@@ -160,7 +156,8 @@ void ProcessRecords(MARC::Reader * const reader, MARC::Writer * const writer,
 
 augment_record:
         if (not range.empty()) {
-            record.insertField("TIM", { { 'a', range }, {'b', category.length() == 0 ? RangeUtil::ConvertTimeRangeToText(range) : category} });
+            record.insertField("TIM",
+                               { { 'a', range }, { 'b', category.length() == 0 ? RangeUtil::ConvertTimeRangeToText(range) : category } });
             ++augmented_count;
         }
 

@@ -56,9 +56,8 @@ bool IsValidGerman3Or4LetterCode(const std::string &german_3letter_code_candidat
  *  \note After a successful call, "token_to_line_no_and_other_map" will contain a mapping from a token or English
  *        original to a pair where "first" contains the line number in the INI file and second the translated text.
  */
-void ReadIniFile(
-    const std::string &ini_filename,
-    std::unordered_map<std::string, std::pair<unsigned, std::string>> * const token_to_line_no_and_other_map);
+void ReadIniFile(const std::string &ini_filename,
+                 std::unordered_map<std::string, std::pair<unsigned, std::string>> * const token_to_line_no_and_other_map);
 
 
 /** Maps the codes some German librarians use to "fake" English 3-letter codes. If we don't know the mapping

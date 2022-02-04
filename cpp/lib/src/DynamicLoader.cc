@@ -25,8 +25,7 @@
 DynamicLoader::DynamicLoader(const std::string &library) {
     handle_ = ::dlopen(library.empty() ? nullptr : library.c_str(), RTLD_LAZY | RTLD_GLOBAL);
     if (handle_ == nullptr)
-        throw std::runtime_error("in DynamicLoader::DynamicLoader: dlopen(3) failed: "
-                                 + std::string(::dlerror()));
+        throw std::runtime_error("in DynamicLoader::DynamicLoader: dlopen(3) failed: " + std::string(::dlerror()));
 }
 
 

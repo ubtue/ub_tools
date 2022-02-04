@@ -37,8 +37,7 @@
 
 
 File::File(const std::string &filename, const std::string &mode, const ThrowOnOpenBehaviour throw_on_error_behaviour)
-    : filename_(filename), buffer_ptr_(buffer_), read_count_(0), file_(nullptr), pushed_back_count_(0), precision_(6)
-{
+    : filename_(filename), buffer_ptr_(buffer_), read_count_(0), file_(nullptr), pushed_back_count_(0), precision_(6) {
     if (mode == "w")
         open_mode_ = WRITING;
     else if (mode == "a")
@@ -58,15 +57,12 @@ File::File(const std::string &filename, const std::string &mode, const ThrowOnOp
         if (throw_on_error_behaviour == THROW_ON_ERROR)
             throw std::runtime_error("in File::File: could not open \"" + filename + "\" w/ mode \"" + mode + "\"!");
     }
-
-
 }
 
 
 File::File(const int fd, const std::string &mode)
-    : filename_(FileUtil::GetPathFromFileDescriptor(fd)), buffer_ptr_(buffer_), read_count_(0), file_(nullptr),
-      pushed_back_count_(0), precision_(6)
-{
+    : filename_(FileUtil::GetPathFromFileDescriptor(fd)), buffer_ptr_(buffer_), read_count_(0), file_(nullptr), pushed_back_count_(0),
+      precision_(6) {
     std::string local_mode;
     if (mode.empty()) {
         // Determine the mode from "fd":
@@ -99,8 +95,8 @@ File::File(const int fd, const std::string &mode)
 
     file_ = ::fdopen(fd, local_mode.c_str());
     if (unlikely(file_ == nullptr))
-        throw std::runtime_error("in File::File: fdopen(3) on \"" + std::to_string(fd) + "\" with mode \""
-                                 + mode + "\" failed (" + std::string(::strerror(errno)) + ") (3)!");
+        throw std::runtime_error("in File::File: fdopen(3) on \"" + std::to_string(fd) + "\" with mode \"" + mode + "\" failed ("
+                                 + std::string(::strerror(errno)) + ") (3)!");
 }
 
 
@@ -126,13 +122,11 @@ void File::fillBuffer() {
 
 off_t File::size() const {
     if (unlikely(file_ == nullptr))
-        throw std::runtime_error("in File::size: can't obtain the size of non-open File \"" + filename_
-                                 + "\"!");
+        throw std::runtime_error("in File::size: can't obtain the size of non-open File \"" + filename_ + "\"!");
 
     struct stat stat_buf;
     if (unlikely(::fstat(fileno(file_), &stat_buf) == -1))
-        throw std::runtime_error("in File::size: fstat(2) failed on \"" + filename_ + "\" ("
-                                 + std::string(::strerror(errno)) + ")!");
+        throw std::runtime_error("in File::size: fstat(2) failed on \"" + filename_ + "\" (" + std::string(::strerror(errno)) + ")!");
 
     return stat_buf.st_size;
 }
@@ -147,8 +141,8 @@ bool File::seek(const off_t offset, const int whence) {
         return false;
 
     pushed_back_count_ = 0;
-    read_count_        = 0;
-    buffer_ptr_        = buffer_;
+    read_count_ = 0;
+    buffer_ptr_ = buffer_;
 
     return true;
 }
@@ -200,7 +194,6 @@ std::string File::getLineAny() {
 
         line += static_cast<char>(ch);
     }
-
 }
 
 

@@ -37,11 +37,9 @@ MBox::Message &MBox::Message::swap(Message &other_message) {
 
 
 std::string MBox::Message::headerToString() const {
-    return "reception_time: " + TimeUtil::TimeTToString(reception_time_) + "\n"
-           + "original_host:  " + original_host_ + "\n"
-           + "sender:         " + sender_ + "\n"
-           + "subject:        " + subject_ + "\n"
-           + "priority:       " + std::to_string(priority_) + "\n\n";
+    return "reception_time: " + TimeUtil::TimeTToString(reception_time_) + "\n" + "original_host:  " + original_host_ + "\n"
+           + "sender:         " + sender_ + "\n" + "subject:        " + subject_ + "\n" + "priority:       " + std::to_string(priority_)
+           + "\n\n";
 }
 
 
@@ -110,9 +108,7 @@ static bool ParseFrom(const std::string &from_line_candidate, time_t * const rec
 }
 
 
-static bool ParseRFC822Header(const std::string &line, std::string * const field_name,
-                              std::string * const field_body)
-{
+static bool ParseRFC822Header(const std::string &line, std::string * const field_name, std::string * const field_body) {
     const auto first_colon_pos(line.find(':'));
     if (first_colon_pos == std::string::npos or first_colon_pos == 0)
         return false;
@@ -184,8 +180,7 @@ MBox::Message MBox::getNextMessage() const {
     unsigned priority(0);
     for (;;) {
         if (unlikely(input_->eof()))
-            LOG_ERROR("unexpected EOF while looking for the end of the message headers in \""
-                      + input_->getPath() + "\"!");
+            LOG_ERROR("unexpected EOF while looking for the end of the message headers in \"" + input_->getPath() + "\"!");
 
         line = getNextLogicalHeaderLine();
         if (line.empty())
@@ -209,16 +204,15 @@ MBox::Message MBox::getNextMessage() const {
         } else if (field_name == "content-type" and likely(not field_body.empty())) {
             std::string multipart_type;
             if (StringUtil::StartsWith(field_body, "multipart/alternative; boundary=\""))
-                multipart_type="multipart/alternative";
+                multipart_type = "multipart/alternative";
             else if (StringUtil::StartsWith(field_body, "multipart/mixed; boundary=\""))
-                multipart_type ="multipart/mixed";
+                multipart_type = "multipart/mixed";
             if (not multipart_type.empty()) {
                 if (unlikely(field_body.back() != '"'))
                     LOG_ERROR("weird field body!");
-                message_boundary =
-                    field_body.substr(__builtin_strlen((multipart_type + "; boundary=\"").c_str()),
-                                      field_body.length() - __builtin_strlen((multipart_type + "; boundary=\"").c_str())
-                                      - 1/* for the closing double quote */);
+                message_boundary = field_body.substr(__builtin_strlen((multipart_type + "; boundary=\"").c_str()),
+                                                     field_body.length() - __builtin_strlen((multipart_type + "; boundary=\"").c_str())
+                                                         - 1 /* for the closing double quote */);
             }
         }
     }
@@ -248,24 +242,20 @@ MBox::Message MBox::getNextMessage() const {
         if (unlikely(StringUtil::Split(message_body, '\n', &lines) == 0))
             LOG_ERROR("unexpected empty body of multipart messages!");
 
-        //skip an empty last line that occurs in the last message
+        // skip an empty last line that occurs in the last message
         if (lines.back().empty())
             lines.pop_back();
 
         const std::string boundary_start("--" + message_boundary), boundary_end(boundary_start + "--");
         if (lines.front() != boundary_start)
-            LOG_ERROR("expected multipart message body to start with \"" + boundary_start
-                      + "\" but found \"" + lines.front() + "\"!");
+            LOG_ERROR("expected multipart message body to start with \"" + boundary_start + "\" but found \"" + lines.front() + "\"!");
         if (lines.back() != boundary_end)
-            LOG_ERROR("expected multipart message body to end with \"" + boundary_end
-                      + "\" but found \"" + lines.back() + "\"!");
+            LOG_ERROR("expected multipart message body to end with \"" + boundary_end + "\" but found \"" + lines.back() + "\"!");
 
         std::vector<std::pair<std::string, std::string>> part_headers;
         std::string part_body;
         bool in_header_section(true);
-        for (auto body_line(lines.cbegin() + 1/* skip over start of first boundary */);
-             body_line != lines.cend(); ++body_line)
-        {
+        for (auto body_line(lines.cbegin() + 1 /* skip over start of first boundary */); body_line != lines.cend(); ++body_line) {
             if (*body_line == boundary_start or *body_line == boundary_end) {
                 body_parts.emplace_back(part_headers, part_body);
                 part_headers.clear(), part_body.clear();

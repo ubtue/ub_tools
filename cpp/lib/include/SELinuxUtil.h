@@ -20,10 +20,10 @@
 #pragma once
 
 
-#include <cctype>
-#include <cinttypes>
 #include <string>
 #include <vector>
+#include <cctype>
+#include <cinttypes>
 #include <FileUtil.h>
 
 
@@ -60,7 +60,7 @@ namespace Boolean {
 
 
 /** \brief  Set SELinux boolean value (uses "setsebool" command) */
-void Set(const std::string &name, const bool value, const bool permanent=true);
+void Set(const std::string &name, const bool value, const bool permanent = true);
 
 
 } // namespace Boolean

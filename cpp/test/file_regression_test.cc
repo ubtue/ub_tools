@@ -17,8 +17,8 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <cstdlib>
 #include "File.h"
 #include "RegressionTest.h"
@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
     // Redirect std::clog to write to logfile:
     auto old_clog_rdbuf(std::clog.rdbuf()); // We need to reset clog's buffer back to the original before exiting!
     std::clog.rdbuf(logfile.rdbuf());
-    
+
     try {
         File file("/tmp/file_regression_test.file", "r+", File::THROW_ON_ERROR);
         RegressionTest::Assert("make sure our file is open", "file", !!file);

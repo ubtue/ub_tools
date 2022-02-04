@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 
 
@@ -49,10 +49,10 @@ namespace Download {
 
 // Temporarily reduced in order to see if this results in fewer errors
 static constexpr unsigned MAX_DIRECT_DOWNLOAD_TASKLETS = 5;
-static constexpr unsigned MAX_CRAWLING_TASKLETS        = 5;
-static constexpr unsigned MAX_RSS_TASKLETS             = 5;
-static constexpr unsigned MAX_APIQUERY_TASKLETS        = 1;
-static constexpr unsigned MAX_EMAILCRAWL_TASKLETS      = 5;
+static constexpr unsigned MAX_CRAWLING_TASKLETS = 5;
+static constexpr unsigned MAX_RSS_TASKLETS = 5;
+static constexpr unsigned MAX_APIQUERY_TASKLETS = 1;
+static constexpr unsigned MAX_EMAILCRAWL_TASKLETS = 5;
 // Set to 20 empirically. Larger numbers increase the incidence of the
 // translation server bug that returns an empty/broken response.
 static constexpr unsigned MAX_CONCURRENT_TRANSLATION_SERVER_REQUESTS = 15;
@@ -77,19 +77,19 @@ struct Params {
     bool ignore_robots_dot_txt_;
     unsigned time_limit_;
     Operation operation_;
+
 public:
-    explicit Params(const Util::HarvestableItem &download_item, const std::string &translation_server_url,
-                    const std::string user_agent, const bool ignore_robots_dot_txt, const unsigned time_limit,
-                    const Operation operation)
+    explicit Params(const Util::HarvestableItem &download_item, const std::string &translation_server_url, const std::string user_agent,
+                    const bool ignore_robots_dot_txt, const unsigned time_limit, const Operation operation)
         : download_item_(download_item), translation_server_url_(translation_server_url), user_agent_(user_agent),
-          ignore_robots_dot_txt_(ignore_robots_dot_txt), time_limit_(time_limit), operation_(operation) {}
+          ignore_robots_dot_txt_(ignore_robots_dot_txt), time_limit_(time_limit), operation_(operation) { }
 };
 
 
 struct Result {
     enum Flags {
-        ITEM_ALREADY_DELIVERED  = 1 << 1,
-        FROM_CACHE              = 1 << 2,
+        ITEM_ALREADY_DELIVERED = 1 << 1,
+        FROM_CACHE = 1 << 2,
     };
 
 
@@ -103,7 +103,7 @@ struct Result {
     unsigned items_skipped_since_already_delivered_; // Trace multiple results from ZTS
 public:
     explicit Result(const Util::HarvestableItem &source, const Operation operation)
-        : source_(source), operation_(operation), response_code_(0), flags_(0) {}
+        : source_(source), operation_(operation), response_code_(0), flags_(0) { }
     Result(const Result &rhs) = default;
 
     inline bool downloadSuccessful() const { return response_code_ == 200 and error_message_.empty(); }
@@ -116,9 +116,10 @@ class Tasklet : public Util::Tasklet<Params, Result> {
     DownloadManager * const download_manager_;
 
     void run(const Params &parameters, Result * const result);
+
 public:
-    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
-            DownloadManager * const download_manager, std::unique_ptr<Params> parameters);
+    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
+            std::unique_ptr<Params> parameters);
     virtual ~Tasklet() override = default;
 };
 
@@ -140,13 +141,14 @@ struct Params {
     unsigned total_crawl_time_limit_;
     bool ignore_robots_dot_txt_;
     Util::HarvestableItemManager * const harvestable_manager_;
+
 public:
     explicit Params(const Util::HarvestableItem &download_item, const std::string user_agent, const unsigned per_crawl_url_time_limit,
                     const unsigned total_crawl_time_limit, const bool ignore_robots_dot_txt,
                     Util::HarvestableItemManager * const harvestable_manager)
         : download_item_(download_item), user_agent_(user_agent), per_crawl_url_time_limit_(per_crawl_url_time_limit),
           total_crawl_time_limit_(total_crawl_time_limit), ignore_robots_dot_txt_(ignore_robots_dot_txt),
-          harvestable_manager_(harvestable_manager) {}
+          harvestable_manager_(harvestable_manager) { }
 };
 
 
@@ -157,10 +159,11 @@ struct Result {
     unsigned num_queued_for_harvest_;
     unsigned num_skipped_since_already_delivered_;
     std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
+
 public:
     explicit Result()
-        : num_crawled_successful_(0), num_crawled_unsuccessful_(0), num_crawled_cache_hits_(0),
-          num_queued_for_harvest_(0), num_skipped_since_already_delivered_(0) {}
+        : num_crawled_successful_(0), num_crawled_unsuccessful_(0), num_crawled_cache_hits_(0), num_queued_for_harvest_(0),
+          num_skipped_since_already_delivered_(0) { }
     Result(const Result &rhs) = delete;
 };
 
@@ -171,10 +174,10 @@ class Tasklet : public Util::Tasklet<Params, Result> {
     bool force_downloads_;
 
     void run(const Params &parameters, Result * const result);
+
 public:
-    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
-            DownloadManager * const download_manager, const Util::UploadTracker &upload_tracker,
-            std::unique_ptr<Params> parameters, const bool force_downloads);
+    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
+            const Util::UploadTracker &upload_tracker, std::unique_ptr<Params> parameters, const bool force_downloads);
     virtual ~Tasklet() override = default;
 };
 
@@ -193,6 +196,7 @@ class Crawler {
     DownloadManager * const download_manager_;
 
     bool continueCrawling();
+
 public:
     // Stores the details of the last page that was crawled.
     struct CrawlResult {
@@ -206,9 +210,11 @@ public:
         // All URLs are marked for crawling by default.
         std::vector<std::pair<std::string, OutgoingUrlFlag>> outgoing_urls_;
     };
+
 public:
     explicit Crawler(const Params &parameters, DownloadManager * const download_manager,
                      const std::string &url_ignore_matcher_pattern = "(?i)\\.(js|css|bmp|pdf|jpg|gif|png|tif|tiff)(\\?[^?]*)?$");
+
 public:
     // Attempts to download the next queued page and extracts outgoing URLs in it.
     // If successful, returns true and 'crawl_result' will updated with the page's outgoing URLs.
@@ -217,14 +223,10 @@ public:
     // function call.
     bool getNextPage(CrawlResult * const crawl_result);
 
-    inline bool timeoutExceeded() const
-        { return total_crawl_time_limit_.limitExceeded(); }
-    inline unsigned numUrlsSuccessfullyCrawled() const
-        { return num_crawled_successful_; }
-    inline unsigned numUrlsUnsuccessfullyCrawled() const
-        { return num_crawled_unsuccessful_; }
-    inline unsigned numCacheHitsForCrawls() const
-        { return num_crawled_cache_hits_; }
+    inline bool timeoutExceeded() const { return total_crawl_time_limit_.limitExceeded(); }
+    inline unsigned numUrlsSuccessfullyCrawled() const { return num_crawled_successful_; }
+    inline unsigned numUrlsUnsuccessfullyCrawled() const { return num_crawled_unsuccessful_; }
+    inline unsigned numCacheHitsForCrawls() const { return num_crawled_cache_hits_; }
 };
 
 
@@ -242,19 +244,21 @@ struct Params {
     std::string user_agent_;
     std::string feed_contents_;
     Util::HarvestableItemManager * const harvestable_manager_;
+
 public:
     explicit Params(const Util::HarvestableItem &download_item, const std::string user_agent, const std::string &feed_contents,
                     Util::HarvestableItemManager * const harvestable_manager)
-        : download_item_(download_item), user_agent_(user_agent), feed_contents_(feed_contents),
-          harvestable_manager_(harvestable_manager) {}
+        : download_item_(download_item), user_agent_(user_agent), feed_contents_(feed_contents), harvestable_manager_(harvestable_manager) {
+    }
 };
 
 
 struct Result {
     unsigned items_skipped_since_already_delivered_;
     std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
+
 public:
-    explicit Result(): items_skipped_since_already_delivered_(0) {}
+    explicit Result(): items_skipped_since_already_delivered_(0) { }
     Result(const Result &rhs) = delete;
 };
 
@@ -265,6 +269,7 @@ class Tasklet : public Util::Tasklet<Params, Result> {
     bool force_downloads_;
 
     void run(const Params &parameters, Result * const result);
+
 public:
     Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
             std::unique_ptr<Params> parameters, const Util::UploadTracker &upload_tracker, const bool force_downloads);
@@ -284,14 +289,16 @@ struct Params {
     bool ignore_robots_dot_txt_;
     unsigned time_limit_;
     DirectDownload::Operation operation_;
+
 public:
-    explicit Params(const Util::HarvestableItem &download_item, const std::string &translation_server_url,
-                    const std::string user_agent, const bool ignore_robots_dot_txt, const unsigned time_limit,
-                    const DirectDownload::Operation operation)
+    explicit Params(const Util::HarvestableItem &download_item, const std::string &translation_server_url, const std::string user_agent,
+                    const bool ignore_robots_dot_txt, const unsigned time_limit, const DirectDownload::Operation operation)
         : download_item_(download_item), translation_server_url_(translation_server_url), user_agent_(user_agent),
-          ignore_robots_dot_txt_(ignore_robots_dot_txt), time_limit_(time_limit), operation_(operation) {}
-    operator DirectDownload::Params() const { return DirectDownload::Params(download_item_, translation_server_url_, user_agent_,
-                                                                           ignore_robots_dot_txt_, time_limit_, operation_); }
+          ignore_robots_dot_txt_(ignore_robots_dot_txt), time_limit_(time_limit), operation_(operation) { }
+    operator DirectDownload::Params() const {
+        return DirectDownload::Params(download_item_, translation_server_url_, user_agent_, ignore_robots_dot_txt_, time_limit_,
+                                      operation_);
+    }
 };
 
 
@@ -300,10 +307,11 @@ class Tasklet : public Util::Tasklet<DirectDownload::Params, DirectDownload::Res
     const Util::UploadTracker &upload_tracker_;
     bool force_downloads_;
     void run(const DirectDownload::Params &parameters, DirectDownload::Result * const result);
+
 public:
-    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
-            DownloadManager * const download_manager, const Util::UploadTracker &upload_tracker,
-            const std::unique_ptr<DirectDownload::Params> parameters, const bool force_downloads);
+    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
+            const Util::UploadTracker &upload_tracker, const std::unique_ptr<DirectDownload::Params> parameters,
+            const bool force_downloads);
     virtual ~Tasklet() override = default;
 };
 
@@ -321,13 +329,14 @@ struct Params {
     bool ignore_robots_dot_txt_;
     Util::HarvestableItemManager * const harvestable_manager_;
     std::vector<std::string> emailcrawl_mboxes_;
+
 public:
     explicit Params(const Util::HarvestableItem &download_item, const std::string user_agent, const unsigned per_crawl_url_time_limit,
                     const unsigned total_crawl_time_limit, const bool ignore_robots_dot_txt,
                     Util::HarvestableItemManager * const harvestable_manager, std::vector<std::string> emailcrawl_mboxes)
         : download_item_(download_item), user_agent_(user_agent), per_crawl_url_time_limit_(per_crawl_url_time_limit),
           total_crawl_time_limit_(total_crawl_time_limit), ignore_robots_dot_txt_(ignore_robots_dot_txt),
-          harvestable_manager_(harvestable_manager), emailcrawl_mboxes_(emailcrawl_mboxes) {}
+          harvestable_manager_(harvestable_manager), emailcrawl_mboxes_(emailcrawl_mboxes) { }
 };
 
 
@@ -338,10 +347,11 @@ struct Result {
     unsigned num_email_queued_for_harvest_;
     unsigned num_email_skipped_since_already_delivered_;
     std::vector<std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>> downloaded_items_;
+
 public:
     explicit Result()
         : num_email_crawled_successful_(0), num_email_crawled_unsuccessful_(0), num_email_crawled_cache_hits_(0),
-          num_email_queued_for_harvest_(0), num_email_skipped_since_already_delivered_(0) {}
+          num_email_queued_for_harvest_(0), num_email_skipped_since_already_delivered_(0) { }
     Result(const Result &rhs) = delete;
 };
 
@@ -352,15 +362,13 @@ class Tasklet : public Util::Tasklet<Params, Result> {
     bool force_downloads_;
 
     void run(const Params &parameters, Result * const result);
+
 public:
-    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter,
-            DownloadManager * const download_manager, const Util::UploadTracker &upload_tracker,
-            std::unique_ptr<Params> parameters, const bool force_downloads);
+    Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const instance_counter, DownloadManager * const download_manager,
+            const Util::UploadTracker &upload_tracker, std::unique_ptr<Params> parameters, const bool force_downloads);
     virtual ~Tasklet() override = default;
-
 };
-}// end namespace EmailCrawl
-
+} // end namespace EmailCrawl
 
 
 // Orchestrates all downloads and manages the relevant state. Consumers of this class can
@@ -387,10 +395,12 @@ public:
         bool ignore_robots_txt_;
         bool force_downloads_;
         Util::HarvestableItemManager * const harvestable_manager_;
+
     public:
         GlobalParams(const Config::GlobalParams &config_global_params, Util::HarvestableItemManager * const harvestable_manager);
         GlobalParams(const GlobalParams &rhs) = default;
     };
+
 private:
     // Specifies the download delay parameters to be used by the rate-limiter for a given domain.
     // Attempts to read the domain's robots.txt file to retrieve the parameters and falls back to
@@ -398,11 +408,10 @@ private:
     struct DelayParams {
         RobotsDotTxt robots_dot_txt_;
         TimeLimit time_limit_;
+
     public:
-        DelayParams(const std::string &robots_dot_txt, const unsigned default_download_delay_time,
-                    const unsigned max_download_delay_time);
-        DelayParams(const TimeLimit &time_limit, const unsigned default_download_delay_time,
-                    const unsigned max_download_delay_time);
+        DelayParams(const std::string &robots_dot_txt, const unsigned default_download_delay_time, const unsigned max_download_delay_time);
+        DelayParams(const TimeLimit &time_limit, const unsigned default_download_delay_time, const unsigned max_download_delay_time);
         DelayParams(const DelayParams &rhs) = default;
     };
 
@@ -422,8 +431,9 @@ private:
         std::deque<std::shared_ptr<ApiQuery::Tasklet>> queued_apiqueries_;
         std::deque<std::shared_ptr<EmailCrawl::Tasklet>> active_emailcrawls_;
         std::deque<std::shared_ptr<EmailCrawl::Tasklet>> queued_emailcrawls_;
+
     public:
-        DomainData(const DelayParams &delay_params) : delay_params_(delay_params) {};
+        DomainData(const DelayParams &delay_params): delay_params_(delay_params){};
     };
 
 
@@ -470,7 +480,7 @@ private:
     Util::UploadTracker upload_tracker_;
     TaskletCounters tasklet_counters_;
 
-    static void *BackgroundThreadRoutine(void * parameter);
+    static void *BackgroundThreadRoutine(void *parameter);
 
     DelayParams generateDelayParams(const Url &url);
     DomainData *lookupDomainData(const Url &url, bool add_if_absent);
@@ -478,11 +488,13 @@ private:
     void processDomainQueues(DomainData * const domain_data);
     void cleanupCompletedTasklets(DomainData * const domain_data);
     void cleanupOngoingDownloadsBackingStore();
-    std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>>
-        newFutureFromOngoingDownload(const Util::HarvestableItem &source, const DirectDownload::Operation operation) const;
+    std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>> newFutureFromOngoingDownload(
+        const Util::HarvestableItem &source, const DirectDownload::Operation operation) const;
+
 public:
     DownloadManager(const GlobalParams &global_params);
     ~DownloadManager();
+
 public:
     std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>> directDownload(const Util::HarvestableItem &source,
                                                                                                  const std::string &user_agent,
@@ -491,30 +503,26 @@ public:
     std::unique_ptr<Util::Future<Crawling::Params, Crawling::Result>> crawl(const Util::HarvestableItem &source,
                                                                             const std::string &user_agent);
 
-    std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> rss(const Util::HarvestableItem &source,
-                                                                const std::string &user_agent,
+    std::unique_ptr<Util::Future<RSS::Params, RSS::Result>> rss(const Util::HarvestableItem &source, const std::string &user_agent,
                                                                 const std::string &feed_contents = "");
     std::unique_ptr<Util::Future<DirectDownload::Params, DirectDownload::Result>> apiQuery(const Util::HarvestableItem &source);
     std::unique_ptr<Util::Future<EmailCrawl::Params, EmailCrawl::Result>> emailCrawl(const Util::HarvestableItem &source,
-                                                                                     const std::vector<std::string> &mbox_files,                                                                                                                         const std::string &user_agent);
+                                                                                     const std::vector<std::string> &mbox_files,
+                                                                                     const std::string &user_agent);
     void addToDownloadCache(const Util::HarvestableItem &source, const std::string &url, const std::string &response_body,
                             const DirectDownload::Operation operation);
     std::unique_ptr<DirectDownload::Result> fetchFromDownloadCache(const Util::HarvestableItem &source,
                                                                    const DirectDownload::Operation operation) const;
     bool downloadInProgress() const;
-    inline unsigned numActiveDirectDownloads() const
-        { return tasklet_counters_.direct_download_tasklet_execution_counter_; }
-    inline unsigned numActiveCrawls() const
-        { return tasklet_counters_.crawling_tasklet_execution_counter_; }
-    inline unsigned numActiveRssFeeds() const
-        { return tasklet_counters_.rss_tasklet_execution_counter_; }
-    inline unsigned numQueuedDirectDownloads() const
-        { return tasklet_counters_.direct_downloads_direct_query_queue_counter_ +
-                 tasklet_counters_.direct_downloads_translation_server_queue_counter_; }
-    inline unsigned numQueuedCrawls() const
-        { return tasklet_counters_.crawls_queue_counter_; }
-    inline unsigned numQueuedRssFeeds() const
-        { return tasklet_counters_.rss_feeds_queue_counter_; }
+    inline unsigned numActiveDirectDownloads() const { return tasklet_counters_.direct_download_tasklet_execution_counter_; }
+    inline unsigned numActiveCrawls() const { return tasklet_counters_.crawling_tasklet_execution_counter_; }
+    inline unsigned numActiveRssFeeds() const { return tasklet_counters_.rss_tasklet_execution_counter_; }
+    inline unsigned numQueuedDirectDownloads() const {
+        return tasklet_counters_.direct_downloads_direct_query_queue_counter_
+               + tasklet_counters_.direct_downloads_translation_server_queue_counter_;
+    }
+    inline unsigned numQueuedCrawls() const { return tasklet_counters_.crawls_queue_counter_; }
+    inline unsigned numQueuedRssFeeds() const { return tasklet_counters_.rss_feeds_queue_counter_; }
 };
 
 

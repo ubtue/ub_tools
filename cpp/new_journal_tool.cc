@@ -24,8 +24,8 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
-#include "Compiler.h"
 #include "BSZUtil.h"
+#include "Compiler.h"
 #include "DbConnection.h"
 #include "FileUtil.h"
 #include "JSON.h"
@@ -41,16 +41,17 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[solr_host_and_port] user_type command command_args\n"
-            "possible commands are \"list_users\", \"list_subs\" and \"clear\"\n\n"
-            "\"list_users\" takes no arguments\n"
-            "\"list_subs\" takes a single command argument which can be either a username or the special taken \"all\"\n"
-            "    when \"all\" has been specified the subscription status for all users will be displayed\n"
-            "\"clear\" takes one or two command args\n"
-            "    when the single argument following \"clear\" is \"all\" the entire database is purged\n"
-            "    when a username follows after \"clear\" there is an optional subscription name after the username\n"
-            "    if a subscription name has been specified, only that subscription will be purged o/w all the user's\n"
-            "    subscriptions will be purged.\n");
+    ::Usage(
+        "[solr_host_and_port] user_type command command_args\n"
+        "possible commands are \"list_users\", \"list_subs\" and \"clear\"\n\n"
+        "\"list_users\" takes no arguments\n"
+        "\"list_subs\" takes a single command argument which can be either a username or the special taken \"all\"\n"
+        "    when \"all\" has been specified the subscription status for all users will be displayed\n"
+        "\"clear\" takes one or two command args\n"
+        "    when the single argument following \"clear\" is \"all\" the entire database is purged\n"
+        "    when a username follows after \"clear\" there is an optional subscription name after the username\n"
+        "    if a subscription name has been specified, only that subscription will be purged o/w all the user's\n"
+        "    subscriptions will be purged.\n");
 }
 
 
@@ -87,8 +88,7 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
         return NO_SERIES_TITLE;
     }
 
-    const std::shared_ptr<const JSON::StringNode> title_node(
-        JSON::JSONNode::CastToStringNodeOrDie("title", title));
+    const std::shared_ptr<const JSON::StringNode> title_node(JSON::JSONNode::CastToStringNodeOrDie("title", title));
     if (unlikely(title_node == nullptr))
         LOG_ERROR("title_node is not a JSON string!");
 
@@ -99,8 +99,8 @@ std::string GetSeriesTitle(const std::shared_ptr<const JSON::ObjectNode> &doc_ob
 std::string GetTitle(const std::string &ppn, const std::string &solr_host, const unsigned solr_port) {
     const std::string SOLR_QUERY("superior_ppn:" + ppn);
     std::string json_document, err_msg;
-    if (unlikely(not Solr::Query(SOLR_QUERY, "title", &json_document, &err_msg, solr_host, solr_port, /* timeout = */ 5,
-                                 Solr::JSON, /* max_no_of_rows = */1)))
+    if (unlikely(not Solr::Query(SOLR_QUERY, "title", &json_document, &err_msg, solr_host, solr_port, /* timeout = */ 5, Solr::JSON,
+                                 /* max_no_of_rows = */ 1)))
         LOG_ERROR("Solr query failed or timed-out: \"" + SOLR_QUERY + "\". (" + err_msg + ")");
 
     JSON::Parser parser(json_document);
@@ -121,19 +121,20 @@ std::string GetTitle(const std::string &ppn, const std::string &solr_host, const
 }
 
 
-void ListSubs(DbConnection * const db_connection, const std::string &user_type, const std::string &username,
-              const std::string &host, const unsigned port)
-{
+void ListSubs(DbConnection * const db_connection, const std::string &user_type, const std::string &username, const std::string &host,
+              const unsigned port) {
     std::string query("SELECT id, username FROM user WHERE user.ixtheo_user_type='" + user_type + "'");
     if (username != "all")
-        query += " AND username=" + db_connection->escapeString(username, /* add_quotes = */true);
+        query += " AND username=" + db_connection->escapeString(username, /* add_quotes = */ true);
 
     db_connection->queryOrDie(query);
     DbResultSet result_set(db_connection->getLastResultSet());
 
     while (const DbRow row = result_set.getNextRow()) {
-        db_connection->queryOrDie("SELECT journal_control_number_or_bundle_name,max_last_modification_time FROM "
-                                  "ixtheo_journal_subscriptions WHERE user_id=" + row["id"]);
+        db_connection->queryOrDie(
+            "SELECT journal_control_number_or_bundle_name,max_last_modification_time FROM "
+            "ixtheo_journal_subscriptions WHERE user_id="
+            + row["id"]);
         DbResultSet result_set2(db_connection->getLastResultSet());
         if (result_set2.empty())
             continue;
@@ -141,17 +142,15 @@ void ListSubs(DbConnection * const db_connection, const std::string &user_type, 
         std::cout << row["username"] << ":\n";
         while (const DbRow row2 = result_set2.getNextRow()) {
             const std::string journal_control_number_or_bundle_name(row2["journal_control_number_or_bundle_name"]);
-            std::cout << '\t' << StringUtil::PadTrailing(journal_control_number_or_bundle_name, BSZUtil::PPN_LENGTH_NEW)
-                      << " -> " << row2["max_last_modification_time"] << ' '
-                      << GetTitle(journal_control_number_or_bundle_name, host, port) << '\n';
+            std::cout << '\t' << StringUtil::PadTrailing(journal_control_number_or_bundle_name, BSZUtil::PPN_LENGTH_NEW) << " -> "
+                      << row2["max_last_modification_time"] << ' ' << GetTitle(journal_control_number_or_bundle_name, host, port) << '\n';
         }
     }
 }
 
 
 void Clear(DbConnection * const db_connection, KeyValueDB * const notified_db, const std::string &username,
-           const std::string &subscription_name)
-{
+           const std::string &subscription_name) {
     db_connection->queryOrDie("SELECT id FROM user WHERE username=" + db_connection->escapeAndQuoteString(username));
     DbResultSet result_set(db_connection->getLastResultSet());
     if (result_set.empty()) {
@@ -206,8 +205,8 @@ int Main(int argc, char **argv) {
         Usage();
 
     const std::string user_type(argv[1]);
-    if (user_type != "ixtheo" and user_type != "relbib")
-        LOG_ERROR("user_type parameter must be either \"ixtheo\" or \"relbib\"!");
+    if (user_type != "ixtheo" and user_type != "relbib" and user_type != "bibstudies" and user_type != "churchlaw")
+        LOG_ERROR("user_type parameter must be either \"ixtheo\", \"relbib\", \"bibstudies\" or \"churchlaw\"!");
 
     const std::string DB_FILENAME(UBTools::GetTuelibPath() + user_type + "_notified.db");
     std::unique_ptr<KeyValueDB> notified_db(OpenKeyValueDBOrDie(DB_FILENAME));

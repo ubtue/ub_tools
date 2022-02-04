@@ -63,10 +63,10 @@ int Main(int argc, char *argv[]) {
     std::string output_filename;
     if (argc == 3) {
         output_filename = argv[2];
-        cgi_mode        = false;
+        cgi_mode = false;
     } else {
         output_filename = "/proc/self/fd/1";
-        cgi_mode        = true;
+        cgi_mode = true;
     }
 
     IniFile ini_file(CONF_FILE_PATH);
@@ -76,7 +76,7 @@ int Main(int argc, char *argv[]) {
 
     if (cgi_mode)
         (*output) << "Content-Type: text/html; charset=utf-8\r\n\r\n";
-    const std::string LINE_END(cgi_mode ? "\r\n" :  "\n");
+    const std::string LINE_END(cgi_mode ? "\r\n" : "\n");
 
     const time_t now(std::time(nullptr));
     const time_t cutoff(now - time_window * 3600);

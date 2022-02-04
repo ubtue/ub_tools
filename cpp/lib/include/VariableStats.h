@@ -32,27 +32,31 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <Compiler.h>
 #include <StringUtil.h>
+#include <Compiler.h>
 
 
 /** \class  VariableStats
  *  \brief  Calculates the mean and standard deviation of a set of observations.
  */
-template<typename NumericType> class VariableStats {
+template <typename NumericType>
+class VariableStats {
     NumericType total_;
     unsigned count_;
+
 public:
     enum VariableStatsType {
-        WITH_STANDARD_DEVIATION,      ///< Allows the computation of standard deviations.
-        WITHOUT_STANDARD_DEVIATION    ///< Does not allow the computation of standard deviations.
+        WITH_STANDARD_DEVIATION,   ///< Allows the computation of standard deviations.
+        WITHOUT_STANDARD_DEVIATION ///< Does not allow the computation of standard deviations.
     };
+
 private:
     VariableStatsType stats_type_;
     std::vector<NumericType> values_;
+
 public:
-    explicit VariableStats(const VariableStatsType stats_type = WITHOUT_STANDARD_DEVIATION,
-                           const NumericType &total = 0, const unsigned count = 0)
+    explicit VariableStats(const VariableStatsType stats_type = WITHOUT_STANDARD_DEVIATION, const NumericType &total = 0,
+                           const unsigned count = 0)
         : total_(total), count_(count), stats_type_(stats_type) { }
 
     VariableStats(const VariableStats<NumericType> &rhs)
@@ -85,9 +89,8 @@ public:
 typedef VariableStats<unsigned long> TimeInMillisecsStats; // For convenience when measuring time...
 
 
-template<typename NumericType> const VariableStats<NumericType> &VariableStats<NumericType>::operator=(
-    const VariableStats<NumericType> &rhs)
-{
+template <typename NumericType>
+const VariableStats<NumericType> &VariableStats<NumericType>::operator=(const VariableStats<NumericType> &rhs) {
     if (likely(this != &rhs)) {
         total_ = rhs.total_;
         count_ = rhs.count_;
@@ -99,13 +102,13 @@ template<typename NumericType> const VariableStats<NumericType> &VariableStats<N
 }
 
 
-template<typename NumericType> void VariableStats<NumericType>::operator+=(const VariableStats<NumericType> &rhs) {
+template <typename NumericType>
+void VariableStats<NumericType>::operator+=(const VariableStats<NumericType> &rhs) {
     if (unlikely(stats_type_ != rhs.stats_type_))
         throw std::runtime_error("in VariableStats::operator+=: instances of different stat-types!");
 
     if (stats_type_ == WITH_STANDARD_DEVIATION) {
-        for (typename std::vector<NumericType>::const_iterator entry(rhs.values_.begin());
-             entry != rhs.values_.end(); ++entry)
+        for (typename std::vector<NumericType>::const_iterator entry(rhs.values_.begin()); entry != rhs.values_.end(); ++entry)
             values_.push_back(*entry);
     }
 
@@ -114,7 +117,8 @@ template<typename NumericType> void VariableStats<NumericType>::operator+=(const
 }
 
 
-template<typename NumericType> void VariableStats<NumericType>::operator+=(const NumericType &value) {
+template <typename NumericType>
+void VariableStats<NumericType>::operator+=(const NumericType &value) {
     if (stats_type_ == WITH_STANDARD_DEVIATION)
         values_.push_back(value);
 
@@ -123,8 +127,8 @@ template<typename NumericType> void VariableStats<NumericType>::operator+=(const
 }
 
 
-template<typename NumericType> void VariableStats<NumericType>::accrue(const NumericType &value, const unsigned count)
-{
+template <typename NumericType>
+void VariableStats<NumericType>::accrue(const NumericType &value, const unsigned count) {
     if (stats_type_ == WITH_STANDARD_DEVIATION)
         values_.push_back(value);
 
@@ -133,14 +137,16 @@ template<typename NumericType> void VariableStats<NumericType>::accrue(const Num
 }
 
 
-template<typename NumericType> void VariableStats<NumericType>::clear() {
+template <typename NumericType>
+void VariableStats<NumericType>::clear() {
     total_ = 0;
     count_ = 0;
     values_.clear();
 }
 
 
-template<typename NumericType> double VariableStats<NumericType>::mean() const {
+template <typename NumericType>
+double VariableStats<NumericType>::mean() const {
     if (unlikely(count_ == 0)) {
         if (likely(total_ == 0))
             return 0.0;
@@ -151,10 +157,12 @@ template<typename NumericType> double VariableStats<NumericType>::mean() const {
 }
 
 
-template<typename NumericType> double VariableStats<NumericType>::standardDeviation() const {
+template <typename NumericType>
+double VariableStats<NumericType>::standardDeviation() const {
     if (unlikely(stats_type_ == WITHOUT_STANDARD_DEVIATION))
-        throw std::runtime_error("in VariableStats::standardDeviation: this instantiation does not support the "
-                                 "computation of standard deviation!");
+        throw std::runtime_error(
+            "in VariableStats::standardDeviation: this instantiation does not support the "
+            "computation of standard deviation!");
 
     if (unlikely(count_ == 0)) {
         if (likely(values_.empty()))
@@ -177,9 +185,8 @@ template<typename NumericType> double VariableStats<NumericType>::standardDeviat
 }
 
 
-template<typename NumericType> std::string VariableStats<NumericType>::toString(const unsigned no_decimal_digits)
-    const
-{
+template <typename NumericType>
+std::string VariableStats<NumericType>::toString(const unsigned no_decimal_digits) const {
     std::string result(StringUtil::ToString(mean(), no_decimal_digits));
     if (stats_type_ == WITH_STANDARD_DEVIATION)
         result += " +/- " + StringUtil::ToString(standardDeviation(), no_decimal_digits);

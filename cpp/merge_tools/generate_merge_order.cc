@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <iostream>
@@ -141,12 +141,10 @@ std::vector<std::string>::iterator FindMostRecentCompleteOrPseudoCompleteDump(st
 
 // If our complete dump is an SA- file, we should have a "partner" w/o local data.  In that case we should return the partner.
 std::vector<std::string>::iterator EarliestReferenceDump(std::vector<std::string>::iterator complete_or_pseudo_complete_dump,
-                                                         std::vector<std::string> &file_list)
-{
+                                                         std::vector<std::string> &file_list) {
     /* If we have found an SA- file we may have two, one w/ and one w/o local data: */
     if (StringUtil::StartsWith(*complete_or_pseudo_complete_dump, "SA-")) {
-        if (complete_or_pseudo_complete_dump != file_list.begin()
-            and StringUtil::StartsWith(*(complete_or_pseudo_complete_dump - 1), "SA-")
+        if (complete_or_pseudo_complete_dump != file_list.begin() and StringUtil::StartsWith(*(complete_or_pseudo_complete_dump - 1), "SA-")
             and (BSZUtil::ExtractDateFromFilenameOrDie(*complete_or_pseudo_complete_dump)
                  == BSZUtil::ExtractDateFromFilenameOrDie(*(complete_or_pseudo_complete_dump - 1))))
             return complete_or_pseudo_complete_dump - 1;
@@ -159,7 +157,7 @@ std::vector<std::string>::iterator EarliestReferenceDump(std::vector<std::string
 } // unnamed namespace
 
 
-int Main(int argc, char */*argv*/[]) {
+int Main(int argc, char * /*argv*/[]) {
     if (argc != 1)
         Usage();
 

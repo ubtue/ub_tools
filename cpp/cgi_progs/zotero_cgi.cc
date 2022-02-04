@@ -35,14 +35,14 @@
 #include "SqlUtil.h"
 #include "StringUtil.h"
 #include "Template.h"
+#include "UBTools.h"
 #include "UrlUtil.h"
 #include "WallClockTimer.h"
 #include "WebUtil.h"
-#include "UBTools.h"
-#include "util.h"
 #include "Zeder.h"
 #include "ZoteroHarvesterConfig.h"
 #include "ZoteroHarvesterUtil.h"
+#include "util.h"
 
 
 namespace {
@@ -53,18 +53,6 @@ const std::string ZTS_HARVESTER_CONF_FILE(UBTools::GetTuelibPath() + "zotero-enh
 
 
 static Template::Map names_to_values_map;
-
-
-std::string GetCGIParameterOrDefault(const std::multimap<std::string, std::string> &cgi_args,
-                                     const std::string &parameter_name,
-                                     const std::string &default_value = "")
-{
-    const auto key_and_value(cgi_args.find(parameter_name));
-    if (key_and_value == cgi_args.cend())
-        return default_value;
-
-    return key_and_value->second;
-}
 
 
 std::string GetMinElementOrDefault(const std::vector<std::string> &elements, const std::string &default_value = "") {
@@ -122,10 +110,12 @@ unsigned GetZederJournalId(const unsigned zeder_id, const std::string &zeder_ins
 std::unordered_map<unsigned, time_t> GetMaxDeliveredDatetimePerJournal(DbConnection * const db_connection) {
     std::unordered_map<unsigned, time_t> journal_id_to_delivered_datetime_map;
 
-    db_connection->queryOrDie("SELECT zeder_journal_id, MAX(delivered_at) AS max_delivered_at FROM delivered_marc_records GROUP BY zeder_journal_id");
+    db_connection->queryOrDie(
+        "SELECT zeder_journal_id, MAX(delivered_at) AS max_delivered_at FROM delivered_marc_records GROUP BY zeder_journal_id");
     auto result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow())
-        journal_id_to_delivered_datetime_map[StringUtil::ToUnsigned(row["zeder_journal_id"])] = SqlUtil::DatetimeToTimeT(row["max_delivered_at"]);
+        journal_id_to_delivered_datetime_map[StringUtil::ToUnsigned(row["zeder_journal_id"])] =
+            SqlUtil::DatetimeToTimeT(row["max_delivered_at"]);
 
     return journal_id_to_delivered_datetime_map;
 }
@@ -143,10 +133,12 @@ time_t GetJournalMaxDeliveredDatetime(const unsigned zeder_journal_id, DbConnect
 std::unordered_set<unsigned> GetJournalIdsWithErrors(DbConnection * const db_connection) {
     std::unordered_set<unsigned> zeder_journal_ids_with_errors;
 
-    db_connection->queryOrDie("SELECT DISTINCT zeder_journals.id FROM zeder_journals "
-                              "RIGHT JOIN delivered_marc_records ON zeder_journals.id=delivered_marc_records.zeder_journal_id "
-                              "WHERE delivered_marc_records.delivery_state="
-                              + db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(ZoteroHarvester::Util::UploadTracker::ERROR)));
+    db_connection->queryOrDie(
+        "SELECT DISTINCT zeder_journals.id FROM zeder_journals "
+        "RIGHT JOIN delivered_marc_records ON zeder_journals.id=delivered_marc_records.zeder_journal_id "
+        "WHERE delivered_marc_records.delivery_state="
+        + db_connection->escapeAndQuoteString(
+            ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(ZoteroHarvester::Util::UploadTracker::ERROR)));
     auto result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow())
         zeder_journal_ids_with_errors.emplace(StringUtil::ToUnsigned(row["id"]));
@@ -162,8 +154,7 @@ bool GetJournalErrorsDetected(const unsigned zeder_journal_id, DbConnection * co
 
 
 void RegisterMissingJournals(const std::vector<std::unique_ptr<ZoteroHarvester::Config::JournalParams>> &journal_params,
-                             DbConnection * const db_connection, ZoteroHarvester::Util::UploadTracker * const upload_tracker)
-{
+                             DbConnection * const db_connection, ZoteroHarvester::Util::UploadTracker * const upload_tracker) {
     const auto zeder_id_and_instance_to_zeder_journal_id_map(GetZederIdAndInstanceToZederJournalIdMap(db_connection));
     for (const auto &journal : journal_params) {
         const std::string key(std::to_string(journal->zeder_id_) + "#" + upload_tracker->GetZederInstanceString(journal->group_));
@@ -179,11 +170,10 @@ bool isTestEnvironment() {
 
 
 std::string GetJournalHarvestStatus(const unsigned zeder_journal_id, const ZoteroHarvester::Config::JournalParams &journal_params,
-                                    DbConnection * const db_connection)
-{
+                                    DbConnection * const db_connection) {
     std::string harvest_status("NONE");
-    if ((journal_params.upload_operation_ == ZoteroHarvester::Config::TEST and isTestEnvironment()) or
-        (journal_params.upload_operation_ == ZoteroHarvester::Config::LIVE and not isTestEnvironment()))
+    if ((journal_params.upload_operation_ == ZoteroHarvester::Config::TEST and isTestEnvironment())
+        or (journal_params.upload_operation_ == ZoteroHarvester::Config::LIVE and not isTestEnvironment()))
     {
         const auto max_delivered_datetime(GetJournalMaxDeliveredDatetime(zeder_journal_id, db_connection));
         if (max_delivered_datetime != TimeUtil::BAD_TIME_T) {
@@ -201,14 +191,16 @@ std::string GetJournalHarvestStatus(const unsigned zeder_journal_id, const Zoter
 
 void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
                      std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> * const group_name_to_params_map,
+                     std::unordered_map<std::string, ZoteroHarvester::Config::SubgroupParams> * const subgroup_name_to_params_map,
                      std::unordered_map<std::string, std::string> * const journal_name_to_group_name_map,
-                     DbConnection * const db_connection, ZoteroHarvester::Util::UploadTracker * const upload_tracker)
-{
+                     DbConnection * const db_connection, ZoteroHarvester::Util::UploadTracker * const upload_tracker) {
     std::unique_ptr<ZoteroHarvester::Config::GlobalParams> global_params;
     std::vector<std::unique_ptr<ZoteroHarvester::Config::GroupParams>> group_params;
+    std::vector<std::unique_ptr<ZoteroHarvester::Config::SubgroupParams>> subgroup_params;
     std::vector<std::unique_ptr<ZoteroHarvester::Config::JournalParams>> journal_params;
 
-    ZoteroHarvester::Config::LoadHarvesterConfigFile(ZTS_HARVESTER_CONF_FILE, &global_params, &group_params, &journal_params);
+    ZoteroHarvester::Config::LoadHarvesterConfigFile(ZTS_HARVESTER_CONF_FILE, &global_params, &group_params, &subgroup_params,
+                                                     &journal_params);
     RegisterMissingJournals(journal_params, db_connection, upload_tracker);
 
     std::vector<std::string> all_journal_titles;
@@ -250,6 +242,9 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
     for (const auto &group : group_params)
         group_name_to_params_map->emplace(group->name_, *group);
 
+    for (const auto &subgroup : subgroup_params)
+        subgroup_name_to_params_map->emplace(subgroup->name_, *subgroup);
+
     for (const auto &journal_param : journal_params) {
         const auto &title(journal_param->name_);
         const auto &harvest_type_raw(ZoteroHarvester::Config::HARVESTER_OPERATION_TO_STRING_MAP.at(journal_param->harvester_operation_));
@@ -274,7 +269,8 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
             zeder_instance = "krimdok";
             zeder_instance_for_url = "krim";
         }
-        const std::string zeder_url("http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=" + zeder_instance_for_url + "#suche=Z%3D" + std::to_string(zeder_id));
+        const std::string zeder_url("http://www-ub.ub.uni-tuebingen.de/zeder/?instanz=" + zeder_instance_for_url + "#suche=Z%3D"
+                                    + std::to_string(zeder_id));
         const auto zeder_journal_id(GetZederJournalId(zeder_id, zeder_instance, db_connection));
         all_journal_harvest_statuses.emplace_back(GetJournalHarvestStatus(zeder_journal_id, *journal_param, db_connection));
 
@@ -359,14 +355,14 @@ void ParseConfigFile(const std::multimap<std::string, std::string> &cgi_args,
     names_to_values_map.insertArray("crawling_strptime_formats", crawling_strptime_formats);
 
     const std::string first_crawling_journal_title(GetMinElementOrDefault(crawling_journal_titles));
-    names_to_values_map.insertScalar("selected_crawling_journal_title", GetCGIParameterOrDefault(cgi_args, "crawling_journal_title",
-                                                                                                  first_crawling_journal_title));
+    names_to_values_map.insertScalar("selected_crawling_journal_title",
+                                     WebUtil::GetCGIParameterOrDefault(cgi_args, "crawling_journal_title", first_crawling_journal_title));
 
     const std::string first_rss_journal_title(GetMinElementOrDefault(rss_journal_titles));
-    names_to_values_map.insertScalar("selected_rss_journal_title", GetCGIParameterOrDefault(cgi_args, "rss_journal_title",
-                                                                                             first_rss_journal_title));
+    names_to_values_map.insertScalar("selected_rss_journal_title",
+                                     WebUtil::GetCGIParameterOrDefault(cgi_args, "rss_journal_title", first_rss_journal_title));
 
-    names_to_values_map.insertScalar("selected_url_journal_title", GetCGIParameterOrDefault(cgi_args, "url_journal_title"));
+    names_to_values_map.insertScalar("selected_url_journal_title", WebUtil::GetCGIParameterOrDefault(cgi_args, "url_journal_title"));
 }
 
 
@@ -395,9 +391,10 @@ class HarvestTask {
     int exit_code_;
     FileUtil::AutoTempFile log_path_;
     std::unique_ptr<FileUtil::AutoTempFile> out_path_;
+
 public:
-    HarvestTask(const std::string &title, const std::string &bsz_upload_group,
-                const std::string &url = "", const std::string &config_overrides = "");
+    HarvestTask(const std::string &title, const std::string &bsz_upload_group, const std::string &url = "",
+                const std::string &config_overrides = "");
 
     /** \brief get shell command including args (for debug output) */
     inline const std::string &getCommand() const { return command_; }
@@ -410,16 +407,15 @@ public:
 };
 
 
-HarvestTask::HarvestTask(const std::string &title, const std::string &bsz_upload_group,
-                         const std::string &url, const std::string &config_overrides)
+HarvestTask::HarvestTask(const std::string &title, const std::string &bsz_upload_group, const std::string &url,
+                         const std::string &config_overrides)
     : auto_temp_dir_("/tmp/ZtsMaps_", /*cleanup_if_exception_is_active*/ false, /*remove_when_out_of_scope*/ false),
       executable_(ExecUtil::LocateOrDie("zotero_harvester")),
-      log_path_(auto_temp_dir_.getDirectoryPath() + "/log", "", /*automatically_remove*/ false)
-{
+      log_path_(auto_temp_dir_.getDirectoryPath() + "/log", "", /*automatically_remove*/ false) {
     const auto output_directory(auto_temp_dir_.getDirectoryPath() + "/" + StringUtil::ASCIIToLower(bsz_upload_group) + "/");
     FileUtil::MakeDirectory(output_directory, true);
     out_path_.reset(new FileUtil::AutoTempFile(output_directory, ".xml",
-                    /*automatically_remove*/ false));
+                                               /*automatically_remove*/ false));
 
     std::string dir_name, basename;
     FileUtil::DirnameAndBasename(out_path_->getFilePath(), &dir_name, &basename);
@@ -443,10 +439,10 @@ HarvestTask::HarvestTask(const std::string &title, const std::string &bsz_upload
         args.emplace_back(title);
     }
 
-    std::unordered_map<std::string, std::string> envs {
-        { "LOGGER_FORMAT",  "no_decorations,strip_call_site" },
-        { "UTIL_LOG_DEBUG", "true"                           },
-        { "BACKTRACE",      "1"                              },
+    std::unordered_map<std::string, std::string> envs{
+        { "LOGGER_FORMAT", "no_decorations,strip_call_site" },
+        { "UTIL_LOG_DEBUG", "true" },
+        { "BACKTRACE", "1" },
     };
 
     command_ = BuildCommandString(executable_, args);
@@ -455,9 +451,8 @@ HarvestTask::HarvestTask(const std::string &title, const std::string &bsz_upload
 }
 
 
-void ExecuteHarvestAction(const std::string &title, const std::string &group_name,
-                          const std::string url = "", const std::string &config_overrides = "")
-{
+void ExecuteHarvestAction(const std::string &title, const std::string &group_name, const std::string url = "",
+                          const std::string &config_overrides = "") {
     std::cout << "<h2>Result</h2>\r\n";
     std::cout << "<table>\r\n";
 
@@ -480,7 +475,7 @@ void ExecuteHarvestAction(const std::string &title, const std::string &group_nam
     timer.stop();
 
     int exit_code(-2);
-    if WIFEXITED(status)
+    if WIFEXITED (status)
         exit_code = WEXITSTATUS(status);
 
     std::string output;
@@ -488,7 +483,8 @@ void ExecuteHarvestAction(const std::string &title, const std::string &group_nam
         output = "could not read log file!";
 
     if (exit_code == 0)
-        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + task.getOutPath() + "\">Result file</a></td></tr>\r\n";
+        std::cout << "<tr><td>Download</td><td><a target=\"_blank\" href=\"?action=download&id=" + task.getOutPath()
+                         + "\">Result file</a></td></tr>\r\n";
     else
         std::cout << "<tr><td>ERROR</td><td>Exitcode: " + std::to_string(exit_code) + "</td></tr>\r\n";
 
@@ -524,7 +520,7 @@ void AddStyleCSS(Template::Map * const template_map) {
 
 
 void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_args) {
-    const std::string path(GetCGIParameterOrDefault(cgi_args, "id"));
+    const std::string path(WebUtil::GetCGIParameterOrDefault(cgi_args, "id"));
 
     if (StringUtil::EndsWith(path, ".xml", /*ignore_case*/ true))
         std::cout << "Content-Type: application/xml; charset=utf-8\r\n\r\n";
@@ -535,38 +531,41 @@ void ProcessDownloadAction(const std::multimap<std::string, std::string> &cgi_ar
 }
 
 
-void UpdateRecordDeliveryStateAndTimestamp(const std::string &record_id, const ZoteroHarvester::Util::UploadTracker::DeliveryState &delivery_state,
-                                           DbConnection * const db_connection)
-{
-    db_connection->queryOrDie("UPDATE delivered_marc_records SET delivery_state=" +
-                              db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(delivery_state)) +
-                              ",delivered_at=NOW() WHERE id=" + db_connection->escapeAndQuoteString(record_id));
+void UpdateRecordDeliveryStateAndTimestamp(const std::string &record_id,
+                                           const ZoteroHarvester::Util::UploadTracker::DeliveryState &delivery_state,
+                                           DbConnection * const db_connection) {
+    db_connection->queryOrDie(
+        "UPDATE delivered_marc_records SET delivery_state="
+        + db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(delivery_state))
+        + ",delivered_at=NOW() WHERE id=" + db_connection->escapeAndQuoteString(record_id));
 }
 
 
 void ResetDeliveredRecordsForJournal(const unsigned journal_id, DbConnection * const db_connection) {
-    db_connection->queryOrDie("UPDATE delivered_marc_records SET delivery_state=" +
-                              db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(ZoteroHarvester::Util::UploadTracker::RESET)) +
-                              " WHERE zeder_journal_id=" + db_connection->escapeAndQuoteString(std::to_string(journal_id)) +
-                              " AND delivery_state=" + db_connection->escapeAndQuoteString(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(ZoteroHarvester::Util::UploadTracker::AUTOMATIC)));
+    db_connection->queryOrDie(
+        "UPDATE delivered_marc_records SET delivery_state="
+        + db_connection->escapeAndQuoteString(
+            ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(ZoteroHarvester::Util::UploadTracker::RESET))
+        + " WHERE zeder_journal_id=" + db_connection->escapeAndQuoteString(std::to_string(journal_id)) + " AND delivery_state="
+        + db_connection->escapeAndQuoteString(
+            ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(ZoteroHarvester::Util::UploadTracker::AUTOMATIC)));
 }
 
 
 void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &cgi_args,
-                                 ZoteroHarvester::Util::UploadTracker * const upload_tracker,
-                                 DbConnection * const db_connection)
-{
-    const std::string journal_id(GetCGIParameterOrDefault(cgi_args, "id"));
+                                 ZoteroHarvester::Util::UploadTracker * const upload_tracker, DbConnection * const db_connection) {
+    const std::string journal_id(WebUtil::GetCGIParameterOrDefault(cgi_args, "id"));
     const Journal journal(GetJournalById(StringUtil::ToUnsigned(journal_id), db_connection));
     std::string at_least_one_action_done("false");
 
-    const std::string id_to_deliver_manually(GetCGIParameterOrDefault(cgi_args, "set_manually_delivered"));
+    const std::string id_to_deliver_manually(WebUtil::GetCGIParameterOrDefault(cgi_args, "set_manually_delivered"));
     if (not id_to_deliver_manually.empty()) {
-        UpdateRecordDeliveryStateAndTimestamp(id_to_deliver_manually, ZoteroHarvester::Util::UploadTracker::DeliveryState::MANUAL, db_connection);
+        UpdateRecordDeliveryStateAndTimestamp(id_to_deliver_manually, ZoteroHarvester::Util::UploadTracker::DeliveryState::MANUAL,
+                                              db_connection);
         at_least_one_action_done = "true";
     }
 
-    const std::string id_to_reset(GetCGIParameterOrDefault(cgi_args, "reset"));
+    const std::string id_to_reset(WebUtil::GetCGIParameterOrDefault(cgi_args, "reset"));
     if (not id_to_reset.empty()) {
         if (id_to_reset == "all")
             ResetDeliveredRecordsForJournal(journal.id_, db_connection);
@@ -592,7 +591,7 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
     const auto entries(upload_tracker->getEntriesByZederIdAndFlavour(journal.zeder_id_, journal.zeder_flavour_));
     for (const auto &entry : entries) {
         const std::string escaped_id(HtmlUtil::HtmlEscape(std::to_string(entry.id_)));
-        const std::string link("<a href=\"" + entry.url_ + "\" target=\"_blank\">" + entry.url_  + "</a>");
+        const std::string link("<a href=\"" + entry.url_ + "\" target=\"_blank\">" + entry.url_ + "</a>");
         if (not ids.empty() and ids.back() == escaped_id)
             links.back() += "<br>" + link;
         else {
@@ -601,7 +600,8 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
             titles.emplace_back(HtmlUtil::HtmlEscape(entry.main_title_));
             hashes.emplace_back(HtmlUtil::HtmlEscape(entry.hash_));
             links.emplace_back(link);
-            delivery_states.emplace_back(HtmlUtil::HtmlEscape(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(entry.delivery_state_)));
+            delivery_states.emplace_back(
+                HtmlUtil::HtmlEscape(ZoteroHarvester::Util::UploadTracker::DELIVERY_STATE_TO_STRING_MAP.at(entry.delivery_state_)));
             error_messages.emplace_back(HtmlUtil::HtmlEscape(entry.error_message_));
         }
     }
@@ -619,52 +619,49 @@ void ProcessShowDownloadedAction(const std::multimap<std::string, std::string> &
 
 
 bool ProcessShowQASubActionAdd(const std::multimap<std::string, std::string> &cgi_args, DbConnection * const db_connection,
-                               const std::string &journal_id)
-{
+                               const std::string &journal_id) {
     // sub-action "add"
-    const std::string add_type(GetCGIParameterOrDefault(cgi_args, "add_type"));
-    const std::string add_tag(GetCGIParameterOrDefault(cgi_args, "add_tag"));
-    const std::string add_subfield_code(GetCGIParameterOrDefault(cgi_args, "add_subfield_code"));
-    const std::string add_record_type(GetCGIParameterOrDefault(cgi_args, "add_record_type"));
-    const std::string add_regex(GetCGIParameterOrDefault(cgi_args, "add_regex"));
-    const std::string add_presence(GetCGIParameterOrDefault(cgi_args, "add_presence"));
+    const std::string add_type(WebUtil::GetCGIParameterOrDefault(cgi_args, "add_type"));
+    const std::string add_tag(WebUtil::GetCGIParameterOrDefault(cgi_args, "add_tag"));
+    const std::string add_subfield_code(WebUtil::GetCGIParameterOrDefault(cgi_args, "add_subfield_code"));
+    const std::string add_record_type(WebUtil::GetCGIParameterOrDefault(cgi_args, "add_record_type"));
+    const std::string add_regex(WebUtil::GetCGIParameterOrDefault(cgi_args, "add_regex"));
+    const std::string add_presence(WebUtil::GetCGIParameterOrDefault(cgi_args, "add_presence"));
     if (add_type.empty() or add_tag.empty() or add_presence.empty())
         return false;
 
-    const std::string regex_to_insert(add_regex.empty() ? "NULL"
-                                                        : db_connection->escapeAndQuoteString(add_regex));
-    const std::string journal_id_to_insert(add_type == "global" ? "NULL"
-                                                                : db_connection->escapeAndQuoteString(journal_id));
+    const std::string regex_to_insert(add_regex.empty() ? "NULL" : db_connection->escapeAndQuoteString(add_regex));
+    const std::string journal_id_to_insert(add_type == "global" ? "NULL" : db_connection->escapeAndQuoteString(journal_id));
 
-    db_connection->queryOrDie("INSERT INTO metadata_presence_tracer (journal_id, marc_field_tag, marc_subfield_code,"
-                              " record_type, regex, field_presence) VALUES ("
-                              + journal_id_to_insert + ", " + db_connection->escapeAndQuoteString(add_tag) + ", '"
-                              + add_subfield_code + "', '" + add_record_type + "', " + regex_to_insert + ", "
-                              + db_connection->escapeAndQuoteString(add_presence) + ")");
+    db_connection->queryOrDie(
+        "INSERT INTO metadata_presence_tracer (journal_id, marc_field_tag, marc_subfield_code,"
+        " record_type, regex, field_presence) VALUES ("
+        + journal_id_to_insert + ", " + db_connection->escapeAndQuoteString(add_tag) + ", '" + add_subfield_code + "', '" + add_record_type
+        + "', " + regex_to_insert + ", " + db_connection->escapeAndQuoteString(add_presence) + ")");
     return true;
 }
 
 
 bool ProcessShowQASubActionDelete(const std::multimap<std::string, std::string> &cgi_args, DbConnection * const db_connection,
-                                  const std::string &journal_id)
-{
-    const std::string delete_tag(GetCGIParameterOrDefault(cgi_args, "delete_tag"));
-    const std::string delete_type(GetCGIParameterOrDefault(cgi_args, "delete_type"));
+                                  const std::string &journal_id) {
+    const std::string delete_tag(WebUtil::GetCGIParameterOrDefault(cgi_args, "delete_tag"));
+    const std::string delete_type(WebUtil::GetCGIParameterOrDefault(cgi_args, "delete_type"));
     if (delete_type.empty() or delete_tag.empty())
         return false;
 
-    const std::string delete_subfield_code(GetCGIParameterOrDefault(cgi_args, "delete_subfield_code"));
-    const std::string delete_record_type(GetCGIParameterOrDefault(cgi_args, "delete_record_type"));
+    const std::string delete_subfield_code(WebUtil::GetCGIParameterOrDefault(cgi_args, "delete_subfield_code"));
+    const std::string delete_record_type(WebUtil::GetCGIParameterOrDefault(cgi_args, "delete_record_type"));
 
     std::string journal_id_to_delete(" = " + db_connection->escapeAndQuoteString(journal_id));
     if (delete_type == "global")
         journal_id_to_delete = "IS NULL";
 
-    db_connection->queryOrDie("DELETE FROM metadata_presence_tracer"
-                              " WHERE journal_id " + journal_id_to_delete +
-                              " AND marc_field_tag = " + db_connection->escapeAndQuoteString(delete_tag) +
-                              " AND marc_subfield_code = " + db_connection->escapeAndQuoteString(delete_subfield_code) +
-                              " AND record_type = " + db_connection->escapeAndQuoteString(delete_record_type));
+    db_connection->queryOrDie(
+        "DELETE FROM metadata_presence_tracer"
+        " WHERE journal_id "
+        + journal_id_to_delete + " AND marc_field_tag = " + db_connection->escapeAndQuoteString(delete_tag)
+        + " AND marc_subfield_code = " + db_connection->escapeAndQuoteString(delete_subfield_code)
+        + " AND record_type = " + db_connection->escapeAndQuoteString(delete_record_type));
 
     return true;
 }
@@ -675,34 +672,29 @@ struct QASubfieldProperties {
     std::string regex_;
 
     QASubfieldProperties() = default;
-    QASubfieldProperties(const std::string &field_presence, const std::string &regex): field_presence_(field_presence), regex_(regex) {}
+    QASubfieldProperties(const std::string &field_presence, const std::string &regex): field_presence_(field_presence), regex_(regex) { }
 };
 
 
 struct QAFieldProperties {
     std::string tag_;
-    std::map<char,QASubfieldProperties> global_regular_articles_;
-    std::map<char,QASubfieldProperties> global_review_articles_;
-    std::map<char,QASubfieldProperties> journal_regular_articles_;
-    std::map<char,QASubfieldProperties> journal_review_articles_;
+    std::map<char, QASubfieldProperties> global_regular_articles_;
+    std::map<char, QASubfieldProperties> global_review_articles_;
+    std::map<char, QASubfieldProperties> journal_regular_articles_;
+    std::map<char, QASubfieldProperties> journal_review_articles_;
 
     QAFieldProperties() = default;
-    QAFieldProperties(const std::string &tag): tag_(tag) {};
+    QAFieldProperties(const std::string &tag): tag_(tag){};
 
-    std::string generateHtmlForMap(const std::map<char,QASubfieldProperties> &map,
-                                          const std::string &record_type,
-                                          const bool overridden=false,
-                                          const std::string &delete_type="",
-                                          const std::string &base_url="") const;
+    std::string generateHtmlForMap(const std::map<char, QASubfieldProperties> &map, const std::string &record_type,
+                                   const bool overridden = false, const std::string &delete_type = "",
+                                   const std::string &base_url = "") const;
 };
 
 
-std::string QAFieldProperties::generateHtmlForMap(const std::map<char,QASubfieldProperties> &map,
-                                                  const std::string &record_type,
-                                                  const bool overridden,
-                                                  const std::string &delete_type,
-                                                  const std::string &base_url) const
-{
+std::string QAFieldProperties::generateHtmlForMap(const std::map<char, QASubfieldProperties> &map, const std::string &record_type,
+                                                  const bool overridden, const std::string &delete_type,
+                                                  const std::string &base_url) const {
     std::string html;
     if (overridden)
         html += "<div class=\"qa_rule_overridden\">Overridden (journal-specific):<br>";
@@ -710,13 +702,14 @@ std::string QAFieldProperties::generateHtmlForMap(const std::map<char,QASubfield
         const auto subfield_code(std::string(1, subfield_and_properties.first));
         html += subfield_code + ": " + subfield_and_properties.second.field_presence_;
         if (not delete_type.empty()) {
-            const std::string deletion_url = base_url + "&delete_tag=" + tag_ + "&delete_subfield_code=" + subfield_code +
-                                             "&delete_record_type=" + record_type + "&delete_type=" + delete_type;
-            html += "<a href=" + deletion_url + " title=\"Delete this rule\" onclick=\"return confirm('Do you really want to delete this rule?')\"><sup>x</sup></a>";
+            const std::string deletion_url = base_url + "&delete_tag=" + tag_ + "&delete_subfield_code=" + subfield_code
+                                             + "&delete_record_type=" + record_type + "&delete_type=" + delete_type;
+            html += "<a href=" + deletion_url
+                    + " title=\"Delete this rule\" onclick=\"return confirm('Do you really want to delete this rule?')\"><sup>x</sup></a>";
         }
         if (not subfield_and_properties.second.regex_.empty()) {
-            html += ", pattern: <a href=\"https://regex101.com/?regex=" + UrlUtil::UrlEncode(subfield_and_properties.second.regex_) + "\" target=\"_blank\">" +
-                    HtmlUtil::HtmlEscape(subfield_and_properties.second.regex_) + "</a>";
+            html += ", pattern: <a href=\"https://regex101.com/?regex=" + UrlUtil::UrlEncode(subfield_and_properties.second.regex_)
+                    + "\" target=\"_blank\">" + HtmlUtil::HtmlEscape(subfield_and_properties.second.regex_) + "</a>";
         }
         html += "<br>";
     }
@@ -726,13 +719,14 @@ std::string QAFieldProperties::generateHtmlForMap(const std::map<char,QASubfield
 }
 
 
-std::map<std::string,QAFieldProperties> GetQASettings(const std::string &journal_id, DbConnection * const db_connection) {
-    db_connection->queryOrDie("SELECT * FROM metadata_presence_tracer WHERE journal_id IS NULL"
-                              " OR journal_id = " + db_connection->escapeAndQuoteString(journal_id) +
-                              " ORDER BY marc_field_tag ASC, marc_subfield_code ASC, journal_id ASC");
+std::map<std::string, QAFieldProperties> GetQASettings(const std::string &journal_id, DbConnection * const db_connection) {
+    db_connection->queryOrDie(
+        "SELECT * FROM metadata_presence_tracer WHERE journal_id IS NULL"
+        " OR journal_id = "
+        + db_connection->escapeAndQuoteString(journal_id) + " ORDER BY marc_field_tag ASC, marc_subfield_code ASC, journal_id ASC");
 
     auto result_set(db_connection->getLastResultSet());
-    std::map<std::string,QAFieldProperties> tags_to_settings_map;
+    std::map<std::string, QAFieldProperties> tags_to_settings_map;
     while (const auto row = result_set.getNextRow()) {
         const auto tag(row["marc_field_tag"]);
         const char subfield(row["marc_subfield_code"].at(0));
@@ -757,13 +751,12 @@ std::map<std::string,QAFieldProperties> GetQASettings(const std::string &journal
 
 
 void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args, DbConnection * const db_connection) {
-    const std::string journal_id(GetCGIParameterOrDefault(cgi_args, "id"));
+    const std::string journal_id(WebUtil::GetCGIParameterOrDefault(cgi_args, "id"));
     const Journal journal(GetJournalById(StringUtil::ToUnsigned(journal_id), db_connection));
     std::string submitted("false");
 
-    if (ProcessShowQASubActionDelete(cgi_args, db_connection, journal_id)
-        or ProcessShowQASubActionAdd(cgi_args, db_connection, journal_id))
-            submitted = "true";
+    if (ProcessShowQASubActionDelete(cgi_args, db_connection, journal_id) or ProcessShowQASubActionAdd(cgi_args, db_connection, journal_id))
+        submitted = "true";
 
     const auto tags_to_settings_map(GetQASettings(journal_id, db_connection));
     std::vector<std::string> tags, global_regular_articles, global_review_articles, journal_regular_articles, journal_review_articles;
@@ -773,10 +766,14 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
 
         const bool global_regular_articles_overridden(not tag_and_settings.second.journal_regular_articles_.empty());
         const bool global_review_articles_overridden(not tag_and_settings.second.journal_review_articles_.empty());
-        global_regular_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.global_regular_articles_, "regular_article", global_regular_articles_overridden));
-        global_review_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.global_review_articles_, "review", global_review_articles_overridden));
-        journal_regular_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.journal_regular_articles_, "regular_article", /* overridden = */false, "local", base_url));
-        journal_review_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.journal_review_articles_, "review", /* overridden = */false, "local", base_url));
+        global_regular_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(
+            tag_and_settings.second.global_regular_articles_, "regular_article", global_regular_articles_overridden));
+        global_review_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.global_review_articles_,
+                                                                                       "review", global_review_articles_overridden));
+        journal_regular_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(
+            tag_and_settings.second.journal_regular_articles_, "regular_article", /* overridden = */ false, "local", base_url));
+        journal_review_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(
+            tag_and_settings.second.journal_review_articles_, "review", /* overridden = */ false, "local", base_url));
     }
 
     names_to_values_map.insertScalar("submitted", submitted);
@@ -795,24 +792,22 @@ void ProcessShowLogsAction() {
     std::cout << "Content-Type: text/html; charset=utf-8\r\n\r\n"
               << "<html>"
               << "<body>"
-              << "<h1>Zotero Translation Server Logs</h1>"
-              << std::flush;
+              << "<h1>Zotero Translation Server Logs</h1>" << std::flush;
     const std::string ZTS_LOG(UBTools::GetTueFindLogPath() + "zts.log");
     std::string tail_output, tail_error;
     if (not FileUtil::IsReadable(ZTS_LOG))
         std::cout << "<p>The log file does not exist!</p>";
-    else if (not ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::LocateOrDie("tail"), { "--lines=1000", ZTS_LOG },
-                                                                   &tail_output, &tail_error))
+    else if (not ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::LocateOrDie("tail"), { "--lines=1000", ZTS_LOG }, &tail_output,
+                                                                   &tail_error))
         std::cout << "<p>The log file could not be parsed!</p>";
     else if (tail_output.empty())
         std::cout << "<p>The log file is empty!</p>" << ExecUtil::LocateOrDie("tail");
     else {
-        std::cout << "<p>This view contains the last 1000 lines of the log,<br>"
-                  << "even if they don't belong to your run!</p>"
-                  << "<p>Need help? <a href=\"//github.com/ubtue/zotero-translation-server/wiki/Logging\" target=\"_blank\">See Wiki</a></p>"
-                  << "<pre>"
-                  << tail_output
-                  << "</pre>";
+        std::cout
+            << "<p>This view contains the last 1000 lines of the log,<br>"
+            << "even if they don't belong to your run!</p>"
+            << "<p>Need help? <a href=\"//github.com/ubtue/zotero-translation-server/wiki/Logging\" target=\"_blank\">See Wiki</a></p>"
+            << "<pre>" << tail_output << "</pre>";
     }
     std::cout << "</body>"
               << "</html>";
@@ -837,12 +832,12 @@ int Main(int argc, char *argv[]) {
     DbConnection db_connection(DbConnection::UBToolsFactory());
     ZoteroHarvester::Util::UploadTracker upload_tracker;
     const std::string default_action("list");
-    const std::string action(GetCGIParameterOrDefault(cgi_args, "action", default_action));
-    const std::string include_online_first(GetCGIParameterOrDefault(cgi_args, "include_online_first", ""));
-    std::string config_overrides(GetCGIParameterOrDefault(cgi_args, "config_overrides"));
+    const std::string action(WebUtil::GetCGIParameterOrDefault(cgi_args, "action", default_action));
+    const std::string include_online_first(WebUtil::GetCGIParameterOrDefault(cgi_args, "include_online_first", ""));
+    std::string config_overrides(WebUtil::GetCGIParameterOrDefault(cgi_args, "config_overrides"));
     if (include_online_first.empty())
-         config_overrides.append((config_overrides.empty() ? "" : "\n") + SKIP_ONLINE_FIRST_TRUE_DIRECTIVE);
-    const std::string url(GetCGIParameterOrDefault(cgi_args, "url"));
+        config_overrides.append((config_overrides.empty() ? "" : "\n") + SKIP_ONLINE_FIRST_TRUE_DIRECTIVE);
+    const std::string url(WebUtil::GetCGIParameterOrDefault(cgi_args, "url"));
 
     if (action == "download")
         ProcessDownloadAction(cgi_args);
@@ -859,35 +854,35 @@ int Main(int argc, char *argv[]) {
         FileUtil::ReadString(TEMPLATE_DIRECTORY + "/" + "scripts.js", &scripts_js);
         names_to_values_map.insertScalar("scripts_js", scripts_js);
 
-        const std::string depth(GetCGIParameterOrDefault(cgi_args, "depth", "1"));
+        const std::string depth(WebUtil::GetCGIParameterOrDefault(cgi_args, "depth", "1"));
         names_to_values_map.insertScalar("depth", depth);
 
-        names_to_values_map.insertScalar("running_processes_count", std::to_string(ExecUtil::FindActivePrograms("zotero_harvester").size()));
+        names_to_values_map.insertScalar("running_processes_count",
+                                         std::to_string(ExecUtil::FindActivePrograms("zotero_harvester").size()));
         names_to_values_map.insertScalar("url", url);
         names_to_values_map.insertScalar("include_online_first", include_online_first);
-        names_to_values_map.insertScalar("config_overrides",
-                                         include_online_first.empty() ?
-                                             StringUtil::ReplaceString(
-                                                 SKIP_ONLINE_FIRST_TRUE_DIRECTIVE,
-                                                 "", config_overrides) :
-                                             config_overrides);
+        names_to_values_map.insertScalar("config_overrides", include_online_first.empty() ? StringUtil::ReplaceString(
+                                                                 SKIP_ONLINE_FIRST_TRUE_DIRECTIVE, "", config_overrides)
+                                                                                          : config_overrides);
 
         std::unordered_map<std::string, ZoteroHarvester::Config::GroupParams> group_name_to_params_map;
-        std::unordered_map<std::string, std::string>journal_name_to_group_name_map;
-        ParseConfigFile(cgi_args, &group_name_to_params_map, &journal_name_to_group_name_map, &db_connection, &upload_tracker);
+        std::unordered_map<std::string, ZoteroHarvester::Config::SubgroupParams> subgroup_name_to_params_map;
+        std::unordered_map<std::string, std::string> journal_name_to_group_name_map;
+        ParseConfigFile(cgi_args, &group_name_to_params_map, &subgroup_name_to_params_map, &journal_name_to_group_name_map, &db_connection,
+                        &upload_tracker);
         RenderHtmlTemplate("index.html");
 
         std::string title, group_name;
 
         if (action != default_action) {
             if (action == "rss") {
-                title = GetCGIParameterOrDefault(cgi_args, "rss_journal_title");
+                title = WebUtil::GetCGIParameterOrDefault(cgi_args, "rss_journal_title");
                 group_name = journal_name_to_group_name_map.at(title);
             } else if (action == "crawling") {
-                title = GetCGIParameterOrDefault(cgi_args, "crawling_journal_title");
+                title = WebUtil::GetCGIParameterOrDefault(cgi_args, "crawling_journal_title");
                 group_name = journal_name_to_group_name_map.at(title);
             } else if (action == "url") {
-                title = GetCGIParameterOrDefault(cgi_args, "url_journal_title");
+                title = WebUtil::GetCGIParameterOrDefault(cgi_args, "url_journal_title");
                 if (title.empty())
                     group_name = "ixtheo";
                 else

@@ -25,12 +25,12 @@
 #pragma once
 
 
-/* Somewhere in the middle of the GCC 2.96 development cycle, a mechanism was implemented by which the user can tag likely branch directions and
-   expect the blocks to be reordered appropriately.  Define __builtin_expect to nothing for earlier compilers.  */
+/* Somewhere in the middle of the GCC 2.96 development cycle, a mechanism was implemented by which the user can tag likely branch directions
+   and expect the blocks to be reordered appropriately.  Define __builtin_expect to nothing for earlier compilers.  */
 #if __GNUC__ == 2 && __GNUC_MINOR__ < 96
-#       define __builtin_expect(x, expected_value) (x)
+#define __builtin_expect(x, expected_value) (x)
 #endif
 
 
-#define likely(x)       __builtin_expect(!!(x), 1)
-#define unlikely(x)     __builtin_expect(!!(x), 0)
+#define likely(x) __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)

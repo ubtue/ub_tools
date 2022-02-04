@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <stdexcept>
@@ -36,10 +36,8 @@ namespace {
 }
 
 
-bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullTextCache * const full_text_cache,
-                    const std::string &filename, const bool force_overwrite = false, const bool is_publisher_provided = false,
-                    const bool verbose = false)
-{
+bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullTextCache * const full_text_cache, const std::string &filename,
+                    const bool force_overwrite = false, const bool is_publisher_provided = false, const bool verbose = false) {
     const auto input(FileUtil::OpenInputFileOrDie(filename));
     FullTextImport::FullTextData full_text_data;
     FullTextImport::ReadExtractedTextFromDisk(input.get(), &full_text_data);
@@ -60,7 +58,7 @@ bool ImportDocument(const ControlNumberGuesser &control_number_guesser, FullText
     if (entry_present)
         full_text_cache->deleteEntry(ppn);
 
-    full_text_cache->insertEntry(ppn, full_text_data.full_text_, /* entry_urls = */{}, FullTextCache::FULLTEXT, is_publisher_provided);
+    full_text_cache->insertEntry(ppn, full_text_data.full_text_, /* entry_urls = */ {}, FullTextCache::FULLTEXT, is_publisher_provided);
     if (not full_text_data.full_text_location_.empty())
         full_text_cache->extractAndImportHTMLPages(ppn, full_text_data.full_text_location_);
     LOG_INFO("Inserted text from \"" + filename + "\" as entry for PPN \"" + ppn + "\"");

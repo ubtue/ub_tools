@@ -54,8 +54,7 @@ HarvestMode StringToHarvestMode(const std::string &harvest_mode_str) {
 // Field::Field -- Construct an unqulaified OAI-PMH metadata element.
 //
 Field::Field(const std::string &field_name, const std::string &value, const std::string &attribute)
-    : field_name_(field_name), value_(value), attribute_(attribute)
-{
+    : field_name_(field_name), value_(value), attribute_(attribute) {
     if (unlikely(not HtmlUtil::IsHtmlEscaped(value)))
         throw std::runtime_error("in OaiPmh::Field constructor: metadata field value is not HTML escaped: field \""
                                  + field_name + "\", attribute \"" + attribute + "\","" value \"" + value + "\".");
@@ -64,13 +63,10 @@ Field::Field(const std::string &field_name, const std::string &value, const std:
 
 // MetadataFormat -- Constructor for MetadataFormat.
 //
-MetadataFormat::MetadataFormat(const std::string &name, const IniFile &ini_file)
-    : name_(name)
-{
+MetadataFormat::MetadataFormat(const std::string &name, const IniFile &ini_file): name_(name) {
     // Sanity check:
     if (not ini_file.sectionIsDefined(name))
-        throw std::runtime_error("metadata format '" + name + "' is not defined in configuration file '"
-                                 + ini_file.getFilename() + "'.");
+        throw std::runtime_error("metadata format '" + name + "' is not defined in configuration file '" + ini_file.getFilename() + "'.");
 
     // Get the XML "container" element that will wrap the metadata record:
     container_ = ini_file.getString(name, "container", "");
@@ -78,8 +74,7 @@ MetadataFormat::MetadataFormat(const std::string &name, const IniFile &ini_file)
     // Read the set of namespaces and schema locations:
     const auto section(ini_file.getSection(name));
     for (const auto &entry : *section) {
-        if (std::strncmp("xmlns", entry.name_.c_str(), 5) == 0
-            or std::strncmp("xsi", entry.name_.c_str(), 3) == 0
+        if (std::strncmp("xmlns", entry.name_.c_str(), 5) == 0 or std::strncmp("xsi", entry.name_.c_str(), 3) == 0
             or std::strcmp("schemaVersion", entry.name_.c_str()) == 0)
             namespaces_and_schema_locations_.push_back(entry.name_ + "=\"" + entry.value_ + "\"");
     }
@@ -90,16 +85,15 @@ MetadataFormat::MetadataFormat(const std::string &name, const IniFile &ini_file)
     StringUtil::SplitThenTrim(fields, ",", " \t\n\r", &field_section_list);
 
     // Iterate of the field sections reading the map:
-    for (std::list<std::string>::const_iterator field_section(field_section_list.begin());
-         field_section != field_section_list.end(); ++field_section)
+    for (std::list<std::string>::const_iterator field_section(field_section_list.begin()); field_section != field_section_list.end();
+         ++field_section)
     {
-        const std::string field_name   (ini_file.getString(*field_section, "field_name", *field_section));
-        const std::string xml_element  (ini_file.getString(*field_section, "xml_element", *field_section));
+        const std::string field_name(ini_file.getString(*field_section, "field_name", *field_section));
+        const std::string xml_element(ini_file.getString(*field_section, "xml_element", *field_section));
         const std::string xml_attribute(ini_file.getString(*field_section, "xml_attribute", ""));
 
         xml_element_map_.insert(std::make_pair(field_name, xml_element));
         xml_attribute_map_.insert(std::make_pair(field_name, xml_attribute));
-
     }
 }
 

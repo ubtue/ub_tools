@@ -28,9 +28,9 @@
 #pragma once
 
 
-#include <unordered_set>
-#include <unordered_map>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <signal.h>
 #include <sys/types.h>
@@ -45,6 +45,7 @@ namespace ExecUtil {
  */
 class SignalBlocker {
     sigset_t saved_set_;
+
 public:
     explicit SignalBlocker(const int signal_to_block);
     ~SignalBlocker();
@@ -87,8 +88,8 @@ void ExecOrDie(const std::string &command, const std::vector<std::string> &args 
  *  \param  working_directory   The working directory to be set in the child process.
  *  \return The PID of the child.
  */
-pid_t Spawn(const std::string &command, const std::vector<std::string> &args = std::vector<std::string>{}, const std::string &new_stdin = "",
-            const std::string &new_stdout = "", const std::string &new_stderr = "",
+pid_t Spawn(const std::string &command, const std::vector<std::string> &args = std::vector<std::string>{},
+            const std::string &new_stdin = "", const std::string &new_stdout = "", const std::string &new_stderr = "",
             const std::unordered_map<std::string, std::string> &envs = std::unordered_map<std::string, std::string>(),
             const std::string &working_directory = "");
 
@@ -112,8 +113,7 @@ std::string LocateOrDie(const std::string &executable_candidate);
  *  \param  suppress_stderr  If true, stderr will be redirected to /dev/null.
  *  \note   The command will be executed by passing it to the standard shell interpreter: "/bin/sh -c command".
  */
-bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output,
-                                    const bool suppress_stderr = false);
+bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * const stdout_output, const bool suppress_stderr = false);
 
 
 /** \brief  Retrieve the stdout and stderr of a subcommand.
@@ -122,12 +122,11 @@ bool ExecSubcommandAndCaptureStdout(const std::string &command, std::string * co
  *  \param  stdout_output  Where to store the stdout of the command.
  *  \param  stderr_output  Where to store the stderr of the command.
  */
-bool ExecSubcommandAndCaptureStdoutAndStderr(const std::string &command, const std::vector<std::string> &args,
-                                             std::string * const stdout_output, std::string * const stderr_output,
-                                             const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL,
-                                             const std::unordered_map<std::string, std::string> &envs =
-                                             std::unordered_map<std::string, std::string>(),
-                                             const std::string &working_directory = "");
+bool ExecSubcommandAndCaptureStdoutAndStderr(
+    const std::string &command, const std::vector<std::string> &args, std::string * const stdout_output, std::string * const stderr_output,
+    const unsigned timeout_in_seconds = 0, const int tardy_child_signal = SIGKILL,
+    const std::unordered_map<std::string, std::string> &envs = std::unordered_map<std::string, std::string>(),
+    const std::string &working_directory = "");
 
 
 // Based on CPU load and number of cores, tells us if it would be prudent to spawn a new process at this time or not.

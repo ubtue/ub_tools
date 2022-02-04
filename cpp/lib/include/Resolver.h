@@ -60,11 +60,13 @@ class Resolver {
         struct CacheEntry {
             time_t expire_time_;
             std::set<in_addr_t> ip_addresses_;
+
         public:
             CacheEntry(const time_t expire_time, const std::set<in_addr_t> &ip_addresses)
                 : expire_time_(expire_time), ip_addresses_(ip_addresses) { }
         };
         std::unordered_map<std::string, CacheEntry> resolved_hostnames_cache_;
+
     public:
         Cache() { }
         bool lookup(const std::string &hostname, std::set<in_addr_t> * const ip_addresses);
@@ -72,18 +74,22 @@ class Resolver {
     } cache_;
 
     static uint16_t next_request_id_;
+
 public:
     enum ResultType { RESOLVED, UNKNOWN };
     struct Result {
         ResultType result_type_;
         std::string hostname_;
         std::set<in_addr_t> ip_addresses_;
+
     public:
         Result(const ResultType result_type, const std::string &hostname, const std::set<in_addr_t> ip_addresses)
             : result_type_(result_type), hostname_(hostname), ip_addresses_(ip_addresses) { }
     };
+
 private:
     std::list<Result> resolved_addresses_;
+
 public:
     /** \brief  Construct a Resolver object.
      *  \param  dns_servers  Optional list of nameserver IP addresses for use by the resoolver.
@@ -93,8 +99,7 @@ public:
      *  ~/.iViaCore/Resolver.conf file exists and contains a [DNS Servers] section, the nameservers will be read from
      *  this section.  Otherwise, nameservers will be drawn from the standard UNIX /etc/resolv.conf file.
      */
-    explicit Resolver(const std::list<std::string> &dns_servers = std::list<std::string>(),
-                      const unsigned verbosity = 3);
+    explicit Resolver(const std::list<std::string> &dns_servers = std::list<std::string>(), const unsigned verbosity = 3);
     explicit Resolver(const std::string &dns_server, const unsigned verbosity = 3);
     explicit Resolver(const in_addr_t dns_server, const unsigned verbosity = 3);
     ~Resolver();
@@ -144,10 +149,9 @@ public:
      *  \return True if we successfully extracted at least one IP address or we received a truncated reply, else
      *          false.
      */
-    static bool DecodeReply(const unsigned char * const packet_start, const size_t packet_size,
-                            std::set<std::string> * const domainnames, std::set<in_addr_t> * const ip_addresses,
-                            uint32_t * const ttl, uint16_t * const reply_id, bool * const truncated,
-                            const unsigned verbosity = 3);
+    static bool DecodeReply(const unsigned char * const packet_start, const size_t packet_size, std::set<std::string> * const domainnames,
+                            std::set<in_addr_t> * const ip_addresses, uint32_t * const ttl, uint16_t * const reply_id,
+                            bool * const truncated, const unsigned verbosity = 3);
 
     /** \brief   Checks whether a DNS server is alive or not.
      *  \param   server_ip_address    The server's IP address as a dotted quad.
@@ -160,14 +164,15 @@ public:
      */
     static bool ServerIsAlive(const std::string &server_ip_address, const std::string &hostname_to_resolve,
                               const unsigned time_limit = 5000, const unsigned verbosity = 3);
-    static bool ServerIsAlive(const in_addr_t server_ip_address, const std::string &hostname_to_resolve,
-                              const unsigned time_limit = 5000, const unsigned verbosity = 3);
+    static bool ServerIsAlive(const in_addr_t server_ip_address, const std::string &hostname_to_resolve, const unsigned time_limit = 5000,
+                              const unsigned verbosity = 3);
 
     /** \brief  Extracts DNS server IP addresses from /etc/resolv.conf.
      *  \param  server_ip_addresses  Upon return, this variable will contain the resolver IP addresses.
      *  \return The number of extracted IP addresses.
      */
     static unsigned GetServersFromResolvDotConf(std::vector<in_addr_t> * const server_ip_addresses);
+
 private:
     Resolver(const Resolver &rhs);                 // Intentionally unimplemented!
     const Resolver operator=(const Resolver &rhs); // Intentionally unimplemented!
@@ -192,7 +197,7 @@ private:
     int sendTcpRequest(const in_addr_t resolver_ip_address, const TimeLimit &time_limit, const unsigned char * const packet,
                        const unsigned packet_size) const;
 
-    static ssize_t TimedUdpRead(int socket_fd, const TimeLimit &time_limit, void * const data, size_t data_size) throw ();
+    static ssize_t TimedUdpRead(int socket_fd, const TimeLimit &time_limit, void * const data, size_t data_size) throw();
 };
 
 
@@ -203,16 +208,19 @@ class ThreadSafeDnsCache {
     struct ThreadSafeDnsCacheEntry {
         time_t expire_time_;
         std::set<in_addr_t> ip_addresses_;
+
     public:
         ThreadSafeDnsCacheEntry(const time_t expire_time, const std::set<in_addr_t> &ip_addresses)
             : expire_time_(expire_time), ip_addresses_(ip_addresses) { }
     };
     std::unordered_map<std::string, ThreadSafeDnsCacheEntry> resolved_hostnames_cache_;
     std::mutex cache_access_mutex_;
+
 public:
     ThreadSafeDnsCache() { }
     bool lookup(const std::string &hostname, std::set<in_addr_t> * const ip_addresses);
     void insert(const std::string &hostname, const std::set<in_addr_t> &ip_addresses, const uint32_t ttl);
+
 private:
     ThreadSafeDnsCache(const ThreadSafeDnsCache &rhs);                 // Intentionally unimplemented!
     const ThreadSafeDnsCache operator=(const ThreadSafeDnsCache &rhs); // Intentionally unimplemented!
@@ -221,29 +229,31 @@ private:
 
 /** \class  SimpleResolver
  *  \brief  Implements a simple sequential resolver with optional support for an external DNS cache.
- *  \note   If used within a multithreaded application you typically want to create a SimpleResolver object in the main thread and then pass references to
- *          the single object into the individual worker threads and then call resolve() within each worker thread.
+ *  \note   If used within a multithreaded application you typically want to create a SimpleResolver object in the main thread and then pass
+ * references to the single object into the individual worker threads and then call resolve() within each worker thread.
  */
 class SimpleResolver {
     ThreadSafeDnsCache dns_cache_;
-    std::vector< std::pair<in_addr_t, unsigned> > dns_server_ip_addresses_and_busy_counts_;
+    std::vector<std::pair<in_addr_t, unsigned> > dns_server_ip_addresses_and_busy_counts_;
     std::mutex dns_server_ip_addresses_and_busy_count_access_mutex_;
     uint16_t next_request_id_;
     std::mutex request_id_mutex_;
+
 public:
     /** \brief  Creates a resolver.
-     *  \param  dns_servers  If non-empty these DNS servers will be used.  Otherwise  DNS servers in listed ETC_DIR "/Resolver.conf" and if that
-     *                       doesn't exist from servers listed in /etc/resolv.conf will be used.
+     *  \param  dns_servers  If non-empty these DNS servers will be used.  Otherwise  DNS servers in listed ETC_DIR "/Resolver.conf" and if
+     * that doesn't exist from servers listed in /etc/resolv.conf will be used.
      */
     explicit SimpleResolver(const std::vector<std::string> &dns_servers = std::vector<std::string>());
 
     /** \brief  Attempts to resolve a hostname to one or more IP addresses.
      *  \param  hostname      The hostname to resolve.  Is allowed to be an IP address.
      *  \param  time_limit    Lookup time limit in milliseconds.
-     *  \param  ip_addresses  If the lookup succeeds, this is where some or all of the IP addresses corresponding to "hostname" will be returned.
-     *  \return True if the lookup succeeded or false if the lookup failed within the given time constraints.
+     *  \param  ip_addresses  If the lookup succeeds, this is where some or all of the IP addresses corresponding to "hostname" will be
+     * returned. \return True if the lookup succeeded or false if the lookup failed within the given time constraints.
      */
     bool resolve(const std::string &hostname, const TimeLimit &time_limit, std::set<in_addr_t> * const ip_addresses);
+
 private:
     SimpleResolver(const SimpleResolver &rhs);                 // Intentionally unimplemented!
     const SimpleResolver operator=(const SimpleResolver &rhs); // Intentionally unimplemented!

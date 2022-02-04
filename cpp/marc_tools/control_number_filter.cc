@@ -42,8 +42,7 @@ namespace {
 
 
 void FilterMarcRecords(const bool keep, const std::string &regex_pattern, MARC::Reader * const marc_reader,
-                       MARC::Writer * const marc_writer)
-{
+                       MARC::Writer * const marc_writer) {
     std::string err_msg;
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
     if (matcher == nullptr)

@@ -12,13 +12,14 @@ const std::string ixtheo_username(translations_ini_section->getString("sql_usern
 const std::string ixtheo_password(translations_ini_section->getString("sql_password"));
 
 [[noreturn]] void Usage() {
-    ::Usage("at the moment there are no parameters\n"
-            "    used to test (modified) ixtheo.sql file import, e.g. for stored procedures installation\n");
+    ::Usage(
+        "at the moment there are no parameters\n"
+        "    used to test (modified) ixtheo.sql file import, e.g. for stored procedures installation\n");
 }
 
 int Main(int argc, char **argv) {
- if (argc > 1 or std::strcmp("dummy", argv[0]) == 0)
-    Usage();
- DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ixtheo.sql", ixtheo_database, ixtheo_username, ixtheo_password);
- return EXIT_SUCCESS;
+    if (argc > 1 or std::strcmp("dummy", argv[0]) == 0)
+        Usage();
+    DbConnection::MySQLImportFile(INSTALLER_DATA_DIRECTORY + "/ixtheo.sql", ixtheo_database, ixtheo_username, ixtheo_password);
+    return EXIT_SUCCESS;
 }

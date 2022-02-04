@@ -33,7 +33,7 @@
 #include <string>
 #include <cstdint>
 #ifndef _BSD_SOURCE
-#   define _BSD_SOURCE
+#define _BSD_SOURCE
 #endif
 #include <ctime>
 
@@ -89,7 +89,7 @@ enum TimeZone { UTC, LOCAL };
 
 
 inline void MillisecondsToTimeSpec(const unsigned milliseconds, timespec * const time_spec) {
-    time_spec->tv_sec  = milliseconds / 1000u;
+    time_spec->tv_sec = milliseconds / 1000u;
     time_spec->tv_nsec = (milliseconds % 1000u) * 1000000u;
 }
 
@@ -111,13 +111,17 @@ std::string GetCurrentDateAndTime(const std::string &format = DEFAULT_FORMAT, co
 /** \brief   Get the current time as a string.
  *  \return  A string representing the current time.
  */
-inline std::string GetCurrentTime(const TimeZone time_zone = LOCAL) { return GetCurrentDateAndTime("%T", time_zone); }
+inline std::string GetCurrentTime(const TimeZone time_zone = LOCAL) {
+    return GetCurrentDateAndTime("%T", time_zone);
+}
 
 
 /** \brief   Get the current year as a string.
  *  \return  A string representing the current year.
  */
-inline std::string GetCurrentYear(const TimeZone time_zone = LOCAL) { return GetCurrentDateAndTime("%Y", time_zone); }
+inline std::string GetCurrentYear(const TimeZone time_zone = LOCAL) {
+    return GetCurrentDateAndTime("%Y", time_zone);
+}
 
 
 void GetCurrentDate(unsigned * const year, unsigned * const month, unsigned * const day, const TimeZone time_zone = LOCAL);
@@ -155,8 +159,9 @@ time_t TimeGm(const struct tm &tm);
  *  \param   format    The format of the result, in strftime(3) format.
  *  \return  The converted time.
  */
-inline std::string TimeTToLocalTimeString(const time_t &the_time, const std::string &format = DEFAULT_FORMAT)
-    { return TimeTToString(the_time, format, LOCAL); }
+inline std::string TimeTToLocalTimeString(const time_t &the_time, const std::string &format = DEFAULT_FORMAT) {
+    return TimeTToString(the_time, format, LOCAL);
+}
 
 
 /** \brief   Convert a time from a time_t to a string, using UTC.
@@ -164,16 +169,18 @@ inline std::string TimeTToLocalTimeString(const time_t &the_time, const std::str
  *  \param   format    The format of the result, in strftime(3) format.
  *  \return  The converted time.
  */
-inline std::string TimeTToUtcString(const time_t &the_time, const std::string &format = DEFAULT_FORMAT)
-    { return TimeTToString(the_time, format, UTC); }
+inline std::string TimeTToUtcString(const time_t &the_time, const std::string &format = DEFAULT_FORMAT) {
+    return TimeTToString(the_time, format, UTC);
+}
 
 
 /** \brief   Convert a time from a time_t to a string using Zulu representation.
  *  \param   the_time  The time to convert.
  *  \return  The converted time.
  */
-inline std::string TimeTToZuluString(const time_t &the_time)
-    { return TimeTToUtcString(the_time, ZULU_FORMAT); }
+inline std::string TimeTToZuluString(const time_t &the_time) {
+    return TimeTToUtcString(the_time, ZULU_FORMAT);
+}
 
 
 /** \brief Converts "*datetime" from format "from_format" to format "to_format"
@@ -203,10 +210,9 @@ bool ConvertFormat(const std::string &from_format, const std::string &to_format,
  *  \return The number of components that we successfully identified, 3 or 6, or 0 if we didn't have an exact match with
  *          one of our three supported formats.  When we return three, hour, minute, and second will be set to zero.
  */
-unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * const year, unsigned * const month,
-                                unsigned * const day, unsigned * const hour, unsigned * const minute,
-                                unsigned * const second, int * const hour_offset, int * const minute_offset,
-                                bool * const is_definitely_zulu_time);
+unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * const year, unsigned * const month, unsigned * const day,
+                                unsigned * const hour, unsigned * const minute, unsigned * const second, int * const hour_offset,
+                                int * const minute_offset, bool * const is_definitely_zulu_time);
 
 
 /** \brief  Parses a date/time string and gets the year out of it.
@@ -216,7 +222,6 @@ unsigned StringToBrokenDownTime(const std::string &possible_date, unsigned * con
  *  \return True if year could be determined, else false.
  */
 bool StringToYear(const std::string &possible_date, unsigned * const year);
-
 
 
 /** \brief   Convert a time from (a subset of) ISO 8601 format to a time_t.
@@ -253,8 +258,9 @@ time_t Iso8601StringToTimeT(const std::string &iso_time, const TimeZone time_zon
  *  \param   local_time  The local time in a format understood by Iso8601StringToTimeT.
  *  \return  The UTC time in Zulu representation.
  */
-inline std::string LocalTimeToZuluTime(const std::string &local_time)
-    { return TimeTToZuluString(Iso8601StringToTimeT(local_time, LOCAL)); }
+inline std::string LocalTimeToZuluTime(const std::string &local_time) {
+    return TimeTToZuluString(Iso8601StringToTimeT(local_time, LOCAL));
+}
 
 
 /** \brief   Convert a UTC time (including Zulu representation) into a local time.
@@ -262,8 +268,9 @@ inline std::string LocalTimeToZuluTime(const std::string &local_time)
  *  \param   format The format of the UTC time passed into the function.
  *  \return  The local time in ISO8601 representation.
  */
-inline std::string UtcToLocalTime(const std::string &utc, const std::string &format = DEFAULT_FORMAT)
-    { return TimeTToLocalTimeString(Iso8601StringToTimeT(utc, UTC), format); }
+inline std::string UtcToLocalTime(const std::string &utc, const std::string &format = DEFAULT_FORMAT) {
+    return TimeTToLocalTimeString(Iso8601StringToTimeT(utc, UTC), format);
+}
 
 
 /** \brief  Calculates the Julian Day Number from a Gregorian date.
@@ -289,8 +296,7 @@ double GetJulianDayNumber();
  *  \param  month              Output: The number of a month [1-12].
  *  \param  day                Output: The day of a month [1-31].
  */
-void JulianDayNumberToYearMonthAndDay(const double julian_day_number, unsigned * const year, unsigned * const month,
-                                      unsigned * const day);
+void JulianDayNumberToYearMonthAndDay(const double julian_day_number, unsigned * const year, unsigned * const month, unsigned * const day);
 
 
 /** \brief  Add an integral number of days to a "time_t".

@@ -35,20 +35,18 @@
 #include "util.h"
 
 
-FileLocker::FileLocker(const int fd, const LockType lock_type, const unsigned timeout)
-    : lock_fd_(fd), interrupted_(false)
-{
+FileLocker::FileLocker(const int fd, const LockType lock_type, const unsigned timeout): lock_fd_(fd), interrupted_(false) {
     if (timeout > 0) {
         if (::alarm(timeout) != 0)
             LOG_ERROR("we already had an active alarm!");
     }
 
     struct flock lock_struct;
-    lock_struct.l_type   = static_cast<short>((lock_type == READ_ONLY) ? F_RDLCK : F_WRLCK); /* F_RDLCK, F_WRLCK, F_UNLCK    */
-    lock_struct.l_whence = SEEK_SET;                                                         /* SEEK_SET, SEEK_CUR, SEEK_END */
-    lock_struct.l_start  = 0;                                                                /* Offset from l_whence         */
-    lock_struct.l_len    = 0;                                                                /* length, 0 = to EOF           */
-    lock_struct.l_pid    = ::getpid();                                                       /* our PID                      */
+    lock_struct.l_type = static_cast<short>((lock_type == READ_ONLY) ? F_RDLCK : F_WRLCK); /* F_RDLCK, F_WRLCK, F_UNLCK    */
+    lock_struct.l_whence = SEEK_SET;                                                       /* SEEK_SET, SEEK_CUR, SEEK_END */
+    lock_struct.l_start = 0;                                                               /* Offset from l_whence         */
+    lock_struct.l_len = 0;                                                                 /* length, 0 = to EOF           */
+    lock_struct.l_pid = ::getpid();                                                        /* our PID                      */
 
     while (::fcntl(lock_fd_, F_SETLKW, &lock_struct) == -1) {
         const int last_errno(errno);
@@ -73,13 +71,13 @@ FileLocker::~FileLocker() {
         return; // No need to unlock anything!
 
     struct flock lock_struct;
-    lock_struct.l_type   = F_UNLCK;    /* F_RDLCK, F_WRLCK, F_UNLCK    */
-    lock_struct.l_whence = SEEK_SET;   /* SEEK_SET, SEEK_CUR, SEEK_END */
-    lock_struct.l_start  = 0;          /* Offset from l_whence         */
-    lock_struct.l_len    = 0;          /* length, 0 = to EOF           */
-    lock_struct.l_pid    = ::getpid(); /* our PID                      */
+    lock_struct.l_type = F_UNLCK;    /* F_RDLCK, F_WRLCK, F_UNLCK    */
+    lock_struct.l_whence = SEEK_SET; /* SEEK_SET, SEEK_CUR, SEEK_END */
+    lock_struct.l_start = 0;         /* Offset from l_whence         */
+    lock_struct.l_len = 0;           /* length, 0 = to EOF           */
+    lock_struct.l_pid = ::getpid();  /* our PID                      */
 
-    if (::fcntl(lock_fd_, F_SETLKW, &lock_struct) == -1) {                /* F_GETLK, F_SETLK, F_SETLKW */
+    if (::fcntl(lock_fd_, F_SETLKW, &lock_struct) == -1) { /* F_GETLK, F_SETLK, F_SETLKW */
         ::close(lock_fd_);
         LOG_ERROR("in FileLocker::~FileLocker: fcntl(2) failed ! (" + std::to_string(errno) + ")!");
     }

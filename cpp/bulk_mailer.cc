@@ -33,13 +33,14 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("mail_contents sql_statement auxillary_email_address_list sender_and_reply_to_email_address\n"
-            "\tmail_contents: the file containing the email message\n"
-            "\t\t(the first line will be used as the mail's subject)\n"
-            "\tsql_statement: a query to select the relevant email addresses from the vufind user table\n"
-            "\t\t(the email addresses will be selected as the first column of the query result set)\n"
-            "\tauxillary_email_address_list: a path to a plain-text file containing one email address per line\n"
-            "\tsender_and_reply_to_email_address: the email address that will be set as the sender and the reply_to field\n");
+    ::Usage(
+        "mail_contents sql_statement auxillary_email_address_list sender_and_reply_to_email_address\n"
+        "\tmail_contents: the file containing the email message\n"
+        "\t\t(the first line will be used as the mail's subject)\n"
+        "\tsql_statement: a query to select the relevant email addresses from the vufind user table\n"
+        "\t\t(the email addresses will be selected as the first column of the query result set)\n"
+        "\tauxillary_email_address_list: a path to a plain-text file containing one email address per line\n"
+        "\tsender_and_reply_to_email_address: the email address that will be set as the sender and the reply_to field\n");
 }
 
 
@@ -53,8 +54,7 @@ void CollectRecipientsFromSqlTable(const std::string &select_statment, std::vect
     while (row = result_set.getNextRow())
         recipients->emplace_back(row[0]);
 
-    LOG_INFO("Collected " + std::to_string(recipients->size() - old_size)
-             + " recipients from the output of the database query.");
+    LOG_INFO("Collected " + std::to_string(recipients->size() - old_size) + " recipients from the output of the database query.");
 }
 
 
@@ -68,7 +68,8 @@ void CollectRecipientsFromFile(const std::string &filename, std::vector<std::str
 }
 
 
-void SendAllEmails(const std::string &message_file, const std::string &sender_and_reply_to_address, const std::vector<std::string> &recipients) {
+void SendAllEmails(const std::string &message_file, const std::string &sender_and_reply_to_address,
+                   const std::vector<std::string> &recipients) {
     std::string message(EmailSender::NormaliseLineEnds(FileUtil::ReadStringOrDie(message_file)));
     const auto first_line_end_pos(message.find("\r\n"));
     if (first_line_end_pos == std::string::npos)

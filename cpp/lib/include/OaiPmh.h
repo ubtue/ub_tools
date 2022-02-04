@@ -29,19 +29,19 @@
 
 
 #ifndef LIST
-#       include <list>
-#       define LIST
+#include <list>
+#define LIST
 #endif
 #ifndef MAP
-#       include <map>
-#       define MAP
+#include <map>
+#define MAP
 #endif
 #ifndef STRING
-#       include <string>
-#       define STRING
+#include <string>
+#define STRING
 #endif
 #ifndef INI_FILE_H
-#       include <IniFile.h>
+#include <IniFile.h>
 #endif
 
 
@@ -55,8 +55,8 @@ namespace OaiPmh {
  *  that have changed since the last time we performed a harvest.
  */
 enum HarvestMode {
-    FULL,        //!< The progress file is ignored, and all records are harvested.
-    INCREMENTAL  //!< Use progress file to import only the records that have changed since the last import.
+    FULL,       //!< The progress file is ignored, and all records are harvested.
+    INCREMENTAL //!< Use progress file to import only the records that have changed since the last import.
 };
 
 
@@ -78,6 +78,7 @@ class Field {
 
     /** An (optional) attribute describing some feeature of the record, often its type. */
     std::string attribute_;
+
 public:
     /** \brief  Construct an unqulaified OAI-PMH metadata element.
      *  \param  field_name  The metadata field name.
@@ -100,6 +101,7 @@ public:
 
     /** Get the optional metadata attrbiute. */
     std::string getAttribute() const { return attribute_; }
+
 private:
     Field(); // Intentionally unimplemented!
 };
@@ -113,8 +115,8 @@ class Identifier {
 
     /** The date and time that the record was last modified. */
     std::string last_modification_timestamp_;
-public:
 
+public:
     /** \brief  Contruct a metadata record.
      *  \param  identifier                    The record identifier.
      *  \param  last_modification_timestamp   The date and time at which the record was last modified.
@@ -132,20 +134,20 @@ public:
     std::string getLastModificationTimestamp() const { return last_modification_timestamp_; }
 
     /** Set the metadata last modification timestamp. */
-    void setLastModificationTimestamp(const std::string &timestamp)
-        { last_modification_timestamp_ = timestamp; }
+    void setLastModificationTimestamp(const std::string &timestamp) { last_modification_timestamp_ = timestamp; }
+
 private:
-	Identifier();  // Intentionally unimplemented!
+    Identifier(); // Intentionally unimplemented!
 };
 
 
 /** \brief  Represents an OAI-PMH record as an identifier with a list of Field values.
  */
-class Record: public Identifier {
+class Record : public Identifier {
     /** The fields associted with this record. */
     std::list<Field> fields_;
-public:
 
+public:
     /** \brief  Contruct a metadata record.
      *  \param  identifier                   The record identifier.
      *  \param  last_modification_timestamp  The date and time at which the record was last modified.
@@ -156,15 +158,15 @@ public:
     /** \brief  Contruct a metadata record from an Identifier.
      *  \param  identifier  The record identifier.
      */
-    explicit Record(const Identifier &identifier)
-        : Identifier(identifier.getIdentifier(), identifier.getLastModificationTimestamp()) { }
+    explicit Record(const Identifier &identifier): Identifier(identifier.getIdentifier(), identifier.getLastModificationTimestamp()) { }
 
     /** Destroy a metadata record. */
     virtual ~Record() { }
 
     /** Add a field to the record. */
-    void addField(const std::string &name, const std::string &value, const std::string &attribute = "")
-    { fields_.push_back(Field(name, value, attribute)); }
+    void addField(const std::string &name, const std::string &value, const std::string &attribute = "") {
+        fields_.push_back(Field(name, value, attribute));
+    }
 
     /** Add a field to the record. */
     void addField(const Field &field) { fields_.push_back(field); }
@@ -173,6 +175,7 @@ public:
      *  \return  A refernces to the list of fields associated with this record.
      */
     const std::list<Field> &getFields() const { return fields_; }
+
 private:
     Record(); // Intentionally unimplemented!
 };
@@ -184,8 +187,8 @@ class Set {
     std::string specifier_;
     std::string name_;
     std::string description_;
-public:
 
+public:
     /** Contruct an OAI-PMH set. */
     Set(const std::string &specifier, const std::string &name, const std::string &description = "")
         : specifier_(specifier), name_(name), description_(description) { }
@@ -203,7 +206,7 @@ public:
     std::string getDescription() const { return description_; }
 
 private:
-    Set();                                   // Intentionally unimplemented!
+    Set(); // Intentionally unimplemented!
 };
 
 
@@ -244,8 +247,7 @@ public:
     std::string getContainer() const { return container_; }
 
     /** Get the XML container's namespaces and schema locations. */
-    const std::list<std::string> &getNamespacesAndSchemaLocations() const
-        { return namespaces_and_schema_locations_; }
+    const std::list<std::string> &getNamespacesAndSchemaLocations() const { return namespaces_and_schema_locations_; }
 
     /** Get the XML element corresponding to a given field name. */
     std::string getXmlElement(const std::string &field_name) const { return xml_element_map_[field_name]; }

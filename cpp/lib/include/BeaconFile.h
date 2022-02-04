@@ -32,6 +32,7 @@ public:
         std::string gnd_number_;
         unsigned optional_count_;
         std::string id_or_url_;
+
     public:
         Entry() = default;
         Entry(const Entry &other) = default;
@@ -46,13 +47,16 @@ public:
     public:
         inline std::size_t operator()(const Entry &entry) const { return std::hash<std::string>()(entry.gnd_number_); }
     };
+
 private:
     std::string filename_;
     std::string url_template_;
     std::unordered_set<Entry, EntryHasher> entries_;
     std::map<std::string, std::string> keys_and_values_;
+
 public:
     typedef std::unordered_set<Entry, EntryHasher>::const_iterator const_iterator;
+
 public:
     explicit BeaconFile(const std::string &filename);
 

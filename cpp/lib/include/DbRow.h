@@ -39,7 +39,8 @@ class DbRow {
     unsigned long *field_sizes_;
     unsigned field_count_;
     sqlite3_stmt *stmt_handle_;
-    const std::map<std::string, unsigned>  *field_name_to_index_map_;
+    const std::map<std::string, unsigned> *field_name_to_index_map_;
+
 private:
     DbRow(MYSQL_ROW row, unsigned long * const field_sizes, const unsigned field_count,
           const std::map<std::string, unsigned> &field_name_to_index_map)
@@ -50,8 +51,9 @@ private:
           stmt_handle_(stmt_handle), field_name_to_index_map_(&field_name_to_index_map) { }
     DbRow(PGresult * const pg_result, const int pg_row_number, const unsigned field_count,
           const std::map<std::string, unsigned> &field_name_to_index_map)
-        : pg_result_(pg_result), pg_row_number_(pg_row_number), row_(nullptr), field_sizes_(nullptr),
-          field_count_(field_count), stmt_handle_(nullptr), field_name_to_index_map_(&field_name_to_index_map) { }
+        : pg_result_(pg_result), pg_row_number_(pg_row_number), row_(nullptr), field_sizes_(nullptr), field_count_(field_count),
+          stmt_handle_(nullptr), field_name_to_index_map_(&field_name_to_index_map) { }
+
 public:
     DbRow(): pg_result_(nullptr), row_(nullptr), field_sizes_(nullptr), field_count_(0), stmt_handle_(nullptr) { }
     DbRow(DbRow &&other);

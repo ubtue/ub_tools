@@ -65,18 +65,23 @@ public:
         TrimMode trim_mode_;
         CaseMode case_mode_;
         std::string current_line_;
+
     public:
         std::string operator*();
         void operator++();
         bool operator==(const const_iterator &rhs) const;
         inline bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
+
     private:
-        const_iterator(File * const file, const TrimMode trim_mode, const CaseMode case_mode): file_(file), trim_mode_(trim_mode), case_mode_(case_mode) { }
+        const_iterator(File * const file, const TrimMode trim_mode, const CaseMode case_mode)
+            : file_(file), trim_mode_(trim_mode), case_mode_(case_mode) { }
     };
+
 private:
     File *file_;
     TrimMode trim_mode_;
     CaseMode case_mode_;
+
 public:
     explicit ReadLines(const std::string &path, const TrimMode trim_mode = TRIM_LEFT_AND_RIGHT,
                        const ReadLines::CaseMode case_mode = DO_NOT_CHANGE);
@@ -95,9 +100,13 @@ public:
  */
 class AutoDeleteFile {
     std::string path_;
+
 public:
-    explicit AutoDeleteFile(const std::string &path): path_(path) {}
-    ~AutoDeleteFile() { if (not path_.empty()) ::unlink(path_.c_str()); }
+    explicit AutoDeleteFile(const std::string &path): path_(path) { }
+    ~AutoDeleteFile() {
+        if (not path_.empty())
+            ::unlink(path_.c_str());
+    }
 };
 
 
@@ -106,6 +115,7 @@ class SELinuxFileContext {
     std::string role_;
     std::string type_;
     std::string range_;
+
 public:
     SELinuxFileContext() = default;
     SELinuxFileContext(const SELinuxFileContext &rhs) = default;
@@ -123,6 +133,7 @@ public:
 class Directory {
     const std::string path_;
     const std::string regex_;
+
 public:
     const std::string &getDirectoryPath() const { return path_; }
     class const_iterator; // Forward declaration.
@@ -131,6 +142,7 @@ public:
         const std::string &dirname_;
         std::string name_;
         struct stat statbuf_;
+
     public:
         Entry(const Entry &other);
 
@@ -152,9 +164,11 @@ public:
         /** \note To get the file type part of the return value, and it with S_IFMT, to get the mode part
          *        and it with with the binary complement of S_IFMT. */
         mode_t getFileTypeAndMode() const { return statbuf_.st_mode; }
+
     private:
         Entry(const std::string &dirname): dirname_(dirname) { }
     };
+
 public:
     class const_iterator {
         friend class Directory;
@@ -162,6 +176,7 @@ public:
         RegexMatcher *regex_matcher_;
         DIR *dir_handle_;
         Entry entry_;
+
     public:
         ~const_iterator();
 
@@ -169,10 +184,12 @@ public:
         void operator++();
         bool operator==(const const_iterator &rhs) const;
         bool operator!=(const const_iterator &rhs) const { return not operator==(rhs); }
+
     private:
         explicit const_iterator(const std::string &path, const std::string &regex, const bool end = false);
         void advance();
     };
+
 public:
     /** \brief Initialises a new instance of Directory.
      *  \param path   The path to the directory we want to list.
@@ -203,9 +220,14 @@ bool GetLastModificationTimestamp(const std::string &path, timespec * const mtim
 class AutoTempFile {
     std::string path_;
     bool automatically_remove_;
+
 public:
-    explicit AutoTempFile(const std::string &path_prefix = "/tmp/ATF", const std::string &path_suffix = "", bool automatically_remove = true);
-    ~AutoTempFile() { if (not path_.empty() and automatically_remove_) ::unlink(path_.c_str()); }
+    explicit AutoTempFile(const std::string &path_prefix = "/tmp/ATF", const std::string &path_suffix = "",
+                          bool automatically_remove = true);
+    ~AutoTempFile() {
+        if (not path_.empty() and automatically_remove_)
+            ::unlink(path_.c_str());
+    }
 
     const std::string &getFilePath() const { return path_; }
 };
@@ -218,9 +240,9 @@ class AutoTempDirectory {
     std::string path_;
     bool cleanup_if_exception_is_active_;
     bool remove_when_out_of_scope_;
+
 public:
-    explicit AutoTempDirectory(const std::string &path_prefix = "/tmp/ATD",
-                               const bool cleanup_if_exception_is_active = true,
+    explicit AutoTempDirectory(const std::string &path_prefix = "/tmp/ATD", const bool cleanup_if_exception_is_active = true,
                                const bool remove_when_out_of_scope = true);
     AutoTempDirectory(const AutoTempDirectory &rhs) = delete;
     ~AutoTempDirectory();
@@ -274,12 +296,14 @@ std::string MakeAbsolutePath(const std::string &reference_path, const std::strin
 
 
 /** Makes "relative_path" absolute using the current working directory as the reference path. */
-inline std::string MakeAbsolutePath(const std::string &relative_path)
-    { return MakeAbsolutePath(GetCurrentWorkingDirectory() + "/", relative_path); }
+inline std::string MakeAbsolutePath(const std::string &relative_path) {
+    return MakeAbsolutePath(GetCurrentWorkingDirectory() + "/", relative_path);
+}
 
 
-inline std::string MakeAbsolutePath(const char * const relative_path)
-    { return MakeAbsolutePath(std::string(relative_path)); }
+inline std::string MakeAbsolutePath(const char * const relative_path) {
+    return MakeAbsolutePath(std::string(relative_path));
+}
 
 
 /** \brief Create an empty file or clear an existing file.
@@ -294,7 +318,7 @@ bool MakeEmpty(const std::string &path);
 void TouchFileOrDie(const std::string &path);
 
 
-void ChangeOwnerOrDie(const std::string &path, const std::string &user="", const std::string &group="", const bool recursive=true);
+void ChangeOwnerOrDie(const std::string &path, const std::string &user = "", const std::string &group = "", const bool recursive = true);
 
 
 /** \brief Attempts to get a filename (there may be multiple) from a file descriptor. */
@@ -302,7 +326,9 @@ std::string GetFileName(const int fd);
 
 
 /** \brief Attempts to get a filename (there may be multiple) from a FILE. */
-inline std::string GetFileName(FILE * file) { return GetFileName(fileno(file)); }
+inline std::string GetFileName(FILE *file) {
+    return GetFileName(fileno(file));
+}
 
 
 /** \brief  Attempts to set O_NONBLOCK on a file descriptor.
@@ -387,23 +413,23 @@ bool Rewind(const int fd);
  *  \brief  Possible types for a file.
  */
 enum FileType {
-        FILE_TYPE_UNKNOWN,
-        FILE_TYPE_TEXT,      // .txt
-        FILE_TYPE_HTML,      // .htm .html .php
-        FILE_TYPE_PDF,       // .pdf
-        FILE_TYPE_PS,        // .ps, .eps
-        FILE_TYPE_DOC,       // .sxw .doc
-        FILE_TYPE_SLIDES,    // .sxi .ppt
-        FILE_TYPE_TEX,       // .tex ???
-        FILE_TYPE_DVI,       // .dvi
-        FILE_TYPE_TAR,       // .tar
-        FILE_TYPE_RTF,       // .rtf
-        FILE_TYPE_GZIP,      // .tgz, .gz
-        FILE_TYPE_Z,         // .Z    COMPRESS
-        FILE_TYPE_CODE,      // .c, .cc, .h, .pm, ...
-        FILE_TYPE_GRAPHIC,   // .gif, .jpg, ...
-        FILE_TYPE_AUDIO,     // .ogg, .mp3
-        FILE_TYPE_MOVIE      // .mpg, .mpeg, .divx
+    FILE_TYPE_UNKNOWN,
+    FILE_TYPE_TEXT,    // .txt
+    FILE_TYPE_HTML,    // .htm .html .php
+    FILE_TYPE_PDF,     // .pdf
+    FILE_TYPE_PS,      // .ps, .eps
+    FILE_TYPE_DOC,     // .sxw .doc
+    FILE_TYPE_SLIDES,  // .sxi .ppt
+    FILE_TYPE_TEX,     // .tex ???
+    FILE_TYPE_DVI,     // .dvi
+    FILE_TYPE_TAR,     // .tar
+    FILE_TYPE_RTF,     // .rtf
+    FILE_TYPE_GZIP,    // .tgz, .gz
+    FILE_TYPE_Z,       // .Z    COMPRESS
+    FILE_TYPE_CODE,    // .c, .cc, .h, .pm, ...
+    FILE_TYPE_GRAPHIC, // .gif, .jpg, ...
+    FILE_TYPE_AUDIO,   // .ogg, .mp3
+    FILE_TYPE_MOVIE    // .mpg, .mpeg, .divx
 };
 
 

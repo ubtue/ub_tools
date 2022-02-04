@@ -29,9 +29,16 @@
 class SysLog {
 public:
     enum LogLevel {
-        LEVEL_EMERG = LOG_EMERG, LEVEL_ALERT = LOG_ALERT, LEVEL_CRIT = LOG_CRIT, LEVEL_ERR = LOG_ERR,
-        LEVEL_WARNING = LOG_WARNING, LEVEL_NOTICE = LOG_NOTICE, LEVEL_INFO = LOG_INFO, LEVEL_DEBUG = LOG_DEBUG
+        LEVEL_EMERG = LOG_EMERG,
+        LEVEL_ALERT = LOG_ALERT,
+        LEVEL_CRIT = LOG_CRIT,
+        LEVEL_ERR = LOG_ERR,
+        LEVEL_WARNING = LOG_WARNING,
+        LEVEL_NOTICE = LOG_NOTICE,
+        LEVEL_INFO = LOG_INFO,
+        LEVEL_DEBUG = LOG_DEBUG
     };
+
 public:
     /** \param  message_prefix A string that will be prepended to all logged messages.
      *  \param  option         An or'ed together set of values described in syslog(3). (Our default is usually fine but

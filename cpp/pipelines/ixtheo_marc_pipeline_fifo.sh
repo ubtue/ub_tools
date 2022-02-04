@@ -153,8 +153,8 @@ wait
 
 StartPhase "Add BEACON Information to Authority Data"
 (add_authority_beacon_information Normdaten-partially-augmented1-"${date}".mrc \
-                                  Normdaten-partially-augmented2-"${date}".mrc kalliope.staatsbibliothek-berlin.beacon \
-                                  --type-file kalliope_originators.txt $(find . -name '*.beacon' ! -name "*kalliope.*") \
+                                  Normdaten-partially-augmented2-"${date}".mrc beacon_downloads/kalliope.staatsbibliothek-berlin.lr.beacon \
+                                  --type-file kalliope_originators.txt $(find beacon_downloads -name '*.beacon' ! -name "*kalliope.*") \
                                   >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 wait
@@ -205,7 +205,7 @@ EndPhase || Abort) &
 wait
 
 StartPhase "Add Wikidata IDs to Authority Data"
-(add_authority_wikidata_ids Normdaten-partially-augmented2-"${date}".mrc \
+(add_authority_external_ref Normdaten-partially-augmented2-"${date}".mrc \
                             Normdaten-partially-augmented3-"${date}".mrc \
                             /usr/local/var/lib/tuelib/gnd_to_wiki.txt >> "${log}" 2>&1 && \
 EndPhase || Abort) &
@@ -378,7 +378,20 @@ readonly field_match_pattern='610t:Codex (iuris canonici|canonum ecclesiarum ori
                 --replace-subfield-if-regex '610p:/^(\d+),(\d+-\d+)$/can. \1 §§\2/' "${field_match_pattern}" \
                 --replace-subfield-if-regex '610p:/^(\d+),(\d+),(\d+)$/can. \1, §\2 n. \3/' "${field_match_pattern}" \
                 --replace-subfield-if-regex '610p:/^(\d+),(\d+),(\d+)-(\d+)$/can. \1, §\2 n. \3-\4/' "${field_match_pattern}" \
+                --replace-subfield-if-regex '610p:/^(\d+)-(\d+)$/can. \1-\2/' "${field_match_pattern}" \
 		>> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
+
+StartPhase "Copy local JSTOR Links to ordinary 856"
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
+(marc_augmentor GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                --insert-field-if-regex  '856u:/(JSTOR#.*)/\1/' 'LOKx:JSTOR#' \
+                --add-subfield-if-matching '856x:JSTOR' '856u:JSTOR#' \
+                --add-subfield-if-matching '8563:Volltext' '856u:JSTOR#' \
+                --replace-subfield-if-regex '856u:/JSTOR#(.*)/\1/' '856u:JSTOR#.*' \
+        >> "${log}" 2>&1 && \
 EndPhase || Abort) &
 
 

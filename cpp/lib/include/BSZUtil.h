@@ -38,8 +38,8 @@ constexpr size_t PPN_LENGTH_NEW(10);
 /** \brief Extracts PPNs (ID's) from a LOEKXP file as provided by the BSZ.
  *  \note The sets will not be cleared so that multiple calls to this function will accumulate the ID's.
  */
-void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const delete_full_record_ids,
-                        std::unordered_set <std::string> * const local_deletion_ids);
+void ExtractDeletionIds(File * const deletion_list, std::unordered_set<std::string> * const delete_full_record_ids,
+                        std::unordered_set<std::string> * const local_deletion_ids);
 
 
 /** Extracts a date in the form of YYMMDD from "filename". */

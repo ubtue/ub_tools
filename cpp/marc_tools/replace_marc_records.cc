@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <iostream>
@@ -42,9 +42,7 @@ namespace {
 
 
 void ProcessSourceRecords(MARC::Reader * const marc_source_reader, MARC::Reader * const marc_reference_reader,
-                          MARC::Writer * const marc_writer,
-                          const std::unordered_map<std::string, off_t> &control_number_to_offset_map)
-{
+                          MARC::Writer * const marc_writer, const std::unordered_map<std::string, off_t> &control_number_to_offset_map) {
     unsigned source_record_count(0), replacement_count(0);
     while (const MARC::Record source_record = marc_source_reader->read()) {
         ++source_record_count;
@@ -56,8 +54,7 @@ void ProcessSourceRecords(MARC::Reader * const marc_source_reader, MARC::Reader 
         }
 
         if (unlikely(not marc_reference_reader->seek(control_number_and_offset->second)))
-            logger->error("failed to seek in reference records! (offset: "
-                          + std::to_string(control_number_and_offset->second));
+            logger->error("failed to seek in reference records! (offset: " + std::to_string(control_number_and_offset->second));
 
         const MARC::Record reference_record(marc_reference_reader->read());
         marc_writer->write(reference_record);
@@ -83,12 +80,10 @@ int Main(int argc, char *argv[]) {
     std::unique_ptr<MARC::Writer> marc_target_writer(MARC::Writer::Factory(argv[3]));
 
     std::unordered_map<std::string, off_t> control_number_to_offset_map;
-    std::cout << "Read "
-              << MARC::CollectRecordOffsets(marc_reference_reader.get(), &control_number_to_offset_map)
+    std::cout << "Read " << MARC::CollectRecordOffsets(marc_reference_reader.get(), &control_number_to_offset_map)
               << " reference records.\n";
 
-    ProcessSourceRecords(marc_source_reader.get(), marc_reference_reader.get(), marc_target_writer.get(),
-                         control_number_to_offset_map);
+    ProcessSourceRecords(marc_source_reader.get(), marc_reference_reader.get(), marc_target_writer.get(), control_number_to_offset_map);
 
     return EXIT_SUCCESS;
 }

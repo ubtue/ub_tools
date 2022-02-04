@@ -35,9 +35,9 @@
 #include <stdexcept>
 #include <unordered_set>
 #include <cctype>
-#include <cxxabi.h>
 #include <execinfo.h>
 #include <unistd.h>
+#include <cxxabi.h>
 #include "BSZUtil.h"
 #include "Compiler.h"
 #include "FileUtil.h"
@@ -112,7 +112,6 @@ char GeneratePPNChecksumDigit(const std::string &ppn_without_checksum) {
 }
 
 
-
 bool IsValidPPN(const std::string &ppn_candidate) {
     if (ppn_candidate.length() != BSZUtil::PPN_LENGTH_OLD and ppn_candidate.length() != BSZUtil::PPN_LENGTH_NEW)
         return false;
@@ -122,8 +121,7 @@ bool IsValidPPN(const std::string &ppn_candidate) {
             return false;
     }
 
-    return ppn_candidate[ppn_candidate.length() - 1]
-           == GeneratePPNChecksumDigit(ppn_candidate.substr(0, ppn_candidate.length() - 1));
+    return ppn_candidate[ppn_candidate.length() - 1] == GeneratePPNChecksumDigit(ppn_candidate.substr(0, ppn_candidate.length() - 1));
 }
 
 
@@ -253,13 +251,11 @@ void LoadExports(const std::string &path, const bool overwrite) {
         input->getline(&line);
         std::string key, value;
         if (not ExportsParseLine(line, &key, &value))
-            LOG_ERROR("failed to parse an export statement on line #" + std::to_string(line_no) + " in \"" + input->getPath()
-                  + "\"!");
+            LOG_ERROR("failed to parse an export statement on line #" + std::to_string(line_no) + " in \"" + input->getPath() + "\"!");
         if (not key.empty())
             SetEnv(key, value, overwrite);
     }
 }
-
 
 
 bool EnvironmentVariableExists(const std::string &name) {
@@ -301,8 +297,8 @@ bool ContainsDOI(const std::string &contains_doi_candidate) {
 }
 
 std::string extractDOI(const std::string &extract_doi_candidate) {
-     const auto match(CONTAINS_DOI_MATCHER.match(extract_doi_candidate));
-     return match ? match[1] : "";
+    const auto match(CONTAINS_DOI_MATCHER.match(extract_doi_candidate));
+    return match ? match[1] : "";
 }
 
 bool IsPossibleISSN(std::string issn_candidate) {
@@ -391,10 +387,12 @@ static unsigned GetLogSuffix(const std::string &log_file_prefix, const std::stri
 
 class LogCompare {
     const std::string log_file_prefix_;
+
 public:
-    explicit LogCompare(const std::string &log_file_prefix) : log_file_prefix_(log_file_prefix) { }
-    bool operator()(const std::string &filename1, const std::string &filename2)
-        { return GetLogSuffix(log_file_prefix_, filename1) < GetLogSuffix(log_file_prefix_, filename2); }
+    explicit LogCompare(const std::string &log_file_prefix): log_file_prefix_(log_file_prefix) { }
+    bool operator()(const std::string &filename1, const std::string &filename2) {
+        return GetLogSuffix(log_file_prefix_, filename1) < GetLogSuffix(log_file_prefix_, filename2);
+    }
 };
 
 
@@ -411,7 +409,7 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count) {
     FileUtil::DirnameAndBasename(log_file_prefix, &dirname, &basename);
     if (basename.empty()) {
         basename = dirname;
-        dirname  = ".";
+        dirname = ".";
     }
     if (dirname.empty())
         dirname = ".";
@@ -420,7 +418,8 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count) {
     FileUtil::Directory directory(dirname, "^" + basename + "(\\.[0-9]+)?$");
     for (const auto entry : directory) {
         if (entry.getType() == DT_REG)
-            filenames.emplace_back(entry.getName());;
+            filenames.emplace_back(entry.getName());
+        ;
     }
 
     std::sort(filenames.begin(), filenames.end(), LogCompare(basename));
@@ -435,10 +434,9 @@ void LogRotate(const std::string &log_file_prefix, const unsigned max_count) {
     }
 
     for (auto filename(filenames.rbegin()); filename != filenames.rend(); ++filename) {
-        if (unlikely(not FileUtil::RenameFile(dirname + "/" + *filename,
-                                              dirname + "/" + IncrementFile(basename, *filename))))
-            LOG_ERROR("failed to rename \"" + dirname + "/" + *filename + "\" to \"" + dirname + "/"
-                      + IncrementFile(basename, *filename) + "\"!");
+        if (unlikely(not FileUtil::RenameFile(dirname + "/" + *filename, dirname + "/" + IncrementFile(basename, *filename))))
+            LOG_ERROR("failed to rename \"" + dirname + "/" + *filename + "\" to \"" + dirname + "/" + IncrementFile(basename, *filename)
+                      + "\"!");
     }
 }
 
@@ -460,7 +458,7 @@ static bool NodeNumberingIsCorrect(const std::vector<std::pair<unsigned, unsigne
 
 
 static void ConstructShortestPath(const std::vector<int> &parents, unsigned s, std::vector<unsigned> * const cycle) {
-    while (parents[s] != -1)  {
+    while (parents[s] != -1) {
         cycle->emplace_back(s);
         s = parents[s];
     }
@@ -530,8 +528,7 @@ found_a_cycle:
 
 
 bool TopologicalSort(const std::vector<std::pair<unsigned, unsigned>> &edges, std::vector<unsigned> * const node_order,
-                     std::vector<unsigned> * const cycle)
-{
+                     std::vector<unsigned> * const cycle) {
     std::unordered_set<unsigned> nodes;
     if (not NodeNumberingIsCorrect(edges, &nodes))
         LOG_ERROR("we don't have the required 0..N-1 labelling of nodes!");
@@ -616,7 +613,8 @@ std::string MakeOrdinal(const unsigned number) {
 
 
 // Implementation taken from https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#C++
-template <typename StringType> unsigned LevenshteinDistance(const StringType &s1, const StringType &s2) {
+template <typename StringType>
+unsigned LevenshteinDistance(const StringType &s1, const StringType &s2) {
     const std::size_t len1(s1.size()), len2(s2.size());
     std::vector<unsigned int> column(len2 + 1), previous_column(len2 + 1);
 
@@ -664,9 +662,7 @@ bool AddToPATH(const std::string &new_directory_path, const PreferredPathLocatio
 }
 
 
-std::string GenerateAddress(const std::string &optional_first_name, const std::string &optional_last_name,
-                            const std::string &fallback)
-{
+std::string GenerateAddress(const std::string &optional_first_name, const std::string &optional_last_name, const std::string &fallback) {
     if (optional_first_name.empty())
         return optional_last_name.empty() ? fallback : optional_last_name;
     else if (optional_last_name.empty())
@@ -686,6 +682,26 @@ std::string ReadProcEntry(const std::string &path) {
         else
             return file_contents;
     }
+}
+
+
+std::string NormalizeName(const std::string &name) {
+    static const auto name_with_trailing_initials_matcher(RegexMatcher::RegexMatcherFactoryOrDie("([\\p{L}-]+, ?)(\\p{L}\\.){2,}(.)"));
+    if (not name_with_trailing_initials_matcher->matched(name))
+        return name;
+
+    std::string modified_name;
+    modified_name.reserve(name.size() + 3);
+    bool insert_spaces_after_periods(false);
+    for (auto ch(name.cbegin()); ch != name.cend(); ++ch) {
+        if (*ch == ',')
+            insert_spaces_after_periods = true;
+        modified_name += *ch;
+        if (insert_spaces_after_periods and *ch == '.' and ch != name.cend() - 1 and *(ch + 1) != ' ')
+            modified_name += ' ';
+    }
+
+    return modified_name;
 }
 
 

@@ -31,8 +31,8 @@
 #define _USE_BSD // To get "timersub" from <sys/time.h>
 #include "SocketUtil.h"
 #include <cassert>
-#include <cstring>
 #include <cerrno>
+#include <cstring>
 #include <ctime>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -44,8 +44,8 @@
 #include <unistd.h>
 #include "DnsUtil.h"
 #include "FileDescriptor.h"
-#include "StringUtil.h"
 #include "SslConnection.h"
+#include "StringUtil.h"
 #include "TimerUtil.h"
 
 
@@ -58,7 +58,7 @@ extern "C" void ConnectAlarm(int /*signal_no*/) {
 }
 
 
-} // unnames namespace
+} // namespace
 
 
 typedef void (*SignalHandler)(int);
@@ -68,8 +68,7 @@ namespace SocketUtil {
 
 
 bool StringToAddress(const std::string &domainname, const TimeLimit &time_limit, in_addr_t * const inet_addr,
-                     std::string * const error_message, unsigned number_of_retries)
-{
+                     std::string * const error_message, unsigned number_of_retries) {
     bool resolved_address = false;
     unsigned number_of_attempts = 0;
 
@@ -86,14 +85,15 @@ bool StringToAddress(const std::string &domainname, const TimeLimit &time_limit,
         // Error looking up host and a timeout occurred:
         else if (time_limit.limitExceeded()) {
             *error_message = "in SocketUtil::StringToAddress: TimedGetHostByName(\"" + domainname + "\") timed out on attempt "
-                + StringUtil::ToString(number_of_attempts) + ": " + get_host_error_message + "!";
+                             + StringUtil::ToString(number_of_attempts) + ": " + get_host_error_message + "!";
             return false;
         }
 
         // Error looking up host and we've exceeded our retry limit:
-        else if (number_of_attempts >= number_of_retries) {
+        else if (number_of_attempts >= number_of_retries)
+        {
             *error_message = "in SocketUtil::StringToAddress: TimedGetHostByName(\"" + domainname + "\") failed ("
-                + StringUtil::ToString(number_of_attempts) + " attempts): " + get_host_error_message + "!";
+                             + StringUtil::ToString(number_of_attempts) + " attempts): " + get_host_error_message + "!";
             errno = ENXIO;
             return false;
         }
@@ -108,10 +108,8 @@ bool StringToAddress(const std::string &domainname, const TimeLimit &time_limit,
 }
 
 
-int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLimit &time_limit,
-               std::string * const error_message, const NagleOptionType nagle_option,
-               const ReuseAddrOptionType reuse_addr_option)
-{
+int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLimit &time_limit, std::string * const error_message,
+               const NagleOptionType nagle_option, const ReuseAddrOptionType reuse_addr_option) {
     error_message->clear();
 
     FileDescriptor socket_fd(::socket(AF_INET, SOCK_STREAM, 0));
@@ -142,8 +140,7 @@ int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLim
         // Turn off Nagle's algorithm:
         const int no_delay_flag = 1;
         if (::setsockopt(socket_fd, IPPROTO_TCP, TCP_NODELAY, &no_delay_flag, sizeof(no_delay_flag)) != 0) {
-            *error_message = "setsockopt(2) failed for SO_REUSEADDR (" + std::to_string(errno)
-                + ")!";
+            *error_message = "setsockopt(2) failed for SO_REUSEADDR (" + std::to_string(errno) + ")!";
             return -1;
         }
     }
@@ -160,8 +157,7 @@ int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLim
     new_action.sa_flags = 0;
 #endif
     if (::sigaction(SIGALRM, &new_action, nullptr) < 0) {
-        *error_message = "sigaction(2) failed to set the new signal handler ("
-            + std::to_string(errno) + ")!";
+        *error_message = "sigaction(2) failed to set the new signal handler (" + std::to_string(errno) + ")!";
         return -1;
     }
 
@@ -175,7 +171,7 @@ int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLim
         if (errno == EINTR)
             errno = ETIMEDOUT;
 
-        *error_message = "connect(2) failed ("+ std::to_string(errno) + ")!";
+        *error_message = "connect(2) failed (" + std::to_string(errno) + ")!";
         socket_fd = -1;
     }
 
@@ -195,10 +191,8 @@ int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLim
 }
 
 
-int TcpConnect(const std::string &address, const unsigned short port, const TimeLimit &time_limit,
-               std::string * const error_message, const NagleOptionType nagle_option,
-               const ReuseAddrOptionType reuse_addr_option)
-{
+int TcpConnect(const std::string &address, const unsigned short port, const TimeLimit &time_limit, std::string * const error_message,
+               const NagleOptionType nagle_option, const ReuseAddrOptionType reuse_addr_option) {
     std::string string_to_address_error_message;
     in_addr_t server_address;
     if (not StringToAddress(address, time_limit, &server_address, &string_to_address_error_message, 0 /* retries */)) {
@@ -210,15 +204,13 @@ int TcpConnect(const std::string &address, const unsigned short port, const Time
 }
 
 
-ssize_t TimedRead(int socket_fd, const TimeLimit &time_limit, void * const data, size_t data_size,
-                  SslConnection * const ssl_connection)
-{
+ssize_t TimedRead(int socket_fd, const TimeLimit &time_limit, void * const data, size_t data_size, SslConnection * const ssl_connection) {
     struct timeval select_timeout;
 #ifdef __linux__
     MillisecondsToTimeVal(time_limit.getRemainingTime(), &select_timeout);
- select_again:
+select_again:
 #else
- select_again:
+select_again:
     MillisecondsToTimeVal(time_limit.getRemainingTime(), &select_timeout);
 #endif
     fd_set read_set;
@@ -237,7 +229,7 @@ ssize_t TimedRead(int socket_fd, const TimeLimit &time_limit, void * const data,
     if (unlikely(data_size == 0))
         return 0;
 
- read_again:
+read_again:
     ssize_t ret_val;
     if (ssl_connection == nullptr) { // We have a non-SSL connection.
         ret_val = ::read(socket_fd, data, data_size);
@@ -271,9 +263,7 @@ ssize_t TimedRead(int socket_fd, const TimeLimit &time_limit, void * const data,
 }
 
 
-bool TimedRead(int socket_fd, const TimeLimit &time_limit, std::string * const s,
-               SslConnection * const ssl_connection)
-{
+bool TimedRead(int socket_fd, const TimeLimit &time_limit, std::string * const s, SslConnection * const ssl_connection) {
     s->clear();
 
     ssize_t retval;
@@ -289,14 +279,13 @@ bool TimedRead(int socket_fd, const TimeLimit &time_limit, std::string * const s
 
 
 ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const void * const data, size_t data_size,
-                   SslConnection * const ssl_connection)
-{
+                   SslConnection * const ssl_connection) {
     struct timeval select_timeout;
 #ifdef __linux__
     MillisecondsToTimeVal(time_limit.getRemainingTime(), &select_timeout);
- select_again:
+select_again:
 #else
- select_again:
+select_again:
     MillisecondsToTimeVal(time_limit.getRemainingTime(), &select_timeout);
 #endif
     fd_set write_set;
@@ -313,7 +302,7 @@ ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const void * cons
     }
     assert(FD_ISSET(socket_fd, &write_set));
 
- write_again:
+write_again:
     ssize_t ret_val;
     if (ssl_connection != nullptr) {
         ret_val = ssl_connection->write(data, data_size);
@@ -331,8 +320,7 @@ ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const void * cons
                 ret_val = -1;
             }
         }
-    }
-    else { // We have a regular, non-SSL connection.
+    } else { // We have a regular, non-SSL connection.
         ret_val = ::write(socket_fd, data, data_size);
         if (ret_val < 0) {
             if (errno == EINTR)
@@ -347,15 +335,14 @@ ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const void * cons
 }
 
 
-ssize_t TimedRecvFrom(const int socket_fd, const TimeLimit &time_limit, void * const data, const size_t data_size,
-                      struct sockaddr_in *from, const int flags)
-{
+ssize_t TimedRecvFrom(const int socket_fd, const TimeLimit &time_limit, void * const data, const size_t data_size, struct sockaddr_in *from,
+                      const int flags) {
     struct timeval select_timeout;
 #ifdef __linux__
     MillisecondsToTimeVal(time_limit.getRemainingTime(), &select_timeout);
- select_again:
+select_again:
 #else
- select_again:
+select_again:
     MillisecondsToTimeVal(time_limit.getRemainingTime(), &select_timeout);
 #endif
     fd_set read_set;
@@ -372,10 +359,9 @@ ssize_t TimedRecvFrom(const int socket_fd, const TimeLimit &time_limit, void * c
     }
     assert(FD_ISSET(socket_fd, &read_set));
 
- receive_again:
+receive_again:
     socklen_t addr_len = sizeof(struct sockaddr_in);
-    ssize_t ret_val = ::recvfrom(socket_fd, data, data_size, flags, reinterpret_cast<struct sockaddr *>(from),
-                                 &addr_len);
+    ssize_t ret_val = ::recvfrom(socket_fd, data, data_size, flags, reinterpret_cast<struct sockaddr *>(from), &addr_len);
     if (ret_val < 0) {
         if (errno == EINTR)
             goto receive_again;
@@ -389,14 +375,13 @@ ssize_t TimedRecvFrom(const int socket_fd, const TimeLimit &time_limit, void * c
 
 
 ssize_t TimedSendTo(const int socket_fd, const TimeLimit &time_limit, const void * const data, const size_t data_size,
-                    const struct sockaddr_in &to, const int flags)
-{
+                    const struct sockaddr_in &to, const int flags) {
     struct timeval select_timeout;
 #ifdef __linux__
     MillisecondsToTimeVal(time_limit.getRemainingTime(), &select_timeout);
- select_again:
+select_again:
 #else
- select_again:
+select_again:
     MillisecondsToTimeVal(time_limit.getRemainingTime(), &select_timeout);
 #endif
     fd_set write_set;
@@ -413,9 +398,8 @@ ssize_t TimedSendTo(const int socket_fd, const TimeLimit &time_limit, const void
     }
     assert(FD_ISSET(socket_fd, &write_set));
 
- send_again:
-    ssize_t ret_val = ::sendto(socket_fd, data, data_size, flags, reinterpret_cast<const struct sockaddr *>(&to),
-                               sizeof(struct sockaddr));
+send_again:
+    ssize_t ret_val = ::sendto(socket_fd, data, data_size, flags, reinterpret_cast<const struct sockaddr *>(&to), sizeof(struct sockaddr));
     if (ret_val < 0) {
         if (errno == EINTR)
             goto send_again;
@@ -428,16 +412,14 @@ ssize_t TimedSendTo(const int socket_fd, const TimeLimit &time_limit, const void
 }
 
 
-bool SendUdpRequest(const int socket_fd, const in_addr_t server_ip_address, const uint16_t port_no,
-                    const unsigned char * const packet, const unsigned packet_size)
-{
+bool SendUdpRequest(const int socket_fd, const in_addr_t server_ip_address, const uint16_t port_no, const unsigned char * const packet,
+                    const unsigned packet_size) {
     sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port_no);
     server_addr.sin_addr.s_addr = server_ip_address;
     std::memset(&server_addr.sin_zero, '\0', sizeof(server_addr.sin_zero));
-    return ::sendto(socket_fd, packet, packet_size, 0, reinterpret_cast<const struct sockaddr *>(&server_addr),
-                    sizeof server_addr) != -1;
+    return ::sendto(socket_fd, packet, packet_size, 0, reinterpret_cast<const struct sockaddr *>(&server_addr), sizeof server_addr) != -1;
 }
 
 

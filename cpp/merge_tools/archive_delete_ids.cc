@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <cstdio>
@@ -32,8 +32,9 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--keep-intermediate-files] old_directory deletion_list new_directory entire_record_deletion_log\n"
-            "Record ID's of records that were deleted and not merely modified will be written to \"entire_record_deletion_log\".");
+    ::Usage(
+        "[--keep-intermediate-files] old_directory deletion_list new_directory entire_record_deletion_log\n"
+        "Record ID's of records that were deleted and not merely modified will be written to \"entire_record_deletion_log\".");
 }
 
 
@@ -41,8 +42,7 @@ const std::string DELETE_IDS_COMMAND("/usr/local/bin/delete_ids");
 
 
 void UpdateSubdirectory(const std::string &old_directory, const std::string &deletion_list, const std::string &new_directory,
-                        const std::string &entire_record_deletion_log)
-{
+                        const std::string &entire_record_deletion_log) {
     std::vector<std::string> archive_members;
     FileUtil::GetFileNameList("\\.(mrc|raw)$", &archive_members, old_directory);
 
@@ -50,14 +50,10 @@ void UpdateSubdirectory(const std::string &old_directory, const std::string &del
         LOG_ERROR("failed to create subdirectory: \"" + new_directory + "\"!");
 
     for (const auto &archive_member : archive_members) {
-        if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND,
-                                    {
-                                        "--input-format=marc-21",
-                                        "--output-format=marc-21",
-                                        deletion_list,
-                                        old_directory + "/" + archive_member, new_directory + "/" + archive_member,
-                                        entire_record_deletion_log
-                                    }) != 0))
+        if (unlikely(ExecUtil::Exec(DELETE_IDS_COMMAND, { "--input-format=marc-21", "--output-format=marc-21", deletion_list,
+                                                          old_directory + "/" + archive_member, new_directory + "/" + archive_member,
+                                                          entire_record_deletion_log })
+                     != 0))
             LOG_ERROR("\"" + DELETE_IDS_COMMAND + "\" failed!");
     }
 }

@@ -32,12 +32,14 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("marc_title_input marc_article_output\n"
-            "Extracts changed article records that are contained in journals marked in the \"koe\" column in Zeder.");
+    ::Usage(
+        "marc_title_input marc_article_output\n"
+        "Extracts changed article records that are contained in journals marked in the \"koe\" column in Zeder.");
 }
 
 
-const std::string ZEDER_BASE_URL("http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?action=get&Dimension=wert&Bearbeiter=&Instanz=");
+const std::string ZEDER_BASE_URL(
+    "http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?action=get&Dimension=wert&Bearbeiter=&Instanz=");
 
 
 enum ZederFlavour { IXTHEO, KRIMDOK };
@@ -48,15 +50,19 @@ public:
     class const_iterator {
         friend class ZederTable;
         JSON::ArrayNode::const_iterator iter_;
+
     public:
         void operator++() { ++iter_; }
         const JSON::ObjectNode &operator*() const { return *JSON::JSONNode::CastToObjectNodeOrDie("entry", *iter_); }
         bool operator!=(const const_iterator &lhs) const { return iter_ != lhs.iter_; }
+
     private:
         const_iterator(JSON::ArrayNode::const_iterator iter): iter_(iter) { }
     };
+
 private:
     std::shared_ptr<JSON::ArrayNode> array_node_;
+
 public:
     explicit ZederTable(const ZederFlavour zeder_flavour);
     inline const_iterator begin() const { return array_node_->begin(); }
@@ -127,19 +133,17 @@ void DetermineSuperiorPPNsOfInterest(std::unordered_set<std::string> * const sup
 
 
 void ExtractChangedRelevantArticles(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                                    const std::unordered_set<std::string> &superior_ppns_of_interest)
-{
-    DbConnection db_connection(DbConnection::Sqlite3Factory(UBTools::GetTuelibPath() + "cologne_article_hashes.sq3",
-                                                            DbConnection::CREATE));
-    db_connection.queryOrDie("CREATE TABLE IF NOT EXISTS record_hashes ("
-                             "    ppn TEXT PRIMARY KEY,"
-                             "    hash TEXT NOT NULL"
-                             ") WITHOUT ROWID");
+                                    const std::unordered_set<std::string> &superior_ppns_of_interest) {
+    DbConnection db_connection(DbConnection::Sqlite3Factory(UBTools::GetTuelibPath() + "cologne_article_hashes.sq3", DbConnection::CREATE));
+    db_connection.queryOrDie(
+        "CREATE TABLE IF NOT EXISTS record_hashes ("
+        "    ppn TEXT PRIMARY KEY,"
+        "    hash TEXT NOT NULL"
+        ") WITHOUT ROWID");
 
     unsigned relevant_article_count(0), changed_article_count(0);
     while (auto record = marc_reader->read()) {
-        if (not record.isArticle()
-            or superior_ppns_of_interest.find(record.getSuperiorControlNumber()) == superior_ppns_of_interest.cend())
+        if (not record.isArticle() or superior_ppns_of_interest.find(record.getSuperiorControlNumber()) == superior_ppns_of_interest.cend())
             continue;
         ++relevant_article_count;
 
@@ -157,8 +161,8 @@ void ExtractChangedRelevantArticles(MARC::Reader * const marc_reader, MARC::Writ
             record.erase(MARC::Tag("LOK"));
             marc_writer->write(record);
             ++changed_article_count;
-            db_connection.queryOrDie("REPLACE INTO record_hashes (ppn, hash) VALUES ('" + record.getControlNumber() + "', '"
-                                     + current_hash + "')");
+            db_connection.queryOrDie("REPLACE INTO record_hashes (ppn, hash) VALUES ('" + record.getControlNumber() + "', '" + current_hash
+                                     + "')");
         }
     }
 

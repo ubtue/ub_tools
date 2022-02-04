@@ -55,9 +55,8 @@ const size_t PPN_START_INDEX(12);
 const size_t SEPARATOR_INDEX(PPN_START_INDEX - 1);
 
 
-void ExtractDeletionIds(File * const deletion_list, std::unordered_set <std::string> * const delete_full_record_ids,
-                        std::unordered_set <std::string> * const local_deletion_ids)
-{
+void ExtractDeletionIds(File * const deletion_list, std::unordered_set<std::string> * const delete_full_record_ids,
+                        std::unordered_set<std::string> * const local_deletion_ids) {
     unsigned line_no(0);
 top_loop:
     while (not deletion_list->eof()) {
@@ -74,10 +73,9 @@ top_loop:
         else if (line_len == MAX_LINE_LENGTH_NEW_WITH_ILN or line_len == MAX_LINE_LENGTH_NEW_NO_ILN)
             ppn_len = PPN_LENGTH_NEW;
         else {
-            LOG_ERROR("unexpected line length " + std::to_string(line_len)
-                       + " for entry on line " + std::to_string(line_no)
-                       + " in deletion list file \"" + deletion_list->getPath() + "\"!");
-            ppn_len = PPN_LENGTH_OLD;       // fallback to the more conservative of the two lengths
+            LOG_ERROR("unexpected line length " + std::to_string(line_len) + " for entry on line " + std::to_string(line_no)
+                      + " in deletion list file \"" + deletion_list->getPath() + "\"!");
+            ppn_len = PPN_LENGTH_OLD; // fallback to the more conservative of the two lengths
         }
 
         for (const char indicator : FULL_RECORD_DELETE_INDICATORS) {
@@ -92,8 +90,8 @@ top_loop:
                 goto top_loop;
             }
         }
-        LOG_WARNING("in \"" + deletion_list->getPath() + " \" on line #" + std::to_string(line_no)
-                   + " unknown indicator: '" + line.substr(SEPARATOR_INDEX, 1) + "'!");
+        LOG_WARNING("in \"" + deletion_list->getPath() + " \" on line #" + std::to_string(line_no) + " unknown indicator: '"
+                    + line.substr(SEPARATOR_INDEX, 1) + "'!");
     }
 }
 
@@ -105,13 +103,11 @@ std::string ExtractDateFromFilenameOrDie(const std::string &filename) {
         std::string err_msg;
         matcher = RegexMatcher::RegexMatcherFactory(DATE_EXTRACTION_REGEX, &err_msg);
         if (unlikely(not err_msg.empty()))
-            LOG_ERROR("in ExtractDateFromFilenameOrDie: failed to compile regex: \"" + DATE_EXTRACTION_REGEX
-                     + "\".");
+            LOG_ERROR("in ExtractDateFromFilenameOrDie: failed to compile regex: \"" + DATE_EXTRACTION_REGEX + "\".");
     }
 
     if (unlikely(not matcher->matched(filename)))
-        LOG_ERROR("in ExtractDateFromFilenameOrDie: \"" + filename + "\" failed to match the regex \""
-                 + DATE_EXTRACTION_REGEX + "\"!");
+        LOG_ERROR("in ExtractDateFromFilenameOrDie: \"" + filename + "\" failed to match the regex \"" + DATE_EXTRACTION_REGEX + "\"!");
 
     return (*matcher)[1];
 }
@@ -164,9 +160,9 @@ std::string GetAuthorGNDNumber(const std::string &author, const std::string &aut
 
     const auto match(AUTHOR_GND_MATCHER.match(downloader.getMessageBody()));
     if (match) {
-         std::lock_guard<std::mutex> lock(fetch_author_gnd_url_to_gnd_cache_mutex);
-         fetch_author_gnd_url_to_gnd_cache.emplace(lookup_url, match[1]);
-         return match[1];
+        std::lock_guard<std::mutex> lock(fetch_author_gnd_url_to_gnd_cache_mutex);
+        fetch_author_gnd_url_to_gnd_cache.emplace(lookup_url, match[1]);
+        return match[1];
     }
 
     return "";
@@ -189,8 +185,7 @@ static inline std::string GenerateOutputMemberName(std::string member_name) {
 
 
 void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::string> * const archive_members,
-                           const std::string &optional_suffix)
-{
+                           const std::string &optional_suffix) {
     static auto member_matcher(RegexMatcher::RegexMatcherFactoryOrDie("([abc]\\d\\d\\d\\.raw|sekkor-...\\.mrc)$"));
 
     std::map<ArchiveType, std::shared_ptr<File>> member_type_to_file_map;
@@ -229,7 +224,7 @@ void ExtractArchiveMembers(const std::string &archive_name, std::vector<std::str
 void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year, std::string * const volume, std::string * const issue) {
     const auto field_008(record.findTag("008"));
     if (field_008 != record.end())
-         *year = field_008->getContents().substr(7, 4);
+        *year = field_008->getContents().substr(7, 4);
 
     const auto field_936(record.findTag("936"));
     if (field_936 == record.end())
@@ -243,7 +238,7 @@ void ExtractYearVolumeIssue(const MARC::Record &record, std::string * const year
 std::string GetK10PlusPPNFromSubfield(const MARC::Record::Field &field, const char subfield_code) {
     for (const auto &subfield_code_and_value : field.getSubfields()) {
         if (subfield_code_and_value.code_ == subfield_code and StringUtil::StartsWith(subfield_code_and_value.value_, "(DE-627)"))
-            return subfield_code_and_value.value_.substr(__builtin_strlen( "(DE-627)"));
+            return subfield_code_and_value.value_.substr(__builtin_strlen("(DE-627)"));
     }
     return "";
 }

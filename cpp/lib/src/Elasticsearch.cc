@@ -31,16 +31,15 @@ const std::string DEFAULT_CONFIG_FILE_PATH(UBTools::GetTuelibPath() + "Elasticse
 
 
 static void LoadIniParameters(const std::string &config_file_path, std::string * const host, std::string * const username,
-                              std::string * const password, bool * const ignore_ssl_certificates)
-{
+                              std::string * const password, bool * const ignore_ssl_certificates) {
     if (not FileUtil::Exists(config_file_path))
         LOG_ERROR("Elasticsearch config file missing: " + config_file_path);
 
     const IniFile ini_file(config_file_path);
 
-    *host                    = ini_file.getString("Elasticsearch", "host");
-    *username                = ini_file.getString("Elasticsearch", "username", "");
-    *password                = ini_file.getString("Elasticsearch", "password", "");
+    *host = ini_file.getString("Elasticsearch", "host");
+    *username = ini_file.getString("Elasticsearch", "username", "");
+    *password = ini_file.getString("Elasticsearch", "password", "");
     *ignore_ssl_certificates = ini_file.getBool("Elasticsearch", "ignore_ssl_certificates", false);
 }
 
@@ -125,8 +124,7 @@ std::unordered_multiset<std::string> Elasticsearch::selectAllNonUnique(const std
 
 
 std::vector<std::map<std::string, std::string>> Elasticsearch::extractResultsHelper(const std::shared_ptr<JSON::ObjectNode> &result_node,
-                                                                                    const std::set<std::string> &fields) const
-{
+                                                                                    const std::set<std::string> &fields) const {
     const auto hits_object_node(result_node->getObjectNode("hits"));
     if (unlikely(hits_object_node == nullptr))
         LOG_ERROR("missing \"hits\" object node in Elasticsearch result node!");
@@ -145,8 +143,8 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::extractResultsHel
                 if (entry.first == "_source") {
                     const auto source_object_node(JSON::JSONNode::CastToObjectNodeOrDie("source_object_node", entry.second));
                     for (const auto &source_entry : *source_object_node)
-                         new_map[source_entry.first] = JSON::JSONNode::CastToStringNodeOrDie("new_map[source_entry.first]",
-                                                                                             source_entry.second)->getValue();
+                        new_map[source_entry.first] =
+                            JSON::JSONNode::CastToStringNodeOrDie("new_map[source_entry.first]", source_entry.second)->getValue();
                 } else
                     new_map[entry.first] = JSON::JSONNode::CastToStringNodeOrDie("new_map[entry.first]", entry.second)->getValue();
             }
@@ -170,8 +168,7 @@ std::string Elasticsearch::extractScrollId(const std::shared_ptr<JSON::ObjectNod
 
 std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(const std::set<std::string> &fields,
                                                                             const std::map<std::string, std::string> &filter,
-                                                                            const unsigned int max_count) const
-{
+                                                                            const unsigned int max_count) const {
     const unsigned int MAX_RESULTS_PER_REQUEST(10000); // Elasticsearch Default
     const bool use_scrolling(max_count > MAX_RESULTS_PER_REQUEST);
     std::string query_string("{\n");
@@ -200,7 +197,7 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(cons
     query_string += "    \"size\": " + std::to_string(use_scrolling ? MAX_RESULTS_PER_REQUEST : max_count) + "\n";
     query_string += "}\n";
 
-    const std::string search_parameter(use_scrolling ?  "_search?scroll=1m" : "_search");
+    const std::string search_parameter(use_scrolling ? "_search?scroll=1m" : "_search");
     auto result_node(query(search_parameter, REST::POST, JSON::ObjectNode(query_string)));
 
     if (use_scrolling) {
@@ -210,22 +207,27 @@ std::vector<std::map<std::string, std::string>> Elasticsearch::simpleSelect(cons
         while (search_results_bunch.size()) {
             search_results_all.insert(std::end(search_results_all), std::begin(search_results_bunch), std::end(search_results_bunch));
             std::string scroll_id(extractScrollId(result_node));
-            result_node = query("_search/scroll", REST::POST, JSON::ObjectNode("{ \"scroll\": \"1m\", \"scroll_id\" : \"" + scroll_id + "\"}"),
-                                true /* suppress index name */ );
+            result_node =
+                query("_search/scroll", REST::POST, JSON::ObjectNode("{ \"scroll\": \"1m\", \"scroll_id\" : \"" + scroll_id + "\"}"),
+                      true /* suppress index name */);
             search_results_bunch = extractResultsHelper(result_node, fields);
         }
         return search_results_all;
-   }
-   return extractResultsHelper(result_node, fields);
+    }
+    return extractResultsHelper(result_node, fields);
 }
 
 
 static std::string ToString(const Elasticsearch::RangeOperator op) {
     switch (op) {
-    case Elasticsearch::RO_GT:  return "gt";
-    case Elasticsearch::RO_GTE: return "gte";
-    case Elasticsearch::RO_LT:  return "lt";
-    case Elasticsearch::RO_LTE: return "lte";
+    case Elasticsearch::RO_GT:
+        return "gt";
+    case Elasticsearch::RO_GTE:
+        return "gte";
+    case Elasticsearch::RO_LT:
+        return "lt";
+    case Elasticsearch::RO_LTE:
+        return "lte";
     default:
         LOG_ERROR("we should *never* get here!");
     }
@@ -233,8 +235,7 @@ static std::string ToString(const Elasticsearch::RangeOperator op) {
 
 
 bool Elasticsearch::deleteRange(const std::string &field, const RangeOperator operator1, const std::string &operand1,
-                                const RangeOperator operator2, const std::string &operand2)
-{
+                                const RangeOperator operator2, const std::string &operand2) {
     const std::string range_node((operator2 == RO_NOOP or operand2.empty()) ?
                                     "{ \"query\":"
                                     "    { \"range\":"
@@ -254,37 +255,35 @@ bool Elasticsearch::deleteRange(const std::string &field, const RangeOperator op
 
 
 bool Elasticsearch::fieldWithValueExists(const std::string &field, const std::string &value) {
+    const auto result_node(query("_search", REST::POST,
+                                 "{"
+                                 "    \"query\": {"
+                                 "        \"match\" : { \""
+                                     + field + "\" : \"" + value
+                                     + "\" }"
+                                       "    }"
+                                       "}"));
 
-   const auto result_node(
-         query("_search", REST::POST,
-              "{"
-              "    \"query\": {"
-              "        \"match\" : { \"" + field + "\" : \"" + value + "\" }"
-              "    }"
-              "}"
-         ));
+    const auto hits_node(result_node->getObjectNode("hits"));
+    if (hits_node == nullptr)
+        LOG_ERROR("No \"hits\" node in results");
 
-   const auto hits_node(result_node->getObjectNode("hits"));
-   if (hits_node == nullptr)
-       LOG_ERROR("No \"hits\" node in results");
-
-   const auto total_node = hits_node->getIntegerNode("total");
-   if (total_node == nullptr)
-       LOG_ERROR("No \"total\" node found");
-   return total_node->getValue() == 0 ? false : true;
+    const auto total_node = hits_node->getIntegerNode("total");
+    if (total_node == nullptr)
+        LOG_ERROR("No \"total\" node found");
+    return total_node->getValue() == 0 ? false : true;
 }
 
 
 std::shared_ptr<JSON::ObjectNode> Elasticsearch::query(const std::string &action, const REST::QueryType query_type,
-                                                       const JSON::ObjectNode &data, const bool suppress_index_name) const
-{
+                                                       const JSON::ObjectNode &data, const bool suppress_index_name) const {
     Downloader::Params downloader_params;
     downloader_params.authentication_username_ = username_;
     downloader_params.authentication_password_ = password_;
     downloader_params.ignore_ssl_certificates_ = ignore_ssl_certificates_;
     downloader_params.additional_headers_.push_back("Content-Type: application/json");
     Url url;
-    url = Url(host_ + (not suppress_index_name ? "/" + index_ : "" ) + (action.empty() ? "" : "/" + action));
+    url = Url(host_ + (not suppress_index_name ? "/" + index_ : "") + (action.empty() ? "" : "/" + action));
 
     std::shared_ptr<JSON::JSONNode> result(REST::QueryJSON(url, query_type, &data, downloader_params));
     std::shared_ptr<JSON::ObjectNode> result_object(JSON::JSONNode::CastToObjectNodeOrDie("Elasticsearch result", result));

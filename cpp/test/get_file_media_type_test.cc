@@ -51,4 +51,3 @@ int main(int argc, char *argv[]) {
         logger->error("caught exception: " + std::string(x.what()));
     }
 }
-

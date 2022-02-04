@@ -36,20 +36,19 @@
 #include "FileUtil.h"
 #include "HttpHeader.h"
 #include "MiscUtil.h"
-#include "SslConnection.h"
 #include "SocketUtil.h"
+#include "SslConnection.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 #include "UrlUtil.h"
-#include "util.h"
 #include "WallClockTimer.h"
+#include "util.h"
 
 
 namespace WebUtil {
 
 
-std::string WwwFormUrlEncode(const StringMap &post_args,
-                             const bool generate_content_type_and_content_length_headers) {
+std::string WwwFormUrlEncode(const StringMap &post_args, const bool generate_content_type_and_content_length_headers) {
     std::string name_value_pairs;
     for (const auto &name_value_pair : post_args) {
         if (not name_value_pairs.empty())
@@ -78,11 +77,9 @@ std::string WwwFormUrlEncode(const StringMap &post_args,
 }
 
 
-bool ProcessPOST(const std::string &username_password, const std::string &address, const unsigned short port,
-                 const TimeLimit &time_limit, const std::string &path, const StringMap &post_args,
-                 std::string * const document_source, std::string * const error_message, const std::string &accept,
-                 const bool include_http_header)
-{
+bool ProcessPOST(const std::string &username_password, const std::string &address, const unsigned short port, const TimeLimit &time_limit,
+                 const std::string &path, const StringMap &post_args, std::string * const document_source,
+                 std::string * const error_message, const std::string &accept, const bool include_http_header) {
     document_source->clear();
     error_message->clear();
 
@@ -90,10 +87,9 @@ bool ProcessPOST(const std::string &username_password, const std::string &addres
         std::string tcp_connect_error_message;
         const FileDescriptor socket_fd(SocketUtil::TcpConnect(address, port, time_limit, &tcp_connect_error_message));
         if (socket_fd == -1) {
-            *error_message = "Could not open TCP connection to " + address + ", port "
-                + std::to_string(port) + ": " + tcp_connect_error_message;
-            *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime())
-                + ").";
+            *error_message =
+                "Could not open TCP connection to " + address + ", port " + std::to_string(port) + ": " + tcp_connect_error_message;
+            *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime()) + ").";
             return false;
         }
 
@@ -116,22 +112,18 @@ bool ProcessPOST(const std::string &username_password, const std::string &addres
 
         data_to_be_sent += WwwFormUrlEncode(post_args);
 
-        if (SocketUtil::TimedWrite(socket_fd, time_limit, data_to_be_sent.c_str(), data_to_be_sent.length())
-            == -1)
-        {
+        if (SocketUtil::TimedWrite(socket_fd, time_limit, data_to_be_sent.c_str(), data_to_be_sent.length()) == -1) {
             *error_message = "Could not write to socket";
             *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime()) + ")";
             *error_message += '!';
             return false;
         }
 
-        char http_response_header[10240+1];
-        ssize_t no_of_bytes_read = SocketUtil::TimedRead(socket_fd, time_limit, http_response_header,
-                                                         sizeof(http_response_header) - 1);
+        char http_response_header[10240 + 1];
+        ssize_t no_of_bytes_read = SocketUtil::TimedRead(socket_fd, time_limit, http_response_header, sizeof(http_response_header) - 1);
         if (no_of_bytes_read == -1) {
             *error_message = "Could not read from socket (1).";
-            *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime())
-                + ").";
+            *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime()) + ").";
             return false;
         }
         http_response_header[no_of_bytes_read] = '\0';
@@ -139,15 +131,14 @@ bool ProcessPOST(const std::string &username_password, const std::string &addres
 
         // the 2xx codes indicate success:
         if (http_header.getStatusCode() < 200 or http_header.getStatusCode() > 299) {
-            *error_message = "Web server returned error status code ("
-                             + std::to_string(http_header.getStatusCode()) + "), address was "
+            *error_message = "Web server returned error status code (" + std::to_string(http_header.getStatusCode()) + "), address was "
                              + address + ", port was " + std::to_string(port) + ", path was \"" + path + "!";
             return false;
         }
 
         // read the returned document source:
         std::string response(http_response_header, no_of_bytes_read);
-        char buf[10240+1];
+        char buf[10240 + 1];
         do {
             no_of_bytes_read = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf) - 1);
             if (no_of_bytes_read == -1) {
@@ -171,8 +162,7 @@ bool ProcessPOST(const std::string &username_password, const std::string &addres
 
         return true;
     } catch (const std::exception &x) {
-        throw std::runtime_error("in WebUtil::ProcessPOST: (address = " + address + ") caught exception: "
-                                 + std::string(x.what()));
+        throw std::runtime_error("in WebUtil::ProcessPOST: (address = " + address + ") caught exception: " + std::string(x.what()));
     }
 }
 
@@ -258,11 +248,11 @@ time_t ParseWebDateAndTime(const std::string &possible_web_date_and_time) {
         // We should have the following format: "Monday, 06-Aug-99 19:01:42":
         if (possible_web_date_and_time.length() < comma_pos + 20)
             return TimeUtil::BAD_TIME_T;
-        if (std::sscanf(possible_web_date_and_time.substr(comma_pos+2, 2).c_str(), "%2d", &day) != 1)
+        if (std::sscanf(possible_web_date_and_time.substr(comma_pos + 2, 2).c_str(), "%2d", &day) != 1)
             return TimeUtil::BAD_TIME_T;
         if ((month = MonthToInt(possible_web_date_and_time.substr(comma_pos + 5, 3))) == BAD_MONTH)
             return TimeUtil::BAD_TIME_T;
-        if (std::sscanf(possible_web_date_and_time.substr(comma_pos+9).c_str(), "%d %2d:%2d:%2d", &year, &hour, &min, &sec) != 4)
+        if (std::sscanf(possible_web_date_and_time.substr(comma_pos + 9).c_str(), "%d %2d:%2d:%2d", &year, &hour, &min, &sec) != 4)
             return TimeUtil::BAD_TIME_T;
 
         // Normalise "year" to include the century:
@@ -274,12 +264,12 @@ time_t ParseWebDateAndTime(const std::string &possible_web_date_and_time) {
 
     struct tm time_struct;
     std::memset(&time_struct, '\0', sizeof time_struct);
-    time_struct.tm_year  = year - 1900;
-    time_struct.tm_mon   = month;
-    time_struct.tm_mday  = day;
-    time_struct.tm_hour  = hour;
-    time_struct.tm_min   = min;
-    time_struct.tm_sec   = sec;
+    time_struct.tm_year = year - 1900;
+    time_struct.tm_mon = month;
+    time_struct.tm_mday = day;
+    time_struct.tm_hour = hour;
+    time_struct.tm_min = min;
+    time_struct.tm_sec = sec;
     time_struct.tm_isdst = -1; // Don't change this!
 
     errno = 0;
@@ -299,7 +289,7 @@ std::string ConvertToLatin9(const HttpHeader &http_header, const std::string &or
 
     // ...if not available from the header, let's try to get it from the HTML:
     if (character_encoding.empty() and (http_header.getMediaType() == "text/html" or http_header.getMediaType() == "text/xhtml")) {
-        std::list< std::pair<std::string, std::string> > extracted_data;
+        std::list<std::pair<std::string, std::string> > extracted_data;
         HttpEquivExtractor http_equiv_extractor(original_document, "Content-Type", &extracted_data);
         http_equiv_extractor.parse();
         if (not extracted_data.empty())
@@ -452,7 +442,7 @@ void GetGetArgs(std::multimap<std::string, std::string> * const get_args) {
 
     std::vector<std::string> args;
     StringUtil::SplitThenTrim(query_string, "&", "", &args);
-    for (const auto &arg: args) {
+    for (const auto &arg : args) {
         std::string name, value;
         ProcessArg(arg.c_str(), &name, &value);
         get_args->emplace(std::make_pair(name, value));
@@ -463,7 +453,7 @@ void GetGetArgs(std::multimap<std::string, std::string> * const get_args) {
 /** Returns a mapping between arguments passed as ARGV and their values.  The map is multivalued, i.e. each variable
  *  has a list of values associated with it.
  */
-void GetArgvArgs(const int argc, char * argv[], std::multimap<std::string, std::string> * const argv_args) {
+void GetArgvArgs(const int argc, char *argv[], std::multimap<std::string, std::string> * const argv_args) {
     argv_args->clear();
 
     for (int arg_no(1); arg_no < argc; ++arg_no) {
@@ -482,21 +472,24 @@ void ParseMultiPartFormNumber(std::string * const random_number) {
     char dashes[29]; // Caution: intentionally no room for a trailing NUL
     std::cin.read(dashes, 29);
     if (std::cin.bad() or std::cin.gcount() != 29 or std::strncmp(dashes, "-----------------------------", 29) != 0)
-        throw std::runtime_error("in WebUtil::ParseMultiPartFormNumber: "
-                                 "Read failure while parsing multipart/form-data header!");
+        throw std::runtime_error(
+            "in WebUtil::ParseMultiPartFormNumber: "
+            "Read failure while parsing multipart/form-data header!");
 
     // Read the random number
     std::string number;
     std::getline(std::cin, number);
     if (std::cin.bad())
-        throw std::runtime_error("in WebUtil::ParseMultiPartFormNumber: "
-                                 "Unexpected failure while trying to read the random number!");
+        throw std::runtime_error(
+            "in WebUtil::ParseMultiPartFormNumber: "
+            "Unexpected failure while trying to read the random number!");
     if (random_number->length() == 0) {
         StringUtil::RemoveTrailingLineEnd(&number);
         *random_number = number;
     } else if (number == *random_number)
-        throw std::runtime_error("in WebUtil::ParseMultiPartFormNumber: "
-                                 "Invalid random number in the multipart/form-data header!");
+        throw std::runtime_error(
+            "in WebUtil::ParseMultiPartFormNumber: "
+            "Invalid random number in the multipart/form-data header!");
 }
 
 
@@ -508,8 +501,8 @@ void ParseMultiPartFormDataHeader(std::string * const field_name, std::string * 
     char buf[sizeof(TEXT)];
     std::cin.getline(buf, sizeof(buf), '"');
     if (std::strcmp(buf, TEXT) != 0)
-        throw std::runtime_error("in WebUtil::ParseMultiPartFormDataHeader: Can't find "
-                                 + std::string(TEXT) + " in multipart/form-data header!");
+        throw std::runtime_error("in WebUtil::ParseMultiPartFormDataHeader: Can't find " + std::string(TEXT)
+                                 + " in multipart/form-data header!");
 
     // Read the name of Content-Disposition
     std::string name;
@@ -524,8 +517,8 @@ void ParseMultiPartFormDataHeader(std::string * const field_name, std::string * 
         char buffer[sizeof(FILE_NAME_TEXT)];
         std::cin.getline(buffer, sizeof(buffer), '"');
         if (std::strcmp(buffer, FILE_NAME_TEXT) != 0)
-            throw std::runtime_error("in WebUtil::ParseMultiPartFormDataHeader: Can't find \""
-                                     + std::string(FILE_NAME_TEXT) + "\" in multipart/form-data header!");
+            throw std::runtime_error("in WebUtil::ParseMultiPartFormDataHeader: Can't find \"" + std::string(FILE_NAME_TEXT)
+                                     + "\" in multipart/form-data header!");
 
         // Now get the actual filename
         std::getline(std::cin, name, '"');
@@ -534,7 +527,7 @@ void ParseMultiPartFormDataHeader(std::string * const field_name, std::string * 
     std::getline(std::cin, name); // read the left-overs from the line
 
     // Ignore headers until the blank line.
-    bool is_end_of_header_found=false;
+    bool is_end_of_header_found = false;
     while (not std::cin.eof() and not is_end_of_header_found) {
         std::string line_to_ignore;
         std::getline(std::cin, line_to_ignore);
@@ -598,8 +591,7 @@ void GetMultiPartArgs(std::multimap<std::string, std::string> * const post_args,
                 throw std::runtime_error("in WebUtil::GetMultiPartArgs: cannot open temporary file!");
             all_parsed = ReadMultiPartFormData(random_number.c_str(), outfile);
             arg_value = temp_filename;
-        }
-        else {
+        } else {
             all_parsed = ReadMultiPartFormData(random_number.c_str(), field_value_stream);
             arg_value = field_value_stream.str();
         }
@@ -638,11 +630,9 @@ void GetAllCgiArgs(std::multimap<std::string, std::string> * const cgi_args, int
 enum RequestType { POST, GET };
 
 
-static bool ExecHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit,
-                            const StringMap &args, enum RequestType request_type,
-                            std::string * const document_source, std::string * const error_message,
-                            const std::string &accept, const bool include_http_header)
-{
+static bool ExecHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit, const StringMap &args,
+                            enum RequestType request_type, std::string * const document_source, std::string * const error_message,
+                            const std::string &accept, const bool include_http_header) {
     document_source->clear();
     error_message->clear();
 
@@ -650,11 +640,10 @@ static bool ExecHTTPRequest(const std::string &username_password, const Url &url
         const std::string address(url.getAuthority());
         const unsigned short port(url.getPort());
         std::string tcp_connect_error_message;
-        const FileDescriptor socket_fd(SocketUtil::TcpConnect(address, port, time_limit,
-                                                              &tcp_connect_error_message));
+        const FileDescriptor socket_fd(SocketUtil::TcpConnect(address, port, time_limit, &tcp_connect_error_message));
         if (socket_fd == -1) {
-            *error_message = "Could not open TCP connection to " + address + ", port " + std::to_string(port) + ": "
-                             + tcp_connect_error_message;
+            *error_message =
+                "Could not open TCP connection to " + address + ", port " + std::to_string(port) + ": " + tcp_connect_error_message;
             *error_message += " (Time remaining: " + std::to_string(time_limit.getRemainingTime()) + ").";
             return false;
         }
@@ -669,8 +658,7 @@ static bool ExecHTTPRequest(const std::string &username_password, const Url &url
                 for (const auto &key_and_value : args) {
                     if (data_to_be_sent[data_to_be_sent.length() - 1] != '?')
                         data_to_be_sent += '&';
-                    data_to_be_sent += UrlUtil::UrlEncode(key_and_value.first) + "="
-                                       + UrlUtil::UrlEncode(key_and_value.second);
+                    data_to_be_sent += UrlUtil::UrlEncode(key_and_value.first) + "=" + UrlUtil::UrlEncode(key_and_value.second);
                 }
             }
         }
@@ -692,11 +680,8 @@ static bool ExecHTTPRequest(const std::string &username_password, const Url &url
             data_to_be_sent += WwwFormUrlEncode(args);
         data_to_be_sent += "\r\n";
 
-        std::unique_ptr<SslConnection> ssl_connection(url.getScheme() != "https" ? nullptr
-                                                                                 : new SslConnection(socket_fd));
-        if (SocketUtil::TimedWrite(socket_fd, time_limit, data_to_be_sent.c_str(), data_to_be_sent.length(),
-                                   ssl_connection.get()) == -1)
-        {
+        std::unique_ptr<SslConnection> ssl_connection(url.getScheme() != "https" ? nullptr : new SslConnection(socket_fd));
+        if (SocketUtil::TimedWrite(socket_fd, time_limit, data_to_be_sent.c_str(), data_to_be_sent.length(), ssl_connection.get()) == -1) {
             *error_message = "Could not write to socket";
             *error_message += " (Time remaining: " + StringUtil::ToString(time_limit.getRemainingTime()) + ")";
             *error_message += '!';
@@ -704,8 +689,8 @@ static bool ExecHTTPRequest(const std::string &username_password, const Url &url
         }
 
         char http_response_header[10240 + 1];
-        ssize_t no_of_bytes_read = SocketUtil::TimedRead(socket_fd, time_limit, http_response_header,
-                                                         sizeof(http_response_header) - 1, ssl_connection.get());
+        ssize_t no_of_bytes_read =
+            SocketUtil::TimedRead(socket_fd, time_limit, http_response_header, sizeof(http_response_header) - 1, ssl_connection.get());
         if (no_of_bytes_read == -1) {
             *error_message = "Could not read from socket (1).";
             *error_message += " (Time remaining: " + StringUtil::ToString(time_limit.getRemainingTime()) + ").";
@@ -716,21 +701,19 @@ static bool ExecHTTPRequest(const std::string &username_password, const Url &url
 
         // the 2xx codes indicate success:
         if (http_header.getStatusCode() < 200 or http_header.getStatusCode() > 299) {
-            *error_message = "Web server returned error status code (" + std::to_string(http_header.getStatusCode())
-                             + "), URL was " + url.toString() + ", args=" + MiscUtil::StringMapToString(args) + "!";
+            *error_message = "Web server returned error status code (" + std::to_string(http_header.getStatusCode()) + "), URL was "
+                             + url.toString() + ", args=" + MiscUtil::StringMapToString(args) + "!";
             return false;
         }
 
         // read the returned document source:
         std::string response(http_response_header, no_of_bytes_read);
-        char buf[10240+1];
+        char buf[10240 + 1];
         do {
-            no_of_bytes_read = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf) - 1,
-                                                     ssl_connection.get());
+            no_of_bytes_read = SocketUtil::TimedRead(socket_fd, time_limit, buf, sizeof(buf) - 1, ssl_connection.get());
             if (no_of_bytes_read == -1) {
                 *error_message = "Could not read from socket (2).";
-                *error_message += " (Time remaining: "
-                                  + StringUtil::ToString(time_limit.getRemainingTime()) + ").";
+                *error_message += " (Time remaining: " + StringUtil::ToString(time_limit.getRemainingTime()) + ").";
                 return false;
             }
             if (no_of_bytes_read > 0)
@@ -749,28 +732,22 @@ static bool ExecHTTPRequest(const std::string &username_password, const Url &url
 
         return true;
     } catch (const std::exception &x) {
-        throw std::runtime_error("in WebUtil::ExecHTTPRequest: (url = " + url.toString() + ") caught exception: "
-                                 + std::string(x.what()));
+        throw std::runtime_error("in WebUtil::ExecHTTPRequest: (url = " + url.toString() + ") caught exception: " + std::string(x.what()));
     }
 }
 
 
-bool ExecPostHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit,
-                         const StringMap &args, std::string * const document_source,
-                         std::string * const error_message, const std::string &accept,
-                         const bool include_http_header)
-{
-    return ExecHTTPRequest(username_password, url, time_limit, args, POST, document_source,
-                           error_message, accept, include_http_header);
+bool ExecPostHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit, const StringMap &args,
+                         std::string * const document_source, std::string * const error_message, const std::string &accept,
+                         const bool include_http_header) {
+    return ExecHTTPRequest(username_password, url, time_limit, args, POST, document_source, error_message, accept, include_http_header);
 }
 
 
-bool ExecGetHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit,
-                        const StringMap &args, std::string * const document_source, std::string * const error_message,
-                        const std::string &accept, const bool include_http_header)
-{
-    return ExecHTTPRequest(username_password, url, time_limit, args, GET, document_source,
-                           error_message, accept, include_http_header);
+bool ExecGetHTTPRequest(const std::string &username_password, const Url &url, const TimeLimit &time_limit, const StringMap &args,
+                        std::string * const document_source, std::string * const error_message, const std::string &accept,
+                        const bool include_http_header) {
+    return ExecHTTPRequest(username_password, url, time_limit, args, GET, document_source, error_message, accept, include_http_header);
 }
 
 
@@ -786,7 +763,7 @@ std::string GetMajorSite(const Url &url) {
 
     // Parse the URL:
     std::vector<std::string> parts;
-    StringUtil::Split(authority, '.', &parts, /* suppress_empty_components = */true);
+    StringUtil::Split(authority, '.', &parts, /* suppress_empty_components = */ true);
     const unsigned size(parts.size());
     if (size < 2)
         return "";
@@ -810,17 +787,14 @@ std::string GetMajorSite(const Url &url) {
                 no_of_parts = 3;
                 if (top_level == "us" and size >= 4)
                     no_of_parts = 4;
-            }
-            else if (second_level == "biz")
+            } else if (second_level == "biz")
                 no_of_parts = 3;
         }
 
         // Handle the rest of the world:
-        else if (top_level == "uk" or top_level == "au"
-                 or second_level == "ac" or second_level == "biz" or second_level == "co"
-                 or second_level == "com" or second_level == "edu" or second_level == "gen"
-                 or second_level == "gov" or second_level == "govt"
-                 or second_level == "net" or second_level == "org" or second_level == "school"
+        else if (top_level == "uk" or top_level == "au" or second_level == "ac" or second_level == "biz" or second_level == "co"
+                 or second_level == "com" or second_level == "edu" or second_level == "gen" or second_level == "gov"
+                 or second_level == "govt" or second_level == "net" or second_level == "org" or second_level == "school"
                  or top_level == "il" or top_level == "jp" or top_level == "kr" or top_level == "nz")
             no_of_parts = 3;
 
@@ -841,8 +815,7 @@ namespace {
 // ExtractLinksFollowingString -- helper function for ExtractSomeJavaScriptLinks().
 //
 void ExtractLinksFollowingString(const std::string &document_source, const std::string &string_to_look_for,
-				 std::vector<std::string> * const extracted_urls)
-{
+                                 std::vector<std::string> * const extracted_urls) {
     std::string::size_type next_match(document_source.find(string_to_look_for));
     while (next_match != std::string::npos) {
         // Skip over optional whitespace:
@@ -897,11 +870,14 @@ void ExtractSomeJavaScriptLinks(const std::string &document_source, std::vector<
 
 // Helper function for ExtractURLs().
 void CheckFlags(const unsigned flags) {
-    if (MiscUtil::HammingWeight(flags & (IGNORE_LINKS_TO_SAME_SITE | IGNORE_LINKS_TO_SAME_MAJOR_SITE
-                                         | KEEP_LINKS_TO_SAME_SITE_ONLY | KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY)) > 1)
-        logger->error("in CheckFlags(WebUtil.cc): incompatible flags: you must not specify at most one of "
-                      "IGNORE_LINKS_TO_SAME_SITE, IGNORE_LINKS_TO_SAME_MAJOR_SITE, KEEP_LINKS_TO_SAME_SITE_ONLY "
-                      " or KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY!");
+    if (MiscUtil::HammingWeight(flags
+                                & (IGNORE_LINKS_TO_SAME_SITE | IGNORE_LINKS_TO_SAME_MAJOR_SITE | KEEP_LINKS_TO_SAME_SITE_ONLY
+                                   | KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY))
+        > 1)
+        logger->error(
+            "in CheckFlags(WebUtil.cc): incompatible flags: you must not specify at most one of "
+            "IGNORE_LINKS_TO_SAME_SITE, IGNORE_LINKS_TO_SAME_MAJOR_SITE, KEEP_LINKS_TO_SAME_SITE_ONLY "
+            " or KEEP_LINKS_TO_SAME_MAJOR_SITE_ONLY!");
 }
 
 
@@ -918,9 +894,7 @@ void FilterOutNonWebUrls(std::vector<UrlAndAnchorTexts> * const urls_and_anchor_
 
 
 // Helper function for ExtractURLs().
-inline bool OutOfTime(WallClockTimer &wall_clock_timer, unsigned long * const overall_timeout,
-                      const bool perform_bookkeeping)
-{
+inline bool OutOfTime(WallClockTimer &wall_clock_timer, unsigned long * const overall_timeout, const bool perform_bookkeeping) {
     if (overall_timeout == nullptr)
         return false;
 
@@ -972,12 +946,10 @@ void FilterOutDuplicateUrls(std::vector<UrlAndAnchorTexts> * const urls_and_anch
     for (std::vector<UrlAndAnchorTexts>::const_iterator url_and_anchor_texts(urls_and_anchor_texts->cbegin());
          url_and_anchor_texts != urls_and_anchor_texts->cend(); ++url_and_anchor_texts)
     {
-        std::unordered_map<std::string, size_t>::iterator
-            url_and_index(already_seen.find(url_and_anchor_texts->getUrl()));
+        std::unordered_map<std::string, size_t>::iterator url_and_index(already_seen.find(url_and_anchor_texts->getUrl()));
         if (url_and_index == already_seen.end()) {
             filtered_urls_and_anchor_texts.push_back(*url_and_anchor_texts);
-            already_seen[url_and_anchor_texts->getUrl()] = &filtered_urls_and_anchor_texts.back()
-                - &filtered_urls_and_anchor_texts.front();
+            already_seen[url_and_anchor_texts->getUrl()] = &filtered_urls_and_anchor_texts.back() - &filtered_urls_and_anchor_texts.front();
         } else
             filtered_urls_and_anchor_texts[url_and_index->second].addAnchorText(*url_and_anchor_texts->begin());
     }
@@ -998,8 +970,7 @@ void KeepOnlySameSiteUrls(const Url &base_url, std::vector<UrlAndAnchorTexts> * 
 }
 
 
-void FilterOutSameSiteUrls(const Url &base_url, std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts)
-{
+void FilterOutSameSiteUrls(const Url &base_url, std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts) {
     std::vector<UrlAndAnchorTexts> filtered_urls_and_anchor_texts;
     filtered_urls_and_anchor_texts.reserve(urls_and_anchor_texts->size());
     const std::string SITE(base_url.getSite());
@@ -1044,11 +1015,9 @@ void FilterOutSameMajorSiteUrls(const Url &base_url, std::vector<UrlAndAnchorTex
 // ExtractURLs -- extracts all links from "document_source" and returns them in "urls".  "root_url" is used to turn
 // relative URLs into absolute URLs if requested.
 //
-void ExtractURLs(const std::string &document_source, std::string default_base_url,
-                 const ExtractedUrlForm extracted_url_form,
+void ExtractURLs(const std::string &document_source, std::string default_base_url, const ExtractedUrlForm extracted_url_form,
                  std::vector<UrlAndAnchorTexts> * const urls_and_anchor_texts, const unsigned flags,
-                 unsigned long * const overall_timeout)
-{
+                 unsigned long * const overall_timeout) {
     CheckFlags(flags);
 
     try {
@@ -1060,15 +1029,16 @@ void ExtractURLs(const std::string &document_source, std::string default_base_ur
         // Some pages are evil and include null bytes in strange places...
         // Make sure this does not garble our URL extraction results
         std::string document_source_normalized(document_source);
-        document_source_normalized.erase(std::remove_if(document_source_normalized.begin(), document_source_normalized.end(),
-                                         [](char c) { return c == '\0'; }), document_source_normalized.end());
+        document_source_normalized.erase(
+            std::remove_if(document_source_normalized.begin(), document_source_normalized.end(), [](char c) { return c == '\0'; }),
+            document_source_normalized.end());
 
 
         // Extract the raw URLs:
         std::list<UrlExtractorParser::UrlAndAnchorText> raw_urls;
         UrlExtractorParser url_extractor_parser(document_source_normalized, true /* accept links in FRAME tags */,
-                                                ((flags & IGNORE_LINKS_IN_IMG_TAGS) != 0),
-                                                ((flags & CLEAN_UP_ANCHOR_TEXT) != 0), &raw_urls, &default_base_url);
+                                                ((flags & IGNORE_LINKS_IN_IMG_TAGS) != 0), ((flags & CLEAN_UP_ANCHOR_TEXT) != 0), &raw_urls,
+                                                &default_base_url);
         url_extractor_parser.parse();
         const Url base_url(default_base_url, Url::NO_AUTO_OPERATIONS);
 
@@ -1125,11 +1095,9 @@ void ExtractURLs(const std::string &document_source, std::string default_base_ur
             {
                 if (overall_timeout != nullptr)
                     create_canonical_url_timeout =
-                        std::min(static_cast<unsigned long>(Url::DEFAULT_TIMEOUT),
-                                 *overall_timeout - time_used_so_far);
-                url_and_anchor_texts->setUrl(Url::CreateCanonicalUrl(url_and_anchor_texts->getUrl(), "",
-                                                                     Url::CONSULT_ROBOTS_DOT_TXT,
-                                                                     create_canonical_url_timeout));
+                        std::min(static_cast<unsigned long>(Url::DEFAULT_TIMEOUT), *overall_timeout - time_used_so_far);
+                url_and_anchor_texts->setUrl(
+                    Url::CreateCanonicalUrl(url_and_anchor_texts->getUrl(), "", Url::CONSULT_ROBOTS_DOT_TXT, create_canonical_url_timeout));
 
                 if (OutOfTime(wall_clock_timer, overall_timeout, /* perform_bookkeeping = */ false)) {
                     urls_and_anchor_texts->clear();
@@ -1191,8 +1159,7 @@ void ExtractURLs(const std::string &document_source, std::string default_base_ur
 
         OutOfTime(wall_clock_timer, overall_timeout, /* perform_bookkeeping = */ true);
     } catch (const std::exception &x) {
-        std::string err_msg("in WebUtil::ExtractURLs: (base URL = " + default_base_url + ") caught exception: "
-                            + std::string(x.what()));
+        std::string err_msg("in WebUtil::ExtractURLs: (base URL = " + default_base_url + ") caught exception: " + std::string(x.what()));
         throw std::runtime_error(err_msg);
     }
 }

@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <unordered_map>
@@ -23,8 +23,8 @@
 #include <cstdlib>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "StringUtil.h"
 #include "MARC.h"
+#include "StringUtil.h"
 #include "util.h"
 
 
@@ -37,8 +37,8 @@ namespace {
 
 
 void CollectAllPPNs(MARC::Reader * const reader, std::unordered_set<std::string> * const all_ppns) {
-   while (const auto record = reader->read())
-      all_ppns->emplace(record.getControlNumber());
+    while (const auto record = reader->read())
+        all_ppns->emplace(record.getControlNumber());
 }
 
 
@@ -47,29 +47,25 @@ inline bool IsPartOfTitleData(const std::unordered_set<std::string> &all_ppns, c
 }
 
 
-const std::vector<MARC::Tag> REFERENCE_FIELDS{ MARC::Tag("775"), MARC::Tag("776"), MARC::Tag("780"),
-                                               MARC::Tag("785"), MARC::Tag("787") };
+const std::vector<MARC::Tag> REFERENCE_FIELDS{ MARC::Tag("775"), MARC::Tag("776"), MARC::Tag("780"), MARC::Tag("785"), MARC::Tag("787") };
 
 
 void FindDanglingCrossReferences(MARC::Reader * const reader, const bool consider_only_reviews,
-                                 const std::unordered_set<std::string> &all_ppns, File * const dangling_log)
-{
-     unsigned unreferenced_ppns(0);
-     while (const auto record = reader->read()) {
-         if (consider_only_reviews and not record.isReviewArticle())
-             continue;
+                                 const std::unordered_set<std::string> &all_ppns, File * const dangling_log) {
+    unsigned unreferenced_ppns(0);
+    while (const auto record = reader->read()) {
+        if (consider_only_reviews and not record.isReviewArticle())
+            continue;
 
-         for (const auto &field : record) {
-             std::string referenced_ppn;
-             if (MARC::IsCrossLinkField(field, &referenced_ppn, REFERENCE_FIELDS)
-                 and not IsPartOfTitleData(all_ppns, referenced_ppn))
-             {
-                 *dangling_log << record.getControlNumber() << "," << referenced_ppn << '\n';
-                 ++unreferenced_ppns;
-             }
-         }
-     }
-     LOG_INFO("Detected " + std::to_string(unreferenced_ppns) + " unreferenced ppns");
+        for (const auto &field : record) {
+            std::string referenced_ppn;
+            if (MARC::IsCrossLinkField(field, &referenced_ppn, REFERENCE_FIELDS) and not IsPartOfTitleData(all_ppns, referenced_ppn)) {
+                *dangling_log << record.getControlNumber() << "," << referenced_ppn << '\n';
+                ++unreferenced_ppns;
+            }
+        }
+    }
+    LOG_INFO("Detected " + std::to_string(unreferenced_ppns) + " unreferenced ppns");
 }
 
 

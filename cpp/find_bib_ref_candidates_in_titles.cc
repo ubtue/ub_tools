@@ -32,8 +32,8 @@
 #include <cstdlib>
 #include <cstring>
 #include "FileUtil.h"
-#include "MapUtil.h"
 #include "MARC.h"
+#include "MapUtil.h"
 #include "RangeUtil.h"
 #include "RegexMatcher.h"
 #include "StringUtil.h"
@@ -79,8 +79,7 @@ void LoadBibleOrderMap(File * const input, std::unordered_map<std::string, std::
         const size_t equal_pos(line.find('='));
         if (equal_pos == std::string::npos)
             LOG_ERROR("malformed line #" + std::to_string(line_no) + " in the bible-order map file!");
-        (*books_of_the_bible_to_code_map)[TextUtil::UTF8ToLower(line.substr(0, equal_pos))] =
-            line.substr(equal_pos + 1);
+        (*books_of_the_bible_to_code_map)[TextUtil::UTF8ToLower(line.substr(0, equal_pos))] = line.substr(equal_pos + 1);
     }
 
     LOG_INFO("Loaded " + std::to_string(line_no) + " entries from the bible-order map file.");
@@ -90,8 +89,7 @@ void LoadBibleOrderMap(File * const input, std::unordered_map<std::string, std::
 /* Pericopes are found in 130$a if there are also bible references in the 430 field. You should therefore
    only call this after ascertaining that one or more 430 fields contain a bible reference. */
 bool FindPericopes(const MARC::Record &record, const std::set<std::pair<std::string, std::string>> &ranges,
-                   std::unordered_multimap<std::string, std::string> * const pericopes_to_ranges_map)
-{
+                   std::unordered_multimap<std::string, std::string> * const pericopes_to_ranges_map) {
     std::vector<std::string> pericopes;
     const auto field_130(record.findTag("130"));
     if (field_130 != record.end()) {
@@ -115,8 +113,7 @@ bool FindPericopes(const MARC::Record &record, const std::set<std::pair<std::str
 
 
 inline bool IsValidSingleDigitArabicOrdinal(const std::string &ordinal_candidate) {
-    return ordinal_candidate.length() == 2 and StringUtil::IsDigit(ordinal_candidate[0])
-           and ordinal_candidate[1] == '.';
+    return ordinal_candidate.length() == 2 and StringUtil::IsDigit(ordinal_candidate[0]) and ordinal_candidate[1] == '.';
 }
 
 
@@ -141,8 +138,7 @@ bool OrderNSubfields(std::vector<std::string> * const n_subfield_values) {
 // Populates "numbered_books" based on "book_name_candidate" and the 0th entry in "*n_subfield_values".
 // If there were one or more arabic numerals in "(*n_subfield_values)[0]" this entry will also be removed.
 void CreateNumberedBooks(const std::string &book_name_candidate, std::vector<std::string> * const n_subfield_values,
-                         std::vector<std::string> * const numbered_books)
-{
+                         std::vector<std::string> * const numbered_books) {
     numbered_books->clear();
 
     if (n_subfield_values->empty()) {
@@ -183,8 +179,7 @@ void CreateNumberedBooks(const std::string &book_name_candidate, std::vector<std
 
 
 bool HaveBibleBookCodes(const std::vector<std::string> &book_name_candidates,
-                        const std::unordered_map<std::string, std::string> &bible_book_to_code_map)
-{
+                        const std::unordered_map<std::string, std::string> &bible_book_to_code_map) {
     for (const auto &book_name_candidate : book_name_candidates) {
         if (bible_book_to_code_map.find(book_name_candidate) == bible_book_to_code_map.cend())
             return false;
@@ -196,8 +191,7 @@ bool HaveBibleBookCodes(const std::vector<std::string> &book_name_candidates,
 
 bool ConvertBooksToBookCodes(const std::vector<std::string> &books,
                              const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
-                             std::vector<std::string> * const book_codes)
-{
+                             std::vector<std::string> * const book_codes) {
     book_codes->clear();
 
     for (const auto &book : books) {
@@ -213,21 +207,17 @@ bool ConvertBooksToBookCodes(const std::vector<std::string> &books,
 
 // Extract the lowercase bible book names from "bible_book_to_code_map".
 void ExtractBooksOfTheBible(const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
-                            std::unordered_set<std::string> * const books_of_the_bible)
-{
+                            std::unordered_set<std::string> * const books_of_the_bible) {
     books_of_the_bible->clear();
 
     for (const auto &book_and_code : bible_book_to_code_map) {
-        books_of_the_bible->insert(StringUtil::IsDigit(book_and_code.first[0])
-                                   ? book_and_code.first.substr(1) : book_and_code.first);
+        books_of_the_bible->insert(StringUtil::IsDigit(book_and_code.first[0]) ? book_and_code.first.substr(1) : book_and_code.first);
     }
 }
 
 
-const std::map<std::string, std::string> book_alias_map {
-    { "jesus sirach", "sirach" },
-    { "offenbarung des johannes", "offenbarungdesjohannes" }
-};
+const std::map<std::string, std::string> book_alias_map{ { "jesus sirach", "sirach" },
+                                                         { "offenbarung des johannes", "offenbarungdesjohannes" } };
 
 
 static unsigned unknown_book_count;
@@ -238,11 +228,9 @@ static unsigned unknown_book_count;
     contain the text "Bible".  Subfield "p" must contain the name of a book of the bible.  Book ordinals and
     chapter and verse indicators would be in one or two "n" subfields.
  */
-bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
-                    const std::unordered_set<std::string> &books_of_the_bible,
+bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record, const std::unordered_set<std::string> &books_of_the_bible,
                     const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
-                    std::set<std::pair<std::string, std::string>> * const ranges)
-{
+                    std::set<std::pair<std::string, std::string>> * const ranges) {
     ranges->clear();
 
     bool found_at_least_one(false);
@@ -251,7 +239,7 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
         const bool esra_special_case(subfields.getFirstSubfieldWithCode('a') == "Esra"
                                      or subfields.getFirstSubfieldWithCode('a') == "Esdras");
         const bool maccabee_special_case(subfields.getFirstSubfieldWithCode('a') == "Makkabäer");
-        if (not (subfields.getFirstSubfieldWithCode('a') == "Bibel" and subfields.hasSubfield('p')) and not esra_special_case
+        if (not(subfields.getFirstSubfieldWithCode('a') == "Bibel" and subfields.hasSubfield('p')) and not esra_special_case
             and not maccabee_special_case)
             continue;
 
@@ -270,9 +258,8 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
         if (pair != book_alias_map.cend())
             book_name_candidate = pair->second;
         if (books_of_the_bible.find(book_name_candidate) == books_of_the_bible.cend()) {
-            LOG_WARNING(
-                record.getControlNumber() + ": unknown bible book: "
-                + (esra_special_case ? "esra" : (maccabee_special_case ? "makkabäer" : subfields.getFirstSubfieldWithCode('p'))));
+            LOG_WARNING(record.getControlNumber() + ": unknown bible book: "
+                        + (esra_special_case ? "esra" : (maccabee_special_case ? "makkabäer" : subfields.getFirstSubfieldWithCode('p'))));
             ++unknown_book_count;
             continue;
         }
@@ -284,8 +271,8 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
         }
 
         if (not OrderNSubfields(&n_subfield_values)) {
-            LOG_WARNING("Don't know what to do w/ the $n subfields for PPN " + record.getControlNumber()
-                        + "! (" + StringUtil::Join(n_subfield_values, ", ") + ")");
+            LOG_WARNING("Don't know what to do w/ the $n subfields for PPN " + record.getControlNumber() + "! ("
+                        + StringUtil::Join(n_subfield_values, ", ") + ")");
             continue;
         }
 
@@ -297,15 +284,15 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
             RangeUtil::EsraSpecialProcessing(&book, &n_subfield_values);
 
         if (not HaveBibleBookCodes(books, bible_book_to_code_map)) {
-            LOG_WARNING(record.getControlNumber() + ": found no bible book code for \"" + book_name_candidate
-                        + "\"! (" + StringUtil::Join(n_subfield_values, ", ") + ")");
+            LOG_WARNING(record.getControlNumber() + ": found no bible book code for \"" + book_name_candidate + "\"! ("
+                        + StringUtil::Join(n_subfield_values, ", ") + ")");
             continue;
         }
 
         std::vector<std::string> book_codes;
         if (not ConvertBooksToBookCodes(books, bible_book_to_code_map, &book_codes)) {
-            LOG_WARNING(record.getControlNumber() + ": can't convert one or more of these books to book codes: "
-                        + StringUtil::Join(books, ", ") + "!");
+            LOG_WARNING(record.getControlNumber()
+                        + ": can't convert one or more of these books to book codes: " + StringUtil::Join(books, ", ") + "!");
             continue;
         }
 
@@ -326,10 +313,9 @@ bool GetBibleRanges(const std::string &field_tag, const MARC::Record &record,
 
 
 /* Scans authority MARC records for records that contain bible references including pericopes. */
-void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book_to_code_map,
-                  MARC::Reader * const authority_reader, std::vector<std::vector<std::string>> * const pericopes,
-                  std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const gnd_codes_to_bible_ref_codes_map)
-{
+void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book_to_code_map, MARC::Reader * const authority_reader,
+                  std::vector<std::vector<std::string>> * const pericopes,
+                  std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> * const gnd_codes_to_bible_ref_codes_map) {
     gnd_codes_to_bible_ref_codes_map->clear();
     LOG_INFO("Starting loading of norm data.");
 
@@ -368,10 +354,9 @@ void LoadNormData(const std::unordered_map<std::string, std::string> &bible_book
 
 
 bool FindGndCodes(const std::string &tags, const MARC::Record &record,
-                  const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map)
-{
+                  const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map) {
     std::set<std::string> individual_tags;
-    StringUtil::Split(tags, ':', &individual_tags, /* suppress_empty_components = */true);
+    StringUtil::Split(tags, ':', &individual_tags, /* suppress_empty_components = */ true);
 
     for (const auto &gnd_code : record.getReferencedGNDNumbers(individual_tags)) {
         const auto gnd_code_and_ranges(gnd_codes_to_bible_ref_codes_map.find(gnd_code));
@@ -389,8 +374,8 @@ std::vector<std::string> TokenizeText(std::string text) {
     std::vector<std::string> tokens;
     std::string current_token;
     for (const char ch : text) {
-        if ((not current_token.empty() and StringUtil::IsDigit(current_token.back())
-             and (ch == 'a' or ch == 'b' or ch == 'c' or ch == ',')) or (ch == ' ' or ch == '(' or ch == ')' or ch == ';'))
+        if ((not current_token.empty() and StringUtil::IsDigit(current_token.back()) and (ch == 'a' or ch == 'b' or ch == 'c' or ch == ','))
+            or (ch == ' ' or ch == '(' or ch == ')' or ch == ';'))
         {
             if (not current_token.empty())
                 tokens.emplace_back(current_token);
@@ -413,8 +398,7 @@ inline bool IsPossibleBookNumeral(const std::string &book_numeral_candidate) {
 
 
 inline bool IsValidBibleBook(const std::string &bible_book_candidate, const RangeUtil::BibleBookCanoniser &bible_book_canoniser,
-                             const RangeUtil::BibleBookToCodeMapper &bible_book_to_code_mapper)
-{
+                             const RangeUtil::BibleBookToCodeMapper &bible_book_to_code_mapper) {
     return not bible_book_to_code_mapper.mapToCode(bible_book_canoniser.canonise(TextUtil::UTF8ToLower(bible_book_candidate))).empty();
 }
 
@@ -433,7 +417,7 @@ bool FoundTokenSubstring(const std::vector<std::string> &needle, const std::vect
 
         return true;
 outer_loop:
-        /* Intentionally empty! */;
+    /* Intentionally empty! */;
     }
 
     return false;
@@ -448,8 +432,8 @@ bool ConsistsEntirelyOfLettersFollowedByAnOptionalPeriod(const std::string &utf8
 }
 
 
-const std::set<std::string> FRENCH_MONTHS{ "janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre",
-                                           "novembre", "décembre" };
+const std::set<std::string> FRENCH_MONTHS{ "janvier", "février", "mars",      "avril",   "mai",      "juin",
+                                           "juillet", "août",    "septembre", "octobre", "novembre", "décembre" };
 const std::vector<std::string> GERMAN_MONTHS_ABBREVS{ "jan", "feb", "mär", "apr", "mai", "jun", "jul", "aug", "sep", "okt", "nov", "dez" };
 
 
@@ -481,13 +465,13 @@ bool StartsWithGermanMonthAbbrev(const std::string &word) {
 std::vector<std::string> ExtractBibleReferenceCandidates(const std::vector<std::string> &tokens,
                                                          const std::vector<std::vector<std::string>> &pericopes,
                                                          const RangeUtil::BibleBookCanoniser &bible_book_canoniser,
-                                                         const RangeUtil::BibleBookToCodeMapper &bible_book_to_code_mapper)
-{
+                                                         const RangeUtil::BibleBookToCodeMapper &bible_book_to_code_mapper) {
     // See https://www.messiah.edu/download/downloads/id/1647/bible_cite.pdf and
     // https://www.kath-theologie.uni-osnabrueck.de/fileadmin/PDF/Bibelstellen.pdf to understand the regex.
-    static const auto chapter_and_verses_matcher(RegexMatcher::RegexMatcherFactoryOrDie(
-        /*english*/"^(\\d{1,2}-\\d{1,2}|\\d{1,3}[.:]\\d{1,3}|\\d{1,2}[.:]\\d{1,3}-\\d{1,3}|\\d{1,2}[.:]\\d{1,3}(,\\d{1,3})+"
-        /*german*/"|\\d{1,2}(;\\s?\\d{1,2}(-\\d{1,2})?)*|\\d{1,2},\\d{1,3}([-.]\\d{1,3})f{0,2}+)$"));
+    static const auto chapter_and_verses_matcher(
+        RegexMatcher::RegexMatcherFactoryOrDie(
+            /*english*/ "^(\\d{1,2}-\\d{1,2}|\\d{1,3}[.:]\\d{1,3}|\\d{1,2}[.:]\\d{1,3}-\\d{1,3}|\\d{1,2}[.:]\\d{1,3}(,\\d{1,3})+"
+                        /*german*/ "|\\d{1,2}(;\\s?\\d{1,2}(-\\d{1,2})?)*|\\d{1,2},\\d{1,3}([-.]\\d{1,3})f{0,2}+)$"));
 
     bool possible_book_seen(false), check_for_french_date(false), check_for_german_date(false);
     std::vector<std::string> bible_reference_candidates;
@@ -547,9 +531,9 @@ std::vector<std::string> ExtractBibleReferenceCandidates(const std::vector<std::
 }
 
 
-bool HasGNDBibleRef(const MARC::Record &record,
-                    const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map)
-{
+bool HasGNDBibleRef(
+    const MARC::Record &record,
+    const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map) {
     return FindGndCodes("600:610:611:630:648:651:655:689", record, gnd_codes_to_bible_ref_codes_map);
 }
 
@@ -574,8 +558,7 @@ std::string ExtractBook(std::string reference) {
 
 void FindBibRefCandidates(
     MARC::Reader * const marc_reader, File * const output, const std::vector<std::vector<std::string>> &pericopes,
-    const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map)
-{
+    const std::unordered_map<std::string, std::set<std::pair<std::string, std::string>>> &gnd_codes_to_bible_ref_codes_map) {
     const auto excluded_ppns(LoadPPNExclusionSet());
 
     RangeUtil::BibleBookCanoniser bible_book_canoniser(UBTools::GetTuelibPath() + "bibleRef/books_of_the_bible_to_canonical_form.map");
@@ -588,13 +571,13 @@ void FindBibRefCandidates(
             continue;
 
         if (not HasGNDBibleRef(record, gnd_codes_to_bible_ref_codes_map)) {
-            const auto candidates(ExtractBibleReferenceCandidates(TokenizeText(record.getCompleteTitle()),
-                                                                  pericopes, bible_book_canoniser, bible_book_to_code_mapper));
+            const auto candidates(ExtractBibleReferenceCandidates(TokenizeText(record.getCompleteTitle()), pericopes, bible_book_canoniser,
+                                                                  bible_book_to_code_mapper));
             if (not candidates.empty()) {
                 ++addition_title_reference_count;
-                *output << TextUtil::CSVEscape(ExtractBook(candidates.front()), /* add_quotes= */false) << ','
-                        << TextUtil::CSVEscape(record.getControlNumber(), /* add_quotes= */false) << ','
-                        << TextUtil::CSVEscape(record.getCompleteTitle(), /* add_quotes= */false) << '\n';
+                *output << TextUtil::CSVEscape(ExtractBook(candidates.front()), /* add_quotes= */ false) << ','
+                        << TextUtil::CSVEscape(record.getControlNumber(), /* add_quotes= */ false) << ','
+                        << TextUtil::CSVEscape(record.getCompleteTitle(), /* add_quotes= */ false) << '\n';
             }
         }
     }

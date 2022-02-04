@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <vector>
@@ -71,15 +71,15 @@ void ClearJournals(DbConnection * const db_connection, const std::string &escape
     UnescapeList(escaped_journal_names, &journal_names);
 
     for (const auto &journal_name : journal_names)
-        db_connection->queryOrDie("DELETE FROM metadata_presence_tracer WHERE journal_id='"
-                                  "(SELECT id FROM zeder_journals WHERE journal_name="
-                                  + db_connection->escapeAndQuoteString(journal_name) + ")");
+        db_connection->queryOrDie(
+            "DELETE FROM metadata_presence_tracer WHERE journal_id='"
+            "(SELECT id FROM zeder_journals WHERE journal_name="
+            + db_connection->escapeAndQuoteString(journal_name) + ")");
 }
 
 
 void SetFieldsToIgnore(DbConnection * const db_connection, const std::string &journal_name, const std::string &escaped_field_list,
-                       const std::string &field_presence)
-{
+                       const std::string &field_presence) {
     std::vector<std::string> field_names;
     UnescapeList(escaped_field_list, &field_names);
 
@@ -88,7 +88,7 @@ void SetFieldsToIgnore(DbConnection * const db_connection, const std::string &jo
                                   "(SELECT id FROM zeder_journals WHERE journal_name=" + db_connection->escapeAndQuoteString(journal_name) + ") "
                                   "AND marc_field_tag=" + db_connection->escapeAndQuoteString(field_name));
         if (db_connection->getNoOfAffectedRows() != 1)
-            LOG_WARNING("failed to find a \"" + field_name + "\" for the \"" + journal_name +"\" journal in the database!");
+            LOG_WARNING("failed to find a \"" + field_name + "\" for the \"" + journal_name + "\" journal in the database!");
     }
 }
 
@@ -98,9 +98,7 @@ void SetFieldsToIgnore(DbConnection * const db_connection, const std::string &jo
 }
 
 
-void SetFieldsToSometimes(DbConnection * const db_connection, const std::string &journal_name,
-                          const std::string &escaped_field_list)
-{
+void SetFieldsToSometimes(DbConnection * const db_connection, const std::string &journal_name, const std::string &escaped_field_list) {
     SetFieldsToIgnore(db_connection, journal_name, escaped_field_list, "sometimes");
 }
 

@@ -55,8 +55,7 @@ std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
 }
 
 
-void ExtractSynonyms(File * const reference_data_id_term_list_input, std::map<std::string, std::string> * synonym_map)
-{
+void ExtractSynonyms(File * const reference_data_id_term_list_input, std::map<std::string, std::string> *synonym_map) {
     while (not reference_data_id_term_list_input->eof()) {
         std::string line(reference_data_id_term_list_input->getline());
         std::vector<std::string> ids_and_terms;
@@ -70,13 +69,12 @@ void ExtractSynonyms(File * const reference_data_id_term_list_input, std::map<st
 
 
 void ProcessRecord(MARC::Record * const record, const std::string &output_tag_and_subfield_code,
-                   const std::map<std::string, std::string> &synonym_map, unsigned * const modified_count)
-{
+                   const std::map<std::string, std::string> &synonym_map, unsigned * const modified_count) {
     std::map<std::string, std::string>::const_iterator iter(synonym_map.find(record->getControlNumber()));
 
     // Abort if not found
     if (iter == synonym_map.cend())
-         return;
+        return;
 
     std::string synonyms(iter->second);
 
@@ -97,10 +95,8 @@ void ProcessRecord(MARC::Record * const record, const std::string &output_tag_an
 }
 
 
-void InsertSynonyms(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    const std::string &output_tag_and_subfield_code,
-                    const std::map<std::string, std::string> &synonym_map)
-{
+void InsertSynonyms(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const std::string &output_tag_and_subfield_code,
+                    const std::map<std::string, std::string> &synonym_map) {
     unsigned record_count(0), modified_count(0);
 
     while (MARC::Record record = marc_reader->read()) {
@@ -121,8 +117,7 @@ int Main(int argc, char **argv) {
         Usage();
 
     const std::string reference_data_id_term_list_filename(argv[1]);
-    std::unique_ptr<File> reference_data_id_term_list_input(
-        FileUtil::OpenInputFileOrDie(reference_data_id_term_list_filename));
+    std::unique_ptr<File> reference_data_id_term_list_input(FileUtil::OpenInputFileOrDie(reference_data_id_term_list_filename));
 
     const std::string marc_input_filename(argv[2]);
     const std::string marc_output_filename(argv[3]);

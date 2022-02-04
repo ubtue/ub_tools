@@ -34,6 +34,7 @@ class PostgresDbConnection final : public DbConnection {
     std::string passwd_;
     std::string host_;
     unsigned port_;
+
 protected:
     PostgresDbConnection(PGconn * const pg_conn, const std::string &user, const std::string &passwd, const std::string &host,
                          const unsigned port)
@@ -50,6 +51,7 @@ protected:
     virtual std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false,
                                      const bool return_null_on_empty_string = false) override;
     virtual bool tableExists(const std::string &database_name, const std::string &table_name) override;
+
 private:
     inline std::string getUser() const { return user_; }
     inline std::string getPasswd() const { return passwd_; }

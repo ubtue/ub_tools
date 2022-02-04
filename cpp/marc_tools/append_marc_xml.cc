@@ -47,8 +47,8 @@ void PositionFileBeforeClosingCollectionTag(File * const file) {
 
     const std::string::size_type COLLECTION_CLOSING_TAG_START(tail.find("</marc:collection>"));
     if (unlikely(COLLECTION_CLOSING_TAG_START == std::string::npos))
-        logger->error("could not find </marc:collection> in the last " + std::to_string(TAIL_OFFSET) + " bytes of \""
-                      + file->getPath() + "\"!");
+        logger->error("could not find </marc:collection> in the last " + std::to_string(TAIL_OFFSET) + " bytes of \"" + file->getPath()
+                      + "\"!");
 
     if (unlikely(not file->seek(-TAIL_OFFSET + COLLECTION_CLOSING_TAG_START - 1, SEEK_END)))
         logger->error("seek to byte immediately before </marc:collection> failed on \"" + file->getPath() + "\"! ("
@@ -69,8 +69,8 @@ off_t PositionFileAtFirstRecordStart(File * const file) {
 
     const std::string::size_type RECORD_TAG_START(head.find("<marc:record>"));
     if (unlikely(RECORD_TAG_START == std::string::npos))
-        logger->error("could not find <marc:record> in the first " + std::to_string(MIN_SOURCE_SIZE) + " bytes of \""
-                      + file->getPath() + "\"!");
+        logger->error("could not find <marc:record> in the first " + std::to_string(MIN_SOURCE_SIZE) + " bytes of \"" + file->getPath()
+                      + "\"!");
 
     if (unlikely(not file->seek(RECORD_TAG_START)))
         logger->error("seek failed on \"" + file->getPath() + "\"! (" + std::string(::strerror(errno)) + ")");

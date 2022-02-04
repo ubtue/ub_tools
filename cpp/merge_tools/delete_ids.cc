@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <memory>
@@ -35,16 +35,15 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--input-format=(marc-21|marc-xml)] [--output-format=(marc-21|marc-xml)]"
-            " deletion_list input_marc21 output_marc21 entire_record_deletion_log\n"
-            "Record ID's of records that were deleted and not merely modified will be written to \"entire_record_deletion_log\".");
+    ::Usage(
+        "[--input-format=(marc-21|marc-xml)] [--output-format=(marc-21|marc-xml)]"
+        " deletion_list input_marc21 output_marc21 entire_record_deletion_log\n"
+        "Record ID's of records that were deleted and not merely modified will be written to \"entire_record_deletion_log\".");
 }
 
 
 void ProcessRecords(LocalDataDB * const local_data_db, const std::unordered_set<std::string> &title_deletion_ids,
-                    MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    File * const entire_record_deletion_log)
-{
+                    MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, File * const entire_record_deletion_log) {
     unsigned total_record_count(0), deleted_record_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++total_record_count;
@@ -88,8 +87,7 @@ int Main(int argc, char *argv[]) {
     const auto marc_writer(MARC::Writer::Factory(argv[3], writer_type));
     const auto entire_record_deletion_log(FileUtil::OpenForAppendingOrDie(argv[4]));
 
-    ProcessRecords(&local_data_db, title_deletion_ids, marc_reader.get(),
-                   marc_writer.get(), entire_record_deletion_log.get());
+    ProcessRecords(&local_data_db, title_deletion_ids, marc_reader.get(), marc_writer.get(), entire_record_deletion_log.get());
 
     return EXIT_SUCCESS;
 }

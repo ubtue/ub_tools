@@ -45,14 +45,13 @@ void Usage() {
 
 
 void IssueQueryAndWriteOutput(const std::string &query, const std::string &system_type, const std::string &category,
-                              const std::string &variable, DbConnection * const db_connection)
-{
+                              const std::string &variable, DbConnection * const db_connection) {
     static const time_t JOB_START_TIME(std::time(nullptr));
     static const std::string HOSTNAME(DnsUtil::GetHostname());
 
     std::string json_result, err_msg;
-    if (not Solr::Query(query, /* fields = */"", &json_result, &err_msg, Solr::DEFAULT_HOST, Solr::DEFAULT_PORT,
-                        /* timeout in seconds = */Solr::DEFAULT_TIMEOUT, Solr::JSON, /* max_no_of_rows = */0))
+    if (not Solr::Query(query, /* fields = */ "", &json_result, &err_msg, Solr::DEFAULT_HOST, Solr::DEFAULT_PORT,
+                        /* timeout in seconds = */ Solr::DEFAULT_TIMEOUT, Solr::JSON, /* max_no_of_rows = */ 0))
         LOG_ERROR("Solr query \"" + query + "\" failed! (" + err_msg + ")");
 
     JSON::Parser parser(json_result);
@@ -63,8 +62,8 @@ void IssueQueryAndWriteOutput(const std::string &query, const std::string &syste
     const time_t NOW(std::time(nullptr));
     db_connection->queryOrDie("INSERT INTO solr SET id_lauf=" + std::to_string(JOB_START_TIME) + ", timestamp='"
                               + TimeUtil::TimeTToZuluString(NOW) + "', Quellrechner='" + HOSTNAME + "', Zielrechner='" + HOSTNAME
-                              + "', Systemtyp='" + system_type + "', Kategorie='" + category + "', Unterkategorie='" + variable + "', value="
-                              + std::to_string(JSON::LookupInteger("/response/numFound", tree_root)));
+                              + "', Systemtyp='" + system_type + "', Kategorie='" + category + "', Unterkategorie='" + variable
+                              + "', value=" + std::to_string(JSON::LookupInteger("/response/numFound", tree_root)));
 }
 
 
@@ -85,24 +84,23 @@ void CollectKrimDokSpecificStats(DbConnection * const db_connection) {
 
 
 void EmitNotationStats(const char notation_group, const std::string &system_type, const std::string &label,
-                       DbConnection * const db_connection)
-{
+                       DbConnection * const db_connection) {
     const std::string EXTRA(system_type == "relbib" ? RELBIB_EXTRA : "");
-    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[1975 TO 2000]" + EXTRA,
-                             system_type, "IxTheo Notationen", label + "(Alle Medienarten, 1975-2000)", db_connection);
-    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[2001 TO *]" + EXTRA,
-                             system_type, "IxTheo Notationen", label + "(Alle Medienarten, 2001-heute)", db_connection);
-    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group)
-                             + "* AND publishDate:[1975 TO 2000] AND format:Book" + EXTRA, system_type, "IxTheo Notationen",
-                             label + "(Bücher, 1975-2000)", db_connection);
-    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[2001 TO *] AND format:Book"
-                             + EXTRA, system_type, "IxTheo Notationen", label + "(Bücher, 2001-heute)", db_connection);
-    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group)
-                             + "* AND publishDate:[1975 TO 2000] AND format:Article" + EXTRA, system_type, "IxTheo Notationen",
-                             label + "(Bücher, 1975-2000)", db_connection);
-    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group)
-                             + "* AND publishDate:[2001 TO *] AND format:Article" + EXTRA, system_type, "IxTheo Notationen",
-                             label + "(Aufsätze, 2001-heute)", db_connection);
+    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[1975 TO 2000]" + EXTRA, system_type,
+                             "IxTheo Notationen", label + "(Alle Medienarten, 1975-2000)", db_connection);
+    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[2001 TO *]" + EXTRA, system_type,
+                             "IxTheo Notationen", label + "(Alle Medienarten, 2001-heute)", db_connection);
+    IssueQueryAndWriteOutput(
+        "ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[1975 TO 2000] AND format:Book" + EXTRA, system_type,
+        "IxTheo Notationen", label + "(Bücher, 1975-2000)", db_connection);
+    IssueQueryAndWriteOutput("ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[2001 TO *] AND format:Book" + EXTRA,
+                             system_type, "IxTheo Notationen", label + "(Bücher, 2001-heute)", db_connection);
+    IssueQueryAndWriteOutput(
+        "ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[1975 TO 2000] AND format:Article" + EXTRA, system_type,
+        "IxTheo Notationen", label + "(Bücher, 1975-2000)", db_connection);
+    IssueQueryAndWriteOutput(
+        "ixtheo_notation:" + std::string(1, notation_group) + "* AND publishDate:[2001 TO *] AND format:Article" + EXTRA, system_type,
+        "IxTheo Notationen", label + "(Aufsätze, 2001-heute)", db_connection);
 }
 
 

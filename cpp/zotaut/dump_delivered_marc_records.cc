@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <vector>
@@ -34,8 +34,9 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--extended] zeder_journal_id csv_path\n"
-            "\"--extended\" will add information from BLOBs as well, e.g. DOIs.");
+    ::Usage(
+        "[--extended] zeder_journal_id csv_path\n"
+        "\"--extended\" will add information from BLOBs as well, e.g. DOIs.");
 }
 
 
@@ -55,19 +56,23 @@ void GetJournalDetailsFromDb(DbConnection * const db_connection, const std::stri
         LOG_ERROR("entry not found");
 
     while (DbRow journal = result.getNextRow()) {
-        csv_file->writeln(journal["id"] + ";" + journal["zeder_id"] + ";" + journal["zeder_instance"] + ";" + TextUtil::CSVEscape(journal["journal_name"]));
+        csv_file->writeln(journal["id"] + ";" + journal["zeder_id"] + ";" + journal["zeder_instance"] + ";"
+                          + TextUtil::CSVEscape(journal["journal_name"]));
         csv_file->writeln("");
         break;
     }
 }
 
 
-void GetJournalEntriesFromDb(DbConnection * const db_connection, const std::string &zeder_journal_id, File * const csv_file, const bool extended) {
-    std::string query("SELECT * FROM delivered_marc_records WHERE zeder_journal_id="  + db_connection->escapeAndQuoteString(zeder_journal_id) + " ORDER BY delivered_at ASC");
+void GetJournalEntriesFromDb(DbConnection * const db_connection, const std::string &zeder_journal_id, File * const csv_file,
+                             const bool extended) {
+    std::string query("SELECT * FROM delivered_marc_records WHERE zeder_journal_id=" + db_connection->escapeAndQuoteString(zeder_journal_id)
+                      + " ORDER BY delivered_at ASC");
     db_connection->queryOrDie(query);
     auto result(db_connection->getLastResultSet());
     while (DbRow row = result.getNextRow()) {
-        std::string csv_row(row["id"] + ";" + row["hash"] + ";" + row["delivery_state"] + ";" + TextUtil::CSVEscape(row["error_message"]) + ";" + row["delivered_at"] + ";" + TextUtil::CSVEscape(row["main_title"]));
+        std::string csv_row(row["id"] + ";" + row["hash"] + ";" + row["delivery_state"] + ";" + TextUtil::CSVEscape(row["error_message"])
+                            + ";" + row["delivered_at"] + ";" + TextUtil::CSVEscape(row["main_title"]));
         if (extended and not row["record"].empty()) {
             const auto record(GetTemporaryRecord(row["record"]));
 

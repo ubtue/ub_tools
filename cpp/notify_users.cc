@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 /*
 A typical config file for this program looks like this:
@@ -29,8 +29,8 @@ database = "vufind"
 #include <iostream>
 #include <stdexcept>
 #include <vector>
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
@@ -54,8 +54,14 @@ void Usage() {
 }
 
 
-enum class ParseState { ARRAY_EXPECTED, OPEN_PAREN_EXPECTED, PARAM_OR_CLOSE_PAREN_EXPECTED, PARAM_OPEN_PAREN_EXPECTED,
-                        PARAM_VALUE_EXPECTED, PARAM_CLOSE_PAREN_EXPECTED };
+enum class ParseState {
+    ARRAY_EXPECTED,
+    OPEN_PAREN_EXPECTED,
+    PARAM_OR_CLOSE_PAREN_EXPECTED,
+    PARAM_OPEN_PAREN_EXPECTED,
+    PARAM_VALUE_EXPECTED,
+    PARAM_CLOSE_PAREN_EXPECTED
+};
 
 
 /** Parses structures like the following:
@@ -64,7 +70,9 @@ Array
 (
     [qf] => Array
         (
-            [0] => title_short^750 title_full_unstemmed^600 title_full^400 title^500 title_alt^200 title_new^100 series^50 series2^30 author^300 author_fuller^150 contents^10 topic_unstemmed^550 topic^500 geographic^300 genre^300 allfields_unstemmed^10 fulltext_unstemmed^10 allfields fulltext description isbn issn
+            [0] => title_short^750 title_full_unstemmed^600 title_full^400 title^500 title_alt^200 title_new^100 series^50 series2^30
+author^300 author_fuller^150 contents^10 topic_unstemmed^550 topic^500 geographic^300 genre^300 allfields_unstemmed^10 fulltext_unstemmed^10
+allfields fulltext description isbn issn
         )
 
     [qt] => Array
@@ -80,10 +88,8 @@ Array
 
 This is a pretty-printed PHP array of arrays data type representing a query.
 */
-bool ExtractQueryParams(const std::string &php_query_array,
-                        std::map<std::string, std::string> * const params_to_values_map,
-                        std::string * const err_msg)
-{
+bool ExtractQueryParams(const std::string &php_query_array, std::map<std::string, std::string> * const params_to_values_map,
+                        std::string * const err_msg) {
     err_msg->clear();
 
     std::vector<std::string> lines;
@@ -161,9 +167,7 @@ bool ExtractQueryParams(const std::string &php_query_array,
 
 
 // Contacts VuFind to get the SOLR query parameters given a serialised minSO PHP object.
-void GetQueryParams(const std::string &serialised_minSO,
-                    std::map<std::string, std::string> * const params_to_values_map)
-{
+void GetQueryParams(const std::string &serialised_minSO, std::map<std::string, std::string> * const params_to_values_map) {
     params_to_values_map->clear();
 
     static const std::string URL_BASE("http://localhost/Devtools/Deminify?min=");
@@ -181,8 +185,7 @@ void GetQueryParams(const std::string &serialised_minSO,
         throw std::runtime_error("Failed to find </pre>!");
 
     std::string err_msg;
-    if (not ExtractQueryParams(web_document.substr(pre_start_pos + 5, pre_end_pos - pre_start_pos - 5),
-                               params_to_values_map, &err_msg))
+    if (not ExtractQueryParams(web_document.substr(pre_start_pos + 5, pre_end_pos - pre_start_pos - 5), params_to_values_map, &err_msg))
         throw std::runtime_error("Failed to extract query parameters: " + err_msg);
 }
 
@@ -194,7 +197,7 @@ std::string GenerateSolrQuery(const std::map<std::string, std::string> &params_t
             url += '&';
         url += key_and_value.first + "=" + UrlUtil::UrlEncode(key_and_value.second);
     }
-    url += "&fl=id"; // We only need ID's anyway.
+    url += "&fl=id";      // We only need ID's anyway.
     url += "&rows=10000"; // Let's hope that no user is interested in more than the first 10k documents.
 
     return url;
@@ -205,11 +208,10 @@ std::string GenerateSolrQuery(const std::map<std::string, std::string> &params_t
 class IdExtractor {
     std::vector<std::string> extracted_ids_;
     std::string current_id_;
+
 public:
     void parse(const std::string &xml_string);
-    void getExtractedIds(std::vector<std::string> * const extracted_ids) {
-        extracted_ids->swap(extracted_ids_);
-    }
+    void getExtractedIds(std::vector<std::string> * const extracted_ids) { extracted_ids->swap(extracted_ids_); }
 };
 
 
@@ -242,8 +244,7 @@ void IdExtractor::parse(const std::string &xml_string) {
 
 /** \brief Given two sorted vectors of ID's, extract the ID's which are only in "new_ids". */
 void FindNewIds(const std::vector<std::string> &old_ids, const std::vector<std::string> &new_ids,
-                std::vector<std::string> * const additional_ids)
-{
+                std::vector<std::string> * const additional_ids) {
     additional_ids->clear();
 
     std::vector<std::string>::const_iterator old_id(old_ids.begin());
@@ -271,7 +272,7 @@ void FindNewIds(const std::vector<std::string> &old_ids, const std::vector<std::
 // Turn a vector of ID's into a compressed colon-separted string of ID's.
 void SerialiseIds(const std::vector<std::string> &ids, std::string * const serialized_ids) {
     std::string uncompressed_string;
-    uncompressed_string.reserve(ids.size() * (9 + 1)/* PPN length + colon */);
+    uncompressed_string.reserve(ids.size() * (9 + 1) /* PPN length + colon */);
 
     for (const auto &id : ids)
         uncompressed_string += id + ":";
@@ -303,8 +304,7 @@ void DeserialiseIds(const std::string &serialized_ids, std::vector<std::string> 
 
 
 void InsertIdsIntoTheIxtheoIdResultSetsTable(const std::string &query_id, const std::vector<std::string> &ids,
-                                             DbConnection * const connection)
-{
+                                             DbConnection * const connection) {
     std::string serialized_ids;
     SerialiseIds(ids, &serialized_ids);
     connection->queryOrDie("REPLACE INTO ixtheo_id_result_sets (id,ids) VALUES(" + query_id + ",\""
@@ -313,7 +313,7 @@ void InsertIdsIntoTheIxtheoIdResultSetsTable(const std::string &query_id, const 
 
 
 /** \return true = we need to notify the user that something has changed that they would like to know about */
-bool ProcessUser(const std::string &user_id, const std::string &/*email_address*/, DbConnection * const connection) {
+bool ProcessUser(const std::string &user_id, const std::string & /*email_address*/, DbConnection * const connection) {
     connection->queryOrDie("SELECT id,search_object FROM search WHERE user_id=" + user_id);
 
     constexpr unsigned SOLR_QUERY_TIMEOUT(20000); // ms
@@ -370,6 +370,7 @@ bool ProcessUser(const std::string &user_id, const std::string &/*email_address*
 struct UserIdAndEmail {
     const std::string user_id_;
     const std::string email_;
+
 public:
     UserIdAndEmail(const std::string &user_id, const std::string &email): user_id_(user_id), email_(email) { }
 };

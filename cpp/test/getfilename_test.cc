@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     try {
         FILE *file(std::fopen(argv[1], "r"));
         std::cout << "File pointer points to \"" << FileUtil::GetFileName(file) << "\".\n";
-    } catch(const std::exception &x) {
+    } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
-    }  
+    }
 }

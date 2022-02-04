@@ -65,8 +65,7 @@ void Split(const std::wstring &s, std::vector<std::wstring> * const words) {
 
 
 static std::string GetLoadLanguageModelDirectory(const std::string &override_language_models_directory) {
-    return override_language_models_directory.empty() ? UBTools::GetTuelibPath() + "/language_models"
-                                                      : override_language_models_directory;
+    return override_language_models_directory.empty() ? UBTools::GetTuelibPath() + "/language_models" : override_language_models_directory;
 }
 
 
@@ -130,7 +129,7 @@ UnitVector::UnitVector(const NGramCounts &ngram_counts): std::vector<std::pair<s
     }
 
     std::sort(begin(), end(),
-              [](const std::pair<std::wstring, double> &a, const std::pair<std::wstring, double> &b){ return a.first < b.first; });
+              [](const std::pair<std::wstring, double> &a, const std::pair<std::wstring, double> &b) { return a.first < b.first; });
 }
 
 
@@ -192,8 +191,7 @@ void LanguageModel::deserialise(File &input) {
 // LoadLanguageModel -- loads a language model from "path_name" into "language_model".
 //
 void LoadLanguageModel(const std::string &language, LanguageModel * const language_model,
-                       const std::string &override_language_models_directory)
-{
+                       const std::string &override_language_models_directory) {
     const std::string model_path(GetLoadLanguageModelDirectory(override_language_models_directory) + "/" + language + ".lm");
     const auto input(FileUtil::OpenInputFileOrDie(model_path));
     if (input->fail())
@@ -204,8 +202,7 @@ void LoadLanguageModel(const std::string &language, LanguageModel * const langua
 
 
 static inline void ExtractAndCountNGram(const std::wstring &word, const size_t offset, const size_t prefix_length,
-                                        std::unordered_map<std::wstring, double> * const ngram_counts_map)
-{
+                                        std::unordered_map<std::wstring, double> * const ngram_counts_map) {
     const std::wstring ngram(word.substr(offset, prefix_length));
     auto ngram_count(ngram_counts_map->find(ngram));
     if (ngram_count == ngram_counts_map->end())
@@ -216,8 +213,7 @@ static inline void ExtractAndCountNGram(const std::wstring &word, const size_t o
 
 
 void CreateLanguageModel(std::istream &input, LanguageModel * const language_model, const unsigned ngram_number_threshold,
-                         const unsigned topmost_use_count)
-{
+                         const unsigned topmost_use_count) {
     const std::string file_contents(std::istreambuf_iterator<char>(input), {});
     const std::wstring filtered_text(PreprocessText(file_contents));
 
@@ -251,11 +247,11 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
     }
 
     std::sort(ngram_counts_vector.begin(), ngram_counts_vector.end(),
-              [](const std::pair<std::wstring, double> &a, const std::pair<std::wstring, double> &b){ return a.second > b.second; });
+              [](const std::pair<std::wstring, double> &a, const std::pair<std::wstring, double> &b) { return a.second > b.second; });
 
     if (unlikely(ngram_counts_map.size() < topmost_use_count))
         LOG_DEBUG("generated too few ngrams (" + std::to_string(ngram_counts_map.size()) + " < " + std::to_string(topmost_use_count)
-                    + ")!");
+                  + ")!");
     else
         ngram_counts_vector.resize(topmost_use_count);
 
@@ -266,7 +262,7 @@ void CreateLanguageModel(std::istream &input, LanguageModel * const language_mod
 static std::vector<LanguageModel> LoadDefaultLanguageModels() {
     std::vector<LanguageModel> language_models;
 
-    const std::string override_language_models_directory("");   // intentionally empty
+    const std::string override_language_models_directory(""); // intentionally empty
     if (not LoadLanguageModels(&language_models, override_language_models_directory))
         LOG_ERROR("no language models available in \"" + GetLoadLanguageModelDirectory(override_language_models_directory) + "\"!");
     return language_models;
@@ -276,9 +272,9 @@ static std::vector<LanguageModel> LoadDefaultLanguageModels() {
 static const std::vector<LanguageModel> DEFAULT_LANGUAGE_MODELS(LoadDefaultLanguageModels());
 
 
-void ClassifyLanguage(std::istream &input, std::vector<DetectedLanguage> * const top_languages, const std::set<std::string> &considered_languages,
-                      const double alternative_cutoff_factor, const std::string &override_language_models_directory)
-{
+void ClassifyLanguage(std::istream &input, std::vector<DetectedLanguage> * const top_languages,
+                      const std::set<std::string> &considered_languages, const double alternative_cutoff_factor,
+                      const std::string &override_language_models_directory) {
     top_languages->clear();
     LanguageModel unknown_language_model;
     CreateLanguageModel(input, &unknown_language_model);
@@ -313,7 +309,7 @@ void ClassifyLanguage(std::istream &input, std::vector<DetectedLanguage> * const
         LOG_DEBUG(language_model.getLanguage() + " scored :" + std::to_string(similarity));
     }
     std::sort(languages_and_scores.begin(), languages_and_scores.end(),
-              [](const std::pair<std::string, double> &a, const std::pair<std::string, double> &b){ return a.second > b.second; });
+              [](const std::pair<std::string, double> &a, const std::pair<std::string, double> &b) { return a.second > b.second; });
 
     // Select the top scoring language and anything that's close (as defined by alternative_cutoff_factor):
     const double high_score(languages_and_scores[0].second);
@@ -324,8 +320,7 @@ void ClassifyLanguage(std::istream &input, std::vector<DetectedLanguage> * const
 
 
 void CreateAndWriteLanguageModel(std::istream &input, const std::string &output_path, const unsigned ngram_number_threshold,
-                                 const unsigned topmost_use_count)
-{
+                                 const unsigned topmost_use_count) {
     LanguageModel language_model;
     CreateLanguageModel(input, &language_model, ngram_number_threshold, topmost_use_count);
 

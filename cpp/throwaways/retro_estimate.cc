@@ -27,8 +27,8 @@
 #include "MARC.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
-#include "util.h"
 #include "Zeder.h"
+#include "util.h"
 
 
 namespace {
@@ -36,7 +36,7 @@ namespace {
 
 struct Journal {
     std::string title_;
-    unsigned evaluation_range_start_year_; // From the ausf column
+    unsigned evaluation_range_start_year_;  // From the ausf column
     unsigned publication_range_start_year_; // From the eved column
     std::string pppn_;
     std::string eppn_;
@@ -45,17 +45,21 @@ struct Journal {
     std::string liz_;
     unsigned pppn_article_count_;
     unsigned eppn_article_count_;
+
 public:
-    Journal(const std::string &title, const unsigned evaluation_range_start_year,
-            const unsigned publication_range_start_year, const std::string &pppn, const std::string &eppn,
-            const std::string &ausfst, const std::string &ber, const std::string &liz)
+    Journal(const std::string &title, const unsigned evaluation_range_start_year, const unsigned publication_range_start_year,
+            const std::string &pppn, const std::string &eppn, const std::string &ausfst, const std::string &ber, const std::string &liz)
         : title_(title), evaluation_range_start_year_(evaluation_range_start_year),
-          publication_range_start_year_(publication_range_start_year), pppn_(pppn),
-          eppn_(eppn), ausfst_(ausfst), ber_(ber), liz_(liz), pppn_article_count_(0),
-          eppn_article_count_(0) { }
+          publication_range_start_year_(publication_range_start_year), pppn_(pppn), eppn_(eppn), ausfst_(ausfst), ber_(ber), liz_(liz),
+          pppn_article_count_(0), eppn_article_count_(0) { }
     unsigned getNoOfRetroYears() const { return evaluation_range_start_year_ - publication_range_start_year_; }
     unsigned getTotalArticleCount() const { return pppn_article_count_ + eppn_article_count_; }
-    void incrementArticleCount(const std::string &parent_ppn) { if (parent_ppn == pppn_) ++pppn_article_count_; else ++eppn_article_count_; }
+    void incrementArticleCount(const std::string &parent_ppn) {
+        if (parent_ppn == pppn_)
+            ++pppn_article_count_;
+        else
+            ++eppn_article_count_;
+    }
     unsigned getThresholdYear() const { return (evaluation_range_start_year_ > 2010) ? 2019 : 2012; }
 };
 
@@ -73,8 +77,8 @@ bool StartsWithAPlausibleYear(const std::string &s) {
 void CollectJournalsFromZeder(const Zeder::SimpleZeder &zeder, std::unordered_map<std::string, Journal *> * const ppns_to_journals_map) {
     unsigned useable_journal_count(0);
     for (const auto &journal : zeder) {
-        if (not journal.hasAttribute("retro2") or journal.getAttribute("retro2") != "fid2021"
-            or not journal.hasAttribute("ausf") or not journal.hasAttribute("eved"))
+        if (not journal.hasAttribute("retro2") or journal.getAttribute("retro2") != "fid2021" or not journal.hasAttribute("ausf")
+            or not journal.hasAttribute("eved"))
             continue;
 
         const auto ausf(journal.lookup("ausf"));
@@ -94,8 +98,8 @@ void CollectJournalsFromZeder(const Zeder::SimpleZeder &zeder, std::unordered_ma
         if (pppn.empty() and eppn.empty())
             continue;
 
-        const auto new_journal(new Journal(journal.lookup("tit"), evaluation_range_start_year, publication_range_start_year,
-                                           pppn, eppn, journal.lookup("ausfst"), journal.lookup("ber"), journal.lookup("liz")));
+        const auto new_journal(new Journal(journal.lookup("tit"), evaluation_range_start_year, publication_range_start_year, pppn, eppn,
+                                           journal.lookup("ausfst"), journal.lookup("ber"), journal.lookup("liz")));
         if (not pppn.empty())
             ppns_to_journals_map->emplace(pppn, new_journal);
         if (not eppn.empty())
@@ -146,10 +150,10 @@ void GenerateCSVReport(File * const output, const std::unordered_map<std::string
         (*output) << TextUtil::CSVEscape(journal->pppn_) << SEPARATOR << TextUtil::CSVEscape(journal->eppn_) << SEPARATOR
                   << TextUtil::CSVEscape(journal->title_) << SEPARATOR << journal->evaluation_range_start_year_ << SEPARATOR
                   << journal->publication_range_start_year_ << SEPARATOR << journal->getNoOfRetroYears() << SEPARATOR
-                  << no_of_retro_articles << SEPARATOR << no_of_evaluation_years << SEPARATOR << average_article_count_per_year
-                  << SEPARATOR << journal->pppn_article_count_ << SEPARATOR << journal->eppn_article_count_ << SEPARATOR
+                  << no_of_retro_articles << SEPARATOR << no_of_evaluation_years << SEPARATOR << average_article_count_per_year << SEPARATOR
+                  << journal->pppn_article_count_ << SEPARATOR << journal->eppn_article_count_ << SEPARATOR
                   << journal->getTotalArticleCount() << SEPARATOR << TextUtil::CSVEscape(journal->ausfst_) << SEPARATOR
-                  << TextUtil::CSVEscape(journal->ber_) << SEPARATOR << TextUtil::CSVEscape(journal->liz_) <<'\n';
+                  << TextUtil::CSVEscape(journal->ber_) << SEPARATOR << TextUtil::CSVEscape(journal->liz_) << '\n';
         already_processed.emplace(journal);
     }
 }

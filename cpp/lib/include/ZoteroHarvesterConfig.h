@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 
 
@@ -28,6 +28,11 @@
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
 #include "Zeder.h"
+
+
+#ifdef LICENSE
+#undef LICENSE
+#endif
 
 
 namespace ZoteroHarvester {
@@ -48,6 +53,7 @@ struct DownloadDelayParams {
     unsigned max_delay_in_ms_;
     std::unordered_map<std::string, unsigned> domain_to_default_delay_map_;
     std::unordered_map<std::string, unsigned> domain_to_max_delay_map_;
+
 public:
     DownloadDelayParams(): default_delay_in_ms_(0), max_delay_in_ms_(0) { }
     DownloadDelayParams(const IniFile::Section &config_section);
@@ -69,6 +75,7 @@ struct ZoteroMetadataParams {
     std::map<std::string, std::string> fields_to_override_;
     std::map<std::string, std::unique_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
     std::map<std::string, std::pair<std::unique_ptr<ThreadSafeRegexMatcher>, std::string>> rewrite_filters_;
+
 public:
     ZoteroMetadataParams() = default;
     ZoteroMetadataParams(const IniFile::Section &config_section);
@@ -84,6 +91,7 @@ struct MarcMetadataParams {
     std::map<std::string, std::shared_ptr<ThreadSafeRegexMatcher>> subfields_to_remove_;
     std::map<std::string, std::shared_ptr<ThreadSafeRegexMatcher>> exclusion_filters_;
     std::map<std::string, std::pair<std::shared_ptr<ThreadSafeRegexMatcher>, std::string>> rewrite_filters_;
+
 public:
     MarcMetadataParams() = default;
     MarcMetadataParams(const IniFile::Section &config_section);
@@ -95,8 +103,7 @@ public:
 typedef bool (*ValidationCallback)(const IniFile::Entry &entry);
 template <typename EnumType>
 void CheckIniSection(const IniFile::Section &section, const std::map<EnumType, std::string> &allowed_values,
-                     const std::vector<ValidationCallback> &callbacks={})
-{
+                     const std::vector<ValidationCallback> &callbacks = {}) {
     for (const auto &entry : section) {
         if (entry.name_.empty())
             continue;
@@ -133,6 +140,7 @@ struct GlobalParams {
     enum IniKey : unsigned {
         ENHANCEMENT_MAPS_DIRECTORY,
         GROUP_NAMES,
+        SUBGROUP_NAMES,
         STRPTIME_FORMAT_STRING,
         SKIP_ONLINE_FIRST_ARTICLES_UNCONDITIONALLY,
         DOWNLOAD_DELAY_DEFAULT,
@@ -147,6 +155,7 @@ struct GlobalParams {
     std::vector<std::string> emailcrawl_mboxes_;
     std::string enhancement_maps_directory_;
     std::string group_names_;
+    std::string subgroup_names_;
     std::string strptime_format_string_;
     bool skip_online_first_articles_unconditionally_;
     DownloadDelayParams download_delay_params_;
@@ -156,12 +165,14 @@ struct GlobalParams {
     std::shared_ptr<ThreadSafeRegexMatcher> notes_regex_;
     ZoteroMetadataParams zotero_metadata_params_;
     MarcMetadataParams marc_metadata_params_;
+
 public:
     GlobalParams(const IniFile::Section &config_section);
     GlobalParams(const GlobalParams &rhs) = default;
     GlobalParams &operator=(const GlobalParams &rhs) = default;
 
     static std::string GetIniKeyString(const IniKey ini_key);
+
 private:
     static const std::map<IniKey, std::string> KEY_TO_STRING_MAP;
 };
@@ -198,35 +209,56 @@ struct GroupParams {
     std::string author_swb_lookup_url_;
     std::string author_lobid_lookup_query_params_;
     MarcMetadataParams marc_metadata_params_;
+
 public:
+    GroupParams(){};
     GroupParams(const IniFile::Section &group_section);
     GroupParams(const GroupParams &rhs) = default;
     GroupParams &operator=(const GroupParams &rhs) = default;
 
     static std::string GetIniKeyString(const IniKey ini_key);
-private:
+
+protected:
     static const std::map<IniKey, std::string> KEY_TO_STRING_MAP;
 };
 
 
+struct SubgroupParams : public GroupParams {
+    std::string reference_group_;
+
+public:
+    SubgroupParams() = default;
+    SubgroupParams(const IniFile::Section &subgroup_section);
+    SubgroupParams(const SubgroupParams &rhs) = default;
+    SubgroupParams &operator=(const SubgroupParams &rhs) = default;
+    std::string getReferenceGroup() { return reference_group_; }
+};
+
+
 struct LanguageParams {
-    enum Mode : unsigned { DEFAULT, FORCE_LANGUAGES, FORCE_DETECTION };
+    enum Mode : unsigned { DEFAULT, FORCE_LANGUAGES, FORCE_DETECTION, FORCE_FROM_TRANSLATOR };
     std::set<std::string> expected_languages_;
     std::string source_text_fields_ = "title";
     Mode mode_;
+
 public:
-    void reset() { expected_languages_.clear(); source_text_fields_ = "title"; mode_ = DEFAULT; }
+    void reset() {
+        expected_languages_.clear();
+        source_text_fields_ = "title";
+        mode_ = DEFAULT;
+    }
 };
 
 
 // Parameters that pertain to a specific journal.
 struct JournalParams {
     enum IniKey : unsigned {
-        NAME,       // not an actual INI key; placeholder for the journal name (name of the INI section)
+        NAME, // not an actual INI key; placeholder for the journal name (name of the INI section)
         ZEDER_ID,
         ZEDER_MODIFIED_TIME,
         ZEDER_NEWLY_SYNCED_ENTRY,
         GROUP,
+        SUBGROUP,
         ENTRY_POINT_URL,
         HARVESTER_OPERATION,
         UPLOAD_OPERATION,
@@ -253,6 +285,7 @@ struct JournalParams {
     unsigned zeder_id_;
     std::string name_;
     std::string group_;
+    std::string subgroup_;
     std::string entry_point_url_;
     HarvesterOperation harvester_operation_;
     UploadOperation upload_operation_;
@@ -282,6 +315,7 @@ struct JournalParams {
     bool zeder_newly_synced_entry_;
     bool selective_evaluation_;
     std::shared_ptr<ThreadSafeRegexMatcher> emailcrawl_subject_regex_;
+
 public:
     JournalParams(const GlobalParams &global_params);
     JournalParams(const IniFile::Section &journal_section, const GlobalParams &global_params);
@@ -290,6 +324,7 @@ public:
 
     static std::string GetIniKeyString(const IniKey ini_key);
     static IniKey GetIniKey(const std::string &ini_key_string);
+
 private:
     static const std::map<IniKey, std::string> KEY_TO_STRING_MAP;
     static const std::map<std::string, IniKey> STRING_TO_KEY_MAP;
@@ -298,6 +333,7 @@ private:
 
 void LoadHarvesterConfigFile(const std::string &config_filepath, std::unique_ptr<GlobalParams> * const global_params,
                              std::vector<std::unique_ptr<GroupParams>> * const group_params,
+                             std::vector<std::unique_ptr<SubgroupParams>> * const subgroup_params,
                              std::vector<std::unique_ptr<JournalParams>> * const journal_params,
                              std::unique_ptr<IniFile> * const config_file = nullptr,
                              const IniFile::Section config_overrides = IniFile::Section());

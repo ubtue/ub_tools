@@ -5,8 +5,7 @@
 
 Stemmer::Stemmer(const std::string &language_name_or_code) {
     if ((stemmer_ = ::sb_stemmer_new(language_name_or_code.c_str(), "UTF_8")) == nullptr)
-        throw std::runtime_error("in Stemmer::Stemmer: unsuported language or language code \""
-                                 + language_name_or_code + "\"!");
+        throw std::runtime_error("in Stemmer::Stemmer: unsuported language or language code \"" + language_name_or_code + "\"!");
 }
 
 

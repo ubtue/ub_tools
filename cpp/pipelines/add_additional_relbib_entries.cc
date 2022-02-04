@@ -52,18 +52,17 @@ namespace {
 
 
 void ProcessRecord(MARC::Record * const record, const std::unordered_set<std::string> &relbib_relevant_set) {
-     if (relbib_relevant_set.find(record->getControlNumber()) != relbib_relevant_set.end()) {
-         if (record->findTag(RELBIB_RELEVANT_TAG) != record->end())
-             LOG_ERROR("Field " + RELBIB_RELEVANT_TAG + " already populated for PPN " + record->getControlNumber());
-         record->insertField(RELBIB_RELEVANT_TAG, { { RELBIB_SUBFIELD, "1" } });
-         ++modified_count;
-     }
+    if (relbib_relevant_set.find(record->getControlNumber()) != relbib_relevant_set.end()) {
+        if (record->findTag(RELBIB_RELEVANT_TAG) != record->end())
+            LOG_ERROR("Field " + RELBIB_RELEVANT_TAG + " already populated for PPN " + record->getControlNumber());
+        record->insertField(RELBIB_RELEVANT_TAG, { { RELBIB_SUBFIELD, "1" } });
+        ++modified_count;
+    }
 }
 
 
 void TagRelevantRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                        const std::unordered_set<std::string> &relbib_relevant_set)
-{
+                        const std::unordered_set<std::string> &relbib_relevant_set) {
     while (MARC::Record record = marc_reader->read()) {
         ProcessRecord(&record, relbib_relevant_set);
         marc_writer->write(record);

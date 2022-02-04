@@ -2,8 +2,8 @@
 #include <cstdlib>
 #include <unistd.h>
 #include "StringUtil.h"
-#include "util.h"
 #include "WallClockTimer.h"
+#include "util.h"
 
 
 [[noreturn]] void Usage() {

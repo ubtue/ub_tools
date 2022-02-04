@@ -27,8 +27,8 @@
  */
 
 #include "Url.h"
-#include <set>
 #include <fstream>
+#include <set>
 #include <stdexcept>
 #include <vector>
 #include <climits>
@@ -51,10 +51,8 @@ std::string Url::default_user_agent_;
 
 Url::Url(const std::string &url, const std::string &default_base_url, const unsigned creation_flags,
          const RobotsDotTxtOption robots_dot_txt_option, const unsigned timeout, const std::string &user_agent)
-    : url_(url), default_base_url_(default_base_url), robots_dot_txt_option_(robots_dot_txt_option),
-      timeout_(timeout), user_agent_(user_agent), state_(UNINITIALISED),
-      throw_exceptions_(creation_flags & THROW_EXCEPTIONS)
-{
+    : url_(url), default_base_url_(default_base_url), robots_dot_txt_option_(robots_dot_txt_option), timeout_(timeout),
+      user_agent_(user_agent), state_(UNINITIALISED), throw_exceptions_(creation_flags & THROW_EXCEPTIONS) {
     if (creation_flags & REMOVE_FRAGMENT and (url.length() < 5 or url.substr(0, 5) != "file:")) {
         const std::string::size_type first_hash_pos(url_.find('#'));
         if (first_hash_pos != std::string::npos)
@@ -76,17 +74,14 @@ Url::Url(const std::string &url, const std::string &default_base_url, const unsi
 }
 
 
-Url::Url()
-    : robots_dot_txt_option_(IGNORE_ROBOTS_DOT_TXT), timeout_(0), state_(UNINITIALISED), throw_exceptions_(false)
-{
+Url::Url(): robots_dot_txt_option_(IGNORE_ROBOTS_DOT_TXT), timeout_(0), state_(UNINITIALISED), throw_exceptions_(false) {
 }
 
 
-Url::Url(const std::string &url, const unsigned creation_flags, const RobotsDotTxtOption robots_dot_txt_option,
-         const unsigned timeout, const std::string &user_agent)
-        : url_(url), robots_dot_txt_option_(robots_dot_txt_option), timeout_(timeout), user_agent_(user_agent),
-          state_(UNINITIALISED), throw_exceptions_(creation_flags & THROW_EXCEPTIONS)
-{
+Url::Url(const std::string &url, const unsigned creation_flags, const RobotsDotTxtOption robots_dot_txt_option, const unsigned timeout,
+         const std::string &user_agent)
+    : url_(url), robots_dot_txt_option_(robots_dot_txt_option), timeout_(timeout), user_agent_(user_agent), state_(UNINITIALISED),
+      throw_exceptions_(creation_flags & THROW_EXCEPTIONS) {
     if ((creation_flags & FORCE_ABSOLUTE_HTTP_URL) and not isAbsolute() and not forceAbsoluteHttp())
         return;
 
@@ -103,21 +98,21 @@ Url::Url(const std::string &url, const unsigned creation_flags, const RobotsDotT
 }
 
 
-Url::Url(const std::string &scheme, const std::string &username_password, const std::string &authority,
-         const std::string &port, const std::string path, const std::string &params, const std::string query,
-         const std::string &fragment, const unsigned creation_flags, const RobotsDotTxtOption robots_dot_txt_option,
-         const unsigned timeout, const std::string &user_agent)
+Url::Url(const std::string &scheme, const std::string &username_password, const std::string &authority, const std::string &port,
+         const std::string path, const std::string &params, const std::string query, const std::string &fragment,
+         const unsigned creation_flags, const RobotsDotTxtOption robots_dot_txt_option, const unsigned timeout,
+         const std::string &user_agent)
     : robots_dot_txt_option_(robots_dot_txt_option), timeout_(timeout), user_agent_(user_agent), scheme_(scheme),
-      username_password_(username_password), authority_(TextUtil::UTF8ToLower(authority)), port_(port), path_(path),
-    params_(params), query_(query), fragment_((creation_flags & REMOVE_FRAGMENT) ? "" : fragment),
-    state_(HAS_BEEN_PARSED), throw_exceptions_(creation_flags & THROW_EXCEPTIONS)
-{
+      username_password_(username_password), authority_(TextUtil::UTF8ToLower(authority)), port_(port), path_(path), params_(params),
+      query_(query), fragment_((creation_flags & REMOVE_FRAGMENT) ? "" : fragment), state_(HAS_BEEN_PARSED),
+      throw_exceptions_(creation_flags & THROW_EXCEPTIONS) {
     if ((creation_flags & FORCE_ABSOLUTE_HTTP_URL) and not isAbsolute() and not forceAbsoluteHttp())
         return;
 
     if (creation_flags & AUTO_MAKE_ABSOLUTE)
-        throw std::runtime_error("in Url::Url: constructor flag AUTO_MAKE_ABSOLUTE used with component "
-                                 "constructor!");
+        throw std::runtime_error(
+            "in Url::Url: constructor flag AUTO_MAKE_ABSOLUTE used with component "
+            "constructor!");
 
     url_ = Url::MakeUrl(scheme_, username_password_, authority_, port_, path_, params_, query_, fragment_);
 
@@ -159,11 +154,11 @@ size_t IdentifyPotentiallyUnnecessarySuffixes(const std::string &rest) {
 
     // Quickly perform suffix tests on common optional suffixes.
 #ifdef SuffixTest
-#       undef SuffixTest
+#undef SuffixTest
 #endif
-#define SuffixTest(test_suffix)                                         \
+#define SuffixTest(test_suffix)                                                                            \
     if (SUFFIX_LENGTH == __builtin_strlen(test_suffix) and ::strcasecmp(SUFFIX.c_str(), test_suffix) == 0) \
-        return __builtin_strlen(test_suffix)
+    return __builtin_strlen(test_suffix)
 
     SuffixTest("index.html");
     else SuffixTest("index.htm");
@@ -208,8 +203,7 @@ uint64_t Url::getHash(const HashBehaviour hash_behaviour) const {
         ++start_pos;
         while (likely(*start_pos == '/'))
             ++start_pos;
-    }
-    else
+    } else
         start_pos = c_string;
 
     if (hash_behaviour == IGNORE_LEADING_WWW and std::strncmp(start_pos, "www.", 4) == 0)
@@ -222,14 +216,13 @@ uint64_t Url::getHash(const HashBehaviour hash_behaviour) const {
         end_pos = last_hash;
         if (unlikely(end_pos < start_pos))
             end_pos = start_pos;
-    }
-    else
+    } else
         end_pos = c_string + canonised_url.length() + 1;
 
     const ptrdiff_t trimmed_length = end_pos - start_pos;
-    #pragma GCC diagnostic ignored "-Wvla"
+#pragma GCC diagnostic ignored "-Wvla"
     char trimmed_url[trimmed_length + 1];
-    #pragma GCC diagnostic warning "-Wvla"
+#pragma GCC diagnostic warning "-Wvla"
     std::strncpy(trimmed_url, start_pos, trimmed_length);
     trimmed_url[trimmed_length] = '\0';
 
@@ -262,7 +255,7 @@ uint64_t Url::getAuthorityHash() const {
 unsigned Url::getPathLength() const {
     if (state_ & AN_ERROR_OCCURRED)
         return 0;
-    if (not (state_ & HAS_BEEN_PARSED))
+    if (not(state_ & HAS_BEEN_PARSED))
         parseUrl(url_);
 
     unsigned path_length(0);
@@ -324,9 +317,9 @@ bool IsValidUsernamePassword(const std::string &username_password) {
                 return false;
             if (++ch == username_password.end() or not isxdigit(*ch))
                 return false;
-        } else if (not StringUtil::IsAlphanumeric(*ch) and *ch != ';' and *ch != '?' and *ch != '&' and *ch != '='
-                 and *ch != '$' and *ch != '-' and *ch != '_' and *ch != '.' and *ch != '+' and *ch != '!'
-                 and *ch != '*' and *ch != '\'' and *ch != '(' and *ch != ')' and *ch != ',')
+        } else if (not StringUtil::IsAlphanumeric(*ch) and *ch != ';' and *ch != '?' and *ch != '&' and *ch != '=' and *ch != '$'
+                   and *ch != '-' and *ch != '_' and *ch != '.' and *ch != '+' and *ch != '!' and *ch != '*' and *ch != '\'' and *ch != '('
+                   and *ch != ')' and *ch != ',')
             return false;
     }
 
@@ -337,9 +330,8 @@ bool IsValidUsernamePassword(const std::string &username_password) {
 // IsValidScheme -- a helper function for Url::internalIsValid
 //
 bool IsValidScheme(const std::string &scheme) {
-    return scheme.empty() or scheme == "news" or scheme == "http" or scheme == "https" or scheme == "ftp"
-           or scheme == "gopher" or scheme == "telnet" or scheme == "local_ucr" or scheme == "mailto"
-           or scheme == "file";
+    return scheme.empty() or scheme == "news" or scheme == "http" or scheme == "https" or scheme == "ftp" or scheme == "gopher"
+           or scheme == "telnet" or scheme == "local_ucr" or scheme == "mailto" or scheme == "file";
 }
 
 
@@ -377,7 +369,7 @@ bool IsValidNewsgroupName(const std::string &newsgroup_name) {
             if (not lowercase_letter_seen)
                 return false;
 
-            lowercase_letter_seen    = false;
+            lowercase_letter_seen = false;
             current_component_length = 0;
         }
     }
@@ -506,8 +498,7 @@ bool IsValidFsegment(const std::string &fsegment) {
             ++ch;
             if (ch == fsegment.end() or not isxdigit(*ch))
                 return false;
-        }
-        else
+        } else
             return false;
     }
 
@@ -524,17 +515,16 @@ bool FixFsegment(std::string * const fsegment) {
     for (std::string::const_iterator ch(fsegment->begin()); ch != fsegment->end(); ++ch) {
         if (unlikely(*ch == '%')) {
             ++ch;
-            new_segment +=  *ch;
+            new_segment += *ch;
             if (ch == fsegment->end() or not isxdigit(*ch))
                 return false;
-            new_segment +=  *ch;
+            new_segment += *ch;
 
             ++ch;
             if (ch == fsegment->end() or not isxdigit(*ch))
                 return false;
-            new_segment +=  *ch;
-        }
-        else if (IsValidFsegmentChar(ch, fsegment->end()))
+            new_segment += *ch;
+        } else if (IsValidFsegmentChar(ch, fsegment->end()))
             new_segment += *ch;
         else
             new_segment += UrlUtil::UrlEncodeChar(*ch);
@@ -579,8 +569,7 @@ bool IsValidHsegment(const std::string &hsegment) {
             ++ch;
             if (ch == hsegment.end() or not isxdigit(*ch))
                 return false;
-        }
-        else
+        } else
             return false;
     }
 
@@ -606,8 +595,7 @@ bool FixHsegment(std::string * const hsegment) {
             if (ch == hsegment->end() or not isxdigit(*ch))
                 return false;
             new_segment += *ch;
-        }
-        else if (IsValidHsegmentChar(ch, hsegment->end()))
+        } else if (IsValidHsegmentChar(ch, hsegment->end()))
             new_segment += *ch;
         else
             new_segment += UrlUtil::UrlEncodeChar(*ch);
@@ -625,7 +613,7 @@ bool IsValidFpath(const std::string &fpath) {
         return true;
 
     std::list<std::string> segments;
-    StringUtil::Split(fpath, '/', &segments, /* suppress_empty_components = */true);
+    StringUtil::Split(fpath, '/', &segments, /* suppress_empty_components = */ true);
     if (segments.empty())
         return true;
 
@@ -646,7 +634,7 @@ bool FixFpath(std::string * const fpath) {
     const bool ends_in_slash = (*fpath)[fpath->length() - 1] == '/';
 
     std::list<std::string> segments;
-    StringUtil::Split(*fpath, '/', &segments, /* suppress_empty_components = */true);
+    StringUtil::Split(*fpath, '/', &segments, /* suppress_empty_components = */ true);
     if (segments.empty())
         return true;
 
@@ -670,7 +658,7 @@ bool IsValidHpath(const std::string &hpath) {
         return true;
 
     std::list<std::string> segments;
-    StringUtil::Split(hpath, '/', &segments, /* suppress_empty_components = */true);
+    StringUtil::Split(hpath, '/', &segments, /* suppress_empty_components = */ true);
     if (segments.empty())
         return true;
 
@@ -701,7 +689,7 @@ bool FixHpath(std::string * const hpath) {
     const bool ends_in_slash = (*hpath)[hpath->length() - 1] == '/';
 
     std::list<std::string> segments;
-    StringUtil::Split(*hpath, '/', &segments, /* suppress_empty_components = */true);
+    StringUtil::Split(*hpath, '/', &segments, /* suppress_empty_components = */ true);
     if (segments.empty())
         return true;
 
@@ -709,19 +697,17 @@ bool FixHpath(std::string * const hpath) {
 
     // Note: We allow for a leading tilde in the first path segment
     //       even though it is against the spec as per RFC2396!
-    if (not segment->empty()
-        and ((*segment)[0] == '~' or ::strncasecmp("%7E", segment->c_str(), 3) == 0))
-        {
-            std::string temp;
-            if (likely((*segment)[0] == '~'))
-                temp = segment->substr(1);
-            else
-                temp = segment->substr(3);
-            if (not FixHsegment(&temp))
-                return false;
-            *segment = "~" + temp;
-            ++segment;
-        }
+    if (not segment->empty() and ((*segment)[0] == '~' or ::strncasecmp("%7E", segment->c_str(), 3) == 0)) {
+        std::string temp;
+        if (likely((*segment)[0] == '~'))
+            temp = segment->substr(1);
+        else
+            temp = segment->substr(3);
+        if (not FixHsegment(&temp))
+            return false;
+        *segment = "~" + temp;
+        ++segment;
+    }
 
     for (/*empty*/; segment != segments.end(); ++segment)
         if (not FixHsegment(&*segment))
@@ -754,8 +740,7 @@ bool FixQuery(std::string * const query) {
             if (ch == query->end() or not isxdigit(*ch))
                 return false;
             new_query += *ch;
-        }
-        else if (IsValidUric(ch, query->end()))
+        } else if (IsValidUric(ch, query->end()))
             new_query += *ch;
         else
             new_query += UrlUtil::UrlEncodeChar(*ch);
@@ -772,8 +757,7 @@ bool AreValidFtpParams(const std::string &params) {
     if (likely(params.empty()))
         return true;
 
-    return params.length() == 6 and params.substr(0, 5) != "type="
-        and (params[5] == 'a' or params[5] == 'i' or params[5] == 'd');
+    return params.length() == 6 and params.substr(0, 5) != "type=" and (params[5] == 'a' or params[5] == 'i' or params[5] == 'd');
 }
 
 
@@ -811,11 +795,11 @@ inline bool IsValidFragment(const std::string &fragment) {
  */
 bool CanonizePath(std::string non_canonical_path, std::string reference_path, std::string * const canonical_path) {
     const bool starts_with_slash = not non_canonical_path.empty() and non_canonical_path[0] == '/';
-    const bool ends_in_slash = not non_canonical_path.empty()
-        and non_canonical_path[non_canonical_path.length() -1] == '/';
+    const bool ends_in_slash = not non_canonical_path.empty() and non_canonical_path[non_canonical_path.length() - 1] == '/';
 
     if (starts_with_slash and not reference_path.empty())
-        throw std::runtime_error("in CanonizePath (Url.cc): \"non_canonical_path\" is an absolute path and \"reference_path\" is non-empty!");
+        throw std::runtime_error(
+            "in CanonizePath (Url.cc): \"non_canonical_path\" is an absolute path and \"reference_path\" is non-empty!");
 
     // Strip off final component of relative path and store it for later
     std::string last_path_component;
@@ -834,11 +818,11 @@ bool CanonizePath(std::string non_canonical_path, std::string reference_path, st
         reference_path = reference_path.substr(0, last_slash_pos); // Strip off any characters following the last slash
 
     std::list<std::string> segments;
-    StringUtil::Split(reference_path, '/', &segments, /* suppress_empty_components = */true);
+    StringUtil::Split(reference_path, '/', &segments, /* suppress_empty_components = */ true);
 
     /* Step 6 b) */
     std::list<std::string> non_canonical_path_segments;
-    StringUtil::Split(non_canonical_path, '/', &non_canonical_path_segments, /* suppress_empty_components = */true);
+    StringUtil::Split(non_canonical_path, '/', &non_canonical_path_segments, /* suppress_empty_components = */ true);
     segments.splice(segments.end(), non_canonical_path_segments);
 
     /* Steps 6 c) and d), remove single-dot components. */
@@ -858,14 +842,12 @@ bool CanonizePath(std::string non_canonical_path, std::string reference_path, st
             --iter;
             segment = std::list<std::string>::reverse_iterator(segments.erase(iter));
             ++drop_count;
-        }
-        else if (drop_count > 0) {
+        } else if (drop_count > 0) {
             --drop_count;
             std::list<std::string>::iterator iter(segment.base());
             --iter;
             segment = std::list<std::string>::reverse_iterator(segments.erase(iter));
-        }
-        else
+        } else
             ++segment;
     }
 
@@ -874,7 +856,7 @@ bool CanonizePath(std::string non_canonical_path, std::string reference_path, st
         if (canonical_path->empty() or (*canonical_path)[canonical_path->length() - 1] != '/')
             *canonical_path += "/";
         *canonical_path += last_path_component;
-    } else if (ends_in_slash and (*canonical_path)[canonical_path->length() -1 ] != '/')
+    } else if (ends_in_slash and (*canonical_path)[canonical_path->length() - 1] != '/')
         *canonical_path += '/';
 
     if (starts_with_slash and (canonical_path->empty() or (*canonical_path)[0] != '/'))
@@ -915,14 +897,14 @@ bool Url::makeAbsolute(const std::string &override_base_url) {
     if (url_.empty()) {
         url_ = override_base_url.empty() ? default_base_url_ : override_base_url;
         if (not url_.empty()) {
-            scheme_            = base_scheme;
+            scheme_ = base_scheme;
             username_password_ = base_username_password;
-            authority_         = base_authority;
-            port_              = base_port;
-            path_              = base_path;
-            params_            = base_params;
-            query_             = base_query;
-            fragment_          = base_fragment;
+            authority_ = base_authority;
+            port_ = base_port;
+            path_ = base_path;
+            params_ = base_params;
+            query_ = base_query;
+            fragment_ = base_fragment;
 
             // Note: in the following assignment we intentionally do not use "or"
             // to assign flags, as we want  start with a clean slate!
@@ -947,8 +929,7 @@ bool Url::makeAbsolute(const std::string &override_base_url) {
         url_ += base_authority;
 
         // Handle the port:
-        if (not base_port.empty()
-            and not ((base_scheme == "http" and base_port == "80") or (base_scheme == "https" and base_port == "443")))
+        if (not base_port.empty() and not((base_scheme == "http" and base_port == "80") or (base_scheme == "https" and base_port == "443")))
             url_ += ":" + base_port;
 
         // Handle the path:
@@ -956,7 +937,7 @@ bool Url::makeAbsolute(const std::string &override_base_url) {
             url_ += '/';
         else if (relative_url_[0] == '/') // We assume that "relative_url_" is an absolute path.
             url_ += relative_url_;
-        else {  // We assume that "relative_url_" is a relative path.
+        else { // We assume that "relative_url_" is a relative path.
             // Make sure we do not skip the last part if relative_url_ is in fact a parameter
             if (relative_url_[0] == '?' and base_path.back() != '/')
                 base_path.append(1, '/');
@@ -984,8 +965,8 @@ bool Url::makeAbsolute(const std::string &override_base_url) {
 //
 std::string Url::getRobotsDotTxtUrl() const {
     if ((state_ & HAS_BEEN_PARSED) == 0) {
-        if (not UrlUtil::ParseUrl(url_, &scheme_, &username_password_, &authority_, &port_, &path_, &params_,
-                                  &query_, &fragment_, &relative_url_)
+        if (not UrlUtil::ParseUrl(url_, &scheme_, &username_password_, &authority_, &port_, &path_, &params_, &query_, &fragment_,
+                                  &relative_url_)
             or not relative_url_.empty())
             return std::string();
         state_ |= HAS_BEEN_PARSED;
@@ -1026,8 +1007,7 @@ bool Url::isChildOrSiblingUrl(const Url &test_url) const {
     if (getScheme() != test_url.getScheme() or getPort() != test_url.getPort())
         return false;
 
-    if (getAuthority() != test_url.getAuthority()
-        and not StringUtil::Match("*." + getAuthority(), test_url.getAuthority()))
+    if (getAuthority() != test_url.getAuthority() and not StringUtil::Match("*." + getAuthority(), test_url.getAuthority()))
         return false;
 
     if (getPath().empty())
@@ -1092,13 +1072,11 @@ bool Url::internalIsValid() const {
         if (not scheme_.empty() and authority_.empty())
             return false;
 
-        if (not (authority_.empty() or DnsUtil::IsValidHostName(authority_) or DnsUtil::IsDottedQuad(authority_)))
+        if (not(authority_.empty() or DnsUtil::IsValidHostName(authority_) or DnsUtil::IsDottedQuad(authority_)))
             return false;
 
         if (scheme_ == "telnet") {
-            if (not authority_.empty() and path_.empty()
-                and query_.empty() and fragment_.empty())
-            {
+            if (not authority_.empty() and path_.empty() and query_.empty() and fragment_.empty()) {
                 state_ |= IS_VALID;
                 return true;
             } else
@@ -1136,11 +1114,11 @@ bool Url::parseUrl(const std::string &url) const {
 bool Url::isValidWebUrl() const {
     if (state_ & AN_ERROR_OCCURRED)
         return false;
-    if (not (state_ & VALIDITY_HAS_BEEN_CHECKED))
+    if (not(state_ & VALIDITY_HAS_BEEN_CHECKED))
         internalIsValid();
-    if (not (state_ & IS_VALID))
+    if (not(state_ & IS_VALID))
         return false;
-    if (not (state_ & HAS_BEEN_PARSED))
+    if (not(state_ & HAS_BEEN_PARSED))
         parseUrl(url_);
     return scheme_ == "http" or scheme_ == "https";
 }
@@ -1197,9 +1175,9 @@ bool Url::cleanUp() {
     // If this is a relative URL, we may be able to make it into an HTTP URL:
     if (scheme_.empty() and default_base_url_.empty() and not relative_url_.empty()) {
         std::list<std::string> segments;
-        StringUtil::Split(relative_url_, '/', &segments, /* suppress_empty_components = */true);
+        StringUtil::Split(relative_url_, '/', &segments, /* suppress_empty_components = */ true);
         if (not segments.empty() and DnsUtil::IsValidHostName(segments.front())) {
-            scheme_    = "http";
+            scheme_ = "http";
             authority_ = segments.front();
             segments.pop_front();
             path_ = "/" + StringUtil::Join(segments, "/");
@@ -1275,17 +1253,18 @@ bool Url::makeValid() {
         // Fix some known problem cases.
 
         // news: URLs have to have trailing slashes trimmed.
-        if (trimmed_url_length >= 5 and  trimmed_url.substr(0, 5) == "news:") {
+        if (trimmed_url_length >= 5 and trimmed_url.substr(0, 5) == "news:") {
             StringUtil::RightTrim(&trimmed_url, '/');
             url_ = trimmed_url;
         }
         // mailto: URLs have to have trailing slashes trimmed.
-        else if (trimmed_url_length >= 7 and  trimmed_url.substr(0, 7) == "mailto:") {
+        else if (trimmed_url_length >= 7 and trimmed_url.substr(0, 7) == "mailto:")
+        {
             StringUtil::RightTrim(&trimmed_url, '/');
             url_ = trimmed_url;
         }
         // file: URLs.
-        else if (trimmed_url_length >= 5 and  trimmed_url.substr(0, 5) == "file:")
+        else if (trimmed_url_length >= 5 and trimmed_url.substr(0, 5) == "file:")
             url_ = trimmed_url;
         // URLS with no "://" part are assumed to be HTTP URLs.
         else if (trimmed_url.find("://") == std::string::npos)
@@ -1310,9 +1289,9 @@ bool Url::makeValid() {
             return true;
         else if (scheme_.empty() and default_base_url_.empty() and not path_.empty()) {
             std::list<std::string> segments;
-            StringUtil::Split(path_, '/', &segments, /* suppress_empty_components = */true);
+            StringUtil::Split(path_, '/', &segments, /* suppress_empty_components = */ true);
             if (not segments.empty() and DnsUtil::IsValidHostName(segments.front())) {
-                scheme_    = "http";
+                scheme_ = "http";
                 authority_ = segments.front();
                 segments.pop_front();
                 path_ = "/" + StringUtil::Join(segments, "/");
@@ -1372,8 +1351,7 @@ bool IsCentralNicUrl(const std::string &url, Downloader * const downloader, cons
     if (http_header.getStatusCode() < 200 or http_header.getStatusCode() > 299)
         return false;
 
-    if (unlikely(not http_header.getLocation().empty()
-                 and ::strncasecmp(http_header.getLocation().c_str(), "http://www.uk.com/", 18) == 0))
+    if (unlikely(not http_header.getLocation().empty() and ::strncasecmp(http_header.getLocation().c_str(), "http://www.uk.com/", 18) == 0))
         return true;
 
     return false;
@@ -1386,9 +1364,7 @@ bool IsCentralNicUrl(const std::string &url, Downloader * const downloader, cons
 //                        available, if not, we try last modified dates and if those aren't available or don't match
 //                        we give up.
 //
-bool IsIdenticalDocument(const std::string &url1, const HttpHeader &http_header1, const std::string &url2,
-                         const HttpHeader &http_header2)
-{
+bool IsIdenticalDocument(const std::string &url1, const HttpHeader &http_header1, const std::string &url2, const HttpHeader &http_header2) {
     if (not http_header1.getETag().empty() and not http_header2.getETag().empty())
         return http_header1.getETag() == http_header2.getETag();
 
@@ -1408,13 +1384,13 @@ bool IsIdenticalDocument(const std::string &url1, const HttpHeader &http_header1
 }
 
 
-// TestNewURL -- helper for makeCanonial().  Determines whether "new_url" is equivalent to "original_url".  Returns true if we convinced ourselves that it
+// TestNewURL -- helper for makeCanonial().  Determines whether "new_url" is equivalent to "original_url".  Returns true if we convinced
+// ourselves that it
 //               leads to the same resource as the original URL.
 //               Note: "original_http_header" has to be a valid HTTP header for "original_url".
 //
 bool TestNewURL(const std::string &original_url, const HttpHeader &original_http_header, const std::string &original_content_hash,
-                const std::string &new_url, const TimeLimit &time_limit, Downloader * const downloader)
-{
+                const std::string &new_url, const TimeLimit &time_limit, Downloader * const downloader) {
     // Download the page
     downloader->newUrl(new_url, time_limit);
     if (downloader->anErrorOccurred())
@@ -1470,10 +1446,9 @@ bool Url::makeCanonical(const unsigned override_timeout) {
             throw std::runtime_error("in Url::makeCanonical: need a non-empty user agent string!");
 
         // Set up Web page fetcher and its parameters:
-        Downloader::Params downloader_params(
-            user_agent_string, Downloader::DEFAULT_ACCEPTABLE_LANGUAGES, Downloader::DEFAULT_MAX_REDIRECTS,
-            /* dns_cache_timeout = */ 600,
-            /* honour_robots_dot_txt = */ robots_dot_txt_option_ == Url::CONSULT_ROBOTS_DOT_TXT);
+        Downloader::Params downloader_params(user_agent_string, Downloader::DEFAULT_ACCEPTABLE_LANGUAGES, Downloader::DEFAULT_MAX_REDIRECTS,
+                                             /* dns_cache_timeout = */ 600,
+                                             /* honour_robots_dot_txt = */ robots_dot_txt_option_ == Url::CONSULT_ROBOTS_DOT_TXT);
         const TimeLimit time_limit(override_timeout != 0 ? override_timeout : timeout_);
 
         // Retrieve the "original" URL
@@ -1483,9 +1458,8 @@ bool Url::makeCanonical(const unsigned override_timeout) {
 
         // Work through the possible candidates until we find
         // one that matches the original.
-        for (std::list<std::string>::const_iterator potential_url(potential_urls.begin());
-             potential_url != potential_urls.end(); ++potential_url)
-        {
+        for (std::list<std::string>::const_iterator potential_url(potential_urls.begin()); potential_url != potential_urls.end();
+             ++potential_url) {
 #ifdef VERSIGN_SITE_FINDER_HACK
             if (IsVeriSignSiteFinderUrl(*potential_url, &downloader, time_limit))
                 continue;
@@ -1496,9 +1470,7 @@ bool Url::makeCanonical(const unsigned override_timeout) {
                 continue;
 #endif
 
-            if (TestNewURL(this->toString(), original_http_header, original_content_hash, *potential_url,
-                           time_limit, &downloader))
-            {
+            if (TestNewURL(this->toString(), original_http_header, original_content_hash, *potential_url, time_limit, &downloader)) {
                 url_ = *potential_url;
                 state_ &= ~HAS_BEEN_PARSED;
                 state_ |= IS_CANONICAL;
@@ -1511,7 +1483,7 @@ bool Url::makeCanonical(const unsigned override_timeout) {
         state_ |= IS_CANONICAL;
         return true;
     } catch (const std::exception &x) {
-        error("in Url::makeCanonical: caught exception: "  + std::string(x.what()));
+        error("in Url::makeCanonical: caught exception: " + std::string(x.what()));
         return false;
     }
 }
@@ -1520,7 +1492,7 @@ bool Url::makeCanonical(const unsigned override_timeout) {
 std::string Url::getPortAsString(const bool get_default_when_port_not_set) const {
     if (state_ & AN_ERROR_OCCURRED)
         return 0;
-    if (not (state_ & HAS_BEEN_PARSED))
+    if (not(state_ & HAS_BEEN_PARSED))
         parseUrl(url_);
 
     if (port_.empty() and get_default_when_port_not_set) {
@@ -1541,7 +1513,7 @@ std::string Url::getPortAsString(const bool get_default_when_port_not_set) const
 unsigned short Url::getPort() const {
     if (state_ & AN_ERROR_OCCURRED)
         return 0;
-    if (not (state_ & HAS_BEEN_PARSED))
+    if (not(state_ & HAS_BEEN_PARSED))
         parseUrl(url_);
 
     if (scheme_.empty())
@@ -1565,7 +1537,7 @@ namespace {
 
 
 bool url_config_file_loaded = false;
-std::list< std::pair<std::string, std::string> > pattern_to_site_map;
+std::list<std::pair<std::string, std::string> > pattern_to_site_map;
 
 
 void LoadUrlConfigFile() {
@@ -1574,8 +1546,7 @@ void LoadUrlConfigFile() {
     const std::string config_filename(ETC_DIR + std::string("/UrlGetSite.conf"));
     std::ifstream input(config_filename.c_str());
     if (input.fail())
-        throw std::runtime_error("in LoadUrlConfigFile (Url.cc): can't open \"" + config_filename
-                                 + "\" for reading!");
+        throw std::runtime_error("in LoadUrlConfigFile (Url.cc): can't open \"" + config_filename + "\" for reading!");
 
     unsigned line_no(0);
     while (input) {
@@ -1593,11 +1564,10 @@ void LoadUrlConfigFile() {
 
         std::string::size_type equal_pos = line.find('=');
         if (equal_pos == std::string::npos)
-            throw std::runtime_error("in LoadUrlConfigFile (Url.cc): malformed input in \"" + config_filename
-                                     + "\" on line " + StringUtil::ToString(line_no) + "!");
+            throw std::runtime_error("in LoadUrlConfigFile (Url.cc): malformed input in \"" + config_filename + "\" on line "
+                                     + StringUtil::ToString(line_no) + "!");
 
-        pattern_to_site_map.push_back(std::make_pair<std::string, std::string>(line.substr(equal_pos + 1),
-                                                                               line.substr(0, equal_pos)));
+        pattern_to_site_map.push_back(std::make_pair<std::string, std::string>(line.substr(equal_pos + 1), line.substr(0, equal_pos)));
     }
 }
 
@@ -1608,7 +1578,7 @@ void LoadUrlConfigFile() {
 std::string Url::getSite() const {
     if (state_ & AN_ERROR_OCCURRED)
         return "";
-    if (not (state_ & HAS_BEEN_PARSED))
+    if (not(state_ & HAS_BEEN_PARSED))
         parseUrl(url_);
 
     if (scheme_ != "http" and scheme_ != "https" and scheme_ != "ftp")
@@ -1620,7 +1590,6 @@ std::string Url::getSite() const {
     for (const auto &pair : pattern_to_site_map) {
         if (PerlCompatRegExp::Match(pair.first, url_, PCRE_ANCHORED | PCRE_CASELESS))
             return pair.second;
-
     }
 
     std::string lowercase_authority(authority_);
@@ -1660,7 +1629,7 @@ std::string Url::getSite() const {
 bool Url::setScheme(const std::string &scheme) {
     if (anErrorOccurred())
         return false;
-    if (not (state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
+    if (not(state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
         return false;
 
     if (not relative_url_.empty()) {
@@ -1677,7 +1646,7 @@ bool Url::setScheme(const std::string &scheme) {
 bool Url::setUsernamePassword(const std::string &username_password) {
     if (anErrorOccurred())
         return false;
-    if (not (state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
+    if (not(state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
         return false;
 
     if (not relative_url_.empty()) {
@@ -1694,7 +1663,7 @@ bool Url::setUsernamePassword(const std::string &username_password) {
 bool Url::setAuthority(const std::string &authority) {
     if (anErrorOccurred())
         return false;
-    if (not (state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
+    if (not(state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
         return false;
 
     if (not relative_url_.empty()) {
@@ -1711,7 +1680,7 @@ bool Url::setAuthority(const std::string &authority) {
 bool Url::setPort(const std::string &port) {
     if (anErrorOccurred())
         return false;
-    if (not (state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
+    if (not(state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
         return false;
     if (StringUtil::IsUnsignedDecimalNumber(port))
         return false;
@@ -1730,7 +1699,7 @@ bool Url::setPort(const std::string &port) {
 bool Url::setPort(const unsigned short port) {
     if (anErrorOccurred())
         return false;
-    if (not (state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
+    if (not(state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
         return false;
 
     if (not relative_url_.empty()) {
@@ -1747,7 +1716,7 @@ bool Url::setPort(const unsigned short port) {
 bool Url::setPath(const std::string &path) {
     if (anErrorOccurred())
         return false;
-    if (not (state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
+    if (not(state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
         return false;
 
     if (not relative_url_.empty()) {
@@ -1764,7 +1733,7 @@ bool Url::setPath(const std::string &path) {
 bool Url::setParams(const std::string &params) {
     if (anErrorOccurred())
         return false;
-    if (not (state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
+    if (not(state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
         return false;
 
     if (not relative_url_.empty()) {
@@ -1781,7 +1750,7 @@ bool Url::setParams(const std::string &params) {
 bool Url::setQuery(const std::string &query) {
     if (anErrorOccurred())
         return false;
-    if (not (state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
+    if (not(state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
         return false;
 
     if (not relative_url_.empty()) {
@@ -1798,7 +1767,7 @@ bool Url::setQuery(const std::string &query) {
 bool Url::setFragment(const std::string &fragment) {
     if (anErrorOccurred())
         return false;
-    if (not (state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
+    if (not(state_ & HAS_BEEN_PARSED) and not parseUrl(url_))
         return false;
 
     if (not relative_url_.empty()) {
@@ -1815,9 +1784,8 @@ bool Url::setFragment(const std::string &fragment) {
 // MakeUrl -- assemble a URL given the components.
 //
 std::string Url::MakeUrl(const std::string &scheme, const std::string &username_password, const std::string &authority,
-                         const std::string &port, const std::string &path, const std::string &params,
-                         const std::string &query, const std::string &fragment)
-{
+                         const std::string &port, const std::string &path, const std::string &params, const std::string &query,
+                         const std::string &fragment) {
     std::string url;
 
     if (scheme == "news")
@@ -1829,11 +1797,11 @@ std::string Url::MakeUrl(const std::string &scheme, const std::string &username_
             url += username_password + "@";
         if (not authority.empty())
             url += authority;
-        if (not port.empty() and not ((scheme == "http" and port == "80") or (scheme == "https" and port == "443")))
+        if (not port.empty() and not((scheme == "http" and port == "80") or (scheme == "https" and port == "443")))
             url += ":" + port;
 
         if (likely(scheme != "telnet")) {
-            if (path.empty() and not (params.empty() and query.empty() and fragment.empty()))
+            if (path.empty() and not(params.empty() and query.empty() and fragment.empty()))
                 url += '/';
             else
                 url += path;
@@ -1860,13 +1828,13 @@ namespace { // Helpers for TransformUrl.
 
 class UrlMap {
     std::string from_pattern_, to_pattern_;
+
 public:
-    UrlMap(const std::string &from_pattern, const std::string &to_pattern)
-        : from_pattern_(from_pattern), to_pattern_(to_pattern) { }
-    UrlMap(const UrlMap &rhs)
-        : from_pattern_(rhs.from_pattern_), to_pattern_(rhs.to_pattern_) { }
+    UrlMap(const std::string &from_pattern, const std::string &to_pattern): from_pattern_(from_pattern), to_pattern_(to_pattern) { }
+    UrlMap(const UrlMap &rhs): from_pattern_(rhs.from_pattern_), to_pattern_(rhs.to_pattern_) { }
     const std::string &getFromPattern() const { return from_pattern_; }
     const std::string &getToPattern() const { return to_pattern_; }
+
 private:
     UrlMap() = delete;
 };
@@ -1874,17 +1842,19 @@ private:
 
 class UrlMaps {
     std::vector<UrlMap> url_maps_;
+
 public:
-        inline void push_back(const std::string &from_pattern, const std::string &to_pattern)
-            { url_maps_.emplace_back(from_pattern, to_pattern); }
-        std::string map(const std::string &url) const;
+    inline void push_back(const std::string &from_pattern, const std::string &to_pattern) {
+        url_maps_.emplace_back(from_pattern, to_pattern);
+    }
+    std::string map(const std::string &url) const;
 };
 
 
 std::string UrlMaps::map(const std::string &url) const {
     for (const auto &url_map : url_maps_) {
         const std::string new_url(PerlCompatRegExp::Subst(url_map.getFromPattern(), url_map.getToPattern(), url,
-                                                          /*global = */false, PCRE_ANCHORED));
+                                                          /*global = */ false, PCRE_ANCHORED));
         if (new_url != url)
             return new_url;
     }
@@ -1918,8 +1888,7 @@ void LoadUrlMaps(UrlMaps * const url_maps) {
         std::list<std::string> patterns;
         StringUtil::SplitThenTrim(line, " \t", " \t", &patterns);
         if (patterns.size() != 2)
-            throw std::runtime_error("in LoadUrlMaps(Url.cc): invalid entry in \""
-                                     + CONF_FILENAME + "\" on line "
+            throw std::runtime_error("in LoadUrlMaps(Url.cc): invalid entry in \"" + CONF_FILENAME + "\" on line "
                                      + StringUtil::ToString(line_no) + "!");
 
         url_maps->push_back(patterns.front(), patterns.back());
@@ -1927,7 +1896,7 @@ void LoadUrlMaps(UrlMaps * const url_maps) {
 }
 
 
-} // unnamed namespace -- Helpers for TransformUrl.
+} // namespace
 
 
 std::string Url::TransformUrl(const std::string &url) {
@@ -1960,11 +1929,9 @@ namespace { // Helper functions for SuggestPotentialCanonicalUrls.
 //
 bool HostLessThan(const std::string &host1, const std::string &host2) {
     // First, prefer hostnames that start with "www."
-    if ((host1.length() > 4 and host1.substr(0, 4) == "www.")
-        and (host2.length() <= 4 or host2.substr(0, 4) != "www."))
+    if ((host1.length() > 4 and host1.substr(0, 4) == "www.") and (host2.length() <= 4 or host2.substr(0, 4) != "www."))
         return true;
-    else if ((host2.length() > 4 and host2.substr(0, 4) == "www.")
-             and (host1.length() <= 4 or host1.substr(0, 4) != "www."))
+    else if ((host2.length() > 4 and host2.substr(0, 4) == "www.") and (host1.length() <= 4 or host1.substr(0, 4) != "www."))
         return false;
 
     // Prefer shorter hostnames
@@ -2008,13 +1975,12 @@ std::string GetSuggestedWwwHost(const std::string &hostname) {
         return "www." + hostname;
 
     std::string::size_type dot_pos = hostname.find('.');
-    if (dot_pos == 3 // hostname starts with "www." already
-        or dot_pos == std::string::npos // hostname has no '.' in it.
-        or not StringUtil::IsUnsignedNumber(hostname.substr(3, dot_pos-3))) // hostname is not "wwwN."
+    if (dot_pos == 3                                                          // hostname starts with "www." already
+        or dot_pos == std::string::npos                                       // hostname has no '.' in it.
+        or not StringUtil::IsUnsignedNumber(hostname.substr(3, dot_pos - 3))) // hostname is not "wwwN."
         return hostname;
 
     return "www" + hostname.substr(dot_pos); // Replace "wwwN." with "www."
-
 }
 
 
@@ -2024,8 +1990,7 @@ std::string GetSuggestedWwwHost(const std::string &hostname) {
 // Url::SuggestPotentialCanonicalUrls -- Suggest possible canonical forms of a URL.
 //
 bool Url::SuggestPotentialCanonicalUrls(const std::string &original_url, std::list<std::string> * const potential_urls,
-                                        const bool resolve_ip_address)
-{
+                                        const bool resolve_ip_address) {
     potential_urls->clear();
     Url url(original_url, Url::AUTO_CLEAN_UP);
 
@@ -2056,8 +2021,8 @@ bool Url::SuggestPotentialCanonicalUrls(const std::string &original_url, std::li
         // We have an IP address instead of a proper host name and want to translate it:
         std::list<std::string> proper_hostnames;
         if (DnsUtil::IpAddrToHostnames(hostname, &proper_hostnames)) {
-            for (std::list<std::string>::iterator proper_hostname(proper_hostnames.begin());
-                 proper_hostname != proper_hostnames.end(); ++proper_hostname)
+            for (std::list<std::string>::iterator proper_hostname(proper_hostnames.begin()); proper_hostname != proper_hostnames.end();
+                 ++proper_hostname)
             {
                 if (proper_hostname->find('.') == std::string::npos)
                     continue;
@@ -2107,19 +2072,14 @@ bool Url::SuggestPotentialCanonicalUrls(const std::string &original_url, std::li
     std::sort(sorted_paths.begin(), sorted_paths.end(), RestLessThan);
 
     // Make a list of every combination of hostname and path:
-    for (std::vector<std::string>::const_iterator host(sorted_hosts.begin());
-         host != sorted_hosts.end(); ++host)
-        {
-            for (std::vector<std::string>::const_iterator path_iter(sorted_paths.begin());
-                 path_iter != sorted_paths.end(); ++path_iter)
-                potential_urls->push_back(Url::MakeUrl(scheme, url.getUsernamePassword(), *host,
-                                                       url.getPortAsString(), *path_iter, url.getParams(),
-                                                       url.getQuery(), url.getFragment()));
-        }
+    for (std::vector<std::string>::const_iterator host(sorted_hosts.begin()); host != sorted_hosts.end(); ++host) {
+        for (std::vector<std::string>::const_iterator path_iter(sorted_paths.begin()); path_iter != sorted_paths.end(); ++path_iter)
+            potential_urls->push_back(Url::MakeUrl(scheme, url.getUsernamePassword(), *host, url.getPortAsString(), *path_iter,
+                                                   url.getParams(), url.getQuery(), url.getFragment()));
+    }
 
     // Make sure the original URL is in the list:
-    std::list<std::string>::iterator pos = std::find(potential_urls->begin(),
-                                                     potential_urls->end(), url.toString());
+    std::list<std::string>::iterator pos = std::find(potential_urls->begin(), potential_urls->end(), url.toString());
     if (pos == potential_urls->end())
         potential_urls->push_back(url.toString());
     else if (++pos != potential_urls->end())
@@ -2131,8 +2091,7 @@ bool Url::SuggestPotentialCanonicalUrls(const std::string &original_url, std::li
 // Url::SuggestLikelyAlternateFormsForWebUrl -- Suggest simple, common variants on a URL.
 //
 unsigned Url::SuggestLikelyAlternateFormsForWebUrl(const std::string &url, std::list<std::string> * const url_list,
-                                                   const bool canonize_url)
-{
+                                                   const bool canonize_url) {
     url_list->clear();
 
     Url the_url(url);
@@ -2152,9 +2111,9 @@ unsigned Url::SuggestLikelyAlternateFormsForWebUrl(const std::string &url, std::
 
     // If there is no www part in the URL, create a variant that has one.
     if (pos == std::string::npos) {
-        if (new_url.length() > 7 and new_url.substr(0,7) == "http://")
+        if (new_url.length() > 7 and new_url.substr(0, 7) == "http://")
             new_url = "http://www." + new_url.substr(7);
-        else if (new_url.length() > 8 and new_url.substr(0,8) == "https://")
+        else if (new_url.length() > 8 and new_url.substr(0, 8) == "https://")
             new_url = "https://www." + new_url.substr(8);
     }
 
@@ -2173,12 +2132,8 @@ bool operator==(const Url &lhs, const Url &rhs) {
     if (not lhs.relative_url_.empty() or not rhs.relative_url_.empty())
         return lhs.relative_url_ == rhs.relative_url_;
 
-    return lhs.getScheme() == rhs.getScheme()
-           and lhs.getUsernamePassword() == rhs.getUsernamePassword()
-           and lhs.getAuthority() == rhs.getAuthority()
-           and lhs.getPortAsString(true) == rhs.getPortAsString(true)
-           and lhs.getPath() == rhs.getPath()
-           and lhs.getParams() == rhs.getParams()
-           and lhs.getQuery() == rhs.getQuery()
+    return lhs.getScheme() == rhs.getScheme() and lhs.getUsernamePassword() == rhs.getUsernamePassword()
+           and lhs.getAuthority() == rhs.getAuthority() and lhs.getPortAsString(true) == rhs.getPortAsString(true)
+           and lhs.getPath() == rhs.getPath() and lhs.getParams() == rhs.getParams() and lhs.getQuery() == rhs.getQuery()
            and lhs.getFragment() == rhs.getFragment();
 }

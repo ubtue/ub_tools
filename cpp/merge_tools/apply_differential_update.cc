@@ -41,16 +41,16 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--min-log-level=log_level] [--keep-intermediate-files] input_directory "
-            "difference_archive output_directory\n"
-            "       Log levels are DEBUG, INFO, WARNING and ERROR with INFO being the default.\n");
+    ::Usage(
+        "[--min-log-level=log_level] [--keep-intermediate-files] input_directory "
+        "difference_archive output_directory\n"
+        "       Log levels are DEBUG, INFO, WARNING and ERROR with INFO being the default.\n");
 }
 
 
 void CopyAndCollectPPNs(LocalDataDB * const local_data_db, MARC::Reader * const reader, MARC::Writer * const writer,
                         std::unordered_set<std::string> * const authority_ppns_in_delta,
-                        const std::unordered_set<std::string>  &authority_ppns_in_input, bool check_input_ppns = false)
-{
+                        const std::unordered_set<std::string> &authority_ppns_in_input, bool check_input_ppns = false) {
     while (auto record = reader->read()) {
         const auto PPN(record.getControlNumber());
         if (authority_ppns_in_delta->find(PPN) == authority_ppns_in_delta->end()) {
@@ -75,25 +75,25 @@ void CopyAndCollectPPNs(LocalDataDB * const local_data_db, MARC::Reader * const 
 
 
 void CopySelectedTypes(LocalDataDB * const local_data_db, const std::vector<std::string> &archive_members, MARC::Writer * const writer,
-                       const std::set<BSZUtil::ArchiveType> &selected_types, std::unordered_set<std::string> * const authority_ppns_in_delta,
-                       const std::unordered_set<std::string>  &authority_ppns_in_input, bool check_input_ppns = false)
-{
+                       const std::set<BSZUtil::ArchiveType> &selected_types,
+                       std::unordered_set<std::string> * const authority_ppns_in_delta,
+                       const std::unordered_set<std::string> &authority_ppns_in_input, bool check_input_ppns = false) {
     for (const auto &archive_member : archive_members) {
         if (selected_types.find(BSZUtil::GetArchiveType(archive_member)) != selected_types.cend()) {
             const auto reader(MARC::Reader::Factory(archive_member, MARC::FileType::BINARY));
 
-            //only check if delta records are present in source record if it is a sekkor file, not if TA file etc
+            // only check if delta records are present in source record if it is a sekkor file, not if TA file etc
             bool really_check_input_ppns = check_input_ppns and StringUtil::Contains(FileUtil::GetBasename(archive_member), "sekkor");
 
-            CopyAndCollectPPNs(local_data_db, reader.get(), writer, authority_ppns_in_delta, authority_ppns_in_input, really_check_input_ppns);
+            CopyAndCollectPPNs(local_data_db, reader.get(), writer, authority_ppns_in_delta, authority_ppns_in_input,
+                               really_check_input_ppns);
         }
     }
 }
 
 
 void PreFetchPPNSOfInput(const std::vector<std::string> &archive_members, const std::set<BSZUtil::ArchiveType> &selected_types,
-                         std::unordered_set<std::string> * const authority_ppns_in_input)
-{
+                         std::unordered_set<std::string> * const authority_ppns_in_input) {
     for (const auto &archive_member : archive_members) {
         if (selected_types.find(BSZUtil::GetArchiveType(archive_member)) != selected_types.cend()) {
             const auto reader(MARC::Reader::Factory(archive_member, MARC::FileType::BINARY));
@@ -104,9 +104,10 @@ void PreFetchPPNSOfInput(const std::vector<std::string> &archive_members, const 
 }
 
 
-void PatchArchiveMembersAndCreateOutputArchive(LocalDataDB * const local_data_db, const std::vector<std::string> &input_left_archive_members,
-                                               const std::vector<std::string> &input_right_archive_members, const std::string &output_directory)
-{
+void PatchArchiveMembersAndCreateOutputArchive(LocalDataDB * const local_data_db,
+                                               const std::vector<std::string> &input_left_archive_members,
+                                               const std::vector<std::string> &input_right_archive_members,
+                                               const std::string &output_directory) {
     if (input_left_archive_members.empty())
         LOG_ERROR("no input archive members!");
     if (input_right_archive_members.empty())

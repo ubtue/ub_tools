@@ -15,17 +15,17 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 
 
 #include <atomic>
-#include <memory>
 #include <functional>
-#include <unordered_map>
+#include <memory>
 #include <set>
 #include <string>
 #include <type_traits>
+#include <unordered_map>
 #include <pthread.h>
 #include "DbConnection.h"
 #include "JSON.h"
@@ -67,9 +67,11 @@ struct HarvestableItem {
 
     // Journal to which this harvestable resource belongs.
     const Config::JournalParams &journal_;
+
 private:
     HarvestableItem(const unsigned id, const std::string &url, const Config::JournalParams &journal)
-     : id_(id), url_(url), journal_(journal) {}
+        : id_(id), url_(url), journal_(journal) { }
+
 public:
     ~HarvestableItem() = default;
     HarvestableItem(const HarvestableItem &rhs) = default;
@@ -85,6 +87,7 @@ public:
 // ordering of asynchronously executing operations.
 class HarvestableItemManager {
     std::unordered_map<const Config::JournalParams *, ThreadUtil::ThreadSafeCounter<unsigned>> counters_;
+
 public:
     HarvestableItemManager(const std::vector<std::unique_ptr<Config::JournalParams>> &journal_params);
 
@@ -153,6 +156,7 @@ class ZoteroLogger : public ::Logger {
 
         Util::HarvestableItem item_;
         std::string buffer_;
+
     public:
         explicit ContextData(const Util::HarvestableItem &item);
     };
@@ -165,13 +169,16 @@ class ZoteroLogger : public ::Logger {
     std::recursive_mutex log_buffer_mutex_;
     mutable std::atomic_bool fatal_error_all_stop_;
 
-    void queueContextMessage(const std::string &level, std::string msg, const ::pthread_t tasklet_thread_id, const TaskletContext &tasklet_context);
+    void queueContextMessage(const std::string &level, std::string msg, const ::pthread_t tasklet_thread_id,
+                             const TaskletContext &tasklet_context);
     void queueGlobalMessage(const std::string &level, std::string msg);
     void flushBufferAndPrintProgressImpl(const unsigned num_active_tasks, const unsigned num_queued_tasks);
     void writeToBackingLog(const std::string &msg);
+
 private:
     ZoteroLogger() = default;
     virtual ~ZoteroLogger() = default;
+
 public:
     [[noreturn]] virtual void error(const std::string &msg) override __attribute__((noreturn));
     virtual void warning(const std::string &msg) override;
@@ -190,7 +197,7 @@ public:
     // Flushes the logger's buffer and prints a progress message.
     // Must be called in a loop (and ONLY) in the main thread.
     static void FlushBufferAndPrintProgress(const unsigned num_active_tasks, const unsigned num_queued_tasks);
- };
+};
 
 
 // Represents the context of an asynchronous operation/task. Each operation has an
@@ -199,9 +206,10 @@ public:
 struct TaskletContext {
     const HarvestableItem associated_item_;
     const std::string description_;
+
 public:
     TaskletContext(const HarvestableItem &associated_item, const std::string &description)
-     : associated_item_(associated_item), description_(description) {}
+        : associated_item_(associated_item), description_(description) { }
 };
 
 
@@ -211,6 +219,7 @@ public:
 // The memory is used to store a pointer to the corresponding TaskletContext instance.
 class TaskletContextManager {
     ::pthread_key_t tls_key_;
+
 public:
     TaskletContextManager();
     ~TaskletContextManager();
@@ -223,7 +232,8 @@ public:
 extern const TaskletContextManager TASKLET_CONTEXT_MANAGER;
 
 
-template <typename Parameter, typename Result> class Future;
+template <typename Parameter, typename Result>
+class Future;
 
 
 // Base class of all asynchronous operations. Provides an interface to spin up
@@ -232,11 +242,13 @@ template <typename Parameter, typename Result> class Future;
 template <typename Parameter, typename Result>
 class Tasklet {
     friend class Future<Parameter, Result>;
+
 public:
     // Determines how the final result is delivered to the user of the class.
     // YIELD causes the tasklet instance to relinquish ownership of the result to
     // the user, while COPY returns a copy of the computed result.
     enum ResultPolicy { YIELD, COPY };
+
 private:
     enum Status { NOT_STARTED, RUNNING, COMPLETED_SUCCESS, COMPLETED_ERROR };
 
@@ -266,17 +278,16 @@ private:
     // Some SFINAE/tag-dispatching magic to apply the constraint that the return
     // type must be copy constructable if the ResultPolicy is COPY.
     // For copy-constructable classes
-    inline Result *getResultImpl(std::true_type)
-        { return new Result(*result_); }
+    inline Result *getResultImpl(std::true_type) { return new Result(*result_); }
 
     // For non-copy-constructable classes
-    inline Result *getResultImpl(std::false_type)
-        { return nullptr; }
+    inline Result *getResultImpl(std::false_type) { return nullptr; }
 
     inline void setStatus(const Status new_status) {
         std::lock_guard<std::mutex> lock(mutex_);
         status_ = new_status;
     }
+
 public:
     Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const running_instance_counter, const HarvestableItem &associated_item,
             const std::string &description, const std::function<void(const Parameter &, Result * const)> &runnable,
@@ -286,10 +297,8 @@ public:
     // Spins up a new thread and executes the payload.
     void start();
 
-    inline std::string toString() const
-        { return context_.description_; }
-    inline ::pthread_t getID() const
-        { return thread_id_; }
+    inline std::string toString() const { return context_.description_; }
+    inline ::pthread_t getID() const { return thread_id_; }
     inline Status getStatus() const {
         std::lock_guard<std::mutex> lock(mutex_);
         return status_;
@@ -298,10 +307,8 @@ public:
         std::lock_guard<std::mutex> lock(mutex_);
         return status_ == Status::COMPLETED_SUCCESS or status_ == Status::COMPLETED_ERROR;
     }
-    inline const HarvestableItem &getHarvestableItem() const
-        { return context_.associated_item_; }
-    inline const Parameter &getParameter() const
-        { return *parameter_.get(); }
+    inline const HarvestableItem &getHarvestableItem() const { return context_.associated_item_; }
+    inline const Parameter &getParameter() const { return *parameter_.get(); }
 
     // Returns the result based on the ResultPolicy. If the tasklet is complete, returns
     // immediately. Otherwise, blocks the calling thread until the tasklet has run to completion.
@@ -316,9 +323,8 @@ public:
 extern ThreadUtil::ThreadSafeCounter<unsigned> tasklet_instance_counter;
 
 
-template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::ThreadRoutine(
-    Tasklet<Parameter, Result> * const parameter)
-{
+template <typename Parameter, typename Result>
+void *Tasklet<Parameter, Result>::ThreadRoutine(Tasklet<Parameter, Result> * const parameter) {
     Tasklet<Parameter, Result> * const tasklet(reinterpret_cast<Tasklet<Parameter, Result> *>(parameter));
     const auto thread_id(tasklet->thread_id_);
     assert(thread_id == ::pthread_self());
@@ -339,11 +345,11 @@ template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::
         tasklet->runnable_(*tasklet->parameter_.get(), tasklet->result_.get());
     } catch (const std::runtime_error &exception) {
         LOG_WARNING("exception in tasklet '" + std::to_string(thread_id) + "': " + exception.what()
-                    + "\ntasklet description: "  + tasklet->context_.description_);
+                    + "\ntasklet description: " + tasklet->context_.description_);
         completion_status = Status::COMPLETED_ERROR;
     } catch (...) {
         LOG_WARNING("unknown exception in tasklet '" + std::to_string(thread_id) + "'"
-                    + "\ntasklet description: "  + tasklet->context_.description_);
+                    + "\ntasklet description: " + tasklet->context_.description_);
         completion_status = Status::COMPLETED_ERROR;
     }
 
@@ -360,23 +366,22 @@ template<typename Parameter, typename Result> void *Tasklet<Parameter, Result>::
 }
 
 
-template<typename Parameter, typename Result>
+template <typename Parameter, typename Result>
 Tasklet<Parameter, Result>::Tasklet(ThreadUtil::ThreadSafeCounter<unsigned> * const running_instance_counter,
                                     const HarvestableItem &associated_item, const std::string &description,
                                     const std::function<void(const Parameter &, Result * const)> &runnable,
                                     std::unique_ptr<Result> default_result, std::unique_ptr<Parameter> parameter,
                                     const ResultPolicy result_policy)
- : context_(associated_item, description), status_(Status::NOT_STARTED), running_instance_counter_(running_instance_counter),
-   runnable_(runnable), parameter_(std::move(parameter)), result_(std::move(default_result)), result_policy_(result_policy)
-{
+    : context_(associated_item, description), status_(Status::NOT_STARTED), running_instance_counter_(running_instance_counter),
+      runnable_(runnable), parameter_(std::move(parameter)), result_(std::move(default_result)), result_policy_(result_policy) {
     ++tasklet_instance_counter;
 }
 
 
-template<typename Parameter, typename Result> Tasklet<Parameter, Result>::~Tasklet() {
+template <typename Parameter, typename Result>
+Tasklet<Parameter, Result>::~Tasklet() {
     if (not isComplete()) {
-        LOG_WARNING("tasklet '" + std::to_string(thread_id_) + "' is still running!"
-                    + "\ndescription:" + context_.description_);
+        LOG_WARNING("tasklet '" + std::to_string(thread_id_) + "' is still running!" + "\ndescription:" + context_.description_);
 
         if (::pthread_cancel(thread_id_) != 0)
             LOG_ERROR("failed to cancel tasklet thread '" + std::to_string(thread_id_) + "'!");
@@ -386,12 +391,13 @@ template<typename Parameter, typename Result> Tasklet<Parameter, Result>::~Taskl
 }
 
 
-template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::start() {
+template <typename Parameter, typename Result>
+void Tasklet<Parameter, Result>::start() {
     std::lock_guard<std::mutex> lock(mutex_);
 
     if (status_ != Status::NOT_STARTED) {
-        LOG_ERROR("tasklet '" + std::to_string(thread_id_) + "' has already been started!"
-                  + "\nstatus = " + std::to_string(status_) + "\ndescription:" + context_.description_);
+        LOG_ERROR("tasklet '" + std::to_string(thread_id_) + "' has already been started!" + "\nstatus = " + std::to_string(status_)
+                  + "\ndescription:" + context_.description_);
     }
 
     auto thread_routine(reinterpret_cast<void *(*)(void *)>(ThreadRoutine));
@@ -400,14 +406,15 @@ template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::s
 }
 
 
-template<typename Parameter, typename Result> std::unique_ptr<Result> Tasklet<Parameter, Result>::getResult() {
+template <typename Parameter, typename Result>
+std::unique_ptr<Result> Tasklet<Parameter, Result>::getResult() {
     await();
 
     std::lock_guard<std::mutex> lock(mutex_);
 
     if (status_ != Status::COMPLETED_SUCCESS) {
-        LOG_ERROR("tasklet '" + std::to_string(thread_id_) + "' has no result!"
-                  + "\nstatus = " + std::to_string(status_) + "\ndescription:" + context_.description_);
+        LOG_ERROR("tasklet '" + std::to_string(thread_id_) + "' has no result!" + "\nstatus = " + std::to_string(status_)
+                  + "\ndescription:" + context_.description_);
     }
 
     if (result_ == nullptr) {
@@ -424,7 +431,8 @@ template<typename Parameter, typename Result> std::unique_ptr<Result> Tasklet<Pa
 }
 
 
-template<typename Parameter, typename Result> void Tasklet<Parameter, Result>::await() {
+template <typename Parameter, typename Result>
+void Tasklet<Parameter, Result>::await() {
     // Sleep/Wait until the task is complete.
     while (not isComplete())
         ::usleep(32 * 1000);
@@ -445,6 +453,7 @@ class Future {
     std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet_;
     std::unique_ptr<Result> result_;
     Status status_;
+
 public:
     Future(std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet);
     Future(std::unique_ptr<Result> result);
@@ -462,59 +471,61 @@ public:
     // Returns the result of the tasklet. Will block if the task is still running.
     Result &getResult();
 
-    inline const Parameter &getParameter() const
-        { return source_tasklet_->getParameter(); }
-    inline std::string toString() const
-        { return source_tasklet_->toString(); }
+    inline const Parameter &getParameter() const { return source_tasklet_->getParameter(); }
+    inline std::string toString() const { return source_tasklet_->toString(); }
 };
 
 
-template <typename Parameter, typename Result> Future<Parameter, Result>::Future(
-    std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet)
- : source_tasklet_(source_tasklet), status_(WAITING)
-{
+template <typename Parameter, typename Result>
+Future<Parameter, Result>::Future(std::shared_ptr<Util::Tasklet<Parameter, Result>> source_tasklet)
+    : source_tasklet_(source_tasklet), status_(WAITING) {
     ++future_instance_counter;
 }
 
 
-template <typename Parameter, typename Result> Future<Parameter, Result>::Future(std::unique_ptr<Result> result)
- : result_(std::move(result)), status_(HAS_RESULT)
-{
+template <typename Parameter, typename Result>
+Future<Parameter, Result>::Future(std::unique_ptr<Result> result): result_(std::move(result)), status_(HAS_RESULT) {
     ++future_instance_counter;
 }
 
 
-template <typename Parameter, typename Result> Future<Parameter, Result>::~Future() {
+template <typename Parameter, typename Result>
+Future<Parameter, Result>::~Future() {
     --future_instance_counter;
 }
 
 
-template <typename Parameter, typename Result> bool Future<Parameter, Result>::isComplete() const {
+template <typename Parameter, typename Result>
+bool Future<Parameter, Result>::isComplete() const {
     if (status_ == Status::HAS_RESULT)
         return true;
-    else switch (source_tasklet_->getStatus()) {
-    case Util::Tasklet<Parameter, Result>::Status::COMPLETED_SUCCESS:
-    case Util::Tasklet<Parameter, Result>::Status::COMPLETED_ERROR:
-        return true;
-    default:
-        return false;
-    }
+    else
+        switch (source_tasklet_->getStatus()) {
+        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_SUCCESS:
+        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_ERROR:
+            return true;
+        default:
+            return false;
+        }
 }
 
 
-template <typename Parameter, typename Result> bool Future<Parameter, Result>::hasResult() const {
+template <typename Parameter, typename Result>
+bool Future<Parameter, Result>::hasResult() const {
     if (status_ == Status::HAS_RESULT)
         return true;
-    else switch (source_tasklet_->getStatus()) {
-    case Util::Tasklet<Parameter, Result>::Status::COMPLETED_SUCCESS:
-        return true;
-    default:
-        return false;
-    }
+    else
+        switch (source_tasklet_->getStatus()) {
+        case Util::Tasklet<Parameter, Result>::Status::COMPLETED_SUCCESS:
+            return true;
+        default:
+            return false;
+        }
 }
 
 
-template <typename Parameter, typename Result> void Future<Parameter, Result>::await() {
+template <typename Parameter, typename Result>
+void Future<Parameter, Result>::await() {
     if (status_ == Status::WAITING) {
         source_tasklet_->await();
         if (hasResult()) {
@@ -526,7 +537,8 @@ template <typename Parameter, typename Result> void Future<Parameter, Result>::a
 }
 
 
-template <typename Parameter, typename Result> Result &Future<Parameter, Result>::getResult() {
+template <typename Parameter, typename Result>
+Result &Future<Parameter, Result>::getResult() {
     await();
     if (status_ != Status::HAS_RESULT)
         LOG_ERROR("no result for future bound to tasklet " + source_tasklet_->toString());
@@ -538,6 +550,7 @@ template <typename Parameter, typename Result> Result &Future<Parameter, Result>
 // Tracks harvested records that have been uploaded to the BSZ server.
 class UploadTracker {
     static constexpr unsigned CONNECTION_POOL_SIZE = 50;
+
 public:
     enum DeliveryState : unsigned { AUTOMATIC, MANUAL, ERROR, IGNORE, RESET, ONLINE_FIRST };
     static const std::map<DeliveryState, std::string> DELIVERY_STATE_TO_STRING_MAP;
@@ -555,13 +568,16 @@ public:
         time_t delivered_at_;
         std::string delivered_at_str_;
         std::string hash_;
+
     public:
         std::string toString() const;
     };
+
 private:
     mutable ThreadUtil::Semaphore connection_pool_semaphore_;
+
 public:
-    explicit UploadTracker(): connection_pool_semaphore_(CONNECTION_POOL_SIZE) {}
+    explicit UploadTracker(): connection_pool_semaphore_(CONNECTION_POOL_SIZE) { }
 
     bool urlAlreadyInDatabase(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore = {},
                               Entry * const entry = nullptr) const;
@@ -587,6 +603,7 @@ public:
 
     static std::string GetZederInstanceString(const Zeder::Flavour zeder_flavour);
     static std::string GetZederInstanceString(const std::string &group);
+
 private:
     bool urlAlreadyInDatabase(const std::string &url, const std::set<DeliveryState> &delivery_states_to_ignore, Entry * const entry,
                               DbConnection * const db_connection) const;

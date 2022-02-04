@@ -32,23 +32,23 @@
 
 
 #ifndef LIST
-#       include <list>
-#       define LIST
+#include <list>
+#define LIST
 #endif
 #ifndef MAP
-#       include <map>
-#       define MAP
+#include <map>
+#define MAP
 #endif
 #ifndef STRING
-#       include <string>
-#       define STRING
+#include <string>
+#define STRING
 #endif
 #ifndef VECTOR
-#       include <vector>
-#       define VECTOR
+#include <vector>
+#define VECTOR
 #endif
 #ifndef OAI_PMH_H
-#       include "OaiPmh.h"
+#include "OaiPmh.h"
 #endif
 
 
@@ -95,12 +95,15 @@ protected:
 
     /** The date that the first response was returned in this run of the program. */
     std::string first_response_date_;
+
 public:
     struct MetadataFormatDescriptor {
         std::string metadata_prefix_, schema_, metadata_namespace_;
+
     public:
         std::string toString() const;
     };
+
 public:
     /** \brief  Construct a Client object based on a configuration file.
      *  \param  ini_file       The IniFile object.
@@ -121,8 +124,8 @@ public:
      *                               available metadata formats are being requested.
      *  \return True if we successfully retrieved the list, o/w false.
      */
-    bool listMetadataFormats(std::vector<MetadataFormatDescriptor> * const metadata_format_list,
-                             std::string * const error_message, const std::string &identifier = "");
+    bool listMetadataFormats(std::vector<MetadataFormatDescriptor> * const metadata_format_list, std::string * const error_message,
+                             const std::string &identifier = "");
 
     /** \brief  Harvest a single set.
      *  \param  set_name       The name of the set to harvest.
@@ -178,8 +181,8 @@ protected:
 
 private:
     /** \brief  Harvest a specific set. */
-    void harvestSet(const std::string &set_spec, const std::string &from, const std::string &until,
-                    const unsigned verbosity, Logger * const logger);
+    void harvestSet(const std::string &set_spec, const std::string &from, const std::string &until, const unsigned verbosity,
+                    Logger * const logger);
 };
 
 

@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <cstdlib>
@@ -29,8 +29,7 @@ namespace {
 void ProcessRecords(MARC::Reader * const marc_reader) {
     while (const MARC::Record record = marc_reader->read()) {
         const auto publication_year(record.getMostRecentPublicationYear());
-        std::cout << (publication_year.empty() ? "????" : publication_year) << ": "
-                  << record.getMainTitle() << '\n';
+        std::cout << (publication_year.empty() ? "????" : publication_year) << ": " << record.getMainTitle() << '\n';
     }
 }
 

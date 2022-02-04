@@ -17,8 +17,8 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "UnitTest.h"
 #include "MARC.h"
+#include "UnitTest.h"
 
 
 TEST(order) {
@@ -49,32 +49,33 @@ TEST(order) {
 
 TEST(order2) {
     size_t number_of_tags = 6;
-    std::vector<MARC::Tag> ordered_tags{ MARC::Tag("000"), MARC::Tag("001"), MARC::Tag("004"), MARC::Tag("005"), MARC::Tag("008"), MARC::Tag("852") };
+    std::vector<MARC::Tag> ordered_tags{ MARC::Tag("000"), MARC::Tag("001"), MARC::Tag("004"),
+                                         MARC::Tag("005"), MARC::Tag("008"), MARC::Tag("852") };
 
-        // Test for <
-        for (size_t i = 0; i + 1 < number_of_tags; ++i) {
-            CHECK_LT(ordered_tags[i], ordered_tags[i + 1]);
-        }
+    // Test for <
+    for (size_t i = 0; i + 1 < number_of_tags; ++i) {
+        CHECK_LT(ordered_tags[i], ordered_tags[i + 1]);
+    }
 
-        // Test for >
-        for (size_t i = number_of_tags - 1; i > 1; --i) {
-            CHECK_GT(ordered_tags[i], ordered_tags[i - 1]);
-        }
+    // Test for >
+    for (size_t i = number_of_tags - 1; i > 1; --i) {
+        CHECK_GT(ordered_tags[i], ordered_tags[i - 1]);
+    }
 
-        // Test for <=
-        for (size_t i = 0; i + 1 < number_of_tags; ++i) {
-            CHECK_LE(ordered_tags[i], ordered_tags[i + 1]);
-        }
+    // Test for <=
+    for (size_t i = 0; i + 1 < number_of_tags; ++i) {
+        CHECK_LE(ordered_tags[i], ordered_tags[i + 1]);
+    }
 
-        // Test for >=
-        for (size_t i = number_of_tags - 1; i > 1; --i) {
-            CHECK_GE(ordered_tags[i], ordered_tags[i - 1]);
-        }
+    // Test for >=
+    for (size_t i = number_of_tags - 1; i > 1; --i) {
+        CHECK_GE(ordered_tags[i], ordered_tags[i - 1]);
+    }
 
-        // Test for !=
-        for (size_t i = number_of_tags - 1; i > 1; --i) {
-            CHECK_NE(ordered_tags[i], ordered_tags[i - 1]);
-        }
+    // Test for !=
+    for (size_t i = number_of_tags - 1; i > 1; --i) {
+        CHECK_NE(ordered_tags[i], ordered_tags[i - 1]);
+    }
 }
 
 

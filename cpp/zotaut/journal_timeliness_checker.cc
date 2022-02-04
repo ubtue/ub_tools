@@ -17,8 +17,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <ctime>
 #include <cstdlib>
+#include <ctime>
 #include "EmailSender.h"
 #include "IniFile.h"
 #include "SqlUtil.h"
@@ -26,10 +26,10 @@
 #include "TextUtil.h"
 #include "TimeUtil.h"
 #include "UBTools.h"
-#include "util.h"
 #include "Zeder.h"
 #include "ZoteroHarvesterConfig.h"
 #include "ZoteroHarvesterUtil.h"
+#include "util.h"
 
 
 namespace {
@@ -41,23 +41,22 @@ namespace {
 
 
 bool MaxDeliveredAtSmallerThanUpdateWindow(const time_t &max_delivered_at, const unsigned &update_window) {
-     if (max_delivered_at == TimeUtil::BAD_TIME_T)
-         return false;
-     return max_delivered_at < ::time(nullptr) - update_window * 86400;
+    if (max_delivered_at == TimeUtil::BAD_TIME_T)
+        return false;
+    return max_delivered_at < ::time(nullptr) - update_window * 86400;
 }
 
 
 void ProcessJournal(ZoteroHarvester::Util::UploadTracker * const upload_tracker, const std::string &journal_name,
                     const std::string &zeder_id, const std::string &zeder_instance,
-                    const ZoteroHarvester::Config::UploadOperation delivery_mode, const unsigned update_window,
-                    std::string * tardy_list)
-{
+                    const ZoteroHarvester::Config::UploadOperation delivery_mode, const unsigned update_window, std::string *tardy_list) {
     // Make sure articles stored as online first are retried after half an update_window period or at most 14 days
-    upload_tracker->deleteOnlineFirstEntriesOlderThan(StringUtil::ToUnsigned(zeder_id), zeder_instance, std::min(update_window / 2 , static_cast<unsigned>(14)));
+    upload_tracker->deleteOnlineFirstEntriesOlderThan(StringUtil::ToUnsigned(zeder_id), zeder_instance,
+                                                      std::min(update_window / 2, static_cast<unsigned>(14)));
 
     if (delivery_mode == ZoteroHarvester::Config::UploadOperation::LIVE) {
-        const time_t max_delivered_at(upload_tracker->getLastUploadTime(StringUtil::ToUnsigned(zeder_id),
-                                      Zeder::ParseFlavour(zeder_instance)));
+        const time_t max_delivered_at(
+            upload_tracker->getLastUploadTime(StringUtil::ToUnsigned(zeder_id), Zeder::ParseFlavour(zeder_instance)));
 
         if (MaxDeliveredAtSmallerThanUpdateWindow(max_delivered_at, update_window))
             *tardy_list += journal_name + ": " + TimeUtil::TimeTToString(max_delivered_at) + "\n";
@@ -91,14 +90,14 @@ int Main(int argc, char *argv[]) {
     IniFile ini_file(UBTools::GetTuelibPath() + "zotero-enhancement-maps/zotero_harvester.conf");
     std::string tardy_list;
     for (const auto &section : ini_file) {
-	if (section.getSectionName().empty())
+        if (section.getSectionName().empty())
             continue; // global section
-        if (section.find("user_agent") != section.end())
+        if (section.find("user_agent") != section.end() or section.find("author_swb_lookup_url") != section.end())
             continue; // Not a journal section.
 
         const auto delivery_mode(static_cast<ZoteroHarvester::Config::UploadOperation>(
-             section.getEnum("zotero_delivery_mode", ZoteroHarvester::Config::STRING_TO_UPLOAD_OPERATION_MAP,
-                             ZoteroHarvester::Config::UploadOperation::NONE)));
+            section.getEnum("zotero_delivery_mode", ZoteroHarvester::Config::STRING_TO_UPLOAD_OPERATION_MAP,
+                            ZoteroHarvester::Config::UploadOperation::NONE)));
         if (section.getBool("zeder_newly_synced_entry", false))
             continue;
 
@@ -120,7 +119,8 @@ int Main(int argc, char *argv[]) {
 
     if (not tardy_list.empty()) {
         if (EmailSender::SimplerSendEmail(sender_email_address, { notification_email_address }, "Überfällige Zeitschriften",
-                                          "Letzte Lieferung ans BSZ\n" + tardy_list) > 299)
+                                          "Letzte Lieferung ans BSZ\n" + tardy_list)
+            > 299)
             LOG_ERROR("failed to send email notification!");
     }
 

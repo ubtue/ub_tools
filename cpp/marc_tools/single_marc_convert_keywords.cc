@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <fstream>
 #include <iostream>
@@ -36,14 +36,16 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("gnd_input.mrc keyword_input keyword_matches_output keyword_without_matches_output"
-               "       Searches for keyword matches in the \"gnd_input\" MARC file."
-               "       Returns a \"keyword_matches_output\" file with matching keywords and their PPN,"
-               "       as well as \"keywords_without_matches\" file containing keywords where no matches were found.\n");
+    ::Usage(
+        "gnd_input.mrc keyword_input keyword_matches_output keyword_without_matches_output"
+        "       Searches for keyword matches in the \"gnd_input\" MARC file."
+        "       Returns a \"keyword_matches_output\" file with matching keywords and their PPN,"
+        "       as well as \"keywords_without_matches\" file containing keywords where no matches were found.\n");
 }
 
 
-void ExtractSubfieldsForTag(const MARC::Record &record, const std::string &field_tag, const std::string &subfield_codes, std::vector<std::string> * const subfields) {
+void ExtractSubfieldsForTag(const MARC::Record &record, const std::string &field_tag, const std::string &subfield_codes,
+                            std::vector<std::string> * const subfields) {
     const auto gnd_field(record.findTag(field_tag));
     if (gnd_field == record.end())
         return;
@@ -63,27 +65,29 @@ void ExtractSubfieldsForTag(const MARC::Record &record, const std::string &field
 }
 
 
-void AddMainSubfieldAndCombinationsToGndKeywords(const MARC::Record &record, std::unordered_map<std::string, std::string> * const keywords_to_gnd_numbers_map, const std::string &field_tag, const std::string &subfield_codes) {
+void AddMainSubfieldAndCombinationsToGndKeywords(const MARC::Record &record,
+                                                 std::unordered_map<std::string, std::string> * const keywords_to_gnd_numbers_map,
+                                                 const std::string &field_tag, const std::string &subfield_codes) {
     if (subfield_codes.find('a') != std::string::npos) {
         const std::string subfield_value_a(record.getFirstSubfieldValue(field_tag, 'a'));
         if (not subfield_value_a.empty()) {
             std::string gnd_code;
             if (not MARC::GetGNDCode(record, &gnd_code))
                 LOG_WARNING("Unable to extract GND Code for " + record.getControlNumber());
-            keywords_to_gnd_numbers_map->emplace(std::make_pair(subfield_value_a, record.getControlNumber() + ';' + gnd_code  + ';' + field_tag));
+            keywords_to_gnd_numbers_map->emplace(
+                std::make_pair(subfield_value_a, record.getControlNumber() + ';' + gnd_code + ';' + field_tag));
         }
     }
     std::vector<std::string> subfields;
     ExtractSubfieldsForTag(record, field_tag, subfield_codes, &subfields);
     if (subfields.size() > 1) {
         const std::string key(StringUtil::Join(subfields, " "));
-        keywords_to_gnd_numbers_map->emplace(std::make_pair(key , record.getControlNumber()));
+        keywords_to_gnd_numbers_map->emplace(std::make_pair(key, record.getControlNumber()));
     }
 }
 
 
-void ReadInGndKeywords(MARC::Reader * const marc_reader, std::unordered_map<std::string, std::string> * const keywords_to_gnd_numbers_map)
-{
+void ReadInGndKeywords(MARC::Reader * const marc_reader, std::unordered_map<std::string, std::string> * const keywords_to_gnd_numbers_map) {
     unsigned record_count(0);
 
     while (const MARC::Record record = marc_reader->read()) {
@@ -100,7 +104,9 @@ void ReadInGndKeywords(MARC::Reader * const marc_reader, std::unordered_map<std:
 }
 
 
-void FindEquivalentKeywords(std::unordered_map<std::string, std::string> const &keywords_to_gnd_numbers_map, std::unordered_set<std::string> const &keywords_to_compare,  File * const matches_output_file, File * const no_matches_output_file) {
+void FindEquivalentKeywords(std::unordered_map<std::string, std::string> const &keywords_to_gnd_numbers_map,
+                            std::unordered_set<std::string> const &keywords_to_compare, File * const matches_output_file,
+                            File * const no_matches_output_file) {
     std::unordered_map<std::string, std::string> keywords_to_ppns_map;
     std::unordered_set<std::string> keywords_without_match;
     for (const auto &keyword : keywords_to_compare) {
@@ -135,8 +141,8 @@ int Main(int argc, char *argv[]) {
     std::unordered_set<std::string> keywords_to_compare;
     std::vector<std::vector<std::string>> lines;
     TextUtil::ParseCSVFileOrDie(filename, &lines);
-    for (const auto &keywords: lines) {
-        for (const auto &keyword: keywords) {
+    for (const auto &keywords : lines) {
+        for (const auto &keyword : keywords) {
             keywords_to_compare.insert(keyword);
         }
     }

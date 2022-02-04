@@ -56,15 +56,13 @@ inline std::string GetSubfieldCodes(const std::string &tag_and_subfields_spec) {
 
 void ExtractSynonyms(MARC::Reader * const marc_reader, const std::set<std::string> &primary_tags_and_subfield_codes,
                      const std::set<std::string> &synonym_tags_and_subfield_codes,
-                     std::vector<std::map<std::string, std::string>> * const synonym_maps, unsigned * const read_in_count)
-{
+                     std::vector<std::map<std::string, std::string>> * const synonym_maps, unsigned * const read_in_count) {
     while (const MARC::Record record = marc_reader->read()) {
         std::set<std::string>::const_iterator primary;
         std::set<std::string>::const_iterator synonym;
         unsigned int i(0);
         for (primary = primary_tags_and_subfield_codes.begin(), synonym = synonym_tags_and_subfield_codes.begin();
-            primary != primary_tags_and_subfield_codes.end();
-            ++primary, ++synonym, ++i)
+             primary != primary_tags_and_subfield_codes.end(); ++primary, ++synonym, ++i)
         {
             // Fill maps with synonyms
             // Partly, a very specific term has a very specific one term circumscription (e.g. Wilhelminische
@@ -74,8 +72,7 @@ void ExtractSynonyms(MARC::Reader * const marc_reader, const std::set<std::strin
             const auto synonym_values(record.getSubfieldValues(GetTag(*synonym), GetSubfieldCodes(*synonym)));
 
             if (not primary_values.empty() and synonym_values.size() > 1) {
-                (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','), StringUtil::Join(synonym_values,
-                                                                                                   ','));
+                (*synonym_maps)[i].emplace(StringUtil::Join(primary_values, ','), StringUtil::Join(synonym_values, ','));
                 ++*read_in_count;
             }
         }
@@ -87,8 +84,8 @@ void WriteReferenceTermFile(File * const output, std::vector<std::map<std::strin
                             unsigned * const record_count) {
     for (const auto &synonym_map : synonym_maps) {
         for (const auto &entry : synonym_map) {
-             *output << entry.first << '|' << entry.second << '\n';
-             ++*record_count;
+            *output << entry.first << '|' << entry.second << '\n';
+            ++*record_count;
         }
     }
     std::cerr << "Extracted " << *record_count << " record(s).\n";
@@ -122,10 +119,12 @@ int Main(int argc, char **argv) {
     std::set<std::string> primary_tags_and_subfield_codes;
     std::set<std::string> synonym_tags_and_subfield_codes;
     if (unlikely(StringUtil::Split(REFERENCE_DATA_PRIMARY_SPEC, ':', &primary_tags_and_subfield_codes,
-                                   /* suppress_empty_components = */true) < 1))
+                                   /* suppress_empty_components = */ true)
+                 < 1))
         LOG_ERROR("Need at least one primary field");
     if (unlikely(StringUtil::Split(REFERENCE_DATA_SYNONYM_SPEC, ':', &synonym_tags_and_subfield_codes,
-                                   /* suppress_empty_components = */true) < 1))
+                                   /* suppress_empty_components = */ true)
+                 < 1))
         LOG_ERROR("Need at least one synonym field");
     if (primary_tags_and_subfield_codes.size() != synonym_tags_and_subfield_codes.size())
         LOG_ERROR("Number of reference primary specs must match number of synonym specs");
@@ -134,8 +133,7 @@ int Main(int argc, char **argv) {
                                                                  std::map<std::string, std::string>());
 
     // Extract the synonyms from reference marc data
-    ExtractSynonyms(marc_reader.get(), primary_tags_and_subfield_codes, synonym_tags_and_subfield_codes,
-                    &synonym_maps, &read_in_count);
+    ExtractSynonyms(marc_reader.get(), primary_tags_and_subfield_codes, synonym_tags_and_subfield_codes, &synonym_maps, &read_in_count);
 
     // Write a '|' separated list file
     WriteReferenceTermFile(&output, synonym_maps, &record_count);

@@ -33,10 +33,10 @@
 
 
 #ifdef GZIP
-#      undef GZIP
+#undef GZIP
 #endif
 #ifdef GUNZIP
-#      undef GUNZIP
+#undef GUNZIP
 #endif
 
 
@@ -45,13 +45,16 @@
  */
 class GzStream {
     z_stream stream_;
+
 public:
     enum Type { COMPRESS, DECOMPRESS, GZIP, GUNZIP };
+
 private:
     Type type_;
+
 public:
-    explicit GzStream(const Type type, const unsigned compression_level = 9,
-                      void *(*_zalloc)(void *, unsigned int, unsigned int) = nullptr, void (*_zfree)(void *, void *) = nullptr);
+    explicit GzStream(const Type type, const unsigned compression_level = 9, void *(*_zalloc)(void *, unsigned int, unsigned int) = nullptr,
+                      void (*_zfree)(void *, void *) = nullptr);
     ~GzStream();
 
 
@@ -66,8 +69,8 @@ public:
      *  \note   After passing in all data to be compressed you must call "compress" with "input_data" set to
      *          nullptr and retrieve "output_data" until "compress" returns false.
      */
-    bool compress(const char * const input_data, unsigned input_data_size, char * const output_data,
-                  unsigned output_data_size, unsigned * const bytes_consumed, unsigned * const bytes_produced);
+    bool compress(const char * const input_data, unsigned input_data_size, char * const output_data, unsigned output_data_size,
+                  unsigned * const bytes_consumed, unsigned * const bytes_produced);
 
 
     /** \brief  Decompresses bytes taken from "input_data" and deposits the decompressed output into "output_data."
@@ -81,8 +84,8 @@ public:
      *  \note   After passing in all data to be decompressed you can call "decompress" with "input_data" set to
      *          nullptr and/or "input_data_size" set to 0 and retrieve "output_data" until "decompress" returns false.
      */
-    bool decompress(const char * const input_data, unsigned input_data_size, char * const output_data,
-                    unsigned output_data_size, unsigned * const bytes_consumed, unsigned * const bytes_produced);
+    bool decompress(const char * const input_data, unsigned input_data_size, char * const output_data, unsigned output_data_size,
+                    unsigned * const bytes_consumed, unsigned * const bytes_produced);
 
 
     /** \brief   Decompress a string
@@ -91,10 +94,11 @@ public:
      *  \param   s                     The decompressed string will be stored here.
      *  \param   type                  Must be either DECOMPRESS or GUNZIP.
      */
-    static void Decompress(const char * const compressed_data, const size_t compressed_data_size,
-                           std::string * const s, const Type type = DECOMPRESS);
-    static void Decompress(const std::string &compressed_data, std::string * const s, const Type type = DECOMPRESS)
-        { Decompress(compressed_data.c_str(), compressed_data.length(), s, type); }
+    static void Decompress(const char * const compressed_data, const size_t compressed_data_size, std::string * const s,
+                           const Type type = DECOMPRESS);
+    static void Decompress(const std::string &compressed_data, std::string * const s, const Type type = DECOMPRESS) {
+        Decompress(compressed_data.c_str(), compressed_data.length(), s, type);
+    }
 
 
     /** \brief   Compress a string.
@@ -116,6 +120,7 @@ public:
      *           very likely with compressed data.
      */
     static std::string DecompressString(const std::string &input, const Type type = DECOMPRESS);
+
 private:
     GzStream(const GzStream &rhs);            // Intentionally unimplemented!
     GzStream &operator=(const GzStream &rhs); // Intentionally unimplemented!

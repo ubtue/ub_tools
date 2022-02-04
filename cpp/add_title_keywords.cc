@@ -70,9 +70,7 @@ void LowercaseSet(std::unordered_set<std::string> * const words) {
 }
 
 
-void FilterOutStopwords(const std::unordered_set<std::string> &stopwords,
-                        std::unordered_set<std::string> * const words)
-{
+void FilterOutStopwords(const std::unordered_set<std::string> &stopwords, std::unordered_set<std::string> * const words) {
     for (std::unordered_set<std::string>::iterator word(words->begin()); word != words->end(); /* Empty! */) {
         if (stopwords.find(*word) != stopwords.end())
             word = words->erase(word);
@@ -93,10 +91,8 @@ bool HasExpertAssignedKeywords(const MARC::Record &record) {
 }
 
 
-void AugmentKeywordsWithTitleWords(const bool verbose, MARC::Reader * const marc_reader,
-    MARC::Writer * const marc_writer,
-    const std::map<std::string, std::unordered_set<std::string>> &language_codes_to_stopword_sets)
-{
+void AugmentKeywordsWithTitleWords(const bool verbose, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
+                                   const std::map<std::string, std::unordered_set<std::string>> &language_codes_to_stopword_sets) {
     if (verbose)
         std::cerr << "Starting augmentation of stopwords.\n";
 
@@ -153,13 +149,12 @@ void AugmentKeywordsWithTitleWords(const bool verbose, MARC::Reader * const marc
 
     if (verbose) {
         std::cerr << title_count << " records had titles in 245a.\n";
-        std::cerr << "Augmented " << augment_count << " records of " << total_count
-                  << " records with title words.\n";
+        std::cerr << "Augmented " << augment_count << " records of " << total_count << " records with title words.\n";
     }
 }
 
 
-} // named namespace
+} // namespace
 
 
 int Main(int argc, char **argv) {
@@ -182,8 +177,7 @@ int Main(int argc, char **argv) {
     std::map<std::string, std::unordered_set<std::string>> language_codes_to_stopword_sets;
     for (int arg_no(verbose ? 4 : 3); arg_no < argc; ++arg_no) {
         const std::string stopwords_filename(argv[arg_no]);
-        if (stopwords_filename.length() != 13 or
-            not StringUtil::StartsWith(stopwords_filename, "stopwords."))
+        if (stopwords_filename.length() != 13 or not StringUtil::StartsWith(stopwords_filename, "stopwords."))
             LOG_ERROR("Invalid stopwords filename \"" + stopwords_filename + "\"!");
         const std::string language_code(stopwords_filename.substr(10));
         File stopwords(stopwords_filename, "r");

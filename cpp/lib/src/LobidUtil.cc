@@ -13,10 +13,10 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #include "LobidUtil.h"
-#include <unordered_map>
 #include <thread>
+#include <unordered_map>
 #include "Downloader.h"
 #include "JSON.h"
 #include "UrlUtil.h"
@@ -49,9 +49,7 @@ void AddUrlParams(std::string * const url, const std::string &key, const std::un
 
 
 const std::string BuildUrl(const std::string &base_url, const std::unordered_map<std::string, std::string> &query_params,
-                           const std::unordered_map<std::string, std::string> &filter_params,
-                           const std::string &additional_query_params)
-{
+                           const std::unordered_map<std::string, std::string> &filter_params, const std::string &additional_query_params) {
     std::string url(base_url);
     AddUrlParams(&url, "q", query_params);
     if (not additional_query_params.empty())
@@ -77,9 +75,8 @@ const std::shared_ptr<const JSON::ObjectNode> Query(const std::string &url, cons
 
     JSON::Parser json_parser(downloader.getMessageBody());
     std::shared_ptr<JSON::JSONNode> root_node;
-    if (not (json_parser.parse(&root_node))) {
-        LOG_WARNING("failed to parse returned JSON: " + json_parser.getErrorMessage() + "(input was: "
-                  + downloader.getMessageBody() + ")");
+    if (not(json_parser.parse(&root_node))) {
+        LOG_WARNING("failed to parse returned JSON: " + json_parser.getErrorMessage() + "(input was: " + downloader.getMessageBody() + ")");
         return nullptr;
     }
 
@@ -120,33 +117,39 @@ const std::vector<std::string> QueryAndLookupStrings(const std::string &url, con
 
 
 std::string GetAuthorGNDNumber(const std::string &author, const std::string &additional_query_params) {
-    return QueryAndLookupString(BuildUrl(BASE_URL_GND, { { "preferredName", author } }, { { "type", "DifferentiatedPerson" } }, additional_query_params),
-                                "/member/0/gndIdentifier", /* allow_multiple_results */ false);
+    return QueryAndLookupString(
+        BuildUrl(BASE_URL_GND, { { "preferredName", author } }, { { "type", "DifferentiatedPerson" } }, additional_query_params),
+        "/member/0/gndIdentifier", /* allow_multiple_results */ false);
 }
 
 
-std::string GetAuthorGNDNumber(const std::string &author_surname, const std::string &author_firstname, const std::string &additional_query_params) {
-    return QueryAndLookupString(BuildUrl(BASE_URL_GND, { { "preferredNameEntityForThePerson.surname", author_surname },
-                                 { "preferredNameEntityForThePerson.forename", author_firstname } },
-                                 { { "type", "DifferentiatedPerson" } }, additional_query_params),
+std::string GetAuthorGNDNumber(const std::string &author_surname, const std::string &author_firstname,
+                               const std::string &additional_query_params) {
+    return QueryAndLookupString(BuildUrl(BASE_URL_GND,
+                                         { { "preferredNameEntityForThePerson.surname", author_surname },
+                                           { "preferredNameEntityForThePerson.forename", author_firstname } },
+                                         { { "type", "DifferentiatedPerson" } }, additional_query_params),
                                 "/member/0/gndIdentifier", /* allow_multiple_results */ false);
 }
 
 
 std::vector<std::string> GetAuthorProfessions(const std::string &author, const std::string &additional_query_params) {
-    return QueryAndLookupStrings(BuildUrl(BASE_URL_GND, { { "preferredName", author } }, { { "type", "DifferentiatedPerson" } }, additional_query_params),
-                                 "/member/*/professionOrOccupation/*/label", /* allow_multiple_results */ false);
+    return QueryAndLookupStrings(
+        BuildUrl(BASE_URL_GND, { { "preferredName", author } }, { { "type", "DifferentiatedPerson" } }, additional_query_params),
+        "/member/*/professionOrOccupation/*/label", /* allow_multiple_results */ false);
 }
 
 
 std::string GetOrganisationISIL(const std::string &organisation, const std::string &additional_query_params) {
-    return QueryAndLookupString(BuildUrl(BASE_URL_ORGANISATIONS, { { "name", organisation } }, std::unordered_map<std::string, std::string>(), additional_query_params),
+    return QueryAndLookupString(BuildUrl(BASE_URL_ORGANISATIONS, { { "name", organisation } },
+                                         std::unordered_map<std::string, std::string>(), additional_query_params),
                                 "/member/0/isil", /* allow_multiple_results */ false);
 }
 
 
 std::string GetTitleDOI(const std::string &title, const std::string &additional_query_params) {
-    return QueryAndLookupString(BuildUrl(BASE_URL_RESOURCES, { { "title", "\"" + title + "\"" } }, std::unordered_map<std::string, std::string>(), additional_query_params),
+    return QueryAndLookupString(BuildUrl(BASE_URL_RESOURCES, { { "title", "\"" + title + "\"" } },
+                                         std::unordered_map<std::string, std::string>(), additional_query_params),
                                 "/member/0/doi/0", /* allow_multiple_results */ false);
 }
 

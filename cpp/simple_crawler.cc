@@ -43,9 +43,11 @@ void Usage() {
               << "                                                            codes with commas.\n"
               << "\t[ (--print-redirects | -p) ]                              Nomen est omen.\n"
               << "\t[ (--timeout | -t) milliseconds ]                         Overall time we're willing to wait\n"
-              << "                                                            to download a page (default " + std::to_string(SimpleCrawler::DEFAULT_TIMEOUT) + ").\n"
+              << "                                                            to download a page (default "
+                     + std::to_string(SimpleCrawler::DEFAULT_TIMEOUT) + ").\n"
               << "\t[ (--min-url-processing-time | -m) milliseconds ]         Min time between downloading 2 URL's\n"
-              << "                                                            to prevent accidental DOS attacks (default " + std::to_string(SimpleCrawler::DEFAULT_MIN_URL_PROCESSING_TIME) + ").\n"
+              << "                                                            to prevent accidental DOS attacks (default "
+                     + std::to_string(SimpleCrawler::DEFAULT_MIN_URL_PROCESSING_TIME) + ").\n"
               << "\n"
               << "The config file consists of lines specifying one site per line.\n"
               << "Each line must have a start URL, a maximum crawl depth and a PCRE URL pattern, that each sub-url must match.\n"
@@ -55,22 +57,20 @@ void Usage() {
 }
 
 
-static struct option options[] = {
-    { "help",                    no_argument,              nullptr, 'h'  },
-    { "min-log-level",           required_argument,        nullptr, 'L'  },
-    { "all-headers",             no_argument,              nullptr, 'a'  },
-    { "last-header",             no_argument,              nullptr, 'l'  },
-    { "timeout",                 required_argument,        nullptr, 't'  },
-    { "min-url-processing-time", required_argument,        nullptr, 'm'  },
-    { "ignore-robots-dot-txt",   no_argument,              nullptr, 'i'  },
-    { "print-redirects",         no_argument,              nullptr, 'p'  },
-    { "acceptable-languages",    required_argument,        nullptr, 'A'  },
-    { nullptr,                   no_argument,              nullptr, '\0' }
-};
+static struct option options[] = { { "help", no_argument, nullptr, 'h' },
+                                   { "min-log-level", required_argument, nullptr, 'L' },
+                                   { "all-headers", no_argument, nullptr, 'a' },
+                                   { "last-header", no_argument, nullptr, 'l' },
+                                   { "timeout", required_argument, nullptr, 't' },
+                                   { "min-url-processing-time", required_argument, nullptr, 'm' },
+                                   { "ignore-robots-dot-txt", no_argument, nullptr, 'i' },
+                                   { "print-redirects", no_argument, nullptr, 'p' },
+                                   { "acceptable-languages", required_argument, nullptr, 'A' },
+                                   { nullptr, no_argument, nullptr, '\0' } };
 
 
-void ProcessArgs(int argc, char *argv[], Logger::LogLevel * const min_log_level, std::string * const config_filename, SimpleCrawler::Params * params)
-{
+void ProcessArgs(int argc, char *argv[], Logger::LogLevel * const min_log_level, std::string * const config_filename,
+                 SimpleCrawler::Params *params) {
     // Defaults:
     *min_log_level = Logger::LL_DEBUG;
     unsigned min_url_processing_time;
@@ -94,7 +94,7 @@ void ProcessArgs(int argc, char *argv[], Logger::LogLevel * const min_log_level,
             break;
         case 't':
             errno = 0;
-            timeout =std::strtoul(optarg, &endptr, 10);
+            timeout = std::strtoul(optarg, &endptr, 10);
             if (errno != 0 or *endptr != '\0' or timeout == 0) {
                 std::cerr << ::progname << " invalid timeout \"" << optarg << "\"!\n";
                 Usage();

@@ -43,8 +43,7 @@ std::string MapLanguageCode(const std::string &lang) {
 
 
 MARC::Record GenerateBundleRecord(const std::string &record_id, const std::string &bundle_name, const std::vector<std::string> &instances,
-                                  const std::string &description, const std::string &media_type, const std::string &lang)
-{
+                                  const std::string &description, const std::string &media_type, const std::string &lang) {
     const std::string today(TimeUtil::GetCurrentDateAndTime("%y%m%d"));
     // exclude from Ixtheo e.g. because it's a pure Relbib list
     const bool exclude_ixtheo(std::find(instances.begin(), instances.end(), "ixtheo") == instances.end());
@@ -56,19 +55,23 @@ MARC::Record GenerateBundleRecord(const std::string &record_id, const std::strin
     record.insertField("005", "20" + today + "12000000.0:");
     record.insertField("008", today + 's' + TimeUtil::GetCurrentYear());
     record.insertField("041", { { 'a', MapLanguageCode(lang) } });
-    record.insertField("245", { { 'a', bundle_name }, { 'h', "Subscription Bundle" } } );
-    record.insertField("SPR", { { 'a', "1" /* is superior work */ },
-                                { 'b', "1" /* series has not been completed */ } });
-    record.insertField("935", 'c', "subskriptionspaket" );
+    record.insertField("245", { { 'a', bundle_name }, { 'h', "Subscription Bundle" } });
+    record.insertField("SPR", { { 'a', "1" /* is superior work */ }, { 'b', "1" /* series has not been completed */ } });
+    record.insertField("935", 'c', "subskriptionspaket");
     std::vector<MARC::Subfield> subsystems;
 
     if (not description.empty())
         record.insertField("500", 'a', description);
 
     if (lang == "de")
-        record.insertFieldAtEnd("500", MARC::Subfields({ { 'a', "Zum Abonnieren 🔔-Schaltfläche oben verwenden. Erläuterungen finden sich unter https://relbib.de/Content/features_personalised?expand#alerting" } }));
+        record.insertFieldAtEnd("500", MARC::Subfields({ { 'a',
+                                                           "Zum Abonnieren 🔔-Schaltfläche oben verwenden. Erläuterungen finden sich unter "
+                                                           "https://relbib.de/Content/features_personalised?expand#alerting" } }));
     else
-        record.insertFieldAtEnd("500", MARC::Subfields({ { 'a', "Use 🔔 button above to subscribe and see https://relbib.de/Content/features_personalised?expand#alerting for a general description." } } ));
+        record.insertFieldAtEnd(
+            "500", MARC::Subfields({ { 'a',
+                                       "Use 🔔 button above to subscribe and see "
+                                       "https://relbib.de/Content/features_personalised?expand#alerting for a general description." } }));
 
     if (exclude_ixtheo)
         record.addSubfield("935", 'x', "1");
@@ -103,7 +106,7 @@ void ExtractBundlePPNs(const std::string bundle_name, const IniFile &bundles_con
     if (bundle_ppns_string.empty())
         return;
     std::vector<std::string> bundle_ppns;
-    StringUtil::SplitThenTrim(bundle_ppns_string, "," , " \t", &bundle_ppns);
+    StringUtil::SplitThenTrim(bundle_ppns_string, ",", " \t", &bundle_ppns);
     // Generate the bundle mapping
     bundle_to_ppns_map->insert(BundleToPPNPair(bundle_name, std::set<std::string>(bundle_ppns.begin(), bundle_ppns.end())));
 }
@@ -117,19 +120,17 @@ void GenerateBundleEntry(MARC::Writer * const marc_writer, const std::string &bu
     const std::string lang(bundles_config.getString(bundle_name, "lang", ""));
     if (not instances_string.empty())
         StringUtil::SplitThenTrim(instances_string, ",", " \t", &instances);
-    marc_writer->write(GenerateBundleRecord(bundle_name, bundles_config.getString(bundle_name, "display_name"), instances,
-                                            description, media_type, lang));
+    marc_writer->write(
+        GenerateBundleRecord(bundle_name, bundles_config.getString(bundle_name, "display_name"), instances, description, media_type, lang));
 }
 
 
-void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    const BundleToPPNsMap &bundle_to_ppns_map)
-    {
+void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const BundleToPPNsMap &bundle_to_ppns_map) {
     while (MARC::Record record = marc_reader->read()) {
         MARC::Subfields bundle_subfields;
         for (const auto &bundle_to_ppns : bundle_to_ppns_map) {
             if (bundle_to_ppns.second.find(record.getControlNumber()) != bundle_to_ppns.second.end())
-               bundle_subfields.addSubfield('a', bundle_to_ppns.first);
+                bundle_subfields.addSubfield('a', bundle_to_ppns.first);
         }
         if (not bundle_subfields.empty())
             record.insertField("BSP" /* Bundle Superior */, bundle_subfields);
@@ -137,13 +138,14 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
     }
 }
 
-} //unnamed namespace
+} // unnamed namespace
 
 
 int Main(int argc, char **argv) {
     if (argc != 3)
-        ::Usage("marc_input marc_output\n"
-                "Generate a dummy entry for subscriptions from the configuration given in journal_alert_bundles.conf\n");
+        ::Usage(
+            "marc_input marc_output\n"
+            "Generate a dummy entry for subscriptions from the configuration given in journal_alert_bundles.conf\n");
 
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
@@ -154,10 +156,10 @@ int Main(int argc, char **argv) {
     // Insert the pseudo entries at the beginning and generate the PPN map
     const IniFile bundles_config(UBTools::GetTuelibPath() + "journal_alert_bundles.conf");
     for (const auto &bundle_name : bundles_config.getSections()) {
-         if (not bundle_name.empty()) {
-             GenerateBundleEntry(marc_writer.get(), bundle_name, bundles_config);
-             ExtractBundlePPNs(bundle_name, bundles_config, &bundle_to_ppns_map);
-         }
+        if (not bundle_name.empty()) {
+            GenerateBundleEntry(marc_writer.get(), bundle_name, bundles_config);
+            ExtractBundlePPNs(bundle_name, bundles_config, &bundle_to_ppns_map);
+        }
     }
     // Tag the title data
     ProcessRecords(marc_reader.get(), marc_writer.get(), bundle_to_ppns_map);

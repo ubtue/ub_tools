@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <set>
@@ -33,7 +33,8 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    std::cerr << "Usage: " << ::progname << " [--quiet] [--limit max_no_of_records] [--output-individual-files] marc_input marc_output [CTLN_1 CTLN_2 .. CTLN_N]\n"
+    std::cerr << "Usage: " << ::progname
+              << " [--quiet] [--limit max_no_of_records] [--output-individual-files] marc_input marc_output [CTLN_1 CTLN_2 .. CTLN_N]\n"
               << "       Autoconverts the MARC format of \"marc_input\" to \"marc_output\".\n"
               << "       Supported extensions are \"xml\", \"mrc\", \"marc\" and \"raw\".\n"
               << "       All extensions except for \"xml\" are assumed to imply MARC-21.\n"
@@ -47,8 +48,7 @@ namespace {
 
 void ProcessRecords(const bool quiet, const bool output_individual_files, const unsigned max_no_of_records,
                     MARC::Reader * const marc_reader, const std::string output_filename_or_directory,
-                    const std::set<std::string> &control_numbers)
-{
+                    const std::set<std::string> &control_numbers) {
     unsigned record_count(0), extracted_count(0);
 
     std::unique_ptr<MARC::Writer> marc_writer;

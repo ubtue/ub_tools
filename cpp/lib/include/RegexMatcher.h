@@ -21,8 +21,8 @@
 
 
 #include <memory>
-#include <string>
 #include <stdexcept>
+#include <string>
 #include <vector>
 #include <pcre.h>
 
@@ -37,6 +37,7 @@ public:
         unsigned match_count_;
         std::vector<int> substr_indices_;
         std::string error_message_;
+
     public:
         MatchResult(const std::string &subject);
         MatchResult(const MatchResult &) = default;
@@ -55,8 +56,9 @@ public:
     struct PcreData {
         ::pcre *pcre_;
         ::pcre_extra *pcre_extra_;
+
     public:
-        PcreData() : pcre_(nullptr), pcre_extra_(nullptr) {}
+        PcreData(): pcre_(nullptr), pcre_extra_(nullptr) { }
         ~PcreData() {
             if (pcre_extra_ != nullptr)
                 ::pcre_free_study(pcre_extra_);
@@ -67,21 +69,23 @@ public:
     };
 
     enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4, ENABLE_UCP = 8 };
+
 private:
     static constexpr size_t MAX_SUBSTRING_MATCHES = 40;
 
     const std::string pattern_;
     const unsigned options_;
     std::shared_ptr<PcreData> pcre_data_;
+
 public:
     ThreadSafeRegexMatcher(const std::string &pattern, const unsigned options = ENABLE_UTF8);
     ThreadSafeRegexMatcher(const ThreadSafeRegexMatcher &rhs)
-        : pattern_(rhs.pattern_), options_(rhs.options_), pcre_data_(rhs.pcre_data_) {}
+        : pattern_(rhs.pattern_), options_(rhs.options_), pcre_data_(rhs.pcre_data_) { }
     MatchResult &operator=(const MatchResult &) = delete;
 
     inline const std::string &getPattern() const { return pattern_; }
-    MatchResult match(const std::string &subject, const size_t subject_start_offset = 0,
-                      size_t * const start_pos = nullptr, size_t * const end_pos = nullptr) const;
+    MatchResult match(const std::string &subject, const size_t subject_start_offset = 0, size_t * const start_pos = nullptr,
+                      size_t * const end_pos = nullptr) const;
     std::string replaceAll(const std::string &subject, const std::string &replacement) const;
     /* c.f. description of RegexMatcher::replaceWithBackreferences below for usage and examples */
     std::string replaceWithBackreferences(const std::string &subject, const std::string &replacement, const bool global = false);
@@ -97,11 +101,12 @@ class RegexMatcher {
     std::string pattern_;
     unsigned options_;
     pcre *pcre_;
-    pcre_extra* pcre_extra_;
+    pcre_extra *pcre_extra_;
     static constexpr size_t MAX_SUBSTRING_MATCHES = 20;
     mutable std::string last_subject_;
     mutable std::vector<int> substr_vector_;
     mutable unsigned last_match_count_;
+
 public:
     enum Option { ENABLE_UTF8 = 1, CASE_INSENSITIVE = 2, MULTILINE = 4, ENABLE_UCP = 8 }; // These need to be powers of 2.
 public:
@@ -123,8 +128,9 @@ public:
      *  character of the matched part of "s" respectively.
      */
     inline bool matched(const std::string &subject, std::string * const err_msg = nullptr, size_t * const start_pos = nullptr,
-                        size_t * const end_pos = nullptr)
-        { return matched(subject, 0, err_msg, start_pos, end_pos); }
+                        size_t * const end_pos = nullptr) {
+        return matched(subject, 0, err_msg, start_pos, end_pos);
+    }
     bool matched(const std::string &subject, const size_t subject_start_offset, std::string * const err_msg = nullptr,
                  size_t * const start_pos = nullptr, size_t * const end_pos = nullptr);
 
@@ -168,8 +174,7 @@ public:
      *  \param options      Or'ed together values of type enum Option.
      *  \return nullptr if "pattern" failed to compile and then also sets "err_msg".
      */
-    static RegexMatcher *RegexMatcherFactory(const std::string &pattern, std::string * const err_msg = nullptr,
-                                             const unsigned options = 0);
+    static RegexMatcher *RegexMatcherFactory(const std::string &pattern, std::string * const err_msg = nullptr, const unsigned options = 0);
 
     /** \brief Creates a RegexMatcher.
      *  \param pattern      The pattern to be compiled.
@@ -187,8 +192,7 @@ public:
      *  \param end_pos     If match successfull, last+1 character position of the matched part of the subject.
      */
     static bool Matched(const std::string &regex, const std::string &subject, const unsigned options = 0,
-                        std::string * const err_msg = nullptr, size_t * const start_pos = nullptr,
-                        size_t * const end_pos = nullptr);
+                        std::string * const err_msg = nullptr, size_t * const start_pos = nullptr, size_t * const end_pos = nullptr);
 
     /** \brief  One-shot pattern replacement.
      *  \param  pattern     The pattern to use.
@@ -202,9 +206,9 @@ public:
 
     /** \brief Escape all PCRE metacharacters in the given string with a backslash (see `man pcrepattern`) */
     static std::string Escape(const std::string &subpattern);
+
 private:
-    RegexMatcher(const std::string &pattern, const unsigned options, pcre * const pcre_arg,
-                 pcre_extra * const pcre_extra_arg)
+    RegexMatcher(const std::string &pattern, const unsigned options, pcre * const pcre_arg, pcre_extra * const pcre_extra_arg)
         : pattern_(pattern), options_(options), pcre_(pcre_arg), pcre_extra_(pcre_extra_arg),
-          substr_vector_((1 + MAX_SUBSTRING_MATCHES) * 3), last_match_count_(0) {}
+          substr_vector_((1 + MAX_SUBSTRING_MATCHES) * 3), last_match_count_(0) { }
 };

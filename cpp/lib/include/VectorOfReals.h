@@ -26,14 +26,15 @@
 #pragma once
 
 
-#include <Real.h>
 #include <string>
 #include <vector>
+#include <Real.h>
 
 
 /** \class VectorOfReals */
 class VectorOfReals {
     std::vector<real> vector_;
+
 public:
     /** \brief   Constructs a vector with the given size where all elements are
      *           initialized to zero.

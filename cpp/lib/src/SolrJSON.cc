@@ -20,9 +20,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "Compiler.h"
-#include <vector>
 #include <string>
+#include <vector>
+#include "Compiler.h"
 #include "JSON.h"
 #include "SolrJSON.h"
 #include "util.h"
@@ -72,8 +72,7 @@ std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode
         return std::vector<std::string>();
     }
 
-    const std::shared_ptr<const JSON::ArrayNode> author_array(
-        JSON::JSONNode::CastToArrayNodeOrDie("author", author));
+    const std::shared_ptr<const JSON::ArrayNode> author_array(JSON::JSONNode::CastToArrayNodeOrDie("author", author));
 
     if (author_array->empty()) {
         LOG_WARNING("\"author\" is empty");
@@ -82,8 +81,7 @@ std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode
 
     std::vector<std::string> authors;
     for (const auto &array_entry : *author_array) {
-        const std::shared_ptr<const JSON::StringNode> author_string(JSON::JSONNode::CastToStringNodeOrDie("author string",
-                                                                                                          array_entry));
+        const std::shared_ptr<const JSON::StringNode> author_string(JSON::JSONNode::CastToStringNodeOrDie("author string", array_entry));
         authors.emplace_back(author_string->getValue());
     }
 
@@ -92,22 +90,21 @@ std::vector<std::string> GetAuthors(const std::shared_ptr<const JSON::ObjectNode
 
 
 std::string GetFirstPublishDate(const std::shared_ptr<const JSON::ObjectNode> &doc_obj) {
-     std::shared_ptr<const JSON::JSONNode> publish_date(doc_obj->getNode("publishDate"));
-     if (publish_date == nullptr) {
+    std::shared_ptr<const JSON::JSONNode> publish_date(doc_obj->getNode("publishDate"));
+    if (publish_date == nullptr) {
         LOG_WARNING("No publishDate found for ID " + GetId(doc_obj) + "!");
         return "";
-     }
+    }
 
-     const std::shared_ptr<const JSON::ArrayNode> publish_date_array(
-        JSON::JSONNode::CastToArrayNodeOrDie("publishDate", publish_date));
-     if (unlikely(publish_date_array->empty())) {
-         LOG_WARNING("\"publishDate\" is empty");
-         return "";
-     }
+    const std::shared_ptr<const JSON::ArrayNode> publish_date_array(JSON::JSONNode::CastToArrayNodeOrDie("publishDate", publish_date));
+    if (unlikely(publish_date_array->empty())) {
+        LOG_WARNING("\"publishDate\" is empty");
+        return "";
+    }
 
-     const std::shared_ptr<const JSON::StringNode> first_publish_date_string(JSON::JSONNode::CastToStringNodeOrDie("first_publish_date_string",
-                                                                             *(publish_date_array->begin())));
-     return first_publish_date_string->getValue();
+    const std::shared_ptr<const JSON::StringNode> first_publish_date_string(
+        JSON::JSONNode::CastToStringNodeOrDie("first_publish_date_string", *(publish_date_array->begin())));
+    return first_publish_date_string->getValue();
 }
 
-} // namespace SolrJson
+} // namespace SolrJSON
