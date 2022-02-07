@@ -319,7 +319,7 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
                 new_record.insertField("520", { { 'a', description } });
                 new_record.insertField("540", { { 'a', license } });
                 new_record.insertField("852", { { 'a', "DE-2619" } });
-                new_record.insertField("856", { { 'u', UrlUtil::UrlEncode("https://www.icpsr.umich.edu/web/NACJD/studies/") + id } }, '4' /*indicator1*/, '0' /*indicator 2*/);
+                new_record.insertField("856", { { 'u', "https://www.icpsr.umich.edu/web/NACJD/studies/" + UrlUtil::UrlEncode(id) } }, '4' /*indicator1*/, '0' /*indicator 2*/);
                 new_record.insertField("935", { { 'a', "mkri" } });
 
                 for (auto creator : creators)
