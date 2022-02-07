@@ -206,12 +206,14 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
     for (const auto &internal_nacjd_node : *nacjd_nodes) {
         ++no_total;
         bool complete(true);
+        std::string identifiier;
         std::string description;
         std::string license;
         std::string initial_release_date;
         std::set<std::string> keywords;
         std::map<std::string, std::string> creators;
         const auto nacjd_node(JSON::JSONNode::CastToObjectNodeOrDie("entry", internal_nacjd_node));
+        const auto identifier_node(nacjd_node->getObjectNode("identifier"));
         const auto alternate_identifiers_node(nacjd_node->getArrayNode("alternateIdentifiers"));
         const auto distributions_node(nacjd_node->getArrayNode("distributions"));
         const auto keywords_node(nacjd_node->getOptionalArrayNode("keywords"));
@@ -306,14 +308,20 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
         for (const auto &internal_alternateIdentifier : *alternate_identifiers_node) {
             const auto alternateIdentifier_node(JSON::JSONNode::CastToObjectNodeOrDie("alternateIdentifier", internal_alternateIdentifier));
             const std::string id(alternateIdentifier_node->getStringNode("identifier")->getValue());
+            const std::string doi(identifier_node->getStringNode("identifier")->getValue());
             if (complete) {
                 MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED,
                                         "[ICPSR]" + id);
-                new_record.insertField("245", { { 'a', title_node->getValue() } }, /* indicator 1 = */ '0', /* indicator 2 = */ '0');
+                new_record.insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
+                new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
+                new_record.insertField("245", { { 'a', title_node->getValue() } }, /* indicator 1 = */ '1', /* indicator 2 = */ '0');
+                new_record.insertField("264", { { 'c', initial_release_date } });
                 new_record.insertField("520", { { 'a', description } });
                 new_record.insertField("540", { { 'a', license } });
-                new_record.insertField("264", { { 'c', initial_release_date } });
-                new_record.insertField("856", { { 'u', "https://www.icpsr.umich.edu/web/NACJD/studies/" + id } });
+                new_record.insertField("852", { { 'a', "DE-2619" } });
+                new_record.insertField("856", { { 'u', "https://www.icpsr.umich.edu/web/NACJD/studies/" + UrlUtil::UrlEncode(id) } }, '4' /*indicator1*/, '0' /*indicator 2*/);
+                new_record.insertField("935", { { 'a', "mkri" } });
+
                 for (auto creator : creators)
                     new_record.insertField(creator.second, { { 'a', creator.first } });
                 for (const auto &keyword : keywords) {
