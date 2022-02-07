@@ -312,15 +312,15 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
             if (complete) {
                 MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED,
                                         "[ICPSR]" + id);
+                new_record.insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
+                new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
                 new_record.insertField("245", { { 'a', title_node->getValue() } }, /* indicator 1 = */ '1', /* indicator 2 = */ '0');
+                new_record.insertField("264", { { 'c', initial_release_date } });
                 new_record.insertField("520", { { 'a', description } });
                 new_record.insertField("540", { { 'a', license } });
-                new_record.insertField("264", { { 'c', initial_release_date } });
-                new_record.insertField("856", { { 'u', "https://www.icpsr.umich.edu/web/NACJD/studies/" + id } }, '4' /*indicator1*/, '0' /*indicator 2*/);
-                new_record.insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
-                new_record.insertFieldAtEnd("935", { { 'a', "mkri" } });
-                new_record.insertFieldAtEnd("084", { { 'a', "2,1" }, { '2', "ssgn" } });
-                new_record.insertFieldAtEnd("852", { { 'a', "DE-2619" } });
+                new_record.insertField("852", { { 'a', "DE-2619" } });
+                new_record.insertField("856", { { 'u', UrlUtil::UrlEncode("https://www.icpsr.umich.edu/web/NACJD/studies/") + id } }, '4' /*indicator1*/, '0' /*indicator 2*/);
+                new_record.insertField("935", { { 'a', "mkri" } });
 
                 for (auto creator : creators)
                     new_record.insertField(creator.second, { { 'a', creator.first } });
