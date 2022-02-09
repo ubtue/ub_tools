@@ -39,6 +39,7 @@
 /es_store_document
 /export_vufind_redirects
 /extract_authority_data_translations
+/extract_conspicouus_names_from_zota
 /extract_keywords_for_translation
 /extract_local_keywords
 /extract_local_krimdok_topics
@@ -80,6 +81,7 @@
 /lcsh_stats
 /library_finder
 /log_rotate
+/marcxml_metadata_processor
 /mpi_stats
 /mysql_diff_schemas
 /mysql_list_tables
@@ -116,6 +118,7 @@
 /summarize_logs
 /syslog
 /system_updater
+/template_processor
 /time_aspects_to_codes_tool
 /topo_sorter
 /translation_db_tool
