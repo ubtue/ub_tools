@@ -97,3 +97,11 @@ div.qa_rule_overridden {
 .col-local-review {
     background-color: #ffff99;
 }
+
+.col-global-non-article {
+    background-color: #e6f0ff;
+}
+
+.col-local-non-article {
+    background-color: #66a3ff;
+}
