@@ -680,8 +680,10 @@ struct QAFieldProperties {
     std::string tag_;
     std::map<char, QASubfieldProperties> global_regular_articles_;
     std::map<char, QASubfieldProperties> global_review_articles_;
+    std::map<char, QASubfieldProperties> global_non_articles_;
     std::map<char, QASubfieldProperties> journal_regular_articles_;
     std::map<char, QASubfieldProperties> journal_review_articles_;
+    std::map<char, QASubfieldProperties> journal_non_articles_;
 
     QAFieldProperties() = default;
     QAFieldProperties(const std::string &tag): tag_(tag){};
@@ -737,13 +739,21 @@ std::map<std::string, QAFieldProperties> GetQASettings(const std::string &journa
         if (row["journal_id"].empty()) {
             if (row["record_type"] == "regular_article")
                 tags_to_settings_map[tag].global_regular_articles_[subfield] = subfield_properties;
-            else
+            else if (row["record_type"] == "review")
                 tags_to_settings_map[tag].global_review_articles_[subfield] = subfield_properties;
+            else if (row["record_type"] == "non_article")
+                tags_to_settings_map[tag].global_non_articles_[subfield] = subfield_properties;
+            else
+                LOG_ERROR("Invalid record type: " + row["record_type"]);
         } else {
             if (row["record_type"] == "regular_article")
                 tags_to_settings_map[tag].journal_regular_articles_[subfield] = subfield_properties;
-            else
+            else if (row["record_type"] == "review")
                 tags_to_settings_map[tag].journal_review_articles_[subfield] = subfield_properties;
+            else if (row["record_type"] == "non_article")
+                tags_to_settings_map[tag].journal_non_articles_[subfield] = subfield_properties;
+            else
+                LOG_ERROR("Invalid record type: " + row["record_type"]);
         }
     }
     return tags_to_settings_map;
@@ -759,21 +769,28 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
         submitted = "true";
 
     const auto tags_to_settings_map(GetQASettings(journal_id, db_connection));
-    std::vector<std::string> tags, global_regular_articles, global_review_articles, journal_regular_articles, journal_review_articles;
+    std::vector<std::string> tags, global_regular_articles, global_review_articles, global_non_articles,
+                             journal_regular_articles, journal_review_articles, journal_non_articles;
     const std::string base_url("?action=show_qa&id=" + journal_id);
     for (const auto &tag_and_settings : tags_to_settings_map) {
         tags.emplace_back(tag_and_settings.first);
 
         const bool global_regular_articles_overridden(not tag_and_settings.second.journal_regular_articles_.empty());
         const bool global_review_articles_overridden(not tag_and_settings.second.journal_review_articles_.empty());
+        const bool global_non_articles_overridden(not tag_and_settings.second.journal_non_articles_.empty());
         global_regular_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(
             tag_and_settings.second.global_regular_articles_, "regular_article", global_regular_articles_overridden));
         global_review_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.global_review_articles_,
                                                                                        "review", global_review_articles_overridden));
+        global_non_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(tag_and_settings.second.global_non_articles_,
+                                                                                       "non_article", global_non_articles_overridden));
+
         journal_regular_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(
             tag_and_settings.second.journal_regular_articles_, "regular_article", /* overridden = */ false, "local", base_url));
         journal_review_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(
             tag_and_settings.second.journal_review_articles_, "review", /* overridden = */ false, "local", base_url));
+        journal_non_articles.emplace_back(tag_and_settings.second.generateHtmlForMap(
+            tag_and_settings.second.journal_non_articles_, "non_article", /* overridden = */ false, "local", base_url));
     }
 
     names_to_values_map.insertScalar("submitted", submitted);
@@ -782,8 +799,10 @@ void ProcessShowQAAction(const std::multimap<std::string, std::string> &cgi_args
     names_to_values_map.insertArray("tags", tags);
     names_to_values_map.insertArray("global_regular_articles", global_regular_articles);
     names_to_values_map.insertArray("global_review_articles", global_review_articles);
+    names_to_values_map.insertArray("global_non_articles", global_non_articles);
     names_to_values_map.insertArray("journal_regular_articles", journal_regular_articles);
     names_to_values_map.insertArray("journal_review_articles", journal_review_articles);
+    names_to_values_map.insertArray("journal_non_articles", journal_non_articles);
     RenderHtmlTemplate("qa.html");
 }
 
