@@ -40,7 +40,7 @@
 
 namespace {
 
-const std::string NON_ARTICLE_TAG("NAT");
+const std::string NON_ARTICLE_TAG("NOT");
 
 [[noreturn]] void Usage() {
     ::Usage("[--update-db-errors] marc_input marc_output online_first_file missed_expectations_file email_address");
@@ -319,7 +319,7 @@ void LoadRules(DbConnection * const db_connection, GeneralFieldValidator * const
                                                                 StringToFieldPresence(row["field_presence"]),
                                                                 new_regex_matcher);
         } else
-            LOG_ERROR("Invalid record type in database");
+            LOG_ERROR("Invalid record type in database: " + row["record_type"]);
 
     }
 }
@@ -503,8 +503,10 @@ int Main(int argc, char *argv[]) {
                                                                          &general_review_article_validator,
                                                                          &journal_specific_regular_article_validator,
                                                                          &general_regular_article_validator },
-                                        non_article_field_validators{ &general_non_article_validator,
-                                                                      &journal_specific_non_article_validator};
+                                        non_article_field_validators{ &journal_specific_non_article_validator,
+                                                                      &general_non_article_validator,
+                                                                      &journal_specific_regular_article_validator,
+                                                                      &general_regular_article_validator };
 
 
     unsigned total_record_count(0), online_first_record_count(0), missed_expectation_count(0);
