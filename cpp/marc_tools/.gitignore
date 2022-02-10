@@ -4,6 +4,7 @@ categorise_marc
 control_number_filter
 convert_icpsr_dc_to_marc
 convert_json_to_marc
+convert_marc_to_utf8
 enumerate_non_standard_tags
 generate_zeder_subset
 get_most_recent_publication_years
