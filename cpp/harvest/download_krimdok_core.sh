@@ -28,61 +28,77 @@ else
 fi
 echo "Using Timestamp: $TIMESTAMP"
 
-
-#declare -r QUERY=$(/usr/local/bin/urlencode "(title:criminology OR title:criminological OR title:kriminologie) AND createdDate>$TIMESTAMP")
-#declare -r QUERY=$(/usr/local/bin/urlencode "(title:criminology OR title:criminological OR title:kriminologie) AND createdDate<2019-01-01")
-declare QUERY=$(/usr/local/bin/urlencode "criminolog*")
-
 declare -r subdir=$(date +%Y%m%d_%H%M%S)
 mkdir -p $subdir
 
-for (( loopctr=0; loopctr<=100; loopctr++ ))
-do
-    offset=$((loopctr*MAX_HITS_PER_REQUEST*1000)) #remove *1000
-    WORK_FILE=${subdir}/${WORK_FILE_PREFIX}_${offset}.json
-    WORK_FILE_TMP=${WORK_FILE}.tmp
+#start=$TIMESTAMP
+start=2000-01-01
+start=2019-11-01
+end=$(date +%F)
+records_found=false
 
-    curl --max-time $SINGLE_CURL_DOWNLOAD_MAX_TIME --header "Authorization: Bearer ${API_KEY}" --request GET \
-         --location "${CORE_API_URL}?offset=${offset}&limit=${MAX_HITS_PER_REQUEST}&entityType=works&q=${QUERY}&scroll" \
-         > ${WORK_FILE_TMP}
+while ! [[ $start > $end ]]; do
 
-    echo "$loopctr = requested $MAX_HITS_PER_REQUEST entries via offset $offset:"
+    #sample mode start
+    start=$(date -d "$start + 16 month" +%F)
+    #sample mode end
 
-    declare error_message=$(jq .error\?.message < "$WORK_FILE_TMP" 2>/dev/null)
-    if [[ $error_message != "" && $error_message != "null" ]]; then
-        echo "Server reported: $error_message"
-        exit 2
-    fi
+    next=$(date -d "$start + 1 month" +%F)
+    #QUERY=$(/usr/local/bin/urlencode "(title:criminology OR title:criminological OR title:kriminologie) AND createdDate<2019-01-01")
+    declare QUERY=$(/usr/local/bin/urlencode "(criminolog* AND createdDate>=${start} AND createdDate<${next})")
 
-    declare total_hits=$(jq ."[0].totalHits" < "$WORK_FILE_TMP" 2>/dev/null)
-    if [[ $total_hits == "null" || $total_hits == "0" ]]; then
-        echo "Server reported zero hits."
-        exit 3
-    fi
+    for (( loopctr=0; loopctr<=100; loopctr++ ))
+    do
+        offset=$((loopctr*MAX_HITS_PER_REQUEST))
+        WORK_FILE=${subdir}/${WORK_FILE_PREFIX}_${start}_${offset}.json
+        WORK_FILE_TMP=${WORK_FILE}.tmp
 
-    declare current_hits=$(jq '.results | length' < "$WORK_FILE_TMP" 2>/dev/null)
-    if [[ $current_hits == "null" || $current_hits == "0" ]]; then
-        echo "Server reported zero hits in this download block, assuming end of query results."
-        break
-    fi
+        curl --max-time $SINGLE_CURL_DOWNLOAD_MAX_TIME --header "Authorization: Bearer ${API_KEY}" --request GET \
+            --location "${CORE_API_URL}?offset=${offset}&limit=${MAX_HITS_PER_REQUEST}&entityType=works&q=${QUERY}&scroll" \
+            > ${WORK_FILE_TMP}
 
-    if grep --quiet '504 Gateway Time-out' "$WORK_FILE_TMP"; then
-        echo "We got a 504 Gateway Time-out"
-        exit 4
-    fi
+        echo "date range: $start to $next : $loopctr = requested $MAX_HITS_PER_REQUEST entries via offset $offset"
+        sleep 65s #needed due to insufficient api license
 
-    declare message=$(jq .message < "$WORK_FILE_TMP" 2>/dev/null)
-    if [[ $message != "" && $message != "null" ]]; then
-        echo "Server reported: $message"
-        exit 5
-    fi
+        declare error_message=$(jq .error\?.message < "$WORK_FILE_TMP" 2>/dev/null)
+        if [[ $error_message != "" && $error_message != "null" ]]; then
+            echo "Server reported: $error_message"
+            exit 2
+        fi
 
-    jq < ${WORK_FILE_TMP} > ${WORK_FILE}
+        declare total_hits=$(jq ."[0].totalHits" < "$WORK_FILE_TMP" 2>/dev/null)
+        if [[ $total_hits == "null" || $total_hits == "0" ]]; then
+            echo "Server reported zero hits."
+            break
+        fi
 
-    sleep 65s #needed due to insufficient api license
+        declare current_hits=$(jq '.results | length' < "$WORK_FILE_TMP" 2>/dev/null)
+        if [[ $current_hits == "null" || $current_hits == "0" ]]; then
+            echo "Server reported zero hits in this download block, assuming end of query results."
+            break
+        fi
+
+        if grep --quiet '504 Gateway Time-out' "$WORK_FILE_TMP"; then
+            echo "We got a 504 Gateway Time-out"
+            exit 4
+        fi
+
+        declare message=$(jq .message < "$WORK_FILE_TMP" 2>/dev/null)
+        if [[ $message != "" && $message != "null" ]]; then
+            echo "Server reported: $message"
+            exit 5
+        fi
+
+        jq < ${WORK_FILE_TMP} > ${WORK_FILE}
+        records_found=true
+        #for filename in *.json; do cat $filename | grep -v fullText > ${filename}_nofT.json; done
+
+    done
+    start=$next
 done
 
 # Convert to MARC:
+# if [ records_found = true ]; then ...
 #echo "Before conversion to MARC..."
 #declare -r MARC_OUTPUT=KrimDok-CORE-$(date +%Y%M%d).xml
 #convert_core_json_to_marc --create-unique-id-db --935-entry=TIT:mkri --935-entry=LOK:core \
