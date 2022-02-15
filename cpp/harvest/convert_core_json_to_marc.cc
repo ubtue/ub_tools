@@ -289,7 +289,7 @@ int Main(int argc, char **argv) {
     const std::string json_file_path(argv[1]);
     std::vector<std::string> json_filenames;
     if (FileUtil::GetFileNameList(json_file_path, &json_filenames) == 0) {
-        LOG_ERROR("failed to get core-json file(s)");
+        LOG_ERROR("failed to get core-json file(s) for: " + json_file_path);
     }
     for (const std::string &json_filename : json_filenames) {
         if (not json_filename.ends_with(".json"))
@@ -299,7 +299,7 @@ int Main(int argc, char **argv) {
         JSON::Parser parser(json_source);
         std::shared_ptr<JSON::JSONNode> tree_root;
         if (not parser.parse(&tree_root))
-            LOG_ERROR("Failed to parse the JSON contents of \"" + json_file_path + "\": " + parser.getErrorMessage());
+            LOG_ERROR("Failed to parse the JSON contents of \"" + json_filename + "\": " + parser.getErrorMessage());
 
         const auto results_node(JSON::LookupNode("/results", tree_root));
         if (results_node == nullptr)

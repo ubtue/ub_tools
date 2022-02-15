@@ -91,19 +91,24 @@ while ! [[ $start > $end ]]; do
 
         jq < ${WORK_FILE_TMP} > ${WORK_FILE}
         records_found=true
-        #for filename in *.json; do cat $filename | grep -v fullText > ${filename}_nofT.json; done
+        #for filename in *.json; do cat $filename | grep -v fullText > nofT_${filename}; done
 
     done
     start=$next
 done
 
+
 # Convert to MARC:
-# if [ records_found = true ]; then ...
-#echo "Before conversion to MARC..."
-#convert_core_json_to_marc --create-unique-id-db --935-entry=TIT:mkri --935-entry=LOK:core \
-#                          --sigil=DE-2619 "${WORK_FILE_PREFIX}*.json"
 
-# Update contents of the timestamp file:
-#date --iso-8601=date > "$TIMESTAMP_FILE"
+# if [ records_found = true ]; then
 
-#upload_to_bsz_ftp_server.py "$MARC_OUTPUT" /pub/UBTuebingen_Default/
+    #convert_core_json_to_marc --create-unique-id-db --935-entry=TIT:mkri --935-entry=LOK:core \
+    #                          --sigil=DE-2619 "${WORK_FILE_PREFIX}.*\.json$"
+
+    # Update contents of the timestamp file:
+    #date --iso-8601=date > "$TIMESTAMP_FILE"
+
+    # todo: merge all marc-files
+    #upload_to_bsz_ftp_server.py "$MARC_OUTPUT" /pub/UBTuebingen_Default/
+
+# fi
