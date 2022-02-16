@@ -216,7 +216,7 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
                 continue;
             }
 
-            //Do not use contributors anymore (team decission in video conf. on 09.02.2022)
+            //Do not use contributors anymore (team decision in video conf. on 09.02.2022)
             //ProcessContributors(*entry_object, &new_record, authors);
 
             if (not ProcessTitle(*entry_object, &new_record)) {
@@ -224,8 +224,8 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
                 continue;
             }
             new_record.insertControlField("007", "cr||||");
-            new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
             new_record.insertField("035", 'a', "(core)" + id);
+            new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
             new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
             new_record.insertField("852", 'a', project_sigil);
             ProcessYear(*entry_object, &new_record);
