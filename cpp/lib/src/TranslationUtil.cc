@@ -68,7 +68,7 @@ const std::map<std::string, std::string> international_2letter_code_to_german_3o
     { "eu", "eus" },
     { "fi", "fin" },
     { "fr", "fra" },
-    { "gl", "glg" }
+    { "gl", "glg" },
     { "id", "ind" },
     { "it", "ita" },
     { "lv", "lav" },
