@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o errexit -o nounset
 
 source_file=${1}
 intermediate="/mnt/zram/intermediate.xml"
