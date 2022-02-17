@@ -192,7 +192,7 @@ void PerformDescriptionSubstitutions(const std::string &patterns_and_replacement
 }
 
 
-// \return the number of new items.
+// \return the number of new items or an error constant < 0 (see declarations above)
 int ProcessFeed(const std::string &feed_id, const std::string &feed_name, const std::string &feed_url,
                      const std::string &title_suppression_regex_str, const std::string &patterns_and_replacements,
                      const std::string &strptime_format, Downloader * const downloader, DbConnection * const db_connection,
@@ -289,7 +289,7 @@ int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_outpu
                                                   row.getValue("descriptions_and_substitutions"), row.getValue("strptime_format"),
                                                   downloader, db_connection,
                                                   StringUtil::ToUnsigned(row["downloader_time_limit"]) * SECONDS_TO_MILLISECONDS));
-        if (new_item_count == ERROR_DOWNLOAD or new_item_count == ERROR_PARSING)
+        if (new_item_count < 0)
             ++number_feeds_with_error;
         else
             LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
@@ -348,7 +348,7 @@ int Main(int argc, char *argv[]) {
             else
                 LOG_ERROR("failed to send an email error report!");
         }
-        return number_feeds_with_error;
+        return EXIT_SUCCESS;
     } catch (const std::runtime_error &x) {
         const auto subject(program_basename + " failed on " + DnsUtil::GetHostname() + " (subsystem_type: " + subsystem_type + ")");
         const auto message_body("caught exception: " + std::string(x.what()));
