@@ -56,6 +56,8 @@ const size_t MAX_ITEM_ID_LENGTH(768);
 const size_t MAX_ITEM_URL_LENGTH(1000);
 const size_t MAX_ITEM_TITLE_LENGTH(1000);
 const size_t MAX_SERIAL_NAME_LENGTH(200);
+const int ERROR_DOWNLOAD(-10);
+const int ERROR_PARSING(-11);
 
 
 struct HarvestedRSSItem {
@@ -191,7 +193,7 @@ void PerformDescriptionSubstitutions(const std::string &patterns_and_replacement
 
 
 // \return the number of new items.
-unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, const std::string &feed_url,
+int ProcessFeed(const std::string &feed_id, const std::string &feed_name, const std::string &feed_url,
                      const std::string &title_suppression_regex_str, const std::string &patterns_and_replacements,
                      const std::string &strptime_format, Downloader * const downloader, DbConnection * const db_connection,
                      const unsigned downloader_time_limit) {
@@ -202,14 +204,18 @@ unsigned ProcessFeed(const std::string &feed_id, const std::string &feed_name, c
         title_suppression_regex_str.empty() ? nullptr : RegexMatcher::RegexMatcherFactoryOrDie(title_suppression_regex_str));
 
     unsigned new_item_count(0);
-    if (not downloader->newUrl(feed_url, downloader_time_limit))
-        LOG_WARNING(feed_name + ": failed to download the feed: " + downloader->getLastErrorMessage());
+    if (not downloader->newUrl(feed_url, downloader_time_limit)) {
+        LOG_WARNING(feed_name + " [" + feed_url + "]" + " - failed to download the feed: "+ downloader->getLastErrorMessage());
+        return ERROR_DOWNLOAD;
+    }
     else {
         std::string error_message;
         std::unique_ptr<SyndicationFormat> syndication_format(
             SyndicationFormat::Factory(downloader->getMessageBody(), augment_params, &error_message));
-        if (unlikely(syndication_format == nullptr))
+        if (unlikely(syndication_format == nullptr)) {
             LOG_WARNING("failed to parse feed: " + error_message);
+            return ERROR_PARSING;
+        }
         else {
             for (auto &item : *syndication_format) {
                 if (title_suppression_regex != nullptr and title_suppression_regex->matched(item.getTitle())) {
@@ -274,15 +280,19 @@ constexpr unsigned SECONDS_TO_MILLISECONDS = 1000;
 
 int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_output_filename, DbConnection * const db_connection,
                  Downloader * const downloader) {
+    unsigned number_feeds_with_error = 0;
     db_connection->queryOrDie("SELECT * FROM tuefind_rss_feeds WHERE FIND_IN_SET('" + subsystem_type + "', subsystem_types) > 0");
     auto result_set(db_connection->getLastResultSet());
     while (const auto row = result_set.getNextRow()) {
         LOG_INFO("Processing feed \"" + row["feed_name"] + "\".");
-        const unsigned new_item_count(ProcessFeed(row["id"], row["feed_name"], row["feed_url"], row.getValue("title_suppression_regex"),
+        const int new_item_count(ProcessFeed(row["id"], row["feed_name"], row["feed_url"], row.getValue("title_suppression_regex"),
                                                   row.getValue("descriptions_and_substitutions"), row.getValue("strptime_format"),
                                                   downloader, db_connection,
                                                   StringUtil::ToUnsigned(row["downloader_time_limit"]) * SECONDS_TO_MILLISECONDS));
-        LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
+        if (new_item_count == ERROR_DOWNLOAD or new_item_count == ERROR_PARSING)
+            ++number_feeds_with_error;
+        else
+            LOG_INFO("Downloaded " + std::to_string(new_item_count) + " new items.");
     }
 
     std::vector<HarvestedRSSItem> harvested_items;
@@ -297,7 +307,7 @@ int ProcessFeeds(const std::string &subsystem_type, const std::string &xml_outpu
     LOG_INFO("Created our feed with " + std::to_string(feed_item_count) + " items from the last " + std::to_string(HARVEST_TIME_WINDOW)
              + " days.");
 
-    return EXIT_SUCCESS;
+    return number_feeds_with_error;
 }
 
 
@@ -321,15 +331,25 @@ int Main(int argc, char *argv[]) {
     if (subsystem_type != "ixtheo" and subsystem_type != "relbib" and subsystem_type != "krimdok")
         LOG_ERROR("subsystem_type must be one of {ixtheo,relbib,krimdok}!");
 
+    const auto program_basename(FileUtil::GetBasename(::progname));
     const std::string email_address(argv[2]);
     const std::string xml_output_filename(argv[3]);
 
     auto db_connection(DbConnection::VuFindMySQLFactory());
 
     try {
-        return ProcessFeeds(subsystem_type, xml_output_filename, &db_connection, &downloader);
+        int number_feeds_with_error = ProcessFeeds(subsystem_type, xml_output_filename, &db_connection, &downloader);
+        if (number_feeds_with_error > 0) {
+            const auto subject(program_basename + " on " + DnsUtil::GetHostname() + " (subsystem_type: " + subsystem_type + ")");
+            const auto message_body("number of feeds that could not be downloaded: " + std::to_string(number_feeds_with_error));
+            if (EmailSender::SimplerSendEmail("no_reply@ub.uni-tuebingen.de", { email_address }, subject, message_body, EmailSender::VERY_HIGH)
+                < 299)
+                return EXIT_FAILURE;
+            else
+                LOG_ERROR("failed to send an email error report!");
+        }
+        return number_feeds_with_error;
     } catch (const std::runtime_error &x) {
-        const auto program_basename(FileUtil::GetBasename(::progname));
         const auto subject(program_basename + " failed on " + DnsUtil::GetHostname() + " (subsystem_type: " + subsystem_type + ")");
         const auto message_body("caught exception: " + std::string(x.what()));
         if (EmailSender::SimplerSendEmail("no_reply@ub.uni-tuebingen.de", { email_address }, subject, message_body, EmailSender::VERY_HIGH)
