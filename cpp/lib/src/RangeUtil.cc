@@ -860,7 +860,7 @@ bool ConvertTextToTimeRange(std::string text, std::string * const range, const b
         return true;
     }
 
-    static auto matcher8(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,2}).(\\d{1,2}).(\\d{1,4})-$"));
+    static auto matcher8(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{1,4})-$"));
     if (matcher8->matched(text)) {
         unsigned day1(StringUtil::ToUnsigned((*matcher8)[1]));
         unsigned month1(StringUtil::ToUnsigned((*matcher8)[2]));
@@ -875,7 +875,7 @@ bool ConvertTextToTimeRange(std::string text, std::string * const range, const b
         return true;
     }
 
-    static auto matcher9(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,2}).(\\d{1,2}).(\\d{1,4})-(\\d{1,2}).(\\d{1,2}).(\\d{1,4})$"));
+    static auto matcher9(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{1,4})-(\\d{1,2})\\.(\\d{1,2})\\.(\\d{1,4})$"));
     if (matcher9->matched(text)) {
         unsigned day1(StringUtil::ToUnsigned((*matcher9)[1]));
         unsigned month1(StringUtil::ToUnsigned((*matcher9)[2]));
@@ -897,7 +897,7 @@ bool ConvertTextToTimeRange(std::string text, std::string * const range, const b
         return true;
     }
 
-    static auto matcher10(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,2}).(\\d{1,2}).(\\d{1,4})$"));
+    static auto matcher10(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{1,4})$"));
     if (matcher10->matched(text)) {
         unsigned day(StringUtil::ToUnsigned((*matcher10)[1]));
         unsigned month(StringUtil::ToUnsigned((*matcher10)[2]));
@@ -930,7 +930,7 @@ bool ConvertTextToTimeRange(std::string text, std::string * const range, const b
         return true;
     }
 
-    static auto matcher13(RegexMatcher::RegexMatcherFactoryOrDie("^-(\\d{1,2}).(\\d{1,2}).(\\d{1,4})$"));
+    static auto matcher13(RegexMatcher::RegexMatcherFactoryOrDie("^-(\\d{1,2})\\.(\\d{1,2})\\.(\\d{1,4})$"));
     if (matcher13->matched(text)) {
         unsigned day2(StringUtil::ToUnsigned((*matcher13)[1]));
         unsigned month2(StringUtil::ToUnsigned((*matcher13)[2]));

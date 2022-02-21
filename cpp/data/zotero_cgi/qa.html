@@ -49,10 +49,14 @@
                     {IF journal_name != ""}
                         <th class="col-local-review">Review articles<br>(This&nbsp;journal)</th>
                     {ENDIF}
+                    <th class="col-global-non-article">Non articles<br>(All&nbsp;journals)</th>
+                    {IF journal_name != ""}
+                        <th class="col-local-non-article">Non articles<br>(This&nbsp;journal)</th>
+                    {ENDIF}
                 </tr>
             </thead>
             <tbody>
-                {LOOP tags, global_regular_articles, global_review_articles, journal_regular_articles, journal_review_articles}
+                {LOOP tags, global_regular_articles, global_review_articles, global_non_articles, journal_regular_articles, journal_review_articles, journal_non_articles }
                     <tr>
                         <td class="col-tag" nowrap><a href="https://www.loc.gov/marc/bibliographic/bd{tags}.html" title="Link to external MARC 21 documentation at loc.gov" target="_blank">{tags}</a></td>
                         <td class="col-global-regular" nowrap>{global_regular_articles}</td>
@@ -62,6 +66,10 @@
                         <td class="col-global-review" nowrap>{global_review_articles}</td>
                         {IF journal_name != ""}
                             <td class="col-local-review" nowrap>{journal_review_articles}</td>
+                        {ENDIF}
+                        <td class="col-global-non-article" nowrap>{global_non_articles}</td>
+                        {IF journal_name != ""}
+                            <td class="col-local-non-article" nowrap>{journal_non_articles}</td>
                         {ENDIF}
                     </tr>
                 {ENDLOOP}
@@ -80,6 +88,7 @@
                 <select name="add_record_type">
                     <option>regular_article</option>
                     <option>review</option>
+                    <option>non_article</option>
                 </select>
                 <input id="regex" name="add_regex" placeholder="optional regex">
                 <select name="add_presence">

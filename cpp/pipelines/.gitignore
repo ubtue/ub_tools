@@ -19,6 +19,7 @@ augment_773a
 augment_authority_data_with_translations
 augment_bible_references
 augment_canones_references
+augment_mohr_titles_with_dois
 augment_pda
 augment_time_aspects
 collect_journal_stats
