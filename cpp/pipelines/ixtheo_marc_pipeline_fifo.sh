@@ -439,6 +439,7 @@ StartPhase "Cleanup of Intermediate Files"
 for p in $(seq 0 "$((PHASE-2))"); do
     rm -f GesamtTiteldaten-post-phase"$p"-??????.mrc
 done
+rm -f Normdaten-partially-augmented?-??????.mrc
 rm -f child_refs child_titles parent_refs
 EndPhase
 

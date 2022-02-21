@@ -193,6 +193,7 @@ StartPhase "Cleanup of Intermediate Files"
 for p in $(seq "$((PHASE-1))"); do
     rm -f GesamtTiteldaten-post-phase"$p"-??????.mrc
 done
+rm -f Normdaten-partially-augmented?-??????.mrc
 rm -f full_text.db
 EndPhase
 

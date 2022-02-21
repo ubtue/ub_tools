@@ -39,8 +39,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "[--create-unique-id-db|--ignore-unique-id-dups][--935-entry=entry] --sigil=project_sigil json_input [unmapped_issn_list "
-        "marc_output]\n"
+        "[--create-unique-id-db|--ignore-unique-id-dups][--935-entry=entry] --sigil=project_sigil json_input\n"
         "\t--create-unique-id-db: This flag has to be specified the first time this program will be executed only.\n"
         "\t--ignore-unique-id-dups: If specified MARC records will be created for unique ID's which we have encountered\n"
         "\t                         before.  The unique ID database will still be updated.\n"
@@ -48,43 +47,7 @@ namespace {
         "subfield 2\n"
         "\t             will be generated.  If LOK has been specified, subfield 2 will be set to LOK.\n"
         "\t--sigil: This is used to generate an 852 field which is needed by the K10+ to be able to assign records to the appropriate\n"
-        "\t         project.  An example would be DE-2619 for criminology.\n"
-        "\tunmapped_issn_list (output): Here we list the ISSN's for which we have no entry in issns_to_journaltitles_and_ppns.map,\n"
-        "\t                             required unless --extract-and-count-issns-only was specified!\n"
-        "\tmarc_outpt: required unless --extract-and-count-issns-only was specified!\n\n");
-}
-
-
-struct JournalTitlePPNAndOnlineISSN {
-    std::string journal_title_;
-    std::string ppn_;
-    std::string online_issn_;
-
-public:
-    JournalTitlePPNAndOnlineISSN(const std::string &journal_title, const std::string &ppn, const std::string &online_issn)
-        : journal_title_(journal_title), ppn_(ppn), online_issn_(online_issn) { }
-};
-
-
-// Parses an input file that has three (the last component may be empty) parts per line that are colon-separated.
-// Embedded colons may be backslash escaped.
-void LoadISSNsToJournalTitlesPPNsAndISSNsMap(
-    std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> * const issns_to_journal_titles_ppns_and_issns_map) {
-    const std::string MAP_FILE_PATH(UBTools::GetTuelibPath() + "journals.csv");
-    std::vector<std::vector<std::string>> lines;
-    TextUtil::ParseCSVFileOrDie(MAP_FILE_PATH, &lines);
-
-    for (const auto &line : lines) {
-        if (line[0].empty() or line[1].empty())
-            continue; // ISSN and titles are required, PPN's and online ISSN's are optional.
-
-        const std::string online_ppn(line.size() > 2 ? line[2] : "");
-        const std::string online_issn(line.size() > 3 ? line[3] : "");
-        issns_to_journal_titles_ppns_and_issns_map->emplace(line[0], JournalTitlePPNAndOnlineISSN(line[1], online_ppn, online_issn));
-    }
-
-    LOG_INFO("Loaded " + std::to_string(issns_to_journal_titles_ppns_and_issns_map->size())
-             + " mappings from print ISSN's to online ISSN's, PPN's and journal titles.");
+        "\t         project.  An example would be DE-2619 for criminology.\n\n");
 }
 
 
@@ -110,22 +73,6 @@ bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const r
     }
 
     return not first_author;
-}
-
-
-void ProcessContributors(const JSON::ObjectNode &entry_object, MARC::Record * const record, const std::set<std::string> &authors) {
-    const auto contributors(entry_object.getOptionalArrayNode("contributors"));
-    if (contributors == nullptr)
-        return;
-    for (const auto &contributor : *contributors) {
-        const auto contributor_node(JSON::JSONNode::CastToStringNodeOrDie("contributor_node", contributor));
-        const std::string contributor_name(contributor_node->getValue());
-        if (std::find_if(authors.cbegin(), authors.cend(),
-                         [&contributor_name](const std::string &author) { return author.find(contributor_name) != std::string::npos; })
-            != authors.cend())
-            continue;
-        record->insertField("700", { { 'a', contributor_name }, { '4', "ctb" } });
-    }
 }
 
 
@@ -170,7 +117,8 @@ bool ProcessAbstract(const JSON::ObjectNode &entry_object, MARC::Record * const 
     if (not entry_object.hasNode("abstract") or entry_object.isNullNode("abstract"))
         return false;
     const auto abstract_node(entry_object.getStringNode("abstract"));
-    record->insertField("520", 'a', StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH, abstract_node->getValue()));
+    std::string abstract_value = abstract_node->getValue().length() > 5 ? abstract_node->getValue() : "not available";
+    record->insertField("520", 'a', StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH, abstract_value));
     return true;
 }
 
@@ -210,9 +158,7 @@ bool ProcessYearPublished(const JSON::ObjectNode &entry_object, MARC::Record * c
 }
 
 
-bool ProcessJournal(const JSON::ObjectNode &entry_object,
-                    const std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> &issns_to_journal_titles_ppns_and_issns_map,
-                    std::unordered_map<std::string, unsigned> * const unmatched_issns_to_counts_map, MARC::Record * const record) {
+bool ProcessJournal(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
     if (not entry_object.hasNode("journals"))
         return false;
     const auto journals(entry_object.getArrayNode("journals"));
@@ -226,25 +172,9 @@ bool ProcessJournal(const JSON::ObjectNode &entry_object,
             const auto identifier(identifiers->getStringNode(k));
             const auto issn_candidate(identifier->getValue());
             if (MiscUtil::IsPossibleISSN(issn_candidate)) {
-                std::string issn;
-                if (unlikely(not MiscUtil::NormaliseISSN(issn_candidate, &issn)))
-                    LOG_ERROR("Bad ISSN, we should *never* get here!");
-
-                const auto issn_and_journal_title_ppn_and_online_ISSN(issns_to_journal_titles_ppns_and_issns_map.find(issn));
-                if (issn_and_journal_title_ppn_and_online_ISSN == issns_to_journal_titles_ppns_and_issns_map.cend()) {
-                    auto issn_and_count(unmatched_issns_to_counts_map->find(issn));
-                    if (issn_and_count != unmatched_issns_to_counts_map->end())
-                        ++(issn_and_count->second);
-                    else
-                        (*unmatched_issns_to_counts_map)[issn] = 1;
-                    return false;
-                }
-
                 record->insertField("773",
                                     {
-                                        { 'i', "In: " },
-                                        { 't', issn_and_journal_title_ppn_and_online_ISSN->second.journal_title_ },
-                                        { 'x', issn_and_journal_title_ppn_and_online_ISSN->second.online_issn_ },
+                                        { 'x', issn_candidate }
                                     },
                                     /*indicator1=*/'0', /*indicator2=*/'8');
                 return true;
@@ -266,10 +196,9 @@ void Process935Entries(const std::vector<std::pair<std::string, std::string>> &_
 
 
 void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
-                          const std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> &issns_to_journal_titles_ppns_and_issns_map,
                           MARC::Writer * const marc_writer, const std::string &project_sigil,
                           const std::vector<std::pair<std::string, std::string>> &_935_entries,
-                          std::unordered_map<std::string, unsigned> * const unmatched_issns_to_counts_map, const bool ignore_unique_id_dups,
+                          const bool ignore_unique_id_dups,
                           KeyValueDB * const unique_id_to_date_map) {
     unsigned skipped_dupe_count(0), generated_count(0), skipped_incomplete_count(0);
     for (auto &entry : root_array) {
@@ -286,13 +215,17 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
                 ++skipped_incomplete_count;
                 continue;
             }
-            ProcessContributors(*entry_object, &new_record, authors);
+
+            //Do not use contributors anymore (team decision in video conf. on 09.02.2022)
+            //ProcessContributors(*entry_object, &new_record, authors);
+
             if (not ProcessTitle(*entry_object, &new_record)) {
                 ++skipped_incomplete_count;
                 continue;
             }
             new_record.insertControlField("007", "cr||||");
             new_record.insertField("035", 'a', "(core)" + id);
+            new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
             new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
             new_record.insertField("852", 'a', project_sigil);
             ProcessYear(*entry_object, &new_record);
@@ -301,7 +234,7 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
             ProcessAbstract(*entry_object, &new_record);
             ProcessUncontrolledIndexTerms(*entry_object, &new_record);
             ProcessYearPublished(*entry_object, &new_record);
-            ProcessJournal(*entry_object, issns_to_journal_titles_ppns_and_issns_map, unmatched_issns_to_counts_map, &new_record);
+            ProcessJournal(*entry_object, &new_record);
             Process935Entries(_935_entries, &new_record);
             marc_writer->write(new_record);
             unique_id_to_date_map->addOrReplace(control_number, TimeUtil::GetCurrentDateAndTime());
@@ -314,15 +247,6 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
 }
 
 
-void GenerateUnmappedISSNList(File * const unmatched_issns_file,
-                              const std::unordered_map<std::string, unsigned> &unmatched_issns_to_counts_map) {
-    for (const auto &issn_and_count : unmatched_issns_to_counts_map)
-        (*unmatched_issns_file) << issn_and_count.first << '\t' << issn_and_count.second << '\n';
-    LOG_INFO("Wrote a list of " + std::to_string(unmatched_issns_to_counts_map.size()) + " unmapped ISSN's to \""
-             + unmatched_issns_file->getPath() + "\".");
-}
-
-
 const std::string UNIQUE_ID_TO_DATE_MAP_PATH(UBTools::GetTuelibPath() + "convert_core_json_to_marc.db");
 
 
@@ -330,7 +254,7 @@ const std::string UNIQUE_ID_TO_DATE_MAP_PATH(UBTools::GetTuelibPath() + "convert
 
 
 int Main(int argc, char **argv) {
-    if (argc < 6)
+    if (argc < 4)
         Usage();
 
     if (std::strcmp(argv[1], "--create-unique-id-db") == 0) {
@@ -354,7 +278,7 @@ int Main(int argc, char **argv) {
         --argc, ++argv;
     }
 
-    if (argc != 5)
+    if (argc != 3)
         Usage();
 
     if (::strncmp(argv[1], "--sigil=", 8) != 0)
@@ -362,28 +286,35 @@ int Main(int argc, char **argv) {
     const std::string project_sigil(argv[1] + 8); // "ISIL" in German.
     --argc, ++argv;
 
-    std::unordered_map<std::string, JournalTitlePPNAndOnlineISSN> issns_to_journal_titles_ppns_and_issns_map;
-    LoadISSNsToJournalTitlesPPNsAndISSNsMap(&issns_to_journal_titles_ppns_and_issns_map);
     const std::string json_file_path(argv[1]);
-    const auto json_source(FileUtil::ReadStringOrDie(json_file_path));
-    JSON::Parser parser(json_source);
-    std::shared_ptr<JSON::JSONNode> tree_root;
-    if (not parser.parse(&tree_root))
-        LOG_ERROR("Failed to parse the JSON contents of \"" + json_file_path + "\": " + parser.getErrorMessage());
+    std::vector<std::string> json_filenames;
+    if (FileUtil::GetFileNameList(json_file_path, &json_filenames) == 0) {
+        LOG_ERROR("failed to get core-json file(s) for: " + json_file_path);
+    }
+    for (const std::string &json_filename : json_filenames) {
+        if (not json_filename.ends_with(".json"))
+            continue;
+        std::string json_source;
+        FileUtil::ReadString(json_filename, &json_source);
+        JSON::Parser parser(json_source);
+        std::shared_ptr<JSON::JSONNode> tree_root;
+        if (not parser.parse(&tree_root))
+            LOG_ERROR("Failed to parse the JSON contents of \"" + json_filename + "\": " + parser.getErrorMessage());
 
-    const auto results_node(JSON::LookupNode("/results", tree_root));
-    if (results_node == nullptr)
-        LOG_ERROR("results node not found!");
-    const auto array_root(JSON::JSONNode::CastToArrayNodeOrDie("results", results_node));
+        const auto results_node(JSON::LookupNode("/results", tree_root));
+        if (results_node == nullptr)
+            LOG_ERROR("results node not found!");
+        const auto array_root(JSON::JSONNode::CastToArrayNodeOrDie("results", results_node));
 
-    const auto unmatched_issns_file(FileUtil::OpenOutputFileOrDie(argv[2]));
+        KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
 
-    KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
-    std::unordered_map<std::string, unsigned> unmatched_issns_to_counts_map;
-    const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(argv[3]));
-    GenerateMARCFromJSON(*array_root.get(), issns_to_journal_titles_ppns_and_issns_map, marc_writer.get(), project_sigil, _935_entries,
-                         &unmatched_issns_to_counts_map, ignore_unique_id_dups, &unique_id_to_date_map);
-    GenerateUnmappedISSNList(unmatched_issns_file.get(), unmatched_issns_to_counts_map);
+        std::string marc_output_filename = json_filename;
+        marc_output_filename = StringUtil::ReplaceString(".json", ".xml", marc_output_filename);
+        const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
+
+        GenerateMARCFromJSON(*array_root.get(), marc_writer.get(), project_sigil, _935_entries,
+                              ignore_unique_id_dups, &unique_id_to_date_map);
+    }
 
     return EXIT_SUCCESS;
 }
