@@ -422,8 +422,8 @@ bool RecordIsValid(DbConnection * const db_connection, const MARC::Record &recor
 
     // 1. Check that present fields meet all the requirements:
     MARC::Tag last_tag("   ");
-    const auto &field_validators(record.isReviewArticle() ? review_article_field_validators :
-                                (RecordIsNonArticle(record) ? non_article_field_validators : regular_article_field_validators));
+    const auto &field_validators(RecordIsNonArticle(record) ? non_article_field_validators :
+                                (record.isReviewArticle() ? review_article_field_validators : regular_article_field_validators));
     std::set<std::string> present_tags, tags_for_which_rules_were_found;
     for (const auto &field : record) {
         const auto current_tag(field.getTag());
