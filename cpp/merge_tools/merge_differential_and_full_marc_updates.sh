@@ -128,7 +128,7 @@ else
     cd ..
     rm --recursive ${temp_directory}
 
-    if [[ $KEEP_INTERMEDIATE_FILES = "false" ]]; then
+    if [ $KEEP_INTERMEDIATE_FILES = "false" ]; then
         rm temp_directory.$BASHPID.* TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
     fi
 
