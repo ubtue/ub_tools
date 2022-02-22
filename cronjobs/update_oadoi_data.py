@@ -12,7 +12,7 @@ changelist_file_regex = changed_dois_with_versions_([\d-]+)(.*)([\d-]).*.jsonl.g
 import dbus
 import json
 import os
-import platform
+import distro
 import re
 import sys
 import time
@@ -111,12 +111,10 @@ def ShareOADOIURLs(share_directory, urls_file):
 
 
 def GetMongoServiceDependingOnSystem():
-    distro = platform.linux_distribution()[0];
-    if re.search('CentOS', distro):
+    distro = distro.id()
+    if distro.id() == 'ubuntu':
         return 'mongod.service'
-    if re.search('Ubuntu', distro):
-        return 'mongodb.service'
-    util.SendEmail("Update OADOI Data", "Cannot handle Distro \"" + distro + "\"", priority=1);
+    util.SendEmail("Update OADOI Data", "Cannot handle Distro \"" + distro.id() + "\"", priority=1);
     sys.exit(-1)
 
 
