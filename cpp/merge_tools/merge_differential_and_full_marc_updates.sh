@@ -38,10 +38,10 @@ function CleanUpStaleDirectories() {
 
 
 # Argument processing
-KEEP_INTERMEDIATE_FILES="false"
+KEEP_INTERMEDIATE_FILES=""
 if [[ $# > 1 ]]; then
     if [[ $1 == "--keep-intermediate-files" ]]; then
-        KEEP_INTERMEDIATE_FILES="true"
+        KEEP_INTERMEDIATE_FILES="--keep-intermediate-files"
     else
         Usage
     fi
@@ -128,7 +128,7 @@ else
     cd ..
     rm --recursive ${temp_directory}
 
-    if [ $KEEP_INTERMEDIATE_FILES = "false" ]; then
+    if [ -z "{$KEEP_INTERMEDIATE_FILES}" ]; then
         rm temp_directory.$BASHPID.* TA-*.tar.gz WA-*.tar.gz SA-*.tar.gz
     fi
 
