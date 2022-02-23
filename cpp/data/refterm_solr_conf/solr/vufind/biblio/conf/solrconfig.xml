@@ -32,7 +32,7 @@
        that you fully re-index after changing this setting as it can
        affect both how text is indexed and queried.
     -->
-  <luceneMatchVersion>7.3.1</luceneMatchVersion>
+  <luceneMatchVersion>7.7.3</luceneMatchVersion>
 
   <!-- Used to specify an alternate directory to hold all index data
        other than the default ./data under the Solr home.
@@ -182,8 +182,8 @@
          -->
 
     <!-- VuFind uses the default Solr settings for filterCache, which should produce a high
-         hit rate. You can carefully adjust the filterCache and check the hit ratio in 
-         admin>plugins>stats -->  
+         hit rate. You can carefully adjust the filterCache and check the hit ratio in
+         admin>plugins>stats -->
     <filterCache
       class="solr.FastLRUCache"
       size="512"
@@ -324,7 +324,7 @@
 
             etagSeed="..." is an option you can change to force the ETag
             header (and validation against If-None-Match requests) to be
-            differnet even if the index has not changed (ie: when making
+            different even if the index has not changed (ie: when making
             significant changes to your config file)
 
             lastModifiedFrom and etagSeed are both ignored if you use the
