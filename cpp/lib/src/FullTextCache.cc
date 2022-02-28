@@ -174,7 +174,7 @@ std::vector<std::string> FullTextCache::getEntryUrlsAsStrings(const std::string 
 
 
 unsigned FullTextCache::getErrorCount() const {
-    return full_text_cache_urls_.count({ { "error_message", "*" } });
+    return full_text_cache_urls_.count({ { "(error_message", "[ * TO * ]) AND -(error_message:DUMMY\\ ERROR)" } });
 }
 
 
