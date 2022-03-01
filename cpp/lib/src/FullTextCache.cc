@@ -137,6 +137,12 @@ bool FullTextCache::hasEntryWithType(const std::string &id, const TextType &text
 }
 
 
+bool FullTextCache::hasEntry(const std::string &id) const {
+    Entry entry;
+    return getEntry(id, &entry);
+}
+
+
 inline std::string GetValueOrEmptyString(const std::map<std::string, std::string> &map, const std::string &key) {
     const auto pair(map.find(key));
     return pair == map.cend() ? "" : pair->second;
