@@ -339,7 +339,7 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                 at_least_one_error = true;
                 entry_urls.push_back(entry_url);
                 if (use_separate_entries_per_url and not cache.hasEntry(ppn))
-                        cache.insertEntry(ppn, "", { entry_url } );
+                    cache.insertEntry(ppn, "", { entry_url });
                 else
                     entry_urls.push_back(entry_url);
                 continue;
