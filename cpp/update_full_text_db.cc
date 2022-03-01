@@ -338,6 +338,10 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                 entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
                 at_least_one_error = true;
                 entry_urls.push_back(entry_url);
+                if (use_separate_entries_per_url)
+                    cache.insertEntry(ppn, "", { entry_url } );
+                else
+                    entry_urls.push_back(entry_url);
                 continue;
             }
 
@@ -353,7 +357,10 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                 LOG_WARNING("URL " + url + ": failed to extract text from the downloaded document! (" + error_message + ")");
                 entry_url.error_message_ = "failed to extract text from the downloaded document! (" + error_message + ")";
                 at_least_one_error = true;
-                entry_urls.push_back(entry_url);
+                if (use_separate_entries_per_url)
+                    cache.insertEntry(ppn, "", { entry_url });
+                else
+                    entry_urls.push_back(entry_url);
                 continue;
             }
         }
