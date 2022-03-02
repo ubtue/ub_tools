@@ -10,51 +10,10 @@ from nltk.corpus import state_union
 from nltk.tokenize.punkt import PunktSentenceTokenizer, PunktTrainer
 nltk.download('stopwords')
 import random
-from lark import Lark, Transformer
 from langdetect import detect
 from dicttoxml import dicttoxml
 import json
 from boltons.iterutils import remap
-
-hkl_parser = Lark(r"""
-//    ?author_bibliography: bibliographic_item+ NL*
-//    ?bibliographic_item: full_citation_with_short_title
-//    ?bibliographic_item: full_citation_with_short_title
-//    full_citation_with_short_title: short_title /\s*=\s*/ full_title place " " year END_OF_SENTENCE note
-    ?bibliographic_item: bibliographic_reference | place_and_year | title
-//    title.4: /\s*[^\s]+(\s+[^\s]+)*/
-    title.4: (WORD|NUMBER|BRACKET_EXPRESSION) ((IWS|NL|COW|"=") (WORD|NUMBER|BRACKET_EXPRESSION))*
-    short_title: WORD (/\s+/ WORD)*
-    full_title: sentence
-    //place: WORD (/\s+/ WORD)*
-    bibliographic_reference.0: abbrev /\s+/ number
-    abbrev: /[A-Z]+/
-    place_and_year.2: place /\s+/ year
-    place: WORD
-    note.3: (WORD|NUMBER) (IWS (WORD|NUMBER))* | sentence* (IWS sentence)*
-    year: /[12]\d{3}/
-    some_other_stuff: /[A-Z][a-z].*/
-    non_empty_string: /[^\t\s\n\r,]+/
-    //sentence: non_empty_string ((IWS|NL|COW) non_empty_string)* END_OF_SENTENCE
-    sentence: (WORD|NUMBER|BRACKET_EXPRESSION) ((IWS|NL|COW|"=") (WORD|NUMBER|BRACKET_EXPRESSION))* END_OF_SENTENCE
-    BRACKET_EXPRESSION: /[(].*[)]/
-    number: INT
-    IWS : /[\s\t]+/
-    NL : /\n/
-    END_OF_SENTENCE: /[.]/
-    EMPTY_LINE_SEPARATOR: "\n\n"
-    COW : IWS* "," IWS* // Comma with optional whitespace
-    WORD: /[\w']+/
-
-
-//    %import common._STRING_INNER
-    %import common.INT
-//    %import common.WORD
-    %import common.NUMBER
-//    %import common.WS
-    """, start='bibliographic_item', parser='earley')
-
-
 
 def SplitToAuthorEntries(file):
     entry = []
@@ -84,7 +43,7 @@ def GetBufferLikeFile(file):
 
 
 def FilterPageHeadings(file):
-    return re.sub(r'(?:^\d+\n\n+[^,]+\n)|(?:^[^,]+\n\n+\d+\n)', '\n', file, flags=re.MULTILINE)
+    return re.sub(r'(?:^\d+\n\n\n+[^,]+\n)|(?:^[^,]+\n\n+\d+\n)', '\n', file, flags=re.MULTILINE)
 
 
 def GetPunktSentenceTokenizer(file):
@@ -98,7 +57,7 @@ def GetPunktSentenceTokenizer(file):
 
 
 def ContainsProbableEditionYear(sentence):
-    return bool(re.search(r'\s+[12][0789]\d{2}\b', sentence))
+    return bool(re.search(r'\s+(1[789]\d{2}|20[01][0-9])\b', sentence))
 
 
 def ContainsCf(sentence):
@@ -199,7 +158,8 @@ def Main():
                               author_tree['titles'].append({ 'title' :  title, 'bib_infos' : [], 'comments' : [] })
                          elif sentence_type == SENTENCE_TYPES['YEAR_AND_PLACE']:
                               if not author_tree['titles']:
-                                 raise Exception("Cannot insert year and place due to missing title")
+                                  author_tree['titles'].append({ 'title': 'UNKNOWN TITLE 1', 'bib_infos' : [], 'comments' : [] })
+                                 #raise Exception("Cannot insert year and place due to missing title")
                               author_tree['titles'][-1]['year_and_place'] = sentence
                          elif sentence_type == SENTENCE_TYPES['BIB_INFO']:
                              if not author_tree['titles']:
@@ -209,7 +169,8 @@ def Main():
                                  author_tree['titles'][-1]['bib_infos'].append({'bib_info' : sentence, 'comments' : [] })
                          elif sentence_type == SENTENCE_TYPES['COMMENT']:
                              if not author_tree['titles']:
-                                 raise Exception("Cannot insert comment due to missing title for author " + author)
+                                 author_tree['titles'].append({ 'title': 'UNKNOWN TITLE 2', 'bib_infos' : [], 'comments' : [] })
+                                 #raise Exception("Cannot insert comment due to missing title for author " + author)
                              # We have a title comment if no bib_infos yet
                              if not author_tree['titles'][-1]['bib_infos']:
                                   author_tree['titles'][-1]['comments'].append({ 'comment' : sentence })
