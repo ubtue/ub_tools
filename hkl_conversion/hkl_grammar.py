@@ -43,7 +43,7 @@ def GetBufferLikeFile(file):
 
 
 def FilterPageHeadings(file):
-    return re.sub(r'(?:^\d+\n\n\n+[^,]+\n)|(?:^[^,]+\n\n+\d+\n)', '\n', file, flags=re.MULTILINE)
+    return re.sub(r'(?:^\n{2}\d+\n{2}[^,]+\n{3})|(?:^\n{2}\w+\n{3}\d+\n{3})|(?:^\n{2}\d+\n{3})', '\n\n', file, flags=re.MULTILINE)
 
 
 def GetPunktSentenceTokenizer(file):
@@ -51,8 +51,8 @@ def GetPunktSentenceTokenizer(file):
     abbreviations = "v. Chr., Sarg."
     punkt_params = set(abbreviations)
     punkt_sentence_trainer = PunktSentenceTokenizer()
-    punkt_trainer.train(file, finalize=False, verbose=False)
-    punkt_trainer.train(abbreviations, finalize=False, verbose=False)
+#    punkt_trainer.train(file, finalize=False, verbose=True)
+    punkt_trainer.train(abbreviations, finalize=False, verbose=True)
     return PunktSentenceTokenizer(punkt_trainer.get_params())
 
 
@@ -132,8 +132,8 @@ def Main():
              print("Invalid arguments: usage " + sys.argv[0] + " hkl_extraction_file")
              sys.exit(-1)
          with open(sys.argv[1]) as f:
-             file = ReduceMultipleEmptyLinesToOne(f.read())
-             file = FilterPageHeadings(file)
+             #file = ReduceMultipleEmptyLinesToOne(f.read())
+             file = FilterPageHeadings(f.read())
              entries = SplitToAuthorEntries(GetBufferLikeFile(file))
              punkt_sentence_tokenizer = GetPunktSentenceTokenizer(file)
              classifier = CreateClassifier()
@@ -146,20 +146,20 @@ def Main():
                  author_tree['author'] = author
                  author_tree['titles'] = []
                  author_tree['bib_infos'] = []
-                 print("#################################")
+                # print("#################################")
                  for to_parse in normalized_newlines.split('\n'):
-                     print(to_parse + '\n#########################################\n')
+                 #    print(to_parse + '\n#########################################\n')
                      sentences = punkt_sentence_tokenizer.tokenize(to_parse)
                      for sentence in sentences:
-                         print(sentence + " XXX " + classifier.classify(ExtractFeatures(sentence)))
+                #         print(sentence + " XXX " + classifier.classify(ExtractFeatures(sentence)))
                          sentence_type = classifier.classify(ExtractFeatures(sentence))
                          if sentence_type == SENTENCE_TYPES['TITLE']:
                               title = sentence
                               author_tree['titles'].append({ 'title' :  title, 'bib_infos' : [], 'comments' : [] })
                          elif sentence_type == SENTENCE_TYPES['YEAR_AND_PLACE']:
                               if not author_tree['titles']:
-                                  author_tree['titles'].append({ 'title': 'UNKNOWN TITLE 1', 'bib_infos' : [], 'comments' : [] })
-                                 #raise Exception("Cannot insert year and place due to missing title")
+                                 author_tree['titles'].append({ 'title': 'UNKNOWN TITLE 1', 'bib_infos' : [], 'comments' : [] })
+                                 # raise Exception("Cannot insert year and place due to missing title")
                               author_tree['titles'][-1]['year_and_place'] = sentence
                          elif sentence_type == SENTENCE_TYPES['BIB_INFO']:
                              if not author_tree['titles']:
