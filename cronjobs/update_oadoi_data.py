@@ -111,7 +111,6 @@ def ShareOADOIURLs(share_directory, urls_file):
 
 
 def GetMongoServiceDependingOnSystem():
-    distro = distro.id()
     if distro.id() == 'ubuntu':
         return 'mongod.service'
     util.SendEmail("Update OADOI Data", "Cannot handle Distro \"" + distro.id() + "\"", priority=1);
