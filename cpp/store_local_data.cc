@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <cstdio>
 #include <cstdlib>
@@ -57,8 +57,8 @@ void StoreLocalData(LocalDataDB * const local_data_db, MARC::Reader * const read
         ++local_data_extraction_count;
     }
 
-    LOG_INFO("Extracted local data from " + std::to_string(local_data_extraction_count)
-             + " of " + std::to_string(total_record_count) + " record(s).");
+    LOG_INFO("Extracted local data from " + std::to_string(local_data_extraction_count) + " of " + std::to_string(total_record_count)
+             + " record(s).");
 }
 
 

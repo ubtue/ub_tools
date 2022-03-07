@@ -31,20 +31,21 @@
 #include "SqlUtil.h"
 #include "Template.h"
 #include "TimeUtil.h"
-#include "UrlUtil.h"
 #include "UBTools.h"
-#include "util.h"
+#include "UrlUtil.h"
 #include "WebUtil.h"
+#include "util.h"
 
 
 namespace {
 
 
-class PageException: public std::exception {
+class PageException : public std::exception {
     std::string message_;
+
 public:
     PageException(std::string message): message_(message) { }
-    inline const char *what() const throw () { return message_.c_str(); }
+    inline const char *what() const throw() { return message_.c_str(); }
 };
 
 
@@ -57,15 +58,6 @@ void ExpandTemplate(const std::string &template_name, std::string * const body, 
     std::ostringstream template_out;
     Template::ExpandTemplate(template_html, template_out, template_variables);
     *body += template_out.str();
-}
-
-
-std::string GetCGIParameterOrDefault(const std::string &parameter_name, const std::string &default_value = "") {
-    const auto key_and_value(cgi_args.find(parameter_name));
-    if (key_and_value == cgi_args.cend())
-        return default_value;
-
-    return key_and_value->second;
 }
 
 
@@ -85,7 +77,7 @@ void ShowPageHeader(FullTextCache * const cache, std::string * const body) {
     }
 
     Template::Map template_variables;
-    std::string id(GetCGIParameterOrDefault("id"));
+    std::string id(WebUtil::GetCGIParameterOrDefault(cgi_args, "id"));
     template_variables.insertScalar("cache_size", std::to_string(cache_size));
     template_variables.insertScalar("error_count", std::to_string(error_count));
     template_variables.insertScalar("error_rate", error_rate_string);
@@ -95,7 +87,7 @@ void ShowPageHeader(FullTextCache * const cache, std::string * const body) {
 
 
 void ShowPageIdDetails(FullTextCache * const cache, std::string * const body) {
-    std::string id(GetCGIParameterOrDefault("id"));
+    std::string id(WebUtil::GetCGIParameterOrDefault(cgi_args, "id"));
     if (id.empty())
         throw PageException("parameter missing: no ID given");
 
@@ -109,12 +101,10 @@ void ShowPageIdDetails(FullTextCache * const cache, std::string * const body) {
         template_variables.insertScalar("expiration", "never");
     else
         template_variables.insertScalar("expiration", HtmlUtil::HtmlEscape(SqlUtil::TimeTToDatetime(entry.expiration_)));
-    template_variables.insertScalar("link_sobek",
-                                    "<a href=\"https://sobek.ub.uni-tuebingen.de/Record/"
-                                    + UrlUtil::UrlEncode(id) + "\" target=\"sobek\">test (sobek)</a>");
-    template_variables.insertScalar("link_ub15",
-                                    "<a href=\"https://krimdok.uni-tuebingen.de/Record/"
-                                    + UrlUtil::UrlEncode(id) + "\" target=\"ub15\">live (ub15)</a>");
+    template_variables.insertScalar("link_sobek", "<a href=\"https://sobek.ub.uni-tuebingen.de/Record/" + UrlUtil::UrlEncode(id)
+                                                      + "\" target=\"sobek\">test (sobek)</a>");
+    template_variables.insertScalar(
+        "link_ub15", "<a href=\"https://krimdok.uni-tuebingen.de/Record/" + UrlUtil::UrlEncode(id) + "\" target=\"ub15\">live (ub15)</a>");
 
     std::vector<std::string> urls;
     std::vector<std::string> domains;
@@ -147,8 +137,10 @@ void ShowPageErrorSummary(FullTextCache * const cache, std::string * const body)
         error_messages.emplace_back(group.error_message_);
         ids.emplace_back(group.example_entry_.id_);
         urls.emplace_back("<a href=\"" + group.example_entry_.url_ + "\">" + group.example_entry_.url_ + "</a>");
-        links_details.emplace_back("<a href=\"?page=id_details&id=" + UrlUtil::UrlEncode(group.example_entry_.id_) + "\">" + HtmlUtil::HtmlEscape(group.example_entry_.id_) + "</a>");
-        links_error_details.emplace_back("<a href=\"?page=error_list&domain=" + UrlUtil::UrlEncode(group.domain_) + "&error_message=" + UrlUtil::UrlEncode(group.error_message_) + "\">Show error list</a>");
+        links_details.emplace_back("<a href=\"?page=id_details&id=" + UrlUtil::UrlEncode(group.example_entry_.id_) + "\">"
+                                   + HtmlUtil::HtmlEscape(group.example_entry_.id_) + "</a>");
+        links_error_details.emplace_back("<a href=\"?page=error_list&domain=" + UrlUtil::UrlEncode(group.domain_)
+                                         + "&error_message=" + UrlUtil::UrlEncode(group.error_message_) + "\">Show error list</a>");
     }
 
     Template::Map template_variables;
@@ -165,8 +157,8 @@ void ShowPageErrorSummary(FullTextCache * const cache, std::string * const body)
 
 
 void ShowPageErrorList(FullTextCache * const cache, std::string * const body) {
-    std::string error_message(GetCGIParameterOrDefault("error_message"));
-    std::string domain(GetCGIParameterOrDefault("domain"));
+    std::string error_message(WebUtil::GetCGIParameterOrDefault(cgi_args, "error_message"));
+    std::string domain(WebUtil::GetCGIParameterOrDefault(cgi_args, "domain"));
 
     std::vector<std::string> ids;
     std::vector<std::string> urls;
@@ -198,7 +190,7 @@ int main(int argc, char *argv[]) {
         FullTextCache cache;
 
         WebUtil::GetAllCgiArgs(&cgi_args, argc, argv);
-        const std::string subpage(GetCGIParameterOrDefault("page"));
+        const std::string subpage(WebUtil::GetCGIParameterOrDefault(cgi_args, "page"));
 
         std::string body;
         ShowPageHeader(&cache, &body);

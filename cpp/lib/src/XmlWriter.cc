@@ -31,23 +31,19 @@
 #include "StringUtil.h"
 
 
-XmlWriter::XmlWriter(File * const output_file,
-                     const XmlDeclarationWriteBehaviour xml_declaration_write_behaviour, const unsigned indent_amount,
-                     const TextConversionType text_conversion_type)
+XmlWriter::XmlWriter(File * const output_file, const XmlDeclarationWriteBehaviour xml_declaration_write_behaviour,
+                     const unsigned indent_amount, const TextConversionType text_conversion_type)
     : output_file_(output_file), output_string_(nullptr), indent_amount_(indent_amount), nesting_level_(0),
-      text_conversion_type_(text_conversion_type)
-{
+      text_conversion_type_(text_conversion_type) {
     if (xml_declaration_write_behaviour == WriteTheXmlDeclaration)
         *output_file_ << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 }
 
 
-XmlWriter::XmlWriter(std::string * const output_string,
-                     const XmlDeclarationWriteBehaviour xml_declaration_write_behaviour, const unsigned indent_amount,
-                     const TextConversionType text_conversion_type)
+XmlWriter::XmlWriter(std::string * const output_string, const XmlDeclarationWriteBehaviour xml_declaration_write_behaviour,
+                     const unsigned indent_amount, const TextConversionType text_conversion_type)
     : output_file_(nullptr), output_string_(output_string), indent_amount_(indent_amount), nesting_level_(0),
-      text_conversion_type_(text_conversion_type)
-{
+      text_conversion_type_(text_conversion_type) {
     if (xml_declaration_write_behaviour == WriteTheXmlDeclaration)
         *output_string_ = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 }
@@ -131,7 +127,9 @@ void XmlWriter::closeTag(const std::string &tag_name, const bool suppress_indent
     do {
         if (unlikely(active_tags_.empty())) {
             if (tag_name.empty())
-                throw std::runtime_error("in XmlWriter::closeTag: trying to close a tag when none are " "open!");
+                throw std::runtime_error(
+                    "in XmlWriter::closeTag: trying to close a tag when none are "
+                    "open!");
             else
                 throw std::runtime_error("in XmlWriter::closeTag: trying to close a tag (" + tag_name + ") when none are open!");
         }
@@ -167,7 +165,7 @@ void XmlWriter::closeAllTags() {
 
 
 void XmlWriter::writeTagsWithData(const std::string &tag_name, const std::string &characters, const bool suppress_newline) {
-    openTag(tag_name, /* suppress_newline = */true);
+    openTag(tag_name, /* suppress_newline = */ true);
     write(characters);
 
     const auto saved_indent_amount_(indent_amount_);
@@ -278,8 +276,7 @@ XmlWriter &XmlWriter::endl(XmlWriter &xml_writer) {
 
 
 std::string XmlWriter::XmlEscape(const std::string &s, const TextConversionType text_conversion_type,
-                                 const std::string &additional_escapes)
-{
+                                 const std::string &additional_escapes) {
     std::string escaped_string;
 
     // for performance, set this here so empty() doesn't have to be checked all the time:

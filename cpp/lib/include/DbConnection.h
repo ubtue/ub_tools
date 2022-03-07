@@ -43,16 +43,35 @@ public:
     enum OpenMode { READONLY, READWRITE, CREATE /* = create if not exists */ };
     enum TimeZone { TZ_SYSTEM, TZ_UTC };
     enum Type { T_MYSQL, T_SQLITE, T_POSTGRES };
-    enum MYSQL_PRIVILEGE { P_SELECT, P_INSERT, P_UPDATE, P_DELETE, P_CREATE, P_DROP, P_REFERENCES,
-                           P_INDEX, P_ALTER, P_CREATE_TEMPORARY_TABLES, P_LOCK_TABLES, P_EXECUTE,
-                           P_CREATE_VIEW, P_SHOW_VIEW, P_CREATE_ROUTINE, P_ALTER_ROUTINE,
-                           P_EVENT, P_TRIGGER };
+    enum MYSQL_PRIVILEGE {
+        P_SELECT,
+        P_INSERT,
+        P_UPDATE,
+        P_DELETE,
+        P_CREATE,
+        P_DROP,
+        P_REFERENCES,
+        P_INDEX,
+        P_ALTER,
+        P_CREATE_TEMPORARY_TABLES,
+        P_LOCK_TABLES,
+        P_EXECUTE,
+        P_CREATE_VIEW,
+        P_SHOW_VIEW,
+        P_CREATE_ROUTINE,
+        P_ALTER_ROUTINE,
+        P_EVENT,
+        P_TRIGGER
+    };
     static const std::unordered_set<MYSQL_PRIVILEGE> MYSQL_ALL_PRIVILEGES;
     static const std::string DEFAULT_CONFIG_FILE_PATH;
+
 private:
     DbConnection *db_connection_;
+
 protected:
     bool initialised_;
+
 public:
     DbConnection(DbConnection &&other);
 
@@ -72,8 +91,7 @@ public:
                                      const TimeZone time_zone = TZ_SYSTEM);
 
     /** \brief Attemps to parse something like "mysql://ruschein:xfgYu8z@localhost:3345/vufind" */
-    static DbConnection MySQLFactory(const std::string &mysql_url, const Charset charset = UTF8MB4,
-                                     const TimeZone time_zone = TZ_SYSTEM);
+    static DbConnection MySQLFactory(const std::string &mysql_url, const Charset charset = UTF8MB4, const TimeZone time_zone = TZ_SYSTEM);
 
     // \return A connection to the VuFind MySQL database.
     static DbConnection VuFindMySQLFactory();
@@ -85,12 +103,15 @@ public:
      *  \param   options  See https://www.postgresql.org/docs/9.4/runtime-config.html for a huge list.
      *  \returns NULL if no database connection could be established and sets error_message.
      */
-    static DbConnection PostgresFactory(
-        std::string * const error_message, const std::string &database_name = "", const std::string &user_name = "",
-        const std::string &password = "", const std::string &hostname = "localhost", const unsigned port = 5432,
-        const std::string &options = "");
+    static DbConnection PostgresFactory(std::string * const error_message, const std::string &database_name = "",
+                                        const std::string &user_name = "", const std::string &password = "",
+                                        const std::string &hostname = "localhost", const unsigned port = 5432,
+                                        const std::string &options = "");
 
-    inline virtual ~DbConnection() { delete db_connection_; db_connection_ = nullptr; }
+    inline virtual ~DbConnection() {
+        delete db_connection_;
+        db_connection_ = nullptr;
+    }
 
     inline bool isNullConnection() const { return db_connection_ == nullptr; }
     inline virtual Type getType() const { return db_connection_->getType(); }
@@ -138,10 +159,8 @@ public:
     void sqlite3BackupOrDie(const std::string &output_filename);
 
     /* \param where_clause Do not include the WHERE keyword and only use this if duplicate_key_behaviour is DKB_REPLACE. */
-    void insertIntoTableOrDie(const std::string &table_name,
-                              const std::map<std::string, std::string> &column_names_to_values_map,
-                              const DuplicateKeyBehaviour duplicate_key_behaviour = DKB_FAIL,
-                              const std::string &where_clause = "");
+    void insertIntoTableOrDie(const std::string &table_name, const std::map<std::string, std::string> &column_names_to_values_map,
+                              const DuplicateKeyBehaviour duplicate_key_behaviour = DKB_FAIL, const std::string &where_clause = "");
 
     /* \param   where_clause  Do not include the WHERE keyword and only use this if duplicate_key_behaviour is DKB_REPLACE.
      * \param   column_names  The column names.
@@ -150,8 +169,7 @@ public:
      */
     void insertIntoTableOrDie(const std::string &table_name, const std::vector<std::string> &column_names,
                               const std::vector<std::vector<std::optional<std::string>>> &values,
-                              const DuplicateKeyBehaviour duplicate_key_behaviour = DKB_FAIL,
-                              const std::string &where_clause = "");
+                              const DuplicateKeyBehaviour duplicate_key_behaviour = DKB_FAIL, const std::string &where_clause = "");
 
     inline virtual DbResultSet getLastResultSet() { return db_connection_->getLastResultSet(); }
 
@@ -167,15 +185,16 @@ public:
      *  \note This probably breaks for Sqlite if the string contains binary characters.
      */
     inline virtual std::string escapeString(const std::string &unescaped_string, const bool add_quotes = false,
-                                            const bool return_null_on_empty_string = false)
-        { return db_connection_->escapeString(unescaped_string, add_quotes, return_null_on_empty_string); }
+                                            const bool return_null_on_empty_string = false) {
+        return db_connection_->escapeString(unescaped_string, add_quotes, return_null_on_empty_string);
+    }
 
     inline std::string escapeAndQuoteString(const std::string &unescaped_string) {
-        return escapeString(unescaped_string, /* add_quotes = */true);
+        return escapeString(unescaped_string, /* add_quotes = */ true);
     }
 
     inline std::string escapeAndQuoteNonEmptyStringOrReturnNull(const std::string &unescaped_string) {
-        return escapeString(unescaped_string, /* add_quotes = */true, /* return_null_on_empty_string = */true);
+        return escapeString(unescaped_string, /* add_quotes = */ true, /* return_null_on_empty_string = */ true);
     }
 
     /** \brief  Join a "list" of words to form a single string,
@@ -183,7 +202,8 @@ public:
      *  \note   Adds "," as delimiter.
      *  \param  source     The container of strings that are to be joined.
      */
-    template<typename StringContainer> std::string joinAndEscapeAndQuoteStrings(const StringContainer &container) {
+    template <typename StringContainer>
+    std::string joinAndEscapeAndQuoteStrings(const StringContainer &container) {
         std::string subquery;
         for (const auto &string : container) {
             if (not subquery.empty())
@@ -207,8 +227,7 @@ public:
     unsigned mySQLGetPort() const;
 
     inline void mySQLCreateDatabase(const std::string &database_name, const Charset charset = UTF8MB4,
-                                    const Collation collation = UTF8MB4_BIN)
-    {
+                                    const Collation collation = UTF8MB4_BIN) {
         queryOrDie("CREATE DATABASE " + database_name + " CHARACTER SET " + CharsetToString(charset) + " COLLATE "
                    + CollationToString(collation) + ";");
     }
@@ -219,8 +238,9 @@ public:
 
     bool mySQLDatabaseExists(const std::string &database_name);
 
-    inline virtual bool tableExists(const std::string &database_name, const std::string &table_name)
-        { return db_connection_->tableExists(database_name, table_name); }
+    inline virtual bool tableExists(const std::string &database_name, const std::string &table_name) {
+        return db_connection_->tableExists(database_name, table_name);
+    }
 
     bool mySQLDropDatabase(const std::string &database_name);
 
@@ -233,14 +253,16 @@ public:
         queryOrDie("GRANT ALL PRIVILEGES ON " + database_name + ".* TO '" + database_user + "'@'" + host + "';");
     }
 
+    void mySQLGrantGrantOption(const std::string &database_name, const std::string &database_user, const std::string &host = "localhost") {
+        queryOrDie("GRANT GRANT OPTION ON " + database_name + ".* TO '" + database_user + "'@'" + host + "';");
+    }
+
     std::unordered_set<MYSQL_PRIVILEGE> mySQLGetUserPrivileges(const std::string &user, const std::string &database_name,
                                                                const std::string &host = "localhost");
 
     bool mySQLUserExists(const std::string &user, const std::string &host);
 
-    void mySQLCreateUserIfNotExists(const std::string &new_user, const std::string &new_passwd,
-                                    const std::string &host = "localhost")
-    {
+    void mySQLCreateUserIfNotExists(const std::string &new_user, const std::string &new_passwd, const std::string &host = "localhost") {
         if (not mySQLUserExists(new_user, host)) {
             LOG_INFO("Creating MySQL user '" + new_user + "'@'" + host + "'");
             mySQLCreateUser(new_user, new_passwd, host);
@@ -249,8 +271,7 @@ public:
     }
 
     inline bool mySQLUserHasPrivileges(const std::string &database_name, const std::unordered_set<MYSQL_PRIVILEGE> &privileges,
-                                       const std::string &user, const std::string &host = "localhost")
-    {
+                                       const std::string &user, const std::string &host = "localhost") {
         return MiscUtil::AbsoluteComplement(privileges, mySQLGetUserPrivileges(user, database_name, host)).empty();
     }
 
@@ -264,9 +285,11 @@ public:
     unsigned PostgresGetPort() const;
 
     static std::string TypeToString(const Type type);
+
 protected:
     DbConnection(): db_connection_(nullptr) { }
-    DbConnection(DbConnection * const db_connection) : db_connection_(db_connection) { }
+    DbConnection(DbConnection * const db_connection): db_connection_(db_connection) { }
+
 public:
     /** \brief Splits "query" into individual statements.
      *
@@ -281,48 +304,42 @@ public:
 
     static std::string CollationToString(const Collation collation);
 
-    static void MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user,
-                                    const std::string &admin_passwd, const std::string &host = "localhost",
-                                    const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4,
-                                    const Collation collation = UTF8MB4_BIN);
+    static void MySQLCreateDatabase(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
+                                    const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                    const Charset charset = UTF8MB4, const Collation collation = UTF8MB4_BIN);
 
     static void MySQLCreateUser(const std::string &new_user, const std::string &new_passwd, const std::string &admin_user,
-                                const std::string &admin_passwd, const std::string &host = "localhost",
-                                const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4);
+                                const std::string &admin_passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                const Charset charset = UTF8MB4);
 
-    static void MySQLCreateUserIfNotExists(const std::string &new_user, const std::string &new_passwd,
-                                           const std::string &admin_user, const std::string &admin_passwd,
-                                           const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
-                                           const Charset charset = UTF8MB4);
+    static void MySQLCreateUserIfNotExists(const std::string &new_user, const std::string &new_passwd, const std::string &admin_user,
+                                           const std::string &admin_passwd, const std::string &host = "localhost",
+                                           const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4);
 
-    static bool MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user,
-                                    const std::string &admin_passwd, const std::string &host = "localhost",
-                                    const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4);
+    static bool MySQLDatabaseExists(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
+                                    const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                    const Charset charset = UTF8MB4);
 
-    static bool MySQLDropDatabase(const std::string &database_name, const std::string &admin_user,
-                                  const std::string &admin_passwd, const std::string &host = "localhost",
-                                  const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4);
+    static bool MySQLDropDatabase(const std::string &database_name, const std::string &admin_user, const std::string &admin_passwd,
+                                  const std::string &host = "localhost", const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4);
 
     static std::vector<std::string> MySQLGetDatabaseList(const std::string &admin_user, const std::string &admin_passwd,
                                                          const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
                                                          const Charset charset = UTF8MB4);
 
-    static void MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user,
-                                        const std::string &admin_user, const std::string &admin_passwd,
-                                        const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
-                                        const Charset charset = UTF8MB4);
+    static void MySQLGrantAllPrivileges(const std::string &database_name, const std::string &database_user, const std::string &admin_user,
+                                        const std::string &admin_passwd, const std::string &host = "localhost",
+                                        const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4);
 
     static bool MySQLUserExists(const std::string &database_user, const std::string &admin_user, const std::string &admin_passwd,
-                                const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
-                                const Charset charset = UTF8MB4);
+                                const std::string &host = "localhost", const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4);
 
     /** \note This function will enable "multiple statement execution support".
      *        To avoid problems with other operations, this function should always create a new connection which is not reusable.
      */
     static void MySQLImportFile(const std::string &sql_file, const std::string &database_name, const std::string &admin_user,
-                                const std::string &admin_passwd, const std::string &host = "localhost",
-                                const unsigned port = MYSQL_PORT, const Charset charset = UTF8MB4,
-                                const TimeZone time_zone = TZ_SYSTEM);
+                                const std::string &admin_passwd, const std::string &host = "localhost", const unsigned port = MYSQL_PORT,
+                                const Charset charset = UTF8MB4, const TimeZone time_zone = TZ_SYSTEM);
 
     std::string MySQLPrivilegeToString(const MYSQL_PRIVILEGE mysql_privilege);
 };
@@ -338,6 +355,7 @@ class DbTransaction final {
     bool autocommit_was_on_;
     bool rollback_when_exceptions_are_in_flight_;
     bool explicit_commit_or_rollback_has_happened_;
+
 public:
     /** \param rollback_when_exceptions_are_in_flight  If true, the destructor issue a ROLLBACK instead of a commit if
      *         current thread has a live exception object derived from std::exception.

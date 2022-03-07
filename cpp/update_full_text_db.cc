@@ -19,11 +19,11 @@
 
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <vector>
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
-#include <sstream>
 #include "Compiler.h"
 #include "FileUtil.h"
 #include "FullTextCache.h"
@@ -56,10 +56,9 @@ namespace {
 
 
 // \note Sets "error_message" when it returns false.
-bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std::string * const document,
-                             std::string * const media_type, std::string * const media_subtype,
-                             std::string * const http_header_charset, std::string * const error_message)
-{
+bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std::string * const document, std::string * const media_type,
+                             std::string * const media_subtype, std::string * const http_header_charset,
+                             std::string * const error_message) {
     if (not SmartDownloadResolveFirstRedirectHop(url, timeout, document, http_header_charset, error_message))
         return false;
 
@@ -73,27 +72,10 @@ bool GetDocumentAndMediaType(const std::string &url, const unsigned timeout, std
 }
 
 
-static const std::map<std::string, std::string> marc_to_tesseract_language_codes_map {
-    { "bul", "bul" },
-    { "cze", "ces" },
-    { "dan", "dan" },
-    { "dut", "nld" },
-    { "eng", "eng" },
-    { "fin", "fin" },
-    { "fre", "fra" },
-    { "ger", "deu" },
-    { "grc", "grc" },
-    { "heb", "heb" },
-    { "hun", "hun" },
-    { "ita", "ita" },
-    { "lat", "lat" },
-    { "nor", "nor" },
-    { "pol", "pol" },
-    { "por", "por" },
-    { "rus", "rus" },
-    { "slv", "slv" },
-    { "spa", "spa" },
-    { "swe", "swe" },
+static const std::map<std::string, std::string> marc_to_tesseract_language_codes_map{
+    { "bul", "bul" }, { "cze", "ces" }, { "dan", "dan" }, { "dut", "nld" }, { "eng", "eng" }, { "fin", "fin" }, { "fre", "fra" },
+    { "ger", "deu" }, { "grc", "grc" }, { "heb", "heb" }, { "hun", "hun" }, { "ita", "ita" }, { "lat", "lat" }, { "nor", "nor" },
+    { "pol", "pol" }, { "por", "por" }, { "rus", "rus" }, { "slv", "slv" }, { "spa", "spa" }, { "swe", "swe" },
 };
 
 
@@ -147,8 +129,7 @@ bool IsUTF8(const std::string &charset) {
 
 std::string ConvertToPlainText(const std::string &media_type, const std::string &media_subtype, const std::string &http_header_charset,
                                const std::string &tesseract_language_code, const std::string &document,
-                               const unsigned pdf_extraction_timeout, std::string * const error_message)
-{
+                               const unsigned pdf_extraction_timeout, std::string * const error_message) {
     std::string extracted_text;
     if (media_type == "text/html" or media_type == "text/xhtml") {
         extracted_text = TextUtil::ExtractTextFromHtml(document, http_header_charset);
@@ -161,15 +142,15 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
     }
 
     if (StringUtil::StartsWith(media_type, "text/")) {
-        if (not (media_type == "text/plain"))
+        if (not(media_type == "text/plain"))
             LOG_WARNING("treating " + media_type + " as text/plain");
 
         if (IsUTF8(http_header_charset))
             return document;
 
         std::string error_msg;
-        std::unique_ptr<TextUtil::EncodingConverter> encoding_converter(TextUtil::EncodingConverter::Factory(http_header_charset,
-                                                                                                             "utf8", &error_msg));
+        std::unique_ptr<TextUtil::EncodingConverter> encoding_converter(
+            TextUtil::EncodingConverter::Factory(http_header_charset, "utf8", &error_msg));
         if (encoding_converter.get() == nullptr) {
             LOG_WARNING("can't convert from \"" + http_header_charset + "\" to UTF-8! (" + error_msg + ")");
             return document;
@@ -212,8 +193,9 @@ std::string ConvertToPlainText(const std::string &media_type, const std::string 
 struct UrlAndTextType {
     std::string url_;
     std::string text_type_;
+
 public:
-    bool operator <(const UrlAndTextType &rhs) const {
+    bool operator<(const UrlAndTextType &rhs) const {
         if (url_ < rhs.url_)
             return true;
         if (url_ > rhs.url_)
@@ -225,9 +207,9 @@ public:
 
 FullTextCache::TextType GetTextTypes(const std::set<UrlAndTextType> &urls_and_text_types) {
     std::set<FullTextCache::TextType> text_types;
-    std::transform(urls_and_text_types.begin(), urls_and_text_types.end(), inserter(text_types, text_types.begin()),
-                   [](const UrlAndTextType &url_and_text_type)
-                   { return FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_);});
+    std::transform(
+        urls_and_text_types.begin(), urls_and_text_types.end(), inserter(text_types, text_types.begin()),
+        [](const UrlAndTextType &url_and_text_type) { return FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_); });
     FullTextCache::TextType joined_text_types(FullTextCache::UNKNOWN);
     for (const auto text_type : text_types)
         joined_text_types |= text_type;
@@ -237,74 +219,68 @@ FullTextCache::TextType GetTextTypes(const std::set<UrlAndTextType> &urls_and_te
 
 const std::string LOCAL_520_TEXT("LOCAL 520 FIELD");
 void GetUrlsAndTextTypes(const MARC::Record &record, std::set<UrlAndTextType> * const urls_and_text_types,
-                         const bool use_only_open_access_links, const bool include_all_tocs,
-                         const bool include_list_of_references,
-                         const bool only_pdf_fulltexts, const bool skip_reviews)
-{
-   for (const auto &_856_field : record.getTagRange("856")) {
-       const MARC::Subfields _856_subfields(_856_field.getSubfields());
+                         const bool use_only_open_access_links, const bool include_all_tocs, const bool include_list_of_references,
+                         const bool only_pdf_fulltexts, const bool skip_reviews) {
+    for (const auto &_856_field : record.getTagRange("856")) {
+        const MARC::Subfields _856_subfields(_856_field.getSubfields());
 
-       if (_856_field.getIndicator1() == '7' or not _856_subfields.hasSubfield('u'))
-           continue;
+        if (_856_field.getIndicator1() == '7' or not _856_subfields.hasSubfield('u'))
+            continue;
 
-       if (use_only_open_access_links and not _856_subfields.hasSubfieldWithValue('z', "Kostenfrei", true /* case insensitive */)
-           and not (include_all_tocs and _856_subfields.hasSubfieldWithValue('3', "Inhaltsverzeichnis", true /* case insentitive */))
-           and not (include_list_of_references and _856_subfields.hasSubfieldWithValue('3', "Literaturverzeichnis",
-                    true /* case insentitive */)))
-       {
-           LOG_WARNING("Skipping entry since not kostenfrei");
-           continue;
-       }
+        if (use_only_open_access_links and not _856_subfields.hasSubfieldWithValue('z', "Kostenfrei", true /* case insensitive */)
+            and not(include_all_tocs and _856_subfields.hasSubfieldWithValue('3', "Inhaltsverzeichnis", true /* case insentitive */))
+            and not(include_list_of_references
+                    and _856_subfields.hasSubfieldWithValue('3', "Literaturverzeichnis", true /* case insentitive */)))
+        {
+            LOG_WARNING("Skipping entry since not kostenfrei");
+            continue;
+        }
 
-       if (skip_reviews and IsProbablyAReview(_856_subfields))
-           continue;
+        if (skip_reviews and IsProbablyAReview(_856_subfields))
+            continue;
 
-       // Only get the first item of each category to to avoid superfluous matches that garble up the result
-       // For the Only-PDF-Fulltext-mode there is currently no really reliable way to determine the filetype beforehand
-       // Thus we must add all candidates to the download list
-       const std::string text_type_description(_856_subfields.getFirstSubfieldWithCode('3'));
-       FullTextCache::TextType text_type(FullTextCache::MapTextDescriptionToTextType(text_type_description));
-       if (GetTextTypes(*urls_and_text_types) and text_type) {
-           if (not only_pdf_fulltexts)
-               continue;
-       }
+        // Only get the first item of each category to to avoid superfluous matches that garble up the result
+        // For the Only-PDF-Fulltext-mode there is currently no really reliable way to determine the filetype beforehand
+        // Thus we must add all candidates to the download list
+        const std::string text_type_description(_856_subfields.getFirstSubfieldWithCode('3'));
+        FullTextCache::TextType text_type(FullTextCache::MapTextDescriptionToTextType(text_type_description));
+        if (GetTextTypes(*urls_and_text_types) and text_type) {
+            if (not only_pdf_fulltexts)
+                continue;
+        }
 
-       urls_and_text_types->emplace(UrlAndTextType({ _856_subfields.getFirstSubfieldWithCode('u'),
-                                                     text_type_description } ));
-   }
+        urls_and_text_types->emplace(UrlAndTextType({ _856_subfields.getFirstSubfieldWithCode('u'), text_type_description }));
+    }
 
-   if (record.hasFieldWithTag("520"))
-       urls_and_text_types->emplace(UrlAndTextType({ LOCAL_520_TEXT, "Zusammenfassung" }));
+    if (record.hasFieldWithTag("520"))
+        urls_and_text_types->emplace(UrlAndTextType({ LOCAL_520_TEXT, "Zusammenfassung" }));
 }
 
 
 void ExtractUrlsFromUrlsAndTextTypes(const std::set<UrlAndTextType> &urls_and_text_types, std::set<std::string> * const urls) {
-     std::transform(urls_and_text_types.begin(), urls_and_text_types.end(), std::inserter(*urls, urls->begin()),
-                    [](const UrlAndTextType &url_and_text_type) { return url_and_text_type.url_;});
+    std::transform(urls_and_text_types.begin(), urls_and_text_types.end(), std::inserter(*urls, urls->begin()),
+                   [](const UrlAndTextType &url_and_text_type) { return url_and_text_type.url_; });
 }
 
 
-bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extraction_timeout,
-                       const bool use_only_open_access_links, const bool store_pdfs_as_html,
-                       const bool use_separate_entries_per_url = false,
-                       const bool include_all_tocs = false,
-                       const bool include_list_of_references = false,
-                       const bool only_pdf_fulltexts = false,
-                       const bool skip_reviews = false)
-{
+bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extraction_timeout, const bool use_only_open_access_links,
+                       const bool store_pdfs_as_html, const bool use_separate_entries_per_url = false, const bool include_all_tocs = false,
+                       const bool include_list_of_references = false, const bool only_pdf_fulltexts = false,
+                       const bool skip_reviews = false) {
     const std::string ppn(record->getControlNumber());
     std::set<UrlAndTextType> urls_and_text_types;
-    GetUrlsAndTextTypes(*record, &urls_and_text_types, use_only_open_access_links, include_all_tocs,
-                        include_list_of_references, only_pdf_fulltexts, skip_reviews);
+    GetUrlsAndTextTypes(*record, &urls_and_text_types, use_only_open_access_links, include_all_tocs, include_list_of_references,
+                        only_pdf_fulltexts, skip_reviews);
     std::set<std::string> urls;
-    ExtractUrlsFromUrlsAndTextTypes(urls_and_text_types, &urls);;
+    ExtractUrlsFromUrlsAndTextTypes(urls_and_text_types, &urls);
+    ;
     FullTextCache cache;
     const std::string semaphore_id("full_text_cached_counter");
 
     if (not use_separate_entries_per_url) {
         std::string combined_text_final;
-        if (not cache.entryExpired(ppn, std::vector<std::string>(urls.begin(), urls.end())) or
-            (only_pdf_fulltexts and not cache.dummyEntryExists(ppn)))
+        if (not cache.entryExpired(ppn, std::vector<std::string>(urls.begin(), urls.end()))
+            or (only_pdf_fulltexts and not cache.dummyEntryExists(ppn)))
         {
             cache.getFullText(ppn, &combined_text_final);
             Semaphore semaphore(semaphore_id, Semaphore::ATTACH);
@@ -321,7 +297,8 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             ++semaphore;
             return true;
         }
-        for (auto url_and_text_type(urls_and_text_types.begin()); url_and_text_type != urls_and_text_types.end();/* intentionally empty */) {
+        for (auto url_and_text_type(urls_and_text_types.begin()); url_and_text_type != urls_and_text_types.end(); /* intentionally empty */)
+        {
             const bool expired(cache.singleUrlExpired(ppn, url_and_text_type->url_));
             if (not expired) {
                 url_and_text_type = urls_and_text_types.erase(url_and_text_type);
@@ -331,7 +308,6 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
                 at_least_one_expired |= expired;
                 ++url_and_text_type;
             }
-
         }
         if (not at_least_one_expired)
             return true;
@@ -357,36 +333,41 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             extracted_text = GetTextFrom520a(*record);
         else {
             if ((not GetDocumentAndMediaType(url, PER_DOC_TIMEOUT, &document, &media_type, &media_subtype, &http_header_charset,
-                                             &error_message)))
-            {
+                                             &error_message))) {
                 LOG_WARNING("URL " + url + ": could not get document and media type! (" + error_message + ")");
                 entry_url.error_message_ = "could not get document and media type! (" + error_message + ")";
                 at_least_one_error = true;
                 entry_urls.push_back(entry_url);
+                if (use_separate_entries_per_url and not cache.hasEntry(ppn))
+                    cache.insertEntry(ppn, "", { entry_url });
+                else
+                    entry_urls.push_back(entry_url);
                 continue;
             }
 
             // In Only-PDF-Fulltext-Mode we get all download candidates
             // So only go on if a text of this category is not already present
-            if (only_pdf_fulltexts and (not StringUtil::StartsWith(media_type, "application/pdf") or
-                                       (text_type and already_present_text_types) or cache.hasUrlWithTextType(ppn, text_type)))
+            if (only_pdf_fulltexts
+                and (not StringUtil::StartsWith(media_type, "application/pdf") or (text_type and already_present_text_types)
+                     or cache.hasUrlWithTextType(ppn, text_type)))
                 continue;
-            extracted_text = ConvertToPlainText(media_type, media_subtype, http_header_charset, GetTesseractLanguageCode(*record),
-                                                document, pdf_extraction_timeout, &error_message);
+            extracted_text = ConvertToPlainText(media_type, media_subtype, http_header_charset, GetTesseractLanguageCode(*record), document,
+                                                pdf_extraction_timeout, &error_message);
             if (unlikely(extracted_text.empty())) {
                 LOG_WARNING("URL " + url + ": failed to extract text from the downloaded document! (" + error_message + ")");
                 entry_url.error_message_ = "failed to extract text from the downloaded document! (" + error_message + ")";
                 at_least_one_error = true;
-                entry_urls.push_back(entry_url);
+                if (use_separate_entries_per_url and not cache.hasEntry(ppn))
+                    cache.insertEntry(ppn, "", { entry_url });
+                else
+                    entry_urls.push_back(entry_url);
                 continue;
             }
         }
 
         // Store immediately
         if (use_separate_entries_per_url) {
-            cache.insertEntry(ppn,
-                              TextUtil::CollapseAndTrimWhitespace(&extracted_text),
-                              { entry_url },
+            cache.insertEntry(ppn, TextUtil::CollapseAndTrimWhitespace(&extracted_text), { entry_url },
                               FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_));
         } else
             combined_text_buffer << ((combined_text_buffer.tellp() != std::streampos(0)) ? " " : "") << extracted_text;
@@ -397,8 +378,9 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
             FileUtil::WriteStringOrDie(temp_pdf_path, document);
             if (not PdfUtil::PdfFileContainsNoText(temp_pdf_path))
                 cache.extractAndImportHTMLPages(ppn, temp_pdf_path,
-                                                use_only_open_access_links ? FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_)
-                                                : FullTextCache::UNKNOWN);
+                                                use_only_open_access_links
+                                                    ? FullTextCache::MapTextDescriptionToTextType(url_and_text_type.text_type_)
+                                                    : FullTextCache::UNKNOWN);
         }
 
         entry_urls.push_back(entry_url);
@@ -429,24 +411,21 @@ bool ProcessRecordUrls(MARC::Record * const record, const unsigned pdf_extractio
 
 bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_filename, const unsigned pdf_extraction_timeout,
                    const bool use_only_open_access_links, const bool extract_html_from_pdfs, const bool use_separate_entries_per_url,
-                   const bool include_all_tocs, const bool include_list_of_references, const bool only_pdf_fulltexts)
-{
+                   const bool include_all_tocs, const bool include_list_of_references, const bool only_pdf_fulltexts) {
     bool success(false);
     try {
-        success = ProcessRecordUrls(record, pdf_extraction_timeout, use_only_open_access_links,
-                                    extract_html_from_pdfs, use_separate_entries_per_url, include_all_tocs,
-                                    include_list_of_references, only_pdf_fulltexts);
+        success = ProcessRecordUrls(record, pdf_extraction_timeout, use_only_open_access_links, extract_html_from_pdfs,
+                                    use_separate_entries_per_url, include_all_tocs, include_list_of_references, only_pdf_fulltexts);
     } catch (const std::exception &x) {
         LOG_WARNING("caught exception: " + std::string(x.what()));
     }
 
     // On failure pass writing out the record to create_full_text_db
     if (not success)
-	return success;
+        return success;
 
     // Safely append the modified MARC data to the MARC output file:
-    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY,
-                                                                    MARC::Writer::APPEND));
+    std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename, MARC::FileType::BINARY, MARC::Writer::APPEND));
     MARC::FileLockedComposeAndWriteRecord(marc_writer.get(), *record);
 
     return success;
@@ -456,13 +435,12 @@ bool ProcessRecord(MARC::Record * const record, const std::string &marc_output_f
 // Returns true if text has been successfully extracted, else false.
 bool ProcessRecord(MARC::Reader * const marc_reader, const std::string &marc_output_filename, const unsigned pdf_extraction_timeout,
                    const bool use_only_open_access_links, const bool extract_html_from_pdfs, const bool use_separate_entries_per_url,
-                   const bool include_all_tocs, const bool include_list_of_references, const bool only_pdf_fulltexts)
-{
+                   const bool include_all_tocs, const bool include_list_of_references, const bool only_pdf_fulltexts) {
     MARC::Record record(marc_reader->read());
     try {
         LOG_INFO("processing record " + record.getControlNumber());
-        return ProcessRecord(&record, marc_output_filename, pdf_extraction_timeout, use_only_open_access_links,
-                             extract_html_from_pdfs, use_separate_entries_per_url, include_all_tocs, include_list_of_references, only_pdf_fulltexts);
+        return ProcessRecord(&record, marc_output_filename, pdf_extraction_timeout, use_only_open_access_links, extract_html_from_pdfs,
+                             use_separate_entries_per_url, include_all_tocs, include_list_of_references, only_pdf_fulltexts);
     } catch (const std::exception &x) {
         throw std::runtime_error(x.what() + std::string(" (PPN: ") + record.getControlNumber() + ")");
     }
@@ -477,7 +455,7 @@ int Main(int argc, char *argv[]) {
     if (argc > 1 and StringUtil::StartsWith(argv[1], "--pdf-extraction-timeout=")) {
         if (not StringUtil::ToNumber(argv[1] + __builtin_strlen("--pdf-extraction-timeout="), &pdf_extraction_timeout)
             or pdf_extraction_timeout == 0)
-                LOG_ERROR("bad value for --pdf-extraction-timeout!");
+            LOG_ERROR("bad value for --pdf-extraction-timeout!");
         ++argv, --argc;
     }
 
@@ -532,10 +510,12 @@ int Main(int argc, char *argv[]) {
 
     try {
         return ProcessRecord(marc_reader.get(), argv[3], pdf_extraction_timeout, use_only_open_access_documents, store_html_from_pdfs,
-                             use_separate_entries_per_url, include_all_tocs, include_list_of_references, only_pdf_fulltexts) ? EXIT_SUCCESS : EXIT_FAILURE;
+                             use_separate_entries_per_url, include_all_tocs, include_list_of_references, only_pdf_fulltexts)
+                   ? EXIT_SUCCESS
+                   : EXIT_FAILURE;
     } catch (const std::exception &e) {
-        LOG_ERROR("While reading \"" + marc_reader->getPath() + "\" starting at offset \""
-              + std::string(argv[1]) + "\", caught exception: " + std::string(e.what()));
+        LOG_ERROR("While reading \"" + marc_reader->getPath() + "\" starting at offset \"" + std::string(argv[1])
+                  + "\", caught exception: " + std::string(e.what()));
     }
 
     return EXIT_SUCCESS;

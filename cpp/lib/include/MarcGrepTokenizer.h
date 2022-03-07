@@ -24,9 +24,26 @@
 
 
 enum TokenType {
-    END_OF_INPUT, HYPHEN, OPEN_BRACKET, CLOSE_BRACKET, EQUAL, COLON, COMMA, EQUAL_EQUAL, NOT_EQUAL,
-    SINGLE_FIELD_EQUAL, SINGLE_FIELD_NOT_EQUAL, STRING_CONSTANT, STAR,
-    UNSIGNED_CONSTANT, INVALID_INPUT, LEADER_KW, IF_KW, EXTRACT_KW, EXISTS_KW, IS_MISSING_KW
+    END_OF_INPUT,
+    HYPHEN,
+    OPEN_BRACKET,
+    CLOSE_BRACKET,
+    EQUAL,
+    COLON,
+    COMMA,
+    EQUAL_EQUAL,
+    NOT_EQUAL,
+    SINGLE_FIELD_EQUAL,
+    SINGLE_FIELD_NOT_EQUAL,
+    STRING_CONSTANT,
+    STAR,
+    UNSIGNED_CONSTANT,
+    INVALID_INPUT,
+    LEADER_KW,
+    IF_KW,
+    EXTRACT_KW,
+    EXISTS_KW,
+    IS_MISSING_KW
 };
 
 
@@ -39,6 +56,7 @@ class Tokenizer {
     TokenType last_token_;
     std::string last_string_constant_;
     unsigned last_unsigned_constant_;
+
 public:
     explicit Tokenizer(const std::string &input)
         : input_(input), ch_(input_.begin()), end_(input_.end()), token_has_been_pushed_back_(false) { }

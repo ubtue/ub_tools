@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <stdexcept>
@@ -38,7 +38,7 @@ int Main(int argc, char *argv[]) {
 
     std::set<std::string> language_codes_list;
     if (argc == 3)
-        StringUtil::Split(std::string(argv[2]), ',', &language_codes_list, /* suppress_empty_components = */true);
+        StringUtil::Split(std::string(argv[2]), ',', &language_codes_list, /* suppress_empty_components = */ true);
 
     std::vector<NGram::DetectedLanguage> top_languages;
     NGram::ClassifyLanguage(text, &top_languages, language_codes_list, NGram::DEFAULT_NGRAM_NUMBER_THRESHOLD);

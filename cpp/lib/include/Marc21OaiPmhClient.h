@@ -19,17 +19,18 @@
 #pragma once
 
 
-#include "OaiPmhClient.h"
 #include "MARC.h"
+#include "OaiPmhClient.h"
 
 
 class Marc21OaiPmhClient final : public OaiPmh::Client {
     MARC::Writer * const marc_writer_;
     unsigned record_count_;
+
 public:
     Marc21OaiPmhClient(const IniFile &ini_file, const std::string &section_name, MARC::Writer * const marc_writer)
         : OaiPmh::Client(ini_file, section_name), marc_writer_(marc_writer) { }
 
     virtual bool processRecord(const OaiPmh::Record &record, const unsigned verbosity, Logger * const logger);
-    unsigned getRecordCount() const {return record_count_; }
+    unsigned getRecordCount() const { return record_count_; }
 };

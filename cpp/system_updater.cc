@@ -16,11 +16,11 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
-#include <cstdlib>
 #include <iostream>
+#include <cstdlib>
 #include "DbConnection.h"
 #include "ExecUtil.h"
 #include "FileUtil.h"
@@ -75,9 +75,8 @@ void SplitIntoDatabaseAndVersion(const std::string &update_filename, std::string
 }
 
 
-void ApplyDatabaseUpdate(DbConnection * const db_connection, const std::string &update_directory_path,
-                 const std::string &update_filename, std::string * const current_schema, const std::string &last_schema)
-{
+void ApplyDatabaseUpdate(DbConnection * const db_connection, const std::string &update_directory_path, const std::string &update_filename,
+                         std::string * const current_schema, const std::string &last_schema) {
     std::string database;
     unsigned update_version;
     SplitIntoDatabaseAndVersion(update_filename, &database, &update_version);
@@ -116,7 +115,8 @@ int Main(int argc, char *argv[]) {
     for (const auto &entry : system_updates_dir) {
         const unsigned script_version = GetVersionFromScriptName(entry.getName());
         if (script_version < 100)
-            LOG_WARNING("script version " + std::to_string(script_version) + " might belong to the old update schema and is no longer supported");
+            LOG_WARNING("script version " + std::to_string(script_version)
+                        + " might belong to the old update schema and is no longer supported");
         else if (script_version > current_version)
             script_names.emplace_back(entry.getName());
     }
@@ -131,23 +131,29 @@ int Main(int argc, char *argv[]) {
 
     std::sort(script_names.begin(), script_names.end(), ScriptLessThan);
     std::string last_schema, current_schema;
+    int previous_version_number = -1;
 
     for (const auto &script_name : script_names) {
         LOG_INFO("Running " + script_name);
+        const unsigned version_number(GetVersionFromScriptName(script_name));
+
+        if (previous_version_number == (int)version_number)
+            LOG_ERROR("the number " + std::to_string(version_number) + " was used multiple times.");
+        else
+            previous_version_number = version_number;
+
         if (StringUtil::EndsWith(script_name, ".sh", true)) {
             if (dry_run)
                 std::cout << SYSTEM_UPDATES_DIR << "---" << script_name << std::endl;
             else
                 ExecUtil::ExecOrDie(SYSTEM_UPDATES_DIR + "/" + script_name);
-        }
-        else if (StringUtil::EndsWith(script_name, ".sql", true)) {
+        } else if (StringUtil::EndsWith(script_name, ".sql", true)) {
             if (dry_run)
                 std::cout << SYSTEM_UPDATES_DIR << " " << script_name << std::endl;
             else
                 ApplyDatabaseUpdate(&db_connection, SYSTEM_UPDATES_DIR, script_name, &current_schema, last_schema);
             last_schema = current_schema;
-        }
-        else {
+        } else {
             LOG_WARNING("unable to process file: \"" + script_name + "\" - skipping file");
             continue;
         }
@@ -155,7 +161,6 @@ int Main(int argc, char *argv[]) {
         // We want to write the version number after each script
         // in case anything goes wrong, to avoid double execution
         // of successfully run scripts
-        const unsigned version_number(GetVersionFromScriptName(script_name));
         FileUtil::WriteStringOrDie(VERSION_PATH, std::to_string(version_number));
     }
 

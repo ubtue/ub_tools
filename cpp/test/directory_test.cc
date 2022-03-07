@@ -18,8 +18,7 @@ void ScanDir(const bool recurse, const bool display_contexts, const std::string 
     for (const auto entry : directory) {
         const auto entry_name(entry.getName());
         std::cout << entry_name << ", " << std::to_string(entry.getType())
-                  << (display_contexts ? ", " + entry.getSELinuxFileContext().toString() : "")
-                  << '\n';
+                  << (display_contexts ? ", " + entry.getSELinuxFileContext().toString() : "") << '\n';
         if (recurse and entry.getType() == DT_DIR) {
             if (entry_name != "." and entry_name != "..")
                 ScanDir(recurse, display_contexts, entry.getFullName(), regex);

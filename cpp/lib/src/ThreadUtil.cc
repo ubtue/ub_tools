@@ -36,9 +36,7 @@
 namespace ThreadUtil {
 
 
-Semaphore::Semaphore(const unsigned initial_count)
-        : type_(SINGLE_PROCESS)
-{
+Semaphore::Semaphore(const unsigned initial_count): type_(SINGLE_PROCESS) {
     semaphore_ = new sem_t;
     if (::sem_init(semaphore_, 0, initial_count) != 0)
         throw std::runtime_error("in ThreadUtil::Semaphore::Semaphore: sem_init(3) failed!");
@@ -46,8 +44,7 @@ Semaphore::Semaphore(const unsigned initial_count)
 
 
 Semaphore::Semaphore(char * const shared_memory, const bool init, const unsigned initial_count)
-    : semaphore_(reinterpret_cast<sem_t *>(shared_memory)), type_(MULTI_PROCESS)
-{
+    : semaphore_(reinterpret_cast<sem_t *>(shared_memory)), type_(MULTI_PROCESS) {
     if (init and ::sem_init(semaphore_, 1, initial_count) != 0)
         throw std::runtime_error("in ThreadUtil::Semaphore::Semaphore: sem_init(3) failed!");
 }
@@ -125,7 +122,7 @@ void Spinlock::lock() {
 bool Spinlock::tryLock() {
     errno = ::pthread_spin_trylock(&spinlock_);
     if (likely(errno == 0)) // Since we're supposed to use spinlocks for non-contended, short critical sections,
-        return true;    // this should be the common case!
+        return true;        // this should be the common case!
 
     if (unlikely(errno != EBUSY))
         throw std::runtime_error("in ThreadUtil::Spinlock::trylock: pthread_spin_trylock(3) failed!");

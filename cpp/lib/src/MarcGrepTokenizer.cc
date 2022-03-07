@@ -1,31 +1,51 @@
 #include "MarcGrepTokenizer.h"
 #include <stdexcept>
-#include "StringUtil.h"
 #include <cctype>
+#include "StringUtil.h"
 
 
 std::string Tokenizer::TokenTypeToString(const TokenType token) {
     switch (token) {
-    case END_OF_INPUT: return "END_OF_INPUT";
-    case HYPHEN: return "HYPHEN";
-    case OPEN_BRACKET: return "OPEN_BRACKET";
-    case CLOSE_BRACKET: return "CLOSE_BRACKET";
-    case EQUAL: return "EQUAL";
-    case COLON: return "COLON";
-    case COMMA: return "COMMA";
-    case EQUAL_EQUAL: return "EQUAL_EQUAL";
-    case NOT_EQUAL: return "NOT_EQUAL";
-    case SINGLE_FIELD_EQUAL: return "SINGLE_FIELD_EQUAL";
-    case SINGLE_FIELD_NOT_EQUAL: return "SINGLE_FIELD_NOT_EQUAL";
-    case STRING_CONSTANT: return "STRING_CONSTANT";
-    case UNSIGNED_CONSTANT: return "UNSIGNED_CONSTANT";
-    case INVALID_INPUT: return "INVALID_INPUT";
-    case LEADER_KW: return "LEADER_KW";
-    case IF_KW: return "IF_KW";
-    case EXTRACT_KW: return "EXTRACT_KW";
-    case EXISTS_KW: return "EXISTS_KW";
-    case IS_MISSING_KW: return "IS_MISSING_KW";
-    case STAR: return "STAR";
+    case END_OF_INPUT:
+        return "END_OF_INPUT";
+    case HYPHEN:
+        return "HYPHEN";
+    case OPEN_BRACKET:
+        return "OPEN_BRACKET";
+    case CLOSE_BRACKET:
+        return "CLOSE_BRACKET";
+    case EQUAL:
+        return "EQUAL";
+    case COLON:
+        return "COLON";
+    case COMMA:
+        return "COMMA";
+    case EQUAL_EQUAL:
+        return "EQUAL_EQUAL";
+    case NOT_EQUAL:
+        return "NOT_EQUAL";
+    case SINGLE_FIELD_EQUAL:
+        return "SINGLE_FIELD_EQUAL";
+    case SINGLE_FIELD_NOT_EQUAL:
+        return "SINGLE_FIELD_NOT_EQUAL";
+    case STRING_CONSTANT:
+        return "STRING_CONSTANT";
+    case UNSIGNED_CONSTANT:
+        return "UNSIGNED_CONSTANT";
+    case INVALID_INPUT:
+        return "INVALID_INPUT";
+    case LEADER_KW:
+        return "LEADER_KW";
+    case IF_KW:
+        return "IF_KW";
+    case EXTRACT_KW:
+        return "EXTRACT_KW";
+    case EXISTS_KW:
+        return "EXISTS_KW";
+    case IS_MISSING_KW:
+        return "IS_MISSING_KW";
+    case STAR:
+        return "STAR";
     }
 
     return "INVALID_INPUT"; // We should never get here!
@@ -58,7 +78,7 @@ TokenType Tokenizer::getToken() {
 
     if (ch_ == end_)
         return last_token_ = END_OF_INPUT;
-    
+
     switch (*ch_) {
     case '-':
         ++ch_;
@@ -103,13 +123,12 @@ TokenType Tokenizer::getToken() {
     while (ch_ != end_ and isdigit(*ch_))
         unsigned_constant_candidate += *ch_++;
     if (not unsigned_constant_candidate.empty()) {
-        return StringUtil::ToUnsigned(unsigned_constant_candidate, &last_unsigned_constant_)
-            ? UNSIGNED_CONSTANT : INVALID_INPUT;
+        return StringUtil::ToUnsigned(unsigned_constant_candidate, &last_unsigned_constant_) ? UNSIGNED_CONSTANT : INVALID_INPUT;
     }
 
     // Parse keywords:
     std::string keyword_candidate;
-    while (ch_ != end_ and (StringUtil::IsAsciiLetter(*ch_) or *ch_ =='_'))
+    while (ch_ != end_ and (StringUtil::IsAsciiLetter(*ch_) or *ch_ == '_'))
         keyword_candidate += *ch_++;
     if (not keyword_candidate.empty()) {
         if (keyword_candidate == "leader")
@@ -124,7 +143,7 @@ TokenType Tokenizer::getToken() {
             return last_token_ = IS_MISSING_KW;
         return INVALID_INPUT;
     }
-    
+
     if (*ch_ != '"')
         return INVALID_INPUT;
 

@@ -35,16 +35,17 @@
 #include "SyndicationFormat.h"
 #include "Template.h"
 #include "UBTools.h"
-#include "util.h"
 #include "XmlWriter.h"
+#include "util.h"
 
 
 namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("--mode=(email|rss_xml) (user_id|error_email_address) subsystem_type]\n"
-            "If the mode is \"rss_xml\" a VuFind user_id needs to be specified, o/w an error email address should be provided.");
+    ::Usage(
+        "--mode=(email|rss_xml) (user_id|error_email_address) subsystem_type]\n"
+        "If the mode is \"rss_xml\" a VuFind user_id needs to be specified, o/w an error email address should be provided.");
 }
 
 
@@ -54,22 +55,22 @@ struct HarvestedRSSItem {
     std::string website_url_;
 
     HarvestedRSSItem(const SyndicationFormat::Item item, const std::string &feed_title, const std::string &website_url)
-        : item_(item), feed_title_(feed_title), website_url_(website_url) {}
+        : item_(item), feed_title_(feed_title), website_url_(website_url) { }
 };
 
 
 struct ChannelDesc {
     std::string title_;
     std::string link_;
+
 public:
-    ChannelDesc(const std::string &title, const std::string &link)
-        : title_(title), link_(link) { }
+    ChannelDesc(const std::string &title, const std::string &link): title_(title), link_(link) { }
 };
 
 
 const std::map<std::string, ChannelDesc> subsystem_type_to_channel_desc_map = {
-    { "relbib",  ChannelDesc("RelBib RSS Aggregator",  "https://relbib.de/")                },
-    { "ixtheo",  ChannelDesc("IxTheo RSS Aggregator",  "https://ixtheo.de/")                },
+    { "relbib", ChannelDesc("RelBib RSS Aggregator", "https://relbib.de/") },
+    { "ixtheo", ChannelDesc("IxTheo RSS Aggregator", "https://ixtheo.de/") },
     { "krimdok", ChannelDesc("KrimDok RSS Aggregator", "https://krimdok.uni-tuebingen.de/") },
 };
 
@@ -88,8 +89,7 @@ std::string GetChannelDescEntry(const std::string &subsystem_type, const std::st
 
 
 void WriteRSSFeedXMLOutput(const std::string &subsystem_type, const std::vector<HarvestedRSSItem> &harvested_items,
-                           XmlWriter * const xml_writer)
-{
+                           XmlWriter * const xml_writer) {
     xml_writer->openTag("rss", { { "version", "2.0" } });
     xml_writer->openTag("channel");
     xml_writer->writeTagsWithData("title", GetChannelDescEntry(subsystem_type, "title"));
@@ -105,13 +105,12 @@ void WriteRSSFeedXMLOutput(const std::string &subsystem_type, const std::vector<
 
         xml_writer->writeTagsWithData("link", harvested_item.item_.getLink());
 
-        const auto description(HtmlUtil::ShortenText(harvested_item.item_.getDescription(), /*max_length = */500));
+        const auto description(HtmlUtil::ShortenText(harvested_item.item_.getDescription(), /*max_length = */ 500));
         if (not description.empty())
             xml_writer->writeTagsWithData("description", description);
 
         xml_writer->writeTagsWithData("pubDate",
-                                      TimeUtil::TimeTToString(harvested_item.item_.getPubDate(), TimeUtil::RFC822_FORMAT,
-                                                                     TimeUtil::UTC));
+                                      TimeUtil::TimeTToString(harvested_item.item_.getPubDate(), TimeUtil::RFC822_FORMAT, TimeUtil::UTC));
         xml_writer->writeTagsWithData("guid", harvested_item.item_.getId());
         xml_writer->closeTag("item", /* suppress_indent */ false);
     }
@@ -124,19 +123,17 @@ void WriteRSSFeedXMLOutput(const std::string &subsystem_type, const std::vector<
 struct FeedNameAndURL {
     std::string name_;
     std::string url_;
+
 public:
     FeedNameAndURL() = default;
     FeedNameAndURL(const FeedNameAndURL &other) = default;
-    FeedNameAndURL(const std::string &name, const std::string &url)
-        : name_(name), url_(url) { }
+    FeedNameAndURL(const std::string &name, const std::string &url): name_(name), url_(url) { }
 };
 
 
 // \return True if a notification email was sent successfully, o/w false.
 bool SendEmail(const std::string &subsystem_type, const std::string &email_sender, const std::string &user_email,
-               const std::string &user_address, const std::string &language,
-               const std::vector<HarvestedRSSItem> &harvested_items)
-{
+               const std::string &user_address, const std::string &language, const std::vector<HarvestedRSSItem> &harvested_items) {
     const auto template_filename_prefix(UBTools::GetTuelibPath() + "rss_email.template");
     std::string template_filename(template_filename_prefix + "." + language);
     if (not FileUtil::Exists(template_filename))
@@ -159,13 +156,12 @@ bool SendEmail(const std::string &subsystem_type, const std::string &email_sende
     names_to_values_map.insertArray("feed_names", feed_names);
 
     const auto email_body(Template::ExpandTemplate(email_template, names_to_values_map));
-    const auto retcode(EmailSender::SimplerSendEmail(email_sender, { user_email }, GetChannelDescEntry(subsystem_type, "title"),
-                                                     email_body, EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
+    const auto retcode(EmailSender::SimplerSendEmail(email_sender, { user_email }, GetChannelDescEntry(subsystem_type, "title"), email_body,
+                                                     EmailSender::DO_NOT_SET_PRIORITY, EmailSender::HTML));
     if (retcode <= 299)
         return true;
 
-    LOG_WARNING("EmailSender::SimplerSendEmail returned " + std::to_string(retcode) + " while trying to send to \""
-                + user_email + "\"!");
+    LOG_WARNING("EmailSender::SimplerSendEmail returned " + std::to_string(retcode) + " while trying to send to \"" + user_email + "\"!");
     return false;
 }
 
@@ -174,21 +170,19 @@ const unsigned DEFAULT_XML_INDENT_AMOUNT(2);
 
 
 void GenerateFeed(const std::string &subsystem_type, const std::vector<HarvestedRSSItem> &harvested_items) {
-    XmlWriter xml_writer(FileUtil::OpenOutputFileOrDie("/dev/stdout").release(),
-                         XmlWriter::WriteTheXmlDeclaration, DEFAULT_XML_INDENT_AMOUNT);
+    XmlWriter xml_writer(FileUtil::OpenOutputFileOrDie("/dev/stdout").release(), XmlWriter::WriteTheXmlDeclaration,
+                         DEFAULT_XML_INDENT_AMOUNT);
     WriteRSSFeedXMLOutput(subsystem_type, harvested_items, &xml_writer);
 }
 
 
 bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_notification, const std::string &email_sender,
-                  const std::string &user_email, const std::string &user_address, const std::string &language,
-                  const bool send_email, const std::string &subsystem_type,
-                  DbConnection * const db_connection)
-{
+                  const std::string &user_email, const std::string &user_address, const std::string &language, const bool send_email,
+                  const std::string &subsystem_type, DbConnection * const db_connection) {
     db_connection->queryOrDie("SELECT rss_feeds_id FROM tuefind_rss_subscriptions WHERE user_id=" + user_id);
     auto rss_subscriptions_result_set(db_connection->getLastResultSet());
     std::vector<std::string> feed_ids;
-    while (const auto row = rss_subscriptions_result_set.getNextRow())\
+    while (const auto row = rss_subscriptions_result_set.getNextRow())
         feed_ids.emplace_back(row["rss_feeds_id"]);
     if (feed_ids.empty())
         return false;
@@ -203,17 +197,18 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
         const auto website_url(feed_row["website_url"]);
         feed_result_set.~DbResultSet();
 
-        std::string query("SELECT item_title,item_description,item_url,item_id,pub_date,insertion_time FROM "
-                          "tuefind_rss_items WHERE rss_feeds_id=" + feed_id);
+        std::string query(
+            "SELECT item_title,item_description,item_url,item_id,pub_date,insertion_time FROM "
+            "tuefind_rss_items WHERE rss_feeds_id="
+            + feed_id);
         if (send_email)
-            query +=  " AND insertion_time > '" + rss_feed_last_notification + "'";
+            query += " AND insertion_time > '" + rss_feed_last_notification + "'";
         db_connection->queryOrDie(query);
 
         auto items_result_set(db_connection->getLastResultSet());
         while (const auto item_row = items_result_set.getNextRow()) {
-            harvested_items.emplace_back(SyndicationFormat::Item(item_row["item_title"], item_row["item_description"],
-                                                                 item_row["item_url"], item_row["item_id"],
-                                                                 SqlUtil::DatetimeToTimeT(item_row["pub_date"])),
+            harvested_items.emplace_back(SyndicationFormat::Item(item_row["item_title"], item_row["item_description"], item_row["item_url"],
+                                                                 item_row["item_id"], SqlUtil::DatetimeToTimeT(item_row["pub_date"])),
                                          feed_name, website_url);
             const auto insertion_time(item_row["insertion_time"]);
             if (insertion_time > max_insertion_time)
@@ -226,8 +221,7 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
     if (send_email) {
         if (not SendEmail(subsystem_type, email_sender, user_email, user_address, language, harvested_items))
             return true;
-        db_connection->queryOrDie("UPDATE user SET tuefind_rss_feed_last_notification='" + max_insertion_time
-                                  + "' WHERE id=" + user_id);
+        db_connection->queryOrDie("UPDATE user SET tuefind_rss_feed_last_notification='" + max_insertion_time + "' WHERE id=" + user_id);
     } else
         GenerateFeed(subsystem_type, harvested_items);
     return true;
@@ -244,12 +238,12 @@ struct UserInfo {
     std::string email_;
     std::string rss_feed_last_notification_;
     std::string language_code_;
+
 public:
     UserInfo() = default;
     UserInfo(const UserInfo &other) = default;
-    UserInfo(const std::string &user_id, const std::string &first_name, const std::string &last_name,
-             const std::string &email, const std::string &rss_feed_last_notification,
-             const std::string &language_code)
+    UserInfo(const std::string &user_id, const std::string &first_name, const std::string &last_name, const std::string &email,
+             const std::string &rss_feed_last_notification, const std::string &language_code)
         : user_id_(user_id), first_name_(first_name), last_name_(last_name), email_(email),
           rss_feed_last_notification_(rss_feed_last_notification), language_code_(language_code) { }
 };
@@ -272,8 +266,9 @@ int Main(int argc, char *argv[]) {
 
     auto db_connection(DbConnection::VuFindMySQLFactory());
 
-    std::string sql_query("SELECT id,firstname,lastname,email,tuefind_rss_feed_send_emails"
-                          ",tuefind_rss_feed_last_notification,last_language FROM user");
+    std::string sql_query(
+        "SELECT id,firstname,lastname,email,tuefind_rss_feed_send_emails"
+        ",tuefind_rss_feed_last_notification,last_language FROM user");
     if (vufind_user_id.empty())
         sql_query += " WHERE tuefind_rss_feed_send_emails IS TRUE";
     else
@@ -286,8 +281,7 @@ int Main(int argc, char *argv[]) {
         const std::string last_language(user_row["last_language"]);
         ids_to_user_infos_map[user_row["id"]] =
             UserInfo(user_row["id"], user_row["firstname"], user_row["lastname"], user_row["email"],
-                     user_row["tuefind_rss_feed_last_notification"],
-                     (last_language.empty() ? "en" : last_language));
+                     user_row["tuefind_rss_feed_last_notification"], (last_language.empty() ? "en" : last_language));
     }
 
     unsigned feed_generation_count(0), email_sent_count(0);
@@ -298,16 +292,16 @@ int Main(int argc, char *argv[]) {
         }
 
         if (ProcessFeeds(user_id, user_info.rss_feed_last_notification_, error_email_address, user_info.email_,
-                         MiscUtil::GenerateAddress(user_info.first_name_, user_info.last_name_, "Subscriber"),
-                         user_info.language_code_, vufind_user_id.empty(), subsystem_type, &db_connection))
+                         MiscUtil::GenerateAddress(user_info.first_name_, user_info.last_name_, "Subscriber"), user_info.language_code_,
+                         vufind_user_id.empty(), subsystem_type, &db_connection))
         {
             if (vufind_user_id.empty())
                 ++email_sent_count;
             ++feed_generation_count;
         }
     }
-    LOG_INFO("Generated " + std::to_string(feed_generation_count) + " RSS feed(s) and sent "
-             + std::to_string(email_sent_count) + " email(s).");
+    LOG_INFO("Generated " + std::to_string(feed_generation_count) + " RSS feed(s) and sent " + std::to_string(email_sent_count)
+             + " email(s).");
 
     return EXIT_SUCCESS;
 }

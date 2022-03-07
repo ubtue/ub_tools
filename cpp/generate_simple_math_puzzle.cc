@@ -37,7 +37,7 @@ int GetNumber() {
 }
 
 
-typedef std::function<int (const int, const int, const int)> PuzzleFunc;
+typedef std::function<int(const int, const int, const int)> PuzzleFunc;
 
 
 const std::vector<std::pair<std::string, PuzzleFunc>> TEMPLATES{
@@ -58,13 +58,13 @@ std::string GeneratePuzzle() {
     std::string puzzle(TEMPLATES[puzzle_type].first + "\n");
 
     const int n1(GetNumber());
-    StringUtil::ReplaceString("%n", StringUtil::ToString(n1), &puzzle, /* global = */false);
+    StringUtil::ReplaceString("%n", StringUtil::ToString(n1), &puzzle, /* global = */ false);
 
     const int n2(GetNumber());
-    StringUtil::ReplaceString("%n", StringUtil::ToString(n2), &puzzle, /* global = */false);
+    StringUtil::ReplaceString("%n", StringUtil::ToString(n2), &puzzle, /* global = */ false);
 
     const int n3(GetNumber());
-    StringUtil::ReplaceString("%n", StringUtil::ToString(n3), &puzzle, /* global = */false);
+    StringUtil::ReplaceString("%n", StringUtil::ToString(n3), &puzzle, /* global = */ false);
 
     puzzle += StringUtil::ToString(TEMPLATES[puzzle_type].second(n1, n2, n3));
 
@@ -72,7 +72,7 @@ std::string GeneratePuzzle() {
 }
 
 
-int Main(int /*argc*/, char */*argv*/[]) {
+int Main(int /*argc*/, char * /*argv*/[]) {
     std::srand(time(NULL));
     std::cout << GeneratePuzzle() << "\n";
     return EXIT_SUCCESS;

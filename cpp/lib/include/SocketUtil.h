@@ -67,12 +67,10 @@ bool StringToAddress(const std::string &address, const TimeLimit &time_limit, in
  *
  *  \note    This function caches the last successful lookup, so may not reflect recent changes to DNS.
  */
-inline void StringToAddress(const std::string &address, in_addr_t * const inet_addr,
-                            unsigned number_of_retries = 0)
-{
-        std::string error_message;
-        if (not StringToAddress(address, TimeLimit(15000), inet_addr, &error_message, number_of_retries))
-            throw std::runtime_error("in SocketUtil::StringToAddress: " + error_message);
+inline void StringToAddress(const std::string &address, in_addr_t * const inet_addr, unsigned number_of_retries = 0) {
+    std::string error_message;
+    if (not StringToAddress(address, TimeLimit(15000), inet_addr, &error_message, number_of_retries))
+        throw std::runtime_error("in SocketUtil::StringToAddress: " + error_message);
 }
 
 
@@ -89,9 +87,8 @@ enum ReuseAddrOptionType { DONT_REUSE_ADDR, REUSE_ADDR };
  *  \param  reuse_addr_option  Optionally sets SO_REUSEADDR on the newly created socket if requested.
  *  \return -1 on error or a valid socket file descriptor (sets errno or h_errno on most errors).
  */
-int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLimit &time_limit,
-               std::string * const error_message, const NagleOptionType nagle_option = USE_NAGLE,
-               const ReuseAddrOptionType reuse_addr_option = DONT_REUSE_ADDR);
+int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLimit &time_limit, std::string * const error_message,
+               const NagleOptionType nagle_option = USE_NAGLE, const ReuseAddrOptionType reuse_addr_option = DONT_REUSE_ADDR);
 
 
 /** \brief  Creates and connects a TCP socket.
@@ -103,9 +100,8 @@ int TcpConnect(const in_addr_t address, const unsigned short port, const TimeLim
  *  \param  reuse_addr_option  Optionally sets SO_REUSEADDR on the newly created socket if requested.
  *  \return -1 on error or a valid socket file descriptor (sets errno or h_errno on most errors).
  */
-int TcpConnect(const std::string &address, const unsigned short port, const TimeLimit &time_limit,
-               std::string * const error_message, const NagleOptionType nagle_option = USE_NAGLE,
-               const ReuseAddrOptionType reuse_addr_option = DONT_REUSE_ADDR);
+int TcpConnect(const std::string &address, const unsigned short port, const TimeLimit &time_limit, std::string * const error_message,
+               const NagleOptionType nagle_option = USE_NAGLE, const ReuseAddrOptionType reuse_addr_option = DONT_REUSE_ADDR);
 
 
 /** \brief  Allows reading from a socket file descriptor with a given time limit.
@@ -129,8 +125,7 @@ ssize_t TimedRead(int socket_fd, const TimeLimit &time_limit, void * const data,
  *  \param  ssl_connection  A pointer to an SSL connection object.  If not null, this will be used automatically.
  *  \return True if EOF was found, otherwise false.
  */
-bool TimedRead(int socket_fd, const TimeLimit &time_limit, std::string * const s,
-               SslConnection * const ssl_connection = nullptr);
+bool TimedRead(int socket_fd, const TimeLimit &time_limit, std::string * const s, SslConnection * const ssl_connection = nullptr);
 
 
 /** \brief  Allows writing to a file descriptor with a given time limit.
@@ -155,9 +150,8 @@ ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const void * cons
  *           written.
  */
 inline ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const std::string &data,
-                          SslConnection * const ssl_connection = nullptr)
-{
-        return TimedWrite(socket_fd, time_limit, data.c_str(), data.size(), ssl_connection);
+                          SslConnection * const ssl_connection = nullptr) {
+    return TimedWrite(socket_fd, time_limit, data.c_str(), data.size(), ssl_connection);
 }
 
 
@@ -170,8 +164,8 @@ inline ssize_t TimedWrite(int socket_fd, const TimeLimit &time_limit, const std:
  *  \param  flags       See recvfrom(2) for flags which can be or'ed together.
  *  \return  -1 if a timeout or other error occurred, otherwise the number of bytes received.
  */
-ssize_t TimedRecvFrom(const int socket_fd, const TimeLimit &time_limit, void * const data, const size_t data_size,
-                      struct sockaddr_in *from, const int flags = 0);
+ssize_t TimedRecvFrom(const int socket_fd, const TimeLimit &time_limit, void * const data, const size_t data_size, struct sockaddr_in *from,
+                      const int flags = 0);
 
 
 /** \brief  A wrapper around sendto(2) for sending datagrams over a TCP/IPv4 network, allowing for a timeout.
@@ -198,8 +192,8 @@ ssize_t TimedSendTo(const int socket_fd, const TimeLimit &time_limit, const void
  *  \return True on success and false on failure.
  *  \note   If an error occurrs, errno will be set to the appropriate error code.
  */
-bool SendUdpRequest(const int socket_fd, const in_addr_t server_ip_address, const uint16_t port_no,
-                    const unsigned char * const packet, const unsigned packet_size);
+bool SendUdpRequest(const int socket_fd, const in_addr_t server_ip_address, const uint16_t port_no, const unsigned char * const packet,
+                    const unsigned packet_size);
 
 
 } // namespace SocketUtil

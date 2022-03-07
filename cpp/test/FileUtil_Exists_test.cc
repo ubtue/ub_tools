@@ -12,4 +12,3 @@ int main(int argc, char *argv[]) {
     else
         std::cout << argv[1] << " does not exist\n";
 }
-

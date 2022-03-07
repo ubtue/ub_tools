@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <stdexcept>
@@ -24,8 +24,8 @@
 #include <cstdlib>
 #include "FileUtil.h"
 #include "MARC.h"
-#include "TextUtil.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "util.h"
 
 
@@ -38,7 +38,7 @@ namespace {
 }
 
 
-void ProcessRecords(MARC::Reader * const reader, std::unordered_map<std::string, std::string>  * const fields_to_tags_map) {
+void ProcessRecords(MARC::Reader * const reader, std::unordered_map<std::string, std::string> * const fields_to_tags_map) {
     static const std::vector<std::string> SUBJECT_ACCESS_TAGS{ "647", "648", "650", "651" };
 
     while (const auto record = reader->read()) {

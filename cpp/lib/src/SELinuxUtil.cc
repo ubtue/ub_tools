@@ -20,10 +20,10 @@
 
 #include "SELinuxUtil.h"
 #include <algorithm>
-#include <cstdlib>
-#include <cstring>
 #include <string>
 #include <vector>
+#include <cstdlib>
+#include <cstring>
 #include "ExecUtil.h"
 #include "FileUtil.h"
 #include "RegexMatcher.h"
@@ -49,8 +49,7 @@ Mode GetMode() {
         }
     }
 
-    throw std::runtime_error("in " + std::string(__func__) +": "
-                             + " could not detemine mode via getenforce ");
+    throw std::runtime_error("in " + std::string(__func__) + ": " + " could not detemine mode via getenforce ");
 }
 
 
@@ -66,14 +65,16 @@ bool IsEnabled() {
 
 void AssertEnabled(const std::string &caller) {
     if (not IsEnabled())
-        throw std::runtime_error("in " + caller +": SElinux is disabled!");
+        throw std::runtime_error("in " + caller + ": SElinux is disabled!");
 }
 
 
 namespace Boolean {
 
 
-static inline std::string Bool2String(const bool value) { return value ? "on" : "off"; }
+static inline std::string Bool2String(const bool value) {
+    return value ? "on" : "off";
+}
 
 
 void Set(const std::string &name, const bool value, const bool permanent) {
@@ -108,8 +109,8 @@ void AddRecordIfMissing(const std::string &path, const std::string &type, const 
     }
 
     if (not HasFileType(path, type)) {
-        throw std::runtime_error("in " + std::string(__func__) +": "
-                                 + "could not set context \"" + type + "\" for \"" + path + "\" using " + file_spec);
+        throw std::runtime_error("in " + std::string(__func__) + ": " + "could not set context \"" + type + "\" for \"" + path + "\" using "
+                                 + file_spec);
     }
 }
 
@@ -122,8 +123,7 @@ void ApplyChanges(const std::string &path) {
 
 void AssertFileHasType(const std::string &path, const std::string &type) {
     if (not HasFileType(path, type)) {
-        throw std::runtime_error("in " + std::string(__func__) +": "
-                                 + "file " + " doesn't have context type " + type);
+        throw std::runtime_error("in " + std::string(__func__) + ": " + "file " + " doesn't have context type " + type);
     }
 }
 
@@ -162,10 +162,10 @@ void AddRecordIfMissing(const std::string &type, const std::string &protocol, co
 bool HasPortType(const std::string &type, const std::string &protocol, const uint16_t port) {
     AssertEnabled(std::string(__func__));
     std::string semanage_output, semanage_error;
-    ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::Which("semanage"), { "port", "-l" },
-                                                      &semanage_output, &semanage_error);
+    ExecUtil::ExecSubcommandAndCaptureStdoutAndStderr(ExecUtil::Which("semanage"), { "port", "-l" }, &semanage_output, &semanage_error);
 
-    static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory(type + "\\s+" + protocol + ".*" + "\\b" + std::to_string(port) + "\\b"));
+    static RegexMatcher * const matcher(
+        RegexMatcher::RegexMatcherFactory(type + "\\s+" + protocol + ".*" + "\\b" + std::to_string(port) + "\\b"));
     return matcher->matched(semanage_output);
 }
 

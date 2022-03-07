@@ -23,8 +23,9 @@
 #include "XmlWriter.h"
 
 
-class MarcXmlWriter: public XmlWriter {
+class MarcXmlWriter : public XmlWriter {
     bool suppress_header_and_tailer_;
+
 public:
     /** \brief  Instantiate a MarcXmlWriter object.
      *  \param  output_file                 Where to write the generated XML to.
@@ -32,7 +33,7 @@ public:
      *  \param  indent_amount               How many leading spaces to add per indentation level.
      *  \param  text_conversion_type        What kind, if any, of text conversion to apply on output.
      */
-    explicit MarcXmlWriter(File * const output_file, const bool suppress_header_and_tailer = false, const unsigned indent_amount = 0,
+    explicit MarcXmlWriter(File* const output_file, const bool suppress_header_and_tailer = false, const unsigned indent_amount = 0,
                            const TextConversionType text_conversion_type = NoConversion);
 
     /** \brief  Instantiate a MarcXmlWriter object.
@@ -41,7 +42,7 @@ public:
      *  \param  indent_amount               How many leading spaces to add per indentation level.
      *  \param  text_conversion_type        What kind, if any, of text conversion to apply on output.
      */
-    explicit MarcXmlWriter(std::string * const output_string, const bool suppress_header_and_tailer = false,
+    explicit MarcXmlWriter(std::string* const output_string, const bool suppress_header_and_tailer = false,
                            const unsigned indent_amount = 0, const TextConversionType text_conversion_type = NoConversion);
 
     /** Destroyes an MarcXmlWriter object, closing any still open tags. */

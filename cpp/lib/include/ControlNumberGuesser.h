@@ -37,11 +37,13 @@ class ControlNumberGuesser {
     mutable DbConnection db_connection_;
     mutable std::unique_ptr<DbResultSet> title_cursor_, author_cursor_, year_cursor_;
     DbTransaction *db_transaction_;
+
 public:
     explicit ControlNumberGuesser()
         : MAX_CONTROL_NUMBER_LENGTH(BSZUtil::PPN_LENGTH_NEW),
           db_connection_(DbConnection::Sqlite3Factory(DATABASE_PATH, DbConnection::CREATE)), db_transaction_(nullptr) { }
     ~ControlNumberGuesser();
+
 public:
     void clearDatabase();
     void beginUpdate();
@@ -58,8 +60,7 @@ public:
                  you can use getCompleteTitle() on the MARC:Record instance. */
     std::set<std::string> getGuessedControlNumbers(const std::string &title, const std::set<std::string> &authors,
                                                    const std::string &year = "", const std::set<std::string> &dois = {},
-                                                   const std::set<std::string> &issns = {},
-                                                   const std::set<std::string> &isbns = {}) const;
+                                                   const std::set<std::string> &issns = {}, const std::set<std::string> &isbns = {}) const;
 
     bool getNextTitle(std::string * const title, std::set<std::string> * const control_numbers) const;
     bool getNextAuthor(std::string * const author_name, std::set<std::string> * const control_numbers) const;
@@ -75,12 +76,14 @@ public:
     /** For testing purposes. */
     static std::string NormaliseTitle(const std::string &title);
     static std::string NormaliseAuthorName(const std::string &author_name);
+
 private:
     void insertNewControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
                                 const std::string &control_number);
     bool lookupControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
                              std::string * const control_numbers) const;
-    void splitControlNumbers(const std::string &concatenated_control_numbers, std::unordered_set<std::string> * const control_numbers) const;
+    void splitControlNumbers(const std::string &concatenated_control_numbers,
+                             std::unordered_set<std::string> * const control_numbers) const;
     unsigned swapControlNumbers(const std::string &table_name, const std::string &primary_key,
                                 const std::unordered_map<std::string, std::string> &old_to_new_map);
 };

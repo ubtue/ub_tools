@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <map>
@@ -60,8 +60,7 @@ void ProcessRecords(const std::set<std::string> &test_languages, MARC::Reader * 
     }
 
     LOG_INFO("Classified languages of " + std::to_string(correct_count + incorrect_count) + " record(s) of which "
-             + StringUtil::ToString(100.0 * correct_count / double(correct_count + incorrect_count))
-             + " were classified correctly!");
+             + StringUtil::ToString(100.0 * correct_count / double(correct_count + incorrect_count)) + " were classified correctly!");
 }
 
 
@@ -91,7 +90,6 @@ int Main(int argc, char *argv[]) {
             test_languages.emplace(language_code_candidate);
         else
             LOG_ERROR("\"" + language_code_candidate + "\" is not a valid language code!");
-
     }
 
     const auto marc_reader(MARC::Reader::Factory(argv[1]));

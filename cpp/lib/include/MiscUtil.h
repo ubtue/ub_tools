@@ -63,7 +63,9 @@ bool IsValidPPN(const std::string &ppn_candidate);
  *  \return The value of the environment variable if set (else throws an exception).
  */
 std::string GetEnv(const char * const name);
-inline std::string GetEnv(const std::string &name) { return GetEnv(name.c_str()); }
+inline std::string GetEnv(const std::string &name) {
+    return GetEnv(name.c_str());
+}
 
 
 /** \brief  A safe wrapper around getenv(3).
@@ -71,7 +73,9 @@ inline std::string GetEnv(const std::string &name) { return GetEnv(name.c_str())
  *  \return The value of the environment variable if set otherwise the empty string.
  */
 std::string SafeGetEnv(const char * const name);
-inline std::string SafeGetEnv(const std::string &name) { return SafeGetEnv(name.c_str()); }
+inline std::string SafeGetEnv(const std::string &name) {
+    return SafeGetEnv(name.c_str());
+}
 
 
 std::string GetPassword(const std::string &prompt);
@@ -156,9 +160,15 @@ std::string StringMapToString(const std::map<std::string, std::string> &map);
 
 
 // \return The number of bits that are set in "mask".
-inline unsigned HammingWeight(unsigned mask) { return static_cast<unsigned>(__builtin_popcount(mask)); }
-inline unsigned HammingWeight(unsigned long mask) { return static_cast<unsigned>(__builtin_popcountl(mask)); }
-inline unsigned HammingWeight(unsigned long long mask) { return static_cast<unsigned>(__builtin_popcountll(mask)); }
+inline unsigned HammingWeight(unsigned mask) {
+    return static_cast<unsigned>(__builtin_popcount(mask));
+}
+inline unsigned HammingWeight(unsigned long mask) {
+    return static_cast<unsigned>(__builtin_popcountl(mask));
+}
+inline unsigned HammingWeight(unsigned long long mask) {
+    return static_cast<unsigned>(__builtin_popcountll(mask));
+}
 
 
 /** \brief Renames a set of log files with a common basename.
@@ -194,16 +204,16 @@ unsigned LevenshteinDistance(const std::string &s1, const std::string &s2);
 unsigned LevenshteinDistance(const std::wstring &s1, const std::wstring &s2);
 
 
-template<typename ElementType> std::set<ElementType> Intersect(const std::set<ElementType> &set1, const std::set<ElementType> &set2) {
+template <typename ElementType>
+std::set<ElementType> Intersect(const std::set<ElementType> &set1, const std::set<ElementType> &set2) {
     std::set<ElementType> result;
     std::set_intersection(set1.cbegin(), set1.cend(), set2.cbegin(), set2.cend(), std::inserter(result, result.begin()));
     return result;
 }
 
 
-template<typename ElementType> std::set<ElementType> Intersect(const std::set<ElementType> &set1,
-                                                               const std::unordered_set<ElementType> &set2)
-{
+template <typename ElementType>
+std::set<ElementType> Intersect(const std::set<ElementType> &set1, const std::unordered_set<ElementType> &set2) {
     std::vector<ElementType> sorted_set2;
     sorted_set2.reserve(set2.size());
     std::copy(set2.cbegin(), set2.cend(), std::back_inserter(sorted_set2));
@@ -215,9 +225,8 @@ template<typename ElementType> std::set<ElementType> Intersect(const std::set<El
 }
 
 
-template<typename ElementType> std::set<ElementType> Intersect(const std::unordered_set<ElementType> &set1,
-                                                               const std::unordered_set<ElementType> &set2)
-{
+template <typename ElementType>
+std::set<ElementType> Intersect(const std::unordered_set<ElementType> &set1, const std::unordered_set<ElementType> &set2) {
     std::vector<ElementType> sorted_set1;
     sorted_set1.reserve(set1.size());
     std::copy(set1.cbegin(), set1.cend(), std::back_inserter(sorted_set1));
@@ -236,7 +245,8 @@ template<typename ElementType> std::set<ElementType> Intersect(const std::unorde
 
 
 /** \return of "container1" ⟍  "container2" */
-template<typename ContainerType> ContainerType AbsoluteComplement(const ContainerType &container1, const ContainerType &container2) {
+template <typename ContainerType>
+ContainerType AbsoluteComplement(const ContainerType &container1, const ContainerType &container2) {
     ContainerType result;
     for (const auto &element : container1) {
         if (container2.find(element) == container2.end())
@@ -257,10 +267,9 @@ bool AddToPATH(const std::string &new_directory_path, const PreferredPathLocatio
 
 
 /** Search for key in container and return its value, or default value if not found. */
-template<typename ContainerType, typename KeyType, typename ValueType> ValueType GetContainerValueOrDefault(
-    const ContainerType &container, const KeyType &key, const ValueType &default_value,
-    bool * const default_returned = nullptr)
-{
+template <typename ContainerType, typename KeyType, typename ValueType>
+ValueType GetContainerValueOrDefault(const ContainerType &container, const KeyType &key, const ValueType &default_value,
+                                     bool * const default_returned = nullptr) {
     const auto key_and_value(container.find(key));
     if (key_and_value != container.cend()) {
         if (default_returned != nullptr)
@@ -278,13 +287,19 @@ template<typename ContainerType, typename KeyType, typename ValueType> ValueType
  *           optional_last_name or optional_first_name if one of the two is empty and
  *           fallback, if both are empty.
  */
-std::string GenerateAddress(const std::string &optional_first_name, const std::string &optional_last_name,
-                            const std::string &fallback);
+std::string GenerateAddress(const std::string &optional_first_name, const std::string &optional_last_name, const std::string &fallback);
 
 
 // Entries in /proc require special handling to read them.
 // This is what this function provides.  "path" must be an absolute path.
 std::string ReadProcEntry(const std::string &path);
+
+
+// Currently only cleans up names w/ trailing initials, e.g.
+//   Müller, Fritz A.B. => Müller, Fritz A. B.
+// Doesn't change anything if no comma is found or there are no initials.
+// Also doesn't add a space after the final initial.
+std::string NormalizeName(const std::string &name);
 
 
 } // namespace MiscUtil

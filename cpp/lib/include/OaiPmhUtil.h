@@ -27,11 +27,11 @@
 
 
 #ifndef STRING
-#       include <string>
-#       define STRING
+#include <string>
+#define STRING
 #endif
 #ifndef TIME_UTIL_H
-#       include <TimeUtil.h>
+#include <TimeUtil.h>
 #endif
 
 
@@ -57,16 +57,14 @@ bool IsValidUtcDateTime(const std::string &utc_date_time);
 
 
 /** \brief   Get the current date and time in Zulu format. */
-inline std::string GetCurrentDateAndTime()
-{
-	return TimeUtil::GetCurrentDateAndTime(TimeUtil::ZULU_FORMAT, TimeUtil::UTC); 
+inline std::string GetCurrentDateAndTime() {
+    return TimeUtil::GetCurrentDateAndTime(TimeUtil::ZULU_FORMAT, TimeUtil::UTC);
 }
 
 
 /** \brief   Convert a local SQL DateTime to a UTC string. */
-inline std::string LocalSqlDateTimeToUtcDateTime(const std::string &local_sql_date_time)
-{ 
-	return TimeUtil::LocalTimeToZuluTime(local_sql_date_time); 
+inline std::string LocalSqlDateTimeToUtcDateTime(const std::string &local_sql_date_time) {
+    return TimeUtil::LocalTimeToZuluTime(local_sql_date_time);
 }
 
 

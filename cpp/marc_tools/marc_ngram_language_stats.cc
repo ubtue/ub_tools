@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <iostream>
@@ -35,11 +35,13 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage( "[--verbose] [--limit-count=count] [--cross-valiatdion-chunks=N] marc_data "
-             "[language_code1 language_code2 .. language_codeN]\n"
-             "If \"--limit-count\" has been specified only the first \"count\" records will be considered.\n"
-             "If \"--cross-valiatdion-chunks\" has been specified, N sets will be used.\n"
-             "The default for --topmost-use-count is " + std::to_string(NGram::DEFAULT_TOPMOST_USE_COUNT) + ".");
+    ::Usage(
+        "[--verbose] [--limit-count=count] [--cross-valiatdion-chunks=N] marc_data "
+        "[language_code1 language_code2 .. language_codeN]\n"
+        "If \"--limit-count\" has been specified only the first \"count\" records will be considered.\n"
+        "If \"--cross-valiatdion-chunks\" has been specified, N sets will be used.\n"
+        "The default for --topmost-use-count is "
+        + std::to_string(NGram::DEFAULT_TOPMOST_USE_COUNT) + ".");
 }
 
 
@@ -63,8 +65,7 @@ void GenerateModels(const bool verbose, const unsigned limit_count, const unsign
 
 void ProcessRecords(const bool verbose, const unsigned limit_count, const unsigned /*cross_validation_chunk_count*/,
                     MARC::Reader * const marc_reader, const std::set<std::string> &considered_languages,
-                    std::unordered_map<std::string, unsigned> * const mismatched_assignments_to_counts_map)
-{
+                    std::unordered_map<std::string, unsigned> * const mismatched_assignments_to_counts_map) {
     unsigned record_count(0), untagged_count(0), agreed_count(0);
 
     while (const MARC::Record record = marc_reader->read()) {
@@ -153,8 +154,9 @@ int Main(int argc, char *argv[]) {
         mismatched_assignments_and_counts.emplace_back(mismatched_assignment_and_count);
 
     std::sort(mismatched_assignments_and_counts.begin(), mismatched_assignments_and_counts.end(),
-              [](const std::pair<std::string, unsigned> &pair1, const std::pair<std::string, unsigned> &pair2)
-                  { return pair1.second > pair2.second; });
+              [](const std::pair<std::string, unsigned> &pair1, const std::pair<std::string, unsigned> &pair2) {
+                  return pair1.second > pair2.second;
+              });
 
     for (const auto &mismatched_assignment_and_count : mismatched_assignments_and_counts)
         std::cout << mismatched_assignment_and_count.first << " = " << mismatched_assignment_and_count.second << '\n';

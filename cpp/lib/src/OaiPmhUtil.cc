@@ -37,7 +37,8 @@ namespace Util {
 bool IsValidOaiIdentifier(const std::string &identifier) {
     // Note: the following pattern was taken "oai-identifier.xsd" as found
     // at http://www.openarchives.org/OAI/2.0/oai-identifier.xsd.
-    const std::string PATTERN = "^oai:[a-zA-Z][a-zA-Z0-9\\-]*(\\.[a-zA-Z][a-zA-Z0-9\\-]+)+:"
+    const std::string PATTERN =
+        "^oai:[a-zA-Z][a-zA-Z0-9\\-]*(\\.[a-zA-Z][a-zA-Z0-9\\-]+)+:"
         "[a-zA-Z0-9\\-_\\.!~\\*'\\(\\);/\\?:@&=\\+\\$,%]+$";
 
     PerlCompatRegExp perl_compat_reg_exp(PATTERN);
@@ -65,16 +66,13 @@ bool IsValidUtcDateTime(const std::string &utc_date_time) {
 //                                  Will also accept other UTC time formats.
 //                                  Returns true on success and false on failure.
 //
-bool UtcDateTimeToLocalSqlDateTime(const std::string &utc_date_time,
-				   std::string * const local_sql_date_time)
-{
+bool UtcDateTimeToLocalSqlDateTime(const std::string &utc_date_time, std::string * const local_sql_date_time) {
     bool success = true;
     local_sql_date_time->clear();
 
     try {
         *local_sql_date_time = TimeUtil::UtcToLocalTime(utc_date_time);
-    }
-    catch (const std::exception &x) {
+    } catch (const std::exception &x) {
         success = false;
         local_sql_date_time->clear();
     }

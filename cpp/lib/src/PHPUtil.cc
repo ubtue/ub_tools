@@ -41,8 +41,9 @@ static std::string ExtractString(std::string::const_iterator &ch, const std::str
         retval += *ch++;
     }
     if (unlikely(ch == end))
-        ParseException("in PHPUtil::ExtractString: unexpected end of input while looking "
-                       "for the trailing double quote!");
+        ParseException(
+            "in PHPUtil::ExtractString: unexpected end of input while looking "
+            "for the trailing double quote!");
     ++ch;
 
     return retval;
@@ -62,13 +63,13 @@ static void ScanOverColon(std::string::const_iterator &ch, const std::string::co
 
 static unsigned ExtractUnsigned(std::string::const_iterator &ch, const std::string::const_iterator &end) {
     if (unlikely(ch == end))
-        throw ParseException("in PHPUtil::ExtractUnsigned: unexpected end of input while looking for "
-                             "an unsigned number!");
+        throw ParseException(
+            "in PHPUtil::ExtractUnsigned: unexpected end of input while looking for "
+            "an unsigned number!");
 
     // We need at least one digit!
     if (unlikely(not isdigit(*ch)))
-        throw ParseException("in PHPUtil::ExtractUnsigned: found '" + std::string(1, *ch)
-                             + "' while looking for a digit!");
+        throw ParseException("in PHPUtil::ExtractUnsigned: found '" + std::string(1, *ch) + "' while looking for a digit!");
 
     unsigned retval(0);
     while (ch != end and isdigit(*ch)) {
@@ -82,8 +83,9 @@ static unsigned ExtractUnsigned(std::string::const_iterator &ch, const std::stri
 
 static long ExtractLong(std::string::const_iterator &ch, const std::string::const_iterator &end) {
     if (unlikely(ch == end))
-        throw ParseException("in PHPUtil::ExtractLong: unexpected end of input while looking for "
-                             "a number!");
+        throw ParseException(
+            "in PHPUtil::ExtractLong: unexpected end of input while looking for "
+            "a number!");
 
     // Deal w/ an optional sign:
     bool negative(false);
@@ -99,8 +101,9 @@ static long ExtractLong(std::string::const_iterator &ch, const std::string::cons
 
 static double ExtractFloat(std::string::const_iterator &ch, const std::string::const_iterator &end) {
     if (unlikely(ch == end))
-        throw ParseException("in PHPUtil::ExtractLong: unexpected end of input while looking for "
-                             "a floating point number!");
+        throw ParseException(
+            "in PHPUtil::ExtractLong: unexpected end of input while looking for "
+            "a floating point number!");
 
     std::string buffer;
     if (*ch == '-')
@@ -110,8 +113,7 @@ static double ExtractFloat(std::string::const_iterator &ch, const std::string::c
 
     double retval;
     if (std::sscanf(buffer.c_str(), "%lf", &retval) != 1)
-        throw ParseException("in PHPUtil::ExtractLong: can't convert \"" + buffer
-                             + "\" to a floating point number!");
+        throw ParseException("in PHPUtil::ExtractLong: can't convert \"" + buffer + "\" to a floating point number!");
 
     return retval;
 }
@@ -137,8 +139,9 @@ static std::string Unescape(const std::string &s) {
 
 std::string ExtractFieldName(std::string::const_iterator &ch, const std::string::const_iterator &end) {
     if (unlikely(ch == end))
-        throw ParseException("in PHPUtil::ExtractFieldName: unexpected end of input while looking for "
-                             "the leading 's'!");
+        throw ParseException(
+            "in PHPUtil::ExtractFieldName: unexpected end of input while looking for "
+            "the leading 's'!");
     if (unlikely(*ch != 's'))
         throw ParseException("in PHPUtil::ExtractFieldName: did not find a leading 's'!");
     ++ch;
@@ -149,8 +152,9 @@ std::string ExtractFieldName(std::string::const_iterator &ch, const std::string:
     ScanOverColon(ch, end);
     const std::string string_value(ExtractString(ch, end));
     if (unlikely(string_value.length() != string_length))
-        throw ParseException("in PHPUtil::ExtractFieldName: length of extracted string does not "
-                             "match the preceeding string length!");
+        throw ParseException(
+            "in PHPUtil::ExtractFieldName: length of extracted string does not "
+            "match the preceeding string length!");
 
     if (unlikely(ch == end or *ch != ';'))
         throw ParseException("in PHPUtil::ExtractFieldName: did not find expected semicolon!");
@@ -159,9 +163,7 @@ std::string ExtractFieldName(std::string::const_iterator &ch, const std::string:
 }
 
 
-String *ExtractStringField(std::string::const_iterator &ch, const std::string::const_iterator &end,
-                           const std::string &field_name)
-{
+String *ExtractStringField(std::string::const_iterator &ch, const std::string::const_iterator &end, const std::string &field_name) {
     if (unlikely(ch == end or *ch != 's'))
         throw ParseException("in PHPUtil::ExtractStringField: did not find an 's'!");
     ++ch;
@@ -171,8 +173,9 @@ String *ExtractStringField(std::string::const_iterator &ch, const std::string::c
     ScanOverColon(ch, end);
     const std::string string_value(ExtractString(ch, end));
     if (unlikely(string_value.length() != string_length))
-        throw ParseException("in PHPUtil::ExtractStringField: length of extracted string does not "
-                             "match the preceeding string length!");
+        throw ParseException(
+            "in PHPUtil::ExtractStringField: length of extracted string does not "
+            "match the preceeding string length!");
 
     if (unlikely(ch == end or *ch != ';'))
         throw ParseException("in PHPUtil::ExtractStringField: did not find expected semicolon!");
@@ -182,9 +185,7 @@ String *ExtractStringField(std::string::const_iterator &ch, const std::string::c
 }
 
 
-Integer *ExtractIntegerField(std::string::const_iterator &ch, const std::string::const_iterator &end,
-                             const std::string &field_name)
-{
+Integer *ExtractIntegerField(std::string::const_iterator &ch, const std::string::const_iterator &end, const std::string &field_name) {
     if (unlikely(ch == end or *ch != 'i'))
         throw ParseException("in PHPUtil::ExtractIntegerField: did not find an 'i'!");
     ++ch;
@@ -199,9 +200,7 @@ Integer *ExtractIntegerField(std::string::const_iterator &ch, const std::string:
 }
 
 
-Float *ExtractFloatField(std::string::const_iterator &ch, const std::string::const_iterator &end,
-                         const std::string &field_name)
-{
+Float *ExtractFloatField(std::string::const_iterator &ch, const std::string::const_iterator &end, const std::string &field_name) {
     if (unlikely(ch == end or *ch != 'd'))
         throw ParseException("in PHPUtil::ExtractFloatField: did not find a 'd'!");
     ++ch;
@@ -216,9 +215,8 @@ Float *ExtractFloatField(std::string::const_iterator &ch, const std::string::con
 }
 
 
-Array *ExtractArrayField(std::string::const_iterator &ch, const std::string::const_iterator &end,
-                         const std::string &field_name, unsigned level = 0)
-{
+Array *ExtractArrayField(std::string::const_iterator &ch, const std::string::const_iterator &end, const std::string &field_name,
+                         unsigned level = 0) {
     if (unlikely(ch == end or *ch != 'a'))
         throw ParseException("in PHPUtil::ExtractArrayField: did not find an 'a'!");
     ++ch;
@@ -232,8 +230,9 @@ Array *ExtractArrayField(std::string::const_iterator &ch, const std::string::con
     Array * const new_array(new Array(field_name));
     for (unsigned i(0); i < array_size; ++i) {
         if (unlikely(ch == end))
-            throw ParseException("in PHPUtil::ExtractArrayField: unexpected end of input while looking for "
-                                 "the type of an entry's key!");
+            throw ParseException(
+                "in PHPUtil::ExtractArrayField: unexpected end of input while looking for "
+                "the type of an entry's key!");
 
         // Keys of array entries can be either numbers or strings:
         std::string key_name;
@@ -246,13 +245,15 @@ Array *ExtractArrayField(std::string::const_iterator &ch, const std::string::con
             key_name = ExtractFieldName(ch, end);
 
         if (unlikely(ch == end or *ch != ';'))
-            throw ParseException("in PHPUtil::ExtractArrayField: did not find expected semicolon after "
-                                 "an array index value!");
+            throw ParseException(
+                "in PHPUtil::ExtractArrayField: did not find expected semicolon after "
+                "an array index value!");
         ++ch;
 
         if (unlikely(ch == end))
-            throw ParseException("in PHPUtil::ExtractArrayField: unexpected end of input while looking for "
-                                 "the data type of an entry!");
+            throw ParseException(
+                "in PHPUtil::ExtractArrayField: unexpected end of input while looking for "
+                "the data type of an entry!");
         const char field_type(*ch);
         switch (field_type) {
         case 's': {
@@ -276,15 +277,15 @@ Array *ExtractArrayField(std::string::const_iterator &ch, const std::string::con
             break;
         }
         case 'O': {
-            throw ParseException("in PHPUtil::ExtractArrayField: now is the time to implement support for the "
-                                 "expect_field_name argument of this function!!");
-            //Object * const new_object2(ExtractObjectField(ch, end, "*array_entry*", /* expect_field_name = */true));
-            //new_array->addEntry(key_name, new_object2);
+            throw ParseException(
+                "in PHPUtil::ExtractArrayField: now is the time to implement support for the "
+                "expect_field_name argument of this function!!");
+            // Object * const new_object2(ExtractObjectField(ch, end, "*array_entry*", /* expect_field_name = */true));
+            // new_array->addEntry(key_name, new_object2);
             break;
         }
         default:
-            throw ParseException("in PHPUtil::ExtractArrayField: unknown or unsupported field type '"
-                                 + std::string(1, field_type) + "'!");
+            throw ParseException("in PHPUtil::ExtractArrayField: unknown or unsupported field type '" + std::string(1, field_type) + "'!");
         }
     }
 
@@ -293,17 +294,16 @@ Array *ExtractArrayField(std::string::const_iterator &ch, const std::string::con
     ++ch;
 
     if (unlikely(array_size != new_array->size()))
-        throw ParseException("in PHPUtil::ExtractArrayField: array does not have the expected size!"
-                             " (expected: " + std::to_string(array_size) + ", actual: "
-                             + std::to_string(new_array->size()) + ")");
+        throw ParseException(
+            "in PHPUtil::ExtractArrayField: array does not have the expected size!"
+            " (expected: "
+            + std::to_string(array_size) + ", actual: " + std::to_string(new_array->size()) + ")");
 
     return new_array;
 }
 
 
-Object *ParseObject(std::string::const_iterator &ch, const std::string::const_iterator &end,
-                    const bool /*expect_field_name*/)
-{
+Object *ParseObject(std::string::const_iterator &ch, const std::string::const_iterator &end, const bool /*expect_field_name*/) {
     if (unlikely(ch == end))
         throw ParseException("in PHPUtil::ParseObject: unexpected end of input!");
     if (unlikely(*ch != 'O'))
@@ -318,15 +318,17 @@ Object *ParseObject(std::string::const_iterator &ch, const std::string::const_it
     if (unlikely(class_name.empty()))
         throw ParseException("in PHPUtil::ParseObject: found an empty class name!");
     if (unlikely(class_name.length() != class_name_length))
-        throw ParseException("in PHPUtil::ParseObject: length of class name does not equal the "
-                             "preceeding length!");
+        throw ParseException(
+            "in PHPUtil::ParseObject: length of class name does not equal the "
+            "preceeding length!");
 
     ScanOverColon(ch, end);
     const unsigned field_count(ExtractUnsigned(ch, end));
     ScanOverColon(ch, end);
     if (ch == end or *ch != '{')
-        throw ParseException("in PHPUtil::ParseObject: unexpected end of input "
-                             "while looking for an opening brace!");
+        throw ParseException(
+            "in PHPUtil::ParseObject: unexpected end of input "
+            "while looking for an opening brace!");
     ++ch;
 
     Object *new_object(new Object("", Unescape(class_name)));
@@ -334,8 +336,9 @@ Object *ParseObject(std::string::const_iterator &ch, const std::string::const_it
     for (unsigned field_no(0); field_no < field_count; ++field_no) {
         const std::string field_name(ExtractFieldName(ch, end));
         if (unlikely(ch == end))
-            throw ParseException("in PHPUtil::ParseObject: unexpected end of input while looking for "
-                                 "the data type of a field!");
+            throw ParseException(
+                "in PHPUtil::ParseObject: unexpected end of input while looking for "
+                "the data type of a field!");
 
         if (unlikely(ch == end or *ch != ';'))
             throw ParseException("in PHPUtil::ParseObject: missing semicolon at end of field name section!");
@@ -364,15 +367,15 @@ Object *ParseObject(std::string::const_iterator &ch, const std::string::const_it
             break;
         }
         case 'O': {
-            throw ParseException("in PHPUtil::ParseObject: now is the time to implement support for the "
-                                 "expect_field_name argument of this function!!");
-            //Object * const new_object2(ExtractObjectField(ch, end, field_name, /* expect_field_name = */true));
-            //new_object->addEntry(field_name, new_object2);
+            throw ParseException(
+                "in PHPUtil::ParseObject: now is the time to implement support for the "
+                "expect_field_name argument of this function!!");
+            // Object * const new_object2(ExtractObjectField(ch, end, field_name, /* expect_field_name = */true));
+            // new_object->addEntry(field_name, new_object2);
             break;
         }
         default:
-            throw ParseException("in PHPUtil::ParseObject: unknown or unsupported field type '"
-                                 + std::string(1, field_type) + "'!");
+            throw ParseException("in PHPUtil::ParseObject: unknown or unsupported field type '" + std::string(1, field_type) + "'!");
         }
     }
 

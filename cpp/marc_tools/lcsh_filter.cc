@@ -65,8 +65,7 @@ bool Matched(const MARC::Record &record, const std::unordered_set<std::string> &
 
 
 void Filter(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-            const std::unordered_set<std::string> &loc_subject_headings)
-{
+            const std::unordered_set<std::string> &loc_subject_headings) {
     unsigned total_count(0), matched_count(0);
     while (const MARC::Record record = marc_reader->read()) {
         ++total_count;

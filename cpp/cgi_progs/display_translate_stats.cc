@@ -46,12 +46,10 @@ void GetLanguageCodes(DbConnection * const db_connection, std::vector<std::strin
 }
 
 
-void GenerateStats(DbConnection * const db_connection, const std::vector<std::string> &language_codes,
-                   const std::string &table_name, const std::string &table_key_name)
-{
+void GenerateStats(DbConnection * const db_connection, const std::vector<std::string> &language_codes, const std::string &table_name,
+                   const std::string &table_key_name) {
     for (const auto &language_code : language_codes) {
-        db_connection->queryOrDie("SELECT COUNT(*) FROM " + table_name + " WHERE language_code='" + language_code
-                                  + "';");
+        db_connection->queryOrDie("SELECT COUNT(*) FROM " + table_name + " WHERE language_code='" + language_code + "';");
         DbResultSet result_set(db_connection->getLastResultSet());
         unsigned translated_count;
         if (result_set.empty())
@@ -62,13 +60,13 @@ void GenerateStats(DbConnection * const db_connection, const std::vector<std::st
         }
 
         // Find tokens/PPN's where "language_code" is missing:
-        db_connection->queryOrDie("SELECT DISTINCT " + table_key_name + " FROM " + table_name + " WHERE "
-                                  + table_key_name + " NOT IN (SELECT DISTINCT " + table_key_name + " FROM "
-                                  + table_name + " WHERE language_code = \"" + language_code + "\");");
+        db_connection->queryOrDie("SELECT DISTINCT " + table_key_name + " FROM " + table_name + " WHERE " + table_key_name
+                                  + " NOT IN (SELECT DISTINCT " + table_key_name + " FROM " + table_name + " WHERE language_code = \""
+                                  + language_code + "\");");
         const unsigned not_yet_translated(db_connection->getLastResultSet().size());
 
-        std::cout << "        <tr>" << language_code << "</tr><tr>" << (translated_count + not_yet_translated)
-                  << "</tr><tr>" << translated_count << "</tr>\n";
+        std::cout << "        <tr>" << language_code << "</tr><tr>" << (translated_count + not_yet_translated) << "</tr><tr>"
+                  << translated_count << "</tr>\n";
     }
 }
 
@@ -76,7 +74,7 @@ void GenerateStats(DbConnection * const db_connection, const std::vector<std::st
 } // unnamed namespace
 
 
-int Main(int /*argc*/, char */*argv*/[]) {
+int Main(int /*argc*/, char * /*argv*/[]) {
     const IniFile ini_file(CONF_FILE_PATH);
     const std::string sql_database(ini_file.getString("Database", "sql_database"));
     const std::string sql_username(ini_file.getString("Database", "sql_username"));

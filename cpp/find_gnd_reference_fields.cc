@@ -15,11 +15,11 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
-#include <stdexcept>
 #include <set>
+#include <stdexcept>
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
@@ -34,7 +34,11 @@ namespace {
 
 void ProcessRecords(MARC::Reader * const marc_reader) {
     std::string err_msg;
-    RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("\x1F""0\\(DE-588\\)([^\x1F]+).*\x1F""2gnd", &err_msg));
+    RegexMatcher * const matcher(
+        RegexMatcher::RegexMatcherFactory("\x1F"
+                                          "0\\(DE-588\\)([^\x1F]+).*\x1F"
+                                          "2gnd",
+                                          &err_msg));
     if (matcher == nullptr)
         LOG_ERROR("failed to compile a regex in CollectGNDReferences: " + err_msg);
 

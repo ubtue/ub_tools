@@ -35,7 +35,6 @@
 
 
 void ExtractLocalKeywords(MARC::Reader * const marc_reader, std::set<std::string> * const all_local_keywords) {
-
     while (const auto &record = marc_reader->read()) {
         const auto local_block_starts(record.findStartOfAllLocalDataBlocks());
         for (const auto &local_block_start : local_block_starts) {
@@ -75,4 +74,3 @@ int Main(int argc, char **argv) {
 
     return EXIT_SUCCESS;
 }
-

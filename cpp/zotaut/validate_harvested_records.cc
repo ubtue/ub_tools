@@ -40,6 +40,7 @@
 
 namespace {
 
+const std::string NON_ARTICLE_TAG("NOT");
 
 [[noreturn]] void Usage() {
     ::Usage("[--update-db-errors] marc_input marc_output online_first_file missed_expectations_file email_address");
@@ -272,7 +273,9 @@ void JournalSpecificFieldValidator::findMissingTags(const unsigned journal_id,
 void LoadRules(DbConnection * const db_connection, GeneralFieldValidator * const general_regular_article_validator,
                JournalSpecificFieldValidator * const journal_specific_regular_article_validator,
                GeneralFieldValidator * const general_review_article_validator,
-               JournalSpecificFieldValidator * const journal_specific_review_article_validator)
+               JournalSpecificFieldValidator * const journal_specific_review_article_validator,
+               GeneralFieldValidator * const general_non_article_validator,
+               JournalSpecificFieldValidator * const journal_specific_non_article_validator)
 {
     db_connection->queryOrDie(
         "SELECT journal_id,marc_field_tag,marc_subfield_code,field_presence,record_type,regex FROM metadata_presence_tracer"
@@ -295,7 +298,7 @@ void LoadRules(DbConnection * const db_connection, GeneralFieldValidator * const
                                                                     row["marc_subfield_code"][0],
                                                                     StringToFieldPresence(row["field_presence"]),
                                                                     new_regex_matcher);
-        } else { // Assume that record_type == review.
+        } else if (row["record_type"] == "review") {
             if (row.isNull("journal_id"))
                 general_review_article_validator->addRule(row["marc_field_tag"], row["marc_subfield_code"][0],
                                                           StringToFieldPresence(row["field_presence"]),
@@ -305,7 +308,19 @@ void LoadRules(DbConnection * const db_connection, GeneralFieldValidator * const
                                                                    row["marc_field_tag"], row["marc_subfield_code"][0],
                                                                    StringToFieldPresence(row["field_presence"]),
                                                                    new_regex_matcher);
-        }
+        } else if (row["record_type"] == "non_article") {
+            if (row.isNull("journal_id"))
+                general_non_article_validator->addRule(row["marc_field_tag"], row["marc_subfield_code"][0],
+                                                       StringToFieldPresence(row["field_presence"]),
+                                                       new_regex_matcher);
+            else
+                journal_specific_non_article_validator->addRule(StringUtil::ToUnsigned(row["journal_id"]),
+                                                                row["marc_field_tag"], row["marc_subfield_code"][0],
+                                                                StringToFieldPresence(row["field_presence"]),
+                                                                new_regex_matcher);
+        } else
+            LOG_ERROR("Invalid record type in database: " + row["record_type"]);
+
     }
 }
 
@@ -364,6 +379,10 @@ unsigned GetJournalId(const unsigned zeder_id, const std::string &zeder_instance
 }
 
 
+bool RecordIsNonArticle(const MARC::Record &record) {
+    return record.hasTag(NON_ARTICLE_TAG);
+}
+
 bool RecordIsOnlineFirstOrEarlyView(const MARC::Record &record) {
     // Skip if volume and issue are missing or invalid
     const auto volume_and_issue(record.getSubfieldValues("936", "ed"));
@@ -372,14 +391,18 @@ bool RecordIsOnlineFirstOrEarlyView(const MARC::Record &record) {
 
 const std::string ONLINE_FIRST_OR_EARLY_VIEW_MESSAGE("Online-first or Early-View");
 bool RecordIsValid(DbConnection * const db_connection, const MARC::Record &record, const std::vector<const FieldValidator *> &regular_article_field_validators,
-                   const std::vector<const FieldValidator *> &review_article_field_validators, std::vector<std::string> * const reasons_for_being_invalid)
+                   const std::vector<const FieldValidator *> &review_article_field_validators,
+                   const std::vector<const FieldValidator *> &non_article_field_validators,
+                   std::vector<std::string> * const reasons_for_being_invalid)
 {
     reasons_for_being_invalid->clear();
 
-    // Filter Online-First or Early Views unconditionally
-    if (RecordIsOnlineFirstOrEarlyView(record)) {
-        reasons_for_being_invalid->emplace_back(ONLINE_FIRST_OR_EARLY_VIEW_MESSAGE);
-        return false;
+    if (not RecordIsNonArticle(record)) {
+        // Filter Online-First or Early Views unconditionally
+        if (RecordIsOnlineFirstOrEarlyView(record)) {
+            reasons_for_being_invalid->emplace_back(ONLINE_FIRST_OR_EARLY_VIEW_MESSAGE);
+            return false;
+        }
     }
 
     const auto zid_field(record.findTag("ZID"));
@@ -399,17 +422,11 @@ bool RecordIsValid(DbConnection * const db_connection, const MARC::Record &recor
 
     // 1. Check that present fields meet all the requirements:
     MARC::Tag last_tag("   ");
-    const auto &field_validators(record.isReviewArticle() ? review_article_field_validators : regular_article_field_validators);
+    const auto &field_validators(RecordIsNonArticle(record) ? non_article_field_validators :
+                                (record.isReviewArticle() ? review_article_field_validators : regular_article_field_validators));
     std::set<std::string> present_tags, tags_for_which_rules_were_found;
     for (const auto &field : record) {
         const auto current_tag(field.getTag());
-
-        // Special case for notes - skip author tests
-        if (current_tag == "100" and record.hasFieldWithTag("NOT")) {
-            tags_for_which_rules_were_found.emplace(current_tag.toString());
-            continue;
-        }
-
         if (current_tag == last_tag and not field.isRepeatableField())
             reasons_for_being_invalid->emplace_back(current_tag.toString() + " is not a repeatable field");
         last_tag = current_tag;
@@ -472,17 +489,25 @@ int Main(int argc, char *argv[]) {
     const std::string email_address(argv[5]);
     ZoteroHarvester::Util::UploadTracker upload_tracker;
 
-    GeneralFieldValidator general_regular_article_validator, general_review_article_validator;
+    GeneralFieldValidator general_regular_article_validator, general_review_article_validator,
+                          general_non_article_validator;
     JournalSpecificFieldValidator journal_specific_regular_article_validator,
-                                  journal_specific_review_article_validator;
+                                  journal_specific_review_article_validator,
+                                  journal_specific_non_article_validator;
     LoadRules(&db_connection, &general_regular_article_validator, &journal_specific_regular_article_validator,
-              &general_review_article_validator, &journal_specific_review_article_validator);
+              &general_review_article_validator, &journal_specific_review_article_validator,
+              &general_non_article_validator, &journal_specific_non_article_validator);
     std::vector<const FieldValidator *> regular_article_field_validators{ &journal_specific_regular_article_validator,
                                                                           &general_regular_article_validator },
                                         review_article_field_validators{ &journal_specific_review_article_validator,
                                                                          &general_review_article_validator,
                                                                          &journal_specific_regular_article_validator,
-                                                                         &general_regular_article_validator };
+                                                                         &general_regular_article_validator },
+                                        non_article_field_validators{ &journal_specific_non_article_validator,
+                                                                      &general_non_article_validator,
+                                                                      &journal_specific_regular_article_validator,
+                                                                      &general_regular_article_validator };
+
 
     unsigned total_record_count(0), online_first_record_count(0), missed_expectation_count(0);
     while (const auto record = marc_reader->read()) {
@@ -491,7 +516,9 @@ int Main(int argc, char *argv[]) {
         LOG_INFO("Validating record " + record.getControlNumber() + "...");
 
         std::vector<std::string> reasons_for_being_invalid;
-        if (RecordIsValid(&db_connection, record, regular_article_field_validators, review_article_field_validators, &reasons_for_being_invalid)) {
+        if (RecordIsValid(&db_connection, record, regular_article_field_validators, review_article_field_validators,
+            non_article_field_validators, &reasons_for_being_invalid))
+        {
             LOG_INFO("Record " + record.getControlNumber() + " is valid.");
             valid_records_writer->write(record);
         } else {

@@ -38,14 +38,15 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("(--debug|--query|--date-query) [--map-file-directory=path] bible_reference_candidate\n"
-            " bible_aliases_map books_of_the_bible_to_code_map\n"
-            " books_of_the_bible_to_canonical_form_map pericopes_to_codes_map\n\n"
-            " When --debug has been specified additional tracing output will be generated.\n"
-            " When --query has been specified SOLR range search queries will be output.\n"
-            " When --date-query has been specified SOLR date range search queries will be output.\n"
-            " If --map-file-directory=... has been specified, the provided path will be prefixed to all\n"
-            " map-file arguments and, if the map arguments are left off, the default names will be used.");
+    ::Usage(
+        "(--debug|--query|--date-query) [--map-file-directory=path] bible_reference_candidate\n"
+        " bible_aliases_map books_of_the_bible_to_code_map\n"
+        " books_of_the_bible_to_canonical_form_map pericopes_to_codes_map\n\n"
+        " When --debug has been specified additional tracing output will be generated.\n"
+        " When --query has been specified SOLR range search queries will be output.\n"
+        " When --date-query has been specified SOLR date range search queries will be output.\n"
+        " If --map-file-directory=... has been specified, the provided path will be prefixed to all\n"
+        " map-file arguments and, if the map arguments are left off, the default names will be used.");
 }
 
 
@@ -53,8 +54,7 @@ enum OutputType { DEBUG, RANGE_QUERY, DATE_RANGE_QUERY };
 
 
 void HandlePericopes(const OutputType output_type, const std::string &bible_reference_candidate,
-                     const std::string &pericopes_to_codes_map_filename)
-{
+                     const std::string &pericopes_to_codes_map_filename) {
     if (output_type == DEBUG)
         std::cout << "Entering HandlePericopes().\n";
 
@@ -74,8 +74,8 @@ void HandlePericopes(const OutputType output_type, const std::string &bible_refe
             if (output_type != DEBUG) {
                 if (not query.empty())
                     query += (output_type == RANGE_QUERY) ? " " : " OR ";
-                query += (output_type == RANGE_QUERY) ? StringUtil::Map(pair->second, ':', '_')
-                                                      : RangeUtil::ConvertToDatesQuery(pair->second);
+                query +=
+                    (output_type == RANGE_QUERY) ? StringUtil::Map(pair->second, ':', '_') : RangeUtil::ConvertToDatesQuery(pair->second);
             } else
                 std::cout << pair->second << '\n';
         }
@@ -87,10 +87,8 @@ void HandlePericopes(const OutputType output_type, const std::string &bible_refe
 }
 
 
-void HandleBookRanges(const OutputType output_type,
-                      const std::string &books_of_the_bible_to_canonical_form_map_filename,
-                      const std::string &books_of_the_bible_to_code_map_filename, const std::string &bible_reference_candidate)
-{
+void HandleBookRanges(const OutputType output_type, const std::string &books_of_the_bible_to_canonical_form_map_filename,
+                      const std::string &books_of_the_bible_to_code_map_filename, const std::string &bible_reference_candidate) {
     RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactory("^([12])-([23])\\s*([A-ZÖa-zö]+)\\s*$"));
     if (not matcher->matched(bible_reference_candidate))
         return;
@@ -100,21 +98,20 @@ void HandleBookRanges(const OutputType output_type,
         LOG_ERROR("\"" + (*matcher)[1] + "\" is not a valid starting volume!");
 
     unsigned ending_volume;
-    if (not StringUtil::ToUnsigned((*matcher)[2], &ending_volume) or ending_volume > 3
-        or ending_volume <= starting_volume)
+    if (not StringUtil::ToUnsigned((*matcher)[2], &ending_volume) or ending_volume > 3 or ending_volume <= starting_volume)
         LOG_ERROR("\"" + (*matcher)[2] + "\" is not a valid ending volume!");
 
     const std::string non_canonical_book_name((*matcher)[3]);
     RangeUtil::BibleBookCanoniser bible_book_canoniser(books_of_the_bible_to_canonical_form_map_filename);
-    const std::string starting_bible_book_candidate(bible_book_canoniser.canonise(
-        std::to_string(starting_volume) + non_canonical_book_name, output_type == DEBUG));
+    const std::string starting_bible_book_candidate(
+        bible_book_canoniser.canonise(std::to_string(starting_volume) + non_canonical_book_name, output_type == DEBUG));
 
-    const std::string ending_bible_book_candidate(bible_book_canoniser.canonise(
-        std::to_string(ending_volume) + non_canonical_book_name, output_type == DEBUG));
+    const std::string ending_bible_book_candidate(
+        bible_book_canoniser.canonise(std::to_string(ending_volume) + non_canonical_book_name, output_type == DEBUG));
 
     if (output_type == DEBUG) {
-        std::cout << "Identified a bible book range.  Starting volume " << starting_volume << ", ending volume "
-                  << ending_volume << ", book is \"" << non_canonical_book_name << "\".\n";
+        std::cout << "Identified a bible book range.  Starting volume " << starting_volume << ", ending volume " << ending_volume
+                  << ", book is \"" << non_canonical_book_name << "\".\n";
     }
 
     RangeUtil::BibleBookToCodeMapper bible_book_to_code_mapper(books_of_the_bible_to_code_map_filename);
@@ -134,11 +131,9 @@ void HandleBookRanges(const OutputType output_type,
 }
 
 
-void GenerateQuery(const OutputType output_type, std::string book_candidate,
-                   const std::string &chapters_and_verses_candidate,
+void GenerateQuery(const OutputType output_type, std::string book_candidate, const std::string &chapters_and_verses_candidate,
                    const std::string &books_of_the_bible_to_code_map_filename,
-                   const std::string &books_of_the_bible_to_canonical_form_map_filename)
-{
+                   const std::string &books_of_the_bible_to_canonical_form_map_filename) {
     RangeUtil::BibleBookCanoniser bible_book_canoniser(books_of_the_bible_to_canonical_form_map_filename);
     book_candidate = bible_book_canoniser.canonise(book_candidate, output_type == DEBUG);
     RangeUtil::BibleBookToCodeMapper bible_book_to_code_mapper(books_of_the_bible_to_code_map_filename);
@@ -151,9 +146,7 @@ void GenerateQuery(const OutputType output_type, std::string book_candidate,
     const char separator(output_type == RANGE_QUERY ? '_' : ':');
     std::string query;
     if (chapters_and_verses_candidate.empty()) {
-        query = book_code
-                + std::string(RangeUtil::MAX_CHAPTER_LENGTH + RangeUtil::MAX_VERSE_LENGTH, '0')
-                + separator + book_code
+        query = book_code + std::string(RangeUtil::MAX_CHAPTER_LENGTH + RangeUtil::MAX_VERSE_LENGTH, '0') + separator + book_code
                 + std::string(RangeUtil::MAX_CHAPTER_LENGTH + RangeUtil::MAX_VERSE_LENGTH, '9');
         std::cout << (output_type == DATE_RANGE_QUERY ? RangeUtil::ConvertToDatesQuery(query) : query) << '\n';
 
@@ -163,8 +156,7 @@ void GenerateQuery(const OutputType output_type, std::string book_candidate,
     std::set<std::pair<std::string, std::string>> start_end;
     if (not RangeUtil::ParseBibleReference(chapters_and_verses_candidate, book_code, &start_end)) {
         if (output_type == DEBUG)
-            std::cerr << "The parsing of \"" << chapters_and_verses_candidate
-                      << "\" as chapters and verses failed!\n";
+            std::cerr << "The parsing of \"" << chapters_and_verses_candidate << "\" as chapters and verses failed!\n";
         std::exit(EXIT_FAILURE);
     }
 
@@ -177,8 +169,7 @@ void GenerateQuery(const OutputType output_type, std::string book_candidate,
 
 void HandleOrdinaryReferences(const OutputType output_type, const std::string &bible_query_candidate,
                               const std::string &books_of_the_bible_to_code_map_filename,
-                              const std::string &books_of_the_bible_to_canonical_form_map_filename)
-{
+                              const std::string &books_of_the_bible_to_canonical_form_map_filename) {
     LOG_DEBUG("Entering HandleOrdinaryReferences.");
     std::vector<std::string> book_candidate, chapters_and_verses_candidate;
     RangeUtil::SplitIntoBooksAndChaptersAndVerses(bible_query_candidate, &book_candidate, &chapters_and_verses_candidate);
@@ -190,8 +181,8 @@ void HandleOrdinaryReferences(const OutputType output_type, const std::string &b
     }
 
     for (unsigned i(0); i < book_candidate.size(); ++i)
-        GenerateQuery(output_type, book_candidate[i], chapters_and_verses_candidate[i],
-                      books_of_the_bible_to_code_map_filename, books_of_the_bible_to_canonical_form_map_filename);
+        GenerateQuery(output_type, book_candidate[i], chapters_and_verses_candidate[i], books_of_the_bible_to_code_map_filename,
+                      books_of_the_bible_to_canonical_form_map_filename);
 }
 
 
@@ -222,7 +213,7 @@ int Main(int argc, char **argv) {
         ++argv, --argc;
     }
 
-    if (argc != 6 and not (not map_file_path.empty() and argc == 2))
+    if (argc != 6 and not(not map_file_path.empty() and argc == 2))
         Usage();
 
     std::string query(argv[1]);
@@ -237,8 +228,8 @@ int Main(int argc, char **argv) {
     const RangeUtil::BibleAliasMapper alias_mapper(bible_aliases_map_filename);
     bible_query_candidate = alias_mapper.map(bible_query_candidate, output_type == DEBUG);
 
-    HandleBookRanges(output_type, books_of_the_bible_to_canonical_form_map_filename,
-                     books_of_the_bible_to_code_map_filename, bible_query_candidate);
+    HandleBookRanges(output_type, books_of_the_bible_to_canonical_form_map_filename, books_of_the_bible_to_code_map_filename,
+                     bible_query_candidate);
     HandlePericopes(output_type, bible_query_candidate, pericopes_to_codes_map_filename);
     HandleOrdinaryReferences(output_type, bible_query_candidate, books_of_the_bible_to_code_map_filename,
                              books_of_the_bible_to_canonical_form_map_filename);

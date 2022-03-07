@@ -19,9 +19,9 @@
  */
 #include "FullTextCache.h"
 #include <algorithm>
-#include <ctime>
 #include <sstream>
 #include <tuple>
+#include <ctime>
 #include "Compiler.h"
 #include "DbRow.h"
 #include "FileUtil.h"
@@ -31,27 +31,26 @@
 #include "StringUtil.h"
 #include "TimeUtil.h"
 #include "UrlUtil.h"
-#include "util.h"
 #include "VuFind.h"
+#include "util.h"
 
 
-constexpr unsigned MIN_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60); // About 1 month in seconds.
+constexpr unsigned MIN_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60);     // About 1 month in seconds.
 constexpr unsigned MAX_CACHE_EXPIRE_TIME_ON_ERROR(42300 * 60 * 2); // About 2 months in seconds.
 
 
-static const std::map<std::string, FullTextCache::TextType> description_to_text_type_map {
-    { "Volltext", FullTextCache::FULLTEXT },
-    { "Inhaltsverzeichnis", FullTextCache::TOC },
-    { "Inhaltstext", FullTextCache::ABSTRACT },
-    { "Zusammenfassung", FullTextCache::SUMMARY },
-    { "Literaturverzeichnis", FullTextCache::LIST_OF_REFERENCES }
-};
+static const std::map<std::string, FullTextCache::TextType> description_to_text_type_map{ { "Volltext", FullTextCache::FULLTEXT },
+                                                                                          { "Inhaltsverzeichnis", FullTextCache::TOC },
+                                                                                          { "Inhaltstext", FullTextCache::ABSTRACT },
+                                                                                          { "Zusammenfassung", FullTextCache::SUMMARY },
+                                                                                          { "Literaturverzeichnis",
+                                                                                            FullTextCache::LIST_OF_REFERENCES } };
 
 
 bool FullTextCache::getDomainFromUrl(const std::string &url, std::string * const domain) const {
     std::string scheme, username_password, authority, port, path, params, query, fragment, relative_url;
-    const bool result(UrlUtil::ParseUrl(url, &scheme, &username_password, &authority, &port, &path, &params, &query,
-                                        &fragment, &relative_url));
+    const bool result(
+        UrlUtil::ParseUrl(url, &scheme, &username_password, &authority, &port, &path, &params, &query, &fragment, &relative_url));
     if (result)
         *domain = authority;
 
@@ -138,6 +137,12 @@ bool FullTextCache::hasEntryWithType(const std::string &id, const TextType &text
 }
 
 
+bool FullTextCache::hasEntry(const std::string &id) const {
+    Entry entry;
+    return getEntry(id, &entry);
+}
+
+
 inline std::string GetValueOrEmptyString(const std::map<std::string, std::string> &map, const std::string &key) {
     const auto pair(map.find(key));
     return pair == map.cend() ? "" : pair->second;
@@ -151,9 +156,9 @@ std::vector<FullTextCache::EntryUrl> FullTextCache::getEntryUrls(const std::stri
     entry_urls.reserve(results.size());
     for (const auto &map : results) {
         EntryUrl entry_url;
-        entry_url.id_            = id;
-        entry_url.url_           = GetValueOrEmptyString(map, "url");
-        entry_url.domain_        = GetValueOrEmptyString(map, "domain");
+        entry_url.id_ = id;
+        entry_url.url_ = GetValueOrEmptyString(map, "url");
+        entry_url.domain_ = GetValueOrEmptyString(map, "domain");
         entry_url.error_message_ = GetValueOrEmptyString(map, "error_message");
         entry_urls.emplace_back(entry_url);
     }
@@ -166,7 +171,6 @@ std::vector<std::string> FullTextCache::getEntryUrlsAsStrings(const std::string 
 
     std::vector<std::string> urls;
     for (const auto &map : results) {
-
         const auto url(GetValueOrEmptyString(map, "url"));
         if (not url.empty())
             urls.emplace_back(url);
@@ -176,7 +180,7 @@ std::vector<std::string> FullTextCache::getEntryUrlsAsStrings(const std::string 
 
 
 unsigned FullTextCache::getErrorCount() const {
-    return full_text_cache_urls_.count({ { "error_message", "*" } });
+    return full_text_cache_urls_.count({ { "(error_message", "[ * TO * ]) AND -(error_message:DUMMY\\ ERROR)" } });
 }
 
 
@@ -195,15 +199,16 @@ const std::string US("\x1F"); // ASCII unit separator
 
 
 std::vector<FullTextCache::EntryGroup> FullTextCache::getEntryGroupsByDomainAndErrorMessage() const {
-    const auto results(full_text_cache_urls_.simpleSelect({ "url", "domain", "error_message", "id" }));
+    const auto results(full_text_cache_urls_.simpleSelect({ "url", "domain", "error_message", "id" }, {}, UINT_MAX));
 
     std::unordered_map<std::string, std::tuple<std::string, std::string, unsigned>> domains_and_errors_to_ids_and_urls_and_counts_map;
     for (const auto &map : results) {
         const auto url_pair(map.find("url"));
         const auto domain_pair(map.find("domain"));
         const auto error_message_pair(map.find("error_message"));
-        if (url_pair == map.cend() or domain_pair == map.cend() or error_message_pair == map.cend())
-            continue;
+        if (url_pair == map.cend() or domain_pair == map.cend() or error_message_pair == map.cend()
+            or error_message_pair->second == FullTextCache::DUMMY_ERROR)
+                continue;
 
         const auto id_pair(map.find("id"));
         const auto key(domain_pair->second + US + error_message_pair->second);
@@ -219,23 +224,21 @@ std::vector<FullTextCache::EntryGroup> FullTextCache::getEntryGroupsByDomainAndE
     for (const auto &domain_and_error_to_id_and_url_and_count : domains_and_errors_to_ids_and_urls_and_counts_map) {
         std::vector<std::string> parts;
         if (unlikely(StringUtil::Split(domain_and_error_to_id_and_url_and_count.first, US, &parts) != 2))
-            LOG_ERROR("This should never happen (" + std::to_string(parts.size()) + "): "
-                      + StringUtil::CStyleEscape(domain_and_error_to_id_and_url_and_count.first));
+            LOG_ERROR("This should never happen (" + std::to_string(parts.size())
+                      + "): " + StringUtil::CStyleEscape(domain_and_error_to_id_and_url_and_count.first));
 
-        groups.emplace_back(EntryGroup(std::get<2>(domain_and_error_to_id_and_url_and_count.second),
-                                       parts[0], parts[1],
+        groups.emplace_back(EntryGroup(std::get<2>(domain_and_error_to_id_and_url_and_count.second), parts[0], parts[1],
                                        std::get<0>(domain_and_error_to_id_and_url_and_count.second),
                                        std::get<1>(domain_and_error_to_id_and_url_and_count.second)));
     }
 
-    std::sort(groups.begin(), groups.end(), [](const EntryGroup &eg1, const EntryGroup &eg2){ return eg1.count_ > eg2.count_;});
+    std::sort(groups.begin(), groups.end(), [](const EntryGroup &eg1, const EntryGroup &eg2) { return eg1.count_ > eg2.count_; });
     return groups;
 }
 
 
 std::vector<FullTextCache::EntryUrl> FullTextCache::getJoinedEntriesByDomainAndErrorMessage(const std::string &domain_,
-                                                                                            const std::string &error_message_) const
-{
+                                                                                            const std::string &error_message_) const {
     const auto results(full_text_cache_urls_.simpleSelect({ "url", "domain", "error_message", "id" },
                                                           { { "domain", domain_ }, { "error_message", error_message_ } }));
 
@@ -249,17 +252,16 @@ std::vector<FullTextCache::EntryUrl> FullTextCache::getJoinedEntriesByDomainAndE
         entries.emplace_back(EntryUrl(id, url, domain, error_message));
     }
 
-    std::sort(entries.begin(), entries.end(), [](const EntryUrl &eu1, const EntryUrl &eu2){ return eu1.id_ < eu2.id_; });
+    std::sort(entries.begin(), entries.end(), [](const EntryUrl &eu1, const EntryUrl &eu2) { return eu1.id_ < eu2.id_; });
     return entries;
 }
 
 
-FullTextCache::EntryUrl FullTextCache::getJoinedEntryByDomainAndErrorMessage(const std::string &domain_, const std::string &error_message_)
-    const
-{
+FullTextCache::EntryUrl FullTextCache::getJoinedEntryByDomainAndErrorMessage(const std::string &domain_,
+                                                                             const std::string &error_message_) const {
     const auto results(full_text_cache_urls_.simpleSelect({ "url", "domain", "error_message", "id" },
                                                           { { "domain", domain_ }, { "error_message", error_message_ } },
-                                                          /* max_count = */1));
+                                                          /* max_count = */ 1));
     if (unlikely(results.size() != 1))
         LOG_ERROR("failed to get one entry!");
 
@@ -286,29 +288,29 @@ FullTextCache::TextType FullTextCache::MapTextDescriptionToTextType(const std::s
 
 
 void FullTextCache::extractAndImportHTMLPages(const std::string &id, const std::string &full_text_location, const TextType &text_type) {
-   const FileUtil::AutoTempDirectory auto_temp_dir("/tmp/ADT");
-   const std::string html_export_directory(auto_temp_dir.getDirectoryPath());
-   PdfUtil::ExtractHTMLAsPages(full_text_location, html_export_directory);
-   FileUtil::Directory html_pages(html_export_directory, ".*-\\d+\\.html");
-   for (const auto &html_page : html_pages) {
-       static const auto page_number_matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*-(\\d+)\\.html$"));
-       const std::string page_file_name(html_page.getFullName());
-       if (not page_number_matcher->matched(page_file_name))
-           LOG_ERROR("Invalid naming scheme for file \"" + page_file_name + "\"");
-       const std::string page_number((*page_number_matcher)[1]);
-       // Read in the file to full_text string
-       std::ifstream page_file(page_file_name);
-       std::stringstream full_text_stream;
-       full_text_stream << page_file.rdbuf();
-       std::string page_text(full_text_stream.str());
-       full_text_cache_html_.simpleInsert({ { "id", id }, { "page", page_number },  { "full_text", page_text }, { "text_type", std::to_string(text_type) } });
-   }
+    const FileUtil::AutoTempDirectory auto_temp_dir("/tmp/ADT");
+    const std::string html_export_directory(auto_temp_dir.getDirectoryPath());
+    PdfUtil::ExtractHTMLAsPages(full_text_location, html_export_directory);
+    FileUtil::Directory html_pages(html_export_directory, ".*-\\d+\\.html");
+    for (const auto &html_page : html_pages) {
+        static const auto page_number_matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*-(\\d+)\\.html$"));
+        const std::string page_file_name(html_page.getFullName());
+        if (not page_number_matcher->matched(page_file_name))
+            LOG_ERROR("Invalid naming scheme for file \"" + page_file_name + "\"");
+        const std::string page_number((*page_number_matcher)[1]);
+        // Read in the file to full_text string
+        std::ifstream page_file(page_file_name);
+        std::stringstream full_text_stream;
+        full_text_stream << page_file.rdbuf();
+        std::string page_text(full_text_stream.str());
+        full_text_cache_html_.simpleInsert(
+            { { "id", id }, { "page", page_number }, { "full_text", page_text }, { "text_type", std::to_string(text_type) } });
+    }
 }
 
 
-void FullTextCache::insertEntry(const std::string &id, const std::string &full_text,
-                                const std::vector<EntryUrl> &entry_urls, const TextType &text_type, const bool is_publisher_provided)
-{
+void FullTextCache::insertEntry(const std::string &id, const std::string &full_text, const std::vector<EntryUrl> &entry_urls,
+                                const TextType &text_type, const bool is_publisher_provided) {
     const time_t now(std::time(nullptr));
     Random::Rand rand(now);
     time_t expiration(TimeUtil::BAD_TIME_T);
@@ -322,27 +324,31 @@ void FullTextCache::insertEntry(const std::string &id, const std::string &full_t
 
     if (expiration == TimeUtil::BAD_TIME_T) {
         if (not full_text.empty())
-            full_text_cache_.simpleInsert({ { "id", id }, { "full_text", full_text },  { "text_type", std::to_string(text_type) },
+            full_text_cache_.simpleInsert({ { "id", id },
+                                            { "full_text", full_text },
+                                            { "text_type", std::to_string(text_type) },
                                             { "is_publisher_provided", is_publisher_provided ? "true" : "false" } });
-    }
-    else {
+    } else {
         const std::string expiration_string = TimeUtil::TimeTToString(expiration, TimeUtil::ISO_8601_FORMAT);
         if (full_text.empty())
             full_text_cache_.simpleInsert({ { "id", id }, { "expiration", expiration_string } });
         else
-            full_text_cache_.simpleInsert({ { "id", id }, { "expiration", expiration_string }, { "full_text", full_text },
-                                          { "text_type", std::to_string(text_type) } });
+            full_text_cache_.simpleInsert({ { "id", id },
+                                            { "expiration", expiration_string },
+                                            { "full_text", full_text },
+                                            { "text_type", std::to_string(text_type) } });
     }
 
     for (const auto &entry_url : entry_urls) {
         if (entry_url.error_message_.empty())
-            full_text_cache_urls_.simpleInsert({ { "id", id }, { "url", entry_url.url_ }, { "domain", entry_url.domain_ },
-                                                 { "text_type", std::to_string(text_type) } });
+            full_text_cache_urls_.simpleInsert(
+                { { "id", id }, { "url", entry_url.url_ }, { "domain", entry_url.domain_ }, { "text_type", std::to_string(text_type) } });
         else
-            full_text_cache_urls_.simpleInsert({ { "id", id }, { "url", entry_url.url_ }, { "domain", entry_url.domain_ },
+            full_text_cache_urls_.simpleInsert({ { "id", id },
+                                                 { "url", entry_url.url_ },
+                                                 { "domain", entry_url.domain_ },
                                                  { "error_message", entry_url.error_message_ } });
     }
-
 }
 
 

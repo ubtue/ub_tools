@@ -49,15 +49,17 @@ class Downloader {
     static std::mutex robots_dot_txt_mutex_;
     static std::mutex write_mutex_;
     static std::unordered_map<std::string, RobotsDotTxt> url_to_robots_dot_txt_map_;
+
 protected:
     bool multi_mode_;
+
 public:
-    static const long DEFAULT_MAX_REDIRECTS     = 10;
-    static const long MAX_MAX_REDIRECT_COUNT    = 20;
+    static const long DEFAULT_MAX_REDIRECTS = 10;
+    static const long MAX_MAX_REDIRECT_COUNT = 20;
     static const long DEFAULT_DNS_CACHE_TIMEOUT = 10; // In s
     static const std::string DEFAULT_USER_AGENT_STRING;
     static const std::string DEFAULT_ACCEPTABLE_LANGUAGES;
-    static const unsigned DEFAULT_TIME_LIMIT    = 20000; // In ms.
+    static const unsigned DEFAULT_TIME_LIMIT = 20000;       // In ms.
     static const long DEFAULT_META_REDIRECT_THRESHOLD = 30; // In s
 private:
     CURLcode curl_error_code_;
@@ -70,11 +72,11 @@ private:
     curl_slist *additional_http_headers_;
     class UploadBuffer *upload_buffer_;
     static std::string default_user_agent_string_;
-public:
 
+public:
     enum TextTranslationMode {
-        TRANSPARENT   = 0, //< If set, perform no character set translations.
-        MAP_TO_LATIN9 = 1  //< If set, attempt to convert from whatever to Latin-9.  Note: Currently only used for HTTP and HTTPS!
+        TRANSPARENT = 0,  //< If set, perform no character set translations.
+        MAP_TO_LATIN9 = 1 //< If set, attempt to convert from whatever to Latin-9.  Note: Currently only used for HTTP and HTTPS!
     };
 
     static const std::string DENIED_BY_ROBOTS_DOT_TXT_ERROR_MSG;
@@ -96,53 +98,51 @@ public:
         std::string post_data_;
         std::string authentication_username_;
         std::string authentication_password_;
+
     public:
         explicit Params(const std::string &user_agent = DEFAULT_USER_AGENT_STRING,
                         const std::string &acceptable_languages = DEFAULT_ACCEPTABLE_LANGUAGES,
-                        const long max_redirect_count = DEFAULT_MAX_REDIRECTS,
-                        const long dns_cache_timeout = DEFAULT_DNS_CACHE_TIMEOUT,
-                        const bool honour_robots_dot_txt = false,
-                        const TextTranslationMode text_translation_mode = TRANSPARENT,
+                        const long max_redirect_count = DEFAULT_MAX_REDIRECTS, const long dns_cache_timeout = DEFAULT_DNS_CACHE_TIMEOUT,
+                        const bool honour_robots_dot_txt = false, const TextTranslationMode text_translation_mode = TRANSPARENT,
                         const PerlCompatRegExps &banned_reg_exps = PerlCompatRegExps(), const bool debugging = false,
                         const bool follow_redirects = true, const unsigned meta_redirect_threshold = DEFAULT_META_REDIRECT_THRESHOLD,
-                        const bool ignore_ssl_certificates = false,
-                        const std::string &proxy_host_and_port = "",
-                        const std::vector<std::string> &additional_headers = {},
-                        const std::string &post_data = "",
-                        const std::string &authentication_username = "",
-                        const std::string &authentication_password = "");
+                        const bool ignore_ssl_certificates = false, const std::string &proxy_host_and_port = "",
+                        const std::vector<std::string> &additional_headers = {}, const std::string &post_data = "",
+                        const std::string &authentication_username = "", const std::string &authentication_password = "");
     };
 
     typedef size_t (*WriteFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);
-    typedef void (*LockFunc)(CURL *handle, curl_lock_data data, curl_lock_access access, void */* unused */);
-    typedef void (*UnlockFunc)(CURL *handle, curl_lock_data data, void */* unused */);
+    typedef void (*LockFunc)(CURL *handle, curl_lock_data data, curl_lock_access access, void * /* unused */);
+    typedef void (*UnlockFunc)(CURL *handle, curl_lock_data data, void * /* unused */);
     typedef size_t (*HeaderFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);
     typedef int (*DebugFunc)(CURL *handle, curl_infotype infotype, char *data, size_t size, void *this_pointer);
+
 public:
-    explicit Downloader(const Params &params = Params()): multi_mode_(false), additional_http_headers_(nullptr),
-                                                          upload_buffer_(nullptr), params_(params) { init(); }
-    explicit Downloader(const Url &url, const Params &params = Params(),
-                        const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
-    explicit Downloader(const std::string &url, const Params &params = Params(),
-                        const TimeLimit &time_limit = DEFAULT_TIME_LIMIT, bool multimode = false);
+    explicit Downloader(const Params &params = Params())
+        : multi_mode_(false), additional_http_headers_(nullptr), upload_buffer_(nullptr), params_(params) {
+        init();
+    }
+    explicit Downloader(const Url &url, const Params &params = Params(), const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
+    explicit Downloader(const std::string &url, const Params &params = Params(), const TimeLimit &time_limit = DEFAULT_TIME_LIMIT,
+                        bool multimode = false);
     virtual ~Downloader();
 
     bool newUrl(const Url &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
-    bool newUrl(const std::string &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
-        { return newUrl(Url(url), time_limit); }
+    bool newUrl(const std::string &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT) { return newUrl(Url(url), time_limit); }
 
     bool postData(const Url &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
-    bool postData(const std::string &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
-        { return putData(Url(url), data, time_limit); }
+    bool postData(const std::string &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT) {
+        return putData(Url(url), data, time_limit);
+    }
 
     bool putData(const Url &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
-    bool putData(const std::string &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
-        { return putData(Url(url), data, time_limit); }
+    bool putData(const std::string &url, const std::string &data, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT) {
+        return putData(Url(url), data, time_limit);
+    }
 
     /** \brief Issues an HTTP DELETE request. */
     bool deleteUrl(const Url &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT);
-    bool deleteUrl(const std::string &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT)
-        { return deleteUrl(Url(url), time_limit); }
+    bool deleteUrl(const std::string &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT) { return deleteUrl(Url(url), time_limit); }
 
     std::string getMessageHeader() const;
     const std::string &getMessageBody() const { return body_; }
@@ -192,10 +192,11 @@ public:
     static const PerlCompatRegExps &GetBannedUrlRegExps();
 
     static const std::string &GetDefaultUserAgentString();
+
 protected:
     void setMultiMode(const bool multi) { multi_mode_ = multi; }
 
-    bool getMultiMode() const { return multi_mode_ ; }
+    bool getMultiMode() const { return multi_mode_; }
 
     CURL *getEasyHandle() const { return easy_handle_; }
 
@@ -206,17 +207,17 @@ private:
     bool internalNewUrl(const Url &url, const TimeLimit &time_limit);
     size_t writeFunction(void *data, size_t size, size_t nmemb);
     static size_t WriteFunction(void *data, size_t size, size_t nmemb, void *this_pointer);
-    static void LockFunction(CURL *handle, curl_lock_data data, curl_lock_access access, void */* unused */);
-    static void UnlockFunction(CURL *handle, curl_lock_data data, void */* unused */);
+    static void LockFunction(CURL *handle, curl_lock_data data, curl_lock_access access, void * /* unused */);
+    static void UnlockFunction(CURL *handle, curl_lock_data data, void * /* unused */);
     size_t headerFunction(void *data, size_t size, size_t nmemb);
     static size_t HeaderFunction(void *data, size_t size, size_t nmemb, void *this_pointer);
     void debugFunction(CURL *handle, curl_infotype infotype, char *data, size_t size);
     static int DebugFunction(CURL *handle, curl_infotype infotype, char *data, size_t size, void *this_pointer);
     bool allowedByRobotsDotTxt(const Url &url, const TimeLimit &time_limit);
     bool getHttpEquivRedirect(std::string * const redirect_url) const;
-    long getRemainingNoOfRedirects() const
-        { return params_.max_redirect_count_ - static_cast<long>(redirect_urls_.size()); }
-    template<typename OptionType> void curlEasySetopt(const CURLoption option, OptionType value, const std::string &caller_info) {
+    long getRemainingNoOfRedirects() const { return params_.max_redirect_count_ - static_cast<long>(redirect_urls_.size()); }
+    template <typename OptionType>
+    void curlEasySetopt(const CURLoption option, OptionType value, const std::string &caller_info) {
         if ((curl_error_code_ = ::curl_easy_setopt(easy_handle_, option, value)) != CURLE_OK)
             LOG_ERROR("curl_easy_setopt(" + caller_info + ") failed!");
     }

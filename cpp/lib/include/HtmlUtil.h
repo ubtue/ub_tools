@@ -39,8 +39,9 @@ namespace HtmlUtil {
 
 bool DecodeEntityLatin1(const char *entity_string, char * const ch);
 
-inline bool DecodeEntityLatin1(const std::string &entity_string, char * const ch)
-    { return DecodeEntityLatin1(entity_string.c_str(), ch); }
+inline bool DecodeEntityLatin1(const std::string &entity_string, char * const ch) {
+    return DecodeEntityLatin1(entity_string.c_str(), ch);
+}
 
 
 enum UnknownEntityMode { PASS_THROUGH_UNKNOWN_ENTITIES, DELETE_UNKNOWN_ENTITIES };
@@ -51,12 +52,9 @@ enum UnknownEntityMode { PASS_THROUGH_UNKNOWN_ENTITIES, DELETE_UNKNOWN_ENTITIES 
  *  \param  unknown_entity_mode  tells whether to remove unknown entities.
  *  \note   It is probably a good idea to call RemoveTags before calling this function.
  */
-std::string &ReplaceEntitiesLatin1(std::string * const s,
-                                   const UnknownEntityMode unknown_entity_mode = DELETE_UNKNOWN_ENTITIES);
+std::string &ReplaceEntitiesLatin1(std::string * const s, const UnknownEntityMode unknown_entity_mode = DELETE_UNKNOWN_ENTITIES);
 
-inline std::string ReplaceEntitiesLatin1(const std::string &s,
-                                         const UnknownEntityMode unknown_entity_mode = DELETE_UNKNOWN_ENTITIES)
-{
+inline std::string ReplaceEntitiesLatin1(const std::string &s, const UnknownEntityMode unknown_entity_mode = DELETE_UNKNOWN_ENTITIES) {
     std::string temp_s(s);
     ReplaceEntitiesLatin1(&temp_s, unknown_entity_mode);
     return temp_s;

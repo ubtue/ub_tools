@@ -29,45 +29,46 @@
 
 
 void ProcessNameValuePair(const std::string &name_value_pair, Template::Map * const map) {
-        const auto first_colon_pos(name_value_pair.find('='));
-        if (first_colon_pos == std::string::npos or first_colon_pos == 0)
-            LOG_ERROR("bad name/value pair: \"" + name_value_pair + "\"!");
-        const auto variable_name(name_value_pair.substr(0, first_colon_pos));
+    const auto first_colon_pos(name_value_pair.find('='));
+    if (first_colon_pos == std::string::npos or first_colon_pos == 0)
+        LOG_ERROR("bad name/value pair: \"" + name_value_pair + "\"!");
+    const auto variable_name(name_value_pair.substr(0, first_colon_pos));
 
-        std::vector<std::string> array_values;
-        std::string current_value;
-        bool escaped(false);
-        for (auto cp(name_value_pair.cbegin() + variable_name.length() + 1); cp != name_value_pair.cend(); ++cp) {
-            if (escaped) {
-                current_value += *cp;
-                escaped = false;
-            } else if (*cp == '\\')
-                escaped = true;
-            else if (*cp == ';') {
-                array_values.push_back(current_value);
-                current_value.clear();
-            } else
-                current_value += *cp;
-        }
-        if (escaped)
-            LOG_ERROR("name/value pair w/ trailing escape: \"" + name_value_pair + "\"!");
-        array_values.push_back(current_value);
+    std::vector<std::string> array_values;
+    std::string current_value;
+    bool escaped(false);
+    for (auto cp(name_value_pair.cbegin() + variable_name.length() + 1); cp != name_value_pair.cend(); ++cp) {
+        if (escaped) {
+            current_value += *cp;
+            escaped = false;
+        } else if (*cp == '\\')
+            escaped = true;
+        else if (*cp == ';') {
+            array_values.push_back(current_value);
+            current_value.clear();
+        } else
+            current_value += *cp;
+    }
+    if (escaped)
+        LOG_ERROR("name/value pair w/ trailing escape: \"" + name_value_pair + "\"!");
+    array_values.push_back(current_value);
 
-        if (array_values.empty())
-            LOG_ERROR("empty arrays are not supported! (\"" + name_value_pair + "\"!");
-        else if (array_values.size() == 1)
-            map->insertScalar(variable_name, array_values.front());
-        else
-            map->insertArray(variable_name, array_values);
+    if (array_values.empty())
+        LOG_ERROR("empty arrays are not supported! (\"" + name_value_pair + "\"!");
+    else if (array_values.size() == 1)
+        map->insertScalar(variable_name, array_values.front());
+    else
+        map->insertArray(variable_name, array_values);
 }
 
 
 int Main(int argc, char *argv[]) {
     if (argc < 2)
-        ::Usage("template_file [var1=value1 var2=value2 .. varN=valueN]\n"
-                "For arrays use semicolons to separate individual values.  If a value has an embedded semicolon\n"
-                "use a backslash to escape it.  Also use a backslash to escape an embedded backslash.\n"
-                "NB: Empty values are explicitly permitted!");
+        ::Usage(
+            "template_file [var1=value1 var2=value2 .. varN=valueN]\n"
+            "For arrays use semicolons to separate individual values.  If a value has an embedded semicolon\n"
+            "use a backslash to escape it.  Also use a backslash to escape an embedded backslash.\n"
+            "NB: Empty values are explicitly permitted!");
 
     const std::string input_filename(argv[1]);
     std::ifstream input(input_filename);

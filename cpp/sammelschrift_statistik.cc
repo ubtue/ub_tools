@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <set>
 #include <unordered_map>
@@ -38,6 +38,7 @@ struct CollectionInfo {
     std::string shortened_title_, year_;
     bool is_toc_;
     unsigned article_count_;
+
 public:
     CollectionInfo(const std::string &shortened_title, const std::string &year, const bool is_toc)
         : shortened_title_(shortened_title), year_(year), is_toc_(is_toc), article_count_(0) { }
@@ -84,20 +85,19 @@ bool IsTOC(const MARC::Record &record) {
 
 
 void ProcessRecords(const bool use_religious_studies_only, MARC::Reader * const marc_reader,
-                    std::unordered_map<std::string, CollectionInfo> * const ppn_to_collection_info_map)
-{
+                    std::unordered_map<std::string, CollectionInfo> * const ppn_to_collection_info_map) {
     unsigned record_count(0);
 
     while (const MARC::Record record = marc_reader->read()) {
-        if (use_religious_studies_only and /*remove after migration*/ record.findTag("REL") == record.end() /*and not record.hasSubfieldWithValue("SUB", 'a', "REL")*/)
+        if (use_religious_studies_only
+            and /*remove after migration*/ record.findTag("REL") == record.end() /*and not record.hasSubfieldWithValue("SUB", 'a', "REL")*/)
             continue;
         if (not IsCollection(record))
             continue;
 
 
-        ppn_to_collection_info_map->emplace(record.getControlNumber(),
-                                            CollectionInfo(GetShortenedTitle(record, 80),
-                                                           record.getMostRecentPublicationYear(), IsTOC(record)));
+        ppn_to_collection_info_map->emplace(
+            record.getControlNumber(), CollectionInfo(GetShortenedTitle(record, 80), record.getMostRecentPublicationYear(), IsTOC(record)));
 
         ++record_count;
     }
@@ -107,12 +107,12 @@ void ProcessRecords(const bool use_religious_studies_only, MARC::Reader * const 
 
 
 void DetermineAttachedArticleCounts(const bool use_religious_studies_only, MARC::Reader * const marc_reader,
-                                    std::unordered_map<std::string, CollectionInfo> * const ppn_to_collection_info_map)
-{
+                                    std::unordered_map<std::string, CollectionInfo> * const ppn_to_collection_info_map) {
     while (const MARC::Record record = marc_reader->read()) {
         if (not record.isArticle())
             continue;
-        if (use_religious_studies_only and /*remove after migration*/ record.findTag("REL") == record.end() /*and not record.hasSubfieldWithValue("SUB", 'a', "REL")*/)
+        if (use_religious_studies_only
+            and /*remove after migration*/ record.findTag("REL") == record.end() /*and not record.hasSubfieldWithValue("SUB", 'a', "REL")*/)
             continue;
 
         const auto superior_control_number(record.getSuperiorControlNumber());
@@ -145,8 +145,8 @@ int Main(int argc, char *argv[]) {
     const auto stats_output(FileUtil::OpenOutputFileOrDie(argv[3]));
     for (const auto &ppn_and_collection_info : ppn_to_collection_info_map)
         *stats_output << ppn_and_collection_info.first << ": " << ppn_and_collection_info.second.shortened_title_ << ", "
-                      << ppn_and_collection_info.second.year_ << ", " << (ppn_and_collection_info.second.is_toc_ ? "IHV" : "")
-                      << ", " << ppn_and_collection_info.second.article_count_ << '\n';
+                      << ppn_and_collection_info.second.year_ << ", " << (ppn_and_collection_info.second.is_toc_ ? "IHV" : "") << ", "
+                      << ppn_and_collection_info.second.article_count_ << '\n';
 
     return EXIT_SUCCESS;
 }

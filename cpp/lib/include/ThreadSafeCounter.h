@@ -22,12 +22,13 @@
 #include <mutex>
 
 
-template<typename NumericType> class ThreadSafeCounter {
+template <typename NumericType>
+class ThreadSafeCounter {
     NumericType counter_;
     std::mutex mutex_;
+
 public:
-    explicit ThreadSafeCounter(const NumericType initial_counter_value = 0)
-        : counter_(initial_counter_value) { }
+    explicit ThreadSafeCounter(const NumericType initial_counter_value = 0): counter_(initial_counter_value) { }
 
     void operator++() {
         std::unique_lock<std::mutex> mutex_locker(mutex_);

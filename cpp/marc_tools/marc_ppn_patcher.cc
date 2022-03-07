@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <stdexcept>
@@ -35,9 +35,10 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("old_ppns_to_new_ppns_map_directory marc_input marc_output field_and_subfield_code1 "
-            "[field_and_subfield_code2 .. field_and_subfield_codeN]\n"
-            "For field_and_subfield_code an example would be 773w.");
+    ::Usage(
+        "old_ppns_to_new_ppns_map_directory marc_input marc_output field_and_subfield_code1 "
+        "[field_and_subfield_code2 .. field_and_subfield_codeN]\n"
+        "For field_and_subfield_code an example would be 773w.");
 }
 
 
@@ -49,48 +50,47 @@ void OpenAllDBs(const std::string &old_ppns_to_new_ppns_map_directory, std::vect
 
 
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    const std::vector<std::string> &tags_and_subfield_codes, const std::vector<KeyValueDB *> &dbs)
-{
+                    const std::vector<std::string> &tags_and_subfield_codes, const std::vector<KeyValueDB *> &dbs) {
     unsigned total_record_count(0), patched_record_count(0);
     while (MARC::Record record = marc_reader->read()) {
-            ++total_record_count;
+        ++total_record_count;
 
-            bool patched_record(false);
-            for (const auto &tag_and_subfield_code : tags_and_subfield_codes) {
-                for (auto field : record.getTagRange(tag_and_subfield_code.substr(0, MARC::Record::TAG_LENGTH))) {
-                    const char SUBFIELD_CODE(tag_and_subfield_code[MARC::Record::TAG_LENGTH]);
-                    MARC::Subfields subfields(field.getSubfields());
-                    bool patched_field(false);
-                    for (auto &subfield : subfields) {
-                        if (subfield.code_ != SUBFIELD_CODE)
-                            continue;
+        bool patched_record(false);
+        for (const auto &tag_and_subfield_code : tags_and_subfield_codes) {
+            for (auto field : record.getTagRange(tag_and_subfield_code.substr(0, MARC::Record::TAG_LENGTH))) {
+                const char SUBFIELD_CODE(tag_and_subfield_code[MARC::Record::TAG_LENGTH]);
+                MARC::Subfields subfields(field.getSubfields());
+                bool patched_field(false);
+                for (auto &subfield : subfields) {
+                    if (subfield.code_ != SUBFIELD_CODE)
+                        continue;
 
-                        std::string old_ppn_candidate;
-                        if (StringUtil::StartsWith(subfield.value_, "(DE-627)"))
-                            old_ppn_candidate = subfield.value_.substr(__builtin_strlen("(DE-627)"));
-                        else
-                            old_ppn_candidate = subfield.value_;
+                    std::string old_ppn_candidate;
+                    if (StringUtil::StartsWith(subfield.value_, "(DE-627)"))
+                        old_ppn_candidate = subfield.value_.substr(__builtin_strlen("(DE-627)"));
+                    else
+                        old_ppn_candidate = subfield.value_;
 
-                        for (const auto &db : dbs) {
-                            std::string new_ppn;
-                            if (db->keyIsPresent(old_ppn_candidate)) {
-                                subfield.value_ = db->getValue(old_ppn_candidate);
-                                patched_field = true;
-                                break;
-                            }
+                    for (const auto &db : dbs) {
+                        std::string new_ppn;
+                        if (db->keyIsPresent(old_ppn_candidate)) {
+                            subfield.value_ = db->getValue(old_ppn_candidate);
+                            patched_field = true;
+                            break;
                         }
                     }
+                }
 
-                    if (patched_field) {
-                        field.setContents(subfields, field.getIndicator1(), field.getIndicator2());
-                        patched_record = true;
-                    }
+                if (patched_field) {
+                    field.setContents(subfields, field.getIndicator1(), field.getIndicator2());
+                    patched_record = true;
                 }
             }
-            if (patched_record)
-                ++patched_record_count;
+        }
+        if (patched_record)
+            ++patched_record_count;
 
-            marc_writer->write(record);
+        marc_writer->write(record);
     }
 
     LOG_INFO("Processed " + std::to_string(total_record_count) + " records and patched " + std::to_string(patched_record_count)

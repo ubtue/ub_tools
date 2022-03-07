@@ -10,6 +10,7 @@ all: .deps $(PROGS)
 	$(MAKE) -C elasticsearch
 	$(MAKE) -C cgi_progs
 	$(MAKE) -C data_exports
+	$(MAKE) -C harvest
 	$(MAKE) -C marc_tools
 	$(MAKE) -C merge_tools
 	$(MAKE) -C pipelines
@@ -40,11 +41,12 @@ install: regular_install data_install
 	$(MAKE) -C elasticsearch install
 	$(MAKE) -C cgi_progs install
 	$(MAKE) -C data_exports install
+	$(MAKE) -C harvest install
 	$(MAKE) -C marc_tools install
 	$(MAKE) -C merge_tools install
 	$(MAKE) -C pipelines install
 	$(MAKE) -C zotaut install
-	$(MAKE) -C core install
+	$(MAKE) -C harvest install
 
 regular_install: $(INSTALL_PROGS) Makefile
 	@echo "Installing programs..."
@@ -90,6 +92,7 @@ clean: local_clean Makefile
 	$(MAKE) -C elasticsearch clean
 	$(MAKE) -C cgi_progs clean
 	$(MAKE) -C data_exports clean
+	$(MAKE) -C harvest clean
 	$(MAKE) -C lib clean
 	$(MAKE) -C marc_tools clean
 	$(MAKE) -C merge_tools clean

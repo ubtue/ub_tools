@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <cstdlib>
@@ -45,9 +45,7 @@ inline bool IsSynonym(const std::string &status) {
 }
 
 
-void GetMainAndAdditionalTranslations(const std::string &translation, std::string * main_translation,
-                                      std::string * additional_translation)
-{
+void GetMainAndAdditionalTranslations(const std::string &translation, std::string *main_translation, std::string *additional_translation) {
     main_translation->clear(), additional_translation->clear();
 
     const size_t first_lt_pos(translation.find('<'));
@@ -66,8 +64,9 @@ void GetMainAndAdditionalTranslations(const std::string &translation, std::strin
 
 
 void GenerateAuthortyRecords(DbConnection * const db_connection, MARC::Writer * const marc_writer) {
-    db_connection->queryOrDie("SELECT DISTINCT ppn FROM keyword_translations WHERE status='new' OR status='replaced'"
-                              " OR status='replaced_synonym' OR status='new_synonym'");
+    db_connection->queryOrDie(
+        "SELECT DISTINCT ppn FROM keyword_translations WHERE status='new' OR status='replaced'"
+        " OR status='replaced_synonym' OR status='new_synonym'");
     DbResultSet ppn_result_set(db_connection->getLastResultSet());
     while (const DbRow ppn_row = ppn_result_set.getNextRow()) {
         const std::string ppn(ppn_row["ppn"]);

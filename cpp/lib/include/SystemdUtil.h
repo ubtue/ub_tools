@@ -42,4 +42,4 @@ void StartUnit(const std::string &unit);
 void StopUnit(const std::string &unit);
 
 
-} // namespace Systemd
+} // namespace SystemdUtil

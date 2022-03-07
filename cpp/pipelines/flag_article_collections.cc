@@ -49,6 +49,7 @@ struct EssayCollectionMatch {
     MARC::Tag tag_;
     char subfield_code_;
     std::string subfield_contents_;
+
 public:
     EssayCollectionMatch(const MARC::Tag &tag, const char subfield_code, const std::string &subfield_contents)
         : tag_(tag), subfield_code_(subfield_code), subfield_contents_(subfield_contents) { }
@@ -56,20 +57,19 @@ public:
 
 
 const std::vector<EssayCollectionMatch> essay_collection_matches{
-    { "935", 'c', "fe"               },
-    { "655", 'a', "Aufsatzsammlung"  },
-    { "689", 'a', "Aufsatzsammlung"  },
-    { "655", 'a', "Festschrift"      },
+    { "935", 'c', "fe" },
+    { "655", 'a', "Aufsatzsammlung" },
+    { "689", 'a', "Aufsatzsammlung" },
+    { "655", 'a', "Festschrift" },
     { "655", 'a', "Konferenzschrift" },
     { "689", 'a', "Konferenzschrift" },
-    { "689", 'a', "Kongress"         },
-    { "935", 'c', "gkko"             },
+    { "689", 'a', "Kongress" },
+    { "935", 'c', "gkko" },
 };
 
 
 void MarkArticleCollections(MARC::Reader * const reader, MARC::Writer * const writer,
-                            const std::unordered_set<std::string> &article_collection_ppns)
-{
+                            const std::unordered_set<std::string> &article_collection_ppns) {
     unsigned count(0), modified_count(0);
     while (MARC::Record record = reader->read()) {
         ++count;
@@ -90,7 +90,7 @@ void MarkArticleCollections(MARC::Reader * const reader, MARC::Writer * const wr
 
         if (is_article_collection) {
 found_article_collection:
-            record.insertField("ACO", { { 'a', "1" } } );
+            record.insertField("ACO", { { 'a', "1" } });
             ++modified_count;
         }
 

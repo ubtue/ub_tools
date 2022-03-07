@@ -37,10 +37,8 @@ namespace {
 
 
 // Checks whether the new reference comes strictly after already existing references.
-bool NewReferenceIsCompatibleWithExistingReferences(
-        const std::pair<std::string, std::string> &new_ref,
-        const std::set<std::pair<std::string, std::string>> &existing_refs)
-{
+bool NewReferenceIsCompatibleWithExistingReferences(const std::pair<std::string, std::string> &new_ref,
+                                                    const std::set<std::pair<std::string, std::string>> &existing_refs) {
     for (const auto &existing_ref : existing_refs) {
         if (new_ref.first <= existing_ref.second)
             return false;
@@ -96,8 +94,7 @@ std::string RangesToString(const std::set<std::pair<std::string, std::string>> &
 
 
 bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &book_code,
-                     std::set<std::pair<std::string, std::string>> * const start_end)
-{
+                     std::set<std::pair<std::string, std::string>> * const start_end) {
     std::set<std::pair<std::string, std::string>> new_start_end;
 
     size_t comma_or_colon_pos(bib_ref_candidate.find(','));
@@ -106,8 +103,7 @@ bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &bo
     if (comma_or_colon_pos == std::string::npos) // We must have a comma or a colon!
         return false;
 
-    const std::string chapter(StringUtil::PadLeading(bib_ref_candidate.substr(0, comma_or_colon_pos),
-                                                     MAX_CHAPTER_LENGTH, '0'));
+    const std::string chapter(StringUtil::PadLeading(bib_ref_candidate.substr(0, comma_or_colon_pos), MAX_CHAPTER_LENGTH, '0'));
     if (chapter.length() != MAX_CHAPTER_LENGTH or not IsNumericString(chapter))
         return false;
 
@@ -174,8 +170,7 @@ bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &bo
         if (verse1.empty())
             return false;
         verse1 = StringUtil::PadLeading(verse1, MAX_VERSE_LENGTH, '0');
-        const std::pair<std::string, std::string> new_reference(
-            std::make_pair(book_code + chapter + verse1, book_code + chapter + verse1));
+        const std::pair<std::string, std::string> new_reference(std::make_pair(book_code + chapter + verse1, book_code + chapter + verse1));
         if (not NewReferenceIsCompatibleWithExistingReferences(new_reference, new_start_end))
             return false;
         new_start_end.insert(new_reference);
@@ -185,8 +180,7 @@ bool ParseRefWithDot(const std::string &bib_ref_candidate, const std::string &bo
         verse2 = StringUtil::PadLeading(verse2, MAX_VERSE_LENGTH, '0');
         if (verse2 <= verse1)
             return false;
-        const std::pair<std::string, std::string> new_reference(
-            std::make_pair(book_code + chapter + verse1, book_code + chapter + verse2));
+        const std::pair<std::string, std::string> new_reference(std::make_pair(book_code + chapter + verse1, book_code + chapter + verse2));
         if (not NewReferenceIsCompatibleWithExistingReferences(new_reference, new_start_end))
             return false;
         new_start_end.insert(new_reference);
@@ -204,8 +198,7 @@ enum State { INITIAL, CHAPTER1, CHAPTER2, VERSE1, VERSE2 };
 
 
 bool ParseBibleReference(std::string bib_ref_candidate, const std::string &book_code,
-                         std::set<std::pair<std::string, std::string>> * const start_end)
-{
+                         std::set<std::pair<std::string, std::string>> * const start_end) {
     StringUtil::RemoveChars(" \t", &bib_ref_candidate); // Remove embedded spaces and tabs.
     if (bib_ref_candidate.empty()) {
         start_end->insert(std::make_pair(book_code + std::string(MAX_CHAPTER_LENGTH + MAX_VERSE_LENGTH, '0'),
@@ -306,14 +299,12 @@ bool ParseBibleReference(std::string bib_ref_candidate, const std::string &book_
 
     if (state == CHAPTER1) {
         chapter1 = book_code + StringUtil::PadLeading(accumulator, MAX_CHAPTER_LENGTH, '0');
-        start_end->insert(std::make_pair(chapter1 + std::string(MAX_VERSE_LENGTH, '0'),
-                                         chapter1 + std::string(MAX_VERSE_LENGTH, '9')));
+        start_end->insert(std::make_pair(chapter1 + std::string(MAX_VERSE_LENGTH, '0'), chapter1 + std::string(MAX_VERSE_LENGTH, '9')));
     } else if (state == CHAPTER2) {
         if (accumulator.empty())
             return false;
         verse1 = StringUtil::PadLeading(verse1, MAX_VERSE_LENGTH, '0');
-        verse2 = verse2.empty() ? std::string(MAX_VERSE_LENGTH, '9')
-                                : StringUtil::PadLeading(verse2, MAX_VERSE_LENGTH, '0');
+        verse2 = verse2.empty() ? std::string(MAX_VERSE_LENGTH, '9') : StringUtil::PadLeading(verse2, MAX_VERSE_LENGTH, '0');
         const std::string chapter1_verse1(chapter1 + verse1);
         const std::string chapter2_verse2(StringUtil::PadLeading(accumulator, MAX_CHAPTER_LENGTH, '0') + verse2);
         if (chapter2_verse2 <= chapter1_verse1)
@@ -394,16 +385,14 @@ static std::string InsertSpaceAtFirstLetterDigitBoundary(const std::string &s) {
 
 
 static bool SplitIntoBookAndChaptersAndVerses(const std::string &bible_reference_candidate, std::string * const book_candidate,
-                                              std::string * const chapters_and_verses_candidate)
-{
-    std::string normalised_bible_reference_candidate(CanoniseLeadingNumber(InsertSpaceAtFirstLetterDigitBoundary(
-        StringUtil::RemoveChars(" \t", bible_reference_candidate))));
+                                              std::string * const chapters_and_verses_candidate) {
+    std::string normalised_bible_reference_candidate(
+        CanoniseLeadingNumber(InsertSpaceAtFirstLetterDigitBoundary(StringUtil::RemoveChars(" \t", bible_reference_candidate))));
     const size_t len(normalised_bible_reference_candidate.length());
     if (len <= 3)
         *book_candidate = normalised_bible_reference_candidate;
     else if (isdigit(normalised_bible_reference_candidate[len - 1])
-             or (isalpha(normalised_bible_reference_candidate[len - 1])
-                 and isdigit(normalised_bible_reference_candidate[len - 2])))
+             or (isalpha(normalised_bible_reference_candidate[len - 1]) and isdigit(normalised_bible_reference_candidate[len - 2])))
     {
         const size_t last_space_pos(normalised_bible_reference_candidate.rfind(' '));
         if (last_space_pos == std::string::npos)
@@ -419,10 +408,8 @@ static bool SplitIntoBookAndChaptersAndVerses(const std::string &bible_reference
 }
 
 
-bool SplitIntoBooksAndChaptersAndVerses(const std::string &bible_reference_query,
-                                        std::vector<std::string> * const book_candidates,
-                                        std::vector<std::string> * const chapters_and_verses_candidates)
-{
+bool SplitIntoBooksAndChaptersAndVerses(const std::string &bible_reference_query, std::vector<std::string> * const book_candidates,
+                                        std::vector<std::string> * const chapters_and_verses_candidates) {
     book_candidates->clear();
     chapters_and_verses_candidates->clear();
 
@@ -438,13 +425,13 @@ bool SplitIntoBooksAndChaptersAndVerses(const std::string &bible_reference_query
     if (bible_reference_candidates.empty())
         bible_reference_candidates.emplace_back(bible_reference_query);
     else
-        #ifndef __clang__
-        #   pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-        #endif
+#ifndef __clang__
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
         bible_reference_candidates.emplace_back(bible_reference_query.substr(last_found_pos + OR.length()));
-        #ifndef __clang__
-        #   pragma GCC diagnostic error "-Wmaybe-uninitialized"
-        #endif
+#ifndef __clang__
+#pragma GCC diagnostic error "-Wmaybe-uninitialized"
+#endif
 
     for (const auto &bible_reference_candidate : bible_reference_candidates) {
         book_candidates->resize(book_candidates->size() + 1);
@@ -459,18 +446,15 @@ bool SplitIntoBooksAndChaptersAndVerses(const std::string &bible_reference_query
 
 
 BibleBookCanoniser::BibleBookCanoniser(const std::string &books_of_the_bible_to_canonical_form_map_filename) {
-    MapUtil::DeserialiseMap(books_of_the_bible_to_canonical_form_map_filename,
-                            &books_of_the_bible_to_canonical_form_map_);
+    MapUtil::DeserialiseMap(books_of_the_bible_to_canonical_form_map_filename, &books_of_the_bible_to_canonical_form_map_);
 }
 
 
 std::string BibleBookCanoniser::canonise(const std::string &bible_book_candidate, const bool verbose) const {
-    const auto non_canonical_form_and_canonical_form(
-        books_of_the_bible_to_canonical_form_map_.find(bible_book_candidate));
+    const auto non_canonical_form_and_canonical_form(books_of_the_bible_to_canonical_form_map_.find(bible_book_candidate));
     if (non_canonical_form_and_canonical_form != books_of_the_bible_to_canonical_form_map_.end()) {
         if (verbose)
-            LOG_INFO("Replacing \"" + bible_book_candidate + "\" with \""
-                     + non_canonical_form_and_canonical_form->second + "\".");
+            LOG_INFO("Replacing \"" + bible_book_candidate + "\" with \"" + non_canonical_form_and_canonical_form->second + "\".");
         return non_canonical_form_and_canonical_form->second;
     }
 
@@ -531,9 +515,9 @@ std::string Map5Esra(const std::string &bible_reference_candidate) {
 
 std::string BibleAliasMapper::map(const std::string &bible_reference_candidate, const bool verbose) const {
     const std::string normalised_reference_candidate(StringUtil::Filter(TextUtil::UTF8ToLower(bible_reference_candidate), { ' ' }));
-    if (StringUtil::StartsWith(normalised_reference_candidate, { "6esra", "6ezra", "6ezr", "6esr", "6esd" }, /* ignore_case */false))
+    if (StringUtil::StartsWith(normalised_reference_candidate, { "6esra", "6ezra", "6ezr", "6esr", "6esd" }, /* ignore_case */ false))
         return Map6Esra(normalised_reference_candidate);
-    if (StringUtil::StartsWith(normalised_reference_candidate, { "5esra", "5ezra", "5ezr", "5esr", "5esd" }, /* ignore_case */false))
+    if (StringUtil::StartsWith(normalised_reference_candidate, { "5esra", "5ezra", "5ezr", "5esr", "5esd" }, /* ignore_case */ false))
         return Map5Esra(normalised_reference_candidate);
 
     const auto alias_and_canonical_form(aliases_to_canonical_forms_map_.find(normalised_reference_candidate));
@@ -557,7 +541,7 @@ bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start
             return false;
 
         *range_start = canones * 10000;
-        *range_end   = canones * 10000 + 9999;
+        *range_end = canones * 10000 + 9999;
         return true;
     }
 
@@ -590,7 +574,7 @@ bool ParseCanonLawRanges(const std::string &ranges, unsigned * const range_start
             return false;
 
         *range_start = canones1 * 10000;
-        *range_end   = canones2 * 10000 + 9999;
+        *range_end = canones2 * 10000 + 9999;
         return true;
     }
 
@@ -664,9 +648,9 @@ const unsigned OFFSET(10000000);
 inline std::string Now() {
     unsigned year, month, day;
     TimeUtil::GetCurrentDate(&year, &month, &day);
-    return StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
-           + StringUtil::ToString(month, /* radix = */10, /* width = */2, /* padding_char = */'0')
-           + StringUtil::ToString(day, /* radix = */10, /* width = */2, /* padding_char = */'0');
+    return StringUtil::ToString(year + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0')
+           + StringUtil::ToString(month, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0')
+           + StringUtil::ToString(day, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0');
 }
 
 
@@ -679,10 +663,10 @@ std::string ConvertTimeRangeToText(const std::string &range) {
         LOG_ERROR("range w/o a underline: \"" + range + "\"!");
     std::string date1(range.substr(0, separator_pos));
     std::string date2(range.substr(separator_pos + 1));
-    const std::string month_day1(date1.substr(date1.length()-4));
-    const std::string month_day2(date2.substr(date2.length()-4));
-    date1 = date1.substr(0, date1.length()-4);
-    date2 = date2.substr(0, date2.length()-4);
+    const std::string month_day1(date1.substr(date1.length() - 4));
+    const std::string month_day2(date2.substr(date2.length() - 4));
+    date1 = date1.substr(0, date1.length() - 4);
+    date2 = date2.substr(0, date2.length() - 4);
     unsigned u_date1 = std::stoi(date1);
     unsigned u_date2 = std::stoi(date2);
 
@@ -752,7 +736,8 @@ static void ReplaceXs(std::string * const time_range_candidate) {
 
     const std::string range_start_plus_dash(time_range_candidate->substr(0, dash_pos + 1));
     if (StringUtil::StartsWith(time_range_candidate->substr(dash_pos + 1), "XX.XX.XXXX")
-        or StringUtil::StartsWith(time_range_candidate->substr(dash_pos + 1), "XXXX")) {
+        or StringUtil::StartsWith(time_range_candidate->substr(dash_pos + 1), "XXXX"))
+    {
         *time_range_candidate = range_start_plus_dash; // Truncate after the dash!
         return;
     }
@@ -795,36 +780,35 @@ bool ConvertTextToTimeRange(std::string text, std::string * const range, const b
             std::swap(year1, year2);
         if (special_case_centuries and year1 % 100 == 0 and year2 % 100 == 0)
             --year2;
-        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
-                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "0101_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "1231";
         return true;
     }
 
     static auto matcher2(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d\\d\\d\\d)-$"));
     if (matcher2->matched(text)) {
         const unsigned year(StringUtil::ToUnsigned((*matcher2)[1]));
-        *range = StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_" + Now();
+        *range = StringUtil::ToString(year + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "0101_" + Now();
         return true;
     }
 
     static const std::string BEFORE_CHRIST_PATTERNS("(?: ?v\\. ?[Cc]hr\\.|BC|avant J\\.-C\\.|a\\.C\\.|公元前)"); // de:en:fr:it:cn
-    static auto matcher3(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{2,4})" + BEFORE_CHRIST_PATTERNS
-                                                                + "? ?- ?(\\d{2,4})" + BEFORE_CHRIST_PATTERNS + "$"));
+    static auto matcher3(
+        RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{2,4})" + BEFORE_CHRIST_PATTERNS + "? ?- ?(\\d{2,4})" + BEFORE_CHRIST_PATTERNS + "$"));
     if (matcher3->matched(text)) {
         const unsigned year1(StringUtil::ToUnsigned((*matcher3)[1]));
         const unsigned year2(StringUtil::ToUnsigned((*matcher3)[2]));
-        *range = StringUtil::ToString(OFFSET - year1, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
-                 + StringUtil::ToString(OFFSET - year2, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        *range = StringUtil::ToString(OFFSET - year1, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "0101_"
+                 + StringUtil::ToString(OFFSET - year2, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "1231";
         return true;
     }
 
-    static auto matcher3b(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{2,4})" + BEFORE_CHRIST_PATTERNS
-                                                                + "? ?- ?(\\d{2,4})" + "$"));
+    static auto matcher3b(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{2,4})" + BEFORE_CHRIST_PATTERNS + "? ?- ?(\\d{2,4})" + "$"));
     if (matcher3b->matched(text)) {
         const unsigned year1(StringUtil::ToUnsigned((*matcher3b)[1]));
         const unsigned year2(StringUtil::ToUnsigned((*matcher3b)[2]));
-        *range = StringUtil::ToString(OFFSET - year1, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
-                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        *range = StringUtil::ToString(OFFSET - year1, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "0101_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "1231";
         return true;
     }
 
@@ -832,8 +816,8 @@ bool ConvertTextToTimeRange(std::string text, std::string * const range, const b
     if (matcher4->matched(text)) {
         const unsigned year1(StringUtil::ToUnsigned((*matcher4)[1]));
         const unsigned year2(StringUtil::ToUnsigned((*matcher4)[2]));
-        *range = StringUtil::ToString(OFFSET - year1, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
-                 + StringUtil::ToString(OFFSET - year2, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        *range = StringUtil::ToString(OFFSET - year1, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "0101_"
+                 + StringUtil::ToString(OFFSET - year2, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "1231";
         return true;
     }
 
@@ -841,24 +825,24 @@ bool ConvertTextToTimeRange(std::string text, std::string * const range, const b
     if (matcher4b->matched(text)) {
         const unsigned year1(StringUtil::ToUnsigned((*matcher4b)[1]));
         const unsigned year2(StringUtil::ToUnsigned((*matcher4b)[2]));
-        *range = StringUtil::ToString(OFFSET - year1, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
-                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        *range = StringUtil::ToString(OFFSET - year1, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "0101_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "1231";
         return true;
     }
 
     static auto matcher5(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,4})$"));
     if (matcher5->matched(text)) {
         const unsigned year(StringUtil::ToUnsigned((*matcher5)[1]));
-        *range = StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
-                 + StringUtil::ToString(year + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        *range = StringUtil::ToString(year + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "0101_"
+                 + StringUtil::ToString(year + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "1231";
         return true;
     }
 
     static auto matcher6(RegexMatcher::RegexMatcherFactoryOrDie("^v(\\d{2,4})$"));
     if (matcher6->matched(text)) {
         const unsigned year(StringUtil::ToUnsigned((*matcher6)[1]));
-        *range = StringUtil::ToString(OFFSET - year, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
-                 + StringUtil::ToString(OFFSET - year, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        *range = StringUtil::ToString(OFFSET - year, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "0101_"
+                 + StringUtil::ToString(OFFSET - year, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "1231";
         return true;
     }
 
@@ -871,12 +855,12 @@ bool ConvertTextToTimeRange(std::string text, std::string * const range, const b
             std::swap(year1, year2);
         if (special_case_centuries and year1 % 100 == 0 and year2 % 100 == 0)
             --year2;
-        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "0101_"
-                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "0101_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "1231";
         return true;
     }
 
-    static auto matcher8(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,2}).(\\d{1,2}).(\\d{1,4})-$"));
+    static auto matcher8(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{1,4})-$"));
     if (matcher8->matched(text)) {
         unsigned day1(StringUtil::ToUnsigned((*matcher8)[1]));
         unsigned month1(StringUtil::ToUnsigned((*matcher8)[2]));
@@ -884,15 +868,14 @@ bool ConvertTextToTimeRange(std::string text, std::string * const range, const b
         unsigned year2(StringUtil::ToUnsigned(current_year));
         if (year2 < year1)
             std::swap(year1, year2);
-        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
-                 + StringUtil::ToString(month1, /* radix = */10, /* width = */2, /* padding_char = */'0')
-                 + StringUtil::ToString(day1, /* radix = */10, /* width = */2, /* padding_char = */'0') + "_"
-                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0')
+                 + StringUtil::ToString(month1, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0')
+                 + StringUtil::ToString(day1, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0') + "_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "1231";
         return true;
     }
 
-    static auto matcher9(
-        RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,2}).(\\d{1,2}).(\\d{1,4})-(\\d{1,2}).(\\d{1,2}).(\\d{1,4})$"));
+    static auto matcher9(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{1,4})-(\\d{1,2})\\.(\\d{1,2})\\.(\\d{1,4})$"));
     if (matcher9->matched(text)) {
         unsigned day1(StringUtil::ToUnsigned((*matcher9)[1]));
         unsigned month1(StringUtil::ToUnsigned((*matcher9)[2]));
@@ -905,33 +888,56 @@ bool ConvertTextToTimeRange(std::string text, std::string * const range, const b
             std::swap(month1, month2);
             std::swap(day1, day2);
         }
-        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
-                 + StringUtil::ToString(month1, /* radix = */10, /* width = */2, /* padding_char = */'0')
-                 + StringUtil::ToString(day1, /* radix = */10, /* width = */2, /* padding_char = */'0') + "_"
-                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
-                 + StringUtil::ToString(month2, /* radix = */10, /* width = */2, /* padding_char = */'0')
-                 + StringUtil::ToString(day2, /* radix = */10, /* width = */2, /* padding_char = */'0');
+        *range = StringUtil::ToString(year1 + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0')
+                 + StringUtil::ToString(month1, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0')
+                 + StringUtil::ToString(day1, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0') + "_"
+                 + StringUtil::ToString(year2 + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0')
+                 + StringUtil::ToString(month2, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0')
+                 + StringUtil::ToString(day2, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0');
+        return true;
+    }
+
+    static auto matcher10(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{1,4})$"));
+    if (matcher10->matched(text)) {
+        unsigned day(StringUtil::ToUnsigned((*matcher10)[1]));
+        unsigned month(StringUtil::ToUnsigned((*matcher10)[2]));
+        unsigned year(StringUtil::ToUnsigned((*matcher10)[3]));
+        std::string s_day(StringUtil::ToString(day, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0'));
+        std::string s_month(StringUtil::ToString(month, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0'));
+        std::string s_year(StringUtil::ToString(year + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0'));
+        *range = s_year + s_month + s_day + "_" + s_year + s_month + s_day;
+        return true;
+    }
+
+    static auto matcher11(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{1,4})-(\\d{1,2})-(\\d{1,2})$"));
+    if (matcher11->matched(text)) {
+        unsigned year(StringUtil::ToUnsigned((*matcher11)[1]));
+        unsigned month(StringUtil::ToUnsigned((*matcher11)[2]));
+        unsigned day(StringUtil::ToUnsigned((*matcher11)[3]));
+        std::string s_year(StringUtil::ToString(year + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0'));
+        std::string s_month(StringUtil::ToString(month, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0'));
+        std::string s_day(StringUtil::ToString(day, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0'));
+        *range = s_year + s_month + s_day + "_" + s_year + s_month + s_day;
         return true;
     }
 
     static const std::string MINUS_INFINITY("000000000000");
-    static auto matcher10(RegexMatcher::RegexMatcherFactoryOrDie("^-(\\d{1,4})$"));
-    if (matcher10->matched(text)) {
-        unsigned year2(StringUtil::ToUnsigned((*matcher10)[1]));
-        *range = MINUS_INFINITY + "_"
-                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0') + "1231";
+    static auto matcher12(RegexMatcher::RegexMatcherFactoryOrDie("^-(\\d{1,4})$"));
+    if (matcher12->matched(text)) {
+        unsigned year2(StringUtil::ToUnsigned((*matcher12)[1]));
+        *range = MINUS_INFINITY + "_" + StringUtil::ToString(year2 + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0')
+                 + "1231";
         return true;
     }
 
-    static auto matcher11(RegexMatcher::RegexMatcherFactoryOrDie("^-(\\d{1,2}).(\\d{1,2}).(\\d{1,4})$"));
-    if (matcher11->matched(text)) {
-        unsigned day2(StringUtil::ToUnsigned((*matcher11)[1]));
-        unsigned month2(StringUtil::ToUnsigned((*matcher11)[2]));
-        unsigned year2(StringUtil::ToUnsigned((*matcher11)[3]));
-        *range = MINUS_INFINITY + "_"
-                 + StringUtil::ToString(year2 + OFFSET, /* radix = */10, /* width = */8, /* padding_char = */'0')
-                 + StringUtil::ToString(month2, /* radix = */10, /* width = */2, /* padding_char = */'0')
-                 + StringUtil::ToString(day2, /* radix = */10, /* width = */2, /* padding_char = */'0');
+    static auto matcher13(RegexMatcher::RegexMatcherFactoryOrDie("^-(\\d{1,2})\\.(\\d{1,2})\\.(\\d{1,4})$"));
+    if (matcher13->matched(text)) {
+        unsigned day2(StringUtil::ToUnsigned((*matcher13)[1]));
+        unsigned month2(StringUtil::ToUnsigned((*matcher13)[2]));
+        unsigned year2(StringUtil::ToUnsigned((*matcher13)[3]));
+        *range = MINUS_INFINITY + "_" + StringUtil::ToString(year2 + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0')
+                 + StringUtil::ToString(month2, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0')
+                 + StringUtil::ToString(day2, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0');
         return true;
     }
 

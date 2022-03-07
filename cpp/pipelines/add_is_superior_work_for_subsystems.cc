@@ -30,16 +30,15 @@
 #include <cstdlib>
 #include "MARC.h"
 #include "UBTools.h"
-#include "util.h"
 #include "VuFind.h"
+#include "util.h"
 
 
 namespace {
 
 
 void CollectSubsystemInfo(MARC::Reader * const marc_reader,
-                          std::unordered_map<std::string, std::set<std::string>> * const superior_ppns_to_subsystem_types)
-{
+                          std::unordered_map<std::string, std::set<std::string>> * const superior_ppns_to_subsystem_types) {
     const std::string INSTALLATION_TYPE(VuFind::GetTueFindFlavourOrDie() == "ixtheo" ? "IXT" : "KRI");
 
     unsigned record_count(0);
@@ -72,8 +71,7 @@ void CollectSubsystemInfo(MARC::Reader * const marc_reader,
 
 
 void PatchSPRFields(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    const std::unordered_map<std::string, std::set<std::string>> &superior_ppns_to_subsystem_types)
-{
+                    const std::unordered_map<std::string, std::set<std::string>> &superior_ppns_to_subsystem_types) {
     unsigned augmented_count(0);
     std::map<std::string, unsigned> subsystems_to_counts_map;
     while (MARC::Record record = marc_reader->read()) {
@@ -105,8 +103,8 @@ void PatchSPRFields(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         subsystem_stats += subsystem + ":" + std::to_string(count);
     }
 
-    LOG_INFO("Augmented " + std::to_string(augmented_count) + " record(s) w/ SPR-fields w/ subsystem information. ("
-             + subsystem_stats + ")");
+    LOG_INFO("Augmented " + std::to_string(augmented_count) + " record(s) w/ SPR-fields w/ subsystem information. (" + subsystem_stats
+             + ")");
 }
 
 

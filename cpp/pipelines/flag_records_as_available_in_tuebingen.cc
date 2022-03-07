@@ -36,11 +36,10 @@
 namespace {
 
 
-void ProcessSuperiorRecord(const MARC::Record &record,
-                           RegexMatcher * const tue_sigil_matcher, std::unordered_set<std::string> * const de21_superior_ppns,
-                           RegexMatcher * const tad_sigil_matcher, std::unordered_set<std::string> * const tad_superior_ppns,
-                           unsigned * const extracted_count, unsigned * const extracted_tad_count)
-{
+void ProcessSuperiorRecord(const MARC::Record &record, RegexMatcher * const tue_sigil_matcher,
+                           std::unordered_set<std::string> * const de21_superior_ppns, RegexMatcher * const tad_sigil_matcher,
+                           std::unordered_set<std::string> * const tad_superior_ppns, unsigned * const extracted_count,
+                           unsigned * const extracted_tad_count) {
     // We are done if this is not a superior work
     if (not record.hasFieldWithTag("SPR"))
         return;
@@ -63,22 +62,21 @@ void ProcessSuperiorRecord(const MARC::Record &record,
 }
 
 
-void LoadDE21AndTADPPNs(MARC::Reader * const marc_reader,
-                        RegexMatcher * const tue_sigil_matcher, std::unordered_set<std::string> * const de21_superior_ppns,
-                        RegexMatcher * const tad_sigil_matcher, std::unordered_set<std::string> * const tad_superior_ppns,
-                        unsigned * const extracted_count, unsigned * const extracted_tad_count)
-{
+void LoadDE21AndTADPPNs(MARC::Reader * const marc_reader, RegexMatcher * const tue_sigil_matcher,
+                        std::unordered_set<std::string> * const de21_superior_ppns, RegexMatcher * const tad_sigil_matcher,
+                        std::unordered_set<std::string> * const tad_superior_ppns, unsigned * const extracted_count,
+                        unsigned * const extracted_tad_count) {
     while (const MARC::Record record = marc_reader->read())
-         ProcessSuperiorRecord(record, tue_sigil_matcher, de21_superior_ppns, tad_sigil_matcher, tad_superior_ppns,
-                               extracted_count, extracted_tad_count) ;
+        ProcessSuperiorRecord(record, tue_sigil_matcher, de21_superior_ppns, tad_sigil_matcher, tad_superior_ppns, extracted_count,
+                              extracted_tad_count);
 
-    LOG_DEBUG("Finished extracting " + std::to_string(*extracted_count) + " superior records and " +
-               std::to_string(*extracted_tad_count) + " TAD superior records");
+    LOG_DEBUG("Finished extracting " + std::to_string(*extracted_count) + " superior records and " + std::to_string(*extracted_tad_count)
+              + " TAD superior records");
 }
 
 
 void FlagRecordAsInTuebingenAvailable(MARC::Record * const record, const bool tad_available, unsigned * const modified_count) {
-    tad_available ? record->insertField("ITA", {  { 'a', "1" }, { 't', "1" } }) : record->insertField("ITA", 'a', "1");
+    tad_available ? record->insertField("ITA", { { 'a', "1" }, { 't', "1" } }) : record->insertField("ITA", 'a', "1");
     ++*modified_count;
 }
 
@@ -92,18 +90,16 @@ bool AlreadyHasLOK852DE21(const MARC::Record &record, RegexMatcher * const tue_s
         for (const auto &_852_field : record.findFieldsInLocalBlock("852", local_block_start)) {
             std::string sigil;
             if (_852_field.extractSubfieldWithPattern('a', *tue_sigil_matcher, &sigil))
-                 return true;
+                return true;
         }
     }
     return false;
 }
 
 
-void ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer,
-                   RegexMatcher * const tue_sigil_matcher, std::unordered_set<std::string> * const de21_superior_ppns,
-                   RegexMatcher * const tad_sigil_matcher, std::unordered_set<std::string> * const tad_superior_ppns,
-                   unsigned * const modified_count)
-{
+void ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer, RegexMatcher * const tue_sigil_matcher,
+                   std::unordered_set<std::string> * const de21_superior_ppns, RegexMatcher * const tad_sigil_matcher,
+                   std::unordered_set<std::string> * const tad_superior_ppns, unsigned * const modified_count) {
     if (AlreadyHasLOK852DE21(*record, tue_sigil_matcher)) {
         const bool tad_available(AlreadyHasLOK852DE21(*record, tad_sigil_matcher));
         FlagRecordAsInTuebingenAvailable(record, tad_available, modified_count);
@@ -116,7 +112,7 @@ void ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer
         return;
     }
 
-    auto superior_ppn_set(record->getParentControlNumbers(/* additional_tags=*/ { "776" }));
+    auto superior_ppn_set(record->getParentControlNumbers(/* additional_tags=*/{ "776" }));
     // Do we have superior PPN that has DE-21
     auto current_superior_iterator(std::begin(superior_ppn_set));
     for (const auto &superior_ppn : superior_ppn_set) {
@@ -140,19 +136,15 @@ void ProcessRecord(MARC::Record * const record, MARC::Writer * const marc_writer
 }
 
 
-void AugmentRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    RegexMatcher * const tue_sigil_matcher, std::unordered_set<std::string> * const de21_superior_ppn,
-                    RegexMatcher * const tad_sigil_matcher, std::unordered_set<std::string> * const tad_superior_ppn,
-                    unsigned * const extracted_count, unsigned * const extracted_tad_count,
-                    unsigned * const modified_count)
-{
+void AugmentRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, RegexMatcher * const tue_sigil_matcher,
+                    std::unordered_set<std::string> * const de21_superior_ppn, RegexMatcher * const tad_sigil_matcher,
+                    std::unordered_set<std::string> * const tad_superior_ppn, unsigned * const extracted_count,
+                    unsigned * const extracted_tad_count, unsigned * const modified_count) {
     marc_reader->rewind();
     while (MARC::Record record = marc_reader->read())
-        ProcessRecord(&record, marc_writer, tue_sigil_matcher, de21_superior_ppn,
-                      tad_sigil_matcher, tad_superior_ppn, modified_count);
-    LOG_INFO("Extracted " + std::to_string(*extracted_count) + " superior PPNs with DE-21, "
-             + std::to_string(*extracted_tad_count) + " superior PPNs as TAD candidates and modified "
-             + std::to_string(*modified_count) + " records");
+        ProcessRecord(&record, marc_writer, tue_sigil_matcher, de21_superior_ppn, tad_sigil_matcher, tad_superior_ppn, modified_count);
+    LOG_INFO("Extracted " + std::to_string(*extracted_count) + " superior PPNs with DE-21, " + std::to_string(*extracted_tad_count)
+             + " superior PPNs as TAD candidates and modified " + std::to_string(*modified_count) + " records");
 }
 
 
@@ -161,9 +153,10 @@ void AugmentRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
 
 int Main(int argc, char **argv) {
     if (argc != 3)
-        ::Usage("spr_augmented_marc_input marc_output\n"
-                " Notice that this program requires the SPR tag for superior works\n"
-                " to be set for appropriate results\n\n");
+        ::Usage(
+            "spr_augmented_marc_input marc_output\n"
+            " Notice that this program requires the SPR tag for superior works\n"
+            " to be set for appropriate results\n\n");
 
     const std::string marc_input_filename(argv[1]);
     const std::string marc_output_filename(argv[2]);
@@ -177,12 +170,10 @@ int Main(int argc, char **argv) {
     std::unordered_set<std::string> de21_superior_ppns;
     std::unordered_set<std::string> tad_superior_ppns;
 
-    LoadDE21AndTADPPNs(marc_reader.get(), tue_sigil_matcher.get(), &de21_superior_ppns,
-                       tad_sigil_matcher.get(), &tad_superior_ppns,
+    LoadDE21AndTADPPNs(marc_reader.get(), tue_sigil_matcher.get(), &de21_superior_ppns, tad_sigil_matcher.get(), &tad_superior_ppns,
                        &extracted_count, &extracted_tad_count);
-    AugmentRecords(marc_reader.get(), marc_writer.get(), tue_sigil_matcher.get(), &de21_superior_ppns,
-                   tad_sigil_matcher.get(), &tad_superior_ppns,
-                   &extracted_count, &extracted_tad_count, &modified_count);
+    AugmentRecords(marc_reader.get(), marc_writer.get(), tue_sigil_matcher.get(), &de21_superior_ppns, tad_sigil_matcher.get(),
+                   &tad_superior_ppns, &extracted_count, &extracted_tad_count, &modified_count);
 
     return EXIT_SUCCESS;
 }

@@ -25,29 +25,28 @@
 #include "KeyValueDB.h"
 #include "MARC.h"
 #include "StringUtil.h"
+#include "UBTools.h"
 #include "UrlUtil.h"
 #include "XMLParser.h"
-#include "UBTools.h"
 #include "util.h"
 
 
 namespace {
 
 [[noreturn]] void Usage() {
-    ::Usage("[--path-to-dups-database=path] [--ignore-ssl-certificates] base_url metadata_prefix [harvest_set_or_identifier] "
-            "control_number_prefix output_filename time_limit_per_request\n"
-            "If \"--path-to-dups-database\" has been specified, records that we already encountered in the past,\n"
-            "while specifying the same dups database, won't be included in the output file.\n"
-            "\"harvest_set_or_identifier\" must start with \"set=\" or \"identifier=\".\n"
-            "\"control_number_prefix\" will be used if the received records have no control numbers\n"
-            "to autogenerate our own control numbers.  \"time_limit_per_request\" is in seconds. (Some\n"
-            "servers are very slow so we recommend at least 20 seconds!)\n");
+    ::Usage(
+        "[--path-to-dups-database=path] [--ignore-ssl-certificates] base_url metadata_prefix [harvest_set_or_identifier] "
+        "control_number_prefix output_filename time_limit_per_request\n"
+        "If \"--path-to-dups-database\" has been specified, records that we already encountered in the past,\n"
+        "while specifying the same dups database, won't be included in the output file.\n"
+        "\"harvest_set_or_identifier\" must start with \"set=\" or \"identifier=\".\n"
+        "\"control_number_prefix\" will be used if the received records have no control numbers\n"
+        "to autogenerate our own control numbers.  \"time_limit_per_request\" is in seconds. (Some\n"
+        "servers are very slow so we recommend at least 20 seconds!)\n");
 }
 
 
-std::string ExtractResumptionToken(const std::string &xml_document, std::string * const cursor,
-                                   std::string * const complete_list_size)
-{
+std::string ExtractResumptionToken(const std::string &xml_document, std::string * const cursor, std::string * const complete_list_size) {
     cursor->clear();
     complete_list_size->clear();
 
@@ -113,22 +112,15 @@ unsigned ExtractEncapsulatedRecordData(XMLParser * const xml_parser, std::string
 
 bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_per_request, const bool ignore_ssl_certificates,
                  File * const output, std::string * const resumption_token, std::string * const cursor,
-                 std::string * const complete_list_size, unsigned * total_record_count)
-{
+                 std::string * const complete_list_size, unsigned *total_record_count) {
     const TimeLimit time_limit(time_limit_in_seconds_per_request * 1000);
-    Downloader::Params params(Downloader::DEFAULT_USER_AGENT_STRING,
-                              Downloader::DEFAULT_ACCEPTABLE_LANGUAGES,
-                              Downloader::DEFAULT_MAX_REDIRECTS,
-                              Downloader::DEFAULT_DNS_CACHE_TIMEOUT,
-                              false, /*honour_robots_dot_txt*/
-                              Downloader::TRANSPARENT,
-                              PerlCompatRegExps(),
-                              false, /*debugging*/
-                              true,/*follow_redirects*/
-                              Downloader::DEFAULT_META_REDIRECT_THRESHOLD,
-                              ignore_ssl_certificates, /*ignore SSL certificates*/
-                              "", /*proxy_host_and_port*/
-                              {}, /*additional headers*/
+    Downloader::Params params(Downloader::DEFAULT_USER_AGENT_STRING, Downloader::DEFAULT_ACCEPTABLE_LANGUAGES,
+                              Downloader::DEFAULT_MAX_REDIRECTS, Downloader::DEFAULT_DNS_CACHE_TIMEOUT, false, /*honour_robots_dot_txt*/
+                              Downloader::TRANSPARENT, PerlCompatRegExps(), false,                             /*debugging*/
+                              true,                                                                            /*follow_redirects*/
+                              Downloader::DEFAULT_META_REDIRECT_THRESHOLD, ignore_ssl_certificates,            /*ignore SSL certificates*/
+                              "",                                                                              /*proxy_host_and_port*/
+                              {},                                                                              /*additional headers*/
                               "" /*post_data*/);
     Downloader downloader(url, params, time_limit);
     if (downloader.anErrorOccurred())
@@ -168,9 +160,8 @@ bool ListRecords(const std::string &url, const unsigned time_limit_in_seconds_pe
 }
 
 
-std::string MakeRequestURL(const std::string &base_url, const std::string &metadata_prefix,
-                           const std::string &harvest_set_or_identifier, const std::string &resumption_token)
-{
+std::string MakeRequestURL(const std::string &base_url, const std::string &metadata_prefix, const std::string &harvest_set_or_identifier,
+                           const std::string &resumption_token) {
     std::string request_url;
     if (not resumption_token.empty())
         request_url = base_url + "?verb=ListRecords&resumptionToken=" + UrlUtil::UrlEncode(resumption_token);
@@ -211,15 +202,15 @@ bool WriteIfNotDupe(const MARC::Record &record, KeyValueDB * const dups_db, MARC
 
 
 // Mostly uses the mapping found at https://www.loc.gov/marc/dccross.html to map DC to MARC.
-void GenerateValidatedOutputFromOAI_DC(KeyValueDB * const dups_db, XMLParser * const xml_parser,
-                                       const std::string &control_number_prefix, MARC::Writer * const marc_writer)
-{
+void GenerateValidatedOutputFromOAI_DC(KeyValueDB * const dups_db, XMLParser * const xml_parser, const std::string &control_number_prefix,
+                                       MARC::Writer * const marc_writer) {
     unsigned record_number(0), counter(0);
     while (xml_parser->skipTo(XMLParser::XMLPart::OPENING_TAG, "oai_dc:dc")) {
         ++record_number;
         MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED,
-                                control_number_prefix + StringUtil::ToString(record_number, /* radix = */10, /* width = */6,
-                                                                             /* padding_char = */'0'));
+                                control_number_prefix
+                                    + StringUtil::ToString(record_number, /* radix = */ 10, /* width = */ 6,
+                                                           /* padding_char = */ '0'));
         new_record.insertField(MARC::Tag("935"), { { 'a', control_number_prefix }, { '2', "LOK" } });
 
         XMLParser::XMLPart xml_part;
@@ -234,7 +225,7 @@ void GenerateValidatedOutputFromOAI_DC(KeyValueDB * const dups_db, XMLParser * c
                 else if (tag == "contributor")
                     new_record.insertField(MARC::Tag("720"), 'a', last_data);
                 else if (tag == "creator")
-                    new_record.insertField(MARC::Tag("720"), { { 'a', last_data}, { 'e', "author" } });
+                    new_record.insertField(MARC::Tag("720"), { { 'a', last_data }, { 'e', "author" } });
                 else if (tag == "description")
                     new_record.insertField(MARC::Tag("520"), 'a', last_data);
                 else if (tag == "format")
@@ -242,8 +233,7 @@ void GenerateValidatedOutputFromOAI_DC(KeyValueDB * const dups_db, XMLParser * c
                 else if (tag == "identifier") {
                     if (StringUtil::StartsWith(last_data, "http://doi.org/")) {
                         new_record.insertField(MARC::Tag("024"),
-                                               { { 'a', last_data.substr(__builtin_strlen("http://doi.org/")) },
-                                                 { '2', "doi" } });
+                                               { { 'a', last_data.substr(__builtin_strlen("http://doi.org/")) }, { '2', "doi" } });
                         new_record.insertField(MARC::Tag("856"), 'u', last_data);
                     }
                 } else if (tag == "date")
@@ -253,7 +243,7 @@ void GenerateValidatedOutputFromOAI_DC(KeyValueDB * const dups_db, XMLParser * c
                 else if (tag == "publisher")
                     new_record.insertField(MARC::Tag("260"), 'b', last_data);
                 else if (tag == "relation")
-                    new_record.insertField(MARC::Tag("787"), 'n', last_data, /* indicator1 = */'0');
+                    new_record.insertField(MARC::Tag("787"), 'n', last_data, /* indicator1 = */ '0');
                 else if (tag == "rights")
                     new_record.insertField(MARC::Tag("540"), 'a', last_data);
                 else if (tag == "type")
@@ -279,9 +269,8 @@ void GenerateValidatedOutputFromOAI_DC(KeyValueDB * const dups_db, XMLParser * c
 }
 
 
-void GenerateValidatedOutputFromMARC(KeyValueDB * const dups_db, MARC::Reader * const marc_reader,
-                                     const std::string &control_number_prefix, MARC::Writer * const marc_writer)
-{
+void GenerateValidatedOutputFromMARC(KeyValueDB * const dups_db, MARC::Reader * const marc_reader, const std::string &control_number_prefix,
+                                     MARC::Writer * const marc_writer) {
     unsigned record_number(0), counter(0);
     while (MARC::Record record = marc_reader->read()) {
         if (not record.hasValidLeader())
@@ -314,8 +303,8 @@ int Main(int argc, char **argv) {
 
     bool ignore_ssl_certificates(false);
     if (argc > 1 and std::strcmp(argv[1], "--ignore-ssl-certificates") == 0) {
-       ignore_ssl_certificates = true;
-       --argc, ++argv;
+        ignore_ssl_certificates = true;
+        --argc, ++argv;
     }
 
     if (argc != 7 and argc != 6)
@@ -348,16 +337,17 @@ int Main(int argc, char **argv) {
     if (metadata_prefix == "oai_dc")
         collection_open = "<harvest>";
     else if (metadata_prefix == "marc")
-        collection_open = "<collection xmlns=\"http://www.loc.gov/MARC21/slim\" "
-                          "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
-                          "xsi:schemaLocation=\"http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd\">";
+        collection_open =
+            "<collection xmlns=\"http://www.loc.gov/MARC21/slim\" "
+            "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+            "xsi:schemaLocation=\"http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd\">";
     temp_output->writeln("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + collection_open + "\n");
 
     std::string resumption_token, cursor, complete_list_size;
     unsigned total_record_count(0);
     while (ListRecords(MakeRequestURL(base_url, metadata_prefix, harvest_set_or_identifier, resumption_token),
-                       time_limit_per_request_in_seconds, ignore_ssl_certificates, temp_output.get(),
-                       &resumption_token, &cursor, &complete_list_size, &total_record_count))
+                       time_limit_per_request_in_seconds, ignore_ssl_certificates, temp_output.get(), &resumption_token, &cursor,
+                       &complete_list_size, &total_record_count))
         LOG_INFO("Continuing download, resumption token was: \"" + resumption_token + "\" (cursor=" + cursor
                  + ", completeListSize=" + complete_list_size + ").");
 

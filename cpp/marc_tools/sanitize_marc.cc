@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <stdexcept>
 #include <vector>
@@ -74,8 +74,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
         marc_writer->write(record);
     }
 
-    LOG_INFO("Processed " + std::to_string(record_count) + " record(s) of which "
-             + std::to_string(modified_count) + " were/was modified.");
+    LOG_INFO("Processed " + std::to_string(record_count) + " record(s) of which " + std::to_string(modified_count) + " were/was modified.");
 }
 
 

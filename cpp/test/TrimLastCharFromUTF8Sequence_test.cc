@@ -24,4 +24,3 @@ int main(int argc, char *argv[]) {
     } else
         std::cout << s << '\n';
 }
-

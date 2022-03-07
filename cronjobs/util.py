@@ -91,9 +91,8 @@ default_config_file_dir = "/usr/local/var/lib/tuelib/cronjobs/"
 
 # @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the lowest priority.
 # @param attachment A path to the file that should be attached. Can be string or list of strings.
-def SendEmail(subject: str, msg: str, sender: str = None, recipient: str = None, cc : str = None, priority: int = None,
+def SendEmailBase(subject: str, msg: str, sender: str = None, recipient: str = None, cc : str = None, priority: int = None,
               attachments: List[str] = None, log: bool = True):
-    subject = os.path.basename(sys.argv[0]) +  ": " + subject + " (from: " + socket.gethostname() + ")"
     if recipient is None:
         recipient = default_email_recipient
     if priority is not None:
@@ -152,6 +151,15 @@ def SendEmail(subject: str, msg: str, sender: str = None, recipient: str = None,
         if cc is not None:
             message += ", cc: " + cc
         Info(message)
+
+
+# @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the lowest priority.
+# @param attachment A path to the file that should be attached. Can be string or list of strings.
+# extends default subject by script name and host name
+def SendEmail(subject: str, msg: str, sender: str = None, recipient: str = None, cc : str = None, priority: int = None,
+              attachments: List[str] = None, log: bool = True):
+    subject = os.path.basename(sys.argv[0]) +  ": " + subject + " (from: " + socket.gethostname() + ")"
+    SendEmailBase(subject, msg, sender, recipient, cc, priority, attachments, log)
 
 
 # @param priority  The importance of the email.  Must be an integer from 1 to 5 with 1 being the lowest priority.

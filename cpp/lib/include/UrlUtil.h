@@ -132,16 +132,19 @@ class Blacklister {
         PerlCompatRegExp *reg_exp_;
         unsigned *count_;
         bool block_;
+
     public:
         ReferenceCountedPerlCompatRegExp(const std::string &pattern, const bool initial_block);
         ReferenceCountedPerlCompatRegExp(const ReferenceCountedPerlCompatRegExp &rhs)
-            : pattern_(rhs.pattern_), reg_exp_(rhs.reg_exp_), count_(rhs.count_), block_(rhs.block_)
-        { ++*count_; }
+            : pattern_(rhs.pattern_), reg_exp_(rhs.reg_exp_), count_(rhs.count_), block_(rhs.block_) {
+            ++*count_;
+        }
         const ReferenceCountedPerlCompatRegExp &operator=(const ReferenceCountedPerlCompatRegExp &rhs);
         ~ReferenceCountedPerlCompatRegExp();
         const std::string &getPattern() const { return *pattern_; }
         bool match(const std::string &s) const { return reg_exp_->match(s); }
         bool block() const { return block_; }
+
     private:
         ReferenceCountedPerlCompatRegExp(); // Intentionally unimplemented!
     };
@@ -149,11 +152,14 @@ class Blacklister {
 
     class UrlRegExpList {
         std::list<ReferenceCountedPerlCompatRegExp> ref_counted_reg_exps_;
+
     public:
         bool block(const std::string &url, std::string * const reason) const;
-        void push_back(const ReferenceCountedPerlCompatRegExp &new_ref_counted_reg_exp)
-        { ref_counted_reg_exps_.push_back(new_ref_counted_reg_exp); }
+        void push_back(const ReferenceCountedPerlCompatRegExp &new_ref_counted_reg_exp) {
+            ref_counted_reg_exps_.push_back(new_ref_counted_reg_exp);
+        }
     } reg_exps_;
+
 public:
     /** \brief  Creates a Blacklister object.
      *  \param  config_filename  The name of a config file (IniFile) containing a lists of entries pointing to
@@ -175,6 +181,7 @@ public:
      *  \return  True if the URL is an 'http' or 'https' URL and is blocked; otherwise false.
      */
     bool blocked(const std::string &url, std::string * const reason = nullptr) const;
+
 private:
     /** Extracts blocking and unblocking info from "action_filename" and stores it in "reg_exps_". */
     void processPrivoxyActionFile(const std::string &action_filename);
@@ -217,13 +224,17 @@ int UrlCompare(const Url &lhs, const Url &rhs);
 /** \fn     UrlCompare(const char * const lhs, const char * const rhs)
  *  \brief  See UrlCompare(const Url &lhs, const Url &rhs)
  */
-inline int UrlCompare(const char * const lhs, const char * const rhs) { return UrlCompare(Url(lhs), Url(rhs)); }
+inline int UrlCompare(const char * const lhs, const char * const rhs) {
+    return UrlCompare(Url(lhs), Url(rhs));
+}
 
 
 /** \fn     UrlCompare(const std:: string &lhs, const std::string &rhs)
  *  \brief  See UrlCompare(const Url &lhs, const Url &rhs)
  */
-inline int UrlCompare(const std::string &lhs, const std::string &rhs) { return UrlCompare(Url(lhs), Url(rhs)); }
+inline int UrlCompare(const std::string &lhs, const std::string &rhs) {
+    return UrlCompare(Url(lhs), Url(rhs));
+}
 
 
 /** \brief   Splits a URL into its component parts:
@@ -243,10 +254,9 @@ inline int UrlCompare(const std::string &lhs, const std::string &rhs) { return U
  *  \note    In the case of "local_url://", "local_url" is returned as the protocol and everything after the "://" is
  *           returned in "authority".'
  */
-bool ParseUrl(const std::string &url, std::string * const scheme, std::string * const username_password,
-              std::string * const authority, std::string * const port, std::string * const path,
-              std::string * const params, std::string * const query, std::string * const fragment,
-              std::string * const relative_url);
+bool ParseUrl(const std::string &url, std::string * const scheme, std::string * const username_password, std::string * const authority,
+              std::string * const port, std::string * const path, std::string * const params, std::string * const query,
+              std::string * const fragment, std::string * const relative_url);
 
 
 /** \brief  Converts a URL to a string that can be reasonably expected to act as a key that is likely to avoid some URL
@@ -270,7 +280,9 @@ std::string CanoniseUrlAsKey(const std::string &url);
 bool IsRobotsDotTxtUrl(const Url &test_url);
 
 
-inline bool IsValidWebUrl(const std::string &url) { return Url(url).isValidWebUrl(); }
+inline bool IsValidWebUrl(const std::string &url) {
+    return Url(url).isValidWebUrl();
+}
 
 
 bool URLContainsOnlyValidChars(const std::string &url);

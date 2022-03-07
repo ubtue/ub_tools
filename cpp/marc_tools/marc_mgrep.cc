@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <iostream>
@@ -32,9 +32,11 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("marc_data [output=tag_or_tag_plus_subfield_code] tag_and_subfield_code1=pattern1 [tag_and_subfield_code2=pattern2 ... tag_and_subfield_code3=pattern3]\n"
-            "where pattern1 through patternN are PCREs.\n"
-            "If no output has been specified, then only the control numbers of the matching records will be displayed.\n");
+    ::Usage(
+        "marc_data [output=tag_or_tag_plus_subfield_code] tag_and_subfield_code1=pattern1 [tag_and_subfield_code2=pattern2 ... "
+        "tag_and_subfield_code3=pattern3]\n"
+        "where pattern1 through patternN are PCREs.\n"
+        "If no output has been specified, then only the control numbers of the matching records will be displayed.\n");
 }
 
 
@@ -42,6 +44,7 @@ class Query {
     MARC::Tag tag_;
     char subfield_code_;
     RegexMatcher *matcher_;
+
 public:
     Query() = default;
     Query(const Query &other) = default;
@@ -80,8 +83,7 @@ void GenerateReport(const std::string &output, const MARC::Record &record) {
         std::cout << record.getControlNumber() << '\n';
     else {
         static const MARC::Tag output_tag(output.substr(0, MARC::Record::TAG_LENGTH));
-        static const char output_subfield_code(output.length() == MARC::Record::TAG_LENGTH
-                                               ? '\0' : output[MARC::Record::TAG_LENGTH]);
+        static const char output_subfield_code(output.length() == MARC::Record::TAG_LENGTH ? '\0' : output[MARC::Record::TAG_LENGTH]);
         for (const auto &output_field : record.getTagRange(output_tag)) {
             if (output_subfield_code == '\0') {
                 std::cout << record.getControlNumber() << ": " << FieldContentsToString(output_field) << '\n';
@@ -112,14 +114,13 @@ next_record:
             }
             goto next_record; // We found no match for the current query!
 next_query:
-            /* Intentionally empty! */;
+    /* Intentionally empty! */;
         }
 
         GenerateReport(output, record);
     }
 
-    LOG_INFO("Processed " + std::to_string(record_count) + " record(s) of which "
-             + std::to_string(matched_count) + " record(s) matched.");
+    LOG_INFO("Processed " + std::to_string(record_count) + " record(s) of which " + std::to_string(matched_count) + " record(s) matched.");
 }
 
 

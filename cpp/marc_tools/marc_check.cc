@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <algorithm>
 #include <iostream>
@@ -36,9 +36,10 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("[--do-not-abort-on-empty-subfields] [--do-not-abort-on-invalid-repeated-fields] [--check-rule-violations-only]"
-            " [--write-data=output_filename] marc_data [rules violated_rules_control_number_list]\n"
-            "       If \"--write-data\" has been specified, the read records will be written out again.\n");
+    ::Usage(
+        "[--do-not-abort-on-empty-subfields] [--do-not-abort-on-invalid-repeated-fields] [--check-rule-violations-only]"
+        " [--write-data=output_filename] marc_data [rules violated_rules_control_number_list]\n"
+        "       If \"--write-data\" has been specified, the read records will be written out again.\n");
     std::exit(EXIT_FAILURE);
 }
 
@@ -51,11 +52,12 @@ public:
 };
 
 
-class SubfieldMatches final: public Rule {
+class SubfieldMatches final : public Rule {
     MARC::Tag tag_;
     char indicator1_, indicator2_;
     char subfield_code_;
     std::shared_ptr<RegexMatcher> matcher_;
+
 public:
     SubfieldMatches(const MARC::Tag &tag, const char indicator1, const char indicator2, const char subfield_code,
                     RegexMatcher * const matcher)
@@ -75,7 +77,7 @@ bool SubfieldMatches::hasBeenViolated(const MARC::Record &record, std::string * 
 
         for (const auto &subfield : field.getSubfields()) {
             if (subfield.code_ == subfield_code_ and not matcher_->matched(subfield.value_)) {
-                *err_msg = "\"" + subfield.value_ +"\" does not match \"" + matcher_->getPattern() + "\"";
+                *err_msg = "\"" + subfield.value_ + "\" does not match \"" + matcher_->getPattern() + "\"";
                 return true;
             }
         }
@@ -85,11 +87,12 @@ bool SubfieldMatches::hasBeenViolated(const MARC::Record &record, std::string * 
 }
 
 
-class FirstSubfieldMatches final: public Rule {
+class FirstSubfieldMatches final : public Rule {
     MARC::Tag tag_;
     char indicator1_, indicator2_;
     char subfield_code_;
     std::shared_ptr<RegexMatcher> matcher_;
+
 public:
     FirstSubfieldMatches(const MARC::Tag &tag, const char indicator1, const char indicator2, const char subfield_code,
                          RegexMatcher * const matcher)
@@ -109,7 +112,7 @@ bool FirstSubfieldMatches::hasBeenViolated(const MARC::Record &record, std::stri
 
         for (const auto &subfield : field.getSubfields()) {
             if (subfield.code_ == subfield_code_ and not matcher_->matched(subfield.value_)) {
-                *err_msg = "\"" + subfield.value_ +"\" does not match \"" + matcher_->getPattern() + "\"";
+                *err_msg = "\"" + subfield.value_ + "\" does not match \"" + matcher_->getPattern() + "\"";
                 return true;
             } else if (subfield.code_ == subfield_code_ and matcher_->matched(subfield.value_))
                 break;
@@ -137,7 +140,6 @@ bool ParseLine(const std::string &line, std::vector<std::string> * const parts) 
             current_part.clear();
         } else
             current_part += ch;
-
     }
     if (not current_part.empty())
         parts->emplace_back(current_part);
@@ -179,11 +181,11 @@ void LoadRules(const std::string &rules_filename, std::vector<Rule *> * const ru
                           + "! (Bad regex: " + err_msg + ".)");
 
             if (parts[0] == "subfield_match")
-                rules->emplace_back(new SubfieldMatches(parts[2].substr(0, MARC::Record::TAG_LENGTH),
-                                                        indicator1, indicator2, parts[2][MARC::Record::TAG_LENGTH], matcher));
+                rules->emplace_back(new SubfieldMatches(parts[2].substr(0, MARC::Record::TAG_LENGTH), indicator1, indicator2,
+                                                        parts[2][MARC::Record::TAG_LENGTH], matcher));
             else
-                rules->emplace_back(new FirstSubfieldMatches(parts[2].substr(0, MARC::Record::TAG_LENGTH),
-                                                             indicator1, indicator2, parts[2][MARC::Record::TAG_LENGTH], matcher));
+                rules->emplace_back(new FirstSubfieldMatches(parts[2].substr(0, MARC::Record::TAG_LENGTH), indicator1, indicator2,
+                                                             parts[2][MARC::Record::TAG_LENGTH], matcher));
         } else
             LOG_ERROR("unknown rule \"" + parts[0] + "\" in \"" + rules_filename + "\" on line #" + std::to_string(line_no) + "!");
     }
@@ -195,8 +197,8 @@ void CheckFieldOrder(const bool do_not_abort_on_invalid_repeated_fields, const M
     for (const auto &field : record) {
         const MARC::Tag current_tag(field.getTag());
         if (unlikely(current_tag < last_tag))
-            LOG_ERROR("invalid tag order in the record with control number \"" + record.getControlNumber() + "\" (\""
-                      + last_tag.toString() + "\" followed by \"" + current_tag.toString() + "\")!");
+            LOG_ERROR("invalid tag order in the record with control number \"" + record.getControlNumber() + "\" (\"" + last_tag.toString()
+                      + "\" followed by \"" + current_tag.toString() + "\")!");
         if (unlikely(not MARC::IsRepeatableField(current_tag) and current_tag == last_tag)) {
             if (do_not_abort_on_invalid_repeated_fields)
                 LOG_WARNING("repeated non-repeatable tag \"" + current_tag.toString() + "\" found in the record with control number \""
@@ -283,8 +285,7 @@ void CheckLocalBlockConsistency(const MARC::Record &record) {
 
 void ProcessRecords(const bool do_not_abort_on_empty_subfields, const bool do_not_abort_on_invalid_repeated_fields,
                     const bool check_rule_violations_only, MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    const std::vector<Rule *> &rules, File * const rule_violation_list)
-{
+                    const std::vector<Rule *> &rules, File * const rule_violation_list) {
     unsigned record_count(0), control_number_duplicate_count(0), rule_violation_count(0);
     std::unordered_set<std::string> already_seen_control_numbers;
 
@@ -396,8 +397,8 @@ int Main(int argc, char *argv[]) {
     if (not output_filename.empty())
         marc_writer = MARC::Writer::Factory(output_filename);
 
-    ProcessRecords(do_not_abort_on_empty_subfields, do_not_abort_on_invalid_repeated_fields, check_rule_violations_only,
-                   marc_reader.get(), marc_writer.get(), rules, rule_violation_list.get());
+    ProcessRecords(do_not_abort_on_empty_subfields, do_not_abort_on_invalid_repeated_fields, check_rule_violations_only, marc_reader.get(),
+                   marc_writer.get(), rules, rule_violation_list.get());
 
     return EXIT_SUCCESS;
 }

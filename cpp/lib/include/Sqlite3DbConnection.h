@@ -31,6 +31,7 @@ class Sqlite3DbConnection final : public DbConnection {
     sqlite3 *sqlite3_;
     sqlite3_stmt *stmt_handle_;
     std::string database_path_;
+
 protected:
     Sqlite3DbConnection(const std::string &database_path, const OpenMode open_mode);
     inline virtual ~Sqlite3DbConnection();

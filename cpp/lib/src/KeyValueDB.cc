@@ -26,11 +26,12 @@
 #include "util.h"
 
 
-KeyValueDB::KeyValueDB(const std::string &path){
+KeyValueDB::KeyValueDB(const std::string &path) {
     int retcode;
     if ((retcode = ::db_create(&db_, nullptr, 0)) != 0)
         LOG_ERROR("db_create on \"" + path + "\" failed! (" + std::string(db_strerror(retcode)) + ")");
-    if ((retcode  = db_->open(db_, /* txnid = */nullptr, path.c_str(), /* database = */nullptr, DB_HASH, /* flags = */0, /* mode = */0600))
+    if ((retcode =
+             db_->open(db_, /* txnid = */ nullptr, path.c_str(), /* database = */ nullptr, DB_HASH, /* flags = */ 0, /* mode = */ 0600))
         != 0)
         LOG_ERROR("DB->open on \"" + path + "\" failed! (" + std::string(db_strerror(retcode)) + ")");
 }
@@ -38,7 +39,7 @@ KeyValueDB::KeyValueDB(const std::string &path){
 
 KeyValueDB::~KeyValueDB() {
     int retcode;
-    if ((retcode = db_->close(db_, /* flags = */0)) != 0)
+    if ((retcode = db_->close(db_, /* flags = */ 0)) != 0)
         LOG_ERROR("DB->close()() failed! (" + std::string(db_strerror(retcode)) + ")");
     db_ = nullptr; // paranoia
 }
@@ -47,7 +48,7 @@ KeyValueDB::~KeyValueDB() {
 size_t KeyValueDB::size() const {
     DB_HASH_STAT stats;
     int retcode;
-    if ((retcode = db_->stat(db_, nullptr, reinterpret_cast<void *>(&stats), /* flags = */0)) != 0)
+    if ((retcode = db_->stat(db_, nullptr, reinterpret_cast<void *>(&stats), /* flags = */ 0)) != 0)
         LOG_ERROR("DB->stat() failed! (" + std::string(db_strerror(retcode)) + ")");
 
     return stats.hash_ndata;
@@ -64,7 +65,7 @@ inline void InitDBTFromString(DBT * const dbt, const std::string &data) {
 bool KeyValueDB::keyIsPresent(const std::string &key) {
     DBT dbt;
     InitDBTFromString(&dbt, key);
-    return db_->exists(db_, nullptr, &dbt, /* flags = */0) != DB_NOTFOUND;
+    return db_->exists(db_, nullptr, &dbt, /* flags = */ 0) != DB_NOTFOUND;
 }
 
 
@@ -76,7 +77,7 @@ void KeyValueDB::addOrReplace(const std::string &key, const std::string &value) 
     InitDBTFromString(&value_struct, value);
 
     int retcode;
-    if ((retcode = db_->put(db_, /* txnid = */nullptr, &key_struct, &value_struct, /* flags = */0)) != 0)
+    if ((retcode = db_->put(db_, /* txnid = */ nullptr, &key_struct, &value_struct, /* flags = */ 0)) != 0)
         LOG_ERROR("DB->put() failed! (" + std::string(db_strerror(retcode)) + ")");
 }
 
@@ -93,7 +94,7 @@ std::string KeyValueDB::getValue(const std::string &key) const {
     data_struct.flags = DB_DBT_USERMEM;
 
     int retcode;
-    if ((retcode = db_->get(db_, /* txnid = */nullptr, &key_struct, &data_struct, /* flags = */0)) != 0)
+    if ((retcode = db_->get(db_, /* txnid = */ nullptr, &key_struct, &data_struct, /* flags = */ 0)) != 0)
         LOG_ERROR("DB->get() failed! (" + std::string(db_strerror(retcode)) + ")");
     if (data_struct.size == 0)
         LOG_ERROR("DB->get() failed! (key \"" + key + "\" not found!");
@@ -114,7 +115,7 @@ std::string KeyValueDB::getValue(const std::string &key, const std::string &defa
     data_struct.flags = DB_DBT_USERMEM;
 
     int retcode;
-    if ((retcode = db_->get(db_, /* txnid = */nullptr, &key_struct, &data_struct, /* flags = */0)) != 0)
+    if ((retcode = db_->get(db_, /* txnid = */ nullptr, &key_struct, &data_struct, /* flags = */ 0)) != 0)
         LOG_ERROR("DB->get() failed! (" + std::string(db_strerror(retcode)) + ")");
 
     return (data_struct.size == 0) ? default_value : std::string(reinterpret_cast<char *>(data_struct.data), data_struct.size);
@@ -126,7 +127,7 @@ void KeyValueDB::remove(const std::string &key) {
     InitDBTFromString(&key_struct, key);
 
     int retcode;
-    if ((retcode = db_->del(db_, /* txnid = */nullptr, &key_struct, /* flags = */0)) != 0)
+    if ((retcode = db_->del(db_, /* txnid = */ nullptr, &key_struct, /* flags = */ 0)) != 0)
         LOG_ERROR("DB->err() failed! (" + std::string(db_strerror(retcode)) + ")");
 }
 
@@ -137,7 +138,7 @@ void KeyValueDB::Create(const std::string &path) {
     if ((retcode = ::db_create(&db, nullptr, 0)) != 0)
         LOG_ERROR("db_create() failed! (" + std::string(db_strerror(retcode)) + ")");
 
-    if ((retcode = db->open(db, /* txnid = */nullptr, path.c_str(), /* database = */nullptr, DB_HASH, DB_CREATE, /* mode = */0600)) != 0)
+    if ((retcode = db->open(db, /* txnid = */ nullptr, path.c_str(), /* database = */ nullptr, DB_HASH, DB_CREATE, /* mode = */ 0600)) != 0)
         LOG_ERROR("DB->open() failed! (" + std::string(db_strerror(retcode)) + ")");
 }
 

@@ -28,8 +28,8 @@
 #include "DbRow.h"
 #include "StlHelpers.h"
 #include "StringUtil.h"
-#include "util.h"
 #include "VuFind.h"
+#include "util.h"
 
 
 namespace {
@@ -38,17 +38,18 @@ namespace {
 struct FeedInfo {
     std::string id_;
     std::set<std::string> subsystem_types_;
+
 public:
     FeedInfo() = default;
     FeedInfo(const FeedInfo &rhs) = default;
-    FeedInfo(const std::string &id, const std::set<std::string> &subsystem_types)
-        : id_(id), subsystem_types_(subsystem_types) { }
-    inline bool isCompatibleWith(const std::string &subsystem_type) const
-        { return subsystem_types_.find(subsystem_type) != subsystem_types_.cend(); }
+    FeedInfo(const std::string &id, const std::set<std::string> &subsystem_types): id_(id), subsystem_types_(subsystem_types) { }
+    inline bool isCompatibleWith(const std::string &subsystem_type) const {
+        return subsystem_types_.find(subsystem_type) != subsystem_types_.cend();
+    }
 };
 
 
-bool GetRSSFeedsID(DbConnection * vufind_connection, const std::string &feed_url, FeedInfo * const feed_info) {
+bool GetRSSFeedsID(DbConnection *vufind_connection, const std::string &feed_url, FeedInfo * const feed_info) {
     static std::unordered_map<std::string, FeedInfo> urls_to_feed_infos_map;
     const auto url_and_feed_info(urls_to_feed_infos_map.find(feed_url));
     if (url_and_feed_info != urls_to_feed_infos_map.end()) {
@@ -77,22 +78,20 @@ bool GetRSSFeedsID(DbConnection * vufind_connection, const std::string &feed_url
 }
 
 
-void CopyItem(DbConnection * const db_writer, const std::string &feed_id, const std::string &item_id,
-              const std::string &item_url, const std::string &item_title, const std::string &item_description,
-              const std::string &pub_date, const std::string &insertion_time)
-{
-    db_writer->queryOrDie("INSERT INTO tuefind_rss_items SET rss_feeds_id=" + feed_id + ",item_id='" + item_id
-                          + "',item_url=" + db_writer->escapeAndQuoteString(item_url) + ",item_title="
-                          + db_writer->escapeAndQuoteString(item_title) + ",item_description="
-                          + db_writer->escapeAndQuoteString(item_description) + ",pub_date='"
-                          + pub_date + "',insertion_time='" + insertion_time + "'");
+void CopyItem(DbConnection * const db_writer, const std::string &feed_id, const std::string &item_id, const std::string &item_url,
+              const std::string &item_title, const std::string &item_description, const std::string &pub_date,
+              const std::string &insertion_time) {
+    db_writer->queryOrDie("INSERT INTO tuefind_rss_items SET rss_feeds_id=" + feed_id + ",item_id='" + item_id + "',item_url="
+                          + db_writer->escapeAndQuoteString(item_url) + ",item_title=" + db_writer->escapeAndQuoteString(item_title)
+                          + ",item_description=" + db_writer->escapeAndQuoteString(item_description) + ",pub_date='" + pub_date
+                          + "',insertion_time='" + insertion_time + "'");
 }
 
 
 } // unnamed namespace
 
 
-int Main(int /*argc*/, char */*argv*/[]) {
+int Main(int /*argc*/, char * /*argv*/[]) {
     auto db_reader((DbConnection::UBToolsFactory()));
 
     if (not VuFind::GetTueFindFlavour().empty()) {
@@ -109,12 +108,11 @@ int Main(int /*argc*/, char */*argv*/[]) {
             }
 
             if (unlikely(not feed_info.isCompatibleWith(row["flavour"])))
-                LOG_ERROR("Item w/ item_id \"" + row["item_id"] + " has a flavour \"" + row["flavour"] +
-                          "\" which is incompatible with the subsystem_types \""
-                          + StlHelpers::ContainerToString(feed_info.subsystem_types_.cbegin(),
-                                                          feed_info.subsystem_types_.cend(), ","));
-            CopyItem(&db_writer, feed_info.id_, row["item_id"], row["item_url"], row["item_title"],
-                     row["item_description"], row["pub_date"], row["insertion_time"]);
+                LOG_ERROR("Item w/ item_id \"" + row["item_id"] + " has a flavour \"" + row["flavour"]
+                          + "\" which is incompatible with the subsystem_types \""
+                          + StlHelpers::ContainerToString(feed_info.subsystem_types_.cbegin(), feed_info.subsystem_types_.cend(), ","));
+            CopyItem(&db_writer, feed_info.id_, row["item_id"], row["item_url"], row["item_title"], row["item_description"],
+                     row["pub_date"], row["insertion_time"]);
         }
         transaction.commit();
     }

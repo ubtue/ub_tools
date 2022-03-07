@@ -34,8 +34,9 @@ namespace {
 
 
 [[noreturn]] void Usage() {
-    ::Usage("stats_file_path email_address\n"
-            "A report will be sent to \"email_address\".");
+    ::Usage(
+        "stats_file_path email_address\n"
+        "A report will be sent to \"email_address\".");
 }
 
 
@@ -58,8 +59,7 @@ void LoadOldStats(const std::string &stats_file_path, std::vector<std::pair<std:
         const std::string domain(line.substr(0, vertical_bar_pos));
         unsigned count;
         if (unlikely(not StringUtil::ToUnsigned(line.substr(vertical_bar_pos + 1), &count)))
-            logger->error("in LoadOldStats: line #" + std::to_string(line_no) + "in \"" + input->getPath()
-                          + "\" contains junk!");
+            logger->error("in LoadOldStats: line #" + std::to_string(line_no) + "in \"" + input->getPath() + "\" contains junk!");
 
         domains_and_counts->emplace_back(std::make_pair(domain, count));
     }
@@ -85,16 +85,13 @@ void DetermineNewStats(std::vector<std::pair<std::string, unsigned>> * const dom
 
 
 inline bool CompareDomainsAndCountsByDomains(const std::pair<std::string, unsigned> &domain_and_count1,
-                                             const std::pair<std::string, unsigned> &domain_and_count2)
-{
+                                             const std::pair<std::string, unsigned> &domain_and_count2) {
     return domain_and_count1.first < domain_and_count2.first;
 }
 
 
-void CompareStatsAndGenerateReport(const std::string &email_address,
-                                   std::vector<std::pair<std::string, unsigned>> old_domains_and_counts,
-                                   std::vector<std::pair<std::string, unsigned>> new_domains_and_counts)
-{
+void CompareStatsAndGenerateReport(const std::string &email_address, std::vector<std::pair<std::string, unsigned>> old_domains_and_counts,
+                                   std::vector<std::pair<std::string, unsigned>> new_domains_and_counts) {
     std::sort(old_domains_and_counts.begin(), old_domains_and_counts.end(), CompareDomainsAndCountsByDomains);
     std::sort(new_domains_and_counts.begin(), new_domains_and_counts.end(), CompareDomainsAndCountsByDomains);
 
@@ -116,11 +113,11 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
             found_one_or_more_problems = true;
         } else {
             if (old_iter->first == new_iter->first) {
-                report_text += old_iter->first + ", old count: " + std::to_string(old_iter->second) + ", new count: "
-                               + std::to_string(new_iter->second) + "\n";
+                report_text += old_iter->first + ", old count: " + std::to_string(old_iter->second)
+                               + ", new count: " + std::to_string(new_iter->second) + "\n";
                 ++new_iter, ++old_iter;
             } else if (old_iter->first < new_iter->first) {
-            disappeared_count += old_iter->second;
+                disappeared_count += old_iter->second;
                 report_text += old_iter->first + " (count: " + std::to_string(old_iter->second) + ") disappeared.\n";
                 ++old_iter;
                 found_one_or_more_problems = true;
@@ -135,18 +132,15 @@ void CompareStatsAndGenerateReport(const std::string &email_address,
     report_text = "Overall " + std::to_string(added_count) + " new items were added and " + std::to_string(disappeared_count)
                   + " old items disappeared.\n\n" + report_text;
 
-    const unsigned short response_code(EmailSender::SimplerSendEmail(
-        "no-reply@ub.uni-tuebingen.de", { email_address },
-        "Full Text Stats (" + DnsUtil::GetHostname() + ")", report_text,
-        found_one_or_more_problems ? EmailSender::VERY_HIGH : EmailSender::VERY_LOW));
+    const unsigned short response_code(
+        EmailSender::SimplerSendEmail("no-reply@ub.uni-tuebingen.de", { email_address }, "Full Text Stats (" + DnsUtil::GetHostname() + ")",
+                                      report_text, found_one_or_more_problems ? EmailSender::VERY_HIGH : EmailSender::VERY_LOW));
     if (response_code > 299)
         LOG_ERROR("failed to send email! (response code was " + std::to_string(response_code) + ")");
 }
 
 
-void WriteStats(const std::string &stats_filename,
-                const std::vector<std::pair<std::string, unsigned>> &domains_and_counts)
-{
+void WriteStats(const std::string &stats_filename, const std::vector<std::pair<std::string, unsigned>> &domains_and_counts) {
     std::string stats;
     for (const auto &domain_and_count : domains_and_counts)
         stats += domain_and_count.first + "|" + std::to_string(domain_and_count.second) + '\n';

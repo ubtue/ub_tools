@@ -2,8 +2,8 @@
  */
 #include <iostream>
 #include <map>
-#include <stdexcept>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include <cstdlib>
@@ -14,8 +14,7 @@
 
 
 void Usage() {
-    std::cerr << "Usage: " << ::progname
-              << " template_filename var1_and_values [var2_and_values ... varN_and_values]\n"
+    std::cerr << "Usage: " << ::progname << " template_filename var1_and_values [var2_and_values ... varN_and_values]\n"
               << "       Variable names and values have to be separated by colons, arrays of array have to have their subarray\n"
               << "       values separated by semicolons. In order to include colons or semicolons in the values you need to backslash-\n"
               << "       escape them.  Literal backslashes can included by doubling them.\n"

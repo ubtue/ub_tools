@@ -27,4 +27,3 @@ int main(int argc, char *argv[]) {
         logger->error(x.what());
     }
 }
-

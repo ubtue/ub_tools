@@ -1,5 +1,5 @@
 FROM ubuntu:focal
-MAINTAINER Mario Trojan <mario.trojan@uni-tuebingen.de>
+LABEL maintainer="Mario Trojan <mario.trojan@uni-tuebingen.de>"
 
 # Set non-interactive mode for UBUNTU to avoid interruptions
 ENV DEBIAN_FRONTEND=noninteractive

@@ -35,24 +35,23 @@ enum Format { PLAIN_TEXT, HTML };
  * Unless you actually need the horrendously complex general SendEmail function you should use
  * one of the following convenience wrapper functions!
  */
-unsigned short SimplerSendEmail(const std::string &sender, const std::vector<std::string> &recipients,
-                                const std::string &subject, const std::string &message_body,
-                                const Priority priority = DO_NOT_SET_PRIORITY, const Format format = PLAIN_TEXT);
-inline unsigned short SimplerSendEmail(const std::string &sender, const std::string &recipient,
-                                       const std::string &subject, const std::string &message_body,
-                                       const Priority priority = DO_NOT_SET_PRIORITY, const Format format = PLAIN_TEXT)
-    { return SimplerSendEmail(sender, std::vector<std::string>{ recipient }, subject, message_body, priority, format); }
+unsigned short SimplerSendEmail(const std::string &sender, const std::vector<std::string> &recipients, const std::string &subject,
+                                const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
+                                const Format format = PLAIN_TEXT);
+inline unsigned short SimplerSendEmail(const std::string &sender, const std::string &recipient, const std::string &subject,
+                                       const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
+                                       const Format format = PLAIN_TEXT) {
+    return SimplerSendEmail(sender, std::vector<std::string>{ recipient }, subject, message_body, priority, format);
+}
 
 
 unsigned short SendEmailWithFileAttachments(const std::string &sender, const std::vector<std::string> &recipients,
                                             const std::string &subject, const std::string &message_body,
                                             const std::vector<std::string> &attachment_filenames,
-                                            const Priority priority = DO_NOT_SET_PRIORITY,
-                                            const Format format = PLAIN_TEXT);
+                                            const Priority priority = DO_NOT_SET_PRIORITY, const Format format = PLAIN_TEXT);
 unsigned short SendEmailWithInlineAttachments(const std::string &sender, const std::vector<std::string> &recipients,
                                               const std::string &subject, const std::string &message_body,
-                                              const std::vector<std::string> &attachments,
-                                              const Priority priority = DO_NOT_SET_PRIORITY,
+                                              const std::vector<std::string> &attachments, const Priority priority = DO_NOT_SET_PRIORITY,
                                               const Format format = PLAIN_TEXT);
 
 
@@ -73,11 +72,10 @@ enum AttachmentType {
  */
 unsigned short SendEmail(const std::string &sender, const std::vector<std::string> &recipients,
                          const std::vector<std::string> &cc_recipients, const std::vector<std::string> &bcc_recipients,
-                         const std::string &subject, const std::string &message_body,
-                         const Priority priority = DO_NOT_SET_PRIORITY, const Format format = PLAIN_TEXT,
-                         const std::string &reply_to = "", const std::vector<std::string> &attachments = {},
-                         const AttachmentType attachment_type = AT_INVALID, const bool use_ssl = true,
-                         const bool use_authentication = true);
+                         const std::string &subject, const std::string &message_body, const Priority priority = DO_NOT_SET_PRIORITY,
+                         const Format format = PLAIN_TEXT, const std::string &reply_to = "",
+                         const std::vector<std::string> &attachments = {}, const AttachmentType attachment_type = AT_INVALID,
+                         const bool use_ssl = true, const bool use_authentication = true);
 
 
 std::string SMTPResponseCodeToString(const unsigned short response_code);

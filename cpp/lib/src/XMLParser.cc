@@ -18,8 +18,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "XMLParser.h"
-#include <xercesc/framework/MemBufInputSource.hpp>
 #include <cassert>
+#include <xercesc/framework/MemBufInputSource.hpp>
 #include "FileUtil.h"
 #include "Main.h"
 #include "StringUtil.h"
@@ -28,13 +28,9 @@
 
 // Perform process-level init/deinit related to Xerces library.
 static int SetupXercesPlatform() {
-    RegisterProgramPrologueHandler(/* priority = */ 0, []() -> void {
-        xercesc::XMLPlatformUtils::Initialize();
-    });
+    RegisterProgramPrologueHandler(/* priority = */ 0, []() -> void { xercesc::XMLPlatformUtils::Initialize(); });
 
-    RegisterProgramEpilogueHandler(/* priority = */ 0, []() -> void {
-        xercesc::XMLPlatformUtils::Terminate();
-    });
+    RegisterProgramEpilogueHandler(/* priority = */ 0, []() -> void { xercesc::XMLPlatformUtils::Terminate(); });
 
     return 0;
 }
@@ -43,10 +39,10 @@ static int SetupXercesPlatform() {
 const int throwaway(SetupXercesPlatform());
 
 
-const XMLParser::Options XMLParser::DEFAULT_OPTIONS {
-    /* do_namespaces_ = */      false,
-    /* do_schema_ = */          false,
-    /* ignore_whitespace_ = */  true,
+const XMLParser::Options XMLParser::DEFAULT_OPTIONS{
+    /* do_namespaces_ = */ false,
+    /* do_schema_ = */ false,
+    /* ignore_whitespace_ = */ true,
     /* load_external_dtds_ = */ false,
 };
 
@@ -57,7 +53,8 @@ void XMLParser::ConvertAndThrowException(const xercesc::RuntimeException &exc) {
 
 
 void XMLParser::ConvertAndThrowException(const xercesc::SAXParseException &exc) {
-    throw XMLParser::Error("Xerces SAXParseException on line " + std::to_string(exc.getLineNumber()) + ": " + ToStdString(exc.getMessage()));
+    throw XMLParser::Error("Xerces SAXParseException on line " + std::to_string(exc.getLineNumber()) + ": "
+                           + ToStdString(exc.getMessage()));
 }
 
 
@@ -151,9 +148,8 @@ void XMLParser::Handler::setDocumentLocator(const xercesc::Locator * const locat
 
 
 XMLParser::XMLParser(const std::string &xml_filename_or_string, const Type type, const Options &options)
-    : xml_filename_or_string_(xml_filename_or_string), type_(type), options_(options)
-{
-    parser_  = new xercesc::SAXParser();
+    : xml_filename_or_string_(xml_filename_or_string), type_(type), options_(options) {
+    parser_ = new xercesc::SAXParser();
 
     handler_ = new XMLParser::Handler();
     handler_->parser_ = this;
@@ -253,7 +249,7 @@ bool XMLParser::getNext(XMLPart * const next, const bool combine_consecutive_cha
                 if (not body_has_more_contents_)
                     throw XMLParser::Error("error parsing document header: " + xml_filename_or_string_);
             } else if (type_ == XML_STRING) {
-                xercesc::MemBufInputSource input_buffer((const XMLByte*)xml_filename_or_string_.c_str(), xml_filename_or_string_.size(),
+                xercesc::MemBufInputSource input_buffer((const XMLByte *)xml_filename_or_string_.c_str(), xml_filename_or_string_.size(),
                                                         "xml_string (in memory)");
                 body_has_more_contents_ = parser_->parseFirst(input_buffer, token_);
                 if (not body_has_more_contents_)
@@ -283,7 +279,7 @@ bool XMLParser::getNext(XMLPart * const next, const bool combine_consecutive_cha
             buffer_.pop_front();
             if (next != nullptr and next->type_ == XMLPart::CHARACTERS and combine_consecutive_characters) {
                 XMLPart peek;
-                while (getNext(&peek, /* combine_consecutive_characters = */false) and peek.type_ == XMLPart::CHARACTERS)
+                while (getNext(&peek, /* combine_consecutive_characters = */ false) and peek.type_ == XMLPart::CHARACTERS)
                     next->data_ += peek.data_;
                 if (peek.type_ != XMLPart::CHARACTERS)
                     buffer_.emplace_front(peek);
@@ -301,9 +297,8 @@ bool XMLParser::getNext(XMLPart * const next, const bool combine_consecutive_cha
 }
 
 
-bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags,
-                       XMLPart * const part, std::string * const skipped_data)
-{
+bool XMLParser::skipTo(const XMLPart::Type expected_type, const std::set<std::string> &expected_tags, XMLPart * const part,
+                       std::string * const skipped_data) {
     if (unlikely(expected_type != XMLPart::OPENING_TAG and expected_type != XMLPart::CLOSING_TAG))
         LOG_ERROR("Unexpected type: " + XMLPart::TypeToString(expected_type));
 
@@ -349,8 +344,8 @@ bool XMLParser::extractTextBetweenTags(const std::string &tag, std::string * con
             return false;
 
         if (not guard_tags.empty()
-            and (guard_tags.find(xml_part.data_) != guard_tags.cend() or tag_aliases_to_canonical_tags_map_.find(xml_part.data_)
-                 != tag_aliases_to_canonical_tags_map_.cend()))
+            and (guard_tags.find(xml_part.data_) != guard_tags.cend()
+                 or tag_aliases_to_canonical_tags_map_.find(xml_part.data_) != tag_aliases_to_canonical_tags_map_.cend()))
             return false;
 
         assert(getNext(&xml_part));

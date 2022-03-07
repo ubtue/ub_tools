@@ -44,6 +44,7 @@
 class TimeLimit {
     timeval expire_time_;
     unsigned limit_;
+
 public:
     /** \brief  Construct a TimeLimit by specifying the limit.
      *  \param  time_limit  The time until expiration, in milliseconds.
@@ -56,10 +57,17 @@ public:
     TimeLimit(const TimeLimit &rhs): expire_time_(rhs.expire_time_), limit_(rhs.limit_) { }
 
     /** TimeLimit assignment operator. */
-    const TimeLimit operator=(const TimeLimit &rhs) { expire_time_ = rhs.expire_time_; limit_ = rhs.limit_; return *this; }
+    const TimeLimit operator=(const TimeLimit &rhs) {
+        expire_time_ = rhs.expire_time_;
+        limit_ = rhs.limit_;
+        return *this;
+    }
 
     /** TimeLimit assignment operator. */
-    const TimeLimit operator=(const unsigned time_limit) { initialize(time_limit); return *this; }
+    const TimeLimit operator=(const unsigned time_limit) {
+        initialize(time_limit);
+        return *this;
+    }
 
     /** \brief   Test whether the time limit has been exceeded.
      *  \return  True if the time limit has been exceeded, otherwise false.
@@ -79,6 +87,7 @@ public:
 
     /** Sleep until the limit has been exceeded. */
     void sleepUntilExpired() const { TimeUtil::Millisleep(getRemainingTime()); }
+
 private:
     void initialize(const unsigned time_limit);
 };

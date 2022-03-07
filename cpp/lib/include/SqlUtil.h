@@ -58,17 +58,18 @@ constexpr size_t VARCHAR_UTF8_MAX_INDEX_LENGTH(768);
 class TransactionGuard {
 public:
     enum IsolationLevel { READ_COMMITTED, SERIALIZABLE };
+
 private:
     struct Status {
         IsolationLevel level_;
         bool rolled_back_;
         unsigned reference_count_;
-        Status(const IsolationLevel &level = READ_COMMITTED)
-            : level_(level), rolled_back_(false), reference_count_(1) {}
+        Status(const IsolationLevel &level = READ_COMMITTED): level_(level), rolled_back_(false), reference_count_(1) { }
     };
     static std::map<DbConnection *, Status> connection_status_;
 
     DbConnection * const db_connection_;
+
 public:
     explicit TransactionGuard(DbConnection * const db_connection, const IsolationLevel level = READ_COMMITTED);
     void rollback();
@@ -124,7 +125,7 @@ bool IsValidDatetime(const std::string &datetime);
  *  \param   offset  An offset in seconds to be added the current date/time.
  *  \return  Returns the current date/time in the "YYYY-MM-DD hh:mm:ss" format.
  */
-std::string GetDatetime(const long offset=0);
+std::string GetDatetime(const long offset = 0);
 
 
 /** \return A set that contains the names of the columns in "table_name". */
@@ -139,8 +140,10 @@ unsigned GetTableSize(DbConnection * const connection, const std::string &table_
 // of the MySQL connector. Must be initialized at the very beginning of the invoking thread.
 struct ThreadSafetyGuard {
     enum ThreadType { MAIN_THREAD, WORKER_THREAD };
+
 private:
     ThreadType invoker_thread_;
+
 public:
     explicit ThreadSafetyGuard(const ThreadType invoker_thread);
     ~ThreadSafetyGuard();

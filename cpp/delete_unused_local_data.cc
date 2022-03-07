@@ -38,8 +38,7 @@ namespace {
 }
 
 
-bool IsUnusedLocalBlock(const MARC::Record &record,
-                        const MARC::Record::const_iterator &block_start) {
+bool IsUnusedLocalBlock(const MARC::Record &record, const MARC::Record::const_iterator &block_start) {
     for (const auto &field : record.findFieldsInLocalBlock("852", block_start)) {
         const std::string field_data(field.getContents());
         if (field_data.find("aTü 135") != std::string::npos)
@@ -58,7 +57,7 @@ void DeleteUnusedLocalData(MARC::Reader * const marc_reader, MARC::Writer * cons
     while (MARC::Record record = marc_reader->read()) {
         ++count;
 
-        std::vector<MARC::Record::iterator> local_block_heads(record.findStartOfAllLocalDataBlocks()),                                                    local_blocks_to_delete;
+        std::vector<MARC::Record::iterator> local_block_heads(record.findStartOfAllLocalDataBlocks()), local_blocks_to_delete;
         size_t local_data_count(local_block_heads.size());
         if (local_data_count == 0)
             return;
@@ -76,8 +75,7 @@ void DeleteUnusedLocalData(MARC::Reader * const marc_reader, MARC::Writer * cons
         after_count += local_data_count;
         marc_writer->write(record);
     }
-    std::cerr << ::progname << ": Deleted " << (before_count - after_count) << " of " << before_count
-              << " local data blocks.\n";
+    std::cerr << ::progname << ": Deleted " << (before_count - after_count) << " of " << before_count << " local data blocks.\n";
 }
 
 

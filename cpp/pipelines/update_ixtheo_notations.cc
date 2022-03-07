@@ -36,8 +36,7 @@
 
 
 void LoadCodeToDescriptionMap(File * const code_to_description_map_file,
-                              std::unordered_map<std::string, std::string> * const code_to_description_map)
-{
+                              std::unordered_map<std::string, std::string> * const code_to_description_map) {
     unsigned line_no(0);
     while (not code_to_description_map_file->eof()) {
         const std::string line(code_to_description_map_file->getline());
@@ -63,21 +62,11 @@ void LoadCodeToDescriptionMap(File * const code_to_description_map_file,
 
 
 bool LocalBlockIsFromIxTheoTheologians(const MARC::Record::const_iterator &local_block_start, const MARC::Record &record) {
-    for (const auto &_852_local_field : record.findFieldsInLocalBlock("852", local_block_start, /*indicator1*/' ', /*indicator2*/' ')) {
+    for (const auto &_852_local_field : record.findFieldsInLocalBlock("852", local_block_start, /*indicator1*/ ' ', /*indicator2*/ ' ')) {
         const MARC::Subfields subfields(_852_local_field.getSubfields());
 
-        static const std::vector<std::string> sigils {
-            "Tü 135",
-            "Tü 135/1",
-            "Tü 135/2",
-            "Tü 135/3",
-            "Tü 135/4",
-            "DE-Tue135",
-            "DE-Tue135-1",
-            "DE-Tue135-2",
-            "DE-Tue135-3",
-            "DE-Tue135-4"
-        };
+        static const std::vector<std::string> sigils{ "Tü 135",    "Tü 135/1",    "Tü 135/2",    "Tü 135/3",    "Tü 135/4",
+                                                      "DE-Tue135", "DE-Tue135-1", "DE-Tue135-2", "DE-Tue135-3", "DE-Tue135-4" };
 
         for (const auto &sigil : sigils) {
             if (subfields.hasSubfieldWithValue('a', sigil))
@@ -91,9 +80,8 @@ bool LocalBlockIsFromIxTheoTheologians(const MARC::Record::const_iterator &local
 
 unsigned ExtractIxTheoNotations(const MARC::Record::const_iterator &local_block_start, const MARC::Record &record,
                                 const std::unordered_map<std::string, std::string> &code_to_description_map,
-                                std::set<std::string> * const ixtheo_notations_set)
-{
-    for (const auto &_936_local_field : record.findFieldsInLocalBlock("936", local_block_start, /*indicator1*/'l', /*indicator2*/'n')) {
+                                std::set<std::string> * const ixtheo_notations_set) {
+    for (const auto &_936_local_field : record.findFieldsInLocalBlock("936", local_block_start, /*indicator1*/ 'l', /*indicator2*/ 'n')) {
         const MARC::Subfields subfields(_936_local_field.getSubfields());
         const std::string ixtheo_notation_candidate(subfields.getFirstSubfieldWithCode('a'));
         if (code_to_description_map.find(ixtheo_notation_candidate) != code_to_description_map.end())
@@ -104,8 +92,7 @@ unsigned ExtractIxTheoNotations(const MARC::Record::const_iterator &local_block_
 
 
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    const std::unordered_map<std::string, std::string> &code_to_description_map)
-{
+                    const std::unordered_map<std::string, std::string> &code_to_description_map) {
     unsigned count(0), ixtheo_notation_count(0), records_with_ixtheo_notations(0);
     while (MARC::Record record = marc_reader->read()) {
         ++count;
@@ -116,8 +103,7 @@ void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_
             if (not LocalBlockIsFromIxTheoTheologians(local_block_start_iter, record))
                 continue;
 
-            ExtractIxTheoNotations(local_block_start_iter, record, code_to_description_map,
-                                   &ixtheo_notations_set);
+            ExtractIxTheoNotations(local_block_start_iter, record, code_to_description_map, &ixtheo_notations_set);
         }
 
         if (not ixtheo_notations_set.empty()) { // Insert a new 652 field w/ a $a subfield.

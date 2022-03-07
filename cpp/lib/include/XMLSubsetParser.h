@@ -33,7 +33,7 @@
 
 
 #ifndef ARRAY_SIZE
-#    define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
+#define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 #endif // ifndef ARRAY_SIZE
 
 
@@ -46,9 +46,11 @@
  *                      3. If neither of the above are available, we fallback to UTF-8 as the default
  *                         and fail elegantly.
  */
-template<typename DataSource> class XMLSubsetParser {
+template <typename DataSource>
+class XMLSubsetParser {
 public:
     enum Type { UNINITIALISED, START_OF_DOCUMENT, END_OF_DOCUMENT, ERROR, OPENING_TAG, CLOSING_TAG, CHARACTERS };
+
 private:
     // Order-dependent: See below (cf. FIRST_FOUR_BYTES_...)
     enum Encoding : uint8_t { UTF32_BE, UTF32_LE, UTF16_BE, UTF16_LE, UTF8, OTHER };
@@ -64,7 +66,7 @@ private:
     std::string internal_encoding_;
     std::string external_encoding_;
     std::unique_ptr<TextUtil::ToUTF32Decoder> to_utf32_decoder_;
-    off_t datasource_content_start_pos_;    // offset in the datasource that denotes the start of the content (excluding BOMs)
+    off_t datasource_content_start_pos_; // offset in the datasource that denotes the start of the content (excluding BOMs)
 
     static const std::deque<int> CDATA_START_DEQUE;
 
@@ -72,6 +74,7 @@ private:
     static const uint8_t FIRST_FOUR_BYTES_WITH_BOM[5][4];
     static const uint8_t FIRST_FOUR_BYTES_NO_BOM[5][4];
     static const std::string CANONICAL_ENCODING_NAMES[5];
+
 public:
     XMLSubsetParser(DataSource * const input, const std::string &external_encoding = "");
 
@@ -114,6 +117,7 @@ public:
     off_t tell() const;
 
     static std::string TypeToString(const Type type);
+
 private:
     void detectEncoding();
     int getUnicodeCodePoint();
@@ -133,28 +137,32 @@ private:
 };
 
 
-template<typename DataSource> const std::deque<int> XMLSubsetParser<DataSource>::CDATA_START_DEQUE{
-    '<', '!', '[', 'C', 'D', 'A', 'T', 'A', '[' };
+template <typename DataSource>
+const std::deque<int> XMLSubsetParser<DataSource>::CDATA_START_DEQUE{ '<', '!', '[', 'C', 'D', 'A', 'T', 'A', '[' };
 
 // '##' characters denote any byte value except that two consecutive ##s cannot be both 00
 // in the case of UTF-8, the 4th byte is ignored
-template<typename DataSource> const uint8_t XMLSubsetParser<DataSource>::FIRST_FOUR_BYTES_WITH_BOM[5][4]{
-    { 0, 0, 0xFE, 0xFF }, { 0xFF, 0xFE, 0, 0 }, { 0xFE, 0xFF, /*##*/0x0, /*##*/0x0 }, { 0xFF, 0xFE, /*##*/0x0, /*##*/0x0 }, { 0xEF, 0xBB, 0xBF, /*##*/0x0 }
-};
+template <typename DataSource>
+const uint8_t XMLSubsetParser<DataSource>::FIRST_FOUR_BYTES_WITH_BOM[5][4]{ { 0, 0, 0xFE, 0xFF },
+                                                                            { 0xFF, 0xFE, 0, 0 },
+                                                                            { 0xFE, 0xFF, /*##*/ 0x0, /*##*/ 0x0 },
+                                                                            { 0xFF, 0xFE, /*##*/ 0x0, /*##*/ 0x0 },
+                                                                            { 0xEF, 0xBB, 0xBF, /*##*/ 0x0 } };
 
 // Encodings of the first four characters in the XML file (<?xm)
-template<typename DataSource> const uint8_t XMLSubsetParser<DataSource>::FIRST_FOUR_BYTES_NO_BOM[5][4]{
+template <typename DataSource>
+const uint8_t XMLSubsetParser<DataSource>::FIRST_FOUR_BYTES_NO_BOM[5][4]{
     { 0, 0, 0, 0x3C }, { 0x3C, 0, 0, 0 }, { 0, 0x3C, 0, 0x3F }, { 0x3C, 0, 0x3F, 0 }, { 0x3C, 0x3F, 0x78, 0x6D }
 };
 
-template<typename DataSource> const std::string XMLSubsetParser<DataSource>::CANONICAL_ENCODING_NAMES[5]{
-    "UTF32BE", "UTF32LE", "UTF16BE", "UTF16LE", "UTF8"
-};
+template <typename DataSource>
+const std::string XMLSubsetParser<DataSource>::CANONICAL_ENCODING_NAMES[5]{ "UTF32BE", "UTF32LE", "UTF16BE", "UTF16LE", "UTF8" };
 
 
-template<typename DataSource> XMLSubsetParser<DataSource>::XMLSubsetParser(DataSource * const input, const std::string &external_encoding)
-    : input_(input), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false), data_collector_(nullptr), datasource_content_start_pos_(0)
-{
+template <typename DataSource>
+XMLSubsetParser<DataSource>::XMLSubsetParser(DataSource * const input, const std::string &external_encoding)
+    : input_(input), line_no_(1), last_type_(UNINITIALISED), last_element_was_empty_(false), data_collector_(nullptr),
+      datasource_content_start_pos_(0) {
     if (not external_encoding.empty())
         external_encoding_ = external_encoding;
 
@@ -162,10 +170,11 @@ template<typename DataSource> XMLSubsetParser<DataSource>::XMLSubsetParser(DataS
 }
 
 
-template<typename DataSource> void XMLSubsetParser<DataSource>::detectEncoding() {
+template <typename DataSource>
+void XMLSubsetParser<DataSource>::detectEncoding() {
     // compare the first 4 bytes with the expected bytes to determine the initial encoding
-    char first_four_bytes[4]{0};
-    const char null_two_bytes[2]{0};
+    char first_four_bytes[4]{ 0 };
+    const char null_two_bytes[2]{ 0 };
     for (int i(0); i < 4; ++i) {
         const char byte(input_->get());
         if (byte == EOF)
@@ -241,11 +250,11 @@ template<typename DataSource> void XMLSubsetParser<DataSource>::detectEncoding()
     if (not internal_encoding_.empty()) {
         if (not unknown_encoding) {
             if (::strcasecmp(internal_encoding_.c_str(), to_utf32_decoder_->getInputEncoding().c_str()) != 0) {
-                LOG_WARNING("Mismatching XML file encoding for \"" + input_->getPath() + "\". Detected: "
-                            + to_utf32_decoder_->getInputEncoding() + ", provided (internal): " + internal_encoding_);
+                LOG_WARNING("Mismatching XML file encoding for \"" + input_->getPath()
+                            + "\". Detected: " + to_utf32_decoder_->getInputEncoding() + ", provided (internal): " + internal_encoding_);
             } else if (not external_encoding_.empty() and ::strcasecmp(external_encoding_.c_str(), internal_encoding_.c_str()) != 0) {
-                LOG_WARNING("Mismatching XML file encoding for \"" + input_->getPath() + "\". Detected (internal): "
-                            + internal_encoding_ + ", provided (external): " + external_encoding_);
+                LOG_WARNING("Mismatching XML file encoding for \"" + input_->getPath() + "\". Detected (internal): " + internal_encoding_
+                            + ", provided (external): " + external_encoding_);
             }
         }
 
@@ -259,7 +268,8 @@ template<typename DataSource> void XMLSubsetParser<DataSource>::detectEncoding()
 }
 
 
-template<typename DataSource> int XMLSubsetParser<DataSource>::getUnicodeCodePoint() {
+template <typename DataSource>
+int XMLSubsetParser<DataSource>::getUnicodeCodePoint() {
     int ch(input_->get());
     if (unlikely(ch == EOF))
         return ch;
@@ -268,15 +278,17 @@ template<typename DataSource> int XMLSubsetParser<DataSource>::getUnicodeCodePoi
             return static_cast<int>(to_utf32_decoder_->getUTF32Char());
         ch = input_->get();
         if (unlikely(ch == EOF))
-            throw std::runtime_error("in XMLSubsetParser::getUnicodeCodePoint: unexpected EOF while decoding "
-                                     "a byte sequence!");
+            throw std::runtime_error(
+                "in XMLSubsetParser::getUnicodeCodePoint: unexpected EOF while decoding "
+                "a byte sequence!");
     }
 }
 
 
-template<typename DataSource> int XMLSubsetParser<DataSource>::get(const bool skip_comment, bool * const cdata_start) {
+template <typename DataSource>
+int XMLSubsetParser<DataSource>::get(const bool skip_comment, bool * const cdata_start) {
     if (skip_comment) {
-        static constexpr char COMMENT_START[]{"<!--"};
+        static constexpr char COMMENT_START[]{ "<!--" };
         if (pushed_back_chars_.empty())
             pushed_back_chars_.push_back(getUnicodeCodePoint());
         while (pushed_back_chars_.size() < sizeof(COMMENT_START) - 1 and pushed_back_chars_.back() != EOF)
@@ -296,7 +308,7 @@ template<typename DataSource> int XMLSubsetParser<DataSource>::get(const bool sk
             // Skip to end of comment:
             int consecutive_dash_count(0);
             for (;;) {
-                int ch = get(/* skip_comment = */false);
+                int ch = get(/* skip_comment = */ false);
                 if (ch == '-')
                     ++consecutive_dash_count;
                 else if (unlikely(ch == EOF)) {
@@ -346,27 +358,29 @@ template<typename DataSource> int XMLSubsetParser<DataSource>::get(const bool sk
 }
 
 
-template<typename DataSource> int XMLSubsetParser<DataSource>::peek() {
+template <typename DataSource>
+int XMLSubsetParser<DataSource>::peek() {
     if (pushed_back_chars_.empty())
         pushed_back_chars_.push_back(getUnicodeCodePoint());
     return pushed_back_chars_.front();
 }
 
 
-template<typename DataSource> void XMLSubsetParser<DataSource>::unget(const int ch) {
+template <typename DataSource>
+void XMLSubsetParser<DataSource>::unget(const int ch) {
     if (unlikely(pushed_back_chars_.size() == __builtin_strlen("<![CDATA[")))
-        throw std::runtime_error("in XMLSubsetParser::unget: can't push back more than "
-                                 + std::to_string(__builtin_strlen("<![CDATA[")) + " characters in a row!");
+        throw std::runtime_error("in XMLSubsetParser::unget: can't push back more than " + std::to_string(__builtin_strlen("<![CDATA["))
+                                 + " characters in a row!");
     pushed_back_chars_.push_front(ch);
     if (data_collector_ != nullptr) {
         if (unlikely(not TextUtil::TrimLastCharFromUTF8Sequence(data_collector_)))
-            throw std::runtime_error("in XMLSubsetParser<DataSource>::unget: \"" + *data_collector_
-                                     + "\" is an invalid UTF-8 sequence!");
+            throw std::runtime_error("in XMLSubsetParser<DataSource>::unget: \"" + *data_collector_ + "\" is an invalid UTF-8 sequence!");
     }
 }
 
 
-template<typename DataSource> void XMLSubsetParser<DataSource>::skipWhiteSpace() {
+template <typename DataSource>
+void XMLSubsetParser<DataSource>::skipWhiteSpace() {
     for (;;) {
         const int ch(get());
         if (unlikely(ch == EOF))
@@ -382,10 +396,8 @@ template<typename DataSource> void XMLSubsetParser<DataSource>::skipWhiteSpace()
 
 // \return If true, we have a valid "name" and "value".  If false we haven't found a name/value-pair if
 //         *error_message is empty or we have a real problem if *error_message is not empty.
-template<typename DataSource> bool XMLSubsetParser<DataSource>::extractAttribute(std::string * const name,
-                                                                                 std::string * const value,
-                                                                                 std::string * const error_message)
-{
+template <typename DataSource>
+bool XMLSubsetParser<DataSource>::extractAttribute(std::string * const name, std::string * const value, std::string * const error_message) {
     error_message->clear();
 
     skipWhiteSpace();
@@ -393,14 +405,14 @@ template<typename DataSource> bool XMLSubsetParser<DataSource>::extractAttribute
         return false;
 
     skipWhiteSpace();
-    const int ch(get(/* skip_comment = */false));
+    const int ch(get(/* skip_comment = */ false));
     if (unlikely(ch != '=')) {
         *error_message = "Could not find an equal sign as part of an attribute.";
         return false;
     }
 
     skipWhiteSpace();
-    const int quote(get(/* skip_comment = */false));
+    const int quote(get(/* skip_comment = */ false));
     if (unlikely(quote != '"' and quote != '\'')) {
         *error_message = "Found neither a single- nor a double-quote starting an attribute value.";
         return false;
@@ -414,14 +426,15 @@ template<typename DataSource> bool XMLSubsetParser<DataSource>::extractAttribute
 }
 
 
-template<typename DataSource> void XMLSubsetParser<DataSource>::parseOptionalPrologue() {
+template <typename DataSource>
+void XMLSubsetParser<DataSource>::parseOptionalPrologue() {
     skipWhiteSpace();
-    int ch(get(/* skip_comment = */false));
+    int ch(get(/* skip_comment = */ false));
     if (unlikely(ch != '<') or peek() != '?') {
         unget(ch);
         return;
     }
-    get(/* skip_comment = */false); // Skip over '?'.
+    get(/* skip_comment = */ false); // Skip over '?'.
 
     std::string name;
     if (not extractName(&name) or name != "xml")
@@ -439,7 +452,7 @@ template<typename DataSource> void XMLSubsetParser<DataSource>::parseOptionalPro
     while (ch != EOF and ch != '>') {
         if (unlikely(ch == '\n' and line_no_ != 0))
             ++line_no_;
-        ch = get(/* skip_comment = */false);
+        ch = get(/* skip_comment = */ false);
     }
     skipWhiteSpace();
 }
@@ -450,10 +463,11 @@ inline bool IsValidElementFirstCharacter(const int ch) {
 }
 
 
-template<typename DataSource> bool XMLSubsetParser<DataSource>::extractName(std::string * const name) {
+template <typename DataSource>
+bool XMLSubsetParser<DataSource>::extractName(std::string * const name) {
     name->clear();
 
-    int ch(get(/* skip_comment = */false));
+    int ch(get(/* skip_comment = */ false));
     if (unlikely(ch == EOF or not IsValidElementFirstCharacter(ch))) {
         unget(ch);
         return false;
@@ -461,12 +475,11 @@ template<typename DataSource> bool XMLSubsetParser<DataSource>::extractName(std:
 
     *name += static_cast<char>(ch);
     for (;;) {
-        ch = get(/* skip_comment = */false);
+        ch = get(/* skip_comment = */ false);
         if (unlikely(ch == EOF))
             return false;
-        if (not (TextUtil::UTF32CharIsAsciiLetter(ch) or TextUtil::UTF32CharIsAsciiDigit(ch) or ch == '_'
-                 or ch == ':' or ch == '.' or ch == '-'))
-        {
+        if (not(TextUtil::UTF32CharIsAsciiLetter(ch) or TextUtil::UTF32CharIsAsciiDigit(ch) or ch == '_' or ch == ':' or ch == '.'
+                or ch == '-')) {
             unget(ch);
             return true;
         }
@@ -475,21 +488,22 @@ template<typename DataSource> bool XMLSubsetParser<DataSource>::extractName(std:
 }
 
 
-template<typename DataSource> bool XMLSubsetParser<DataSource>::skipOptionalProcessingInstruction() {
-    int ch(get(/* skip_comment = */false));
+template <typename DataSource>
+bool XMLSubsetParser<DataSource>::skipOptionalProcessingInstruction() {
+    int ch(get(/* skip_comment = */ false));
     if (ch != '<' or peek() != '?') {
         unget(ch);
         return true;
     }
-    get(/* skip_comment = */false); // Skip over the '?'.
+    get(/* skip_comment = */ false); // Skip over the '?'.
 
-    while ((ch = get(/* skip_comment = */false)) != '?') {
+    while ((ch = get(/* skip_comment = */ false)) != '?') {
         if (unlikely(ch == EOF)) {
             last_error_message_ = "unexpected end-of-input while parsing a processing instruction!";
             return false;
         }
     }
-    if (unlikely((ch = get(/* skip_comment = */false)) != '>')) {
+    if (unlikely((ch = get(/* skip_comment = */ false)) != '>')) {
         last_error_message_ = "expected '>' at end of a processing instruction!";
         return false;
     }
@@ -498,13 +512,12 @@ template<typename DataSource> bool XMLSubsetParser<DataSource>::skipOptionalProc
 }
 
 
-template<typename DataSource> bool XMLSubsetParser<DataSource>::extractQuotedString(const int closing_quote,
-                                                                                    std::string * const s)
-{
+template <typename DataSource>
+bool XMLSubsetParser<DataSource>::extractQuotedString(const int closing_quote, std::string * const s) {
     s->clear();
 
     for (;;) {
-        const int ch(get(/* skip_comment = */false));
+        const int ch(get(/* skip_comment = */ false));
         if (unlikely(ch == EOF))
             return false;
         if (unlikely(ch == closing_quote))
@@ -515,11 +528,12 @@ template<typename DataSource> bool XMLSubsetParser<DataSource>::extractQuotedStr
 
 
 // Collects characters while looking for the end of a CDATA section.
-template<typename DataSource> bool XMLSubsetParser<DataSource>::parseCDATA(std::string * const data) {
+template <typename DataSource>
+bool XMLSubsetParser<DataSource>::parseCDATA(std::string * const data) {
     int consecutive_closing_bracket_count(0);
     for (;;) {
-        const int ch(get(/* skip_comment = */false));
-        if (unlikely(ch == EOF) ) {
+        const int ch(get(/* skip_comment = */ false));
+        if (unlikely(ch == EOF)) {
             last_error_message_ = "Unexpected EOF while looking for the end of CDATA!";
             return false;
         } else if (ch == ']')
@@ -540,9 +554,9 @@ template<typename DataSource> bool XMLSubsetParser<DataSource>::parseCDATA(std::
 }
 
 
-template<typename DataSource> bool XMLSubsetParser<DataSource>::getNext(
-    Type * const type, std::map<std::string, std::string> * const attrib_map, std::string * const data)
-{
+template <typename DataSource>
+bool XMLSubsetParser<DataSource>::getNext(Type * const type, std::map<std::string, std::string> * const attrib_map,
+                                          std::string * const data) {
     if (unlikely(last_type_ == ERROR))
         throw std::runtime_error("in XMLSubsetParser::getNext: previous call already indicated an error!");
 
@@ -563,7 +577,7 @@ template<typename DataSource> bool XMLSubsetParser<DataSource>::getNext(
 
 collect_next_character:
         bool cdata_start(false);
-        while ((ch = get(/* skip_comment = */true, &cdata_start)) != '<') {
+        while ((ch = get(/* skip_comment = */ true, &cdata_start)) != '<') {
             if (cdata_start) {
                 std::string cdata;
                 if (not parseCDATA(&cdata))
@@ -580,9 +594,7 @@ collect_next_character:
             }
         }
         const int lookahead(peek());
-        if (likely(lookahead != EOF)
-            and unlikely(lookahead != '/' and not IsValidElementFirstCharacter(lookahead)))
-        {
+        if (likely(lookahead != EOF) and unlikely(lookahead != '/' and not IsValidElementFirstCharacter(lookahead))) {
             *data += '<';
             goto collect_next_character;
         }
@@ -600,7 +612,7 @@ collect_next_character:
         }
 
         // HACK! skipping Characters/everything in-between a closing tag and an opening tag
-       while (true) {
+        while (true) {
             skipWhiteSpace();
             ch = get();
             if (ch == '<') {
@@ -609,8 +621,7 @@ collect_next_character:
                     unget(ch);
                     ch = get();
                     continue;
-                }
-                else
+                } else
                     break;
             }
             if (unlikely(ch == EOF)) {
@@ -642,8 +653,8 @@ collect_next_character:
             std::string error_message;
             if (unlikely(not parseOpeningTag(data, attrib_map, &error_message))) {
                 last_type_ = *type = ERROR;
-                last_error_message_ = "Error while parsing an opening tag on line " + std::to_string(line_no_) + "! ("
-                                      + error_message + ")";
+                last_error_message_ =
+                    "Error while parsing an opening tag on line " + std::to_string(line_no_) + "! (" + error_message + ")";
                 return false;
             }
 
@@ -669,13 +680,14 @@ collect_next_character:
 }
 
 
-template<typename DataSource> bool XMLSubsetParser<DataSource>::skipTo(
-    const Type expected_type, const std::vector<std::string> &expected_tags, std::string * const found_tag,
-    std::map<std::string, std::string> * const attrib_map, std::string * const data)
-{
+template <typename DataSource>
+bool XMLSubsetParser<DataSource>::skipTo(const Type expected_type, const std::vector<std::string> &expected_tags,
+                                         std::string * const found_tag, std::map<std::string, std::string> * const attrib_map,
+                                         std::string * const data) {
     if (unlikely((expected_type == OPENING_TAG or expected_type == CLOSING_TAG) and expected_tags.empty()))
-        throw std::runtime_error("in XMLSubsetParser::skipTo: \"expected_type\" is OPENING_TAG or CLOSING_TAG but no "
-                                 "tag names have been specified!");
+        throw std::runtime_error(
+            "in XMLSubsetParser::skipTo: \"expected_type\" is OPENING_TAG or CLOSING_TAG but no "
+            "tag names have been specified!");
 
     if (data != nullptr)
         data_collector_ = data;
@@ -706,33 +718,34 @@ template<typename DataSource> bool XMLSubsetParser<DataSource>::skipTo(
 }
 
 
-template<typename DataSource> bool XMLSubsetParser<DataSource>::skipTo(
-    const Type expected_type, const std::string &expected_tag, std::map<std::string, std::string> * const attrib_map,
-    std::string * const data)
-{
+template <typename DataSource>
+bool XMLSubsetParser<DataSource>::skipTo(const Type expected_type, const std::string &expected_tag,
+                                         std::map<std::string, std::string> * const attrib_map, std::string * const data) {
     std::string found_tag;
     return skipTo(expected_type, { expected_tag }, &found_tag, attrib_map, data);
 }
 
 
-template<typename DataSource> void XMLSubsetParser<DataSource>::rewind() {
+template <typename DataSource>
+void XMLSubsetParser<DataSource>::rewind() {
     input_->rewind();
     if (datasource_content_start_pos_ != 0)
         input_->seek(datasource_content_start_pos_);
 
-    line_no_                = 1;
-    last_type_              = UNINITIALISED;
+    line_no_ = 1;
+    last_type_ = UNINITIALISED;
     last_element_was_empty_ = false;
-    data_collector_         = nullptr;
+    data_collector_ = nullptr;
     pushed_back_chars_.clear();
 
     parseOptionalPrologue();
 }
 
 
-template<typename DataSource> bool XMLSubsetParser<DataSource>::seek(const off_t offset, const int whence) {
-    line_no_                = 0;
-    last_type_              = UNINITIALISED;
+template <typename DataSource>
+bool XMLSubsetParser<DataSource>::seek(const off_t offset, const int whence) {
+    line_no_ = 0;
+    last_type_ = UNINITIALISED;
     last_element_was_empty_ = false;
     pushed_back_chars_.clear();
 
@@ -740,15 +753,15 @@ template<typename DataSource> bool XMLSubsetParser<DataSource>::seek(const off_t
 }
 
 
-template<typename DataSource> off_t XMLSubsetParser<DataSource>::tell() const {
+template <typename DataSource>
+off_t XMLSubsetParser<DataSource>::tell() const {
     return input_->tell() - pushed_back_chars_.size();
 }
 
 
-template<typename DataSource> bool XMLSubsetParser<DataSource>::parseOpeningTag(
-    std::string * const tag_name, std::map<std::string, std::string> * const attrib_map,
-    std::string * const error_message)
-{
+template <typename DataSource>
+bool XMLSubsetParser<DataSource>::parseOpeningTag(std::string * const tag_name, std::map<std::string, std::string> * const attrib_map,
+                                                  std::string * const error_message) {
     attrib_map->clear();
     error_message->clear();
 
@@ -776,7 +789,8 @@ template<typename DataSource> bool XMLSubsetParser<DataSource>::parseOpeningTag(
 }
 
 
-template<typename DataSource> bool XMLSubsetParser<DataSource>::parseClosingTag(std::string * const tag_name) {
+template <typename DataSource>
+bool XMLSubsetParser<DataSource>::parseClosingTag(std::string * const tag_name) {
     tag_name->clear();
 
     if (not extractName(tag_name))
@@ -787,15 +801,23 @@ template<typename DataSource> bool XMLSubsetParser<DataSource>::parseClosingTag(
 }
 
 
-template<typename DataSource> std::string XMLSubsetParser<DataSource>::TypeToString(const Type type) {
+template <typename DataSource>
+std::string XMLSubsetParser<DataSource>::TypeToString(const Type type) {
     switch (type) {
-    case UNINITIALISED:     return "UNINITIALISED";
-    case START_OF_DOCUMENT: return "START_OF_DOCUMENT";
-    case END_OF_DOCUMENT:   return "END_OF_DOCUMENT";
-    case ERROR:             return "ERROR";
-    case OPENING_TAG:       return "OPENING_TAG";
-    case CLOSING_TAG:       return "CLOSING_TAG";
-    case CHARACTERS:        return "CHARACTERS";
+    case UNINITIALISED:
+        return "UNINITIALISED";
+    case START_OF_DOCUMENT:
+        return "START_OF_DOCUMENT";
+    case END_OF_DOCUMENT:
+        return "END_OF_DOCUMENT";
+    case ERROR:
+        return "ERROR";
+    case OPENING_TAG:
+        return "OPENING_TAG";
+    case CLOSING_TAG:
+        return "CLOSING_TAG";
+    case CHARACTERS:
+        return "CHARACTERS";
     }
 
     __builtin_unreachable();

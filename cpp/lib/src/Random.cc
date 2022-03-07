@@ -26,9 +26,9 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <Random.h>
 #include <algorithm>
 #include <stdexcept>
+#include <Random.h>
 #include <StringUtil.h>
 #include <TimeUtil.h>
 
@@ -37,7 +37,7 @@ namespace Random {
 
 
 void Uniform::init(const double min, const double max, const unsigned * const seed) {
-    min_ = min,  max_= max;
+    min_ = min, max_ = max;
 
     if (seed == NULL)
         ::srandom(static_cast<unsigned>(TimeUtil::GetCurrentTimeInMicroseconds()));
@@ -74,9 +74,7 @@ bool ApproximatelyEqual(const double &x1, const double &x2, const double &epsilo
 void NonUniformRandom::init(const std::vector<double> &distribution) {
     cumulative_distribution_.reserve(distribution.size());
     double cdf(0.0);
-    for (std::vector<double>::const_iterator probability(distribution.begin()); probability != distribution.end();
-         ++probability)
-    {
+    for (std::vector<double>::const_iterator probability(distribution.begin()); probability != distribution.end(); ++probability) {
         if (unlikely(*probability < 0.0 or *probability > 1.0))
             throw std::runtime_error("in Random::NonUniformRandom::NonUniformRandom: invalid probability \""
                                      + StringUtil::ToString(*probability) + "\"!");
@@ -85,8 +83,10 @@ void NonUniformRandom::init(const std::vector<double> &distribution) {
     }
 
     if (not ApproximatelyEqual(cdf, 1.0))
-        throw std::runtime_error("in Random::NonUniformRandom::NonUniformRandom: invalid distribution argument "
-                                 "(probabilities must add up to 1.0).(cdf: " + StringUtil::ToString(cdf) + ")!");
+        throw std::runtime_error(
+            "in Random::NonUniformRandom::NonUniformRandom: invalid distribution argument "
+            "(probabilities must add up to 1.0).(cdf: "
+            + StringUtil::ToString(cdf) + ")!");
 
     cumulative_distribution_[cumulative_distribution_.size() - 1] = 1.0;
 }
@@ -94,10 +94,9 @@ void NonUniformRandom::init(const std::vector<double> &distribution) {
 
 unsigned NonUniformRandom::operator()(size_t max) {
     const size_t size(cumulative_distribution_.size());
-    const std::vector<double>::iterator last(
-        ((max == 0) or (max > size)) ? cumulative_distribution_.end() : cumulative_distribution_.begin() + max);
-    const std::vector<double>::const_iterator iter(std::lower_bound(cumulative_distribution_.begin(), last,
-                                                                    uniform_()));
+    const std::vector<double>::iterator last(((max == 0) or (max > size)) ? cumulative_distribution_.end()
+                                                                          : cumulative_distribution_.begin() + max);
+    const std::vector<double>::const_iterator iter(std::lower_bound(cumulative_distribution_.begin(), last, uniform_()));
     return static_cast<unsigned>(iter - cumulative_distribution_.begin());
 }
 

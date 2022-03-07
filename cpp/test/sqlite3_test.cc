@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -47,8 +47,7 @@ int main(int argc, char *argv[]) {
             "    (contact_id, first_name, last_name, email, phone)"
             "VALUES"
             "   (1, 'Fred', 'Flintstone', 'fred@example.com', '999-999-9999'),"
-            "   (2, 'Homer', 'Simpson', 'homer@example.com', '888-888-8888');"
-        );
+            "   (2, 'Homer', 'Simpson', 'homer@example.com', '888-888-8888');");
 
         db_connection.queryOrDie("SELECT contact_id, last_name FROM contacts;");
         DbResultSet result_set(db_connection.getLastResultSet());

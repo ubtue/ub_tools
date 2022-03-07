@@ -37,6 +37,7 @@ namespace {
 struct CapitalizationAndCount {
     std::string capitalization_;
     unsigned count_;
+
 public:
     CapitalizationAndCount() = default;
     CapitalizationAndCount(const CapitalizationAndCount &other) = default;
@@ -45,9 +46,8 @@ public:
 
 
 unsigned ProcessJSON(
-    const std::string &json_result, const std::string &solr_field,
-    std::unordered_map<std::string, std::vector<CapitalizationAndCount>> * const lowercase_form_to_capitalizations_and_counts_map)
-{
+    const std::string &json_result, const std::string &solr_field, std::string * const cursor_mark,
+    std::unordered_map<std::string, std::vector<CapitalizationAndCount>> * const lowercase_form_to_capitalizations_and_counts_map) {
     JSON::Parser parser(json_result);
     std::shared_ptr<JSON::JSONNode> tree_root;
     if (not parser.parse(&tree_root))
@@ -56,6 +56,9 @@ unsigned ProcessJSON(
     const auto root_object_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", tree_root));
     const auto response_node(root_object_node->getObjectNode("response"));
     const auto docs_node(response_node->getArrayNode("docs"));
+    const auto cursorNode(root_object_node->getStringNode("nextCursorMark"));
+    *cursor_mark = cursorNode->getValue();
+
 
     unsigned item_count(0);
     for (const auto &item : *docs_node) {
@@ -72,10 +75,11 @@ unsigned ProcessJSON(
                     std::vector<CapitalizationAndCount>{ CapitalizationAndCount(single_topic_string->getValue()) };
             else {
                 auto &capitalizations_and_counts_vector(lowercase_form_and_capitalizations->second);
-                auto capitalization_and_count(
-                    std::find_if(capitalizations_and_counts_vector.begin(), capitalizations_and_counts_vector.end(),
-                                 [&single_topic_string](CapitalizationAndCount &entry)
-                                     { return entry.capitalization_ == single_topic_string->getValue(); }));
+                auto capitalization_and_count(std::find_if(capitalizations_and_counts_vector.begin(),
+                                                           capitalizations_and_counts_vector.end(),
+                                                           [&single_topic_string](CapitalizationAndCount &entry) {
+                                                               return entry.capitalization_ == single_topic_string->getValue();
+                                                           }));
                 if (capitalization_and_count != capitalizations_and_counts_vector.end())
                     ++(capitalization_and_count->count_);
                 else
@@ -90,25 +94,25 @@ unsigned ProcessJSON(
 
 void CollectStats(
     const std::string &solr_host_and_port, const std::string &solr_field,
-    std::unordered_map<std::string, std::vector<CapitalizationAndCount>> * const lowercase_form_to_capitalizations_and_counts_map)
-{
-    const unsigned CHUNK_SIZE(5000);
-
+    std::unordered_map<std::string, std::vector<CapitalizationAndCount>> * const lowercase_form_to_capitalizations_and_counts_map) {
     unsigned total_item_count(0);
+    std::string cursor_mark("*");
     for (;;) {
         std::string json_result, err_msg;
-        if (unlikely(not Solr::Query(solr_field + ":*", solr_field, total_item_count, CHUNK_SIZE, &json_result, &err_msg,
-                                     solr_host_and_port, /* timeout = */ 5, Solr::JSON)))
+        if (unlikely(not Solr::Query(solr_field + ":*", solr_field, &json_result, &err_msg, solr_host_and_port, /* timeout = */ 600,
+                                     Solr::JSON, "cursorMark=" + cursor_mark + "&sort=id+asc&rows=100000")))
             LOG_ERROR("Solr query failed or timed-out: " + err_msg);
 
-        const unsigned item_count(ProcessJSON(json_result, solr_field, lowercase_form_to_capitalizations_and_counts_map));
-        total_item_count += item_count;
-        LOG_INFO("Item count so far: " + std::to_string(total_item_count));
-        if (item_count < CHUNK_SIZE) {
+        std::string new_cursor_mark;
+        const unsigned item_count(ProcessJSON(json_result, solr_field, &new_cursor_mark, lowercase_form_to_capitalizations_and_counts_map));
+        if (cursor_mark == new_cursor_mark) {
             LOG_INFO("processed " + std::to_string(total_item_count) + " items and added "
                      + std::to_string(lowercase_form_to_capitalizations_and_counts_map->size()) + " entries into our map.");
             return;
         }
+        cursor_mark = new_cursor_mark;
+        total_item_count += item_count;
+        LOG_INFO("Item count so far: " + std::to_string(total_item_count));
     }
 }
 
@@ -127,8 +131,7 @@ bool IsInitialCapsVersion(const std::string &keyphrase) {
 
 void GenerateCanonizationMap(
     File * const output,
-    const std::unordered_map<std::string, std::vector<CapitalizationAndCount>> &lowercase_form_to_capitalizations_and_counts_map)
-{
+    const std::unordered_map<std::string, std::vector<CapitalizationAndCount>> &lowercase_form_to_capitalizations_and_counts_map) {
     for (const auto &lowercase_form_and_capitalizations : lowercase_form_to_capitalizations_and_counts_map) {
         const auto &capitalizations(lowercase_form_and_capitalizations.second);
         if (capitalizations.size() == 1)

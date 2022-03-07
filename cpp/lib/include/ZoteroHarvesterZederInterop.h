@@ -15,7 +15,7 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 #pragma once
 
 
@@ -39,8 +39,10 @@ namespace ZederInterop {
 extern const std::map<Config::JournalParams::IniKey, std::string> INI_KEY_TO_ZEDER_COLUMN_MAP;
 
 // Maps Zotero Harvester configuration INI keys (that don't have a one-to-one correspondence with a Zeder column) to a resolver function.
-// The resolver function accepts two parameters: A Zeder::Entry reference and its flavour; returns a string that represents the value of the INI key.
-extern const std::map<Config::JournalParams::IniKey, std::function<std::string(const Zeder::Entry &, const Zeder::Flavour)>> INI_KEY_TO_ZEDER_RESOLVER_MAP;
+// The resolver function accepts two parameters: A Zeder::Entry reference and its flavour; returns a string that represents the value of the
+// INI key.
+extern const std::map<Config::JournalParams::IniKey, std::function<std::string(const Zeder::Entry &, const Zeder::Flavour)>>
+    INI_KEY_TO_ZEDER_RESOLVER_MAP;
 
 
 // Uses the above defined maps to retrieve the corresponding value of the INI key.

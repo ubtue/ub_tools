@@ -62,6 +62,7 @@ class Url {
     std::string url_;
     /** A reference URL which, if non-empty, can be used to make relative URLs absolute. */
     std::string default_base_url_;
+
 public:
     /** To canonize a URL, mulitple versions may be downloaded.
      *  We can either consult or ignore robots.txt access control files.*/
@@ -69,6 +70,7 @@ public:
 
     /** The default timeout_ value in milliseconds. */
     enum { DEFAULT_TIMEOUT = 3000 };
+
 private:
     /** Will the robots.txt file be consulted or ignored? */
     RobotsDotTxtOption robots_dot_txt_option_;
@@ -90,9 +92,18 @@ private:
      */
     mutable std::string relative_url_;
 
-    enum StateFlags { UNINITIALISED = 0, IS_VALID = 1, VALIDITY_HAS_BEEN_CHECKED = 2, HAS_BEEN_PARSED = 4, MADE_VALID_ATTEMPTED = 8,
-                      CANONIZATION_ATTEMPTED = 16, HAS_BEEN_MADE_ABSOLUTE = 32, HAS_BEEN_CLEANED_UP = 64, IS_CANONICAL = 128,
-                      AN_ERROR_OCCURRED = 256 };
+    enum StateFlags {
+        UNINITIALISED = 0,
+        IS_VALID = 1,
+        VALIDITY_HAS_BEEN_CHECKED = 2,
+        HAS_BEEN_PARSED = 4,
+        MADE_VALID_ATTEMPTED = 8,
+        CANONIZATION_ATTEMPTED = 16,
+        HAS_BEEN_MADE_ABSOLUTE = 32,
+        HAS_BEEN_CLEANED_UP = 64,
+        IS_CANONICAL = 128,
+        AN_ERROR_OCCURRED = 256
+    };
 
     /** \enum   StateFlags
      *  \brief  The possible states of the object, represented by bit flags.
@@ -111,6 +122,7 @@ private:
     bool throw_exceptions_; // Enable error reporting by throwing exceptions if "true."
 
     static std::string default_user_agent_;
+
 public:
     /**
      * CreationFlags:
@@ -122,8 +134,17 @@ public:
      * - FORCE_ABSOLUTE_HTTP_URL: Force interpreting a URL as absolute, an attempt is made to turn the URL into an absolute HTTP URL.
      * - REMOVE_FRAGMENT: Remove the fragment part of a URL if present.
      */
-    enum CreationFlags { NO_AUTO_OPERATIONS = 0, AUTO_MAKE_VALID = 1, AUTO_CLEAN_UP = 2, AUTO_CANONIZE = 4, AUTO_MAKE_ABSOLUTE = 8,
-                         THROW_EXCEPTIONS = 16, FORCE_ABSOLUTE_HTTP_URL = 32, REMOVE_FRAGMENT = 64 };
+    enum CreationFlags {
+        NO_AUTO_OPERATIONS = 0,
+        AUTO_MAKE_VALID = 1,
+        AUTO_CLEAN_UP = 2,
+        AUTO_CANONIZE = 4,
+        AUTO_MAKE_ABSOLUTE = 8,
+        THROW_EXCEPTIONS = 16,
+        FORCE_ABSOLUTE_HTTP_URL = 32,
+        REMOVE_FRAGMENT = 64
+    };
+
 public:
     /** \brief  Construct am empty Url object. */
     Url();
@@ -175,8 +196,8 @@ public:
      *          user agent string with SetDefaultUserAgentString() or you pass in a non-empty "user_agent" parameter
      *          value.
      */
-    Url(const std::string &scheme, const std::string &username_password, const std::string &authority, const std::string &port, const std::string path,
-        const std::string &params = "", const std::string query = "", const std::string &fragment = "",
+    Url(const std::string &scheme, const std::string &username_password, const std::string &authority, const std::string &port,
+        const std::string path, const std::string &params = "", const std::string query = "", const std::string &fragment = "",
         const unsigned creation_flags = AUTO_MAKE_VALID, const RobotsDotTxtOption robots_dot_txt_option = CONSULT_ROBOTS_DOT_TXT,
         const unsigned timeout = DEFAULT_TIMEOUT, const std::string &user_agent = "");
 
@@ -187,8 +208,7 @@ public:
      */
     static Url CreateCanonicalUrl(const std::string &url, const std::string &base_url = "",
                                   const RobotsDotTxtOption robots_dot_txt_option = CONSULT_ROBOTS_DOT_TXT,
-                                  const unsigned timeout = DEFAULT_TIMEOUT, const std::string &user_agent = "")
-    {
+                                  const unsigned timeout = DEFAULT_TIMEOUT, const std::string &user_agent = "") {
         return Url(url, base_url, AUTO_MAKE_VALID | AUTO_CANONIZE, robots_dot_txt_option, timeout, user_agent);
     }
 
@@ -198,8 +218,9 @@ public:
      *          SetDefaultUserAgentString() or you pass in a non-empty "user_agent" parameter value.
      */
     static Url CreateCanonicalUrl(const std::string &url, const RobotsDotTxtOption robots_dot_txt_option = CONSULT_ROBOTS_DOT_TXT,
-                                  const unsigned timeout = DEFAULT_TIMEOUT, const std::string &user_agent = "")
-    { return Url(url, AUTO_MAKE_VALID | AUTO_CANONIZE, robots_dot_txt_option, timeout, user_agent); }
+                                  const unsigned timeout = DEFAULT_TIMEOUT, const std::string &user_agent = "") {
+        return Url(url, AUTO_MAKE_VALID | AUTO_CANONIZE, robots_dot_txt_option, timeout, user_agent);
+    }
 
     /** Allow automatic type conversion to "std::string". */
     operator std::string() const { return url_; }
@@ -230,11 +251,10 @@ public:
     std::string getErrorMsg() const { return error_message_; }
 
     /** \brief  Test to see if the URL is valid. */
-    bool isValid() const
-    {
+    bool isValid() const {
         if (state_ & AN_ERROR_OCCURRED)
             return false;
-        if (not (state_ & VALIDITY_HAS_BEEN_CHECKED))
+        if (not(state_ & VALIDITY_HAS_BEEN_CHECKED))
             internalIsValid();
         return state_ & IS_VALID;
     }
@@ -243,11 +263,10 @@ public:
     bool isValidWebUrl() const;
 
     /** \brief  Test to see if the URL is canonical. */
-    bool isCanonical()
-    {
+    bool isCanonical() {
         if (state_ & AN_ERROR_OCCURRED)
             return false;
-        if (not (state_ & CANONIZATION_ATTEMPTED))
+        if (not(state_ & CANONIZATION_ATTEMPTED))
             makeCanonical();
         return state_ & IS_CANONICAL;
     }
@@ -275,21 +294,19 @@ public:
     bool makeCanonical(const unsigned override_timeout = 0 /* in milliseconds */);
 
     /** \brief  Test to see if the URL is an absolute URL. */
-    bool isAbsolute() const
-    {
+    bool isAbsolute() const {
         if (state_ & AN_ERROR_OCCURRED)
             return false;
-        if (not (state_ & HAS_BEEN_PARSED))
+        if (not(state_ & HAS_BEEN_PARSED))
             parseUrl(url_);
         return (not scheme_.empty() and scheme_ != "http" and scheme_ != "https") or relative_url_.empty();
     }
 
     /** \brief  Test to see if the URL is a relative URL. */
-    bool isRelative() const
-    {
+    bool isRelative() const {
         if (state_ & AN_ERROR_OCCURRED)
             return false;
-        if (not (state_ & HAS_BEEN_PARSED))
+        if (not(state_ & HAS_BEEN_PARSED))
             parseUrl(url_);
         return not relative_url_.empty();
     }
@@ -355,7 +372,7 @@ public:
     std::string getScheme() const {
         if (state_ & AN_ERROR_OCCURRED)
             return "";
-        if (not (state_ & HAS_BEEN_PARSED))
+        if (not(state_ & HAS_BEEN_PARSED))
             parseUrl(url_);
 
         return scheme_;
@@ -365,7 +382,7 @@ public:
     std::string getUsernamePassword() const {
         if (state_ & AN_ERROR_OCCURRED)
             return "";
-        if (not (state_ & HAS_BEEN_PARSED))
+        if (not(state_ & HAS_BEEN_PARSED))
             parseUrl(url_);
 
         return username_password_;
@@ -380,7 +397,7 @@ public:
     std::string getAuthority() const {
         if (state_ & AN_ERROR_OCCURRED)
             return "";
-        if (not (state_ & HAS_BEEN_PARSED))
+        if (not(state_ & HAS_BEEN_PARSED))
             parseUrl(url_);
 
         return authority_;
@@ -405,7 +422,7 @@ public:
     std::string getPath() const {
         if (state_ & AN_ERROR_OCCURRED)
             return "";
-        if (not (state_ & HAS_BEEN_PARSED))
+        if (not(state_ & HAS_BEEN_PARSED))
             parseUrl(url_);
 
         return path_;
@@ -413,7 +430,7 @@ public:
 
     /** Get the URL's pamaters component as a string. */
     std::string getParams() const {
-        if (not (state_ & HAS_BEEN_PARSED))
+        if (not(state_ & HAS_BEEN_PARSED))
             parseUrl(url_);
 
         return params_;
@@ -423,7 +440,7 @@ public:
     std::string getQuery() const {
         if (state_ & AN_ERROR_OCCURRED)
             return "";
-        if (not (state_ & HAS_BEEN_PARSED))
+        if (not(state_ & HAS_BEEN_PARSED))
             parseUrl(url_);
 
         return query_;
@@ -433,7 +450,7 @@ public:
     std::string getFragment() const {
         if (state_ & AN_ERROR_OCCURRED)
             return "";
-        if (not (state_ & HAS_BEEN_PARSED))
+        if (not(state_ & HAS_BEEN_PARSED))
             parseUrl(url_);
 
         return fragment_;
@@ -513,10 +530,9 @@ public:
      *  \param   fragment           An optional HTTP/HTTPS fragment.
      *  \return  The URL that has been assembled from the individual components.
      */
-    static std::string MakeUrl(const std::string &scheme, const std::string &username_password,
-                               const std::string &authority, const std::string &port,
-                               const std::string &path, const std::string &params,
-                               const std::string &query, const std::string &fragment);
+    static std::string MakeUrl(const std::string &scheme, const std::string &username_password, const std::string &authority,
+                               const std::string &port, const std::string &path, const std::string &params, const std::string &query,
+                               const std::string &fragment);
 
     /** \brief   Transform a URL from one form to another based local configuration.
      *  \param   url  The URL to transform.
@@ -547,8 +563,7 @@ public:
      *  No HTTP connections will be made, but a DNS lookup will be performed if the hostname is an IP address and
      *  "resolve_ip_addresses" is true.
      */
-    static bool SuggestPotentialCanonicalUrls(const std::string &original_url,
-                                              std::list<std::string> * const potential_urls,
+    static bool SuggestPotentialCanonicalUrls(const std::string &original_url, std::list<std::string> * const potential_urls,
                                               const bool resolve_ip_address = false);
 
     /** \brief   Suggest simple, common variant forms of a URL
@@ -564,8 +579,10 @@ public:
                                                          const bool canonize_url = true);
 
     /** Sets the default user agent string for Url::makeCanonical(). */
-    static void SetDefaultUserAgentString(const std::string &new_default_user_agent_string)
-    { default_user_agent_ = new_default_user_agent_string; }
+    static void SetDefaultUserAgentString(const std::string &new_default_user_agent_string) {
+        default_user_agent_ = new_default_user_agent_string;
+    }
+
 private:
     /** \brief   Force "url_" to be an absolute HTTP URL if it is not relative.
      *  \return  True if we came up with something sensible and false if the relative "url_" did not start out
@@ -586,8 +603,7 @@ private:
      */
     void setUrlFromComponents(const unsigned new_state = UNINITIALISED) {
         assert(state_ & HAS_BEEN_PARSED);
-        url_ = Url::MakeUrl(scheme_, username_password_, authority_, port_,
-                            path_, params_, query_, fragment_);
+        url_ = Url::MakeUrl(scheme_, username_password_, authority_, port_, path_, params_, query_, fragment_);
         state_ = new_state | HAS_BEEN_PARSED;
     }
 
@@ -602,8 +618,12 @@ private:
 
 
 extern bool operator==(const Url &lhs, const Url &rhs);
-inline bool operator==(const std::string &lhs, const Url &rhs) { return operator==(Url(lhs), rhs); }
-inline bool operator==(const Url &lhs, const std::string &rhs) { return operator==(lhs, Url(rhs)); }
+inline bool operator==(const std::string &lhs, const Url &rhs) {
+    return operator==(Url(lhs), rhs);
+}
+inline bool operator==(const Url &lhs, const std::string &rhs) {
+    return operator==(lhs, Url(rhs));
+}
 
 
 inline bool operator!=(const Url &lhs, const Url &rhs) {

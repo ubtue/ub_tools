@@ -15,15 +15,16 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "MARC.h"
+#include <iostream>
 #include <set>
 #include <unordered_map>
 #include <cerrno>
 #include <sys/mman.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include "BSZUtil.h"
 #include "FileLocker.h"
@@ -33,7 +34,6 @@
 #include "TextUtil.h"
 #include "UBTools.h"
 #include "util.h"
-#include <iostream>
 
 
 namespace {
@@ -110,9 +110,7 @@ Subfields::Subfields(const std::string &field_contents) {
 
     std::string value;
     char subfield_code(field_contents[3]);
-    for (auto ch(field_contents.cbegin() + 4 /* 2 indicators + delimiter + subfield code */);
-         ch != field_contents.cend(); ++ch)
-    {
+    for (auto ch(field_contents.cbegin() + 4 /* 2 indicators + delimiter + subfield code */); ch != field_contents.cend(); ++ch) {
         if (unlikely(*ch == '\x1F')) {
             subfields_.emplace_back(subfield_code, value);
             value.clear();
@@ -146,8 +144,7 @@ bool Subfields::replaceFirstSubfield(const char subfield_code, const std::string
 
 
 bool Subfields::replaceAllSubfields(const char subfield_code, const std::string &old_subfield_value,
-                                    const std::string &new_subfield_value)
-{
+                                    const std::string &new_subfield_value) {
     auto replacement_location(subfields_.begin());
     while (replacement_location != subfields_.end() and replacement_location->code_ != subfield_code)
         ++replacement_location;
@@ -191,9 +188,9 @@ std::vector<std::string> Subfields::extractSubfieldsAndNumericSubfields(const st
             if (not StringUtil::IsDigit(subfield.code_))
                 subfield_values.emplace_back(subfield.value_);
             else {
-               if (numeric_subfield_specs.find(std::string(1, subfield.code_) + subfield.value_[0]) != numeric_subfield_specs.cend())
-                   if (subfield.value_[1] == ':')
-                       subfield_values.emplace_back(subfield.value_.substr(2));
+                if (numeric_subfield_specs.find(std::string(1, subfield.code_) + subfield.value_[0]) != numeric_subfield_specs.cend())
+                    if (subfield.value_[1] == ':')
+                        subfield_values.emplace_back(subfield.value_.substr(2));
             }
         }
     }
@@ -210,14 +207,13 @@ bool Record::Field::operator<(const Record::Field &rhs) const {
 }
 
 
-
 Tag Record::Field::getLocalTag() const {
     if (unlikely(tag_ != "LOK"))
         LOG_ERROR("you must not call getLocalTag() on a \"" + tag_.toString() + "\" tag!");
-    if (contents_.length() < 2 /*indicators*/ + 2/*delimiter and subfield code*/ + 3 /*pseudo tag*/
+    if (contents_.length() < 2 /*indicators*/ + 2 /*delimiter and subfield code*/ + 3 /*pseudo tag*/
         or contents_[2] != '\x1F' or contents_[3] != '0')
         return "";
-    return contents_.substr(2 /*indicators*/ + 2/*delimiter and subfield code*/, 3 /*tag length*/);
+    return contents_.substr(2 /*indicators*/ + 2 /*delimiter and subfield code*/, 3 /*tag length*/);
 }
 
 
@@ -311,10 +307,10 @@ bool Record::Field::hasSubfieldWithValue(const char subfield_code, const std::st
     bool subfield_delimiter_seen(false);
     for (auto ch(contents_.cbegin()); ch != contents_.cend(); ++ch) {
         if (subfield_delimiter_seen) {
-            if (*ch == subfield_code and (case_insensitive ?
-                                          StringUtil::ASCIIToUpper(contents_.substr(ch - contents_.cbegin() + 1, value.length())) == StringUtil::ASCIIToUpper(value) :
-                                          contents_.substr(ch - contents_.cbegin() + 1, value.length()) == value)
-               )
+            if (*ch == subfield_code
+                and (case_insensitive ? StringUtil::ASCIIToUpper(contents_.substr(ch - contents_.cbegin() + 1, value.length()))
+                                            == StringUtil::ASCIIToUpper(value)
+                                      : contents_.substr(ch - contents_.cbegin() + 1, value.length()) == value))
                 return true;
             subfield_delimiter_seen = false;
         } else if (*ch == '\x1F')
@@ -429,9 +425,7 @@ Record::Record(const std::string &leader): record_size_(LEADER_LENGTH + 1 /* end
 }
 
 
-Record::Record(const size_t record_size, const char * const record_start)
-    : record_size_(record_size), leader_(record_start, LEADER_LENGTH)
-{
+Record::Record(const size_t record_size, const char * const record_start): record_size_(record_size), leader_(record_start, LEADER_LENGTH) {
     const char * const base_address_of_data(record_start + ToUnsigned(record_start + 12, 5));
 
     // Process directory:
@@ -528,11 +522,11 @@ std::string Record::RecordTypeToString(const RecordType record_type) {
 }
 
 
-Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level,
-               const std::string &control_number)
-{
-    leader_ = "00000" "n" + TypeOfRecordToString(type_of_record) + std::string(1, BibliographicLevelToChar(bibliographic_level))
-              + " a22004452  4500";
+Record::Record(const TypeOfRecord type_of_record, const BibliographicLevel bibliographic_level, const std::string &control_number) {
+    leader_ =
+        "00000"
+        "n"
+        + TypeOfRecordToString(type_of_record) + std::string(1, BibliographicLevelToChar(bibliographic_level)) + " a22004452  4500";
 
     if (not control_number.empty())
         insertField("001", control_number);
@@ -550,8 +544,7 @@ std::string Record::toBinaryString() const {
         if (record_is_oversized) // Include size of the 001 field.
             record_size += fields_.front().getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
         while (end != this->end()
-               and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH < Record::MAX_RECORD_LENGTH))
-        {
+               and (record_size + end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH < Record::MAX_RECORD_LENGTH)) {
             record_size += end->getContents().length() + 1 + Record::DIRECTORY_ENTRY_LENGTH;
             ++end;
         }
@@ -577,8 +570,8 @@ std::string Record::toBinaryString() const {
         for (Record::const_iterator entry(start); entry != end; ++entry) {
             const size_t contents_length(entry->getContents().length());
             if (unlikely(contents_length > Record::MAX_VARIABLE_FIELD_DATA_LENGTH))
-                LOG_ERROR("can't generate a directory entry w/ a field w/ data length " + std::to_string(contents_length) +
-                          " for PPN \"" + getControlNumber() + "\"!");
+                LOG_ERROR("can't generate a directory entry w/ a field w/ data length " + std::to_string(contents_length) + " for PPN \""
+                          + getControlNumber() + "\"!");
             raw_record += entry->getTag().toString();
             AppendToStringWithLeadingZeros(raw_record, entry->getContents().length() + 1 /* field terminator */, 4);
             AppendToStringWithLeadingZeros(raw_record, field_start_offset, /* width = */ 5);
@@ -615,18 +608,16 @@ void Record::toXmlStringHelper(MarcXmlWriter * const xml_writer) const {
     for (const auto &field : *this) {
         if (field.isControlField())
             xml_writer->writeTagsWithData("controlfield", { std::make_pair("tag", field.getTag().toString()) }, field.getContents(),
-                                         /* suppress_newline = */ true);
+                                          /* suppress_newline = */ true);
         else { // We have a data field.
-            xml_writer->openTag("datafield",
-                                { std::make_pair("tag", field.getTag().toString()),
-                                  std::make_pair("ind1", std::string(1, field.getIndicator1())),
-                                  std::make_pair("ind2", std::string(1, field.getIndicator2()))
-                                });
+            xml_writer->openTag("datafield", { std::make_pair("tag", field.getTag().toString()),
+                                               std::make_pair("ind1", std::string(1, field.getIndicator1())),
+                                               std::make_pair("ind2", std::string(1, field.getIndicator2())) });
 
             const Subfields subfields(field.getSubfields());
             for (const auto &subfield : subfields)
-                xml_writer->writeTagsWithData("subfield", { std::make_pair("code", std::string(1, subfield.code_)) },
-                                              subfield.value_, /* suppress_newline = */ true);
+                xml_writer->writeTagsWithData("subfield", { std::make_pair("code", std::string(1, subfield.code_)) }, subfield.value_,
+                                              /* suppress_newline = */ true);
 
             xml_writer->closeTag(); // Close "datafield".
         }
@@ -643,13 +634,12 @@ size_t Record::truncate(const const_iterator field_iter) {
 
 
 std::string Record::toString(const RecordFormat record_format, const unsigned indent_amount,
-                             const MarcXmlWriter::TextConversionType text_conversion_type) const
-{
+                             const MarcXmlWriter::TextConversionType text_conversion_type) const {
     if (record_format == RecordFormat::MARC21_BINARY)
         return toBinaryString();
     else {
         std::string as_string;
-        MarcXmlWriter xml_writer(&as_string, /* suppress_header_and_tailer = */true, indent_amount, text_conversion_type);
+        MarcXmlWriter xml_writer(&as_string, /* suppress_header_and_tailer = */ true, indent_amount, text_conversion_type);
         toXmlStringHelper(&xml_writer);
         return as_string;
     }
@@ -818,13 +808,13 @@ void Record::setBibliographicLevel(const Record::BibliographicLevel new_bibliogr
 
 
 inline static bool MatchAny(const Tag &tag, const std::vector<Tag> &tags) {
-    return std::find_if(tags.cbegin(), tags.cend(), [&tag](const Tag &tag1){ return tag1 == tag; }) != tags.cend();
+    return std::find_if(tags.cbegin(), tags.cend(), [&tag](const Tag &tag1) { return tag1 == tag; }) != tags.cend();
 }
 
 
 Record::ConstantRange Record::getTagRange(const std::vector<Tag> &tags) const {
-    const auto begin(std::find_if(fields_.begin(), fields_.end(),
-                                  [&tags](const Field &field) -> bool { return MatchAny(field.getTag(), tags); }));
+    const auto begin(
+        std::find_if(fields_.begin(), fields_.end(), [&tags](const Field &field) -> bool { return MatchAny(field.getTag(), tags); }));
     if (begin == fields_.end())
         return ConstantRange(fields_.end(), fields_.end());
 
@@ -837,8 +827,7 @@ Record::ConstantRange Record::getTagRange(const std::vector<Tag> &tags) const {
 
 
 Record::Range Record::getTagRange(const Tag &tag) {
-    auto begin(std::find_if(fields_.begin(), fields_.end(),
-                            [&tag](const Field &field) -> bool { return field.getTag() == tag; }));
+    auto begin(std::find_if(fields_.begin(), fields_.end(), [&tag](const Field &field) -> bool { return field.getTag() == tag; }));
     if (begin == fields_.end())
         return Range(fields_.end(), fields_.end());
 
@@ -858,7 +847,7 @@ size_t Record::reTag(const Tag &from_tag, const Tag &to_tag) {
     }
 
     if (changed_count > 0)
-        std::stable_sort(fields_.begin(), fields_.end(), [](const Field &lhs, const Field &rhs){ return lhs.tag_ < rhs.tag_; });
+        std::stable_sort(fields_.begin(), fields_.end(), [](const Field &lhs, const Field &rhs) { return lhs.tag_ < rhs.tag_; });
 
     return changed_count;
 }
@@ -879,20 +868,19 @@ Record::iterator Record::erase(const Tag &tag, const bool first_occurrence_only)
 bool Record::deleteFieldWithSubfieldCodeMatching(const Tag &tag, const char subfield_code, const ThreadSafeRegexMatcher &matcher) {
     bool matched(false);
     fields_.erase(std::remove_if(fields_.begin(), fields_.end(),
-                  [&](const Field &field) -> bool
-                  {
-                      if ((field.getTag() != tag) or not field.hasSubfield(subfield_code))
-                          return false;
-                      const Subfields subfields(field.getContents());
-                      const auto subfield_values(subfields.extractSubfields(std::string(1, subfield_code)));
-                      for (const auto &subfield_value : subfield_values) {
-                           if (matcher.match(subfield_value)) {
-                               matched = true;
-                               return true;
-                           }
-                      }
-                      return false;
-                  }),
+                                 [&](const Field &field) -> bool {
+                                     if ((field.getTag() != tag) or not field.hasSubfield(subfield_code))
+                                         return false;
+                                     const Subfields subfields(field.getContents());
+                                     const auto subfield_values(subfields.extractSubfields(std::string(1, subfield_code)));
+                                     for (const auto &subfield_value : subfield_values) {
+                                         if (matcher.match(subfield_value)) {
+                                             matched = true;
+                                             return true;
+                                         }
+                                     }
+                                     return false;
+                                 }),
                   fields_.end());
     return matched;
 }
@@ -1005,7 +993,7 @@ std::string Record::getSuperiorControlNumber() const {
 }
 
 
-std::string  Record::getSuperiorTitle() const {
+std::string Record::getSuperiorTitle() const {
     for (const auto &field : getTagRange("773")) {
         const auto superior_title_candidate(field.getFirstSubfieldWithCode('t'));
         if (likely(not superior_title_candidate.empty()))
@@ -1181,7 +1169,7 @@ std::string Record::getMainAuthor() const {
 }
 
 
-static const std::vector<std::string> AUTHOR_TAGS { "100", "109", "700" };
+static const std::vector<std::string> AUTHOR_TAGS{ "100", "109", "700" };
 
 
 std::set<std::string> Record::getAllAuthors() const {
@@ -1218,14 +1206,14 @@ std::map<std::string, std::string> Record::getAllAuthorsAndPPNs() const {
 
 
 std::set<std::string> Record::getAllISSNs() const {
-    static const std::vector<std::string> ISSN_TAGS_AND_SUBFIELDS { "022a", "029a", "440x", "490x", "730x", "773x", "776x", "780x", "785x" };
+    static const std::vector<std::string> ISSN_TAGS_AND_SUBFIELDS{ "022a", "029a", "440x", "490x", "730x", "773x", "776x", "780x", "785x" };
     std::set<std::string> all_issns;
     for (const auto &tag_and_subfield : ISSN_TAGS_AND_SUBFIELDS) {
-        for (const auto &field: getTagRange(tag_and_subfield.substr(0, 3))) {
+        for (const auto &field : getTagRange(tag_and_subfield.substr(0, 3))) {
             const char subfield_code(tag_and_subfield[3]);
             for (const auto &subfield : field.getSubfields()) {
                 if (subfield.code_ == subfield_code)
-                   all_issns.emplace(subfield.value_);
+                    all_issns.emplace(subfield.value_);
             }
         }
     }
@@ -1371,7 +1359,10 @@ bool Record::getKeywordAndSynonyms(KeywordAndSynonyms * const keyword_and_synony
 namespace {
 
 
-const std::string LOCAL_FIELD_PREFIX("  ""\x1F""0"); // Every local field starts w/ this.
+const std::string LOCAL_FIELD_PREFIX(
+    "  "
+    "\x1F"
+    "0"); // Every local field starts w/ this.
 
 
 inline std::string GetLocalTag(const Record::Field &local_field) {
@@ -1490,8 +1481,7 @@ static inline bool LocalIndicatorsMatch(const Record::Field &field, const char i
 
 
 Record::ConstantRange Record::getLocalTagRange(const Tag &local_field_tag, const const_iterator &block_start, const char indicator1,
-                                               const char indicator2) const
-{
+                                               const char indicator2) const {
     if (unlikely(not block_start->isLocal()))
         LOG_ERROR("you must call this function w/ a local \"block_start\"!");
 
@@ -1513,6 +1503,17 @@ Record::ConstantRange Record::getLocalTagRange(const Tag &local_field_tag, const
         ++tag_range_end;
 
     return ConstantRange(tag_range_start, tag_range_end);
+}
+
+
+void Record::insertControlField(const Tag &new_field_tag, const std::string &new_field_value) {
+    if (unlikely(not new_field_tag.isTagOfControlField()))
+        LOG_ERROR(new_field_tag.toString() + " is not a control field tag!");
+
+    if (unlikely(findTag(new_field_tag) != end()))
+        LOG_ERROR(new_field_tag.toString() + " already exists in this record!");
+
+    insertField(new_field_tag, new_field_value);
 }
 
 
@@ -1595,8 +1596,8 @@ void Record::replaceField(const Tag &field_tag, const std::string &field_content
 
 
 bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) {
-    const auto &field(std::find_if(fields_.begin(), fields_.end(),
-                                   [&field_tag](const Field &field1) -> bool { return field1.getTag() == field_tag; }));
+    const auto &field(
+        std::find_if(fields_.begin(), fields_.end(), [&field_tag](const Field &field1) -> bool { return field1.getTag() == field_tag; }));
     if (field == fields_.end())
         return false;
 
@@ -1609,7 +1610,7 @@ bool Record::addSubfield(const Tag &field_tag, const char subfield_code, const s
 bool Record::addSubfieldCreateFieldUnique(const Tag &field_tag, const char subfield_code, const std::string &subfield_value) {
     const auto &field(findTag(field_tag));
     if (field == fields_.end())
-        return insertField(field_tag, {{subfield_code, subfield_value}});
+        return insertField(field_tag, { { subfield_code, subfield_value } });
     if (not hasFieldWithSubfieldValue(field_tag, subfield_code, subfield_value)) {
         return addSubfield(field_tag, subfield_code, subfield_value);
     }
@@ -1634,14 +1635,16 @@ bool Record::edit(const std::vector<EditInstruction> &edit_instructions, std::st
         switch (edit_instruction.type_) {
         case INSERT_FIELD:
             if (not insertField(edit_instruction.tag_, std::string(1, edit_instruction.indicator1_)
-                                + std::string(1, edit_instruction.indicator2_) + edit_instruction.field_or_subfield_contents_))
+                                                           + std::string(1, edit_instruction.indicator2_)
+                                                           + edit_instruction.field_or_subfield_contents_))
             {
                 *error_message = "failed to insert a " + edit_instruction.tag_.toString() + " field!";
                 failed_at_least_once = true;
             }
             break;
         case INSERT_SUBFIELD:
-            if (not insertField(edit_instruction.tag_, { { edit_instruction.subfield_code_, edit_instruction.field_or_subfield_contents_ } },
+            if (not insertField(edit_instruction.tag_,
+                                { { edit_instruction.subfield_code_, edit_instruction.field_or_subfield_contents_ } },
                                 edit_instruction.indicator1_, edit_instruction.indicator2_))
             {
                 *error_message = "failed to insert a " + edit_instruction.tag_.toString() + std::string(1, edit_instruction.subfield_code_)
@@ -1651,8 +1654,8 @@ bool Record::edit(const std::vector<EditInstruction> &edit_instructions, std::st
             break;
         case ADD_SUBFIELD:
             if (not addSubfield(edit_instruction.tag_, edit_instruction.subfield_code_, edit_instruction.field_or_subfield_contents_)) {
-                *error_message = "failed to add a " + edit_instruction.tag_.toString() + std::string(1, edit_instruction.subfield_code_)
-                                 + " subfield!";
+                *error_message =
+                    "failed to add a " + edit_instruction.tag_.toString() + std::string(1, edit_instruction.subfield_code_) + " subfield!";
                 failed_at_least_once = true;
             }
             break;
@@ -1664,8 +1667,7 @@ bool Record::edit(const std::vector<EditInstruction> &edit_instructions, std::st
 
 
 Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag, const const_iterator &block_start, const char indicator1,
-                                                     const char indicator2) const
-{
+                                                     const char indicator2) const {
     auto local_field(block_start);
     std::string last_local_tag;
     const_iterator range_start(fields_.end()), range_end(fields_.end());
@@ -1694,8 +1696,7 @@ Record::ConstantRange Record::findFieldsInLocalBlock(const Tag &local_field_tag,
 
 
 Record::Range Record::findFieldsInLocalBlock(const Tag &local_field_tag, const iterator &block_start, const char indicator1,
-                                             const char indicator2)
-{
+                                             const char indicator2) {
     auto local_field(block_start);
     std::string last_local_tag;
     iterator range_start(fields_.end()), range_end(fields_.end());
@@ -1798,7 +1799,7 @@ bool Record::isValid(std::string * const error_message) const {
                 }
                 ++ch; // Skip over the subfield code.
                 if (unlikely(ch == field.contents_.end() or *ch == '\x1F'))
-                    LOG_WARNING("subfield '" + std::string(1, *(ch - 1)) + "' is empty! (tag: " + field.getTag().toString() + ")");
+                    LOG_WARNING(getControlNumber() + ": subfield '" + std::string(1, *(ch - 1)) + "' is empty! (tag: " + field.getTag().toString() + ")");
 
                 // Skip over the subfield contents:
                 while (ch != field.contents_.end() and *ch != '\x1F')
@@ -1830,13 +1831,12 @@ bool Record::fieldOrSubfieldMatched(const std::string &field_or_field_and_subfie
 
 
 std::vector<Record::iterator> Record::getMatchedFields(const std::string &field_or_field_and_subfield_code,
-                                                       RegexMatcher * const regex_matcher)
-{
+                                                       RegexMatcher * const regex_matcher) {
     if (unlikely(field_or_field_and_subfield_code.length() < TAG_LENGTH or field_or_field_and_subfield_code.length() > TAG_LENGTH + 1))
         LOG_ERROR("\"field_or_field_and_subfield_code\" must be a tag or a tag plus a subfield code!");
 
     const char subfield_code((field_or_field_and_subfield_code.length() == TAG_LENGTH + 1) ? field_or_field_and_subfield_code[TAG_LENGTH]
-                                                                                               : '\0');
+                                                                                           : '\0');
     std::vector<iterator> matched_fields;
     const Range field_range(getTagRange(field_or_field_and_subfield_code.substr(0, TAG_LENGTH)));
     for (auto field_itr(field_range.begin()); field_itr != field_range.end(); ++field_itr) {
@@ -1870,7 +1870,8 @@ static MediaType GetMediaType(const std::string &filename) {
             LOG_WARNING("empty file \"" + filename + "\"!");
             const std::string extension(FileUtil::GetExtension(filename));
             if (::strcasecmp(extension.c_str(), "mrc") == 0 or ::strcasecmp(extension.c_str(), "marc") == 0
-                or ::strcasecmp(extension.c_str(), "raw") == 0) {
+                or ::strcasecmp(extension.c_str(), "raw") == 0)
+            {
                 return MediaType::MARC21;
             } else if (::strcasecmp(extension.c_str(), "xml") == 0)
                 return MediaType::XML;
@@ -1914,11 +1915,11 @@ FileType GuessFileType(const std::string &filename, const GuessFileTypeBehaviour
         }
     }
 
-    if (StringUtil::EndsWith(filename, ".mrc", /* ignore_case = */true)
-        or StringUtil::EndsWith(filename, ".marc", /* ignore_case = */true)
-        or StringUtil::EndsWith(filename, ".raw", /* ignore_case = */true))
+    if (StringUtil::EndsWith(filename, ".mrc", /* ignore_case = */ true)
+        or StringUtil::EndsWith(filename, ".marc", /* ignore_case = */ true)
+        or StringUtil::EndsWith(filename, ".raw", /* ignore_case = */ true))
         return FileType::BINARY;
-    if (StringUtil::EndsWith(filename, ".xml", /* ignore_case = */true))
+    if (StringUtil::EndsWith(filename, ".xml", /* ignore_case = */ true))
         return FileType::XML;
 
     LOG_ERROR("can't guess the file type of \"" + filename + "\"!");
@@ -1935,9 +1936,7 @@ std::unique_ptr<Reader> Reader::Factory(const std::string &input_filename, FileT
 }
 
 
-BinaryReader::BinaryReader(File * const input)
-    : Reader(input), next_record_start_(0)
-{
+BinaryReader::BinaryReader(File * const input): Reader(input), next_record_start_(0) {
     struct stat stat_buf;
     if (::fstat(input->getFileDescriptor(), &stat_buf) != 0)
         LOG_ERROR("fstat(2) on \"" + input->getPath() + "\" failed!");
@@ -2009,9 +2008,8 @@ Record BinaryReader::actualRead() {
 
         if (unlikely(offset_ + Record::RECORD_LENGTH_FIELD_LENGTH >= input_file_size_))
             LOG_ERROR("not enough remaining room in \"" + input_->getPath()
-                      + "\" for a record length in the memory mapping! (input_file_size_ = "
-                      + std::to_string(input_file_size_) + ", offset_ = " + std::to_string(offset_)
-                      + "), file may be truncated!");
+                      + "\" for a record length in the memory mapping! (input_file_size_ = " + std::to_string(input_file_size_)
+                      + ", offset_ = " + std::to_string(offset_) + "), file may be truncated!");
         const unsigned record_length(ToUnsigned(mmap_ + offset_, Record::RECORD_LENGTH_FIELD_LENGTH));
 
         if (unlikely(offset_ + record_length > input_file_size_))
@@ -2095,19 +2093,15 @@ Record XmlReader::read() {
     //
 
     if (unlikely(type != XMLSubsetParser<File>::OPENING_TAG or data != namespace_prefix_ + "record")) {
-        const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG
-                             or type == XMLSubsetParser<File>::CLOSING_TAG);
+        const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG or type == XMLSubsetParser<File>::CLOSING_TAG);
         if (type == XMLSubsetParser<File>::ERROR)
-            throw std::runtime_error("in MARC::XmlReader::read: opening <" + namespace_prefix_
-                                     + "record> tag expected while parsing \"" + input_->getPath() + "\" on line "
-                                     + std::to_string(xml_parser_->getLineNo()) + "! ("
+            throw std::runtime_error("in MARC::XmlReader::read: opening <" + namespace_prefix_ + "record> tag expected while parsing \""
+                                     + input_->getPath() + "\" on line " + std::to_string(xml_parser_->getLineNo()) + "! ("
                                      + xml_parser_->getLastErrorMessage() + ")");
         else
-            throw std::runtime_error("in MARC::XmlReader::read: opening <" + namespace_prefix_
-                                     + "record> tag expected while parsing \"" + input_->getPath() + "\" on line "
-                                     + std::to_string(xml_parser_->getLineNo()) + "! (Found: "
-                                     + XMLSubsetParser<File>::TypeToString(type)
-                                     + (tag_found ? (":" + data + ")") : ")"));
+            throw std::runtime_error("in MARC::XmlReader::read: opening <" + namespace_prefix_ + "record> tag expected while parsing \""
+                                     + input_->getPath() + "\" on line " + std::to_string(xml_parser_->getLineNo())
+                                     + "! (Found: " + XMLSubsetParser<File>::TypeToString(type) + (tag_found ? (":" + data + ")") : ")"));
     }
 
     parseLeader(input_->getPath(), &new_record);
@@ -2115,31 +2109,31 @@ Record XmlReader::read() {
     bool datafield_seen(false);
     for (;;) { // Process "datafield" and "controlfield" sections.
         if (unlikely(not getNext(&type, &attrib_map, &data)))
-            throw std::runtime_error("in MARC::XmlReader::read: error while parsing \"" + input_->getPath()
-                                     + "\": " + xml_parser_->getLastErrorMessage() + " on line "
-                                     + std::to_string(xml_parser_->getLineNo()) + "!");
+            throw std::runtime_error("in MARC::XmlReader::read: error while parsing \"" + input_->getPath() + "\": "
+                                     + xml_parser_->getLastErrorMessage() + " on line " + std::to_string(xml_parser_->getLineNo()) + "!");
 
         if (type == XMLSubsetParser<File>::CLOSING_TAG) {
             if (unlikely(data != namespace_prefix_ + "record"))
-                throw std::runtime_error("in MARC::MarcUtil::Record::XmlFactory: closing </record> tag expected "
-                                         "while parsing \"" + input_->getPath() + "\" on line "
-                                         + std::to_string(xml_parser_->getLineNo()) + "!");
+                throw std::runtime_error(
+                    "in MARC::MarcUtil::Record::XmlFactory: closing </record> tag expected "
+                    "while parsing \""
+                    + input_->getPath() + "\" on line " + std::to_string(xml_parser_->getLineNo()) + "!");
             new_record.sortFieldTags(new_record.begin(), new_record.end());
             return new_record;
         }
 
         if (type != XMLSubsetParser<File>::OPENING_TAG
             or (data != namespace_prefix_ + "datafield" and data != namespace_prefix_ + "controlfield"))
-            throw std::runtime_error("in MARC::XmlReader::read: expected either <" + namespace_prefix_
-                                     + "controlfield> or <" + namespace_prefix_ + "datafield> on line "
-                                     + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_->getPath()
-                                     + "\"!");
+            throw std::runtime_error("in MARC::XmlReader::read: expected either <" + namespace_prefix_ + "controlfield> or <"
+                                     + namespace_prefix_ + "datafield> on line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
+                                     + input_->getPath() + "\"!");
 
         if (unlikely(attrib_map.find("tag") == attrib_map.end()))
-            throw std::runtime_error("in MARC::XmlReader::read: expected a \"tag\" attribute as part of an opening "
-                                     "<" + namespace_prefix_ + "controlfield> or <" + namespace_prefix_
-                                     + "datafield> tag on line " + std::to_string(xml_parser_->getLineNo())
-                                     + " in file \"" + input_->getPath() + "\"!");
+            throw std::runtime_error(
+                "in MARC::XmlReader::read: expected a \"tag\" attribute as part of an opening "
+                "<"
+                + namespace_prefix_ + "controlfield> or <" + namespace_prefix_ + "datafield> tag on line "
+                + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_->getPath() + "\"!");
 
         if (data == namespace_prefix_ + "controlfield") {
             if (unlikely(datafield_seen))
@@ -2181,17 +2175,15 @@ bool ParseLeader(const std::string &leader_string, std::string * const leader, s
 
     if (leader_string.size() != Record::LEADER_LENGTH) {
         if (err_msg != nullptr)
-            *err_msg = "Leader length must be " + std::to_string(Record::LEADER_LENGTH) +
-                       ", found " + std::to_string(leader_string.size()) + "! (Leader bytes are "
-                       + StringUtil:: CStyleEscape(leader_string) + ")";
+            *err_msg = "Leader length must be " + std::to_string(Record::LEADER_LENGTH) + ", found " + std::to_string(leader_string.size())
+                       + "! (Leader bytes are " + StringUtil::CStyleEscape(leader_string) + ")";
         return false;
     }
 
     unsigned record_length;
     if (std::sscanf(leader_string.substr(0, 5).data(), "%5u", &record_length) != 1) {
         if (err_msg != nullptr)
-            *err_msg = "Can't parse record length! (Found \"" + StringUtil::CStyleEscape(leader_string.substr(0, 5))
-                       + "\")";
+            *err_msg = "Can't parse record length! (Found \"" + StringUtil::CStyleEscape(leader_string.substr(0, 5)) + "\")";
         return false;
     }
 
@@ -2212,7 +2204,7 @@ bool ParseLeader(const std::string &leader_string, std::string * const leader, s
 
     // Check subfield code length:
     if (leader_string[11] != '2')
-        LOG_WARNING("invalid subfield code length! (Leader bytes are " + StringUtil:: CStyleEscape(leader_string) + ")");
+        LOG_WARNING("invalid subfield code length! (Leader bytes are " + StringUtil::CStyleEscape(leader_string) + ")");
 
     // Check entry map:
     if (leader_string.substr(20, 3) != "450")
@@ -2235,27 +2227,24 @@ void XmlReader::parseLeader(const std::string &input_filename, Record * const ne
     while (getNext(&type, &attrib_map, &data) and type == XMLSubsetParser<File>::CHARACTERS)
         /* Intentionally empty! */;
     if (unlikely(type != XMLSubsetParser<File>::OPENING_TAG or data != namespace_prefix_ + "leader"))
-        throw std::runtime_error("in MARC::XmlReader::ParseLeader: opening <marc:leader> tag expected while "
-                                 "parsing \"" + input_filename + "\" on line "
-                                 + std::to_string(xml_parser_->getLineNo()) + ".");
+        throw std::runtime_error(
+            "in MARC::XmlReader::ParseLeader: opening <marc:leader> tag expected while "
+            "parsing \""
+            + input_filename + "\" on line " + std::to_string(xml_parser_->getLineNo()) + ".");
 
     if (unlikely(not getNext(&type, &attrib_map, &data)))
         throw std::runtime_error("in MARC::XmlReader::ParseLeader: error while parsing \"" + input_filename + "\": "
-                                 + xml_parser_->getLastErrorMessage() + " on line "
-                                 + std::to_string(xml_parser_->getLineNo()) + ".");
+                                 + xml_parser_->getLastErrorMessage() + " on line " + std::to_string(xml_parser_->getLineNo()) + ".");
     if (unlikely(type != XMLSubsetParser<File>::CHARACTERS or data.length() != Record::LEADER_LENGTH)) {
-        LOG_WARNING("leader data expected while parsing \"" + input_filename + "\" on line "
-                + std::to_string(xml_parser_->getLineNo()) + ".");
+        LOG_WARNING("leader data expected while parsing \"" + input_filename + "\" on line " + std::to_string(xml_parser_->getLineNo())
+                    + ".");
         if (unlikely(not getNext(&type, &attrib_map, &data)))
-            throw std::runtime_error("in MARC::XmlReader::ParseLeader: error while skipping to </"
-                                     + namespace_prefix_ + "leader>!");
+            throw std::runtime_error("in MARC::XmlReader::ParseLeader: error while skipping to </" + namespace_prefix_ + "leader>!");
         if (unlikely(type != XMLSubsetParser<File>::CLOSING_TAG or data != namespace_prefix_ + "leader")) {
-            const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG
-                                 or type == XMLSubsetParser<File>::CLOSING_TAG);
+            const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG or type == XMLSubsetParser<File>::CLOSING_TAG);
             throw std::runtime_error("in MARC::XmlReader::ParseLeader: closing </" + namespace_prefix_
                                      + "leader> tag expected while parsing \"" + input_filename + "\" on line "
-                                     + std::to_string(xml_parser_->getLineNo())
-                                     + ". (Found: " + XMLSubsetParser<File>::TypeToString(type)
+                                     + std::to_string(xml_parser_->getLineNo()) + ". (Found: " + XMLSubsetParser<File>::TypeToString(type)
                                      + (tag_found ? (":" + data) : ""));
         }
         return;
@@ -2271,34 +2260,28 @@ void XmlReader::parseLeader(const std::string &input_filename, Record * const ne
 
     if (unlikely(not getNext(&type, &attrib_map, &data)))
         throw std::runtime_error("in MARC::XmlReader::ParseLeader: error while parsing \"" + input_filename + "\": "
-                                 + xml_parser_->getLastErrorMessage() + " on line "
-                                 + std::to_string(xml_parser_->getLineNo()) + ".");
+                                 + xml_parser_->getLastErrorMessage() + " on line " + std::to_string(xml_parser_->getLineNo()) + ".");
     if (unlikely(type != XMLSubsetParser<File>::CLOSING_TAG or data != namespace_prefix_ + "leader")) {
-        const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG
-                             or type == XMLSubsetParser<File>::CLOSING_TAG);
-        throw std::runtime_error("in MARC::XmlReader::ParseLeader: closing </" + namespace_prefix_
-                                 + "leader> tag expected while parsing \"" + input_filename + "\" on line "
-                                 + std::to_string(xml_parser_->getLineNo())
-                                 + ". (Found: " + XMLSubsetParser<File>::TypeToString(type)
-                                 + (tag_found ? (":" + data) : ""));
+        const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG or type == XMLSubsetParser<File>::CLOSING_TAG);
+        throw std::runtime_error("in MARC::XmlReader::ParseLeader: closing </" + namespace_prefix_ + "leader> tag expected while parsing \""
+                                 + input_filename + "\" on line " + std::to_string(xml_parser_->getLineNo())
+                                 + ". (Found: " + XMLSubsetParser<File>::TypeToString(type) + (tag_found ? (":" + data) : ""));
     }
 }
 
 
 // Returns true if we found a normal control field and false if we found an empty control field.
-void XmlReader::parseControlfield(const std::string &input_filename, const std::string &tag,
-                                  Record * const record)
-{
+void XmlReader::parseControlfield(const std::string &input_filename, const std::string &tag, Record * const record) {
     XMLSubsetParser<File>::Type type;
     std::map<std::string, std::string> attrib_map;
     std::string data;
     if (unlikely(not getNext(&type, &attrib_map, &data)))
         throw std::runtime_error("in MARC::XmlReader::parseControlfield: failed to get next XML element!");
 
-        // Do we have an empty control field?
+    // Do we have an empty control field?
     if (unlikely(type == XMLSubsetParser<File>::CLOSING_TAG and data == namespace_prefix_ + "controlfield")) {
         LOG_WARNING("empty \"" + tag + "\" control field on line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
-                + input_filename + "\"!");
+                    + input_filename + "\"!");
         return;
     }
 
@@ -2310,8 +2293,7 @@ void XmlReader::parseControlfield(const std::string &input_filename, const std::
     if (unlikely(not getNext(&type, &attrib_map, &data) or type != XMLSubsetParser<File>::CLOSING_TAG
                  or data != namespace_prefix_ + "controlfield"))
         throw std::runtime_error("in MARC::XmlReader::parseControlfield: </controlfield> expected on line "
-                                 + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
-                                 + "\"!");
+                                 + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
 
     record->fields_.emplace_back(new_field);
     record->record_size_ += Record::DIRECTORY_ENTRY_LENGTH + new_field.getContents().size() + 1 /* end-of-field */;
@@ -2319,22 +2301,18 @@ void XmlReader::parseControlfield(const std::string &input_filename, const std::
 }
 
 
-void XmlReader::parseDatafield(const std::string &input_filename,
-                               const std::map<std::string, std::string> &datafield_attrib_map,
-                               const std::string &tag, Record * const record)
-{
+void XmlReader::parseDatafield(const std::string &input_filename, const std::map<std::string, std::string> &datafield_attrib_map,
+                               const std::string &tag, Record * const record) {
     const auto ind1(datafield_attrib_map.find("ind1"));
     if (unlikely(ind1 == datafield_attrib_map.cend() or ind1->second.length() != 1))
         throw std::runtime_error("in MARC::XmlReader::ParseDatafield: bad or missing \"ind1\" attribute on line "
-                                 + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
-                                 + "\"!");
+                                 + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
     std::string field_data(ind1->second);
 
     const auto ind2(datafield_attrib_map.find("ind2"));
     if (unlikely(ind2 == datafield_attrib_map.cend() or ind2->second.length() != 1))
         throw std::runtime_error("in MARC::XmlReader::ParseDatafield: bad or missing \"ind2\" attribute on line "
-                                 + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
-                                 + "\"!");
+                                 + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
     field_data += ind2->second;
 
     XMLSubsetParser<File>::Type type;
@@ -2351,7 +2329,7 @@ void XmlReader::parseDatafield(const std::string &input_filename,
 
         if (type == XMLSubsetParser<File>::CLOSING_TAG and data == namespace_prefix_ + "datafield") {
             // If the field contents consists of the indicators only, we drop it.
-            if (unlikely(field_data.length() == 1 /*indicator1*/ + 1/*indicator2*/)) {
+            if (unlikely(field_data.length() == 1 /*indicator1*/ + 1 /*indicator2*/)) {
                 LOG_WARNING("dropped empty \"" + tag + "\" field!");
                 return;
             }
@@ -2363,32 +2341,31 @@ void XmlReader::parseDatafield(const std::string &input_filename,
 
         // 1. <subfield code=...>
         if (unlikely(type != XMLSubsetParser<File>::OPENING_TAG or data != namespace_prefix_ + "subfield")) {
-            const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG
-                                 or type == XMLSubsetParser<File>::CLOSING_TAG);
-            throw std::runtime_error("in MARC::XmlReader::parseDatafield: expected <" + namespace_prefix_ +
-                                     "subfield> opening tag on line " + std::to_string(xml_parser_->getLineNo())
-                                     + " in file \"" + input_filename
-                                     + "\"! (Found: " + XMLSubsetParser<File>::TypeToString(type)
-                                     + (tag_found ? (":" + data) : ""));
+            const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG or type == XMLSubsetParser<File>::CLOSING_TAG);
+            throw std::runtime_error("in MARC::XmlReader::parseDatafield: expected <" + namespace_prefix_ + "subfield> opening tag on line "
+                                     + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
+                                     + "\"! (Found: " + XMLSubsetParser<File>::TypeToString(type) + (tag_found ? (":" + data) : ""));
         }
         if (unlikely(attrib_map.find("code") == attrib_map.cend() or attrib_map["code"].length() != 1))
-            throw std::runtime_error("in MARC::XmlReader::parseDatafield: missing or invalid \"code\" attribute as "
-                                     "rt   of the <subfield> tag " + std::to_string(xml_parser_->getLineNo())
-                                     + " in file \"" + input_filename + "\"!");
+            throw std::runtime_error(
+                "in MARC::XmlReader::parseDatafield: missing or invalid \"code\" attribute as "
+                "rt   of the <subfield> tag "
+                + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename + "\"!");
         field_data += '\x1F' + attrib_map["code"];
 
         // 2. Subfield data.
         if (unlikely(not getNext(&type, &attrib_map, &data) or type != XMLSubsetParser<File>::CHARACTERS)) {
             if (type == XMLSubsetParser<File>::CLOSING_TAG and data == namespace_prefix_ + "subfield") {
-                LOG_WARNING("found an empty subfield on line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
-                        + input_filename + "\"!");
+                LOG_WARNING("found an empty subfield on line " + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
+                            + "\"!");
                 field_data.resize(field_data.length() - 2); // Remove subfield delimiter and code.
                 continue;
             }
-            throw std::runtime_error("in MARC::XmlReader::parseDatafield: error while looking for character data "
-                                     "after <" + namespace_prefix_ + "subfield> tag on line "
-                                     + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
-                                     + "\": " + xml_parser_->getLastErrorMessage());
+            throw std::runtime_error(
+                "in MARC::XmlReader::parseDatafield: error while looking for character data "
+                "after <"
+                + namespace_prefix_ + "subfield> tag on line " + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
+                + "\": " + xml_parser_->getLastErrorMessage());
         }
         field_data += data;
 
@@ -2396,12 +2373,10 @@ void XmlReader::parseDatafield(const std::string &input_filename,
         if (unlikely(not getNext(&type, &attrib_map, &data) or type != XMLSubsetParser<File>::CLOSING_TAG
                      or data != namespace_prefix_ + "subfield"))
         {
-            const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG
-                                 or type == XMLSubsetParser<File>::CLOSING_TAG);
+            const bool tag_found(type == XMLSubsetParser<File>::OPENING_TAG or type == XMLSubsetParser<File>::CLOSING_TAG);
             throw std::runtime_error("in MARC::XmlReader::parseDatafield: expected </" + namespace_prefix_
-                                     + "subfield> closing tag on line "
-                                     + std::to_string(xml_parser_->getLineNo()) + " in file \"" + input_filename
-                                     + "\"! (Found: " + XMLSubsetParser<File>::TypeToString(type)
+                                     + "subfield> closing tag on line " + std::to_string(xml_parser_->getLineNo()) + " in file \""
+                                     + input_filename + "\"! (Found: " + XMLSubsetParser<File>::TypeToString(type)
                                      + (tag_found ? (":" + data) : ""));
         }
     }
@@ -2418,18 +2393,17 @@ void XmlReader::skipOverStartOfDocument() {
             return;
     }
 
-        // We should never get here!
-    throw std::runtime_error("in MARC::XmlReader::skipOverStartOfDocument: error while trying to skip to "
-                             "<" + namespace_prefix_ + "collection>:  \""
-                             + xml_parser_->getDataSource()->getPath() + "\": "
-                             + xml_parser_->getLastErrorMessage() + " on line "
-                             + std::to_string(xml_parser_->getLineNo()) + "!");
+    // We should never get here!
+    throw std::runtime_error(
+        "in MARC::XmlReader::skipOverStartOfDocument: error while trying to skip to "
+        "<"
+        + namespace_prefix_ + "collection>:  \"" + xml_parser_->getDataSource()->getPath() + "\": " + xml_parser_->getLastErrorMessage()
+        + " on line " + std::to_string(xml_parser_->getLineNo()) + "!");
 }
 
 
-bool XmlReader::getNext(XMLSubsetParser<File>::Type * const type,
-                        std::map<std::string, std::string> * const attrib_map, std::string * const data)
-{
+bool XmlReader::getNext(XMLSubsetParser<File>::Type * const type, std::map<std::string, std::string> * const attrib_map,
+                        std::string * const data) {
     if (unlikely(not xml_parser_->getNext(type, attrib_map, data)))
         return false;
 
@@ -2438,16 +2412,18 @@ bool XmlReader::getNext(XMLSubsetParser<File>::Type * const type,
 
     auto key_and_value(attrib_map->find("xmlns"));
     if (unlikely(key_and_value != attrib_map->cend() and key_and_value->second != "http://www.loc.gov/MARC21/slim"))
-        throw std::runtime_error("in MARC::XmlReader::getNext: opening tag has unsupported \"xmlns\" attribute "
-                                 "near line #" + std::to_string(xml_parser_->getLineNo()) + " in \"" + getPath()
-                                 + "\"!");
+        throw std::runtime_error(
+            "in MARC::XmlReader::getNext: opening tag has unsupported \"xmlns\" attribute "
+            "near line #"
+            + std::to_string(xml_parser_->getLineNo()) + " in \"" + getPath() + "\"!");
 
     key_and_value = attrib_map->find("xmlns:marc");
     if (unlikely(key_and_value != attrib_map->cend())) {
         if (unlikely(key_and_value->second != "http://www.loc.gov/MARC21/slim"))
-            throw std::runtime_error("in MARC::XmlReader::getNext: opening tag has unsupported \"xmlns:marc\" "
-                                     "attribute near line #" + std::to_string(xml_parser_->getLineNo()) + " in \""
-                                     + getPath() + "\"!");
+            throw std::runtime_error(
+                "in MARC::XmlReader::getNext: opening tag has unsupported \"xmlns:marc\" "
+                "attribute near line #"
+                + std::to_string(xml_parser_->getLineNo()) + " in \"" + getPath() + "\"!");
         else
             namespace_prefix_ = "marc:";
     }
@@ -2456,9 +2432,7 @@ bool XmlReader::getNext(XMLSubsetParser<File>::Type * const type,
 }
 
 
-std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, FileType writer_type,
-                                        const WriterMode writer_mode)
-{
+std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, FileType writer_type, const WriterMode writer_mode) {
     if (writer_type == FileType::AUTO) {
         if (output_filename == "/dev/null")
             writer_type = FileType::BINARY;
@@ -2466,9 +2440,8 @@ std::unique_ptr<Writer> Writer::Factory(const std::string &output_filename, File
             writer_type = GuessFileType(output_filename, GuessFileTypeBehaviour::USE_THE_FILENAME_ONLY);
     }
 
-    std::unique_ptr<File> output(writer_mode == WriterMode::OVERWRITE
-                                 ? FileUtil::OpenOutputFileOrDie(output_filename)
-                                 : FileUtil::OpenForAppendingOrDie(output_filename));
+    std::unique_ptr<File> output(writer_mode == WriterMode::OVERWRITE ? FileUtil::OpenOutputFileOrDie(output_filename)
+                                                                      : FileUtil::OpenForAppendingOrDie(output_filename));
 
     return (writer_type == FileType::XML) ? std::unique_ptr<Writer>(new XmlWriter(output.release()))
                                           : std::unique_ptr<Writer>(new BinaryWriter(output.release()));
@@ -2499,11 +2472,11 @@ void XmlWriter::write(const Record &record) {
 
 void FileLockedComposeAndWriteRecord(Writer * const marc_writer, const Record &record) {
     FileLocker file_locker(marc_writer->getFile().getFileDescriptor(), FileLocker::READ_WRITE);
-    if (unlikely(not (marc_writer->getFile().seek(0, SEEK_END))))
+    if (unlikely(not(marc_writer->getFile().seek(0, SEEK_END))))
         LOG_ERROR("failed to seek to the end of \"" + marc_writer->getFile().getPath() + "\"!");
     marc_writer->write(record);
     if (unlikely(not marc_writer->flush()))
-        LOG_ERROR("failed to flush to \"" +  marc_writer->getFile().getPath() + "\"!");
+        LOG_ERROR("failed to flush to \"" + marc_writer->getFile().getPath() + "\"!");
 }
 
 
@@ -2533,15 +2506,15 @@ unsigned RemoveDuplicateControlNumberRecords(const std::string &marc_filename) {
 
 bool IsValidMarcFile(const std::string &filename, std::string * const err_msg, const FileType file_type) {
     try {
-      std::unique_ptr<Reader> reader(Reader::Factory(filename, file_type));
-      while (const Record record = reader->read()) {
-          if (not record.isValid(err_msg))
-              return false;
-      }
-      return true;
+        std::unique_ptr<Reader> reader(Reader::Factory(filename, file_type));
+        while (const Record record = reader->read()) {
+            if (not record.isValid(err_msg))
+                return false;
+        }
+        return true;
     } catch (const std::exception &x) {
-      *err_msg = x.what();
-      return false;
+        *err_msg = x.what();
+        return false;
     }
 }
 
@@ -2679,8 +2652,8 @@ std::string Record::getParentControlNumber(const std::vector<Tag> &additional_ta
     std::vector<Tag> tags(MARC::UP_LINK_FIELD_TAGS);
     tags.insert(tags.end(), additional_tags.begin(), additional_tags.end());
     for (auto &field : fields_) {
-        if (std::find_if(tags.cbegin(), tags.cend(),
-                         [&field](const Tag &reference_tag){ return reference_tag == field.getTag(); }) == tags.cend())
+        if (std::find_if(tags.cbegin(), tags.cend(), [&field](const Tag &reference_tag) { return reference_tag == field.getTag(); })
+            == tags.cend())
             continue;
 
         auto matches(PARENT_PPN_MATCHER.match(field.getFirstSubfieldWithCode('w')));
@@ -2715,242 +2688,65 @@ std::unordered_set<std::string> Record::getParentControlNumbers(const std::vecto
 
 // See https://www.loc.gov/marc/bibliographic/ for how to construct this map:
 static std::unordered_map<Tag, bool> tag_to_repeatable_map{
-    { Tag("001"), false },
-    { Tag("003"), false },
-    { Tag("005"), false },
-    { Tag("006"), true  },
-    { Tag("007"), true  },
-    { Tag("008"), false },
-    { Tag("010"), false },
-    { Tag("013"), true  },
-    { Tag("015"), true  },
-    { Tag("016"), true  },
-    { Tag("017"), true  },
-    { Tag("018"), false },
-    { Tag("020"), true  },
-    { Tag("022"), true  },
-    { Tag("024"), true  },
-    { Tag("025"), true  },
-    { Tag("026"), true  },
-    { Tag("027"), true  },
-    { Tag("028"), true  },
-    { Tag("030"), true  },
-    { Tag("031"), true  },
-    { Tag("032"), true  },
-    { Tag("033"), true  },
-    { Tag("034"), true  },
-    { Tag("035"), true  },
-    { Tag("036"), false },
-    { Tag("037"), true  },
-    { Tag("038"), false },
-    { Tag("040"), false },
-    { Tag("041"), true  },
-    { Tag("042"), false },
-    { Tag("043"), false },
-    { Tag("044"), false },
-    { Tag("045"), false },
-    { Tag("046"), true  },
-    { Tag("047"), true  },
-    { Tag("048"), true  },
-    { Tag("050"), true  },
-    { Tag("051"), true  },
-    { Tag("052"), true  },
-    { Tag("055"), true  },
-    { Tag("060"), true  },
-    { Tag("061"), true  },
-    { Tag("066"), false },
-    { Tag("070"), true  },
-    { Tag("071"), true  },
-    { Tag("072"), true  },
-    { Tag("074"), true  },
-    { Tag("080"), true  },
-    { Tag("082"), true  },
-    { Tag("083"), true  },
-    { Tag("084"), true  },
-    { Tag("085"), true  },
-    { Tag("086"), true  },
-    { Tag("088"), true  },
-    { Tag("100"), false },
-    { Tag("110"), false },
-    { Tag("111"), false },
-    { Tag("130"), false },
-    { Tag("186"), true  }, // non-standard field only used locally
-    { Tag("210"), true  },
-    { Tag("222"), true  },
-    { Tag("240"), false },
-    { Tag("242"), true  },
-    { Tag("243"), false },
-    { Tag("245"), false },
-    { Tag("246"), true  },
-    { Tag("247"), true  },
-    { Tag("250"), true  },
-    { Tag("254"), false },
-    { Tag("255"), true  },
-    { Tag("256"), false },
-    { Tag("257"), true  },
-    { Tag("258"), true  },
-    { Tag("260"), true  },
-    { Tag("263"), false },
-    { Tag("264"), true  },
-    { Tag("270"), true  },
-    { Tag("300"), true  },
-    { Tag("306"), false },
-    { Tag("307"), true  },
-    { Tag("310"), false },
-    { Tag("321"), true  },
-    { Tag("336"), true  },
-    { Tag("337"), true  },
-    { Tag("338"), true  },
-    { Tag("340"), true  },
-    { Tag("342"), true  },
-    { Tag("343"), true  },
-    { Tag("344"), true  },
-    { Tag("345"), true  },
-    { Tag("346"), true  },
-    { Tag("347"), true  },
-    { Tag("348"), true  },
-    { Tag("351"), true  },
-    { Tag("352"), true  },
-    { Tag("355"), true  },
-    { Tag("357"), false },
-    { Tag("362"), true  },
-    { Tag("363"), true  },
-    { Tag("365"), true  },
-    { Tag("366"), true  },
-    { Tag("370"), true  },
-    { Tag("377"), true  },
-    { Tag("380"), true  },
-    { Tag("381"), true  },
-    { Tag("382"), true  },
-    { Tag("383"), true  },
-    { Tag("384"), false },
-    { Tag("385"), true  },
-    { Tag("386"), true  },
-    { Tag("388"), true  },
-    { Tag("490"), true  },
-    { Tag("500"), true  },
-    { Tag("501"), true  },
-    { Tag("502"), true  },
-    { Tag("504"), true  },
-    { Tag("505"), true  },
-    { Tag("506"), true  },
-    { Tag("507"), true  },
-    { Tag("508"), true  },
-    { Tag("510"), true  },
-    { Tag("511"), true  },
-    { Tag("513"), true  },
-    { Tag("514"), false },
-    { Tag("515"), true  },
-    { Tag("516"), true  },
-    { Tag("518"), true  },
-    { Tag("520"), true  },
-    { Tag("521"), true  },
-    { Tag("522"), true  },
-    { Tag("524"), true  },
-    { Tag("525"), true  },
-    { Tag("526"), true  },
-    { Tag("530"), true  },
-    { Tag("533"), true  },
-    { Tag("534"), true  },
-    { Tag("535"), true  },
-    { Tag("536"), true  },
-    { Tag("538"), true  },
-    { Tag("540"), true  },
-    { Tag("541"), true  },
-    { Tag("542"), true  },
-    { Tag("545"), true  },
-    { Tag("546"), true  },
-    { Tag("547"), true  },
-    { Tag("550"), true  },
-    { Tag("552"), true  },
-    { Tag("555"), true  },
-    { Tag("556"), true  },
-    { Tag("561"), true  },
-    { Tag("562"), true  },
-    { Tag("563"), true  },
-    { Tag("565"), true  },
-    { Tag("567"), true  },
-    { Tag("580"), true  },
-    { Tag("581"), true  },
-    { Tag("583"), true  },
-    { Tag("584"), true  },
-    { Tag("585"), true  },
-    { Tag("586"), true  },
-    { Tag("588"), true  },
-    { Tag("600"), true  },
-    { Tag("601"), true  }, // non-standard field only used locally
-    { Tag("610"), true  },
-    { Tag("611"), true  },
-    { Tag("630"), true  },
-    { Tag("647"), true  },
-    { Tag("648"), true  },
-    { Tag("650"), true  },
-    { Tag("651"), true  },
-    { Tag("652"), false }, // non-standard field only used locally
-    { Tag("653"), true  },
-    { Tag("654"), true  },
-    { Tag("655"), true  },
-    { Tag("657"), true  },
-    { Tag("658"), true  },
-    { Tag("662"), true  },
-    { Tag("700"), true  },
-    { Tag("710"), true  },
-    { Tag("711"), true  },
-    { Tag("720"), true  },
-    { Tag("730"), true  },
-    { Tag("740"), true  },
-    { Tag("750"), true  },
-    { Tag("751"), true  },
-    { Tag("752"), true  },
-    { Tag("752"), true  },
-    { Tag("754"), true  },
-    { Tag("758"), true  },
-    { Tag("760"), true  },
-    { Tag("762"), true  },
-    { Tag("765"), true  },
-    { Tag("767"), true  },
-    { Tag("770"), true  },
-    { Tag("772"), true  },
-    { Tag("773"), true  },
-    { Tag("774"), true  },
-    { Tag("775"), true  },
-    { Tag("776"), true  },
-    { Tag("777"), true  },
-    { Tag("780"), true  },
-    { Tag("785"), true  },
-    { Tag("786"), true  },
-    { Tag("787"), true  },
-    { Tag("800"), true  },
-    { Tag("810"), true  },
-    { Tag("811"), true  },
-    { Tag("830"), true  },
-    { Tag("841"), false },
-    { Tag("842"), false },
-    { Tag("843"), true  },
-    { Tag("844"), true  },
-    { Tag("845"), true  },
-    { Tag("850"), true  },
-    { Tag("852"), true  },
-    { Tag("853"), true  },
-    { Tag("854"), true  },
-    { Tag("855"), true  },
-    { Tag("856"), true  },
-    { Tag("863"), true  },
-    { Tag("864"), true  },
-    { Tag("865"), true  },
-    { Tag("866"), true  },
-    { Tag("867"), true  },
-    { Tag("868"), true  },
-    { Tag("876"), true  },
-    { Tag("877"), true  },
-    { Tag("878"), true  },
-    { Tag("880"), true  },
-    { Tag("882"), true  },
-    { Tag("883"), true  },
-    { Tag("884"), true  },
-    { Tag("885"), true  },
-    { Tag("886"), true  },
-    { Tag("887"), true  },
+    { Tag("001"), false }, { Tag("003"), false }, { Tag("005"), false }, { Tag("006"), true },
+    { Tag("007"), true },  { Tag("008"), false }, { Tag("010"), false }, { Tag("013"), true },
+    { Tag("015"), true },  { Tag("016"), true },  { Tag("017"), true },  { Tag("018"), false },
+    { Tag("020"), true },  { Tag("022"), true },  { Tag("024"), true },  { Tag("025"), true },
+    { Tag("026"), true },  { Tag("027"), true },  { Tag("028"), true },  { Tag("030"), true },
+    { Tag("031"), true },  { Tag("032"), true },  { Tag("033"), true },  { Tag("034"), true },
+    { Tag("035"), true },  { Tag("036"), false }, { Tag("037"), true },  { Tag("038"), false },
+    { Tag("040"), false }, { Tag("041"), true },  { Tag("042"), false }, { Tag("043"), false },
+    { Tag("044"), false }, { Tag("045"), false }, { Tag("046"), true },  { Tag("047"), true },
+    { Tag("048"), true },  { Tag("050"), true },  { Tag("051"), true },  { Tag("052"), true },
+    { Tag("055"), true },  { Tag("060"), true },  { Tag("061"), true },  { Tag("066"), false },
+    { Tag("070"), true },  { Tag("071"), true },  { Tag("072"), true },  { Tag("074"), true },
+    { Tag("080"), true },  { Tag("082"), true },  { Tag("083"), true },  { Tag("084"), true },
+    { Tag("085"), true },  { Tag("086"), true },  { Tag("088"), true },  { Tag("100"), false },
+    { Tag("110"), false }, { Tag("111"), false }, { Tag("130"), false }, { Tag("186"), true }, // non-standard field only used locally
+    { Tag("210"), true },  { Tag("222"), true },  { Tag("240"), false }, { Tag("242"), true },
+    { Tag("243"), false }, { Tag("245"), false }, { Tag("246"), true },  { Tag("247"), true },
+    { Tag("250"), true },  { Tag("254"), false }, { Tag("255"), true },  { Tag("256"), false },
+    { Tag("257"), true },  { Tag("258"), true },  { Tag("260"), true },  { Tag("263"), false },
+    { Tag("264"), true },  { Tag("270"), true },  { Tag("300"), true },  { Tag("306"), false },
+    { Tag("307"), true },  { Tag("310"), false }, { Tag("321"), true },  { Tag("336"), true },
+    { Tag("337"), true },  { Tag("338"), true },  { Tag("340"), true },  { Tag("342"), true },
+    { Tag("343"), true },  { Tag("344"), true },  { Tag("345"), true },  { Tag("346"), true },
+    { Tag("347"), true },  { Tag("348"), true },  { Tag("351"), true },  { Tag("352"), true },
+    { Tag("355"), true },  { Tag("357"), false }, { Tag("362"), true },  { Tag("363"), true },
+    { Tag("365"), true },  { Tag("366"), true },  { Tag("370"), true },  { Tag("377"), true },
+    { Tag("380"), true },  { Tag("381"), true },  { Tag("382"), true },  { Tag("383"), true },
+    { Tag("384"), false }, { Tag("385"), true },  { Tag("386"), true },  { Tag("388"), true },
+    { Tag("490"), true },  { Tag("500"), true },  { Tag("501"), true },  { Tag("502"), true },
+    { Tag("504"), true },  { Tag("505"), true },  { Tag("506"), true },  { Tag("507"), true },
+    { Tag("508"), true },  { Tag("510"), true },  { Tag("511"), true },  { Tag("513"), true },
+    { Tag("514"), false }, { Tag("515"), true },  { Tag("516"), true },  { Tag("518"), true },
+    { Tag("520"), true },  { Tag("521"), true },  { Tag("522"), true },  { Tag("524"), true },
+    { Tag("525"), true },  { Tag("526"), true },  { Tag("530"), true },  { Tag("533"), true },
+    { Tag("534"), true },  { Tag("535"), true },  { Tag("536"), true },  { Tag("538"), true },
+    { Tag("540"), true },  { Tag("541"), true },  { Tag("542"), true },  { Tag("545"), true },
+    { Tag("546"), true },  { Tag("547"), true },  { Tag("550"), true },  { Tag("552"), true },
+    { Tag("555"), true },  { Tag("556"), true },  { Tag("561"), true },  { Tag("562"), true },
+    { Tag("563"), true },  { Tag("565"), true },  { Tag("567"), true },  { Tag("580"), true },
+    { Tag("581"), true },  { Tag("583"), true },  { Tag("584"), true },  { Tag("585"), true },
+    { Tag("586"), true },  { Tag("588"), true },  { Tag("600"), true },  { Tag("601"), true }, // non-standard field only used locally
+    { Tag("610"), true },  { Tag("611"), true },  { Tag("630"), true },  { Tag("647"), true },
+    { Tag("648"), true },  { Tag("650"), true },  { Tag("651"), true },  { Tag("652"), false }, // non-standard field only used locally
+    { Tag("653"), true },  { Tag("654"), true },  { Tag("655"), true },  { Tag("657"), true },
+    { Tag("658"), true },  { Tag("662"), true },  { Tag("700"), true },  { Tag("710"), true },
+    { Tag("711"), true },  { Tag("720"), true },  { Tag("730"), true },  { Tag("740"), true },
+    { Tag("750"), true },  { Tag("751"), true },  { Tag("752"), true },  { Tag("752"), true },
+    { Tag("754"), true },  { Tag("758"), true },  { Tag("760"), true },  { Tag("762"), true },
+    { Tag("765"), true },  { Tag("767"), true },  { Tag("770"), true },  { Tag("772"), true },
+    { Tag("773"), true },  { Tag("774"), true },  { Tag("775"), true },  { Tag("776"), true },
+    { Tag("777"), true },  { Tag("780"), true },  { Tag("785"), true },  { Tag("786"), true },
+    { Tag("787"), true },  { Tag("800"), true },  { Tag("810"), true },  { Tag("811"), true },
+    { Tag("830"), true },  { Tag("841"), false }, { Tag("842"), false }, { Tag("843"), true },
+    { Tag("844"), true },  { Tag("845"), true },  { Tag("850"), true },  { Tag("852"), true },
+    { Tag("853"), true },  { Tag("854"), true },  { Tag("855"), true },  { Tag("856"), true },
+    { Tag("863"), true },  { Tag("864"), true },  { Tag("865"), true },  { Tag("866"), true },
+    { Tag("867"), true },  { Tag("868"), true },  { Tag("876"), true },  { Tag("877"), true },
+    { Tag("878"), true },  { Tag("880"), true },  { Tag("882"), true },  { Tag("883"), true },
+    { Tag("884"), true },  { Tag("885"), true },  { Tag("886"), true },  { Tag("887"), true },
 };
 
 
@@ -3103,7 +2899,8 @@ bool Record::isPossiblyReviewArticle() const {
 const std::vector<Tag> CROSS_LINK_FIELDS{ Tag("775"), Tag("776"), Tag("780"), Tag("785") };
 
 
-bool IsCrossLinkField (const MARC::Record::Field &field, std::string * const partner_control_number, const std::vector<MARC::Tag> &cross_link_fields) {
+bool IsCrossLinkField(const MARC::Record::Field &field, std::string * const partner_control_number,
+                      const std::vector<MARC::Tag> &cross_link_fields) {
     if (not field.hasSubfield('w')
         or std::find(cross_link_fields.cbegin(), cross_link_fields.cend(), field.getTag().toString()) == cross_link_fields.cend())
         return false;
@@ -3162,7 +2959,7 @@ Record::Field GetIndexField(const std::string &index_term) {
     static const Tag DEFAULT_TAG("650");
     const auto term_and_field(TERMS_TO_FIELDS_MAP.find(TextUtil::UTF8ToLower(index_term)));
     if (term_and_field == TERMS_TO_FIELDS_MAP.cend())
-        return Record::Field(Tag(DEFAULT_TAG), { { { 'a', index_term } } }, /* indicator1 = */' ', /* indicator2 = */'4');
+        return Record::Field(Tag(DEFAULT_TAG), { { { 'a', index_term } } }, /* indicator1 = */ ' ', /* indicator2 = */ '4');
     return term_and_field->second;
 }
 
@@ -3187,7 +2984,7 @@ std::set<std::string> ExtractOnlineCrossLinkPPNs(const MARC::Record &record) {
         }
 
         const auto subfield_n_contents(_776_field.getFirstSubfieldWithCode('n'));
-        if (StringUtil::StartsWith(subfield_n_contents, "Online") ) {
+        if (StringUtil::StartsWith(subfield_n_contents, "Online")) {
             cross_reference_ppns.emplace(ppn);
             continue;
         }
@@ -3222,8 +3019,7 @@ std::set<std::string> ExtractPrintCrossLinkPPNs(const MARC::Record &record) {
 
 
 static void ExtractOtherCrossLinkPPNsHelper(const MARC::Record &record, const MARC::Tag &tag,
-                                            std::set<std::string> * const cross_link_ppns)
-{
+                                            std::set<std::string> * const cross_link_ppns) {
     for (const auto &cross_link_field : record.getTagRange(tag)) {
         const auto cross_link_ppn(BSZUtil::GetK10PlusPPNFromSubfield(cross_link_field, 'w'));
         if (not cross_link_ppn.empty()) {
@@ -3256,81 +3052,18 @@ std::set<std::string> ExtractCrossLinkPPNs(const MARC::Record &record) {
 
 
 const std::unordered_map<std::string, std::string> UNKNOWN_CODE_TO_MARC_CODE{
-    { "zz",  ""    }, // Unknown or unspecified country
-    { "eng", "eng" },
-    { "en",  "eng" },
-    { "fre", "fre" },
-    { "fr",  "fre" },
-    { "por", "por" },
-    { "pt",  "por" },
-    { "ger", "ger" },
-    { "de",  "ger" },
-    { "ita", "ita" },
-    { "it",  "ita" },
-    { "dut", "dut" },
-    { "nl",  "dut" },
-    { "fin", "fin" },
-    { "fi",  "fin" },
-    { "spa", "spa" },
-    { "es",  "spa" },
-    { "lit", "lit" },
-    { "lt",  "lit" },
-    { "ind", "ind" },
-    { "id",  "ind" },
-    { "grc", "grc" },
-    { "el",  "grc" },
-    { "hun", "hun" },
-    { "hu",  "hun" },
-    { "hrv", "hrv" },
-    { "hr",  "hrv" },
-    { "yor", "yor" },
-    { "yo",  "yor" },
-    { "tai", "tai" },
-    { "th",  "tai" },
-    { "rus", "rus" },
-    { "ru",  "rus" },
-    { "cat", "cat" },
-    { "ca",  "cat" },
-    { "swe", "swe" },
-    { "sv",  "swe" },
-    { "slv", "slv" },
-    { "sl",  "slv" },
-    { "ukr", "ukr" },
-    { "uk",  "ukr" },
-    { "epo", "epo" },
-    { "eo",  "epo" },
-    { "dan", "dan" },
-    { "da",  "dan" },
-    { "mac", "mac" },
-    { "mk",  "mac" },
-    { "slo", "slo" },
-    { "sk",  "slo" },
-    { "est", "est" },
-    { "et",  "est" },
-    { "wel", "wel" },
-    { "cy",  "wel" },
-    { "pol", "pol" },
-    { "pl",  "pol" },
-    { "nor", "nor" },
-    { "no",  "nor" },
-    { "bos", "bos" },
-    { "bs",  "bos" },
-    { "ara", "ara" },
-    { "ar",  "ara" },
-    { "tur", "tur" },
-    { "tr",  "tur" },
-    { "bul", "bul" },
-    { "bg",  "bul" },
-    { "rum", "rum" },
-    { "ro",  "rum" },
-    { "nob", "nob" },
-    { "nb",  "nob" },
-    { "jpn", "jpn" },
-    { "ja",  "jpn" },
-    { "cze", "cze" },
-    { "cs",  "cze" },
-    { "baq", "baq" },
-    { "eu",  "baq" },
+    { "zz", "" }, // Unknown or unspecified country
+    { "eng", "eng" }, { "en", "eng" },  { "fre", "fre" }, { "fr", "fre" },  { "por", "por" }, { "pt", "por" },  { "ger", "ger" },
+    { "de", "ger" },  { "ita", "ita" }, { "it", "ita" },  { "dut", "dut" }, { "nl", "dut" },  { "fin", "fin" }, { "fi", "fin" },
+    { "spa", "spa" }, { "es", "spa" },  { "lit", "lit" }, { "lt", "lit" },  { "ind", "ind" }, { "id", "ind" },  { "grc", "grc" },
+    { "el", "grc" },  { "hun", "hun" }, { "hu", "hun" },  { "hrv", "hrv" }, { "hr", "hrv" },  { "yor", "yor" }, { "yo", "yor" },
+    { "tai", "tai" }, { "th", "tai" },  { "rus", "rus" }, { "ru", "rus" },  { "cat", "cat" }, { "ca", "cat" },  { "swe", "swe" },
+    { "sv", "swe" },  { "slv", "slv" }, { "sl", "slv" },  { "ukr", "ukr" }, { "uk", "ukr" },  { "epo", "epo" }, { "eo", "epo" },
+    { "dan", "dan" }, { "da", "dan" },  { "mac", "mac" }, { "mk", "mac" },  { "slo", "slo" }, { "sk", "slo" },  { "est", "est" },
+    { "et", "est" },  { "wel", "wel" }, { "cy", "wel" },  { "pol", "pol" }, { "pl", "pol" },  { "nor", "nor" }, { "no", "nor" },
+    { "bos", "bos" }, { "bs", "bos" },  { "ara", "ara" }, { "ar", "ara" },  { "tur", "tur" }, { "tr", "tur" },  { "bul", "bul" },
+    { "bg", "bul" },  { "rum", "rum" }, { "ro", "rum" },  { "nob", "nob" }, { "nb", "nob" },  { "jpn", "jpn" }, { "ja", "jpn" },
+    { "cze", "cze" }, { "cs", "cze" },  { "baq", "baq" }, { "eu", "baq" },
 };
 
 

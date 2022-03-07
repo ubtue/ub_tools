@@ -1,7 +1,7 @@
 LIB := ../lib
 INC = $(LIB)/include
 include ../Makefile.inc
-PROGS = display_translate_stats full_text_cache_monitor full_text_lookup ini_validator translate_chainer translator translator_ajax zotero_cgi restart_zts message_dispatcher
+PROGS = display_translate_stats full_text_cache_monitor full_text_lookup ini_validator translate_chainer translator translator_ajax translator_statistics zotero_cgi restart_zts message_dispatcher
 CGI_DIR = /var/www/cgi-bin
 APACHE_SYSTEMCTL_ARGUMENT := $(shell if [ -f /etc/debian_version ]; then echo "apache2"; elif [ -f /etc/centos-release ]; then echo "httpd"; else echo ""; fi)
 
@@ -20,6 +20,9 @@ $(PROGS): % : %.o ../lib/libubtue.a Makefile
 -include .deps
 .deps: *.cc $(INC)/*.h
 	$(MAKE_DEPS) -I $(INC) *.cc
+
+../lib/libubtue.a: $(wildcard ../lib/src/*.cc) $(wildcard ../lib/include/*.h)
+	$(MAKE) -C ../lib
 
 install: $(PROGS)
 	@echo "Installing CGI programs..."

@@ -27,14 +27,14 @@
 #include <utility>
 #include <vector>
 #include <cstring>
-#include "File.h"
-#include "FileUtil.h"
-#include "TranslationUtil.h"
 #include "DbConnection.h"
 #include "DbResultSet.h"
 #include "DbRow.h"
+#include "File.h"
+#include "FileUtil.h"
 #include "IniFile.h"
 #include "StringUtil.h"
+#include "TranslationUtil.h"
 #include "UBTools.h"
 #include "util.h"
 
@@ -56,8 +56,7 @@ std::string NormalizeBrackets(const std::string string_to_normalize) {
 
 // Generates a XX.ini output file with entries like the original file.  The XX is a 2-letter language code.
 void ProcessLanguage(const bool verbose, const std::string &output_file_path, const std::string &_3letter_code,
-                     DbConnection * const db_connection)
-{
+                     DbConnection * const db_connection) {
     if (verbose)
         std::cerr << "Processing language code: " << _3letter_code << '\n';
 
@@ -67,7 +66,7 @@ void ProcessLanguage(const bool verbose, const std::string &output_file_path, co
     else {
         TranslationUtil::ReadIniFile(output_file_path, &token_to_line_no_and_other_map);
 
-        if (unlikely(not FileUtil::RenameFile(output_file_path, output_file_path + ".bak", /* remove_target = */true)))
+        if (unlikely(not FileUtil::RenameFile(output_file_path, output_file_path + ".bak", /* remove_target = */ true)))
             LOG_ERROR("failed to rename \"" + output_file_path + "\" to \"" + output_file_path + ".bak\"!");
     }
 
@@ -75,7 +74,8 @@ void ProcessLanguage(const bool verbose, const std::string &output_file_path, co
     if (unlikely(output.fail()))
         LOG_ERROR("failed to open \"" + output_file_path + "\" for writing!");
 
-    db_connection->queryOrDie("SELECT token,translation FROM vufind_translations WHERE next_version_id IS NULL AND language_code='" + _3letter_code + "'");
+    db_connection->queryOrDie("SELECT token,translation FROM vufind_translations WHERE next_version_id IS NULL AND language_code='"
+                              + _3letter_code + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
     if (unlikely(result_set.empty()))
         LOG_ERROR("found no translations for language code \"" + _3letter_code + "\"!");
@@ -92,8 +92,9 @@ void ProcessLanguage(const bool verbose, const std::string &output_file_path, co
     }
 
     std::sort(line_nos_tokens_and_translations.begin(), line_nos_tokens_and_translations.end(),
-              [](const std::tuple<unsigned, std::string, std::string> &left, const std::tuple<unsigned, std::string, std::string> &right)
-                  { return std::get<0>(left) < std::get<0>(right); });
+              [](const std::tuple<unsigned, std::string, std::string> &left, const std::tuple<unsigned, std::string, std::string> &right) {
+                  return std::get<0>(left) < std::get<0>(right);
+              });
 
     for (const auto &line_no_token_and_translation : line_nos_tokens_and_translations) {
         const std::string token(std::get<1>(line_no_token_and_translation));
@@ -107,17 +108,14 @@ void ProcessLanguage(const bool verbose, const std::string &output_file_path, co
 }
 
 
-void GetLanguageCodes(const bool verbose, DbConnection * const db_connection,
-                      std::map<std::string, std::string> * language_codes)
-{
+void GetLanguageCodes(const bool verbose, DbConnection * const db_connection, std::map<std::string, std::string> *language_codes) {
     db_connection->queryOrDie("SELECT DISTINCT language_code FROM vufind_translations");
     DbResultSet language_codes_result_set(db_connection->getLastResultSet());
     if (unlikely(language_codes_result_set.empty()))
         LOG_ERROR("no language codes found, expected multiple!");
 
     while (const DbRow row = language_codes_result_set.getNextRow()) {
-        const std::string german_language_code(
-            TranslationUtil::MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(row[0]));
+        const std::string german_language_code(TranslationUtil::MapFake3LetterEnglishLanguagesCodesToGermanLanguageCodes(row[0]));
         if (german_language_code == "???")
             continue;
         const std::string international_language_code(
@@ -125,8 +123,7 @@ void GetLanguageCodes(const bool verbose, DbConnection * const db_connection,
         language_codes->emplace(international_language_code, row[0]);
     }
     if (verbose)
-        std::cerr << "Found " << language_codes->size()
-                  << " distinct language code in the \"vufind_translations\" table.\n";
+        std::cerr << "Found " << language_codes->size() << " distinct language code in the \"vufind_translations\" table.\n";
 }
 
 
@@ -162,8 +159,7 @@ int Main(int argc, char **argv) {
     std::map<std::string, std::string> _2letter_and_3letter_codes;
     GetLanguageCodes(verbose, &db_connection, &_2letter_and_3letter_codes);
     for (const auto &_2letter_intl_code_and_fake_3letter_english_code : _2letter_and_3letter_codes)
-        ProcessLanguage(verbose,
-                        output_directory + "/" + _2letter_intl_code_and_fake_3letter_english_code.first + ".ini",
+        ProcessLanguage(verbose, output_directory + "/" + _2letter_intl_code_and_fake_3letter_english_code.first + ".ini",
                         _2letter_intl_code_and_fake_3letter_english_code.second, &db_connection);
 
     return EXIT_SUCCESS;

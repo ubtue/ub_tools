@@ -29,6 +29,6 @@
 
 namespace MailUtil {
 
-    std::string DecodeBodyPart(const MBox::BodyPart &body_part);
+std::string DecodeBodyPart(const MBox::BodyPart &body_part);
 
 } // namespace MailUtil

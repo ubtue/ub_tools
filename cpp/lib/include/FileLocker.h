@@ -28,8 +28,8 @@
 
 
 #ifndef STRING
-#       include <string>
-#       define STRING
+#include <string>
+#define STRING
 #endif
 
 
@@ -37,10 +37,12 @@
  *  \brief  Provides advisory (i.e. requires cooperating processes) file locking.
  */
 class FileLocker {
-    int lock_fd_;                /**< File descriptor for the file we're locking. */
+    int lock_fd_; /**< File descriptor for the file we're locking. */
     bool interrupted_;
+
 public:
     enum LockType { READ_ONLY, READ_WRITE };
+
 public:
     /** \brief  Construct a FileLocker.  Blocks until we gain access.
      *  \param  fd         The file descriptor that we want to lock.

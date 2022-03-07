@@ -1,8 +1,8 @@
 /** Test harness for the File class.
  */
 #include <iostream>
-#include <cstdlib>
 #include <cinttypes>
+#include <cstdlib>
 #include <File.h>
 #include <util.h>
 
@@ -33,6 +33,4 @@ int main(int argc, char *argv[]) {
     } catch (const std::exception &x) {
         logger->error("caught exception: " + std::string(x.what()));
     }
-
 }
-

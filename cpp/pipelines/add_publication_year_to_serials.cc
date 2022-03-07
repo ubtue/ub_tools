@@ -52,15 +52,15 @@ typedef std::map<std::string, std::string> SortList;
 
 void SetupPublicationYearMap(File * const sort_year_list, SortList * const sort_year_map) {
     while (not sort_year_list->eof()) {
-       std::string line(sort_year_list->getline());
-       std::vector<std::string> ppns_and_sort_year;
-       if (unlikely(StringUtil::SplitThenTrim(line, ":", " ",  &ppns_and_sort_year) != 2)) {
-           LOG_WARNING("Invalid line: " + line);
-           continue;
-       }
-       const std::string ppn(ppns_and_sort_year[0]);
-       const std::string sort_year(ppns_and_sort_year[1]);
-       sort_year_map->insert(std::make_pair(ppn, sort_year));
+        std::string line(sort_year_list->getline());
+        std::vector<std::string> ppns_and_sort_year;
+        if (unlikely(StringUtil::SplitThenTrim(line, ":", " ", &ppns_and_sort_year) != 2)) {
+            LOG_WARNING("Invalid line: " + line);
+            continue;
+        }
+        const std::string ppn(ppns_and_sort_year[0]);
+        const std::string sort_year(ppns_and_sort_year[1]);
+        sort_year_map->insert(std::make_pair(ppn, sort_year));
     }
 }
 
@@ -71,7 +71,7 @@ static unsigned modified_count(0);
 void ProcessRecord(MARC::Record * const record, const SortList &sort_year_map) {
     SortList::const_iterator iter(sort_year_map.find(record->getControlNumber()));
     if (iter == sort_year_map.cend())
-       return;
+        return;
 
     std::string sort_year(iter->second);
 
@@ -99,9 +99,7 @@ void ProcessRecord(MARC::Record * const record, const SortList &sort_year_map) {
 }
 
 
-void AddPublicationYearField(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                             const SortList &sort_year_map)
-{
+void AddPublicationYearField(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer, const SortList &sort_year_map) {
     unsigned record_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ProcessRecord(&record, sort_year_map);

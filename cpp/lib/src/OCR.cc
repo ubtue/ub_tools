@@ -36,9 +36,7 @@
 const int TIMEOUT(20); // in seconds
 
 
-int OCR(const std::string &input_document_path, const std::string &output_document_path,
-        const std::string &language_codes)
-{
+int OCR(const std::string &input_document_path, const std::string &output_document_path, const std::string &language_codes) {
     static const std::string TESSERACT(ExecUtil::Which("tesseract"));
     if (::access(TESSERACT.c_str(), X_OK) != 0)
         throw std::runtime_error("in OCR: can't execute \"" + TESSERACT + "\"!");

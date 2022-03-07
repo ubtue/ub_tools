@@ -36,6 +36,7 @@ namespace SignalUtil {
 class SignalBlocker {
     std::set<int> signal_nos_;
     bool unblocked_;
+
 public:
     explicit SignalBlocker(const std::set<int> &signal_nos);
     explicit SignalBlocker(const int signal_no): SignalBlocker(std::set<int>{ signal_no }) { }
@@ -47,7 +48,7 @@ public:
 typedef void SignalHandler(int);
 
 
-void InstallHandler(const int signal_no, SignalHandler handler) ;
-    
+void InstallHandler(const int signal_no, SignalHandler handler);
+
 
 } // namespace SignalUtil

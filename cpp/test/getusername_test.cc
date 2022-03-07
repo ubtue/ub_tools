@@ -5,5 +5,3 @@
 int main() {
     std::cout << MiscUtil::GetUserName() << '\n';
 }
-
-

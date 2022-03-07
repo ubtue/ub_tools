@@ -16,8 +16,7 @@ int Main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    std::cout << "The parsed input was converted to "
-              << TimeUtil::StructTmToString(tm) << '\n';
+    std::cout << "The parsed input was converted to " << TimeUtil::StructTmToString(tm) << '\n';
 
     return EXIT_SUCCESS;
 }

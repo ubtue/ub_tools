@@ -37,6 +37,7 @@
 #include "DbResultSet.h"
 #include "DbRow.h"
 #include "StringUtil.h"
+#include "TextUtil.h"
 #include "TimeUtil.h"
 #include "util.h"
 
@@ -52,9 +53,7 @@ const std::string DATETIME_RANGE_MAX("9999-12-31 23:59:59");
 std::map<DbConnection *, TransactionGuard::Status> TransactionGuard::connection_status_;
 
 
-TransactionGuard::TransactionGuard(DbConnection * const db_connection, const IsolationLevel level)
-    : db_connection_(db_connection)
-{
+TransactionGuard::TransactionGuard(DbConnection * const db_connection, const IsolationLevel level): db_connection_(db_connection) {
     std::string begin("START TRANSACTION");
 
     if (connection_status_.find(db_connection) == connection_status_.end()) {
@@ -90,7 +89,7 @@ TransactionGuard::~TransactionGuard() {
 std::string TruncateToVarCharMaxIndexLength(const std::string &s) {
     auto truncated(s);
     if (truncated.length() > VARCHAR_UTF8_MAX_INDEX_LENGTH)
-        truncated.erase(VARCHAR_UTF8_MAX_INDEX_LENGTH);
+        TextUtil::UTF8ByteTruncate(&truncated, VARCHAR_UTF8_MAX_INDEX_LENGTH);
 
     return truncated;
 }
@@ -147,8 +146,7 @@ std::string Unescape(std::string * const s) {
                 decoded_string += '\\';
                 break;
             default:
-                throw std::runtime_error("SqlUtil::Unescape: improperly encoded string! (ch == "
-                                         + StringUtil::CStyleEscape(*ch) + ")");
+                throw std::runtime_error("SqlUtil::Unescape: improperly encoded string! (ch == " + StringUtil::CStyleEscape(*ch) + ")");
             }
         }
     }
@@ -163,12 +161,12 @@ tm DatetimeToTm(const std::string &datetime) {
 
     // current time format is YYYY-MM-DD hh:mm:ss
     tm time_struct;
-    time_struct.tm_year  = std::atol(datetime.substr(0, 4).c_str()) - 1900;
-    time_struct.tm_mon   = std::atol(datetime.substr(5, 2).c_str()) - 1;
-    time_struct.tm_mday  = std::atol(datetime.substr(8, 2).c_str());
-    time_struct.tm_hour  = std::atol(datetime.substr(11, 2).c_str());
-    time_struct.tm_min   = std::atol(datetime.substr(14, 2).c_str());
-    time_struct.tm_sec   = std::atol(datetime.substr(17, 2).c_str());
+    time_struct.tm_year = std::atol(datetime.substr(0, 4).c_str()) - 1900;
+    time_struct.tm_mon = std::atol(datetime.substr(5, 2).c_str()) - 1;
+    time_struct.tm_mday = std::atol(datetime.substr(8, 2).c_str());
+    time_struct.tm_hour = std::atol(datetime.substr(11, 2).c_str());
+    time_struct.tm_min = std::atol(datetime.substr(14, 2).c_str());
+    time_struct.tm_sec = std::atol(datetime.substr(17, 2).c_str());
     time_struct.tm_isdst = -1; // Don't *ever* change this!!
 
     return time_struct;
@@ -187,9 +185,8 @@ time_t DatetimeToTimeT(const std::string &datetime) {
 
 std::string TmToDatetime(const struct tm &time_struct) {
     char sql_datetime[30 + 1];
-    std::sprintf(sql_datetime, "%04u-%02u-%02u %02u:%02u:%02u", time_struct.tm_year + 1900,
-                 time_struct.tm_mon + 1, time_struct.tm_mday, time_struct.tm_hour,
-                 time_struct.tm_min, time_struct.tm_sec);
+    std::sprintf(sql_datetime, "%04u-%02u-%02u %02u:%02u:%02u", time_struct.tm_year + 1900, time_struct.tm_mon + 1, time_struct.tm_mday,
+                 time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec);
 
     return sql_datetime;
 }
@@ -208,18 +205,16 @@ bool IsValidDatetime(const std::string &datetime) {
         if (std::sscanf(datetime.c_str(), "%4u-%2u-%2u", &year, &month, &day) != 3)
             return false;
 
-        return (year >= 1000 and year <= 9999) and (month >= 1 and month <= 12) and
-            (day >= 1 and day <= 365);
+        return (year >= 1000 and year <= 9999) and (month >= 1 and month <= 12) and (day >= 1 and day <= 365);
     } else if (datetime.length() == 19) {
         // Presumably "YYYY-MM-DD hh:mm:ss".
 
         unsigned year, month, day, hour, minute, second;
-        if (std::sscanf(datetime.c_str(), "%4u-%2u-%2u %2u:%2u:%2u", &year, &month, &day, &hour,
-                        &minute, &second) != 6)
+        if (std::sscanf(datetime.c_str(), "%4u-%2u-%2u %2u:%2u:%2u", &year, &month, &day, &hour, &minute, &second) != 6)
             return false;
 
-        return (year >= 1000 and year <= 9999) and (month >= 1 and month <= 12) and
-            (day >= 1 and day <= 365) and hour <= 23 and minute <= 59 and second <= 61;
+        return (year >= 1000 and year <= 9999) and (month >= 1 and month <= 12) and (day >= 1 and day <= 365) and hour <= 23
+               and minute <= 59 and second <= 61;
     } else
         return false;
 }
@@ -237,8 +232,8 @@ std::string GetDatetime(const long offset) {
 std::set<std::string> GetColumnNames(DbConnection * const connection, const std::string &table_name) {
     const std::string SHOW_COUMNS_STMT("SHOW COLUMNS FROM `" + table_name + "`;");
     if (not connection->query(SHOW_COUMNS_STMT))
-        throw std::runtime_error("in SqlUtil::GetColumnNames: Show columns failed: " + SHOW_COUMNS_STMT
-                                 + " (" + connection->getLastErrorMessage() + ")");
+        throw std::runtime_error("in SqlUtil::GetColumnNames: Show columns failed: " + SHOW_COUMNS_STMT + " ("
+                                 + connection->getLastErrorMessage() + ")");
     DbResultSet result_set(connection->getLastResultSet());
     std::set<std::string> column_names;
     while (const DbRow row = result_set.getNextRow())
@@ -257,9 +252,7 @@ unsigned GetTableSize(DbConnection * const connection, const std::string &table_
 }
 
 
-ThreadSafetyGuard::ThreadSafetyGuard(const ThreadType invoker_thread)
-    : invoker_thread_(invoker_thread)
-{
+ThreadSafetyGuard::ThreadSafetyGuard(const ThreadType invoker_thread): invoker_thread_(invoker_thread) {
     switch (invoker_thread_) {
     case ThreadType::MAIN_THREAD:
         if (::mysql_library_init(0, nullptr, nullptr))

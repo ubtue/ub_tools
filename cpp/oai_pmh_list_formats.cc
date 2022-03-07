@@ -22,10 +22,11 @@
 
 
 [[noreturn]] void Usage() {
-    ::Usage(" ini_file_path ini_file_section_name\n"
-            "       The ini file section must contain the entries \"repository_name\" \"base_url\",\n"
-            "       \"metadata_prefix\", and \"harvest_mode\" where \"harvest_mode\" must be either\n"
-            "       \"FULL\" or \"INCREMENTAL\".");
+    ::Usage(
+        " ini_file_path ini_file_section_name\n"
+        "       The ini file section must contain the entries \"repository_name\" \"base_url\",\n"
+        "       \"metadata_prefix\", and \"harvest_mode\" where \"harvest_mode\" must be either\n"
+        "       \"FULL\" or \"INCREMENTAL\".");
 
     std::exit(EXIT_FAILURE);
 }

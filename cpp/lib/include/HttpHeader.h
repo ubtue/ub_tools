@@ -28,8 +28,8 @@
 
 
 #include <fstream>
-#include <string>
 #include <stdexcept>
+#include <string>
 #include <vector>
 #include <ctime>
 #include "TimeUtil.h"
@@ -47,6 +47,7 @@ class HttpHeader {
         content_languages_, uri_, status_line_;
     bool is_valid_;
     std::vector<std::string> cookies_;
+
 public:
     HttpHeader()
         : status_code_(0), date_(TimeUtil::BAD_TIME_T), last_modified_(TimeUtil::BAD_TIME_T), expires_(TimeUtil::BAD_TIME_T),
@@ -60,7 +61,7 @@ public:
     std::string toString() const;
 
     bool isRedirect() const { return status_code_ == 302 and not location_.empty(); }
-    inline unsigned getStatusCode() const  __attribute__((pure)) { return status_code_; }
+    inline unsigned getStatusCode() const __attribute__((pure)) { return status_code_; }
     std::string getStatusLine() const { return status_line_; }
 
     time_t getDate() const { return date_; }
@@ -107,12 +108,12 @@ public:
     const std::vector<std::string> &getCookies() const { return cookies_; }
 
     /** \brief  Tests whether the header contains an acceptable language.
-     *  \param  acceptable_languages  Comma-separated list of language codes.  May be empty.  If empty this function will always return true!
-     *  \note   If an acceptable language code contains a hyphen an exact match is required, e.g. "en-US" matches "en-US" but not "en-GB."
-     *          If no hyphen is included, the matching requirement is relaxed.  E.g. "en" matches "en" as well as "en-GB" etc.  "*" can be used as
-     *          a universal language code.  Also all matching is case insensitive and "en-us" is therefore considered to be the same as "en-US."
-     *  \return Returns true if the Content-Language header was empty or contained at least one of the languages in "acceptable_languages",
-     *          matched one of the Content-Language languages otherwise returns false.
+     *  \param  acceptable_languages  Comma-separated list of language codes.  May be empty.  If empty this function will always return
+     * true! \note   If an acceptable language code contains a hyphen an exact match is required, e.g. "en-US" matches "en-US" but not
+     * "en-GB." If no hyphen is included, the matching requirement is relaxed.  E.g. "en" matches "en" as well as "en-GB" etc.  "*" can be
+     * used as a universal language code.  Also all matching is case insensitive and "en-us" is therefore considered to be the same as
+     * "en-US." \return Returns true if the Content-Language header was empty or contained at least one of the languages in
+     * "acceptable_languages", matched one of the Content-Language languages otherwise returns false.
      */
     bool hasAcceptableLanguage(const std::string &acceptable_languages) const;
 

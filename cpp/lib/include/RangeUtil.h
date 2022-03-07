@@ -56,13 +56,13 @@ bool CanParseBibleReference(const std::string &bib_ref_candidate);
 
 
 // Parses an OR'ed together sequence of simple bible references.
-bool SplitIntoBooksAndChaptersAndVerses(const std::string &bible_reference_query,
-                                        std::vector<std::string> * const book_candidates,
+bool SplitIntoBooksAndChaptersAndVerses(const std::string &bible_reference_query, std::vector<std::string> * const book_candidates,
                                         std::vector<std::string> * const chapters_and_verses_candidates);
 
 
 class BibleBookCanoniser {
     std::unordered_map<std::string, std::string> books_of_the_bible_to_canonical_form_map_;
+
 public:
     explicit BibleBookCanoniser(const std::string &books_of_the_bible_to_canonical_form_map_filename);
 
@@ -75,6 +75,7 @@ public:
 
 class BibleBookToCodeMapper {
     std::unordered_map<std::string, std::string> bible_books_to_codes_map_;
+
 public:
     explicit BibleBookToCodeMapper(const std::string &books_of_the_bible_to_code_map_filename);
 
@@ -87,6 +88,7 @@ public:
 
 class BibleAliasMapper {
     std::unordered_map<std::string, std::string> aliases_to_canonical_forms_map_;
+
 public:
     explicit BibleAliasMapper(const std::string &bible_aliases_map_filename);
 

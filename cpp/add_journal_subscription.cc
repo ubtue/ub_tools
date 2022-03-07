@@ -45,8 +45,7 @@ inline std::string ZuluNow() {
 }
 
 
-bool SubscriptionExists(DbConnection * const db_connection, const std::string &user_id, const std::string &parent_ppn)
-{
+bool SubscriptionExists(DbConnection * const db_connection, const std::string &user_id, const std::string &parent_ppn) {
     db_connection->queryOrDie("SELECT last_issue_date FROM ixtheo_journal_subscriptions WHERE id=" + user_id
                               + " AND journal_control_number='" + parent_ppn + "'");
     DbResultSet result_set(db_connection->getLastResultSet());
@@ -54,26 +53,22 @@ bool SubscriptionExists(DbConnection * const db_connection, const std::string &u
 }
 
 
-void AddSubscription(const bool verbose, DbConnection * const db_connection, const std::string &user_id,
-                     const std::string &parent_ppn)
-{
+void AddSubscription(const bool verbose, DbConnection * const db_connection, const std::string &user_id, const std::string &parent_ppn) {
     if (SubscriptionExists(db_connection, user_id, parent_ppn)) {
         if (verbose)
             std::cout << "Subscription for PPN " << parent_ppn << ", and user ID " << user_id << " already exists!\n";
         return;
     }
 
-    const std::string INSERT_STMT("INSERT INTO ixtheo_journal_subscriptions SET id=" + user_id
-                                  + ",last_issue_date='" + ZuluNow() + "',journal_control_number='" + parent_ppn
-                                  + "'");
+    const std::string INSERT_STMT("INSERT INTO ixtheo_journal_subscriptions SET id=" + user_id + ",last_issue_date='" + ZuluNow()
+                                  + "',journal_control_number='" + parent_ppn + "'");
     if (unlikely(not db_connection->query(INSERT_STMT)))
         LOG_ERROR("Replace failed: " + INSERT_STMT + " (" + db_connection->getLastErrorMessage() + ")");
 }
 
 
 void AddSubscriptions(const bool verbose, DbConnection * const db_connection, const std::string &user_id,
-                      const std::vector<std::string> &parent_ppns)
-{
+                      const std::vector<std::string> &parent_ppns) {
     db_connection->queryOrDie("SELECT id FROM user WHERE id=" + user_id);
     DbResultSet id_result_set(db_connection->getLastResultSet());
     if (id_result_set.empty())

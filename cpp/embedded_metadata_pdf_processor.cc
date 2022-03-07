@@ -15,13 +15,13 @@
  *
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <iostream>
 #include <stdexcept>
+#include <vector>
 #include <cstdio>
 #include <cstdlib>
-#include <vector>
 #include "FileUtil.h"
 #include "FullTextImport.h"
 #include "HtmlUtil.h"
@@ -47,8 +47,7 @@ namespace {
 std::string GuessLastParagraph(const std::string &first_page_text) {
     const std::string first_page_text_trimmed(StringUtil::Trim(first_page_text, '\n'));
     const std::size_t last_paragraph_start(first_page_text_trimmed.rfind("\n\n"));
-    std::string last_paragraph(last_paragraph_start != std::string::npos ?
-                               first_page_text_trimmed.substr(last_paragraph_start) : "");
+    std::string last_paragraph(last_paragraph_start != std::string::npos ? first_page_text_trimmed.substr(last_paragraph_start) : "");
     StringUtil::Map(&last_paragraph, '\n', ' ');
     return TextUtil::NormaliseDashes(&last_paragraph);
 }
@@ -66,23 +65,25 @@ bool GuessISSN(const std::string &first_page_text, std::string * const issn) {
 
 
 bool GuessDOI(const std::string &first_page_text, std::string * const doi) {
-     const std::string last_paragraph(GuessLastParagraph(first_page_text));
-     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*DOI[\\s:]*([\\d/.X]+).*", RegexMatcher::CASE_INSENSITIVE));
-     if (matcher->matched(last_paragraph)) {
-         *doi = (*matcher)[1];
-         return true;
-     }
-     return false;
+    const std::string last_paragraph(GuessLastParagraph(first_page_text));
+    static RegexMatcher * const matcher(
+        RegexMatcher::RegexMatcherFactoryOrDie(".*DOI[\\s:]*([\\d/.X]+).*", RegexMatcher::CASE_INSENSITIVE));
+    if (matcher->matched(last_paragraph)) {
+        *doi = (*matcher)[1];
+        return true;
+    }
+    return false;
 }
 
 
 bool GuessISBN(const std::string &extracted_text, std::string * const isbn) {
-     static RegexMatcher * const matcher(RegexMatcher::RegexMatcherFactoryOrDie(".*(?<!e-)ISBN\\s*([\\d\\-X]+).*", RegexMatcher::CASE_INSENSITIVE));
-     if (matcher->matched(extracted_text)) {
-         *isbn = (*matcher)[1];
-         return true;
-     }
-     return false;
+    static RegexMatcher * const matcher(
+        RegexMatcher::RegexMatcherFactoryOrDie(".*(?<!e-)ISBN\\s*([\\d\\-X]+).*", RegexMatcher::CASE_INSENSITIVE));
+    if (matcher->matched(extracted_text)) {
+        *isbn = (*matcher)[1];
+        return true;
+    }
+    return false;
 }
 
 
@@ -123,7 +124,7 @@ bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextD
     ControlNumberGuesser control_number_guesser;
     // Try to find an ISBN in the first pages
     std::string first_pages_text;
-    PdfUtil::ExtractText(pdf_document, &first_pages_text, "1", "10" );
+    PdfUtil::ExtractText(pdf_document, &first_pages_text, "1", "10");
     std::string isbn;
     GuessISBN(TextUtil::NormaliseDashes(&first_pages_text), &isbn);
     if (not isbn.empty()) {
@@ -135,11 +136,12 @@ bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextD
             LOG_WARNING("We got more than one control number for ISBN \"" + isbn + "\"  - falling back to title and author");
             GuessAuthorAndTitle(pdf_document, fulltext_data);
             if (unlikely(not FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_numbers))) {
-                LOG_WARNING("Could not correlate full text data for ISBN \"" + isbn  + "\"");
+                LOG_WARNING("Could not correlate full text data for ISBN \"" + isbn + "\"");
                 return false;
             }
             if (control_numbers.size() != 1)
-                LOG_WARNING("Unable to determine unique control number for ISBN \"" + isbn + "\": " + StringUtil::Join(control_numbers, ", "));
+                LOG_WARNING("Unable to determine unique control number for ISBN \"" + isbn
+                            + "\": " + StringUtil::Join(control_numbers, ", "));
         }
         const std::string control_number(*(control_numbers.begin()));
         LOG_DEBUG("Determined control number \"" + control_number + "\" for ISBN \"" + isbn + "\"\n");
@@ -156,8 +158,8 @@ bool GuessPDFMetadata(const std::string &pdf_document, FullTextImport::FullTextD
     GuessISSN(first_page_text, &(fulltext_data->issn_));
     GuessAuthorAndTitle(pdf_document, fulltext_data);
     if (not FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_number))
-        // We frequently have the case that author and title extracted we encoded in Latin-1 in some time in the past such that our search fails
-        // so force normalisation and make another attempt.
+        // We frequently have the case that author and title extracted we encoded in Latin-1 in some time in the past such that our search
+        // fails so force normalisation and make another attempt.
         ConvertFulltextMetadataFromAssumedLatin1OriginalEncoding(fulltext_data);
     return FullTextImport::CorrelateFullTextData(control_number_guesser, *(fulltext_data), &control_number);
 }
@@ -172,7 +174,7 @@ void CreateFulltextImportFile(const std::string &fulltext_pdf, const std::string
     if (PdfUtil::PdfDocContainsNoText(pdf_document))
         LOG_ERROR("Apparently no text in \"" + fulltext_pdf + "\"");
     if (unlikely(not GuessPDFMetadata(pdf_document, &fulltext_data)))
-        LOG_ERROR("Unable to determine metadata for \"" +  fulltext_pdf + "\"");
+        LOG_ERROR("Unable to determine metadata for \"" + fulltext_pdf + "\"");
     if (unlikely(not PdfUtil::ExtractText(pdf_document, &(fulltext_data.full_text_))))
         LOG_ERROR("Unable to extract fulltext from \"" + fulltext_pdf + "\"");
     auto plain_text_output(FileUtil::OpenOutputFileOrDie(fulltext_txt));
@@ -184,8 +186,9 @@ void CreateFulltextImportFile(const std::string &fulltext_pdf, const std::string
 
 
 std::string DeriveOutputFilename(const std::string &pdf_filename) {
-    return (StringUtil::ASCIIToLower(FileUtil::GetExtension(pdf_filename)) == "pdf") ?
-        FileUtil::GetFilenameWithoutExtensionOrDie(pdf_filename) + ".txt" : pdf_filename + ".txt";
+    return (StringUtil::ASCIIToLower(FileUtil::GetExtension(pdf_filename)) == "pdf")
+               ? FileUtil::GetFilenameWithoutExtensionOrDie(pdf_filename) + ".txt"
+               : pdf_filename + ".txt";
 }
 
 

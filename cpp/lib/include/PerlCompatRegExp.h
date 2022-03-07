@@ -38,13 +38,15 @@
  *  \brief  A convenience wrapper around the pcre(3) API.
  */
 class PerlCompatRegExp {
-    mutable std::string subject_text_;      // The "subject text" to be processed.
+    mutable std::string subject_text_; // The "subject text" to be processed.
     pcre *compiled_pattern_;
     pcre_extra *extra_pattern_info_;
     mutable unsigned substring_match_count_;
     std::string pattern_;
+
 public:
     enum ProcessingMode { DONT_OPTIMIZE_FOR_MULTIPLE_USE, OPTIMIZE_FOR_MULTIPLE_USE };
+
 private:
     ProcessingMode processing_mode_;
     unsigned options_;
@@ -52,13 +54,15 @@ private:
     mutable int offset_vector_[OFFSET_VECTOR_SIZE];
     static const unsigned char *&GetCharacterTable();
     static std::string &GetCodeset();
+
 public:
     PerlCompatRegExp(): compiled_pattern_(nullptr), extra_pattern_info_(nullptr) { }
     PerlCompatRegExp(const PerlCompatRegExp &rhs);
 
     /** \note  See pcre_compile(3) for which options are available.
      */
-    PerlCompatRegExp(const std::string &pattern, const ProcessingMode processing_mode = DONT_OPTIMIZE_FOR_MULTIPLE_USE, const int options = 0);
+    PerlCompatRegExp(const std::string &pattern, const ProcessingMode processing_mode = DONT_OPTIMIZE_FOR_MULTIPLE_USE,
+                     const int options = 0);
 
     ~PerlCompatRegExp();
 
@@ -86,8 +90,8 @@ public:
      *  \param  start_pos     If we have a match this is the (zero-based) index of the start of the match.
      *  \param  length        If we have a match this is the length of the matching section of "subject_string".
      *  \param  options       See pcre_compile(3) for which options are available.
-     *  \return True if "subject_text" is a match for the pattern, else false.  Please note that a successful return does not imply that there are any
-     *          substring matches.
+     *  \return True if "subject_text" is a match for the pattern, else false.  Please note that a successful return does not imply that
+     * there are any substring matches.
      */
     bool match(const std::string &subject_text, const size_t start_offset, size_t * const start_pos, size_t * const length,
                const int options = 0) const;
@@ -103,14 +107,13 @@ public:
     /** \brief  Match "subject_text " against this regexp.
      *  \param  subject_text  The string to match against.  May legitimately contain zero bytes!
      *  \param  options       See pcre_compile(3) for which options are available.
-     *  \return True if "subject_text" is a match for the pattern, else false.  Please note that a successful return does not imply that there are any
-     *          substring matches.
+     *  \return True if "subject_text" is a match for the pattern, else false.  Please note that a successful return does not imply that
+     * there are any substring matches.
      */
-    bool match(const std::string &subject_text, const int options = 0) const
-    { return match(subject_text, 0, nullptr, nullptr, options); }
+    bool match(const std::string &subject_text, const int options = 0) const { return match(subject_text, 0, nullptr, nullptr, options); }
 
-    /** \note  Takes the same arguments as "match()" in addition to "pattern" but requires no PerlCompatRegExp object.  The intended use of this
-     *         function as for one-shot matching.  If you want to repeatedly match against the same pattern it is probably better to create a
+    /** \note  Takes the same arguments as "match()" in addition to "pattern" but requires no PerlCompatRegExp object.  The intended use of
+     * this function as for one-shot matching.  If you want to repeatedly match against the same pattern it is probably better to create a
      *         PerlCompatRegExp object with a processing mode of OPTIMIZE_FOR_MULTIPLE_USE.
      *  \param  pattern       The regexp to match against.
      *  \param  subject_text  The string to match against.  May legitimately contain zero bytes!
@@ -128,16 +131,15 @@ public:
     bool multiMatch(const std::string &subject_text, std::vector<std::string> * const matched_substrings, const int options = 0) const;
 
     /** \brief  Attempts to extract all matches of the pattern that has been specified via the constructor.
-     *  \note   Takes the same arguments as "multiMatch()" in addition to "pattern" but requires no PerlCompatRegExp object.  The intended use of this
-     *          function as for one-shot matching.  If you want to repeatedly match against the same pattern it is probably better to create a
-     *          PerlCompatRegExp object with a processing mode of OPTIMIZE_FOR_MULTIPLE_USE.
-     *  \param  pattern             The regexp to match against.
-     *  \param  subject_text        The string to match against.  May legitimately contain zero bytes!
-     *  \param  matched_substrings  Upon a successful
-     *  \param  options             See pcre_compile(3) for which options are available.
-     *  \return True if at least one match was found, otherwise false.
+     *  \note   Takes the same arguments as "multiMatch()" in addition to "pattern" but requires no PerlCompatRegExp object.  The intended
+     * use of this function as for one-shot matching.  If you want to repeatedly match against the same pattern it is probably better to
+     * create a PerlCompatRegExp object with a processing mode of OPTIMIZE_FOR_MULTIPLE_USE. \param  pattern             The regexp to match
+     * against. \param  subject_text        The string to match against.  May legitimately contain zero bytes! \param  matched_substrings
+     * Upon a successful \param  options             See pcre_compile(3) for which options are available. \return True if at least one match
+     * was found, otherwise false.
      */
-    static bool MultiMatch(const std::string &pattern, const std::string &subject_text, std::vector<std::string> * const matched_substrings, const int options = 0);
+    static bool MultiMatch(const std::string &pattern, const std::string &subject_text, std::vector<std::string> * const matched_substrings,
+                           const int options = 0);
 
     unsigned getSubstringMatchCount() const { return substring_match_count_; }
 
@@ -196,8 +198,8 @@ public:
     static bool IsValid(const std::string &test_pattern);
 
 
-    /* \brief  Generates the replacement text for a single substitution.  The information about the match is stored in the internal state of "reg_exp".
-     *         This includes processing of backreferences like "$1", "$2", etc.
+    /* \brief  Generates the replacement text for a single substitution.  The information about the match is stored in the internal state of
+     * "reg_exp". This includes processing of backreferences like "$1", "$2", etc.
      */
     static std::string GenerateReplacementText(const PerlCompatRegExp &reg_exp, const std::string &replacement);
 
@@ -205,6 +207,7 @@ public:
 
     /** \brief  Places a slash in front of all metacharacters. */
     static std::string EscapeMetacharacters(const std::string &s);
+
 private:
     /** Specifies a new pattern to match against. */
     bool internalResetPattern(const std::string &new_pattern, const ProcessingMode new_processing_mode, const int new_options,
@@ -223,10 +226,13 @@ class PerlCompatRegExps {
     int options_;
     std::list<std::string> patterns_;
     std::list<PerlCompatRegExp> reg_exps_;
+
 public:
     typedef std::list<std::string>::const_iterator const_iterator;
+
 public:
-    PerlCompatRegExps(const PerlCompatRegExp::ProcessingMode processing_mode = PerlCompatRegExp::DONT_OPTIMIZE_FOR_MULTIPLE_USE, const int options = 0)
+    PerlCompatRegExps(const PerlCompatRegExp::ProcessingMode processing_mode = PerlCompatRegExp::DONT_OPTIMIZE_FOR_MULTIPLE_USE,
+                      const int options = 0)
         : processing_mode_(processing_mode), options_(options) { }
     PerlCompatRegExps(const PerlCompatRegExps &rhs);
 
@@ -264,8 +270,8 @@ public:
      *          Please note that a successful return does not imply that there are any substring matches.
      *  \note   See the description of pcre_exec in pcre(3) for which options are available.
      */
-    bool matchAny(const std::string &subject_text, const size_t start_offset, size_t * const start_pos,
-                  size_t * const length, const int options = 0) const;
+    bool matchAny(const std::string &subject_text, const size_t start_offset, size_t * const start_pos, size_t * const length,
+                  const int options = 0) const;
 
     /** \brief  Match "subject_text " against all regexps.
      *  \param  subject_text  The string to match against.  May legitimately contain zero bytes!
@@ -283,8 +289,7 @@ public:
      *  \param  options             See pcre_compile(3) for which options are available.
      *  \return True if at least one match was found, otherwise false.
      */
-    bool multiMatch(const std::string &subject_text, std::vector<std::string> * const matched_substrings,
-                    const int options = 0) const;
+    bool multiMatch(const std::string &subject_text, std::vector<std::string> * const matched_substrings, const int options = 0) const;
 
     /** Returns the patterns that were passed into addPattern(). */
     const std::list<std::string> &getPatterns() const { return patterns_; }
@@ -296,6 +301,7 @@ class PerlCompatSubst {
     std::string replacement_;
     bool global_;
     PerlCompatRegExp *perl_compat_regexp_;
+
 public:
     /** Constructs an object from expressions like "/fred/bob/g". */
     explicit PerlCompatSubst(const std::string &subst_expr);
@@ -319,13 +325,17 @@ public:
         APPLY_ALL,    //< Apply all substitution expressions.
         SHORT_CIRCUIT //< Stop after the first subst expression that mutates.
     };
+
 private:
     SubstStrategy subst_strategy_;
     std::list<PerlCompatSubst> perl_compat_substs_;
+
 public:
     explicit PerlCompatSubsts(const SubstStrategy subst_strategy = APPLY_ALL): subst_strategy_(subst_strategy) { }
     explicit PerlCompatSubsts(const std::string &subst_expression, const SubstStrategy subst_strategy = APPLY_ALL)
-        : subst_strategy_(subst_strategy) { addSubstExpression(subst_expression); }
+        : subst_strategy_(subst_strategy) {
+        addSubstExpression(subst_expression);
+    }
 
     void addSubstExpression(const std::string &new_subst_expression);
 

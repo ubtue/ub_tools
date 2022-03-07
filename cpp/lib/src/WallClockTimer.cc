@@ -27,8 +27,8 @@
 
 #include "WallClockTimer.h"
 #include <stdexcept>
-#include <cstring>
 #include <cerrno>
+#include <cstring>
 #include <ctime>
 #include "Compiler.h"
 #include "util.h"

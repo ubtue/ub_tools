@@ -34,8 +34,8 @@
 #include <unistd.h>
 #include "Compiler.h"
 #include "FileUtil.h"
-#include "MarcQueryParser.h"
 #include "MARC.h"
+#include "MarcQueryParser.h"
 #include "StringUtil.h"
 #include "util.h"
 
@@ -44,51 +44,51 @@ namespace {
 
 
 char help_text[] =
-  "  \"--limit\"  Only process the first \"count\" records.\n"
-  "  \"--sample-rate\"  Only process every \"rate\"-th record.\n"
-  "  \"--control-number-list\"  Only process records whose control numbers are listed in the specified file.\n"
-  "\n"
-  "  Query syntax:\n"
-  "    query                                    = [ leader_condition ] simple_query\n"
-  "    leader_condition                         = \"leader[\" offset_range \"]=\" string_constant\n"
-  "    offset_range                             = start_offset [ \"-\" end_offset ]\n"
-  "    start_offset                             = unsigned_integer\n"
-  "    end_offset                               = unsigned_integer\n"
-  "    unsigned_integer                         = digit { digit }\n"
-  "    digit                                    = \"0\" | \"1\" | \"2\" | \"3\" | \"4\" | \"5\" | \"6\" | \"7\"\n"
-  "                                               | \"8\" | \"9\"\n"
-  "    simple_query                             = simple_field_list | conditional_field_or_subfield_references\n"
-  "    simple_field_list                        = field_or_subfield_reference\n"
-  "                                               { \":\" field_or_subfield_reference }\n"
-  "    field_or_subfield_reference              = '\"' , (field_reference | subfield_reference) '\"'\n"
-  "    subfield_field_reference                 = field_reference , subfield_code , { subfield_code }\n"
-  "    field_reference                          = tag , [ indicator_specification ]\n"
-  "    indicator_specification                  = '[' , indicator , indicator ']'\n"
-  "    indicator                                = letter_or_digit | '#'\n"
-  "    conditional_field_or_subfield_references = conditional_field_or_subfield_reference\n"
-  "                                               { \",\" conditional_field_or_subfield_reference }\n"
-  "    conditional_field_or_subfield_reference  = \"if\" condition \"extract\"\n"
-  "                                               (field_or_subfield_reference | \"*\")\n"
-  "    condition                                = field_or_subfield_reference comp_op reg_ex\n"
-  "                                               | field_or_subfield_reference \"exists\"\n"
-  "                                               | field_or_subfield_reference \"is_missing\"\n"
-  "    reg_ex                                   = string_constant\n"
-  "    comp_op                                  = \"==\" | \"!=\" | \"===\" | \"!==\"\n"
-  "\n"
-  "  String constants start and end with double quotes. Backslashes and double quotes within need to be escaped\n"
-  "  with a backslash. The difference between the \"==\" and \"!=\" vs. \"===\" and \"!===\" comparision\n"
-  "  operators is that the latter compares subfields within a given field while the former compares against any two\n"
-  "  matching fields or subfields.  This becomes relevant when there are multiple occurrences of a field in a\n"
-  "  record. \"*\" matches all fields.  Field and subfield references are strings and thus need to be quoted.\n"
-  "  The special indicator '#' is the wildcard indicator and will match any actual indicator value.\n"
-  "\n"
-  "  Output label format:\n"
-  "    label_format = matched_field_or_subfield | control_number | control_number_and_matched_field_or_subfield\n"
-  "                   | no_label | marc_binary | marc_xml | control_number_and_traditional\n"
-  "\n"
-  "  The default output label is the control number followed by a colon followed by the matched field or \n"
-  "  subfield followed by a colon.  When the formats are \"marc_binary\" or \"marc_xml\" entire records will always\n"
-  "  be copied.\n";
+    "  \"--limit\"  Only process the first \"count\" records.\n"
+    "  \"--sample-rate\"  Only process every \"rate\"-th record.\n"
+    "  \"--control-number-list\"  Only process records whose control numbers are listed in the specified file.\n"
+    "\n"
+    "  Query syntax:\n"
+    "    query                                    = [ leader_condition ] simple_query\n"
+    "    leader_condition                         = \"leader[\" offset_range \"]=\" string_constant\n"
+    "    offset_range                             = start_offset [ \"-\" end_offset ]\n"
+    "    start_offset                             = unsigned_integer\n"
+    "    end_offset                               = unsigned_integer\n"
+    "    unsigned_integer                         = digit { digit }\n"
+    "    digit                                    = \"0\" | \"1\" | \"2\" | \"3\" | \"4\" | \"5\" | \"6\" | \"7\"\n"
+    "                                               | \"8\" | \"9\"\n"
+    "    simple_query                             = simple_field_list | conditional_field_or_subfield_references\n"
+    "    simple_field_list                        = field_or_subfield_reference\n"
+    "                                               { \":\" field_or_subfield_reference }\n"
+    "    field_or_subfield_reference              = '\"' , (field_reference | subfield_reference) '\"'\n"
+    "    subfield_reference                       = field_reference , subfield_code , { subfield_code }\n"
+    "    field_reference                          = tag , [ indicator_specification ]\n"
+    "    indicator_specification                  = '[' , indicator , indicator ']'\n"
+    "    indicator                                = letter_or_digit | '#'\n"
+    "    conditional_field_or_subfield_references = conditional_field_or_subfield_reference\n"
+    "                                               { \",\" conditional_field_or_subfield_reference }\n"
+    "    conditional_field_or_subfield_reference  = \"if\" condition \"extract\"\n"
+    "                                               (field_or_subfield_reference | \"*\")\n"
+    "    condition                                = field_or_subfield_reference comp_op reg_ex\n"
+    "                                               | field_or_subfield_reference \"exists\"\n"
+    "                                               | field_or_subfield_reference \"is_missing\"\n"
+    "    reg_ex                                   = string_constant\n"
+    "    comp_op                                  = \"==\" | \"!=\" | \"===\" | \"!==\"\n"
+    "\n"
+    "  String constants start and end with double quotes. Backslashes and double quotes within need to be escaped\n"
+    "  with a backslash. The difference between the \"==\" and \"!=\" vs. \"===\" and \"!===\" comparision\n"
+    "  operators is that the latter compares subfields within a given field while the former compares against any two\n"
+    "  matching fields or subfields.  This becomes relevant when there are multiple occurrences of a field in a\n"
+    "  record. \"*\" matches all fields.  Field and subfield references are strings and thus need to be quoted.\n"
+    "  The special indicator '#' is the wildcard indicator and will match any actual indicator value.\n"
+    "\n"
+    "  Output label format:\n"
+    "    label_format = matched_field_or_subfield | control_number | control_number_and_matched_field_or_subfield\n"
+    "                   | no_label | marc_binary | marc_xml | control_number_and_traditional\n"
+    "\n"
+    "  The default output label is the control number followed by a colon followed by the matched field or \n"
+    "  subfield followed by a colon.  When the formats are \"marc_binary\" or \"marc_xml\" entire records will always\n"
+    "  be copied.\n";
 
 
 void Usage() {
@@ -99,9 +99,7 @@ void Usage() {
 }
 
 
-void LoadControlNumbers(const std::string &control_numbers_filename,
-                        std::unordered_set<std::string> * const control_numbers)
-{
+void LoadControlNumbers(const std::string &control_numbers_filename, std::unordered_set<std::string> * const control_numbers) {
     std::unique_ptr<File> input(FileUtil::OpenInputFileOrDie(control_numbers_filename));
     while (not input->eof()) {
         std::string line;
@@ -113,8 +111,16 @@ void LoadControlNumbers(const std::string &control_numbers_filename,
 }
 
 
-enum OutputLabel { MATCHED_FIELD_OR_SUBFIELD_ONLY, CONTROL_NUMBER_ONLY, CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD,
-                   TRADITIONAL, NO_LABEL, MARC_BINARY, MARC_XML, CONTROL_NUMBER_AND_TRADITIONAL };
+enum OutputLabel {
+    MATCHED_FIELD_OR_SUBFIELD_ONLY,
+    CONTROL_NUMBER_ONLY,
+    CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD,
+    TRADITIONAL,
+    NO_LABEL,
+    MARC_BINARY,
+    MARC_XML,
+    CONTROL_NUMBER_AND_TRADITIONAL
+};
 
 
 OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
@@ -139,9 +145,8 @@ OutputLabel ParseOutputLabel(const std::string &label_format_candidate) {
 }
 
 
-void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_subfield_code,
-          const std::string &contents, const OutputLabel output_format)
-{
+void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_subfield_code, const std::string &contents,
+          const OutputLabel output_format) {
     switch (output_format) {
     case MATCHED_FIELD_OR_SUBFIELD_ONLY:
         std::cout << tag_or_tag_plus_subfield_code << ':' << contents << '\n';
@@ -153,8 +158,7 @@ void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_
         std::cout << control_number << ':' << tag_or_tag_plus_subfield_code << ':' << contents << '\n';
         return;
     case TRADITIONAL:
-        std::cout << tag_or_tag_plus_subfield_code.substr(0, 3) << ' ' << StringUtil::Map(contents, '\x1F', '$')
-                  << '\n';
+        std::cout << tag_or_tag_plus_subfield_code.substr(0, 3) << ' ' << StringUtil::Map(contents, '\x1F', '$') << '\n';
         return;
     case NO_LABEL:
         std::cout << contents << '\n';
@@ -163,8 +167,7 @@ void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_
     case MARC_XML:
         LOG_ERROR("MARC_BINARY or MARC_XML should never be passed into Emit(0!");
     case CONTROL_NUMBER_AND_TRADITIONAL:
-        std::cout << control_number << ':' << tag_or_tag_plus_subfield_code << ':'
-                  << StringUtil::Map(contents, '\x1F', '$') << '\n';
+        std::cout << control_number << ':' << tag_or_tag_plus_subfield_code << ':' << StringUtil::Map(contents, '\x1F', '$') << '\n';
         return;
     }
 }
@@ -173,6 +176,7 @@ void Emit(const std::string &control_number, const std::string &tag_or_tag_plus_
 class TagAndContents {
     std::string tag_or_tag_plus_subfield_code_;
     std::string contents_;
+
 public:
     TagAndContents(const std::string &tag_or_tag_plus_subfield_code, const std::string &contents)
         : tag_or_tag_plus_subfield_code_(tag_or_tag_plus_subfield_code), contents_(contents) { }
@@ -185,7 +189,7 @@ public:
     TagAndContents &operator=(const TagAndContents &rhs) {
         if (&rhs != this) {
             tag_or_tag_plus_subfield_code_ = rhs.tag_or_tag_plus_subfield_code_;
-            contents_                      = rhs.contents_;
+            contents_ = rhs.contents_;
         }
 
         return *this;
@@ -194,26 +198,22 @@ public:
     const std::string &getTagOrTagPlusSubfieldCode() const { return tag_or_tag_plus_subfield_code_; }
     const std::string &getContents() const { return contents_; }
 
-    bool operator<(const TagAndContents &rhs) const
-        { return tag_or_tag_plus_subfield_code_ > rhs.tag_or_tag_plus_subfield_code_; }
+    bool operator<(const TagAndContents &rhs) const { return tag_or_tag_plus_subfield_code_ > rhs.tag_or_tag_plus_subfield_code_; }
 };
 
 
 void Emit(const std::string &control_number, const OutputLabel output_format,
-          std::priority_queue<TagAndContents> * const tags_and_contents)
-{
+          std::priority_queue<TagAndContents> * const tags_and_contents) {
     while (not tags_and_contents->empty()) {
         const TagAndContents &tag_and_contents(tags_and_contents->top());
-        Emit(control_number, tag_and_contents.getTagOrTagPlusSubfieldCode(), tag_and_contents.getContents(),
-             output_format);
+        Emit(control_number, tag_and_contents.getTagOrTagPlusSubfieldCode(), tag_and_contents.getContents(), output_format);
         tags_and_contents->pop();
     }
 }
 
 
 bool EnqueueSubfields(const std::string &tag, const char subfield_code, const std::string &contents,
-                      std::priority_queue<TagAndContents> * const tags_and_contents)
-{
+                      std::priority_queue<TagAndContents> * const tags_and_contents) {
     std::string tag_plus_subfield_code(tag);
     tag_plus_subfield_code += subfield_code;
     const MARC::Subfields subfields(contents);
@@ -241,7 +241,7 @@ bool ProcessEqualityComp(const ConditionDescriptor &cond_desc, const MARC::Recor
                 return comp_type == ConditionDescriptor::EQUAL_EQUAL;
             if (unlikely(not err_msg.empty()))
                 LOG_ERROR("match failed (" + err_msg + ")! (1)");
-        } else  { // We need to match against a subfield's content.
+        } else { // We need to match against a subfield's content.
             for (const auto &subfield : field.getSubfields()) {
                 if (subfield.code_ == subfield_codes[0]) {
                     if (cond_desc.getDataMatcher().matched(subfield.value_, &err_msg))
@@ -277,9 +277,8 @@ bool ProcessExistenceTest(const ConditionDescriptor &cond_desc, const MARC::Reco
 
 
 bool ProcessConditions(const OutputLabel output_format, const ConditionDescriptor &cond_desc,
-                       const FieldOrSubfieldDescriptor &field_or_subfield_desc,
-                       const MARC::Record &record, std::priority_queue<TagAndContents> * const tags_and_contents)
-{
+                       const FieldOrSubfieldDescriptor &field_or_subfield_desc, const MARC::Record &record,
+                       std::priority_queue<TagAndContents> * const tags_and_contents) {
     const std::string extraction_tag(field_or_subfield_desc.getTag());
     if (extraction_tag != "*" and not record.hasTag(extraction_tag))
         return false;
@@ -366,8 +365,7 @@ bool ProcessConditions(const OutputLabel output_format, const ConditionDescripto
 
 
 void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const std::unordered_set<std::string> &control_numbers,
-               MARC::Reader * const marc_reader, const QueryDescriptor &query_desc, const OutputLabel output_format)
-{
+               MARC::Reader * const marc_reader, const QueryDescriptor &query_desc, const OutputLabel output_format) {
     std::unique_ptr<MARC::Writer> marc_writer(nullptr);
     if (output_format == MARC_BINARY or output_format == MARC_XML)
         marc_writer = MARC::Writer::Factory("/proc/self/fd/1", (output_format == MARC_XML) ? MARC::FileType::XML : MARC::FileType::BINARY);
@@ -390,8 +388,8 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
         if (query_desc.hasLeaderCondition()) {
             const LeaderCondition &leader_cond(query_desc.getLeaderCondition());
             const std::string &leader(record.getLeader());
-            if (leader.substr(leader_cond.getStartOffset(),
-                              leader_cond.getEndOffset() - leader_cond.getStartOffset() + 1) != leader_cond.getMatch())
+            if (leader.substr(leader_cond.getStartOffset(), leader_cond.getEndOffset() - leader_cond.getStartOffset() + 1)
+                != leader_cond.getMatch())
                 continue;
         }
 
@@ -401,8 +399,7 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
         // Extract fields and subfields:
         for (const auto &cond_and_field_or_subfield : query_desc.getCondsAndFieldOrSubfieldDescs()) {
             if (ProcessConditions(output_format, cond_and_field_or_subfield.first, cond_and_field_or_subfield.second, record,
-                                  &tags_and_contents))
-            {
+                                  &tags_and_contents)) {
                 matched = true;
                 if (output_format == MARC_BINARY or output_format == MARC_XML)
                     break;
@@ -427,8 +424,7 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
 
     if (not err_msg.empty())
         logger->error(err_msg);
-    std::cerr << "Matched " << matched_count << (matched_count == 1 ? " record of " :  " records of ") << count
-              << " overall records.\n";
+    std::cerr << "Matched " << matched_count << (matched_count == 1 ? " record of " : " records of ") << count << " overall records.\n";
 }
 
 
@@ -438,9 +434,9 @@ void FieldGrep(const unsigned max_records, const unsigned sampling_rate, const s
 int Main(int argc, char *argv[]) {
     MARC::FileType reader_type(MARC::FileType::AUTO);
     if (argc > 1 and std::strncmp(argv[1], "--input-format=", __builtin_strlen("--input-format=")) == 0) {
-        if (std::strcmp(argv[1] +  __builtin_strlen("--input-format="), "marc-xml") == 0)
+        if (std::strcmp(argv[1] + __builtin_strlen("--input-format="), "marc-xml") == 0)
             reader_type = MARC::FileType::XML;
-        else if (std::strcmp(argv[1] +  __builtin_strlen("--input-format="), "marc-21") == 0)
+        else if (std::strcmp(argv[1] + __builtin_strlen("--input-format="), "marc-21") == 0)
             reader_type = MARC::FileType::BINARY;
         else
             LOG_ERROR("input format must be \"marc-xml\" or \"marc-21\"!");
@@ -494,8 +490,7 @@ int Main(int argc, char *argv[]) {
     if (not ParseQuery(argv[2], &query_desc, &err_msg))
         logger->error("Query parsing failed: " + err_msg);
 
-    const OutputLabel output_label = (argc == 4) ? ParseOutputLabel(argv[3])
-        : CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD;
+    const OutputLabel output_label = (argc == 4) ? ParseOutputLabel(argv[3]) : CONTROL_NUMBER_AND_MATCHED_FIELD_OR_SUBFIELD;
     FieldGrep(max_records, sampling_rate, control_numbers, marc_reader.get(), query_desc, output_label);
 
     return EXIT_SUCCESS;

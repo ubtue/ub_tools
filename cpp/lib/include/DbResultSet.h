@@ -35,6 +35,7 @@ class DbResultSet {
     friend class Sqlite3DbConnection;
     friend class PostgresDbConnection;
     DbResultSet *db_result_set_;
+
 protected:
 public:
     DbResultSet(DbResultSet &&other);
@@ -65,8 +66,10 @@ public:
     /** \return The set of all values in column "column" contained in this result set. */
     std::unordered_set<std::string> getColumnSet(const std::string &column);
 
-    inline virtual const std::map<std::string, unsigned> getColumnNamesAndIndices() const
-        { return db_result_set_->getColumnNamesAndIndices(); }
+    inline virtual const std::map<std::string, unsigned> getColumnNamesAndIndices() const {
+        return db_result_set_->getColumnNamesAndIndices();
+    }
+
 protected:
     DbResultSet(): db_result_set_(nullptr) { }
     DbResultSet(DbResultSet * const db_result_set): db_result_set_(db_result_set) { }
@@ -80,6 +83,7 @@ class MySQLResultSet final : public DbResultSet {
     MYSQL_RES *mysql_res_;
     size_t no_of_rows_, column_count_;
     std::map<std::string, unsigned> field_name_to_index_map_;
+
 private:
     MySQLResultSet(MYSQL_RES * const mysql_res);
     virtual ~MySQLResultSet();
@@ -87,8 +91,9 @@ private:
     virtual size_t size() const { return no_of_rows_; }
     virtual size_t getColumnCount() const { return column_count_; }
     virtual DbRow getNextRow();
-    virtual bool hasColumn(const std::string &column_name) const
-        { return field_name_to_index_map_.find(column_name) != field_name_to_index_map_.cend(); }
+    virtual bool hasColumn(const std::string &column_name) const {
+        return field_name_to_index_map_.find(column_name) != field_name_to_index_map_.cend();
+    }
     virtual const std::map<std::string, unsigned> getColumnNamesAndIndices() const { return field_name_to_index_map_; }
 };
 
@@ -100,6 +105,7 @@ class Sqlite3ResultSet final : public DbResultSet {
     sqlite3_stmt *stmt_handle_;
     size_t no_of_rows_, column_count_;
     std::map<std::string, unsigned> field_name_to_index_map_;
+
 private:
     Sqlite3ResultSet(sqlite3_stmt * const stmt_handle);
     virtual ~Sqlite3ResultSet();
@@ -107,8 +113,9 @@ private:
     virtual size_t size() const { return no_of_rows_; }
     virtual size_t getColumnCount() const { return column_count_; }
     virtual DbRow getNextRow();
-    virtual bool hasColumn(const std::string &column_name) const
-        { return field_name_to_index_map_.find(column_name) != field_name_to_index_map_.cend(); }
+    virtual bool hasColumn(const std::string &column_name) const {
+        return field_name_to_index_map_.find(column_name) != field_name_to_index_map_.cend();
+    }
     virtual const std::map<std::string, unsigned> getColumnNamesAndIndices() const { return field_name_to_index_map_; }
 };
 
@@ -121,6 +128,7 @@ class PostgresResultSet final : public DbResultSet {
     int pg_row_number_;
     size_t no_of_rows_, column_count_;
     std::map<std::string, unsigned> field_name_to_index_map_;
+
 private:
     PostgresResultSet(PGresult * const pg_result);
     virtual ~PostgresResultSet() { }
@@ -128,7 +136,8 @@ private:
     virtual size_t size() const { return no_of_rows_; }
     virtual size_t getColumnCount() const { return column_count_; }
     virtual DbRow getNextRow();
-    virtual bool hasColumn(const std::string &column_name) const
-        { return field_name_to_index_map_.find(column_name) != field_name_to_index_map_.cend(); }
+    virtual bool hasColumn(const std::string &column_name) const {
+        return field_name_to_index_map_.find(column_name) != field_name_to_index_map_.cend();
+    }
     virtual const std::map<std::string, unsigned> getColumnNamesAndIndices() const { return field_name_to_index_map_; }
 };

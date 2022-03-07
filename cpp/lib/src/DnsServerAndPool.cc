@@ -45,9 +45,7 @@
 uint16_t DnsServer::next_query_id_;
 
 
-void DnsServer::OutstandingRequests::addRequest(const uint16_t query_id, const std::string &hostname,
-                                                const uint64_t expiration_time)
-{
+void DnsServer::OutstandingRequests::addRequest(const uint16_t query_id, const std::string &hostname, const uint64_t expiration_time) {
     expireOldRequests();
 
     // If we have too many requests, we remove the oldest one:
@@ -64,12 +62,12 @@ namespace {
 #endif
 
 
-class QueryIdMatch: public std::unary_function<DnsServer::OutstandingRequest, bool> {
+class QueryIdMatch : public std::unary_function<DnsServer::OutstandingRequest, bool> {
     uint16_t query_id_to_match_;
+
 public:
     explicit QueryIdMatch(const uint16_t query_id_to_match): query_id_to_match_(query_id_to_match) { }
-    bool operator()(const DnsServer::OutstandingRequest &request) const
-        { return request.query_id_ == query_id_to_match_; }
+    bool operator()(const DnsServer::OutstandingRequest &request) const { return request.query_id_ == query_id_to_match_; }
 };
 
 
@@ -80,8 +78,9 @@ public:
 
 bool DnsServer::OutstandingRequests::removeRequest(const uint16_t query_id, std::string * const hostname) {
     if (unlikely(empty()))
-        throw std::runtime_error("in DnsServer::OutstandingRequests::removeRequest: attempt to remove a request "
-                                 "from an empty list!");
+        throw std::runtime_error(
+            "in DnsServer::OutstandingRequests::removeRequest: attempt to remove a request "
+            "from an empty list!");
 
     const iterator request(std::find_if(begin(), end(), QueryIdMatch(query_id)));
     if (unlikely(request == end())) {
@@ -107,11 +106,9 @@ void DnsServer::OutstandingRequests::expireOldRequests() {
 }
 
 
-DnsServer::DnsServer(const in_addr_t &server_ip_address, const unsigned max_outstanding_request_count,
-                     const unsigned request_lifetime)
-    : server_ip_address_(server_ip_address), max_outstanding_request_count_(max_outstanding_request_count),
-      socket_fd_(-1), request_lifetime_(request_lifetime), outstanding_requests_(max_outstanding_request_count + 10)
-{
+DnsServer::DnsServer(const in_addr_t &server_ip_address, const unsigned max_outstanding_request_count, const unsigned request_lifetime)
+    : server_ip_address_(server_ip_address), max_outstanding_request_count_(max_outstanding_request_count), socket_fd_(-1),
+      request_lifetime_(request_lifetime), outstanding_requests_(max_outstanding_request_count + 10) {
     const protoent *protocol_entry = ::getprotobyname("udp");
     if (unlikely(protocol_entry == nullptr))
         throw std::runtime_error("in Resolver::Resolver: can't get protocol entry for \"udp\"!");
@@ -126,12 +123,12 @@ DnsServer::DnsServer(const in_addr_t &server_ip_address, const unsigned max_outs
 
     struct sockaddr_in socket_address;
     std::memset(&socket_address, 0, sizeof(socket_address));
-    socket_address.sin_family      = AF_INET;
-    socket_address.sin_port        = htons(53);
+    socket_address.sin_family = AF_INET;
+    socket_address.sin_port = htons(53);
     socket_address.sin_addr.s_addr = server_ip_address;
     if (::connect(socket_fd_, reinterpret_cast<sockaddr *>(&socket_address), sizeof(struct sockaddr_in)) != 0)
-        throw std::runtime_error("in DnsServer::DnsServer: can't connect(2) to "
-                                 + NetUtil::NetworkAddressToString(server_ip_address) + "!");
+        throw std::runtime_error("in DnsServer::DnsServer: can't connect(2) to " + NetUtil::NetworkAddressToString(server_ip_address)
+                                 + "!");
 }
 
 
@@ -167,9 +164,7 @@ bool DnsServer::addLookupRequest(const std::string &valid_hostname, uint16_t * c
 
 
 bool DnsServer::processServerReply(std::vector<in_addr_t> * const resolved_ip_addresses,
-                                   std::vector<std::string> * const resolved_domainnames,
-                                   uint32_t * const ttl, uint16_t * const query_id)
-{
+                                   std::vector<std::string> * const resolved_domainnames, uint32_t * const ttl, uint16_t * const query_id) {
     resolved_ip_addresses->clear();
     resolved_domainnames->clear();
 
@@ -191,9 +186,7 @@ bool DnsServer::processServerReply(std::vector<in_addr_t> * const resolved_ip_ad
     bool truncated;
     std::set<in_addr_t> ip_addresses;
     std::set<std::string> domainnames;
-    if (Resolver::DecodeReply(packet, read_retcode, &domainnames, &ip_addresses, ttl, &reply_id, &truncated,
-                              0 /* verbosity */))
-    {
+    if (Resolver::DecodeReply(packet, read_retcode, &domainnames, &ip_addresses, ttl, &reply_id, &truncated, 0 /* verbosity */)) {
         std::string original_request_hostname;
         if (likely(outstanding_requests_.removeRequest(reply_id, &original_request_hostname))) {
             resolved_ip_addresses->clear();
@@ -258,12 +251,9 @@ void DnsCache::insert(const std::string &hostname, const in_addr_t &ip_address, 
 }
 
 
-DnsServerPool::DnsServerPool(const std::vector<in_addr_t> &dns_server_ip_addresses,
-                             std::vector<int> * const server_socket_file_descriptors,
-                             const unsigned request_lifetime, const unsigned max_queue_length_per_server,
-                             const unsigned max_cache_size)
-    : cache_(max_cache_size), max_queue_length_per_server_(max_queue_length_per_server)
-{
+DnsServerPool::DnsServerPool(const std::vector<in_addr_t> &dns_server_ip_addresses, std::vector<int> * const server_socket_file_descriptors,
+                             const unsigned request_lifetime, const unsigned max_queue_length_per_server, const unsigned max_cache_size)
+    : cache_(max_cache_size), max_queue_length_per_server_(max_queue_length_per_server) {
     if (unlikely(dns_server_ip_addresses.size() < 2))
         throw std::runtime_error("in DnsServerPool::DnsServerPool: can't create a \"pool\" with less than 2 server IP addresses!");
 
@@ -335,11 +325,10 @@ bool DnsServerPool::processServerReply(const int socket_fd, in_addr_t * const re
             if (resolved_ip_addresses.empty()) {
                 cache_.insertUnresolvableEntry(resolved_domainnames.front());
                 *resolved_ip_address = DnsCache::BAD_ENTRY;
-            }
-            else {
+            } else {
                 *resolved_ip_address = *resolved_ip_addresses.begin();
                 for (std::vector<std::string>::const_iterator domainname(resolved_domainnames.begin());
-                     domainname!= resolved_domainnames.end(); ++domainname)
+                     domainname != resolved_domainnames.end(); ++domainname)
                     cache_.insert(*domainname, *resolved_ip_address, ttl);
             }
 
@@ -347,7 +336,6 @@ bool DnsServerPool::processServerReply(const int socket_fd, in_addr_t * const re
 
             return true;
         }
-
     }
 
     throw std::runtime_error("in DnsServerPool::processServerReply: received reply for an unknown socket file descriptor "

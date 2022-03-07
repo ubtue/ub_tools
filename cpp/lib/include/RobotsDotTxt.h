@@ -28,9 +28,9 @@
 
 
 #include <mutex>
+#include <string>
 #include <unordered_map>
 #include <cinttypes>
-#include <string>
 #include <ctime>
 #include <HtmlParser.h>
 #include <ThreadUtil.h>
@@ -38,7 +38,7 @@
 
 
 // Forward declaration(s):
-//class DbConnection;
+// class DbConnection;
 
 
 /** \class  RobotsDotTxt
@@ -51,6 +51,7 @@ class RobotsDotTxt {
     class Rule {
         RuleType rule_type_;
         std::string path_prefix_;
+
     public:
         Rule(const RuleType rule_type, const std::string &path_prefix);
         bool match(const std::string &path) const;
@@ -62,6 +63,7 @@ class RobotsDotTxt {
         std::vector<std::string> user_agent_patterns_;
         std::vector<Rule> rules_;
         unsigned crawl_delay_;
+
     public:
         UserAgentDescriptor(): crawl_delay_(0) { }
         void addUserAgent(const std::string &user_agent_pattern) { user_agent_patterns_.push_back(user_agent_pattern); }
@@ -72,10 +74,15 @@ class RobotsDotTxt {
         unsigned getCrawlDelay() const { return crawl_delay_; }
         void copyRules(const UserAgentDescriptor &from);
         size_t getNoOfUserAgentPatterns() const { return user_agent_patterns_.size(); }
-        void clear() { user_agent_patterns_.clear();  rules_.clear();  crawl_delay_ = 0; }
+        void clear() {
+            user_agent_patterns_.clear();
+            rules_.clear();
+            crawl_delay_ = 0;
+        }
         std::string toString() const;
     };
     std::vector<UserAgentDescriptor> user_agent_descriptors_;
+
 public:
     /** \brief  Constructs a RobotsDotTxt object.
      *  \note   If you use this constructor you must call "reinitialize" at some later point.
@@ -132,13 +139,15 @@ public:
 /** \class  RobotsMetaTagExtractor
  *  \brief  Looks for "robots" meta tags and extracts index/noindex, follow/nofollow, and archive/noarchive information.
  */
-class RobotsMetaTagExtractor: private HtmlParser {
+class RobotsMetaTagExtractor : private HtmlParser {
     bool index_, follow_, archive_;
+
 public:
     explicit RobotsMetaTagExtractor(const std::string &html_document);
     bool index() const { return index_; }
     bool follow() const { return follow_; }
     bool archive() const { return archive_; }
+
 private:
     virtual void notify(const Chunk &chunk);
 };
@@ -152,6 +161,7 @@ class RobotsDotTxtCache {
     std::unordered_map<std::string, RobotsDotTxt *> hostname_to_robots_dot_txt_map_;
     static std::mutex mutex_;
     static RobotsDotTxtCache *the_singleton_;
+
 public:
     void clear();
 
@@ -174,6 +184,7 @@ public:
     const RobotsDotTxt *getRobotsDotTxt(const std::string &hostname) const;
 
     static RobotsDotTxtCache &GetInstance();
+
 private:
     RobotsDotTxtCache(): max_cache_size_(10000) { }
     ~RobotsDotTxtCache() { clear(); }

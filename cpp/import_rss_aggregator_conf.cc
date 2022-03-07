@@ -33,11 +33,12 @@ namespace {
 
 
 // Returns true if we inserted or updated an entry in vufind.tuefind_rss_feeds else false.
-bool ProcessSection(const std::string &subsystem_type, const unsigned default_downloader_time_limit,
-                    DbConnection * const db_connection, const IniFile::Section &section)
-{
-    db_connection->queryOrDie("SELECT subsystem_types FROM vufind.tuefind_rss_feeds WHERE "
-                              "feed_name='" + section.getSectionName() + "'");
+bool ProcessSection(const std::string &subsystem_type, const unsigned default_downloader_time_limit, DbConnection * const db_connection,
+                    const IniFile::Section &section) {
+    db_connection->queryOrDie(
+        "SELECT subsystem_types FROM vufind.tuefind_rss_feeds WHERE "
+        "feed_name='"
+        + section.getSectionName() + "'");
 
     auto result_set(db_connection->getLastResultSet());
     if (result_set.empty()) {
@@ -46,10 +47,9 @@ bool ProcessSection(const std::string &subsystem_type, const unsigned default_do
         const auto title_suppression_regex(section.getString("title_suppression_regex", ""));
         const auto strptime_format(section.getString("strptime_format", ""));
         const auto downloader_time_limit(section.getUnsigned("downloader_time_limit", default_downloader_time_limit));
-        std::string QUERY("INSERT INTO vufind.tuefind_rss_feeds SET feed_name='" + section.getSectionName()
-                          + "',subsystem_types='" + subsystem_type
-                          + "',feed_url='" + db_connection->escapeString(feed_url)
-                          + "',website_url='" + db_connection->escapeString(blog_url)
+        std::string QUERY("INSERT INTO vufind.tuefind_rss_feeds SET feed_name='" + section.getSectionName() + "',subsystem_types='"
+                          + subsystem_type + "',feed_url='" + db_connection->escapeString(feed_url) + "',website_url='"
+                          + db_connection->escapeString(blog_url)
                           + "',downloader_time_limit=" + StringUtil::ToString(downloader_time_limit));
         if (not title_suppression_regex.empty())
             QUERY += ",title_suppression_regex='" + db_connection->escapeString(title_suppression_regex) + "'";
@@ -61,8 +61,8 @@ bool ProcessSection(const std::string &subsystem_type, const unsigned default_do
         if (subsystem_types.find(subsystem_type) != std::string::npos)
             return false; // Nothing to do!
         subsystem_types += "," + subsystem_type;
-        db_connection->queryOrDie("UPDATE vufind.tuefind_rss_feeds SET subsystem_types='" + subsystem_types
-                                  + "' WHERE feed_name='" + section.getSectionName() + "'");
+        db_connection->queryOrDie("UPDATE vufind.tuefind_rss_feeds SET subsystem_types='" + subsystem_types + "' WHERE feed_name='"
+                                  + section.getSectionName() + "'");
     }
 
     return true;
@@ -99,8 +99,7 @@ int Main(int argc, char *argv[]) {
     }
 
     LOG_INFO("Processed " + std::to_string(feed_section_count) + " feed(s).");
-    LOG_INFO("Updated or inserted " + std::to_string(updated_or_inserted)
-             + " entry/entries in/into vufind.tuefind_rss_feeds.");
+    LOG_INFO("Updated or inserted " + std::to_string(updated_or_inserted) + " entry/entries in/into vufind.tuefind_rss_feeds.");
 
     return EXIT_SUCCESS;
 }

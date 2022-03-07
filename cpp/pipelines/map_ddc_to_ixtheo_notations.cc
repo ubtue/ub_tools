@@ -47,6 +47,7 @@ class IxTheoMapper {
     std::string from_hierarchy_;
     std::string to_ix_theo_notation_;
     std::vector<std::string> exclusions_;
+
 public:
     explicit IxTheoMapper(const std::vector<std::string> &map_file_line);
 
@@ -88,19 +89,16 @@ void LoadCSVFile(const std::string &filename, std::vector<IxTheoMapper> * const 
 
 
 void UpdateIxTheoNotations(const std::vector<IxTheoMapper> &mappers, const std::set<std::string> &orig_values,
-                           std::string * const ixtheo_notations_list)
-{
+                           std::string * const ixtheo_notations_list) {
     std::vector<std::string> ixtheo_notations_vector;
-    StringUtil::Split(*ixtheo_notations_list, ':', &ixtheo_notations_vector, /* suppress_empty_components = */true);
+    StringUtil::Split(*ixtheo_notations_list, ':', &ixtheo_notations_vector, /* suppress_empty_components = */ true);
     std::set<std::string> previously_assigned_notations(std::make_move_iterator(ixtheo_notations_vector.begin()),
                                                         std::make_move_iterator(ixtheo_notations_vector.end()));
 
     for (const auto &mapper : mappers) {
         for (const auto &orig_value : orig_values) {
             const std::string mapped_value(mapper.map(orig_value));
-            if (not mapped_value.empty()
-                and previously_assigned_notations.find(mapped_value) == previously_assigned_notations.end())
-            {
+            if (not mapped_value.empty() and previously_assigned_notations.find(mapped_value) == previously_assigned_notations.end()) {
                 if (not ixtheo_notations_list->empty())
                     *ixtheo_notations_list += ':';
                 *ixtheo_notations_list += mapped_value;
@@ -112,8 +110,7 @@ void UpdateIxTheoNotations(const std::vector<IxTheoMapper> &mappers, const std::
 
 
 void ProcessRecords(MARC::Reader * const marc_reader, MARC::Writer * const marc_writer,
-                    const std::vector<IxTheoMapper> &ddc_to_ixtheo_notation_mappers)
-{
+                    const std::vector<IxTheoMapper> &ddc_to_ixtheo_notation_mappers) {
     unsigned count(0), records_with_ixtheo_notations(0), records_with_new_notations(0), skipped_group_count(0);
     while (MARC::Record record = marc_reader->read()) {
         ++count;
