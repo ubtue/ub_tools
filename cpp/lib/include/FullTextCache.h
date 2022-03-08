@@ -128,6 +128,7 @@ public:
     bool hasUrlWithTextType(const std::string &id, const TextType &text_type);
 
     bool hasEntryWithType(const std::string &id, const TextType &text_type) const;
+    bool hasEntry(const std::string &id) const;
 };
 
 

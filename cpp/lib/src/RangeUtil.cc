@@ -644,16 +644,6 @@ namespace {
 const unsigned OFFSET(10000000);
 
 
-// \return the current day as a range endpoint
-inline std::string Now() {
-    unsigned year, month, day;
-    TimeUtil::GetCurrentDate(&year, &month, &day);
-    return StringUtil::ToString(year + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0')
-           + StringUtil::ToString(month, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0')
-           + StringUtil::ToString(day, /* radix = */ 10, /* width = */ 2, /* padding_char = */ '0');
-}
-
-
 } // unnamed namespace
 
 
@@ -706,9 +696,6 @@ std::string ConvertTimeRangeToText(const std::string &range) {
 
 // Deals with date ranges like "XX.XX.1992-22.09.2000", "XX.01.1906-XX.XX.1936" etc.
 static void ReplaceXs(std::string * const time_range_candidate) {
-    if (likely(time_range_candidate->find("XX") == std::string::npos))
-        return; // No substitutions are required!
-
     const size_t dash_pos(time_range_candidate->find('-'));
     if (unlikely(dash_pos == std::string::npos))
         return; // Not a date range!
@@ -731,10 +718,7 @@ static void ReplaceXs(std::string * const time_range_candidate) {
     // 2. Deal w/ X's after the dash.
     //
 
-    if (likely(time_range_candidate->find("XX", dash_pos) == std::string::npos))
-        return; // No substitutions after the dash are required!
-
-    const std::string range_start_plus_dash(time_range_candidate->substr(0, dash_pos + 1));
+    std::string range_start_plus_dash(time_range_candidate->substr(0, dash_pos + 1));
     if (StringUtil::StartsWith(time_range_candidate->substr(dash_pos + 1), "XX.XX.XXXX")
         or StringUtil::StartsWith(time_range_candidate->substr(dash_pos + 1), "XXXX"))
     {
@@ -763,6 +747,8 @@ static void ReplaceXs(std::string * const time_range_candidate) {
             range_end = "30" + range_end.substr(2);
     }
 
+    range_start_plus_dash = StringUtil::ReplaceString("X", "0", range_start_plus_dash);
+    range_end = StringUtil::ReplaceString("X", "9", range_end);
     *time_range_candidate = range_start_plus_dash + range_end;
 }
 
@@ -785,28 +771,21 @@ bool ConvertTextToTimeRange(std::string text, std::string * const range, const b
         return true;
     }
 
-    static auto matcher2(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d\\d\\d\\d)-$"));
-    if (matcher2->matched(text)) {
-        const unsigned year(StringUtil::ToUnsigned((*matcher2)[1]));
-        *range = StringUtil::ToString(year + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "0101_" + Now();
-        return true;
-    }
-
     static const std::string BEFORE_CHRIST_PATTERNS("(?: ?v\\. ?[Cc]hr\\.|BC|avant J\\.-C\\.|a\\.C\\.|公元前)"); // de:en:fr:it:cn
-    static auto matcher3(
+    static auto matcher2(
         RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{2,4})" + BEFORE_CHRIST_PATTERNS + "? ?- ?(\\d{2,4})" + BEFORE_CHRIST_PATTERNS + "$"));
-    if (matcher3->matched(text)) {
-        const unsigned year1(StringUtil::ToUnsigned((*matcher3)[1]));
-        const unsigned year2(StringUtil::ToUnsigned((*matcher3)[2]));
+    if (matcher2->matched(text)) {
+        const unsigned year1(StringUtil::ToUnsigned((*matcher2)[1]));
+        const unsigned year2(StringUtil::ToUnsigned((*matcher2)[2]));
         *range = StringUtil::ToString(OFFSET - year1, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "0101_"
                  + StringUtil::ToString(OFFSET - year2, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "1231";
         return true;
     }
 
-    static auto matcher3b(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{2,4})" + BEFORE_CHRIST_PATTERNS + "? ?- ?(\\d{2,4})" + "$"));
-    if (matcher3b->matched(text)) {
-        const unsigned year1(StringUtil::ToUnsigned((*matcher3b)[1]));
-        const unsigned year2(StringUtil::ToUnsigned((*matcher3b)[2]));
+    static auto matcher3(RegexMatcher::RegexMatcherFactoryOrDie("^(\\d{2,4})" + BEFORE_CHRIST_PATTERNS + "? ?- ?(\\d{2,4})" + "$"));
+    if (matcher3->matched(text)) {
+        const unsigned year1(StringUtil::ToUnsigned((*matcher3)[1]));
+        const unsigned year2(StringUtil::ToUnsigned((*matcher3)[2]));
         *range = StringUtil::ToString(OFFSET - year1, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "0101_"
                  + StringUtil::ToString(year2 + OFFSET, /* radix = */ 10, /* width = */ 8, /* padding_char = */ '0') + "1231";
         return true;

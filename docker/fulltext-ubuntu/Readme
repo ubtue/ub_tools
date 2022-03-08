@@ -1,0 +1,2 @@
+If elasticsearch installation fails due to unsufficient map error, use the following command:
+sysctl -w vm.max_map_count=262144

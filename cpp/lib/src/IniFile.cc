@@ -311,6 +311,11 @@ static inline bool ContainsSpacesOrDoubleQuotes(const std::string &value) {
 }
 
 
+static inline bool StartsWithEqualSign(const std::string &value) {
+    return (not value.empty()) and (value[0] == '=');
+}
+
+
 void IniFile::Section::write(File * const output, const bool pretty_print, const bool compact) const {
     if (unlikely(not section_name_.empty() and not output->writeln("[" + section_name_ + "]")))
         LOG_ERROR("failed to write section header to \"" + output->getPath() + "\"!");
@@ -345,7 +350,7 @@ void IniFile::Section::write(File * const output, const bool pretty_print, const
             if (max_name_length > 0)
                 line += std::string(max_name_length - entry.name_.length(), ' ');
             line += " = ";
-            const bool need_quotes(entry.value_.empty() or ContainsSpacesOrDoubleQuotes(entry.value_));
+            const bool need_quotes(entry.value_.empty() or ContainsSpacesOrDoubleQuotes(entry.value_) or StartsWithEqualSign(entry.value_));
             if (need_quotes)
                 line += '"';
             if (need_quotes)

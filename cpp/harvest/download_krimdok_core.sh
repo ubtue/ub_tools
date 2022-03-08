@@ -33,7 +33,6 @@ mkdir -p $subdir
 
 #start=$TIMESTAMP
 start=2000-01-01
-start=2019-11-01
 end=$(date +%F)
 records_found=false
 
@@ -44,7 +43,7 @@ while ! [[ $start > $end ]]; do
     #sample mode end
 
     next=$(date -d "$start + 1 month" +%F)
-    #QUERY=$(/usr/local/bin/urlencode "(title:criminology OR title:criminological OR title:kriminologie) AND createdDate<2019-01-01")
+    #req. by mail 20220224: use criminolog* for selected languages, language selection seems to work only for one language (as in website)
     declare QUERY=$(/usr/local/bin/urlencode "(criminolog* AND createdDate>=${start} AND createdDate<${next})")
 
     for (( loopctr=0; loopctr<=100; loopctr++ ))
