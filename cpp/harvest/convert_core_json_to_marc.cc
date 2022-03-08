@@ -104,11 +104,15 @@ void ProcessDownloadURL(const JSON::ObjectNode &entry_object, MARC::Record * con
 }
 
 
-void ProcessLanguage(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
+bool ProcessLanguage(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
     if (entry_object.getNode("language")->getType() == JSON::JSONNode::NULL_NODE)
-        return;
+        return false;
     const auto language_object(entry_object.getObjectNode("language"));
-    record->insertField("041", 'a', MARC::MapToMARCLanguageCode(language_object->getStringNode("code")->getValue()));
+    std::string lang = MARC::MapToMARCLanguageCode(language_object->getStringNode("code")->getValue());
+    if (lang != "en" and lang != "de" and lang != "es" and lang != "eu" and lang != "ca" and lang != "pt" and lang != "it" and lang != "nl")
+        return false;
+    record->insertField("041", 'a', lang);
+    return true;
 }
 
 
@@ -230,7 +234,8 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
             new_record.insertField("852", 'a', project_sigil);
             ProcessYear(*entry_object, &new_record);
             ProcessDownloadURL(*entry_object, &new_record);
-            ProcessLanguage(*entry_object, &new_record);
+            if (not ProcessLanguage(*entry_object, &new_record))
+                continue;
             ProcessAbstract(*entry_object, &new_record);
             ProcessUncontrolledIndexTerms(*entry_object, &new_record);
             ProcessYearPublished(*entry_object, &new_record);
