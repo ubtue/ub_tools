@@ -61,7 +61,7 @@ char help_text[] =
     "    simple_field_list                        = field_or_subfield_reference\n"
     "                                               { \":\" field_or_subfield_reference }\n"
     "    field_or_subfield_reference              = '\"' , (field_reference | subfield_reference) '\"'\n"
-    "    subfield_field_reference                 = field_reference , subfield_code , { subfield_code }\n"
+    "    subfield_reference                       = field_reference , subfield_code , { subfield_code }\n"
     "    field_reference                          = tag , [ indicator_specification ]\n"
     "    indicator_specification                  = '[' , indicator , indicator ']'\n"
     "    indicator                                = letter_or_digit | '#'\n"
