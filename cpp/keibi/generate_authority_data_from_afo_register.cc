@@ -17,6 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <iomanip>
 #include <iostream>
 #include <string>
 #include <unordered_set>
@@ -80,9 +81,11 @@ namespace {
 
 
 using AfOMultiSet = std::unordered_multiset<AfOEntry>;
+using AfOMultiSetIterator = std::unordered_multiset<AfOEntry>::const_iterator;
+using AfOMultiSetRange = std::pair<AfOMultiSetIterator, AfOMultiSetIterator>;
 
 
-void GenerateAfOSet(const std::string &afo_file_path, AfOMultiSet * const afo_multi_set) {
+void AddToAfOMultiset(const std::string &afo_file_path, AfOMultiSet * const afo_multi_set) {
     std::vector<std::vector<std::string>> lines;
     TextUtil::ParseCSVFileOrDie(afo_file_path, &lines, '\t', '\0');
     unsigned linenum(0);
@@ -101,6 +104,7 @@ void GenerateAfOSet(const std::string &afo_file_path, AfOMultiSet * const afo_mu
     }
 }
 
+
 void CleanCSVAndWriteToTempFile(const std::string &afo_file_path, FileUtil::AutoTempFile * const tmp_file) {
     std::unique_ptr<File> afo_tmp_file(FileUtil::OpenOutputFileOrDie(tmp_file->getFilePath()));
     for (auto line : FileUtil::ReadLines(afo_file_path)) {
@@ -114,7 +118,34 @@ void CleanCSVAndWriteToTempFile(const std::string &afo_file_path, FileUtil::Auto
     }
 }
 
+__attribute__((unused))
+MARC::Record * CreateNewRecord(const std::string &ppn, const AfOMultiSetRange &range) {
+   // auto new_record(new MARC::Record(MARC::Record::TypeOfRecord::AUTHORITY, MARC::Record::BibliographicLevel::UNDEFINED, ppn));
+    auto new_record(new MARC::Record("02676cz  a2200529n  4500"));
+    new_record->insertControlField("001", ppn);
+    if (range.first != std::end(AfOMultiSet()))
+        new_record->insertField("150", { { 'a',  range.first->keyword_ } });
+    for (auto entry = range.first; entry != range.second; ++entry) {
+        if (not entry->literature_reference_.empty())
+            new_record->insertField("500", { { 'a', entry->literature_reference_ } });
+        if (not entry->comment_.empty())
+            new_record->insertField("510", { { 'a', entry->comment_ } } );
+        if (not entry->internal_reference_keyword_.empty())
+            new_record->insertField("530", { { 'a', entry->internal_reference_keyword_ } } );
+    }
+    return new_record;
+}
+
+
+std::string AssemblePPN(unsigned id) {
+    std::ostringstream formatted_number;
+    formatted_number << std::setfill('0') << std::setw(8) << id;
+    return "KEA" + formatted_number.str();
+}
+
+
 } // unnamed namespace
+
 
 
 int Main(int argc, char *argv[]) {
@@ -130,7 +161,7 @@ int Main(int argc, char *argv[]) {
     for (const auto afo_file_path : afo_file_paths) {
         FileUtil::AutoTempFile tmp_file;
         CleanCSVAndWriteToTempFile(afo_file_path, &tmp_file);
-        GenerateAfOSet(tmp_file.getFilePath(), &afo_multi_set);
+        AddToAfOMultiset(tmp_file.getFilePath(), &afo_multi_set);
     }
 
     const auto afo_entries(afo_multi_set.equal_range(AfOEntry("Kunst")));
@@ -138,7 +169,8 @@ int Main(int argc, char *argv[]) {
         std::cout << *entry << '\n';
 
     const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_path));
-    (void) marc_writer;
+    auto new_record(CreateNewRecord(AssemblePPN(1), afo_entries));
+    marc_writer->write(*new_record);
 
     return EXIT_SUCCESS;
 }
