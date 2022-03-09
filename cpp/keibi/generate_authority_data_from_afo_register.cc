@@ -56,6 +56,7 @@ struct AfOEntry {
     std::string toString() const { return std::to_string(entry_num_) + " AAA " + keyword_  + " BBB " + internal_reference_keyword_
                                     + " CCC " + literature_reference_ +  " DDD "  + comment_;
     }
+    __attribute__((unused))
     friend std::ostream &operator<<(std::ostream &output, const AfOEntry &entry);
 };
 
@@ -112,18 +113,20 @@ void CleanCSVAndWriteToTempFile(const std::string &afo_file_path, FileUtil::Auto
             continue;
         StringUtil::RemoveTrailingLineEnd(&line);
         line = StringUtil::RightTrim(line, '\t');
-        //line = StringUtil::EscapeDoubleQuotes(line);
-        std::cerr << "LINE : \'" << line << "\'\n";
         (*(afo_tmp_file.get())) << line << '\n';
     }
 }
 
-__attribute__((unused))
 MARC::Record * CreateNewRecord(const std::string &ppn, const AfOMultiSetRange &range) {
-   // auto new_record(new MARC::Record(MARC::Record::TypeOfRecord::AUTHORITY, MARC::Record::BibliographicLevel::UNDEFINED, ppn));
+    if (range.first == std::end(AfOMultiSet()))
+        return nullptr;
+
     auto new_record(new MARC::Record("02676cz  a2200529n  4500"));
     new_record->insertControlField("001", ppn);
-    if (range.first != std::end(AfOMultiSet()))
+    if (unlikely(range.first->keyword_.empty())) {
+        std::cerr << "KEYWORD EMPTY\n";
+        new_record->insertField("150", { { 'a',  "EMPTY KEYWORD" } });
+    } else
         new_record->insertField("150", { { 'a',  range.first->keyword_ } });
     for (auto entry = range.first; entry != range.second; ++entry) {
         if (not entry->literature_reference_.empty())
@@ -131,7 +134,7 @@ MARC::Record * CreateNewRecord(const std::string &ppn, const AfOMultiSetRange &r
         if (not entry->comment_.empty())
             new_record->insertField("510", { { 'a', entry->comment_ } } );
         if (not entry->internal_reference_keyword_.empty())
-            new_record->insertField("530", { { 'a', entry->internal_reference_keyword_ } } );
+            new_record->insertField("530", { { 'a', entry->internal_reference_keyword_ } });
     }
     return new_record;
 }
@@ -164,14 +167,19 @@ int Main(int argc, char *argv[]) {
         AddToAfOMultiset(tmp_file.getFilePath(), &afo_multi_set);
     }
 
-    const auto afo_entries(afo_multi_set.equal_range(AfOEntry("Kunst")));
-    for (auto entry(afo_entries.first); entry != afo_entries.second; ++entry)
-        std::cout << *entry << '\n';
-
     const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_path));
-    auto new_record(CreateNewRecord(AssemblePPN(1), afo_entries));
-    marc_writer->write(*new_record);
-
+    unsigned id(0);
+    for (auto entry_iterator = afo_multi_set.begin(); entry_iterator != afo_multi_set.end(); /* intentionally empty */ ) {
+        if (auto same_keyword_range = afo_multi_set.equal_range(*entry_iterator); same_keyword_range.first != same_keyword_range.second) {
+            auto new_record(CreateNewRecord(AssemblePPN(++id), same_keyword_range));
+            if (new_record) {
+               marc_writer->write(*new_record);
+               delete new_record;
+            }
+            entry_iterator = same_keyword_range.second;
+        } else
+          ++entry_iterator;
+    }
     return EXIT_SUCCESS;
 }
 
