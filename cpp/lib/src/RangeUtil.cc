@@ -757,7 +757,7 @@ bool ConvertTextToTimeRange(std::string text, std::string * const range, const b
     if (StringUtil::StartsWith(text, "ca. "))
         text = text.substr(4);
     if (StringUtil::Contains(text, "-ca. "))
-        text = StringUtil::ReplaceString("-ca. ","", text);
+        text = StringUtil::ReplaceString("-ca. ","-", text);
     ReplaceXs(&text);
 
     // 1. year range and exact year
