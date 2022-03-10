@@ -756,6 +756,8 @@ static void ReplaceXs(std::string * const time_range_candidate) {
 bool ConvertTextToTimeRange(std::string text, std::string * const range, const bool special_case_centuries) {
     if (StringUtil::StartsWith(text, "ca. "))
         text = text.substr(4);
+    if (StringUtil::Contains(text, "-ca. "))
+        text = StringUtil::ReplaceString("-ca. ","", text);
     ReplaceXs(&text);
 
     // 1. year range and exact year
