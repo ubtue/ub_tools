@@ -57,7 +57,6 @@ void EliminateDanglingCrossReferences(MARC::Reader * const reader, MARC::Writer 
     unsigned removed_count(0);
     while (auto record = reader->read()) {
         std::vector<size_t> field_indices_to_be_deleted;
-        std::vector<size_t> field_indices_to_be_deleted_record_suppression;
         const auto first_field(record.begin());
         for (auto field(first_field); field != record.end(); ++field) {
             if (field->isCrossLinkField()) {
@@ -68,9 +67,10 @@ void EliminateDanglingCrossReferences(MARC::Reader * const reader, MARC::Writer 
                         if (unlikely(bsz_ppn_elem == all_ppns_suppress_record.cend())) {
                             field_indices_to_be_deleted.emplace_back(field - first_field);
                             (*log_file) << record.getControlNumber() << ": " << field->getTag().toString() << " -> " << bsz_ppn << '\n';
+                            ++modified_count;
                         }
                         else if (bsz_ppn_elem->second == true) {
-                            field_indices_to_be_deleted_record_suppression.emplace_back(field - first_field);
+                            field_indices_to_be_deleted.emplace_back(field - first_field);
                         }
                     }
                 }
@@ -79,11 +79,6 @@ void EliminateDanglingCrossReferences(MARC::Reader * const reader, MARC::Writer 
 
         if (not field_indices_to_be_deleted.empty()) {
             record.deleteFields(field_indices_to_be_deleted);
-            ++modified_count;
-        }
-
-        if (not field_indices_to_be_deleted_record_suppression.empty()) {
-            record.deleteFields(field_indices_to_be_deleted_record_suppression);
         }
 
         if (all_ppns_suppress_record.find(record.getControlNumber())->second == false)
