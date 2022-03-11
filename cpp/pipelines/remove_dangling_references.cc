@@ -36,36 +36,41 @@ namespace {
 }
 
 
-void CollectAllPPNs(MARC::Reader * const reader, std::unordered_map<std::string, bool /*mark to remove record*/> * const all_ppns) {
-    int next_year = std::stoi(TimeUtil::GetCurrentYear()) + 1;
+void CollectAllPPNs(MARC::Reader * const reader, std::unordered_map<std::string, bool /*mark to remove record*/> * const all_ppns_suppress_record) {
+    const int next_year = std::stoi(TimeUtil::GetCurrentYear()) + 1;
     while (const auto record = reader->read()) {
         const std::string _008_field(record.getFirstFieldContents("008"));
         try {
             const int year = std::stoi(_008_field.substr(7, 4));
-            all_ppns->emplace(record.getControlNumber(),
+            all_ppns_suppress_record->emplace(record.getControlNumber(),
                               year > (next_year + 1)); // exclude records that will be pusblished in 2 years or later
         } catch (...) {
-            all_ppns->emplace(record.getControlNumber(), false);
+            all_ppns_suppress_record->emplace(record.getControlNumber(), false);
         }
     }
 }
 
 
 void EliminateDanglingCrossReferences(MARC::Reader * const reader, MARC::Writer * const writer, File * const log_file,
-                                      const std::unordered_map<std::string, bool> &all_ppns) {
+                                      const std::unordered_map<std::string, bool> &all_ppns_suppress_record) {
     unsigned modified_count(0);
     unsigned removed_count(0);
     while (auto record = reader->read()) {
         std::vector<size_t> field_indices_to_be_deleted;
+        std::vector<size_t> field_indices_to_be_deleted_record_suppression;
         const auto first_field(record.begin());
         for (auto field(first_field); field != record.end(); ++field) {
             if (field->isCrossLinkField()) {
                 for (const auto &subfield : field->getSubfields()) {
                     if (subfield.code_ == 'w' and StringUtil::StartsWith(subfield.value_, "(DE-627)")) {
                         const auto bsz_ppn(subfield.value_.substr(__builtin_strlen("(DE-627)")));
-                        if (unlikely(all_ppns.find(bsz_ppn) == all_ppns.cend()) or all_ppns.find(bsz_ppn)->second == true) {
+                        auto bsz_ppn_elem = all_ppns_suppress_record.find(bsz_ppn);
+                        if (unlikely(bsz_ppn_elem == all_ppns_suppress_record.cend())) {
                             field_indices_to_be_deleted.emplace_back(field - first_field);
                             (*log_file) << record.getControlNumber() << ": " << field->getTag().toString() << " -> " << bsz_ppn << '\n';
+                        }
+                        else if (bsz_ppn_elem->second == true) {
+                            field_indices_to_be_deleted_record_suppression.emplace_back(field - first_field);
                         }
                     }
                 }
@@ -77,7 +82,11 @@ void EliminateDanglingCrossReferences(MARC::Reader * const reader, MARC::Writer 
             ++modified_count;
         }
 
-        if (all_ppns.find(record.getControlNumber())->second == false)
+        if (not field_indices_to_be_deleted_record_suppression.empty()) {
+            record.deleteFields(field_indices_to_be_deleted_record_suppression);
+        }
+
+        if (all_ppns_suppress_record.find(record.getControlNumber())->second == false)
             writer->write(record);
         else
             ++removed_count;
@@ -98,11 +107,11 @@ int Main(int argc, char *argv[]) {
     const auto marc_writer(MARC::Writer::Factory(argv[2]));
     const auto log_file(FileUtil::OpenOutputFileOrDie(argv[3]));
 
-    std::unordered_map<std::string, bool> all_ppns;
-    CollectAllPPNs(marc_reader.get(), &all_ppns);
+    std::unordered_map<std::string, bool> all_ppns_suppress_record;
+    CollectAllPPNs(marc_reader.get(), &all_ppns_suppress_record);
 
     marc_reader->rewind();
-    EliminateDanglingCrossReferences(marc_reader.get(), marc_writer.get(), log_file.get(), all_ppns);
+    EliminateDanglingCrossReferences(marc_reader.get(), marc_writer.get(), log_file.get(), all_ppns_suppress_record);
 
     return EXIT_SUCCESS;
 }
