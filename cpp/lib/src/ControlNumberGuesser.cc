@@ -82,27 +82,7 @@ void ControlNumberGuesser::insertYear(const std::string &year, const std::string
     if (unlikely(control_number.length() > MAX_CONTROL_NUMBER_LENGTH))
         LOG_ERROR("\"" + control_number + "\" is too large to fit!");
 
-    std::string control_numbers;
-    size_t padded_length(MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */);
-    db_connection_.queryOrDie("SELECT control_numbers FROM publication_year WHERE year='" + year + "'");
-    auto query_result(db_connection_.getLastResultSet());
-
-    if (not query_result.empty()) {
-        if (query_result.size() != 1)
-            LOG_ERROR("multiple entries for year '" + year + "'!");
-
-        control_numbers = query_result.getNextRow()["control_numbers"];
-        padded_length += control_numbers.length();
-    }
-
-    control_numbers += control_number;
-    for (auto i(control_numbers.size()); i < padded_length; ++i)
-        control_numbers += '|';
-
-    if (not query_result.empty())
-        db_connection_.queryOrDie("UPDATE publication_year SET control_numbers='" + control_numbers + "' WHERE year='" + year + "'");
-    else
-        db_connection_.queryOrDie("INSERT INTO publication_year VALUES('" + year + "', '" + control_numbers + "')");
+    db_connection_.queryOrDie("INSERT OR IGNORE INTO publication_year (year, control_number) VALUES('" + year + "', '" + control_number + "')");
 }
 
 
@@ -245,25 +225,6 @@ bool ControlNumberGuesser::getNextAuthor(std::string * const author_name, std::s
 }
 
 
-bool ControlNumberGuesser::getNextYear(std::string * const year, std::unordered_set<std::string> * const control_numbers) const {
-    if (year_cursor_ == nullptr) {
-        db_connection_.queryOrDie("SELECT * FROM publication_year");
-        year_cursor_.reset(new DbResultSet(db_connection_.getLastResultSet()));
-    }
-
-    const auto next_row(year_cursor_->getNextRow());
-    if (next_row) {
-        *year = next_row["year"];
-        const auto concatenated_control_numbers(next_row["control_numbers"]);
-        splitControlNumbers(concatenated_control_numbers, control_numbers);
-        return true;
-    } else {
-        year_cursor_.reset();
-        return false;
-    }
-}
-
-
 void ControlNumberGuesser::lookupTitle(const std::string &title, std::set<std::string> * const control_numbers) const {
     control_numbers->clear();
 
@@ -287,9 +248,7 @@ void ControlNumberGuesser::lookupAuthor(const std::string &author_name, std::set
 void ControlNumberGuesser::lookupYear(const std::string &year, std::unordered_set<std::string> * const control_numbers) const {
     control_numbers->clear();
 
-    std::string concatenated_control_numbers;
-    if (lookupControlNumber("publication_year", "year", year, &concatenated_control_numbers))
-        splitControlNumbers(concatenated_control_numbers, control_numbers);
+    lookupControlNumberYear("publication_year", "year", year, control_numbers);
 }
 
 
@@ -444,6 +403,19 @@ bool ControlNumberGuesser::lookupControlNumber(const std::string &table, const s
 
     *control_numbers = query_result.getNextRow()["control_numbers"];
     return true;
+}
+
+
+void ControlNumberGuesser::lookupControlNumberYear(const std::string &table, const std::string &column_name, const std::string &column_value,
+                                               std::unordered_set<std::string> * const control_numbers) const {
+    control_numbers->clear();
+    db_connection_.queryOrDie("SELECT control_number FROM " + table + " WHERE " + column_name + "='"
+                              + db_connection_.escapeString(column_value) + "'");
+
+    auto query_result(db_connection_.getLastResultSet());
+    while (const auto db_row = query_result.getNextRow()) {
+        control_numbers->emplace(db_row["control_number"]);
+    }
 }
 
 
