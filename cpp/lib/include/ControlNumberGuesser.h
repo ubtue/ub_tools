@@ -62,12 +62,12 @@ public:
                                                    const std::string &year = "", const std::set<std::string> &dois = {},
                                                    const std::set<std::string> &issns = {}, const std::set<std::string> &isbns = {}) const;
 
-    bool getNextTitle(std::string * const title, std::set<std::string> * const control_numbers) const;
-    bool getNextAuthor(std::string * const author_name, std::set<std::string> * const control_numbers) const;
+    void getControlnumbersAndAuthors(std::unordered_map<std::string, std::set<std::string>> * const control_numbers_to_author_map);
+    void getTitlesAndControlnumbers(std::unordered_map<std::string, std::set<std::string>> * const title_to_control_numbers_map);
 
     void lookupTitle(const std::string &title, std::set<std::string> * const control_numbers) const;
     void lookupAuthor(const std::string &author_name, std::set<std::string> * const control_numbers) const;
-    void lookupYear(const std::string &year, std::unordered_set<std::string> * const control_numbers) const;
+    void lookupYear(const std::string &year, std::set<std::string> * const control_numbers) const;
     void lookupDOI(const std::string &doi, std::set<std::string> * const control_numbers) const;
     void lookupISSN(const std::string &issn, std::set<std::string> * const control_numbers) const;
     void lookupISBN(const std::string &isbn, std::set<std::string> * const control_numbers) const;
@@ -77,12 +77,8 @@ public:
     static std::string NormaliseAuthorName(const std::string &author_name);
 
 private:
-    void insertNewControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
-                                const std::string &control_number);
-    bool lookupControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
-                             std::string * const control_numbers) const;
-    void lookupControlNumberYear(const std::string &table, const std::string &column_name, const std::string &column_value,
-                             std::unordered_set<std::string> * const control_numbers) const;
+    void lookupControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
+                             std::set<std::string> * const control_numbers) const;
     void splitControlNumbers(const std::string &concatenated_control_numbers,
                              std::unordered_set<std::string> * const control_numbers) const;
     unsigned swapControlNumbers(const std::string &table_name, const std::string &primary_key,
