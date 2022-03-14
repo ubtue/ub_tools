@@ -64,7 +64,6 @@ public:
 
     bool getNextTitle(std::string * const title, std::set<std::string> * const control_numbers) const;
     bool getNextAuthor(std::string * const author_name, std::set<std::string> * const control_numbers) const;
-    bool getNextYear(std::string * const year, std::unordered_set<std::string> * const control_numbers) const;
 
     void lookupTitle(const std::string &title, std::set<std::string> * const control_numbers) const;
     void lookupAuthor(const std::string &author_name, std::set<std::string> * const control_numbers) const;
@@ -82,6 +81,8 @@ private:
                                 const std::string &control_number);
     bool lookupControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
                              std::string * const control_numbers) const;
+    void lookupControlNumberYear(const std::string &table, const std::string &column_name, const std::string &column_value,
+                             std::unordered_set<std::string> * const control_numbers) const;
     void splitControlNumbers(const std::string &concatenated_control_numbers,
                              std::unordered_set<std::string> * const control_numbers) const;
     unsigned swapControlNumbers(const std::string &table_name, const std::string &primary_key,

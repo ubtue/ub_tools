@@ -17,9 +17,9 @@ CREATE TABLE normalised_authors (
 CREATE INDEX normalised_authors_index ON normalised_authors(author);
 
 CREATE TABLE publication_year (
-    year TEXT NOT NULL PRIMARY KEY,
-    control_numbers TEXT NOT NULL,
-    UNIQUE (year)
+    year TEXT NOT NULL,
+    control_number TEXT NOT NULL,
+    PRIMARY KEY (year, control_number)
 );
 CREATE INDEX publication_year_index ON publication_year(year);
 
