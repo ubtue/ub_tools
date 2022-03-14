@@ -187,7 +187,7 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
 }
 
 
-void ControlNumberGuesser::getTitlesAndControlnumbers(std::unordered_map<std::string, std::set<std::string>> * const title_to_control_numbers_map) {
+void ControlNumberGuesser::getTitlesAndControlNumbers(std::unordered_map<std::string, std::set<std::string>> * const title_to_control_numbers_map) {
     title_to_control_numbers_map->clear();
     db_connection_.queryOrDie("SELECT * FROM normalised_titles");
     auto query_result(db_connection_.getLastResultSet());
@@ -203,7 +203,7 @@ void ControlNumberGuesser::getTitlesAndControlnumbers(std::unordered_map<std::st
 }
 
 
-void ControlNumberGuesser::getControlnumbersAndAuthors(std::unordered_map<std::string, std::set<std::string>> * const control_numbers_to_author_map) {
+void ControlNumberGuesser::getControlNumbersAndAuthors(std::unordered_map<std::string, std::set<std::string>> * const control_numbers_to_author_map) {
     control_numbers_to_author_map->clear();
     db_connection_.queryOrDie("SELECT * FROM normalised_authors");
     auto query_result(db_connection_.getLastResultSet());

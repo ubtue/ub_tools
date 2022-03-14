@@ -62,8 +62,8 @@ public:
                                                    const std::string &year = "", const std::set<std::string> &dois = {},
                                                    const std::set<std::string> &issns = {}, const std::set<std::string> &isbns = {}) const;
 
-    void getControlnumbersAndAuthors(std::unordered_map<std::string, std::set<std::string>> * const control_numbers_to_author_map);
-    void getTitlesAndControlnumbers(std::unordered_map<std::string, std::set<std::string>> * const title_to_control_numbers_map);
+    void getControlNumbersAndAuthors(std::unordered_map<std::string, std::set<std::string>> * const control_numbers_to_author_map);
+    void getTitlesAndControlNumbers(std::unordered_map<std::string, std::set<std::string>> * const title_to_control_numbers_map);
 
     void lookupTitle(const std::string &title, std::set<std::string> * const control_numbers) const;
     void lookupAuthor(const std::string &author_name, std::set<std::string> * const control_numbers) const;

@@ -307,11 +307,11 @@ int Main(int argc, char *argv[]) {
     ControlNumberGuesser control_number_guesser;
 
     std::unordered_map<std::string, std::set<std::string>> title_to_control_numbers_map;
-    control_number_guesser.getTitlesAndControlnumbers(&title_to_control_numbers_map);
+    control_number_guesser.getTitlesAndControlNumbers(&title_to_control_numbers_map);
     LOG_INFO("loaded " + std::to_string(title_to_control_numbers_map.size()) + " mappings from titles to control numbers.");
 
     std::unordered_map<std::string, std::set<std::string>> control_number_to_authors_map;
-    control_number_guesser.getControlnumbersAndAuthors(&control_number_to_authors_map);
+    control_number_guesser.getControlNumbersAndAuthors(&control_number_to_authors_map);
     LOG_INFO("loaded " + std::to_string(control_number_to_authors_map.size()) + " mappings from control numbers to authors.");
 
     auto matches_list_output(FileUtil::OpenOutputFileOrDie(argv[3]));
