@@ -44,7 +44,7 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "--mode=(email|rss_xml) (user_id|error_email_address) subsystem_type]\n"
+        "--mode=(email|rss_xml) (user_id|sender_email) subsystem_type\n"
         "If the mode is \"rss_xml\" a VuFind user_id needs to be specified, o/w an error email address should be provided.");
 }
 
@@ -253,9 +253,9 @@ int Main(int argc, char *argv[]) {
     if (argc != 4)
         Usage();
 
-    std::string error_email_address, vufind_user_id;
+    std::string sender_email, vufind_user_id;
     if (std::strcmp(argv[1], "--mode=email") == 0)
-        error_email_address = argv[2];
+        sender_email = argv[2];
     else if (std::strcmp(argv[1], "--mode=rss_xml") == 0)
         vufind_user_id = argv[2];
     else
