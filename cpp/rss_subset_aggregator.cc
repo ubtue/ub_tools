@@ -291,7 +291,7 @@ int Main(int argc, char *argv[]) {
             continue;
         }
 
-        if (ProcessFeeds(user_id, user_info.rss_feed_last_notification_, error_email_address, user_info.email_,
+        if (ProcessFeeds(user_id, user_info.rss_feed_last_notification_, sender_email, user_info.email_,
                          MiscUtil::GenerateAddress(user_info.first_name_, user_info.last_name_, "Subscriber"), user_info.language_code_,
                          vufind_user_id.empty(), subsystem_type, &db_connection))
         {
