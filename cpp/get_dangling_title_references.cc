@@ -47,9 +47,6 @@ inline bool IsPartOfTitleData(const std::unordered_set<std::string> &all_ppns, c
 }
 
 
-const std::vector<MARC::Tag> REFERENCE_FIELDS{ MARC::Tag("775"), MARC::Tag("776"), MARC::Tag("780"), MARC::Tag("785"), MARC::Tag("787") };
-
-
 void FindDanglingCrossReferences(MARC::Reader * const reader, const bool consider_only_reviews,
                                  const std::unordered_set<std::string> &all_ppns, File * const dangling_log) {
     unsigned unreferenced_ppns(0);
@@ -59,7 +56,7 @@ void FindDanglingCrossReferences(MARC::Reader * const reader, const bool conside
 
         for (const auto &field : record) {
             std::string referenced_ppn;
-            if (MARC::IsCrossLinkField(field, &referenced_ppn, REFERENCE_FIELDS) and not IsPartOfTitleData(all_ppns, referenced_ppn)) {
+            if (MARC::IsCrossLinkField(field, &referenced_ppn, MARC::CROSS_LINK_FIELD_TAGS) and not IsPartOfTitleData(all_ppns, referenced_ppn)) {
                 *dangling_log << record.getControlNumber() << "," << referenced_ppn << '\n';
                 ++unreferenced_ppns;
             }

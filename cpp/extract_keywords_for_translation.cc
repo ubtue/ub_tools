@@ -256,7 +256,7 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
         // any longer due to the deleted unique key for the history functionality.
         // Unsure if it worked before due to translator=null not affecting a ukey in mysql
         const std::string CHECK_EXISTING("SELECT ppn FROM keyword_translations WHERE ppn=\"" + ppn + "\" AND language_code=\""
-                                         + language_code + "\" AND status=\"" + status + "); ");
+                                         + language_code + "\";");
         shared_connection->queryOrDie(CHECK_EXISTING);
         DbResultSet result(shared_connection->getLastResultSet());
         if (not result.empty()) {
@@ -271,7 +271,8 @@ bool ExtractTranslationsForASingleRecord(const MARC::Record * const record) {
             row_counter = 0;
         }
     }
-    FlushToDatabase(insert_statement);
+    if (row_counter > 0)
+        FlushToDatabase(insert_statement);
 
     return true;
 }

@@ -51,11 +51,14 @@ int Main(int argc, char **argv) {
 
     const std::string time_aspect_reference_candidate(StringUtil::TrimWhite(argv[1]));
 
-    std::string range;
-    if (not RangeUtil::ConvertTextToTimeRange(time_aspect_reference_candidate, &range))
-        LOG_ERROR("can't convert \"" + time_aspect_reference_candidate + "\" to a time aspect range!");
-
-    std::cout << (generate_date_query ? RangeUtil::ConvertToDatesQuery(StringUtil::Map(range, '_', ':')) : range) << '\n';
+    if (generate_date_query)
+        std::cout << RangeUtil::ConvertToDatesQuery(StringUtil::Map(time_aspect_reference_candidate, '_', ':')) << '\n';
+    else {
+        std::string range;
+        if (not RangeUtil::ConvertTextToTimeRange(time_aspect_reference_candidate, &range))
+            LOG_ERROR("can't convert \"" + time_aspect_reference_candidate + "\" to a time aspect range!");
+        std::cout << range << '\n';
+    }
 
     return EXIT_SUCCESS;
 }

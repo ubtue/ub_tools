@@ -1081,7 +1081,7 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     // Date & Year
     const auto &date(metadata_record.date_);
     const auto &item_type(metadata_record.item_type_);
-    if (not date.empty() and item_type != "journalArticle" and item_type != "review")
+    if (not date.empty() and item_type != "journalArticle" and item_type != "review" and item_type != "note")
         marc_record->insertField("362", { { 'a', date } });
 
     unsigned year_num(0);

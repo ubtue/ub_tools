@@ -9,10 +9,10 @@ fi
 
 
 # Generate a file that will be used by convert_core_json_to_marc later in this script:
-extract_zeder_data /usr/local/var/lib/tuelib/print_issns_titles_online_ppns_and_online_issns.csv krimdok tit eppn essn
+#extract_zeder_data /usr/local/var/lib/tuelib/print_issns_titles_online_ppns_and_online_issns.csv krimdok tit eppn essn
 
 
-declare -r WORK_FILE=download_krimdok_core.json
+declare -r WORK_FILE_PREFIX=download_krimdok_core # _<nr>.json will be added later
 declare -i SINGLE_CURL_DOWNLOAD_MAX_TIME=200 # in seconds
 declare -r API_KEY=$(< /usr/local/var/lib/tuelib/CORE-API.key)
 declare -r CORE_API_URL=https://api.core.ac.uk/v3/search/works
@@ -28,55 +28,86 @@ else
 fi
 echo "Using Timestamp: $TIMESTAMP"
 
+declare -r subdir=$(date +%Y%m%d_%H%M%S)
+mkdir -p $subdir
 
-#declare -r QUERY=$(/usr/local/bin/urlencode "(title:criminology OR title:criminological OR title:kriminologie) AND createdDate>$TIMESTAMP")
-declare -r QUERY=$(/usr/local/bin/urlencode "(title:criminology OR title:criminological OR title:kriminologie) AND createdDate<2019-01-01")
+#start=$TIMESTAMP
+start=2000-01-01
+end=$(date +%F)
+records_found=false
 
+while ! [[ $start > $end ]]; do
 
-echo "Before curl download..."
-declare -i offset=0
-curl --max-time $SINGLE_CURL_DOWNLOAD_MAX_TIME --header "Authorization: Bearer ${API_KEY}" --request GET \
-     --location "${CORE_API_URL}?offset=$offset&limit=$MAX_HITS_PER_REQUEST&entityType=works&q=$QUERY&scroll" \
-     > $WORK_FILE
-echo "After curl download..."
+    #sample mode start
+    start=$(date -d "$start + 16 month" +%F)
+    #sample mode end
 
+    next=$(date -d "$start + 1 month" +%F)
+    #req. by mail 20220224: use criminolog* for selected languages, language selection seems to work only for one language (as in website)
+    declare QUERY=$(/usr/local/bin/urlencode "(criminolog* AND createdDate>=${start} AND createdDate<${next})")
 
-declare -r error_message=$(jq .error\?.message < "$WORK_FILE" 2>/dev/null)
-if [[ $error_message != "" && $error_message != "null" ]]; then
-    echo "Server reported: $error_message"
-    exit 2
-fi
+    for (( loopctr=0; loopctr<=100; loopctr++ ))
+    do
+        offset=$((loopctr*MAX_HITS_PER_REQUEST))
+        WORK_FILE=${subdir}/${WORK_FILE_PREFIX}_${start}_${offset}.json
+        WORK_FILE_TMP=${WORK_FILE}.tmp
 
+        curl --max-time $SINGLE_CURL_DOWNLOAD_MAX_TIME --header "Authorization: Bearer ${API_KEY}" --request GET \
+            --location "${CORE_API_URL}?offset=${offset}&limit=${MAX_HITS_PER_REQUEST}&entityType=works&q=${QUERY}&scroll" \
+            > ${WORK_FILE_TMP}
 
-declare -r total_hits=$(jq ."[0].totalHits" < "$WORK_FILE" 2>/dev/null)
-if [[ $total_hits == "null" || $total_hits == "0" ]]; then
-    echo "Server reported zero hits."
-    exit 3
-fi
+        echo "date range: $start to $next : $loopctr = requested $MAX_HITS_PER_REQUEST entries via offset $offset"
+        sleep 65s #needed due to insufficient api license
 
+        declare error_message=$(jq .error\?.message < "$WORK_FILE_TMP" 2>/dev/null)
+        if [[ $error_message != "" && $error_message != "null" ]]; then
+            echo "Server reported: $error_message"
+            exit 2
+        fi
 
-if grep --quiet '504 Gateway Time-out' "$WORK_FILE"; then
-    echo "We got a 504 Gateway Time-out"
-    exit 4
-fi
+        declare total_hits=$(jq ."[0].totalHits" < "$WORK_FILE_TMP" 2>/dev/null)
+        if [[ $total_hits == "null" || $total_hits == "0" ]]; then
+            echo "Server reported zero hits."
+            break
+        fi
 
+        declare current_hits=$(jq '.results | length' < "$WORK_FILE_TMP" 2>/dev/null)
+        if [[ $current_hits == "null" || $current_hits == "0" ]]; then
+            echo "Server reported zero hits in this download block, assuming end of query results."
+            break
+        fi
 
-declare -r message=$(jq .message < "$WORK_FILE" 2>/dev/null)
-if [[ $message != "" && $message != "null" ]]; then
-    echo "Server reported: $message"
-    exit 5
-fi
+        if grep --quiet '504 Gateway Time-out' "$WORK_FILE_TMP"; then
+            echo "We got a 504 Gateway Time-out"
+            exit 4
+        fi
+
+        declare message=$(jq .message < "$WORK_FILE_TMP" 2>/dev/null)
+        if [[ $message != "" && $message != "null" ]]; then
+            echo "Server reported: $message"
+            exit 5
+        fi
+
+        jq < ${WORK_FILE_TMP} > ${WORK_FILE}
+        records_found=true
+        #for filename in *.json; do cat $filename | grep -v fullText > nofT_${filename}; done
+
+    done
+    start=$next
+done
+
 
 # Convert to MARC:
-echo "Before conversion to MARC..."
-declare -r MARC_OUTPUT=KrimDok-CORE-$(date +%Y%M%d).xml
-convert_core_json_to_marc --create-unique-id-db --935-entry=TIT:mkri --935-entry=LOK:core \
-                          --sigil=DE-2619 "$WORK_FILE" unmapped_issn.list "$MARC_OUTPUT"
-echo "Generated $MARC_OUTPUT, unmapped ISSN's are in unmapped_issn.list"
 
+# if [ records_found = true ]; then
 
-# Update contents of the timestamp file:
-date --iso-8601=date > "$TIMESTAMP_FILE"
+    #convert_core_json_to_marc --create-unique-id-db --935-entry=TIT:mkri --935-entry=LOK:core \
+    #                          --sigil=DE-2619 "${WORK_FILE_PREFIX}.*\.json$"
 
+    # Update contents of the timestamp file:
+    #date --iso-8601=date > "$TIMESTAMP_FILE"
 
-upload_to_bsz_ftp_server.py "$MARC_OUTPUT" /pub/UBTuebingen_Default/
+    # todo: merge all marc-files
+    #upload_to_bsz_ftp_server.py "$MARC_OUTPUT" /pub/UBTuebingen_Default/
+
+# fi

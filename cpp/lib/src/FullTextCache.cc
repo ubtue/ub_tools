@@ -137,6 +137,12 @@ bool FullTextCache::hasEntryWithType(const std::string &id, const TextType &text
 }
 
 
+bool FullTextCache::hasEntry(const std::string &id) const {
+    Entry entry;
+    return getEntry(id, &entry);
+}
+
+
 inline std::string GetValueOrEmptyString(const std::map<std::string, std::string> &map, const std::string &key) {
     const auto pair(map.find(key));
     return pair == map.cend() ? "" : pair->second;
@@ -174,7 +180,7 @@ std::vector<std::string> FullTextCache::getEntryUrlsAsStrings(const std::string 
 
 
 unsigned FullTextCache::getErrorCount() const {
-    return full_text_cache_urls_.count({ { "error_message", "*" } });
+    return full_text_cache_urls_.count({ { "(error_message", "[ * TO * ]) AND -(error_message:DUMMY\\ ERROR)" } });
 }
 
 
@@ -193,15 +199,16 @@ const std::string US("\x1F"); // ASCII unit separator
 
 
 std::vector<FullTextCache::EntryGroup> FullTextCache::getEntryGroupsByDomainAndErrorMessage() const {
-    const auto results(full_text_cache_urls_.simpleSelect({ "url", "domain", "error_message", "id" }));
+    const auto results(full_text_cache_urls_.simpleSelect({ "url", "domain", "error_message", "id" }, {}, UINT_MAX));
 
     std::unordered_map<std::string, std::tuple<std::string, std::string, unsigned>> domains_and_errors_to_ids_and_urls_and_counts_map;
     for (const auto &map : results) {
         const auto url_pair(map.find("url"));
         const auto domain_pair(map.find("domain"));
         const auto error_message_pair(map.find("error_message"));
-        if (url_pair == map.cend() or domain_pair == map.cend() or error_message_pair == map.cend())
-            continue;
+        if (url_pair == map.cend() or domain_pair == map.cend() or error_message_pair == map.cend()
+            or error_message_pair->second == FullTextCache::DUMMY_ERROR)
+                continue;
 
         const auto id_pair(map.find("id"));
         const auto key(domain_pair->second + US + error_message_pair->second);

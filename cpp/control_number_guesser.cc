@@ -71,7 +71,7 @@ int Main(int argc, char **argv) {
                 control_numbers.insert(control_numbers2.cbegin(), control_numbers2.cend());
             }
         } else if (StringUtil::StartsWith(argv[arg_no], "--lookup-year=")) {
-            std::unordered_set<std::string> control_numbers2;
+            std::set<std::string> control_numbers2;
             control_number_guesser.lookupYear(argv[arg_no] + __builtin_strlen("--lookup-year="), &control_numbers2);
 
             if (arg_no == 1)
