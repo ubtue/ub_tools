@@ -1,0 +1,12 @@
+Sehr geehrte/r {user_name},
+
+Ein automatischer Prozess hat ermittelt, dass neue Artikel für Zeitschriften
+verfügbar sind, die Sie abonniert haben. Hier die Liste:
+
+{list}
+
+Mit freundlichen Grüßen,
+Das {system}-Team
+--
+Bei Fragen zu diesem Dienst wenden Sie sich bitte an:
+<a href="mailto:{email_reply_to}">{email_reply_to}</a>.
