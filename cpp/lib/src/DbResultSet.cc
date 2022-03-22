@@ -109,6 +109,9 @@ Sqlite3ResultSet::~Sqlite3ResultSet() {
 
 
 DbRow Sqlite3ResultSet::getNextRow() {
+    if (no_of_rows_ == 0)
+        return DbRow(nullptr, nullptr, 0, {});
+
     switch (::sqlite3_step(stmt_handle_)) {
     case SQLITE_DONE:
     case SQLITE_OK:
