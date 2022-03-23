@@ -34,6 +34,7 @@
 #include "StringUtil.h"
 #include "SyndicationFormat.h"
 #include "Template.h"
+#include "TimeUtil.h"
 #include "UBTools.h"
 #include "XmlWriter.h"
 #include "util.h"
@@ -143,17 +144,19 @@ bool SendEmail(const std::string &subsystem_type, const std::string &email_sende
     Template::Map names_to_values_map;
     names_to_values_map.insertScalar("user_name", user_address);
 
-    std::vector<std::string> item_titles, item_urls, website_urls, feed_names;
+    std::vector<std::string> item_titles, item_urls, website_urls, feed_names, pub_dates;
     for (const auto &harvested_item : harvested_items) {
         item_titles.emplace_back(HtmlUtil::HtmlEscape(harvested_item.item_.getTitle()));
         item_urls.emplace_back(harvested_item.item_.getLink());
         website_urls.emplace_back(harvested_item.website_url_);
         feed_names.emplace_back(harvested_item.feed_title_);
+        pub_dates.emplace_back(TimeUtil::TimeTToString(harvested_item.item_.getPubDate()));
     }
     names_to_values_map.insertArray("item_titles", item_titles);
     names_to_values_map.insertArray("item_urls", item_urls);
     names_to_values_map.insertArray("website_urls", website_urls);
     names_to_values_map.insertArray("feed_names", feed_names);
+    names_to_values_map.insertArray("pub_dates", pub_dates);
 
     const auto email_body(Template::ExpandTemplate(email_template, names_to_values_map));
     const auto retcode(EmailSender::SimplerSendEmail(email_sender, { user_email }, GetChannelDescEntry(subsystem_type, "title"), email_body,
