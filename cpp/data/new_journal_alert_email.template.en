@@ -1,0 +1,12 @@
+Dear {user_name},
+
+An automated process has determined that new issues are available for
+serials that you are subscribed to. The list is:
+
+{list}
+
+Sincerely,
+The {system}-Team
+--
+If you have questions regarding this service please contact
+<a href="mailto:{email_reply_to}">{email_reply_to}</a>.
