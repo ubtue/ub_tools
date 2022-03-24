@@ -7,17 +7,17 @@
         <table>
             <thead>
                 <tr>
+                    <th>Feed</th>
                     <th>Beitrag / Post</th>
-                    <th>Feed Website</th>
-                    <th>Beitrag / Post URL</th>
+                    <th>Datum / Uhrzeit</th>
                 </tr>
             </thead>
             <tbody>
-            {LOOP item_titles,website_urls,feed_names,item_urls}
+            {LOOP item_titles,website_urls,feed_names,item_urls,pub_dates}
                 <tr>
-                    <td>{item_titles}</td>
                     <td><a href="{website_urls}">{feed_names}</a></td>
-                    <td><a href="{item_urls}">{item_urls}</a></td>
+                    <td><a href="{item_urls}">{item_titles}</a></td>
+                    <td>{pub_dates}</td>
                 </tr>
             {ENDLOOP}
             </tbody>
