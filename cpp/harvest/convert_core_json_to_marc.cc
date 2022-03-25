@@ -4,7 +4,7 @@
  */
 
 /*
-    Copyright (C) 2021 Library of the University of Tübingen
+    Copyright (C) 2022 Library of the University of Tübingen
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -297,7 +297,7 @@ int Main(int argc, char **argv) {
         LOG_ERROR("failed to get core-json file(s) for: " + json_file_path);
     }
     for (const std::string &json_filename : json_filenames) {
-        if (not json_filename.ends_with(".json"))
+        if (not StringUtil::EndsWith(json_filename, ".json"))
             continue;
         std::string json_source;
         FileUtil::ReadString(json_filename, &json_source);
