@@ -628,8 +628,17 @@ void AdjustLanguages(MetadataRecord * const metadata_record, const Config::Journ
             }
 
         } else if (metadata_record->languages_.empty()) {
-            LOG_INFO("Using " + configured_or_detected_info + " language: " + detected_language);
-            metadata_record->languages_.emplace(detected_language);
+            if (not journal_params.language_params_.expected_languages_.empty() and
+                (journal_params.language_params_.expected_languages_.find(detected_language)
+                == journal_params.language_params_.expected_languages_.end()))
+            {
+                LOG_INFO("No language from Zotero but detected language : " + detected_language + " is not in the given set of admissible languages. "
+                         "No language will be set");
+                metadata_record->languages_.clear();
+            } else {
+                LOG_INFO("No language from Zotero - setting " + configured_or_detected_info + " language: " + detected_language);
+                metadata_record->languages_.emplace(detected_language);
+           }
         } else if (*metadata_record->languages_.begin() == detected_language and metadata_record->languages_.size() == 1)
             LOG_INFO("The given language is equal to the " + configured_or_detected_info + " language: " + detected_language);
         else {
