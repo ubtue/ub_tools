@@ -7,9 +7,10 @@ if ($argc != 3) {
 $id = $argv[1];
 $work_keys_str_mv = json_decode($argv[2]);
 $query = [];
+if (empty($work_keys_str_mv))
+    exit(0);
 foreach ($work_keys_str_mv as $work_key_string_mv) {
     // c.f. VuFindSearch/src/VuFindSearch/Backend/Solr/Backend.php
-    //echo($work_key_string_mv);
     $key = addcslashes($work_key_string_mv, '+-&|!(){}[]^"~*?:\\/');
     $query[] = "work_keys_str_mv:(\"$key\")";
 }
