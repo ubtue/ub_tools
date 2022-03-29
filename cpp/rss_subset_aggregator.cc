@@ -141,22 +141,29 @@ bool SendEmail(const std::string &subsystem_type, const std::string &email_sende
         template_filename = template_filename_prefix + ".en";
     static const std::string email_template(FileUtil::ReadStringOrDie(template_filename));
 
+
+
+    std::string list("<ul>\n");
+    std::string previous_feed_title;
+    for (const auto &harvested_item : harvested_items) {
+        const bool new_feed(previous_feed_title != harvested_item.feed_title_);
+        if (new_feed) {
+            if (not previous_feed_title.empty()) { // not before the first feed
+                list += "\t</ul>\n"; // end feed item list
+            }
+            list += "\t<li><a href=\"" + harvested_item.website_url_ + "\">" + HtmlUtil::HtmlEscape(harvested_item.feed_title_) + "</a></li>\n";
+            list += "\t<ul>\n"; // begin feed item list
+        }
+
+        list += "\t\t<li><a href=\"" + harvested_item.item_.getLink() + "\">" + HtmlUtil::HtmlEscape(harvested_item.item_.getTitle()) + "</a></li>\n";
+        previous_feed_title = harvested_item.feed_title_;
+    }
+    list += "\t</ul>\n"; // end feed item list
+    list += "</ul>\n"; // end whole list
+
     Template::Map names_to_values_map;
     names_to_values_map.insertScalar("user_name", user_address);
-
-    std::vector<std::string> item_titles, item_urls, website_urls, feed_names, pub_dates;
-    for (const auto &harvested_item : harvested_items) {
-        item_titles.emplace_back(HtmlUtil::HtmlEscape(harvested_item.item_.getTitle()));
-        item_urls.emplace_back(harvested_item.item_.getLink());
-        website_urls.emplace_back(harvested_item.website_url_);
-        feed_names.emplace_back(harvested_item.feed_title_);
-        pub_dates.emplace_back(TimeUtil::TimeTToString(harvested_item.item_.getPubDate()));
-    }
-    names_to_values_map.insertArray("item_titles", item_titles);
-    names_to_values_map.insertArray("item_urls", item_urls);
-    names_to_values_map.insertArray("website_urls", website_urls);
-    names_to_values_map.insertArray("feed_names", feed_names);
-    names_to_values_map.insertArray("pub_dates", pub_dates);
+    names_to_values_map.insertScalar("list", list);
 
     const auto email_body(Template::ExpandTemplate(email_template, names_to_values_map));
     const auto retcode(EmailSender::SimplerSendEmail(email_sender, { user_email }, GetChannelDescEntry(subsystem_type, "title"), email_body,
