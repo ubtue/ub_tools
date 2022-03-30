@@ -16,7 +16,11 @@ pdftotext -layout "${FILE_TO_CONVERT}" - | grep -v "AfO Abkürzungen Liste 1 −
 cut -c 1-57 ${tmpfile} >> ${uncolumned_tmpfile}
 cut -c 58- ${tmpfile} >> ${uncolumned_tmpfile}
 rm ${tmpfile}
-cat ${uncolumned_tmpfile} | grep -v '^$' | awk '/^[[:blank:]]{,5}/ {gsub(/^ {,5}/, "", $0); print }' |
-    awk '!/^[[:blank:]]/ {gsub(/ +$/, " ", $0); gsub(/-$/, "", $0); printf "\n%s", $0}; /^[[:blank:]]/ {gsub(/^ +/, "", $0); gsub(/ +$/, "", $0); printf "%s", $0}'
+cat ${uncolumned_tmpfile} | grep -v '^$' |  awk '/^[[:blank:]]{,6}/ {gsub(/^ {,6}/, "", $0); print }' |
+    awk '!/^[[:blank:]]/ {gsub(/ +$/, " ", $0); gsub(/-$/, "", $0); printf "\n%s", $0}; \
+         /^[[:blank:]]/ {gsub(/^ +/, " ", $0);  gsub(/ +$/, "", $0); printf "%s", $0}' |
+    awk 'gsub(/[[:blank:]]+/, " ", $0)' | sponge ${uncolumned_tmpfile}
+#cat ${uncolumned_tmpfile}
+cat ${uncolumned_tmpfile} | grep ' = ' | awk -F' = ' '{print $1 " |||| " $2}'
 
 rm ${uncolumned_tmpfile}
