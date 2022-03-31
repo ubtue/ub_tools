@@ -21,6 +21,8 @@ cat ${uncolumned_tmpfile} | grep -v '^$' |  awk '/^[[:blank:]]{,6}/ {gsub(/^ {,6
          /^[[:blank:]]/ {gsub(/^ +/, " ", $0);  gsub(/ +$/, "", $0); printf "%s", $0}' |
     awk 'gsub(/[[:blank:]]+/, " ", $0)' | sponge ${uncolumned_tmpfile}
 #cat ${uncolumned_tmpfile}
-cat ${uncolumned_tmpfile} | grep ' = ' | awk -F' = ' '{print $1 " |||| " $2}'
+cat ${uncolumned_tmpfile} | grep ' = ' | awk -F' = ' '{print $1 "|" $2}' | sponge ${uncolumned_tmpfile}
+cat ${uncolumned_tmpfile} | awk -F '|' '{gsub(/^[^,]+, /, "", $2); gsub(/[(].*[)]/, "", $2); print $1"|"$2}' | grep -v ')$' | sponge ${uncolumned_tmpfile}
+cat ${uncolumned_tmpfile} | grep -E '^[A-Z]{2,6}[|]'
 
 rm ${uncolumned_tmpfile}
