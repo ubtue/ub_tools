@@ -128,6 +128,10 @@ Sqlite3DbConnection::Sqlite3DbConnection(const std::string &database_path, const
         LOG_ERROR("failed to create or open an Sqlite3 database with path \"" + database_path + "\"!");
     errno = 0; // It seems that sqlite3_open_v2 internally tries something that fails but doesn't clear errno afterwards.
     initialised_ = true;
+    // Performance tweaks
+    query("PRAGMA journal_mode = WAL");
+    query("PRAGMA mmap_size = 2147483648");
+    query("PRAGMA synchronous = normal");
 }
 
 

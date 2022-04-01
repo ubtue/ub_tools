@@ -105,8 +105,9 @@ public:
 
 // These tags are for fields that may contain w-subfields with cross or uplink PPNs following "(DE-627)".
 // Important:  You *must* keep a alphanumerically increasing order of these tags!
+// removed 889 from field list because it references to deleted links
 const std::vector<Tag> CROSS_LINK_FIELD_TAGS{ "689", "700", "770", "772", "773", "775", "776", "780",
-                                              "785", "787", "800", "810", "811", "830", "880", "889" };
+                                              "785", "787", "800", "810", "811", "830", "880" };
 
 const std::vector<Tag> UP_LINK_FIELD_TAGS{ "773", "800", "810", "811", "830" };
 

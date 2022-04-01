@@ -23,6 +23,7 @@
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
+#include "ControlNumberGuesser.h"
 #include "FileUtil.h"
 #include "FullTextImport.h"
 #include "MARC.h"

@@ -42,6 +42,7 @@
 #include "KeyValueDB.h"
 #include "Solr.h"
 #include "StringUtil.h"
+#include "Template.h"
 #include "TimeUtil.h"
 #include "UBTools.h"
 #include "util.h"
@@ -210,7 +211,7 @@ namespace {
 class GenerateEmailContents {
 public:
     ~GenerateEmailContents(){};
-    virtual std::string generateContent(const std::string &user_type, const std::string &name_of_user, const std::string &vufind_host,
+    virtual std::string generateContent(const std::string &user_type, const std::string &name_of_user, const std::string &language, const std::string &vufind_host,
                                         const std::vector<NewIssueInfo> &new_issue_infos) const = 0;
     virtual std::string generateContent(const std::string &vufind_host, const NewIssueInfo &new_issue_infos) const = 0;
 };
@@ -218,24 +219,21 @@ public:
 
 class GenerateDefaultEmailContents : public GenerateEmailContents {
 public:
-    virtual std::string generateContent(const std::string &user_type, const std::string &name_of_user, const std::string &vufind_host,
+    virtual std::string generateContent(const std::string &user_type, const std::string &name_of_user, const std::string &language, const std::string &vufind_host,
                                         const std::vector<NewIssueInfo> &new_issue_infos) const {
-        std::string email_contents("Dear " + name_of_user + ",<br /><br />\n"
-                                    "An automated process has determined that new issues are available for\n"
-                                    "serials that you are subscribed to.  The list is:\n"
-                                    "<ul>\n"); // start journal list
-
+        // Generate HTML journal list for email
+        std::string list("<ul>\n"); // start journal list
         std::string last_series_title, last_volume_year_and_issue;
         for (const auto &new_issue_info : new_issue_infos) {
             const bool new_serial(new_issue_info.series_title_ != last_series_title);
             if (new_serial) {
                 if (not last_series_title.empty()) { // Not first iteration!
-                    email_contents += "    </ul>\n"; // end items
-                    email_contents += "  </ul>\n";   // end volume/year/issue list
+                    list += "    </ul>\n"; // end items
+                    list += "  </ul>\n";   // end volume/year/issue list
                 }
                 last_series_title = new_issue_info.series_title_;
-                email_contents += "  <li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
-                email_contents += "  <ul>\n"; // start volume/year/issue list
+                list += "  <li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
+                list += "  <ul>\n"; // start volume/year/issue list
                 last_volume_year_and_issue.clear();
             }
 
@@ -256,30 +254,41 @@ public:
 
             if (volume_year_and_issue != last_volume_year_and_issue) {
                 if (not new_serial)
-                    email_contents += "    </ul>\n"; // end items
-                email_contents += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
+                    list += "    </ul>\n"; // end items
+                list += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
                 last_volume_year_and_issue = volume_year_and_issue;
-                email_contents += "    <ul>\n"; // start items
+                list += "    <ul>\n"; // start items
             }
 
             const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
             std::string authors;
             for (const auto &author : new_issue_info.authors_)
                 authors += "&nbsp;&nbsp;&nbsp;" + HtmlUtil::HtmlEscape(author);
-            email_contents +=
+            list +=
                 "      <li><a href=\"" + URL + "\">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors + "</li>\n";
         }
-        email_contents += "    </ul>\n"; // end items
-        email_contents += "  </ul>\n";   // end volume/year/issue list
-        email_contents += "</ul>\n";     // end journal list
-        email_contents += "<br />\n"
-                           "Sincerely,<br />\n"
-                           "The " + CapitalizedUserType(user_type) + " Team\n"
-                           "<br />--<br />\n"
-                           "If you have questions regarding this service please contact\n"
-                           "<a href=\"mailto:" + user_type + "@ub.uni-tuebingen.de\">" + user_type + "@ub.uni-tuebingen.de</a>.\n";
+        list += "    </ul>\n"; // end items
+        list += "  </ul>\n";   // end volume/year/issue list
+        list += "</ul>\n";     // end journal list
 
-        return email_contents;
+
+        // Fill mail template
+        const auto template_filename_prefix(UBTools::GetTuelibPath() + "new_journal_alert_email.template");
+        std::string template_filename(template_filename_prefix + "." + language);
+        if (not FileUtil::Exists(template_filename))
+            template_filename = template_filename_prefix + ".en";
+
+        const static std::string email_template(FileUtil::ReadStringOrDie(template_filename));
+        const static std::string email_template_prepared = StringUtil::ReplaceString("\n", "<br>\n", email_template);
+
+        Template::Map names_to_values_map;
+        names_to_values_map.insertScalar("user_name", name_of_user);
+        names_to_values_map.insertScalar("list", list);
+        names_to_values_map.insertScalar("system", CapitalizedUserType(user_type));
+        names_to_values_map.insertScalar("email_reply_to", user_type + "@ub.uni-tuebingen.de");
+        const auto email_body(Template::ExpandTemplate(email_template_prepared, names_to_values_map));
+
+        return email_body;
     }
 
 
@@ -319,6 +328,7 @@ public:
 
     virtual std::string generateContent(__attribute__((unused)) const std::string &user_type,
                                         __attribute__((unused)) const std::string &name_of_user,
+                                        __attribute__((unused)) const std::string &language,
                                         __attribute__((unused)) const std::string &vufind_host,
                                         __attribute__((unused)) const std::vector<NewIssueInfo> &new_issue_infos) const {
         LOG_ERROR(std::string(__FUNCTION__) + " currently not implemented");
@@ -329,7 +339,7 @@ public:
 class SendNotificationEmail {
 public:
     ~SendNotificationEmail(){};
-    virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user,
+    virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user, const std::string &language,
                       const std::string &recipient_email, const std::string &vufind_host, const std::string &sender_email,
                       const std::string &email_subject, const std::vector<NewIssueInfo> &new_issue_infos,
                       const std::string &user_type) const = 0;
@@ -341,11 +351,11 @@ public:
 
 class SendDefaultNotificationEmail : public SendNotificationEmail {
 public:
-    virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user,
+    virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user, const std::string &language,
                       const std::string &recipient_email, const std::string &vufind_host, const std::string &sender_email,
                       const std::string &email_subject, const std::vector<NewIssueInfo> &new_issue_infos,
                       const std::string &user_type) const {
-        const std::string email_contents(mail_contents_generator.generateContent(user_type, name_of_user, vufind_host, new_issue_infos));
+        const std::string email_contents(mail_contents_generator.generateContent(user_type, name_of_user, language, vufind_host, new_issue_infos));
         if (debug)
             LOG_DEBUG("Debug mode, email address is " + sender_email + ", template expanded to: \"" + email_contents + "\"");
         else {
@@ -402,7 +412,7 @@ public:
 
     virtual void send(__attribute__((unused)) const bool debug,
                       __attribute__((unused)) const GenerateEmailContents &mail_contents_generator,
-                      __attribute__((unused)) const std::string &name_of_user, __attribute__((unused)) const std::string &recipient_email,
+                      __attribute__((unused)) const std::string &name_of_user, __attribute__((unused)) const std::string &language, __attribute__((unused)) const std::string &recipient_email,
                       __attribute__((unused)) const std::string &vufind_host, __attribute__((unused)) const std::string &sender_email,
                       __attribute__((unused)) const std::string &email_subject,
                       __attribute__((unused)) const std::vector<NewIssueInfo> &new_issue_infos,
@@ -681,6 +691,7 @@ void ProcessSingleUser(
     const auto name_of_user(MiscUtil::GenerateAddress(firstname, lastname, "Subscriber"));
 
     const std::string email(row["email"]);
+    const std::string language(row["last_language"]);
     const std::string user_type(row["ixtheo_user_type"]);
 
     // Collect the dates for new issues.
@@ -737,7 +748,7 @@ void ProcessSingleUser(
             SendMeistertaskNotificationEmails().send(debug, GenerateMeistertaskEmailContents(), email, hostname, sender_email,
                                                      new_issue_infos);
         else
-            SendDefaultNotificationEmail().send(debug, GenerateDefaultEmailContents(), name_of_user, email, hostname, sender_email,
+            SendDefaultNotificationEmail().send(debug, GenerateDefaultEmailContents(), name_of_user, language, email, hostname, sender_email,
                                                 email_subject, new_issue_infos, user_type);
     }
 

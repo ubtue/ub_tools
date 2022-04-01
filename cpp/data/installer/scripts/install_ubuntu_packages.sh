@@ -81,7 +81,7 @@ fi
 if [[ $1 == "ixtheo" || $1 == "krimdok" ]]; then
     ColorEcho "installing/updating tuefind dependencies..."
     apt-get --quiet --yes install \
-        composer \
+        composer npm \
         php php-curl php-gd php-intl php-json php-ldap php-mbstring php-mysql php-pear php-soap php-xml \
         libapache2-mod-php
 
