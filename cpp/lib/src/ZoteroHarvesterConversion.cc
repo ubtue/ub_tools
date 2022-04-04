@@ -528,11 +528,24 @@ std::string TikaDetectLanguage(const std::string &record_text) {
 }
 
 
+ThreadSafeRegexMatcher LANGUAGE_WITH_POTENTIAL_SUBLANGUAGE("(?i)(?:([a-z]{2,3})([-_][a-z]+)?)");
+
+
+void StripLanguageSubcodes(std::set<std::string> * const languages) {
+    std::for_each(languages->begin(), languages->end(), [languages](const std::string& language) {
+                      auto stripped_language(languages->extract(language));
+                      stripped_language.value() = LANGUAGE_WITH_POTENTIAL_SUBLANGUAGE.replaceWithBackreferences(language, "\\1");
+                      languages->insert(std::move(stripped_language));
+                 });
+}
+
+
 void NormalizeGivenLanguages(MetadataRecord * const metadata_record) {
     // Normalize given languages
     // We cant remove during iteration, so we use a copy
     std::set<std::string> languages(metadata_record->languages_);
     metadata_record->languages_.clear();
+    StripLanguageSubcodes(&languages);
     for (const auto &language : languages) {
         if (not Config::IsAllowedLanguage(language)) {
             LOG_WARNING("Removing invalid language: " + language);
