@@ -54,6 +54,7 @@ def AssembleQuery(ppns, year):
 
 def GetArticleCount(ppns):
     current_year = date.today().year
+    count_dict = {}
     count_total = 0
     for year in range(current_year - 4, current_year + 1):
         query=AssembleQuery(ppns, year)
@@ -63,22 +64,33 @@ def GetArticleCount(ppns):
         solrdata = json.loads(response.decode('utf-8'))
         count_in_year = solrdata['response']['numFound']
         count_total += count_in_year
-        print(str(year) + " : " +  str(count_in_year), end = '\t|  ')
-    print(count_total);
-
+        count_dict[str(year)] = count_in_year
+        #print(str(year) + " : " +  str(count_in_year), end = '\t|  ')
+    count_dict['all'] = count_total
+    return count_dict
     
         
 
 def Main():
    jdata = GetDataFromZeder()
    all_ppns = ExtractAllPPNs(jdata)
+   all_journals_count_dict = {}
    for row_id, ppns in all_ppns.items():
      #print("ID: " + str(row_id) + " : " + ' XXX '.join(ppns))
      print (str(row_id), end=":\t")
-     GetArticleCount(ppns)
+     count_dict =  GetArticleCount(ppns)
+     for year, count in count_dict.items():
+         print(str(year) + " : " +  str(count), end = '\t|  ')
+         all_journals_count_dict[year] =  all_journals_count_dict[year] + count \
+                                          if year in all_journals_count_dict else 0
      print('\n')
-     if row_id > 300:
+     if row_id > 20:
          break
+   print("------------------------------------------------------------------------------")
+   print("SUM:", end='\t')
+   for year,count in all_journals_count_dict.items():
+       print(str(year) + " : " +  str(count), end = '\t|  ')
+   print('\n')
 
 
 try:
