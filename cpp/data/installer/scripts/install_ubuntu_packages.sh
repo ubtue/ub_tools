@@ -34,7 +34,7 @@ apt-get --quiet --yes --allow-unauthenticated install \
         ant apache2 apparmor-utils ca-certificates cifs-utils clang clang-format-12 cron curl gcc git imagemagick incron jq libarchive-dev \
         libcurl4-gnutls-dev libdb-dev liblept5 libleptonica-dev liblz4-tool libmagic-dev libmysqlclient-dev \
         libpcre3-dev libpq-dev libsqlite3-dev libssl-dev libstemmer-dev libtesseract-dev libwebp6 libxerces-c-dev \
-        libxml2-dev libxml2-utils locales-all make mawk mutt openjdk-8-jdk poppler-utils postgresql-client \
+        libxml2-dev libxml2-utils locales-all make mawk mutt openjdk-8-jdk p7zip-full poppler-utils postgresql-client \
         tesseract-ocr tesseract-ocr-all rsync sqlite3 tcl-expect-dev tidy unzip \
         uuid-dev xsltproc libsystemd-dev
 
