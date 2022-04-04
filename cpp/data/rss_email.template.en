@@ -4,23 +4,6 @@
         <p>Dear {user_name},</p>
 
         <p>The following items from your selected RSS feeds are new:</p>
-        <table>
-            <thead>
-                <tr>
-                    <th>Feed</th>
-                    <th>Item</th>
-                    <th>Publication Date</th>
-                </tr>
-            </thead>
-            <tbody>
-            {LOOP item_titles,website_urls,feed_names,item_urls,pub_dates}
-                <tr>
-                    <td><a href="{website_urls}">{feed_names}</a></td>
-                    <td><a href="{item_urls}">{item_titles}</a></td>
-                    <td>{pub_dates}</td>
-                </tr>
-            {ENDLOOP}
-            </tbody>
-        </table>
+        {list}
     </body>
 </html>
