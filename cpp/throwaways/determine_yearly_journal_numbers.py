@@ -13,9 +13,12 @@ import traceback
 import urllib.request
 
 
-ZEDER_URL = 'http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?action=get&Dimension=wert&Instanz=ixtheo&Bearbeiter='
-IXTHEO_SOLR_BASE_URL = 'http://ptah.ub.uni-tuebingen.de:8983/solr/biblio/select?'
+#ZEDER_URL = 'http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?action=get&Dimension=wert&Instanz=ixtheo&Bearbeiter='
+ZEDER_URL = 'http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?action=get&Dimension=wert&Instanz=krim&Bearbeiter='
+#SOLR_BASE_URL = 'http://ptah.ub.uni-tuebingen.de:8983/solr/biblio/select?'
+SOLR_BASE_URL = 'http://sobek.ub.uni-tuebingen.de:8983/solr/biblio/select?'
 headers = {"Content-type": "application/json", "Accept": "application/json"}
+#CHANGE 'kat' VALUE BELOW WHEN CHANGING INSTANCE
 
 def GetDataFromZeder():
     request = urllib.request.Request(ZEDER_URL, headers=headers)
@@ -34,22 +37,23 @@ def ExtractJournalPPNs(jdata):
             print("Fatal: No row row is for " + json.dumps(c))
             exit(1)
         # Only extract currently evaluated journals
-        if c.get('kat') != "5":
+        #if c.get('kat') != "5":
+        if c.get('kat') != "10":
             continue
         journal_ppns = []
         pppn = c['pppn'] if 'pppn' in c else None
         if pppn is not None and pppn != "NV" and pppn != "":
-           journal_ppns.append(pppn)
+           journal_ppns.append(pppn.strip(' ?'))
         eppn = c['eppn'] if 'eppn' in c else None
         if eppn is not None and eppn != "NV" and eppn != "":
-           journal_ppns.append(eppn)
+           journal_ppns.append(eppn.strip(' ?'))
         if journal_ppns:
            id_to_journals_ppns[row_id] = journal_ppns
     return id_to_journals_ppns
 
 
 def AssembleQuery(ppns, year):
-    return IXTHEO_SOLR_BASE_URL + 'fq=publishDate%3A%5B' \
+    return SOLR_BASE_URL + 'fq=publishDate%3A%5B' \
            + str(year) + '%20TO%20'  + str(year) + '%5D&q=' + \
            'superior_ppn%3A' + \
            ('%20OR%20superior_ppn%3A'.join(ppns) if len(ppns) > 1 else str(ppns[0]))
