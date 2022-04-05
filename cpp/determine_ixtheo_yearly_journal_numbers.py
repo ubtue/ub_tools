@@ -18,20 +18,23 @@ IXTHEO_SOLR_BASE_URL = 'http://ptah.ub.uni-tuebingen.de:8983/solr/biblio/select?
 headers = {"Content-type": "application/json", "Accept": "application/json"}
 
 def GetDataFromZeder():
-    #request = urllib.request.Request(ZEDER_URL, headers=headers)
-    #response = urllib.request.urlopen(request).read()
-    #jdata = json.loads(response.decode('utf-8'))
-    response = open("/tmp/zeder_220404.json", 'r')
-    jdata = json.load(response)
+    request = urllib.request.Request(ZEDER_URL, headers=headers)
+    response = urllib.request.urlopen(request).read()
+    jdata = json.loads(response.decode('utf-8'))
+    #response = open("/tmp/zeder_220404.json", 'r')
+    #jdata = json.load(response)
     return jdata
 
 
-def ExtractAllPPNs(jdata):
-    all_ppns = {}
+def ExtractJournalPPNs(jdata):
+    id_to_journals_ppns = {}
     for c in jdata['daten']:
-        row_id = c['DT_RowId']
+        row_id = c['DT_RowId'] if 'DT_RowId' in c else None
         if row_id is None:
-            "No row id for " + c['tit']
+            print("Fatal: No row row is for " + json.dumps(c))
+            exit(1)
+        # Only extract currently evaluated journals
+        if c.get('kat') != "5":
             continue
         journal_ppns = []
         pppn = c['pppn'] if 'pppn' in c else None
@@ -41,8 +44,8 @@ def ExtractAllPPNs(jdata):
         if eppn is not None and eppn != "NV" and eppn != "":
            journal_ppns.append(eppn)
         if journal_ppns:
-           all_ppns[row_id] = journal_ppns
-    return all_ppns
+           id_to_journals_ppns[row_id] = journal_ppns
+    return id_to_journals_ppns
 
 
 def AssembleQuery(ppns, year):
@@ -58,35 +61,33 @@ def GetArticleCount(ppns):
     count_total = 0
     for year in range(current_year - 4, current_year + 1):
         query=AssembleQuery(ppns, year)
-        #print(query)
         request = urllib.request.Request(query, headers=headers)
         response = urllib.request.urlopen(request).read()
         solrdata = json.loads(response.decode('utf-8'))
         count_in_year = solrdata['response']['numFound']
         count_total += count_in_year
         count_dict[str(year)] = count_in_year
-        #print(str(year) + " : " +  str(count_in_year), end = '\t|  ')
     count_dict['all'] = count_total
     return count_dict
-    
-        
+
+
 
 def Main():
    jdata = GetDataFromZeder()
-   all_ppns = ExtractAllPPNs(jdata)
+   id_to_journals_ppns = ExtractJournalPPNs(jdata)
    all_journals_count_dict = {}
-   for row_id, ppns in all_ppns.items():
-     #print("ID: " + str(row_id) + " : " + ' XXX '.join(ppns))
+   for row_id, ppns in id_to_journals_ppns.items():
      print (str(row_id), end=":\t")
      count_dict =  GetArticleCount(ppns)
      for year, count in count_dict.items():
          print(str(year) + " : " +  str(count), end = '\t|  ')
          all_journals_count_dict[year] =  all_journals_count_dict[year] + count \
-                                          if year in all_journals_count_dict else 0
+                                          if year in all_journals_count_dict else count
      print('\n')
-     if row_id > 20:
-         break
-   print("------------------------------------------------------------------------------")
+#     if row_id > 50:
+#         break
+   print("-------------------------------------------------------------------------------", end='')
+   print("----------------------------")
    print("SUM:", end='\t')
    for year,count in all_journals_count_dict.items():
        print(str(year) + " : " +  str(count), end = '\t|  ')
