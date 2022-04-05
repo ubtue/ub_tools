@@ -7,7 +7,7 @@ fi
 
 LOOKUP_MAP_FILE=${1}
 ASSOCIATION_DIR=${2}
-MINSIZE=1000
+MINSIZE=100
 
 for file in $(ls -1 --directory ${ASSOCIATION_DIR}/*); do
     filesize=$(stat -c%s "${file}")
