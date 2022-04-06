@@ -109,7 +109,7 @@ bool ProcessLanguage(const JSON::ObjectNode &entry_object, MARC::Record * const 
         return false;
     const auto language_object(entry_object.getObjectNode("language"));
     std::string lang = MARC::MapToMARCLanguageCode(language_object->getStringNode("code")->getValue());
-    if (lang != "en" and lang != "de" and lang != "es" and lang != "eu" and lang != "ca" and lang != "pt" and lang != "it" and lang != "nl")
+    if (lang != "eng" and lang != "ger" and lang != "spa" and lang != "baq" and lang != "cat" and lang != "por" and lang != "ita" and lang != "dut")
         return false;
     record->insertField("041", 'a', lang);
     return true;
@@ -162,6 +162,14 @@ bool ProcessYearPublished(const JSON::ObjectNode &entry_object, MARC::Record * c
 }
 
 
+bool PublisherIsUniTue(const JSON::ObjectNode &entry_object) {
+    if (not entry_object.hasNode("publisher") or entry_object.isNullNode("publisher"))
+        return false;
+    const std::string publisher(entry_object.getStringNode("publisher")->getValue());
+    return publisher == "Universität Tübingen";
+}
+
+
 bool ProcessJournal(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
     if (not entry_object.hasNode("journals"))
         return false;
@@ -204,13 +212,15 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
                           const std::vector<std::pair<std::string, std::string>> &_935_entries,
                           const bool ignore_unique_id_dups,
                           KeyValueDB * const unique_id_to_date_map) {
-    unsigned skipped_dupe_count(0), generated_count(0), skipped_incomplete_count(0);
+    unsigned skipped_dupe_count(0), generated_count(0), skipped_incomplete_count(0), skipped_uni_tue(0);
     for (auto &entry : root_array) {
         const auto entry_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
         const auto id(std::to_string(entry_object->getIntegerValue("id")));
         const auto control_number("CORE" + id);
         if (ignore_unique_id_dups and unique_id_to_date_map->keyIsPresent(control_number))
             ++skipped_dupe_count;
+        else if (PublisherIsUniTue(*entry_object))
+            ++skipped_uni_tue;
         else {
             MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                                     control_number);
@@ -247,8 +257,8 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
         }
     }
 
-    std::cout << "Skipped " << skipped_dupe_count << " dupes and " << skipped_incomplete_count << " incomplete entry/entries and generated "
-              << generated_count << " MARC record(s).\n";
+    std::cout << "Skipped " << skipped_dupe_count << " dupes and " << skipped_incomplete_count << " incomplete entries and "
+              << skipped_uni_tue << " from UniTue and generated "  << generated_count << " MARC record(s).\n";
 }
 
 
