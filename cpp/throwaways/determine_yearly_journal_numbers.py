@@ -13,12 +13,14 @@ import traceback
 import urllib.request
 
 
-#ZEDER_URL = 'http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?action=get&Dimension=wert&Instanz=ixtheo&Bearbeiter='
-ZEDER_URL = 'http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?action=get&Dimension=wert&Instanz=krim&Bearbeiter='
-#SOLR_BASE_URL = 'http://ptah.ub.uni-tuebingen.de:8983/solr/biblio/select?'
-SOLR_BASE_URL = 'http://sobek.ub.uni-tuebingen.de:8983/solr/biblio/select?'
+IXTHEO_ZEDER_URL = 'http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?action=get&Dimension=wert&Instanz=ixtheo&Bearbeiter='
+KRIMDOK_ZEDER_URL = 'http://www-ub.ub.uni-tuebingen.de/zeder/cgi-bin/zeder.cgi?action=get&Dimension=wert&Instanz=krim&Bearbeiter='
+ZEDER_URL = ''
+IXTHEO_SOLR_BASE_URL = 'http://ptah.ub.uni-tuebingen.de:8983/solr/biblio/select?'
+KRIMDOK_SOLR_BASE_URL = 'http://sobek.ub.uni-tuebingen.de:8983/solr/biblio/select?'
+SOLR_BASE_URL = ''
+KAT_NUM_TO_EVALUATE = ''
 headers = {"Content-type": "application/json", "Accept": "application/json"}
-#CHANGE 'kat' VALUE BELOW WHEN CHANGING INSTANCE
 
 def GetDataFromZeder():
     request = urllib.request.Request(ZEDER_URL, headers=headers)
@@ -38,7 +40,7 @@ def ExtractJournalPPNs(jdata):
             exit(1)
         # Only extract currently evaluated journals
         #if c.get('kat') != "5":
-        if c.get('kat') != "10":
+        if c.get('kat') != KAT_NUM_TO_EVALUATE:
             continue
         journal_ppns = []
         pppn = c['pppn'] if 'pppn' in c else None
@@ -65,6 +67,7 @@ def GetArticleCount(ppns):
     count_total = 0
     for year in range(current_year - 4, current_year + 1):
         query=AssembleQuery(ppns, year)
+   #     print("XXXX: " + query)
         request = urllib.request.Request(query, headers=headers)
         response = urllib.request.urlopen(request).read()
         solrdata = json.loads(response.decode('utf-8'))
@@ -75,8 +78,26 @@ def GetArticleCount(ppns):
     return count_dict
 
 
+def Usage():
+    print("Usage " + sys.argv[0] + " fid_system, where fid_system is ixtheo|krimdok")
+    exit(-1)
+
 
 def Main():
+   if len(sys.argv) != 2:
+        Usage()
+   fid_system = sys.argv[1]
+   global ZEDER_URL, SOLR_BASE_URL, KAT_NUM_TO_EVALUATE
+   if fid_system != "ixtheo" and fid_system != "krimdok":
+        Usage()
+   if fid_system == "ixtheo":
+        ZEDER_URL = IXTHEO_ZEDER_URL
+        SOLR_BASE_URL = IXTHEO_SOLR_BASE_URL
+        KAT_NUM_TO_EVALUATE = "5"
+   else:
+       ZEDER_URL = KRIMDOK_ZEDER_URL
+       SOLR_BASE_URL = KRIMDOK_SOLR_BASE_URL
+       KAT_NUM_TO_EVALUATE = "10"
    jdata = GetDataFromZeder()
    id_to_journals_ppns = ExtractJournalPPNs(jdata)
    all_journals_count_dict = {}
