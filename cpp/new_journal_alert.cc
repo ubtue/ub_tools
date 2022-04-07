@@ -665,11 +665,32 @@ std::string GetMinLastModificationTime(const std::map<std::string, std::string> 
 }
 
 
+std::string GetI18NSubject(const std::string &default_subject, const std::string &language) {
+    std::string result = default_subject;
+    std::string i18n_subscriptions;
+    const std::string i18n_subscriptions_de = "Abonnements";
+    const std::string i18n_subscriptions_en = "Subscriptions";
+
+    if (language == "de")
+        i18n_subscriptions = i18n_subscriptions_de;
+    else if (language == "en")
+        i18n_subscriptions = i18n_subscriptions_en;
+    else
+        return default_subject;
+
+    result = StringUtil::ReplaceString(i18n_subscriptions_de, "", result);
+    result = StringUtil::ReplaceString(i18n_subscriptions_en, "", result);
+    StringUtil::TrimWhite(&result);
+    result += " " + i18n_subscriptions;
+    return result;
+}
+
+
 void ProcessSingleUser(
     const bool debug, DbConnection * const db_connection, const std::unique_ptr<KeyValueDB> &notified_db, const IniFile &bundles_config,
     std::unordered_set<std::string> * const new_notification_ids,
     std::unordered_map<std::string, unsigned> * const journal_ppns_to_counts_map, const std::string &user_id,
-    const std::string &solr_host_and_port, const std::string &hostname, const std::string &sender_email, const std::string &email_subject,
+    const std::string &solr_host_and_port, const std::string &hostname, const std::string &sender_email, const std::string &email_default_subject,
     std::vector<SerialControlNumberAndMaxLastModificationTime> &control_numbers_or_bundle_names_and_last_modification_times,
     std::map<std::string, std::map<std::string, std::string>> * const bundle_journal_last_modification_times) {
     db_connection->queryOrDie("SELECT * FROM user WHERE user.id=" + user_id);
@@ -749,7 +770,7 @@ void ProcessSingleUser(
                                                      new_issue_infos);
         else
             SendDefaultNotificationEmail().send(debug, GenerateDefaultEmailContents(), name_of_user, language, email, hostname, sender_email,
-                                                email_subject, new_issue_infos, user_type);
+                                                GetI18NSubject(email_default_subject, language), new_issue_infos, user_type);
     }
 
     // Update the database with the new last issue dates
@@ -800,7 +821,7 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
                           const IniFile &bundles_config, std::unordered_set<std::string> * const new_notification_ids,
                           std::unordered_map<std::string, unsigned> * const journal_ppns_to_counts_map,
                           const std::string &solr_host_and_port, const std::string &user_type, const std::string &hostname,
-                          const std::string &sender_email, const std::string &email_subject) {
+                          const std::string &sender_email, const std::string &email_default_subject) {
     db_connection->queryOrDie(
         "SELECT DISTINCT user_id FROM ixtheo_journal_subscriptions WHERE user_id IN (SELECT id FROM "
         "user WHERE ixtheo_user_type = '"
@@ -825,7 +846,7 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
             ++subscription_count;
         }
         ProcessSingleUser(debug, db_connection, notified_db, bundles_config, new_notification_ids, journal_ppns_to_counts_map, user_id,
-                          solr_host_and_port, hostname, sender_email, email_subject,
+                          solr_host_and_port, hostname, sender_email, email_default_subject,
                           control_numbers_or_bundle_names_and_last_modification_times, &bundle_journals_last_modification_times);
     }
 
@@ -900,7 +921,7 @@ int Main(int argc, char **argv) {
 
     const std::string hostname(argv[2]);
     const std::string sender_email(argv[3]);
-    const std::string email_subject(argv[4]);
+    const std::string email_default_subject(argv[4]);
 
     std::unique_ptr<KeyValueDB> notified_db(CreateOrOpenKeyValueDB(user_type));
 
@@ -911,7 +932,7 @@ int Main(int argc, char **argv) {
     std::unordered_set<std::string> new_notification_ids;
     std::unordered_map<std::string, unsigned> journal_ppns_to_counts_map;
     ProcessSubscriptions(debug, &db_connection, notified_db, bundles_config, &new_notification_ids, &journal_ppns_to_counts_map,
-                         solr_host_and_port, user_type, hostname, sender_email, email_subject);
+                         solr_host_and_port, user_type, hostname, sender_email, email_default_subject);
 
     if (not debug) {
         RecordNewlyNotifiedIds(notified_db, new_notification_ids);
