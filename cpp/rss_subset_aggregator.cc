@@ -36,6 +36,7 @@
 #include "Template.h"
 #include "TimeUtil.h"
 #include "UBTools.h"
+#include "VuFind.h"
 #include "XmlWriter.h"
 #include "util.h"
 
@@ -164,6 +165,8 @@ bool SendEmail(const std::string &subsystem_type, const std::string &email_sende
     Template::Map names_to_values_map;
     names_to_values_map.insertScalar("user_name", user_address);
     names_to_values_map.insertScalar("list", list);
+    names_to_values_map.insertScalar("system", VuFind::CapitalizedUserType(subsystem_type));
+    names_to_values_map.insertScalar("email_reply_to", subsystem_type + "@ub.uni-tuebingen.de");
 
     const auto email_body(Template::ExpandTemplate(email_template, names_to_values_map));
     const auto retcode(EmailSender::SimplerSendEmail(email_sender, { user_email }, GetChannelDescEntry(subsystem_type, "title"), email_body,

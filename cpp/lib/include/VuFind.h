@@ -54,5 +54,19 @@ std::string GetTueFindFlavour();
 /** \brief Returns the TueFind Flavour from ENV TUEFIND_FLAVOUR variable or aborts if it has not been set. */
 std::string GetTueFindFlavourOrDie();
 
+/** \brief Returns the TueFind Flavour in pretty format or aborts if it has not been set. */
+inline std::string CapitalizedUserType(const std::string &user_type) {
+    if (user_type == "ixtheo")
+        return "IxTheo";
+    else if (user_type == "bibstudies")
+        return "BibStudies";
+    else if (user_type == "churchlaw")
+        return "ChurchLaw";
+    else if (user_type == "relbib")
+        return "RelBib";
+    else
+        LOG_ERROR("instance not valid: " + user_type);
+}
+
 
 } // namespace VuFind

@@ -5,5 +5,12 @@
 
         <p>Die folgenden Beiträge / Posts aus Ihrer RSS Feed-Auswahl sind neu:</p>
         {list}
+        <p>
+            Mit freundlichen Grüßen,<br>
+            Das {system}-Team<br>
+            --<br>
+            Bei Fragen zu diesem Dienst wenden Sie sich bitte an:<br>
+            <a href="mailto:{email_reply_to}">{email_reply_to}</a>.
+        </p>
     </body>
 </html>
