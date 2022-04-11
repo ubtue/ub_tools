@@ -5,7 +5,7 @@ if [ $# != 1 ]; then
     exit 1
 fi
 
-K10PLUS_DATA_BASE_URL="https://mb064.ub.uni-tuebingen.de/api/v1/search?"
+K10PLUS_DATA_BASE_URL="https://mb062.ub.uni-tuebingen.de/api/v1/search?"
 K10PLUS_DATE_TITLE_SEARCH_BASE_QUERY=${K10PLUS_DATA_BASE_URL}"type=Title&sort=relevance%2C%20year%20desc&page=1&limit=20&lookfor="
 QUERY_TMP_DIR="/tmp/association"
 FILE_TO_CONVERT="${1}"
