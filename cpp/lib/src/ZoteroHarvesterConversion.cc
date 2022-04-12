@@ -721,7 +721,6 @@ void DetectNotes(MetadataRecord * const metadata_record, const ConversionParams 
 
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
-const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
 const ThreadSafeRegexMatcher PROPER_LAST_NAME("^(?!\\p{L}\\.).*$");
 
 
@@ -755,29 +754,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
 
     // normalise pages
     const auto pages(metadata_record->pages_);
-    // force uppercase for roman numeral detection
-    auto page_match(PAGE_RANGE_MATCHER.match(StringUtil::ASCIIToUpper(pages)));
-    if (page_match) {
-        std::string converted_pages;
-        if (PAGE_ROMAN_NUMERAL_MATCHER.match(page_match[1]))
-            converted_pages += std::to_string(StringUtil::RomanNumeralToDecimal(page_match[1]));
-        else
-            converted_pages += page_match[1];
-
-        converted_pages += "-";
-
-        if (PAGE_ROMAN_NUMERAL_MATCHER.match(page_match[2]))
-            converted_pages += std::to_string(StringUtil::RomanNumeralToDecimal(page_match[2]));
-        else
-            converted_pages += page_match[2];
-
-        if (converted_pages != pages) {
-            LOG_DEBUG("converted roman numeral page range '" + pages + "' to decimal page range '" + converted_pages + "'");
-            metadata_record->pages_ = converted_pages;
-        }
-    }
-
-    page_match = PAGE_RANGE_DIGIT_MATCHER.match(metadata_record->pages_);
+    auto page_match(PAGE_RANGE_DIGIT_MATCHER.match(pages));
     if (page_match and page_match[1] == page_match[2])
         metadata_record->pages_ = page_match[1];
 
@@ -1016,8 +993,8 @@ std::string ConvertRomanPageRangeToArabic(const std::string &pages, const Thread
         if (match_result.size() == 1)
             return std::to_string(StringUtil::RomanNumeralToDecimal(pages));
         else
-            return std::to_string(StringUtil::RomanNumeralToDecimal(match_result[1])) + '-' +
-                   std::to_string(StringUtil::RomanNumeralToDecimal(match_result[2]));
+            return std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[1]))) + '-' +
+                   std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[2])));
     return pages;
 }
 
@@ -1219,7 +1196,9 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR)) {
             _936_subfields.appendSubfield('i', StringUtil::TrimWhite(pages.substr(ARTICLE_NUM_INDICATOR.length())));
         } else if (const auto match_result = MatchRomanPageOrPageRange(pages); unlikely(match_result)) {
-            _936_subfields.appendSubfield('h', ConvertRomanPageRangeToArabic(pages, match_result));
+            const std::string converted_pages(ConvertRomanPageRangeToArabic(pages, match_result));
+            _936_subfields.appendSubfield('h', converted_pages);
+             LOG_DEBUG("converted roman numeral page range '" + pages + "' to decimal page range '" + converted_pages + "'");
             include_936_y = true;
         }  else
             _936_subfields.appendSubfield('h', pages);
