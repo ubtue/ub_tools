@@ -45,6 +45,7 @@
 #include "Template.h"
 #include "TimeUtil.h"
 #include "UBTools.h"
+#include "VuFind.h"
 #include "util.h"
 
 
@@ -179,19 +180,6 @@ bool NewIssueInfo::operator%(const NewIssueInfo &rhs) const {
 }
 
 
-inline std::string CapitalizedUserType(const std::string &user_type) {
-    if (user_type == "ixtheo")
-        return "IxTheo";
-    else if (user_type == "bibstudies")
-        return "BibStudies";
-    else if (user_type == "churchlaw")
-        return "ChurchLaw";
-    else if (user_type == "relbib")
-        return "RelBib";
-    else
-        LOG_ERROR("instance not valid: " + user_type);
-}
-
 } // namespace
 
 namespace std {
@@ -284,7 +272,7 @@ public:
         Template::Map names_to_values_map;
         names_to_values_map.insertScalar("user_name", name_of_user);
         names_to_values_map.insertScalar("list", list);
-        names_to_values_map.insertScalar("system", CapitalizedUserType(user_type));
+        names_to_values_map.insertScalar("system", VuFind::CapitalizedUserType(user_type));
         names_to_values_map.insertScalar("email_reply_to", user_type + "@ub.uni-tuebingen.de");
         const auto email_body(Template::ExpandTemplate(email_template_prepared, names_to_values_map));
 

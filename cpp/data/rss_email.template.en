@@ -5,5 +5,13 @@
 
         <p>The following items from your selected RSS feeds are new:</p>
         {list}
+
+        <p>
+            Sincerely,<br>
+            The {system}-Team<br>
+            --<br>
+            If you have questions regarding this service please contact<br>
+            <a href="mailto:{email_reply_to}">{email_reply_to}</a>.
+        </p>
     </body>
 </html>
