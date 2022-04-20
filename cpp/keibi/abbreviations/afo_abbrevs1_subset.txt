@@ -1,0 +1,446 @@
+AAA|Annals of Archaeology and Anthropology 
+AASOR|Annual of the American Schools of Oriental Research 
+AAT|Astrological-Astronomical Texts 
+ÄAT|Ägypten und Altes Testament  
+AB|Assyriologische Bibliothek  
+ABC|Assyrian and Babylonian Contracts with Aramaic reference notes 
+ABIM|Altbabylonische Briefe des Iraq Museums 
+ABL|Assyrian and Babylonian Letters 
+ABRT|Assyrian and Babylonian Religious Texts 
+AEAD|Assyrian-English-Assyrian Diction- ary 
+AGH|Die akkadische Gebetsserie “Hand- erhebung” ... 
+AGS|Assyrische Gebete an den Son- nengott 
+ÄHK|Die ägyptisch-hethitische Korrespon- denz aus Boghazköi in babylonischer und he- thitischer Sprache 
+AION|Annali dell’Istituto Orientale di Napoli 
+AM|Babylonische Texte. Heft VI B. Inscriptions of ..., p. 1-21 
+AMI|Archäologische Mitteilungen aus Iran  
+AMIT|Archäologische Mitteilungen aus Iran und Turan 
+AMT|Assyrian Medical Texts 
+AOATS|Sonderreihe 
+ARES|Archivi reali di Ebla ‒ Studi  
+ARET|Archivi reali di Ebla ‒ Testi  
+ARI|Assyrian Royal Inscriptions 
+ARM|Archives Royales de Mari  
+ATHE|Die altassyrischen Texte des Orientalischen Seminars der Universität Hei- delberg und der Sammlung Erlenmeyer ‒ Ba- sel 
+ATU|Archaische Texte aus Uruk 
+AUCT|Andrews University Cuneiform Texts 
+AVO|Altertumskunde des Vorderen Orients. Archäologische Studien zur Kultur und Geschichte des Alten Orients 
+AWL|Altsumerische Wirtschaftstexte aus Lagasch 
+BA|Beiträge zur Assyriologie  
+BAAL|Bulletin d’Archéologie et d’Architecture Libanaises 
+BAM|Die babylonisch-assyrische Medizin in Texten und Untersuchungen 
+BAP|Beiträge zum altbabylonischen Privatrecht 
+BASOR|SS
+BATSH|Berichte der Ausgrabung Tall Šēḫ Ḥamad/Dūr katlimmu 
+BBDCP|Babylonian Business Documents of the Classical Period 
+BBEA|Brief des Bischofs von Esagila an König Asarhaddon 
+BHLT|Babylonian Historical-Literary Texts 
+BHT|Babylonian Historical Texts 
+BIN|Babylonian Inscriptions in the Collection of James B. Nies 
+BIWA|Beiträge zum Inschriftenwerk Assurbanipals 
+BJV|NF
+BL|Babylonian Liturgies  
+BRL|Aus dem babylonischen Rechtsleben 1-4 
+BRM|Babylonian Records in the Library of J. Pierpont Morgan 
+BSA|Bulletin on Sumerian Agriculture  
+BSMS|Bulletin. The Society for Mesopotamian Studies ; s.a. BCSMS
+BSOAS|Bulletin of the School of Oriental and African Studies 
+CAT|Canaanite in the Amarna Tablets. A Linguistic Analysis of the Mixed Dialect used by Scribes from Canaan 
+CBT|Catalogue of the Babylonian Tablets in the British Museum 
+CCBN|Catalogue des cylindres orientaux ... de la Bibliothèque Nationale 
+CCEBK|Chronicles concerning Early Babylonian Kings 
+CCENA|Censimenti e Catasti di Epoca Neo-Assira 
+CCK|Chronicles of Chaldaean Kings 
+CCL|Musée du Louvre, catalogue des cylindres orientaux, cachets et pierres gravée de style oriental 
+CCT|Cuneiform Texts from Cappadocian Tablets 
+CDLJ|https://cdli.ucla.edu/?q=publications 
+CHEU|Contribution à l’histoire écono- mique d’Umma 
+CHJ|Contribution à l’Histoire Juridique de 1re Dynastie Babylonienne 
+CII|Corpus Inscriptionum Iranicarum 
+CIRPL|Corpus des inscriptions “Ro yales” présargoniques de Lagaš 
+CLAM|The Canonical Lamentations of Ancient Mesopotamia 
+CMAO|Contributi e materiali di Archeologia orientale 
+CPN|Personal Names from Cuneiform Inscriptions of the Cassite Period 
+CTMMA|Cuneiform Texts in the Metropolitan Mu- seum of Art 
+CTN|Cuneiform Texts from Nimrud  
+CTNMC|Cuneiform Texts in the National Museum, Copenhagen, chiefly of economical contents 
+CTSHM|Cuneiform Texts in the Sadberk Hanım Museum 
+CTU|Corpus dei testi urartei. I. testi II. iscrizioni su pietra e roccia. Thesaurus. III. iscrizioni su pietra e roccia. Carte, fotografi disegni 
+CUSAS|Cornell University Studies in Assyriology and Sumerology 
+DA|Documents assyriens relatifs aux présages 
+DAFI|Cahiers de la Délégation Archéologique Fran- çaise en Iran 
+DAS|Documents d’archéologie syrienne 
+DC|Découvertes en Chaldée 
+DCS|Documents cu- néiformes de Strasbourg, conservés à la Bibliothèque Nationale et Universitaire. Tome 1: Autographies 
+DDD|Dictionary of Deities and Demons in the Bible 
+DP|Documents présar- goniques 
+DSC|Data Sets: Cuneiform Texts  
+DV|Erevan) 
+EA|Die El-Amarna Tafeln 
+EASTM|Technology, and Medicine 
+ECTJ|Early Cuneiform Texts in Jena 
+FB|Forschungen und Berichte 
+FF|Forschungen und Fortschritte  
+FM|Florilegium marianum  
+FT|Fouilles de Telloh  
+FTS|From the Tablets of Sumer 
+GAAL|Göttinger Arbeitshefte zur Altorientalischen Literatur 
+GAG|Grundriß der akkadischen Grammatik 
+GKT|Grammatik der Kültepe-Texte 
+GPA|The Governor’s Palace Archive 
+HBA|Handbuch der babylonischen Astronomie 
+HCL|Fehler für HLC 
+HSA|A History of Sumer and Akkad ... 
+HSM|Harvard Semitic Museum Monographs 
+HSS|Harvard Semitic Series 
+ICK|Bd. 2 Matouš) 
+IEJ|Israel Exploration Journal  
+ILN|Illustrated London News  
+JANER|Journal of Ancient Near Eastern Religions 
+JANES|Journal of the Ancient Near Eastern Society of Columbia University 
+JAOS|Journal of the American Oriental Society 
+JARCE|Journal of the American Research Center in Egypt
+JARG|Jahrbuch für Anthropologie und Religionsgeschichte 
+JBL|Journal of Biblical Literature 
+JBVO|Jenaer Beiträge zum Vorderen Orient 
+JCS|Mass.) 
+JCSMS|Journal. The Canadian Society for Mesopotamian Studies 
+JDAI|Jahrbuch des Deutschen Archäologischen Instituts 
+JEA|Journal of Egyptian Archaeology  
+JEN|Joint Expedition with the Iraq Museum at Nuzi  [JENu
+JEOL|Jaarbericht van het Vooraziatisch-Egyptisch Gezelschap “Ex Oriente Lux” 
+JESHO|Journal of the Economic and Social History of the Orient 
+JHA|Journal of the History of Astronomy 
+JKF|Jahrbuch für kleinasiatische Forschung 
+JMC|Le Journal des Médecines Cunéiformes 
+JMEOS|Journal of the Manchester Egyptian and Oriental Society 
+KADP|Keilschrifttexte zur assyrisch- babylonischen Drogen- und Pflanzenkunde 
+KAH|Keilschrifttexte aus Assur historischen Inhalts 
+KAI|Kanaanäische und aramäische Inschriften3 
+KAJ|Keilschrifttexte aus Assur juristischen Inhalts 
+KAN|Inschriften) 
+KAR|Keilschrifttexte aus Assur religiösen Inhalts 
+KMI|Keilschrifttexte medizinischen Inhalts 
+KTH|Die Kültepetexte aus der Sammlung Frida Hahn, Berlin 
+LAPO|Littératures anciennes du Proche-Orient  
+LAS|Letters from Assyrian Scholars ... 3 Teile 
+LBAT|Late Babylonian Astronomical and Related Texts 
+LBJGK|Leipziger Beiträge zur Jüdischen Geschichte und Kultur 
+LE|The Laws of Eshnunna 
+LEA|Les Lettres d’El-Amarna. Correspondance diplomatique du pharaon 
+LKA|Literarische Keilschrifttexte aus Assur 
+LKU|Literarische Keilschrifttexte aus Uruk 
+LSS|Leipziger semitistische Studien  
+MAD|Materials for the Assyrian Dictionary  
+MBI|Miscellaneous Babylonian Inscriptions 
+MC|Mesopotamian Civilizations 
+MJ|Museum Journal  
+MKT|Mathematische Keilschrifttexte I und II 
+MLVS|Mededeelingen uit de Leidsche Verzameling van Spijkerschrift-Inscripties 
+MMJ|Metropolitan Museum Journal  
+MNS|Der Mondgott Nanna-Suen in der sumerischen Überlieferung 
+MRWH|Mittelbabylonische Rechts- und Wirtschaftsurkunden der Hilprecht-Sammlung Jena 
+MSAE|Sargonic and Lagash II Periods, Part 2 
+NABU|N. A. B. U. Nouvelles Assyriologiques Brèves et Utilitaires 
+NAOMA|Nuove attestazioni dell’onomastica medioassir 
+NAPR|Northern Akkad Project Reports  
+NATN|Neo-Sumerian Archival Texts Primarily from Nippur 
+NBGT|Neobabylonian Grammatical Texts  
+NKRA|Neue keilschriftliche Rechtsurkunden aus der Amarna-Zeit 
+NRVN|Neusumerische Rechts und Verwaltungsurkunden aus Nippur I 
+NSGU|Die neusumerischen Gerichtsurkunden 
+OIP|Oriental Institute Publications  
+OLA|Orientalia Lovaniensia Analecta  
+OLP|Orientalia Lovaniensia Periodica  
+OLZ|Orientalistische Literaturzeitung  
+OMRO|Oudheidkundige Mededelingen uit het Rijksmuseum van Oudheden te Leiden 
+OPNE|Occasional Publications on the Near East 
+PAPS|Proceedings of the American Philosophical Society 
+PBS|The University Museum 
+PDT|Die Puz Dagan-Texte der Istanbuler Archäologischen Museen 
+PEA|The Prisms of Esarhaddon and Ashurbanipal found at Niniveh 1927/28 
+PEFQS|Palestine Exploration Fund quaterly statement (Fortsetzung
+PEQ|Palestine Exploration Quarterly  
+PKOM|Publikationen der Kaiserlich-Osmanischen Museen 
+PKT|Parfümrezepte und kultische Texte aus Assur 
+PNA|hrsg. von H. D. Baker 
+PRAK|Premières Recherches Archéologiques à Kich 
+QS|Quaderni di Semitistica  
+RA|Revue d’Assyriologie et d’Archéologie Orientale 
+RB|Revue Biblique  
+RBI|Rivista Biblica Italiana  
+RCAE|Royal Correspondence of the Assyrian Empire 
+RE|Paulys Real-Encyclopädie der classischen Altertumswissenschaft 
+RIDA|Revue Internationale des Droits de l’Antiquité 
+RIM|The Royal Inscriptions of Mesopotamia ; RIM S
+RIMA|The Royal Inscriptions of Mesopotamia. Assyrian Periods 
+RIMB|The Royal Inscriptions of Mesopotamia. Babylonian Periods 
+RIME|The Royal Inscriptions of Mesopotamia. Early Periods 
+RISA|The Royal Inscriptions of Sumer and Akkad 
+RLV|Reallexikon der Vorgeschichte  
+RMA|The Reports of the Magicians and Astrologers of Niniveh and Babylon 
+RO|Rocznik orientalistyczny  
+ROMCT|Royal Ontario Museum Cuneiform Texts 
+RS|Ras Shamra/Ugarit  
+SAAB|Bulletin 
+SAACT|State Archives of Assyria Cuneiform Texts 
+SAAS|State Archives of Assyria Studies 
+SAK|Die sumerischen und akkadischen Königsinschriften 
+SAKF|Sumerische und akkadische Keilschriftdenkmäler des Archäologischen Museums zu Florenz 
+SANE|Sources from the Ancient Near East  
+SAOC|Studies in Ancient Oriental Civilization 
+SAQ|Studi Archeologici su Qatna 
+SCO|Studi classici e orientali  
+SCT|Smith College Tablets 
+SCWA|The Seal Cylinders of Western Asia 
+SD|Studia et documenta ad iura orientis antiqui pertinentia 
+SIMA|Studia Iranica Mesopotamica Anatolica 
+SKFZ|Die sumerischen Königsinschriften der frühaltbabylonischen Zeit in Umschrift und Übersetzung 
+SKIZ|Sumerische ‘Königshymnen’ der Isin-Zeit 
+SKT|Sammlung von Keilschrifttexten 
+SLB|Studia ad tabulas cuneiformes a F. M. Th. De Liagre Böhl collectas pertinentia 
+SLFN|Sumerian Literary Fragments from Nippur 
+SLT|Sumerian Lexical Texts from the Temple School of Nippur 
+SLTN|Sumerian Literary Texts from Nippur in the Museum of the Ancient Orient at Istanbul 
+SMEA|Studi Micenei ed Egeo-Anatolici  
+SMS|Syro-Mesopotamian Studies  
+SÖAW|Sitzungsberichte der Österreichischen Akademie der Wissenschaften 
+STT|The Sultantepe Tablets .
+ŠRT|The Šamaš Religious Texts 
+TAD|Türk Arkeoloji Dergisi  s. Dergi 
+TBER|Textes babyloniens d’époque récente 
+TC|Tablettes Cappadociennes (1
+TCL|Textes cunéiformes du Louvre  
+TCM|Textes cunéiformes de Mari  
+TCND|Testi cuneiformi neo- sumerici da Drehem 
+TCNSU|Testi cuneiformi neo-sumerici da Umma NN. 0413- 0723 
+TCS|Texts from Cuneiform Sources 
+TIM|Texts in the Iraq Museum 
+TJAUB|Tablettes juridiques et administratives de la IIIe dynastie d’Ur et d Ire dynastie de Babylone, ... 
+TJDB|Textes juridiques de la 1e dynastie babylonienne 
+TLB|Tabulae cuneiformes a F. M. Th. de Liagre Böhl collectae 
+TMB|Textes Mathématiques Babyloniens 
+TMO|Travaux de la Maison de l’Orient et de la Méditerranée 
+TUT|Tempelurkunden aus Telloh 
+UAR|Untersuchungen zur altassyrischen Religion 
+UAVA|Untersuchungen zur Assyriologie und vorderasiatischen Archäolog 
+UCP|University of California Publications 
+UDBD|Urkunden aus der Zeit der dritten babylonischen Dynastie 
+UDT|Ur dynasty tablets ...  
+UE|Ur Excavations  
+UET|Texts  
+UF|Ugarit-Forschungen 
+UMB|University Museum Bulletin  
+VO|Vicino Oriente 
+VT|Vetus Testamentum  
+WMAH|Wirtschaftsurkunden aus der Zeit der III. Dynastie von Ur im Besitz des Musée d’Art et d’Histoire in Genf 
+WOO|Wiener offene Orientalistik  
+WZJ|Wissenschaftliche Zeitschrift der Friedrich- Schiller-Universität Jena
+WZKM|Wiener Zeitschrift für die Kunde des Morgenlandes 
+ZRG|Zeitschrift für Religions- und Geistesgeschichte .
+ABZ|Assyrisch-babylonische Zeichenliste 
+ACT|Astronomical Cuneiform Texts. Babylonian Ephemerides of the Seleucid Period for the Motion of the Sun, the Moon, and the Planets 
+ADAJ|Annual of the Department of Antiquities of Jordan 
+ADB|An Assyrian Doomsday Book 
+ADD|Assyrian Deeds and Documents 
+ADOG|Abhandlungen der Deutschen Orient-Gesell schaft
+AIPHOS|Annuaire de l’Institut de Philologie et d’His toire Orientales et Slaves 
+AJSL|American Journal of Semitic Languages and Literatures 
+AKA|Annals of the Kings of Assyria 
+AKL|RLA 6, 101 16.
+AKT|Ankara Kültepe Tabletleri 
+AOAT|Alter Orient und Altes Testament 
+AOATT|Aspects of Old Assyrian Trade and its Terminology 
+AÖAW|Anzeiger der Österreichischen Akademie der Wissenschaften 
+AOB|Altorientalische Bibliothek 
+AOF|Altorientalische Forschungen 
+AOS|American Oriental Series
+APA|Acta Praehistorica et Archaeologica
+APAW|Abhandlungen der Preußischen Akademie der Wissenschaften 
+AR|Assyrische Rechtsur kunden 
+ARMT|Traductions 
+ARN|H. Kızılyay, F. R. Kraus, Altbabylo nische Rechtsurkunden aus Nippur 
+AS|Assyriological Studies 
+ASAW|Philologisch- historische Klasse 
+ASJ|Acta Sumerologica 
+ASKT|Akkadische und sumerische Keil schrifttexte 
+AUWE|Endberichte 
+BAH|Bibliothèque Archéologique et Historique 
+BBR|Beiträge zur Kenntnis der ba bylonischen Religion 
+BBS|Babylonian Boundary Stones 
+BBVO|Berliner Beiträge zum Vorderen Orient 
+BCSMS|Bulletin. The Canadian Society for Meso potamian Studies 
+BDHP|Business Documents of the Hammurapi Period 
+BE|The Babylonian Expedition of the University of Pennsylvania 
+BM|Museumssignatur des Britischen Museums 
+BMAH|Bulletin des Musées Royaux d’Art et d’His toire 
+BMB|Bulletin du Musée de Beyrouth
+BMECCJ|Bulletin of the Middle Eastern Culture Center in Japan 
+BMFA|Bulletin of the Museum of Fine Arts 
+BMMA|Bulletin of the Metropolitan Museum of Art 
+BMQ|British Museum Quarterly 
+BMS|Babylonian Magic and Sorcery 
+BOR|Babylonian and Oriental Record 
+BPMOS|Bulletin of Parthian and Mixed Oriental Studies 
+BPO|Babylonian Planetary Omens 
+BPOA|Biblioteca del Próximo Oriente Antiquo 
+BV|Babylonische Verträge des Berliner Museums 
+BW|Babylonian Wisdom 
+BWL|Babylonian Wisdom Literature 
+CA|The Cult of Aššur 
+CAD|The Assyrian Dictionary of the Oriental Institute
+CAH|The Cambridge Ancient History 
+CAJ|Cambridge Archaeological Journal 
+CDOG|Internationales Colloquium der Deutschen Orient-Gesellschaft 
+CHANE|Culture and History of the Ancient Near East 
+CRAIBL|Comptes Rendus des Séances de l’Académie des Inscriptions et Belles-Lettres 
+CSSH|Comparative Studies in Society and History
+CST|Catalogue of Sumerian Tablets in the John Rylands Library 
+CT|Cuneiform Texts from Babylonian Tablets in the British Museum 
+CTA|Corpus des tablettes en cunéiformes alphabétiques découvertes à Ras Shamra ‒ Ugarit de 1929 à 1939 
+CTH|Catalogue des textes hittites 
+DLZ|Deutsche Literatur-Zeitung 
+EDATŠ|Early Dynastic Administrative Tablets of Šuruppak 
+EDSA|The Early Dynasties of Sumer and Akkad 
+EG|The Epic of Gilgamish 
+EL|Die altassyrischen Rechtsurkunden vom Kültepe 
+EVO|Egitto e Vicino Oriente 
+FAOS|Freiburger Altorientalische Studien 
+FARG|Forschungen zur Anthropologie und Religionsgeschichte 
+GDBT|Gestirn-Darstellungen auf babylonischen Tontafeln 
+HANE|History of the Ancient Near East ; /S
+HKL|Handbuch der Keilschriftliteratur 
+HLC|Haverford Library Collection of Cuneiform Tablets or Documents from the
+HUCA|Hebrew Union College Annual 
+IAK|Die Inschriften der altassyrischen Könige 
+IAR|Iraq Archaeological Reports
+IBK|Innsbrucker Beiträge zur Kulturwissenschaft 
+IOS|Israel Oriental Studies 
+IRAIMK|Izvestija Rossijskoj Akademii Istorii Material’noj Kul’tury 
+IRSA|Inscriptions royales sumériennes et akkadiennes 
+ISET|M. Çığ ‒ H. Kızılyay ‒ S. N. Kramer. Istanbul Arkeoloji Müzelerinde bulunan Sumer edebî tablet ve parçaları 
+ISL|Innsbrucker Sumerisches Lexikon 
+ITT|Inventaire des Tablettes de Tello 
+IWA|Das Inschriftenwerk Assurbanipals 
+JA|Journal Asiatique 
+JNES|Journal of Near Eastern Studies 
+JNSL|Journal of North-West Semitic Languages 
+JRAS|Journal of the Royal Asiatic Society . CSpl.
+JRGS|Journal of the Royal Geographical Society 
+JSOR|Journal of the Society of Oriental Research 
+JSOT|Journal for the Study of the Old Testament 
+JSS|Journal of Semitic Studies 
+JTVI|Journal of the Transactions of the Victoria Institute 
+KA|Die Keilinschriften der Achämeniden 
+KASKAL|ambiente e culture del Vicino Oriente Antico 
+KAV|Keilschrifttexte aus Assur verschiedenen Inhalts 
+KB|Keilinschriftliche Bibliothek 
+KBN|de Kêmi à Birīt Nāri. Revue Internationale de l’Orient Ancien 
+KE|Kodex Ešnunna 
+KKT|Kappadokische Keilschrifttafeln aus den
+KTK|Klinopisnye teksty iz Kjul’ Tepe v sobranijach SSSR 
+KTP|The Cappadocian Tablets in the University of Pennsylvania Museum  1927, 101-136
+KTS|Keilschrifttexte in den Antiken-Museen zu Stambul. Die altassyrischen Texte vom Kültepe bei Kaisarīje 
+KTU|Die keilalphabetischen Texte aus Ugarit 
+KU|Hammurabis Gesetz 
+KUG|Die Keilschrifttexte der Universitätsbibliothek Gießen 
+LFBD|Letters of the First Babylonian Dynasty 
+LIH|The Letters and Inscriptions of Hammurabi 
+MAIS|Missione Archeologica Italiana in Siria dell’Università di Roma “La Sapienza”
+MAM|Mission Archéologique de Mari 
+MANE|Monographs on the Ancient Near East 
+MAOG|Mitteilungen der Altorientalischen Gesellschaft 
+MARG|Mitteilungen für Anthropology und Religionsgeschichte 
+MARI|Annales de Recherches Interdisciplinaires
+MARV|Mittelassyrische Rechtsurkunden und Verwaltungstexte (Berlin; 1
+MCS|Manchester Cuneiform Studies  MCT
+MDAI|Mémoires de la Délégation Archéologique en Iran  s. a. MDP
+MDOG|Mitteilungen der Deutschen Orient Gesellschaft 
+MDP|XXIII; später MDAI
+MEE|Materiali Epigrafici di Ebla 
+MHEM|Memoirs 
+MHEO|Oc casional Publications 
+MHET|Texts 
+MIO|Mitteilungen des Instituts für Orientforschung 
+MSKH|Materials and Studies for Kassite History 
+MSL|Materialien zum Sumerischen Lexikon/Materials for the Sumerian Lexicon . SS
+MSVO|Materialien zu den frühen Schriftzeugnissen des Vorderen Orients 
+MVN|Materiali per il vocabolario neosumerico 
+MVS|Münchener Vorderasiatische Studien 
+NEA|Near Eastern Archaeology ; Fortsetzung von BiAr
+NFT|Nouvelles Fouilles de Tello 
+NIN|NIN. Journal of Gender Studies in Antiquity 
+NTSŠ|Nouvelles tablettes sumériennes de Šuruppak au Musée d’Istanbul 
+NWL|The Nimrud Wine Lists 
+OAA|Old Assyrian Archives 
+OAAS|Studies 
+OAIC|Old Akkadian Inscriptions in Chicago Natural History Museum 
+OBGT|Old Babylonian Grammatical Texts 
+OBO|Orbis Biblicus et Orientalis . SA
+OBTR|C. B. F. Walker and J. D. Hawkins, The Old Babylonian Tablets from Tell al Rimah 
+OEANE|The Oxford Encyclopedia of Archaeology in the Near East. Prepared under the auspices of the American Schools of Oriental Research, 5 Bände 
+OECT|Oxford Editions of Cuneiform Texts 
+OIC|Oriental Institute Communications 
+OIMA|Oriental Institute Microfiche Archives 
+OSP|Old Sumerian and Old Akkadian Texts in Philadelphia chiefly from Nippur (Malibu
+PHPKB|Political History of Post-Kassite Babylonia 
+PRT|Politisch-religiöse Texte aus der Sargonidenzeit 
+PRU|Le Palais Royal d’Ugarit 
+PSBA|Proceedings of the Society of Biblical Archaeology 
+PSD|The Sumerian Dictionary of the University Museum of the University of Pennsylvania 
+RSF|Rivista di studi fenici 
+RSO|Rivista degli studi orientali 
+RSP|Ras Shamra Parallels 
+RT|Recueil des travaux relatifs à la Philologie et à l’Archéologie Egyptiennes et Assyriennes 
+RTC|Recueil des Tablettes Chal déennes 
+SAA|State Archives of Assyria 
+SACT|Sumerian and Akkadian Cuneiform Texts in the Collections of the World Heritage Museum of the University of Illinois 
+SAHG|Sumerische und akkadische Hymnen und Gebete 
+SARI|Sumerian and Akkadian Royal Inscriptions 
+SAT|Sumerian Archival Texts 
+SBAW|Sitzungsberichte der Bayerischen Akademie der Wissenschaften 
+SBH|Sumerisch-babylonische Hymnen nach Thontafeln griechischer Zeit 
+SBKI|Selected Babylonian Kudurru Inscriptions 
+SBTU|Spätbabylonische Texte aus Uruk 
+SCCNH|Studies on the Civilization and Culture of Nuzi and the Hurrians  SCCNH 12
+SEL|Studi Epigrafici e Linguistici sul Vicino Oriente antico 
+SEM|Sumerian Epics and Myths 
+SET|Sumerian Economic Texts from the Third Ur Dynasty 
+SEV|Studi egei e vicinorientali 
+SFS|Une saison de fouilles à Sippar 
+SG|Sumerisches Glossar 
+SGL|Sumerische Götterlieder 
+SH|Signaturen der Tafeln aus Šemšāra
+SPAW|Sitzungsberichte der Preußischen Akademie der
+SPO|Studi di Preistoria Orientale  SR
+SRT|Sumerian Religious Texts 
+STA|Selected Temple Accounts from Telloh, Yokha and Drehem. ... 
+STC|The Seven Tablets of Creation 
+STTI|Sargonic Texts from Telloh in the Istanbul Archaeological Museums 
+SVAT|Stiftungen und Vorschriften für assyrische Tempel 
+SVS|Studi per il Vocabulario Sumerico 
+SZ|romanistische Abteilung 
+ŠL|Šumerisches Lexikon  TCS 5
+TCTI|Tablettes cunéiformes de Tello au Musée d’Istanbul 
+TÉA|Tablettes économiques et
+TÉL|Tablettes économiques de Lagash 
+TIE|Thesaurus Inscriptionum Eblaicarum 
+TPAK|Tablettes Paléo Assyriennes de Kültepe 
+TPTS|Tablettes du Princeton Theological Seminary. Époque d’Ur III 
+TRU|Le temps des rois d’Ur 
+TS|Tell Sifr  TSA
+UVB|Vorläufige Berichte über die Ausgrabungen in Uruk-Warka 
+VAB|Vorderasiatische Bibliothek 
+VAR|Vorderasiatische Rollsiegel 
+VAT|Tafelsignatur in der Vorderasiatischen Abteilung der Staatlichen Museen zu Berlin
+VDI|Vestnik drevnej istorii 
+WACS|1962), II 
+WAG|Walters Art Gallery 
+WVDOG|Wissenschaftliche Veröffentlichungen der Deutschen Orient-Gesellschaft 
+YNER|Yale Near Eastern Researches 
+YOS|Yale Oriental Series 
+ZA|Zeitschrift für Assyriologie 
+ZAH|Zeitschrift für Althebraistik 
+ZAR|Zeitschrift für Altorientalische und Biblische Rechtsgeschichte 
+ZATU|Zeichenliste der archaischen Texte aus Uruk 
+ZDMG|Zeitschrift der Deutschen Morgenländischen Gesellschaft 
