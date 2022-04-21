@@ -1,6 +1,10 @@
 FROM ub_tools-deps-ubuntu
 LABEL maintainer="Mario Trojan <mario.trojan@uni-tuebingen.de>"
 
+#master is default value
+ARG branch=master
+ENV BRANCH=$branch
+
 # add needed configuration files
 # (+simulate mounts)
 RUN mkdir --parents /mnt/ZE020110/FID-Projekte
