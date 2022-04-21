@@ -15,6 +15,9 @@ if [[ ! $PATH =~ "/usr/local/bin" ]]; then
     exit 1
 fi
 
+if [ -n "$BRANCH" ]; then
+    BRANCH="master"
+fi
 echo "Branch is: ${BRANCH}"
 
 echo "Installing dependencies..."
