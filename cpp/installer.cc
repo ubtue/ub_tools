@@ -1,4 +1,4 @@
-/** \brief A tool for installing IxTheo and KrimDok from scratch on Ubuntu and Centos systems.
+/** \brief A tool for installing IxTheo and KrimDok from scratch on Ubuntu systems.
  *  \author Dr. Johannes Ruscheinski (johannes.ruscheinski@uni-tuebingen.de)
  *
  *  \copyright 2016-2021 Universitätsbibliothek Tübingen.  All rights reserved.
@@ -46,7 +46,6 @@
 #include "IniFile.h"
 #include "MiscUtil.h"
 #include "RegexMatcher.h"
-#include "SELinuxUtil.h"
 #include "Solr.h"
 #include "StringUtil.h"
 #include "SystemdUtil.h"
@@ -102,21 +101,6 @@ std::string VuFindSystemTypeToString(VuFindSystemType vufind_system_type) {
         return "ixtheo";
     else
         Error("invalid VuFind system type!");
-}
-
-
-enum OSSystemType { UBUNTU, CENTOS };
-
-
-OSSystemType DetermineOSSystemType() {
-    std::string file_contents;
-    if (FileUtil::ReadString("/etc/issue", &file_contents)
-        and StringUtil::FindCaseInsensitive(file_contents, "ubuntu") != std::string::npos)
-        return UBUNTU;
-    if (FileUtil::ReadString("/etc/redhat-release", &file_contents)
-        and StringUtil::FindCaseInsensitive(file_contents, "centos") != std::string::npos)
-        return CENTOS;
-    Error("you're probably not on an Ubuntu nor on a CentOS system!");
 }
 
 
@@ -252,42 +236,17 @@ void MountDeptDriveAndInstallSSHKeysOrDie(const VuFindSystemType vufind_system_t
 }
 
 
-void AssureMysqlServerIsRunning(const OSSystemType os_system_type) {
+void AssureMysqlServerIsRunning() {
     std::unordered_set<unsigned> running_pids;
     std::string mysql_sock_path;
-    switch (os_system_type) {
-    case UBUNTU:
-        mysql_sock_path = "/var/run/mysqld/mysqld.sock";
-        if (SystemdUtil::IsAvailable())
-            SystemdUtil::StartUnit("mysql");
-        else {
-            running_pids = ExecUtil::FindActivePrograms("mysqld");
-            if (running_pids.size() == 0)
-                ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mysqld"), { "--daemonize" });
-        }
-        break;
-    case CENTOS:
-        mysql_sock_path = "/var/lib/mysql/mysql.sock";
-        if (SystemdUtil::IsAvailable()) {
-            SystemdUtil::EnableUnit("mariadb");
-            SystemdUtil::StartUnit("mariadb");
-        } else {
-            running_pids = ExecUtil::FindActivePrograms("mysqld");
-            if (running_pids.size() == 0) {
-                // The following calls should be similar to entries in
-                // /usr/lib/systemd/system/mariadb.service
 
-                // ExecStartPre:
-                ExecUtil::ExecOrDie("/usr/libexec/mysql-check-socket", {});
-                ExecUtil::ExecOrDie("/usr/libexec/mysql-prepare-db-dir", {});
-
-                // ExecStart:
-                ExecUtil::Spawn(ExecUtil::LocateOrDie("sudo"), { "-u", "mysql", "/usr/libexec/mysqld" });
-
-                // ExecStartPost:
-                ExecUtil::ExecOrDie("/usr/libexec/mysql-check-upgrade", {});
-            }
-        }
+    mysql_sock_path = "/var/run/mysqld/mysqld.sock";
+    if (SystemdUtil::IsAvailable())
+        SystemdUtil::StartUnit("mysql");
+    else {
+        running_pids = ExecUtil::FindActivePrograms("mysqld");
+        if (running_pids.size() == 0)
+            ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mysqld"), { "--daemonize" });
     }
 
     const unsigned TIMEOUT(30); // seconds
@@ -383,14 +342,10 @@ void SystemdEnableAndRunUnit(const std::string unit) {
 }
 
 
-void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::string vufind_system_type_string,
+void InstallSoftwareDependencies(const std::string vufind_system_type_string,
                                  const InstallationType installation_type, const bool install_systemctl) {
     // install / update dependencies
-    std::string script;
-    if (os_system_type == UBUNTU)
-        script = INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh";
-    else
-        script = INSTALLER_SCRIPTS_DIRECTORY + "/install_centos_packages.sh";
+    std::string script(INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh");
 
     if (installation_type == UB_TOOLS_ONLY)
         ExecUtil::ExecOrDie(script);
@@ -401,24 +356,8 @@ void InstallSoftwareDependencies(const OSSystemType os_system_type, const std::s
 
     // check systemd configuration
     if (install_systemctl) {
-        std::string apache_unit_name, mysql_unit_name;
-        switch (os_system_type) {
-        case UBUNTU:
-            apache_unit_name = "apache2";
-            mysql_unit_name = "mysql";
-            break;
-        case CENTOS:
-            apache_unit_name = "httpd";
-            mysql_unit_name = "mariadb";
-
-            if (not FileUtil::Exists("/etc/my.cnf"))
-                ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mysql_install_db"),
-                                    { "--user=mysql", "--ldata=/var/lib/mysql/", "--basedir=/usr" });
-            break;
-
-            SystemdEnableAndRunUnit("php-fpm");
-        }
-
+        std::string apache_unit_name("apache2");
+        std::string mysql_unit_name("mysql");
         SystemdEnableAndRunUnit(apache_unit_name);
         SystemdEnableAndRunUnit(mysql_unit_name);
     }
@@ -455,7 +394,7 @@ static void GenerateAndInstallVuFindServiceTemplate(const VuFindSystemType syste
 }
 
 
-void SetupSysLog(const OSSystemType os_system_type) {
+void SetupSysLog() {
     // Skip this if we are in docker environment
     if (IsDockerEnvironment())
         return;
@@ -467,20 +406,13 @@ void SetupSysLog(const OSSystemType os_system_type) {
     // logfile for ub_tools programs using the SysLog class
     const std::string UB_TOOLS_LOGFILE(UBTools::GetTueFindLogPath() + "/syslog.log");
     FileUtil::TouchFileOrDie(UB_TOOLS_LOGFILE);
-    if (os_system_type == UBUNTU) {
-        // This is only necessary for UBUNTU since syslogd does not run with root privileges.
-        FileUtil::ChangeOwnerOrDie(ZTS_LOGFILE, "syslog", "adm");
-        FileUtil::ChangeOwnerOrDie(UB_TOOLS_LOGFILE, "syslog", "adm");
-    }
+
+    FileUtil::ChangeOwnerOrDie(ZTS_LOGFILE, "syslog", "adm");
+    FileUtil::ChangeOwnerOrDie(UB_TOOLS_LOGFILE, "syslog", "adm");
+
     FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/syslog.zts.conf", "/etc/rsyslog.d/30-zts.conf");
     FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/syslog.ub_tools.conf", "/etc/rsyslog.d/40-ub_tools.conf");
 
-    if (SELinuxUtil::IsEnabled()) {
-        // This file needs to be written to from journald/syslog + read from apache user
-        // since we cannot give container_log_t and httpd_sys_content_t to the same file,
-        // we use httpd_tmp_t instead
-        SELinuxUtil::FileContext::AddRecord("httpd_tmp_t", ZTS_LOGFILE);
-    }
 }
 
 void SetupSudo() {
@@ -488,7 +420,7 @@ void SetupSudo() {
 }
 
 
-void InstallUBTools(const bool make_install, const OSSystemType os_system_type, DbConnection * const db_connection_root) {
+void InstallUBTools(const bool make_install, DbConnection * const db_connection_root) {
     // First install iViaCore-mkdep...
     ChangeDirectoryOrDie(UB_TOOLS_DIRECTORY + "/cpp/lib/mkdep");
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("make"), { "--jobs=4", "install" });
@@ -518,14 +450,10 @@ void InstallUBTools(const bool make_install, const OSSystemType os_system_type, 
     }
 
     // syslog
-    SetupSysLog(os_system_type);
+    SetupSysLog();
     SetupSudo();
 
-    // Add SELinux permissions for files we need to access via the Web.
-    if (SELinuxUtil::IsEnabled()) {
-        SELinuxUtil::FileContext::AddRecordIfMissing(ZOTERO_ENHANCEMENT_MAPS_DIRECTORY, "httpd_sys_content_t",
-                                                     ZOTERO_ENHANCEMENT_MAPS_DIRECTORY + "(/.*)?");
-    } else if (AppArmorUtil::IsEnabled()) {
+    if (AppArmorUtil::IsEnabled()) {
         const std::string profile_id("apache2");
         AppArmorUtil::InstallLocalProfile(INSTALLER_DATA_DIRECTORY + "/apparmor/" + profile_id);
         AppArmorUtil::SetLocalProfileMode(profile_id, AppArmorUtil::ENFORCE);
@@ -679,65 +607,25 @@ void DownloadVuFind() {
  * - Create user "vufind" as system user if not exists
  * - Grant permissions on relevant directories
  */
-void ConfigureApacheUser(const OSSystemType os_system_type, const bool install_systemctl) {
+void ConfigureApacheUser() {
     const std::string username("vufind");
     CreateUserIfNotExists(username);
 
     // systemd will start apache as root
     // but apache will start children as configured in /etc
     std::string config_filename;
-    switch (os_system_type) {
-    case UBUNTU:
-        AddUserToGroup(username, "www-data");
-        config_filename = "/etc/apache2/envvars";
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
-                            { "-i", "s/export APACHE_RUN_USER=www-data/export APACHE_RUN_USER=" + username + "/", config_filename });
 
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
+    AddUserToGroup(username, "www-data");
+    config_filename = "/etc/apache2/envvars";
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
+                        { "-i", "s/export APACHE_RUN_USER=www-data/export APACHE_RUN_USER=" + username + "/", config_filename });
+
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
                             { "-i", "s/export APACHE_RUN_GROUP=www-data/export APACHE_RUN_GROUP=" + username + "/", config_filename });
-        break;
-    case CENTOS:
-        AddUserToGroup(username, "apache");
-        config_filename = "/etc/httpd/conf/httpd.conf";
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/User apache/User " + username + "/", config_filename });
-
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/Group apache/Group " + username + "/", config_filename });
-
-        const std::string php_config_filename("/etc/php-fpm.d/www.conf");
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/user = apache/user =  " + username + "/", php_config_filename });
-        ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/group = apache/group =  " + username + "/", php_config_filename });
-        ExecUtil::ExecOrDie(
-            ExecUtil::LocateOrDie("sed"),
-            { "-i", "s/listen.acl_users = apache,nginx/listen.acl_users = apache,nginx," + username + "/", php_config_filename });
-
-        FileUtil::ChangeOwnerOrDie("/var/log/httpd", username, username, /*recursive=*/true);
-        FileUtil::ChangeOwnerOrDie("/var/run/httpd", username, username, /*recursive=*/true);
-        if (install_systemctl) {
-            ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"), { "-i", "s/apache/" + username + "/g", "/usr/lib/tmpfiles.d/httpd.conf" });
-        }
-        break;
-    }
 
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("find"),
                         { VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}", "+" });
     FileUtil::ChangeOwnerOrDie(UBTools::GetTueFindLogPath(), username, username, /*recursive=*/true);
-    if (SELinuxUtil::IsEnabled()) {
-        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/ixtheo/cache", "httpd_sys_rw_content_t",
-                                                     VUFIND_DIRECTORY + "/local/tuefind/instances/ixtheo/cache(/.*)?");
-
-        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/relbib/cache", "httpd_sys_rw_content_t",
-                                                     VUFIND_DIRECTORY + "/local/tuefind/instances/relbib/cache(/.*)?");
-
-        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/bibstudies/cache",
-                                                     "httpd_sys_rw_content_t",
-                                                     VUFIND_DIRECTORY + "/local/tuefind/instances/bibstudies/cache(/.*)?");
-
-        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/local/tuefind/instances/krimdok/cache", "httpd_sys_rw_content_t",
-                                                     VUFIND_DIRECTORY + "/local/tuefind/instances/krimdok/cache(/.*)?");
-
-        SELinuxUtil::FileContext::AddRecordIfMissing(VUFIND_DIRECTORY + "/public", "httpd_sys_content_t",
-                                                     VUFIND_DIRECTORY + "/public/NewsletterUploadForm.html");
-    }
 }
 
 
@@ -764,9 +652,6 @@ void ConfigureSolrUserAndService(const VuFindSystemType system_type, const bool 
         "solr hard nproc 65535\n"
         "solr soft nproc 65535\n");
     FileUtil::WriteString("/etc/security/limits.d/20-solr.conf", solr_security_settings);
-
-    if (SELinuxUtil::IsEnabled())
-        SELinuxUtil::Port::AddRecordIfMissing("http_port_t", "tcp", Solr::DEFAULT_PORT);
 
     // systemctl: we do enable as well as daemon-reload and restart
     // to achieve an idempotent installation
@@ -815,7 +700,7 @@ void SetFulltextEnvironmentVariables() {
  *
  * Writes a file into vufind directory to save configured system type
  */
-void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system_type, const OSSystemType os_system_type,
+void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system_type,
                      const bool install_cronjobs, const bool install_systemctl) {
     // We need to increase default_socket_timeout for big downloads on slow mirrors, especially Solr (default 60 seconds) .
     TemporaryChDir tmp2(VUFIND_DIRECTORY);
@@ -854,22 +739,14 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
 
     Echo("creating log directory");
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("mkdir"), { "-p", UBTools::GetTueFindLogPath() });
-    if (SELinuxUtil::IsEnabled()) {
-        SELinuxUtil::FileContext::AddRecordIfMissing(UBTools::GetTueFindLogPath(), "httpd_sys_rw_content_t",
-                                                     UBTools::GetTueFindLogPath() + "(.*)?");
-    }
 
     ConfigureSolrUserAndService(vufind_system_type, install_systemctl);
-    ConfigureApacheUser(os_system_type, install_systemctl);
+    ConfigureApacheUser();
 
     const std::string NEWSLETTER_DIRECTORY_PATH(UBTools::GetTuelibPath() + "newsletters");
     if (not FileUtil::Exists(NEWSLETTER_DIRECTORY_PATH)) {
         Echo("creating " + NEWSLETTER_DIRECTORY_PATH);
         FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH, /*recursive=*/true);
-        if (SELinuxUtil::IsEnabled()) {
-            SELinuxUtil::FileContext::AddRecordIfMissing(NEWSLETTER_DIRECTORY_PATH, "httpd_sys_rw_content_t",
-                                                         NEWSLETTER_DIRECTORY_PATH + "(/.*)?");
-        }
 
         Echo("creating " + NEWSLETTER_DIRECTORY_PATH + "/sent");
         FileUtil::MakeDirectoryOrDie(NEWSLETTER_DIRECTORY_PATH + "/sent");
@@ -1046,11 +923,9 @@ int Main(int argc, char **argv) {
     if (::geteuid() != 0)
         Error("you must execute this program as root!");
 
-    const OSSystemType os_system_type(DetermineOSSystemType());
-
     // Install dependencies before vufind
     // correct PHP version for composer dependancies
-    InstallSoftwareDependencies(os_system_type, vufind_system_type_string, installation_type, install_systemctl);
+    InstallSoftwareDependencies(vufind_system_type_string, installation_type, install_systemctl);
 
     // Where to find our own stuff:
     MiscUtil::AddToPATH("/usr/local/bin/", MiscUtil::PreferredPathLocation::LEADING);
@@ -1059,7 +934,7 @@ int Main(int argc, char **argv) {
 
 
     // Init root DB connection for later re-use
-    AssureMysqlServerIsRunning(os_system_type);
+    AssureMysqlServerIsRunning();
     DbConnection db_connection_root(DbConnection::MySQLFactory("mysql", "root", ""));
     // Needed so ub_tools user will be able to execute updates later, including triggers and stores procedures
     db_connection_root.queryOrDie("SET GLOBAL log_bin_trust_function_creators = 1");
@@ -1070,24 +945,16 @@ int Main(int argc, char **argv) {
 #ifndef __clang__
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
-        ConfigureVuFind(production, vufind_system_type, os_system_type, not omit_cronjobs, install_systemctl);
+        ConfigureVuFind(production, vufind_system_type, not omit_cronjobs, install_systemctl);
 #ifndef __clang__
 #pragma GCC diagnostic error "-Wmaybe-uninitialized"
 #endif
     }
-    InstallUBTools(/* make_install = */ true, os_system_type, &db_connection_root);
+    InstallUBTools(/* make_install = */ true, &db_connection_root);
     if (installation_type == FULLTEXT_BACKEND)
         ConfigureFullTextBackend(production, not omit_cronjobs);
     else if (installation_type == VUFIND) {
         CreateVuFindDatabases(vufind_system_type, &db_connection_root);
-
-        if (SELinuxUtil::IsEnabled()) {
-            // allow httpd/php to connect to solr + mysql
-            SELinuxUtil::Boolean::Set("httpd_can_network_connect", true);
-            SELinuxUtil::Boolean::Set("httpd_can_network_connect_db", true);
-            SELinuxUtil::Boolean::Set("httpd_can_network_relay", true);
-            SELinuxUtil::Boolean::Set("httpd_can_sendmail", true);
-        }
     }
 
     Echo("installation complete.");

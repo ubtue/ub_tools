@@ -1,6 +1,4 @@
--- under CentOS we still have MariaDB 5, which has a limitation of 768 bytes for index keys.
--- this means we need to use a prefix length <= 768 when creating an index on a particular VARCHAR column.
--- Also, the default collating sequence is a Swedish one.  This leads to aliasing problems for characters with
+-- The default collating sequence is a Swedish one.  This leads to aliasing problems for characters with
 -- diacritical marks => we need to override it and use utf8mb4_bin.
 
 -- Please always add names to your CONSTRAINTs! (for succeeding sql_updates)
