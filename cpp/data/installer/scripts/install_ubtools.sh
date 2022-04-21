@@ -15,33 +15,19 @@ if [[ ! $PATH =~ "/usr/local/bin" ]]; then
     exit 1
 fi
 
-# detect OS
-if [ -e /etc/debian_version ]; then
-    # ubuntu
-    echo "Ubuntu detected! installing dependencies..."
-    cd /tmp
-    if [ ! -e ./install_ubuntu_packages.sh ]; then
-        apt-get --quiet --yes update
-        apt-get --yes install curl
-        curl https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/scripts/install_ubuntu_packages.sh -o ./install_ubuntu_packages.sh
-        chmod 700 ./install_ubuntu_packages.sh
-    fi
-    ./install_ubuntu_packages.sh
-elif [ -e /etc/centos-release ]; then
-    # centos
-    echo "CentOS detected! installing dependencies..."
-    cd /tmp
-    if [ ! -e ./install_centos_packages.sh ]; then
-        dnf --quiet --assumeyes update
-        dnf --assumeyes install curl
-        curl https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/scripts/install_centos_packages.sh -o ./install_centos_packages.sh
-        chmod 700 ./install_centos_packages.sh
-    fi
-    ./install_centos_packages.sh
-else
-    echo "OS type could not be detected! aborting"
-    exit 1
+echo "Branch is: ${BRANCH}"
+
+echo "Installing dependencies..."
+exit 1
+
+cd /tmp
+if [ ! -e ./install_ubuntu_packages.sh ]; then
+    apt-get --quiet --yes update
+    apt-get --yes install curl
+    curl https://raw.githubusercontent.com/ubtue/ub_tools/master/cpp/data/installer/scripts/install_ubuntu_packages.sh -o ./install_ubuntu_packages.sh
+    chmod 700 ./install_ubuntu_packages.sh
 fi
+./install_ubuntu_packages.sh
 
 if [ -d /usr/local/ub_tools ]; then
     echo "ub_tools already exists, skipping download"
