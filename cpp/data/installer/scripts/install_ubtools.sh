@@ -18,7 +18,7 @@ fi
 echo "Branch is: ${BRANCH}"
 
 echo "Installing dependencies..."
-
+echo "1..."
 cd /tmp
 if [ ! -e ./install_ubuntu_packages.sh ]; then
     apt-get --quiet --yes update
@@ -27,7 +27,7 @@ if [ ! -e ./install_ubuntu_packages.sh ]; then
     chmod 700 ./install_ubuntu_packages.sh
 fi
 ./install_ubuntu_packages.sh
-
+echo "2..."
 if [ -d /usr/local/ub_tools ]; then
     echo "ub_tools already exists, skipping download"
 else
