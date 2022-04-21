@@ -18,7 +18,6 @@ fi
 echo "Branch is: ${BRANCH}"
 
 echo "Installing dependencies..."
-exit 1
 
 cd /tmp
 if [ ! -e ./install_ubuntu_packages.sh ]; then
@@ -33,7 +32,7 @@ if [ -d /usr/local/ub_tools ]; then
     echo "ub_tools already exists, skipping download"
 else
     echo "cloning ub_tools"
-    git clone https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
+    git clone --branch ${BRANCH} https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
 fi
 
 echo "building prerequisites"
