@@ -5,6 +5,15 @@
 # compile cpp installer
 # run it
 
+# make sure we are on ubuntu
+if [ -e /etc/debian_version ]; then
+    #print ubuntu version
+    lsb_release -a
+else
+    echo "OS type could not be detected or is not supported! aborting"
+    exit 1
+fi
+
 # check prerequisites and invariants
 if [ "$(id -u)" != "0" ]; then
     echo "This script must be run as root" 1>&2

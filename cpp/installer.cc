@@ -857,6 +857,13 @@ int Main(int argc, char **argv) {
     if (argc < 2)
         Usage();
 
+    std::string file_contents;
+    if (not(FileUtil::ReadString("/etc/issue", &file_contents)
+        and StringUtil::FindCaseInsensitive(file_contents, "ubuntu") != std::string::npos))
+    {
+        Error("OS type could not be detected or is not supported! aborting");
+    }
+
     InstallationType installation_type(UB_TOOLS_ONLY);
     std::string vufind_system_type_string;
     VuFindSystemType vufind_system_type(IXTHEO);
