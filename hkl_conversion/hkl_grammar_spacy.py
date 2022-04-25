@@ -20,6 +20,8 @@ from functools import reduce
 
 import spacy
 from spacy import displacy
+from spacy.lang.en import English
+from spacy.language import Language
 
 def SplitToAuthorEntries(file):
     entry = []
@@ -160,6 +162,14 @@ def CreateClassifier():
     return nltk.NaiveBayesClassifier.train(training)
 
 
+@Language.component("set_custom_boundaries")
+def set_custom_boundaries(doc):
+    for token in doc[:-1]:
+        if token.text == "//":
+            doc[token.i + 1].is_sent_start = True
+    return doc
+
+
 def Main():
     try:
          if len(sys.argv) != 2:
@@ -174,7 +184,14 @@ def Main():
              #punkt_sentence_tokenizer.
              classifier = CreateClassifier()
              authors = []
-             nlp = spacy.load('en_core_web_lg')
+             nlp = spacy.load('en_core_web_lg', exclude=["parser"])
+             #nlp = spacy.load('de_dep_news_trf')
+             #nlp = spacy.load('en_core_web_lg')
+             nlp.enable_pipe("senter")
+             nlp.config.to_disk("myconfig.cfg")
+             #nlp.add_pipe("set_custom_boundaries", before="senter")
+             #nlp = English()
+             #nlp.add_pipe("sentencizer")
              #nlp = spacy.load('de_core_news_lg')
              for author, entry in entries:
                  print("---------------------------------------\nAUTHOR: " + author + '\n')
@@ -190,6 +207,7 @@ def Main():
                  for to_parse in [ normalized_newlines ]:
                      print("XXX " + to_parse + '\n#########################################\n')
                      #sentences = punkt_sentence_tokenizer.tokenize(to_parse)
+                     nlp
                      doc = nlp(to_parse)
                      #for sentence in sentences:
                      #options={"compact": True, "bg": "#09a3d5", "color": "red", "font": "Source Sans Pro"}
