@@ -22,6 +22,7 @@ import spacy
 from spacy import displacy
 from spacy.lang.en import English
 from spacy.language import Language
+from spacy.matcher import PhraseMatcher
 
 def SplitToAuthorEntries(file):
     entry = []
@@ -136,8 +137,8 @@ def SetupWordFeatures(labeled):
     word_selection = GetFrequentlyUsedWordFeatures(all_trainsentences)
 
 
-SENTENCE_TYPES = { 'TITLE' : 'title', 'BIB_INFO' : 'bib_info', 'FURTHER_LITERATURE' : 'further_literature', 
-                   'FURTHER_PUBLICATION' : 'further_publication', 'CONTENT_DESCRIPTION' : 'content_description', 
+SENTENCE_TYPES = { 'TITLE' : 'title', 'BIB_INFO' : 'bib_info', 'FURTHER_LITERATURE' : 'further_literature',
+                   'FURTHER_PUBLICATION' : 'further_publication', 'CONTENT_DESCRIPTION' : 'content_description',
                    'YEAR_AND_PLACE' : 'year_and_place', 'COMMENT' : 'comment' }
 
 def CreateClassifier():
@@ -166,7 +167,11 @@ def CreateClassifier():
 def set_custom_boundaries(doc):
     for token in doc[:-1]:
         if token.text == "//":
-            doc[token.i + 1].is_sent_start = True
+            doc[token.i].is_sent_start = True
+        if token.text == "--":
+            doc[token.i].is_sent_start = True
+        if re.match(r't[XVIL]+', token.text):
+            doc[token.i].is_sent_start = True
     return doc
 
 
@@ -176,19 +181,32 @@ def Main():
              print("Invalid arguments: usage " + sys.argv[0] + " hkl_extraction_file")
              sys.exit(-1)
          with open(sys.argv[1]) as f:
-             #file = ReduceMultipleEmptyLinesToOne(f.read())
              file = FilterPageHeadings(f.read())
              entries = SplitToAuthorEntries(GetBufferLikeFile(file))
-             #punkt_sentence_tokenizer = GetPunktSentenceTokenizer(file)
-             #print(punkt_sentence_tokenizer.debug_decisions(file).format_debug_decision())
-             #punkt_sentence_tokenizer.
              classifier = CreateClassifier()
              authors = []
-             nlp = spacy.load('en_core_web_lg', exclude=["parser"])
-             #nlp = spacy.load('de_dep_news_trf')
+#             source_nlp = spacy.load('en_core_web_lg', exclude=["parser"])
+             #source_nlp = spacy.load('en_core_web_lg')
+             nlp = spacy.load('en_core_web_trf')
+             nlp.add_pipe("set_custom_boundaries", before="parser")
+             matcher = PhraseMatcher(nlp.vocab)
+             terms = ["Zweispr. Kultlied", "Sumer. Kultlied.", "Zweispr. Hymnus."]
+             patterns = [nlp.make_doc(text) for text in terms]
+             matcher.add("TerminologyList", patterns)
+#             source_nlp.enable_pipe("senter")
+#             nlp = spacy.load("./spacy_pipeline")
              #nlp = spacy.load('en_core_web_lg')
-             nlp.enable_pipe("senter")
-             nlp.config.to_disk("myconfig.cfg")
+#             nlp.enable_pipe("senter")
+             #nlp = spacy.blank("en")
+             #senter = nlp.add_pipe("senter", source=source_nlp)
+             analysis = nlp.analyze_pipes(pretty=True)
+             #optimizer = nlp.resume_training()
+
+
+
+#             senter.initialize()
+#             nlp.to_disk("./spacy_pipeline_trf")
+#             nlp.config.to_disk("myconfig1.cfg")
              #nlp.add_pipe("set_custom_boundaries", before="senter")
              #nlp = English()
              #nlp.add_pipe("sentencizer")
@@ -207,15 +225,34 @@ def Main():
                  for to_parse in [ normalized_newlines ]:
                      print("XXX " + to_parse + '\n#########################################\n')
                      #sentences = punkt_sentence_tokenizer.tokenize(to_parse)
-                     nlp
                      doc = nlp(to_parse)
+                     #senter.predict(to_parse)
+                     #print(doc.sents)
+                     #continue
+                     #tokenizer_exceptions = list(nlp.Defaults.tokenizer_exceptions)
+                     #print(tokenizer_exceptions)
+                     #continue
+                     #tok_exp = nlp.tokenizer.explain(to_parse)
+                     #assert [t.text for t in doc if not t.is_space] == [t[1] for t in tok_exp]
+                     #for t in tok_exp:
+                     #   print(t[1], "\t", t[0])
+                     #continue
+
                      #for sentence in sentences:
                      #options={"compact": True, "bg": "#09a3d5", "color": "red", "font": "Source Sans Pro"}
                      #displacy.serve(doc, style="dep", options=options)
                      for sentence in doc.sents:
+                     #for token in doc:
                      #displacy.serve(doc, style = "ent")
                          sentence = sentence.orth_.strip()
+                         #json.dump(sentence, sys.stdout)
+                         #continue
                          print(sentence)
+                         continue
+                         #print(token.text, token.pos_, token.dep_)
+                         print(token.text)
+                         #print(token)
+                         continue
                          sentence_type = classifier.classify(ExtractFeatures(sentence))
                          if sentence_type == SENTENCE_TYPES['TITLE']:
                               title = sentence
