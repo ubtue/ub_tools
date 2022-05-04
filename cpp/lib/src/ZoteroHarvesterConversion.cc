@@ -1167,10 +1167,14 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     const bool _773_subfields_iaxw_present(not _773_subfields.empty());
     bool _773_subfield_g_present(false);
     std::string _773_g_content;
-    if (not volume.empty()) {
-        _773_g_content += volume + " (" + year + ")";
-        if (not issue.empty())
-            _773_g_content += ", " + issue;
+    if (not (volume.empty() and issue.empty())) {
+        if (not volume.empty()) {
+            _773_g_content += volume + " (" + year + ")";
+            if (not issue.empty())
+                _773_g_content += ", " + issue;
+        } else {
+            _773_g_content += issue + " (" + year + ")";
+        }
 
         if (not pages.empty()) {
             if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR))
