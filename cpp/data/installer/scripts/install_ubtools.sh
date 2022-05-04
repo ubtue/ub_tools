@@ -24,7 +24,7 @@ if [[ ! $PATH =~ "/usr/local/bin" ]]; then
     exit 1
 fi
 
-if [ -n "$BRANCH" ]; then
+if [ -z "$BRANCH" ]; then
     BRANCH="master"
 fi
 echo "Branch is: ${BRANCH}"
@@ -43,7 +43,7 @@ fi
 if [ -d /usr/local/ub_tools ]; then
     echo "ub_tools already exists, skipping download"
 else
-    echo "cloning ub_tools"
+    echo "cloning ub_tools --branch ${BRANCH}"
     git clone --branch ${BRANCH} https://github.com/ubtue/ub_tools.git /usr/local/ub_tools
 fi
 

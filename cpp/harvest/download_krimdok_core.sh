@@ -57,7 +57,7 @@ while ! [[ $start > $end ]]; do
         WORK_FILE=${subdir}/${WORK_FILE_PREFIX}_${start}_${offset}.json
         WORK_FILE_TMP=${WORK_FILE}.tmp
 
-        curl --max-time $SINGLE_CURL_DOWNLOAD_MAX_TIME --header "Authorization: Bearer ${API_KEY}" --request GET \
+        curl --verbose --max-time $SINGLE_CURL_DOWNLOAD_MAX_TIME --header "Authorization: Bearer ${API_KEY}" --request GET \
             --location "${CORE_API_URL}?offset=${offset}&limit=${MAX_HITS_PER_REQUEST}&entityType=works&q=${QUERY}&scroll" \
             > ${WORK_FILE_TMP}
 
