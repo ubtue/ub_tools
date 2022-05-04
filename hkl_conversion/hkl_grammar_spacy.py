@@ -24,6 +24,13 @@ from spacy.lang.en import English
 from spacy.language import Language
 from spacy.matcher import PhraseMatcher
 
+from stanza.pipeline.processor import ProcessorVariant, register_processor_variant, Processor, register_processor
+
+
+import stanza
+import spacy_stanza
+#from pysbd.utils import PySBDFactory
+
 def SplitToAuthorEntries(file):
     entry = []
     entries = []
@@ -165,6 +172,7 @@ def CreateClassifier():
 
 @Language.component("set_custom_boundaries")
 def set_custom_boundaries(doc):
+    doc.is_parsed = False
     for token in doc[:-1]:
         if token.text == "//":
             doc[token.i].is_sent_start = True
@@ -173,6 +181,68 @@ def set_custom_boundaries(doc):
         if re.match(r't[XVIL]+', token.text):
             doc[token.i].is_sent_start = True
     return doc
+
+
+@register_processor("lowercase")
+class LowercaseProcessor(Processor):
+    ''' Processor that lowercases all text '''
+    _requires = set(['tokenize'])
+    _provides = set(['lowercase'])
+
+    def __init__(self, config, pipeline, use_gpu):
+        pass
+
+    def _set_up_model(self, *args):
+        pass
+
+    def process(self, doc):
+        doc.text = doc.text.lower()
+        for sent in doc.sentences:
+            for tok in sent.tokens:
+                tok.text = tok.text.lower()
+
+            for word in sent.words:
+                word.text = word.text.lower()
+
+        return doc
+
+
+@register_processor("custom_sentence_post_tokenizer")
+class LowercaseProcessor(Processor):
+    ''' Processor that  all text '''
+    _requires = set(['tokenize'])
+    _provides = set(['realigned_boundaries'])
+
+    def __init__(self, config, pipeline, use_gpu):
+        pass
+
+    def _set_up_model(self, *args):
+        pass
+
+    def process(self, doc):
+        doc.text = doc.text.lower()
+        for sent in doc.sentences:
+            print("SENT: " + sent.text);
+            for tok in sent.tokens:
+                tok.text = tok.text.lower()
+
+            for word in sent.words:
+                word.text = word.text.lower()
+
+        return doc
+
+
+
+
+@register_processor_variant('tokenize', 'my_token_rules')
+class SpacyTokenizer(ProcessorVariant):
+    def __init__(self, config):
+        # initialize spacy
+        pass
+
+    def process(self, text):
+        # tokenize text with spacy
+        pass
 
 
 def Main():
@@ -185,15 +255,31 @@ def Main():
              entries = SplitToAuthorEntries(GetBufferLikeFile(file))
              classifier = CreateClassifier()
              authors = []
-#             source_nlp = spacy.load('en_core_web_lg', exclude=["parser"])
+#             nlp = spacy.load('en_core_web_lg')
+             stanza.download("en")
+             #nlp = spacy_stanza.load_pipeline("en", processors="tokenize,custom_sentence_post_tokenizer, pos, lemma, depparse, constituency, ner" )
+             nlp = spacy_stanza.load_pipeline("en", processors="tokenize,pos,lemma,depparse" )
+#             nlp = spacy_stanza.load_pipeline("en" )
+
              #source_nlp = spacy.load('en_core_web_lg')
-             nlp = spacy.load('en_core_web_trf')
-             nlp.add_pipe("set_custom_boundaries", before="parser")
+#             nlp = spacy.load('en_core_web_trf')
+
+
+
+#             nlp.add_pipe(PySBDFactory(nlp))
+
+
+            # nlp.add_pipe("set_custom_boundaries", before="parser")
+           #  nlp.add_pipe("set_custom_boundaries", first=True)
+            # nlp.enable_pipe("senter")
+            # nlp.add_pipe("senter", first=True)
+            # nlp.add_pipe("set_custom_boundaries", before="depparse")
+#             nlp.add_pipe("set_custom_boundaries", before="tokenize")
              matcher = PhraseMatcher(nlp.vocab)
              terms = ["Zweispr. Kultlied", "Sumer. Kultlied.", "Zweispr. Hymnus."]
              patterns = [nlp.make_doc(text) for text in terms]
              matcher.add("TerminologyList", patterns)
-#             source_nlp.enable_pipe("senter")
+#             nlp.enable_pipe("senter")
 #             nlp = spacy.load("./spacy_pipeline")
              #nlp = spacy.load('en_core_web_lg')
 #             nlp.enable_pipe("senter")
@@ -205,7 +291,7 @@ def Main():
 
 
 #             senter.initialize()
-#             nlp.to_disk("./spacy_pipeline_trf")
+             nlp.to_disk("./spacy_pipeline_stanza")
 #             nlp.config.to_disk("myconfig1.cfg")
              #nlp.add_pipe("set_custom_boundaries", before="senter")
              #nlp = English()
@@ -222,36 +308,19 @@ def Main():
                  author_tree['further_publications'] = []
                  author_tree['further_literatures'] = []
                  author_tree['content_descriptions'] = []
+                 docs = []
                  for to_parse in [ normalized_newlines ]:
                      print("XXX " + to_parse + '\n#########################################\n')
                      #sentences = punkt_sentence_tokenizer.tokenize(to_parse)
                      doc = nlp(to_parse)
-                     #senter.predict(to_parse)
-                     #print(doc.sents)
-                     #continue
-                     #tokenizer_exceptions = list(nlp.Defaults.tokenizer_exceptions)
-                     #print(tokenizer_exceptions)
-                     #continue
-                     #tok_exp = nlp.tokenizer.explain(to_parse)
-                     #assert [t.text for t in doc if not t.is_space] == [t[1] for t in tok_exp]
-                     #for t in tok_exp:
-                     #   print(t[1], "\t", t[0])
-                     #continue
-
-                     #for sentence in sentences:
-                     #options={"compact": True, "bg": "#09a3d5", "color": "red", "font": "Source Sans Pro"}
-                     #displacy.serve(doc, style="dep", options=options)
+                     docs.append(doc)
                      for sentence in doc.sents:
                      #for token in doc:
-                     #displacy.serve(doc, style = "ent")
                          sentence = sentence.orth_.strip()
-                         #json.dump(sentence, sys.stdout)
+                         #print(token.text, token.lemma_, token.pos_, token.dep_, token.ent_type_, token.is_sent_start)
+                         # json.dump(sentence, sys.stdout)
                          #continue
                          print(sentence)
-                         continue
-                         #print(token.text, token.pos_, token.dep_)
-                         print(token.text)
-                         #print(token)
                          continue
                          sentence_type = classifier.classify(ExtractFeatures(sentence))
                          if sentence_type == SENTENCE_TYPES['TITLE']:
