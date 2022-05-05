@@ -86,6 +86,8 @@ def set_custom_boundaries(doc):
     return doc
 
 
+abbreviations_for_line_merge = r'(Zweispr.|Sumer.|assyr.|Neuassyr.)$'
+
 def Main():
     try:
          if len(sys.argv) != 2:
@@ -109,7 +111,7 @@ def Main():
                  normalized_newlines= re.sub(r'\n(?!\n)', ' ', normalized_separations)
                  sentences = []
                  for to_parse in [ normalized_newlines ]:
-                     print("XXX " + to_parse + '\n#########################################\n')
+                     print("ORIG: " + to_parse + '\n#########################################\n')
                      pre_nlp = spacy.blank("en")
                      pre_nlp.add_pipe("set_custom_boundaries")
                      pre_parsed_doc = pre_nlp(to_parse);
@@ -118,16 +120,12 @@ def Main():
                          for sentence in doc.sents:
                              sentence = sentence.orth_.strip()
                              sentences.append(sentence)
-                            # print("SENT: " + sentence)
                      new_sentences = []
                      for sentence in sentences:
                          index = sentences.index(sentence)
-                         #print(str(index) + ": " + sentence)
-                         if re.search(r'Zweispr.$', sentence) and index < len(sentences) - 1:
-                             new_sentences.append(reduce(lambda sentx, senty: sentx + " " + senty, sentences[index : index + 2]))
-                         else:
-                             new_sentences.append(sentence)
-                     for sentence in new_sentences:
+                         if re.search(abbreviations_for_line_merge, sentence) and index < len(sentences) - 1:
+                             sentences[index : index + 2] = [reduce(lambda sentx, senty: sentx + " " + senty, sentences[index : index + 2])]
+                     for sentence in sentences:
                          print("SENT: " + sentence)
 
     except Exception as e:
