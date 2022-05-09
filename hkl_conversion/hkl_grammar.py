@@ -4,16 +4,22 @@ import re
 import regex
 import sys
 import nltk, re, pprint
-#nltk.download('punkt')
+nltk.download('punkt')
 #nltk.download('averaged_perceptron_tagger')
 from nltk.corpus import state_union
-from nltk.tokenize.punkt import PunktSentenceTokenizer, PunktTrainer
+from nltk.tokenize.punkt import PunktSentenceTokenizer, PunktTrainer, PunktParameters
 nltk.download('stopwords')
 import random
 from langdetect import detect
 from dicttoxml import dicttoxml
 import json
 from boltons.iterutils import remap
+
+import jsonpickle
+from functools import reduce
+
+import spacy
+from spacy import displacy
 
 def SplitToAuthorEntries(file):
     entry = []
@@ -47,13 +53,33 @@ def FilterPageHeadings(file):
 
 
 def GetPunktSentenceTokenizer(file):
+#    punkt_params = PunktParameters()
+#    punkt_params.sent_starters = ['--', 'Cf']
+
     punkt_trainer = PunktTrainer()
-    abbreviations = "v. Chr., Sarg."
-    punkt_params = set(abbreviations)
-    punkt_sentence_trainer = PunktSentenceTokenizer()
-#    punkt_trainer.train(file, finalize=False, verbose=True)
+    abbreviations = "v. Chr., Sarg., (?), Akk.Syll."
+#    punkt_params = set(abbreviations)
+   # punkt_sentence_trainer = PunktSentenceTokenizer()
+    punkt_trainer.INCLUDE_ALL_COLLOCS = True
+    punkt_trainer.INCLUDE_ABBREV_COLLOCS = True
+    punkt_trainer.train(file, finalize=False, verbose=True)
+#    punkt_trainer.freq_threshold()
     punkt_trainer.train(abbreviations, finalize=False, verbose=True)
-    return PunktSentenceTokenizer(punkt_trainer.get_params())
+    punkt_trainer.PUNCTUATION = (';', ':', ',', '.')
+    punkt_trainer.sent_end_chars=('.')
+    punkt_trainer.internal_punctuation=",:;?!"
+#    punkt_trainer.sent_starters = ("--")
+    params = punkt_trainer.get_params()
+    params.INCLUDE_ABBREV_COLLOCS = True
+    params.sent_starters = [' --', 'Cf']
+    params.abbreviations = "v. Chr., Sarg., (?), Akk.Syll."
+    params.sent_end_chars=['.']
+    serialized = jsonpickle.encode(params)
+#    print(json.dumps(json.loads(serialized), indent=2))
+#    return PunktSentenceTokenizer(punkt_trainer.get_params())
+    punkt_sentence_tokenizer = PunktSentenceTokenizer(params)
+#    punkt_sentence_tokenizer.sent_starters("--")
+    return punkt_sentence_tokenizer
 
 
 def ContainsProbableEditionYear(sentence):
@@ -136,10 +162,14 @@ def Main():
              file = FilterPageHeadings(f.read())
              entries = SplitToAuthorEntries(GetBufferLikeFile(file))
              punkt_sentence_tokenizer = GetPunktSentenceTokenizer(file)
+             #print(punkt_sentence_tokenizer.debug_decisions(file).format_debug_decision())
+             #punkt_sentence_tokenizer.
              classifier = CreateClassifier()
              authors = []
+             nlp = spacy.load('en_core_web_lg')
+             #nlp = spacy.load('de_core_news_lg')
              for author, entry in entries:
-#                 print("---------------------------------------\nAUTHOR: " + author + '\n')
+                 print("---------------------------------------\nAUTHOR: " + author + '\n')
                  normalized_separations = re.sub(r'-\n', '', ''.join(entry))
                  normalized_newlines= re.sub(r'\n(?!\n)', ' ', normalized_separations)
                  author_tree = {}
@@ -147,11 +177,24 @@ def Main():
                  author_tree['titles'] = []
                  author_tree['bib_infos'] = []
                 # print("#################################")
-                 for to_parse in normalized_newlines.split('\n'):
-                 #    print(to_parse + '\n#########################################\n')
-                     sentences = punkt_sentence_tokenizer.tokenize(to_parse)
-                     for sentence in sentences:
-                #         print(sentence + " XXX " + classifier.classify(ExtractFeatures(sentence)))
+                # nested = map(lambda x : x.split('--'), normalized_newlines.split('\n'))
+                # for to_parse in map(lambda x : x.split('--'), normalized_newlines.split('\n')):
+                # print("NORMALIZED NEWLINES: "  + normalized_newlines)
+                 for to_parse in [ normalized_newlines ]:
+                     print("XXX " + to_parse + '\n#########################################\n')
+                     #sentences = punkt_sentence_tokenizer.tokenize(to_parse)
+                     doc = nlp(to_parse)
+                     #for sentence in sentences:
+                     #options={"compact": True, "bg": "#09a3d5", "color": "red", "font": "Source Sans Pro"}
+                     #displacy.serve(doc, style="dep", options=options)
+                     for sentence in doc.sents:
+                     #displacy.serve(doc, style = "ent")
+                     #for sentence in doc.sents:
+
+                         print(sentence)
+                         continue
+                       #  print(sentence + " XXX " + classifier.classify(ExtractFeatures(sentence)))
+                         
                          sentence_type = classifier.classify(ExtractFeatures(sentence))
                          if sentence_type == SENTENCE_TYPES['TITLE']:
                               title = sentence

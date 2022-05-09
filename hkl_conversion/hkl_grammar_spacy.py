@@ -83,6 +83,10 @@ def set_custom_boundaries(doc):
             doc[token.i].is_sent_start = True
         if re.match(r'n[XVIL]+', token.text):
             doc[token.i].is_sent_start = True
+    # Make sure we have sents
+    if not doc.has_annotation("SENT_START"):
+        #print ("NO SENT START")
+        doc[0].is_sent_start = True
     return doc
 
 
