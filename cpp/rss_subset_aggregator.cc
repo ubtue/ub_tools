@@ -200,11 +200,9 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
         "ORDER BY feed_name ASC "
     );
     auto feeds_result_set(db_connection->getLastResultSet());
-    if (feeds_result_set.empty())
-        return false;
-
     std::vector<HarvestedRSSItem> harvested_items;
     std::string max_insertion_time;
+
     while (const auto feed_row = feeds_result_set.getNextRow()) {
         const auto feed_id(feed_row["rss_feeds_id"]);
         const auto feed_name(feed_row["feed_name"]);
@@ -229,15 +227,16 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
                 max_insertion_time = insertion_time;
         }
     }
-    if (harvested_items.empty())
-        return false;
 
     if (send_email) {
+        if (harvested_items.empty())
+            return false;
         if (not SendEmail(subsystem_type, email_sender, user_email, user_address, language, harvested_items))
             return true;
         db_connection->queryOrDie("UPDATE user SET tuefind_rss_feed_last_notification='" + max_insertion_time + "' WHERE id=" + user_id);
     } else
         GenerateFeed(subsystem_type, harvested_items);
+
     return true;
 }
 
