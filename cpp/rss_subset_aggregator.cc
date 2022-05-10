@@ -216,7 +216,7 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
             + feed_id);
         if (send_email)
             query += " AND insertion_time > '" + rss_feed_last_notification + "' ";
-        query += "ORDER BY pub_date ASC";
+        query += " ORDER BY pub_date ASC";
         db_connection->queryOrDie(query);
 
         auto items_result_set(db_connection->getLastResultSet());
