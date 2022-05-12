@@ -59,8 +59,17 @@ StartPhase "Replace old BSZ PPN's with new K10+ PPN's"
 EndPhase || Abort) &
 
 
+StartPhase "Fix Local Keyword Capitalisations"
+(marc_filter \
+     GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+     --replace-strings 600a:610a:630a:648a:650a:650x:651a:655a /usr/local/var/lib/tuelib/keyword_normalisation.map \
+     >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+wait
+
+
 StartPhase "Normalise URL's"
-(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-2))"-"${date}".mrc \
+(normalise_urls GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
                 GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" \
     >> "${log}" 2>&1 && \
 EndPhase || Abort) &

@@ -34,7 +34,9 @@
 #include "StringUtil.h"
 #include "SyndicationFormat.h"
 #include "Template.h"
+#include "TimeUtil.h"
 #include "UBTools.h"
+#include "VuFind.h"
 #include "XmlWriter.h"
 #include "util.h"
 
@@ -140,20 +142,31 @@ bool SendEmail(const std::string &subsystem_type, const std::string &email_sende
         template_filename = template_filename_prefix + ".en";
     static const std::string email_template(FileUtil::ReadStringOrDie(template_filename));
 
+
+
+    std::string list("<ul>\n");
+    std::string previous_feed_title;
+    for (const auto &harvested_item : harvested_items) {
+        const bool new_feed(previous_feed_title != harvested_item.feed_title_);
+        if (new_feed) {
+            if (not previous_feed_title.empty()) { // not before the first feed
+                list += "\t</ul>\n"; // end feed item list
+            }
+            list += "\t<li><a href=\"" + harvested_item.website_url_ + "\">" + HtmlUtil::HtmlEscape(harvested_item.feed_title_) + "</a></li>\n";
+            list += "\t<ul>\n"; // begin feed item list
+        }
+
+        list += "\t\t<li><a href=\"" + harvested_item.item_.getLink() + "\">" + HtmlUtil::HtmlEscape(harvested_item.item_.getTitle()) + "</a></li>\n";
+        previous_feed_title = harvested_item.feed_title_;
+    }
+    list += "\t</ul>\n"; // end feed item list
+    list += "</ul>\n"; // end whole list
+
     Template::Map names_to_values_map;
     names_to_values_map.insertScalar("user_name", user_address);
-
-    std::vector<std::string> item_titles, item_urls, website_urls, feed_names;
-    for (const auto &harvested_item : harvested_items) {
-        item_titles.emplace_back(HtmlUtil::HtmlEscape(harvested_item.item_.getTitle()));
-        item_urls.emplace_back(harvested_item.item_.getLink());
-        website_urls.emplace_back(harvested_item.website_url_);
-        feed_names.emplace_back(harvested_item.feed_title_);
-    }
-    names_to_values_map.insertArray("item_titles", item_titles);
-    names_to_values_map.insertArray("item_urls", item_urls);
-    names_to_values_map.insertArray("website_urls", website_urls);
-    names_to_values_map.insertArray("feed_names", feed_names);
+    names_to_values_map.insertScalar("list", list);
+    names_to_values_map.insertScalar("system", VuFind::CapitalizedUserType(subsystem_type));
+    names_to_values_map.insertScalar("email_reply_to", subsystem_type + "@ub.uni-tuebingen.de");
 
     const auto email_body(Template::ExpandTemplate(email_template, names_to_values_map));
     const auto retcode(EmailSender::SimplerSendEmail(email_sender, { user_email }, GetChannelDescEntry(subsystem_type, "title"), email_body,
@@ -179,30 +192,29 @@ void GenerateFeed(const std::string &subsystem_type, const std::vector<Harvested
 bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_notification, const std::string &email_sender,
                   const std::string &user_email, const std::string &user_address, const std::string &language, const bool send_email,
                   const std::string &subsystem_type, DbConnection * const db_connection) {
-    db_connection->queryOrDie("SELECT rss_feeds_id FROM tuefind_rss_subscriptions WHERE user_id=" + user_id);
-    auto rss_subscriptions_result_set(db_connection->getLastResultSet());
-    std::vector<std::string> feed_ids;
-    while (const auto row = rss_subscriptions_result_set.getNextRow())
-        feed_ids.emplace_back(row["rss_feeds_id"]);
-    if (feed_ids.empty())
-        return false;
-
+    db_connection->queryOrDie(
+        "SELECT rss_feeds_id, feed_name, website_url "
+        "FROM tuefind_rss_subscriptions "
+        "LEFT JOIN tuefind_rss_feeds ON tuefind_rss_subscriptions.rss_feeds_id = tuefind_rss_feeds.id "
+        "WHERE tuefind_rss_subscriptions.user_id=" + user_id + " "
+        "ORDER BY feed_name ASC "
+    );
+    auto feeds_result_set(db_connection->getLastResultSet());
     std::vector<HarvestedRSSItem> harvested_items;
     std::string max_insertion_time;
-    for (const auto &feed_id : feed_ids) {
-        db_connection->queryOrDie("SELECT feed_name,website_url FROM tuefind_rss_feeds WHERE id=" + feed_id);
-        auto feed_result_set(db_connection->getLastResultSet());
-        const auto feed_row(feed_result_set.getNextRow());
+
+    while (const auto feed_row = feeds_result_set.getNextRow()) {
+        const auto feed_id(feed_row["rss_feeds_id"]);
         const auto feed_name(feed_row["feed_name"]);
         const auto website_url(feed_row["website_url"]);
-        feed_result_set.~DbResultSet();
 
         std::string query(
             "SELECT item_title,item_description,item_url,item_id,pub_date,insertion_time FROM "
             "tuefind_rss_items WHERE rss_feeds_id="
             + feed_id);
         if (send_email)
-            query += " AND insertion_time > '" + rss_feed_last_notification + "'";
+            query += " AND insertion_time > '" + rss_feed_last_notification + "' ";
+        query += " ORDER BY pub_date ASC";
         db_connection->queryOrDie(query);
 
         auto items_result_set(db_connection->getLastResultSet());
@@ -215,15 +227,16 @@ bool ProcessFeeds(const std::string &user_id, const std::string &rss_feed_last_n
                 max_insertion_time = insertion_time;
         }
     }
-    if (harvested_items.empty())
-        return false;
 
     if (send_email) {
+        if (harvested_items.empty())
+            return false;
         if (not SendEmail(subsystem_type, email_sender, user_email, user_address, language, harvested_items))
             return true;
         db_connection->queryOrDie("UPDATE user SET tuefind_rss_feed_last_notification='" + max_insertion_time + "' WHERE id=" + user_id);
     } else
         GenerateFeed(subsystem_type, harvested_items);
+
     return true;
 }
 

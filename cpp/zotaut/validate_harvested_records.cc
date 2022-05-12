@@ -397,12 +397,10 @@ bool RecordIsValid(DbConnection * const db_connection, const MARC::Record &recor
 {
     reasons_for_being_invalid->clear();
 
-    if (not RecordIsNonArticle(record)) {
-        // Filter Online-First or Early Views unconditionally
-        if (RecordIsOnlineFirstOrEarlyView(record)) {
-            reasons_for_being_invalid->emplace_back(ONLINE_FIRST_OR_EARLY_VIEW_MESSAGE);
-            return false;
-        }
+    // Filter Online-First or Early Views unconditionally
+    if (RecordIsOnlineFirstOrEarlyView(record)) {
+        reasons_for_being_invalid->emplace_back(ONLINE_FIRST_OR_EARLY_VIEW_MESSAGE);
+        return false;
     }
 
     const auto zid_field(record.findTag("ZID"));

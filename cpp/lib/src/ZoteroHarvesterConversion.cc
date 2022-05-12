@@ -528,11 +528,24 @@ std::string TikaDetectLanguage(const std::string &record_text) {
 }
 
 
+ThreadSafeRegexMatcher LANGUAGE_WITH_POTENTIAL_SUBLANGUAGE("(?i)(?:([a-z]{2,3})([-_][a-z]+)?)");
+
+
+void StripLanguageSubcodes(std::set<std::string> * const languages) {
+    std::for_each(languages->begin(), languages->end(), [languages](const std::string& language) {
+                      auto stripped_language(languages->extract(language));
+                      stripped_language.value() = LANGUAGE_WITH_POTENTIAL_SUBLANGUAGE.replaceWithBackreferences(language, "\\1");
+                      languages->insert(std::move(stripped_language));
+                 });
+}
+
+
 void NormalizeGivenLanguages(MetadataRecord * const metadata_record) {
     // Normalize given languages
     // We cant remove during iteration, so we use a copy
     std::set<std::string> languages(metadata_record->languages_);
     metadata_record->languages_.clear();
+    StripLanguageSubcodes(&languages);
     for (const auto &language : languages) {
         if (not Config::IsAllowedLanguage(language)) {
             LOG_WARNING("Removing invalid language: " + language);
@@ -628,8 +641,17 @@ void AdjustLanguages(MetadataRecord * const metadata_record, const Config::Journ
             }
 
         } else if (metadata_record->languages_.empty()) {
-            LOG_INFO("Using " + configured_or_detected_info + " language: " + detected_language);
-            metadata_record->languages_.emplace(detected_language);
+            if (not journal_params.language_params_.expected_languages_.empty() and
+                (journal_params.language_params_.expected_languages_.find(detected_language)
+                == journal_params.language_params_.expected_languages_.end()))
+            {
+                LOG_INFO("No language from Zotero but detected language : " + detected_language + " is not in the given set of admissible languages. "
+                         "No language will be set");
+                metadata_record->languages_.clear();
+            } else {
+                LOG_INFO("No language from Zotero - setting " + configured_or_detected_info + " language: " + detected_language);
+                metadata_record->languages_.emplace(detected_language);
+           }
         } else if (*metadata_record->languages_.begin() == detected_language and metadata_record->languages_.size() == 1)
             LOG_INFO("The given language is equal to the " + configured_or_detected_info + " language: " + detected_language);
         else {
@@ -679,7 +701,11 @@ void DetectReviews(MetadataRecord * const metadata_record, const ConversionParam
 bool DetectNotesWithMatcher(MetadataRecord * const metadata_record, ThreadSafeRegexMatcher * const notes_matcher) {
     if (notes_matcher->match(metadata_record->title_)) {
         LOG_DEBUG("title matched note pattern");
-        metadata_record->item_type_ = "note";
+        if (metadata_record->item_type_ == "review") {
+            LOG_DEBUG("Review Note record detected");
+            metadata_record->item_type_ = "review_note";
+        } else
+            metadata_record->item_type_ = "note";
         return true;
     }
     return false;
@@ -699,7 +725,6 @@ void DetectNotes(MetadataRecord * const metadata_record, const ConversionParams 
 
 const ThreadSafeRegexMatcher PAGE_RANGE_MATCHER("^(.+)-(.+)$");
 const ThreadSafeRegexMatcher PAGE_RANGE_DIGIT_MATCHER("^(\\d+)-(\\d+)$");
-const ThreadSafeRegexMatcher PAGE_ROMAN_NUMERAL_MATCHER("^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$");
 const ThreadSafeRegexMatcher PROPER_LAST_NAME("^(?!\\p{L}\\.).*$");
 
 
@@ -733,29 +758,7 @@ void AugmentMetadataRecord(MetadataRecord * const metadata_record, const Convers
 
     // normalise pages
     const auto pages(metadata_record->pages_);
-    // force uppercase for roman numeral detection
-    auto page_match(PAGE_RANGE_MATCHER.match(StringUtil::ASCIIToUpper(pages)));
-    if (page_match) {
-        std::string converted_pages;
-        if (PAGE_ROMAN_NUMERAL_MATCHER.match(page_match[1]))
-            converted_pages += std::to_string(StringUtil::RomanNumeralToDecimal(page_match[1]));
-        else
-            converted_pages += page_match[1];
-
-        converted_pages += "-";
-
-        if (PAGE_ROMAN_NUMERAL_MATCHER.match(page_match[2]))
-            converted_pages += std::to_string(StringUtil::RomanNumeralToDecimal(page_match[2]));
-        else
-            converted_pages += page_match[2];
-
-        if (converted_pages != pages) {
-            LOG_DEBUG("converted roman numeral page range '" + pages + "' to decimal page range '" + converted_pages + "'");
-            metadata_record->pages_ = converted_pages;
-        }
-    }
-
-    page_match = PAGE_RANGE_DIGIT_MATCHER.match(metadata_record->pages_);
+    auto page_match(PAGE_RANGE_DIGIT_MATCHER.match(pages));
     if (page_match and page_match[1] == page_match[2])
         metadata_record->pages_ = page_match[1];
 
@@ -982,6 +985,24 @@ void RewriteMarcFields(MARC::Record * const marc_record, const ConversionParams 
 }
 
 
+ThreadSafeRegexMatcher::MatchResult MatchRomanPageOrPageRange(const std::string &pages) {
+    static const auto roman_page_range_matcher(ThreadSafeRegexMatcher("([ivxlcdm]+)(?:[\\W]([ivxlcdm]+))?",
+                                               ThreadSafeRegexMatcher::ENABLE_UTF8 |
+                                               ThreadSafeRegexMatcher::ENABLE_UCP | ThreadSafeRegexMatcher::CASE_INSENSITIVE));
+    return roman_page_range_matcher.match(pages);
+}
+
+
+std::string ConvertRomanPageRangeToArabic(const std::string &pages, const ThreadSafeRegexMatcher::MatchResult &match_result) {
+        if (match_result.size() == 1)
+            return std::to_string(StringUtil::RomanNumeralToDecimal(pages));
+        else
+            return std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[1]))) + '-' +
+                   std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[2])));
+    return pages;
+}
+
+
 // Zotero values see https://raw.githubusercontent.com/zotero/zotero/master/test/tests/data/allTypesAndFields.js
 // MARC21 values see https://www.loc.gov/marc/relators/relaterm.html
 const std::map<std::string, std::string> CREATOR_TYPES_TO_MARC21_MAP{
@@ -1081,8 +1102,10 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     // Date & Year
     const auto &date(metadata_record.date_);
     const auto &item_type(metadata_record.item_type_);
-    if (not date.empty() and item_type != "journalArticle" and item_type != "review" and item_type != "note")
+    if (not date.empty() and item_type != "journalArticle" and item_type != "review"
+        and item_type != "note" and item_type != "review_note") {
         marc_record->insertField("362", { { 'a', date } });
+    }
 
     unsigned year_num(0);
     std::string year;
@@ -1115,41 +1138,20 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     }
 
     // Review-specific modifications
-    if (item_type == "review") {
+    if (item_type == "review" or item_type == "review_note") {
         marc_record->insertField(
             "655", { { 'a', "Rezension" }, { '0', "(DE-588)4049712-4" }, { '0', "(DE-627)106186019" }, { '2', "gnd-content" } },
             /* indicator1 = */ ' ', /* indicator2 = */ '7');
     }
 
-    if (item_type == "note")
+    if (item_type == "note" or item_type == "review_note")
         marc_record->insertField("NOT", { { 'a', "1" } });
 
-
-    // Differentiating information about source (see BSZ Konkordanz MARC 936)
-    MARC::Subfields _936_subfields;
+    // Information about superior work (See BSZ Konkordanz MARC 773)
     const auto &volume(metadata_record.volume_);
     const auto &issue(metadata_record.issue_);
-    if (not volume.empty()) {
-        _936_subfields.appendSubfield('d', volume);
-        if (not issue.empty())
-            _936_subfields.appendSubfield('e', issue);
-    } else if (not issue.empty())
-        _936_subfields.appendSubfield('d', issue);
-
     const std::string pages(metadata_record.pages_);
     static const std::string ARTICLE_NUM_INDICATOR("article");
-    if (not pages.empty()) {
-        if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR)) {
-            _936_subfields.appendSubfield('i', StringUtil::TrimWhite(pages.substr(ARTICLE_NUM_INDICATOR.length())));
-        } else
-            _936_subfields.appendSubfield('h', pages);
-    }
-
-    _936_subfields.appendSubfield('j', year);
-    if (not _936_subfields.empty())
-        marc_record->insertField("936", _936_subfields, 'u', 'w');
-
-    // Information about superior work (See BSZ Konkordanz MARC 773)
     MARC::Subfields _773_subfields;
     const std::string publication_title(metadata_record.publication_title_);
     if (not publication_title.empty()) {
@@ -1164,20 +1166,24 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     // 773g, example: "52 (2018), 1, Seite 1-40" => <volume>(<year>), <issue>, S. <pages>
     const bool _773_subfields_iaxw_present(not _773_subfields.empty());
     bool _773_subfield_g_present(false);
-    std::string g_content;
-    if (not volume.empty()) {
-        g_content += volume + " (" + year + ")";
-        if (not issue.empty())
-            g_content += ", " + issue;
+    std::string _773_g_content;
+    if (not (volume.empty() and issue.empty())) {
+        if (not volume.empty()) {
+            _773_g_content += volume + " (" + year + ")";
+            if (not issue.empty())
+                _773_g_content += ", " + issue;
+        } else {
+            _773_g_content += issue + " (" + year + ")";
+        }
 
         if (not pages.empty()) {
             if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR))
-                g_content += ", " + StringUtil::ReplaceString(ARTICLE_NUM_INDICATOR, "Artikel", pages);
+                _773_g_content += ", " + StringUtil::ReplaceString(ARTICLE_NUM_INDICATOR, "Artikel", pages);
             else
-                g_content += ", Seite " + pages;
+                _773_g_content += ", Seite " + pages;
         }
 
-        _773_subfields.appendSubfield('g', g_content);
+        _773_subfields.appendSubfield('g', _773_g_content);
         _773_subfield_g_present = true;
     }
 
@@ -1185,6 +1191,36 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         marc_record->insertField("773", _773_subfields, '0', '8');
     else
         marc_record->insertField("773", _773_subfields);
+
+    // Differentiating information about source (see BSZ Konkordanz MARC 936)
+    MARC::Subfields _936_subfields;
+    if (not volume.empty()) {
+        _936_subfields.appendSubfield('d', volume);
+        if (not issue.empty())
+            _936_subfields.appendSubfield('e', issue);
+    } else if (not issue.empty())
+        _936_subfields.appendSubfield('d', issue);
+
+    bool include_936_y(false);
+    if (not pages.empty()) {
+        if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR)) {
+            _936_subfields.appendSubfield('i', StringUtil::TrimWhite(pages.substr(ARTICLE_NUM_INDICATOR.length())));
+        } else if (const auto match_result = MatchRomanPageOrPageRange(pages); unlikely(match_result)) {
+            const std::string converted_pages(ConvertRomanPageRangeToArabic(pages, match_result));
+            _936_subfields.appendSubfield('h', converted_pages);
+             LOG_DEBUG("converted roman numeral page range '" + pages + "' to decimal page range '" + converted_pages + "'");
+            include_936_y = true;
+        }  else
+            _936_subfields.appendSubfield('h', pages);
+    }
+
+    _936_subfields.appendSubfield('j', year);
+    // For roman pages insert additionally needed y-field
+    if (unlikely(include_936_y and _773_subfield_g_present))
+       _936_subfields.appendSubfield('y', _773_g_content);
+    if (not _936_subfields.empty())
+        marc_record->insertField("936", _936_subfields, 'u', 'w');
+
 
     // Keywords
     for (const auto &keyword : metadata_record.keywords_) {
