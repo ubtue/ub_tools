@@ -701,7 +701,11 @@ void DetectReviews(MetadataRecord * const metadata_record, const ConversionParam
 bool DetectNotesWithMatcher(MetadataRecord * const metadata_record, ThreadSafeRegexMatcher * const notes_matcher) {
     if (notes_matcher->match(metadata_record->title_)) {
         LOG_DEBUG("title matched note pattern");
-        metadata_record->item_type_ = "note";
+        if (metadata_record->item_type_ == "review") {
+            LOG_DEBUG("Review Note record detected");
+            metadata_record->item_type_ = "review_note";
+        } else
+            metadata_record->item_type_ = "note";
         return true;
     }
     return false;
@@ -1098,8 +1102,10 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     // Date & Year
     const auto &date(metadata_record.date_);
     const auto &item_type(metadata_record.item_type_);
-    if (not date.empty() and item_type != "journalArticle" and item_type != "review" and item_type != "note")
+    if (not date.empty() and item_type != "journalArticle" and item_type != "review"
+        and item_type != "note" and item_type != "review_note") {
         marc_record->insertField("362", { { 'a', date } });
+    }
 
     unsigned year_num(0);
     std::string year;
@@ -1132,13 +1138,13 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     }
 
     // Review-specific modifications
-    if (item_type == "review") {
+    if (item_type == "review" or item_type == "review_note") {
         marc_record->insertField(
             "655", { { 'a', "Rezension" }, { '0', "(DE-588)4049712-4" }, { '0', "(DE-627)106186019" }, { '2', "gnd-content" } },
             /* indicator1 = */ ' ', /* indicator2 = */ '7');
     }
 
-    if (item_type == "note")
+    if (item_type == "note" or item_type == "review_note")
         marc_record->insertField("NOT", { { 'a', "1" } });
 
     // Information about superior work (See BSZ Konkordanz MARC 773)
@@ -1161,10 +1167,14 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
     const bool _773_subfields_iaxw_present(not _773_subfields.empty());
     bool _773_subfield_g_present(false);
     std::string _773_g_content;
-    if (not volume.empty()) {
-        _773_g_content += volume + " (" + year + ")";
-        if (not issue.empty())
-            _773_g_content += ", " + issue;
+    if (not (volume.empty() and issue.empty())) {
+        if (not volume.empty()) {
+            _773_g_content += volume + " (" + year + ")";
+            if (not issue.empty())
+                _773_g_content += ", " + issue;
+        } else {
+            _773_g_content += issue + " (" + year + ")";
+        }
 
         if (not pages.empty()) {
             if (StringUtil::StartsWith(pages, ARTICLE_NUM_INDICATOR))

@@ -16,6 +16,8 @@ declare -r WORK_FILE_PREFIX=download_krimdok_core # _<nr>.json will be added lat
 declare -i SINGLE_CURL_DOWNLOAD_MAX_TIME=200 # in seconds
 declare -r API_KEY=$(< /usr/local/var/lib/tuelib/CORE-API.key)
 declare -r CORE_API_URL=https://api.core.ac.uk/v3/search/works
+# with the registered api key downloads was successful up to 300 hits,
+# but we leave this at 100 due to the file size (incl. fulltext 300 = ~30MB file size)
 declare -r -i MAX_HITS_PER_REQUEST=100 # The v3 API does not allow more than 100 hits per request!
 declare -r TIMESTAMP_FILE=/usr/local/var/lib/tuelib/CORE-KrimDok.timestamp
 
@@ -31,19 +33,22 @@ echo "Using Timestamp: $TIMESTAMP"
 declare -r subdir=$(date +%Y%m%d_%H%M%S)
 mkdir -p $subdir
 
+# use this one in (delta) production
 #start=$TIMESTAMP
-start=2000-01-01
+
+# adjust this for initial harvesting
+start=1950-01-01
 end=$(date +%F)
 records_found=false
 
 while ! [[ $start > $end ]]; do
 
     #sample mode start
-    start=$(date -d "$start + 16 month" +%F)
+    #start=$(date -d "$start + 16 month" +%F)
     #sample mode end
 
     next=$(date -d "$start + 1 month" +%F)
-    #req. by mail 20220224: use criminolog* for selected languages, language selection seems to work only for one language (as in website)
+    # req. by mail 20220224: use criminolog* for selected languages, language selection seems to work only for one language (as in website)
     declare QUERY=$(/usr/local/bin/urlencode "(criminolog* AND createdDate>=${start} AND createdDate<${next})")
 
     for (( loopctr=0; loopctr<=100; loopctr++ ))
@@ -52,12 +57,18 @@ while ! [[ $start > $end ]]; do
         WORK_FILE=${subdir}/${WORK_FILE_PREFIX}_${start}_${offset}.json
         WORK_FILE_TMP=${WORK_FILE}.tmp
 
-        curl --max-time $SINGLE_CURL_DOWNLOAD_MAX_TIME --header "Authorization: Bearer ${API_KEY}" --request GET \
+        curl --verbose --max-time $SINGLE_CURL_DOWNLOAD_MAX_TIME --header "Authorization: Bearer ${API_KEY}" --request GET \
             --location "${CORE_API_URL}?offset=${offset}&limit=${MAX_HITS_PER_REQUEST}&entityType=works&q=${QUERY}&scroll" \
             > ${WORK_FILE_TMP}
 
         echo "date range: $start to $next : $loopctr = requested $MAX_HITS_PER_REQUEST entries via offset $offset"
+        # not needed any more with the registered api key
         sleep 65s #needed due to insufficient api license
+
+        if [ ! -s ${WORK_FILE_TMP} ]; then
+            echo "Received empty file as result"
+            exit 1
+        fi
 
         declare error_message=$(jq .error\?.message < "$WORK_FILE_TMP" 2>/dev/null)
         if [[ $error_message != "" && $error_message != "null" ]]; then
