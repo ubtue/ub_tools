@@ -212,6 +212,24 @@ HttpHeader::HttpHeader(const std::string &header) {
             if (search_start != lines.end())
                 ++search_start;
         }
+
+        server_header = find_if(lines.begin(), lines.end(), StartsWith("X-Ratelimit-Limit:"));
+        if (server_header == lines.end() or server_header->length() <= 19)
+            x_ratelimit_limit_ = -1;
+        else
+            x_ratelimit_limit_ = StringUtil::ToUnsigned(server_header->substr(19));
+
+        server_header = find_if(lines.begin(), lines.end(), StartsWith("X-Ratelimit-Remaining:"));
+        if (server_header == lines.end() or server_header->length() <= 23)
+            x_ratelimit_remaining_ = -1;
+        else
+            x_ratelimit_remaining_ = StringUtil::ToUnsigned(server_header->substr(23));
+
+        server_header = find_if(lines.begin(), lines.end(), StartsWith("X-Ratelimit-Retry-After:"));
+        if (server_header == lines.end() or server_header->length() <= 25)
+            x_ratelimit_retry_after_ = "";
+        else
+            x_ratelimit_retry_after_ = server_header->substr(25);
     } else {
         // Set some default values.  Note that "is_valid_" is false.  We do something really crazy:
         status_code_ = 200;

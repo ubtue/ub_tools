@@ -47,6 +47,8 @@ class HttpHeader {
         content_languages_, uri_, status_line_;
     bool is_valid_;
     std::vector<std::string> cookies_;
+    unsigned x_ratelimit_limit_, x_ratelimit_remaining_;
+    std::string x_ratelimit_retry_after_;
 
 public:
     HttpHeader()
@@ -92,6 +94,10 @@ public:
     std::string getVary() const { return vary_; }
     std::string getConnection() const { return connection_; }
     std::string getUri() const { return uri_; }
+
+    unsigned getXRatelimitLimit() const { return x_ratelimit_limit_; }
+    unsigned getXRatelimitRemaining() const { return x_ratelimit_remaining_; }
+    std::string getXRatelimitRetryAfter() const { return x_ratelimit_retry_after_; }
 
     bool dateIsValid() const { return date_ != TimeUtil::BAD_TIME_T; }
     bool lastModifiedIsValid() const { return last_modified_ != TimeUtil::BAD_TIME_T; }

@@ -120,9 +120,16 @@ public:
 
 private:
     Downloader download(const std::string &url);
+    Downloader searchRaw(const SearchParams &params);
     SearchResponse search(const SearchParams &params);
 
 public:
-    SearchResponseWorks searchWorks(const SearchParams &params);
+    /** \brief will search from offset_ to limit_ (only once). */
+    SearchResponseWorks searchWorks(const SearchParamsWorks &params);
+
+    /** \brief will search from offset_ to end in multiple searches
+     *         and write JSON files to output dir.
+     */
+    void searchBatch(const SearchParams &params, const std::string &output_dir);
 
 };

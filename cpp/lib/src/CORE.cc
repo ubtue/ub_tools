@@ -90,9 +90,11 @@ CORE::Work::Work(const std::shared_ptr<const JSON::ObjectNode> json_obj) {
             const std::shared_ptr<const JSON::ObjectNode> journal_obj(JSON::JSONNode::CastToObjectNodeOrDie("journal JSON entity", journal_node));
             journals_.emplace_back(Journal(journal_obj));
         }
+
     }
 
-    language_ = Language(json_obj->getObjectNode("language"));
+    if (json_obj->hasNode("language") && not json_obj->isNullNode("language"))
+        language_ = Language(json_obj->getObjectNode("language"));
     publisher_ = json_obj->getStringValue("publisher");
     title_ = json_obj->getStringValue("title");
     year_published_ = json_obj->getIntegerValue("yearPublished");
@@ -131,8 +133,12 @@ const std::string CORE::SearchParams::buildUrl() const {
         url += "&stats";
     if (raw_stats_)
         url += "&raw_stats";
-    for (const auto &exclude : exclude_) {
-        url += "&exclude[]=" + UrlUtil::UrlEncode(exclude);
+    if (exclude_.size() == 1) {
+        url += "&exclude=" + UrlUtil::UrlEncode(exclude_[0]);
+    } else {
+        for (const auto &exclude : exclude_) {
+            url += "&exclude[]=" + UrlUtil::UrlEncode(exclude);
+        }
     }
     for (const auto &sort : sort_) {
         url += "&sort[]=" + UrlUtil::UrlEncode(sort);
@@ -146,6 +152,19 @@ const std::string CORE::SearchParams::buildUrl() const {
 }
 
 
+// CORE switches, sometimes values are int, sometimes string (e.g. offset 0 and "100")
+unsigned GetJsonUnsignedValue(const std::shared_ptr<const JSON::ObjectNode> node, const std::string &label) {
+    const auto child(node->getNode(label));
+    if (child->getType() == JSON::JSONNode::Type::STRING_NODE) {
+        const auto string_node = child->CastToStringNodeOrDie(label, child);
+        return StringUtil::ToInt(string_node->getValue());
+    } else {
+        const auto int_node = child->CastToIntegerNodeOrDie(label, child);
+        return int_node->getValue();
+    }
+}
+
+
 CORE::SearchResponse::SearchResponse(const std::string &json) {
     JSON::Parser parser(json);
     std::shared_ptr<JSON::JSONNode> root_node;
@@ -154,11 +173,9 @@ CORE::SearchResponse::SearchResponse(const std::string &json) {
 
     const std::shared_ptr<const JSON::ObjectNode> root(JSON::JSONNode::CastToObjectNodeOrDie("top level JSON entity", root_node));
 
-
-
     total_hits_ = root->getIntegerValue("totalHits");
-    limit_ = StringUtil::ToUnsigned(root->getStringValue("limit")); // For some reason JSON treats this as string instead of int
-    offset_ = root->getIntegerValue("offset");
+    limit_ = GetJsonUnsignedValue(root, "limit"); // For some reason JSON treats this as string instead of int
+    offset_ = GetJsonUnsignedValue(root, "offset");
 
     if (root->hasNode("scrollId") and not root->isNullNode("scrollId"))
         scroll_id_ = root->getStringValue("scrollId");
@@ -189,16 +206,58 @@ CORE::SearchResponseWorks::SearchResponseWorks(const SearchResponse &response) {
 }
 
 
-CORE::SearchResponse CORE::search(const SearchParams &params) {
+Downloader CORE::searchRaw(const SearchParams &params) {
     const std::string url(params.buildUrl());
     auto downloader(download(url));
+    return downloader;
+}
+
+
+CORE::SearchResponse CORE::search(const SearchParams &params) {
+    auto downloader(searchRaw(params));
     const std::string json(downloader.getMessageBody());
     return SearchResponse(json);
 }
 
 
-CORE::SearchResponseWorks CORE::searchWorks(const SearchParams &params) {
+CORE::SearchResponseWorks CORE::searchWorks(const SearchParamsWorks &params) {
     const auto response_raw(search(params));
     SearchResponseWorks response(response_raw);
     return response;
+}
+
+
+void CORE::searchBatch(const SearchParams &params, const std::string &output_dir) {
+    SearchParams current_params = params;
+    auto downloader(searchRaw(current_params));
+    LOG_INFO(downloader.getMessageHeader());
+    SearchResponse response(downloader.getMessageBody());
+
+    int i(1);
+    std::string output_file(output_dir + "/" + std::to_string(i) + ".json");
+    LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-" + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
+
+    FileUtil::WriteStringOrDie(output_file, downloader.getMessageBody());
+
+    while (response.offset_ + response.limit_ < response.total_hits_) {
+        current_params.offset_ += current_params.limit_;
+
+        ++i;
+        output_file = output_dir + "/" + std::to_string(i) + ".json";
+
+        downloader = searchRaw(current_params);
+        LOG_INFO(downloader.getMessageHeader());
+        response = SearchResponse(downloader.getMessageBody());
+
+        LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-" + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
+        FileUtil::WriteStringOrDie(output_file, downloader.getMessageBody());
+
+        const auto header(downloader.getMessageHeaderObject());
+        if (header.getXRatelimitRemaining() > 0 && header.getXRatelimitRemaining() < 5) {
+            LOG_INFO("Rate limiting active, sleeping for 60s...");
+            ::sleep(60);
+        }
+    }
+
+
 }
