@@ -157,7 +157,7 @@ CORE::SearchResponse::SearchResponse(const std::string &json) {
 
 
     total_hits_ = root->getIntegerValue("totalHits");
-    //limit_ = root->getIntegerValue("limit"); // doesnt work, type conflict for some reason
+    limit_ = StringUtil::ToUnsigned(root->getStringValue("limit")); // For some reason JSON treats this as string instead of int
     offset_ = root->getIntegerValue("offset");
 
     if (root->hasNode("scrollId") and not root->isNullNode("scrollId"))
