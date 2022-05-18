@@ -58,7 +58,7 @@ while ! [[ $start > $end ]]; do
         WORK_FILE_TMP=${WORK_FILE}.tmp
 
         curl --verbose --max-time $SINGLE_CURL_DOWNLOAD_MAX_TIME --header "Authorization: Bearer ${API_KEY}" --request GET \
-            --location "${CORE_API_URL}?offset=${offset}&limit=${MAX_HITS_PER_REQUEST}&entityType=works&q=${QUERY}&scroll" \
+            --location "${CORE_API_URL}?offset=${offset}&limit=${MAX_HITS_PER_REQUEST}&entityType=works&exclude=fullText&q=${QUERY}&scroll" \
             > ${WORK_FILE_TMP}
 
         echo "date range: $start to $next : $loopctr = requested $MAX_HITS_PER_REQUEST entries via offset $offset"
