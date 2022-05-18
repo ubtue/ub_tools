@@ -67,11 +67,12 @@ public:
         std::string document_type_;
         std::string download_url_;
         std::string field_of_study_;
+        unsigned long id_ = 0;
         std::vector<Journal> journals_;
         Language language_;
         std::string publisher_;
         std::string title_;
-        unsigned year_published_;
+        unsigned year_published_ = 0;
 
         Work(const std::shared_ptr<const JSON::ObjectNode> json_obj);
     };

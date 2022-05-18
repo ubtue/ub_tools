@@ -23,6 +23,7 @@
 #include <iostream>
 #include <set>
 #include <unordered_map>
+#include "CORE.h"
 #include "FileUtil.h"
 #include "JSON.h"
 #include "KeyValueDB.h"
@@ -52,22 +53,19 @@ namespace {
 
 
 // \return True if we found at least one author, else false.
-bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const record, std::set<std::string> * const authors) {
-    const auto authors_node(entry_object.getArrayNode("authors"));
-    if (authors_node == nullptr or authors_node->empty())
+bool ProcessAuthors(const CORE::Work &work, MARC::Record * const record, std::set<std::string> * const authors) {
+    if (work.authors_.empty())
         return false;
 
     authors->clear();
     bool first_author(true);
-    for (const auto &author : *authors_node) {
-        const auto author_object(JSON::JSONNode::CastToObjectNodeOrDie("author_object", author));
-        const std::string author_name(author_object->getStringNode("name")->getValue());
-        if (authors->find(author_name) != authors->end())
+    for (const auto &author : work.authors_) {
+        if (authors->find(author.name_) != authors->end())
             continue; // Found a duplicate author!
 
-        record->insertField(first_author ? "100" : "700", { { 'a', MiscUtil::NormalizeName(author_name) }, { '4', "aut" } },
+        record->insertField(first_author ? "100" : "700", { { 'a', MiscUtil::NormalizeName(author.name_) }, { '4', "aut" } },
                             /*indicator1=*/'1');
-        authors->insert(author_name);
+        authors->insert(author.name_);
         if (first_author)
             first_author = false;
     }
@@ -77,38 +75,31 @@ bool ProcessAuthors(const JSON::ObjectNode &entry_object, MARC::Record * const r
 
 
 // \return True if a title was found, else false.
-bool ProcessTitle(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
-    const auto title_node(entry_object.getOptionalStringNode("title"));
-    if (title_node == nullptr)
+bool ProcessTitle(const CORE::Work &work, MARC::Record * const record) {
+    if (work.title_.empty())
         return false;
-    record->insertField("245", 'a', title_node->getValue());
+    record->insertField("245", 'a', work.title_);
     return true;
 }
 
 
-void ProcessYear(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
-    if (entry_object.getNode("yearPublished")->getType() == JSON::JSONNode::NULL_NODE)
+void ProcessYear(const CORE::Work &work, MARC::Record * const record) {
+    if (work.year_published_ == 0)
         return;
-    const auto year_node(entry_object.getOptionalIntegerNode("yearPublished"));
-    if (year_node == nullptr)
-        return;
-    record->insertField("936", 'j', year_node->toString(), 'u', 'w');
+    record->insertField("936", 'j', std::to_string(work.year_published_), 'u', 'w');
 }
 
 
-void ProcessDownloadURL(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
-    const auto download_url_node(entry_object.getStringNode("downloadUrl"));
-    const auto download_url(download_url_node->getValue());
-    if (not download_url.empty())
-        record->insertField("856", { { 'u', download_url }, { 'z', "LF" } }, '4', '0');
+void ProcessDownloadURL(const CORE::Work &work, MARC::Record * const record) {
+    if (not work.download_url_.empty())
+        record->insertField("856", { { 'u', work.download_url_ }, { 'z', "LF" } }, '4', '0');
 }
 
 
-bool ProcessLanguage(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
-    if (entry_object.getNode("language")->getType() == JSON::JSONNode::NULL_NODE)
+bool ProcessLanguage(const CORE::Work &work, MARC::Record * const record) {
+    if (work.language_.code_.empty())
         return false;
-    const auto language_object(entry_object.getObjectNode("language"));
-    std::string lang = MARC::MapToMARCLanguageCode(language_object->getStringNode("code")->getValue());
+    std::string lang = MARC::MapToMARCLanguageCode(work.language_.code_);
     if (lang != "eng" and lang != "ger" and lang != "spa" and lang != "baq" and lang != "cat" and lang != "por" and lang != "ita" and lang != "dut")
         return false;
     record->insertField("041", 'a', lang);
@@ -117,76 +108,55 @@ bool ProcessLanguage(const JSON::ObjectNode &entry_object, MARC::Record * const 
 
 
 // \return True if an abstract was found, else false.
-bool ProcessAbstract(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
-    if (not entry_object.hasNode("abstract") or entry_object.isNullNode("abstract"))
+bool ProcessAbstract(const CORE::Work &work, MARC::Record * const record) {
+    if (work.abstract_.empty())
         return false;
-    const auto abstract_node(entry_object.getStringNode("abstract"));
-    std::string abstract_value = abstract_node->getValue().length() > 5 ? abstract_node->getValue() : "not available";
+    std::string abstract_value = work.abstract_.length() > 5 ? work.abstract_ : "not available";
     record->insertField("520", 'a', StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH, abstract_value));
     return true;
 }
 
 
 // \return True if any uncontrolled terms were found, else false.
-bool ProcessUncontrolledIndexTerms(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
+bool ProcessUncontrolledIndexTerms(const CORE::Work &work, MARC::Record * const record) {
     bool found_at_least_one_index_term(false);
 
-    const auto document_type_node(entry_object.getOptionalStringNode("documentType"));
-    if (document_type_node != nullptr) {
-        const auto document_type(document_type_node->getValue());
-        if (not document_type.empty() and document_type != "unknown") {
-            record->insertField("653", 'a', document_type);
-            found_at_least_one_index_term = true;
-        }
-    }
-
-    if (not entry_object.hasNode("fieldOfStudy") or entry_object.isNullNode("fieldOfStudy"))
-        return found_at_least_one_index_term;
-    const auto field_of_study(entry_object.getStringNode("fieldOfStudy")->getValue());
-    if (not field_of_study.empty()) {
-        record->insertField("653", 'a', field_of_study);
+    if (not work.document_type_.empty() and work.document_type_ != "unknown") {
+        record->insertField("653", 'a', work.document_type_);
         found_at_least_one_index_term = true;
     }
+
+    if (work.field_of_study_.empty())
+        return found_at_least_one_index_term;
+
+    record->insertField("653", 'a', work.field_of_study_);
+    found_at_least_one_index_term = true;
 
     return found_at_least_one_index_term;
 }
 
 
 // \return True if any uncontrolled terms were found, else false.
-bool ProcessYearPublished(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
-    if (not entry_object.hasNode("yearPublished") or entry_object.isNullNode("yearPublished"))
+bool ProcessYearPublished(const CORE::Work &work, MARC::Record * const record) {
+    if (work.year_published_ == 0)
         return false;
-    const auto year_published_node(entry_object.getIntegerNode("yearPublished"));
-    record->insertField("264", 'c', year_published_node->toString(), /*indicator1=*/' ', /*indicator2=*/'1');
+    record->insertField("264", 'c', std::to_string(work.year_published_), /*indicator1=*/' ', /*indicator2=*/'1');
     return true;
 }
 
 
-bool PublisherIsUniTue(const JSON::ObjectNode &entry_object) {
-    if (not entry_object.hasNode("publisher") or entry_object.isNullNode("publisher"))
-        return false;
-    const std::string publisher(entry_object.getStringNode("publisher")->getValue());
-    return publisher == "Universität Tübingen";
+bool PublisherIsUniTue(const CORE::Work &work) {
+    return work.publisher_ == "Universität Tübingen";
 }
 
 
-bool ProcessJournal(const JSON::ObjectNode &entry_object, MARC::Record * const record) {
-    if (not entry_object.hasNode("journals"))
-        return false;
-    const auto journals(entry_object.getArrayNode("journals"));
-    for (size_t i(0); i < journals->size(); ++i) {
-        const auto journal(journals->getObjectNode(i));
-        if (not journal->hasNode("identifiers"))
-            continue;
-
-        const auto identifiers(journal->getArrayNode("identifiers"));
-        for (size_t k(0); k < identifiers->size(); ++k) {
-            const auto identifier(identifiers->getStringNode(k));
-            const auto issn_candidate(identifier->getValue());
-            if (MiscUtil::IsPossibleISSN(issn_candidate)) {
+bool ProcessJournal(const CORE::Work &work, MARC::Record * const record) {
+    for (const auto &journal : work.journals_) {
+        for (const auto &identifier : journal.identifiers_) {
+            if (MiscUtil::IsPossibleISSN(identifier)) {
                 record->insertField("773",
                                     {
-                                        { 'x', issn_candidate }
+                                        { 'x', identifier }
                                     },
                                     /*indicator1=*/'0', /*indicator2=*/'8');
                 return true;
@@ -215,17 +185,19 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
     unsigned skipped_dupe_count(0), generated_count(0), skipped_incomplete_count(0), skipped_uni_tue(0);
     for (auto &entry : root_array) {
         const auto entry_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
-        const auto id(std::to_string(entry_object->getIntegerValue("id")));
+        const CORE::Work work(entry_object);
+
+        const auto id(std::to_string(work.id_));
         const auto control_number("CORE" + id);
         if (ignore_unique_id_dups and unique_id_to_date_map->keyIsPresent(control_number))
             ++skipped_dupe_count;
-        else if (PublisherIsUniTue(*entry_object))
+        else if (PublisherIsUniTue(work))
             ++skipped_uni_tue;
         else {
             MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                                     control_number);
             std::set<std::string> authors;
-            if (not ProcessAuthors(*entry_object, &new_record, &authors)) {
+            if (not ProcessAuthors(work, &new_record, &authors)) {
                 ++skipped_incomplete_count;
                 continue;
             }
@@ -233,7 +205,7 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
             //Do not use contributors anymore (team decision in video conf. on 09.02.2022)
             //ProcessContributors(*entry_object, &new_record, authors);
 
-            if (not ProcessTitle(*entry_object, &new_record)) {
+            if (not ProcessTitle(work, &new_record)) {
                 ++skipped_incomplete_count;
                 continue;
             }
@@ -242,14 +214,14 @@ void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
             new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
             new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
             new_record.insertField("852", 'a', project_sigil);
-            ProcessYear(*entry_object, &new_record);
-            ProcessDownloadURL(*entry_object, &new_record);
-            if (not ProcessLanguage(*entry_object, &new_record))
+            ProcessYear(work, &new_record);
+            ProcessDownloadURL(work, &new_record);
+            if (not ProcessLanguage(work, &new_record))
                 continue;
-            ProcessAbstract(*entry_object, &new_record);
-            ProcessUncontrolledIndexTerms(*entry_object, &new_record);
-            ProcessYearPublished(*entry_object, &new_record);
-            ProcessJournal(*entry_object, &new_record);
+            ProcessAbstract(work, &new_record);
+            ProcessUncontrolledIndexTerms(work, &new_record);
+            ProcessYearPublished(work, &new_record);
+            ProcessJournal(work, &new_record);
             Process935Entries(_935_entries, &new_record);
             marc_writer->write(new_record);
             unique_id_to_date_map->addOrReplace(control_number, TimeUtil::GetCurrentDateAndTime());

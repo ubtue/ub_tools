@@ -81,7 +81,8 @@ CORE::Work::Work(const std::shared_ptr<const JSON::ObjectNode> json_obj) {
 
     document_type_ = json_obj->getOptionalStringValue("documentType");
     download_url_ = json_obj->getStringValue("downloadUrl");
-    document_type_ = json_obj->getOptionalStringValue("fieldOfStudy");
+    field_of_study_ = json_obj->getOptionalStringValue("fieldOfStudy");
+    id_ = json_obj->getIntegerValue("id");
 
     const auto journals = json_obj->getArrayNode("journals");
     if (journals != nullptr) {
