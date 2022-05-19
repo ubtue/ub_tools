@@ -99,6 +99,9 @@ public:
     unsigned getXRatelimitRemaining() const { return x_ratelimit_remaining_; }
     std::string getXRatelimitRetryAfter() const { return x_ratelimit_retry_after_; }
 
+    /** \brief   Each server might send different time formats depending on its location, so please specify its format. */
+    time_t getXRatelimitRetryAfter(const std::string &format) const { return TimeUtil::StringToTimeT(x_ratelimit_retry_after_, format); }
+
     bool dateIsValid() const { return date_ != TimeUtil::BAD_TIME_T; }
     bool lastModifiedIsValid() const { return last_modified_ != TimeUtil::BAD_TIME_T; }
     bool expiresIsValid() const { return expires_ != TimeUtil::BAD_TIME_T; }

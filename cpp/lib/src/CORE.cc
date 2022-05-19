@@ -17,6 +17,8 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <chrono>
+#include <thread>
 #include "CORE.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
@@ -116,9 +118,17 @@ Downloader CORE::download(const std::string &url) {
             if (header.getXRatelimitRemaining() == 0) {
                 // Conversion problems due to special 8601 format that is not supported yet by TimeUtil.
                 // If we solve that, we might be able to ret the exact time to sleep from the response header.
-                //const time_t sleep_until(header.getXRatelimitRetryAfter());
-                LOG_WARNING("Rate limiting active + too many requests! Sleeping for 120s");
-                ::sleep(120);
+                const time_t sleep_until_time(header.getXRatelimitRetryAfter("%Y-%m-%dT%H:%M:%S%z"));
+                if (sleep_until_time != TimeUtil::BAD_TIME_T) {
+                    const std::string sleep_until_string(TimeUtil::TimeTToLocalTimeString(sleep_until_time));
+
+                    LOG_WARNING("Rate limiting active + too many requests! Sleeping until " + sleep_until_string);
+                    std::this_thread::sleep_until (std::chrono::system_clock::from_time_t(sleep_until_time));
+                } else {
+                    const unsigned sleep_seconds(60);
+                    LOG_WARNING("Rate limiting active + too many requests! Could not determine retry_after timestamp! Sleeping for " + std::to_string(sleep_seconds) + "s");
+                    ::sleep(sleep_seconds);
+                }
             }
         } else {
 
