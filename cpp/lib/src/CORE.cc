@@ -26,7 +26,6 @@
 #include "UrlUtil.h"
 
 
-
 const std::string CORE::API_BASE_URL = "https://api.core.ac.uk/v3/";
 
 
