@@ -252,6 +252,8 @@ CORE::SearchResponseWorks CORE::searchWorks(const SearchParamsWorks &params) {
 
 
 void CORE::searchBatch(const SearchParams &params, const std::string &output_dir) {
+    if (not FileUtil::IsDirectory(output_dir))
+        FileUtil::MakeDirectoryOrDie(output_dir);
     SearchParams current_params = params;
 
     // Always enable scrolling. This is mandatory if we have > 10.000 results.
