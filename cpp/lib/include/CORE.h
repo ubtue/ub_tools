@@ -119,8 +119,8 @@ public:
     };
 
 private:
-    Downloader download(const std::string &url);
-    Downloader searchRaw(const SearchParams &params);
+    std::string download(const std::string &url);
+    std::string searchRaw(const SearchParams &params);
     SearchResponse search(const SearchParams &params);
 
 public:

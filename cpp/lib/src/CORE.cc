@@ -102,15 +102,13 @@ CORE::Work::Work(const std::shared_ptr<const JSON::ObjectNode> json_obj) {
 }
 
 
-Downloader CORE::download(const std::string &url) {
-    Downloader::Params downloader_params;
-    downloader_params.additional_headers_.push_back("Authorization: Bearer " + GetAPIKey());
-    //downloader_params.debugging_ = true;
-
+std::string CORE::download(const std::string &url) {
     {
-        Downloader downloader(downloader_params);
-        downloader.newUrl(url);
+        Downloader::Params downloader_params;
+        downloader_params.additional_headers_.push_back("Authorization: Bearer " + GetAPIKey());
+        //downloader_params.debugging_ = true;
 
+        Downloader downloader(url, downloader_params);
         if (downloader.getResponseCode() == 429) {
             LOG_INFO(downloader.getMessageHeader());
             const auto header(downloader.getMessageHeaderObject());
@@ -134,7 +132,7 @@ Downloader CORE::download(const std::string &url) {
             if (downloader.anErrorOccurred())
                 throw std::runtime_error(downloader.getLastErrorMessage());
 
-            return downloader;
+            return downloader.getMessageBody();
         }
     }
 
@@ -234,16 +232,14 @@ CORE::SearchResponseWorks::SearchResponseWorks(const SearchResponse &response) {
 }
 
 
-Downloader CORE::searchRaw(const SearchParams &params) {
+std::string CORE::searchRaw(const SearchParams &params) {
     const std::string url(params.buildUrl());
-    auto downloader(download(url));
-    return downloader;
+    return download(url);
 }
 
 
 CORE::SearchResponse CORE::search(const SearchParams &params) {
-    auto downloader(searchRaw(params));
-    const std::string json(downloader.getMessageBody());
+    const std::string json(searchRaw(params));
     return SearchResponse(json);
 }
 
@@ -261,14 +257,14 @@ void CORE::searchBatch(const SearchParams &params, const std::string &output_dir
     // Always enable scrolling. This is mandatory if we have > 10.000 results.
     current_params.scroll_ = true;
 
-    auto downloader(searchRaw(current_params));
-    SearchResponse response(downloader.getMessageBody());
+    std::string response_json(searchRaw(current_params));
+    SearchResponse response(response_json);
 
     int i(1);
     std::string output_file(output_dir + "/" + std::to_string(i) + ".json");
     LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-" + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
 
-    FileUtil::WriteStringOrDie(output_file, downloader.getMessageBody());
+    FileUtil::WriteStringOrDie(output_file, response_json);
 
     while (response.offset_ + response.limit_ < response.total_hits_) {
         current_params.offset_ += current_params.limit_;
@@ -276,13 +272,13 @@ void CORE::searchBatch(const SearchParams &params, const std::string &output_dir
         ++i;
         output_file = output_dir + "/" + std::to_string(i) + ".json";
 
-        downloader = searchRaw(current_params);
-        response = SearchResponse(downloader.getMessageBody());
+        response_json = searchRaw(current_params);
+        response = SearchResponse(response_json);
         if (not response.scroll_id_.empty())
             current_params.scroll_id_ = response.scroll_id_;
 
         LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-" + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
-        FileUtil::WriteStringOrDie(output_file, downloader.getMessageBody());
+        FileUtil::WriteStringOrDie(output_file, response_json);
     }
 
 
