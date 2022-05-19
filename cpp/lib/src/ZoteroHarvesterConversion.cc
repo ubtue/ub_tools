@@ -32,7 +32,6 @@
 #include "UrlUtil.h"
 #include "ZoteroHarvesterZederInterop.h"
 #include "util.h"
-#include <iostream>
 
 
 namespace ZoteroHarvester {
