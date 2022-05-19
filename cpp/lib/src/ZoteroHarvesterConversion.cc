@@ -994,12 +994,14 @@ ThreadSafeRegexMatcher::MatchResult MatchRomanPageOrPageRange(const std::string 
 
 
 std::string ConvertRomanPageRangeToArabic(const std::string &pages, const ThreadSafeRegexMatcher::MatchResult &match_result) {
-        if (match_result.size() == 1)
-            return std::to_string(StringUtil::RomanNumeralToDecimal(pages));
-        else
-            return std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[1]))) + '-' +
-                   std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[2])));
-    return pages;
+    if (not match_result) {
+        LOG_INFO("Unexpected empty match result - returning pages unmodified");
+        return pages;
+    }
+    if (match_result.size() <= 2 /*direct match or full match and one subgroup*/)
+        return std::to_string(StringUtil::RomanNumeralToDecimal(pages));
+    return std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[1]))) + '-' +
+        std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[2])));
 }
 
 
