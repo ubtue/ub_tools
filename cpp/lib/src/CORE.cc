@@ -106,13 +106,32 @@ Downloader CORE::download(const std::string &url) {
     downloader_params.additional_headers_.push_back("Authorization: Bearer " + GetAPIKey());
     //downloader_params.debugging_ = true;
 
-    Downloader downloader(downloader_params);
-    downloader.newUrl(url);
+    {
+        Downloader downloader(downloader_params);
+        downloader.newUrl(url);
 
-    if (downloader.anErrorOccurred())
-        throw std::runtime_error(downloader.getLastErrorMessage());
+        if (downloader.getResponseCode() == 429) {
+            LOG_INFO(downloader.getMessageHeader());
+            const auto header(downloader.getMessageHeaderObject());
+            if (header.getXRatelimitRemaining() == 0) {
+                // Conversion problems due to special 8601 format that is not supported yet by TimeUtil.
+                // If we solve that, we might be able to ret the exact time to sleep from the response header.
+                //const time_t sleep_until(header.getXRatelimitRetryAfter());
+                LOG_WARNING("Rate limiting active + too many requests! Sleeping for 120s");
+                ::sleep(120);
+            }
+        } else {
 
-    return downloader;
+            if (downloader.anErrorOccurred())
+                throw std::runtime_error(downloader.getLastErrorMessage());
+
+            return downloader;
+        }
+    }
+
+    // Retry if we ran into any errors.
+    // The existing downloader object should be destroyed before doing this.
+    return download(url);
 }
 
 const std::string CORE::SearchParams::buildUrl() const {
@@ -229,8 +248,11 @@ CORE::SearchResponseWorks CORE::searchWorks(const SearchParamsWorks &params) {
 
 void CORE::searchBatch(const SearchParams &params, const std::string &output_dir) {
     SearchParams current_params = params;
+
+    // Always enable scrolling. This is mandatory if we have > 10.000 results.
+    current_params.scroll_ = true;
+
     auto downloader(searchRaw(current_params));
-    LOG_INFO(downloader.getMessageHeader());
     SearchResponse response(downloader.getMessageBody());
 
     int i(1);
@@ -246,17 +268,12 @@ void CORE::searchBatch(const SearchParams &params, const std::string &output_dir
         output_file = output_dir + "/" + std::to_string(i) + ".json";
 
         downloader = searchRaw(current_params);
-        LOG_INFO(downloader.getMessageHeader());
         response = SearchResponse(downloader.getMessageBody());
+        if (not response.scroll_id_.empty())
+            current_params.scroll_id_ = response.scroll_id_;
 
         LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-" + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
         FileUtil::WriteStringOrDie(output_file, downloader.getMessageBody());
-
-        const auto header(downloader.getMessageHeaderObject());
-        if (header.getXRatelimitRemaining() > 0 && header.getXRatelimitRemaining() < 5) {
-            LOG_INFO("Rate limiting active, sleeping for 60s...");
-            ::sleep(60);
-        }
     }
 
 
