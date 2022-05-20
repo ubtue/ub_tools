@@ -177,16 +177,13 @@ void Process935Entries(const std::vector<std::pair<std::string, std::string>> &_
 }
 
 
-void GenerateMARCFromJSON(const JSON::ArrayNode &root_array,
+void GenerateMARCFromJSON(const std::vector<CORE::Work> &works,
                           MARC::Writer * const marc_writer, const std::string &project_sigil,
                           const std::vector<std::pair<std::string, std::string>> &_935_entries,
                           const bool ignore_unique_id_dups,
                           KeyValueDB * const unique_id_to_date_map) {
     unsigned skipped_dupe_count(0), generated_count(0), skipped_incomplete_count(0), skipped_uni_tue(0);
-    for (auto &entry : root_array) {
-        const auto entry_object(JSON::JSONNode::CastToObjectNodeOrDie("entry", entry));
-        const CORE::Work work(entry_object);
-
+    for (const auto &work : works) {
         const auto id(std::to_string(work.id_));
         const auto control_number("CORE" + id);
         if (ignore_unique_id_dups and unique_id_to_date_map->keyIsPresent(control_number))
@@ -281,25 +278,15 @@ int Main(int argc, char **argv) {
     for (const std::string &json_filename : json_filenames) {
         if (not StringUtil::EndsWith(json_filename, ".json"))
             continue;
-        std::string json_source;
-        FileUtil::ReadString(json_filename, &json_source);
-        JSON::Parser parser(json_source);
-        std::shared_ptr<JSON::JSONNode> tree_root;
-        if (not parser.parse(&tree_root))
-            LOG_ERROR("Failed to parse the JSON contents of \"" + json_filename + "\": " + parser.getErrorMessage());
 
-        const auto results_node(JSON::LookupNode("/results", tree_root));
-        if (results_node == nullptr)
-            LOG_ERROR("results node not found!");
-        const auto array_root(JSON::JSONNode::CastToArrayNodeOrDie("results", results_node));
-
+        const auto works(CORE::GetWorksFromFile(json_filename));
         KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
 
         std::string marc_output_filename = json_filename;
         marc_output_filename = StringUtil::ReplaceString(".json", ".xml", marc_output_filename);
         const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
 
-        GenerateMARCFromJSON(*array_root.get(), marc_writer.get(), project_sigil, _935_entries,
+        GenerateMARCFromJSON(works, marc_writer.get(), project_sigil, _935_entries,
                               ignore_unique_id_dups, &unique_id_to_date_map);
     }
 
