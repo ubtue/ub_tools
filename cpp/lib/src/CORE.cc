@@ -98,7 +98,8 @@ CORE::Work::Work(const std::shared_ptr<const JSON::ObjectNode> json_obj) {
         language_ = Language(json_obj->getObjectNode("language"));
     publisher_ = json_obj->getStringValue("publisher");
     title_ = json_obj->getStringValue("title");
-    year_published_ = json_obj->getIntegerValue("yearPublished");
+    if (not json_obj->isNullNode("yearPublished"))
+        year_published_ = json_obj->getIntegerValue("yearPublished");
 }
 
 
