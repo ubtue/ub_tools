@@ -75,6 +75,8 @@ public:
         unsigned year_published_ = 0;
 
         Work(const std::shared_ptr<const JSON::ObjectNode> json_obj);
+
+        bool isArticle() const { return journals_.empty(); }
     };
 
     struct SearchParams {
@@ -132,4 +134,6 @@ public:
      */
     void searchBatch(const SearchParams &params, const std::string &output_dir);
 
+    static std::shared_ptr<JSON::ArrayNode> GetResultsFromFile(const std::string &file);
+    static std::vector<Work> GetWorksFromFile(const std::string &file);
 };

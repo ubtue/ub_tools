@@ -192,11 +192,7 @@ unsigned GetJsonUnsignedValue(const std::shared_ptr<const JSON::ObjectNode> node
 
 
 CORE::SearchResponse::SearchResponse(const std::string &json) {
-    JSON::Parser parser(json);
-    std::shared_ptr<JSON::JSONNode> root_node;
-    if (not parser.parse(&root_node))
-        throw std::runtime_error("in CORE::SearchResponse: could not parse JSON response: " + json);
-
+    const auto root_node(JSON::ParseString(json));
     const std::shared_ptr<const JSON::ObjectNode> root(JSON::JSONNode::CastToObjectNodeOrDie("top level JSON entity", root_node));
 
     total_hits_ = root->getIntegerValue("totalHits");
@@ -282,6 +278,31 @@ void CORE::searchBatch(const SearchParams &params, const std::string &output_dir
         LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-" + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
         FileUtil::WriteStringOrDie(output_file, response_json);
     }
+}
 
 
+std::shared_ptr<JSON::ArrayNode> CORE::GetResultsFromFile(const std::string &file) {
+    const auto root_node(JSON::ParseFile(file));
+    std::shared_ptr<JSON::ArrayNode> results;
+    if (root_node->getType() == JSON::JSONNode::ARRAY_NODE)
+        results = root_node->CastToArrayNodeOrDie("root", root_node);
+    else if (root_node->getType() == JSON::JSONNode::OBJECT_NODE) {
+        const auto root_obj(root_node->CastToObjectNodeOrDie("root", root_node));
+        results = root_obj->getArrayNode("results");
+    } else {
+        throw std::runtime_error("could not get CORE results from JSON file: " + file);
+    }
+    return results;
+}
+
+
+std::vector<CORE::Work> CORE::GetWorksFromFile(const std::string &file) {
+    const auto results(GetResultsFromFile(file));
+    std::vector<CORE::Work> works;
+    for (const auto &result_node : *results) {
+        const auto result_obj(result_node->CastToObjectNodeOrDie("result", result_node));
+        const Work work(result_obj);
+        works.emplace_back(work);
+    }
+    return works;
 }
