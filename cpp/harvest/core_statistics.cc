@@ -16,6 +16,7 @@
  *  You should have received a copy of the GNU Affero General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include <map>
 #include "CORE.h"
 #include "util.h"
 
@@ -43,15 +44,31 @@ int Main(int argc, char **argv) {
 
     unsigned count(0);
     unsigned articles(0);
+    std::map<std::string, unsigned> languages;
     for (const auto &work : works) {
         ++count;
         if (work.isArticle())
             ++articles;
+        const auto language_iter(languages.find(work.language_.code_));
+        if (language_iter == languages.end())
+            languages[work.language_.code_] = 1;
+        else
+            ++languages[work.language_.code_];
+
     }
 
     LOG_INFO("Statistics for " + core_file + ":");
-    LOG_INFO(std::to_string(count) + " datasets");
-    LOG_INFO(std::to_string(count) + " articles");
+    LOG_INFO(std::to_string(count) + " datasets (" + std::to_string(count) + " articles)");
+
+    std::string languages_msg("languages: ");
+    bool first(true);
+    for (const auto &[language_code, language_count] : languages) {
+        if (not first)
+            languages_msg += ", ";
+        languages_msg += "\"" + language_code + "\": " + std::to_string(language_count);
+        first = false;
+    }
+    LOG_INFO(languages_msg);
 
     return EXIT_SUCCESS;
 }
