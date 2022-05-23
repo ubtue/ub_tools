@@ -128,7 +128,6 @@ private:
             LOG_ERROR("expected \"" + node_name + "\" to be " + JSONNode::TypeToString(node_type) + "!");
         return std::static_pointer_cast<NodeType>(node);
     }
-
 public:
     static std::shared_ptr<const ArrayNode> CastToArrayNodeOrDie(const std::string &node_name,
                                                                  const std::shared_ptr<const JSONNode> &node) {
@@ -574,6 +573,10 @@ void VisitLeafNodes(const std::string &node_name, const std::shared_ptr<JSON::JS
         callback(node_name, node, params...);
     }
 }
+
+
+std::shared_ptr<JSONNode> ParseFile(const std::string &file);
+std::shared_ptr<JSONNode> ParseString(const std::string &json);
 
 
 } // namespace JSON

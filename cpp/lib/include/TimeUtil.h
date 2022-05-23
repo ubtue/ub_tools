@@ -147,6 +147,12 @@ bool StringToTimeT(const std::string &time_str, time_t * const unix_time);
 time_t StringToTimeT(const std::string &time_str);
 
 
+/** \brief Converts a datetime string in a given format to time_t.
+ *  \note This function will abort if "time_str" cannot be converted to a valid time_t!
+ */
+time_t StringToTimeT(const std::string &time_str, const std::string &format);
+
+
 /** \brief  Inverse of gmtime(3).
  *  \param  tm  Broken-down time, expressed in Coordinated Universal Time (UTC).
  *  \return The calendar time or TimeUtil::BAD_TIME_T on error.
