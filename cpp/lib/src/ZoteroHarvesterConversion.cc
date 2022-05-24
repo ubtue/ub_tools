@@ -1361,7 +1361,7 @@ static bool ExcludeUndesiredItemTypes(const MetadataRecord &metadata_record) {
 }
 
 
-const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST{ "journalArticle", "magazineArticle", "review" };
+const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST{ "journalArticle", "magazineArticle", "review", "note", "review_note" };
 
 
 bool ExcludeOnlineFirstRecord(const MetadataRecord &metadata_record, const ConversionParams &parameters) {
