@@ -28,6 +28,7 @@
 #include <unordered_map>
 #include <curl/curl.h>
 #include "Compiler.h"
+#include "HttpHeader.h"
 #include "PerlCompatRegExp.h"
 #include "RobotsDotTxt.h"
 #include "ThreadUtil.h"
@@ -145,6 +146,7 @@ public:
     bool deleteUrl(const std::string &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT) { return deleteUrl(Url(url), time_limit); }
 
     std::string getMessageHeader() const;
+    HttpHeader getMessageHeaderObject() const { return HttpHeader(getMessageHeader()); }
     const std::string &getMessageBody() const { return body_; }
 
     /** \brief  Tries its best to get the MIME type of the most recently downloaded document.

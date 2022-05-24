@@ -191,6 +191,17 @@ time_t StringToTimeT(const std::string &time_str) {
 }
 
 
+time_t StringToTimeT(const std::string &time_str, const std::string &format) {
+    struct tm tm;
+    std::memset(&tm, 0, sizeof tm);
+    const char * const first_not_processed(::strptime(time_str.c_str(), format.c_str(), &tm));
+    if (first_not_processed == nullptr or *first_not_processed != '\0')
+        return BAD_TIME_T;
+
+    return TimeGm(tm);
+}
+
+
 time_t TimeGm(const struct tm &tm) {
     const char * const saved_time_zone(::getenv("TZ"));
 
