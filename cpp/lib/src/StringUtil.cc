@@ -2127,28 +2127,6 @@ std::string LongestCommonSubstring(const std::string &s1, const std::string &s2)
     return longest_common_substring;
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated"
-
-std::string Md5(const std::string &s) {
-    char cryptographic_hash[MD5_DIGEST_LENGTH];
-    MD5(reinterpret_cast<const unsigned char *>(s.c_str()), s.length(), reinterpret_cast<unsigned char *>(cryptographic_hash));
-
-    return std::string(cryptographic_hash, MD5_DIGEST_LENGTH);
-}
-
-
-uint64_t Md5As64Bits(const std::string &s) {
-    uint64_t cryptographic_hash[MD5_DIGEST_LENGTH / sizeof(uint64_t)];
-    MD5(reinterpret_cast<const unsigned char *>(s.c_str()), s.length(), reinterpret_cast<unsigned char *>(cryptographic_hash));
-
-    uint64_t folded_hash(cryptographic_hash[0]);
-    for (unsigned i(1); i < (MD5_DIGEST_LENGTH / sizeof(uint64_t)); ++i)
-        folded_hash ^= cryptographic_hash[i];
-    return folded_hash;
-}
-
-#pragma clang diagnostic pop
 
 std::string Sha1(const std::string &s) {
     char cryptographic_hash[SHA_DIGEST_LENGTH];
