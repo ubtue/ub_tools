@@ -243,7 +243,6 @@ struct FeedNameAndURL {
 
 public:
     FeedNameAndURL() = default;
-    FeedNameAndURL(const FeedNameAndURL &other) = default;
     FeedNameAndURL(const std::string &name, const std::string &url): name_(name), url_(url) { }
 };
 

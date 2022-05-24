@@ -93,7 +93,6 @@ struct NodeInfo {
 
 public:
     NodeInfo() = default;
-    NodeInfo(const NodeInfo &) = default;
     NodeInfo(std::set<std::string> &&referenced_ppns, std::set<RecordType> &&types): referenced_ppns_(referenced_ppns), types_(types) { }
 };
 

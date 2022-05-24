@@ -1200,11 +1200,8 @@ std::string &ReplaceString(const std::string &old_text, const std::string &new_t
     if (not global)
         return *s;
 
-    std::string::size_type total_string_length(s->length());
-    while ((old_text_start_pos = s->find(old_text, old_text_start_pos + new_text_length)) != std::string::npos) {
+    while ((old_text_start_pos = s->find(old_text, old_text_start_pos + new_text_length)) != std::string::npos)
         s->replace(old_text_start_pos, old_text_length, new_text);
-        total_string_length += new_text_length - old_text_length;
-    }
 
     return *s;
 }
@@ -2130,6 +2127,8 @@ std::string LongestCommonSubstring(const std::string &s1, const std::string &s2)
     return longest_common_substring;
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
 
 std::string Md5(const std::string &s) {
     char cryptographic_hash[MD5_DIGEST_LENGTH];
@@ -2149,6 +2148,7 @@ uint64_t Md5As64Bits(const std::string &s) {
     return folded_hash;
 }
 
+#pragma clang diagnostic pop
 
 std::string Sha1(const std::string &s) {
     char cryptographic_hash[SHA_DIGEST_LENGTH];
