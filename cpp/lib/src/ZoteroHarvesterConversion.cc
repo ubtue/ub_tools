@@ -999,7 +999,7 @@ std::string ConvertRomanPageRangeToArabic(const std::string &pages, const Thread
         return pages;
     }
     if (match_result.size() <= 2 /*direct match or full match and one subgroup*/)
-        return std::to_string(StringUtil::RomanNumeralToDecimal(pages));
+        return std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(pages)));
     return std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[1]))) + '-' +
         std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[2])));
 }
