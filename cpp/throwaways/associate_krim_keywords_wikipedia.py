@@ -4,6 +4,7 @@
 import os
 import re
 import sys
+import time
 import traceback
 from typing import Dict, Any, List, Optional
 import wikipediaapi
@@ -20,6 +21,22 @@ class ubtue_Wikipedia(wikipediaapi.Wikipedia):
             **kwargs
     ) -> None:
          super(ubtue_Wikipedia, self).__init__(language, extract_format, headers, **kwargs)
+
+
+    def extract_extlinks(self, query) -> Dict:
+         pages = query['pages']
+         pageid = self.get_first_page_id(pages)
+         return pages[pageid].get('extlinks', [])
+
+
+    def get_first_page_id(self, pages) -> str:
+        # Get away with pageid
+         if len(pages.keys()) != 1:
+            raise "Invalid number of elements in pages: " + len(pages.keys)
+         return list(pages.keys())[0]
+
+
+
     def extlinks(
             self,
             page: 'ubtue_WikipediaPage',
@@ -51,7 +68,9 @@ class ubtue_Wikipedia(wikipediaapi.Wikipedia):
                   page,
                   params
              )
-             v['extlinks'] += raw['query']['extlinks']
+             pageid = self.get_first_page_id(raw['query']['pages'])
+             if 'extlinks' in raw['query']['pages'][pageid]:
+                  v['pages'][pageid]['extlinks'] +=  raw['query']['pages'][pageid]['extlinks']
         return self._build_extlinks(v, page)
 
 
@@ -61,17 +80,11 @@ class ubtue_Wikipedia(wikipediaapi.Wikipedia):
             page
     ) -> PagesDict:
          page._extlinks = []
-         pages = extract['pages']
-         # Get away with pageid
-         if len(pages.keys()) != 1:
-            raise "Invalid number of elements in pages: " + len(pages.keys)
-         pageid = list(pages.keys())[0]
-         extlinks = pages[pageid].get('extlinks', [])
+         extlinks = self.extract_extlinks(extract)
          self._common_attributes(extract, page)
          for extlink in extlinks:
              extlink_clean = list(extlink.values())[0]
              page._extlinks.append(extlink_clean)
-         #print(page._extlinks)
          return page._extlinks    
 
 
@@ -102,7 +115,6 @@ def print_sections(sections, level=0):
 
 
 def filterGNDLinks(extlinks):
-    #print(extlinks)
     gnd_matcher = re.compile(r'^https://d-nb.info/gnd/(.*)$')
     return list(filter(gnd_matcher.match, extlinks))
 
@@ -128,6 +140,8 @@ def Main():
         else:
             print ("%s - No Match" % page_candidate)
         sys.stdout.flush()
+        time.sleep(2000/1000)
+
 
 try:
     Main()
