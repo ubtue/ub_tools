@@ -7,6 +7,7 @@ import sys
 import time
 import traceback
 from typing import Dict, Any, List, Optional
+import urllib.parse
 import wikipediaapi
 
 PagesDict = Dict[str, 'ubtue_WikipediaPage']
@@ -129,7 +130,7 @@ def Main():
     
     for line in kwfile:
         page_candidate = line.strip()
-        page = ubtue_WikipediaPage(wiki_wiki.page(page_candidate))
+        page = ubtue_WikipediaPage(wiki_wiki.page(urllib.parse.quote(page_candidate)))
         if page.exists():
             print("%s" % page_candidate, end=' | ')
             print(page.fullurl, end=' | ')
@@ -140,7 +141,7 @@ def Main():
         else:
             print ("%s - No Match" % page_candidate)
         sys.stdout.flush()
-        time.sleep(2000/1000)
+        time.sleep(200/1000)
 
 
 try:
