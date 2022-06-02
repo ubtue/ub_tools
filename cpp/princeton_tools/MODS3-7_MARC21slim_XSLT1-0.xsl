@@ -549,7 +549,10 @@
 		</marc:record>
 	</xsl:template>
 
-	<xsl:template match="*"/>
+    <xsl:template match="mods:location">
+        <xsl:apply-templates/>
+    </xsl:template>
+    <xsl:template match="*"/>
 
 <!-- Title Info elements -->
 	<xsl:template match="mods:titleInfo[not(ancestor-or-self::mods:subject)][not(@type)][1]">
@@ -2573,4 +2576,5 @@
 			</xsl:choose>
 		</xsl:variable>
 -->
+
 </xsl:stylesheet>
