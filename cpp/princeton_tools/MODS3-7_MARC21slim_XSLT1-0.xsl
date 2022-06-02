@@ -2155,16 +2155,6 @@
 			</xsl:call-template>
 	</xsl:template>
 
-	<xsl:template match="mods:extension">
-		<xsl:call-template name="datafield">
-			<xsl:with-param name="tag">887</xsl:with-param>
-			<xsl:with-param name="subfields">
-				<marc:subfield code="a">
-					<xsl:value-of select="."/>
-				</marc:subfield>
-			</xsl:with-param>
-		</xsl:call-template>
-	</xsl:template>
 	<!-- 1/04 fix -->
 	<!--<xsl:template match="mods:internetMediaType">
 		<xsl:call-template name="datafield">
