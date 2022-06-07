@@ -23,7 +23,7 @@ for content in ${archive_contents}; do
      echo ${ppn}
      echo ${content}
      7z x -so ${archive_file} ${content} | \
-         xmlstarlet ed -d '//_:subject[@authority="aat"]' | \
+         xmlstarlet ed -d '//_:subject[@authority="aat" or @authority="local" or @authority="rbgenr"]' | \
          xmlstarlet tr ${TOOL_BASE_PATH}/${XSLT_FILE} | \
          xmlstarlet ed -O -a //marc:leader -t elem -n 'marc:controlfield' -v "${ppn}"  \
                     --var new_node '$prev' -i '$new_node' -t attr -n "tag" -v "001" | \
