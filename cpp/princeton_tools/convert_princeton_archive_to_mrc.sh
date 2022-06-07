@@ -21,13 +21,15 @@ for content in ${archive_contents}; do
      i=$((i+1))
      ppn=$(printf "${PPN_BASE}_%06d" ${i})
      echo ${ppn}
+     echo ${content}
      7z x -so ${archive_file} ${content} | \
+         xmlstarlet ed -d '//_:subject[@authority="aat"]' | \
          xmlstarlet tr ${TOOL_BASE_PATH}/${XSLT_FILE} | \
          xmlstarlet ed -O -a //marc:leader -t elem -n 'marc:controlfield' -v "${ppn}"  \
                     --var new_node '$prev' -i '$new_node' -t attr -n "tag" -v "001" | \
          sed -r -e 's/(<[/]?)marc:/\1/g' | \
          sed -r -e 's/(<record).*>/\1>/g' >> ${output_file}
-#     if [[ ${i} -gt 10 ]]; then
+#     if [[ ${i} -gt 20 ]]; then
 #         break
 #     fi
 done
