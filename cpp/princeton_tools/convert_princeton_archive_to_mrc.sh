@@ -12,6 +12,7 @@ archive_contents=$(7z l ${archive_file} | grep 'xml$' | awk '{ print $6 }')
 TOOL_BASE_PATH="/usr/local/ub_tools/cpp/princeton_tools"
 XSLT_FILE="MODS3-7_MARC21slim_XSLT1-0.xsl"
 PPN_BASE=$(echo ${archive_file} | sed -r -e 's/ptsem-([[:digit:]]+)\.zip/\1/')
+SKIP_LIST=('annbi00bibl.xml')
 
 > ${output_file}
 echo '<?xml version="1.0" encoding="UTF-8"?>' >> ${output_file}
@@ -22,6 +23,11 @@ for content in ${archive_contents}; do
      ppn=$(printf "${PPN_BASE}_%06d" ${i})
      echo ${ppn}
      echo ${content}
+     #c.f. https://stackoverflow.com/questions/3685970/check-if-a-bash-array-contains-a-value
+     if [[ " ${SKIP_LIST[*]} " =~ " ${content} " ]]; then
+         echo "Skipping ${content}"
+         continue
+     fi
      7z x -so ${archive_file} ${content} | \
          xmlstarlet ed -d '//_:subject[@authority="aat" or @authority="local" or @authority="rbgenr"]' | \
          xmlstarlet tr ${TOOL_BASE_PATH}/${XSLT_FILE} | \
