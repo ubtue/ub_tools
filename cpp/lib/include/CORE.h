@@ -126,6 +126,8 @@ private:
     SearchResponse search(const SearchParams &params);
 
 public:
+    void downloadWork(const unsigned id, const std::string &output_file);
+
     /** \brief will search from offset_ to limit_ (only once). */
     SearchResponseWorks searchWorks(const SearchParamsWorks &params);
 

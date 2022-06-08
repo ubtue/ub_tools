@@ -109,7 +109,10 @@ std::string CORE::download(const std::string &url) {
         downloader_params.additional_headers_.push_back("Authorization: Bearer " + GetAPIKey());
         //downloader_params.debugging_ = true;
 
-        Downloader downloader(url, downloader_params);
+        static Downloader downloader(downloader_params);
+        downloader.newUrl(url);
+
+        //Downloader downloader(url, downloader_params);
         if (downloader.getResponseCode() == 429) {
             LOG_INFO(downloader.getMessageHeader());
             const auto header(downloader.getMessageHeaderObject());
@@ -141,6 +144,13 @@ std::string CORE::download(const std::string &url) {
     // The existing downloader object should be destroyed before doing this.
     return download(url);
 }
+
+
+void CORE::downloadWork(const unsigned id, const std::string &output_file) {
+    const std::string url(API_BASE_URL + GetEndpointForEntityType(WORK) + "/" + std::to_string(id));
+    FileUtil::WriteStringOrDie(output_file, download(url));
+}
+
 
 const std::string CORE::SearchParams::buildUrl() const {
     std::string url = CORE::API_BASE_URL + "search/" + UrlUtil::UrlEncode(GetEndpointForEntityType(entity_type_));
