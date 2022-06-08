@@ -40,8 +40,8 @@ namespace {
     ::Usage(
         "[mode] [mode_params]\n"
         "download id output_file\n"
-        "\t- query: The CORE ID of the work to download.\n"
-        "\t- output_dir: The directory to store the JSON result file.\n"
+        "\t- id: The CORE ID of the work to download.\n"
+        "\t- output_file: The JSON result file.\n"
         "\n"
         "search query output_dir\n"
         "\t- query: The Query to use for CORE (like in the search field.)\n"
