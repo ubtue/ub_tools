@@ -12,7 +12,7 @@ archive_contents=$(7z l ${archive_file} | grep 'xml$' | awk '{ print $6 }')
 TOOL_BASE_PATH="/usr/local/ub_tools/cpp/princeton_tools"
 XSLT_FILE="MODS3-7_MARC21slim_XSLT1-0_ubtue.xsl"
 PPN_BASE=$(echo ${archive_file} | sed -r -e 's/ptsem-([[:digit:]]+)\.zip/\1/')
-SKIP_LIST=('annbi00bibl.xml')
+SKIP_LIST=('annbi00bibl.xml' 'thechildsbookons00unse.xml' 'earlyyearsofchri03pres.xml' 'thechoiceseerbyg00dyke.xml')
 
 > ${output_file}
 echo '<?xml version="1.0" encoding="UTF-8"?>' >> ${output_file}

@@ -541,7 +541,7 @@
 			<xsl:call-template name="source"/>
 			<xsl:apply-templates/>
 			<marc:datafield tag="500" ind1=" " ind2=" ">
-				<marc:subfield code="a">Converted from MODS 3.7 to MARCXML using MODS3-7_MARC21slim_XSLT1-0.xsl (Revision 3.06 20200514)</marc:subfield>
+				<marc:subfield code="a">Converted from MODS 3.7 to MARCXML using MODS3-7_MARC21slim_XSLT1-0_ubtue.xsl (Based on Revision 3.06 20200514)</marc:subfield>
 			</marc:datafield>
 			<xsl:if test="mods:classification[@authority='lcc']">
 				<xsl:call-template name="lcClassification"/>
