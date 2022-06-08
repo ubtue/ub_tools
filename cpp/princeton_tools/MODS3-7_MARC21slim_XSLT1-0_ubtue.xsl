@@ -1559,6 +1559,18 @@
 		</xsl:call-template>
 	</xsl:template>
 
+    <xsl:template match="mods:subject[local-name(*[1])='genre']">
+        <xsl:call-template name="datafield">
+            <xsl:with-param name="tag">655</xsl:with-param>
+            <xsl:with-param name="subfields">
+                <marc:subfield code="a">
+                    <xsl:value-of select="*[1]"/>
+                </marc:subfield>
+                <xsl:apply-templates select="*[position()>1]"/>
+            </xsl:with-param>
+        </xsl:call-template>
+    </xsl:template>
+
 	<!-- v3 geographicCode -->
 	<xsl:template match="mods:subject/mods:geographicCode[@authority]">
 		<xsl:call-template name="datafield">
@@ -1676,6 +1688,7 @@
 		</marc:subfield>
 	</xsl:template>
 	-->
+
 	<xsl:template name="titleInfo">
 		<xsl:for-each select="mods:title">
 			<marc:subfield code="a">
