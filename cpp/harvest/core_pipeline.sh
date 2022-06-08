@@ -20,15 +20,14 @@ else
     TIMESTAMP="2022-01-01"
 fi
 echo "Using Timestamp: $TIMESTAMP"
-#start=$TIMESTAMP
-#start=1950-01-01
+start=$TIMESTAMP
 end=$(date +%F)
 
 # download data
 core search "(criminolog* AND createdDate>=$start AND createdDate<$end)" "$DOWNLOAD_DIR"
 
 # merge files
-core merge "${DOWNLOAD_DIR}" "{ARCHIVE_FILE_JSON}"
+core merge "$DOWNLOAD_DIR" "$ARCHIVE_FILE_JSON"
 
 # Convert to MARC:
 if [ -s "$ARCHIVE_FILE_JSON" ]; then
