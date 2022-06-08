@@ -54,13 +54,14 @@ namespace {
         "statistics input_file\n"
         "\t- input_file: The JSON file to generate statistics from.\n"
         "\n"
-        "convert [--create-unique-id-db|--ignore-unique-id-dups][--935-entry=entry] --sigil=project_sigil input_file\n"
+        "convert [--create-unique-id-db|--ignore-unique-id-dups][--935-entry=entry] --sigil=project_sigil input_file output_file\n"
         "\t- --create-unique-id-db: This flag has to be specified the first time this program will be executed only.\n"
         "\t- --ignore-unique-id-dups: If specified MARC records will be created for unique ID's which we have encountered\n"
         "\t                           before.  The unique ID database will still be updated.\n"
         "\t- --935-entry: The structure of this repeatable flag is \"(TIT|LOK):subfield_a_value\".  If TIT has been specified then no subfield 2 will be generated. If LOK has been specified, subfield 2 will be set to LOK.\n"
         "\t- --sigil: This is used to generate an 852 field which is needed by the K10+ to be able to assign records to the appropriate project. An example would be DE-2619 for criminology.\n"
         "\t- input_file: The JSON file to convert.\n"
+        "\t- output_file: The MARC or XML file to write to.\n"
         "\n");
 }
 
@@ -243,7 +244,7 @@ const std::string UNIQUE_ID_TO_DATE_MAP_PATH(UBTools::GetTuelibPath() + "convert
 
 
 void Convert(int argc, char **argv) {
-    if (argc < 4)
+    if (argc < 5)
         Usage();
 
     if (std::strcmp(argv[1], "--create-unique-id-db") == 0) {
@@ -267,7 +268,7 @@ void Convert(int argc, char **argv) {
         --argc, ++argv;
     }
 
-    if (argc != 3)
+    if (argc != 4)
         Usage();
 
     if (::strncmp(argv[1], "--sigil=", 8) != 0)
@@ -276,6 +277,7 @@ void Convert(int argc, char **argv) {
     --argc, ++argv;
 
     const std::string json_file_path(argv[1]);
+    const std::string marc_file_path(argv[2]);
     std::vector<std::string> json_filenames;
     if (FileUtil::GetFileNameList(json_file_path, &json_filenames) == 0) {
         LOG_ERROR("failed to get core-json file(s) for: " + json_file_path);
@@ -287,10 +289,7 @@ void Convert(int argc, char **argv) {
         const auto works(CORE::GetWorksFromFile(json_filename));
         KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
 
-        std::string marc_output_filename = json_filename;
-        marc_output_filename = StringUtil::ReplaceString(".json", ".xml", marc_output_filename);
-        const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_filename));
-
+        const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_file_path));
         ConvertJSONToMARC(works, marc_writer.get(), project_sigil, _935_entries,
                               ignore_unique_id_dups, &unique_id_to_date_map);
     }
