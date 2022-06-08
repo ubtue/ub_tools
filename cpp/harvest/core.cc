@@ -244,8 +244,11 @@ const std::string UNIQUE_ID_TO_DATE_MAP_PATH(UBTools::GetTuelibPath() + "convert
 
 
 void Convert(int argc, char **argv) {
-    if (argc < 5)
+    if (argc < 6)
         Usage();
+
+    // ignore "mode" for further args processing
+    --argc, ++argv;
 
     if (std::strcmp(argv[1], "--create-unique-id-db") == 0) {
         KeyValueDB::Create(UNIQUE_ID_TO_DATE_MAP_PATH);
@@ -278,21 +281,13 @@ void Convert(int argc, char **argv) {
 
     const std::string json_file_path(argv[1]);
     const std::string marc_file_path(argv[2]);
-    std::vector<std::string> json_filenames;
-    if (FileUtil::GetFileNameList(json_file_path, &json_filenames) == 0) {
-        LOG_ERROR("failed to get core-json file(s) for: " + json_file_path);
-    }
-    for (const std::string &json_filename : json_filenames) {
-        if (not StringUtil::EndsWith(json_filename, ".json"))
-            continue;
 
-        const auto works(CORE::GetWorksFromFile(json_filename));
-        KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
+    const auto works(CORE::GetWorksFromFile(json_file_path));
+    KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
 
-        const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_file_path));
-        ConvertJSONToMARC(works, marc_writer.get(), project_sigil, _935_entries,
-                              ignore_unique_id_dups, &unique_id_to_date_map);
-    }
+    const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_file_path));
+    ConvertJSONToMARC(works, marc_writer.get(), project_sigil, _935_entries,
+                          ignore_unique_id_dups, &unique_id_to_date_map);
 }
 
 
@@ -315,6 +310,9 @@ void Merge(int argc, char **argv) {
 
     const std::string input_dir(argv[2]);
     const std::string output_file(argv[3]);
+    const std::string output_dir(FileUtil::GetDirname(output_file));
+    if (not FileUtil::IsDirectory(output_dir))
+        FileUtil::MakeDirectoryOrDie(output_dir, /*recursive=*/true);
 
     // Reset target file
     if (FileUtil::Exists(output_file))
