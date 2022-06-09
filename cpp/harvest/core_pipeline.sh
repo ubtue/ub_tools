@@ -11,6 +11,10 @@ fi
 declare -r DATETIME=$(date +%Y%m%d_%H%M%S)
 declare -r DOWNLOAD_DIR=/tmp/CORE/${DATETIME}
 declare -r ARCHIVE_DIR=/usr/local/var/lib/tuelib/CORE
+declare -r ARCHIVE_FILE_JSON_UNFILTERED=${ARCHIVE_DIR}/${DATETIME}_unfiltered.json
+declare -r ARCHIVE_FILE_JSON_FILTERED_TUEBINGEN=${ARCHIVE_DIR}/${DATETIME}_filtered_tuebingen.json
+declare -r ARCHIVE_FILE_JSON_FILTERED_INCOMPLETE=${ARCHIVE_DIR}/${DATETIME}_filtered_incomplete.json
+declare -r ARCHIVE_FILE_JSON_FILTERED_DUPLICATE=${ARCHIVE_DIR}/${DATETIME}_filtered_duplicate.json
 declare -r ARCHIVE_FILE_JSON=${ARCHIVE_DIR}/${DATETIME}.json
 declare -r ARCHIVE_FILE_MARC=${ARCHIVE_DIR}/${DATETIME}.xml
 declare -r TIMESTAMP_FILE=/usr/local/var/lib/tuelib/CORE-KrimDok.timestamp
@@ -24,19 +28,27 @@ start=$TIMESTAMP
 end=$(date +%F)
 
 # download data
+echo "Downloading data"
 core search "(criminolog* AND createdDate>=$start AND createdDate<$end)" "$DOWNLOAD_DIR"
 
 # merge files
-core merge "$DOWNLOAD_DIR" "$ARCHIVE_FILE_JSON"
+echo "Merging files"
+core merge "$DOWNLOAD_DIR" "$ARCHIVE_FILE_JSON_UNFILTERED"
 
-# Convert to MARC:
-if [ -s "$ARCHIVE_FILE_JSON" ]; then
+# filter unwanted records
+echo "Filtering unwanted records"
+core filter "$ARCHIVE_FILE_JSON_UNFILTERED" "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_JSON_FILTERED_TUEBINGEN" "$ARCHIVE_FILE_JSON_FILTERED_INCOMPLETE" "$ARCHIVE_FILE_JSON_FILTERED_DUPLICATE"
+
+# Convert to MARC & deliver:
+RESULT_COUNT=$(core count "$ARCHIVE_FILE_JSON")
+if [ "$RESULT_COUNT" -gt "0" ]; then
+    echo "Converting to MARC"
     core convert --create-unique-id-db --935-entry=TIT:mkri --935-entry=LOK:core --sigil=DE-2619 "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_MARC"
-fi
 
-# upload to BSZ
-if [ -s "$ARCHIVE_FILE_MARC" ]; then
-    #upload_to_bsz_ftp_server.py "$MARC_OUTPUT" /pub/UBTuebingen_Default/
+    # upload to BSZ
+    # TODO: Generate BSZ compatible filename
+    #echo "Uploading to BSZ"
+    #upload_to_bsz_ftp_server.py "$ARCHIVE_FILE_MARC" /pub/UBTuebingen_Default/
 
     # Update contents of the timestamp file:
     #date --iso-8601=date > "$TIMESTAMP_FILE"

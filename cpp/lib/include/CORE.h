@@ -58,25 +58,27 @@ public:
         Language(const std::shared_ptr<const JSON::ObjectNode> json_obj);
     };
 
-    struct Entity {};
+    class Entity : public JSON::ObjectNode {
+        using ObjectNode::ObjectNode;
+    };
 
-    struct Work : Entity {
+    class Work : public Entity {
     public:
-        std::string abstract_;
-        std::vector<Author> authors_;
-        std::string document_type_;
-        std::string download_url_;
-        std::string field_of_study_;
-        unsigned long id_ = 0;
-        std::vector<Journal> journals_;
-        Language language_;
-        std::string publisher_;
-        std::string title_;
-        unsigned year_published_ = 0;
+        std::string getAbstract() const;
+        std::vector<Author> getAuthors() const;
+        std::string getDocumentType() const;
+        std::string getDownloadUrl() const;
+        std::string getFieldOfStudy() const;
+        unsigned long getId() const;
+        std::vector<Journal> getJournals() const;
+        Language getLanguage() const;
+        std::string getPublisher() const;
+        std::string getTitle() const;
+        unsigned getYearPublished() const;
 
-        Work(const std::shared_ptr<const JSON::ObjectNode> json_obj);
+        bool isArticle() const { return getJournals().empty(); }
 
-        bool isArticle() const { return journals_.empty(); }
+        using Entity::Entity;
     };
 
     struct SearchParams {
@@ -106,7 +108,7 @@ public:
         unsigned limit_;
         unsigned offset_;
         std::string scroll_id_;
-        std::vector<std::shared_ptr<JSON::ObjectNode>> results_;
+        std::vector<Entity> results_;
         std::vector<std::string> tooks_;
         unsigned es_took_;
 
@@ -138,4 +140,8 @@ public:
 
     static std::shared_ptr<JSON::ArrayNode> GetResultsFromFile(const std::string &file);
     static std::vector<Work> GetWorksFromFile(const std::string &file);
+
+    static void OutputFileStart(const std::string &path);
+    static void OutputFileAppend(const std::string &path, const Entity &entity, const bool first);
+    static void OutputFileEnd(const std::string &path);
 };

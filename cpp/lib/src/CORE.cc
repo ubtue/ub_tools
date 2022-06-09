@@ -69,37 +69,79 @@ CORE::Language::Language(const std::shared_ptr<const JSON::ObjectNode> json_obj)
 }
 
 
-CORE::Work::Work(const std::shared_ptr<const JSON::ObjectNode> json_obj) {
-    abstract_ = json_obj->getOptionalStringValue("abstract");
+std::string CORE::Work::getAbstract() const {
+    return getOptionalStringValue("abstract");
+}
 
-    const auto authors = json_obj->getArrayNode("authors");
+
+std::vector<CORE::Author> CORE::Work::getAuthors() const {
+    std::vector<CORE::Author> result;
+    const auto authors = getArrayNode("authors");
     if (authors != nullptr) {
         for (const auto &author_node : *authors) {
             const std::shared_ptr<const JSON::ObjectNode> author_obj(JSON::JSONNode::CastToObjectNodeOrDie("author JSON entity", author_node));
-            authors_.emplace_back(Author(author_obj));
+            result.emplace_back(Author(author_obj));
         }
     }
+    return result;
+}
 
-    document_type_ = json_obj->getOptionalStringValue("documentType");
-    download_url_ = json_obj->getStringValue("downloadUrl");
-    field_of_study_ = json_obj->getOptionalStringValue("fieldOfStudy");
-    id_ = json_obj->getIntegerValue("id");
 
-    const auto journals = json_obj->getArrayNode("journals");
+std::string CORE::Work::getDocumentType() const {
+    return getOptionalStringValue("documentType");
+}
+
+
+std::string CORE::Work::getDownloadUrl() const {
+    return getOptionalStringValue("downloadUrl");
+}
+
+
+std::string CORE::Work::getFieldOfStudy() const {
+    return getOptionalStringValue("fieldOfStudy");
+}
+
+
+unsigned long CORE::Work::getId() const {
+    return getIntegerValue("id");
+}
+
+
+std::vector<CORE::Journal> CORE::Work::getJournals() const {
+    std::vector<CORE::Journal> result;
+    const auto journals = getArrayNode("journals");
     if (journals != nullptr) {
         for (const auto &journal_node : *journals) {
             const std::shared_ptr<const JSON::ObjectNode> journal_obj(JSON::JSONNode::CastToObjectNodeOrDie("journal JSON entity", journal_node));
-            journals_.emplace_back(Journal(journal_obj));
+            result.emplace_back(Journal(journal_obj));
         }
-
     }
+    return result;
+}
 
-    if (json_obj->hasNode("language") && not json_obj->isNullNode("language"))
-        language_ = Language(json_obj->getObjectNode("language"));
-    publisher_ = json_obj->getStringValue("publisher");
-    title_ = json_obj->getStringValue("title");
-    if (not json_obj->isNullNode("yearPublished"))
-        year_published_ = json_obj->getIntegerValue("yearPublished");
+
+CORE::Language CORE::Work::getLanguage() const {
+    if (hasNode("language") && not isNullNode("language"))
+        return Language(getObjectNode("language"));
+    Language default_language;
+    return default_language;
+}
+
+
+std::string CORE::Work::getPublisher() const {
+    return getStringValue("publisher");
+}
+
+
+std::string CORE::Work::getTitle() const {
+    return getStringValue("title");
+}
+
+
+unsigned CORE::Work::getYearPublished() const {
+    if (not isNullNode("yearPublished"))
+        return getIntegerValue("yearPublished");
+    return 0;
 }
 
 
@@ -216,7 +258,7 @@ CORE::SearchResponse::SearchResponse(const std::string &json) {
     const std::shared_ptr<const JSON::ArrayNode> results(root->getArrayNode("results"));
     for (const auto &result_node : *results) {
         std::shared_ptr<JSON::ObjectNode> result(JSON::JSONNode::CastToObjectNodeOrDie("result JSON entity", result_node));
-        results_.emplace_back(result);
+        results_.emplace_back(result->toString());
     }
 
     // TODO:
@@ -234,7 +276,7 @@ CORE::SearchResponseWorks::SearchResponseWorks(const SearchResponse &response) {
     es_took_ = response.es_took_;
 
     for (const auto &result : response.results_) {
-        results_.emplace_back(Work(result));
+        results_.emplace_back(Work(result.toString()));
     }
 }
 
@@ -312,8 +354,23 @@ std::vector<CORE::Work> CORE::GetWorksFromFile(const std::string &file) {
     std::vector<CORE::Work> works;
     for (const auto &result_node : *results) {
         const auto result_obj(result_node->CastToObjectNodeOrDie("result", result_node));
-        const Work work(result_obj);
+        const Work work(result_obj->toString());
         works.emplace_back(work);
     }
     return works;
+}
+
+void CORE::OutputFileStart(const std::string &path) {
+    FileUtil::MakeParentDirectoryOrDie(path, /*recursive=*/true);
+    FileUtil::AppendString(path, "[\n");
+}
+
+void CORE::OutputFileAppend(const std::string &path, const Entity &entity, const bool first) {
+    if (not first)
+        FileUtil::AppendString(path, ",\n");
+    FileUtil::AppendString(path, entity.toString());
+}
+
+void CORE::OutputFileEnd(const std::string &path) {
+    FileUtil::AppendString(path, "\n]");
 }

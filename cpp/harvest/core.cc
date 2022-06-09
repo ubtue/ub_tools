@@ -51,6 +51,16 @@ namespace {
         "\t- input_dir: A dir with multiple JSON files to merge.\n"
         "\t- output_file: The directory to store the merged JSON result file.\n"
         "\n"
+        "filter input_file output_file\n"
+        "\t- input_file: A single JSON input file.\n"
+        "\t- output_file: The target JSON file without filtered datasets.\n"
+        "\t- filtered_file_tuebingen: File to store datasets that have been filtered because they belong to tuebingen.\n"
+        "\t- filtered_file_incomplete: File to store datasets that have been filtered because they are incomplete.\n"
+        "\t- filtered_file_duplicates: File to store datasets that have been filtered because they are duplicates.\n"
+        "\n"
+        "count input_file\n"
+        "\t- input_file: The JSON file to count the results from. Result will be written to stdout.\n"
+        "\n"
         "statistics input_file\n"
         "\t- input_file: The JSON file to generate statistics from.\n"
         "\n"
@@ -67,13 +77,10 @@ namespace {
 
 
 // \return True if we found at least one author, else false.
-bool ConvertAuthors(const CORE::Work &work, MARC::Record * const record, std::set<std::string> * const authors) {
-    if (work.authors_.empty())
-        return false;
-
+void ConvertAuthors(const CORE::Work &work, MARC::Record * const record, std::set<std::string> * const authors) {
     authors->clear();
     bool first_author(true);
-    for (const auto &author : work.authors_) {
+    for (const auto &author : work.getAuthors()) {
         if (authors->find(author.name_) != authors->end())
             continue; // Found a duplicate author!
 
@@ -83,37 +90,32 @@ bool ConvertAuthors(const CORE::Work &work, MARC::Record * const record, std::se
         if (first_author)
             first_author = false;
     }
-
-    return not first_author;
 }
 
 
 // \return True if a title was found, else false.
-bool ConvertTitle(const CORE::Work &work, MARC::Record * const record) {
-    if (work.title_.empty())
-        return false;
-    record->insertField("245", 'a', work.title_);
-    return true;
+void ConvertTitle(const CORE::Work &work, MARC::Record * const record) {
+    record->insertField("245", 'a', work.getTitle());
 }
 
 
 void ConvertYear(const CORE::Work &work, MARC::Record * const record) {
-    if (work.year_published_ == 0)
+    if (work.getYearPublished() == 0)
         return;
-    record->insertField("936", 'j', std::to_string(work.year_published_), 'u', 'w');
+    record->insertField("936", 'j', std::to_string(work.getYearPublished()), 'u', 'w');
 }
 
 
 void ConvertDownloadURL(const CORE::Work &work, MARC::Record * const record) {
-    if (not work.download_url_.empty())
-        record->insertField("856", { { 'u', work.download_url_ }, { 'z', "LF" } }, '4', '0');
+    if (not work.getDownloadUrl().empty())
+        record->insertField("856", { { 'u', work.getDownloadUrl() }, { 'z', "LF" } }, '4', '0');
 }
 
 
 bool ConvertLanguage(const CORE::Work &work, MARC::Record * const record) {
-    if (work.language_.code_.empty())
+    if (work.getLanguage().code_.empty())
         return false;
-    std::string lang = MARC::MapToMARCLanguageCode(work.language_.code_);
+    std::string lang = MARC::MapToMARCLanguageCode(work.getLanguage().code_);
     if (lang != "eng" and lang != "ger" and lang != "spa" and lang != "baq" and lang != "cat" and lang != "por" and lang != "ita" and lang != "dut")
         return false;
     record->insertField("041", 'a', lang);
@@ -123,9 +125,10 @@ bool ConvertLanguage(const CORE::Work &work, MARC::Record * const record) {
 
 // \return True if an abstract was found, else false.
 bool ConvertAbstract(const CORE::Work &work, MARC::Record * const record) {
-    if (work.abstract_.empty())
+    const std::string abstract(work.getAbstract());
+    if (abstract.empty())
         return false;
-    std::string abstract_value = work.abstract_.length() > 5 ? work.abstract_ : "not available";
+    std::string abstract_value = abstract.length() > 5 ? abstract : "not available";
     record->insertField("520", 'a', StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH, abstract_value));
     return true;
 }
@@ -135,15 +138,15 @@ bool ConvertAbstract(const CORE::Work &work, MARC::Record * const record) {
 bool ConvertUncontrolledIndexTerms(const CORE::Work &work, MARC::Record * const record) {
     bool found_at_least_one_index_term(false);
 
-    if (not work.document_type_.empty() and work.document_type_ != "unknown") {
-        record->insertField("653", 'a', work.document_type_);
+    if (not work.getDocumentType().empty() and work.getDocumentType() != "unknown") {
+        record->insertField("653", 'a', work.getDocumentType());
         found_at_least_one_index_term = true;
     }
 
-    if (work.field_of_study_.empty())
+    if (work.getFieldOfStudy().empty())
         return found_at_least_one_index_term;
 
-    record->insertField("653", 'a', work.field_of_study_);
+    record->insertField("653", 'a', work.getFieldOfStudy());
     found_at_least_one_index_term = true;
 
     return found_at_least_one_index_term;
@@ -152,15 +155,15 @@ bool ConvertUncontrolledIndexTerms(const CORE::Work &work, MARC::Record * const 
 
 // \return True if any uncontrolled terms were found, else false.
 bool ConvertYearPublished(const CORE::Work &work, MARC::Record * const record) {
-    if (work.year_published_ == 0)
+    if (work.getYearPublished() == 0)
         return false;
-    record->insertField("264", 'c', std::to_string(work.year_published_), /*indicator1=*/' ', /*indicator2=*/'1');
+    record->insertField("264", 'c', std::to_string(work.getYearPublished()), /*indicator1=*/' ', /*indicator2=*/'1');
     return true;
 }
 
 
 bool ConvertJournal(const CORE::Work &work, MARC::Record * const record) {
-    for (const auto &journal : work.journals_) {
+    for (const auto &journal : work.getJournals()) {
         for (const auto &identifier : journal.identifiers_) {
             if (MiscUtil::IsPossibleISSN(identifier)) {
                 record->insertField("773",
@@ -186,57 +189,49 @@ void Convert935Entries(const std::vector<std::pair<std::string, std::string>> &_
 }
 
 
+std::string ConvertId(const std::string &id) {
+    return "CORE" + id;
+}
+
+
 void ConvertJSONToMARC(const std::vector<CORE::Work> &works,
                           MARC::Writer * const marc_writer, const std::string &project_sigil,
                           const std::vector<std::pair<std::string, std::string>> &_935_entries,
-                          const bool ignore_unique_id_dups,
                           KeyValueDB * const unique_id_to_date_map) {
-    unsigned skipped_dupe_count(0), generated_count(0), skipped_incomplete_count(0), skipped_uni_tue(0);
+    unsigned generated_count(0);
     for (const auto &work : works) {
-        const auto id(std::to_string(work.id_));
-        const auto control_number("CORE" + id);
-        if (ignore_unique_id_dups and unique_id_to_date_map->keyIsPresent(control_number))
-            ++skipped_dupe_count;
-        else if (work.publisher_ == "Universität Tübingen")
-            ++skipped_uni_tue;
-        else {
-            MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
-                                    control_number);
-            std::set<std::string> authors;
-            if (not ConvertAuthors(work, &new_record, &authors)) {
-                ++skipped_incomplete_count;
-                continue;
-            }
+        const auto id(std::to_string(work.getId()));
+        const auto control_number(ConvertId(id));
 
-            //Do not use contributors anymore (team decision in video conf. on 09.02.2022)
-            //ConvertContributors(*entry_object, &new_record, authors);
+        MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
+                                control_number);
+        std::set<std::string> authors;
+        ConvertAuthors(work, &new_record, &authors);
 
-            if (not ConvertTitle(work, &new_record)) {
-                ++skipped_incomplete_count;
-                continue;
-            }
-            new_record.insertControlField("007", "cr||||");
-            new_record.insertField("035", 'a', "(core)" + id);
-            new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
-            new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
-            new_record.insertField("852", 'a', project_sigil);
-            ConvertYear(work, &new_record);
-            ConvertDownloadURL(work, &new_record);
-            if (not ConvertLanguage(work, &new_record))
-                continue;
-            ConvertAbstract(work, &new_record);
-            ConvertUncontrolledIndexTerms(work, &new_record);
-            ConvertYearPublished(work, &new_record);
-            ConvertJournal(work, &new_record);
-            Convert935Entries(_935_entries, &new_record);
-            marc_writer->write(new_record);
-            unique_id_to_date_map->addOrReplace(control_number, TimeUtil::GetCurrentDateAndTime());
-            ++generated_count;
-        }
+        //Do not use contributors anymore (team decision in video conf. on 09.02.2022)
+        //ConvertContributors(*entry_object, &new_record, authors);
+
+        ConvertTitle(work, &new_record);
+        new_record.insertControlField("007", "cr||||");
+        new_record.insertField("035", 'a', "(core)" + id);
+        new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
+        new_record.insertField("591", 'a', "Metadaten maschinell erstellt (TUKRIM)");
+        new_record.insertField("852", 'a', project_sigil);
+        ConvertYear(work, &new_record);
+        ConvertDownloadURL(work, &new_record);
+        if (not ConvertLanguage(work, &new_record))
+            continue;
+        ConvertAbstract(work, &new_record);
+        ConvertUncontrolledIndexTerms(work, &new_record);
+        ConvertYearPublished(work, &new_record);
+        ConvertJournal(work, &new_record);
+        Convert935Entries(_935_entries, &new_record);
+        marc_writer->write(new_record);
+        unique_id_to_date_map->addOrReplace(control_number, TimeUtil::GetCurrentDateAndTime());
+        ++generated_count;
     }
 
-    std::cout << "Skipped " << skipped_dupe_count << " dupes and " << skipped_incomplete_count << " incomplete entries and "
-              << skipped_uni_tue << " from UniTue and generated "  << generated_count << " MARC record(s).\n";
+    std::cout << "Generated " << generated_count << " MARC record(s).\n";
 }
 
 
@@ -252,12 +247,6 @@ void Convert(int argc, char **argv) {
 
     if (std::strcmp(argv[1], "--create-unique-id-db") == 0) {
         KeyValueDB::Create(UNIQUE_ID_TO_DATE_MAP_PATH);
-        --argc, ++argv;
-    }
-
-    bool ignore_unique_id_dups(false);
-    if (std::strcmp(argv[1], "--ignore-unique-id-dups") == 0) {
-        ignore_unique_id_dups = true;
         --argc, ++argv;
     }
 
@@ -281,13 +270,14 @@ void Convert(int argc, char **argv) {
 
     const std::string json_file_path(argv[1]);
     const std::string marc_file_path(argv[2]);
+    FileUtil::MakeParentDirectoryOrDie(marc_file_path, /*recursive=*/true);
 
     const auto works(CORE::GetWorksFromFile(json_file_path));
     KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
 
     const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_file_path));
     ConvertJSONToMARC(works, marc_writer.get(), project_sigil, _935_entries,
-                          ignore_unique_id_dups, &unique_id_to_date_map);
+                          &unique_id_to_date_map);
 }
 
 
@@ -298,9 +288,65 @@ void Download(int argc, char **argv) {
 
     const unsigned id(StringUtil::ToUnsigned(argv[2]));
     const std::string output_file(argv[3]);
+    FileUtil::MakeParentDirectoryOrDie(output_file, /*recursive=*/true);
 
     CORE core;
     core.downloadWork(id, output_file);
+}
+
+
+void Filter(int argc, char **argv) {
+    if (argc != 7)
+        Usage();
+
+    bool ignore_unique_id_dups(false);
+    if (std::strcmp(argv[1], "--ignore-unique-id-dups") == 0) {
+        ignore_unique_id_dups = true;
+        --argc, ++argv;
+    }
+
+    const std::string input_file(argv[2]);
+    const std::string output_file(argv[3]);
+    const std::string filter_file_tuebingen(argv[4]);
+    const std::string filter_file_incomplete(argv[5]);
+    const std::string filter_file_duplicate(argv[6]);
+
+    const auto works(CORE::GetWorksFromFile(input_file));
+    CORE::OutputFileStart(output_file);
+    CORE::OutputFileStart(filter_file_tuebingen);
+    CORE::OutputFileStart(filter_file_incomplete);
+    CORE::OutputFileStart(filter_file_duplicate);
+    bool first(true);
+    unsigned skipped_uni_tue(0), skipped_dupe_count(0), skipped_incomplete_count(0);
+    KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
+    for (const auto &work : works) {
+        if (work.getPublisher() == "Universität Tübingen") {
+            CORE::OutputFileAppend(filter_file_tuebingen, work, skipped_uni_tue == 0);
+            ++skipped_uni_tue;
+            continue;
+        }
+        if (work.getTitle() == "" or work.getAuthors().empty()) {
+            CORE::OutputFileAppend(filter_file_incomplete, work, skipped_incomplete_count == 0);
+            ++skipped_incomplete_count;
+            continue;
+        }
+        const std::string control_number(ConvertId(std::to_string(work.getId())));
+        if (ignore_unique_id_dups and unique_id_to_date_map.keyIsPresent(control_number)) {
+            CORE::OutputFileAppend(filter_file_duplicate, work, skipped_dupe_count == 0);
+            ++skipped_dupe_count;
+            continue;
+        }
+        CORE::OutputFileAppend(output_file, work, first);
+        first = false;
+    }
+    CORE::OutputFileEnd(output_file);
+    CORE::OutputFileEnd(filter_file_tuebingen);
+    CORE::OutputFileEnd(filter_file_incomplete);
+    CORE::OutputFileEnd(filter_file_duplicate);
+
+    LOG_INFO("Filtered " + std::to_string(skipped_uni_tue) + " Uni Tübingen records");
+    LOG_INFO("Filtered " + std::to_string(skipped_incomplete_count) + " incomplete records");
+    LOG_INFO("Filtered " + std::to_string(skipped_dupe_count) + " duplicate records");
 }
 
 
@@ -310,14 +356,11 @@ void Merge(int argc, char **argv) {
 
     const std::string input_dir(argv[2]);
     const std::string output_file(argv[3]);
-    const std::string output_dir(FileUtil::GetDirname(output_file));
-    if (not FileUtil::IsDirectory(output_dir))
-        FileUtil::MakeDirectoryOrDie(output_dir, /*recursive=*/true);
 
     // Reset target file
     if (FileUtil::Exists(output_file))
         throw std::runtime_error("target file already exists: " + output_file);
-    FileUtil::AppendString(output_file, "[\n");
+    CORE::OutputFileStart(output_file);
     bool first(true);
 
     // Prepare reading input dir
@@ -326,16 +369,13 @@ void Merge(int argc, char **argv) {
         LOG_INFO("merging " + input_file.getFullName() + " into " + output_file);
         const CORE::SearchResponse response(FileUtil::ReadStringOrDie(input_file.getFullName()));
         for (const auto &result : response.results_) {
-            if (not first)
-                FileUtil::AppendString(output_file, ",\n");
-
-            FileUtil::AppendString(output_file, result->toString());
+            CORE::OutputFileAppend(output_file, result, first);
             first = false;
         }
     }
 
     // Close target file
-    FileUtil::AppendString(output_file, "\n]");
+    CORE::OutputFileEnd(output_file);
 }
 
 
@@ -360,6 +400,18 @@ void Search(int argc, char **argv) {
 }
 
 
+void Count(int argc, char **argv) {
+    // Parse args
+    if (argc != 3)
+        Usage();
+    const std::string core_file(argv[2]);
+
+    // Load file
+    const auto works(CORE::GetWorksFromFile(core_file));
+    std::cout << works.size();
+}
+
+
 void Statistics(int argc, char **argv) {
     // Parse args
     if (argc != 3)
@@ -376,11 +428,11 @@ void Statistics(int argc, char **argv) {
         ++count;
         if (work.isArticle())
             ++articles;
-        const auto language_iter(languages.find(work.language_.code_));
+        const auto language_iter(languages.find(work.getLanguage().code_));
         if (language_iter == languages.end())
-            languages[work.language_.code_] = 1;
+            languages[work.getLanguage().code_] = 1;
         else
-            ++languages[work.language_.code_];
+            ++languages[work.getLanguage().code_];
 
     }
 
@@ -407,14 +459,18 @@ int Main(int argc, char **argv) {
         Usage();
 
     const std::string mode(argv[1]);
-    if (mode == "search")
+    if (mode == "download")
+        Download(argc, argv);
+    else if (mode == "search")
         Search(argc, argv);
-    else if (mode == "convert")
-        Convert(argc, argv);
     else if (mode == "merge")
         Merge(argc, argv);
-    else if (mode == "download")
-        Download(argc, argv);
+    else if (mode == "filter")
+        Filter(argc, argv);
+    else if (mode == "convert")
+        Convert(argc, argv);
+    else if (mode == "count")
+        Count(argc, argv);
     else if (mode == "statistics")
         Statistics(argc, argv);
     else
