@@ -53,39 +53,49 @@ const std::string GetEndpointForEntityType(const EntityType type) {
 }
 
 
-Author::Author(const std::shared_ptr<const JSON::ObjectNode> json_obj) {
-    name_ = json_obj->getStringValue("name");
+Author::Author(const nlohmann::json &json_obj) {
+    if (json_obj["name"].is_string())
+        name_ = json_obj["name"];
 }
 
 
-Journal::Journal(const std::shared_ptr<const JSON::ObjectNode> json_obj) {
-    title_ = json_obj->getOptionalStringValue("title");
-    const auto identifiers(json_obj->getArrayNode("identifiers"));
-    for (const auto &identifier_node : *identifiers) {
-        const std::shared_ptr<const JSON::StringNode> identifier_string(JSON::JSONNode::CastToStringNodeOrDie("journal identifier", identifier_node));
-        identifiers_.emplace_back(identifier_string->getValue());
+Journal::Journal(const nlohmann::json &json_obj) {
+    if (json_obj["title"].is_string())
+        title_ = json_obj["title"];
+    if (json_obj["identifiers"].is_array()) {
+        for (const auto &identifier : json_obj["identifiers"]) {
+            identifiers_.emplace_back(identifier);
+        }
     }
 }
 
 
-Language::Language(const std::shared_ptr<const JSON::ObjectNode> json_obj) {
-    code_ = json_obj->getStringValue("code");
-    name_ = json_obj->getStringValue("name");
+Language::Language(const nlohmann::json &json_obj) {
+    if (json_obj["code"].is_string())
+        code_ = json_obj["code"];
+    if (json_obj["name"].is_string())
+        name_ = json_obj["name"];
+}
+
+
+std::string Entity::getStringOrDefault(const std::string &json_key) const {
+    if (json_[json_key].is_string())
+        return json_[json_key];
+    return "";
 }
 
 
 std::string Work::getAbstract() const {
-    return getOptionalStringValue("abstract");
+    return getStringOrDefault("abstract");
 }
 
 
 std::vector<Author> Work::getAuthors() const {
     std::vector<Author> result;
-    const auto authors = getArrayNode("authors");
-    if (authors != nullptr) {
-        for (const auto &author_node : *authors) {
-            const std::shared_ptr<const JSON::ObjectNode> author_obj(JSON::JSONNode::CastToObjectNodeOrDie("author JSON entity", author_node));
-            Author author;
+    const auto authors(json_["authors"]);
+    if (authors.is_array()) {
+        for (const auto &author_obj : authors) {
+            Author author(author_obj);
             if (not author.name_.empty())
                 result.emplace_back(author);
         }
@@ -95,31 +105,30 @@ std::vector<Author> Work::getAuthors() const {
 
 
 std::string Work::getDocumentType() const {
-    return getOptionalStringValue("documentType");
+    return getStringOrDefault("documentType");
 }
 
 
 std::string Work::getDownloadUrl() const {
-    return getOptionalStringValue("downloadUrl");
+    return getStringOrDefault("downloadUrl");
 }
 
 
 std::string Work::getFieldOfStudy() const {
-    return getOptionalStringValue("fieldOfStudy");
+    return getStringOrDefault("fieldOfStudy");
 }
 
 
 unsigned long Work::getId() const {
-    return getIntegerValue("id");
+    return json_["id"];
 }
 
 
 std::vector<Journal> Work::getJournals() const {
     std::vector<Journal> result;
-    const auto journals = getArrayNode("journals");
-    if (journals != nullptr) {
-        for (const auto &journal_node : *journals) {
-            const std::shared_ptr<const JSON::ObjectNode> journal_obj(JSON::JSONNode::CastToObjectNodeOrDie("journal JSON entity", journal_node));
+    const auto journals(json_["journals"]);
+    if (journals.is_array()) {
+        for (const auto &journal_obj : journals) {
             result.emplace_back(Journal(journal_obj));
         }
     }
@@ -128,26 +137,26 @@ std::vector<Journal> Work::getJournals() const {
 
 
 Language Work::getLanguage() const {
-    if (hasNode("language") && not isNullNode("language"))
-        return Language(getObjectNode("language"));
+    if (json_["language"].is_object())
+        return Language(json_["language"]);
     Language default_language;
     return default_language;
 }
 
 
 std::string Work::getPublisher() const {
-    return getStringValue("publisher");
+    return getStringOrDefault("publisher");
 }
 
 
 std::string Work::getTitle() const {
-    return getStringValue("title");
+    return getStringOrDefault("title");
 }
 
 
 unsigned Work::getYearPublished() const {
-    if (not isNullNode("yearPublished"))
-        return getIntegerValue("yearPublished");
+    if (json_["yearPublished"].is_number())
+        return json_["yearPublished"];
     return 0;
 }
 
@@ -239,33 +248,28 @@ const std::string SearchParams::buildUrl() const {
 
 
 // CORE switches, sometimes values are int, sometimes string (e.g. offset 0 and "100")
-unsigned GetJsonUnsignedValue(const std::shared_ptr<const JSON::ObjectNode> node, const std::string &label) {
-    const auto child(node->getNode(label));
-    if (child->getType() == JSON::JSONNode::Type::STRING_NODE) {
-        const auto string_node = child->CastToStringNodeOrDie(label, child);
-        return StringUtil::ToInt(string_node->getValue());
-    } else {
-        const auto int_node = child->CastToIntegerNodeOrDie(label, child);
-        return int_node->getValue();
-    }
+unsigned GetJsonUnsignedValue(const nlohmann::json &json, const std::string &label) {
+    const auto child(json[label]);
+    if (child.is_string())
+        return StringUtil::ToUnsigned(child);
+    else
+        return child;
 }
 
 
 SearchResponse::SearchResponse(const std::string &json) {
-    const auto root_node(JSON::ParseString(json));
-    const std::shared_ptr<const JSON::ObjectNode> root(JSON::JSONNode::CastToObjectNodeOrDie("top level JSON entity", root_node));
+    //const nlohmann::json json_obj(json);
+    const auto json_obj(nlohmann::json::parse(json));
 
-    total_hits_ = root->getIntegerValue("totalHits");
-    limit_ = GetJsonUnsignedValue(root, "limit"); // For some reason JSON treats this as string instead of int
-    offset_ = GetJsonUnsignedValue(root, "offset");
+    total_hits_ = GetJsonUnsignedValue(json_obj, "totalHits");
+    limit_ = GetJsonUnsignedValue(json_obj, "limit");
+    offset_ = GetJsonUnsignedValue(json_obj, "offset");
 
-    if (root->hasNode("scrollId") and not root->isNullNode("scrollId"))
-        scroll_id_ = root->getStringValue("scrollId");
+    if (json_obj["scrollId"] != nullptr)
+        scroll_id_ = json_obj["scrollId"];
 
-    const std::shared_ptr<const JSON::ArrayNode> results(root->getArrayNode("results"));
-    for (const auto &result_node : *results) {
-        std::shared_ptr<JSON::ObjectNode> result(JSON::JSONNode::CastToObjectNodeOrDie("result JSON entity", result_node));
-        results_.emplace_back(result->toString());
+    for (const auto &result : json_obj["results"]) {
+        results_.emplace_back(result);
     }
 
     // TODO:
@@ -283,7 +287,7 @@ SearchResponseWorks::SearchResponseWorks(const SearchResponse &response) {
     es_took_ = response.es_took_;
 
     for (const auto &result : response.results_) {
-        results_.emplace_back(Work(result.toString()));
+        results_.emplace_back(Work(result.getJson()));
     }
 }
 
@@ -341,27 +345,39 @@ void SearchBatch(const SearchParams &params, const std::string &output_dir) {
 }
 
 
-std::shared_ptr<JSON::ArrayNode> GetResultsFromFile(const std::string &file) {
-    const auto root_node(JSON::ParseFile(file));
-    std::shared_ptr<JSON::ArrayNode> results;
-    if (root_node->getType() == JSON::JSONNode::ARRAY_NODE)
-        results = root_node->CastToArrayNodeOrDie("root", root_node);
-    else if (root_node->getType() == JSON::JSONNode::OBJECT_NODE) {
-        const auto root_obj(root_node->CastToObjectNodeOrDie("root", root_node));
-        results = root_obj->getArrayNode("results");
+nlohmann::json ParseFile(const std::string &file) {
+    std::ifstream input(file);
+    nlohmann::json json;
+    input >> json;
+    return json;
+}
+
+
+std::vector<Entity> GetEntitiesFromFile(const std::string &file) {
+    const auto json(ParseFile(file));
+    nlohmann::json json_array;
+    if (json.is_array())
+        json_array = json;
+    else if (json.is_object()) {
+        json_array = json["results"];
     } else {
         throw std::runtime_error("could not get CORE results from JSON file: " + file);
     }
-    return results;
+
+    std::vector<Entity> entities;
+    for (const auto &json_entity : json_array) {
+        entities.emplace_back(json_entity);
+    }
+
+    return entities;
 }
 
 
 std::vector<Work> GetWorksFromFile(const std::string &file) {
-    const auto results(GetResultsFromFile(file));
+    const auto entities(GetEntitiesFromFile(file));
     std::vector<Work> works;
-    for (const auto &result_node : *results) {
-        const auto result_obj(result_node->CastToObjectNodeOrDie("result", result_node));
-        const Work work(result_obj->toString());
+    for (const auto &entity : entities) {
+        const Work work(entity.getJson());
         works.emplace_back(work);
     }
     return works;
@@ -377,7 +393,7 @@ void OutputFileStart(const std::string &path) {
 void OutputFileAppend(const std::string &path, const Entity &entity, const bool first) {
     if (not first)
         FileUtil::AppendString(path, ",\n");
-    FileUtil::AppendString(path, entity.toString());
+    FileUtil::AppendString(path, entity.getJson().dump());
 }
 
 

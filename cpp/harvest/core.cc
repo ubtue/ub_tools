@@ -366,9 +366,9 @@ void Merge(int argc, char **argv) {
     FileUtil::Directory input_files(input_dir, ".json$");
     for (const auto &input_file : input_files) {
         LOG_INFO("merging " + input_file.getFullName() + " into " + output_file);
-        const CORE::SearchResponse response(FileUtil::ReadStringOrDie(input_file.getFullName()));
-        for (const auto &result : response.results_) {
-            CORE::OutputFileAppend(output_file, result, first);
+        const auto entities(CORE::GetEntitiesFromFile(input_file.getFullName()));
+        for (const auto &entity : entities) {
+            CORE::OutputFileAppend(output_file, entity, first);
             first = false;
         }
     }

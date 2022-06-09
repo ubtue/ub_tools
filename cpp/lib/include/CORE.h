@@ -23,7 +23,7 @@
 
 #include <string>
 #include <vector>
-#include "JSON.h"
+#include <nlohmann/json.hpp>
 
 
 namespace CORE {
@@ -36,7 +36,7 @@ struct Author {
     std::string name_;
 
     Author() = default;
-    Author(const std::shared_ptr<const JSON::ObjectNode> json_obj);
+    Author(const nlohmann::json &json_obj);
 };
 
 
@@ -45,7 +45,7 @@ struct Journal {
     std::vector<std::string> identifiers_;
 
     Journal() = default;
-    Journal(const std::shared_ptr<const JSON::ObjectNode> json_obj);
+    Journal(const nlohmann::json &json_obj);
 };
 
 
@@ -54,12 +54,19 @@ struct Language {
     std::string name_;
 
     Language() = default;
-    Language(const std::shared_ptr<const JSON::ObjectNode> json_obj);
+    Language(const nlohmann::json &json_obj);
 };
 
 
-class Entity : public JSON::ObjectNode {
-    using ObjectNode::ObjectNode;
+class Entity {
+protected:
+    nlohmann::json json_;
+
+    std::string getStringOrDefault(const std::string &json_key) const;
+public:
+    Entity(const nlohmann::json &json) { json_ = json; }
+
+    nlohmann::json getJson() const { return json_; }
 };
 
 
@@ -140,8 +147,8 @@ SearchResponseWorks SearchWorks(const SearchParamsWorks &params);
  */
 void SearchBatch(const SearchParams &params, const std::string &output_dir);
 
-
-std::shared_ptr<JSON::ArrayNode> GetResultsFromFile(const std::string &file);
+nlohmann::json ParseFile(const std::string &file);
+std::vector<Entity> GetEntitiesFromFile(const std::string &file);
 std::vector<Work> GetWorksFromFile(const std::string &file);
 
 
