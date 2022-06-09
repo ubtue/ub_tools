@@ -290,8 +290,7 @@ void Download(int argc, char **argv) {
     const std::string output_file(argv[3]);
     FileUtil::MakeParentDirectoryOrDie(output_file, /*recursive=*/true);
 
-    CORE core;
-    core.downloadWork(id, output_file);
+    CORE::DownloadWork(id, output_file);
 }
 
 
@@ -388,7 +387,6 @@ void Search(int argc, char **argv) {
     const std::string output_dir(argv[3]);
 
     // Setup CORE instance & parameters
-    CORE core;
     CORE::SearchParams params;
     params.q_ = query;
     params.exclude_ = { "fullText" }; // for performance reasons
@@ -396,7 +394,7 @@ void Search(int argc, char **argv) {
     params.entity_type_ = CORE::EntityType::WORK;
 
     // Perform download
-    core.searchBatch(params, output_dir);
+    CORE::SearchBatch(params, output_dir);
 }
 
 
