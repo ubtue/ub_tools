@@ -22,7 +22,7 @@
 
 
 #include <string>
-#include "Downloader.h"
+#include <vector>
 #include "JSON.h"
 
 
@@ -145,6 +145,7 @@ std::shared_ptr<JSON::ArrayNode> GetResultsFromFile(const std::string &file);
 std::vector<Work> GetWorksFromFile(const std::string &file);
 
 
+/** \brief Helper functions to create a JSON file with array of Entities. */
 void OutputFileStart(const std::string &path);
 void OutputFileAppend(const std::string &path, const Entity &entity, const bool first);
 void OutputFileEnd(const std::string &path);

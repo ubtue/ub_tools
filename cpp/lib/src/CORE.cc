@@ -20,6 +20,7 @@
 #include <chrono>
 #include <thread>
 #include "CORE.h"
+#include "Downloader.h"
 #include "FileUtil.h"
 #include "StringUtil.h"
 #include "UBTools.h"
