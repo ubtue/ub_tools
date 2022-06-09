@@ -80,7 +80,9 @@ std::vector<CORE::Author> CORE::Work::getAuthors() const {
     if (authors != nullptr) {
         for (const auto &author_node : *authors) {
             const std::shared_ptr<const JSON::ObjectNode> author_obj(JSON::JSONNode::CastToObjectNodeOrDie("author JSON entity", author_node));
-            result.emplace_back(Author(author_obj));
+            Author author;
+            if (not author.name_.empty())
+                result.emplace_back(author);
         }
     }
     return result;

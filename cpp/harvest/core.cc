@@ -48,7 +48,7 @@ namespace {
         "\t- output_dir: The directory to store the JSON result files (will be split due to API query limit restrictions).\n"
         "\n"
         "merge input_dir output_file\n"
-        "\t- input_dir: A dir with multiple JSON files to merge.\n"
+        "\t- input_dir: A dir with multiple JSON files to merge, typically from a search result.\n"
         "\t- output_file: The directory to store the merged JSON result file.\n"
         "\n"
         "filter input_file output_file\n"
