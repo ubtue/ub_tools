@@ -13,7 +13,6 @@ readonly GIT_ROOT=$(git rev-parse --show-toplevel)
 for ADDED_FILE in $ADDED_FILES; do
     readonly extension="${ADDED_FILE##*.}"
     if [[ $extension == "cc" || $extension == "h" ]]; then
-
         # sanity check: If there have been unadded changes between add & commit,
         # we skip the optimization so we dont add unwanted changes
         if [[ "$MODIFIED_UNADDED_FILES" == *"$ADDED_FILE"* ]]; then
