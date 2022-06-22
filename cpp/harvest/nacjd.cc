@@ -153,7 +153,7 @@ void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::
             StringUtil::ReplaceString("[ICPSR]", "", &id_035);
             StringUtil::TrimWhite(&id_035);
             parsed_marc_ids->emplace(id_035);
-        }            
+        }
     }
 }
 
@@ -161,7 +161,8 @@ void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::
 void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigned * const number_of_new_ids, int count_rows) {
     const std::string DOWNLOAD_URL(
         "https://www.icpsr.umich.edu/web/NACJD/search/"
-        "studies?start=0&ARCHIVE=NACJD&PUBLISH_STATUS=PUBLISHED&sort=DATEUPDATED%20desc&rows="+std::to_string(count_rows));
+        "studies?start=0&ARCHIVE=NACJD&PUBLISH_STATUS=PUBLISHED&sort=DATEUPDATED%20desc&rows="
+        + std::to_string(count_rows));
     if (FileUtil::Exists(NACJD_TITLES))
         FileUtil::DeleteFile(NACJD_TITLES);
 
@@ -180,17 +181,17 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
     bool first(true);
     int limit_test = 0;
     for (const auto &id : ids_website) {
-        if(limit_test < count_rows) {
+        if (limit_test < count_rows) {
             if (parsed_marc_ids.find(id) != parsed_marc_ids.end())
-            continue;
+                continue;
             const bool success(DownloadID(json_new_titles, id, /*use_separator*/ not first));
             if (first and success)
                 first = false;
             if (success) {
-                ++(*number_of_new_ids);    
-            }   
+                ++(*number_of_new_ids);
+            }
         }
-         
+
         ++limit_test;
     }
     json_new_titles << " ] }";
@@ -325,9 +326,10 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
                 new_record.insertField("264", { { 'c', initial_release_date } });
                 new_record.insertField("520", { { 'a', description } });
                 new_record.insertField("540", { { 'a', license } });
-                new_record.insertField("655", { { 'a', "Forschungsdaten" } }, ' ', '4' );
+                new_record.insertField("655", { { 'a', "Forschungsdaten" } }, ' ', '4');
                 new_record.insertField("852", { { 'a', "DE-2619" } });
-                new_record.insertField("856", { { 'u', "https://www.icpsr.umich.edu/web/NACJD/studies/" + UrlUtil::UrlEncode(id) } }, '4' /*indicator1*/, '0' /*indicator 2*/);
+                new_record.insertField("856", { { 'u', "https://www.icpsr.umich.edu/web/NACJD/studies/" + UrlUtil::UrlEncode(id) } },
+                                       '4' /*indicator1*/, '0' /*indicator 2*/);
                 new_record.insertField("935", { { 'a', "mkri" } });
                 new_record.insertField("935", { { 'a', "nacj" } });
                 new_record.insertField("935", { { 'a', "foda" } });
@@ -356,12 +358,11 @@ int Main(int argc, char *argv[]) {
     if (argc < 3 or argc > 4)
         Usage();
 
- 
-    int count_rows = 9;
-    if(argv[3]) {  
+    int count_rows(9000);
+    if (argv[3]) {
         count_rows = std::stoi(argv[3]);
     }
-    
+
     auto marc_reader(MARC::Reader::Factory(argv[1]));
     auto marc_writer(MARC::Writer::Factory(argv[2]));
 
