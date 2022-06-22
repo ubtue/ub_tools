@@ -43,10 +43,11 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "marc_title_in_file new_marc_title_out_file\n"
+        "marc_title_in_file new_marc_title_out_file [count_of_rows]\n"
         "where marc_title_in_file contains also icpsr records (001 or 035a)\n"
         "these records are not processed any more\n"
-        "new_marc_title_out_file contains all icpsr records not contained in input file.");
+        "new_marc_title_out_file contains all icpsr records not contained in input file.\n"
+        "count_of_rows is an optional parameter. If it is absent, the number of requests will be equal to 9000)");
 }
 
 
@@ -331,8 +332,8 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
                 new_record.insertField("856", { { 'u', "https://www.icpsr.umich.edu/web/NACJD/studies/" + UrlUtil::UrlEncode(id) } },
                                        '4' /*indicator1*/, '0' /*indicator 2*/);
                 new_record.insertField("935", { { 'a', "mkri" } });
-                new_record.insertField("935", { { 'a', "nacj" } });
-                new_record.insertField("935", { { 'a', "foda" } });
+                new_record.insertField("935", { { 'a', "nacj" }, { '2', "LOK" } });
+                new_record.insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
 
                 for (auto creator : creators)
                     new_record.insertField(creator.second, { { 'a', creator.first } });
