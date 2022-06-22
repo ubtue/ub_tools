@@ -7,13 +7,24 @@ python3 -m py_compile /usr/local/ub_tools/cronjobs/*.py
 
 
 # Format C++ source files:
-readonly changed_files=$(git diff --cached --name-only --diff-filter=ACM)
+readonly ADDED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+readonly MODIFIED_UNADDED_FILES=$(git ls-files --modified)
 readonly GIT_ROOT=$(git rev-parse --show-toplevel)
-for changed_file in changed_files; do
-    readonly extension="${changed_file##*.}"
+for ADDED_FILE in $ADDED_FILES; do
+    readonly extension="${ADDED_FILE##*.}"
     if [[ $extension == "cc" || $extension == "h" ]]; then
-        # "-style=file" has the effect of searching up the directory tree until a file named ".clang-format" is found and then using it.
-        clang-format-12 -style=file -i "$GIT_ROOT/$changed_file"
+
+        # sanity check: If there have been unadded changes between add & commit,
+        # we skip the optimization so we dont add unwanted changes
+        if [[ "$MODIFIED_UNADDED_FILES" == *"$ADDED_FILE"* ]]; then
+            echo "pre-commit: Skipping code optimizations for $ADDED_FILE because we have unadded changes"
+        else
+            readonly ADDED_FILE_PATH="$GIT_ROOT/$ADDED_FILE"
+            # "-style=file" has the effect of searching up the directory tree until a file named ".clang-format" is found and then using it.
+            echo "pre-commit: Optimizing code style for $ADDED_FILE"
+            clang-format-12 -style=file -i "$ADDED_FILE_PATH"
+            git add "$ADDED_FILE_PATH"
+        fi
     fi
 done
 
