@@ -16,7 +16,7 @@ LOG_DIR=/usr/local/var/log/tuefind
 30 0 * * * "$BIN/generate_new_journal_alert_stats" "relbib" "days_in_last_month" "$EMAIL"
 30 0 * * * "$BIN/generate_new_journal_alert_stats" "bibstudies" "days_in_last_month" "$EMAIL"
 30 0 * * * "$BIN/generate_new_journal_alert_stats" "churchlaw" "days_in_last_month" "$EMAIL"
-0 1 * * * php "$VUFIND_HOME/util/expire_searches.php" 30 > "$LOG_DIR/expire_searches.log" 2>&1
+0 1 * * * su vufind -c "php $VUFIND_HOME/util/expire_searches.php 30 > $LOG_DIR/expire_searches.log 2>&1"
 0 1 * * * "$BIN/enable_pipeline_triggers.sh" > "$LOG_DIR/enable_pipeline_triggers.log" 2>&1
 0 3 * * * cd "$BSZ_DATEN" && "$BIN/fetch_marc_updates.py" "$EMAIL" > "$LOG_DIR/fetch_marc_updates.log" 2>&1
 30 3 * * * cd "$BSZ_DATEN" && "$BIN/merge_differential_and_full_marc_updates.sh" "$EMAIL" > "$LOG_DIR/merge_differential_and_full_marc_updates.log" 2>&1

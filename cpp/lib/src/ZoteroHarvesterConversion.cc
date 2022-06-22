@@ -452,8 +452,8 @@ void AdjustFirstAndLastNameByLanguage(std::string * const first_name, std::strin
         if (y_iterator != first_name_tokens.end()) {
             const auto offset(std::distance(first_name_tokens.begin(), y_iterator));
             if (offset >= 1) {
-                last_name_tokens.insert(last_name_tokens.begin(), std::make_move_iterator(last_name_tokens.begin() + (offset - 1)),
-                                        std::make_move_iterator(last_name_tokens.end()));
+                last_name_tokens.insert(last_name_tokens.begin(), std::make_move_iterator(first_name_tokens.begin() + (offset - 1)),
+                                        std::make_move_iterator(first_name_tokens.end()));
                 first_name_tokens.erase(first_name_tokens.begin() + (offset - 1));
                 JoinAuthorTokens(first_name_tokens, first_name, last_name_tokens, last_name);
                 return;
@@ -994,12 +994,14 @@ ThreadSafeRegexMatcher::MatchResult MatchRomanPageOrPageRange(const std::string 
 
 
 std::string ConvertRomanPageRangeToArabic(const std::string &pages, const ThreadSafeRegexMatcher::MatchResult &match_result) {
-        if (match_result.size() == 1)
-            return std::to_string(StringUtil::RomanNumeralToDecimal(pages));
-        else
-            return std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[1]))) + '-' +
-                   std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[2])));
-    return pages;
+    if (not match_result) {
+        LOG_INFO("Unexpected empty match result - returning pages unmodified");
+        return pages;
+    }
+    if (match_result.size() <= 2 /*direct match or full match and one subgroup*/)
+        return std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(pages)));
+    return std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[1]))) + '-' +
+        std::to_string(StringUtil::RomanNumeralToDecimal(StringUtil::ASCIIToUpper(match_result[2])));
 }
 
 
@@ -1274,7 +1276,8 @@ void GenerateMarcRecordFromMetadataRecord(const MetadataRecord &metadata_record,
         marc_record->insertFieldAtEnd("935", { { 'a', "NABZ" }, { '2', "LOK" } });
 
     // Personalized Authors
-    if (parameters.download_item_.journal_.personalized_authors_ == "J")
+    // c.f. https://github.com/ubtue/DatenProbleme/issues/1651
+    if (parameters.download_item_.journal_.personalized_authors_ == "J" and marc_record->hasTag("100"))
         marc_record->insertFieldAtEnd("935", { { 'a', "tiep" }, { '2', "LOK" } });
 
     // Book-keeping fields
@@ -1358,7 +1361,7 @@ static bool ExcludeUndesiredItemTypes(const MetadataRecord &metadata_record) {
 }
 
 
-const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST{ "journalArticle", "magazineArticle", "review" };
+const std::vector<std::string> VALID_ITEM_TYPES_FOR_ONLINE_FIRST{ "journalArticle", "magazineArticle", "review", "note", "review_note" };
 
 
 bool ExcludeOnlineFirstRecord(const MetadataRecord &metadata_record, const ConversionParams &parameters) {

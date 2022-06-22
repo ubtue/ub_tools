@@ -286,6 +286,7 @@ int Main(int argc, char *argv[]) {
         sql_query += " WHERE tuefind_rss_feed_send_emails IS TRUE";
     else
         sql_query += " WHERE id=" + db_connection.escapeAndQuoteString(vufind_user_id);
+    sql_query += " AND ixtheo_user_type='" + subsystem_type + "'";
     db_connection.queryOrDie(sql_query);
 
     auto user_result_set(db_connection.getLastResultSet());
