@@ -159,7 +159,7 @@ void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::
 }
 
 
-void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigned * const number_of_new_ids, unsigned int count_rows) {
+void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigned * const number_of_new_ids, unsigned count_rows) {
     const std::string DOWNLOAD_URL(
         "https://www.icpsr.umich.edu/web/NACJD/search/"
         "studies?start=0&ARCHIVE=NACJD&PUBLISH_STATUS=PUBLISHED&sort=DATEUPDATED%20desc&rows="
@@ -180,7 +180,7 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
     std::ofstream json_new_titles(NACJD_NEW_TITLES_JSON);
     json_new_titles << "{ \"nacjd\" : [ " << '\n';
     bool first(true);
-    unsigned int limit_test(0);
+    unsigned limit(0);
     for (const auto &id : ids_website) {
         if (limit_test < count_rows) {
             if (parsed_marc_ids.find(id) != parsed_marc_ids.end())
@@ -192,8 +192,7 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
                 ++(*number_of_new_ids);
             }
         }
-
-        ++limit_test;
+        ++limit;
     }
     json_new_titles << " ] }";
 }
@@ -359,7 +358,7 @@ int Main(int argc, char *argv[]) {
     if (argc < 3 or argc > 4)
         Usage();
 
-    unsigned int count_rows(9000);
+    unsigned count_rows(9000);
     if (argc == 4) {
         count_rows = std::stoi(argv[3]);
     }
