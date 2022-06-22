@@ -159,7 +159,7 @@ void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::
 }
 
 
-void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigned * const number_of_new_ids, unsigned count_rows) {
+void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigned * const number_of_new_ids, const unsigned count_rows) {
     const std::string DOWNLOAD_URL(
         "https://www.icpsr.umich.edu/web/NACJD/search/"
         "studies?start=0&ARCHIVE=NACJD&PUBLISH_STATUS=PUBLISHED&sort=DATEUPDATED%20desc&rows="
@@ -182,7 +182,7 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
     bool first(true);
     unsigned limit(0);
     for (const auto &id : ids_website) {
-        if (limit_test < count_rows) {
+        if (limit < count_rows) {
             if (parsed_marc_ids.find(id) != parsed_marc_ids.end())
                 continue;
             const bool success(DownloadID(json_new_titles, id, /*use_separator*/ not first));
