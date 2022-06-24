@@ -43,11 +43,18 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "marc_title_in_file new_marc_title_out_file [count_of_rows]\n"
+        "marc_title_in_file new_marc_title_out_file [mode] [mode_params]\n"
         "where marc_title_in_file contains also icpsr records (001 or 035a)\n"
         "these records are not processed any more\n"
         "new_marc_title_out_file contains all icpsr records not contained in input file.\n"
-        "count_of_rows is an optional parameter. If it is absent, the number of requests will be equal to 9000)");
+        "\n"
+        "marc_title_in_file new_marc_title_out_file count_of_rows number\n"
+        "\t- count_of_rows: mode name\n"
+        "\t- number: is an optional parameter. If it is absent, the number of requests will be equal to 9000\n"
+        "\n"
+        "marc_title_in_file new_marc_title_out_file get_by_ID ID\n"
+        "\t- get_by_ID: mode name\n"
+        "\t- ID: article identifier\n");
 }
 
 
@@ -158,6 +165,29 @@ void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::
     }
 }
 
+void ExtractOneIDFromWebsite(const unsigned marc_id) {
+    if (FileUtil::Exists(NACJD_TITLES))
+        FileUtil::DeleteFile(NACJD_TITLES);
+
+    FileUtil::WriteString(NACJD_TITLES, "");
+
+    std::ifstream file(NACJD_TITLES);
+    if (file)
+        std::for_each(std::istream_iterator<char>(file), std::istream_iterator<char>(), HandleChar);
+    else
+        LOG_ERROR("couldn't open file: " + NACJD_TITLES);
+    if (FileUtil::Exists(NACJD_NEW_TITLES_JSON) and not FileUtil::DeleteFile(NACJD_NEW_TITLES_JSON))
+        LOG_ERROR("Could not delete file: " + NACJD_NEW_TITLES_JSON);
+
+    std::ofstream json_new_titles(NACJD_NEW_TITLES_JSON);
+
+    json_new_titles << "{ \"nacjd\" : [ " << '\n';
+    bool first(true);
+
+    DownloadID(json_new_titles, std::to_string(marc_id), /*use_separator*/ not first);
+
+    json_new_titles << " ] }";
+}
 
 void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigned * const number_of_new_ids, const unsigned count_rows) {
     const std::string DOWNLOAD_URL(
@@ -345,7 +375,7 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
             }
         }
     }
-    LOG_INFO("Processed: " + std::to_string(no_total) + "entries. " + std::to_string(no_initial_date) + " w/o initial date, "
+    LOG_INFO("Processed: " + std::to_string(no_total) + " entries. " + std::to_string(no_initial_date) + " w/o initial date, "
              + std::to_string(no_title) + " w/o title, " + std::to_string(no_creators) + " w/o creator and " + std::to_string(no_license)
              + " w/o license.");
 }
@@ -355,28 +385,41 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
 
 
 int Main(int argc, char *argv[]) {
-    if (argc < 3 or argc > 4)
+    if (argc < 3)
         Usage();
 
     unsigned count_rows(9000);
-    if (argc == 4) {
-        count_rows = std::stoi(argv[3]);
+    unsigned mode_param(0);
+    std::string mode("");
+
+    if (argv[3]) {
+        mode = argv[3];
+    }
+
+    if (mode == "count_of_rows") {
+        count_rows = std::stoi(argv[4]);
     }
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
     auto marc_writer(MARC::Writer::Factory(argv[2]));
 
-    // parse marc_file (later phase_x) and store ids in set
-    std::set<std::string> parsed_marc_ids;
-    LOG_INFO("Extracting existing ICPSR ids from marc input...");
-    ExtractExistingIDsFromMarc(marc_reader.get(), &parsed_marc_ids);
-    LOG_INFO("Found: " + std::to_string(parsed_marc_ids.size()) + " records with ICPSR ids.");
+    if (mode == "get_by_ID") {
+        mode_param = std::stoi(argv[4]);
+        ExtractOneIDFromWebsite(mode_param);
+        LOG_INFO("ID " + std::to_string(mode_param) + " collected from website.");
+    } else {
+        // parse marc_file (later phase_x) and store ids in set
+        std::set<std::string> parsed_marc_ids;
+        LOG_INFO("Extracting existing ICPSR ids from marc input...");
+        ExtractExistingIDsFromMarc(marc_reader.get(), &parsed_marc_ids);
+        LOG_INFO("Found: " + std::to_string(parsed_marc_ids.size()) + " records with ICPSR ids.");
 
-    // Download possible new publications and store in json file
-    LOG_INFO("Extracting ICPSR ids from website...");
-    unsigned number_of_new_ids;
-    ExtractIDsFromWebsite(parsed_marc_ids, &number_of_new_ids, count_rows);
-    LOG_INFO(std::to_string(number_of_new_ids) + " new ids collected from website.");
+        // Download possible new publications and store in json file
+        LOG_INFO("Extracting ICPSR ids from website...");
+        unsigned number_of_new_ids;
+        ExtractIDsFromWebsite(parsed_marc_ids, &number_of_new_ids, count_rows);
+        LOG_INFO(std::to_string(number_of_new_ids) + " new ids collected from website.");
+    }
 
     // parse json file and store relevant information in variables
     // write marc_records via marc_writer to marc_file
