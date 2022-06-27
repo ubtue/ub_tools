@@ -43,25 +43,31 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "marc_title_in_file new_marc_title_out_file [mode] [mode_params]\n"
-        "where marc_title_in_file contains also icpsr records (001 or 035a)\n"
+        "[mode] [mode_params]\n"
+        "get_full input_file output_file\n"
+        "\t- input_file: contains also icpsr records (001 or 035a)\n"
         "these records are not processed any more\n"
-        "new_marc_title_out_file contains all icpsr records not contained in input file.\n"
+        "\t- output_file contains all icpsr records not contained in input file.\n"
         "\n"
-        "marc_title_in_file new_marc_title_out_file count_of_rows number\n"
-        "\t- count_of_rows: mode name\n"
+        "get_by_count input_file output_file number\n"
+        "\t- input_file: contains also icpsr records (001 or 035a)\n"
+        "these records are not processed any more\n"
+        "\t- output_file contains all icpsr records not contained in input file.\n"
         "\t- number: is an optional parameter. If it is absent, the number of requests will be equal to 9000\n"
         "\n"
-        "marc_title_in_file new_marc_title_out_file get_by_ID ID\n"
-        "\t- get_by_ID: mode name\n"
-        "\t- ID: article identifier\n");
+        "get_by_ID output_file ID\n"
+        "\t- output_file contains all icpsr records not contained in input file.\n"
+        "\t- ID: The NACJD of the dataset to download\n");
 }
 
 
 std::vector<std::string> ids_website;
 const unsigned int TIMEOUT_IN_SECONDS(15);
 const std::string NACJD_TITLES("/tmp/nacjd_titles.html");
+const std::string NACJD_TITLES_FILE_NAME("/nacjd_titles.html");
 const std::string NACJD_NEW_TITLES_JSON("/tmp/nacjd_new_titles.json");
+const std::string NACJD_NEW_TITLES_JSON_FILE_NAME("/nacjd_new_titles.json");
+const std::string NACJD_FILE_NAME("/nacjd.mrc");
 
 
 bool ContainsValue(const std::map<std::string, std::string> &map, const std::string &search_value) {
@@ -165,26 +171,29 @@ void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::
     }
 }
 
-void ExtractOneIDFromWebsite(const unsigned marc_id) {
-    if (FileUtil::Exists(NACJD_TITLES))
-        FileUtil::DeleteFile(NACJD_TITLES);
+void ExtractOneIDFromWebsite(const unsigned nacjd_id, const std::string nacjd_path) {
+    std::string nacjd_title_path(nacjd_path + NACJD_TITLES_FILE_NAME);
+    std::string nacjd_JSON_path(nacjd_path + NACJD_NEW_TITLES_JSON_FILE_NAME);
 
-    FileUtil::WriteString(NACJD_TITLES, "");
+    if (FileUtil::Exists(nacjd_title_path))
+        FileUtil::DeleteFile(nacjd_title_path);
 
-    std::ifstream file(NACJD_TITLES);
+    FileUtil::WriteString(nacjd_title_path, "");
+
+    std::ifstream file(nacjd_title_path);
     if (file)
         std::for_each(std::istream_iterator<char>(file), std::istream_iterator<char>(), HandleChar);
     else
-        LOG_ERROR("couldn't open file: " + NACJD_TITLES);
-    if (FileUtil::Exists(NACJD_NEW_TITLES_JSON) and not FileUtil::DeleteFile(NACJD_NEW_TITLES_JSON))
-        LOG_ERROR("Could not delete file: " + NACJD_NEW_TITLES_JSON);
+        LOG_ERROR("couldn't open file: " + nacjd_title_path);
+    if (FileUtil::Exists(nacjd_JSON_path) and not FileUtil::DeleteFile(nacjd_JSON_path))
+        LOG_ERROR("Could not delete file: " + nacjd_JSON_path);
 
-    std::ofstream json_new_titles(NACJD_NEW_TITLES_JSON);
+    std::ofstream json_new_titles(nacjd_JSON_path);
 
     json_new_titles << "{ \"nacjd\" : [ " << '\n';
     bool first(true);
 
-    DownloadID(json_new_titles, std::to_string(marc_id), /*use_separator*/ not first);
+    DownloadID(json_new_titles, std::to_string(nacjd_id), /*use_separator*/ not first);
 
     json_new_titles << " ] }";
 }
@@ -381,10 +390,105 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
 }
 
 
+void getAll(int argc, char **argv) {
+    // Parse args
+    if (argc != 4)
+        Usage();
+
+    auto marc_reader(MARC::Reader::Factory(argv[2]));
+    auto marc_writer(MARC::Writer::Factory(argv[3]));
+
+    // parse marc_file (later phase_x) and store ids in set
+    std::set<std::string> parsed_marc_ids;
+    LOG_INFO("Extracting existing ICPSR ids from marc input...");
+    ExtractExistingIDsFromMarc(marc_reader.get(), &parsed_marc_ids);
+    LOG_INFO("Found: " + std::to_string(parsed_marc_ids.size()) + " records with ICPSR ids.");
+
+    // Download possible new publications and store in json file
+    LOG_INFO("Extracting ICPSR ids from website...");
+    unsigned number_of_new_ids;
+    ExtractIDsFromWebsite(parsed_marc_ids, &number_of_new_ids, 9000);
+    LOG_INFO(std::to_string(number_of_new_ids) + " new ids collected from website.");
+
+    // parse json file and store relevant information in variables
+    // write marc_records via marc_writer to marc_file
+    LOG_INFO("Parsing intermediate json file and save to marc output...");
+    ParseJSONAndWriteMARC(marc_writer.get());
+    LOG_INFO("Finished.");
+}
+
+void getByID(int argc, char **argv) {
+    // Parse args
+    if (argc != 4)
+        Usage();
+
+    // auto marc_writer(MARC::Writer::Factory(argv[2]));
+
+    // std::string nacjd_file("/tmp");
+    auto marc_writer(MARC::Writer::Factory(argv[2] + NACJD_FILE_NAME));
+
+    unsigned nacjd_id = std::stoi(argv[3]);
+
+    ExtractOneIDFromWebsite(nacjd_id, argv[2]);
+    LOG_INFO("ID " + std::to_string(nacjd_id) + " collected from website.");
+
+    // parse json file and store relevant information in variables
+    // write marc_records via marc_writer to marc_file
+    LOG_INFO("Parsing intermediate json file and save to marc output...");
+    ParseJSONAndWriteMARC(marc_writer.get());
+    LOG_INFO("Finished.");
+}
+
+void getByCount(int argc, char **argv) {
+    // Parse args
+    if (argc != 5)
+        Usage();
+
+    auto marc_reader(MARC::Reader::Factory(argv[2]));
+    auto marc_writer(MARC::Writer::Factory(argv[3]));
+
+    // parse marc_file (later phase_x) and store ids in set
+    std::set<std::string> parsed_marc_ids;
+    LOG_INFO("Extracting existing ICPSR ids from marc input...");
+    ExtractExistingIDsFromMarc(marc_reader.get(), &parsed_marc_ids);
+    LOG_INFO("Found: " + std::to_string(parsed_marc_ids.size()) + " records with ICPSR ids.");
+
+    // Download possible new publications and store in json file
+    LOG_INFO("Extracting ICPSR ids from website...");
+    unsigned number_of_new_ids;
+    ExtractIDsFromWebsite(parsed_marc_ids, &number_of_new_ids, std::stoi(argv[4]));
+    LOG_INFO(std::to_string(number_of_new_ids) + " new ids collected from website.");
+
+    // parse json file and store relevant information in variables
+    // write marc_records via marc_writer to marc_file
+    LOG_INFO("Parsing intermediate json file and save to marc output...");
+    ParseJSONAndWriteMARC(marc_writer.get());
+    LOG_INFO("Finished.");
+}
+
+
 } // unnamed namespace
 
 
-int Main(int argc, char *argv[]) {
+int Main(int argc, char **argv) {
+    if (argc < 2)
+        Usage();
+
+    const std::string mode(argv[1]);
+
+    if (mode == "get_all")
+        getAll(argc, argv);
+    else if (mode == "get_by_ID")
+        getByID(argc, argv);
+    else if (mode == "get_by_count")
+        getByCount(argc, argv);
+    else
+        Usage();
+
+    return EXIT_SUCCESS;
+
+    // LOG_INFO(std::to_string(argc));
+    /*
     if (argc < 3)
         Usage();
 
@@ -407,7 +511,9 @@ int Main(int argc, char *argv[]) {
         mode_param = std::stoi(argv[4]);
         ExtractOneIDFromWebsite(mode_param);
         LOG_INFO("ID " + std::to_string(mode_param) + " collected from website.");
-    } else {
+    }
+
+    if(mode == "get_full"){
         // parse marc_file (later phase_x) and store ids in set
         std::set<std::string> parsed_marc_ids;
         LOG_INFO("Extracting existing ICPSR ids from marc input...");
@@ -428,4 +534,5 @@ int Main(int argc, char *argv[]) {
     LOG_INFO("Finished.");
 
     return EXIT_SUCCESS;
+    */
 }
