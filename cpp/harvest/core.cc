@@ -361,11 +361,19 @@ void Merge(int argc, char **argv) {
     CORE::OutputFileStart(output_file);
     bool first(true);
 
-    // Prepare reading input dir
-    FileUtil::Directory input_files(input_dir, ".json$");
-    for (const auto &input_file : input_files) {
-        LOG_INFO("merging " + input_file.getFullName() + " into " + output_file);
-        const auto entities(CORE::GetEntitiesFromFile(input_file.getFullName()));
+    // We want to sort the files alphabetically first
+    std::vector<std::string> input_files_sort;
+    FileUtil::Directory input_files_unsorted(input_dir, ".json$");
+    for (const auto &input_file : input_files_unsorted) {
+        input_files_sort.emplace_back(input_file.getFullName());
+    }
+    std::sort(input_files_sort.begin(), input_files_sort.end());
+
+
+    // Merge into output file in sorted order
+    for (const auto &input_file : input_files_sort) {
+        LOG_INFO("merging " + input_file + " into " + output_file);
+        const auto entities(CORE::GetEntitiesFromFile(input_file));
         for (const auto &entity : entities) {
             CORE::OutputFileAppend(output_file, entity, first);
             first = false;
