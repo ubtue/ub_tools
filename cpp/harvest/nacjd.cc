@@ -183,16 +183,15 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
         "https://www.icpsr.umich.edu/web/NACJD/search/"
         "studies?start=0&ARCHIVE=NACJD&PUBLISH_STATUS=PUBLISHED&sort=DATEUPDATED%20desc&rows="
         + std::to_string(count_rows));
-    if (FileUtil::Exists("/tmp/nacjd_titles.html"))
-        FileUtil::DeleteFile("/tmp/nacjd_titles.html");
 
-    if (not Download(DOWNLOAD_URL, "/tmp/nacjd_titles.html", TIMEOUT_IN_SECONDS * 1000))
+    FileUtil::AutoTempFile temp_file;
+    if (not Download(DOWNLOAD_URL, temp_file.getFilePath(), TIMEOUT_IN_SECONDS * 1000))
         LOG_ERROR("Could not download website with nacjd ids.");
-    std::ifstream file("/tmp/nacjd_titles.html");
+    std::ifstream file(temp_file.getFilePath());
     if (file)
         std::for_each(std::istream_iterator<char>(file), std::istream_iterator<char>(), HandleChar);
     else
-        LOG_ERROR("couldn't open file: /tmp/nacjd_titles.html");
+        LOG_ERROR("couldn't open file: " + temp_file.getFilePath());
 
     if (FileUtil::Exists("/tmp/nacjd_new_titles.json") and not FileUtil::DeleteFile("/tmp/nacjd_new_titles.json"))
         LOG_ERROR("Could not delete file: /tmp/nacjd_new_titles.json");
