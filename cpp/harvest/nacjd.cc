@@ -53,22 +53,16 @@ namespace {
         "\t- input_file: contains also icpsr records (001 or 035a)\n"
         "these records are not processed any more\n"
         "\t- output_file contains all icpsr records not contained in input file.\n"
-        "\t- number: is an optional parameter. If it is absent, the number of requests will be equal to 9000\n"
+        "\t- number: number of requests\n"
         "\n"
-        "get_by_ID output_file ID\n"
-        "\t- output_file contains all icpsr records not contained in input file.\n"
-        "\t- ID: The NACJD of the dataset to download\n");
+        "get_by_ID output_path ID\n"
+        "\t- output_path path for output file.\n"
+        "\t- ID: The NACJD API identifier\n");
 }
 
 
 std::vector<std::string> ids_website;
 const unsigned int TIMEOUT_IN_SECONDS(15);
-const std::string NACJD_TITLES("/tmp/nacjd_titles.html");
-const std::string NACJD_TITLES_FILE_NAME("/nacjd_titles.html");
-const std::string NACJD_NEW_TITLES_JSON("/tmp/nacjd_new_titles.json");
-const std::string NACJD_NEW_TITLES_JSON_FILE_NAME("/nacjd_new_titles.json");
-const std::string NACJD_FILE_NAME("/nacjd.mrc");
-
 
 bool ContainsValue(const std::map<std::string, std::string> &map, const std::string &search_value) {
     for (const auto &[key, val] : map) {
@@ -171,9 +165,9 @@ void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::
     }
 }
 
-void ExtractOneIDFromWebsite(const unsigned nacjd_id, const std::string nacjd_path) {
-    std::string nacjd_title_path(nacjd_path + NACJD_TITLES_FILE_NAME);
-    std::string nacjd_JSON_path(nacjd_path + NACJD_NEW_TITLES_JSON_FILE_NAME);
+void ExtractOneIDFromWebsite(const unsigned nacjd_id) {
+    std::string nacjd_title_path("/tmp/nacjd_titles.html");
+    std::string nacjd_JSON_path("/tmp/nacjd_new_titles.json");
 
     if (FileUtil::Exists(nacjd_title_path))
         FileUtil::DeleteFile(nacjd_title_path);
@@ -203,20 +197,20 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
         "https://www.icpsr.umich.edu/web/NACJD/search/"
         "studies?start=0&ARCHIVE=NACJD&PUBLISH_STATUS=PUBLISHED&sort=DATEUPDATED%20desc&rows="
         + std::to_string(count_rows));
-    if (FileUtil::Exists(NACJD_TITLES))
-        FileUtil::DeleteFile(NACJD_TITLES);
+    if (FileUtil::Exists("/tmp/nacjd_titles.html"))
+        FileUtil::DeleteFile("/tmp/nacjd_titles.html");
 
-    if (not Download(DOWNLOAD_URL, NACJD_TITLES, TIMEOUT_IN_SECONDS * 1000))
+    if (not Download(DOWNLOAD_URL, "/tmp/nacjd_titles.html", TIMEOUT_IN_SECONDS * 1000))
         LOG_ERROR("Could not download website with nacjd ids.");
-    std::ifstream file(NACJD_TITLES);
+    std::ifstream file("/tmp/nacjd_titles.html");
     if (file)
         std::for_each(std::istream_iterator<char>(file), std::istream_iterator<char>(), HandleChar);
     else
-        LOG_ERROR("couldn't open file: " + NACJD_TITLES);
+        LOG_ERROR("couldn't open file: /tmp/nacjd_titles.html");
 
-    if (FileUtil::Exists(NACJD_NEW_TITLES_JSON) and not FileUtil::DeleteFile(NACJD_NEW_TITLES_JSON))
-        LOG_ERROR("Could not delete file: " + NACJD_NEW_TITLES_JSON);
-    std::ofstream json_new_titles(NACJD_NEW_TITLES_JSON);
+    if (FileUtil::Exists("/tmp/nacjd_new_titles.json") and not FileUtil::DeleteFile("/tmp/nacjd_new_titles.json"))
+        LOG_ERROR("Could not delete file: /tmp/nacjd_new_titles.json");
+    std::ofstream json_new_titles("/tmp/nacjd_new_titles.json");
     json_new_titles << "{ \"nacjd\" : [ " << '\n';
     bool first(true);
     unsigned limit(0);
@@ -239,11 +233,11 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
 
 void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
     std::string json_document;
-    FileUtil::ReadStringOrDie(NACJD_NEW_TITLES_JSON, &json_document);
+    FileUtil::ReadStringOrDie("/tmp/nacjd_new_titles.json", &json_document);
     JSON::Parser json_parser(json_document);
     std::shared_ptr<JSON::JSONNode> internal_tree_root;
     if (not json_parser.parse(&internal_tree_root))
-        LOG_ERROR("Could not properly parse \"" + NACJD_NEW_TITLES_JSON + ": " + json_parser.getErrorMessage());
+        LOG_ERROR("Could not properly parse \" /tmp/nacjd_new_titles.json: " + json_parser.getErrorMessage());
 
     const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", internal_tree_root));
     unsigned no_total(0), no_title(0), no_description(0), no_license(0), no_initial_date(0), no_keywords(0), no_creators(0);
@@ -422,15 +416,12 @@ void getByID(int argc, char **argv) {
     if (argc != 4)
         Usage();
 
-    // auto marc_writer(MARC::Writer::Factory(argv[2]));
+    auto marc_writer(MARC::Writer::Factory(argv[2]));
 
-    // std::string nacjd_file("/tmp");
-    auto marc_writer(MARC::Writer::Factory(argv[2] + NACJD_FILE_NAME));
+    const unsigned id = std::stoi(argv[3]);
 
-    unsigned nacjd_id = std::stoi(argv[3]);
-
-    ExtractOneIDFromWebsite(nacjd_id, argv[2]);
-    LOG_INFO("ID " + std::to_string(nacjd_id) + " collected from website.");
+    ExtractOneIDFromWebsite(id);
+    LOG_INFO("ID " + std::to_string(id) + " collected from website.");
 
     // parse json file and store relevant information in variables
     // write marc_records via marc_writer to marc_file
