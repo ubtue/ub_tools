@@ -55,9 +55,9 @@ namespace {
         "\t- output_file contains all icpsr records not contained in input file.\n"
         "\t- number: number of requests\n"
         "\n"
-        "get_by_ID output_path ID\n"
-        "\t- output_path path for output file.\n"
-        "\t- ID: The NACJD API identifier\n");
+        "get_by_ID ID output_path\n"
+        "\t- ID: The NACJD API identifier\n"
+        "\t- output_path path for output file.\n");
 }
 
 
@@ -165,30 +165,16 @@ void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::
     }
 }
 
-void ExtractOneIDFromWebsite(const unsigned nacjd_id) {
-    std::string nacjd_title_path("/tmp/nacjd_titles.html");
-    std::string nacjd_JSON_path("/tmp/nacjd_new_titles.json");
+void ExtractOneIDFromWebsite(const unsigned nacjd_id, const std::string &output_path) {
+    std::string nacjd_JSON_path(output_path);
 
-    if (FileUtil::Exists(nacjd_title_path))
-        FileUtil::DeleteFile(nacjd_title_path);
+    if (FileUtil::Exists(output_path) and not FileUtil::DeleteFile(output_path))
+        LOG_ERROR("Could not delete file: " + output_path);
 
-    FileUtil::WriteString(nacjd_title_path, "");
-
-    std::ifstream file(nacjd_title_path);
-    if (file)
-        std::for_each(std::istream_iterator<char>(file), std::istream_iterator<char>(), HandleChar);
-    else
-        LOG_ERROR("couldn't open file: " + nacjd_title_path);
-    if (FileUtil::Exists(nacjd_JSON_path) and not FileUtil::DeleteFile(nacjd_JSON_path))
-        LOG_ERROR("Could not delete file: " + nacjd_JSON_path);
-
-    std::ofstream json_new_titles(nacjd_JSON_path);
-
+    std::ofstream json_new_titles(output_path);
     json_new_titles << "{ \"nacjd\" : [ " << '\n';
     bool first(true);
-
     DownloadID(json_new_titles, std::to_string(nacjd_id), /*use_separator*/ not first);
-
     json_new_titles << " ] }";
 }
 
@@ -411,24 +397,19 @@ void getAll(int argc, char **argv) {
     LOG_INFO("Finished.");
 }
 
+
 void getByID(int argc, char **argv) {
     // Parse args
     if (argc != 4)
         Usage();
 
-    auto marc_writer(MARC::Writer::Factory(argv[2]));
+    const unsigned id(std::stoi(argv[2]));
+    const std::string output_path(argv[3]);
 
-    const unsigned id = std::stoi(argv[3]);
-
-    ExtractOneIDFromWebsite(id);
-    LOG_INFO("ID " + std::to_string(id) + " collected from website.");
-
-    // parse json file and store relevant information in variables
-    // write marc_records via marc_writer to marc_file
-    LOG_INFO("Parsing intermediate json file and save to marc output...");
-    ParseJSONAndWriteMARC(marc_writer.get());
-    LOG_INFO("Finished.");
+    ExtractOneIDFromWebsite(id, output_path);
+    LOG_INFO("ID " + std::to_string(id) + " collected from website and written to " + output_path);
 }
+
 
 void getByCount(int argc, char **argv) {
     // Parse args
