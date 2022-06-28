@@ -63,6 +63,7 @@ protected:
     nlohmann::json json_;
 
     std::string getStringOrDefault(const std::string &json_key) const;
+
 public:
     Entity(const nlohmann::json &json) { json_ = json; }
 
@@ -145,7 +146,7 @@ SearchResponseWorks SearchWorks(const SearchParamsWorks &params);
 /** \brief will search from offset_ to end in multiple searches
  *         and write JSON files to output dir.
  */
-void SearchBatch(const SearchParams &params, const std::string &output_dir);
+void SearchBatch(const SearchParams &params, const std::string &output_dir, const unsigned limit = 0);
 
 nlohmann::json ParseFile(const std::string &file);
 std::vector<Entity> GetEntitiesFromFile(const std::string &file);

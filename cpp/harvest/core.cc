@@ -38,14 +38,16 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "[mode] [mode_params]\n"
+        "mode mode_params\n"
+        "\n"
         "download id output_file\n"
         "\t- id: The CORE ID of the work to download.\n"
         "\t- output_file: The JSON result file.\n"
         "\n"
-        "search query output_dir\n"
+        "search query output_dir [limit]\n"
         "\t- query: The Query to use for CORE (like in the search field.)\n"
         "\t- output_dir: The directory to store the JSON result files (will be split due to API query limit restrictions).\n"
+        "\t- limit (optional): The maximum amount of records that should be downloaded.\n"
         "\n"
         "merge input_dir output_file\n"
         "\t- input_dir: A dir with multiple JSON files to merge, typically from a search result.\n"
@@ -68,8 +70,10 @@ namespace {
         "\t- --create-unique-id-db: This flag has to be specified the first time this program will be executed only.\n"
         "\t- --ignore-unique-id-dups: If specified MARC records will be created for unique ID's which we have encountered\n"
         "\t                           before.  The unique ID database will still be updated.\n"
-        "\t- --935-entry: The structure of this repeatable flag is \"(TIT|LOK):subfield_a_value\".  If TIT has been specified then no subfield 2 will be generated. If LOK has been specified, subfield 2 will be set to LOK.\n"
-        "\t- --sigil: This is used to generate an 852 field which is needed by the K10+ to be able to assign records to the appropriate project. An example would be DE-2619 for criminology.\n"
+        "\t- --935-entry: The structure of this repeatable flag is \"(TIT|LOK):subfield_a_value\".  If TIT has been specified then no "
+        "subfield 2 will be generated. If LOK has been specified, subfield 2 will be set to LOK.\n"
+        "\t- --sigil: This is used to generate an 852 field which is needed by the K10+ to be able to assign records to the appropriate "
+        "project. An example would be DE-2619 for criminology.\n"
         "\t- input_file: The JSON file to convert.\n"
         "\t- output_file: The MARC or XML file to write to.\n"
         "\n");
@@ -116,7 +120,8 @@ bool ConvertLanguage(const CORE::Work &work, MARC::Record * const record) {
     if (work.getLanguage().code_.empty())
         return false;
     std::string lang = MARC::MapToMARCLanguageCode(work.getLanguage().code_);
-    if (lang != "eng" and lang != "ger" and lang != "spa" and lang != "baq" and lang != "cat" and lang != "por" and lang != "ita" and lang != "dut")
+    if (lang != "eng" and lang != "ger" and lang != "spa" and lang != "baq" and lang != "cat" and lang != "por" and lang != "ita"
+        and lang != "dut")
         return false;
     record->insertField("041", 'a', lang);
     return true;
@@ -166,10 +171,7 @@ bool ConvertJournal(const CORE::Work &work, MARC::Record * const record) {
     for (const auto &journal : work.getJournals()) {
         for (const auto &identifier : journal.identifiers_) {
             if (MiscUtil::IsPossibleISSN(identifier)) {
-                record->insertField("773",
-                                    {
-                                        { 'x', identifier }
-                                    },
+                record->insertField("773", { { 'x', identifier } },
                                     /*indicator1=*/'0', /*indicator2=*/'8');
                 return true;
             }
@@ -194,10 +196,8 @@ std::string ConvertId(const std::string &id) {
 }
 
 
-void ConvertJSONToMARC(const std::vector<CORE::Work> &works,
-                          MARC::Writer * const marc_writer, const std::string &project_sigil,
-                          const std::vector<std::pair<std::string, std::string>> &_935_entries,
-                          KeyValueDB * const unique_id_to_date_map) {
+void ConvertJSONToMARC(const std::vector<CORE::Work> &works, MARC::Writer * const marc_writer, const std::string &project_sigil,
+                       const std::vector<std::pair<std::string, std::string>> &_935_entries, KeyValueDB * const unique_id_to_date_map) {
     unsigned generated_count(0);
     for (const auto &work : works) {
         const auto id(std::to_string(work.getId()));
@@ -208,8 +208,8 @@ void ConvertJSONToMARC(const std::vector<CORE::Work> &works,
         std::set<std::string> authors;
         ConvertAuthors(work, &new_record, &authors);
 
-        //Do not use contributors anymore (team decision in video conf. on 09.02.2022)
-        //ConvertContributors(*entry_object, &new_record, authors);
+        // Do not use contributors anymore (team decision in video conf. on 09.02.2022)
+        // ConvertContributors(*entry_object, &new_record, authors);
 
         ConvertTitle(work, &new_record);
         new_record.insertControlField("007", "cr||||");
@@ -276,8 +276,7 @@ void Convert(int argc, char **argv) {
     KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
 
     const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_file_path));
-    ConvertJSONToMARC(works, marc_writer.get(), project_sigil, _935_entries,
-                          &unique_id_to_date_map);
+    ConvertJSONToMARC(works, marc_writer.get(), project_sigil, _935_entries, &unique_id_to_date_map);
 }
 
 
@@ -380,7 +379,7 @@ void Merge(int argc, char **argv) {
 
 void Search(int argc, char **argv) {
     // Parse args
-    if (argc != 4)
+    if (argc != 4 && argc != 5)
         Usage();
 
     const std::string query(argv[2]);
@@ -390,11 +389,14 @@ void Search(int argc, char **argv) {
     CORE::SearchParams params;
     params.q_ = query;
     params.exclude_ = { "fullText" }; // for performance reasons
-    params.limit_ = 100; // default 10, max 100
+    params.limit_ = 100;              // default per request = 10, max 100
     params.entity_type_ = CORE::EntityType::WORK;
+    unsigned limit(0);
+    if (argc == 5)
+        limit = StringUtil::ToUnsigned(argv[4]);
 
     // Perform download
-    CORE::SearchBatch(params, output_dir);
+    CORE::SearchBatch(params, output_dir, limit);
 }
 
 
@@ -431,7 +433,6 @@ void Statistics(int argc, char **argv) {
             languages[work.getLanguage().code_] = 1;
         else
             ++languages[work.getLanguage().code_];
-
     }
 
     LOG_INFO("Statistics for " + core_file + ":");

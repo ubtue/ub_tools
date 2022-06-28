@@ -165,12 +165,12 @@ std::string Download(const std::string &url) {
     {
         Downloader::Params downloader_params;
         downloader_params.additional_headers_.push_back("Authorization: Bearer " + GetAPIKey());
-        //downloader_params.debugging_ = true;
+        // downloader_params.debugging_ = true;
 
         static Downloader downloader(downloader_params);
         downloader.newUrl(url);
 
-        //Downloader downloader(url, downloader_params);
+        // Downloader downloader(url, downloader_params);
         if (downloader.getResponseCode() == 429) {
             LOG_INFO(downloader.getMessageHeader());
             const auto header(downloader.getMessageHeaderObject());
@@ -182,15 +182,15 @@ std::string Download(const std::string &url) {
                     const std::string sleep_until_string(TimeUtil::TimeTToLocalTimeString(sleep_until_time));
 
                     LOG_WARNING("Rate limiting active + too many requests! Sleeping until " + sleep_until_string);
-                    std::this_thread::sleep_until (std::chrono::system_clock::from_time_t(sleep_until_time));
+                    std::this_thread::sleep_until(std::chrono::system_clock::from_time_t(sleep_until_time));
                 } else {
                     const unsigned sleep_seconds(60);
-                    LOG_WARNING("Rate limiting active + too many requests! Could not determine retry_after timestamp! Sleeping for " + std::to_string(sleep_seconds) + "s");
+                    LOG_WARNING("Rate limiting active + too many requests! Could not determine retry_after timestamp! Sleeping for "
+                                + std::to_string(sleep_seconds) + "s");
                     ::sleep(sleep_seconds);
                 }
             }
         } else {
-
             if (downloader.anErrorOccurred())
                 throw std::runtime_error(downloader.getLastErrorMessage());
 
@@ -258,7 +258,7 @@ unsigned GetJsonUnsignedValue(const nlohmann::json &json, const std::string &lab
 
 
 SearchResponse::SearchResponse(const std::string &json) {
-    //const nlohmann::json json_obj(json);
+    // const nlohmann::json json_obj(json);
     const auto json_obj(nlohmann::json::parse(json));
 
     total_hits_ = GetJsonUnsignedValue(json_obj, "totalHits");
@@ -311,7 +311,7 @@ SearchResponseWorks SearchWorks(const SearchParamsWorks &params) {
 }
 
 
-void SearchBatch(const SearchParams &params, const std::string &output_dir) {
+void SearchBatch(const SearchParams &params, const std::string &output_dir, const unsigned limit) {
     if (not FileUtil::IsDirectory(output_dir))
         FileUtil::MakeDirectoryOrDie(output_dir, /*recursive=*/true);
     SearchParams current_params = params;
@@ -319,17 +319,28 @@ void SearchBatch(const SearchParams &params, const std::string &output_dir) {
     // Always enable scrolling. This is mandatory if we have > 10.000 results.
     current_params.scroll_ = true;
 
+    if (limit > 0 && limit < current_params.limit_) {
+        current_params.limit_ = limit;
+    }
+
     std::string response_json(SearchRaw(current_params));
     SearchResponse response(response_json);
 
     int i(1);
     std::string output_file(output_dir + "/" + std::to_string(i) + ".json");
-    LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-" + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
+    LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-"
+             + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
 
     FileUtil::WriteStringOrDie(output_file, response_json);
 
-    while (response.offset_ + response.limit_ < response.total_hits_) {
+    unsigned max_offset(response.total_hits_);
+    if (limit > 0 && limit < max_offset)
+        max_offset = limit;
+
+    while (current_params.offset_ + current_params.limit_ < max_offset) {
         current_params.offset_ += current_params.limit_;
+        if (current_params.offset_ + current_params.limit_ > max_offset)
+            current_params.limit_ = max_offset - current_params.offset_;
 
         ++i;
         output_file = output_dir + "/" + std::to_string(i) + ".json";
@@ -339,7 +350,8 @@ void SearchBatch(const SearchParams &params, const std::string &output_dir) {
         if (not response.scroll_id_.empty())
             current_params.scroll_id_ = response.scroll_id_;
 
-        LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-" + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
+        LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-"
+                 + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
         FileUtil::WriteStringOrDie(output_file, response_json);
     }
 }
