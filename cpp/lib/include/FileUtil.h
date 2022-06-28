@@ -380,6 +380,7 @@ bool IsDirectory(const std::string &dir_name);
  */
 bool MakeDirectory(const std::string &path, const bool recursive = false, const mode_t mode = 0755);
 void MakeDirectoryOrDie(const std::string &path, const bool recursive = false, const mode_t mode = 0755);
+void MakeParentDirectoryOrDie(const std::string &path, const bool recursive = false, const mode_t mode = 0755);
 
 
 /** \brief  Recursively delete a directory and all the files and subdirectories contained in it.

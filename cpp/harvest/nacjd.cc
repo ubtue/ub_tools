@@ -43,10 +43,11 @@ namespace {
 
 [[noreturn]] void Usage() {
     ::Usage(
-        "marc_title_in_file new_marc_title_out_file\n"
+        "marc_title_in_file new_marc_title_out_file [count_of_rows]\n"
         "where marc_title_in_file contains also icpsr records (001 or 035a)\n"
         "these records are not processed any more\n"
-        "new_marc_title_out_file contains all icpsr records not contained in input file.");
+        "new_marc_title_out_file contains all icpsr records not contained in input file.\n"
+        "count_of_rows is an optional parameter. If it is absent, the number of requests will be equal to 9000)");
 }
 
 
@@ -158,10 +159,11 @@ void ExtractExistingIDsFromMarc(MARC::Reader * const marc_reader, std::set<std::
 }
 
 
-void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigned * const number_of_new_ids) {
+void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigned * const number_of_new_ids, const unsigned count_rows) {
     const std::string DOWNLOAD_URL(
         "https://www.icpsr.umich.edu/web/NACJD/search/"
-        "studies?start=0&ARCHIVE=NACJD&PUBLISH_STATUS=PUBLISHED&sort=DATEUPDATED%20desc&rows=9000");
+        "studies?start=0&ARCHIVE=NACJD&PUBLISH_STATUS=PUBLISHED&sort=DATEUPDATED%20desc&rows="
+        + std::to_string(count_rows));
     if (FileUtil::Exists(NACJD_TITLES))
         FileUtil::DeleteFile(NACJD_TITLES);
 
@@ -178,14 +180,19 @@ void ExtractIDsFromWebsite(const std::set<std::string> &parsed_marc_ids, unsigne
     std::ofstream json_new_titles(NACJD_NEW_TITLES_JSON);
     json_new_titles << "{ \"nacjd\" : [ " << '\n';
     bool first(true);
+    unsigned limit(0);
     for (const auto &id : ids_website) {
-        if (parsed_marc_ids.find(id) != parsed_marc_ids.end())
-            continue;
-        const bool success(DownloadID(json_new_titles, id, /*use_separator*/ not first));
-        if (first and success)
-            first = false;
-        if (success)
-            ++(*number_of_new_ids);
+        if (limit < count_rows) {
+            if (parsed_marc_ids.find(id) != parsed_marc_ids.end())
+                continue;
+            const bool success(DownloadID(json_new_titles, id, /*use_separator*/ not first));
+            if (first and success)
+                first = false;
+            if (success) {
+                ++(*number_of_new_ids);
+            }
+        }
+        ++limit;
     }
     json_new_titles << " ] }";
 }
@@ -313,14 +320,19 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
                 MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED,
                                         "[ICPSR]" + id);
                 new_record.insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
+                new_record.insertField("041", { { 'a', "eng" } });
                 new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
                 new_record.insertField("245", { { 'a', title_node->getValue() } }, /* indicator 1 = */ '1', /* indicator 2 = */ '0');
                 new_record.insertField("264", { { 'c', initial_release_date } });
                 new_record.insertField("520", { { 'a', description } });
                 new_record.insertField("540", { { 'a', license } });
+                new_record.insertField("655", { { 'a', "Forschungsdaten" } }, ' ', '4');
                 new_record.insertField("852", { { 'a', "DE-2619" } });
-                new_record.insertField("856", { { 'u', "https://www.icpsr.umich.edu/web/NACJD/studies/" + UrlUtil::UrlEncode(id) } }, '4' /*indicator1*/, '0' /*indicator 2*/);
+                new_record.insertField("856", { { 'u', "https://www.icpsr.umich.edu/web/NACJD/studies/" + UrlUtil::UrlEncode(id) } },
+                                       '4' /*indicator1*/, '0' /*indicator 2*/);
                 new_record.insertField("935", { { 'a', "mkri" } });
+                new_record.insertField("935", { { 'a', "nacj" }, { '2', "LOK" } });
+                new_record.insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
 
                 for (auto creator : creators)
                     new_record.insertField(creator.second, { { 'a', creator.first } });
@@ -343,8 +355,13 @@ void ParseJSONAndWriteMARC(MARC::Writer * const title_writer) {
 
 
 int Main(int argc, char *argv[]) {
-    if (argc != 3)
+    if (argc < 3 or argc > 4)
         Usage();
+
+    unsigned count_rows(9000);
+    if (argc == 4) {
+        count_rows = std::stoi(argv[3]);
+    }
 
     auto marc_reader(MARC::Reader::Factory(argv[1]));
     auto marc_writer(MARC::Writer::Factory(argv[2]));
@@ -358,7 +375,7 @@ int Main(int argc, char *argv[]) {
     // Download possible new publications and store in json file
     LOG_INFO("Extracting ICPSR ids from website...");
     unsigned number_of_new_ids;
-    ExtractIDsFromWebsite(parsed_marc_ids, &number_of_new_ids);
+    ExtractIDsFromWebsite(parsed_marc_ids, &number_of_new_ids, count_rows);
     LOG_INFO(std::to_string(number_of_new_ids) + " new ids collected from website.");
 
     // parse json file and store relevant information in variables
