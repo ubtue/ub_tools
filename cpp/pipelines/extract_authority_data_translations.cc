@@ -307,7 +307,7 @@ int Main(int argc, char **argv) {
     }
 
     std::map<std::string, std::vector<std::string>> term_to_translation_maps[NUMBER_OF_LANGUAGES];
-    ExtractTranslations(authority_data_reader.get(), "100abcd:110abcd:111a:130ap:150ax:151a", "700abcd:710abcd:711a:730a:750a:751a",
+    ExtractTranslations(authority_data_reader.get(), "100abcd:110abcd:111a:130agp:150ax:151a", "700abcd:710abcd:711a:730a:750a:751a",
                         term_to_translation_maps);
     for (int lang(0); lang < LANGUAGES_END; ++lang) {
         for (const auto &line : term_to_translation_maps[lang])
