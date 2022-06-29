@@ -24,6 +24,7 @@ from stanza.pipeline.processor import ProcessorVariant, register_processor_varia
 
 import stanza
 import spacy_stanza
+import nltk_classification
 #from pysbd.utils import PySBDFactory
 
 def SplitToAuthorEntries(file):
@@ -140,6 +141,51 @@ def PrintResultsRaw(authors_and_sentence_groups):
                  print("SENT: " + sentence)
 
 
+def ClassifySentences(authors_and_sentence_groups):
+    classifier = nltk_classification.CreateClassifier()
+    authors = []
+    author_tree = {}
+
+    for author, sentence_groups in authors_and_sentence_groups:
+        print("---------------------------------------\nAUTHOR: " + author + '\n')
+        author_tree['author'] = author
+        author_tree['titles'] = []
+        author_tree['bib_infos'] = []
+        for sentences in sentence_groups:
+             print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+             for sentence in sentences:
+                 sentence_type = classifier.classify(nltk_classification.ExtractFeatures(sentence))
+                 if sentence_type == nltk_classification.SENTENCE_TYPES['TITLE']:
+                      title = sentence
+                      author_tree['titles'].append({ 'title' :  title, 'bib_infos' : [], 'comments' : [] })
+                 elif sentence_type == nltk_classification.SENTENCE_TYPES['YEAR_AND_PLACE']:
+                      if not author_tree['titles']:
+                         author_tree['titles'].append({ 'title': 'UNKNOWN TITLE 1', 'bib_infos' : [], 'comments' : [] })
+                         # raise Exception("Cannot insert year and place due to missing title")
+                      author_tree['titles'][-1]['year_and_place'] = sentence
+                 elif sentence_type == nltk_classification.SENTENCE_TYPES['BIB_INFO']:
+                     if not author_tree['titles']:
+                         #raise Exception("Cannot insert bib_info due to missing title for author " + author)
+                         author_tree['bib_infos'].append({'bib_info' : sentence })
+                     else:
+                         author_tree['titles'][-1]['bib_infos'].append({'bib_info' : sentence, 'comments' : [] })
+                 elif sentence_type == nltk_classification.SENTENCE_TYPES['COMMENT']:
+                     if not author_tree['titles']:
+                         author_tree['titles'].append({ 'title': 'UNKNOWN TITLE 2', 'bib_infos' : [], 'comments' : [] })
+                         #raise Exception("Cannot insert comment due to missing title for author " + author)
+                     # We have a title comment if no bib_infos yet
+                     if not author_tree['titles'][-1]['bib_infos']:
+                          author_tree['titles'][-1]['comments'].append({ 'comment' : sentence })
+                     else:
+                         author_tree['titles'][-1]['bib_infos'][-1]['comments'].append( {'comment' : sentence })
+        drop_falsey = lambda path, key, value: bool(value)
+        authors.append(remap(author_tree, visit=drop_falsey))
+    with open('./output.json', 'w') as json_out:
+        json.dump(authors, json_out)
+
+
+
+
 def Main():
     try:
          if len(sys.argv) != 2:
@@ -149,7 +195,8 @@ def Main():
              file = FilterPageHeadings(f.read())
              entries = SplitToAuthorEntries(GetBufferLikeFile(file))
              authors_and_sentence_groups = SplitToAuthorSentenceGroupsAndSentences(entries)
-             PrintResultsRaw(authors_and_sentence_groups)
+             ClassifySentences(authors_and_sentence_groups)
+
 
 
 
