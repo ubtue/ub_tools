@@ -92,6 +92,54 @@ def set_custom_boundaries(doc):
 
 abbreviations_for_line_merge = r'(Zweispr.|Sumer.|assyr.|Neuassyr.|vol.|=)$'
 
+
+def SplitToAuthorSentenceGroupsAndSentences(entries):
+      authors_and_sentence_groups = []
+      stanza.download("en")
+      nlp = spacy_stanza.load_pipeline("en", processors="tokenize,pos,lemma,depparse" )
+      matcher = PhraseMatcher(nlp.vocab)
+      terms = ["Zweispr. Kultlied", "Sumer. Kultlied.", "Zweispr. Hymnus.", "vol. II."]
+      patterns = [nlp.make_doc(text) for text in terms]
+      matcher.add("TerminologyList", patterns)
+      analysis = nlp.analyze_pipes(pretty=True)
+      nlp.to_disk("./spacy_pipeline_stanza")
+      for author, entry in entries:
+          normalized_separations = re.sub(r'-\n', '', ''.join(entry))
+          normalized_newlines= re.sub(r'\n(?!\n)', ' ', normalized_separations)
+          sentences = []
+          sentence_groups = []
+          print("AUTHOR: " + author)
+          for to_parse in [ normalized_newlines ]:
+              print("ORIG: " + to_parse)
+              for to_parse_single in re.split(r'\n\n',to_parse):
+                  pre_nlp = spacy.blank("en")
+                  pre_nlp.add_pipe("set_custom_boundaries")
+                  pre_parsed_doc = pre_nlp(to_parse_single);
+                  for pre_parsed_sentence in pre_parsed_doc.sents:
+                      doc = nlp(pre_parsed_sentence.orth_.strip())
+                      for sentence in doc.sents:
+                          sentence = sentence.orth_.strip()
+                          sentences.append(sentence)
+                  new_sentences = []
+                  for sentence in sentences:
+                      index = sentences.index(sentence)
+                      if re.search(abbreviations_for_line_merge, sentence) and index < len(sentences) - 1:
+                          sentences[index : index + 2] = [reduce(lambda sentx, senty: sentx + " " + senty, sentences[index : index + 2])]
+                  sentence_groups.append(sentences)
+                  sentences = []
+          authors_and_sentence_groups.append((author, sentence_groups))
+      return authors_and_sentence_groups
+
+
+def PrintResultsRaw(authors_and_sentence_groups):
+    for author, sentence_groups in authors_and_sentence_groups:
+        print("---------------------------------------\nAUTHOR: " + author + '\n')
+        for sentences in sentence_groups:
+             print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+             for sentence in sentences:
+                 print("SENT: " + sentence)
+
+
 def Main():
     try:
          if len(sys.argv) != 2:
@@ -100,43 +148,10 @@ def Main():
          with open(sys.argv[1]) as f:
              file = FilterPageHeadings(f.read())
              entries = SplitToAuthorEntries(GetBufferLikeFile(file))
-             authors = []
-             stanza.download("en")
-             nlp = spacy_stanza.load_pipeline("en", processors="tokenize,pos,lemma,depparse" )
-             matcher = PhraseMatcher(nlp.vocab)
-             terms = ["Zweispr. Kultlied", "Sumer. Kultlied.", "Zweispr. Hymnus.", "vol. II."]
-             patterns = [nlp.make_doc(text) for text in terms]
-             matcher.add("TerminologyList", patterns)
-             analysis = nlp.analyze_pipes(pretty=True)
-             nlp.to_disk("./spacy_pipeline_stanza")
-             for author, entry in entries:
-                 print("---------------------------------------\nAUTHOR: " + author + '\n')
-                 normalized_separations = re.sub(r'-\n', '', ''.join(entry))
-                 normalized_newlines= re.sub(r'\n(?!\n)', ' ', normalized_separations)
-                 sentences = []
-                 sentence_groups = []
-                 for to_parse in [ normalized_newlines ]:
-                     print("ORIG: " + to_parse + '\n#########################################\n')
-                     for to_parse_single in re.split(r'\n\n',to_parse):
-                         pre_nlp = spacy.blank("en")
-                         pre_nlp.add_pipe("set_custom_boundaries")
-                         pre_parsed_doc = pre_nlp(to_parse_single);
-                         for pre_parsed_sentence in pre_parsed_doc.sents:
-                             doc = nlp(pre_parsed_sentence.orth_.strip())
-                             for sentence in doc.sents:
-                                 sentence = sentence.orth_.strip()
-                                 sentences.append(sentence)
-                         new_sentences = []
-                         for sentence in sentences:
-                             index = sentences.index(sentence)
-                             if re.search(abbreviations_for_line_merge, sentence) and index < len(sentences) - 1:
-                                 sentences[index : index + 2] = [reduce(lambda sentx, senty: sentx + " " + senty, sentences[index : index + 2])]
-                         sentence_groups.append(sentences)
-                         sentences = []
-                 for sentences in sentence_groups:
-                     print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-                     for sentence in sentences:
-                         print("SENT: " + sentence)
+             authors_and_sentence_groups = SplitToAuthorSentenceGroupsAndSentences(entries)
+             PrintResultsRaw(authors_and_sentence_groups)
+
+
 
     except Exception as e:
         print("ERROR: " + e)
