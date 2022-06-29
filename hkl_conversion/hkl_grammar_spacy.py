@@ -86,11 +86,11 @@ def set_custom_boundaries(doc):
     # Make sure we have sents
     if not doc.has_annotation("SENT_START"):
         #print ("NO SENT START")
-        doc[0].is_sent_start = True
+        doc[-1].is_sent_start = True
     return doc
 
 
-abbreviations_for_line_merge = r'(Zweispr.|Sumer.|assyr.|Neuassyr.)$'
+abbreviations_for_line_merge = r'(Zweispr.|Sumer.|assyr.|Neuassyr.|vol.|=)$'
 
 def Main():
     try:
@@ -104,7 +104,7 @@ def Main():
              stanza.download("en")
              nlp = spacy_stanza.load_pipeline("en", processors="tokenize,pos,lemma,depparse" )
              matcher = PhraseMatcher(nlp.vocab)
-             terms = ["Zweispr. Kultlied", "Sumer. Kultlied.", "Zweispr. Hymnus."]
+             terms = ["Zweispr. Kultlied", "Sumer. Kultlied.", "Zweispr. Hymnus.", "vol. II."]
              patterns = [nlp.make_doc(text) for text in terms]
              matcher.add("TerminologyList", patterns)
              analysis = nlp.analyze_pipes(pretty=True)
@@ -114,21 +114,27 @@ def Main():
                  normalized_separations = re.sub(r'-\n', '', ''.join(entry))
                  normalized_newlines= re.sub(r'\n(?!\n)', ' ', normalized_separations)
                  sentences = []
+                 sentence_groups = []
                  for to_parse in [ normalized_newlines ]:
                      print("ORIG: " + to_parse + '\n#########################################\n')
-                     pre_nlp = spacy.blank("en")
-                     pre_nlp.add_pipe("set_custom_boundaries")
-                     pre_parsed_doc = pre_nlp(to_parse);
-                     for pre_parsed_sentence in pre_parsed_doc.sents:
-                         doc = nlp(pre_parsed_sentence.orth_.strip())
-                         for sentence in doc.sents:
-                             sentence = sentence.orth_.strip()
-                             sentences.append(sentence)
-                     new_sentences = []
-                     for sentence in sentences:
-                         index = sentences.index(sentence)
-                         if re.search(abbreviations_for_line_merge, sentence) and index < len(sentences) - 1:
-                             sentences[index : index + 2] = [reduce(lambda sentx, senty: sentx + " " + senty, sentences[index : index + 2])]
+                     for to_parse_single in re.split(r'\n\n',to_parse):
+                         pre_nlp = spacy.blank("en")
+                         pre_nlp.add_pipe("set_custom_boundaries")
+                         pre_parsed_doc = pre_nlp(to_parse_single);
+                         for pre_parsed_sentence in pre_parsed_doc.sents:
+                             doc = nlp(pre_parsed_sentence.orth_.strip())
+                             for sentence in doc.sents:
+                                 sentence = sentence.orth_.strip()
+                                 sentences.append(sentence)
+                         new_sentences = []
+                         for sentence in sentences:
+                             index = sentences.index(sentence)
+                             if re.search(abbreviations_for_line_merge, sentence) and index < len(sentences) - 1:
+                                 sentences[index : index + 2] = [reduce(lambda sentx, senty: sentx + " " + senty, sentences[index : index + 2])]
+                         sentence_groups.append(sentences)
+                         sentences = []
+                 for sentences in sentence_groups:
+                     print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
                      for sentence in sentences:
                          print("SENT: " + sentence)
 
