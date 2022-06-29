@@ -1,11 +1,11 @@
 ubuntu_clean_deps:
-	docker image rm -f ub_tools-deps-ubuntu
+	docker image rm -f ub_tools-deps
 	rm -rf mnt/ZE020150
 	rm -f .smbcredentials
 
 ubuntu_prepare_deps:
-	if [ -z "$(docker images -q ub_tools-deps-ubuntu)" ]; then \
-		cd /usr/local/ub_tools/docker/ub_tools-deps-ubuntu; \
+	if [ -z "$(docker images -q ub_tools-deps)" ]; then \
+		cd /usr/local/ub_tools/docker/ub_tools-deps; \
 		make ; \
 	fi
 	if [ ! -d "mnt/ZE020150" ]; then \
