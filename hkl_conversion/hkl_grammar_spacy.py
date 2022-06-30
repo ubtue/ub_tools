@@ -140,54 +140,43 @@ def PrintResultsRaw(authors_and_sentence_groups):
              for sentence in sentences:
                  print("SENT: " + sentence)
 
+def HandleMissingTitle(author_tree):
+    author_tree['titles'].append( { 'title' : 'MISATTRIBUTED TITLE (!!)',  'elements' : []  } )
+    return author_tree
+
 
 def ClassifySentences(authors_and_sentence_groups):
     classifier = nltk_classification.CreateClassifier()
     authors = []
-    author_tree = {}
+    author_tree = dict()
 
     for author, sentence_groups in authors_and_sentence_groups:
         print("---------------------------------------\nAUTHOR: " + author + '\n')
         author_tree['author'] = author
         author_tree['titles'] = []
-        author_tree['bib_infos'] = []
-        author_tree['comments'] = []
-        author_tree['internal_references'] = []
         for sentences in sentence_groups:
              print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
              for sentence in sentences:
                  sentence_type = classifier.classify(nltk_classification.ExtractFeatures(sentence))
                  if sentence_type == nltk_classification.SENTENCE_TYPES['TITLE']:
                       title = sentence
-                      author_tree['titles'].append({ 'title' :  title, 'bib_infos' : [], 'comments' : [], 'internal_references' : [] })
+                      author_tree['titles'].append({ 'title' : title, 'elements' : [] })
                  elif sentence_type == nltk_classification.SENTENCE_TYPES['YEAR_AND_PLACE']:
                       if not author_tree['titles']:
-                         author_tree['titles'].append({ 'title': 'UNKNOWN TITLE 1', 'bib_infos' : [], 'comments' : [], 'internal_references' : [] })
-                         # raise Exception("Cannot insert year and place due to missing title")
-                      author_tree['titles'][-1]['year_and_place'] = sentence
+                          author_tree = HandleMissingTitle(author_tree)
+                      author_tree['titles'][-1]['elements'].append( {'year_and_place' :  sentence })
                  elif sentence_type == nltk_classification.SENTENCE_TYPES['BIB_INFO']:
                      if not author_tree['titles']:
-                         #raise Exception("Cannot insert bib_info due to missing title for author " + author)
-                         author_tree['bib_infos'].append({'bib_info' : sentence })
-                     else:
-                         author_tree['titles'][-1]['bib_infos'].append({'bib_info' : sentence, 'comments' : [], 'internal_references' : [] })
+                         author_tree = HandleMissingTitle(author_tree)
+                     author_tree['titles'][-1]['elements'].append( { 'bib_info' : sentence })
                  elif sentence_type == nltk_classification.SENTENCE_TYPES['COMMENT']:
                      if not author_tree['titles']:
-                         author_tree['titles'].append({ 'title': 'UNKNOWN TITLE 2', 'bib_infos' : [], 'comments' : [], 'internal_references' : []  })
-                         #raise Exception("Cannot insert comment due to missing title for author " + author)
-                     # We have a title comment if no bib_infos yet
-                     if not author_tree['titles'][-1]['bib_infos']:
-                          author_tree['titles'][-1]['comments'].append({ 'comment' : sentence,  'internal_references' : []})
-                     else:
-                         author_tree['titles'][-1]['bib_infos'][-1]['comments'].append( {'comment' : sentence })
+                         author_tree = HandleMissingTitle(author_tree)
+                     author_tree['titles'][-1]['elements'].append({ 'comment' : sentence})
                  elif sentence_type == nltk_classification.SENTENCE_TYPES['INTERNAL_REFERENCE']:
                      if not author_tree['titles']:
-                         author_tree['titles'].append({ 'title': 'UNKNOWN TITLE 3', 'bib_infos' : [], 'comments' : [], 'internal_references' : []})
-                     #if not author_tree['titles'][-1]['internal_references']:
-                     author_tree['titles'][-1]['internal_references'].append({ 'internal_reference' : sentence })
-                     #else:
-                      #   print("UNASSOCIATED: " + sentence)
-                         #author_tree['titles'][-1]['bib_infos'][-1]['internal_references'].append( {'internal_reference' : sentence })
+                         author_tree = HandleMissingTitle(author_tree)
+                     author_tree['titles'][-1]['elements'].append({ 'internal_reference' : sentence })
 
         drop_falsey = lambda path, key, value: bool(value)
         authors.append(remap(author_tree, visit=drop_falsey))

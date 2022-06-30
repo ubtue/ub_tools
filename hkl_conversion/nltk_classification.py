@@ -68,18 +68,20 @@ def SetupWordFeatures(labeled):
     word_selection = GetFrequentlyUsedWordFeatures(all_trainsentences)
 
 
-SENTENCE_TYPES = { 'TITLE' : 'title', 'BIB_INFO' : 'bib_info', 'YEAR_AND_PLACE' : 'year_and_place', 'COMMENT' : 'comment' }
+SENTENCE_TYPES = { 'TITLE' : 'title', 'BIB_INFO' : 'bib_info', 'YEAR_AND_PLACE' : 'year_and_place', 'COMMENT' : 'comment', 'INTERNAL_REFERENCE' : 'internal_reference'}
 
 def CreateClassifier():
     with open("./training/titles.txt") as titles:
-       titles = [ (title, SENTENCE_TYPES['TITLE']) for title in titles ]
+       titles_ = [ (title, SENTENCE_TYPES['TITLE']) for title in titles ]
     with open("./training/comments.txt") as comments:
-       comments = [ (comment, SENTENCE_TYPES['COMMENT']) for comment in comments ]
+       comments_ = [ (comment, SENTENCE_TYPES['COMMENT']) for comment in comments ]
     with open("./training/bib_infos.txt") as bib_infos:
-       bib_infos = [ (bib_info, SENTENCE_TYPES['BIB_INFO']) for bib_info in bib_infos ]
+       bib_infos_ = [ (bib_info, SENTENCE_TYPES['BIB_INFO']) for bib_info in bib_infos ]
     with open("./training/years_and_places.txt") as years_and_places:
-       years_and_places = [ (year_and_place, SENTENCE_TYPES['YEAR_AND_PLACE']) for year_and_place in years_and_places ]
-    labeled = titles + comments + bib_infos + years_and_places
+       years_and_places_ = [ (year_and_place, SENTENCE_TYPES['YEAR_AND_PLACE']) for year_and_place in years_and_places ]
+    with open("./training/internal_references.txt") as internal_references:
+       internal_references_ = [ (internal_reference, SENTENCE_TYPES['INTERNAL_REFERENCE']) for internal_reference in internal_references ]
+    labeled = titles_ + comments_ + bib_infos_ + years_and_places_ + internal_references_
     SetupWordFeatures(labeled)
     random.shuffle(labeled)
     training = [(ExtractFeatures(example), sentence_type) for (example, sentence_type) in labeled]
