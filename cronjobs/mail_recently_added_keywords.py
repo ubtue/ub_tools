@@ -19,16 +19,16 @@ sql_password = "XXXXX"
 """
 
 
-util.default_email_recipient = "andreas.nutz@uni-tuebingen.de"
+util.default_email_recipient = "ixtheo-team@ub.uni-tuebingen.de"
 period_of_days = 7
 
 def GetNewKeywordNumberFromDB(database, user, password, days_diff):
     end_date = (datetime.datetime.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
     start_date = (datetime.datetime.today() - datetime.timedelta(days=days_diff)).strftime("%Y-%m-%d")
-    result_keyword = subprocess.getoutput("/usr/bin/mysql --database " + database + " --user=" + user + " --password=" + password + 
-            " -sN --execute='SELECT COUNT(*) FROM keyword_translations WHERE create_timestamp>=\"" + start_date + "\" AND create_timestamp<\"" + 
+    result_keyword = subprocess.getoutput("/usr/bin/mysql --database " + database + " --user=" + user + " --password=" + password +
+            " -sN --execute='SELECT COUNT(*) FROM keyword_translations WHERE create_timestamp>=\"" + start_date + "\" AND create_timestamp<\"" +
             end_date + "\" AND ppn IN (SELECT ppn FROM keyword_translations GROUP BY ppn HAVING COUNT(*)=1);' 2>/dev/null")
-    result_vufind = subprocess.getoutput("/usr/bin/mysql --database " + database + " --user=" + user + " --password=" + password + 
+    result_vufind = subprocess.getoutput("/usr/bin/mysql --database " + database + " --user=" + user + " --password=" + password +
             " -sN --execute='SELECT COUNT(*) FROM vufind_translations WHERE create_timestamp>=\"" + start_date + "\" AND create_timestamp<\"" +
             end_date + "\" AND token IN (SELECT token FROM vufind_translations GROUP BY token HAVING COUNT(*)=1);' 2>/dev/null")
     return [result_keyword, result_vufind]

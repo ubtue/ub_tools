@@ -342,8 +342,8 @@ void SystemdEnableAndRunUnit(const std::string unit) {
 }
 
 
-void InstallSoftwareDependencies(const std::string vufind_system_type_string,
-                                 const InstallationType installation_type, const bool install_systemctl) {
+void InstallSoftwareDependencies(const std::string vufind_system_type_string, const InstallationType installation_type,
+                                 const bool install_systemctl) {
     // install / update dependencies
     std::string script(INSTALLER_SCRIPTS_DIRECTORY + "/install_ubuntu_packages.sh");
 
@@ -412,7 +412,6 @@ void SetupSysLog() {
 
     FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/syslog.zts.conf", "/etc/rsyslog.d/30-zts.conf");
     FileUtil::CopyOrDie(INSTALLER_DATA_DIRECTORY + "/syslog.ub_tools.conf", "/etc/rsyslog.d/40-ub_tools.conf");
-
 }
 
 void SetupSudo() {
@@ -621,7 +620,7 @@ void ConfigureApacheUser() {
                         { "-i", "s/export APACHE_RUN_USER=www-data/export APACHE_RUN_USER=" + username + "/", config_filename });
 
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sed"),
-                            { "-i", "s/export APACHE_RUN_GROUP=www-data/export APACHE_RUN_GROUP=" + username + "/", config_filename });
+                        { "-i", "s/export APACHE_RUN_GROUP=www-data/export APACHE_RUN_GROUP=" + username + "/", config_filename });
 
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("find"),
                         { VUFIND_DIRECTORY + "/local", "-name", "cache", "-exec", "chown", "-R", username + ":" + username, "{}", "+" });
@@ -700,11 +699,17 @@ void SetFulltextEnvironmentVariables() {
  *
  * Writes a file into vufind directory to save configured system type
  */
-void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system_type,
-                     const bool install_cronjobs, const bool install_systemctl) {
+void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system_type, const bool install_cronjobs,
+                     const bool install_systemctl) {
     // We need to increase default_socket_timeout for big downloads on slow mirrors, especially Solr (default 60 seconds) .
     TemporaryChDir tmp2(VUFIND_DIRECTORY);
     ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { "-d", "default_socket_timeout=600", ExecUtil::LocateOrDie("composer"), "install" });
+    // We explicitly need to use sudo here, even if we're already root, or it will fail,
+    // see https://stackoverflow.com/questions/16151018/how-to-fix-npm-throwing-error-without-sudo
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("sudo"), { "npm", "install" });
+
+    Echo("Building CSS");
+    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("grunt"), { "less" });
 
     const std::string vufind_system_type_string(VuFindSystemTypeToString(vufind_system_type));
     Echo("Starting configuration for " + vufind_system_type_string);
@@ -759,23 +764,6 @@ void ConfigureVuFind(const bool production, const VuFindSystemType vufind_system
     if (not FileUtil::Exists(HMAC_FILE_PATH))
         FileUtil::WriteStringOrDie(HMAC_FILE_PATH,
                                    StringUtil::GenerateRandom(/*length=*/32, /*alphabet=*/"abcdefghijklmnopqrstuvwxyz0123456789"));
-
-    // We need to create empty local_overrides files so that basic programs like cssBuilder can run
-    FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/database.conf");
-    FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/database_solrmarc.conf");
-    switch (vufind_system_type) {
-    case IXTHEO:
-        FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/ixtheo_site.conf");
-        FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/relbib_site.conf");
-        FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/http.conf");
-        break;
-    case KRIMDOK:
-        FileUtil::TouchFileOrDie(VUFIND_LOCAL_OVERRIDES_DIRECTORY + "/krimdok_site.conf");
-        break;
-    }
-
-    Echo("Building CSS");
-    ExecUtil::ExecOrDie(ExecUtil::LocateOrDie("php"), { VUFIND_DIRECTORY + "/util/cssBuilder.php" });
 
     Echo(vufind_system_type_string + " configuration completed!");
 }
@@ -859,7 +847,7 @@ int Main(int argc, char **argv) {
 
     std::string file_contents;
     if (not(FileUtil::ReadString("/etc/issue", &file_contents)
-        and StringUtil::FindCaseInsensitive(file_contents, "ubuntu") != std::string::npos))
+            and StringUtil::FindCaseInsensitive(file_contents, "ubuntu") != std::string::npos))
     {
         Error("OS type could not be detected or is not supported! aborting");
     }
