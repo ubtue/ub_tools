@@ -61,7 +61,9 @@ namespace {
         "\n"
         "convert_JSON_to_MARC json_path marc_path\n"
         "\t- json_path: The input JSON file.\n"
-        "\t- marc_path: The output MARC file.\n");
+        "\t- marc_path: The output MARC file.\n"
+        "get_statistics json_path\n"
+        "\t- json_path: The input JSON file.\n");
 }
 
 
@@ -239,7 +241,7 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
         LOG_ERROR("Could not properly parse \" " + json_path + ": " + json_parser.getErrorMessage());
 
     const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", internal_tree_root));
-    unsigned no_total(0), no_title(0), no_description(0), no_license(0), no_initial_date(0), no_keywords(0), no_creators(0);
+    unsigned no_total(0);
 
     std::shared_ptr<JSON::ArrayNode> nacjd_nodes(JSON::JSONNode::CastToArrayNodeOrDie("nacjd", root_node->getNode("nacjd")));
     for (const auto &internal_nacjd_node : *nacjd_nodes) {
@@ -265,7 +267,6 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
             description = description_node->getValue();
             if (description.empty()) {
                 complete = false;
-                ++no_description;
             } else if (description.length() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH) {
                 const unsigned REDUCE_LENGTH_CHARS(7);
                 StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - REDUCE_LENGTH_CHARS, &description);
@@ -305,8 +306,7 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
                 if (not keyword_value_node->getValue().empty())
                     keywords.emplace(keyword_value_node->getValue());
             }
-        } else
-            ++no_keywords;
+        }
 
         for (const auto &internal_creator_node : *creators_node) {
             const auto creator_node(JSON::JSONNode::CastToObjectNodeOrDie("creator", internal_creator_node));
@@ -336,12 +336,6 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
 
         if (creators.empty() or license.empty() or initial_release_date.empty()) {
             complete = false;
-            if (creators.empty())
-                ++no_creators;
-            if (license.empty())
-                ++no_license;
-            if (initial_release_date.empty())
-                ++no_initial_date;
         }
 
         for (const auto &internal_alternateIdentifier : *alternate_identifiers_node) {
@@ -377,9 +371,7 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
             }
         }
     }
-    LOG_INFO("Processed: " + std::to_string(no_total) + " entries. " + std::to_string(no_initial_date) + " w/o initial date, "
-             + std::to_string(no_title) + " w/o title, " + std::to_string(no_creators) + " w/o creator and " + std::to_string(no_license)
-             + " w/o license.");
+    LOG_INFO("\nStatistics:\n\tProcessed: " + std::to_string(no_total) + " entries.\n");
 }
 
 
@@ -452,6 +444,170 @@ void convertJSONtoMARC(int argc, char **argv) {
     LOG_INFO("Finished.");
 }
 
+void getStatistics(int argc, char **argv) {
+    // Parse args
+    if (argc != 3)
+        Usage();
+
+    std::string json_path = argv[2];
+
+    std::string json_document;
+    FileUtil::ReadStringOrDie(json_path, &json_document);
+    JSON::Parser json_parser(json_document);
+    std::shared_ptr<JSON::JSONNode> internal_tree_root;
+    if (not json_parser.parse(&internal_tree_root))
+        LOG_ERROR("Could not properly parse \" " + json_path + ": " + json_parser.getErrorMessage());
+
+    const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", internal_tree_root));
+    unsigned total(0), no_title(0), no_description(0), no_ID(0), no_alternate_ID(0), no_creators(0), no_license(0), no_initial_date(0),
+        no_keywords(0);
+
+    std::shared_ptr<JSON::ArrayNode> nacjd_nodes(JSON::JSONNode::CastToArrayNodeOrDie("nacjd", root_node->getNode("nacjd")));
+    for (const auto &internal_nacjd_node : *nacjd_nodes) {
+        ++total;
+
+        std::string title;
+        std::string description;
+        std::string node_ID;
+        std::string node_alternate_ID;
+        std::string creator;
+        std::string license;
+        std::string initial_release_date;
+        std::map<std::string, std::string> creators;
+        std::set<std::string> keywords;
+
+        const auto nacjd_node(JSON::JSONNode::CastToObjectNodeOrDie("entry", internal_nacjd_node));
+
+        const auto identifier_node(nacjd_node->getObjectNode("identifier"));
+        const auto alternate_identifiers_node(nacjd_node->getArrayNode("alternateIdentifiers"));
+        const auto creators_node(nacjd_node->getArrayNode("creators"));
+        const auto distributions_node(nacjd_node->getArrayNode("distributions"));
+        const auto keywords_node(nacjd_node->getOptionalArrayNode("keywords"));
+
+        const auto title_node(nacjd_node->getOptionalStringNode("title"));
+        if (title_node == nullptr) {
+            ++no_title;
+        } else {
+            title = title_node->getValue();
+            if (title.empty()) {
+                ++no_title;
+            }
+        }
+
+        const auto description_node(nacjd_node->getOptionalStringNode("description"));
+        if (description_node == nullptr) {
+            ++no_description;
+        } else {
+            description = description_node->getValue();
+            if (description.empty()) {
+                ++no_description;
+            }
+        }
+
+        if (keywords_node != nullptr) {
+            for (const auto &internal_keyword_node : *keywords_node) {
+                const auto keyword_node(JSON::JSONNode::CastToObjectNodeOrDie("keyword", internal_keyword_node));
+                const auto keyword_value_node(keyword_node->getStringNode("value"));
+                if (not keyword_value_node->getValue().empty())
+                    keywords.emplace(keyword_value_node->getValue());
+            }
+        } else {
+            ++no_keywords;
+        }
+
+        for (const auto &internal_distribution_node : *distributions_node) {
+            const auto distribution_node(JSON::JSONNode::CastToObjectNodeOrDie("distribution", internal_distribution_node));
+            const auto dates_node(distribution_node->getArrayNode("dates"));
+            const auto licenses_node(distribution_node->getArrayNode("licenses"));
+
+            for (const auto &internal_date_node : *dates_node) {
+                const auto date_node(JSON::JSONNode::CastToObjectNodeOrDie("date", internal_date_node));
+                const auto date_type_node(date_node->getObjectNode("type"));
+                const auto date_date_node(date_node->getStringNode("date"));
+                if (date_type_node->getStringNode("value")->getValue() == "initial release date")
+                    initial_release_date = date_date_node->getValue();
+            }
+
+            for (const auto &internal_license_node : *licenses_node) {
+                const auto license_node(JSON::JSONNode::CastToObjectNodeOrDie("license", internal_license_node));
+                const auto license_name_node(license_node->getStringNode("name"));
+                if (not license_name_node->getValue().empty()) {
+                    license = license_name_node->getValue();
+                    break;
+                }
+            }
+            if (not license.empty() and not initial_release_date.empty())
+                break;
+        }
+
+
+        for (const auto &internal_alternateIdentifier : *alternate_identifiers_node) {
+            const auto alternateIdentifier_node(JSON::JSONNode::CastToObjectNodeOrDie("alternateIdentifier", internal_alternateIdentifier));
+            const auto data_ID(identifier_node->getOptionalStringNode("identifier"));
+            const auto alternateID(alternateIdentifier_node->getOptionalStringNode("identifier"));
+
+            if (data_ID == nullptr) {
+                ++no_ID;
+            } else {
+                node_ID = data_ID->getValue();
+                if (node_ID.empty()) {
+                    ++no_ID;
+                }
+            }
+
+            if (alternateID == nullptr) {
+                ++no_alternate_ID;
+            } else {
+                node_alternate_ID = alternateID->getValue();
+                if (node_alternate_ID.empty()) {
+                    ++no_alternate_ID;
+                }
+            }
+        }
+
+        for (const auto &internal_creator_node : *creators_node) {
+            const auto creator_node(JSON::JSONNode::CastToObjectNodeOrDie("creator", internal_creator_node));
+            const std::string type(creator_node->getStringNode("@type")->getValue());
+            if (type == "Organization") {
+                const std::string name(creator_node->getStringNode("name")->getValue());
+                if (name.empty())
+                    continue;
+                if (ContainsValue(creators, "110"))
+                    creators.emplace(name, "710");
+                else
+                    creators.emplace(name, "110");
+            } else if (type == "Person") {
+                const auto fullName_node(creator_node->getOptionalStringNode("fullName"));
+                if (fullName_node == nullptr)
+                    continue;
+                std::string fullName = fullName_node->getValue();
+                if (fullName.empty())
+                    continue;
+                if (ContainsValue(creators, "100"))
+                    creators.emplace(fullName, "700");
+                else
+                    creators.emplace(fullName, "100");
+            } else
+                LOG_ERROR("unknown creator type: " + type);
+        }
+
+        if (creators.empty() or license.empty() or initial_release_date.empty()) {
+            if (creators.empty())
+                ++no_creators;
+            if (license.empty())
+                ++no_license;
+            if (initial_release_date.empty())
+                ++no_initial_date;
+        }
+    }
+
+    LOG_INFO("\nStatistics:\n\tProcessed: " + std::to_string(total) + " entries.\n" + "\tProblems: \n" + "\t\tTitle not found or empty: "
+             + std::to_string(no_title) + "\n" + "\t\tDescription not found or empty: " + std::to_string(no_description) + "\n"
+             + "\t\tIdentifiier not found or empty: " + std::to_string(no_ID) + "\n" + "\t\tAlternate Identifiier not found or empty: "
+             + std::to_string(no_alternate_ID) + "\n" + "\t\tCreator not found or empty: " + std::to_string(no_creators) + "\n"
+             + "\t\tLicense not found or empty: " + std::to_string(no_license) + "\n" + "\t\tInitial Date not found or empty: "
+             + std::to_string(no_initial_date) + "\n" + "\t\tKeywords not found or empty: " + std::to_string(no_keywords) + "\n");
+}
 
 } // unnamed namespace
 
@@ -470,6 +626,8 @@ int Main(int argc, char **argv) {
         getByCount(argc, argv);
     else if (mode == "convert_JSON_to_MARC")
         convertJSONtoMARC(argc, argv);
+    else if (mode == "get_statistics")
+        getStatistics(argc, argv);
     else
         Usage();
 
