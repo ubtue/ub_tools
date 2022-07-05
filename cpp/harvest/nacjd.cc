@@ -56,12 +56,13 @@ namespace {
         "\t- number: number of requests\n"
         "\n"
         "get_by_ID ID output_path\n"
-        "\t- ID: The NACJD API identifier\n"
+        "\t- ID: The NACJD API Identifier\n"
         "\t- output_path: path for output file.\n"
         "\n"
         "convert_JSON_to_MARC json_path marc_path\n"
         "\t- json_path: The input JSON file.\n"
         "\t- marc_path: The output MARC file.\n"
+        "\n"
         "get_statistics json_path\n"
         "\t- json_path: The input JSON file.\n");
 }
@@ -449,7 +450,7 @@ void getStatistics(int argc, char **argv) {
     if (argc != 3)
         Usage();
 
-    std::string json_path = argv[2];
+    const std::string json_path = argv[2];
 
     std::string json_document;
     FileUtil::ReadStringOrDie(json_path, &json_document);
@@ -511,6 +512,9 @@ void getStatistics(int argc, char **argv) {
                 if (not keyword_value_node->getValue().empty())
                     keywords.emplace(keyword_value_node->getValue());
             }
+            if (keywords.empty()) {
+                ++no_keywords;
+            }
         } else {
             ++no_keywords;
         }
@@ -568,32 +572,32 @@ void getStatistics(int argc, char **argv) {
         for (const auto &internal_creator_node : *creators_node) {
             const auto creator_node(JSON::JSONNode::CastToObjectNodeOrDie("creator", internal_creator_node));
             const std::string type(creator_node->getStringNode("@type")->getValue());
+            std::string creator_name;
             if (type == "Organization") {
                 const std::string name(creator_node->getStringNode("name")->getValue());
-                if (name.empty())
+                if (name.empty()) {
                     continue;
-                if (ContainsValue(creators, "110"))
-                    creators.emplace(name, "710");
-                else
-                    creators.emplace(name, "110");
+                } else {
+                    creator_name = name;
+                }
             } else if (type == "Person") {
                 const auto fullName_node(creator_node->getOptionalStringNode("fullName"));
                 if (fullName_node == nullptr)
                     continue;
                 std::string fullName = fullName_node->getValue();
-                if (fullName.empty())
+                if (fullName.empty()) {
                     continue;
-                if (ContainsValue(creators, "100"))
-                    creators.emplace(fullName, "700");
-                else
-                    creators.emplace(fullName, "100");
-            } else
-                LOG_ERROR("unknown creator type: " + type);
+                } else {
+                    creator_name = fullName;
+                }
+            }
+
+            if (creator_name.empty()) {
+                ++no_creators;
+            }
         }
 
-        if (creators.empty() or license.empty() or initial_release_date.empty()) {
-            if (creators.empty())
-                ++no_creators;
+        if (license.empty() or initial_release_date.empty()) {
             if (license.empty())
                 ++no_license;
             if (initial_release_date.empty())
@@ -603,7 +607,7 @@ void getStatistics(int argc, char **argv) {
 
     LOG_INFO("\nStatistics:\n\tProcessed: " + std::to_string(total) + " entries.\n" + "\tProblems: \n" + "\t\tTitle not found or empty: "
              + std::to_string(no_title) + "\n" + "\t\tDescription not found or empty: " + std::to_string(no_description) + "\n"
-             + "\t\tIdentifiier not found or empty: " + std::to_string(no_ID) + "\n" + "\t\tAlternate Identifiier not found or empty: "
+             + "\t\tIdentifier not found or empty: " + std::to_string(no_ID) + "\n" + "\t\tAlternate Identifier not found or empty: "
              + std::to_string(no_alternate_ID) + "\n" + "\t\tCreator not found or empty: " + std::to_string(no_creators) + "\n"
              + "\t\tLicense not found or empty: " + std::to_string(no_license) + "\n" + "\t\tInitial Date not found or empty: "
              + std::to_string(no_initial_date) + "\n" + "\t\tKeywords not found or empty: " + std::to_string(no_keywords) + "\n");
