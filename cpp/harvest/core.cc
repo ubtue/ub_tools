@@ -429,22 +429,38 @@ void Statistics(int argc, char **argv) {
     // Load file
     const auto works(CORE::GetWorksFromFile(core_file));
 
-    unsigned count(0);
-    unsigned articles(0);
+    unsigned count_works(works.size());
+    unsigned count_articles(0);
+    unsigned count_uni_tue(0);
+    unsigned count_empty_title(0);
+    unsigned count_empty_authors(0);
+
     std::map<std::string, unsigned> languages;
     for (const auto &work : works) {
-        ++count;
         if (work.isArticle())
-            ++articles;
+            ++count_articles;
+
+        if (work.getTitle().empty())
+            ++count_empty_title;
+
+        if (work.getAuthors().empty())
+            ++count_empty_authors;
+
         const auto language_iter(languages.find(work.getLanguage().code_));
         if (language_iter == languages.end())
             languages[work.getLanguage().code_] = 1;
         else
             ++languages[work.getLanguage().code_];
+
+        if (work.getPublisher() == "Universität Tübingen")
+            ++count_uni_tue;
     }
 
     LOG_INFO("Statistics for " + core_file + ":");
-    LOG_INFO(std::to_string(count) + " datasets (" + std::to_string(count) + " articles)");
+    LOG_INFO(std::to_string(count_works) + " datasets (" + std::to_string(count_articles) + " articles)");
+    LOG_INFO(std::to_string(count_uni_tue) + " datasets from Universität Tübingen");
+    LOG_INFO(std::to_string(count_empty_title) + " datasets with empty titles");
+    LOG_INFO(std::to_string(count_empty_authors) + " datasets without authors");
 
     std::string languages_msg("languages: ");
     bool first(true);
