@@ -130,11 +130,11 @@ namespace {
             if (element.GetType() == INTERNAL_REFERENCE)
                 return new_title_record;
             else if (element.GetType() == COMMENT)
-                new_title_record.insertField("950", 'a', element.GetValue());
+                new_title_record.insertField("950", { {'a', element.GetValue() }, { 'x', element.GetTypeAsString() } });
             else if (element.GetType() == YEAR_AND_PLACE)
                 new_title_record.insertField("264", 'c', element.GetValue());
             else if (element.GetType() == BIB_INFO)
-                new_title_record.insertField("960", 'a', element.GetValue());
+                new_title_record.insertField("960", { {'a', element.GetValue() }, { 'x', element.GetTypeAsString() } });
        }
        return new_title_record;
    }
@@ -155,7 +155,7 @@ namespace {
             else if (element.GetType() == BIB_INFO)
                 new_passage_record.insertField("960", 'a', element.GetValue());
        }
-       new_passage_record.insertField("777",{ {'a', author_record.getMainAuthor()}, {'b', author_record.getControlNumber()}, {'c', "TEST" } });
+       new_passage_record.insertField("777",{ {'a', author_record.getMainAuthor()}, {'b', author_record.getControlNumber()} });
        new_passage_record.insertField("778",{ {'a', title_record.getMainTitle()}, {'b', title_record.getControlNumber()} });
        return new_passage_record;
    }
@@ -164,11 +164,11 @@ namespace {
    void ConvertToMARC(const std::vector<HKlAuthorEntry> &hkl_author_entries, std::vector<MARC::Record> * const new_records) {
        for (const auto &author : hkl_author_entries) {
            MARC::Record new_author_record(GenerateAuthorRecord(author.getAuthor()));
-           new_records->emplace_back(new_author_record);
-           std::vector<MARC::Record> new_passage_records;
+           std::vector<std::string> new_title_ppns;
+           std::vector<std::string> new_passage_ppns;
            for (const auto &title : author.getTitleEntries()) {
                MARC::Record new_title_record(GenerateTitleRecord(title));
-               new_records->emplace_back(new_title_record);
+               new_title_ppns.emplace_back(new_title_record.getControlNumber());
                const auto elements(title.getElements());
                for (auto element_it = elements.begin(); element_it != elements.end(); ++element_it) {
                    if (element_it->GetType() == INTERNAL_REFERENCE) {
@@ -178,9 +178,17 @@ namespace {
                            std::vector<HKlElement>(element_it, next_internal_reference)));
                        element_it = next_internal_reference - 1;
                        new_records->emplace_back(new_passage_record);
+                       new_title_record.insertField("990", 'a', new_passage_record.getControlNumber());
+                       new_passage_ppns.emplace_back(new_passage_record.getControlNumber());
                    }
                }
+               new_records->emplace_back(new_title_record);
            }
+           for (const auto &new_passage_ppn : new_passage_ppns)
+               new_author_record.insertField("990", 'a', new_passage_ppn);
+           for (const auto &new_title_ppn : new_title_ppns)
+               new_author_record.insertField("991", 'a', new_title_ppn);
+           new_records->emplace_back(new_author_record);
        }
    }
 
