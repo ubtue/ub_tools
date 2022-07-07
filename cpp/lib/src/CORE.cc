@@ -189,6 +189,9 @@ std::string Download(const std::string &url) {
                                 + std::to_string(sleep_seconds) + "s");
                     ::sleep(sleep_seconds);
                 }
+
+                LOG_WARNING("Sleeping for additional 60 minutes, since rate limit information is not reliable.");
+                ::sleep(3600);
             }
         } else {
             if (downloader.anErrorOccurred())
@@ -214,14 +217,15 @@ const std::string SearchParams::buildUrl() const {
     std::string url = API_BASE_URL + "search/" + UrlUtil::UrlEncode(GetEndpointForEntityType(entity_type_));
     url += "?q=" + UrlUtil::UrlEncode(q_);
 
-    if (scroll_)
-        url += "&scroll";
-    if (offset_ > 0)
+    if (not scroll_id_.empty())
+        url += "&scrollId=" + UrlUtil::UrlEncode(scroll_id_);
+    else if (scroll_)
+        url += "&scroll=true";
+    else if (offset_ > 0)
         url += "&offset=" + std::to_string(offset_);
+
     if (limit_ > 0)
         url += "&limit=" + std::to_string(limit_);
-    if (not scroll_id_.empty())
-        url += "&scroll_id=" + UrlUtil::UrlEncode(scroll_id_);
     if (not entity_id_.empty())
         url += "&entity_id=" + UrlUtil::UrlEncode(entity_id_);
     if (stats_)
@@ -243,12 +247,17 @@ const std::string SearchParams::buildUrl() const {
     if (measure_)
         url += "&measure";
 
+    LOG_INFO("buildUrl: " + url);
+
     return url;
 }
 
 
 // CORE switches, sometimes values are int, sometimes string (e.g. offset 0 and "100")
 unsigned GetJsonUnsignedValue(const nlohmann::json &json, const std::string &label) {
+    if (not json.contains(label))
+        LOG_WARNING("Missing key: " + label + "\n" + json.dump());
+
     const auto child(json[label]);
     if (child.is_string())
         return StringUtil::ToUnsigned(child);
@@ -258,7 +267,6 @@ unsigned GetJsonUnsignedValue(const nlohmann::json &json, const std::string &lab
 
 
 SearchResponse::SearchResponse(const std::string &json) {
-    // const nlohmann::json json_obj(json);
     const auto json_obj(nlohmann::json::parse(json));
 
     total_hits_ = GetJsonUnsignedValue(json_obj, "totalHits");
