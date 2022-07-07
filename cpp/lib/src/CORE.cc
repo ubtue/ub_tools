@@ -247,8 +247,6 @@ const std::string SearchParams::buildUrl() const {
     if (measure_)
         url += "&measure";
 
-    LOG_INFO("buildUrl: " + url);
-
     return url;
 }
 
@@ -353,10 +351,11 @@ void SearchBatch(const SearchParams &params, const std::string &output_dir, cons
         ++i;
         output_file = output_dir + "/" + std::to_string(i) + ".json";
 
-        response_json = SearchRaw(current_params);
-        response = SearchResponse(response_json);
         if (not response.scroll_id_.empty())
             current_params.scroll_id_ = response.scroll_id_;
+
+        response_json = SearchRaw(current_params);
+        response = SearchResponse(response_json);
 
         LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-"
                  + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
