@@ -239,14 +239,6 @@ void GetUrlsAndTextTypes(const MARC::Record &record, std::set<UrlAndTextType> * 
         if (skip_reviews and IsProbablyAReview(_856_subfields))
             continue;
 
-        // Only temporily
-        const std::string _856u_content(_856_subfields.getFirstSubfieldWithCode('u'));
-        if (StringUtil::Match("*/10.1086*", _856u_content)) {
-            LOG_WARNING("Skipping because University of Chicago Press is temporarily disabled");
-            continue;
-        }
-
-
         // Only get the first item of each category to to avoid superfluous matches that garble up the result
         // For the Only-PDF-Fulltext-mode there is currently no really reliable way to determine the filetype beforehand
         // Thus we must add all candidates to the download list
