@@ -140,7 +140,9 @@ namespace {
    }
 
 
-   MARC::Record GeneratePassageRecord(const std::vector<HKlElement> &passage_section) {
+   MARC::Record GeneratePassageRecord(const MARC::Record &author_record, const MARC::Record &title_record,
+                                      const std::vector<HKlElement> &passage_section)
+   {
        static unsigned passage_ppn_index(0);
        MARC::Record new_passage_record(MARC::Record::TypeOfRecord::AUTHORITY,  MARC::Record::BibliographicLevel::UNDEFINED,
                                      GetFormattedPPN("PAS", ++passage_ppn_index));
@@ -153,43 +155,41 @@ namespace {
             else if (element.GetType() == BIB_INFO)
                 new_passage_record.insertField("960", 'a', element.GetValue());
        }
+       new_passage_record.insertField("777",{ {'a', author_record.getMainAuthor()}, {'b', author_record.getControlNumber()}, {'c', "TEST" } });
+       new_passage_record.insertField("778",{ {'a', title_record.getMainTitle()}, {'b', title_record.getControlNumber()} });
        return new_passage_record;
    }
 
 
    void ConvertToMARC(const std::vector<HKlAuthorEntry> &hkl_author_entries, std::vector<MARC::Record> * const new_records) {
        for (const auto &author : hkl_author_entries) {
-           std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-           std::cout << "AUTHOR: " << author.getAuthor() << '\n';
            MARC::Record new_author_record(GenerateAuthorRecord(author.getAuthor()));
            new_records->emplace_back(new_author_record);
            std::vector<MARC::Record> new_passage_records;
            for (const auto &title : author.getTitleEntries()) {
-               std::cout << "****************************************\n";
-               std::cout << "\tTITLE1: " + title.getTitle() << '\n';
                MARC::Record new_title_record(GenerateTitleRecord(title));
                new_records->emplace_back(new_title_record);
                const auto elements(title.getElements());
-               for (const auto& element : elements) {
-                   if (element.GetType() == INTERNAL_REFERENCE) {
-                       auto current_offset(std::distance(&elements.front(), &element));
-                       auto next_internal_reference(std::find_if(elements.begin() + current_offset + 1, elements.end(),
-                                                   [](const HKlElement test_element) { return test_element.GetType() == INTERNAL_REFERENCE; }));
-                       MARC::Record new_passage_record(GeneratePassageRecord(
-                           std::vector<HKlElement>(elements.begin() + current_offset, next_internal_reference)));
-                       new_passage_records.emplace_back(new_passage_record);
+               for (auto element_it = elements.begin(); element_it != elements.end(); ++element_it) {
+                   if (element_it->GetType() == INTERNAL_REFERENCE) {
+                       auto next_internal_reference(std::find_if(element_it + 1, elements.end(),
+                           [](const HKlElement test_element) { return test_element.GetType() == INTERNAL_REFERENCE; }));
+                       MARC::Record new_passage_record(GeneratePassageRecord(new_author_record, new_title_record,
+                           std::vector<HKlElement>(element_it, next_internal_reference)));
+                       element_it = next_internal_reference - 1;
+                       new_records->emplace_back(new_passage_record);
                    }
-                   std::cout << "\t\t" << element.GetTypeAsString() << " YYYY " << element.GetValue() << '\n';
                }
-               new_records->insert(new_records->end(), new_passage_records.begin(), new_passage_records.end());
            }
        }
    }
 
 
    void WriteMARCRecords (MARC::Writer * const marc_writer, std::vector<MARC::Record> &marc_records) {
-       for (const auto marc_record : marc_records)
+       for (const auto marc_record : marc_records) {
+           std::cout << "INSERTING record" << marc_record.toString(MARC::Record::RecordFormat::MARC21_BINARY) << "\n\n";
            marc_writer->write(marc_record);
+       }
    }
 
 } // unnamed namespace
