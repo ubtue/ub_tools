@@ -49,7 +49,7 @@ namespace {
            static HKlElementType GetHKlElementType(const std::string &type_description);
            HKlElementType GetType() const { return hkl_element_type_; }
            std::string GetTypeAsString() const;
-           std::string getValue() const { return hkl_element_value_; }
+           std::string GetValue() const { return hkl_element_value_; }
    };
 
 
@@ -104,17 +104,92 @@ namespace {
    };
 
 
-   void ConvertToMARC(const std::vector<HKlAuthorEntry> &hkl_author_entries) {
+   std::string GetFormattedPPN(const std::string &prefix, unsigned index) {
+       std::ostringstream formatted_ppn;
+       formatted_ppn << prefix << '_' << std::setfill('0') << std::setw(8) << index;
+       return formatted_ppn.str();
+   }
+
+
+   MARC::Record GenerateAuthorRecord(const std::string &author_name) {
+        static unsigned author_ppn_index(0);
+        MARC::Record new_author_record(MARC::Record::TypeOfRecord::AUTHORITY, MARC::Record::BibliographicLevel::UNDEFINED,
+                                       GetFormattedPPN("AUT", ++author_ppn_index));
+        new_author_record.insertField("100", 'a', author_name);
+        return new_author_record;
+
+
+   }
+
+   MARC::Record GenerateTitleRecord(const HKlTitleEntry &hkl_title_entry) {
+       static unsigned title_ppn_index(0);
+       MARC::Record new_title_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL,  MARC::Record::BibliographicLevel::UNDEFINED,
+                                     GetFormattedPPN("TIT", ++title_ppn_index));
+       new_title_record.insertField("245", 'a', hkl_title_entry.getTitle());
+       for (const auto& element : hkl_title_entry.getElements()) {
+            if (element.GetType() == INTERNAL_REFERENCE)
+                return new_title_record;
+            else if (element.GetType() == COMMENT)
+                new_title_record.insertField("950", 'a', element.GetValue());
+            else if (element.GetType() == YEAR_AND_PLACE)
+                new_title_record.insertField("264", 'c', element.GetValue());
+            else if (element.GetType() == BIB_INFO)
+                new_title_record.insertField("960", 'a', element.GetValue());
+       }
+       return new_title_record;
+   }
+
+
+   MARC::Record GeneratePassageRecord(const std::vector<HKlElement> &passage_section) {
+       static unsigned passage_ppn_index(0);
+       MARC::Record new_passage_record(MARC::Record::TypeOfRecord::AUTHORITY,  MARC::Record::BibliographicLevel::UNDEFINED,
+                                     GetFormattedPPN("PAS", ++passage_ppn_index));
+       new_passage_record.insertField("130", 'a', passage_section[0].GetValue());
+       for (auto &element : std::vector<HKlElement>(passage_section.begin() + 1, passage_section.end())) {
+           if (element.GetType() == COMMENT)
+               new_passage_record.insertField("950", 'a', element.GetValue());
+            else if (element.GetType() == YEAR_AND_PLACE)
+                new_passage_record.insertField("264", 'c', element.GetValue());
+            else if (element.GetType() == BIB_INFO)
+                new_passage_record.insertField("960", 'a', element.GetValue());
+       }
+       return new_passage_record;
+   }
+
+
+   void ConvertToMARC(const std::vector<HKlAuthorEntry> &hkl_author_entries, std::vector<MARC::Record> * const new_records) {
        for (const auto &author : hkl_author_entries) {
            std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
            std::cout << "AUTHOR: " << author.getAuthor() << '\n';
-            for (const auto &title : author.getTitleEntries()) {
-                std::cout << "****************************************\n";
-                std::cout << "\tTITLE1: " + title.getTitle() << '\n';
-                for (const auto& element : title.getElements())
-                    std::cout << "\t\t" << element.GetTypeAsString() << " YYYY " << element.getValue() << '\n';
-            }
+           MARC::Record new_author_record(GenerateAuthorRecord(author.getAuthor()));
+           new_records->emplace_back(new_author_record);
+           std::vector<MARC::Record> new_passage_records;
+           for (const auto &title : author.getTitleEntries()) {
+               std::cout << "****************************************\n";
+               std::cout << "\tTITLE1: " + title.getTitle() << '\n';
+               MARC::Record new_title_record(GenerateTitleRecord(title));
+               new_records->emplace_back(new_title_record);
+               const auto elements(title.getElements());
+               for (const auto& element : elements) {
+                   if (element.GetType() == INTERNAL_REFERENCE) {
+                       auto current_offset(std::distance(&elements.front(), &element));
+                       auto next_internal_reference(std::find_if(elements.begin() + current_offset + 1, elements.end(),
+                                                   [](const HKlElement test_element) { return test_element.GetType() == INTERNAL_REFERENCE; }));
+                       MARC::Record new_passage_record(GeneratePassageRecord(
+                           std::vector<HKlElement>(elements.begin() + current_offset, next_internal_reference)));
+                       new_passage_records.emplace_back(new_passage_record);
+                   }
+                   std::cout << "\t\t" << element.GetTypeAsString() << " YYYY " << element.GetValue() << '\n';
+               }
+               new_records->insert(new_records->end(), new_passage_records.begin(), new_passage_records.end());
+           }
        }
+   }
+
+
+   void WriteMARCRecords (MARC::Writer * const marc_writer, std::vector<MARC::Record> &marc_records) {
+       for (const auto marc_record : marc_records)
+           marc_writer->write(marc_record);
    }
 
 } // unnamed namespace
@@ -149,7 +224,9 @@ int Main(int argc, char *argv[]) {
         hkl_author_entries.push_back(hkl_author_entry);
     }
 
-    ConvertToMARC(hkl_author_entries);
+    std::vector<MARC::Record> new_records;
+    ConvertToMARC(hkl_author_entries, &new_records);
+    WriteMARCRecords(marc_writer.get(), new_records);
 
     return EXIT_SUCCESS;
 }
