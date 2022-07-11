@@ -31,8 +31,9 @@ namespace {
 
 
 bool DownloadHelper(const std::string &url, const TimeLimit &time_limit, std::string * const document,
-                    std::string * const http_header_charset, std::string * const error_message) {
-    Downloader downloader(url, Downloader::Params(), time_limit);
+                    std::string * const http_header_charset, std::string * const error_message,
+                    Downloader::Params params = Downloader::Params()) {
+    Downloader downloader(url, params, time_limit);
     if (downloader.anErrorOccurred()) {
         *error_message = downloader.getLastErrorMessage();
         return false;
@@ -320,6 +321,30 @@ bool OJSSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit
 }
 
 
+bool UCPSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                         std::string * const http_header_charset, std::string * const error_message) {
+    LOG_INFO("Entering UCPSmartDownloader");
+    static RegexMatcher * const ucp_matcher(RegexMatcher::RegexMatcherFactoryOrDie("(.*journals.uchicago.edu/doi/)(10\\.1086/.*)"));
+    if (ucp_matcher->matched(url)) {
+        const std::string pdf_url = (*ucp_matcher)[1] + "pdf/" + (*ucp_matcher)[2];
+        LOG_INFO("PDF_URL: " + pdf_url);
+        Downloader::Params params;
+        params.use_cookies_txt_ = true;
+        params.follow_redirects_ = false;
+        std::string redirected_url;
+        // Two stage approach - Get redirect url and cookies
+        if (not GetRedirectUrlWithCustomParams(pdf_url, time_limit, &redirected_url, params))
+            return false;
+        if (not DownloadHelper(pdf_url, time_limit, document, http_header_charset, error_message, params))
+            return false;
+        if (not DownloadHelper(pdf_url, time_limit, document, http_header_charset, error_message, params))
+            return false;
+        return true;
+    }
+    return false;
+}
+
+
 bool DefaultDownloader::downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                         std::string * const http_header_charset, std::string * const error_message) {
     return DownloadHelper(url, time_limit, document, http_header_charset, error_message);
@@ -329,6 +354,12 @@ bool DefaultDownloader::downloadDocImpl(const std::string &url, const TimeLimit 
 bool GetRedirectedUrl(const std::string &url, const TimeLimit &time_limit, std::string * const redirected_url) {
     Downloader::Params params;
     params.follow_redirects_ = false;
+    return GetRedirectUrlWithCustomParams(url, time_limit, redirected_url, params);
+}
+
+
+bool GetRedirectUrlWithCustomParams(const std::string &url, const TimeLimit &time_limit, std::string * const redirected_url,
+                                    const Downloader::Params &params) {
     Downloader downloader(url, params, time_limit);
     return downloader.getHttpRedirectedUrl(redirected_url);
 }
@@ -352,6 +383,7 @@ bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::str
                                                              new LocGovSmartDownloader(trace),
                                                              new PublicationsTueSmartDownloader(trace),
                                                              new OJSSmartDownloader(trace),
+                                                             new UCPSmartDownloader(trace),
                                                              new DefaultDownloader(trace) };
 
     for (auto &smart_downloader : smart_downloaders) {
