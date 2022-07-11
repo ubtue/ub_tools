@@ -397,10 +397,8 @@ void Downloader::init() {
         curlEasySetopt(CURLOPT_PASSWORD, params_.authentication_password_.c_str(), "Downloader::init:CURLOPT_PASSWORD");
     }
 
-    if (params_.use_cookies_txt_) {
-        curlEasySetopt(CURLOPT_COOKIEJAR, "/tmp/downloader_cookies.txt", "Downloader::init::CURLOPT_COOKIEJAR");
-        curlEasySetopt(CURLOPT_COOKIEFILE, "/tmp/downloader_cookies.txt", "Download::init::CURLOPT_COOKIEFILE");
-    }
+    if (params_.use_cookies_txt_) /*Use local cookie storage only*/
+        curlEasySetopt(CURLOPT_COOKIEFILE, "", "Download::init::CURLOPT_COOKIEFILE");
 }
 
 
