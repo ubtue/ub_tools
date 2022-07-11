@@ -332,10 +332,8 @@ bool UCPSmartDownloader::downloadDocImpl(const std::string &url, const TimeLimit
         params.use_cookies_txt_ = true;
         params.follow_redirects_ = false;
         std::string redirected_url;
-        // Two stage approach - Get redirect url and cookies
+        // Two stage approach - Get redirect url and cookies if not present
         if (not GetRedirectUrlWithCustomParams(pdf_url, time_limit, &redirected_url, params))
-            return false;
-        if (not DownloadHelper(pdf_url, time_limit, document, http_header_charset, error_message, params))
             return false;
         if (not DownloadHelper(pdf_url, time_limit, document, http_header_charset, error_message, params))
             return false;
