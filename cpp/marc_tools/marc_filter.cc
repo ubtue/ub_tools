@@ -79,6 +79,11 @@ void Usage() {
               << "               replacement_string may contain back references like \\3 etc.\n"
               << "               Unlike --replace only the matched parts will be replaced.  This works like se s/.../.../g.\n"
               << "             or\n"
+              << "           --globally-substitute subfield_specs maps\n"
+              << "               every line in \"map_file\" must either start with a hash character in which case it is\n"
+              << "               ignored or lines that look like \"regex->replacement\" followed by a newline.\n"
+              << "               Unlike --replace only the matched parts will be replaced.  This works like se s/.../.../g.\n"
+              << "             or\n"
               << "       --filter-chars and --translate character sets may contain any of the following escapes:\n"
               << "         \\n, \\t, \\b, \\r, \\f, \\v, \\a, \\\\, \\uNNNN and \\UNNNNNNNN\n"
               << "       If you don't specify an output format it will be the same as the input format.\n\n";
@@ -946,14 +951,20 @@ void ProcessGloballySubstituteCommand(char ***argvp, std::vector<FilterDescripto
     std::vector<std::string> subfield_specs;
     ExtractSubfieldSpecs("--globally-substitute", argvp, &subfield_specs);
     if (**argvp == nullptr or StringUtil::StartsWith(**argvp, "--"))
-        LOG_ERROR("missing regex after the subfield specification of --globally-substitute!");
-    const std::string regex(**argvp);
+        LOG_ERROR("missing regex or map-filename after the subfield specification of --globally-substitute!");
+    const std::string regex_or_map_filename(**argvp);
     ++*argvp;
-    if (**argvp == nullptr or StringUtil::StartsWith(**argvp, "--"))
-        LOG_ERROR("missing replacement after the regex specification of --globally-substitute!");
-    const std::string replacement(**argvp);
-    ++*argvp;
-    filters->emplace_back(FilterDescriptor::MakeGlobalSubstitutionFilter(subfield_specs, regex, replacement));
+    if (**argvp == nullptr or StringUtil::StartsWith(**argvp, "--")) {
+        std::unordered_map<std::string, std::string> regexes_to_replacements_map;
+        LoadReplaceMapFile(regex_or_map_filename, &regexes_to_replacements_map);
+        for (const auto &regex_and_replacement : regexes_to_replacements_map)
+            filters->emplace_back(
+                FilterDescriptor::MakeGlobalSubstitutionFilter(subfield_specs, regex_and_replacement.first, regex_and_replacement.second));
+    } else {
+        const std::string replacement(**argvp);
+        ++*argvp;
+        filters->emplace_back(FilterDescriptor::MakeGlobalSubstitutionFilter(subfield_specs, regex_or_map_filename, replacement));
+    }
 }
 
 
