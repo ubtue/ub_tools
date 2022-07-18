@@ -3,17 +3,15 @@ package de.uni_tuebingen.ub.ixTheo.canonesRangeSearch;
 
 import java.util.Set;
 import java.util.TreeSet;
-
 import org.apache.lucene.search.Query;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.search.QParser;
 import org.apache.solr.search.SyntaxError;
+import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeParser;
 
 
-public class CanonesRangeParser extends QParser {
-    private final static String QUERY_SEPARATOR = " ";
-    private final static String DB_FIELD_SEPARATOR = ",";
+public class CanonesRangeParser extends RangeParser {
 
     /**
      * @param qstr        The part of the query string specific to this parser
@@ -35,7 +33,7 @@ public class CanonesRangeParser extends QParser {
     }
 
     private String[] getFieldsFromQuery() {
-        return qstr.split(QUERY_SEPARATOR);
+        return qstr.split(QUERY_FIELD_SEPARATOR);
     }
 
     // @return true if "queryString" matches an expected query, false otherwise
