@@ -2,7 +2,6 @@ package de.uni_tuebingen.ub.ixTheo.canonesRangeSearch;
 
 
 import org.apache.lucene.document.Document;
-import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.Weight;
 import de.uni_tuebingen.ub.ixTheo.rangeSearch.Range;
 import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeWeight;
@@ -37,10 +36,5 @@ public class CanonesRangeWeight extends RangeWeight {
         }
         final Range[] field_ranges = CanonesRangeParser.getRangesFromDatabaseField(dbField);
         return Range.getMatchingScore(field_ranges, ranges);
-    }
-
-    @Override
-    public final boolean isCacheable(LeafReaderContext context) {
-        return false;
     }
 }

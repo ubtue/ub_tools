@@ -57,4 +57,9 @@ public abstract class RangeWeight extends Weight {
         }
         return new RangeScorer(this, this.weight, context);
     }
+
+    @Override
+    public final boolean isCacheable(LeafReaderContext context) {
+        return false;
+    }
 }
