@@ -23,6 +23,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "Downloader.h"
 #include "RegexMatcher.h"
 #include "TimeLimit.h"
 
@@ -206,6 +207,20 @@ protected:
 };
 
 
+class UCPSmartDownloader : public SmartDownloader {
+public:
+    explicit UCPSmartDownloader(const bool trace = false): SmartDownloader("", trace) { }
+    virtual std::string getName() const { return "UCPSmartDownloader"; }
+
+protected:
+    virtual bool downloadDocImpl(const std::string &url, const TimeLimit &time_limit, std::string * const document,
+                                 std::string * const http_header_charset, std::string * const error_message);
+    virtual bool canHandleThis(const std::string &url) const {
+        return RegexMatcher::Matched("/journals.uchicago.edu/", url) or RegexMatcher::Matched("/10\\.1086/", url);
+    }
+};
+
+
 class DefaultDownloader : public SmartDownloader {
 public:
     explicit DefaultDownloader(const bool trace = false): SmartDownloader(".*", trace) { }
@@ -225,3 +240,8 @@ bool SmartDownload(const std::string &url, const TimeLimit &time_limit, std::str
 bool SmartDownloadResolveFirstRedirectHop(const std::string &url, const TimeLimit &time_limit, std::string * const document,
                                           std::string * const http_header_charset, std::string * const error_message,
                                           const bool trace = false);
+
+bool GetRedirectedUrl(const std::string &url, const TimeLimit &time_limit, std::string * const redirected_url);
+
+bool GetRedirectUrlWithCustomParams(const std::string &url, const TimeLimit &time_limit, std::string * const redirected_url,
+                                    const Downloader::Params &params = Downloader::Params());

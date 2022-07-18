@@ -929,6 +929,21 @@
 		</xsl:choose>
 	</xsl:template>
 
+<!-- manual additions for physicalDescription-->
+    <xsl:template match="mods:physicalDescription/mods:form[@authority='local']">
+         <xsl:call-template name="datafield">
+              <xsl:with-param name="tag">955</xsl:with-param>
+              <xsl:with-param name="ind2">7</xsl:with-param>
+              <xsl:with-param name="subfields">
+                    <marc:subfield code='a'>
+                       <xsl:value-of select="."/>
+                    </marc:subfield>        
+                    <marc:subfield code='2'>ubtue_phys_genre</marc:subfield>
+              </xsl:with-param>
+        </xsl:call-template>
+    </xsl:template>
+
+
 
 <!-- Origin Info elements -->
 	<xsl:template match="mods:originInfo">
