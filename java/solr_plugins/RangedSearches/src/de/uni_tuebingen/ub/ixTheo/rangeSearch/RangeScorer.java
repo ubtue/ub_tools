@@ -26,18 +26,22 @@ public class RangeScorer extends Scorer {
         this.scorer = new ConstantScoreScorer(weight, scoreSave(), ScoreMode.COMPLETE, this.disi);
     }
 
+    @Override
     public DocIdSetIterator iterator() {
         return this.disi;
     }
 
+    @Override
     public TwoPhaseIterator twoPhaseIterator() {
         return this.twoPhaseIterator;
     }
 
+    @Override
     public int docID() {
         return this.disi.docID();
     }
 
+    @Override
     public float score() throws IOException {
         return scoring.get(docID());
     }
