@@ -27,6 +27,9 @@ def ClearSolrIndex(index):
 
 def OptimizeSolrIndex(index):
     try:
+        # since Solr 7.5, optimization is Solr-internally based on thresholds and therefore no longer forced to be executed on each call.
+        # to force optimization every time, it would be necessary to add the maxSegments parameter to force optimization on each call.
+        # see also: https://lucidworks.com/post/solr-optimize-merge-expungedeletes-tips/
         request = urllib.request.Request(
             "http://localhost:8983/solr/" + index + "/update?optimize=true")
         urllib.request.urlopen(request, timeout=3600)

@@ -28,6 +28,7 @@
 #include <unordered_map>
 #include <curl/curl.h>
 #include "Compiler.h"
+#include "HttpHeader.h"
 #include "PerlCompatRegExp.h"
 #include "RobotsDotTxt.h"
 #include "ThreadUtil.h"
@@ -98,6 +99,7 @@ public:
         std::string post_data_;
         std::string authentication_username_;
         std::string authentication_password_;
+        bool use_cookies_txt_;
 
     public:
         explicit Params(const std::string &user_agent = DEFAULT_USER_AGENT_STRING,
@@ -108,7 +110,8 @@ public:
                         const bool follow_redirects = true, const unsigned meta_redirect_threshold = DEFAULT_META_REDIRECT_THRESHOLD,
                         const bool ignore_ssl_certificates = false, const std::string &proxy_host_and_port = "",
                         const std::vector<std::string> &additional_headers = {}, const std::string &post_data = "",
-                        const std::string &authentication_username = "", const std::string &authentication_password = "");
+                        const std::string &authentication_username = "", const std::string &authentication_password = "",
+                        const bool use_cookies_txt = false);
     };
 
     typedef size_t (*WriteFunc)(void *data, size_t size, size_t nmemb, void *this_pointer);
@@ -145,6 +148,7 @@ public:
     bool deleteUrl(const std::string &url, const TimeLimit &time_limit = DEFAULT_TIME_LIMIT) { return deleteUrl(Url(url), time_limit); }
 
     std::string getMessageHeader() const;
+    HttpHeader getMessageHeaderObject() const { return HttpHeader(getMessageHeader()); }
     const std::string &getMessageBody() const { return body_; }
 
     /** \brief  Tries its best to get the MIME type of the most recently downloaded document.

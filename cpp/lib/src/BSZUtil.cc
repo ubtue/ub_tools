@@ -141,7 +141,8 @@ ArchiveType GetArchiveType(const std::string &member_name) {
 std::string GetAuthorGNDNumber(const std::string &author, const std::string &author_lookup_base_url) {
     static std::mutex fetch_author_gnd_url_to_gnd_cache_mutex;
     static std::unordered_map<std::string, std::string> fetch_author_gnd_url_to_gnd_cache;
-    static const ThreadSafeRegexMatcher AUTHOR_GND_MATCHER("<div>\\s*GND-Nummer:[^<]*</div>.*?<div>([0-9X]+)");
+    static const ThreadSafeRegexMatcher AUTHOR_GND_MATCHER(
+        "Link zu diesem Datensatz in der GND:\\s*<[^>]+><a[^>]*>http(?:s)?://d-nb.info/gnd/([0-9X]+)</a>");
 
     // "author" must be in the lastname,firstname format
     const std::string lookup_url(author_lookup_base_url + UrlUtil::UrlEncode(author));

@@ -100,7 +100,7 @@ StartPhase "Filter out Self-referential 856 Fields" \
     --replace 600a:610a:630a:648a:650a:650x:651a:653a:655a "(.*)\\.$" "\\1" `# Remove trailing periods for the following keyword normalisation.` \
     --replace-strings 600a:610a:630a:648a:650a:650x:651a:655a /usr/local/var/lib/tuelib/keyword_normalisation.map \
     --replace 100a:700a /usr/local/var/lib/tuelib/author_normalisation.map \
-    --replace 260b:264b /usr/local/var/lib/tuelib/publisher_normalisation.map \
+    --globally-substitute 260b:264b:773d /usr/local/var/lib/tuelib/publisher_normalisation.map \
     --replace 245a "^L' (.*)" "L'\\1" `# Replace "L' arbe" with "L'arbe" etc.` \
     --replace 100a:700a "^\\s+(.*)" "\\1" `# Replace " van Blerk, Nico" with "van Blerk, Nico" etc.` \
     --replace 100d:689d:700d "v(\\d+)\\s?-\\s?v(\\d+)" "\\1 v.Chr.-\\2 v.Chr" \
@@ -393,6 +393,19 @@ make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHA
                 --replace-subfield-if-regex '856u:/JSTOR#(.*)/\1/' '856u:JSTOR#.*' \
         >> "${log}" 2>&1 && \
 EndPhase || Abort) &
+
+
+StartPhase "Copy Embargo Information to ordinary 856"
+make_named_pipe --buffer-size=$FIFO_BUFFER_SIZE GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc >> "${log}" 2>&1
+(marc_augmentor GesamtTiteldaten-post-phase"$((PHASE-1))"-"${date}".mrc \
+                GesamtTiteldaten-post-phase"$PHASE"-"${date}".mrc \
+                --insert-field-if-regex  '856u:/(EMBARGO#.*)/\1/' 'LOKx:EMBARGO#' \
+                --add-subfield-if-matching '8563:Volltext' '856u:EMBARGO#' \
+                --add-subfield-if-regex '856x:/EMBARGO#(.*)#(.*)/Embargo - \1/' '856u:EMBARGO#' \
+                --replace-subfield-if-regex '856u:/EMBARGO#(.*)#(.*)/\2/' '856u:EMBARGO#.*' \
+        >> "${log}" 2>&1 && \
+EndPhase || Abort) &
+
 
 
 StartPhase "Tag PDA candidates"

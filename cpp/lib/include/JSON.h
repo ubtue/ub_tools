@@ -241,7 +241,7 @@ public:
 };
 
 
-class ObjectNode final : public JSONNode {
+class ObjectNode : public JSONNode {
     std::unordered_map<std::string, std::shared_ptr<JSONNode>> entries_;
 
 public:
@@ -574,6 +574,10 @@ void VisitLeafNodes(const std::string &node_name, const std::shared_ptr<JSON::JS
         callback(node_name, node, params...);
     }
 }
+
+
+std::shared_ptr<JSONNode> ParseFile(const std::string &file);
+std::shared_ptr<JSONNode> ParseString(const std::string &json);
 
 
 } // namespace JSON

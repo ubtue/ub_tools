@@ -4,23 +4,14 @@
         <p>Dear {user_name},</p>
 
         <p>The following items from your selected RSS feeds are new:</p>
-        <table>
-            <thead>
-                <tr>
-                    <th>Item Title</th>
-                    <th>Feed Website</th>
-                    <th>Item URL</th>
-                </tr>
-            </thead>
-            <tbody>
-            {LOOP item_titles,website_urls,feed_names,item_urls}
-                <tr>
-                    <td>{item_titles}</td>
-                    <td><a href="{website_urls}">{feed_names}</a></td>
-                    <td><a href="{item_urls}">{item_urls}</a></td>
-                </tr>
-            {ENDLOOP}
-            </tbody>
-        </table>
+        {list}
+
+        <p>
+            Sincerely,<br>
+            The {system}-Team<br>
+            --<br>
+            If you have questions regarding this service please contact<br>
+            <a href="mailto:{email_reply_to}">{email_reply_to}</a>.
+        </p>
     </body>
 </html>

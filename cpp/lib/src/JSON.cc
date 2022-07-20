@@ -24,6 +24,7 @@
 #include <cctype>
 #include <cstdio>
 #include "Compiler.h"
+#include "FileUtil.h"
 #include "StringUtil.h"
 #include "TextUtil.h"
 
@@ -1038,6 +1039,20 @@ bool IsValidUTF8(const JSONNode &node) {
     }
 
     LOG_ERROR("we should *never* get here!");
+}
+
+
+std::shared_ptr<JSONNode> ParseFile(const std::string &file) {
+    return ParseString(FileUtil::ReadStringOrDie(file));
+}
+
+
+std::shared_ptr<JSONNode> ParseString(const std::string &json) {
+    std::shared_ptr<JSON::JSONNode> root_node;
+    JSON::Parser parser(json);
+    if (not parser.parse(&root_node))
+        throw std::runtime_error("could not parse JSON: " + json);
+    return root_node;
 }
 
 

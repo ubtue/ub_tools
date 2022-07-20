@@ -686,6 +686,10 @@ void MakeDirectoryOrDie(const std::string &path, const bool recursive, const mod
         LOG_ERROR("failed to create directory \"" + path + "\"!");
 }
 
+void MakeParentDirectoryOrDie(const std::string &path, const bool recursive, const mode_t mode) {
+    MakeDirectoryOrDie(GetDirname(path), recursive, mode);
+}
+
 
 static void CloseDirWhilePreservingErrno(DIR * const dir_handle) {
     const int old_errno(errno);

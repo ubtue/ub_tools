@@ -62,7 +62,8 @@ void ControlNumberGuesser::insertTitle(const std::string &title, const std::stri
     if (unlikely(normalised_title.empty()))
         LOG_WARNING("Empty normalised title in record w/ control number: " + control_number);
     else
-        insertNewControlNumber("normalised_titles", "title", normalised_title, control_number);
+        db_connection_.queryOrDie("INSERT OR IGNORE INTO normalised_titles (title, control_number) VALUES('"
+                                  + db_connection_.escapeString(normalised_title) + "', '" + control_number + "')");
 }
 
 
@@ -73,7 +74,8 @@ void ControlNumberGuesser::insertAuthors(const std::set<std::string> &authors, c
         if (unlikely(normalised_author_name.empty()))
             LOG_WARNING("Empty normalised author in record w/ control number: " + control_number + " (orig. \"" + author + "\")");
         else
-            insertNewControlNumber("normalised_authors", "author", normalised_author_name, control_number);
+            db_connection_.queryOrDie("INSERT OR IGNORE INTO normalised_authors (author, control_number) VALUES('"
+                                      + db_connection_.escapeString(normalised_author_name) + "', '" + control_number + "')");
     }
 }
 
@@ -82,27 +84,8 @@ void ControlNumberGuesser::insertYear(const std::string &year, const std::string
     if (unlikely(control_number.length() > MAX_CONTROL_NUMBER_LENGTH))
         LOG_ERROR("\"" + control_number + "\" is too large to fit!");
 
-    std::string control_numbers;
-    size_t padded_length(MAX_CONTROL_NUMBER_LENGTH + 1 /* terminating zero byte */);
-    db_connection_.queryOrDie("SELECT control_numbers FROM publication_year WHERE year='" + year + "'");
-    auto query_result(db_connection_.getLastResultSet());
-
-    if (not query_result.empty()) {
-        if (query_result.size() != 1)
-            LOG_ERROR("multiple entries for year '" + year + "'!");
-
-        control_numbers = query_result.getNextRow()["control_numbers"];
-        padded_length += control_numbers.length();
-    }
-
-    control_numbers += control_number;
-    for (auto i(control_numbers.size()); i < padded_length; ++i)
-        control_numbers += '|';
-
-    if (not query_result.empty())
-        db_connection_.queryOrDie("UPDATE publication_year SET control_numbers='" + control_numbers + "' WHERE year='" + year + "'");
-    else
-        db_connection_.queryOrDie("INSERT INTO publication_year VALUES('" + year + "', '" + control_numbers + "')");
+    db_connection_.queryOrDie("INSERT OR IGNORE INTO publication_year (year, control_number) VALUES('" + year + "', '" + control_number
+                              + "')");
 }
 
 
@@ -114,7 +97,8 @@ void ControlNumberGuesser::insertDOI(const std::string &doi, const std::string &
     if (unlikely(normalised_doi.empty()))
         LOG_WARNING("Empty normalised doi in record w/ control number: " + control_number + ": " + doi);
     else
-        insertNewControlNumber("doi", "doi", normalised_doi, control_number);
+        db_connection_.queryOrDie("INSERT OR IGNORE INTO doi (doi, control_number) VALUES('" + normalised_doi + "', '" + control_number
+                                  + "')");
 }
 
 
@@ -126,7 +110,8 @@ void ControlNumberGuesser::insertISSN(const std::string &issn, const std::string
     if (unlikely(normalised_issn.empty()))
         LOG_WARNING("Empty normalised ISSN in record w/ control number: " + control_number + ": " + issn);
     else
-        insertNewControlNumber("issn", "issn", normalised_issn, control_number);
+        db_connection_.queryOrDie("INSERT OR IGNORE INTO issn (issn, control_number) VALUES('" + normalised_issn + "', '" + control_number
+                                  + "')");
 }
 
 
@@ -138,7 +123,8 @@ void ControlNumberGuesser::insertISBN(const std::string &isbn, const std::string
     if (unlikely(normalised_isbn.empty()))
         LOG_WARNING("Empty normalised ISBN in record w/ control number: " + control_number + ": " + isbn);
     else
-        insertNewControlNumber("isbn", "isbn", normalised_isbn, control_number);
+        db_connection_.queryOrDie("INSERT OR IGNORE INTO isbn (isbn, control_number) VALUES('" + normalised_isbn + "', '" + control_number
+                                  + "')");
 }
 
 
@@ -174,7 +160,7 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
 
     const auto normalised_title(NormaliseTitle(title));
     std::set<std::string> title_control_numbers, all_author_control_numbers, doi_control_numbers;
-    std::unordered_set<std::string> year_control_numbers;
+    std::set<std::string> year_control_numbers;
 
     lookupTitle(normalised_title, &title_control_numbers);
     if (title_control_numbers.empty()) {
@@ -207,59 +193,36 @@ std::set<std::string> ControlNumberGuesser::getGuessedControlNumbers(const std::
 }
 
 
-bool ControlNumberGuesser::getNextTitle(std::string * const title, std::set<std::string> * const control_numbers) const {
-    if (title_cursor_ == nullptr) {
-        db_connection_.queryOrDie("SELECT * FROM normalised_titles");
-        title_cursor_.reset(new DbResultSet(db_connection_.getLastResultSet()));
-    }
-
-    const auto next_row(title_cursor_->getNextRow());
-    if (next_row) {
-        *title = next_row["title"];
-        const auto concatenated_control_numbers(next_row["control_numbers"]);
-        StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */ true);
-        return true;
-    } else {
-        title_cursor_.reset();
-        return false;
+void ControlNumberGuesser::getTitlesAndControlNumbers(
+    std::unordered_map<std::string, std::set<std::string>> * const title_to_control_numbers_map) {
+    title_to_control_numbers_map->clear();
+    db_connection_.queryOrDie("SELECT * FROM normalised_titles");
+    auto query_result(db_connection_.getLastResultSet());
+    while (const auto db_row = query_result.getNextRow()) {
+        std::string title = db_row["title"];
+        std::string control_number = db_row["control_number"];
+        const auto title_and_control_number(title_to_control_numbers_map->find(title));
+        if (title_and_control_number == title_to_control_numbers_map->end())
+            (*title_to_control_numbers_map)[title] = std::set<std::string>{ control_number };
+        else
+            title_and_control_number->second.emplace(control_number);
     }
 }
 
 
-bool ControlNumberGuesser::getNextAuthor(std::string * const author_name, std::set<std::string> * const control_numbers) const {
-    if (author_cursor_ == nullptr) {
-        db_connection_.queryOrDie("SELECT * FROM normalised_authors");
-        author_cursor_.reset(new DbResultSet(db_connection_.getLastResultSet()));
-    }
-
-    const auto next_row(author_cursor_->getNextRow());
-    if (next_row) {
-        *author_name = next_row["author"];
-        const auto concatenated_control_numbers(next_row["control_numbers"]);
-        StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */ true);
-        return true;
-    } else {
-        author_cursor_.reset();
-        return false;
-    }
-}
-
-
-bool ControlNumberGuesser::getNextYear(std::string * const year, std::unordered_set<std::string> * const control_numbers) const {
-    if (year_cursor_ == nullptr) {
-        db_connection_.queryOrDie("SELECT * FROM publication_year");
-        year_cursor_.reset(new DbResultSet(db_connection_.getLastResultSet()));
-    }
-
-    const auto next_row(year_cursor_->getNextRow());
-    if (next_row) {
-        *year = next_row["year"];
-        const auto concatenated_control_numbers(next_row["control_numbers"]);
-        splitControlNumbers(concatenated_control_numbers, control_numbers);
-        return true;
-    } else {
-        year_cursor_.reset();
-        return false;
+void ControlNumberGuesser::getControlNumbersAndAuthors(
+    std::unordered_map<std::string, std::set<std::string>> * const control_numbers_to_author_map) {
+    control_numbers_to_author_map->clear();
+    db_connection_.queryOrDie("SELECT * FROM normalised_authors");
+    auto query_result(db_connection_.getLastResultSet());
+    while (const auto db_row = query_result.getNextRow()) {
+        std::string author = db_row["author"];
+        std::string control_number = db_row["control_number"];
+        const auto control_number_and_author(control_numbers_to_author_map->find(control_number));
+        if (control_number_and_author == control_numbers_to_author_map->end())
+            (*control_numbers_to_author_map)[control_number] = std::set<std::string>{ author };
+        else
+            control_number_and_author->second.emplace(author);
     }
 }
 
@@ -268,9 +231,7 @@ void ControlNumberGuesser::lookupTitle(const std::string &title, std::set<std::s
     control_numbers->clear();
 
     const auto normalised_title(TextUtil::UTF8ToLower(NormaliseTitle(title)));
-    std::string concatenated_control_numbers;
-    lookupControlNumber("normalised_titles", "title", normalised_title, &concatenated_control_numbers);
-    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */ true);
+    lookupControlNumber("normalised_titles", "title", normalised_title, control_numbers);
 }
 
 
@@ -278,18 +239,14 @@ void ControlNumberGuesser::lookupAuthor(const std::string &author_name, std::set
     control_numbers->clear();
 
     const auto normalised_author_name(TextUtil::UTF8ToLower(NormaliseAuthorName(author_name)));
-    std::string concatenated_control_numbers;
-    lookupControlNumber("normalised_authors", "author", normalised_author_name, &concatenated_control_numbers);
-    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */ true);
+    lookupControlNumber("normalised_authors", "author", normalised_author_name, control_numbers);
 }
 
 
-void ControlNumberGuesser::lookupYear(const std::string &year, std::unordered_set<std::string> * const control_numbers) const {
+void ControlNumberGuesser::lookupYear(const std::string &year, std::set<std::string> * const control_numbers) const {
     control_numbers->clear();
 
-    std::string concatenated_control_numbers;
-    if (lookupControlNumber("publication_year", "year", year, &concatenated_control_numbers))
-        splitControlNumbers(concatenated_control_numbers, control_numbers);
+    lookupControlNumber("publication_year", "year", year, control_numbers);
 }
 
 
@@ -298,9 +255,7 @@ void ControlNumberGuesser::lookupDOI(const std::string &doi, std::set<std::strin
 
     std::string normalised_doi;
     MiscUtil::NormaliseDOI(doi, &normalised_doi);
-    std::string concatenated_control_numbers;
-    lookupControlNumber("doi", "doi", normalised_doi, &concatenated_control_numbers);
-    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */ true);
+    lookupControlNumber("doi", "doi", normalised_doi, control_numbers);
 }
 
 
@@ -309,9 +264,7 @@ void ControlNumberGuesser::lookupISSN(const std::string &issn, std::set<std::str
 
     std::string normalised_issn;
     MiscUtil::NormaliseISSN(issn, &normalised_issn);
-    std::string concatenated_control_numbers;
-    lookupControlNumber("issn", "issn", normalised_issn, &concatenated_control_numbers);
-    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */ true);
+    lookupControlNumber("issn", "issn", normalised_issn, control_numbers);
 }
 
 
@@ -320,9 +273,7 @@ void ControlNumberGuesser::lookupISBN(const std::string &isbn, std::set<std::str
 
     std::string normalised_isbn;
     MiscUtil::NormaliseISBN(isbn, &normalised_isbn);
-    std::string concatenated_control_numbers;
-    lookupControlNumber("isbn", "isbn", normalised_isbn, &concatenated_control_numbers);
-    StringUtil::Split(concatenated_control_numbers, '|', control_numbers, /* suppress_empty_components = */ true);
+    lookupControlNumber("isbn", "isbn", normalised_isbn, control_numbers);
 }
 
 
@@ -418,32 +369,16 @@ std::string ControlNumberGuesser::NormaliseAuthorName(const std::string &author_
 }
 
 
-void ControlNumberGuesser::insertNewControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
-                                                  const std::string &control_number) {
-    std::string control_numbers;
-    if (lookupControlNumber(table, column_name, column_value, &control_numbers)) {
-        control_numbers += '|' + control_number;
-        db_connection_.queryOrDie("UPDATE " + table + " SET control_numbers='" + control_numbers + "' WHERE " + column_name + "='"
-                                  + db_connection_.escapeString(column_value) + "'");
-    } else {
-        db_connection_.queryOrDie("INSERT INTO " + table + " VALUES('" + db_connection_.escapeString(column_value) + "', '" + control_number
-                                  + "')");
-    }
-}
-
-
-bool ControlNumberGuesser::lookupControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
-                                               std::string * const control_numbers) const {
-    db_connection_.queryOrDie("SELECT control_numbers FROM " + table + " WHERE " + column_name + "='"
+void ControlNumberGuesser::lookupControlNumber(const std::string &table, const std::string &column_name, const std::string &column_value,
+                                               std::set<std::string> * const control_numbers) const {
+    control_numbers->clear();
+    db_connection_.queryOrDie("SELECT control_number FROM " + table + " WHERE " + column_name + "='"
                               + db_connection_.escapeString(column_value) + "'");
-    auto query_result(db_connection_.getLastResultSet());
-    if (query_result.empty())
-        return false;
-    else if (query_result.size() != 1)
-        LOG_ERROR("multiple entries for " + column_name + " '" + column_value + "'!");
 
-    *control_numbers = query_result.getNextRow()["control_numbers"];
-    return true;
+    auto query_result(db_connection_.getLastResultSet());
+    while (const auto db_row = query_result.getNextRow()) {
+        control_numbers->emplace(db_row["control_number"]);
+    }
 }
 
 

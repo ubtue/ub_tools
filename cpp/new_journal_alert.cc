@@ -42,8 +42,10 @@
 #include "KeyValueDB.h"
 #include "Solr.h"
 #include "StringUtil.h"
+#include "Template.h"
 #include "TimeUtil.h"
 #include "UBTools.h"
+#include "VuFind.h"
 #include "util.h"
 
 
@@ -178,19 +180,6 @@ bool NewIssueInfo::operator%(const NewIssueInfo &rhs) const {
 }
 
 
-inline std::string CapitalizedUserType(const std::string &user_type) {
-    if (user_type == "ixtheo")
-        return "IxTheo";
-    else if (user_type == "bibstudies")
-        return "BibStudies";
-    else if (user_type == "churchlaw")
-        return "ChurchLaw";
-    else if (user_type == "relbib")
-        return "RelBib";
-    else
-        LOG_ERROR("instance not valid: " + user_type);
-}
-
 } // namespace
 
 namespace std {
@@ -210,32 +199,29 @@ namespace {
 class GenerateEmailContents {
 public:
     ~GenerateEmailContents(){};
-    virtual std::string generateContent(const std::string &user_type, const std::string &name_of_user, const std::string &vufind_host,
-                                        const std::vector<NewIssueInfo> &new_issue_infos) const = 0;
+    virtual std::string generateContent(const std::string &user_type, const std::string &name_of_user, const std::string &language,
+                                        const std::string &vufind_host, const std::vector<NewIssueInfo> &new_issue_infos) const = 0;
     virtual std::string generateContent(const std::string &vufind_host, const NewIssueInfo &new_issue_infos) const = 0;
 };
 
 
 class GenerateDefaultEmailContents : public GenerateEmailContents {
 public:
-    virtual std::string generateContent(const std::string &user_type, const std::string &name_of_user, const std::string &vufind_host,
-                                        const std::vector<NewIssueInfo> &new_issue_infos) const {
-        std::string email_contents("Dear " + name_of_user + ",<br /><br />\n"
-                                    "An automated process has determined that new issues are available for\n"
-                                    "serials that you are subscribed to.  The list is:\n"
-                                    "<ul>\n"); // start journal list
-
+    virtual std::string generateContent(const std::string &user_type, const std::string &name_of_user, const std::string &language,
+                                        const std::string &vufind_host, const std::vector<NewIssueInfo> &new_issue_infos) const {
+        // Generate HTML journal list for email
+        std::string list("<ul>\n"); // start journal list
         std::string last_series_title, last_volume_year_and_issue;
         for (const auto &new_issue_info : new_issue_infos) {
             const bool new_serial(new_issue_info.series_title_ != last_series_title);
             if (new_serial) {
                 if (not last_series_title.empty()) { // Not first iteration!
-                    email_contents += "    </ul>\n"; // end items
-                    email_contents += "  </ul>\n";   // end volume/year/issue list
+                    list += "    </ul>\n";           // end items
+                    list += "  </ul>\n";             // end volume/year/issue list
                 }
                 last_series_title = new_issue_info.series_title_;
-                email_contents += "  <li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
-                email_contents += "  <ul>\n"; // start volume/year/issue list
+                list += "  <li>" + HtmlUtil::HtmlEscape(last_series_title) + "</li>\n";
+                list += "  <ul>\n"; // start volume/year/issue list
                 last_volume_year_and_issue.clear();
             }
 
@@ -256,30 +242,40 @@ public:
 
             if (volume_year_and_issue != last_volume_year_and_issue) {
                 if (not new_serial)
-                    email_contents += "    </ul>\n"; // end items
-                email_contents += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
+                    list += "    </ul>\n"; // end items
+                list += "    <li>" + HtmlUtil::HtmlEscape(volume_year_and_issue) + "</li>\n";
                 last_volume_year_and_issue = volume_year_and_issue;
-                email_contents += "    <ul>\n"; // start items
+                list += "    <ul>\n"; // start items
             }
 
             const std::string URL("https://" + vufind_host + "/Record/" + new_issue_info.control_number_);
             std::string authors;
             for (const auto &author : new_issue_info.authors_)
                 authors += "&nbsp;&nbsp;&nbsp;" + HtmlUtil::HtmlEscape(author);
-            email_contents +=
-                "      <li><a href=\"" + URL + "\">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors + "</li>\n";
+            list += "      <li><a href=\"" + URL + "\">" + HtmlUtil::HtmlEscape(new_issue_info.issue_title_) + "</a>" + authors + "</li>\n";
         }
-        email_contents += "    </ul>\n"; // end items
-        email_contents += "  </ul>\n";   // end volume/year/issue list
-        email_contents += "</ul>\n";     // end journal list
-        email_contents += "<br />\n"
-                           "Sincerely,<br />\n"
-                           "The " + CapitalizedUserType(user_type) + " Team\n"
-                           "<br />--<br />\n"
-                           "If you have questions regarding this service please contact\n"
-                           "<a href=\"mailto:" + user_type + "@ub.uni-tuebingen.de\">" + user_type + "@ub.uni-tuebingen.de</a>.\n";
+        list += "    </ul>\n"; // end items
+        list += "  </ul>\n";   // end volume/year/issue list
+        list += "</ul>\n";     // end journal list
 
-        return email_contents;
+
+        // Fill mail template
+        const auto template_filename_prefix(UBTools::GetTuelibPath() + "new_journal_alert_email.template");
+        std::string template_filename(template_filename_prefix + "." + language);
+        if (not FileUtil::Exists(template_filename))
+            template_filename = template_filename_prefix + ".en";
+
+        const static std::string email_template(FileUtil::ReadStringOrDie(template_filename));
+        const static std::string email_template_prepared = StringUtil::ReplaceString("\n", "<br>\n", email_template);
+
+        Template::Map names_to_values_map;
+        names_to_values_map.insertScalar("user_name", name_of_user);
+        names_to_values_map.insertScalar("list", list);
+        names_to_values_map.insertScalar("system", VuFind::CapitalizedUserType(user_type));
+        names_to_values_map.insertScalar("email_reply_to", user_type + "@ub.uni-tuebingen.de");
+        const auto email_body(Template::ExpandTemplate(email_template_prepared, names_to_values_map));
+
+        return email_body;
     }
 
 
@@ -319,6 +315,7 @@ public:
 
     virtual std::string generateContent(__attribute__((unused)) const std::string &user_type,
                                         __attribute__((unused)) const std::string &name_of_user,
+                                        __attribute__((unused)) const std::string &language,
                                         __attribute__((unused)) const std::string &vufind_host,
                                         __attribute__((unused)) const std::vector<NewIssueInfo> &new_issue_infos) const {
         LOG_ERROR(std::string(__FUNCTION__) + " currently not implemented");
@@ -330,8 +327,8 @@ class SendNotificationEmail {
 public:
     ~SendNotificationEmail(){};
     virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user,
-                      const std::string &recipient_email, const std::string &vufind_host, const std::string &sender_email,
-                      const std::string &email_subject, const std::vector<NewIssueInfo> &new_issue_infos,
+                      const std::string &language, const std::string &recipient_email, const std::string &vufind_host,
+                      const std::string &sender_email, const std::string &email_subject, const std::vector<NewIssueInfo> &new_issue_infos,
                       const std::string &user_type) const = 0;
     virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &recipient_email,
                       const std::string &vufind_host, const std::string &sender_email,
@@ -342,10 +339,11 @@ public:
 class SendDefaultNotificationEmail : public SendNotificationEmail {
 public:
     virtual void send(const bool debug, const GenerateEmailContents &mail_contents_generator, const std::string &name_of_user,
-                      const std::string &recipient_email, const std::string &vufind_host, const std::string &sender_email,
-                      const std::string &email_subject, const std::vector<NewIssueInfo> &new_issue_infos,
+                      const std::string &language, const std::string &recipient_email, const std::string &vufind_host,
+                      const std::string &sender_email, const std::string &email_subject, const std::vector<NewIssueInfo> &new_issue_infos,
                       const std::string &user_type) const {
-        const std::string email_contents(mail_contents_generator.generateContent(user_type, name_of_user, vufind_host, new_issue_infos));
+        const std::string email_contents(
+            mail_contents_generator.generateContent(user_type, name_of_user, language, vufind_host, new_issue_infos));
         if (debug)
             LOG_DEBUG("Debug mode, email address is " + sender_email + ", template expanded to: \"" + email_contents + "\"");
         else {
@@ -402,9 +400,9 @@ public:
 
     virtual void send(__attribute__((unused)) const bool debug,
                       __attribute__((unused)) const GenerateEmailContents &mail_contents_generator,
-                      __attribute__((unused)) const std::string &name_of_user, __attribute__((unused)) const std::string &recipient_email,
-                      __attribute__((unused)) const std::string &vufind_host, __attribute__((unused)) const std::string &sender_email,
-                      __attribute__((unused)) const std::string &email_subject,
+                      __attribute__((unused)) const std::string &name_of_user, __attribute__((unused)) const std::string &language,
+                      __attribute__((unused)) const std::string &recipient_email, __attribute__((unused)) const std::string &vufind_host,
+                      __attribute__((unused)) const std::string &sender_email, __attribute__((unused)) const std::string &email_subject,
                       __attribute__((unused)) const std::vector<NewIssueInfo> &new_issue_infos,
                       __attribute__((unused)) const std::string &user_type) const {
         LOG_ERROR(std::string(__FUNCTION__) + " currently not implemented");
@@ -655,11 +653,33 @@ std::string GetMinLastModificationTime(const std::map<std::string, std::string> 
 }
 
 
+std::string GetI18NSubject(const std::string &default_subject, const std::string &language) {
+    std::string result = default_subject;
+    std::string i18n_subscriptions;
+    const std::string i18n_subscriptions_de = "Abonnements";
+    const std::string i18n_subscriptions_en = "Subscriptions";
+
+    if (language == "de")
+        i18n_subscriptions = i18n_subscriptions_de;
+    else if (language == "en")
+        i18n_subscriptions = i18n_subscriptions_en;
+    else
+        return default_subject;
+
+    result = StringUtil::ReplaceString(i18n_subscriptions_de, "", result);
+    result = StringUtil::ReplaceString(i18n_subscriptions_en, "", result);
+    StringUtil::TrimWhite(&result);
+    result += " " + i18n_subscriptions;
+    return result;
+}
+
+
 void ProcessSingleUser(
     const bool debug, DbConnection * const db_connection, const std::unique_ptr<KeyValueDB> &notified_db, const IniFile &bundles_config,
     std::unordered_set<std::string> * const new_notification_ids,
     std::unordered_map<std::string, unsigned> * const journal_ppns_to_counts_map, const std::string &user_id,
-    const std::string &solr_host_and_port, const std::string &hostname, const std::string &sender_email, const std::string &email_subject,
+    const std::string &solr_host_and_port, const std::string &hostname, const std::string &sender_email,
+    const std::string &email_default_subject,
     std::vector<SerialControlNumberAndMaxLastModificationTime> &control_numbers_or_bundle_names_and_last_modification_times,
     std::map<std::string, std::map<std::string, std::string>> * const bundle_journal_last_modification_times) {
     db_connection->queryOrDie("SELECT * FROM user WHERE user.id=" + user_id);
@@ -681,6 +701,7 @@ void ProcessSingleUser(
     const auto name_of_user(MiscUtil::GenerateAddress(firstname, lastname, "Subscriber"));
 
     const std::string email(row["email"]);
+    const std::string language(row["last_language"]);
     const std::string user_type(row["ixtheo_user_type"]);
 
     // Collect the dates for new issues.
@@ -737,8 +758,8 @@ void ProcessSingleUser(
             SendMeistertaskNotificationEmails().send(debug, GenerateMeistertaskEmailContents(), email, hostname, sender_email,
                                                      new_issue_infos);
         else
-            SendDefaultNotificationEmail().send(debug, GenerateDefaultEmailContents(), name_of_user, email, hostname, sender_email,
-                                                email_subject, new_issue_infos, user_type);
+            SendDefaultNotificationEmail().send(debug, GenerateDefaultEmailContents(), name_of_user, language, email, hostname,
+                                                sender_email, GetI18NSubject(email_default_subject, language), new_issue_infos, user_type);
     }
 
     // Update the database with the new last issue dates
@@ -789,7 +810,7 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
                           const IniFile &bundles_config, std::unordered_set<std::string> * const new_notification_ids,
                           std::unordered_map<std::string, unsigned> * const journal_ppns_to_counts_map,
                           const std::string &solr_host_and_port, const std::string &user_type, const std::string &hostname,
-                          const std::string &sender_email, const std::string &email_subject) {
+                          const std::string &sender_email, const std::string &email_default_subject) {
     db_connection->queryOrDie(
         "SELECT DISTINCT user_id FROM ixtheo_journal_subscriptions WHERE user_id IN (SELECT id FROM "
         "user WHERE ixtheo_user_type = '"
@@ -814,7 +835,7 @@ void ProcessSubscriptions(const bool debug, DbConnection * const db_connection, 
             ++subscription_count;
         }
         ProcessSingleUser(debug, db_connection, notified_db, bundles_config, new_notification_ids, journal_ppns_to_counts_map, user_id,
-                          solr_host_and_port, hostname, sender_email, email_subject,
+                          solr_host_and_port, hostname, sender_email, email_default_subject,
                           control_numbers_or_bundle_names_and_last_modification_times, &bundle_journals_last_modification_times);
     }
 
@@ -889,7 +910,7 @@ int Main(int argc, char **argv) {
 
     const std::string hostname(argv[2]);
     const std::string sender_email(argv[3]);
-    const std::string email_subject(argv[4]);
+    const std::string email_default_subject(argv[4]);
 
     std::unique_ptr<KeyValueDB> notified_db(CreateOrOpenKeyValueDB(user_type));
 
@@ -900,7 +921,7 @@ int Main(int argc, char **argv) {
     std::unordered_set<std::string> new_notification_ids;
     std::unordered_map<std::string, unsigned> journal_ppns_to_counts_map;
     ProcessSubscriptions(debug, &db_connection, notified_db, bundles_config, &new_notification_ids, &journal_ppns_to_counts_map,
-                         solr_host_and_port, user_type, hostname, sender_email, email_subject);
+                         solr_host_and_port, user_type, hostname, sender_email, email_default_subject);
 
     if (not debug) {
         RecordNewlyNotifiedIds(notified_db, new_notification_ids);
