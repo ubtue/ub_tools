@@ -34,19 +34,12 @@ apt-get --quiet --yes --allow-unauthenticated install \
         ant apache2 apparmor-utils ca-certificates cifs-utils clang clang-format-12 cron curl gcc git imagemagick incron jq libarchive-dev \
         libcurl4-gnutls-dev libdb-dev liblept5 libleptonica-dev liblz4-tool libmagic-dev libmysqlclient-dev \
         libpcre3-dev libpq-dev libsqlite3-dev libssl-dev libstemmer-dev libtesseract-dev libwebp6 libxerces-c-dev \
-        libxml2-dev libxml2-utils locales-all make mawk mutt nlohmann-json3-dev openjdk-8-jdk p7zip-full poppler-utils postgresql-client \
+        libxml2-dev libxml2-utils locales-all make mawk mutt nlohmann-json3-dev openjdk-11-jdk p7zip-full poppler-utils postgresql-client \
         tesseract-ocr tesseract-ocr-all rsync sqlite3 tcl-expect-dev tidy unzip \
         uuid-dev xsltproc libsystemd-dev
 
 # Explicitly enable mod_cgi. If we would use `a2enmod cgi`, it would enable mod_cgid, which would fail on apache startup.
 ln -s ../mods-available/cgi.load /etc/apache2/mods-enabled/cgi.load
-
-# From 18.04 on, Java 8 needs to be enabled as well for Solr + mixins (18.04 ships with 10)
-# (unfortunately, >= string comparison is impossible in Bash, so we compare > 17.10)
-. /etc/lsb-release
-if [[ $DISTRIB_RELEASE > "17.10" ]]; then
-    update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java
-fi
 
 #Install custom certificates
 mkdir --parents /usr/share/ca-certificates/custom
