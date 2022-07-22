@@ -8,7 +8,6 @@ import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeWeight;
 
 
 public class BibleRangeWeight extends RangeWeight {
-    private final static String FIELD = "bible_ranges";
     private final boolean isSearchingForBooks;
 
     public BibleRangeWeight(final BibleRangeQuery query, final BibleRange[] ranges, final Weight weight) {
@@ -22,20 +21,20 @@ public class BibleRangeWeight extends RangeWeight {
     }
 
     @Override
-    protected boolean matches(final Document document) {
-        final String dbField = document.get(FIELD);
-        final BibleRange[] documentRanges = BibleRangeParser.getRangesFromDatabaseField(dbField);
-        final BibleRange[] fieldRanges = isSearchingForBooks ? documentRanges : BibleRange.removeBooks(documentRanges);
-        return fieldRanges.length != 0 && Range.hasIntersections(ranges, fieldRanges);
+    protected String getRangeFieldName() {
+        return "bible_ranges";
     }
 
     @Override
-    protected float customScore(final Document doc) {
-        final String dbField = doc.get(FIELD);
-        if (dbField == null || dbField.isEmpty()) {
-            return NOT_RELEVANT;
-        }
-        final Range[] field_ranges = BibleRangeParser.getRangesFromDatabaseField(dbField);
-        return Range.getMatchingScore(field_ranges, ranges);
+    protected Range[] getRangesFromDatabaseField(final String dbField) {
+        return BibleRangeParser.getRangesFromDatabaseField(dbField);
+    }
+
+    @Override
+    protected boolean matches(final Document document) {
+        final String dbField = document.get(getRangeFieldName());
+        final BibleRange[] documentRanges = BibleRangeParser.getRangesFromDatabaseField(dbField);
+        final BibleRange[] fieldRanges = isSearchingForBooks ? documentRanges : BibleRange.removeBooks(documentRanges);
+        return fieldRanges.length != 0 && Range.hasIntersections(ranges, fieldRanges);
     }
 }

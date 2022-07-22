@@ -8,26 +8,17 @@ import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeWeight;
 
 
 public class TimeAspectRangeWeight extends RangeWeight {
-    private final static String FIELD = "time_aspect_ranges";
-
     public TimeAspectRangeWeight(final TimeAspectRangeQuery query, final TimeAspectRange[] ranges, final Weight weight) {
         super(query, ranges, weight);
     }
 
     @Override
-    protected boolean matches(final Document document) {
-        final String dbField = document.get(FIELD);
-        final TimeAspectRange[] documentRanges = TimeAspectRangeParser.getRangesFromDatabaseField(dbField);
-        return documentRanges.length != 0 && Range.hasIntersections(ranges, documentRanges);
+    protected String getRangeFieldName() {
+        return "time_aspect_ranges";
     }
 
     @Override
-    protected float customScore(final Document doc) {
-        final String dbField = doc.get(FIELD);
-        if (dbField == null || dbField.isEmpty()) {
-            return NOT_RELEVANT;
-        }
-        final Range[] field_ranges = TimeAspectRangeParser.getRangesFromDatabaseField(dbField);
-        return Range.getMatchingScore(field_ranges, ranges);
+    protected Range[] getRangesFromDatabaseField(final String dbField) {
+        return TimeAspectRangeParser.getRangesFromDatabaseField(dbField);
     }
 }

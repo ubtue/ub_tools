@@ -22,8 +22,24 @@ public abstract class RangeWeight extends Weight {
         this.weight = weight;
     }
 
-    abstract protected boolean matches(final Document document);
-    abstract protected float customScore(final Document doc);
+    // This needs to be a function, since we cannot override class variables in Java subclasses, only methods.
+    abstract protected String getRangeFieldName();
+    abstract protected Range[] getRangesFromDatabaseField(final String dbField);
+
+    protected boolean matches(final Document document) {
+        final String dbField = document.get(getRangeFieldName());
+        final Range[] documentRanges = getRangesFromDatabaseField(dbField);
+        return documentRanges.length != 0 && Range.hasIntersections(ranges, documentRanges);
+    }
+
+    protected float customScore(final Document document) {
+        final String dbField = document.get(getRangeFieldName());
+        if (dbField == null || dbField.isEmpty()) {
+            return NOT_RELEVANT;
+        }
+        final Range[] field_ranges = getRangesFromDatabaseField(dbField);
+        return Range.getMatchingScore(field_ranges, ranges);
+    }
 
     // This is just a dummy implementation, override in subclass to get more detailed explanations.
     // Add "debug=true" to a solr query to see the explanations in the response's debug section.
