@@ -2,18 +2,12 @@ package de.uni_tuebingen.ub.ixTheo.bibleDateRangeSearch;
 
 
 import org.apache.solr.common.params.SolrParams;
-import org.apache.solr.common.util.NamedList;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.search.QParser;
-import org.apache.solr.search.QParserPlugin;
+import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeParserPlugin;
 
 
-public class BibleDateRangeParserPlugin extends QParserPlugin {
-
-    @Override
-    @SuppressWarnings("rawtypes")
-    public void init(final NamedList args) {
-    }
+public class BibleDateRangeParserPlugin extends RangeParserPlugin {
 
     @Override
     public QParser createParser(final String queryString, final SolrParams localParams, final SolrParams params, final SolrQueryRequest req) {
