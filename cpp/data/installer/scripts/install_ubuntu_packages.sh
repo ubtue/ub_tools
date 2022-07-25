@@ -41,6 +41,10 @@ apt-get --quiet --yes --allow-unauthenticated install \
 # Explicitly enable mod_cgi. If we would use `a2enmod cgi`, it would enable mod_cgid, which would fail on apache startup.
 ln -s ../mods-available/cgi.load /etc/apache2/mods-enabled/cgi.load
 
+# Set java version 11 to be kept manually (to avoid automatic migrations)
+update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
+update-alternatives --set javac /usr/lib/jvm/java-11-openjdk-amd64/bin/javac
+
 #Install custom certificates
 mkdir --parents /usr/share/ca-certificates/custom
 cp /usr/local/ub_tools/docker/zts/extra_certs/extra_certs.pem /usr/share/ca-certificates/custom/eguzkilore.crt
