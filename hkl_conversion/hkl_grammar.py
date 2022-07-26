@@ -167,6 +167,8 @@ def Main():
              classifier = CreateClassifier()
              authors = []
              nlp = spacy.load('en_core_web_lg')
+             #nlp = spacy.load('de_dep_news_trf')
+             #nlp = spacy.load('en_core_web_trf')
              #nlp = spacy.load('de_core_news_lg')
              for author, entry in entries:
                  print("---------------------------------------\nAUTHOR: " + author + '\n')
