@@ -64,9 +64,6 @@ namespace {
         "\t- marc_path: The output MARC file.\n"
         "\n"
         "get_statistics json_path\n"
-        "\t- json_path: The input JSON file.\n"
-        "\n"
-        "get_categories_statistics json_path\n"
         "\t- json_path: The input JSON file.\n");
 }
 
@@ -74,18 +71,17 @@ namespace {
 std::vector<std::string> ids_website;
 const unsigned int TIMEOUT_IN_SECONDS(15);
 
-const std::string statistics_categories_array[] = { "National Crime Victimization Survey",
-                                                    "National Incident-Based Reporting System",
-                                                    "FBI Uniform Crime Reporting",
-                                                    "Annual Parole Survey",
-                                                    "Annual Probation Survey",
-                                                    "Annual Survey of Jails",
-                                                    "Mortality in Correctional Institutions",
-                                                    "Federal Court Cases Integrated Database",
-                                                    "Federal Justice Statistics Program",
-                                                    "National Corrections Reporting Program" };
-
-int statistics_count[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+//"National Statistics" section from https://www.icpsr.umich.edu/web/pages/NACJD/discover-data.html
+const std::string statistics_categories[] = { "National Crime Victimization Survey",
+                                              "National Incident-Based Reporting System",
+                                              "FBI Uniform Crime Reporting",
+                                              "Annual Parole Survey",
+                                              "Annual Probation Survey",
+                                              "Annual Survey of Jails",
+                                              "Mortality in Correctional Institutions",
+                                              "Federal Court Cases Integrated Database",
+                                              "Federal Justice Statistics Program",
+                                              "National Corrections Reporting Program" };
 
 bool ContainsValue(const std::map<std::string, std::string> &map, const std::string &search_value) {
     for (const auto &[key, val] : map) {
@@ -135,15 +131,14 @@ void HandleChar(const char c) {
     }
 }
 
-std::string CheckingStatisticsCategory(std::string data_title) {
-    std::string category_name("");
-    for (std::string n : statistics_categories_array) {
+std::string GetStatisticsCategory(const std::string data_title) {
+    for (const std::string &n : statistics_categories) {
         size_t pos = data_title.find(n);
         if (pos != std::string::npos) {
-            category_name = n;
+            return n;
         }
     }
-    return category_name;
+    return "";
 }
 
 
@@ -381,7 +376,7 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
                 new_record.insertField("520", { { 'a', description } });
                 new_record.insertField("540", { { 'a', license } });
                 new_record.insertField("655", { { 'a', "Forschungsdaten" } }, ' ', '4');
-                const std::string statistics_category(CheckingStatisticsCategory(title_node->getValue()));
+                const std::string statistics_category(GetStatisticsCategory(title_node->getValue()));
                 if (not statistics_category.empty())
                     new_record.insertField("655", { { 'a', "Statistik" } }, ' ', '4');
                 new_record.insertField("852", { { 'a', "DE-2619" } });
@@ -491,7 +486,9 @@ void getStatistics(int argc, char **argv) {
 
     const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", internal_tree_root));
     unsigned total(0), no_title(0), no_description(0), no_ID(0), no_alternate_ID(0), no_creators(0), no_license(0), no_initial_date(0),
-        no_keywords(0);
+        no_keywords(0), no_statistics_category(0);
+
+    int statistics_count[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     std::shared_ptr<JSON::ArrayNode> nacjd_nodes(JSON::JSONNode::CastToArrayNodeOrDie("nacjd", root_node->getNode("nacjd")));
     for (const auto &internal_nacjd_node : *nacjd_nodes) {
@@ -520,9 +517,22 @@ void getStatistics(int argc, char **argv) {
             ++no_title;
         } else {
             title = title_node->getValue();
-            if (title.empty()) {
-                ++no_title;
+
+            int i = 0;
+            bool find_category(false);
+            for (std::string n : statistics_categories) {
+                size_t pos = title.find(n);
+                if (pos != std::string::npos) {
+                    statistics_count[i] = statistics_count[i] + 1;
+                    find_category = true;
+                }
+                i++;
             }
+            if (!find_category)
+                ++no_statistics_category;
+
+            if (title.empty())
+                ++no_title;
         }
 
         const auto description_node(nacjd_node->getOptionalStringNode("description"));
@@ -641,67 +651,10 @@ void getStatistics(int argc, char **argv) {
              + std::to_string(no_alternate_ID) + "\n" + "\t\tCreator not found or empty: " + std::to_string(no_creators) + "\n"
              + "\t\tLicense not found or empty: " + std::to_string(no_license) + "\n" + "\t\tInitial Date not found or empty: "
              + std::to_string(no_initial_date) + "\n" + "\t\tKeywords not found or empty: " + std::to_string(no_keywords) + "\n");
-}
 
-void getCategoriesStatistics(int argc, char **argv) {
-    // Parse args
-    if (argc != 3)
-        Usage();
-
-    const std::string json_path = argv[2];
-
-    std::string json_document;
-    FileUtil::ReadStringOrDie(json_path, &json_document);
-    JSON::Parser json_parser(json_document);
-    std::shared_ptr<JSON::JSONNode> internal_tree_root;
-    if (not json_parser.parse(&internal_tree_root))
-        LOG_ERROR("Could not properly parse \" " + json_path + ": " + json_parser.getErrorMessage());
-
-    const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", internal_tree_root));
-    unsigned total(0), no_statistics_category(0);
-
-    std::shared_ptr<JSON::ArrayNode> nacjd_nodes(JSON::JSONNode::CastToArrayNodeOrDie("nacjd", root_node->getNode("nacjd")));
-
-    for (const auto &internal_nacjd_node : *nacjd_nodes) {
-        ++total;
-
-        std::string title;
-
-        const auto nacjd_node(JSON::JSONNode::CastToObjectNodeOrDie("entry", internal_nacjd_node));
-
-        const auto identifier_node(nacjd_node->getObjectNode("identifier"));
-        const auto alternate_identifiers_node(nacjd_node->getArrayNode("alternateIdentifiers"));
-        const auto creators_node(nacjd_node->getArrayNode("creators"));
-        const auto distributions_node(nacjd_node->getArrayNode("distributions"));
-        const auto keywords_node(nacjd_node->getOptionalArrayNode("keywords"));
-
-        const auto title_node(nacjd_node->getOptionalStringNode("title"));
-
-        bool find_category(false);
-
-        if (title_node != nullptr) {
-            title = title_node->getValue();
-            std::cout << total << ") " << title << std::endl;
-            int i = 0;
-            for (std::string n : statistics_categories_array) {
-                size_t pos = title.find(n);
-                if (pos != std::string::npos) {
-                    statistics_count[i] = statistics_count[i] + 1;
-                    find_category = true;
-                }
-                i++;
-            }
-        }
-
-        if (!find_category) {
-            no_statistics_category++;
-        }
-    }
-
-    LOG_INFO("\n\nStatistics:\n\tProcessed: " + std::to_string(total) + " entries.\n");
     std::cout << "NACJD Statistics Categories: \n" << std::endl;
     int ii(0);
-    for (std::string n : statistics_categories_array) {
+    for (std::string n : statistics_categories) {
         std::cout << "\t" << n << " - " << std::to_string(statistics_count[ii]) << std::endl;
         ii++;
     }
@@ -727,8 +680,6 @@ int Main(int argc, char **argv) {
         convertJSONtoMARC(argc, argv);
     else if (mode == "get_statistics")
         getStatistics(argc, argv);
-    else if (mode == "get_categories_statistics")
-        getCategoriesStatistics(argc, argv);
     else
         Usage();
 
