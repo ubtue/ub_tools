@@ -143,6 +143,9 @@ void DownloadWork(const unsigned id, const std::string &output_file);
 SearchResponseWorks SearchWorks(const SearchParamsWorks &params);
 
 
+SearchResponse Search(const SearchParams &params);
+
+
 /** \brief will search from offset_ to end in multiple searches
  *         and write JSON files to output dir.
  */
