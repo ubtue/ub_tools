@@ -488,7 +488,7 @@ void getStatistics(int argc, char **argv) {
     unsigned total(0), no_title(0), no_description(0), no_ID(0), no_alternate_ID(0), no_creators(0), no_license(0), no_initial_date(0),
         no_keywords(0), no_statistics_category(0);
 
-    int statistics_count[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    std::map<std::string, unsigned> statistics_count;
 
     std::shared_ptr<JSON::ArrayNode> nacjd_nodes(JSON::JSONNode::CastToArrayNodeOrDie("nacjd", root_node->getNode("nacjd")));
     for (const auto &internal_nacjd_node : *nacjd_nodes) {
@@ -523,7 +523,7 @@ void getStatistics(int argc, char **argv) {
             for (std::string n : statistics_categories) {
                 size_t pos = title.find(n);
                 if (pos != std::string::npos) {
-                    statistics_count[i] = statistics_count[i] + 1;
+                    statistics_count.emplace(n, statistics_count[n]++);
                     find_category = true;
                 }
                 i++;
@@ -655,7 +655,7 @@ void getStatistics(int argc, char **argv) {
     std::cout << "NACJD Statistics Categories: \n" << std::endl;
     int ii(0);
     for (std::string n : statistics_categories) {
-        std::cout << "\t" << n << " - " << std::to_string(statistics_count[ii]) << std::endl;
+        std::cout << "\t" << n << " - " << statistics_count[n] << std::endl;
         ii++;
     }
     std::cout << "\nStatistics category is not defined: " + std::to_string(no_statistics_category) + "\n" << std::endl;
