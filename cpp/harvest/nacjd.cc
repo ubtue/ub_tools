@@ -654,7 +654,7 @@ void getStatistics(int argc, char **argv) {
 
     std::cout << "NACJD Statistics Categories: \n" << std::endl;
     int ii(0);
-    for (std::string n : statistics_categories) {
+    for (const std::string &n : statistics_categories) {
         std::cout << "\t" << n << " - " << statistics_count[n] << std::endl;
         ii++;
     }
