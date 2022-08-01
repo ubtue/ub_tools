@@ -520,7 +520,7 @@ void getStatistics(int argc, char **argv) {
 
             int i = 0;
             bool find_category(false);
-            for (std::string n : statistics_categories) {
+            for (const std::string &n : statistics_categories) {
                 size_t pos = title.find(n);
                 if (pos != std::string::npos) {
                     statistics_count.emplace(n, statistics_count[n]++);
