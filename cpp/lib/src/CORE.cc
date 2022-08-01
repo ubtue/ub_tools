@@ -175,25 +175,38 @@ std::string Download(const std::string &url) {
             LOG_INFO(downloader.getMessageHeader());
             const auto header(downloader.getMessageHeaderObject());
             if (header.getXRatelimitRemaining() == 0) {
-                // Conversion problems due to special 8601 format that is not supported yet by TimeUtil.
-                // If we solve that, we might be able to ret the exact time to sleep from the response header.
                 const time_t sleep_until_time(header.getXRatelimitRetryAfter("%Y-%m-%dT%H:%M:%S%z"));
                 if (sleep_until_time != TimeUtil::BAD_TIME_T) {
                     const std::string sleep_until_string(TimeUtil::TimeTToLocalTimeString(sleep_until_time));
 
+                    // We're allowed to perform 150 requests within a 5 minute window due to our license.
+                    // However, in practical terms responses might get a penalty e.g. when using the scroll mechanism,
+                    // so it's more likely to be 75.
                     LOG_WARNING("Rate limiting active + too many requests! Sleeping until " + sleep_until_string);
                     std::this_thread::sleep_until(std::chrono::system_clock::from_time_t(sleep_until_time));
+
+                    // sleep another 60 seconds just in case we have a system time difference between client and server
+                    // (even if timezone is already considered)
+                    const unsigned sleep_offset(60);
+                    LOG_WARNING("Sleeping another " + std::to_string(sleep_offset)
+                                + "s due to possible client/server system time difference");
+                    ::sleep(sleep_offset);
                 } else {
                     const unsigned sleep_seconds(60);
                     LOG_WARNING("Rate limiting active + too many requests! Could not determine retry_after timestamp! Sleeping for "
                                 + std::to_string(sleep_seconds) + "s");
                     ::sleep(sleep_seconds);
                 }
-
-                LOG_WARNING("Sleeping for additional 60 minutes, since rate limit information is not reliable.");
-                ::sleep(3600);
             }
         } else {
+            // Scroll-based operations may cause problems after sleeping to long due to a server side restrictions.
+            // => Scroll IDs are timed out after 10 minutes.
+            // If this causes too much problems, we might want to sleep pre-emptively even if the previous operation was successful
+            // to avoid ever exceeding the regular rate limit and having to sleep for 5-10 minutes.
+            // unsigned sleep_time(30);
+            // LOG_INFO("Pre-emptive sleep for " + std::to_string(sleep_time) + "s");
+            //::sleep(sleep_time);
+
             if (downloader.anErrorOccurred())
                 throw std::runtime_error(downloader.getLastErrorMessage());
 
@@ -203,6 +216,7 @@ std::string Download(const std::string &url) {
 
     // Retry if we ran into any errors.
     // The existing downloader object should be destroyed before doing this.
+    LOG_WARNING("Retrying...");
     return Download(url);
 }
 
@@ -357,8 +371,8 @@ void SearchBatch(const SearchParams &params, const std::string &output_dir, cons
         response_json = SearchRaw(current_params);
         response = SearchResponse(response_json);
 
-        LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-"
-                 + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
+        LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(current_params.offset_) + "-"
+                 + std::to_string(current_params.offset_ + current_params.limit_) + "/" + std::to_string(response.total_hits_) + ")");
         FileUtil::WriteStringOrDie(output_file, response_json);
     }
 }
