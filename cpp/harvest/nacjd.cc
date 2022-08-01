@@ -143,6 +143,7 @@ std::string GetStatisticsCategory(const std::string data_title) {
 
 
 bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const bool use_separator) {
+    LOG_INFO("Downloading ID " + id);
     const std::string DOWNLOAD_URL("https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id
                                    + "/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
 
@@ -385,6 +386,8 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
                 new_record.insertField("935", { { 'a', "mkri" } });
                 new_record.insertField("935", { { 'a', "nacj" }, { '2', "LOK" } });
                 new_record.insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
+                if (not statistics_category.empty())
+                    new_record.insertField("935", { { 'a', "stat" }, { '2', "LOK" } });
 
                 for (auto creator : creators)
                     new_record.insertField(creator.second, { { 'a', creator.first } });
