@@ -398,8 +398,9 @@ void Search(int argc, char **argv) {
     // Setup CORE instance & parameters
     CORE::SearchParams params;
     params.q_ = query;
-    params.exclude_ = { "fullText" }; // for performance reasons
-    params.limit_ = 100;              // default per request = 10, max 100
+    params.scroll_ = true;
+    params.limit_ = 1000;
+    params.exclude_ = { "fullText" };
     params.entity_type_ = CORE::EntityType::WORK;
     unsigned limit(0);
     if (argc == 5)
