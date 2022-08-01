@@ -27,5 +27,5 @@ nacjd get_statistics "$DOWNLOAD_FILE"
 echo "Converting to MRC"
 nacjd convert_JSON_to_MARC "$DOWNLOAD_FILE" "$CONVERT_FILE"
 
-echo "Upload to BSZ"
+#echo "Upload to BSZ"
 #upload_to_bsz_ftp_server.py "$CONVERT_FILE" /pub/UBTuebingen_Default_Test/
