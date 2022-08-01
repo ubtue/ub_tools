@@ -99,6 +99,24 @@ DbConnection DbConnection::PostgresFactory(std::string * const error_message, co
 }
 
 
+DbConnection DbConnection::PostgresFactory(const IniFile &ini_file, const std::string &ini_file_section) {
+    std::string error_message;
+    const auto db_section(ini_file.getSection(ini_file_section));
+    if (db_section == ini_file.end())
+        LOG_ERROR("DbConnection section \"" + ini_file_section + "\" not found in config file \"" + ini_file.getFilename() + "\"!");
+
+    const std::string host(db_section->getString("sql_host", "localhost"));
+    const std::string database(db_section->getString("sql_database"));
+    const std::string user(db_section->getString("sql_username"));
+    const std::string password(db_section->getString("sql_password"));
+    const unsigned port(db_section->getUnsigned("sql_port", POSTGRES_PORT));
+    DbConnection connection(PostgresFactory(&error_message, database, user, password, host, port));
+    if (not error_message.empty())
+        LOG_ERROR("Error opening Postgres database: " + error_message);
+    return connection;
+}
+
+
 enum CommentFlavour { NO_COMMENT, C_STYLE_COMMENT, END_OF_LINE_COMMENT };
 
 
