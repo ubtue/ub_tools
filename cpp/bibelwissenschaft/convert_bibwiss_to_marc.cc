@@ -24,6 +24,7 @@
 #include <sstream>
 #include "DbConnection.h"
 #include "FileUtil.h"
+#include "HtmlUtil.h"
 #include "IniFile.h"
 #include "MARC.h"
 #include "StringUtil.h"
@@ -37,10 +38,6 @@ namespace {
 using ConversionFunctor = std::function<void(const std::string, const char, MARC::Record * const, const std::string)>;
 enum BIBWISS_TYPES { WIBILEX, WIRELEX };
 const char SEPARATOR_CHAR('|');
-
-const std::map<std::string, int> STRING_TO_BIBWISS_TYPE{ { "WiReLex", BIBWISS_TYPES::WIRELEX }, { "WiBiLex", BIBWISS_TYPES::WIBILEX } };
-
-
 const std::map<int, std::string> BIBWISS_TYPE_TO_STRING{ { BIBWISS_TYPES::WIRELEX, "WiReLex" }, { BIBWISS_TYPES::WIBILEX, "WiBiLex" } };
 
 
@@ -87,12 +84,6 @@ MARC::Record *CreateNewRecord(const std::string &bibwiss_id, const BIBWISS_TYPES
 void InsertField(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
     if (data.length())
         record->insertField(tag, subfield_code, data);
-}
-
-
-void IsReview(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
-    if (data.length() and data != "0")
-        record->insertField(tag, subfield_code, "Rezension");
 }
 
 
@@ -161,8 +152,27 @@ void InsertEditors(const std::string, const char, MARC::Record * const record, c
     }
 }
 
-void ConvertCitations(DbConnection * const db_connection, const DbFieldToMARCMappingMultiset &dbfield_to_marc_mappings,
-                      MARC::Writer * const marc_writer) {
+
+void InsertStripped(const std::string tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
+    if (data.length()) {
+        std::string field_content;
+        if (data.length() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - MARC::Record::TAG_LENGTH)
+            field_content = StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - MARC::Record::TAG_LENGTH - 4, data) + "...";
+        else
+            field_content = data;
+        record->insertField(tag, { { subfield_code, field_content } });
+    }
+}
+
+
+void InsertStrippedRemoveHTML(const std::string tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
+    InsertStripped(tag, subfield_code, record, HtmlUtil::StripHtmlTags(data));
+}
+
+
+void ConvertArticles(DbConnection * const db_connection, const DbFieldToMARCMappingMultiset &dbfield_to_marc_mappings,
+                     MARC::Writer * const marc_writer) {
+    static unsigned ppn_index(0);
     for (const auto bibwiss_type : { BIBWISS_TYPES::WIBILEX, BIBWISS_TYPES::WIRELEX }) {
         const std::string bibwiss_query("SELECT * FROM articles where encyclopedia_id"
                                         " IN (SELECT id FROM encyclopedias WHERE name='"
@@ -171,7 +181,7 @@ void ConvertCitations(DbConnection * const db_connection, const DbFieldToMARCMap
         db_connection->queryOrDie(bibwiss_query);
         DbResultSet result_set(db_connection->getLastResultSet());
         while (const auto row = result_set.getNextRow()) {
-            MARC::Record * const new_record(CreateNewRecord(row["id"], bibwiss_type));
+            MARC::Record * const new_record(CreateNewRecord(std::to_string(++ppn_index), bibwiss_type));
             for (auto dbfield_to_marc_mapping(dbfield_to_marc_mappings.begin()); dbfield_to_marc_mapping != dbfield_to_marc_mappings.end();
                  ++dbfield_to_marc_mapping)
             {
@@ -182,18 +192,18 @@ void ConvertCitations(DbConnection * const db_connection, const DbFieldToMARCMap
             marc_writer->write(*new_record);
             delete new_record;
         }
+        ppn_index = 0;
     }
 }
 
 
-const std::map<std::string, ConversionFunctor> name_to_functor_map{
-    { "InsertField", InsertField },
-    { "IsReview", IsReview },
-    { "InsertCreationField", InsertCreationField },
-    { "InsertAuthors", InsertAuthors },
-    { "InsertOrForceSubfield", InsertOrForceSubfield },
-    { "InsertEditors", InsertEditors },
-};
+const std::map<std::string, ConversionFunctor> name_to_functor_map{ { "InsertField", InsertField },
+                                                                    { "InsertCreationField", InsertCreationField },
+                                                                    { "InsertAuthors", InsertAuthors },
+                                                                    { "InsertOrForceSubfield", InsertOrForceSubfield },
+                                                                    { "InsertEditors", InsertEditors },
+                                                                    { "InsertStripped", InsertStripped },
+                                                                    { "InsertStrippedRemoveHTML", InsertStrippedRemoveHTML } };
 
 ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
     if (not name_to_functor_map.contains(functor_name))
@@ -259,7 +269,7 @@ int Main(int argc, char *argv[]) {
     const std::unique_ptr<MARC::Writer> marc_writer(MARC::Writer::Factory(marc_output_path));
     DbFieldToMARCMappingMultiset dbfield_to_marc_mappings(DbFieldToMarcMappingComparator);
     CreateDbFieldToMarcMappings(map_file.get(), &dbfield_to_marc_mappings);
-    ConvertCitations(&db_connection, dbfield_to_marc_mappings, marc_writer.get());
+    ConvertArticles(&db_connection, dbfield_to_marc_mappings, marc_writer.get());
 
     return EXIT_SUCCESS;
 }
