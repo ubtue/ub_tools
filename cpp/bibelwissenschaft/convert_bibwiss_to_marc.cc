@@ -169,6 +169,31 @@ void InsertStrippedRemoveHTML(const std::string tag, const char subfield_code, M
     InsertStripped(tag, subfield_code, record, HtmlUtil::StripHtmlTags(data));
 }
 
+MARC::Subfields GetSuperiorWorkDescription(enum BIBWISS_TYPES type) {
+    switch (type) {
+    case BIBWISS_TYPES::WIBILEX:
+        return MARC::Subfields({ { 'i', "Enhalten in" },
+                                 { 't', "Das wissenschaftliche Bibellexikon im Internet" },
+                                 { 'd', "Stuttgart : Deutsche Bibelgesellschaft, 2004" },
+                                 { 'g', "JAHRYYY" },
+                                 { 'h', "Online-Ressource" },
+                                 { 'w', "(DE-627)896670716" },
+                                 { 'w', "(DE-600)2903948-4" },
+                                 { 'w', "(DE-576)49274064X" } });
+    case BIBWISS_TYPES::WIRELEX:
+        return MARC::Subfields({ { 'i', "Enhalten in" },
+                                 { 't', "WiReLex - das wissenschaftlich-religionspädagogische Lexikon im Internet  " },
+                                 { 'd', "Stuttgart : Deutsche Bibelgesellschaft, 2015" },
+                                 { 'g', "JAHRXXXX" },
+                                 { 'h', "Online-Ressource" },
+                                 { 'w', "(DE627)896670740" },
+                                 { 'w', "(DE600)2903951-4" },
+                                 { 'w', "(DE576)492740909" } });
+    default:
+        LOG_ERROR("Invalid BibWiss type: " + std::to_string(type));
+    }
+}
+
 
 void ConvertArticles(DbConnection * const db_connection, const DbFieldToMARCMappingMultiset &dbfield_to_marc_mappings,
                      MARC::Writer * const marc_writer) {
@@ -189,6 +214,10 @@ void ConvertArticles(DbConnection * const db_connection, const DbFieldToMARCMapp
             }
             // Dummy entries
             new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
+            // Make sure we are a dictionary entry/article
+            new_record->insertField("935", { { 'c', "uwlx" } });
+            new_record->insertField("773", GetSuperiorWorkDescription(bibwiss_type));
+
             marc_writer->write(*new_record);
             delete new_record;
         }
@@ -204,6 +233,7 @@ const std::map<std::string, ConversionFunctor> name_to_functor_map{ { "InsertFie
                                                                     { "InsertEditors", InsertEditors },
                                                                     { "InsertStripped", InsertStripped },
                                                                     { "InsertStrippedRemoveHTML", InsertStrippedRemoveHTML } };
+
 
 ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
     if (not name_to_functor_map.contains(functor_name))
