@@ -72,7 +72,7 @@ MARC::Record *CreateNewRecord(const std::string &bibwiss_id, const BIBWISS_TYPES
     const std::string prefix(type == BIBWISS_TYPES::WIRELEX ? "BRE" : "BBI");
     const std::string ppn(prefix + formatted_number.str());
 
-    return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED, ppn);
+    return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART, ppn);
 }
 
 
@@ -169,6 +169,12 @@ void InsertStrippedRemoveHTML(const std::string tag, const char subfield_code, M
     InsertStripped(tag, subfield_code, record, HtmlUtil::StripHtmlTags(data));
 }
 
+void InsertDOI(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
+    if (data.length())
+        record->insertField(tag, { { subfield_code, data }, { '2', "doi" } });
+}
+
+
 MARC::Subfields GetSuperiorWorkDescription(enum BIBWISS_TYPES type) {
     switch (type) {
     case BIBWISS_TYPES::WIBILEX:
@@ -214,10 +220,13 @@ void ConvertArticles(DbConnection * const db_connection, const DbFieldToMARCMapp
             }
             // Dummy entries
             new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
+            new_record->insertField("007", "cr|||||");
             // Make sure we are a dictionary entry/article
             new_record->insertField("935", { { 'c', "uwlx" } });
             new_record->insertField("773", GetSuperiorWorkDescription(bibwiss_type));
-
+            new_record->insertField("041", { { 'a', "ger" } });
+            new_record->insertField("338", { { 'a', "Online-Resource" }, { 'b', "cr" }, { '2', "rdacarrier" } });
+            new_record->insertField("ELC", { { 'a', "1" } });
             marc_writer->write(*new_record);
             delete new_record;
         }
@@ -232,7 +241,8 @@ const std::map<std::string, ConversionFunctor> name_to_functor_map{ { "InsertFie
                                                                     { "InsertOrForceSubfield", InsertOrForceSubfield },
                                                                     { "InsertEditors", InsertEditors },
                                                                     { "InsertStripped", InsertStripped },
-                                                                    { "InsertStrippedRemoveHTML", InsertStrippedRemoveHTML } };
+                                                                    { "InsertStrippedRemoveHTML", InsertStrippedRemoveHTML },
+                                                                    { "InsertDOI", InsertDOI } };
 
 
 ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
