@@ -184,13 +184,22 @@ void InsertBibWissLink(const std::string &tag, const char, MARC::Record * const 
 }
 
 
-MARC::Subfields GetSuperiorWorkDescription(enum BIBWISS_TYPES type) {
+std::string ExtractPublicationYear(const std::string &published_at) {
+    static ThreadSafeRegexMatcher date_matcher("((\\d{4})-\\d{2}-\\d{2})");
+    if (const auto &match_result = date_matcher.match(published_at)) {
+        return match_result[2];
+    }
+    return "";
+}
+
+
+MARC::Subfields GetSuperiorWorkDescription(enum BIBWISS_TYPES type, const std::string &publication_year) {
     switch (type) {
     case BIBWISS_TYPES::WIBILEX:
         return MARC::Subfields({ { 'i', "Enhalten in" },
                                  { 't', "Das wissenschaftliche Bibellexikon im Internet" },
                                  { 'd', "Stuttgart : Deutsche Bibelgesellschaft, 2004" },
-                                 { 'g', "JAHRYYY" },
+                                 { 'g', publication_year },
                                  { 'h', "Online-Ressource" },
                                  { 'w', "(DE-627)896670716" },
                                  { 'w', "(DE-600)2903948-4" },
@@ -199,7 +208,7 @@ MARC::Subfields GetSuperiorWorkDescription(enum BIBWISS_TYPES type) {
         return MARC::Subfields({ { 'i', "Enhalten in" },
                                  { 't', "WiReLex - das wissenschaftlich-religionspädagogische Lexikon im Internet  " },
                                  { 'd', "Stuttgart : Deutsche Bibelgesellschaft, 2015" },
-                                 { 'g', "JAHRXXXX" },
+                                 { 'g', publication_year },
                                  { 'h', "Online-Ressource" },
                                  { 'w', "(DE627)896670740" },
                                  { 'w', "(DE600)2903951-4" },
@@ -221,6 +230,9 @@ void ConvertArticles(DbConnection * const db_connection, const DbFieldToMARCMapp
         db_connection->queryOrDie(bibwiss_query);
         DbResultSet result_set(db_connection->getLastResultSet());
         while (const auto row = result_set.getNextRow()) {
+            // Apparently the entry does not exist in the web version no pdf is was generated
+            if (row["pdf_last_created"].empty())
+                continue;
             MARC::Record * const new_record(CreateNewRecord(std::to_string(++ppn_index), bibwiss_type));
             for (auto dbfield_to_marc_mapping(dbfield_to_marc_mappings.begin()); dbfield_to_marc_mapping != dbfield_to_marc_mappings.end();
                  ++dbfield_to_marc_mapping)
@@ -232,7 +244,7 @@ void ConvertArticles(DbConnection * const db_connection, const DbFieldToMARCMapp
             new_record->insertField("007", "cr|||||");
             // Make sure we are a dictionary entry/article
             new_record->insertField("935", { { 'c', "uwlx" } });
-            new_record->insertField("773", GetSuperiorWorkDescription(bibwiss_type));
+            new_record->insertField("773", GetSuperiorWorkDescription(bibwiss_type, ExtractPublicationYear(row["published_at"])));
             new_record->insertField("041", { { 'a', "ger" } });
             new_record->insertField("338", { { 'a', "Online-Resource" }, { 'b', "cr" }, { '2', "rdacarrier" } });
             new_record->insertField("ELC", { { 'a', "1" } });
