@@ -153,7 +153,7 @@ void InsertEditors(const std::string, const char, MARC::Record * const record, c
 }
 
 
-void InsertStripped(const std::string tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
+void InsertStripped(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
     if (data.length()) {
         std::string field_content;
         if (data.length() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - MARC::Record::TAG_LENGTH)
@@ -165,13 +165,22 @@ void InsertStripped(const std::string tag, const char subfield_code, MARC::Recor
 }
 
 
-void InsertStrippedRemoveHTML(const std::string tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
+void InsertStrippedRemoveHTML(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
     InsertStripped(tag, subfield_code, record, HtmlUtil::StripHtmlTags(data));
 }
 
 void InsertDOI(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
     if (data.length())
         record->insertField(tag, { { subfield_code, data }, { '2', "doi" } });
+}
+
+
+void InsertBibWissLink(const std::string &tag, const char, MARC::Record * const record, const std::string &data) {
+    if (data.length())
+        record->insertField(tag, { { 'u', "https://www.bibelwissenschaft.de/stichwort/" + StringUtil::Trim(data) },
+                                   { 'x', "Verlag" },
+                                   { 'z', "kostenfrei" },
+                                   { '3', "Volltext" } });
 }
 
 
@@ -242,7 +251,8 @@ const std::map<std::string, ConversionFunctor> name_to_functor_map{ { "InsertFie
                                                                     { "InsertEditors", InsertEditors },
                                                                     { "InsertStripped", InsertStripped },
                                                                     { "InsertStrippedRemoveHTML", InsertStrippedRemoveHTML },
-                                                                    { "InsertDOI", InsertDOI } };
+                                                                    { "InsertDOI", InsertDOI },
+                                                                    { "InsertBibWissLink", InsertBibWissLink } };
 
 
 ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
