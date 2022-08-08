@@ -1,66 +1,55 @@
 package de.uni_tuebingen.ub.ixTheo.rangeSearch;
 
 
-import com.carrotsearch.hppc.IntFloatMap;
-import org.apache.lucene.search.ConstantScoreScorer;
-import org.apache.lucene.search.DocIdSetIterator;
-import org.apache.lucene.search.Scorer;
-import org.apache.lucene.search.ScoreMode;
-import org.apache.lucene.search.TwoPhaseIterator;
-import org.apache.lucene.search.Weight;
-
 import java.io.IOException;
+import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.search.FilteredDocIdSetIterator;
+import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.Weight;
 
 
 public class RangeScorer extends Scorer {
-    private final TwoPhaseIterator twoPhaseIterator;
-    private final DocIdSetIterator disi;
-    private final IntFloatMap scoring;
-    private final ConstantScoreScorer scorer;
+    protected final DocIdSetIterator iterator;
+    protected final LeafReaderContext context;
+    protected final RangeWeight rangeWeight;
+    protected final Weight parentWeight;
 
-    public RangeScorer(final Weight weight, final IntFloatMap scoring, final TwoPhaseIterator twoPhaseIterator) {
-        super(weight);
-        this.twoPhaseIterator = twoPhaseIterator;
-        this.scoring = scoring;
-        this.disi = TwoPhaseIterator.asDocIdSetIterator(twoPhaseIterator);
-        this.scorer = new ConstantScoreScorer(weight, scoreSave(), ScoreMode.COMPLETE, this.disi);
+    public RangeScorer(final RangeWeight rangeWeight, final Weight parentWeight, final LeafReaderContext context) throws IOException {
+        super(rangeWeight);
+        this.context = context;
+        this.rangeWeight = rangeWeight;
+        this.parentWeight = parentWeight;
+
+        iterator = new FilteredDocIdSetIterator(parentWeight.scorer(context).iterator()) {
+            @Override
+            protected boolean match(int doc) {
+                try {
+                    return rangeWeight.matches(context.reader().document(doc));
+                } catch (IOException ex) {
+                    return false;
+                }
+            }
+        };
     }
 
     @Override
     public DocIdSetIterator iterator() {
-        return this.disi;
-    }
-
-    @Override
-    public TwoPhaseIterator twoPhaseIterator() {
-        return this.twoPhaseIterator;
+        return iterator;
     }
 
     @Override
     public int docID() {
-        return this.disi.docID();
+        return iterator().docID();
     }
 
     @Override
     public float score() throws IOException {
-        return scoring.get(docID());
-    }
-
-    private float scoreSave(){
-        try {
-            return scoring.get(docID());
-        }
-        catch (Exception e) {
-            return 1.0f;
-        }
-    }
-
-    public int freq() throws IOException {
-        return 1;
+        return rangeWeight.customScore(context.reader().document(docID()));
     }
 
     @Override
     public float getMaxScore(int upTo) throws IOException {
-        return scorer.getMaxScore(upTo);
+        return parentWeight.scorer(context).getMaxScore(upTo);
     }
 }

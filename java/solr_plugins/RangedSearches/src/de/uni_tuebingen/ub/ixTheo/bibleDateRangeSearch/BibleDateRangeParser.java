@@ -6,9 +6,10 @@ import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.search.QParser;
 import org.apache.solr.search.SyntaxError;
+import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeParser;
 
 
-public class BibleDateRangeParser extends QParser {
+public class BibleDateRangeParser extends RangeParser {
 
     /**
      * Constructor for the QParser
@@ -26,11 +27,11 @@ public class BibleDateRangeParser extends QParser {
     }
 
     static BibleDateRange[] getRangesFromDatabaseField(final String db_field) {
-        return BibleDateRange.getRanges(db_field, ",");
+        return BibleDateRange.getRanges(db_field, DB_FIELD_SEPARATOR);
     }
 
     private BibleDateRange[] getRangesFromQuery() {
-        return BibleDateRange.getRanges(qstr, " OR ");
+        return BibleDateRange.getRanges(qstr, QUERY_OR_SEPARATOR);
     }
 
     @Override
