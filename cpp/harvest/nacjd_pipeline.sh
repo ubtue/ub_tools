@@ -7,7 +7,7 @@ if [ $# != 0 ]; then
 fi
 
 #krimdok_nacjd_2220801_001.xml
-declare -r BSZ_FILENAME="krimdok_nacjd_$(date +%Y%m%d)_001"
+declare -r BSZ_FILENAME="krimdok_nacjd_$(date +%y%m%d)_001"
 declare -r DOWNLOAD_DIR=/tmp/NACJD/$(date +%Y%m%d_%H%M%S)
 declare -r DOWNLOAD_FILE="$DOWNLOAD_DIR/$BSZ_FILENAME.json"
 declare -r CONVERT_FILE="$DOWNLOAD_DIR/$BSZ_FILENAME.xml"
