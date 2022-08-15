@@ -302,7 +302,7 @@ const std::string &Downloader::getLastErrorMessage() const {
 }
 
 
-unsigned Downloader::getResponseCode() const {
+unsigned Downloader::getResponseCode() {
     std::string err_msg;
     const std::string regex_pattern("HTTP(?:/\\d(?:\\.(?:\\d)?)?)?\\s+(\\d{3})");
     std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
@@ -357,6 +357,7 @@ void Downloader::init() {
     curlEasySetopt(CURLOPT_NOPROGRESS, 1L, "Downloader::init:CURLOPT_NOPROGRESS");
     curlEasySetopt(CURLOPT_NOSIGNAL, 1L, "Downloader::init:CURLOPT_NOSIGNAL");
     curlEasySetopt(CURLOPT_WRITEFUNCTION, WriteFunction, "Downloader::init:CURLOPT_WRITEFUNCTION");
+    curlEasySetopt(CURLOPT_FAILONERROR, 1L, "Downloader::init:CURLOPT_FAILONERROR");
 
     // Enabling the following option seems to greatly slow down the downloading of Web pages!
     // curlEasySetopt(CURLOPT_IGNORE_CONTENT_LENGTH, 1L, "Downloader::init:CURLOPT_IGNORE_CONTENT_LENGTH");
