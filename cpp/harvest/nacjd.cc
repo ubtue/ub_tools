@@ -55,11 +55,11 @@ namespace {
         "\t- output_file: contains all icpsr records as JSON not contained in input file.\n"
         "\t- number: number of requests\n"
         "\n"
-        "get_by_ID ID output_path\n"
+        "get_by_id ID output_path\n"
         "\t- ID: The NACJD API Identifier\n"
         "\t- output_path: path for output file.\n"
         "\n"
-        "convert_JSON_to_MARC json_path marc_path\n"
+        "convert_json_to_marc json_path marc_path\n"
         "\t- json_path: The input JSON file.\n"
         "\t- marc_path: The output MARC file.\n"
         "\n"
@@ -675,11 +675,11 @@ int Main(int argc, char **argv) {
 
     if (mode == "get_full")
         getAll(argc, argv);
-    else if (mode == "get_by_ID")
+    else if (mode == "get_by_id")
         getByID(argc, argv);
     else if (mode == "get_by_count")
         getByCount(argc, argv);
-    else if (mode == "convert_JSON_to_MARC")
+    else if (mode == "convert_json_to_marc")
         convertJSONtoMARC(argc, argv);
     else if (mode == "get_statistics")
         getStatistics(argc, argv);
