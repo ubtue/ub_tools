@@ -367,7 +367,7 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
             const std::string id(alternateIdentifier_node->getStringNode("identifier")->getValue());
             const std::string doi(identifier_node->getStringNode("identifier")->getValue());
             if (complete) {
-                MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED,
+                MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                                         "[ICPSR]" + id);
                 new_record.insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
                 new_record.insertField("041", { { 'a', "eng" } });
