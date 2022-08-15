@@ -55,11 +55,11 @@ namespace {
         "\t- output_file: contains all icpsr records as JSON not contained in input file.\n"
         "\t- number: number of requests\n"
         "\n"
-        "get_by_ID ID output_path\n"
+        "get_by_id ID output_path\n"
         "\t- ID: The NACJD API Identifier\n"
         "\t- output_path: path for output file.\n"
         "\n"
-        "convert_JSON_to_MARC json_path marc_path\n"
+        "convert_json_to_marc json_path marc_path\n"
         "\t- json_path: The input JSON file.\n"
         "\t- marc_path: The output MARC file.\n"
         "\n"
@@ -367,7 +367,7 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
             const std::string id(alternateIdentifier_node->getStringNode("identifier")->getValue());
             const std::string doi(identifier_node->getStringNode("identifier")->getValue());
             if (complete) {
-                MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED,
+                MARC::Record new_record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::MONOGRAPH_OR_ITEM,
                                         "[ICPSR]" + id);
                 new_record.insertField("024", { { 'a', doi }, { '2', "doi" } }, '7');
                 new_record.insertField("041", { { 'a', "eng" } });
@@ -675,11 +675,11 @@ int Main(int argc, char **argv) {
 
     if (mode == "get_full")
         getAll(argc, argv);
-    else if (mode == "get_by_ID")
+    else if (mode == "get_by_id")
         getByID(argc, argv);
     else if (mode == "get_by_count")
         getByCount(argc, argv);
-    else if (mode == "convert_JSON_to_MARC")
+    else if (mode == "convert_json_to_marc")
         convertJSONtoMARC(argc, argv);
     else if (mode == "get_statistics")
         getStatistics(argc, argv);
