@@ -170,7 +170,7 @@ public:
     const std::string &getUserAgent() const { return params_.user_agent_; }
 
     /** \note Get HTTP response code */
-    unsigned getResponseCode();
+    unsigned getResponseCode() const;
 
     void setAcceptableLanguages(const std::string &acceptable_languages);
     void setHonourRobotsDotTxt(const bool honour_robots_dot_txt) { params_.honour_robots_dot_txt_ = honour_robots_dot_txt; };

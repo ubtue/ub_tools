@@ -71,6 +71,18 @@ namespace {
 std::vector<std::string> ids_website;
 const unsigned int TIMEOUT_IN_SECONDS(15);
 
+//"National Statistics" section from https://www.icpsr.umich.edu/web/pages/NACJD/discover-data.html
+const std::string statistics_categories[] = { "National Crime Victimization Survey",
+                                              "National Incident-Based Reporting System",
+                                              "FBI Uniform Crime Reporting",
+                                              "Annual Parole Survey",
+                                              "Annual Probation Survey",
+                                              "Annual Survey of Jails",
+                                              "Mortality in Correctional Institutions",
+                                              "Federal Court Cases Integrated Database",
+                                              "Federal Justice Statistics Program",
+                                              "National Corrections Reporting Program" };
+
 bool ContainsValue(const std::map<std::string, std::string> &map, const std::string &search_value) {
     for (const auto &[key, val] : map) {
         if (val == search_value)
@@ -119,8 +131,19 @@ void HandleChar(const char c) {
     }
 }
 
+std::string GetStatisticsCategory(const std::string data_title) {
+    for (const std::string &n : statistics_categories) {
+        size_t pos = data_title.find(n);
+        if (pos != std::string::npos) {
+            return n;
+        }
+    }
+    return "";
+}
+
 
 bool DownloadID(std::ofstream &json_new_titles, const std::string &id, const bool use_separator) {
+    LOG_INFO("Downloading ID " + id);
     const std::string DOWNLOAD_URL("https://pcms.icpsr.umich.edu/pcms/api/1.0/studies/" + id
                                    + "/dats?page=https://www.icpsr.umich.edu/web/NACJD/studies/" + id + "/export&user=");
 
@@ -354,12 +377,17 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
                 new_record.insertField("520", { { 'a', description } });
                 new_record.insertField("540", { { 'a', license } });
                 new_record.insertField("655", { { 'a', "Forschungsdaten" } }, ' ', '4');
+                const std::string statistics_category(GetStatisticsCategory(title_node->getValue()));
+                if (not statistics_category.empty())
+                    new_record.insertField("655", { { 'a', "Statistik" } }, ' ', '4');
                 new_record.insertField("852", { { 'a', "DE-2619" } });
                 new_record.insertField("856", { { 'u', "https://www.icpsr.umich.edu/web/NACJD/studies/" + UrlUtil::UrlEncode(id) } },
                                        '4' /*indicator1*/, '0' /*indicator 2*/);
                 new_record.insertField("935", { { 'a', "mkri" } });
                 new_record.insertField("935", { { 'a', "nacj" }, { '2', "LOK" } });
                 new_record.insertField("935", { { 'a', "foda" }, { '2', "LOK" } });
+                if (not statistics_category.empty())
+                    new_record.insertField("935", { { 'a', "stat" }, { '2', "LOK" } });
 
                 for (auto creator : creators)
                     new_record.insertField(creator.second, { { 'a', creator.first } });
@@ -461,7 +489,9 @@ void getStatistics(int argc, char **argv) {
 
     const auto root_node(JSON::JSONNode::CastToObjectNodeOrDie("tree_root", internal_tree_root));
     unsigned total(0), no_title(0), no_description(0), no_ID(0), no_alternate_ID(0), no_creators(0), no_license(0), no_initial_date(0),
-        no_keywords(0);
+        no_keywords(0), no_statistics_category(0);
+
+    std::map<std::string, unsigned> statistics_count;
 
     std::shared_ptr<JSON::ArrayNode> nacjd_nodes(JSON::JSONNode::CastToArrayNodeOrDie("nacjd", root_node->getNode("nacjd")));
     for (const auto &internal_nacjd_node : *nacjd_nodes) {
@@ -490,9 +520,22 @@ void getStatistics(int argc, char **argv) {
             ++no_title;
         } else {
             title = title_node->getValue();
-            if (title.empty()) {
-                ++no_title;
+
+            int i = 0;
+            bool find_category(false);
+            for (const std::string &n : statistics_categories) {
+                size_t pos = title.find(n);
+                if (pos != std::string::npos) {
+                    statistics_count.emplace(n, statistics_count[n]++);
+                    find_category = true;
+                }
+                i++;
             }
+            if (!find_category)
+                ++no_statistics_category;
+
+            if (title.empty())
+                ++no_title;
         }
 
         const auto description_node(nacjd_node->getOptionalStringNode("description"));
@@ -611,6 +654,14 @@ void getStatistics(int argc, char **argv) {
              + std::to_string(no_alternate_ID) + "\n" + "\t\tCreator not found or empty: " + std::to_string(no_creators) + "\n"
              + "\t\tLicense not found or empty: " + std::to_string(no_license) + "\n" + "\t\tInitial Date not found or empty: "
              + std::to_string(no_initial_date) + "\n" + "\t\tKeywords not found or empty: " + std::to_string(no_keywords) + "\n");
+
+    std::cout << "NACJD Statistics Categories: \n" << std::endl;
+    int ii(0);
+    for (const std::string &n : statistics_categories) {
+        std::cout << "\t" << n << " - " << statistics_count[n] << std::endl;
+        ii++;
+    }
+    std::cout << "\nStatistics category is not defined: " + std::to_string(no_statistics_category) + "\n" << std::endl;
 }
 
 } // unnamed namespace

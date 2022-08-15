@@ -93,15 +93,15 @@ public:
 
 struct SearchParams {
     std::string q_;
-    bool scroll_ = false;
+    bool scroll_ = false; // use this mechanism if you expect > 10.000 results.
     unsigned offset_ = 0;
-    unsigned limit_ = 10;
+    unsigned limit_ = 10; // can be 100 due to documentation, but in practical terms even 1000.
     std::string scroll_id_;
     std::string entity_id_;
     EntityType entity_type_;
     bool stats_ = false;
     bool raw_stats_ = false;
-    std::vector<std::string> exclude_ = {};
+    std::vector<std::string> exclude_ = {}; // exclude e.g. "fullText" field from result for better performance.
     std::vector<std::string> sort_ = {};
     std::string accept_;
     bool measure_ = false;
@@ -141,6 +141,9 @@ void DownloadWork(const unsigned id, const std::string &output_file);
 
 /** \brief will search from offset_ to limit_ (only once). */
 SearchResponseWorks SearchWorks(const SearchParamsWorks &params);
+
+
+SearchResponse Search(const SearchParams &params);
 
 
 /** \brief will search from offset_ to end in multiple searches

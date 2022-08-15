@@ -9,11 +9,10 @@ import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.search.QParser;
 import org.apache.solr.search.SyntaxError;
+import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeParser;
 
 
-public class BibleRangeParser extends QParser {
-    private final static String QUERY_SEPARATOR = " ";
-    private final static String DB_FIELD_SEPARATOR = ",";
+public class BibleRangeParser extends RangeParser {
 
     /**
      * Constructor for the QParser
@@ -39,7 +38,7 @@ public class BibleRangeParser extends QParser {
     }
 
     private String[] getFieldsFromQuery() {
-        return qstr.split(QUERY_SEPARATOR);
+        return qstr.split(QUERY_FIELD_SEPARATOR);
     }
 
     // @return true if "queryString" is of the form 07000000_08999999 o/w we return false.

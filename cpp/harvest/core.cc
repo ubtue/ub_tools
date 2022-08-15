@@ -76,6 +76,8 @@ namespace {
         "project. An example would be DE-2619 for criminology.\n"
         "\t- input_file: The JSON file to convert.\n"
         "\t- output_file: The MARC or XML file to write to.\n"
+        "\n"
+        "data-providers\n"
         "\n");
 }
 
@@ -396,8 +398,9 @@ void Search(int argc, char **argv) {
     // Setup CORE instance & parameters
     CORE::SearchParams params;
     params.q_ = query;
-    params.exclude_ = { "fullText" }; // for performance reasons
-    params.limit_ = 100;              // default per request = 10, max 100
+    params.scroll_ = true;
+    params.limit_ = 1000;
+    params.exclude_ = { "fullText" };
     params.entity_type_ = CORE::EntityType::WORK;
     unsigned limit(0);
     if (argc == 5)
@@ -474,6 +477,20 @@ void Statistics(int argc, char **argv) {
 }
 
 
+void DataProviders(int argc, char ** /*argv*/) {
+    // Parse args
+    if (argc != 2)
+        Usage();
+
+    CORE::SearchParams params;
+    params.q_ = "*";
+    params.limit_ = 100;
+    params.entity_type_ = CORE::EntityType::DATA_PROVIDER;
+    const auto result(CORE::Search(params));
+    LOG_INFO(std::to_string(result.total_hits_));
+}
+
+
 } // unnamed namespace
 
 
@@ -496,6 +513,8 @@ int Main(int argc, char **argv) {
         Count(argc, argv);
     else if (mode == "statistics")
         Statistics(argc, argv);
+    else if (mode == "data-providers")
+        DataProviders(argc, argv);
     else
         Usage();
 

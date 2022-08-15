@@ -6,9 +6,10 @@ import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.search.QParser;
 import org.apache.solr.search.SyntaxError;
+import de.uni_tuebingen.ub.ixTheo.rangeSearch.RangeParser;
 
 
-public class CanonesDateRangeParser extends QParser {
+public class CanonesDateRangeParser extends RangeParser {
 
     /**
      * @param qstr        The part of the query string specific to this parser
@@ -22,7 +23,7 @@ public class CanonesDateRangeParser extends QParser {
     }
 
     static CanonesDateRange[] getRangesFromDatabaseField(final String db_field) {
-        return CanonesDateRange.getRanges(db_field, ",");
+        return CanonesDateRange.getRanges(db_field, DB_FIELD_SEPARATOR);
     }
 
     private CanonesDateRange[] getRangesFromQuery() {
@@ -30,7 +31,7 @@ public class CanonesDateRangeParser extends QParser {
     }
 
     private String[] getFieldsFromQuery() {
-        return qstr.split(" OR ");
+        return qstr.split(QUERY_OR_SEPARATOR);
     }
 
     @Override
