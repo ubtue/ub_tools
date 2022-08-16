@@ -248,6 +248,7 @@ void ConvertArticles(DbConnection * const db_connection, const DbFieldToMARCMapp
             new_record->insertField("041", { { 'a', "ger" } });
             new_record->insertField("338", { { 'a', "Online-Resource" }, { 'b', "cr" }, { '2', "rdacarrier" } });
             new_record->insertField("ELC", { { 'a', "1" } });
+            new_record->insertField("TYP", { { 'a', GetStringForBibWissType(bibwiss_type) } });
             marc_writer->write(*new_record);
             delete new_record;
         }
