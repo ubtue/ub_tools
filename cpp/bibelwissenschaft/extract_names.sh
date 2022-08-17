@@ -12,7 +12,7 @@ for bibwiss_type in "WiReLex" "WiBiLex"; do
     marc_grep $1 'if "TYP"=="'${bibwiss_type}'" extract "856u"' traditional | \
     awk '{print $2}' | \
     xargs -I '{}' /bin/sh -c $'./translate_url_multiple "$1" | \
-    jq -r \'.[] | [ if .tags[] then "Reference" else empty end, if .creators[] then "Author" else empty end, .url, .title, .tags[].tag, .creators[].lastName, .creators[].firstName] | to_entries | [.[].value] | @csv\'' _ '{}' \
+    jq -r \'.[] | [ if ((.tags | length) != 0) then "Reference" else empty end, if ((.creators | length) != 0) then "Author" else empty end, .url, .title, .tags[].tag, (.creators[] | del(.creatorType) | flatten | reverse |join(","))] | to_entries | [.[].value] | @csv\'' _ '{}' \
     > ${OUTFILE_PREFIX}_${bibwiss_type}.csv
 done
 
