@@ -28,7 +28,8 @@ namespace {
 const std::string author_swb_lookup_url(
     "https://swb.bsz-bw.de/DB=2.104/SET=70/TTL=1/"
     "CMD?SGE=&ACT=SRCHM&MATCFILTER=Y&MATCSET=Y&NOSCAN=Y&PARSE_MNEMONICS=N&PARSE_OPWORDS=N&PARSE_OLDSETS=N&IMPLAND=Y&NOABS=Y&ACT0=SRCHA&"
-    "SHRTST=50&IKT0=3040&ACT1=*&IKT1=2057&TRM1=*&ACT2=*&IKT2=8991&TRM2=(theolog*|neutestament*|alttestament*|kirchenhist*|evangelisch*)&"
+    "SHRTST=50&IKT0=3040&ACT1=*&IKT1=2057&TRM1=*&ACT2=*&IKT2=8991&TRM2=(theolog*|neutestament*|alttestament*|kirchenhist*|evangelisch*|"
+    "religions*|pädagog*)&"
     "ACT3=-&IKT3=8991&TRM3=1[0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8][0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9][0%2C1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%"
     "2C9]&TRM0=");
 

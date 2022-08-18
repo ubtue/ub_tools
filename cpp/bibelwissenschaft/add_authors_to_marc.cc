@@ -41,15 +41,17 @@ void AddAuthorsToRecord(MARC::Record * const record, const std::unordered_map<st
         LOG_ERROR("Empty Authors should not happen");
 
     bool first_author(true);
-
     for (const auto author : entry->second) {
         const std::string author_tag(first_author ? "100" : "700");
         first_author = false;
         MARC::Subfields author_subfields({ { 'a', author } });
         std::string author_gnd_candidate;
         ExecUtil::ExecSubcommandAndCaptureStdout("swb_author_lookup \"" + author + "\"", &author_gnd_candidate);
-        if (not author_gnd_candidate.empty())
+        if (not author_gnd_candidate.empty()) {
             author_subfields.appendSubfield('0', "(DE-588)" + StringUtil::Trim(author_gnd_candidate));
+            record->insertFieldAtEnd("887", { { 'a', "Autor [" + author + "] maschinell zugeordnet" } });
+        }
+        author_subfields.appendSubfield('4', "aut");
         record->insertField(author_tag, author_subfields);
     }
 }
@@ -66,7 +68,8 @@ void AugmentMarc(const std::string type, MARC::Reader * const marc_reader, MARC:
         std::for_each(authors_and_references.begin(), authors_and_references.end(), [&](std::vector<std::string> line) {
             if (line[0] == "Author") {
                 line[1].pop_back(); /*remove trailing '/'*/
-                urls_and_authors.insert(std::make_pair(line[1], std::vector<std::string>(line.begin() + 3, line.end())));
+                urls_and_authors.insert(std::make_pair(
+                    line[1], std::vector<std::string>(line.begin() + 3 /*skip author/reference, link, title */, line.end())));
             }
         });
         AddAuthorsToRecord(&record, urls_and_authors);
