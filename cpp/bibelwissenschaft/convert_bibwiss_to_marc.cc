@@ -153,6 +153,24 @@ void InsertEditors(const std::string, const char, MARC::Record * const record, c
 }
 
 
+std::string ExtractPublicationYear(const std::string &published_at) {
+    static ThreadSafeRegexMatcher date_matcher("((\\d{4})-\\d{2}-\\d{2})");
+    if (const auto &match_result = date_matcher.match(published_at)) {
+        return match_result[2];
+    }
+    return "";
+}
+
+
+void InsertCreationDates(const std::string, const char, MARC::Record * const record, const std::string &data) {
+    if (data.length()) {
+        const std::string year(ExtractPublicationYear(data));
+        if (not year.empty())
+            record->insertField("936", { { 'j', year } });
+    }
+}
+
+
 void InsertStripped(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
     if (data.length()) {
         std::string field_content;
@@ -181,15 +199,6 @@ void InsertBibWissLink(const std::string &tag, const char, MARC::Record * const 
                                    { 'x', "Verlag" },
                                    { 'z', "kostenfrei" },
                                    { '3', "Volltext" } });
-}
-
-
-std::string ExtractPublicationYear(const std::string &published_at) {
-    static ThreadSafeRegexMatcher date_matcher("((\\d{4})-\\d{2}-\\d{2})");
-    if (const auto &match_result = date_matcher.match(published_at)) {
-        return match_result[2];
-    }
-    return "";
 }
 
 
@@ -259,6 +268,7 @@ void ConvertArticles(DbConnection * const db_connection, const DbFieldToMARCMapp
 
 const std::map<std::string, ConversionFunctor> name_to_functor_map{ { "InsertField", InsertField },
                                                                     { "InsertCreationField", InsertCreationField },
+                                                                    { "InsertCreationDates", InsertCreationDates },
                                                                     { "InsertAuthors", InsertAuthors },
                                                                     { "InsertOrForceSubfield", InsertOrForceSubfield },
                                                                     { "InsertEditors", InsertEditors },
