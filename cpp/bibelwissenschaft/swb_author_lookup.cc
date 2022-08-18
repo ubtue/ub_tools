@@ -52,9 +52,7 @@ int Main(int argc, char *argv[]) {
         Usage();
     std::string author(argv[1]);
     // Make sure, we have space after comma. Otherwise results do not match
-    const auto comma_position(author.find(','));
-    if (comma_position != std::string::npos)
-        author.insert(comma_position + 1, " ");
+    author = StringUtil::Join(StringUtil::Split(author, ','), ", ");
     const std::string gnd_number(LookupAuthor('"' + author + '"'));
     if (gnd_number.empty()) {
         LOG_WARNING("Unable to determine GND for author \"" + author + "\"");

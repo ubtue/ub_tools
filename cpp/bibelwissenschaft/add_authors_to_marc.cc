@@ -29,6 +29,11 @@ namespace {
 }
 
 
+void FixAuthorFormatting(std::string * const author) {
+    *author = StringUtil::Join(StringUtil::Split(*author, ','), ", ");
+}
+
+
 void AddAuthorsToRecord(MARC::Record * const record, const std::unordered_map<std::string, std::vector<std::string>> &urls_and_authors) {
     const auto url(record->getFirstSubfieldValue("856", 'u'));
     const auto entry(urls_and_authors.find(url));
@@ -41,14 +46,15 @@ void AddAuthorsToRecord(MARC::Record * const record, const std::unordered_map<st
         LOG_ERROR("Empty Authors should not happen");
 
     bool first_author(true);
-    for (const auto author : entry->second) {
+    for (auto author : entry->second) {
+        FixAuthorFormatting(&author);
         const std::string author_tag(first_author ? "100" : "700");
         first_author = false;
         MARC::Subfields author_subfields({ { 'a', author } });
         std::string author_gnd_candidate;
         ExecUtil::ExecSubcommandAndCaptureStdout("swb_author_lookup \"" + author + "\"", &author_gnd_candidate);
         if (not author_gnd_candidate.empty()) {
-            author_subfields.appendSubfield('0', "(DE-588)" + StringUtil::Trim(author_gnd_candidate));
+            author_subfields.appendSubfield('0', "(DE-588)" + StringUtil::Trim(author_gnd_candidate, " \n"));
             record->insertFieldAtEnd("887", { { 'a', "Autor [" + author + "] maschinell zugeordnet" } });
         }
         author_subfields.appendSubfield('4', "aut");

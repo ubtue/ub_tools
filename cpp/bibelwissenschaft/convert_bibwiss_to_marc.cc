@@ -206,7 +206,7 @@ MARC::Subfields GetSuperiorWorkDescription(enum BIBWISS_TYPES type, const std::s
                                  { 'w', "(DE-576)49274064X" } });
     case BIBWISS_TYPES::WIRELEX:
         return MARC::Subfields({ { 'i', "Enhalten in" },
-                                 { 't', "WiReLex - das wissenschaftlich-religionspädagogische Lexikon im Internet  " },
+                                 { 't', "WiReLex - das wissenschaftlich-religionspädagogische Lexikon im Internet" },
                                  { 'd', "Stuttgart : Deutsche Bibelgesellschaft, 2015" },
                                  { 'g', publication_year },
                                  { 'h', "Online-Ressource" },
@@ -291,6 +291,8 @@ void CreateDbFieldToMarcMappings(File * const map_file, DbFieldToMARCMappingMult
         std::string line;
         map_file->getline(&line);
         StringUtil::Trim(&line);
+        if (line[0] == '#')
+            continue;
         std::vector<std::string> mapping;
         StringUtil::SplitThenTrim(line, SEPARATOR_CHAR, " \t", &mapping);
         if (unlikely(mapping.size() < 2 and line.back() != SEPARATOR_CHAR)) {
