@@ -166,7 +166,8 @@ void InsertCreationDates(const std::string, const char, MARC::Record * const rec
     if (data.length()) {
         const std::string year(ExtractPublicationYear(data));
         if (not year.empty())
-            record->insertField("936", { { 'j', year } });
+            record->insertField("936", { { 'j', year } }, 'u', 'w');
+        record->insertField("264", { { 'c', year } });
     }
 }
 
@@ -195,10 +196,7 @@ void InsertDOI(const std::string &tag, const char subfield_code, MARC::Record * 
 
 void InsertBibWissLink(const std::string &tag, const char, MARC::Record * const record, const std::string &data) {
     if (data.length())
-        record->insertField(tag, { { 'u', "https://www.bibelwissenschaft.de/stichwort/" + StringUtil::Trim(data) },
-                                   { 'x', "Verlag" },
-                                   { 'z', "kostenfrei" },
-                                   { '3', "Volltext" } });
+        record->insertField(tag, { { 'u', "https://www.bibelwissenschaft.de/stichwort/" + StringUtil::Trim(data) }, { 'z', "LF" } });
 }
 
 
@@ -249,10 +247,12 @@ void ConvertArticles(DbConnection * const db_connection, const DbFieldToMARCMapp
                 dbfield_to_marc_mapping->extraction_function_(new_record, row[dbfield_to_marc_mapping->db_field_name_]);
             }
             // Dummy entries
+            new_record->insertField("003", "DE-Tue135");
             new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
             new_record->insertField("007", "cr|||||");
+            new_record->insertField("084", { { 'a', "1" }, { '2', "ssgn" } });
             // Make sure we are a dictionary entry/article
-            new_record->insertField("935", { { 'c', "uwlx" } });
+            new_record->insertField("935", { { 'c', "uwlx" }, { '2', "LOK" } });
             new_record->insertField("773", GetSuperiorWorkDescription(bibwiss_type, ExtractPublicationYear(row["published_at"])));
             new_record->insertField("041", { { 'a', "ger" } });
             new_record->insertField("338", { { 'a', "Online-Resource" }, { 'b', "cr" }, { '2', "rdacarrier" } });
