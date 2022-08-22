@@ -389,11 +389,11 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
                 if (not statistics_category.empty())
                     new_record.insertField("935", { { 'a', "stat" }, { '2', "LOK" } });
 
-                for (auto creator : creators)
-                    new_record.insertField(creator.second, { { 'a', creator.first } });
+                for (const auto &creator : creators)
+                    new_record.insertFieldAtEnd(creator.second, { { 'a', creator.first } }, /* indicator 1 = */ '1');
                 for (const auto &keyword : keywords) {
                     const std::string normalized_keyword(TextUtil::CollapseAndTrimWhitespace(keyword));
-                    new_record.insertField(MARC::GetIndexField(normalized_keyword));
+                    new_record.insertFieldAtEnd(MARC::GetIndexField(normalized_keyword));
                 }
                 title_writer->write(new_record);
                 break;
