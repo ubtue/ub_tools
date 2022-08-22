@@ -72,7 +72,7 @@ MARC::Record *CreateNewRecord(const std::string &bibwiss_id, const BIBWISS_TYPES
     const std::string prefix(type == BIBWISS_TYPES::WIRELEX ? "BRE" : "BBI");
     const std::string ppn(prefix + formatted_number.str());
 
-    return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::UNDEFINED, ppn);
+    return new MARC::Record(MARC::Record::TypeOfRecord::LANGUAGE_MATERIAL, MARC::Record::BibliographicLevel::SERIAL_COMPONENT_PART, ppn);
 }
 
 
@@ -153,7 +153,26 @@ void InsertEditors(const std::string, const char, MARC::Record * const record, c
 }
 
 
-void InsertStripped(const std::string tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
+std::string ExtractPublicationYear(const std::string &published_at) {
+    static ThreadSafeRegexMatcher date_matcher("((\\d{4})-\\d{2}-\\d{2})");
+    if (const auto &match_result = date_matcher.match(published_at)) {
+        return match_result[2];
+    }
+    return "";
+}
+
+
+void InsertCreationDates(const std::string, const char, MARC::Record * const record, const std::string &data) {
+    if (data.length()) {
+        const std::string year(ExtractPublicationYear(data));
+        if (not year.empty())
+            record->insertField("936", { { 'j', year } }, 'u', 'w');
+        record->insertField("264", { { 'c', year } });
+    }
+}
+
+
+void InsertStripped(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
     if (data.length()) {
         std::string field_content;
         if (data.length() > MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH - MARC::Record::TAG_LENGTH)
@@ -165,26 +184,38 @@ void InsertStripped(const std::string tag, const char subfield_code, MARC::Recor
 }
 
 
-void InsertStrippedRemoveHTML(const std::string tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
+void InsertStrippedRemoveHTML(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
     InsertStripped(tag, subfield_code, record, HtmlUtil::StripHtmlTags(data));
 }
 
-MARC::Subfields GetSuperiorWorkDescription(enum BIBWISS_TYPES type) {
+void InsertDOI(const std::string &tag, const char subfield_code, MARC::Record * const record, const std::string &data) {
+    if (data.length())
+        record->insertField(tag, { { subfield_code, data }, { '2', "doi" } });
+}
+
+
+void InsertBibWissLink(const std::string &tag, const char, MARC::Record * const record, const std::string &data) {
+    if (data.length())
+        record->insertField(tag, { { 'u', "https://www.bibelwissenschaft.de/stichwort/" + StringUtil::Trim(data) }, { 'z', "LF" } });
+}
+
+
+MARC::Subfields GetSuperiorWorkDescription(enum BIBWISS_TYPES type, const std::string &publication_year) {
     switch (type) {
     case BIBWISS_TYPES::WIBILEX:
         return MARC::Subfields({ { 'i', "Enhalten in" },
                                  { 't', "Das wissenschaftliche Bibellexikon im Internet" },
                                  { 'd', "Stuttgart : Deutsche Bibelgesellschaft, 2004" },
-                                 { 'g', "JAHRYYY" },
+                                 { 'g', publication_year },
                                  { 'h', "Online-Ressource" },
                                  { 'w', "(DE-627)896670716" },
                                  { 'w', "(DE-600)2903948-4" },
                                  { 'w', "(DE-576)49274064X" } });
     case BIBWISS_TYPES::WIRELEX:
         return MARC::Subfields({ { 'i', "Enhalten in" },
-                                 { 't', "WiReLex - das wissenschaftlich-religionspädagogische Lexikon im Internet  " },
+                                 { 't', "WiReLex - das wissenschaftlich-religionspädagogische Lexikon im Internet" },
                                  { 'd', "Stuttgart : Deutsche Bibelgesellschaft, 2015" },
-                                 { 'g', "JAHRXXXX" },
+                                 { 'g', publication_year },
                                  { 'h', "Online-Ressource" },
                                  { 'w', "(DE627)896670740" },
                                  { 'w', "(DE600)2903951-4" },
@@ -206,6 +237,9 @@ void ConvertArticles(DbConnection * const db_connection, const DbFieldToMARCMapp
         db_connection->queryOrDie(bibwiss_query);
         DbResultSet result_set(db_connection->getLastResultSet());
         while (const auto row = result_set.getNextRow()) {
+            // Apparently the entry does not exist in the web version and no PDF was generated
+            if (row["pdf_last_created"].empty())
+                continue;
             MARC::Record * const new_record(CreateNewRecord(std::to_string(++ppn_index), bibwiss_type));
             for (auto dbfield_to_marc_mapping(dbfield_to_marc_mappings.begin()); dbfield_to_marc_mapping != dbfield_to_marc_mappings.end();
                  ++dbfield_to_marc_mapping)
@@ -213,11 +247,17 @@ void ConvertArticles(DbConnection * const db_connection, const DbFieldToMARCMapp
                 dbfield_to_marc_mapping->extraction_function_(new_record, row[dbfield_to_marc_mapping->db_field_name_]);
             }
             // Dummy entries
+            new_record->insertField("003", "DE-Tue135");
             new_record->insertField("005", TimeUtil::GetCurrentDateAndTime("%Y%m%d%H%M%S") + ".0");
+            new_record->insertField("007", "cr|||||");
+            new_record->insertField("084", { { 'a', "1" }, { '2', "ssgn" } });
             // Make sure we are a dictionary entry/article
-            new_record->insertField("935", { { 'c', "uwlx" } });
-            new_record->insertField("773", GetSuperiorWorkDescription(bibwiss_type));
-
+            new_record->insertField("935", { { 'c', "uwlx" }, { '2', "LOK" } });
+            new_record->insertField("773", GetSuperiorWorkDescription(bibwiss_type, ExtractPublicationYear(row["published_at"])));
+            new_record->insertField("041", { { 'a', "ger" } });
+            new_record->insertField("338", { { 'a', "Online-Resource" }, { 'b', "cr" }, { '2', "rdacarrier" } });
+            new_record->insertField("ELC", { { 'a', "1" } });
+            new_record->insertField("TYP", { { 'a', GetStringForBibWissType(bibwiss_type) } });
             marc_writer->write(*new_record);
             delete new_record;
         }
@@ -228,11 +268,14 @@ void ConvertArticles(DbConnection * const db_connection, const DbFieldToMARCMapp
 
 const std::map<std::string, ConversionFunctor> name_to_functor_map{ { "InsertField", InsertField },
                                                                     { "InsertCreationField", InsertCreationField },
+                                                                    { "InsertCreationDates", InsertCreationDates },
                                                                     { "InsertAuthors", InsertAuthors },
                                                                     { "InsertOrForceSubfield", InsertOrForceSubfield },
                                                                     { "InsertEditors", InsertEditors },
                                                                     { "InsertStripped", InsertStripped },
-                                                                    { "InsertStrippedRemoveHTML", InsertStrippedRemoveHTML } };
+                                                                    { "InsertStrippedRemoveHTML", InsertStrippedRemoveHTML },
+                                                                    { "InsertDOI", InsertDOI },
+                                                                    { "InsertBibWissLink", InsertBibWissLink } };
 
 
 ConversionFunctor GetConversionFunctor(const std::string &functor_name) {
@@ -258,6 +301,8 @@ void CreateDbFieldToMarcMappings(File * const map_file, DbFieldToMARCMappingMult
         std::string line;
         map_file->getline(&line);
         StringUtil::Trim(&line);
+        if (line[0] == '#')
+            continue;
         std::vector<std::string> mapping;
         StringUtil::SplitThenTrim(line, SEPARATOR_CHAR, " \t", &mapping);
         if (unlikely(mapping.size() < 2 and line.back() != SEPARATOR_CHAR)) {
