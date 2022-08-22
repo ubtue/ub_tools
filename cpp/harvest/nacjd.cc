@@ -33,6 +33,7 @@
 #include "HttpHeader.h"
 #include "JSON.h"
 #include "MARC.h"
+#include "TimeUtil.h"
 #include "UBTools.h"
 #include "UrlUtil.h"
 #include "util.h"
@@ -274,7 +275,7 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
         std::string identifiier;
         std::string description;
         std::string license;
-        std::string initial_release_date;
+        unsigned year;
         std::set<std::string> keywords;
         std::map<std::string, std::string> creators;
         const auto nacjd_node(JSON::JSONNode::CastToObjectNodeOrDie("entry", internal_nacjd_node));
@@ -307,8 +308,9 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
                 const auto date_node(JSON::JSONNode::CastToObjectNodeOrDie("date", internal_date_node));
                 const auto date_type_node(date_node->getObjectNode("type"));
                 const auto date_date_node(date_node->getStringNode("date"));
-                if (date_type_node->getStringNode("value")->getValue() == "initial release date")
-                    initial_release_date = date_date_node->getValue();
+                if (date_type_node->getStringNode("value")->getValue() == "initial release date") {
+                    TimeUtil::StringToYear(date_date_node->getValue(), &year);
+                }
             }
 
             for (const auto &internal_license_node : *licenses_node) {
@@ -319,7 +321,7 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
                     break;
                 }
             }
-            if (not license.empty() and not initial_release_date.empty())
+            if (not license.empty() and year == 0)
                 break;
         }
 
@@ -358,7 +360,7 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
                 LOG_ERROR("unknown creator type: " + type);
         }
 
-        if (creators.empty() or license.empty() or initial_release_date.empty()) {
+        if (creators.empty() or license.empty() or year == 0) {
             complete = false;
         }
 
@@ -373,7 +375,7 @@ void ParseJSONAndWriteMARC(const std::string &json_path, MARC::Writer * const ti
                 new_record.insertField("041", { { 'a', "eng" } });
                 new_record.insertField("084", { { 'a', "2,1" }, { '2', "ssgn" } });
                 new_record.insertField("245", { { 'a', title_node->getValue() } }, /* indicator 1 = */ '1', /* indicator 2 = */ '0');
-                new_record.insertField("264", { { 'c', initial_release_date } });
+                new_record.insertField("264", { { 'c', std::to_string(year) } });
                 new_record.insertField("520", { { 'a', description } });
                 new_record.insertField("540", { { 'a', license } });
                 new_record.insertField("655", { { 'a', "Forschungsdaten" } }, ' ', '4');
