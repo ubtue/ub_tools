@@ -237,7 +237,7 @@ void ConvertArticles(DbConnection * const db_connection, const DbFieldToMARCMapp
         db_connection->queryOrDie(bibwiss_query);
         DbResultSet result_set(db_connection->getLastResultSet());
         while (const auto row = result_set.getNextRow()) {
-            // Apparently the entry does not exist in the web version and no PDF is was generated
+            // Apparently the entry does not exist in the web version and no PDF was generated
             if (row["pdf_last_created"].empty())
                 continue;
             MARC::Record * const new_record(CreateNewRecord(std::to_string(++ppn_index), bibwiss_type));
