@@ -28,6 +28,14 @@ function AddToLookupTable {
     echo [${key}]=\"${value}\"
 }
 
+
+function AddToLookupTableSwap {
+    key="$1"
+    shift
+    value="$@"
+    echo [${value}]=\"${key}\"
+}
+
 if [[ $# < 3 ]]; then
    Usage
 fi
@@ -53,12 +61,23 @@ marc_augmentor ${tmpfiles[1]} ${tmpfiles[2]} --add-subfield-if-matching  '1000:(
 # References need a year and a hint to which other keyword they link
 declare -A references
 export -f AddToLookupTable
-eval "references_content=\$(cat \$@ | csvcut -C 2 | csvgrep --column 1 -m \"Reference\" | csvcut -C 1 | csvtool call AddToLookupTable -)"
+eval "references_content=\$(cat \$@ | csvcut --not-columns 2 | csvgrep --column 1 -m \"Reference\" | csvcut --not-columns 1 | csvtool call AddToLookupTable -)"
 eval "references=($(echo ${references_content}))"
 
+declare -A ppns_and_titles
+eval "ppns_and_titles=($(marc_grep ${tmpfiles[2]} '"245a"' control_number_and_traditional | csvcut -d: -c 1,3 | csvtool call AddToLookupTable -))"
 
-echo ${references[@]}
-echo ${references[Zweiter Jesaja]}
+declare -A titles_and_ppns
+export -f AddToLookupTableSwap
+eval "titles_and_ppns=($(marc_grep ${tmpfiles[2]} '"245a"' control_number_and_traditional | csvcut -d: -c 1,3 | csvtool call AddToLookupTableSwap -))"
+for record_ppn in "${!ppns_and_titles[@]}"; do
+    record_title="${ppns_and_titles[${record_ppn}]}"
+    if [[ -v references[${record_title}] ]]; then
+        reference_title=${references[${record_title}]}
+        reference_ppn=${titles_and_ppns[${reference_title}]}
+        echo "\"${record_title}\" is a reference to \"${reference_title}\" (PPN: ${reference_ppn})"
+    fi
+done
 
 
 CleanUpTmpFiles
