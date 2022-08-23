@@ -85,7 +85,7 @@ done
 eval "${arguments}"
 
 # Make sure we do not have " / " - this means the separation of an author
-marc_augmentor ${tmpfiles[3]} ${marc_out} --replace-subfield-if-regex '245a:/\\s+\/\\s+/\//' '245a:\s+/\s+' \
-                                          --replace-subfield-if-regex '500a:/\\s+\/\\s+/\//' '500a:\s+/\s+'
+marc_augmentor ${tmpfiles[3]} ${marc_out} --replace-subfield-if-regex '245a:/\\s+\/\\s+/\//g' '245a:\s+/\s+' \
+                                          --replace-subfield-if-regex '500a:/\\s+\/\\s+/\//g' '500a:\s+/\s+'
 
 CleanUpTmpFiles
