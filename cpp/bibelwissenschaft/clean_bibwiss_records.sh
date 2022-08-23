@@ -29,6 +29,12 @@ function AddToLookupTable {
 }
 
 
+function AddToLookupTableSwap {
+    key="$1"
+    shift
+    value="$@"
+    echo [${value}]=\"${key}\"
+}
 if [[ $# < 3 ]]; then
    Usage
 fi
@@ -57,19 +63,28 @@ eval "references_content=\$(cat \$@ | csvcut --not-columns 2 | grep '^Reference'
 eval "references=($(echo ${references_content}))"
 
 declare -A ppns_and_titles
+declare -A titles_and_ppns
+declare -A ppns_and_years
+export -f AddToLookupTableSwap
 eval "ppns_and_titles=($(marc_grep ${tmpfiles[2]} '"245a"' control_number_and_traditional | csvcut -d: -c 1,3 | csvtool call AddToLookupTable -))"
+eval "titles_and_ppns=($(marc_grep ${tmpfiles[2]} '"245a"' control_number_and_traditional | csvcut -d: -c 1,3 | csvtool call AddToLookupTableSwap -))"
+eval "ppns_and_years=($(marc_grep ${tmpfiles[2]} '"936j"' control_number_and_traditional | csvcut -d: -c 1,3 | csvtool call AddToLookupTable -))"
 arguments="marc_augmentor ${tmpfiles[2]} ${marc_out} "
 for record_ppn in "${!ppns_and_titles[@]}"; do
     record_title="${ppns_and_titles[${record_ppn}]}"
     if [[ -v references[${record_title}] ]]; then
-        reference_title=${references[${record_title}]}
-        #echo "\"${record_title}\" (PPN ${record_ppn}) is a reference to \"${reference_title}\""
+        reference_title="${references[${record_title}]:-}"
         arguments+=" --insert-field-if '500a:Verweis auf \"${reference_title}\"' '001:${record_ppn}'"
+        reference_ppn="${titles_and_ppns[${reference_title}]:-BIB00000000}"
+        reference_year="${ppns_and_years[${reference_ppn}]:-2007}"
+        arguments+=" --insert-field-if '264c:${reference_year}' '001:${record_ppn}' \
+                     --insert-field-if '936j:${reference_year}' '001:${record_ppn}'"
+
     fi
 done
 eval "${arguments}"
 
-
 # Make sure we do not have " / " - this means the separation of an author
+
 
 CleanUpTmpFiles
