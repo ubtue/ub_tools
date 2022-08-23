@@ -8,7 +8,7 @@ function Usage {
 }
 
 
-NUM_OF_TMPFILES=3
+NUM_OF_TMPFILES=4
 function GenerateTmpFiles {
     for i in $(seq 1 ${NUM_OF_TMPFILES}); do
         tmpfiles+=($(mktemp --tmpdir $(basename -- ${marc_out%.*}).XXXX.${marc_out##*.}));
@@ -69,7 +69,7 @@ export -f AddToLookupTableSwap
 eval "ppns_and_titles=($(marc_grep ${tmpfiles[2]} '"245a"' control_number_and_traditional | csvcut -d: -c 1,3 | csvtool call AddToLookupTable -))"
 eval "titles_and_ppns=($(marc_grep ${tmpfiles[2]} '"245a"' control_number_and_traditional | csvcut -d: -c 1,3 | csvtool call AddToLookupTableSwap -))"
 eval "ppns_and_years=($(marc_grep ${tmpfiles[2]} '"936j"' control_number_and_traditional | csvcut -d: -c 1,3 | csvtool call AddToLookupTable -))"
-arguments="marc_augmentor ${tmpfiles[2]} ${marc_out} "
+arguments="marc_augmentor ${tmpfiles[2]} ${tmpfiles[3]} "
 for record_ppn in "${!ppns_and_titles[@]}"; do
     record_title="${ppns_and_titles[${record_ppn}]}"
     if [[ -v references[${record_title}] ]]; then
@@ -85,6 +85,9 @@ done
 eval "${arguments}"
 
 # Make sure we do not have " / " - this means the separation of an author
+marc_augmentor ${tmpfiles[3]} ${marc_out} --replace-subfield-if-regex '245a:/\\s+\/\\s+/\//' '245a:\s+/\s+'
+marc_augmentor ${tmpfiles[3]} ${marc_out} --replace-subfield-if-regex '500a:/\\s+\/\\s+/\//' '500a:\s+/\s+'
+
 
 
 CleanUpTmpFiles
