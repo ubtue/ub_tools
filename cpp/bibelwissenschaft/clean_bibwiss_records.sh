@@ -88,6 +88,4 @@ eval "${arguments}"
 marc_augmentor ${tmpfiles[3]} ${marc_out} --replace-subfield-if-regex '245a:/\\s+\/\\s+/\//' '245a:\s+/\s+'
 marc_augmentor ${tmpfiles[3]} ${marc_out} --replace-subfield-if-regex '500a:/\\s+\/\\s+/\//' '500a:\s+/\s+'
 
-
-
 CleanUpTmpFiles
