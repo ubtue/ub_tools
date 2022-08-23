@@ -28,6 +28,7 @@ function AddToLookupTable {
     echo [${key}]=\"${value}\"
 }
 
+
 if [[ $# < 3 ]]; then
    Usage
 fi
@@ -41,7 +42,6 @@ shift
 # Some of the entries in the DB were not really present in the web interface
 tmpfiles=()
 GenerateTmpFiles
-echo ${tmpfiles[@]}
 invalid_urls=($(diff --new-line-format="" --unchanged-line-format="" <(marc_grep ${marc_in} '"856u"' traditional | awk -F' ' '{print $2}' | sort) \
     <(cat $@ | csvcut --column 2 | grep '^https' | sed -r -e 's#/$##' | sort)))
 marc_filter ${marc_in} ${tmpfiles[0]}  --drop '856u:('$(IFS=\|; echo "${invalid_urls[*]}")')'
@@ -53,12 +53,23 @@ marc_augmentor ${tmpfiles[1]} ${tmpfiles[2]} --add-subfield-if-matching  '1000:(
 # References need a year and a hint to which other keyword they link
 declare -A references
 export -f AddToLookupTable
-eval "references_content=\$(cat \$@ | csvcut -C 2 | csvgrep --column 1 -m \"Reference\" | csvcut -C 1 | csvtool call AddToLookupTable -)"
+eval "references_content=\$(cat \$@ | csvcut --not-columns 2 | grep '^Reference' | csvcut --not-columns 1 | csvtool call AddToLookupTable -)"
 eval "references=($(echo ${references_content}))"
 
+declare -A ppns_and_titles
+eval "ppns_and_titles=($(marc_grep ${tmpfiles[2]} '"245a"' control_number_and_traditional | csvcut -d: -c 1,3 | csvtool call AddToLookupTable -))"
+arguments="marc_augmentor ${tmpfiles[2]} ${marc_out} "
+for record_ppn in "${!ppns_and_titles[@]}"; do
+    record_title="${ppns_and_titles[${record_ppn}]}"
+    if [[ -v references[${record_title}] ]]; then
+        reference_title=${references[${record_title}]}
+        #echo "\"${record_title}\" (PPN ${record_ppn}) is a reference to \"${reference_title}\""
+        arguments+=" --insert-field-if '500a:Verweis auf \"${reference_title}\"' '001:${record_ppn}'"
+    fi
+done
+eval "${arguments}"
 
-echo ${references[@]}
-echo ${references[Zweiter Jesaja]}
 
+# Make sure we do not have " / " - this means the separation of an author
 
 CleanUpTmpFiles
