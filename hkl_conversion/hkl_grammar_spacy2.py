@@ -20,6 +20,7 @@ from spacy.language import Language
 from spacy.matcher import PhraseMatcher
 
 from stanza.pipeline.processor import ProcessorVariant, register_processor_variant, Processor, register_processor
+from spacy.pipeline.senter import DEFAULT_SENTER_MODEL
 
 
 import stanza
@@ -96,38 +97,52 @@ abbreviations_for_line_merge = r'(Zweispr.|Sumer.|assyr.|Neuassyr.|vol.|=)$'
 
 def SplitToAuthorSentenceGroupsAndSentences(entries):
       authors_and_sentence_groups = []
-      stanza.download("en")
-      nlp = spacy_stanza.load_pipeline("en", processors="tokenize,pos,lemma,depparse" )
-      matcher = PhraseMatcher(nlp.vocab)
-      terms = ["Zweispr. Kultlied", "Sumer. Kultlied.", "Zweispr. Hymnus.", "vol. II."]
-      patterns = [nlp.make_doc(text) for text in terms]
-      matcher.add("TerminologyList", patterns)
+      stanza.download("de")
+      nlp = spacy_stanza.load_pipeline("de", processors="tokenize,pos,mwt,lemma,depparse,ner")
+      #nlp = spacy.load("de_core_news_lg")
+      #nlp.remove_pipe("senter");
+      #config = {"model": DEFAULT_SENTER_MODEL,}
+      #nlp.add_pipe("senter", config=config)
+      #nlp = spacy.load("en_core_web_trf")
+      #matcher = PhraseMatcher(nlp.vocab)
+      #terms = ["Zweispr. Kultlied", "Sumer. Kultlied.", "Zweispr. Hymnus.", "vol. II."]
+      #patterns = [nlp.make_doc(text) for text in terms]
+      #matcher.add("TerminologyList", patterns)
       analysis = nlp.analyze_pipes(pretty=True)
-      nlp.to_disk("./spacy_pipeline_stanza")
+      #nlp.to_disk("./spacy_pipeline_stanza")
       for author, entry in entries:
           normalized_separations = re.sub(r'-\n', '', ''.join(entry))
           normalized_newlines= re.sub(r'\n(?!\n)', ' ', normalized_separations)
           sentences = []
           sentence_groups = []
           print("AUTHOR: " + author)
-          for to_parse in [ normalized_newlines ]:
-              print("ORIG: " + to_parse)
-              for to_parse_single in re.split(r'\n\n',to_parse):
-                  pre_nlp = spacy.blank("en")
-                  pre_nlp.add_pipe("set_custom_boundaries")
-                  pre_parsed_doc = pre_nlp(to_parse_single);
-                  for pre_parsed_sentence in pre_parsed_doc.sents:
-                      doc = nlp(pre_parsed_sentence.orth_.strip())
-                      for sentence in doc.sents:
-                          sentence = sentence.orth_.strip()
-                          sentences.append(sentence)
-                  new_sentences = []
-                  for sentence in sentences:
-                      index = sentences.index(sentence)
-                      if re.search(abbreviations_for_line_merge, sentence) and index < len(sentences) - 1:
-                          sentences[index : index + 2] = [reduce(lambda sentx, senty: sentx + " " + senty, sentences[index : index + 2])]
-                  sentence_groups.append(sentences)
-                  sentences = []
+          #for to_parse in [ normalized_newlines ]:
+          #for to_parse in [ normalized_newlines ]:
+          to_parse = normalized_newlines
+
+          print("ORIG: " + to_parse)
+          #for to_parse_single in re.split(r'\n\n',to_parse):
+              #pre_nlp = spacy.blank("de")
+              #pre_nlp.add_pipe("set_custom_boundaries")
+              #pre_parsed_doc = pre_nlp(to_parse_single);
+              #for pre_parsed_sentence in pre_parsed_doc.sents:
+          doc = nlp(to_parse)
+          #displacy.serve(doc, style="ent")
+          #continue
+          #sys.exit(0)
+          #for token in doc :
+          #    print(token.text, token.lemma_, token.pos_, token.dep_, token.ent_type_)
+
+          for sentence in doc.sents:
+              sentence = sentence.orth_.strip()
+              sentences.append(sentence)
+          new_sentences = []
+          for sentence in sentences:
+              index = sentences.index(sentence)
+              if re.search(abbreviations_for_line_merge, sentence) and index < len(sentences) - 1:
+                  sentences[index : index + 2] = [reduce(lambda sentx, senty: sentx + " " + senty, sentences[index : index + 2])]
+          sentence_groups.append(sentences)
+          sentences = []
           authors_and_sentence_groups.append((author, sentence_groups))
       return authors_and_sentence_groups
 
