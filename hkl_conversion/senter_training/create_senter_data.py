@@ -3,6 +3,7 @@
 import spacy
 import os
 import random
+import re
 
 # tqdm is a great progress bar for python
 # tqdm.auto automatically selects a text based progress for the console 
@@ -15,7 +16,8 @@ from spacy.tokens import DocBin
 
 #nlp = spacy.blank("xx")
 nlp = spacy.load("xx_sent_ud_sm")
-nlp.from_disk("training/spacy_pipeline_xx_sent_ud")
+#nlp = spacy.load("de_dep_news_trf")
+#nlp.from_disk("training/spacy_pipeline_trf")
 
 def make_docs(reference_dir, upper_half):
     docs = []
@@ -35,13 +37,20 @@ def make_docs(reference_dir, upper_half):
             for line in lines:
                 sent_doc = nlp(line)
                 sent_doc[0].is_sent_start = True
-                for token in sent_doc[1:-1]:
-                    token.is_sent_start = False
+                #for token in sent_doc[1:-1]:
+                #    token.is_sent_start = False
+                for token in sent_doc:
+                    if token.text == "//":
+                        sent_doc[token.i].is_sent_start = True
+                    if token.text == "--":
+                        sent_doc[token.i].is_sent_start = True
+                    if re.match(r'n[XVIL]+', token.text):
+                        sent_doc[token.i].is_sent_start = True
                 sent_docs.append(sent_doc)
-                for token in sent_docs[-1]:
-                    if token.is_sent_start:
-                       print("SENT_START XX: ")
-                    print(token)
+            #for token in sent_docs:
+            #    if token.is_sent_start:
+            #        print("SENT_START XX: ")
+            #        print(token)
             doc = Doc.from_docs(sent_docs, ensure_whitespace=True)
             docs.append(doc)
             f.close()

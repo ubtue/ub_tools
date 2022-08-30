@@ -3,9 +3,8 @@
 import re
 import regex
 import sys
-import nltk, re, pprint
+import re, pprint
 import random
-from langdetect import detect
 from dicttoxml import dicttoxml
 import json
 from boltons.iterutils import remap
@@ -22,11 +21,6 @@ from spacy.matcher import PhraseMatcher
 from stanza.pipeline.processor import ProcessorVariant, register_processor_variant, Processor, register_processor
 from spacy.pipeline.senter import DEFAULT_SENTER_MODEL
 
-
-import stanza
-import spacy_stanza
-import nltk_classification
-#from pysbd.utils import PySBDFactory
 
 def SplitToAuthorEntries(file):
     entry = []
@@ -97,42 +91,40 @@ abbreviations_for_line_merge = r'(Zweispr.|Sumer.|assyr.|Neuassyr.|vol.|=)$'
 
 def SplitToAuthorSentenceGroupsAndSentences(entries):
       authors_and_sentence_groups = []
-      stanza.download("de")
-      nlp = spacy_stanza.load_pipeline("de", processors="tokenize,pos,mwt,lemma,depparse,ner")
+      #stanza.download("de")
+      #nlp = spacy_stanza.load_pipeline("de", processors="tokenize,pos,mwt,lemma,depparse,ner")
       #nlp = spacy.load("de_core_news_lg")
       #nlp.remove_pipe("senter");
       #config = {"model": DEFAULT_SENTER_MODEL,}
       #nlp.add_pipe("senter", config=config)
-      #nlp = spacy.load("en_core_web_trf")
+      #nlp = spacy.load("de_dep_news_trf")
+      #nlp = spacy.load("xx_sent_ud_sm")
+      nlp = spacy.load("senter_training/training/output/model-best")
+      nlp.tokenizer.add_special_case("Zweispr.", [{"ORTH" : "Zweispr."}])
+      nlp.tokenizer.add_special_case("Sumer.", [{"ORTH" : "Sumer."}])
+      nlp.tokenizer.add_special_case("assyr.", [{"ORTH" : "assyr."}])
+      nlp.tokenizer.add_special_case("Neuassyr.", [{"ORTH" : "Neuassyr."}])
+      nlp.tokenizer.add_special_case("Vgl.", [{"ORTH" : "Vgl."}])
+      nlp.tokenizer.add_special_case("Sarg.", [{"ORTH" : "Sarg."}])
+      nlp.tokenizer.add_special_case("Z. 1)", [{"ORTH" : "Z. 1)"}])
+      prefixes = nlp.Defaults.prefixes + [r"\-\-|Cf",]
+      prefix_regex = spacy.util.compile_prefix_regex(prefixes)
+      #nlp.senter.prefix_search = prefix_regex.search
       #matcher = PhraseMatcher(nlp.vocab)
       #terms = ["Zweispr. Kultlied", "Sumer. Kultlied.", "Zweispr. Hymnus.", "vol. II."]
       #patterns = [nlp.make_doc(text) for text in terms]
       #matcher.add("TerminologyList", patterns)
       analysis = nlp.analyze_pipes(pretty=True)
-      #nlp.to_disk("./spacy_pipeline_stanza")
+      nlp.to_disk("./spacy_pipeline_xx_sent_ud")
       for author, entry in entries:
           normalized_separations = re.sub(r'-\n', '', ''.join(entry))
           normalized_newlines= re.sub(r'\n(?!\n)', ' ', normalized_separations)
           sentences = []
           sentence_groups = []
           print("AUTHOR: " + author)
-          #for to_parse in [ normalized_newlines ]:
-          #for to_parse in [ normalized_newlines ]:
           to_parse = normalized_newlines
-
           print("ORIG: " + to_parse)
-          #for to_parse_single in re.split(r'\n\n',to_parse):
-              #pre_nlp = spacy.blank("de")
-              #pre_nlp.add_pipe("set_custom_boundaries")
-              #pre_parsed_doc = pre_nlp(to_parse_single);
-              #for pre_parsed_sentence in pre_parsed_doc.sents:
           doc = nlp(to_parse)
-          #displacy.serve(doc, style="ent")
-          #continue
-          #sys.exit(0)
-          #for token in doc :
-          #    print(token.text, token.lemma_, token.pos_, token.dep_, token.ent_type_)
-
           for sentence in doc.sents:
               sentence = sentence.orth_.strip()
               sentences.append(sentence)
@@ -217,10 +209,6 @@ def Main():
              entries = SplitToAuthorEntries(GetBufferLikeFile(file))
              authors_and_sentence_groups = SplitToAuthorSentenceGroupsAndSentences(entries)
              ClassifySentences(authors_and_sentence_groups, sys.argv[2])
-
-
-
-
     except Exception as e:
         print("ERROR: " + e)
 
