@@ -21,39 +21,40 @@ nlp = spacy.load("xx_sent_ud_sm")
 
 def make_docs(reference_dir, upper_half):
     docs = []
+    lines = []
     for filename in os.scandir(reference_dir):
         if not filename.is_file():
             continue
         if filename.name.startswith('.'):
             continue
-        lines = []
         with open(filename, 'r') as f:
             print("File: " + filename.name)
             lines += f.readlines()
-            random.shuffle(lines)
-            sent_docs = []
-            half_offset = int(len(lines) / 2)
-            lines = lines[: half_offset ] if upper_half else lines[half_offset:-1]
-            for line in lines:
-                sent_doc = nlp(line)
-                sent_doc[0].is_sent_start = True
-                #for token in sent_doc[1:-1]:
-                #    token.is_sent_start = False
-                for token in sent_doc:
-                    if token.text == "//":
-                        sent_doc[token.i].is_sent_start = True
-                    if token.text == "--":
-                        sent_doc[token.i].is_sent_start = True
-                    if re.match(r'n[XVIL]+', token.text):
-                        sent_doc[token.i].is_sent_start = True
-                sent_docs.append(sent_doc)
-            #for token in sent_docs:
-            #    if token.is_sent_start:
-            #        print("SENT_START XX: ")
-            #        print(token)
-            doc = Doc.from_docs(sent_docs, ensure_whitespace=True)
-            docs.append(doc)
             f.close()
+    for i in range (1,3):
+        random.shuffle(lines)
+        sent_docs = []
+        half_offset = int(len(lines) / 2)
+        lines = lines[: half_offset ] if upper_half else lines[half_offset:-1]
+        for line in lines:
+            sent_doc = nlp(line)
+            sent_doc[0].is_sent_start = True
+            #for token in sent_doc[1:-1]:
+            #    token.is_sent_start = False
+            for token in sent_doc:
+                if token.text == "//":
+                    sent_doc[token.i].is_sent_start = True
+                if token.text == "--":
+                    sent_doc[token.i].is_sent_start = True
+                if re.match(r'n[XVIL]+', token.text):
+                    sent_doc[token.i].is_sent_start = True
+            sent_docs.append(sent_doc)
+        #for token in sent_docs:
+        #    if token.is_sent_start:
+        #        print("SENT_START XX: ")
+        #        print(token)
+        doc = Doc.from_docs(sent_docs, ensure_whitespace=True)
+        docs.append(doc)
     return docs
 
 # first we need to transform all the training data

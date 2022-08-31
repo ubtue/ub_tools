@@ -1,0 +1,1 @@
+../../training/bib_infos.txt
