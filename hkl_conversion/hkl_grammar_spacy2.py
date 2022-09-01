@@ -107,6 +107,7 @@ def SplitToAuthorSentenceGroupsAndSentences(entries):
       nlp.tokenizer.add_special_case("Vgl.", [{"ORTH" : "Vgl."}])
       nlp.tokenizer.add_special_case("Sarg.", [{"ORTH" : "Sarg."}])
       nlp.tokenizer.add_special_case("Z. 1)", [{"ORTH" : "Z. 1)"}])
+      nlp.tokenizer.add_special_case("2. Auflage", [{"ORTH" : "2. Auflage"}])
       prefixes = nlp.Defaults.prefixes + [r"\-\-|Cf",]
       prefix_regex = spacy.util.compile_prefix_regex(prefixes)
       #nlp.senter.prefix_search = prefix_regex.search
