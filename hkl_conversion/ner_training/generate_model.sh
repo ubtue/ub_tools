@@ -26,11 +26,12 @@ done
 # Convert to individual documents
 sed -i -r -e 's/^$/-DOCSTART- -X- O O/' "${cumulated_file}"
 
-python -m spacy convert -n 0 "${cumulated_file}" "${converted_dir}"
+#python -m spacy convert -s -b "../senter_training/training/output/model-best" -n 0 "${cumulated_file}" "${converted_dir}" -s
+python -m spacy convert  -n 0 "${cumulated_file}" "${converted_dir}" -s
 # Generate train and dev data
 create_ner_training.py
 
-
+python -m spacy init fill-config ./base_config.cfg ./config.cfg
 python -m spacy train config.cfg --output "${training_dir}/output" --paths.train "${training_dir}/ner_train.spacy" --paths.dev "${training_dir}/ner_valid.spacy"
 
 cd ${olddir}

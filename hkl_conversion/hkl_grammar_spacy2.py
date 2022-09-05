@@ -100,7 +100,8 @@ def SplitToAuthorSentenceGroupsAndSentences(entries):
       #nlp = spacy.load("de_dep_news_trf")
       #nlp = spacy.load("xx_sent_ud_sm")
       #nlp = spacy.load("en_core_web_md", exclude=["ner", "senter", "parser", "tagger", "attribute_ruler", "lemmatizer"])
-      nlp = spacy.load("senter_training/training/output/model-best")
+      nlp = spacy.load("ner_training/training/output/model-best")
+      nlp.add_pipe("senter", source=spacy.load("senter_training/training/output/model-best"))
       #nlp.add_pipe("senter", source=spacy.load("senter_training/training/output/model-best"))
       nlp.tokenizer.add_special_case("Zweispr.", [{"ORTH" : "Zweispr."}])
       nlp.tokenizer.add_special_case("Sumer.", [{"ORTH" : "Sumer."}])
@@ -117,8 +118,7 @@ def SplitToAuthorSentenceGroupsAndSentences(entries):
       #terms = ["Zweispr. Kultlied", "Sumer. Kultlied.", "Zweispr. Hymnus.", "vol. II."]
       #patterns = [nlp.make_doc(text) for text in terms]
       #matcher.add("TerminologyList", patterns)
-      nlp.add_pipe("ner", source=spacy.load("ner_training/training/output/model-best"))
-      nlp.add_pipe("entity_ruler", before="ner")
+      #nlp.add_pipe("entity_ruler", before="ner")
       analysis = nlp.analyze_pipes(pretty=True)
       nlp.to_disk("./spacy_pipeline_xx_sent_ud")
       docs = []

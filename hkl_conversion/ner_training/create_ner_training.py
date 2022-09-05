@@ -14,7 +14,8 @@ import re
 from spacy.tokens import Doc
 from spacy.tokens import DocBin
 
-nlp = spacy.load("xx_sent_ud_sm")
+#nlp = spacy.load("xx_sent_ud_sm")
+nlp = spacy.load("../senter_training/training/output/model-best")
 extract_pattern=r'ner_all.spacy$'
 
 def make_docs(reference_dir, pattern):
@@ -41,7 +42,9 @@ print("length: " + str(len(docs_list)))
 training_size = int(len(docs_list)/5*4)
 print("training_size: " + str(training_size))
 train_docs = docs_list[:training_size]
-valid_docs = docs_list[training_size + 1:]
+#valid_docs = docs_list[training_size + 1:]
+random.shuffle(docs_list)
+valid_docs = docs_list[:training_size]
 doc_bin = DocBin(docs=train_docs)
 doc_bin.to_disk("./training/ner_train.spacy")
 doc_bin = DocBin(docs=valid_docs)
