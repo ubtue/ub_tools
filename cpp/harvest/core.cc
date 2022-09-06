@@ -137,22 +137,11 @@ void ConvertAbstract(const CORE::Work &work, MARC::Record * const record) {
 }
 
 
-// \return True if any uncontrolled terms were found, else false.
-bool ConvertUncontrolledIndexTerms(const CORE::Work &work, MARC::Record * const record) {
-    bool found_at_least_one_index_term(false);
-
-    if (not work.getDocumentType().empty() and work.getDocumentType() != "unknown") {
+void ConvertUncontrolledIndexTerms(const CORE::Work &work, MARC::Record * const record) {
+    if (not work.getDocumentType().empty() and work.getDocumentType() != "unknown")
         record->insertField("653", 'a', work.getDocumentType());
-        found_at_least_one_index_term = true;
-    }
-
-    if (work.getFieldOfStudy().empty())
-        return found_at_least_one_index_term;
-
-    record->insertField("653", 'a', work.getFieldOfStudy());
-    found_at_least_one_index_term = true;
-
-    return found_at_least_one_index_term;
+    if (not work.getFieldOfStudy().empty())
+        record->insertField("653", 'a', work.getFieldOfStudy());
 }
 
 
