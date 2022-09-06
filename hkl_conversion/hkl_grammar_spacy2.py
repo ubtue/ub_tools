@@ -100,9 +100,9 @@ def SplitToAuthorSentenceGroupsAndSentences(entries):
       #nlp = spacy.load("de_dep_news_trf")
       #nlp = spacy.load("xx_sent_ud_sm")
       #nlp = spacy.load("en_core_web_md", exclude=["ner", "senter", "parser", "tagger", "attribute_ruler", "lemmatizer"])
-      nlp = spacy.load("ner_training/training/output/model-best")
-      nlp.add_pipe("senter", source=spacy.load("senter_training/training/output/model-best"))
+      #nlp = spacy.load("ner_training/training/output/model-best")
       #nlp.add_pipe("senter", source=spacy.load("senter_training/training/output/model-best"))
+      nlp = spacy.load("senter_training/training/output/model-best")
       nlp.tokenizer.add_special_case("Zweispr.", [{"ORTH" : "Zweispr."}])
       nlp.tokenizer.add_special_case("Sumer.", [{"ORTH" : "Sumer."}])
       nlp.tokenizer.add_special_case("assyr.", [{"ORTH" : "assyr."}])
@@ -148,7 +148,7 @@ def SplitToAuthorSentenceGroupsAndSentences(entries):
           sentence_groups.append(sentences)
           sentences = []
           authors_and_sentence_groups.append((author, sentence_groups))
-      displacy.serve(doc.from_docs(docs), style="ent")
+      #displacy.serve(doc.from_docs(docs), style="ent")
       return authors_and_sentence_groups
 
 
@@ -160,9 +160,9 @@ def PrintResultsRaw(authors_and_sentence_groups):
              for sentence in sentences:
                  print("SENT: " + sentence)
 
-def HandleMissingTitle(author_tree):
-    author_tree['titles'].append( { 'title' : 'MISATTRIBUTED TITLE (!!)',  'elements' : []  } )
-    return author_tree
+def HandleMissingTitle(one_author_tree):
+    one_author_tree['titles'].append( { 'title' : 'MISATTRIBUTED TITLE (!!)',  'elements' : []  } )
+    return one_author_tree
 
 
 def GetHighestLabel(cats):
@@ -172,13 +172,13 @@ def GetHighestLabel(cats):
 def ClassifySentences(authors_and_sentence_groups, output):
     #classifier = nltk_classification.CreateClassifier()
     classifier = spacy.load("training/output/model-best")
-    authors = []
-    author_tree = dict()
+    all_authors = []
+    one_author_tree = dict()
 
     for author, sentence_groups in authors_and_sentence_groups:
         print("---------------------------------------\nAUTHOR: " + author + '\n')
-        author_tree['author'] = author
-        author_tree['titles'] = []
+        one_author_tree['author'] = author
+        one_author_tree['titles'] = []
         for sentences in sentence_groups:
              print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
              for sentence in sentences:
@@ -186,30 +186,50 @@ def ClassifySentences(authors_and_sentence_groups, output):
                  print("SENTENCE TYPE: " + sentence_type)
                  if sentence_type == 'TITLE':
                       title = sentence
-                      author_tree['titles'].append({ 'title' : title, 'elements' : [] })
+                      one_author_tree['titles'].append({ 'title' : title, 'elements' : [] })
                  elif sentence_type == 'YEAR_AND_PLACE':
-                      if not author_tree['titles']:
-                          author_tree = HandleMissingTitle(author_tree)
-                      author_tree['titles'][-1]['elements'].append( {'year_and_place' :  sentence })
+                      if not one_author_tree['titles']:
+                          one_author_tree = HandleMissingTitle(one_author_tree)
+                      one_author_tree['titles'][-1]['elements'].append( {'year_and_place' :  sentence })
                  elif sentence_type == 'BIB_INFO':
-                     if not author_tree['titles']:
-                         author_tree = HandleMissingTitle(author_tree)
-                     author_tree['titles'][-1]['elements'].append( { 'bib_info' : sentence })
+                     if not one_author_tree['titles']:
+                         one_author_tree = HandleMissingTitle(one_author_tree)
+                     one_author_tree['titles'][-1]['elements'].append( { 'bib_info' : sentence })
                  elif sentence_type == 'COMMENT':
-                     if not author_tree['titles']:
-                         author_tree = HandleMissingTitle(author_tree)
-                     author_tree['titles'][-1]['elements'].append({ 'comment' : sentence})
+                     if not one_author_tree['titles']:
+                         one_author_tree = HandleMissingTitle(one_author_tree)
+                     one_author_tree['titles'][-1]['elements'].append({ 'comment' : sentence})
                  elif sentence_type == 'INTERNAL_REFERENCE':
-                     if not author_tree['titles']:
-                         author_tree = HandleMissingTitle(author_tree)
-                     author_tree['titles'][-1]['elements'].append({ 'internal_reference' : sentence })
+                     if not one_author_tree['titles']:
+                         one_author_tree = HandleMissingTitle(one_author_tree)
+                     one_author_tree['titles'][-1]['elements'].append({ 'internal_reference' : sentence })
 
         drop_falsey = lambda path, key, value: bool(value)
-        authors.append(remap(author_tree, visit=drop_falsey))
+        all_authors.append(remap(one_author_tree, visit=drop_falsey))
     with open(output, 'w') as json_out:
-        json.dump(authors, json_out)
+        json.dump(all_authors, json_out)
+    return all_authors
 
 
+
+def LabelEntities(authors_with_classifications):
+     ner_nlp = spacy.load("ner_training/training/output/model-best")
+     plain_nlp = spacy.load("ner_training/training/output/model-best", exclude=["ner"], vocab=ner_nlp.vocab)
+     docs = []
+     for author_and_titles in authors_with_classifications:
+         docs.append(plain_nlp(author_and_titles['author']))
+         for title_and_elements in author_and_titles['titles']:
+             docs.append(plain_nlp(title_and_elements['title']))
+             if 'elements' in title_and_elements:
+                 for element in title_and_elements['elements']:
+                     print(element)
+                     for element_type, element_content in element.items():
+                         if element_type == 'internal_reference':
+                             doc = ner_nlp(element_content)
+                             docs.append(doc)
+                         else:
+                             docs.append(plain_nlp(element_content))
+     displacy.serve(doc.from_docs(docs), style="ent")
 
 
 def Main():
@@ -221,7 +241,10 @@ def Main():
              file = FilterPageHeadings(f.read())
              entries = SplitToAuthorEntries(GetBufferLikeFile(file))
              authors_and_sentence_groups = SplitToAuthorSentenceGroupsAndSentences(entries)
-             ClassifySentences(authors_and_sentence_groups, sys.argv[2])
+             authors_with_classifications = ClassifySentences(authors_and_sentence_groups, sys.argv[2])
+             LabelEntities(authors_with_classifications)
+
+
     except Exception as e:
         print("ERROR: " + e)
 
