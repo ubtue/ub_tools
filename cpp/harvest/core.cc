@@ -130,14 +130,10 @@ bool ConvertLanguage(const CORE::Work &work, MARC::Record * const record) {
 }
 
 
-// \return True if an abstract was found, else false.
-bool ConvertAbstract(const CORE::Work &work, MARC::Record * const record) {
+void ConvertAbstract(const CORE::Work &work, MARC::Record * const record) {
     const std::string abstract(work.getAbstract());
-    if (abstract.empty())
-        return false;
-    std::string abstract_value = abstract.length() > 5 ? abstract : "not available";
-    record->insertField("520", 'a', StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH, abstract_value));
-    return true;
+    if (not abstract.empty() and abstract.length() > 5)
+        record->insertField("520", 'a', StringUtil::Truncate(MARC::Record::MAX_VARIABLE_FIELD_DATA_LENGTH, abstract));
 }
 
 
