@@ -78,6 +78,16 @@ Language::Language(const nlohmann::json &json_obj) {
 }
 
 
+std::string Entity::getFilteredReason() const {
+    return getStringOrDefault("filteredReason");
+}
+
+
+void Entity::setFilteredReason(const std::string &reason) {
+    json_["filteredReason"] = reason;
+}
+
+
 std::string Entity::getStringOrDefault(const std::string &json_key) const {
     if (json_[json_key].is_string())
         return json_[json_key];
@@ -419,19 +429,19 @@ std::vector<Work> GetWorksFromFile(const std::string &file) {
 
 void OutputFileStart(const std::string &path) {
     FileUtil::MakeParentDirectoryOrDie(path, /*recursive=*/true);
-    FileUtil::AppendString(path, "[\n");
+    FileUtil::WriteStringOrDie(path, "[\n");
 }
 
 
 void OutputFileAppend(const std::string &path, const Entity &entity, const bool first) {
     if (not first)
-        FileUtil::AppendString(path, ",\n");
-    FileUtil::AppendString(path, entity.getJson().dump());
+        FileUtil::AppendStringOrDie(path, ",\n");
+    FileUtil::AppendStringOrDie(path, entity.getJson().dump());
 }
 
 
 void OutputFileEnd(const std::string &path) {
-    FileUtil::AppendString(path, "\n]");
+    FileUtil::AppendStringOrDie(path, "\n]");
 }
 
 

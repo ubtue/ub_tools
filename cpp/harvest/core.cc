@@ -53,13 +53,10 @@ namespace {
         "\t- input_dir: A dir with multiple JSON files to merge, typically from a search result.\n"
         "\t- output_file: The directory to store the merged JSON result file.\n"
         "\n"
-        "filter input_file output_file\n"
+        "filter input_file output_file filtered_file\n"
         "\t- input_file: A single JSON input file.\n"
         "\t- output_file: The target JSON file without filtered datasets.\n"
-        "\t- filtered_file_tuebingen: File to store datasets that have been filtered because they belong to tuebingen.\n"
-        "\t- filtered_file_incomplete: File to store datasets that have been filtered because they are incomplete.\n"
-        "\t- filtered_file_duplicates: File to store datasets that have been filtered because they are duplicates.\n"
-        "\t- filtered_file_languages: File to store datasets that have been filtered because they have invalid or unwanted languages.\n"
+        "\t- filtered_file: File to store datasets that have been removed when filtering. The reason will be stored in each JSON entry.\n"
         "\n"
         "count input_file\n"
         "\t- input_file: The JSON file to count the results from. Result will be written to stdout.\n"
@@ -270,7 +267,7 @@ void Download(int argc, char **argv) {
 
 
 void Filter(int argc, char **argv) {
-    if (argc != 8)
+    if (argc != 5)
         Usage();
 
     bool ignore_unique_id_dups(false);
@@ -281,42 +278,44 @@ void Filter(int argc, char **argv) {
 
     const std::string input_file(argv[2]);
     const std::string output_file(argv[3]);
-    const std::string filter_file_tuebingen(argv[4]);
-    const std::string filter_file_incomplete(argv[5]);
-    const std::string filter_file_duplicate(argv[6]);
-    const std::string filter_file_language(argv[7]);
+    const std::string filter_file(argv[4]);
 
     const auto works(CORE::GetWorksFromFile(input_file));
     CORE::OutputFileStart(output_file);
-    CORE::OutputFileStart(filter_file_tuebingen);
-    CORE::OutputFileStart(filter_file_incomplete);
-    CORE::OutputFileStart(filter_file_duplicate);
-    CORE::OutputFileStart(filter_file_language);
+    CORE::OutputFileStart(filter_file);
     bool first(true);
-    unsigned skipped_uni_tue(0), skipped_dupe_count(0), skipped_incomplete_count(0), skipped_language_count(0);
+    unsigned skipped(0), skipped_uni_tue_count(0), skipped_dupe_count(0), skipped_incomplete_count(0), skipped_language_count(0);
     KeyValueDB unique_id_to_date_map(UNIQUE_ID_TO_DATE_MAP_PATH);
-    for (const auto &work : works) {
+    for (auto work : works) {
         if (work.getPublisher() == "Universität Tübingen") {
-            CORE::OutputFileAppend(filter_file_tuebingen, work, skipped_uni_tue == 0);
-            ++skipped_uni_tue;
+            work.setFilteredReason("Universität Tübingen");
+            CORE::OutputFileAppend(filter_file, work, skipped == 0);
+            ++skipped;
+            ++skipped_uni_tue_count;
             continue;
         }
         if (work.getTitle() == "" or work.getAuthors().empty()) {
-            CORE::OutputFileAppend(filter_file_incomplete, work, skipped_incomplete_count == 0);
+            work.setFilteredReason("Empty title or authors");
+            CORE::OutputFileAppend(filter_file, work, skipped == 0);
+            ++skipped;
             ++skipped_incomplete_count;
             continue;
         }
 
         static const std::unordered_set<std::string> allowed_languages({ "eng", "ger", "spa", "baq", "cat", "por", "ita", "dut" });
         if (work.getLanguage().code_.empty() or not allowed_languages.contains(MARC::MapToMARCLanguageCode(work.getLanguage().code_))) {
-            CORE::OutputFileAppend(filter_file_language, work, skipped_language_count == 0);
+            work.setFilteredReason("Language empty or not allowed");
+            CORE::OutputFileAppend(filter_file, work, skipped == 0);
+            ++skipped;
             ++skipped_language_count;
             continue;
         }
 
         const std::string control_number(ConvertId(std::to_string(work.getId())));
         if (ignore_unique_id_dups and unique_id_to_date_map.keyIsPresent(control_number)) {
-            CORE::OutputFileAppend(filter_file_duplicate, work, skipped_dupe_count == 0);
+            work.setFilteredReason("Duplicate");
+            CORE::OutputFileAppend(filter_file, work, skipped == 0);
+            ++skipped;
             ++skipped_dupe_count;
             continue;
         }
@@ -324,14 +323,15 @@ void Filter(int argc, char **argv) {
         first = false;
     }
     CORE::OutputFileEnd(output_file);
-    CORE::OutputFileEnd(filter_file_tuebingen);
-    CORE::OutputFileEnd(filter_file_incomplete);
-    CORE::OutputFileEnd(filter_file_duplicate);
-    CORE::OutputFileEnd(filter_file_language);
+    CORE::OutputFileEnd(filter_file);
 
-    LOG_INFO("Filtered " + std::to_string(skipped_uni_tue) + " Uni Tübingen records");
-    LOG_INFO("Filtered " + std::to_string(skipped_incomplete_count) + " incomplete records");
-    LOG_INFO("Filtered " + std::to_string(skipped_dupe_count) + " duplicate records");
+    LOG_INFO(
+        "Filtered " + std::to_string(skipped) + " records, thereof:\n"
+        "- " + std::to_string(skipped_uni_tue_count) + " Uni Tübingen\n"
+        "- " + std::to_string(skipped_incomplete_count) + " incomplete\n"
+        "- " + std::to_string(skipped_dupe_count) + " duplicate\n"
+        "- " + std::to_string(skipped_language_count) + " language"
+    );
 }
 
 

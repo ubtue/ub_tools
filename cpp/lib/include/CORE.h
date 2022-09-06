@@ -67,6 +67,9 @@ protected:
 public:
     Entity(const nlohmann::json &json) { json_ = json; }
 
+    std::string getFilteredReason() const;
+    void setFilteredReason(const std::string &reason);
+
     nlohmann::json getJson() const { return json_; }
 };
 
