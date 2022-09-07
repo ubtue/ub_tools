@@ -12,9 +12,7 @@ declare -r DATETIME=$(date +%Y%m%d_%H%M%S)
 declare -r DOWNLOAD_DIR=/tmp/CORE/${DATETIME}
 declare -r ARCHIVE_DIR=/usr/local/var/lib/tuelib/CORE
 declare -r ARCHIVE_FILE_JSON_UNFILTERED=${ARCHIVE_DIR}/${DATETIME}_unfiltered.json
-declare -r ARCHIVE_FILE_JSON_FILTERED_TUEBINGEN=${ARCHIVE_DIR}/${DATETIME}_filtered_tuebingen.json
-declare -r ARCHIVE_FILE_JSON_FILTERED_INCOMPLETE=${ARCHIVE_DIR}/${DATETIME}_filtered_incomplete.json
-declare -r ARCHIVE_FILE_JSON_FILTERED_DUPLICATE=${ARCHIVE_DIR}/${DATETIME}_filtered_duplicate.json
+declare -r ARCHIVE_FILE_JSON_FILTERED=${ARCHIVE_DIR}/${DATETIME}_filtered.json
 declare -r ARCHIVE_FILE_JSON=${ARCHIVE_DIR}/${DATETIME}.json
 declare -r ARCHIVE_FILE_MARC=${ARCHIVE_DIR}/${DATETIME}.xml
 declare -r TIMESTAMP_FILE=/usr/local/var/lib/tuelib/CORE-KrimDok.timestamp
@@ -37,7 +35,7 @@ core merge "$DOWNLOAD_DIR" "$ARCHIVE_FILE_JSON_UNFILTERED"
 
 # filter unwanted records
 echo "Filtering unwanted records"
-core filter "$ARCHIVE_FILE_JSON_UNFILTERED" "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_JSON_FILTERED_TUEBINGEN" "$ARCHIVE_FILE_JSON_FILTERED_INCOMPLETE" "$ARCHIVE_FILE_JSON_FILTERED_DUPLICATE"
+core filter "$ARCHIVE_FILE_JSON_UNFILTERED" "$ARCHIVE_FILE_JSON" "$ARCHIVE_FILE_JSON_FILTERED"
 
 # Convert to MARC & deliver:
 RESULT_COUNT=$(core count "$ARCHIVE_FILE_JSON")

@@ -265,6 +265,7 @@ std::string ReadStringFromPseudoFileOrDie(const std::string &path);
 
 /** \brief Append "data" to "path".  If "path" does not exist, it will be created. */
 bool AppendString(const std::string &path, const std::string &data);
+void AppendStringOrDie(const std::string &path, const std::string &data);
 
 
 /** \brief  Does the named file (or directory) exist?.
