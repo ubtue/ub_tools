@@ -17,9 +17,10 @@ from spacy import displacy
 from spacy.lang.en import English
 from spacy.language import Language
 from spacy.matcher import PhraseMatcher
+from spacy.tokens import Doc,DocBin
 
-from stanza.pipeline.processor import ProcessorVariant, register_processor_variant, Processor, register_processor
-from spacy.pipeline.senter import DEFAULT_SENTER_MODEL
+#from stanza.pipeline.processor import ProcessorVariant, register_processor_variant, Processor, register_processor
+#from spacy.pipeline.senter import DEFAULT_SENTER_MODEL
 
 
 def SplitToAuthorEntries(file):
@@ -100,9 +101,9 @@ def SplitToAuthorSentenceGroupsAndSentences(entries):
       #nlp = spacy.load("de_dep_news_trf")
       #nlp = spacy.load("xx_sent_ud_sm")
       #nlp = spacy.load("en_core_web_md", exclude=["ner", "senter", "parser", "tagger", "attribute_ruler", "lemmatizer"])
-      #nlp = spacy.load("ner_training/training/output/model-best")
-      #nlp.add_pipe("senter", source=spacy.load("senter_training/training/output/model-best"))
-      nlp = spacy.load("senter_training/training/output/model-best")
+      nlp = spacy.load("ner_training/training/output/model-best")
+      nlp.add_pipe("senter", source=spacy.load("senter_training/training/output/model-best"))
+      #nlp = spacy.load("senter_training/training/output/model-best")
       nlp.tokenizer.add_special_case("Zweispr.", [{"ORTH" : "Zweispr."}])
       nlp.tokenizer.add_special_case("Sumer.", [{"ORTH" : "Sumer."}])
       nlp.tokenizer.add_special_case("assyr.", [{"ORTH" : "assyr."}])
@@ -211,6 +212,11 @@ def ClassifySentences(authors_and_sentence_groups, output):
     return all_authors
 
 
+def WriteOutNER(docs, nlp):
+     doc_bin = DocBin()
+     doc_bin.add(Doc(nlp.vocab).from_docs(docs))
+     doc_bin.to_disk("./ner_test_docs1.spacy")
+
 
 def LabelEntities(authors_with_classifications):
      ner_nlp = spacy.load("ner_training/training/output/model-best")
@@ -224,12 +230,13 @@ def LabelEntities(authors_with_classifications):
                  for element in title_and_elements['elements']:
                      print(element)
                      for element_type, element_content in element.items():
-                         if element_type == 'internal_reference':
+                         if element_type == 'internal_reference' or element_type == 'bib_info':
                              doc = ner_nlp(element_content)
                              docs.append(doc)
                          else:
                              docs.append(plain_nlp(element_content))
-     displacy.serve(doc.from_docs(docs), style="ent")
+     WriteOutNER(docs, ner_nlp)
+     #displacy.serve(doc.from_docs(docs), style="ent")
 
 
 def Main():

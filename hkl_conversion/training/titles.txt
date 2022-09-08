@@ -17,3 +17,4 @@ Schulbücher = Çiğ + Kızılyay, Zwei altbabylonische Schulbücher aus Nippur,
 Die Kunst der Hethiter
 A Seleucid table of daily solar(?) positions
 The excavations at Tell al-Wilayah
+TRAB PS = Textes religieux assyriens et babyloniens, première série.
