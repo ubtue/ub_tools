@@ -134,14 +134,14 @@ Downloader::Params::Params(const std::string &user_agent, const std::string &acc
                            const unsigned meta_redirect_threshold, const bool ignore_ssl_certificates,
                            const std::string &proxy_host_and_port, const std::vector<std::string> &additional_headers,
                            const std::string &post_data, const std::string &authentication_username,
-                           const std::string &authentication_password, const bool use_cookies_txt)
+                           const std::string &authentication_password, const bool use_cookies_txt, const bool fail_on_error)
     : user_agent_(user_agent), acceptable_languages_(acceptable_languages), max_redirect_count_(max_redirect_count),
       dns_cache_timeout_(dns_cache_timeout), honour_robots_dot_txt_(honour_robots_dot_txt), text_translation_mode_(text_translation_mode),
       banned_reg_exps_(banned_reg_exps), debugging_(debugging), follow_redirects_(follow_redirects),
       meta_redirect_threshold_(meta_redirect_threshold), ignore_ssl_certificates_(ignore_ssl_certificates),
       proxy_host_and_port_(proxy_host_and_port), additional_headers_(additional_headers), post_data_(post_data),
       authentication_username_(authentication_username), authentication_password_(authentication_password),
-      use_cookies_txt_(use_cookies_txt) {
+      use_cookies_txt_(use_cookies_txt), fail_on_error_(fail_on_error) {
     max_redirect_count_ = follow_redirects_ ? max_redirect_count_ : 0;
 
     if (unlikely(max_redirect_count_ < 0 or max_redirect_count_ > MAX_MAX_REDIRECT_COUNT))
@@ -356,7 +356,9 @@ void Downloader::init() {
     curlEasySetopt(CURLOPT_NOPROGRESS, 1L, "Downloader::init:CURLOPT_NOPROGRESS");
     curlEasySetopt(CURLOPT_NOSIGNAL, 1L, "Downloader::init:CURLOPT_NOSIGNAL");
     curlEasySetopt(CURLOPT_WRITEFUNCTION, WriteFunction, "Downloader::init:CURLOPT_WRITEFUNCTION");
-    curlEasySetopt(CURLOPT_FAILONERROR, 1L, "Downloader::init:CURLOPT_FAILONERROR");
+
+    if (params_.fail_on_error_)
+        curlEasySetopt(CURLOPT_FAILONERROR, 1L, "Downloader::init:CURLOPT_FAILONERROR");
 
     // Enabling the following option seems to greatly slow down the downloading of Web pages!
     // curlEasySetopt(CURLOPT_IGNORE_CONTENT_LENGTH, 1L, "Downloader::init:CURLOPT_IGNORE_CONTENT_LENGTH");
