@@ -172,277 +172,260 @@ unsigned Work::getYearPublished() const {
 
 
 std::string Download(const std::string &url) {
-    {
-        Downloader::Params downloader_params;
-        downloader_params.additional_headers_.push_back("Authorization: Bearer " + GetAPIKey());
-        // downloader_params.debugging_ = true;
+    Downloader::Params downloader_params;
+    downloader_params.additional_headers_.push_back("Authorization: Bearer " + GetAPIKey());
+    downloader_params.fail_on_error_ = false; // needed to be able to parse headers even after failing
+    // downloader_params.debugging_ = true;
 
-        static Downloader downloader(downloader_params);
-        downloader.newUrl(url);
+    static Downloader downloader(downloader_params);
+    downloader.newUrl(url);
 
-        // Downloader downloader(url, downloader_params);
-        if (downloader.getResponseCode() == 429) {
-            LOG_INFO(downloader.getMessageHeader());
-            const auto header(downloader.getMessageHeaderObject());
-            if (header.getXRatelimitRemaining() == 0) {
-                const time_t sleep_until_time(header.getXRatelimitRetryAfter("%Y-%m-%dT%H:%M:%S%z"));
-                if (sleep_until_time != TimeUtil::BAD_TIME_T) {
-                    const std::string sleep_until_string(TimeUtil::TimeTToLocalTimeString(sleep_until_time));
+    if (downloader.anErrorOccurred())
+        LOG_ERROR(downloader.getLastErrorMessage() + ", curlcode: " + std::to_string(downloader.getLastErrorCode()));
+    else if (downloader.getResponseCode() == 429) {
+        const auto header(downloader.getMessageHeaderObject());
+        if (header.getXRatelimitRemaining() == 0) {
+            const time_t sleep_until_time(header.getXRatelimitRetryAfter("%Y-%m-%dT%H:%M:%S%z"));
+            if (sleep_until_time != TimeUtil::BAD_TIME_T) {
+                const std::string sleep_until_string(TimeUtil::TimeTToLocalTimeString(sleep_until_time));
 
-                    // We're allowed to perform 150 requests within a 5 minute window due to our license.
-                    // However, in practical terms responses might get a penalty e.g. when using the scroll mechanism,
-                    // so it's more likely to be 75.
-                    LOG_WARNING("Rate limiting active + too many requests! Sleeping until " + sleep_until_string);
-                    std::this_thread::sleep_until(std::chrono::system_clock::from_time_t(sleep_until_time));
+                // We're allowed to perform 150 requests within a 5 minute window due to our license.
+                // However, in practical terms responses might get a penalty e.g. when using the scroll mechanism,
+                // so it's more likely to be 75.
+                LOG_WARNING("Rate limiting active + too many requests! Sleeping until " + sleep_until_string);
+                std::this_thread::sleep_until(std::chrono::system_clock::from_time_t(sleep_until_time));
 
-                    // sleep another 60 seconds just in case we have a system time difference between client and server
-                    // (even if timezone is already considered)
-                    const unsigned sleep_offset(60);
-                    LOG_WARNING("Sleeping another " + std::to_string(sleep_offset)
-                                + "s due to possible client/server system time difference");
-                    ::sleep(sleep_offset);
-                } else {
-                    const unsigned sleep_seconds(60);
-                    LOG_WARNING("Rate limiting active + too many requests! Could not determine retry_after timestamp! Sleeping for "
-                                + std::to_string(sleep_seconds) + "s");
-                    ::sleep(sleep_seconds);
-                }
+                // sleep another 60 seconds just in case we have a system time difference between client and server
+                // (even if timezone is already considered)
+                const unsigned sleep_offset(60);
+                LOG_WARNING("Sleeping another " + std::to_string(sleep_offset) + "s due to possible client/server system time difference");
+                ::sleep(sleep_offset);
+            } else {
+                const unsigned sleep_seconds(60);
+                LOG_WARNING("Rate limiting active + too many requests! Could not determine retry_after timestamp! Sleeping for "
+                            + std::to_string(sleep_seconds) + "s");
+                ::sleep(sleep_seconds);
             }
+        }
+
+        // try again after sleep
+        return Download(url);
+        else if (downloader.getResponseCode() >= 400)
+            LOG_ERROR("HTTP Error Code " + std::to_string(downloader.getResponseCode()) + "! Full header:" + downloader.getMessageHeader());
+        else return downloader.getMessageBody();
+    }
+
+
+    void DownloadWork(const unsigned id, const std::string &output_file) {
+        const std::string url(API_BASE_URL + GetEndpointForEntityType(WORK) + "/" + std::to_string(id));
+        FileUtil::WriteStringOrDie(output_file, Download(url));
+    }
+
+
+    const std::string SearchParams::buildUrl() const {
+        std::string url = API_BASE_URL + "search/" + UrlUtil::UrlEncode(GetEndpointForEntityType(entity_type_));
+        url += "?q=" + UrlUtil::UrlEncode(q_);
+
+        if (not scroll_id_.empty())
+            url += "&scrollId=" + UrlUtil::UrlEncode(scroll_id_);
+        else if (scroll_)
+            url += "&scroll=true";
+        else if (offset_ > 0)
+            url += "&offset=" + std::to_string(offset_);
+
+        if (limit_ > 0)
+            url += "&limit=" + std::to_string(limit_);
+        if (not entity_id_.empty())
+            url += "&entity_id=" + UrlUtil::UrlEncode(entity_id_);
+        if (stats_)
+            url += "&stats";
+        if (raw_stats_)
+            url += "&raw_stats";
+        if (exclude_.size() == 1) {
+            url += "&exclude=" + UrlUtil::UrlEncode(exclude_[0]);
         } else {
-            // Scroll-based operations may cause problems after sleeping to long due to a server side restrictions.
-            // => Scroll IDs are timed out after 10 minutes.
-            // If this causes too much problems, we might want to sleep pre-emptively even if the previous operation was successful
-            // to avoid ever exceeding the regular rate limit and having to sleep for 5-10 minutes.
-            // unsigned sleep_time(30);
-            // LOG_INFO("Pre-emptive sleep for " + std::to_string(sleep_time) + "s");
-            //::sleep(sleep_time);
+            for (const auto &exclude : exclude_) {
+                url += "&exclude[]=" + UrlUtil::UrlEncode(exclude);
+            }
+        }
+        for (const auto &sort : sort_) {
+            url += "&sort[]=" + UrlUtil::UrlEncode(sort);
+        }
+        if (not accept_.empty())
+            url += "&accept=" + UrlUtil::UrlEncode(accept_);
+        if (measure_)
+            url += "&measure";
 
-            if (downloader.anErrorOccurred())
-                throw std::runtime_error(downloader.getLastErrorMessage());
+        return url;
+    }
 
-            return downloader.getMessageBody();
+
+    // CORE switches, sometimes values are int, sometimes string (e.g. offset 0 and "100")
+    unsigned GetJsonUnsignedValue(const nlohmann::json &json, const std::string &label) {
+        if (not json.contains(label))
+            LOG_WARNING("Missing key: " + label + "\n" + json.dump());
+
+        const auto child(json[label]);
+        if (child.is_string())
+            return StringUtil::ToUnsigned(child);
+        else
+            return child;
+    }
+
+
+    SearchResponse::SearchResponse(const std::string &json) {
+        const auto json_obj(nlohmann::json::parse(json));
+
+        total_hits_ = GetJsonUnsignedValue(json_obj, "totalHits");
+        limit_ = GetJsonUnsignedValue(json_obj, "limit");
+        offset_ = GetJsonUnsignedValue(json_obj, "offset");
+
+        if (json_obj["scrollId"] != nullptr)
+            scroll_id_ = json_obj["scrollId"];
+
+        for (const auto &result : json_obj["results"]) {
+            results_.emplace_back(result);
+        }
+
+        // TODO:
+        // tooks
+        // es_took
+    }
+
+
+    SearchResponseWorks::SearchResponseWorks(const SearchResponse &response) {
+        total_hits_ = response.total_hits_;
+        limit_ = response.limit_;
+        offset_ = response.offset_;
+        scroll_id_ = response.scroll_id_;
+        tooks_ = response.tooks_;
+        es_took_ = response.es_took_;
+
+        for (const auto &result : response.results_) {
+            results_.emplace_back(Work(result.getJson()));
         }
     }
 
-    // Retry if we ran into any errors.
-    // The existing downloader object should be destroyed before doing this.
-    LOG_WARNING("Retrying...");
-    return Download(url);
-}
+
+    std::string SearchRaw(const SearchParams &params) {
+        const std::string url(params.buildUrl());
+        return Download(url);
+    }
 
 
-void DownloadWork(const unsigned id, const std::string &output_file) {
-    const std::string url(API_BASE_URL + GetEndpointForEntityType(WORK) + "/" + std::to_string(id));
-    FileUtil::WriteStringOrDie(output_file, Download(url));
-}
+    SearchResponse Search(const SearchParams &params) {
+        const std::string json(SearchRaw(params));
+        return SearchResponse(json);
+    }
 
 
-const std::string SearchParams::buildUrl() const {
-    std::string url = API_BASE_URL + "search/" + UrlUtil::UrlEncode(GetEndpointForEntityType(entity_type_));
-    url += "?q=" + UrlUtil::UrlEncode(q_);
+    SearchResponseWorks SearchWorks(const SearchParamsWorks &params) {
+        const auto response_raw(Search(params));
+        SearchResponseWorks response(response_raw);
+        return response;
+    }
 
-    if (not scroll_id_.empty())
-        url += "&scrollId=" + UrlUtil::UrlEncode(scroll_id_);
-    else if (scroll_)
-        url += "&scroll=true";
-    else if (offset_ > 0)
-        url += "&offset=" + std::to_string(offset_);
 
-    if (limit_ > 0)
-        url += "&limit=" + std::to_string(limit_);
-    if (not entity_id_.empty())
-        url += "&entity_id=" + UrlUtil::UrlEncode(entity_id_);
-    if (stats_)
-        url += "&stats";
-    if (raw_stats_)
-        url += "&raw_stats";
-    if (exclude_.size() == 1) {
-        url += "&exclude=" + UrlUtil::UrlEncode(exclude_[0]);
-    } else {
-        for (const auto &exclude : exclude_) {
-            url += "&exclude[]=" + UrlUtil::UrlEncode(exclude);
+    void SearchBatch(const SearchParams &params, const std::string &output_dir, const unsigned limit) {
+        if (not FileUtil::IsDirectory(output_dir))
+            FileUtil::MakeDirectoryOrDie(output_dir, /*recursive=*/true);
+        SearchParams current_params = params;
+
+        // Always enable scrolling. This is mandatory if we have > 10.000 results.
+        current_params.scroll_ = true;
+
+        if (limit > 0 && limit < current_params.limit_) {
+            current_params.limit_ = limit;
         }
-    }
-    for (const auto &sort : sort_) {
-        url += "&sort[]=" + UrlUtil::UrlEncode(sort);
-    }
-    if (not accept_.empty())
-        url += "&accept=" + UrlUtil::UrlEncode(accept_);
-    if (measure_)
-        url += "&measure";
 
-    return url;
-}
+        std::string response_json(SearchRaw(current_params));
+        SearchResponse response(response_json);
 
+        int i(1);
+        std::string output_file(output_dir + "/" + std::to_string(i) + ".json");
+        LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-"
+                 + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
 
-// CORE switches, sometimes values are int, sometimes string (e.g. offset 0 and "100")
-unsigned GetJsonUnsignedValue(const nlohmann::json &json, const std::string &label) {
-    if (not json.contains(label))
-        LOG_WARNING("Missing key: " + label + "\n" + json.dump());
-
-    const auto child(json[label]);
-    if (child.is_string())
-        return StringUtil::ToUnsigned(child);
-    else
-        return child;
-}
-
-
-SearchResponse::SearchResponse(const std::string &json) {
-    const auto json_obj(nlohmann::json::parse(json));
-
-    total_hits_ = GetJsonUnsignedValue(json_obj, "totalHits");
-    limit_ = GetJsonUnsignedValue(json_obj, "limit");
-    offset_ = GetJsonUnsignedValue(json_obj, "offset");
-
-    if (json_obj["scrollId"] != nullptr)
-        scroll_id_ = json_obj["scrollId"];
-
-    for (const auto &result : json_obj["results"]) {
-        results_.emplace_back(result);
-    }
-
-    // TODO:
-    // tooks
-    // es_took
-}
-
-
-SearchResponseWorks::SearchResponseWorks(const SearchResponse &response) {
-    total_hits_ = response.total_hits_;
-    limit_ = response.limit_;
-    offset_ = response.offset_;
-    scroll_id_ = response.scroll_id_;
-    tooks_ = response.tooks_;
-    es_took_ = response.es_took_;
-
-    for (const auto &result : response.results_) {
-        results_.emplace_back(Work(result.getJson()));
-    }
-}
-
-
-std::string SearchRaw(const SearchParams &params) {
-    const std::string url(params.buildUrl());
-    return Download(url);
-}
-
-
-SearchResponse Search(const SearchParams &params) {
-    const std::string json(SearchRaw(params));
-    return SearchResponse(json);
-}
-
-
-SearchResponseWorks SearchWorks(const SearchParamsWorks &params) {
-    const auto response_raw(Search(params));
-    SearchResponseWorks response(response_raw);
-    return response;
-}
-
-
-void SearchBatch(const SearchParams &params, const std::string &output_dir, const unsigned limit) {
-    if (not FileUtil::IsDirectory(output_dir))
-        FileUtil::MakeDirectoryOrDie(output_dir, /*recursive=*/true);
-    SearchParams current_params = params;
-
-    // Always enable scrolling. This is mandatory if we have > 10.000 results.
-    current_params.scroll_ = true;
-
-    if (limit > 0 && limit < current_params.limit_) {
-        current_params.limit_ = limit;
-    }
-
-    std::string response_json(SearchRaw(current_params));
-    SearchResponse response(response_json);
-
-    int i(1);
-    std::string output_file(output_dir + "/" + std::to_string(i) + ".json");
-    LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-"
-             + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
-
-    FileUtil::WriteStringOrDie(output_file, response_json);
-
-    unsigned max_offset(response.total_hits_);
-    if (limit > 0 && limit < max_offset)
-        max_offset = limit;
-
-    while (current_params.offset_ + current_params.limit_ < max_offset) {
-        current_params.offset_ += current_params.limit_;
-        if (current_params.offset_ + current_params.limit_ > max_offset)
-            current_params.limit_ = max_offset - current_params.offset_;
-
-        ++i;
-        output_file = output_dir + "/" + std::to_string(i) + ".json";
-
-        if (not response.scroll_id_.empty())
-            current_params.scroll_id_ = response.scroll_id_;
-
-        response_json = SearchRaw(current_params);
-        response = SearchResponse(response_json);
-
-        LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(current_params.offset_) + "-"
-                 + std::to_string(current_params.offset_ + current_params.limit_) + "/" + std::to_string(response.total_hits_) + ")");
         FileUtil::WriteStringOrDie(output_file, response_json);
-    }
-}
 
+        unsigned max_offset(response.total_hits_);
+        if (limit > 0 && limit < max_offset)
+            max_offset = limit;
 
-nlohmann::json ParseFile(const std::string &file) {
-    std::ifstream input(file);
-    nlohmann::json json;
-    input >> json;
-    return json;
-}
+        while (current_params.offset_ + current_params.limit_ < max_offset) {
+            current_params.offset_ += current_params.limit_;
+            if (current_params.offset_ + current_params.limit_ > max_offset)
+                current_params.limit_ = max_offset - current_params.offset_;
 
+            ++i;
+            output_file = output_dir + "/" + std::to_string(i) + ".json";
 
-std::vector<Entity> GetEntitiesFromFile(const std::string &file) {
-    const auto json(ParseFile(file));
-    nlohmann::json json_array;
-    if (json.is_array())
-        json_array = json;
-    else if (json.is_object()) {
-        json_array = json["results"];
-    } else {
-        throw std::runtime_error("could not get CORE results from JSON file: " + file);
-    }
+            if (not response.scroll_id_.empty())
+                current_params.scroll_id_ = response.scroll_id_;
 
-    std::vector<Entity> entities;
-    for (const auto &json_entity : json_array) {
-        entities.emplace_back(json_entity);
+            response_json = SearchRaw(current_params);
+            response = SearchResponse(response_json);
+
+            LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(current_params.offset_) + "-"
+                     + std::to_string(current_params.offset_ + current_params.limit_) + "/" + std::to_string(response.total_hits_) + ")");
+            FileUtil::WriteStringOrDie(output_file, response_json);
+        }
     }
 
-    return entities;
-}
 
-
-std::vector<Work> GetWorksFromFile(const std::string &file) {
-    const auto entities(GetEntitiesFromFile(file));
-    std::vector<Work> works;
-    for (const auto &entity : entities) {
-        const Work work(entity.getJson());
-        works.emplace_back(work);
+    nlohmann::json ParseFile(const std::string &file) {
+        std::ifstream input(file);
+        nlohmann::json json;
+        input >> json;
+        return json;
     }
-    return works;
-}
 
 
-void OutputFileStart(const std::string &path) {
-    FileUtil::MakeParentDirectoryOrDie(path, /*recursive=*/true);
-    FileUtil::WriteStringOrDie(path, "[\n");
-}
+    std::vector<Entity> GetEntitiesFromFile(const std::string &file) {
+        const auto json(ParseFile(file));
+        nlohmann::json json_array;
+        if (json.is_array())
+            json_array = json;
+        else if (json.is_object()) {
+            json_array = json["results"];
+        } else {
+            throw std::runtime_error("could not get CORE results from JSON file: " + file);
+        }
+
+        std::vector<Entity> entities;
+        for (const auto &json_entity : json_array) {
+            entities.emplace_back(json_entity);
+        }
+
+        return entities;
+    }
 
 
-void OutputFileAppend(const std::string &path, const Entity &entity, const bool first) {
-    if (not first)
-        FileUtil::AppendStringOrDie(path, ",\n");
-    FileUtil::AppendStringOrDie(path, entity.getJson().dump());
-}
+    std::vector<Work> GetWorksFromFile(const std::string &file) {
+        const auto entities(GetEntitiesFromFile(file));
+        std::vector<Work> works;
+        for (const auto &entity : entities) {
+            const Work work(entity.getJson());
+            works.emplace_back(work);
+        }
+        return works;
+    }
 
 
-void OutputFileEnd(const std::string &path) {
-    FileUtil::AppendStringOrDie(path, "\n]");
-}
+    void OutputFileStart(const std::string &path) {
+        FileUtil::MakeParentDirectoryOrDie(path, /*recursive=*/true);
+        FileUtil::WriteStringOrDie(path, "[\n");
+    }
+
+
+    void OutputFileAppend(const std::string &path, const Entity &entity, const bool first) {
+        if (not first)
+            FileUtil::AppendStringOrDie(path, ",\n");
+        FileUtil::AppendStringOrDie(path, entity.getJson().dump());
+    }
+
+
+    void OutputFileEnd(const std::string &path) { FileUtil::AppendStringOrDie(path, "\n]"); }
 
 
 } // namespace CORE
