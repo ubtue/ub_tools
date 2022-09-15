@@ -303,22 +303,21 @@ const std::string &Downloader::getLastErrorMessage() const {
 
 
 unsigned Downloader::getResponseCode() const {
-    std::string err_msg;
-    const std::string regex_pattern("HTTP(?:/\\d(?:\\.(?:\\d)?)?)?\\s+(\\d{3})");
-    std::unique_ptr<RegexMatcher> matcher(RegexMatcher::RegexMatcherFactory(regex_pattern, &err_msg));
-    if (matcher == nullptr)
-        LOG_ERROR("Failed to compile pattern \"" + regex_pattern + "\": " + err_msg);
-
-    const std::string header(getMessageHeader());
-    if (unlikely(not matcher->matched(header))) {
-        if (current_url_.getScheme() == "file") {
-            LOG_INFO("Read from local file - return dummy response code 200");
-            return 200;
-        } else
-            LOG_ERROR("Failed to get HTTP response code from header: " + header);
+    if (current_url_.getScheme() == "file") {
+        LOG_INFO("Read from local file - return dummy response code 200");
+        return 200;
     }
 
-    return StringUtil::ToUnsigned((*matcher)[1]);
+    // c.f. https://curl.se/libcurl/c/CURLINFO_RESPONSE_CODE.html
+    long response_code;
+    CURLcode curl_error_code(::curl_easy_getinfo(getEasyHandle(), CURLINFO_RESPONSE_CODE, &response_code));
+    if (curl_error_code != CURLE_OK)
+        throw std::runtime_error(__FUNCTION__ + std::string(" Could not determine response code"));
+    else if (response_code > UINT_MAX)
+        throw std::runtime_error(__FUNCTION__
+                                 + std::string(" response code too big to convert to unsigned: " + std::to_string(response_code)));
+    else
+        return (unsigned)response_code;
 }
 
 
