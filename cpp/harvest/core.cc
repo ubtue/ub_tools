@@ -467,12 +467,15 @@ void DataProviders(int argc, char ** /*argv*/) {
     if (argc != 2)
         Usage();
 
-    CORE::SearchParams params;
+    CORE::SearchParamsDataProviders params;
     params.q_ = "*";
     params.limit_ = 100;
-    params.entity_type_ = CORE::EntityType::DATA_PROVIDER;
-    const auto result(CORE::Search(params));
+    const auto result(CORE::SearchDataProviders(params));
     LOG_INFO(std::to_string(result.total_hits_));
+
+    for (const auto &data_provider : result.results_) {
+        LOG_INFO(data_provider.getName() + ": " + data_provider.getMetadataFormat());
+    }
 }
 
 

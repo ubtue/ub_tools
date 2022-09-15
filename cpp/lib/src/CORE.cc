@@ -95,6 +95,41 @@ std::string Entity::getStringOrDefault(const std::string &json_key) const {
 }
 
 
+std::string DataProvider::getCreatedDate() const {
+    return getStringOrDefault("createdDate");
+}
+
+
+std::string DataProvider::getEmail() const {
+    return getStringOrDefault("email");
+}
+
+
+std::string DataProvider::getHomepageUrl() const {
+    return getStringOrDefault("homepageUrl");
+}
+
+
+std::string DataProvider::getId() const {
+    return getStringOrDefault("id");
+}
+
+
+std::string DataProvider::getMetadataFormat() const {
+    return getStringOrDefault("metadataFormat");
+}
+
+
+std::string DataProvider::getName() const {
+    return getStringOrDefault("name");
+}
+
+
+std::string DataProvider::getType() const {
+    return getStringOrDefault("type");
+}
+
+
 std::string Work::getAbstract() const {
     return getStringOrDefault("abstract");
 }
@@ -210,222 +245,247 @@ std::string Download(const std::string &url) {
 
         // try again after sleep
         return Download(url);
-        else if (downloader.getResponseCode() >= 400)
-            LOG_ERROR("HTTP Error Code " + std::to_string(downloader.getResponseCode()) + "! Full header:" + downloader.getMessageHeader());
-        else return downloader.getMessageBody();
-    }
+    } else if (downloader.getResponseCode() >= 400)
+        LOG_ERROR("HTTP Error Code " + std::to_string(downloader.getResponseCode()) + "! Full header:" + downloader.getMessageHeader());
+    else
+        return downloader.getMessageBody();
+}
 
 
-    void DownloadWork(const unsigned id, const std::string &output_file) {
-        const std::string url(API_BASE_URL + GetEndpointForEntityType(WORK) + "/" + std::to_string(id));
-        FileUtil::WriteStringOrDie(output_file, Download(url));
-    }
+void DownloadWork(const unsigned id, const std::string &output_file) {
+    const std::string url(API_BASE_URL + GetEndpointForEntityType(WORK) + "/" + std::to_string(id));
+    FileUtil::WriteStringOrDie(output_file, Download(url));
+}
 
 
-    const std::string SearchParams::buildUrl() const {
-        std::string url = API_BASE_URL + "search/" + UrlUtil::UrlEncode(GetEndpointForEntityType(entity_type_));
-        url += "?q=" + UrlUtil::UrlEncode(q_);
+const std::string SearchParams::buildUrl() const {
+    std::string url = API_BASE_URL + "search/" + UrlUtil::UrlEncode(GetEndpointForEntityType(entity_type_));
+    url += "?q=" + UrlUtil::UrlEncode(q_);
 
-        if (not scroll_id_.empty())
-            url += "&scrollId=" + UrlUtil::UrlEncode(scroll_id_);
-        else if (scroll_)
-            url += "&scroll=true";
-        else if (offset_ > 0)
-            url += "&offset=" + std::to_string(offset_);
+    if (not scroll_id_.empty())
+        url += "&scrollId=" + UrlUtil::UrlEncode(scroll_id_);
+    else if (scroll_)
+        url += "&scroll=true";
+    else if (offset_ > 0)
+        url += "&offset=" + std::to_string(offset_);
 
-        if (limit_ > 0)
-            url += "&limit=" + std::to_string(limit_);
-        if (not entity_id_.empty())
-            url += "&entity_id=" + UrlUtil::UrlEncode(entity_id_);
-        if (stats_)
-            url += "&stats";
-        if (raw_stats_)
-            url += "&raw_stats";
-        if (exclude_.size() == 1) {
-            url += "&exclude=" + UrlUtil::UrlEncode(exclude_[0]);
-        } else {
-            for (const auto &exclude : exclude_) {
-                url += "&exclude[]=" + UrlUtil::UrlEncode(exclude);
-            }
-        }
-        for (const auto &sort : sort_) {
-            url += "&sort[]=" + UrlUtil::UrlEncode(sort);
-        }
-        if (not accept_.empty())
-            url += "&accept=" + UrlUtil::UrlEncode(accept_);
-        if (measure_)
-            url += "&measure";
-
-        return url;
-    }
-
-
-    // CORE switches, sometimes values are int, sometimes string (e.g. offset 0 and "100")
-    unsigned GetJsonUnsignedValue(const nlohmann::json &json, const std::string &label) {
-        if (not json.contains(label))
-            LOG_WARNING("Missing key: " + label + "\n" + json.dump());
-
-        const auto child(json[label]);
-        if (child.is_string())
-            return StringUtil::ToUnsigned(child);
-        else
-            return child;
-    }
-
-
-    SearchResponse::SearchResponse(const std::string &json) {
-        const auto json_obj(nlohmann::json::parse(json));
-
-        total_hits_ = GetJsonUnsignedValue(json_obj, "totalHits");
-        limit_ = GetJsonUnsignedValue(json_obj, "limit");
-        offset_ = GetJsonUnsignedValue(json_obj, "offset");
-
-        if (json_obj["scrollId"] != nullptr)
-            scroll_id_ = json_obj["scrollId"];
-
-        for (const auto &result : json_obj["results"]) {
-            results_.emplace_back(result);
-        }
-
-        // TODO:
-        // tooks
-        // es_took
-    }
-
-
-    SearchResponseWorks::SearchResponseWorks(const SearchResponse &response) {
-        total_hits_ = response.total_hits_;
-        limit_ = response.limit_;
-        offset_ = response.offset_;
-        scroll_id_ = response.scroll_id_;
-        tooks_ = response.tooks_;
-        es_took_ = response.es_took_;
-
-        for (const auto &result : response.results_) {
-            results_.emplace_back(Work(result.getJson()));
+    if (limit_ > 0)
+        url += "&limit=" + std::to_string(limit_);
+    if (not entity_id_.empty())
+        url += "&entity_id=" + UrlUtil::UrlEncode(entity_id_);
+    if (stats_)
+        url += "&stats";
+    if (raw_stats_)
+        url += "&raw_stats";
+    if (exclude_.size() == 1) {
+        url += "&exclude=" + UrlUtil::UrlEncode(exclude_[0]);
+    } else {
+        for (const auto &exclude : exclude_) {
+            url += "&exclude[]=" + UrlUtil::UrlEncode(exclude);
         }
     }
+    for (const auto &sort : sort_) {
+        url += "&sort[]=" + UrlUtil::UrlEncode(sort);
+    }
+    if (not accept_.empty())
+        url += "&accept=" + UrlUtil::UrlEncode(accept_);
+    if (measure_)
+        url += "&measure";
+
+    LOG_INFO(url);
+    return url;
+}
 
 
-    std::string SearchRaw(const SearchParams &params) {
-        const std::string url(params.buildUrl());
-        return Download(url);
+// CORE switches, sometimes values are int, sometimes string (e.g. offset 0 and "100")
+unsigned GetJsonUnsignedValue(const nlohmann::json &json, const std::string &label) {
+    if (not json.contains(label))
+        LOG_WARNING("Missing key: " + label + "\n" + json.dump());
+
+    const auto child(json[label]);
+    if (child.is_string())
+        return StringUtil::ToUnsigned(child);
+    else
+        return child;
+}
+
+
+SearchResponse::SearchResponse(const std::string &json) {
+    const auto json_obj(nlohmann::json::parse(json));
+
+    total_hits_ = GetJsonUnsignedValue(json_obj, "totalHits");
+    limit_ = GetJsonUnsignedValue(json_obj, "limit");
+    offset_ = GetJsonUnsignedValue(json_obj, "offset");
+
+    if (json_obj["scrollId"] != nullptr)
+        scroll_id_ = json_obj["scrollId"];
+
+    for (const auto &result : json_obj["results"]) {
+        results_.emplace_back(result);
     }
 
+    // TODO:
+    // tooks
+    // es_took
+}
 
-    SearchResponse Search(const SearchParams &params) {
-        const std::string json(SearchRaw(params));
-        return SearchResponse(json);
+
+SearchResponseDataProviders::SearchResponseDataProviders(const SearchResponse &response) {
+    total_hits_ = response.total_hits_;
+    limit_ = response.limit_;
+    offset_ = response.offset_;
+    scroll_id_ = response.scroll_id_;
+    tooks_ = response.tooks_;
+    es_took_ = response.es_took_;
+
+    for (const auto &result : response.results_) {
+        results_.emplace_back(DataProvider(result.getJson()));
+    }
+}
+
+
+SearchResponseWorks::SearchResponseWorks(const SearchResponse &response) {
+    total_hits_ = response.total_hits_;
+    limit_ = response.limit_;
+    offset_ = response.offset_;
+    scroll_id_ = response.scroll_id_;
+    tooks_ = response.tooks_;
+    es_took_ = response.es_took_;
+
+    for (const auto &result : response.results_) {
+        results_.emplace_back(Work(result.getJson()));
+    }
+}
+
+
+std::string SearchRaw(const SearchParams &params) {
+    const std::string url(params.buildUrl());
+    return Download(url);
+}
+
+
+SearchResponse Search(const SearchParams &params) {
+    const std::string json(SearchRaw(params));
+    return SearchResponse(json);
+}
+
+
+SearchResponseDataProviders SearchDataProviders(const SearchParamsDataProviders &params) {
+    const auto response_raw(Search(params));
+    SearchResponseDataProviders response(response_raw);
+    return response;
+}
+
+
+SearchResponseWorks SearchWorks(const SearchParamsWorks &params) {
+    const auto response_raw(Search(params));
+    SearchResponseWorks response(response_raw);
+    return response;
+}
+
+
+void SearchBatch(const SearchParams &params, const std::string &output_dir, const unsigned limit) {
+    if (not FileUtil::IsDirectory(output_dir))
+        FileUtil::MakeDirectoryOrDie(output_dir, /*recursive=*/true);
+    SearchParams current_params = params;
+
+    // Always enable scrolling. This is mandatory if we have > 10.000 results.
+    current_params.scroll_ = true;
+
+    if (limit > 0 && limit < current_params.limit_) {
+        current_params.limit_ = limit;
     }
 
+    std::string response_json(SearchRaw(current_params));
+    SearchResponse response(response_json);
 
-    SearchResponseWorks SearchWorks(const SearchParamsWorks &params) {
-        const auto response_raw(Search(params));
-        SearchResponseWorks response(response_raw);
-        return response;
-    }
+    int i(1);
+    std::string output_file(output_dir + "/" + std::to_string(i) + ".json");
+    LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-"
+             + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
 
+    FileUtil::WriteStringOrDie(output_file, response_json);
 
-    void SearchBatch(const SearchParams &params, const std::string &output_dir, const unsigned limit) {
-        if (not FileUtil::IsDirectory(output_dir))
-            FileUtil::MakeDirectoryOrDie(output_dir, /*recursive=*/true);
-        SearchParams current_params = params;
+    unsigned max_offset(response.total_hits_);
+    if (limit > 0 && limit < max_offset)
+        max_offset = limit;
 
-        // Always enable scrolling. This is mandatory if we have > 10.000 results.
-        current_params.scroll_ = true;
+    while (current_params.offset_ + current_params.limit_ < max_offset) {
+        current_params.offset_ += current_params.limit_;
+        if (current_params.offset_ + current_params.limit_ > max_offset)
+            current_params.limit_ = max_offset - current_params.offset_;
 
-        if (limit > 0 && limit < current_params.limit_) {
-            current_params.limit_ = limit;
-        }
+        ++i;
+        output_file = output_dir + "/" + std::to_string(i) + ".json";
 
-        std::string response_json(SearchRaw(current_params));
-        SearchResponse response(response_json);
+        if (not response.scroll_id_.empty())
+            current_params.scroll_id_ = response.scroll_id_;
 
-        int i(1);
-        std::string output_file(output_dir + "/" + std::to_string(i) + ".json");
-        LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(response.offset_) + "-"
-                 + std::to_string(response.offset_ + response.limit_) + "/" + std::to_string(response.total_hits_) + ")");
+        response_json = SearchRaw(current_params);
+        response = SearchResponse(response_json);
 
+        LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(current_params.offset_) + "-"
+                 + std::to_string(current_params.offset_ + current_params.limit_) + "/" + std::to_string(response.total_hits_) + ")");
         FileUtil::WriteStringOrDie(output_file, response_json);
+    }
+}
 
-        unsigned max_offset(response.total_hits_);
-        if (limit > 0 && limit < max_offset)
-            max_offset = limit;
 
-        while (current_params.offset_ + current_params.limit_ < max_offset) {
-            current_params.offset_ += current_params.limit_;
-            if (current_params.offset_ + current_params.limit_ > max_offset)
-                current_params.limit_ = max_offset - current_params.offset_;
+nlohmann::json ParseFile(const std::string &file) {
+    std::ifstream input(file);
+    nlohmann::json json;
+    input >> json;
+    return json;
+}
 
-            ++i;
-            output_file = output_dir + "/" + std::to_string(i) + ".json";
 
-            if (not response.scroll_id_.empty())
-                current_params.scroll_id_ = response.scroll_id_;
-
-            response_json = SearchRaw(current_params);
-            response = SearchResponse(response_json);
-
-            LOG_INFO("Downloaded file: " + output_file + " (" + std::to_string(current_params.offset_) + "-"
-                     + std::to_string(current_params.offset_ + current_params.limit_) + "/" + std::to_string(response.total_hits_) + ")");
-            FileUtil::WriteStringOrDie(output_file, response_json);
-        }
+std::vector<Entity> GetEntitiesFromFile(const std::string &file) {
+    const auto json(ParseFile(file));
+    nlohmann::json json_array;
+    if (json.is_array())
+        json_array = json;
+    else if (json.is_object()) {
+        json_array = json["results"];
+    } else {
+        throw std::runtime_error("could not get CORE results from JSON file: " + file);
     }
 
-
-    nlohmann::json ParseFile(const std::string &file) {
-        std::ifstream input(file);
-        nlohmann::json json;
-        input >> json;
-        return json;
+    std::vector<Entity> entities;
+    for (const auto &json_entity : json_array) {
+        entities.emplace_back(json_entity);
     }
 
+    return entities;
+}
 
-    std::vector<Entity> GetEntitiesFromFile(const std::string &file) {
-        const auto json(ParseFile(file));
-        nlohmann::json json_array;
-        if (json.is_array())
-            json_array = json;
-        else if (json.is_object()) {
-            json_array = json["results"];
-        } else {
-            throw std::runtime_error("could not get CORE results from JSON file: " + file);
-        }
 
-        std::vector<Entity> entities;
-        for (const auto &json_entity : json_array) {
-            entities.emplace_back(json_entity);
-        }
-
-        return entities;
+std::vector<Work> GetWorksFromFile(const std::string &file) {
+    const auto entities(GetEntitiesFromFile(file));
+    std::vector<Work> works;
+    for (const auto &entity : entities) {
+        const Work work(entity.getJson());
+        works.emplace_back(work);
     }
+    return works;
+}
 
 
-    std::vector<Work> GetWorksFromFile(const std::string &file) {
-        const auto entities(GetEntitiesFromFile(file));
-        std::vector<Work> works;
-        for (const auto &entity : entities) {
-            const Work work(entity.getJson());
-            works.emplace_back(work);
-        }
-        return works;
-    }
+void OutputFileStart(const std::string &path) {
+    FileUtil::MakeParentDirectoryOrDie(path, /*recursive=*/true);
+    FileUtil::WriteStringOrDie(path, "[\n");
+}
 
 
-    void OutputFileStart(const std::string &path) {
-        FileUtil::MakeParentDirectoryOrDie(path, /*recursive=*/true);
-        FileUtil::WriteStringOrDie(path, "[\n");
-    }
+void OutputFileAppend(const std::string &path, const Entity &entity, const bool first) {
+    if (not first)
+        FileUtil::AppendStringOrDie(path, ",\n");
+    FileUtil::AppendStringOrDie(path, entity.getJson().dump());
+}
 
 
-    void OutputFileAppend(const std::string &path, const Entity &entity, const bool first) {
-        if (not first)
-            FileUtil::AppendStringOrDie(path, ",\n");
-        FileUtil::AppendStringOrDie(path, entity.getJson().dump());
-    }
-
-
-    void OutputFileEnd(const std::string &path) { FileUtil::AppendStringOrDie(path, "\n]"); }
+void OutputFileEnd(const std::string &path) {
+    FileUtil::AppendStringOrDie(path, "\n]");
+}
 
 
 } // namespace CORE
