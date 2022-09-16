@@ -381,12 +381,11 @@ void Search(int argc, char **argv) {
     const std::string output_dir(argv[3]);
 
     // Setup CORE instance & parameters
-    CORE::SearchParams params;
+    CORE::SearchParamsWorks params;
     params.q_ = query;
     params.scroll_ = true;
     params.limit_ = 1000;
     params.exclude_ = { "fullText" };
-    params.entity_type_ = CORE::EntityType::WORK;
     unsigned limit(0);
     if (argc == 5)
         limit = StringUtil::ToUnsigned(argv[4]);

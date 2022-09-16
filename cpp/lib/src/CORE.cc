@@ -292,7 +292,6 @@ const std::string SearchParams::buildUrl() const {
     if (measure_)
         url += "&measure";
 
-    LOG_INFO(url);
     return url;
 }
 
