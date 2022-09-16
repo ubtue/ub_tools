@@ -80,7 +80,7 @@ public:
     std::string getCreatedDate() const;
     std::string getEmail() const;
     std::string getHomepageUrl() const;
-    std::string getId() const;
+    unsigned long getId() const;
     std::string getMetadataFormat() const;
     std::string getName() const;
     std::string getType() const;
@@ -93,6 +93,7 @@ class Work : public Entity {
 public:
     std::string getAbstract() const;
     std::vector<Author> getAuthors() const;
+    std::vector<unsigned long> getDataProviderIds() const; // JSON also contains name field, but that always seems to be empty
     std::string getDocumentType() const;
     std::string getDownloadUrl() const;
     std::string getFieldOfStudy() const;
@@ -179,6 +180,14 @@ SearchResponse Search(const SearchParams &params);
  *         and write JSON files to output dir.
  */
 void SearchBatch(const SearchParams &params, const std::string &output_dir, const unsigned limit = 0);
+
+/** \brief will search from offset_ to end in multiple searches
+ *         and return a list with combined results.
+ *         Rather use SearchBatch with output_dir if you expect big results.
+ */
+std::vector<Entity> SearchBatch(const SearchParams &params, const unsigned limit = 0);
+std::vector<Work> SearchBatch(const SearchParamsWorks &params, const unsigned limit = 0);
+std::vector<DataProvider> SearchBatch(const SearchParamsDataProviders &params, const unsigned limit = 0);
 
 nlohmann::json ParseFile(const std::string &file);
 std::vector<Entity> GetEntitiesFromFile(const std::string &file);

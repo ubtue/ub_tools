@@ -18,6 +18,7 @@
  */
 
 #include <iostream>
+#include <map>
 #include <set>
 #include <unordered_map>
 #include "CORE.h"
@@ -75,7 +76,8 @@ namespace {
         "\t- input_file: The JSON file to convert.\n"
         "\t- output_file: The MARC or XML file to write to.\n"
         "\n"
-        "data-providers\n"
+        "data-providers output_file\n"
+        "\t- output_file: The CSV file to write to.\n"
         "\n");
 }
 
@@ -422,6 +424,7 @@ void Statistics(int argc, char **argv) {
     unsigned count_empty_title(0);
     unsigned count_empty_authors(0);
 
+    std::map<unsigned long, unsigned> data_providers;
     std::map<std::string, unsigned> languages;
     for (const auto &work : works) {
         if (work.isArticle())
@@ -437,10 +440,19 @@ void Statistics(int argc, char **argv) {
         if (language_iter == languages.end())
             languages[work.getLanguage().code_] = 1;
         else
-            ++languages[work.getLanguage().code_];
+            ++language_iter->second;
 
         if (work.getPublisher() == "Universität Tübingen")
             ++count_uni_tue;
+
+        const auto data_provider_ids(work.getDataProviderIds());
+        for (const auto &data_provider_id : data_provider_ids) {
+            const auto data_providers_iter(data_providers.find(data_provider_id));
+            if (data_providers_iter == data_providers.end())
+                data_providers[data_provider_id] = 1;
+            else
+                ++data_providers_iter->second;
+        }
     }
 
     LOG_INFO("Statistics for " + core_file + ":");
@@ -458,23 +470,43 @@ void Statistics(int argc, char **argv) {
         first = false;
     }
     LOG_INFO(languages_msg);
+
+    std::string data_providers_msg("data providers:\n");
+    std::vector<std::pair<long unsigned, unsigned>> data_providers_sort;
+    for (const auto &item : data_providers) {
+        data_providers_sort.emplace_back(item);
+    }
+    std::sort(data_providers_sort.begin(), data_providers_sort.end(), [](const auto &x, const auto &y) { return x.second > y.second; });
+    for (const auto &[data_provider_id, count] : data_providers_sort) {
+        data_providers_msg += "ID: " + std::to_string(data_provider_id) + ", count: " + std::to_string(count) + "\n";
+    }
+    LOG_INFO(data_providers_msg);
 }
 
 
-void DataProviders(int argc, char ** /*argv*/) {
+void DataProviders(int argc, char **argv) {
     // Parse args
-    if (argc != 2)
+    if (argc != 3)
         Usage();
+
+    const std::string output_file(argv[2]);
 
     CORE::SearchParamsDataProviders params;
     params.q_ = "*";
-    params.limit_ = 100;
-    const auto result(CORE::SearchDataProviders(params));
-    LOG_INFO(std::to_string(result.total_hits_));
+    params.limit_ = 1000;
+    const auto data_providers(CORE::SearchBatch(params));
 
-    for (const auto &data_provider : result.results_) {
-        LOG_INFO(data_provider.getName() + ": " + data_provider.getMetadataFormat());
+    unsigned count(0);
+    FileUtil::WriteStringOrDie(output_file, "ID;Name;Homepage URL;Type;Metadata Format;Created Date\n");
+    for (const auto &data_provider : data_providers) {
+        ++count;
+        FileUtil::AppendStringOrDie(output_file, std::to_string(data_provider.getId()) + ";" + TextUtil::CSVEscape(data_provider.getName())
+                                                     + ";" + TextUtil::CSVEscape(data_provider.getHomepageUrl()) + ";"
+                                                     + TextUtil::CSVEscape(data_provider.getType()) + ";"
+                                                     + TextUtil::CSVEscape(data_provider.getMetadataFormat()) + ";"
+                                                     + TextUtil::CSVEscape(data_provider.getCreatedDate()) + "\n");
     }
+    LOG_INFO("Generated " + output_file + " with " + std::to_string(count) + " entries.");
 }
 
 
