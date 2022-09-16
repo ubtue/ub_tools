@@ -93,7 +93,7 @@ class Work : public Entity {
 public:
     std::string getAbstract() const;
     std::vector<Author> getAuthors() const;
-    std::vector<unsigned long> getDataProviderIds() const;
+    std::vector<unsigned long> getDataProviderIds() const; // JSON also contains name field, but that always seems to be empty
     std::string getDocumentType() const;
     std::string getDownloadUrl() const;
     std::string getFieldOfStudy() const;
